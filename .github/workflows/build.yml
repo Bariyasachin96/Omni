@@ -1,4 +1,4 @@
-name: Build Omni Master
+name: Build Omni TTS
 on:
   push:
     branches: [ "main", "master" ]
@@ -9,443 +9,1273 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+
     - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
+
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+
     - name: Install NDK and CMake
       run: |
-        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.1.8937393" "cmake;3.22.1" --sdk_root=$ANDROID_HOME
+        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+          "ndk;25.1.8937393" "cmake;3.22.1" --sdk_root=$ANDROID_HOME
+
     - name: Clone CLD2
       run: |
         mkdir -p app/src/main/cpp
-        git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+        git clone --depth 1 https://github.com/CLD2Owners/cld2.git \
+          app/src/main/cpp/cld2_src
+
     - name: Generate Project Files
       run: |
-        mkdir -p app/src/main/java/com/omni/tts
+        # ── directory structure ────────────────────────────────────────────
+        mkdir -p app/src/main/kotlin/com/omni/tts
         mkdir -p app/src/main/res/xml
+        mkdir -p app/src/main/res/values
 
+        # ── gradle.properties ──────────────────────────────────────────────
         cat > gradle.properties << 'EOF'
-        android.useAndroidX=true
-        android.enableJetifier=true
-        org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8
-        EOF
+android.useAndroidX=true
+android.enableJetifier=true
+org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8
+EOF
 
+        # ── settings.gradle.kts ───────────────────────────────────────────
         cat > settings.gradle.kts << 'EOF'
-        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-        dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-            repositories { google(); mavenCentral() }
-        }
-        rootProject.name = "Omni"
-        include(":app")
-        EOF
+pluginManagement {
+    repositories { google(); mavenCentral(); gradlePluginPortal() }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = "Omni"
+include(":app")
+EOF
 
+        # ── root build.gradle.kts ─────────────────────────────────────────
         cat > build.gradle.kts << 'EOF'
-        plugins {
-            id("com.android.application") version "8.2.2" apply false
-            id("org.jetbrains.kotlin.android") version "1.9.22" apply false
-        }
-        EOF
+plugins {
+    id("com.android.application") version "8.2.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+}
+EOF
 
+        # ── app/build.gradle.kts ──────────────────────────────────────────
         cat > app/build.gradle.kts << 'EOF'
-        plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
-        android {
-            namespace = "com.omni.tts"
-            compileSdk = 34
-            ndkVersion = "25.1.8937393"
-            defaultConfig {
-                applicationId = "com.omni.tts"
-                minSdk = 24
-                targetSdk = 34
-                versionCode = 1
-                versionName = "1.0"
-                externalNativeBuild { cmake { cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3"); arguments += listOf("-DANDROID_STL=c++_shared") } }
-                ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) }
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+android {
+    namespace = "com.omni.tts"
+    compileSdk = 34
+    ndkVersion = "25.1.8937393"
+    defaultConfig {
+        applicationId = "com.omni.tts"
+        minSdk = 24
+        targetSdk = 34
+        versionCode = 1
+        versionName = "2.0"
+        externalNativeBuild {
+            cmake {
+                cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3")
+                arguments += listOf("-DANDROID_STL=c++_shared")
             }
-            buildFeatures { compose = true }
-            composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
-            externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
-            compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-            kotlinOptions { jvmTarget = "17" }
-            packaging { resources { pickFirsts.add("**/libc++_shared.so") } }
         }
-        dependencies {
-            implementation("androidx.core:core-ktx:1.12.0")
-            implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-            implementation("androidx.activity:activity-compose:1.8.2")
-            val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
-            implementation(composeBom)
-            implementation("androidx.compose.ui:ui")
-            implementation("androidx.compose.ui:ui-graphics")
-            implementation("androidx.compose.material3:material3")
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+        ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) }
+    }
+    buildFeatures { compose = true }
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
-        EOF
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
+    sourceSets {
+        getByName("main") { kotlin.srcDirs("src/main/kotlin") }
+    }
+    packaging {
+        resources { pickFirsts.add("**/libc++_shared.so") }
+    }
+}
+dependencies {
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.activity:activity-compose:1.8.2")
+    val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
+    implementation(composeBom)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+}
+EOF
 
+        # ── CMakeLists.txt ────────────────────────────────────────────────
         cat > app/src/main/cpp/CMakeLists.txt << 'EOF'
-        cmake_minimum_required(VERSION 3.22.1)
-        project("omni_native")
-        set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
-        add_library(omni_engine SHARED
-            tts_engine_core.cpp
-            ${CLD2_DIR}/cldutil.cc
-            ${CLD2_DIR}/cldutil_shared.cc
-            ${CLD2_DIR}/compact_lang_det.cc
-            ${CLD2_DIR}/compact_lang_det_hint_code.cc
-            ${CLD2_DIR}/compact_lang_det_impl.cc
-            ${CLD2_DIR}/debug.cc
-            ${CLD2_DIR}/fixunicodevalue.cc
-            ${CLD2_DIR}/generated_entities.cc
-            ${CLD2_DIR}/generated_language.cc
-            ${CLD2_DIR}/generated_ulscript.cc
-            ${CLD2_DIR}/getonescriptspan.cc
-            ${CLD2_DIR}/lang_script.cc
-            ${CLD2_DIR}/offsetmap.cc
-            ${CLD2_DIR}/scoreonescriptspan.cc
-            ${CLD2_DIR}/tote.cc
-            ${CLD2_DIR}/utf8statetable.cc
-            ${CLD2_DIR}/cld_generated_cjk_uni_prop_80.cc
-            ${CLD2_DIR}/cld2_generated_cjk_compatible.cc
-            ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc
-            ${CLD2_DIR}/generated_distinct_bi_0.cc
-            ${CLD2_DIR}/cld2_generated_quadchrome_2.cc
-            ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc
-            ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc
-            ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc
-        )
-        target_include_directories(omni_engine PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
-        find_library(log-lib log)
-        target_link_libraries(omni_engine ${log-lib})
-        EOF
+cmake_minimum_required(VERSION 3.22.1)
+project("omni_native")
+set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
+add_library(omni_engine SHARED
+    tts_engine_core.cpp
+    ${CLD2_DIR}/cldutil.cc
+    ${CLD2_DIR}/cldutil_shared.cc
+    ${CLD2_DIR}/compact_lang_det.cc
+    ${CLD2_DIR}/compact_lang_det_hint_code.cc
+    ${CLD2_DIR}/compact_lang_det_impl.cc
+    ${CLD2_DIR}/debug.cc
+    ${CLD2_DIR}/fixunicodevalue.cc
+    ${CLD2_DIR}/generated_entities.cc
+    ${CLD2_DIR}/generated_language.cc
+    ${CLD2_DIR}/generated_ulscript.cc
+    ${CLD2_DIR}/getonescriptspan.cc
+    ${CLD2_DIR}/lang_script.cc
+    ${CLD2_DIR}/offsetmap.cc
+    ${CLD2_DIR}/scoreonescriptspan.cc
+    ${CLD2_DIR}/tote.cc
+    ${CLD2_DIR}/utf8statetable.cc
+    ${CLD2_DIR}/cld_generated_cjk_uni_prop_80.cc
+    ${CLD2_DIR}/cld2_generated_cjk_compatible.cc
+    ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc
+    ${CLD2_DIR}/generated_distinct_bi_0.cc
+    ${CLD2_DIR}/cld2_generated_quadchrome_2.cc
+    ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc
+    ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc
+    ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc
+)
+target_include_directories(omni_engine PRIVATE
+    ${CLD2_DIR}/../public ${CLD2_DIR})
+find_library(log-lib log)
+target_link_libraries(omni_engine ${log-lib})
+EOF
 
+        # ── tts_engine_core.cpp ───────────────────────────────────────────
         cat > app/src/main/cpp/tts_engine_core.cpp << 'EOF'
-        #include <jni.h>
-        #include <string>
-        #include <cstring>
-        #include <vector>
-        #include "compact_lang_det.h"
-        std::string detectLanguage(const std::string& text) {
-            bool is_reliable = false;
-            int bytes = static_cast<int>(text.length());
-            if (bytes == 0) return "un";
-            CLD2::Language lang = CLD2::DetectLanguage(text.c_str(), bytes, true, &is_reliable);
-            const char* code = CLD2::LanguageCode(lang);
-            if (code == nullptr || strlen(code) == 0 || strcmp(code, "un") == 0) return "un";
-            return std::string(code);
-        }
-        extern "C" JNIEXPORT jstring JNICALL
-        Java_com_omni_tts_NativeEngine_processAndDetect(JNIEnv* env, jobject, jstring input_text) {
-            if (input_text == nullptr) return env->NewStringUTF("un|NONE");
-            const char* utf8 = env->GetStringUTFChars(input_text, nullptr);
-            if (utf8 == nullptr) return env->NewStringUTF("un|NONE");
-            std::string text(utf8);
-            env->ReleaseStringUTFChars(input_text, utf8);
-            std::string lang = detectLanguage(text);
-            std::string result = lang + "|" + text;
-            return env->NewStringUTF(result.c_str());
-        }
-        EOF
+#include <jni.h>
+#include <string>
+#include <cstring>
+#include "compact_lang_det.h"
 
-        cat > app/src/main/java/com/omni/tts/NativeEngine.kt << 'EOF'
-        package com.omni.tts
-        object NativeEngine {
-            init { System.loadLibrary("omni_engine") }
-            external fun processAndDetect(text: String): String
-        }
-        EOF
+// Returns ISO-639 2-letter code, or "un" if unknown/unreliable
+static std::string detectLang(const std::string& text) {
+    if (text.empty()) return "un";
+    bool reliable = false;
+    int bytes = static_cast<int>(text.size());
+    CLD2::Language lang = CLD2::DetectLanguage(
+        text.c_str(), bytes, true, &reliable);
+    const char* code = CLD2::LanguageCode(lang);
+    if (!code || strlen(code) == 0 || strcmp(code,"un")==0) return "un";
+    return std::string(code);
+}
 
-        cat > app/src/main/java/com/omni/tts/SharedPrefsManager.kt << 'EOF'
-        package com.omni.tts
-        import android.content.Context
-        import android.content.SharedPreferences
-        class SharedPrefsManager(context: Context) {
-            private val prefs: SharedPreferences = context.getSharedPreferences("OMNI_PREFS", Context.MODE_PRIVATE)
-            fun getString(key: String, def: String): String = prefs.getString(key, def) ?: def
-            fun setString(key: String, value: String) = prefs.edit().putString(key, value).apply()
-            fun getEngineForLang(langCode: String): String = prefs.getString("engine_$langCode", "NOT_SET") ?: "NOT_SET"
-            fun getFloat(key: String, def: Float): Float = prefs.getFloat(key, def)
-            fun setFloat(key: String, value: Float) = prefs.edit().putFloat(key, value).apply()
-        }
-        EOF
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_omni_tts_NativeEngine_detectLang(
+        JNIEnv* env, jobject, jstring jText) {
+    if (!jText) return env->NewStringUTF("un");
+    const char* utf8 = env->GetStringUTFChars(jText, nullptr);
+    if (!utf8)  return env->NewStringUTF("un");
+    std::string result = detectLang(std::string(utf8));
+    env->ReleaseStringUTFChars(jText, utf8);
+    return env->NewStringUTF(result.c_str());
+}
+EOF
 
-        cat > app/src/main/java/com/omni/tts/EngineFinder.kt << 'EOF'
-        package com.omni.tts
-        import android.content.Context
-        import android.content.Intent
-        import android.speech.tts.TextToSpeech
-        object EngineFinder {
-            data class TTSInfo(val pkg: String, val name: String)
-            fun getEngines(context: Context): List<TTSInfo> {
-                val pm = context.packageManager
-                val intent = Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE)
-                val list = pm.queryIntentServices(intent, 0).map { TTSInfo(it.serviceInfo.packageName, it.serviceInfo.applicationInfo.loadLabel(pm).toString()) }
-                return if (list.isEmpty()) listOf(TTSInfo("com.google.android.tts", "Google TTS")) else list
+        # ── res/values/strings.xml ────────────────────────────────────────
+        cat > app/src/main/res/values/strings.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Omni TTS</string>
+</resources>
+EOF
+
+        # ── res/xml/tts_engine.xml ────────────────────────────────────────
+        cat > app/src/main/res/xml/tts_engine.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<tts-engine xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.omni.tts.MainActivity" />
+EOF
+
+        # ── AndroidManifest.xml ───────────────────────────────────────────
+        cat > app/src/main/AndroidManifest.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+    <application
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".OmniTtsService"
+            android:exported="true"
+            android:permission="android.permission.BIND_TEXT_TO_SPEECH_SERVICE">
+            <intent-filter>
+                <action android:name="android.intent.action.TTS_SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech.tts"
+                android:resource="@xml/tts_engine" />
+        </service>
+    </application>
+</manifest>
+EOF
+
+        # ── NativeEngine.kt ───────────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/NativeEngine.kt << 'EOF'
+package com.omni.tts
+
+object NativeEngine {
+    init { System.loadLibrary("omni_engine") }
+    external fun detectLang(text: String): String
+}
+EOF
+
+        # ── SharedPrefsManager.kt ─────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/SharedPrefsManager.kt << 'EOF'
+package com.omni.tts
+
+import android.content.Context
+import android.content.SharedPreferences
+
+/**
+ * Keys:
+ *   engine_<isoCode>           → TTS engine package for this language
+ *   rate_<isoCode>_<pkg>       → speech rate (float, default 1.0)
+ *   pitch_<isoCode>_<pkg>      → pitch (float, default 1.0)
+ *   loc_<isoCode>_<pkg>        → voice locale tag (string)
+ *   latin_fallback             → iso code for undetected Latin text
+ *   nonlatin_fallback          → iso code for undetected non-Latin text
+ */
+class SharedPrefsManager(context: Context) {
+    private val p: SharedPreferences =
+        context.getSharedPreferences("OMNI_PREFS", Context.MODE_PRIVATE)
+
+    fun getString(key: String, def: String = ""): String =
+        p.getString(key, def) ?: def
+
+    fun setString(key: String, value: String) =
+        p.edit().putString(key, value).apply()
+
+    fun getFloat(key: String, def: Float = 1f): Float = p.getFloat(key, def)
+    fun setFloat(key: String, v: Float) = p.edit().putFloat(key, v).apply()
+
+    fun getBoolean(key: String, def: Boolean = false): Boolean =
+        p.getBoolean(key, def)
+    fun setBoolean(key: String, v: Boolean) = p.edit().putBoolean(key, v).apply()
+
+    fun engineForLang(iso: String): String =
+        p.getString("engine_$iso", "NOT_SET") ?: "NOT_SET"
+
+    fun setEngineForLang(iso: String, pkg: String) =
+        p.edit().putString("engine_$iso", pkg).apply()
+
+    fun rateKey(iso: String, pkg: String) = "rate_${iso}_$pkg"
+    fun pitchKey(iso: String, pkg: String) = "pitch_${iso}_$pkg"
+    fun locKey(iso: String, pkg: String) = "loc_${iso}_$pkg"
+}
+EOF
+
+        # ── LanguageDetector.kt ───────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/LanguageDetector.kt << 'EOF'
+package com.omni.tts
+
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * Language detection chain:
+ * 1. CLD2 64-char sliding window
+ * 2. If result configured  → use it
+ * 3. If result not configured → script check
+ *      Latin  → latin_fallback pref
+ *      NonLatin → nonlatin_fallback pref
+ * 4. Codepoint → hardcoded block table
+ * 5. Script pref fallback
+ * 6. "en" last resort
+ *
+ * Block table hardcoded from Unicode Blocks 12.1 — no asset file.
+ */
+object LanguageDetector {
+
+    // ── Block table ───────────────────────────────────────────────────────
+    // [startCp, endCp, isoCode]
+    private val BLOCKS: Array<IntArray> = arrayOf(
+        intArrayOf(0x0530,0x058F, 0), // hy Armenian
+        intArrayOf(0x0590,0x05FF, 1), // he Hebrew
+        intArrayOf(0x0600,0x06FF, 2), // ar Arabic
+        intArrayOf(0x0700,0x074F, 3), // ar Syriac
+        intArrayOf(0x0750,0x077F, 2), // ar Arabic Supplement
+        intArrayOf(0x08A0,0x08FF, 2), // ar Arabic Extended
+        intArrayOf(0x0900,0x097F, 4), // hi Devanagari
+        intArrayOf(0x0980,0x09FF, 5), // bn Bengali
+        intArrayOf(0x0A00,0x0A7F, 6), // pa Gurmukhi
+        intArrayOf(0x0A80,0x0AFF, 7), // gu Gujarati
+        intArrayOf(0x0B00,0x0B7F, 8), // or Oriya
+        intArrayOf(0x0B80,0x0BFF, 9), // ta Tamil
+        intArrayOf(0x0C00,0x0C7F,10), // te Telugu
+        intArrayOf(0x0C80,0x0CFF,11), // kn Kannada
+        intArrayOf(0x0D00,0x0D7F,12), // ml Malayalam
+        intArrayOf(0x0D80,0x0DFF,13), // si Sinhala
+        intArrayOf(0x0E00,0x0E7F,14), // th Thai
+        intArrayOf(0x0E80,0x0EFF,15), // lo Lao
+        intArrayOf(0x0F00,0x0FFF,16), // bo Tibetan
+        intArrayOf(0x1000,0x109F,17), // my Myanmar
+        intArrayOf(0x10A0,0x10FF,18), // ka Georgian
+        intArrayOf(0x1100,0x11FF,19), // ko Hangul Jamo
+        intArrayOf(0x1200,0x137F,20), // am Ethiopic
+        intArrayOf(0x1380,0x139F,20), // am Ethiopic Supplement
+        intArrayOf(0x1780,0x17FF,21), // km Khmer
+        intArrayOf(0x1800,0x18AF,22), // mn Mongolian
+        intArrayOf(0x1B80,0x1BBF,23), // su Sundanese
+        intArrayOf(0x1C90,0x1CBF,18), // ka Georgian Extended
+        intArrayOf(0x1CC0,0x1CCF,23), // su Sundanese Supplement
+        intArrayOf(0x1F00,0x1FFF,24), // el Greek Extended
+        intArrayOf(0x2D00,0x2D2F,18), // ka Georgian Supplement
+        intArrayOf(0x2D30,0x2D7F,25), // zgh Tifinagh/Berber
+        intArrayOf(0x3040,0x309F,26), // ja Hiragana
+        intArrayOf(0x30A0,0x30FF,26), // ja Katakana
+        intArrayOf(0x3100,0x312F,27), // zh Bopomofo
+        intArrayOf(0x3130,0x318F,19), // ko Hangul Compat
+        intArrayOf(0x3190,0x319F,27), // zh Kanbun
+        intArrayOf(0x31A0,0x31BF,27), // zh Bopomofo Extended
+        intArrayOf(0x31F0,0x31FF,26), // ja Katakana Phonetic
+        intArrayOf(0x3400,0x4DBF,27), // zh CJK Ext A
+        intArrayOf(0x4E00,0x9FFF,27), // zh CJK Unified
+        intArrayOf(0xA000,0xA48F,27), // zh Yi Syllables
+        intArrayOf(0xA490,0xA4CF,27), // zh Yi Radicals
+        intArrayOf(0xA8E0,0xA8FF, 4), // hi Devanagari Extended
+        intArrayOf(0xA960,0xA97F,19), // ko Hangul Jamo Ext-A
+        intArrayOf(0xA980,0xA9DF,28), // jv Javanese
+        intArrayOf(0xA9E0,0xA9FF,17), // my Myanmar Ext-B
+        intArrayOf(0xAA60,0xAA7F,17), // my Myanmar Ext-A
+        intArrayOf(0xAB00,0xAB2F,20), // am Ethiopic Extended-A
+        intArrayOf(0xAC00,0xD7AF,19), // ko Hangul Syllables
+        intArrayOf(0xD7B0,0xD7FF,19), // ko Hangul Jamo Ext-B
+        intArrayOf(0xFB50,0xFDFF, 2), // ar Arabic Presentation A
+        intArrayOf(0xFE70,0xFEFF, 2), // ar Arabic Presentation B
+        intArrayOf(0x11100,0x1114F, 5), // bn Chakma
+        intArrayOf(0x11150,0x1117F, 4), // hi Mahajani
+        intArrayOf(0x11300,0x1137F, 9), // ta Grantha
+        intArrayOf(0x11600,0x1165F,29), // mr Modi
+        intArrayOf(0x11FC0,0x11FFF, 9), // ta Tamil Supplement
+        intArrayOf(0x1EE00,0x1EEFF, 2), // ar Arabic Math
+        intArrayOf(0x20000,0x2A6DF,27), // zh CJK Ext B
+        intArrayOf(0x2A700,0x2B73F,27), // zh CJK Ext C
+        intArrayOf(0x2B740,0x2B81F,27), // zh CJK Ext D
+        intArrayOf(0x2B820,0x2CEAF,27), // zh CJK Ext E
+        intArrayOf(0x2CEB0,0x2EBEF,27)  // zh CJK Ext F
+    )
+
+    // Matches index in BLOCKS[n][2]
+    private val BLOCK_ISO = arrayOf(
+        "hy","he","ar","ar","hi","bn","pa","gu","or","ta","te","kn","ml","si",
+        "th","lo","bo","my","ka","ko","am","km","mn","su","el","zgh","ja","zh",
+        "jv","mr"
+    )
+
+    // ── Codepoint cache ───────────────────────────────────────────────────
+    private val cpCache = ConcurrentHashMap<Int, String>()
+    private const val CACHE_MAX = 5000
+
+    // ── Latin check ───────────────────────────────────────────────────────
+    fun isLatinText(text: String): Boolean {
+        for (cp in text.codePoints()) {
+            if (cp > 0x02AF && !(cp in 0x1E00..0x1EFF)) return false
+        }
+        return true
+    }
+
+    // ── Detection entry point ─────────────────────────────────────────────
+    fun detect(text: String, prefs: SharedPrefsManager): String {
+        val trimmed = if (text.length > 1500) text.substring(0, 1500) else text.trim()
+
+        // Step 1+2: CLD2 + direct configured check
+        val cld2 = detectWithCld2(trimmed)
+        if (cld2 != null && cld2 != "un") {
+            if (isConfigured(cld2, prefs)) return cld2
+            // Step 3: script pref
+            val sp = scriptPref(trimmed, prefs)
+            if (sp != null) return sp
+        }
+
+        // Step 4: block lookup
+        val cp = firstSignificantCp(trimmed)
+        if (cp > 0x2AF) {
+            val cached = cpCache[cp]
+            if (cached != null && isConfigured(cached, prefs)) return cached
+            val blockIso = blockLookup(cp)
+            if (blockIso != null) {
+                if (cpCache.size < CACHE_MAX) cpCache[cp] = blockIso
+                if (isConfigured(blockIso, prefs)) return blockIso
+                val sp = scriptPref(trimmed, prefs)
+                if (sp != null) return sp
             }
         }
-        EOF
 
-        cat > app/src/main/java/com/omni/tts/WavUtils.kt << 'EOF'
-        package com.omni.tts
-        import java.io.EOFException
-        import java.io.InputStream
-        object WavUtils {
-            class WavInfo { var sampleRate=16000; var channels:Short=1; var bitsPerSample:Short=16; var dataOffset=0 }
-            fun parse(dis: InputStream): WavInfo {
-                val info = WavInfo()
-                readFully(dis, ByteArray(4)); readInt(dis); readFully(dis, ByteArray(4)); var offset = 12
-                while (true) {
-                    val chunkId = ByteArray(4); readFully(dis, chunkId)
-                    val chunkSize = Integer.reverseBytes(readInt(dis)); offset += 8
-                    val id = String(chunkId)
-                    if (id == "fmt ") {
-                        readShort(dis); info.channels = java.lang.Short.reverseBytes(readShort(dis))
-                        info.sampleRate = Integer.reverseBytes(readInt(dis)); readInt(dis); readShort(dis)
-                        info.bitsPerSample = java.lang.Short.reverseBytes(readShort(dis))
-                        val rem = chunkSize - 16; if (rem > 0) skipFully(dis, rem); offset += chunkSize
-                    } else if (id == "data") { info.dataOffset = offset; break } else { skipFully(dis, chunkSize); offset += chunkSize }
+        // Step 5: script pref (pure ASCII or block miss)
+        val sp = scriptPref(trimmed, prefs)
+        if (sp != null) return sp
+
+        // Step 6: en last resort
+        return prefs.engineForLang("en").let { if (it != "NOT_SET") "en" else "NOT_SET" }
+    }
+
+    /** Detect without config check — used for chunking */
+    fun detectRaw(text: String): String {
+        val trimmed = if (text.length > 1500) text.substring(0, 1500) else text.trim()
+        val cld2 = detectWithCld2(trimmed)
+        if (cld2 != null && cld2 != "un") return cld2
+        val cp = firstSignificantCp(trimmed)
+        if (cp > 0x2AF) {
+            val b = blockLookup(cp)
+            if (b != null) return b
+        }
+        return "en"
+    }
+
+    // ── Privates ──────────────────────────────────────────────────────────
+
+    private fun detectWithCld2(text: String): String? {
+        var i = 0
+        while (i < text.length) {
+            val chunk = text.substring(i, minOf(i + 64, text.length))
+            val r = try { NativeEngine.detectLang(chunk) } catch (_: Exception) { null }
+            if (r != null && r != "un" && r.length >= 2) return r
+            i += 64
+        }
+        val r = try { NativeEngine.detectLang(text) } catch (_: Exception) { null }
+        if (r != null && r != "un" && r.length >= 2) return r
+        return null
+    }
+
+    private fun scriptPref(text: String, prefs: SharedPrefsManager): String? {
+        val key = if (isLatinText(text)) "latin_fallback" else "nonlatin_fallback"
+        val iso = prefs.getString(key)
+        return if (iso.isNotEmpty() && isConfigured(iso, prefs)) iso else null
+    }
+
+    private fun isConfigured(iso: String, prefs: SharedPrefsManager): Boolean =
+        prefs.engineForLang(iso) != "NOT_SET"
+
+    private fun blockLookup(cp: Int): String? {
+        for (e in BLOCKS) if (cp in e[0]..e[1]) return BLOCK_ISO[e[2]]
+        return null
+    }
+
+    private fun firstSignificantCp(text: String): Int {
+        for (cp in text.codePoints()) {
+            if (!Character.isWhitespace(cp) && !Character.isDigit(cp)
+                && !(cp in 0x21..0x2F) && !(cp in 0x3A..0x40)
+                && !(cp in 0x5B..0x60) && !(cp in 0x7B..0x7E))
+                return cp
+        }
+        return -1
+    }
+}
+EOF
+
+        # ── TextSplitter.kt ───────────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/TextSplitter.kt << 'EOF'
+package com.omni.tts
+
+import java.text.BreakIterator
+
+data class Chunk(val text: String, val iso: String)
+
+/**
+ * Splits text into same-language sentence chunks.
+ * Merges consecutive chunks of the same ISO code up to 500 chars.
+ */
+object TextSplitter {
+
+    fun split(text: String, prefs: SharedPrefsManager): List<Chunk> {
+        if (text.isBlank()) return emptyList()
+
+        val bi = BreakIterator.getSentenceInstance()
+        bi.setText(text)
+
+        val raw = mutableListOf<Chunk>()
+        var start = bi.first()
+        var end = bi.next()
+        while (end != BreakIterator.DONE) {
+            val seg = text.substring(start, end)
+            if (seg.isNotBlank()) {
+                val iso = LanguageDetector.detect(seg, prefs)
+                raw.add(Chunk(seg, iso))
+            }
+            start = end
+            end = bi.next()
+        }
+
+        // Merge same-language consecutive chunks up to 500 chars
+        if (raw.isEmpty()) return emptyList()
+        val merged = mutableListOf<Chunk>()
+        var cur = raw[0]
+        for (i in 1 until raw.size) {
+            val next = raw[i]
+            if (next.iso == cur.iso && cur.text.length + next.text.length <= 500) {
+                cur = Chunk(cur.text + next.text, cur.iso)
+            } else {
+                merged.add(cur)
+                cur = next
+            }
+        }
+        merged.add(cur)
+        return merged
+    }
+}
+EOF
+
+        # ── WavUtils.kt ───────────────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/WavUtils.kt << 'EOF'
+package com.omni.tts
+
+import java.io.EOFException
+import java.io.InputStream
+
+object WavUtils {
+    data class WavInfo(
+        val sampleRate: Int = 16000,
+        val channels: Int = 1,
+        val bitsPerSample: Int = 16,
+        val dataOffset: Int = 44
+    )
+
+    fun parse(input: InputStream): WavInfo {
+        readFully(input, ByteArray(4))  // RIFF
+        readInt(input)                  // fileSize
+        readFully(input, ByteArray(4))  // WAVE
+        var offset = 12
+        var sampleRate = 16000
+        var channels = 1
+        var bitsPerSample = 16
+
+        while (true) {
+            val id = ByteArray(4).also { readFully(input, it) }
+            val size = readIntLE(input)
+            offset += 8
+            when (String(id)) {
+                "fmt " -> {
+                    readShortLE(input)                       // audioFormat
+                    channels = readShortLE(input).toInt()
+                    sampleRate = readIntLE(input)
+                    readIntLE(input)                         // byteRate
+                    readShortLE(input)                       // blockAlign
+                    bitsPerSample = readShortLE(input).toInt()
+                    val rem = size - 16
+                    if (rem > 0) skipFully(input, rem)
+                    offset += size
                 }
-                return info
+                "data" -> return WavInfo(sampleRate, channels, bitsPerSample, offset)
+                else -> { skipFully(input, size); offset += size }
             }
-            private fun readFully(i: InputStream, b: ByteArray) { var n=0; while(n<b.size){ val c=i.read(b,n,b.size-n); if(c<0)throw EOFException(); n+=c } }
-            private fun readInt(i: InputStream): Int { val c1=i.read();val c2=i.read();val c3=i.read();val c4=i.read(); if((c1 or c2 or c3 or c4)<0)throw EOFException(); return (c1 shl 24)+(c2 shl 16)+(c3 shl 8)+c4 }
-            private fun readShort(i: InputStream): Short { val c1=i.read();val c2=i.read(); if((c1 or c2)<0)throw EOFException(); return ((c1 shl 8)+c2).toShort() }
-            private fun skipFully(i: InputStream, n: Int) { var t=0; while(t<n){ var s=i.skip((n-t).toLong()); if(s==0L){if(i.read()<0)throw EOFException();s=1}; t+=s.toInt() } }
         }
-        EOF
+    }
 
-        cat > app/src/main/java/com/omni/tts/LiveStreamProcessor.kt << 'EOF'
-        package com.omni.tts
-        import android.content.Context
-        import android.os.Bundle
-        import android.os.Process
-        import android.speech.tts.TextToSpeech
-        import android.speech.tts.SynthesisCallback
-        import android.speech.tts.UtteranceProgressListener
-        import java.io.File
-        import java.io.FileInputStream
-        import java.util.concurrent.CountDownLatch
-        import java.util.concurrent.atomic.AtomicBoolean
-        object LiveStreamProcessor {
-            fun process(context: Context, tts: TextToSpeech, text: String, lang: String, callback: SynthesisCallback, cbStarted: BooleanArray, isStopped: AtomicBoolean): Boolean {
-                Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
-                val tmp = File(context.cacheDir, "omni_${System.nanoTime()}.wav")
-                var pipeStream: FileInputStream? = null
-                try {
-                    val latch = CountDownLatch(1)
-                    tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                        override fun onStart(id: String) {}
-                        override fun onDone(id: String) { latch.countDown() }
-                        override fun onError(id: String) { latch.countDown() }
-                    })
-                    val params = Bundle()
-                    if (tts.synthesizeToFile(text, params, tmp, "omni") != TextToSpeech.SUCCESS) return isStopped.get()
-                    var headerParsed = false; var bytesRead = 0L
-                    while (latch.count > 0 || tmp.length() > bytesRead) {
-                        if (isStopped.get()) { tts.stop(); break }
-                        if (!headerParsed && tmp.length() >= 44) {
-                            pipeStream = FileInputStream(tmp)
-                            val info = WavUtils.parse(pipeStream)
-                            bytesRead = info.dataOffset.toLong()
-                            pipeStream.channel.position(bytesRead)
-                            if (!cbStarted[0]) { callback.start(info.sampleRate, android.media.AudioFormat.ENCODING_PCM_16BIT, info.channels.toInt()); cbStarted[0] = true }
-                            headerParsed = true
-                        }
-                        if (headerParsed && tmp.length() > bytesRead) {
-                            val buf = ByteArray(1024)
-                            val r = pipeStream?.read(buf) ?: -1
-                            if (r > 0) { callback.audioAvailable(buf, 0, r); bytesRead += r }
-                        }
-                        Thread.sleep(1)
-                    }
-                } finally { pipeStream?.close(); if (tmp.exists()) tmp.delete() }
+    private fun readFully(i: InputStream, b: ByteArray) {
+        var n = 0
+        while (n < b.size) {
+            val c = i.read(b, n, b.size - n)
+            if (c < 0) throw EOFException()
+            n += c
+        }
+    }
+
+    private fun readIntLE(i: InputStream): Int {
+        val b = ByteArray(4).also { readFully(i, it) }
+        return (b[0].toInt() and 0xFF) or
+               ((b[1].toInt() and 0xFF) shl 8) or
+               ((b[2].toInt() and 0xFF) shl 16) or
+               ((b[3].toInt() and 0xFF) shl 24)
+    }
+
+    private fun readShortLE(i: InputStream): Short {
+        val b = ByteArray(2).also { readFully(i, it) }
+        return ((b[0].toInt() and 0xFF) or ((b[1].toInt() and 0xFF) shl 8)).toShort()
+    }
+
+    private fun skipFully(i: InputStream, n: Int) {
+        var t = 0
+        while (t < n) {
+            var s = i.skip((n - t).toLong())
+            if (s == 0L) { if (i.read() < 0) throw EOFException(); s = 1 }
+            t += s.toInt()
+        }
+    }
+}
+EOF
+
+        # ── LiveStreamProcessor.kt ────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/LiveStreamProcessor.kt << 'EOF'
+package com.omni.tts
+
+import android.content.Context
+import android.media.AudioFormat
+import android.os.Bundle
+import android.os.Process
+import android.speech.tts.SynthesisCallback
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import java.io.File
+import java.io.FileInputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
+object LiveStreamProcessor {
+
+    fun process(
+        context: Context,
+        tts: TextToSpeech,
+        text: String,
+        callback: SynthesisCallback,
+        cbStarted: BooleanArray,
+        isStopped: AtomicBoolean,
+        chunkIndex: Int = 0
+    ): Boolean {
+        Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
+        val tmp = File(context.cacheDir, "omni_${System.nanoTime()}.wav")
+        var pipe: FileInputStream? = null
+
+        try {
+            val latch = CountDownLatch(1)
+            var synthError = false
+
+            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(id: String) {}
+                override fun onDone(id: String) { latch.countDown() }
+                override fun onError(id: String) { synthError = true; latch.countDown() }
+                override fun onError(id: String, errorCode: Int) { synthError = true; latch.countDown() }
+            })
+
+            val params = Bundle()
+            if (tts.synthesizeToFile(text, params, tmp, "omni_$chunkIndex") != TextToSpeech.SUCCESS) {
                 return isStopped.get()
             }
-        }
-        EOF
 
-        cat > app/src/main/java/com/omni/tts/ComposeTtsService.kt << 'EOF'
-        package com.omni.tts
-        import android.speech.tts.SynthesisCallback
-        import android.speech.tts.SynthesisRequest
-        import android.speech.tts.TextToSpeech
-        import android.speech.tts.TextToSpeechService
-        import java.util.Locale
-        import java.util.concurrent.ConcurrentHashMap
-        import java.util.concurrent.atomic.AtomicBoolean
-        import java.util.concurrent.atomic.AtomicReference
-        class ComposeTtsService : TextToSpeechService() {
-            private val pool = ConcurrentHashMap<String, TextToSpeech>()
-            private lateinit var prefs: SharedPrefsManager
-            private val activeStop = AtomicReference(AtomicBoolean(true))
-            override fun onCreate() { super.onCreate(); prefs = SharedPrefsManager(this) }
-            override fun onGetLanguage(): Array<String> = arrayOf("eng", "USA", "")
-            override fun onIsLanguageAvailable(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
-            override fun onLoadLanguage(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
-            override fun onStop() { activeStop.get().set(true); pool.values.forEach { try { it.stop() } catch(e:Exception){} } }
-            override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
-                activeStop.get().set(true)
-                val myStop = AtomicBoolean(false)
-                activeStop.set(myStop)
-                val text = request?.charSequenceText?.toString() ?: return
-                val output = NativeEngine.processAndDetect(text)
-                val parts = output.split("|")
-                val lang = parts[0]
-                val pkg = prefs.getEngineForLang(lang)
-                if (pkg == "NOT_SET") { callback?.done(); return }
-                val tts = pool.getOrPut(pkg) { TextToSpeech(this, {}, pkg) }
-                val key = "${lang}_${pkg}"
-                val rate = prefs.getFloat("rate_$key", 1.0f)
-                val pitch = prefs.getFloat("pitch_$key", 1.0f)
-                val locTag = prefs.getString("loc_$key", "")
-                tts.setSpeechRate(rate); tts.setPitch(pitch)
-                if(locTag.isNotEmpty()) { try { tts.language = Locale.forLanguageTag(locTag) } catch(e:Exception){} }
-                val cbStarted = BooleanArray(1) { false }
-                LiveStreamProcessor.process(this, tts, parts[1], lang, callback!!, cbStarted, myStop)
-                if (!cbStarted[0]) callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
-                callback.done()
-            }
-            override fun onDestroy() { activeStop.get().set(true); pool.values.forEach { try { it.shutdown() } catch(e:Exception){} }; pool.clear(); super.onDestroy() }
-        }
-        EOF
+            // Wait max 10s for synthesis
+            latch.await(10, TimeUnit.SECONDS)
+            if (synthError) return isStopped.get()
 
-        cat > app/src/main/java/com/omni/tts/MainActivity.kt << 'EOF'
-        package com.omni.tts
-        import android.content.Intent
-        import android.os.Bundle
-        import android.speech.tts.TextToSpeech
-        import androidx.activity.ComponentActivity
-        import androidx.activity.compose.setContent
-        import androidx.compose.foundation.layout.*
-        import androidx.compose.foundation.rememberScrollState
-        import androidx.compose.foundation.verticalScroll
-        import androidx.compose.material3.*
-        import androidx.compose.runtime.*
-        import androidx.compose.ui.Modifier
-        import androidx.compose.ui.platform.LocalContext
-        import androidx.compose.ui.unit.dp
-        import java.util.Locale
-        class MainActivity : ComponentActivity() {
-            private var tempTts: TextToSpeech? = null
-            @OptIn(ExperimentalMaterial3Api::class)
-            override fun onCreate(savedInstanceState: Bundle?) {
-                super.onCreate(savedInstanceState)
-                val prefs = SharedPrefsManager(this)
-                setContent {
-                    MaterialTheme {
-                        Surface(modifier = Modifier.fillMaxSize()) {
-                            val context = LocalContext.current
-                            val engines = EngineFinder.getEngines(context)
-                            val languages = listOf("English (en)", "Hindi (hi)", "Gujarati (gu)", "Marathi (mr)", "Arabic (ar)")
-                            var expLang by remember { mutableStateOf(false) }
-                            var selLang by remember { mutableStateOf(languages[0]) }
-                            val lCode = selLang.substringAfter("(").substringBefore(")")
-                            var expEng by remember { mutableStateOf(false) }
-                            var selEngPkg by remember { mutableStateOf(prefs.getEngineForLang(lCode)) }
-                            val selEngName = engines.find { it.pkg == selEngPkg }?.name ?: "Not Set"
-                            var rate by remember { mutableFloatStateOf(prefs.getFloat("rate_${lCode}_$selEngPkg", 1.0f)) }
-                            var pitch by remember { mutableFloatStateOf(prefs.getFloat("pitch_${lCode}_$selEngPkg", 1.0f)) }
-                            var availableLocales by remember { mutableStateOf(listOf<Locale>()) }
-                            var expLoc by remember { mutableStateOf(false) }
-                            var selLocTag by remember { mutableStateOf(prefs.getString("loc_${lCode}_$selEngPkg", "")) }
-                            
-                            LaunchedEffect(selEngPkg, lCode) {
-                                if(selEngPkg != "NOT_SET") {
-                                    tempTts?.shutdown()
-                                    tempTts = TextToSpeech(context, { status ->
-                                        if(status == TextToSpeech.SUCCESS) {
-                                            val voices = try { tempTts?.voices?.map { it.locale }?.filter { it.language.equals(lCode, true) } } catch(e:Exception){ null }
-                                            availableLocales = voices?.distinctBy { it.toLanguageTag() } ?: listOf()
-                                        }
-                                    }, selEngPkg)
-                                } else availableLocales = listOf()
-                            }
+            var headerParsed = false
+            var bytesRead = 0L
 
-                            Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
-                                Text("OmniTTS Setup", style = MaterialTheme.typography.headlineMedium)
-                                Spacer(modifier = Modifier.height(24.dp))
-                                ExposedDropdownMenuBox(expanded = expLang, onExpandedChange = { expLang = !expLang }) {
-                                    OutlinedTextField(value = selLang, onValueChange = {}, readOnly = true, label = { Text("Language") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLang) }, modifier = Modifier.fillMaxWidth().menuAnchor())
-                                    ExposedDropdownMenu(expanded = expLang, onDismissRequest = { expLang = false }) {
-                                        languages.forEach { lang ->
-                                            DropdownMenuItem(text = { Text(lang) }, onClick = {
-                                                selLang = lang; val nCode = lang.substringAfter("(").substringBefore(")")
-                                                selEngPkg = prefs.getEngineForLang(nCode); rate = prefs.getFloat("rate_${nCode}_$selEngPkg", 1.0f)
-                                                pitch = prefs.getFloat("pitch_${nCode}_$selEngPkg", 1.0f); selLocTag = prefs.getString("loc_${nCode}_$selEngPkg", "")
-                                                expLang = false
-                                            })
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(16.dp))
-                                ExposedDropdownMenuBox(expanded = expEng, onExpandedChange = { expEng = !expEng }) {
-                                    OutlinedTextField(value = selEngName, onValueChange = {}, readOnly = true, label = { Text("TTS Engine") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expEng) }, modifier = Modifier.fillMaxWidth().menuAnchor())
-                                    ExposedDropdownMenu(expanded = expEng, onDismissRequest = { expEng = false }) {
-                                        engines.forEach { e ->
-                                            DropdownMenuItem(text = { Text(e.name) }, onClick = {
-                                                selEngPkg = e.pkg; prefs.setString("engine_$lCode", e.pkg)
-                                                rate = prefs.getFloat("rate_${lCode}_${e.pkg}", 1.0f); pitch = prefs.getFloat("pitch_${lCode}_${e.pkg}", 1.0f)
-                                                selLocTag = prefs.getString("loc_${lCode}_${e.pkg}", ""); expEng = false
-                                            })
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(16.dp))
-                                ExposedDropdownMenuBox(expanded = expLoc, onExpandedChange = { expLoc = !expLoc }) {
-                                    val locName = availableLocales.find { it.toLanguageTag() == selLocTag }?.displayName ?: "Default Voice"
-                                    OutlinedTextField(value = locName, onValueChange = {}, readOnly = true, label = { Text("Voice/Locale") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLoc) }, modifier = Modifier.fillMaxWidth().menuAnchor())
-                                    ExposedDropdownMenu(expanded = expLoc, onDismissRequest = { expLoc = false }) {
-                                        availableLocales.forEach { loc ->
-                                            DropdownMenuItem(text = { Text(loc.displayName) }, onClick = {
-                                                selLocTag = loc.toLanguageTag(); prefs.setString("loc_${lCode}_$selEngPkg", selLocTag); expLoc = false
-                                            })
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Text("Speech Rate: ${String.format("%.1fx", rate)}"); Slider(value = rate, onValueChange = { rate = it; prefs.setFloat("rate_${lCode}_$selEngPkg", it) }, valueRange = 0.1f..3.0f)
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Pitch: ${String.format("%.1fx", pitch)}"); Slider(value = pitch, onValueChange = { pitch = it; prefs.setFloat("pitch_${lCode}_$selEngPkg", it) }, valueRange = 0.1f..3.0f)
-                                Spacer(modifier = Modifier.height(32.dp))
-                                Button(onClick = {
-                                    tempTts?.setSpeechRate(rate); tempTts?.setPitch(pitch)
-                                    if(selLocTag.isNotEmpty()) try { tempTts?.language = Locale.forLanguageTag(selLocTag) } catch(e:Exception){}
-                                    tempTts?.speak("Testing Omni TTS Engine setup", TextToSpeech.QUEUE_FLUSH, null, "test")
-                                }, modifier = Modifier.fillMaxWidth()) { Text("TEST AUDIO") }
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Button(onClick = { startActivity(Intent("com.android.settings.TTS_SETTINGS")) }, modifier = Modifier.fillMaxWidth()) { Text("OPEN SYSTEM TTS SETTINGS") }
-                            }
+            while (!isStopped.get() && (latch.count > 0 || tmp.length() > bytesRead)) {
+                if (isStopped.get()) { tts.stop(); break }
+
+                if (!headerParsed && tmp.exists() && tmp.length() >= 44) {
+                    try {
+                        pipe = FileInputStream(tmp)
+                        val info = WavUtils.parse(pipe)
+                        bytesRead = info.dataOffset.toLong()
+                        pipe.channel.position(bytesRead)
+                        if (!cbStarted[0]) {
+                            val enc = if (info.bitsPerSample == 8)
+                                AudioFormat.ENCODING_PCM_8BIT
+                            else AudioFormat.ENCODING_PCM_16BIT
+                            callback.start(info.sampleRate, enc, info.channels)
+                            cbStarted[0] = true
                         }
+                        headerParsed = true
+                    } catch (_: Exception) {
+                        pipe?.close(); pipe = null
+                        Thread.sleep(1); continue
+                    }
+                }
+
+                if (headerParsed) {
+                    val avail = tmp.length() - bytesRead
+                    if (avail > 0 && pipe != null) {
+                        val buf = ByteArray(minOf(4096L, avail).toInt())
+                        val r = pipe.read(buf)
+                        if (r > 0) { callback.audioAvailable(buf, 0, r); bytesRead += r }
+                        else Thread.sleep(1)
+                    } else {
+                        Thread.sleep(1)
+                    }
+                } else {
+                    Thread.sleep(1)
+                }
+            }
+        } finally {
+            pipe?.close()
+            if (tmp.exists()) tmp.delete()
+        }
+        return isStopped.get()
+    }
+}
+EOF
+
+        # ── OmniTtsService.kt ─────────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/OmniTtsService.kt << 'EOF'
+package com.omni.tts
+
+import android.media.AudioFormat
+import android.speech.tts.SynthesisCallback
+import android.speech.tts.SynthesisRequest
+import android.speech.tts.TextToSpeech
+import android.speech.tts.TextToSpeechService
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+
+class OmniTtsService : TextToSpeechService() {
+
+    // Pool: engine package → TTS instance
+    private val pool = ConcurrentHashMap<String, TextToSpeech>()
+    private lateinit var prefs: SharedPrefsManager
+    private val activeStop = AtomicReference(AtomicBoolean(true))
+
+    // Cache: iso → last-set locale tag (avoid redundant setLanguage calls)
+    private val localeCache = ConcurrentHashMap<String, String>()
+
+    override fun onCreate() {
+        super.onCreate()
+        prefs = SharedPrefsManager(this)
+        // Warmup: init all configured engines in background
+        Thread {
+            LANGUAGES.values.toSet().forEach { iso ->
+                val pkg = prefs.engineForLang(iso)
+                if (pkg != "NOT_SET") getOrInitEngine(pkg)
+            }
+        }.start()
+    }
+
+    override fun onGetLanguage(): Array<String> = arrayOf("eng", "USA", "")
+    override fun onIsLanguageAvailable(l: String?, c: String?, v: String?) =
+        TextToSpeech.LANG_AVAILABLE
+    override fun onLoadLanguage(l: String?, c: String?, v: String?) =
+        TextToSpeech.LANG_AVAILABLE
+
+    override fun onStop() {
+        activeStop.get().set(true)
+        pool.values.forEach { try { it.stop() } catch (_: Exception) {} }
+    }
+
+    override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
+        if (request == null || callback == null) return
+        activeStop.get().set(true)
+        val myStop = AtomicBoolean(false)
+        activeStop.set(myStop)
+
+        var rawText = request.charSequenceText?.toString() ?: return
+
+        // ── Normalization ─────────────────────────────────────────────────
+        rawText = normalizeFancyUnicode(rawText)
+        rawText = rawText.replace('\u00A0', ' ')
+            .replace('\u200B', ' ').replace('\u200C', ' ')
+            .replace('\u200D', ' ').replace('\uFEFF', ' ')
+
+        val trimmed = rawText.trim()
+        if (trimmed.isEmpty() || isPunctuationOnly(trimmed)) {
+            callback.start(16000, AudioFormat.ENCODING_PCM_16BIT, 1)
+            callback.done(); return
+        }
+
+        // ── Split into language chunks ─────────────────────────────────────
+        val chunks = TextSplitter.split(rawText, prefs)
+        val cbStarted = BooleanArray(1) { false }
+
+        for ((i, chunk) in chunks.withIndex()) {
+            if (myStop.get()) break
+            val text = chunk.text.trim()
+            if (text.isEmpty() || isPunctuationOnly(text)) continue
+
+            val iso = chunk.iso
+            var pkg = prefs.engineForLang(iso)
+            val effectiveIso: String
+            if (pkg == "NOT_SET") {
+                // Fallback: use latin_fallback or nonlatin_fallback
+                val fbKey = if (LanguageDetector.isLatinText(text))
+                    "latin_fallback" else "nonlatin_fallback"
+                val fbIso = prefs.getString(fbKey)
+                if (fbIso.isEmpty()) continue
+                effectiveIso = fbIso
+                pkg = prefs.engineForLang(fbIso)
+                if (pkg == "NOT_SET") continue
+            } else {
+                effectiveIso = iso
+            }
+
+            val tts = getOrInitEngine(pkg) ?: continue
+
+            // Rate / pitch
+            val rate  = prefs.getFloat(prefs.rateKey(effectiveIso, pkg), 1f)
+                .coerceIn(0.1f, 6f) * (request.speechRate / 100f).coerceAtLeast(0.1f)
+            val pitch = prefs.getFloat(prefs.pitchKey(effectiveIso, pkg), 1f)
+                .coerceIn(0.1f, 6f) * (request.pitch / 100f).coerceAtLeast(0.1f)
+            tts.setSpeechRate(rate.coerceIn(0.1f, 6f))
+            tts.setPitch(pitch.coerceIn(0.1f, 6f))
+
+            // Locale
+            val locTag = prefs.getString(prefs.locKey(effectiveIso, pkg))
+            val cacheKey = "$effectiveIso|$pkg"
+            if (locTag.isNotEmpty() && localeCache[cacheKey] != locTag) {
+                try { tts.language = Locale.forLanguageTag(locTag) } catch (_: Exception) {}
+                localeCache[cacheKey] = locTag
+            }
+
+            val stopped = LiveStreamProcessor.process(
+                this, tts, text, callback, cbStarted, myStop, i + 1)
+            if (stopped) break
+        }
+
+        if (!cbStarted[0] && !myStop.get())
+            callback.start(16000, AudioFormat.ENCODING_PCM_16BIT, 1)
+        callback.done()
+    }
+
+    override fun onDestroy() {
+        activeStop.get().set(true)
+        pool.values.forEach { try { it.shutdown() } catch (_: Exception) {} }
+        pool.clear(); localeCache.clear()
+        super.onDestroy()
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    private fun getOrInitEngine(pkg: String): TextToSpeech? {
+        pool[pkg]?.let { return it }
+        return pool.getOrPut(pkg) {
+            val latch = CountDownLatch(1)
+            var ref: TextToSpeech? = null
+            ref = TextToSpeech(this, { latch.countDown() }, pkg)
+            latch.await(5, TimeUnit.SECONDS)
+            ref!!
+        }
+    }
+
+    private fun isPunctuationOnly(text: String): Boolean {
+        for (cp in text.codePoints()) {
+            if (Character.isLetter(cp) || Character.isDigit(cp)) return false
+        }
+        return true
+    }
+
+    /**
+     * Converts Mathematical/Fancy Unicode → plain ASCII
+     * Fixes "𝗕𝗢𝗢𝗦𝗧" → "BOOST" (Math Sans-Serif Bold)
+     * Prevents garbled/robotic TTS output for styled text.
+     */
+    private fun normalizeFancyUnicode(text: String): String {
+        if (text.isEmpty()) return text
+        val sb = StringBuilder(text.length)
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            val ascii = mathToAscii(cp)
+            if (ascii != 0) sb.append(ascii) else sb.appendCodePoint(cp)
+            i += Character.charCount(cp)
+        }
+        return sb.toString()
+    }
+
+    private fun mathToAscii(cp: Int): Char {
+        // Uppercase blocks (each 26-long, starting at 'A')
+        val uppers = intArrayOf(
+            0x1D400, 0x1D434, 0x1D468, 0x1D4D0, 0x1D56C,
+            0x1D5A0, 0x1D5D4, 0x1D608, 0x1D63C, 0x1D670
+        )
+        for (b in uppers) if (cp in b..(b + 25)) return ('A' + (cp - b))
+        // Lowercase blocks
+        val lowers = intArrayOf(
+            0x1D41A, 0x1D44E, 0x1D482, 0x1D4EA, 0x1D586,
+            0x1D5BA, 0x1D5EE, 0x1D622, 0x1D656, 0x1D68A
+        )
+        for (b in lowers) if (cp in b..(b + 25)) return ('a' + (cp - b))
+        // Digit blocks
+        val digits = intArrayOf(0x1D7CE, 0x1D7D8, 0x1D7E2, 0x1D7EC, 0x1D7F6)
+        for (b in digits) if (cp in b..(b + 9)) return ('0' + (cp - b))
+        // Fullwidth Latin
+        if (cp in 0xFF21..0xFF3A) return ('A' + (cp - 0xFF21))
+        if (cp in 0xFF41..0xFF5A) return ('a' + (cp - 0xFF41))
+        if (cp in 0xFF10..0xFF19) return ('0' + (cp - 0xFF10))
+        return 0.toChar()
+    }
+
+    companion object {
+        // Complete language → ISO map used in UI
+        val LANGUAGES: Map<String, String> = linkedMapOf(
+            "Afrikaans" to "af", "Albanian" to "sq", "Amharic" to "am",
+            "Arabic" to "ar", "Armenian" to "hy", "Azerbaijani" to "az",
+            "Basque" to "eu", "Belarusian" to "be", "Bengali" to "bn",
+            "Bosnian" to "bs", "Bulgarian" to "bg", "Catalan" to "ca",
+            "Chinese" to "zh", "Croatian" to "hr", "Czech" to "cs",
+            "Danish" to "da", "Dutch" to "nl", "English" to "en",
+            "Estonian" to "et", "Finnish" to "fi", "French" to "fr",
+            "Galician" to "gl", "Georgian" to "ka", "German" to "de",
+            "Greek" to "el", "Gujarati" to "gu", "Hebrew" to "he",
+            "Hindi" to "hi", "Hungarian" to "hu", "Icelandic" to "is",
+            "Indonesian" to "id", "Irish" to "ga", "Italian" to "it",
+            "Japanese" to "ja", "Javanese" to "jv", "Kannada" to "kn",
+            "Kazakh" to "kk", "Khmer" to "km", "Korean" to "ko",
+            "Lao" to "lo", "Latvian" to "lv", "Lithuanian" to "lt",
+            "Macedonian" to "mk", "Malay" to "ms", "Malayalam" to "ml",
+            "Maltese" to "mt", "Marathi" to "mr", "Mongolian" to "mn",
+            "Nepali" to "ne", "Norwegian" to "no", "Oriya" to "or",
+            "Pashto" to "ps", "Persian" to "fa", "Polish" to "pl",
+            "Portuguese" to "pt", "Punjabi" to "pa", "Romanian" to "ro",
+            "Russian" to "ru", "Serbian" to "sr", "Sinhalese" to "si",
+            "Slovak" to "sk", "Slovenian" to "sl", "Somali" to "so",
+            "Spanish" to "es", "Sundanese" to "su", "Swahili" to "sw",
+            "Swedish" to "sv", "Tamil" to "ta", "Telugu" to "te",
+            "Thai" to "th", "Turkish" to "tr", "Ukrainian" to "uk",
+            "Urdu" to "ur", "Uzbek" to "uz", "Vietnamese" to "vi",
+            "Welsh" to "cy", "Yoruba" to "yo", "Zulu" to "zu"
+        )
+    }
+}
+EOF
+
+        # ── EngineFinder.kt ───────────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/EngineFinder.kt << 'EOF'
+package com.omni.tts
+
+import android.content.Context
+import android.content.Intent
+import android.speech.tts.TextToSpeech
+
+object EngineFinder {
+    data class TTSEngine(val pkg: String, val name: String)
+
+    fun getEngines(context: Context): List<TTSEngine> {
+        val pm = context.packageManager
+        val intent = Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE)
+        val found = pm.queryIntentServices(intent, 0).map {
+            TTSEngine(
+                it.serviceInfo.packageName,
+                it.serviceInfo.applicationInfo.loadLabel(pm).toString()
+            )
+        }
+        return found.ifEmpty { listOf(TTSEngine("com.google.android.tts", "Google TTS")) }
+    }
+}
+EOF
+
+        # ── MainActivity.kt ───────────────────────────────────────────────
+        cat > app/src/main/kotlin/com/omni/tts/MainActivity.kt << 'EOF'
+package com.omni.tts
+
+import android.content.Intent
+import android.os.Bundle
+import android.speech.tts.TextToSpeech
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Locale
+
+class MainActivity : ComponentActivity() {
+
+    private var tempTts: TextToSpeech? = null
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val prefs = SharedPrefsManager(this)
+
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    OmniSetupScreen(prefs)
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() { tempTts?.shutdown(); super.onDestroy() }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun OmniSetupScreen(prefs: SharedPrefsManager) {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val engines = remember { EngineFinder.getEngines(context) }
+        val langList = remember {
+            OmniTtsService.LANGUAGES.map { "${it.key} (${it.value})" }.sorted()
+        }
+
+        // ── State ─────────────────────────────────────────────────────────
+        var selLang by remember {
+            mutableStateOf(langList.find { it.contains("(en)") } ?: langList[0])
+        }
+        val isoCode get() = selLang.substringAfter("(").substringBefore(")")
+
+        var selEngPkg by remember { mutableStateOf(prefs.engineForLang(isoCode)) }
+        val selEngName = engines.find { it.pkg == selEngPkg }?.name ?: "Not Set"
+
+        var rate  by remember { mutableFloatStateOf(prefs.getFloat(prefs.rateKey(isoCode, selEngPkg), 1f)) }
+        var pitch by remember { mutableFloatStateOf(prefs.getFloat(prefs.pitchKey(isoCode, selEngPkg), 1f)) }
+
+        var availLocales by remember { mutableStateOf(listOf<Locale>()) }
+        var selLocTag by remember { mutableStateOf(prefs.getString(prefs.locKey(isoCode, selEngPkg))) }
+
+        var latinFb    by remember { mutableStateOf(prefs.getString("latin_fallback", "en")) }
+        var nonLatinFb by remember { mutableStateOf(prefs.getString("nonlatin_fallback", "hi")) }
+
+        var langExp   by remember { mutableStateOf(false) }
+        var engExp    by remember { mutableStateOf(false) }
+        var locExp    by remember { mutableStateOf(false) }
+        var latExp    by remember { mutableStateOf(false) }
+        var nonLatExp by remember { mutableStateOf(false) }
+
+        // Load voices when engine/language changes
+        LaunchedEffect(selEngPkg, isoCode) {
+            if (selEngPkg != "NOT_SET") {
+                withContext(Dispatchers.IO) {
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var voices: List<Locale>? = null
+                    val t = TextToSpeech(context, { status ->
+                        if (status == TextToSpeech.SUCCESS) {
+                            voices = try {
+                                tempTts?.voices
+                                    ?.map { it.locale }
+                                    ?.filter { it.language.equals(isoCode, true) }
+                                    ?.distinctBy { it.toLanguageTag() }
+                                    ?.sortedBy { it.displayName }
+                            } catch (_: Exception) { null }
+                        }
+                        latch.countDown()
+                    }, selEngPkg)
+                    tempTts?.shutdown()
+                    tempTts = t
+                    latch.await(4, java.util.concurrent.TimeUnit.SECONDS)
+                    withContext(Dispatchers.Main) { availLocales = voices ?: listOf() }
+                }
+            } else {
+                availLocales = listOf()
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text("Omni TTS Setup", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(24.dp))
+
+            // ── Language dropdown ─────────────────────────────────────────
+            ExposedDropdownMenuBox(expanded = langExp, onExpandedChange = { langExp = !langExp }) {
+                OutlinedTextField(
+                    value = selLang, onValueChange = {}, readOnly = true,
+                    label = { Text("Language") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(langExp) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                )
+                ExposedDropdownMenu(expanded = langExp, onDismissRequest = { langExp = false }) {
+                    langList.forEach { lang ->
+                        DropdownMenuItem(text = { Text(lang) }, onClick = {
+                            selLang = lang
+                            val iso = lang.substringAfter("(").substringBefore(")")
+                            selEngPkg = prefs.engineForLang(iso)
+                            rate = prefs.getFloat(prefs.rateKey(iso, selEngPkg), 1f)
+                            pitch = prefs.getFloat(prefs.pitchKey(iso, selEngPkg), 1f)
+                            selLocTag = prefs.getString(prefs.locKey(iso, selEngPkg))
+                            langExp = false
+                        })
                     }
                 }
             }
-            override fun onDestroy() { tempTts?.shutdown(); super.onDestroy() }
+            Spacer(Modifier.height(12.dp))
+
+            // ── Engine dropdown ───────────────────────────────────────────
+            ExposedDropdownMenuBox(expanded = engExp, onExpandedChange = { engExp = !engExp }) {
+                OutlinedTextField(
+                    value = selEngName, onValueChange = {}, readOnly = true,
+                    label = { Text("TTS Engine") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(engExp) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                )
+                ExposedDropdownMenu(expanded = engExp, onDismissRequest = { engExp = false }) {
+                    DropdownMenuItem(text = { Text("Not Set") }, onClick = {
+                        selEngPkg = "NOT_SET"
+                        prefs.setEngineForLang(isoCode, "NOT_SET"); engExp = false
+                    })
+                    engines.forEach { e ->
+                        DropdownMenuItem(text = { Text(e.name) }, onClick = {
+                            selEngPkg = e.pkg
+                            prefs.setEngineForLang(isoCode, e.pkg)
+                            rate = prefs.getFloat(prefs.rateKey(isoCode, e.pkg), 1f)
+                            pitch = prefs.getFloat(prefs.pitchKey(isoCode, e.pkg), 1f)
+                            selLocTag = prefs.getString(prefs.locKey(isoCode, e.pkg))
+                            engExp = false
+                        })
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // ── Voice/Locale dropdown ─────────────────────────────────────
+            ExposedDropdownMenuBox(expanded = locExp, onExpandedChange = { locExp = !locExp }) {
+                val locName = availLocales.find { it.toLanguageTag() == selLocTag }?.displayName
+                    ?: "Default Voice"
+                OutlinedTextField(
+                    value = locName, onValueChange = {}, readOnly = true,
+                    label = { Text("Voice / Locale") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(locExp) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                )
+                ExposedDropdownMenu(expanded = locExp, onDismissRequest = { locExp = false }) {
+                    DropdownMenuItem(text = { Text("Default Voice") }, onClick = {
+                        selLocTag = ""; prefs.setString(prefs.locKey(isoCode, selEngPkg), "")
+                        locExp = false
+                    })
+                    availLocales.forEach { loc ->
+                        DropdownMenuItem(text = { Text(loc.displayName) }, onClick = {
+                            selLocTag = loc.toLanguageTag()
+                            prefs.setString(prefs.locKey(isoCode, selEngPkg), selLocTag)
+                            locExp = false
+                        })
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+
+            // ── Rate slider ───────────────────────────────────────────────
+            Text("Speech Rate: ${"%.2f".format(rate)}x")
+            Slider(
+                value = rate, valueRange = 0.1f..3f,
+                onValueChange = {
+                    rate = it
+                    prefs.setFloat(prefs.rateKey(isoCode, selEngPkg), it)
+                }
+            )
+            Spacer(Modifier.height(8.dp))
+
+            // ── Pitch slider ──────────────────────────────────────────────
+            Text("Pitch: ${"%.2f".format(pitch)}x")
+            Slider(
+                value = pitch, valueRange = 0.1f..3f,
+                onValueChange = {
+                    pitch = it
+                    prefs.setFloat(prefs.pitchKey(isoCode, selEngPkg), it)
+                }
+            )
+            Spacer(Modifier.height(24.dp))
+
+            // ── Fallback language section ──────────────────────────────────
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+            Text("Auto-detect Fallback", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "When language can't be detected, use:",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.height(12.dp))
+
+            // Latin fallback
+            val latLangs = OmniTtsService.LANGUAGES.entries
+                .filter { it.value == it.value } // all
+                .map { "${it.key} (${it.value})" }.sorted()
+
+            ExposedDropdownMenuBox(expanded = latExp, onExpandedChange = { latExp = !latExp }) {
+                val latName = OmniTtsService.LANGUAGES.entries
+                    .find { it.value == latinFb }?.key ?: latinFb
+                OutlinedTextField(
+                    value = "Latin text → $latName", onValueChange = {}, readOnly = true,
+                    label = { Text("Preferred language for Latin text") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(latExp) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                )
+                ExposedDropdownMenu(expanded = latExp, onDismissRequest = { latExp = false }) {
+                    latLangs.forEach { lang ->
+                        DropdownMenuItem(text = { Text(lang) }, onClick = {
+                            latinFb = lang.substringAfter("(").substringBefore(")")
+                            prefs.setString("latin_fallback", latinFb); latExp = false
+                        })
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+
+            // Non-Latin fallback
+            ExposedDropdownMenuBox(expanded = nonLatExp, onExpandedChange = { nonLatExp = !nonLatExp }) {
+                val nlName = OmniTtsService.LANGUAGES.entries
+                    .find { it.value == nonLatinFb }?.key ?: nonLatinFb
+                OutlinedTextField(
+                    value = "Non-Latin text → $nlName", onValueChange = {}, readOnly = true,
+                    label = { Text("Preferred language for non-Latin text") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(nonLatExp) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                )
+                ExposedDropdownMenu(expanded = nonLatExp, onDismissRequest = { nonLatExp = false }) {
+                    latLangs.forEach { lang ->
+                        DropdownMenuItem(text = { Text(lang) }, onClick = {
+                            nonLatinFb = lang.substringAfter("(").substringBefore(")")
+                            prefs.setString("nonlatin_fallback", nonLatinFb); nonLatExp = false
+                        })
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+
+            // ── Buttons ───────────────────────────────────────────────────
+            Button(
+                onClick = {
+                    scope.launch {
+                        tempTts?.setSpeechRate(rate)
+                        tempTts?.setPitch(pitch)
+                        if (selLocTag.isNotEmpty()) {
+                            try { tempTts?.language = Locale.forLanguageTag(selLocTag) }
+                            catch (_: Exception) {}
+                        }
+                        tempTts?.speak(
+                            "Testing Omni TTS audio setup",
+                            TextToSpeech.QUEUE_FLUSH, null, "test"
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("TEST AUDIO") }
+
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = {
+                    startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("OPEN SYSTEM TTS SETTINGS") }
         }
-        EOF
-
-        cat > app/src/main/AndroidManifest.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
-            <application android:label="Omni" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-                <activity android:name=".MainActivity" android:exported="true">
-                    <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
-                </activity>
-                <service android:name=".ComposeTtsService" android:exported="true" android:permission="android.permission.BIND_TEXT_TO_SPEECH_SERVICE">
-                    <intent-filter><action android:name="android.intent.action.TTS_SERVICE" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
-                    <meta-data android:name="android.speech.tts" android:resource="@xml/tts_engine" />
-                </service>
-            </application>
-        </manifest>
-        EOF
-
-        cat > app/src/main/res/xml/tts_engine.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <tts-engine xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="com.omni.tts.MainActivity" />
-        EOF
+    }
+}
+EOF
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
@@ -456,11 +1286,15 @@ jobs:
     - name: Build APK
       run: |
         echo "sdk.dir=$ANDROID_HOME" > local.properties
-        gradle assembleDebug -Pandroid.ndkVersion=25.1.8937393
+        chmod +x gradlew 2>/dev/null || true
+        gradle assembleDebug \
+          -Pandroid.ndkVersion=25.1.8937393 \
+          --no-daemon \
+          --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: Omni-Pro-APK
+        name: Omni-TTS-APK
         path: app/build/outputs/apk/debug/app-debug.apk
         if-no-files-found: error
