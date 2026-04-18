@@ -444,13 +444,20 @@ jobs:
         <tts-engine xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="com.omni.tts.MainActivity" />
         EOF
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.5'
+        cache-disabled: true
+
     - name: Build APK
       run: |
-        chmod +x ./gradlew
         echo "sdk.dir=$ANDROID_HOME" > local.properties
-        ./gradlew assembleDebug -Pandroid.ndkVersion=25.1.8937393
+        gradle assembleDebug -Pandroid.ndkVersion=25.1.8937393
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: Omni-APK
         path: app/build/outputs/apk/debug/app-debug.apk
+        if-no-files-found: error
