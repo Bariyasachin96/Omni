@@ -1,0 +1,456 @@
+name: Build Omni Complete
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    - name: Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    - name: Install NDK and CMake
+      run: |
+        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.1.8937393" "cmake;3.22.1" --sdk_root=$ANDROID_HOME
+    - name: Clone CLD2
+      run: |
+        mkdir -p app/src/main/cpp
+        git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+    - name: Generate Project
+      run: |
+        mkdir -p app/src/main/java/com/omni/tts
+        mkdir -p app/src/main/res/xml
+        mkdir -p app/src/main/res/values
+
+        cat > gradle.properties << 'EOF'
+        android.useAndroidX=true
+        android.enableJetifier=true
+        org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8
+        EOF
+
+        cat > settings.gradle.kts << 'EOF'
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "Omni"
+        include(":app")
+        EOF
+
+        cat > build.gradle.kts << 'EOF'
+        plugins {
+            id("com.android.application") version "8.2.2" apply false
+            id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+        }
+        EOF
+
+        cat > app/build.gradle.kts << 'EOF'
+        plugins {
+            id("com.android.application")
+            id("org.jetbrains.kotlin.android")
+        }
+        android {
+            namespace = "com.omni.tts"
+            compileSdk = 34
+            ndkVersion = "25.1.8937393"
+            defaultConfig {
+                applicationId = "com.omni.tts"
+                minSdk = 24
+                targetSdk = 34
+                versionCode = 1
+                versionName = "1.0"
+                externalNativeBuild {
+                    cmake {
+                        cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3")
+                        arguments += listOf("-DANDROID_STL=c++_shared")
+                    }
+                }
+                ndk {
+                    abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
+                }
+            }
+            buildFeatures {
+                compose = true
+            }
+            composeOptions {
+                kotlinCompilerExtensionVersion = "1.5.8"
+            }
+            externalNativeBuild {
+                cmake {
+                    path = file("src/main/cpp/CMakeLists.txt")
+                    version = "3.22.1"
+                }
+            }
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+            kotlinOptions {
+                jvmTarget = "17"
+            }
+            packaging {
+                resources {
+                    pickFirsts.add("**/libc++_shared.so")
+                }
+            }
+        }
+        dependencies {
+            implementation("androidx.core:core-ktx:1.12.0")
+            implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+            implementation("androidx.activity:activity-compose:1.8.2")
+            val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
+            implementation(composeBom)
+            implementation("androidx.compose.ui:ui")
+            implementation("androidx.compose.ui:ui-graphics")
+            implementation("androidx.compose.ui:ui-tooling-preview")
+            implementation("androidx.compose.material3:material3")
+        }
+        EOF
+
+        cat > app/src/main/cpp/CMakeLists.txt << 'EOF'
+        cmake_minimum_required(VERSION 3.22.1)
+        project("omni_native")
+        set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
+        add_library(omni_engine SHARED
+            tts_engine_core.cpp
+            ${CLD2_DIR}/cldutil.cc
+            ${CLD2_DIR}/cldutil_shared.cc
+            ${CLD2_DIR}/compact_lang_det.cc
+            ${CLD2_DIR}/compact_lang_det_hint_code.cc
+            ${CLD2_DIR}/compact_lang_det_impl.cc
+            ${CLD2_DIR}/debug.cc
+            ${CLD2_DIR}/fixunicodevalue.cc
+            ${CLD2_DIR}/generated_entities.cc
+            ${CLD2_DIR}/generated_language.cc
+            ${CLD2_DIR}/generated_ulscript.cc
+            ${CLD2_DIR}/getonescriptspan.cc
+            ${CLD2_DIR}/lang_script.cc
+            ${CLD2_DIR}/offsetmap.cc
+            ${CLD2_DIR}/scoreonescriptspan.cc
+            ${CLD2_DIR}/tote.cc
+            ${CLD2_DIR}/utf8statetable.cc
+            ${CLD2_DIR}/cld_generated_cjk_uni_prop_80.cc
+            ${CLD2_DIR}/cld2_generated_cjk_compatible.cc
+            ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc
+            ${CLD2_DIR}/generated_distinct_bi_0.cc
+            ${CLD2_DIR}/cld2_generated_quadchrome_2.cc
+            ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc
+            ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc
+            ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc
+        )
+        target_include_directories(omni_engine PRIVATE
+            ${CLD2_DIR}/../public
+            ${CLD2_DIR}
+        )
+        find_library(log-lib log)
+        target_link_libraries(omni_engine ${log-lib})
+        EOF
+
+        cat > app/src/main/cpp/tts_engine_core.cpp << 'EOF'
+        #include <jni.h>
+        #include <string>
+        #include <cstring>
+        #include <vector>
+        #include "compact_lang_det.h"
+        std::string detectLanguage(const std::string& text) {
+            bool is_reliable = false;
+            int bytes = static_cast<int>(text.length());
+            if (bytes == 0) return "un";
+            CLD2::Language lang = CLD2::DetectLanguage(text.c_str(), bytes, true, &is_reliable);
+            const char* code = CLD2::LanguageCode(lang);
+            if (code == nullptr || strlen(code) == 0 || strcmp(code, "un") == 0) return "un";
+            return std::string(code);
+        }
+        extern "C" JNIEXPORT jstring JNICALL
+        Java_com_omni_tts_NativeEngine_processAndDetect(JNIEnv* env, jobject, jstring input_text) {
+            if (input_text == nullptr) return env->NewStringUTF("un|NONE");
+            const char* utf8 = env->GetStringUTFChars(input_text, nullptr);
+            if (utf8 == nullptr) return env->NewStringUTF("un|NONE");
+            std::string text(utf8);
+            env->ReleaseStringUTFChars(input_text, utf8);
+            std::string lang = detectLanguage(text);
+            std::string result = lang + "|" + text;
+            return env->NewStringUTF(result.c_str());
+        }
+        EOF
+
+        cat > app/src/main/java/com/omni/tts/NativeEngine.kt << 'EOF'
+        package com.omni.tts
+        object NativeEngine {
+            init { System.loadLibrary("omni_engine") }
+            external fun processAndDetect(text: String): String
+        }
+        EOF
+
+        cat > app/src/main/java/com/omni/tts/SharedPrefsManager.kt << 'EOF'
+        package com.omni.tts
+        import android.content.Context
+        import android.content.SharedPreferences
+        class SharedPrefsManager(context: Context) {
+            private val prefs: SharedPreferences = context.getSharedPreferences("OMNI_PREFS", Context.MODE_PRIVATE)
+            fun getString(key: String, def: String): String = prefs.getString(key, def) ?: def
+            fun setString(key: String, value: String) = prefs.edit().putString(key, value).apply()
+            fun getEngineForLang(langCode: String): String = prefs.getString("engine_$langCode", "com.google.android.tts") ?: "com.google.android.tts"
+        }
+        EOF
+
+        cat > app/src/main/java/com/omni/tts/WavUtils.kt << 'EOF'
+        package com.omni.tts
+        import java.io.EOFException
+        import java.io.InputStream
+        object WavUtils {
+            class WavInfo {
+                var sampleRate: Int = 16000
+                var channels: Short = 1
+                var bitsPerSample: Short = 16
+                var dataOffset: Int = 0
+            }
+            fun parse(dis: InputStream): WavInfo {
+                val info = WavInfo()
+                val riff = ByteArray(4)
+                readFully(dis, riff)
+                readInt(dis)
+                val wave = ByteArray(4)
+                readFully(dis, wave)
+                var offset = 12
+                while (true) {
+                    val chunkId = ByteArray(4)
+                    readFully(dis, chunkId)
+                    val chunkSize = Integer.reverseBytes(readInt(dis))
+                    offset += 8
+                    val id = String(chunkId)
+                    if (id == "fmt ") {
+                        readShort(dis)
+                        info.channels = java.lang.Short.reverseBytes(readShort(dis))
+                        info.sampleRate = Integer.reverseBytes(readInt(dis))
+                        readInt(dis)
+                        readShort(dis)
+                        info.bitsPerSample = java.lang.Short.reverseBytes(readShort(dis))
+                        val remaining = chunkSize - 16
+                        if (remaining > 0) skipFully(dis, remaining)
+                        offset += chunkSize
+                    } else if (id == "data") {
+                        info.dataOffset = offset
+                        break
+                    } else {
+                        skipFully(dis, chunkSize)
+                        offset += chunkSize
+                    }
+                }
+                return info
+            }
+            private fun readFully(i: InputStream, b: ByteArray) {
+                var n = 0
+                while (n < b.size) {
+                    val count = i.read(b, n, b.size - n)
+                    if (count < 0) throw EOFException()
+                    n += count
+                }
+            }
+            private fun readInt(i: InputStream): Int {
+                val ch1 = i.read(); val ch2 = i.read(); val ch3 = i.read(); val ch4 = i.read()
+                if ((ch1 or ch2 or ch3 or ch4) < 0) throw EOFException()
+                return (ch1 shl 24) + (ch2 shl 16) + (ch3 shl 8) + ch4
+            }
+            private fun readShort(i: InputStream): Short {
+                val ch1 = i.read(); val ch2 = i.read()
+                if ((ch1 or ch2) < 0) throw EOFException()
+                return ((ch1 shl 8) + ch2).toShort()
+            }
+            private fun skipFully(i: InputStream, n: Int) {
+                var total = 0
+                while (total < n) {
+                    var skipped = i.skip((n - total).toLong())
+                    if (skipped == 0L) {
+                        if (i.read() < 0) throw EOFException()
+                        skipped = 1
+                    }
+                    total += skipped.toInt()
+                }
+            }
+        }
+        EOF
+
+        cat > app/src/main/java/com/omni/tts/LiveStreamProcessor.kt << 'EOF'
+        package com.omni.tts
+        import android.content.Context
+        import android.os.Bundle
+        import android.os.Process
+        import android.speech.tts.TextToSpeech
+        import android.speech.tts.SynthesisCallback
+        import android.speech.tts.UtteranceProgressListener
+        import java.io.File
+        import java.io.FileInputStream
+        import java.util.concurrent.CountDownLatch
+        import java.util.concurrent.atomic.AtomicBoolean
+        object LiveStreamProcessor {
+            fun process(context: Context, tts: TextToSpeech, text: String, lang: String, callback: SynthesisCallback, cbStarted: BooleanArray, isStopped: AtomicBoolean): Boolean {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
+                val tmp = File(context.cacheDir, "omni_${System.nanoTime()}.wav")
+                var pipeStream: FileInputStream? = null
+                try {
+                    val latch = CountDownLatch(1)
+                    tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(id: String) {}
+                        override fun onDone(id: String) { latch.countDown() }
+                        override fun onError(id: String) { latch.countDown() }
+                    })
+                    val params = Bundle()
+                    if (tts.synthesizeToFile(text, params, tmp, "omni") != TextToSpeech.SUCCESS) return isStopped.get()
+                    var headerParsed = false
+                    var bytesRead = 0L
+                    while (latch.count > 0 || tmp.length() > bytesRead) {
+                        if (isStopped.get()) { tts.stop(); break }
+                        if (!headerParsed && tmp.length() >= 44) {
+                            pipeStream = FileInputStream(tmp)
+                            val info = WavUtils.parse(pipeStream)
+                            bytesRead = info.dataOffset.toLong()
+                            pipeStream.channel.position(bytesRead)
+                            if (!cbStarted[0]) {
+                                callback.start(info.sampleRate, android.media.AudioFormat.ENCODING_PCM_16BIT, info.channels.toInt())
+                                cbStarted[0] = true
+                            }
+                            headerParsed = true
+                        }
+                        if (headerParsed && tmp.length() > bytesRead) {
+                            val buf = ByteArray(1024)
+                            val r = pipeStream?.read(buf) ?: -1
+                            if (r > 0) {
+                                callback.audioAvailable(buf, 0, r)
+                                bytesRead += r
+                            }
+                        }
+                        Thread.sleep(1)
+                    }
+                } finally {
+                    pipeStream?.close()
+                    if (tmp.exists()) tmp.delete()
+                }
+                return isStopped.get()
+            }
+        }
+        EOF
+
+        cat > app/src/main/java/com/omni/tts/ComposeTtsService.kt << 'EOF'
+        package com.omni.tts
+        import android.speech.tts.SynthesisCallback
+        import android.speech.tts.SynthesisRequest
+        import android.speech.tts.TextToSpeech
+        import android.speech.tts.TextToSpeechService
+        import java.util.concurrent.ConcurrentHashMap
+        import java.util.concurrent.atomic.AtomicBoolean
+        import java.util.concurrent.atomic.AtomicReference
+        class ComposeTtsService : TextToSpeechService() {
+            private val pool = ConcurrentHashMap<String, TextToSpeech>()
+            private lateinit var prefs: SharedPrefsManager
+            private val activeStop = AtomicReference(AtomicBoolean(true))
+            override fun onCreate() {
+                super.onCreate()
+                prefs = SharedPrefsManager(this)
+            }
+            override fun onGetLanguage(): Array<String> = arrayOf("eng", "USA", "")
+            override fun onIsLanguageAvailable(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
+            override fun onLoadLanguage(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
+            override fun onStop() {
+                activeStop.get().set(true)
+                pool.values.forEach { try { it.stop() } catch(e:Exception){} }
+            }
+            override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
+                activeStop.get().set(true)
+                val myStop = AtomicBoolean(false)
+                activeStop.set(myStop)
+                val text = request?.charSequenceText?.toString() ?: return
+                val output = NativeEngine.processAndDetect(text)
+                val parts = output.split("|")
+                val lang = parts[0]
+                val pkg = prefs.getEngineForLang(lang)
+                val tts = pool.getOrPut(pkg) { TextToSpeech(this, {}, pkg) }
+                val cbStarted = BooleanArray(1) { false }
+                LiveStreamProcessor.process(this, tts, parts[1], lang, callback!!, cbStarted, myStop)
+                if (!cbStarted[0]) callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
+                callback.done()
+            }
+        }
+        EOF
+
+        cat > app/src/main/java/com/omni/tts/MainActivity.kt << 'EOF'
+        package com.omni.tts
+        import android.os.Bundle
+        import androidx.activity.ComponentActivity
+        import androidx.activity.compose.setContent
+        import androidx.compose.foundation.layout.*
+        import androidx.compose.material3.*
+        import androidx.compose.runtime.*
+        import androidx.compose.ui.Modifier
+        import androidx.compose.ui.unit.dp
+        class MainActivity : ComponentActivity() {
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                val prefs = SharedPrefsManager(this)
+                setContent {
+                    MaterialTheme {
+                        Surface(modifier = Modifier.fillMaxSize()) {
+                            var en by remember { mutableStateOf(prefs.getEngineForLang("en")) }
+                            var hi by remember { mutableStateOf(prefs.getEngineForLang("hi")) }
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Omni Settings", style = MaterialTheme.typography.titleLarge)
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(value = en, onValueChange = { en = it; prefs.setString("engine_en", it) }, label = { Text("English Engine") }, modifier = Modifier.fillMaxWidth())
+                                Spacer(modifier = Modifier.height(10.dp))
+                                OutlinedTextField(value = hi, onValueChange = { hi = it; prefs.setString("engine_hi", it) }, label = { Text("Hindi Engine") }, modifier = Modifier.fillMaxWidth())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        EOF
+
+        cat > app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
+            <application android:label="Omni" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                <activity android:name=".MainActivity" android:exported="true">
+                    <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+                </activity>
+                <service android:name=".ComposeTtsService" android:exported="true" android:permission="android.permission.BIND_TEXT_TO_SPEECH_SERVICE">
+                    <intent-filter><action android:name="android.intent.action.TTS_SERVICE" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
+                    <meta-data android:name="android.speech.tts" android:resource="@xml/tts_engine" />
+                </service>
+            </application>
+        </manifest>
+        EOF
+
+        cat > app/src/main/res/xml/tts_engine.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <tts-engine xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="com.omni.tts.MainActivity" />
+        EOF
+
+    - name: Build APK
+      run: |
+        chmod +x ./gradlew
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+        ./gradlew assembleDebug -Pandroid.ndkVersion=25.1.8937393
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Omni-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
