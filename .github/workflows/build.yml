@@ -29,9 +29,6 @@ jobs:
           mkdir -p app/src/main/cpp
           git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
 
-      - name: Generate Complete Project
-        run: python3 generate_project.py
-
       - name: Write Generator Script
         run: |
           cat > generate_project.py << 'PYEOF'
@@ -1365,6 +1362,9 @@ jobs:
 
           print("All files generated successfully.")
           GENEOF
+
+      - name: Generate Complete Project
+        run: python3 generate_project.py
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
