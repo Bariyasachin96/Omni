@@ -25,7 +25,7 @@ jobs:
         git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
     - name: Generate Complete Project
       run: |
-        mkdir -p app/src/main/kotlin/com/omni/tts
+        mkdir -p app/src/main/java/com/omni/tts
         mkdir -p app/src/main/res/xml
         mkdir -p app/src/main/res/values
         cat > gradle.properties << 'EOF'
@@ -54,10 +54,11 @@ jobs:
                 minSdk = 24
                 targetSdk = 34
                 versionCode = 1
-                versionName = "12.0"
+                versionName = "13.0"
                 externalNativeBuild { cmake { cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3"); arguments += listOf("-DANDROID_STL=c++_shared") } }
                 ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) }
             }
+            sourceSets { getByName("main") { java.srcDirs("src/main/java") } }
             buildFeatures { compose = true }
             composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
             externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
@@ -264,14 +265,14 @@ jobs:
             return env->NewStringUTF(resultChunks.c_str());
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/NativeEngine.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/NativeEngine.kt << 'EOF'
         package com.omni.tts
         object NativeEngine {
             init { System.loadLibrary("omni_core") }
             external fun processSentences(sentences: Array<String>, keys: Array<String>, vals: Array<String>, keepEmoji: Boolean, countEmoji: Boolean, countPunct: Boolean, latFall: String, nonLatFall: String): String
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/VhLogger.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/VhLogger.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
         import android.util.Log
@@ -338,7 +339,7 @@ jobs:
             @Synchronized fun clear() { buffer.clear() }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/WavUtils.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/WavUtils.kt << 'EOF'
         package com.omni.tts
         import java.io.EOFException
         import java.io.InputStream
@@ -369,7 +370,7 @@ jobs:
             private fun skipFully(i: InputStream, n: Int) { var t=0; while(t<n){ var s=i.skip((n-t).toLong()); if(s==0L){if(i.read()<0)throw EOFException();s=1}; t+=s.toInt() } }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/SharedPrefsManager.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/SharedPrefsManager.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
         import android.content.SharedPreferences
@@ -390,15 +391,13 @@ jobs:
             fun getInt(key: String, def: Int): Int = prefs.getInt(key, def)
             fun setBoolean(key: String, valBool: Boolean) = prefs.edit().putBoolean(key, valBool).apply()
             fun getBoolean(key: String, def: Boolean): Boolean = prefs.getBoolean(key, def)
-            fun getFloat(key: String, def: Float): Float = prefs.getFloat(key, def)
-            fun setFloat(key: String, value: Float) = prefs.edit().putFloat(key, value).apply()
             fun addDict(from: String, to: String) = prefs.edit().putString("dict_$from", to).apply()
             fun removeDict(from: String) = prefs.edit().remove("dict_$from").apply()
             fun clearDict() { val e = prefs.edit(); prefs.all.keys.filter { it.startsWith("dict_") }.forEach { e.remove(it) }; e.apply() }
             fun getDict(): Map<String, String> = prefs.all.filterKeys { it.startsWith("dict_") }.mapKeys { it.key.substring(5) }.mapValues { it.value.toString() }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/EngineFinder.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/EngineFinder.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
         import android.content.Intent
@@ -413,7 +412,7 @@ jobs:
             }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/LiveStreamProcessor.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/LiveStreamProcessor.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
         import android.os.Bundle
@@ -487,7 +486,7 @@ jobs:
             }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/ComposeTtsService.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/ComposeTtsService.kt << 'EOF'
         package com.omni.tts
         import android.speech.tts.SynthesisCallback
         import android.speech.tts.SynthesisRequest
@@ -547,7 +546,8 @@ jobs:
                 var rawText = request?.charSequenceText?.toString() ?: ""
                 if (rawText.isEmpty() || myStop.get()) { callback?.done(); return }
                 
-                // Natural In-built Splitter (Calling Android OS's native ICU BreakIterator)
+                rawText = rawText.replace('\u00A0', ' ').replace('\u200B', ' ').replace('\u200C', ' ').replace('\u200D', ' ').replace('\uFEFF', ' ')
+                
                 val iterator = java.text.BreakIterator.getSentenceInstance()
                 iterator.setText(rawText)
                 val sentencesList = mutableListOf<String>()
@@ -569,10 +569,7 @@ jobs:
                 val latFall = prefs.getString("mixed_mode_latin_language", "en")
                 val nonLatFall = prefs.getString("mixed_mode_non_latin_language", "hi")
                 
-                // --- ULTRA MAX NATIVE BRIDGE ---
-                // Sentences pass hone ke baad saari processing (Clean, Dict, Lang Detect) C++ kar raha hai
                 val nativeOutput = NativeEngine.processSentences(sentencesList.toTypedArray(), keys, vals, keepEmoji, countEmoji, countPunct, latFall, nonLatFall)
-                
                 val chunkStrings = nativeOutput.split("||").filter { it.isNotBlank() }
                 val cbStarted = BooleanArray(1) { false }
                 VhLogger.markRequest(rawText, chunkStrings.size)
@@ -623,7 +620,7 @@ jobs:
             override fun onDestroy() { VhLogger.i("[SERVICE] onDestroy"); activeStop.get().set(true); for (tts in enginePool.values) { try { tts.shutdown() } catch (ignored: Exception) {} }; enginePool.clear(); langStates.clear(); super.onDestroy() }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/CheckVoiceData.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/CheckVoiceData.kt << 'EOF'
         package com.omni.tts
         import android.app.Activity
         import android.content.Intent
@@ -641,7 +638,7 @@ jobs:
             }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/GetSampleText.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/GetSampleText.kt << 'EOF'
         package com.omni.tts
         import android.app.Activity
         import android.content.Intent
@@ -657,7 +654,7 @@ jobs:
             }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/MainActivity.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/MainActivity.kt << 'EOF'
         package com.omni.tts
         import android.content.Intent
         import android.os.Bundle
@@ -801,7 +798,7 @@ jobs:
             override fun onDestroy() { tempTts?.shutdown(); super.onDestroy() }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/LanguageSettingsActivity.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/LanguageSettingsActivity.kt << 'EOF'
         package com.omni.tts
         import android.content.Intent
         import android.os.Bundle
@@ -876,7 +873,7 @@ jobs:
             override fun onDestroy() { testTts?.shutdown(); super.onDestroy() }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/AdvancedSettingsActivity.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/AdvancedSettingsActivity.kt << 'EOF'
         package com.omni.tts
         import android.content.Intent
         import android.os.Bundle
@@ -976,7 +973,7 @@ jobs:
             }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/DictionaryActivity.kt << 'EOF'
+        cat > app/src/main/java/com/omni/tts/DictionaryActivity.kt << 'EOF'
         package com.omni.tts
         import android.os.Bundle
         import androidx.activity.ComponentActivity
