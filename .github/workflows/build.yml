@@ -299,42 +299,42 @@ jobs:
 
           struct ChunkResult { std::string lang; std::string text; };
 
-          static std::vector<ChunkResult> buildChunksWithHysteresis(
+          // Auto mode: detect language per sentence, merge consecutive same-lang sentences
+          static std::vector<ChunkResult> buildAutoChunks(
               const std::vector<std::string>& sentences,
               const std::string& latFall,
-              const std::string& nonLatFall,
-              int hysteresisMin)
+              const std::string& nonLatFall)
           {
-              struct SentInfo { std::string text; std::string lang; };
-              std::vector<SentInfo> infos;
-              infos.reserve(sentences.size());
-              for(auto& s: sentences){
-                  if(s.empty()) continue;
-                  infos.push_back({s, detectLang(s,latFall,nonLatFall)});
-              }
-
               std::vector<ChunkResult> chunks;
               std::string curLang="", batch="";
-
-              for(size_t i=0;i<infos.size();i++){
-                  std::string& sl=infos[i].lang;
+              for(auto& s: sentences){
+                  if(s.empty()) continue;
+                  std::string sl=detectLang(s,latFall,nonLatFall);
                   if(curLang.empty()){ curLang=sl; }
                   if(sl!=curLang){
-                      int runLen=1;
-                      for(size_t j=i+1;j<infos.size()&&infos[j].lang==sl;j++) runLen++;
-                      if(runLen<hysteresisMin){
-                          sl=curLang;
-                      }
-                  }
-                  if(sl!=curLang){
                       if(!batch.empty()) chunks.push_back({curLang,batch});
-                      batch=infos[i].text; curLang=sl;
+                      batch=s; curLang=sl;
                   } else {
                       if(!batch.empty()&&batch.back()!=' '&&batch.back()!='\n') batch+=' ';
-                      batch+=infos[i].text;
+                      batch+=s;
                   }
               }
               if(!batch.empty()) chunks.push_back({curLang,batch});
+              return chunks;
+          }
+
+          // Mix Language mode: every sentence is its own chunk with its own detected language
+          static std::vector<ChunkResult> buildMixChunks(
+              const std::vector<std::string>& sentences,
+              const std::string& latFall,
+              const std::string& nonLatFall)
+          {
+              std::vector<ChunkResult> chunks;
+              for(auto& s: sentences){
+                  if(s.empty()) continue;
+                  std::string sl=detectLang(s,latFall,nonLatFall);
+                  chunks.push_back({sl,s});
+              }
               return chunks;
           }
 
@@ -345,7 +345,7 @@ jobs:
               jobjectArray jKeys, jobjectArray jVals,
               jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
               jstring jLat, jstring jNonLat,
-              jboolean mixMode, jint hysteresisMin)
+              jstring jMode)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
               void* buf=env->GetDirectBufferAddress(directBuffer);
@@ -382,13 +382,25 @@ jobs:
                   processed.push_back(d);
               }
 
+              const char* modeC=env->GetStringUTFChars(jMode,nullptr);
+              std::string mode(modeC); env->ReleaseStringUTFChars(jMode,modeC);
+
               std::string result;
-              if(!mixMode){
+              if(mode=="single"){
+                  // Single mode: treat all text as one chunk, use latin fallback lang
                   std::string combined;
                   for(auto& p: processed){ if(!p.empty()){ if(!combined.empty()) combined+=' '; combined+=p; } }
                   if(!combined.empty()) result=latFall+"|"+combined;
+              } else if(mode=="mix"){
+                  // Mix Language mode: each sentence = separate chunk with its own TTS
+                  auto chunks=buildMixChunks(processed,latFall,nonLatFall);
+                  for(size_t i=0;i<chunks.size();i++){
+                      result+=chunks[i].lang+"|"+chunks[i].text;
+                      if(i+1<chunks.size()) result+="||";
+                  }
               } else {
-                  auto chunks=buildChunksWithHysteresis(processed,latFall,nonLatFall,(int)hysteresisMin);
+                  // Auto mode (default): detect language, merge consecutive same-lang sentences
+                  auto chunks=buildAutoChunks(processed,latFall,nonLatFall);
                   for(size_t i=0;i<chunks.size();i++){
                       result+=chunks[i].lang+"|"+chunks[i].text;
                       if(i+1<chunks.size()) result+="||";
@@ -408,7 +420,7 @@ jobs:
                   keys: Array<String>, vals: Array<String>,
                   keepEmoji: Boolean, countEmoji: Boolean, countPunct: Boolean,
                   latFall: String, nonLatFall: String,
-                  mixMode: Boolean, hysteresisMin: Int
+                  mode: String
               ): String
           }
           """)
@@ -499,7 +511,6 @@ jobs:
               fun markStop() = write("D", "[STOP] onStop called")
               fun markFallback(det: String, fb: String) = write("W", "[FALLBACK] detected=$det -> using=$fb")
               fun markSkipped(reason: String) = write("W", "[SKIPPED] $reason")
-              fun markHysteresis(lang: String, kept: String) = write("D", "[HYSTERESIS] short run $lang suppressed, kept=$kept")
               fun markMode(mode: String) = write("D", "[MODE] reading=$mode")
               @Synchronized @Throws(IOException::class) fun exportToFile(): File {
                   val ctx = appContext ?: throw IOException("VhLogger not initialized")
@@ -575,8 +586,6 @@ jobs:
               fun setFloat(key: String, v: Float) = prefs.edit().putFloat(key, v).apply()
               fun getReadingMode(): String = prefs.getString("reading_mode", "auto") ?: "auto"
               fun setReadingMode(mode: String) = prefs.edit().putString("reading_mode", mode).apply()
-              fun getHysteresisMin(): Int = prefs.getInt("hysteresis_min", 2)
-              fun setHysteresisMin(v: Int) = prefs.edit().putInt("hysteresis_min", v).apply()
               fun addDict(from: String, to: String) = prefs.edit().putString("word_$from", to).apply()
               fun removeDict(from: String) = prefs.edit().remove("word_$from").apply()
               fun clearDict() { val e=prefs.edit(); prefs.all.keys.filter{it.startsWith("word_")}.forEach{e.remove(it)}; e.apply() }
@@ -741,11 +750,10 @@ jobs:
                   activeStop.set(myStop)
                   val rawText = request?.charSequenceText?.toString() ?: ""
                   if (rawText.isEmpty() || myStop.get()) { callback?.done(); return }
-                  val mixMode = prefs.getReadingMode() == "mix"
-                  VhLogger.markMode(if (mixMode) "mix" else "auto")
+                  val readingMode = prefs.getReadingMode()
+                  VhLogger.markMode(readingMode)
                   val latFall = prefs.getString("mixed_mode_latin_language", "en")
                   val nonLatFall = prefs.getString("mixed_mode_non_latin_language", "hi")
-                  val hysteresisMin = prefs.getHysteresisMin()
                   val iterator = java.text.BreakIterator.getSentenceInstance()
                   iterator.setText(rawText)
                   val sentences = mutableListOf<String>()
@@ -765,7 +773,7 @@ jobs:
                       prefs.getBoolean("emoji_reading", true),
                       prefs.getBoolean("emoji_count", false),
                       prefs.getBoolean("punct_count", false),
-                      latFall, nonLatFall, mixMode, hysteresisMin
+                      latFall, nonLatFall, readingMode
                   )
                   val chunkStrings = nativeOutput.split("||").filter { it.isNotBlank() }
                   val cbStarted = BooleanArray(1)
@@ -814,92 +822,7 @@ jobs:
           }
           """)
 
-          # ── OmniAutoReaderService.kt ─────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/OmniAutoReaderService.kt", """package com.omni.tts
-          import android.accessibilityservice.AccessibilityService
-          import android.accessibilityservice.AccessibilityServiceInfo
-          import android.content.Intent
-          import android.os.Handler
-          import android.os.Looper
-          import android.speech.tts.TextToSpeech
-          import android.speech.tts.UtteranceProgressListener
-          import android.view.accessibility.AccessibilityEvent
-          import android.view.accessibility.AccessibilityNodeInfo
-          import java.util.Locale
-          import java.util.concurrent.atomic.AtomicBoolean
-          class OmniAutoReaderService : AccessibilityService() {
-              private var tts: TextToSpeech? = null
-              private val isTtsReady = AtomicBoolean(false)
-              private val handler = Handler(Looper.getMainLooper())
-              private var lastSpokenText = ""
-              private var pendingRunnable: Runnable? = null
-              private lateinit var prefs: SharedPrefsManager
-              override fun onServiceConnected() {
-                  super.onServiceConnected()
-                  prefs = SharedPrefsManager(this)
-                  val info = AccessibilityServiceInfo().apply {
-                      eventTypes = AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED or AccessibilityEvent.TYPE_VIEW_FOCUSED
-                      feedbackType = AccessibilityServiceInfo.FEEDBACK_SPOKEN
-                      notificationTimeout = 80
-                      flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-                  }
-                  serviceInfo = info
-                  initTts()
-              }
-              private fun initTts() {
-                  val lang = prefs.getString("pref_lang", "en")
-                  val pkg = prefs.getEngineForLanguage(lang)
-                  tts = TextToSpeech(this, { status ->
-                      if (status == TextToSpeech.SUCCESS) {
-                          isTtsReady.set(true)
-                          val locTag = prefs.getLocaleForLangPkg(lang, pkg).ifEmpty { lang }
-                          try { tts?.language = Locale.forLanguageTag(locTag) } catch (_: Exception) { tts?.language = Locale.getDefault() }
-                          val key = "${lang}_${pkg}"
-                          tts?.setSpeechRate(maxOf(0.1f, prefs.getInt("rate_$key", 100) / 100.0f))
-                          tts?.setPitch(maxOf(0.1f, prefs.getInt("pitch_$key", 100) / 100.0f))
-                          tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                              override fun onStart(id: String?) {}
-                              override fun onDone(id: String?) {}
-                              override fun onError(id: String?) {}
-                          })
-                      }
-                  }, if (pkg == "NOT_SET") null else pkg)
-              }
-              override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-                  if (event == null || !isTtsReady.get()) return
-                  if (event.eventType != AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED &&
-                      event.eventType != AccessibilityEvent.TYPE_VIEW_FOCUSED) return
-                  val node = event.source ?: return
-                  val text = extractText(node)
-                  node.recycle()
-                  if (text.isBlank() || text == lastSpokenText) return
-                  lastSpokenText = text
-                  pendingRunnable?.let { handler.removeCallbacks(it) }
-                  val r = Runnable { speakText(text) }
-                  pendingRunnable = r
-                  handler.postDelayed(r, 50)
-              }
-              private fun extractText(node: AccessibilityNodeInfo): String {
-                  val parts = mutableListOf<String>()
-                  node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
-                  if (parts.isEmpty()) node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
-                  if (parts.isEmpty() && node.childCount == 0) node.hintText?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
-                  return parts.joinToString(". ")
-              }
-              private fun speakText(text: String) {
-                  if (!isTtsReady.get()) return
-                  tts?.stop()
-                  tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "auto_${System.currentTimeMillis()}")
-              }
-              override fun onInterrupt() { tts?.stop() }
-              override fun onUnbind(intent: Intent?): Boolean {
-                  tts?.stop(); tts?.shutdown(); tts = null; isTtsReady.set(false)
-                  return super.onUnbind(intent)
-              }
-          }
-          """)
-
-          # ── CheckVoiceData.kt ────────────────────────────────────────────────
+                    # ── CheckVoiceData.kt ────────────────────────────────────────────────
           w("app/src/main/java/com/omni/tts/CheckVoiceData.kt", """package com.omni.tts
           import android.app.Activity
           import android.content.Intent
@@ -980,8 +903,7 @@ jobs:
           w("app/src/main/java/com/omni/tts/MainActivity.kt", """package com.omni.tts
           import android.content.Intent
           import android.os.Bundle
-          import android.provider.Settings
-          import android.widget.Toast
+                    import android.widget.Toast
           import androidx.activity.ComponentActivity
           import androidx.activity.compose.setContent
           import androidx.compose.foundation.layout.*
@@ -1010,8 +932,8 @@ jobs:
                               var availableLocales by remember { mutableStateOf(listOf<Locale>()) }
                               var selLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(selLangIso, selEngPkg)) }
                               var readingMode by remember { mutableStateOf(prefs.getReadingMode()) }
-                              val readingModeOptions = listOf("Auto Mode", "Mix Mode")
-                              val readingModeKeys = listOf("auto", "mix")
+                              val readingModeOptions = listOf("Single Mode", "Auto Mode", "Mix Language Mode")
+                              val readingModeKeys = listOf("single", "auto", "mix")
                               LaunchedEffect(selEngPkg, selLangIso) {
                                   if (selEngPkg != "NOT_SET") {
                                       tempTts?.shutdown()
@@ -1051,8 +973,6 @@ jobs:
                                   Button(onClick = { startActivity(Intent("com.android.settings.TTS_SETTINGS")) }, modifier = Modifier.fillMaxWidth()) { Text("OPEN SYSTEM TTS SETTINGS") }
                                   Spacer(modifier = Modifier.height(12.dp))
                                   Button(onClick = { startActivity(Intent(context, AdvancedSettingsActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("ADVANCED SETTINGS") }
-                                  Spacer(modifier = Modifier.height(12.dp))
-                                  Button(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }, modifier = Modifier.fillMaxWidth()) { Text("ENABLE AUTO READER (ACCESSIBILITY)") }
                                   Spacer(modifier = Modifier.height(32.dp))
                                   Button(onClick = {
                                       try {
@@ -1175,7 +1095,6 @@ jobs:
                               var emojiCount by remember { mutableStateOf(prefs.getBoolean("emoji_count", false)) }
                               var punctCount by remember { mutableStateOf(prefs.getBoolean("punct_count", false)) }
                               var dictEnabled by remember { mutableStateOf(prefs.getBoolean("dict_enabled", false)) }
-                              var hysteresis by remember { mutableIntStateOf(prefs.getHysteresisMin()) }
                               var latLangIso by remember { mutableStateOf(prefs.getString("mixed_mode_latin_language", "en")) }
                               var nonLatLangIso by remember { mutableStateOf(prefs.getString("mixed_mode_non_latin_language", "hi")) }
                               Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
@@ -1185,14 +1104,6 @@ jobs:
                                   Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics{contentDescription="Toggle Repeated Emoji Count"}) { Checkbox(checked=emojiCount, onCheckedChange={emojiCount=it;prefs.setBoolean("emoji_count",it)}); Text("Repeated Emoji Count") }
                                   Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics{contentDescription="Toggle Repeated Punctuation Count"}) { Checkbox(checked=punctCount, onCheckedChange={punctCount=it;prefs.setBoolean("punct_count",it)}); Text("Repeated Punctuation Count") }
                                   Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics{contentDescription="Toggle Enable Dictionary"}) { Checkbox(checked=dictEnabled, onCheckedChange={dictEnabled=it;prefs.setBoolean("dict_enabled",it)}); Text("Enable Dictionary") }
-                                  Spacer(modifier = Modifier.height(16.dp))
-                                  Text("Language Switch Hysteresis: $hysteresis sentences")
-                                  Text("(Mix Mode: switch language only if $hysteresis+ consecutive sentences differ)", style = MaterialTheme.typography.bodySmall)
-                                  Row(verticalAlignment = Alignment.CenterVertically) {
-                                      Button(onClick={hysteresis=maxOf(1,hysteresis-1);prefs.setHysteresisMin(hysteresis)},modifier=Modifier.semantics{contentDescription="Decrease Hysteresis"}){Text("-")}
-                                      Slider(value=hysteresis.toFloat(),onValueChange={hysteresis=it.toInt();prefs.setHysteresisMin(hysteresis)},valueRange=1f..10f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))
-                                      Button(onClick={hysteresis=minOf(10,hysteresis+1);prefs.setHysteresisMin(hysteresis)},modifier=Modifier.semantics{contentDescription="Increase Hysteresis"}){Text("+")}
-                                  }
                                   Spacer(modifier = Modifier.height(16.dp))
                                   AccessibleDropdown("Default Latin Language", "${Languages.map[latLangIso]} ($latLangIso)", Languages.displayNames) { idx ->
                                       latLangIso=Languages.isoCodes[idx]; prefs.setString("mixed_mode_latin_language",latLangIso)
@@ -1271,19 +1182,7 @@ jobs:
               android:settingsActivity="com.omni.tts.MainActivity" />
           """)
 
-          # ── res/xml/auto_reader_service_config.xml ───────────────────────────
-          w("app/src/main/res/xml/auto_reader_service_config.xml", """<?xml version="1.0" encoding="utf-8"?>
-          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-              android:accessibilityEventTypes="typeViewAccessibilityFocused|typeViewFocused"
-              android:accessibilityFeedbackType="feedbackSpoken"
-              android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
-              android:canRetrieveWindowContent="true"
-              android:description="@string/auto_reader_description"
-              android:notificationTimeout="80"
-              android:settingsActivity="com.omni.tts.MainActivity" />
-          """)
-
-          # ── res/xml/provider_paths.xml ───────────────────────────────────────
+                    # ── res/xml/provider_paths.xml ───────────────────────────────────────
           w("app/src/main/res/xml/provider_paths.xml", """<?xml version="1.0" encoding="utf-8"?>
           <paths><cache-path name="vh_logs" path="." /></paths>
           """)
@@ -1299,8 +1198,7 @@ jobs:
           # ── AndroidManifest.xml ──────────────────────────────────────────────
           w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
-              <queries>
+                        <queries>
                   <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
               </queries>
               <application
@@ -1346,17 +1244,7 @@ jobs:
                       </intent-filter>
                       <meta-data android:name="android.speech.tts" android:resource="@xml/tts_engine" />
                   </service>
-                  <service
-                      android:name=".OmniAutoReaderService"
-                      android:exported="true"
-                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-                      android:label="Omni Auto Reader">
-                      <intent-filter>
-                          <action android:name="android.accessibilityservice.AccessibilityService" />
-                      </intent-filter>
-                      <meta-data android:name="android.accessibilityservice" android:resource="@xml/auto_reader_service_config" />
-                  </service>
-              </application>
+                        </application>
           </manifest>
           """)
 
