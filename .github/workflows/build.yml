@@ -54,7 +54,7 @@ jobs:
                 minSdk = 24
                 targetSdk = 34
                 versionCode = 1
-                versionName = "8.0"
+                versionName = "9.0"
                 externalNativeBuild { cmake { cppFlags += listOf("-std=c++11", "-Wno-narrowing", "-O3"); arguments += listOf("-DANDROID_STL=c++_shared") } }
                 ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) }
             }
@@ -618,6 +618,9 @@ jobs:
                 for (chunk in chunks) {
                     if (myStop.get()) break
                     if (chunk.text.trim().isEmpty()) continue
+                    
+                    // NOTE: isPunctuationOnly skip has been fully REMOVED here.
+                    
                     chunkIndex++
                     var effectiveLang = chunk.lang
                     var pkg = prefs.getEngineForLanguage(effectiveLang)
@@ -713,6 +716,7 @@ jobs:
         import androidx.core.content.FileProvider
         import java.util.Locale
         class MainActivity : ComponentActivity() {
+            private var tempTts: android.speech.tts.TextToSpeech? = null
             @OptIn(ExperimentalMaterial3Api::class)
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
@@ -734,7 +738,6 @@ jobs:
                             var availableLocales by remember { mutableStateOf(listOf<Locale>()) }
                             var expLoc by remember { mutableStateOf(false) }
                             var selLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(selLang, selEngPkg)) }
-                            var tempTts by remember { mutableStateOf<android.speech.tts.TextToSpeech?>(null) }
                             LaunchedEffect(selEngPkg, selLang) {
                                 if(selEngPkg != "NOT_SET") {
                                     tempTts?.shutdown()
@@ -808,6 +811,7 @@ jobs:
                     }
                 }
             }
+            override fun onDestroy() { tempTts?.shutdown(); super.onDestroy() }
         }
         EOF
         cat > app/src/main/kotlin/com/omni/tts/LanguageSettingsActivity.kt << 'EOF'
