@@ -35,12 +35,12 @@ jobs:
           import os, base64, textwrap
 
           def w(path, content):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
+              d=os.path.dirname(path); d and os.makedirs(d, exist_ok=True)
               with open(path, 'w', encoding='utf-8') as f:
                   f.write(textwrap.dedent(content))
 
           def wb(path, content_b64):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
+              d=os.path.dirname(path); d and os.makedirs(d, exist_ok=True)
               with open(path, 'wb') as f:
                   f.write(base64.b64decode(content_b64))
 
@@ -49,7 +49,7 @@ jobs:
           import os, textwrap
 
           def w(path, content):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
+              d=os.path.dirname(path); d and os.makedirs(d, exist_ok=True)
               with open(path, 'w', encoding='utf-8') as f:
                   f.write(content)
 
@@ -1331,7 +1331,7 @@ jobs:
                   </activity>
                   <provider
                       android:name="androidx.core.content.FileProvider"
-                      android:authorities="\${applicationId}.provider"
+                      android:authorities="${applicationId}.provider"
                       android:exported="false"
                       android:grantUriPermissions="true">
                       <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" />
