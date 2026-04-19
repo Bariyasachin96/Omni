@@ -9,49 +9,40 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
-
     - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-
     - name: Install NDK and CMake
       run: |
         echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.1.8937393" "cmake;3.22.1" --sdk_root=$ANDROID_HOME
-
     - name: Clone CLD2
       run: |
         mkdir -p app/src/main/cpp
         git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
-
-    - name: Generate Project Files Part 1
+    - name: Generate Complete Project
       run: |
         mkdir -p app/src/main/kotlin/com/omni/tts
         mkdir -p app/src/main/res/xml
         mkdir -p app/src/main/res/values
-
         cat > gradle.properties << 'EOF'
         android.useAndroidX=true
         android.enableJetifier=true
         org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8
         org.gradle.daemon=false
         EOF
-
         cat > settings.gradle.kts << 'EOF'
         pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
         dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
         rootProject.name = "Omni"
         include(":app")
         EOF
-
         cat > build.gradle.kts << 'EOF'
         plugins { id("com.android.application") version "8.2.2" apply false; id("org.jetbrains.kotlin.android") version "1.9.22" apply false }
         EOF
-
         cat > app/build.gradle.kts << 'EOF'
         plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
         android {
@@ -63,7 +54,7 @@ jobs:
                 minSdk = 24
                 targetSdk = 34
                 versionCode = 1
-                versionName = "9.0"
+                versionName = "10.0"
                 externalNativeBuild { cmake { cppFlags += listOf("-std=c++11", "-Wno-narrowing", "-O3"); arguments += listOf("-DANDROID_STL=c++_shared") } }
                 ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) }
             }
@@ -86,40 +77,21 @@ jobs:
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
         }
         EOF
-
         cat > app/src/main/cpp/CMakeLists.txt << 'EOF'
         cmake_minimum_required(VERSION 3.18.1)
         project("omni_native")
         set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
-        add_library(cld2 SHARED native-lib.cpp
-            ${CLD2_DIR}/cldutil.cc ${CLD2_DIR}/cldutil_shared.cc
-            ${CLD2_DIR}/compact_lang_det.cc ${CLD2_DIR}/compact_lang_det_hint_code.cc
-            ${CLD2_DIR}/compact_lang_det_impl.cc ${CLD2_DIR}/debug.cc
-            ${CLD2_DIR}/fixunicodevalue.cc ${CLD2_DIR}/generated_entities.cc
-            ${CLD2_DIR}/generated_language.cc ${CLD2_DIR}/generated_ulscript.cc
-            ${CLD2_DIR}/getonescriptspan.cc ${CLD2_DIR}/lang_script.cc
-            ${CLD2_DIR}/offsetmap.cc ${CLD2_DIR}/scoreonescriptspan.cc
-            ${CLD2_DIR}/tote.cc ${CLD2_DIR}/utf8statetable.cc
-            ${CLD2_DIR}/cld_generated_cjk_uni_prop_80.cc
-            ${CLD2_DIR}/cld2_generated_cjk_compatible.cc
-            ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc
-            ${CLD2_DIR}/generated_distinct_bi_0.cc
-            ${CLD2_DIR}/cld2_generated_quadchrome_2.cc
-            ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc
-            ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc
-            ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc)
+        add_library(cld2 SHARED native-lib.cpp ${CLD2_DIR}/cldutil.cc ${CLD2_DIR}/cldutil_shared.cc ${CLD2_DIR}/compact_lang_det.cc ${CLD2_DIR}/compact_lang_det_hint_code.cc ${CLD2_DIR}/compact_lang_det_impl.cc ${CLD2_DIR}/debug.cc ${CLD2_DIR}/fixunicodevalue.cc ${CLD2_DIR}/generated_entities.cc ${CLD2_DIR}/generated_language.cc ${CLD2_DIR}/generated_ulscript.cc ${CLD2_DIR}/getonescriptspan.cc ${CLD2_DIR}/lang_script.cc ${CLD2_DIR}/offsetmap.cc ${CLD2_DIR}/scoreonescriptspan.cc ${CLD2_DIR}/tote.cc ${CLD2_DIR}/utf8statetable.cc ${CLD2_DIR}/cld_generated_cjk_uni_prop_80.cc ${CLD2_DIR}/cld2_generated_cjk_compatible.cc ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc ${CLD2_DIR}/generated_distinct_bi_0.cc ${CLD2_DIR}/cld2_generated_quadchrome_2.cc ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc)
         target_include_directories(cld2 PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
         find_library(log-lib log)
         target_link_libraries(cld2 ${log-lib})
         EOF
-
         cat > app/src/main/cpp/native-lib.cpp << 'EOF'
         #include <jni.h>
         #include <string>
         #include <cstring>
         #include "compact_lang_det.h"
-        extern "C" JNIEXPORT jstring JNICALL
-        Java_com_omni_tts_LanguageDetector_nativeDetect(JNIEnv* env, jclass, jstring text) {
+        extern "C" JNIEXPORT jstring JNICALL Java_com_omni_tts_LanguageDetector_nativeDetect(JNIEnv* env, jclass, jstring text) {
             if (text == nullptr) return env->NewStringUTF("un");
             const char* utf8 = env->GetStringUTFChars(text, nullptr);
             if (utf8 == nullptr) return env->NewStringUTF("un");
@@ -133,7 +105,6 @@ jobs:
             return env->NewStringUTF(code);
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/VhLogger.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
@@ -166,7 +137,7 @@ jobs:
             fun i(msg: String) = write("I", msg)
             fun markSynthStart(chunkText: String, lang: String, chunkIndex: Int): Long {
                 val t = System.currentTimeMillis(); lastSynthStart.set(t); lastFirstAudio.set(0)
-                write("D", "[CHUNK-$chunkIndex] lang=$lang len=${chunkText.length} text=${chunkText.substring(0, minOf(50, chunkText.length))}")
+                write("D", "[CHUNK-$chunkIndex] lang=$lang len=${chunkText.length} text=${chunkText.substring(0, Math.min(50, chunkText.length))}")
                 write("D", "[CHUNK-$chunkIndex] synthesizeToFile START")
                 return t
             }
@@ -187,7 +158,7 @@ jobs:
             fun markSynthError(chunkIndex: Int, reason: String) { write("E", "[CHUNK-$chunkIndex] SYNTH ERROR: $reason") }
             fun markEngineInit(lang: String, pkg: String, ms: Long) { write("D", "[ENGINE] init lang=$lang pkg=$pkg time=${ms}ms") }
             fun markEngineReused(lang: String) { write("D", "[ENGINE] reused lang=$lang") }
-            fun markRequest(text: String, totalChunks: Int) { write("D", "[REQUEST] length=${text.length} chunks=$totalChunks text=${text.substring(0, minOf(80, text.length))}") }
+            fun markRequest(text: String, totalChunks: Int) { write("D", "[REQUEST] length=${text.length} chunks=$totalChunks text=${text.substring(0, Math.min(80, text.length))}") }
             fun markStop() { write("D", "[STOP] onStop called") }
             fun markFallback(detectedLang: String, fallbackLang: String) { write("W", "[FALLBACK] detected=$detectedLang -> using=$fallbackLang") }
             fun markSkipped(reason: String) { write("W", "[SKIPPED] $reason") }
@@ -201,13 +172,12 @@ jobs:
             @Synchronized fun clear() { buffer.clear() }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/WavUtils.kt << 'EOF'
         package com.omni.tts
         import java.io.EOFException
         import java.io.InputStream
         object WavUtils {
-            class WavInfo { var sampleRate = 16000; var channels: Short = 1; var bitsPerSample: Short = 16; var dataOffset = 0 }
+            class WavInfo { var sampleRate=16000; var channels:Short=1; var bitsPerSample:Short=16; var dataOffset=0 }
             fun parse(dis: InputStream): WavInfo {
                 val info = WavInfo()
                 readFully(dis, ByteArray(4)); readInt(dis); readFully(dis, ByteArray(4)); var offset = 12
@@ -227,13 +197,12 @@ jobs:
                 if (info.bitsPerSample <= 0) info.bitsPerSample = 16
                 return info
             }
-            private fun readFully(i: InputStream, b: ByteArray) { var n = 0; while (n < b.size) { val c = i.read(b, n, b.size - n); if (c < 0) throw EOFException(); n += c } }
-            private fun readInt(i: InputStream): Int { val c1 = i.read(); val c2 = i.read(); val c3 = i.read(); val c4 = i.read(); if ((c1 or c2 or c3 or c4) < 0) throw EOFException(); return (c1 shl 24) + (c2 shl 16) + (c3 shl 8) + c4 }
-            private fun readShort(i: InputStream): Short { val c1 = i.read(); val c2 = i.read(); if ((c1 or c2) < 0) throw EOFException(); return ((c1 shl 8) + c2).toShort() }
-            private fun skipFully(i: InputStream, n: Int) { var t = 0; while (t < n) { var s = i.skip((n - t).toLong()); if (s == 0L) { if (i.read() < 0) throw EOFException(); s = 1 }; t += s.toInt() } }
+            private fun readFully(i: InputStream, b: ByteArray) { var n=0; while(n<b.size){ val c=i.read(b,n,b.size-n); if(c<0)throw EOFException(); n+=c } }
+            private fun readInt(i: InputStream): Int { val c1=i.read();val c2=i.read();val c3=i.read();val c4=i.read(); if((c1 or c2 or c3 or c4)<0)throw EOFException(); return (c1 shl 24)+(c2 shl 16)+(c3 shl 8)+c4 }
+            private fun readShort(i: InputStream): Short { val c1=i.read();val c2=i.read(); if((c1 or c2)<0)throw EOFException(); return ((c1 shl 8)+c2).toShort() }
+            private fun skipFully(i: InputStream, n: Int) { var t=0; while(t<n){ var s=i.skip((n-t).toLong()); if(s==0L){if(i.read()<0)throw EOFException();s=1}; t+=s.toInt() } }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/SharedPrefsManager.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
@@ -263,7 +232,6 @@ jobs:
             fun getDict(): Map<String, String> = prefs.all.filterKeys { it.startsWith("dict_") }.mapKeys { it.key.substring(5) }.mapValues { it.value.toString() }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/EngineFinder.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
@@ -273,18 +241,12 @@ jobs:
             data class TTSInfo(val pkg: String, val name: String) { override fun toString() = name }
             fun getEngines(ctx: Context): List<TTSInfo> {
                 val pm = ctx.packageManager
-                val list = pm.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0)
-                    .map { TTSInfo(it.serviceInfo.packageName, it.serviceInfo.applicationInfo.loadLabel(pm).toString()) }
-                    .toMutableList()
+                val list = pm.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0).map { TTSInfo(it.serviceInfo.packageName, it.serviceInfo.applicationInfo.loadLabel(pm).toString()) }.toMutableList()
                 if (list.isEmpty()) list.add(TTSInfo("com.google.android.tts", "Google TTS"))
                 return list
             }
         }
         EOF
-
-    - name: Generate Project Files Part 2
-      run: |
-
         cat > app/src/main/kotlin/com/omni/tts/LanguageDetector.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
@@ -294,45 +256,8 @@ jobs:
             init { System.loadLibrary("cld2") }
             @JvmStatic external fun nativeDetect(text: String): String
             class Chunk(val text: String, val lang: String)
-            private val BLOCK_LANGS = arrayOf(
-                "Armenian","Hebrew","Arabic","Syriac","Hindi","Bengali","Punjabi","Gujarati",
-                "Oriya","Tamil","Telugu","Kannada","Malayalam","Sinhalese","Thai","Lao",
-                "Tibetan","Burmese","Georgian","Korean","Amharic","Cherokee","Irish","Greek",
-                "Khmer","Mongolian","Sundanese","Japanese","Chinese Simplified","Javanese",
-                "Persian","Turkish","Hungarian","Albanian","Somali","Italian","Sanskrit",
-                "Marathi","Sindhi","Coptic","Berber","Amharic"
-            )
-            private val BLOCK_TABLE = arrayOf(
-                intArrayOf(0x0530,0x058F,0), intArrayOf(0x0590,0x05FF,1), intArrayOf(0x0600,0x06FF,2),
-                intArrayOf(0x0700,0x074F,3), intArrayOf(0x0750,0x077F,2), intArrayOf(0x08A0,0x08FF,2),
-                intArrayOf(0x0900,0x097F,4), intArrayOf(0x0980,0x09FF,5), intArrayOf(0x0A00,0x0A7F,6),
-                intArrayOf(0x0A80,0x0AFF,7), intArrayOf(0x0B00,0x0B7F,8), intArrayOf(0x0B80,0x0BFF,9),
-                intArrayOf(0x0C00,0x0C7F,10), intArrayOf(0x0C80,0x0CFF,11), intArrayOf(0x0D00,0x0D7F,12),
-                intArrayOf(0x0D80,0x0DFF,13), intArrayOf(0x0E00,0x0E7F,14), intArrayOf(0x0E80,0x0EFF,15),
-                intArrayOf(0x0F00,0x0FFF,16), intArrayOf(0x1000,0x109F,17), intArrayOf(0x10A0,0x10FF,18),
-                intArrayOf(0x1100,0x11FF,19), intArrayOf(0x1200,0x137F,20), intArrayOf(0x1380,0x139F,20),
-                intArrayOf(0x13A0,0x13FF,21), intArrayOf(0x1680,0x169F,22), intArrayOf(0x1780,0x17FF,24),
-                intArrayOf(0x1800,0x18AF,25), intArrayOf(0x19E0,0x19FF,24), intArrayOf(0x1B80,0x1BBF,26),
-                intArrayOf(0x1C90,0x1CBF,18), intArrayOf(0x1CC0,0x1CCF,26), intArrayOf(0x1CD0,0x1CFF,36),
-                intArrayOf(0x1F00,0x1FFF,23), intArrayOf(0x2D00,0x2D2F,18), intArrayOf(0x2D30,0x2D7F,40),
-                intArrayOf(0x2D80,0x2DDF,41), intArrayOf(0x3040,0x309F,27), intArrayOf(0x30A0,0x30FF,27),
-                intArrayOf(0x3100,0x312F,28), intArrayOf(0x3130,0x318F,19), intArrayOf(0x3190,0x319F,28),
-                intArrayOf(0x31A0,0x31BF,28), intArrayOf(0x31F0,0x31FF,27), intArrayOf(0x3400,0x4DBF,28),
-                intArrayOf(0x4E00,0x9FFF,28), intArrayOf(0xA000,0xA48F,28), intArrayOf(0xA490,0xA4CF,28),
-                intArrayOf(0xA8E0,0xA8FF,4), intArrayOf(0xA960,0xA97F,19), intArrayOf(0xA980,0xA9DF,29),
-                intArrayOf(0xA9E0,0xA9FF,17), intArrayOf(0xAA60,0xAA7F,17), intArrayOf(0xAB00,0xAB2F,20),
-                intArrayOf(0xAB70,0xABBF,21), intArrayOf(0xAC00,0xD7AF,19), intArrayOf(0xD7B0,0xD7FF,19),
-                intArrayOf(0xFB50,0xFDFF,2), intArrayOf(0xFE70,0xFEFF,2), intArrayOf(0x10140,0x1018F,23),
-                intArrayOf(0x103A0,0x103DF,30), intArrayOf(0x10B60,0x10B7F,30), intArrayOf(0x10B80,0x10BAF,30),
-                intArrayOf(0x10C00,0x10C4F,31), intArrayOf(0x10C80,0x10CFF,32), intArrayOf(0x10500,0x1052F,33),
-                intArrayOf(0x10530,0x1056F,33), intArrayOf(0x10480,0x104AF,34), intArrayOf(0x10300,0x1032F,35),
-                intArrayOf(0x10A60,0x10A7F,2), intArrayOf(0x10A80,0x10A9F,2), intArrayOf(0x11100,0x1114F,5),
-                intArrayOf(0x11150,0x1117F,4), intArrayOf(0x111E0,0x111FF,13), intArrayOf(0x112B0,0x112FF,38),
-                intArrayOf(0x11300,0x1137F,9), intArrayOf(0x11580,0x115FF,36), intArrayOf(0x11600,0x1165F,37),
-                intArrayOf(0x11660,0x1167F,25), intArrayOf(0x11FC0,0x11FFF,9), intArrayOf(0x1EE00,0x1EEFF,2),
-                intArrayOf(0x20000,0x2A6DF,28), intArrayOf(0x2A700,0x2B73F,28), intArrayOf(0x2B740,0x2B81F,28),
-                intArrayOf(0x2B820,0x2CEAF,28), intArrayOf(0x2CEB0,0x2EBEF,28)
-            )
+            private val BLOCK_LANGS = arrayOf("Armenian","Hebrew","Arabic","Syriac","Hindi","Bengali","Punjabi","Gujarati","Oriya","Tamil","Telugu","Kannada","Malayalam","Sinhalese","Thai","Lao","Tibetan","Burmese","Georgian","Korean","Amharic","Cherokee","Irish","Greek","Khmer","Mongolian","Sundanese","Japanese","Chinese Simplified","Javanese","Persian","Turkish","Hungarian","Albanian","Somali","Italian","Sanskrit","Marathi","Sindhi","Coptic","Berber","Amharic")
+            private val BLOCK_TABLE = arrayOf(intArrayOf(0x0530,0x058F,0), intArrayOf(0x0590,0x05FF,1), intArrayOf(0x0600,0x06FF,2), intArrayOf(0x0700,0x074F,3), intArrayOf(0x0750,0x077F,2), intArrayOf(0x08A0,0x08FF,2), intArrayOf(0x0900,0x097F,4), intArrayOf(0x0980,0x09FF,5), intArrayOf(0x0A00,0x0A7F,6), intArrayOf(0x0A80,0x0AFF,7), intArrayOf(0x0B00,0x0B7F,8), intArrayOf(0x0B80,0x0BFF,9), intArrayOf(0x0C00,0x0C7F,10), intArrayOf(0x0C80,0x0CFF,11), intArrayOf(0x0D00,0x0D7F,12), intArrayOf(0x0D80,0x0DFF,13), intArrayOf(0x0E00,0x0E7F,14), intArrayOf(0x0E80,0x0EFF,15), intArrayOf(0x0F00,0x0FFF,16), intArrayOf(0x1000,0x109F,17), intArrayOf(0x10A0,0x10FF,18), intArrayOf(0x1100,0x11FF,19), intArrayOf(0x1200,0x137F,20), intArrayOf(0x1380,0x139F,20), intArrayOf(0x13A0,0x13FF,21), intArrayOf(0x1680,0x169F,22), intArrayOf(0x1780,0x17FF,24), intArrayOf(0x1800,0x18AF,25), intArrayOf(0x19E0,0x19FF,24), intArrayOf(0x1B80,0x1BBF,26), intArrayOf(0x1C90,0x1CBF,18), intArrayOf(0x1CC0,0x1CCF,26), intArrayOf(0x1CD0,0x1CFF,36), intArrayOf(0x1F00,0x1FFF,23), intArrayOf(0x2D00,0x2D2F,18), intArrayOf(0x2D30,0x2D7F,40), intArrayOf(0x2D80,0x2DDF,41), intArrayOf(0x3040,0x309F,27), intArrayOf(0x30A0,0x30FF,27), intArrayOf(0x3100,0x312F,28), intArrayOf(0x3130,0x318F,19), intArrayOf(0x3190,0x319F,28), intArrayOf(0x31A0,0x31BF,28), intArrayOf(0x31F0,0x31FF,27), intArrayOf(0x3400,0x4DBF,28), intArrayOf(0x4E00,0x9FFF,28), intArrayOf(0xA000,0xA48F,28), intArrayOf(0xA490,0xA4CF,28), intArrayOf(0xA8E0,0xA8FF,4), intArrayOf(0xA960,0xA97F,19), intArrayOf(0xA980,0xA9DF,29), intArrayOf(0xA9E0,0xA9FF,17), intArrayOf(0xAA60,0xAA7F,17), intArrayOf(0xAB00,0xAB2F,20), intArrayOf(0xAB70,0xABBF,21), intArrayOf(0xAC00,0xD7AF,19), intArrayOf(0xD7B0,0xD7FF,19), intArrayOf(0xFB50,0xFDFF,2), intArrayOf(0xFE70,0xFEFF,2), intArrayOf(0x10140,0x1018F,23), intArrayOf(0x103A0,0x103DF,30), intArrayOf(0x10B60,0x10B7F,30), intArrayOf(0x10B80,0x10BAF,30), intArrayOf(0x10C00,0x10C4F,31), intArrayOf(0x10C80,0x10CFF,32), intArrayOf(0x10500,0x1052F,33), intArrayOf(0x10530,0x1056F,33), intArrayOf(0x10480,0x104AF,34), intArrayOf(0x10300,0x1032F,35), intArrayOf(0x10A60,0x10A7F,2), intArrayOf(0x10A80,0x10A9F,2), intArrayOf(0x11100,0x1114F,5), intArrayOf(0x11150,0x1117F,4), intArrayOf(0x111E0,0x111FF,13), intArrayOf(0x112B0,0x112FF,38), intArrayOf(0x11300,0x1137F,9), intArrayOf(0x11580,0x115FF,36), intArrayOf(0x11600,0x1165F,37), intArrayOf(0x11660,0x1167F,25), intArrayOf(0x11FC0,0x11FFF,9), intArrayOf(0x1EE00,0x1EEFF,2), intArrayOf(0x20000,0x2A6DF,28), intArrayOf(0x2A700,0x2B73F,28), intArrayOf(0x2B740,0x2B81F,28), intArrayOf(0x2B820,0x2CEAF,28), intArrayOf(0x2CEB0,0x2EBEF,28))
             private const val CACHE_MAX = 5000
             private val cpCache = ConcurrentHashMap<Int, String>()
             fun isLatinText(text: String?): Boolean {
@@ -345,36 +270,7 @@ jobs:
                 }
                 return true
             }
-            private val ISO_TO_LANG = mapOf(
-                "hi" to "Hindi", "bho" to "Hindi", "mai" to "Hindi", "awa" to "Hindi",
-                "raj" to "Hindi", "hne" to "Hindi", "kok" to "Hindi", "ne" to "Nepali",
-                "mr" to "Marathi", "sa" to "Sanskrit", "bn" to "Bengali", "as" to "Bengali",
-                "pa" to "Punjabi", "gu" to "Gujarati", "or" to "Oriya", "ta" to "Tamil",
-                "te" to "Telugu", "kn" to "Kannada", "ml" to "Malayalam", "si" to "Sinhalese",
-                "ur" to "Urdu", "sd" to "Sindhi", "en" to "English", "ar" to "Arabic",
-                "zh" to "Chinese Simplified", "zh-hans" to "Chinese Simplified",
-                "cmn" to "Chinese Simplified", "yue" to "Chinese Simplified",
-                "zh-hant" to "Chinese Traditional", "ja" to "Japanese", "ko" to "Korean",
-                "ru" to "Russian", "uk" to "Ukrainian", "be" to "Belarusian",
-                "bg" to "Bulgarian", "mk" to "Macedonian", "sr" to "Serbian",
-                "kk" to "Kazakh", "ky" to "Kyrgyz", "tg" to "Tajik", "tt" to "Tatar",
-                "mn" to "Mongolian", "fa" to "Persian", "ps" to "Pashto",
-                "he" to "Hebrew", "iw" to "Hebrew", "tr" to "Turkish", "ka" to "Georgian",
-                "hy" to "Armenian", "el" to "Greek", "grc" to "Greek", "th" to "Thai",
-                "vi" to "Vietnamese", "id" to "Indonesian", "in" to "Indonesian",
-                "ms" to "Malay", "km" to "Khmer", "de" to "German", "fr" to "French",
-                "es" to "Spanish", "it" to "Italian", "pt" to "Portuguese", "nl" to "Dutch",
-                "pl" to "Polish", "cs" to "Czech", "sk" to "Slovak", "ro" to "Romanian",
-                "hu" to "Hungarian", "fi" to "Finnish", "sv" to "Swedish", "da" to "Danish",
-                "no" to "Norwegian", "nb" to "Norwegian", "nn" to "Norwegian",
-                "is" to "Icelandic", "lv" to "Latvian", "lt" to "Lithuanian",
-                "et" to "Estonian", "hr" to "Croatian", "sl" to "Slovenian",
-                "bs" to "Bosnian", "sq" to "Albanian", "af" to "Afrikaans",
-                "ca" to "Catalan", "gl" to "Galician", "eu" to "Basque", "cy" to "Welsh",
-                "ga" to "Irish", "mt" to "Maltese", "sw" to "Swahili", "so" to "Somali",
-                "am" to "Amharic", "yo" to "Yoruba", "zu" to "Zulu", "jv" to "Javanese",
-                "su" to "Sundanese", "az" to "Azerbaijani", "uz" to "Uzbek", "lo" to "Lao"
-            )
+            private val ISO_TO_LANG = mapOf("hi" to "Hindi", "bho" to "Hindi", "mai" to "Hindi", "awa" to "Hindi", "raj" to "Hindi", "hne" to "Hindi", "kok" to "Hindi", "ne" to "Nepali", "mr" to "Marathi", "sa" to "Sanskrit", "bn" to "Bengali", "as" to "Bengali", "pa" to "Punjabi", "gu" to "Gujarati", "or" to "Oriya", "ta" to "Tamil", "te" to "Telugu", "kn" to "Kannada", "ml" to "Malayalam", "si" to "Sinhalese", "ur" to "Urdu", "sd" to "Sindhi", "en" to "English", "ar" to "Arabic", "zh" to "Chinese Simplified", "zh-hans" to "Chinese Simplified", "cmn" to "Chinese Simplified", "yue" to "Chinese Simplified", "zh-hant" to "Chinese Traditional", "ja" to "Japanese", "ko" to "Korean", "ru" to "Russian", "uk" to "Ukrainian", "be" to "Belarusian", "bg" to "Bulgarian", "mk" to "Macedonian", "sr" to "Serbian", "kk" to "Kazakh", "ky" to "Kyrgyz", "tg" to "Tajik", "tt" to "Tatar", "mn" to "Mongolian", "fa" to "Persian", "ps" to "Pashto", "he" to "Hebrew", "iw" to "Hebrew", "tr" to "Turkish", "ka" to "Georgian", "hy" to "Armenian", "el" to "Greek", "grc" to "Greek", "th" to "Thai", "vi" to "Vietnamese", "id" to "Indonesian", "in" to "Indonesian", "ms" to "Malay", "km" to "Khmer", "de" to "German", "fr" to "French", "es" to "Spanish", "it" to "Italian", "pt" to "Portuguese", "nl" to "Dutch", "pl" to "Polish", "cs" to "Czech", "sk" to "Slovak", "ro" to "Romanian", "hu" to "Hungarian", "fi" to "Finnish", "sv" to "Swedish", "da" to "Danish", "no" to "Norwegian", "nb" to "Norwegian", "nn" to "Norwegian", "is" to "Icelandic", "lv" to "Latvian", "lt" to "Lithuanian", "et" to "Estonian", "hr" to "Croatian", "sl" to "Slovenian", "bs" to "Bosnian", "sq" to "Albanian", "af" to "Afrikaans", "ca" to "Catalan", "gl" to "Galician", "eu" to "Basque", "cy" to "Welsh", "ga" to "Irish", "mt" to "Maltese", "sw" to "Swahili", "so" to "Somali", "am" to "Amharic", "yo" to "Yoruba", "zu" to "Zulu", "jv" to "Javanese", "su" to "Sundanese", "az" to "Azerbaijani", "uz" to "Uzbek", "lo" to "Lao")
             fun detect(text: String?, fallback: String, prefs: SharedPrefsManager?): String {
                 if (text.isNullOrEmpty()) return fallback
                 val trimmed = if (text.length > 1500) text.substring(0, 1500) else text.trim()
@@ -406,9 +302,10 @@ jobs:
                 return fallback
             }
             private fun detectWithCld2(text: String): String? {
-                val len = text.length; var i = 0
+                val len = text.length
+                var i = 0
                 while (i < len) {
-                    try { val code = nativeDetect(text.substring(i, minOf(i + 64, len))); if (code != "un" && code.length >= 2) return code } catch (ignored: Exception) {}
+                    try { val code = nativeDetect(text.substring(i, Math.min(i + 64, len))); if (code != "un" && code.length >= 2) return code } catch (ignored: Exception) {}
                     i += 64
                 }
                 try { val code = nativeDetect(text); if (code != "un" && code.length >= 2) return code } catch (ignored: Exception) {}
@@ -429,7 +326,7 @@ jobs:
             }
             fun isoToLang(code: String?): String {
                 if (code == null) return "Unknown"
-                return ISO_TO_LANG[code.lowercase(Locale.ROOT).trim()] ?: "Unknown"
+                return ISO_TO_LANG[code.toLowerCase(Locale.ROOT).trim()] ?: "Unknown"
             }
             private fun firstSignificantCp(text: String): Int {
                 var i = 0
@@ -444,82 +341,26 @@ jobs:
                 for (e in BLOCK_TABLE) if (cp in e[0]..e[1]) return BLOCK_LANGS[e[2]]
                 return null
             }
-            fun getAllLanguages(): List<String> = listOf(
-                "Afrikaans","Albanian","Arabic","Armenian","Azerbaijani","Basque","Belarusian",
-                "Bengali","Bosnian","Bulgarian","Catalan","Chinese Simplified","Chinese Traditional",
-                "Croatian","Czech","Danish","Dutch","English","Estonian","Finnish","French",
-                "Galician","Georgian","German","Greek","Gujarati","Hebrew","Hindi","Hungarian",
-                "Icelandic","Indonesian","Irish","Italian","Japanese","Javanese","Kannada",
-                "Kazakh","Khmer","Korean","Lao","Latvian","Lithuanian","Macedonian","Malay",
-                "Malayalam","Maltese","Marathi","Mongolian","Nepali","Norwegian","Oriya",
-                "Pashto","Persian","Polish","Portuguese","Punjabi","Romanian","Russian",
-                "Serbian","Sinhalese","Slovak","Slovenian","Somali","Spanish","Sundanese",
-                "Swahili","Swedish","Tamil","Telugu","Thai","Turkish","Ukrainian","Urdu",
-                "Uzbek","Vietnamese","Welsh","Yoruba","Zulu"
-            )
-            fun getLocale(lang: String): Locale = when (lang) {
-                "Afrikaans" -> Locale("af","ZA"); "Albanian" -> Locale("sq","AL")
-                "Arabic" -> Locale("ar","SA"); "Armenian" -> Locale("hy","AM")
-                "Azerbaijani" -> Locale("az","AZ"); "Basque" -> Locale("eu","ES")
-                "Belarusian" -> Locale("be","BY"); "Bengali" -> Locale("bn","BD")
-                "Bosnian" -> Locale("bs","BA"); "Bulgarian" -> Locale("bg","BG")
-                "Catalan" -> Locale("ca","ES"); "Chinese Simplified" -> Locale.SIMPLIFIED_CHINESE
-                "Chinese Traditional" -> Locale.TRADITIONAL_CHINESE; "Croatian" -> Locale("hr","HR")
-                "Czech" -> Locale("cs","CZ"); "Danish" -> Locale("da","DK")
-                "Dutch" -> Locale("nl","NL"); "English" -> Locale.US
-                "Estonian" -> Locale("et","EE"); "Finnish" -> Locale("fi","FI")
-                "French" -> Locale.FRANCE; "Galician" -> Locale("gl","ES")
-                "Georgian" -> Locale("ka","GE"); "German" -> Locale.GERMANY
-                "Greek" -> Locale("el","GR"); "Gujarati" -> Locale("gu","IN")
-                "Hebrew" -> Locale("he","IL"); "Hindi" -> Locale("hi","IN")
-                "Hungarian" -> Locale("hu","HU"); "Icelandic" -> Locale("is","IS")
-                "Indonesian" -> Locale("in","ID"); "Irish" -> Locale("ga","IE")
-                "Italian" -> Locale.ITALY; "Japanese" -> Locale.JAPAN
-                "Javanese" -> Locale("jv","ID"); "Kannada" -> Locale("kn","IN")
-                "Kazakh" -> Locale("kk","KZ"); "Khmer" -> Locale("km","KH")
-                "Korean" -> Locale.KOREA; "Lao" -> Locale("lo","LA")
-                "Latvian" -> Locale("lv","LV"); "Lithuanian" -> Locale("lt","LT")
-                "Macedonian" -> Locale("mk","MK"); "Malay" -> Locale("ms","MY")
-                "Malayalam" -> Locale("ml","IN"); "Maltese" -> Locale("mt","MT")
-                "Marathi" -> Locale("mr","IN"); "Mongolian" -> Locale("mn","MN")
-                "Nepali" -> Locale("ne","NP"); "Norwegian" -> Locale("no","NO")
-                "Oriya" -> Locale("or","IN"); "Pashto" -> Locale("ps","AF")
-                "Persian" -> Locale("fa","IR"); "Polish" -> Locale("pl","PL")
-                "Portuguese" -> Locale("pt","BR"); "Punjabi" -> Locale("pa","IN")
-                "Romanian" -> Locale("ro","RO"); "Russian" -> Locale("ru","RU")
-                "Serbian" -> Locale("sr","RS"); "Sinhalese" -> Locale("si","LK")
-                "Slovak" -> Locale("sk","SK"); "Slovenian" -> Locale("sl","SI")
-                "Somali" -> Locale("so","SO"); "Spanish" -> Locale("es","ES")
-                "Sundanese" -> Locale("su","ID"); "Swahili" -> Locale("sw","KE")
-                "Swedish" -> Locale("sv","SE"); "Tamil" -> Locale("ta","IN")
-                "Telugu" -> Locale("te","IN"); "Thai" -> Locale("th","TH")
-                "Turkish" -> Locale("tr","TR"); "Ukrainian" -> Locale("uk","UA")
-                "Urdu" -> Locale("ur","PK"); "Uzbek" -> Locale("uz","UZ")
-                "Vietnamese" -> Locale("vi","VN"); "Welsh" -> Locale("cy","GB")
-                "Yoruba" -> Locale("yo","NG"); "Zulu" -> Locale("zu","ZA")
-                else -> Locale.US
+            fun getAllLanguages(): List<String> = listOf("Afrikaans", "Albanian", "Arabic", "Armenian", "Azerbaijani", "Basque", "Belarusian", "Bengali", "Bosnian", "Bulgarian", "Catalan", "Chinese Simplified", "Chinese Traditional", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Finnish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latvian", "Lithuanian", "Macedonian", "Malay", "Malayalam", "Maltese", "Marathi", "Mongolian", "Nepali", "Norwegian", "Oriya", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Serbian", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tamil", "Telugu", "Thai", "Turkish", "Ukrainian", "Urdu", "Uzbek", "Vietnamese", "Welsh", "Yoruba", "Zulu")
+            fun getLocale(lang: String): Locale {
+                return when (lang) {
+                    "Afrikaans" -> Locale("af", "ZA"); "Albanian" -> Locale("sq", "AL"); "Arabic" -> Locale("ar", "SA"); "Armenian" -> Locale("hy", "AM"); "Azerbaijani" -> Locale("az", "AZ"); "Basque" -> Locale("eu", "ES"); "Belarusian" -> Locale("be", "BY"); "Bengali" -> Locale("bn", "BD"); "Bosnian" -> Locale("bs", "BA"); "Bulgarian" -> Locale("bg", "BG"); "Catalan" -> Locale("ca", "ES"); "Chinese Simplified" -> Locale.SIMPLIFIED_CHINESE; "Chinese Traditional" -> Locale.TRADITIONAL_CHINESE; "Croatian" -> Locale("hr", "HR"); "Czech" -> Locale("cs", "CZ"); "Danish" -> Locale("da", "DK"); "Dutch" -> Locale("nl", "NL"); "English" -> Locale.US; "Estonian" -> Locale("et", "EE"); "Finnish" -> Locale("fi", "FI"); "French" -> Locale.FRANCE; "Galician" -> Locale("gl", "ES"); "Georgian" -> Locale("ka", "GE"); "German" -> Locale.GERMANY; "Greek" -> Locale("el", "GR"); "Gujarati" -> Locale("gu", "IN"); "Hebrew" -> Locale("he", "IL"); "Hindi" -> Locale("hi", "IN"); "Hungarian" -> Locale("hu", "HU"); "Icelandic" -> Locale("is", "IS"); "Indonesian" -> Locale("in", "ID"); "Irish" -> Locale("ga", "IE"); "Italian" -> Locale.ITALY; "Japanese" -> Locale.JAPAN; "Javanese" -> Locale("jv", "ID"); "Kannada" -> Locale("kn", "IN"); "Kazakh" -> Locale("kk", "KZ"); "Khmer" -> Locale("km", "KH"); "Korean" -> Locale.KOREA; "Lao" -> Locale("lo", "LA"); "Latvian" -> Locale("lv", "LV"); "Lithuanian" -> Locale("lt", "LT"); "Macedonian" -> Locale("mk", "MK"); "Malay" -> Locale("ms", "MY"); "Malayalam" -> Locale("ml", "IN"); "Maltese" -> Locale("mt", "MT"); "Marathi" -> Locale("mr", "IN"); "Mongolian" -> Locale("mn", "MN"); "Nepali" -> Locale("ne", "NP"); "Norwegian" -> Locale("no", "NO"); "Oriya" -> Locale("or", "IN"); "Pashto" -> Locale("ps", "AF"); "Persian" -> Locale("fa", "IR"); "Polish" -> Locale("pl", "PL"); "Portuguese" -> Locale("pt", "BR"); "Punjabi" -> Locale("pa", "IN"); "Romanian" -> Locale("ro", "RO"); "Russian" -> Locale("ru", "RU"); "Serbian" -> Locale("sr", "RS"); "Sinhalese" -> Locale("si", "LK"); "Slovak" -> Locale("sk", "SK"); "Slovenian" -> Locale("sl", "SI"); "Somali" -> Locale("so", "SO"); "Spanish" -> Locale("es", "ES"); "Sundanese" -> Locale("su", "ID"); "Swahili" -> Locale("sw", "KE"); "Swedish" -> Locale("sv", "SE"); "Tamil" -> Locale("ta", "IN"); "Telugu" -> Locale("te", "IN"); "Thai" -> Locale("th", "TH"); "Turkish" -> Locale("tr", "TR"); "Ukrainian" -> Locale("uk", "UA"); "Urdu" -> Locale("ur", "PK"); "Uzbek" -> Locale("uz", "UZ"); "Vietnamese" -> Locale("vi", "VN"); "Welsh" -> Locale("cy", "GB"); "Yoruba" -> Locale("yo", "NG"); "Zulu" -> Locale("zu", "ZA"); else -> Locale.US
+                }
             }
             fun init(ctx: Context) {}
         }
         EOF
-
-    - name: Generate Project Files Part 3
-      run: |
-
         cat > app/src/main/kotlin/com/omni/tts/SmartTextSplitter.kt << 'EOF'
         package com.omni.tts
         import java.text.BreakIterator
         object SmartTextSplitter {
-            // ThreadLocal reuse: one BreakIterator per thread, no re-allocation per call
-            private val BREAK_ITER = object : ThreadLocal<BreakIterator>() {
-                override fun initialValue() = BreakIterator.getSentenceInstance()
-            }
+            private val BREAK_ITER = object : ThreadLocal<BreakIterator>() { override fun initialValue() = BreakIterator.getSentenceInstance() }
             fun split(text: String, fallbackLang: String, prefs: SharedPrefsManager): List<LanguageDetector.Chunk> {
                 val chunks = mutableListOf<LanguageDetector.Chunk>()
                 if (text.trim().isEmpty()) return chunks
                 val iterator = BREAK_ITER.get()!!
                 iterator.setText(text)
-                var currentBatch = StringBuilder()
+                var currentBatch = java.lang.StringBuilder()
                 var currentLang: String? = null
                 var start = iterator.first()
                 var end = iterator.next()
@@ -529,8 +370,8 @@ jobs:
                         val sentenceLang = LanguageDetector.detect(sentence, fallbackLang, prefs)
                         if (currentLang == null) currentLang = sentenceLang
                         if (sentenceLang != currentLang) {
-                            if (currentBatch.isNotEmpty()) chunks.add(LanguageDetector.Chunk(currentBatch.toString().trim(), currentLang!!))
-                            currentBatch = StringBuilder(sentence)
+                            if (currentBatch.isNotEmpty()) chunks.add(LanguageDetector.Chunk(currentBatch.toString().trim(), currentLang))
+                            currentBatch = java.lang.StringBuilder(sentence)
                             currentLang = sentenceLang
                         } else {
                             if (currentBatch.isNotEmpty()) currentBatch.append(" ")
@@ -544,13 +385,13 @@ jobs:
             }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/TextNormalizer.kt << 'EOF'
         package com.omni.tts
         object TextNormalizer {
             fun normalizeFancyUnicode(text: String?): String {
                 if (text.isNullOrEmpty()) return ""
-                val sb = StringBuilder(text.length); var i = 0
+                val sb = java.lang.StringBuilder(text.length)
+                var i = 0
                 while (i < text.length) {
                     val cp = text.codePointAt(i)
                     val ascii = mathUnicodeToAscii(cp)
@@ -560,16 +401,16 @@ jobs:
                 return sb.toString()
             }
             private fun mathUnicodeToAscii(cp: Int): Char {
-                if ((cp in 0x1D400..0x1D419)||(cp in 0x1D434..0x1D44D)||(cp in 0x1D468..0x1D481)||(cp in 0x1D4D0..0x1D4E9)||(cp in 0x1D56C..0x1D585)||(cp in 0x1D5A0..0x1D5B9)||(cp in 0x1D5D4..0x1D5ED)||(cp in 0x1D608..0x1D621)||(cp in 0x1D63C..0x1D655)||(cp in 0x1D670..0x1D689)) {
-                    val base = when { cp in 0x1D400..0x1D419->0x1D400; cp in 0x1D434..0x1D44D->0x1D434; cp in 0x1D468..0x1D481->0x1D468; cp in 0x1D4D0..0x1D4E9->0x1D4D0; cp in 0x1D56C..0x1D585->0x1D56C; cp in 0x1D5A0..0x1D5B9->0x1D5A0; cp in 0x1D5D4..0x1D5ED->0x1D5D4; cp in 0x1D608..0x1D621->0x1D608; cp in 0x1D63C..0x1D655->0x1D63C; else->0x1D670 }
+                if ((cp in 0x1D400..0x1D419) || (cp in 0x1D434..0x1D44D) || (cp in 0x1D468..0x1D481) || (cp in 0x1D4D0..0x1D4E9) || (cp in 0x1D56C..0x1D585) || (cp in 0x1D5A0..0x1D5B9) || (cp in 0x1D5D4..0x1D5ED) || (cp in 0x1D608..0x1D621) || (cp in 0x1D63C..0x1D655) || (cp in 0x1D670..0x1D689)) {
+                    val base = when { cp in 0x1D400..0x1D419 -> 0x1D400; cp in 0x1D434..0x1D44D -> 0x1D434; cp in 0x1D468..0x1D481 -> 0x1D468; cp in 0x1D4D0..0x1D4E9 -> 0x1D4D0; cp in 0x1D56C..0x1D585 -> 0x1D56C; cp in 0x1D5A0..0x1D5B9 -> 0x1D5A0; cp in 0x1D5D4..0x1D5ED -> 0x1D5D4; cp in 0x1D608..0x1D621 -> 0x1D608; cp in 0x1D63C..0x1D655 -> 0x1D63C; else -> 0x1D670 }
                     return ('A' + (cp - base))
                 }
-                if ((cp in 0x1D41A..0x1D433)||(cp in 0x1D44E..0x1D467)||(cp in 0x1D482..0x1D49B)||(cp in 0x1D4EA..0x1D503)||(cp in 0x1D586..0x1D59F)||(cp in 0x1D5BA..0x1D5D3)||(cp in 0x1D5EE..0x1D607)||(cp in 0x1D622..0x1D63B)||(cp in 0x1D656..0x1D66F)||(cp in 0x1D68A..0x1D6A3)) {
-                    val base = when { cp in 0x1D41A..0x1D433->0x1D41A; cp in 0x1D44E..0x1D467->0x1D44E; cp in 0x1D482..0x1D49B->0x1D482; cp in 0x1D4EA..0x1D503->0x1D4EA; cp in 0x1D586..0x1D59F->0x1D586; cp in 0x1D5BA..0x1D5D3->0x1D5BA; cp in 0x1D5EE..0x1D607->0x1D5EE; cp in 0x1D622..0x1D63B->0x1D622; cp in 0x1D656..0x1D66F->0x1D656; else->0x1D68A }
+                if ((cp in 0x1D41A..0x1D433) || (cp in 0x1D44E..0x1D467) || (cp in 0x1D482..0x1D49B) || (cp in 0x1D4EA..0x1D503) || (cp in 0x1D586..0x1D59F) || (cp in 0x1D5BA..0x1D5D3) || (cp in 0x1D5EE..0x1D607) || (cp in 0x1D622..0x1D63B) || (cp in 0x1D656..0x1D66F) || (cp in 0x1D68A..0x1D6A3)) {
+                    val base = when { cp in 0x1D41A..0x1D433 -> 0x1D41A; cp in 0x1D44E..0x1D467 -> 0x1D44E; cp in 0x1D482..0x1D49B -> 0x1D482; cp in 0x1D4EA..0x1D503 -> 0x1D4EA; cp in 0x1D586..0x1D59F -> 0x1D586; cp in 0x1D5BA..0x1D5D3 -> 0x1D5BA; cp in 0x1D5EE..0x1D607 -> 0x1D5EE; cp in 0x1D622..0x1D63B -> 0x1D622; cp in 0x1D656..0x1D66F -> 0x1D656; else -> 0x1D68A }
                     return ('a' + (cp - base))
                 }
-                if ((cp in 0x1D7CE..0x1D7D7)||(cp in 0x1D7D8..0x1D7E1)||(cp in 0x1D7E2..0x1D7EB)||(cp in 0x1D7EC..0x1D7F5)||(cp in 0x1D7F6..0x1D7FF)) {
-                    val base = when { cp in 0x1D7CE..0x1D7D7->0x1D7CE; cp in 0x1D7D8..0x1D7E1->0x1D7D8; cp in 0x1D7E2..0x1D7EB->0x1D7E2; cp in 0x1D7EC..0x1D7F5->0x1D7EC; else->0x1D7F6 }
+                if ((cp in 0x1D7CE..0x1D7D7) || (cp in 0x1D7D8..0x1D7E1) || (cp in 0x1D7E2..0x1D7EB) || (cp in 0x1D7EC..0x1D7F5) || (cp in 0x1D7F6..0x1D7FF)) {
+                    val base = when { cp in 0x1D7CE..0x1D7D7 -> 0x1D7CE; cp in 0x1D7D8..0x1D7E1 -> 0x1D7D8; cp in 0x1D7E2..0x1D7EB -> 0x1D7E2; cp in 0x1D7EC..0x1D7F5 -> 0x1D7EC; else -> 0x1D7F6 }
                     return ('0' + (cp - base))
                 }
                 if (cp in 0xFF21..0xFF3A) return ('A' + (cp - 0xFF21))
@@ -580,11 +421,16 @@ jobs:
             fun isEmoji(cp: Int): Boolean = cp > 0xFFFF || (cp in 0x2600..0x27BF) || (cp in 0x1F300..0x1FAFF) || (cp in 0xFE00..0xFE0F)
             fun groupRepeatedEmojis(text: String?): String {
                 if (text.isNullOrEmpty()) return ""
-                val result = StringBuilder(); var i = 0; val len = text.length
+                val result = java.lang.StringBuilder()
+                var i = 0
+                val len = text.length
                 while (i < len) {
-                    val cp = text.codePointAt(i); val cpLen = Character.charCount(cp)
+                    val cp = text.codePointAt(i)
+                    val cpLen = Character.charCount(cp)
                     if (isEmoji(cp)) {
-                        val sym = text.substring(i, i + cpLen); var count = 1; var j = i + cpLen
+                        val sym = text.substring(i, i + cpLen)
+                        var count = 1
+                        var j = i + cpLen
                         while (j < len && text.codePointAt(j) == cp) { count++; j += cpLen }
                         if (count > 1) result.append(count).append(" ").append(sym) else result.append(sym)
                         i = j
@@ -594,7 +440,9 @@ jobs:
             }
             fun groupRepeatedPunctuation(text: String?): String {
                 if (text.isNullOrEmpty()) return ""
-                val result = StringBuilder(); var i = 0; val len = text.length
+                val result = java.lang.StringBuilder()
+                var i = 0
+                val len = text.length
                 while (i < len) {
                     val c = text[i]
                     if (isPunct(c)) {
@@ -609,34 +457,20 @@ jobs:
             private fun isPunct(c: Char): Boolean = c == '.' || c == '!' || c == '?' || c == ',' || c == ';' || c == ':' || c == '-' || c == '*' || c == '/' || c == '|' || c == '~' || c == '_'
         }
         EOF
-
-    - name: Generate Project Files Part 4
-      run: |
-
         cat > app/src/main/kotlin/com/omni/tts/LiveStreamProcessor.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
         import android.os.Bundle
         import android.os.Process
-        import android.speech.tts.SynthesisCallback
         import android.speech.tts.TextToSpeech
+        import android.speech.tts.SynthesisCallback
         import android.speech.tts.UtteranceProgressListener
         import java.io.File
         import java.io.FileInputStream
         import java.util.concurrent.CountDownLatch
         import java.util.concurrent.atomic.AtomicBoolean
         object LiveStreamProcessor {
-            fun process(
-                context: Context,
-                tts: TextToSpeech,
-                text: String,
-                lang: String,
-                volume: Float,
-                callback: SynthesisCallback,
-                cbStarted: BooleanArray,
-                isStopped: AtomicBoolean,
-                chunkIndex: Int
-            ): Boolean {
+            fun process(context: Context, tts: TextToSpeech, text: String, lang: String, volume: Float, callback: SynthesisCallback, cbStarted: BooleanArray, isStopped: AtomicBoolean, chunkIndex: Int): Boolean {
                 Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
                 val tmp = File(context.cacheDir, "vh_live_${System.nanoTime()}.wav")
                 var pipeStream: FileInputStream? = null
@@ -665,74 +499,40 @@ jobs:
                                 try {
                                     pipeStream = FileInputStream(tmp)
                                     val wavInfo = WavUtils.parse(pipeStream)
-                                    bytesRead = if (wavInfo.dataOffset > 0) wavInfo.dataOffset.toLong() else 44L
+                                    bytesRead = if(wavInfo.dataOffset > 0) wavInfo.dataOffset.toLong() else 44L
                                     pipeStream.channel.position(bytesRead)
                                     VhLogger.markHeaderFound(chunkIndex)
                                     if (!cbStarted[0]) {
-                                        val enc = if (wavInfo.bitsPerSample.toInt() == 8) android.media.AudioFormat.ENCODING_PCM_8BIT else android.media.AudioFormat.ENCODING_PCM_16BIT
+                                        val enc = if(wavInfo.bitsPerSample.toInt() == 8) android.media.AudioFormat.ENCODING_PCM_8BIT else android.media.AudioFormat.ENCODING_PCM_16BIT
                                         callback.start(wavInfo.sampleRate, enc, wavInfo.channels.toInt())
                                         cbStarted[0] = true
                                     }
                                     headerParsed = true
-                                } catch (e: Exception) {
-                                    pipeStream?.let { try { it.close() } catch (ig: Exception) {} }
-                                    pipeStream = null
-                                    try { Thread.sleep(1) } catch (ig: InterruptedException) {}
-                                    continue
-                                }
-                            } else { try { Thread.sleep(1) } catch (ig: InterruptedException) {}; continue }
+                                } catch (e: Exception) { if (pipeStream != null) { try { pipeStream.close(); pipeStream = null } catch (ignored: Exception) {} }; try { Thread.sleep(1) } catch (ignored: Exception) {}; continue }
+                            } else { try { Thread.sleep(0) } catch (ignored: Exception) {}; continue }
                         }
                         val currentLength = tmp.length()
                         if (currentLength > bytesRead && pipeStream != null) {
                             val buf = ByteArray(1024)
-                            val toRead = minOf(buf.size.toLong(), currentLength - bytesRead).toInt()
+                            val toRead = Math.min(buf.size.toLong(), currentLength - bytesRead).toInt()
                             if (toRead > 0) {
                                 val r = pipeStream.read(buf, 0, toRead)
                                 if (r > 0) {
                                     if (totalBytes == 0L) VhLogger.markFirstAudio(chunkIndex)
                                     callback.audioAvailable(buf, 0, r)
-                                    bytesRead += r; totalBytes += r
-                                } else { try { Thread.sleep(1) } catch (ig: InterruptedException) {} }
-                            } else { try { Thread.sleep(1) } catch (ig: InterruptedException) {} }
-                        } else { if (latch.count > 0) { try { Thread.sleep(1) } catch (ig: InterruptedException) {} } }
+                                    bytesRead += r
+                                    totalBytes += r
+                                } else { try { Thread.sleep(1) } catch (ignored: Exception) {} }
+                            } else { try { Thread.sleep(1) } catch (ignored: Exception) {} }
+                        } else { if (latch.count > 0) { try { Thread.sleep(1) } catch (ignored: Exception) {} } }
                     }
-                } catch (e: Exception) { VhLogger.e("[CHUNK-$chunkIndex] Exception: ${e.message}") } finally {
-                    VhLogger.markChunkDone(chunkIndex, synthStart, totalBytes)
-                    pipeStream?.let { try { it.close() } catch (ig: Exception) {} }
-                    if (tmp.exists()) tmp.delete()
-                }
+                } catch (e: Exception) { VhLogger.e("[CHUNK-$chunkIndex] Exception: ${e.message}") } finally { VhLogger.markChunkDone(chunkIndex, synthStart, totalBytes); if (pipeStream != null) { try { pipeStream.close() } catch (ignored: Exception) {} }; if (tmp.exists()) tmp.delete() }
                 return isStopped.get()
             }
         }
         EOF
-
-    - name: Generate Project Files Part 5
-      run: |
-
-        # ─────────────────────────────────────────────────────────────────────────
-        # ComposeTtsService — FIX 1: Language carry-over eliminated
-        #
-        # Root cause was: langStates persisted localeTag/rate/pitch across requests,
-        # so when prefs changed (user picks new engine/locale for a language) the
-        # cached LangState still held the old values and was never refreshed.
-        #
-        # Fix: On every onSynthesizeText call, clear langStates completely so each
-        # request always reads fresh values from prefs. The engine pool (enginePool)
-        # is intentionally kept — engines are expensive to init, we just reset their
-        # applied-state tracking so locale/rate/pitch are always re-applied.
-        #
-        # FIX 2: Zero TalkBack focus latency
-        #
-        # TalkBack triggers onSynthesizeText the moment focus lands on any element.
-        # Latency came from lazy engine init inside onSynthesizeText.
-        # Fix: Complete eager warmup in onCreate — every configured language's engine
-        # is fully initialised (including locale set) before TalkBack ever calls us.
-        # onSynthesizeText also sets THREAD_PRIORITY_URGENT_AUDIO immediately on entry
-        # so the OS scheduler gives it maximum priority from the very first instruction.
-        # ─────────────────────────────────────────────────────────────────────────
         cat > app/src/main/kotlin/com/omni/tts/ComposeTtsService.kt << 'EOF'
         package com.omni.tts
-        import android.os.Process
         import android.speech.tts.SynthesisCallback
         import android.speech.tts.SynthesisRequest
         import android.speech.tts.TextToSpeech
@@ -747,8 +547,6 @@ jobs:
             private val enginePool = ConcurrentHashMap<String, TextToSpeech>()
             private lateinit var prefs: SharedPrefsManager
             private val activeStop = AtomicReference(AtomicBoolean(true))
-            // LangState tracks what is currently applied to a live TTS engine instance.
-            // Cleared on every new synthesis request so stale values never carry over.
             class LangState { var localeTag = ""; var rate = -1f; var pitch = -1f }
             private val langStates = ConcurrentHashMap<String, LangState>()
             override fun onCreate() {
@@ -757,29 +555,19 @@ jobs:
                 VhLogger.init(this)
                 VhLogger.i("[SERVICE] onCreate")
                 prefs = SharedPrefsManager(this)
-                // Eager warmup: fully init every configured language engine so
-                // TalkBack focus events hit an already-warm engine — zero cold-start.
                 Thread {
                     try {
                         for (lang in LanguageDetector.getAllLanguages()) {
                             val pkg = prefs.getEngineForLanguage(lang)
-                            if (pkg != "NOT_SET") {
-                                initEngineForLang(lang)
-                                VhLogger.d("[WARMUP] pre-init done: $lang pkg=$pkg")
-                            }
+                            if (pkg != "NOT_SET") { initEngineForLang(lang); VhLogger.d("[WARMUP] pre-init: $lang") }
                         }
-                        VhLogger.i("[WARMUP] all configured engines ready")
-                    } catch (ignored: Exception) { VhLogger.e("[WARMUP] error: ${ignored.message}") }
-                }.also { it.priority = Thread.MIN_PRIORITY; it.start() }
+                    } catch (ignored: Exception) {}
+                }.start()
             }
-            // initEngineForLang: always reads current prefs for locale.
-            // If engine already exists in pool, returns it immediately (pool hit).
-            // Locale is applied during first init; re-application happens in
-            // onSynthesizeText via LangState comparison.
             private fun initEngineForLang(lang: String): TextToSpeech? {
                 val pkg = prefs.getEngineForLanguage(lang)
                 if (pkg == "NOT_SET") return null
-                enginePool[lang]?.let { return it }
+                if (enginePool.containsKey(lang)) return enginePool[lang]
                 val latch = CountDownLatch(1)
                 val ref = arrayOfNulls<TextToSpeech>(1)
                 ref[0] = TextToSpeech(this, { status ->
@@ -798,31 +586,21 @@ jobs:
             override fun onGetLanguage(): Array<String> = arrayOf("eng", "USA", "")
             override fun onIsLanguageAvailable(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
             override fun onLoadLanguage(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
-            override fun onStop() {
-                VhLogger.markStop()
-                activeStop.get().set(true)
-                for (tts in enginePool.values) { try { tts.stop() } catch (ignored: Exception) {} }
-            }
+            override fun onStop() { VhLogger.markStop(); activeStop.get().set(true); for (tts in enginePool.values) { try { tts.stop() } catch (ignored: Exception) {} } }
             override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
-                // Set max audio priority immediately — before any other work.
-                // This eliminates scheduler-induced latency on TalkBack focus.
-                Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
                 activeStop.get().set(true)
                 val myStop = AtomicBoolean(false)
                 activeStop.set(myStop)
-                // FIX: Clear langStates on every request so stale locale/rate/pitch
-                // from a previous language selection never bleeds into this request.
-                langStates.clear()
                 var text = request?.charSequenceText?.toString() ?: ""
                 if (text.isEmpty() || myStop.get()) { callback?.done(); return }
-                text = text.replace('\u00A0', ' ').replace('\u200B', ' ')
-                    .replace('\u200C', ' ').replace('\u200D', ' ').replace('\uFEFF', ' ')
+                text = text.replace('\u00A0', ' ').replace('\u200B', ' ').replace('\u200C', ' ').replace('\u200D', ' ').replace('\uFEFF', ' ')
                 text = TextNormalizer.normalizeFancyUnicode(text)
                 if (prefs.getBoolean("dict_enabled", false)) { for ((k, v) in prefs.getDict()) { text = text.replace(k, v) } }
                 if (prefs.getBoolean("emoji_count", false)) text = TextNormalizer.groupRepeatedEmojis(text)
                 if (prefs.getBoolean("punct_count", false)) text = TextNormalizer.groupRepeatedPunctuation(text)
                 if (!prefs.getBoolean("emoji_reading", true)) {
-                    val sb = java.lang.StringBuilder(); var ei = 0
+                    val sb = java.lang.StringBuilder()
+                    var ei = 0
                     while (ei < text.length) {
                         val cp = text.codePointAt(ei)
                         if (!TextNormalizer.isEmoji(cp)) sb.appendCodePoint(cp)
@@ -838,33 +616,29 @@ jobs:
                 for (chunk in chunks) {
                     if (myStop.get()) break
                     if (chunk.text.trim().isEmpty()) continue
+                    
+                    // ALL isPunctuationOnly SKIP LOGIC REMOVED HERE
+                    
                     chunkIndex++
                     var effectiveLang = chunk.lang
                     var pkg = prefs.getEngineForLanguage(effectiveLang)
-                    if (pkg == "NOT_SET") {
-                        VhLogger.markFallback(effectiveLang, fallbackLang)
-                        effectiveLang = fallbackLang
-                        pkg = prefs.getEngineForLanguage(effectiveLang)
-                    }
+                    if (pkg == "NOT_SET") { VhLogger.markFallback(effectiveLang, fallbackLang); effectiveLang = fallbackLang; pkg = prefs.getEngineForLanguage(effectiveLang) }
                     if (pkg == "NOT_SET") { VhLogger.markSkipped("no engine for lang=${chunk.lang}"); continue }
                     val key = "${effectiveLang}_${pkg}"
-                    // Rate is a multiplier on TalkBack system rate — never standalone override
-                    val appRate   = maxOf(0.1f, prefs.getInt("rate_$key", 100) / 100.0f)
-                    val appPitch  = maxOf(0.1f, prefs.getInt("pitch_$key", 100) / 100.0f)
+                    val appRate = Math.max(0.1f, prefs.getInt("rate_$key", 100) / 100.0f)
+                    val appPitch = Math.max(0.1f, prefs.getInt("pitch_$key", 100) / 100.0f)
                     val appVolume = prefs.getInt("vol_$key", 100) / 100.0f
-                    val sysRate   = maxOf(0.1f, request!!.speechRate / 100.0f)
-                    val sysPitch  = maxOf(0.1f, request.pitch / 100.0f)
-                    val finalRate  = maxOf(0.1f, minOf(6.0f, sysRate * appRate))
-                    val finalPitch = maxOf(0.1f, minOf(6.0f, sysPitch * appPitch))
+                    val sysRate = Math.max(0.1f, request!!.speechRate / 100.0f)
+                    val sysPitch = Math.max(0.1f, request.pitch / 100.0f)
+                    val finalRate = Math.max(0.1f, Math.min(6.0f, sysRate * appRate))
+                    val finalPitch = Math.max(0.1f, Math.min(6.0f, sysPitch * appPitch))
                     val engineExists = enginePool.containsKey(effectiveLang)
                     val initStart = System.currentTimeMillis()
                     val tts = initEngineForLang(effectiveLang) ?: continue
-                    if (!engineExists) VhLogger.markEngineInit(effectiveLang, pkg, System.currentTimeMillis() - initStart)
-                    else VhLogger.markEngineReused(effectiveLang)
+                    if (!engineExists) VhLogger.markEngineInit(effectiveLang, pkg, System.currentTimeMillis() - initStart) else VhLogger.markEngineReused(effectiveLang)
                     val state = langStates.getOrPut(effectiveLang) { LangState() }
                     if (Math.abs(state.rate - finalRate) > 0.01f) { tts.setSpeechRate(finalRate); state.rate = finalRate }
                     if (Math.abs(state.pitch - finalPitch) > 0.01f) { tts.setPitch(finalPitch); state.pitch = finalPitch }
-                    // Always read locale fresh from prefs — never rely on cached state alone
                     var locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg)
                     if (locTag.isEmpty()) locTag = LanguageDetector.getLocale(effectiveLang).toLanguageTag()
                     if (state.localeTag != locTag) {
@@ -877,16 +651,9 @@ jobs:
                 if (!cbStarted[0] && !myStop.get()) callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
                 callback?.done()
             }
-            override fun onDestroy() {
-                VhLogger.i("[SERVICE] onDestroy")
-                activeStop.get().set(true)
-                for (tts in enginePool.values) { try { tts.shutdown() } catch (ignored: Exception) {} }
-                enginePool.clear(); langStates.clear()
-                super.onDestroy()
-            }
+            override fun onDestroy() { VhLogger.i("[SERVICE] onDestroy"); activeStop.get().set(true); for (tts in enginePool.values) { try { tts.shutdown() } catch (ignored: Exception) {} }; enginePool.clear(); langStates.clear(); super.onDestroy() }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/CheckVoiceData.kt << 'EOF'
         package com.omni.tts
         import android.app.Activity
@@ -905,13 +672,12 @@ jobs:
                 }
                 val data = Intent()
                 data.putStringArrayListExtra(TextToSpeech.Engine.EXTRA_AVAILABLE_VOICES, availableLocales)
-                data.putStringArrayListExtra(TextToSpeech.Engine.EXTRA_UNAVAILABLE_VOICES, arrayListOf())
+                data.putStringArrayListExtra(TextToSpeech.Engine.EXTRA_UNAVAILABLE_VOICES, java.util.ArrayList())
                 setResult(TextToSpeech.Engine.CHECK_VOICE_DATA_PASS, data)
                 finish()
             }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/GetSampleText.kt << 'EOF'
         package com.omni.tts
         import android.app.Activity
@@ -928,22 +694,6 @@ jobs:
             }
         }
         EOF
-
-    - name: Generate Project Files Part 6
-      run: |
-
-        # ─────────────────────────────────────────────────────────────────────────
-        # MainActivity — FIX 3 & 4: Full TalkBack accessibility + dropdown fix
-        #
-        # Every interactive element now has a complete contentDescription that
-        # includes the CURRENT selected value so TalkBack announces it properly.
-        #
-        # Dropdown TalkBack traversal fix:
-        # - ExposedDropdownMenuBox gets semantics with current value announced
-        # - Each DropdownMenuItem gets clearAndSetSemantics so TalkBack reads
-        #   only the item label, not internal Compose noise
-        # - Items use stateDescription to signal selectability
-        # ─────────────────────────────────────────────────────────────────────────
         cat > app/src/main/kotlin/com/omni/tts/MainActivity.kt << 'EOF'
         package com.omni.tts
         import android.content.Intent
@@ -956,12 +706,11 @@ jobs:
         import androidx.compose.foundation.verticalScroll
         import androidx.compose.material3.*
         import androidx.compose.runtime.*
+        import androidx.compose.ui.Alignment
         import androidx.compose.ui.Modifier
         import androidx.compose.ui.platform.LocalContext
-        import androidx.compose.ui.semantics.clearAndSetSemantics
         import androidx.compose.ui.semantics.contentDescription
         import androidx.compose.ui.semantics.semantics
-        import androidx.compose.ui.semantics.stateDescription
         import androidx.compose.ui.unit.dp
         import androidx.core.content.FileProvider
         import java.util.Locale
@@ -975,204 +724,87 @@ jobs:
                     MaterialTheme {
                         Surface(modifier = Modifier.fillMaxSize()) {
                             val context = LocalContext.current
-                            val engines = remember {
-                                EngineFinder.getEngines(context).toMutableList()
-                                    .also { it.add(0, EngineFinder.TTSInfo("NOT_SET", "Not Set")) }
-                            }
-                            val languagesList = remember { LanguageDetector.getAllLanguages() }
+                            val engines = EngineFinder.getEngines(context).toMutableList()
+                            engines.add(0, EngineFinder.TTSInfo("NOT_SET", "--- Not Set ---"))
+                            val languagesList = LanguageDetector.getAllLanguages()
+                            var isInitLang by remember { mutableStateOf(true) }
+                            var isInitEng by remember { mutableStateOf(true) }
                             var expLang by remember { mutableStateOf(false) }
                             var selLang by remember { mutableStateOf(prefs.getString("pref_lang", "English")) }
                             var expEng by remember { mutableStateOf(false) }
                             var selEngPkg by remember { mutableStateOf(prefs.getEngineForLanguage(selLang)) }
-                            val selEngName by remember(selEngPkg) { derivedStateOf { engines.find { it.pkg == selEngPkg }?.name ?: "Not Set" } }
+                            val selEngName = engines.find { it.pkg == selEngPkg }?.name ?: "Not Set"
                             var availableLocales by remember { mutableStateOf(listOf<Locale>()) }
                             var expLoc by remember { mutableStateOf(false) }
                             var selLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(selLang, selEngPkg)) }
-                            val selLocName by remember(selLocTag, availableLocales) {
-                                derivedStateOf { availableLocales.find { it.toLanguageTag() == selLocTag }?.displayName ?: "Default System Voice" }
-                            }
-                            // Reload voices whenever language or engine changes
                             LaunchedEffect(selEngPkg, selLang) {
-                                availableLocales = listOf()
-                                if (selEngPkg != "NOT_SET") {
+                                if(selEngPkg != "NOT_SET") {
                                     tempTts?.shutdown()
                                     tempTts = android.speech.tts.TextToSpeech(context, { status ->
-                                        if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                                        if(status == android.speech.tts.TextToSpeech.SUCCESS) {
                                             val targetIso = LanguageDetector.getLocale(selLang).language
-                                            val voices = try {
-                                                tempTts?.voices?.map { it.locale }
-                                                    ?.filter { it.language.equals(targetIso, true) }
-                                            } catch (e: Exception) { null }
-                                            availableLocales = voices
-                                                ?.distinctBy { it.toLanguageTag() }
-                                                ?.sortedBy { it.displayName } ?: listOf()
+                                            val voices = try { tempTts?.voices?.map { it.locale }?.filter { it.language.equals(targetIso, true) } } catch(e:Exception){ null }
+                                            availableLocales = voices?.distinctBy { it.toLanguageTag() }?.sortedBy { it.displayName } ?: listOf()
                                         }
                                     }, selEngPkg)
-                                } else {
-                                    tempTts?.shutdown(); tempTts = null
-                                }
+                                } else { availableLocales = listOf(); tempTts?.shutdown(); tempTts = null }
                             }
                             Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
-                                Text("Omni Setup", style = MaterialTheme.typography.headlineMedium,
-                                    modifier = Modifier.semantics { contentDescription = "Omni Setup screen" })
+                                Text("Omni Setup", style = MaterialTheme.typography.headlineMedium)
                                 Spacer(modifier = Modifier.height(24.dp))
-
-                                // ── Language dropdown ─────────────────────────────────────────────
-                                // clearAndSetSemantics on the box gives TalkBack one clean node
-                                // that announces current value + action hint.
-                                ExposedDropdownMenuBox(
-                                    expanded = expLang,
-                                    onExpandedChange = { expLang = !expLang },
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Language, $selLang, double tap to change"
-                                        stateDescription = if (expLang) "expanded" else "collapsed"
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = selLang, onValueChange = {}, readOnly = true,
-                                        label = { Text("Select Language") },
-                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLang) },
-                                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                                    )
+                                ExposedDropdownMenuBox(expanded = expLang, onExpandedChange = { expLang = !expLang }) {
+                                    OutlinedTextField(value = selLang, onValueChange = {}, readOnly = true, label = { Text("Select Language") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLang) }, modifier = Modifier.fillMaxWidth().menuAnchor().semantics { contentDescription = "Select Language Dropdown" })
                                     ExposedDropdownMenu(expanded = expLang, onDismissRequest = { expLang = false }) {
                                         languagesList.forEach { lang ->
-                                            DropdownMenuItem(
-                                                text = { Text(lang) },
-                                                onClick = {
-                                                    selLang = lang
-                                                    prefs.setString("pref_lang", lang)
-                                                    selEngPkg = prefs.getEngineForLanguage(lang)
-                                                    selLocTag = prefs.getLocaleForLangPkg(lang, selEngPkg)
-                                                    expLang = false
-                                                },
-                                                modifier = Modifier.clearAndSetSemantics {
-                                                    contentDescription = lang
-                                                    stateDescription = if (lang == selLang) "selected" else ""
-                                                }
-                                            )
+                                            DropdownMenuItem(text = { Text(lang) }, onClick = {
+                                                isInitLang = false; selLang = lang; prefs.setString("pref_lang", lang)
+                                                selEngPkg = prefs.getEngineForLanguage(lang)
+                                                selLocTag = prefs.getLocaleForLangPkg(lang, selEngPkg)
+                                                expLang = false
+                                            })
                                         }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
-
-                                // ── Engine dropdown ───────────────────────────────────────────────
-                                ExposedDropdownMenuBox(
-                                    expanded = expEng,
-                                    onExpandedChange = { expEng = !expEng },
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "TTS Engine, $selEngName, double tap to change"
-                                        stateDescription = if (expEng) "expanded" else "collapsed"
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = selEngName, onValueChange = {}, readOnly = true,
-                                        label = { Text("Select TTS Engine") },
-                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expEng) },
-                                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                                    )
+                                ExposedDropdownMenuBox(expanded = expEng, onExpandedChange = { expEng = !expEng }) {
+                                    OutlinedTextField(value = selEngName, onValueChange = {}, readOnly = true, label = { Text("Select TTS Engine") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expEng) }, modifier = Modifier.fillMaxWidth().menuAnchor().semantics { contentDescription = "Select TTS Engine Dropdown" })
                                     ExposedDropdownMenu(expanded = expEng, onDismissRequest = { expEng = false }) {
                                         engines.forEach { e ->
-                                            DropdownMenuItem(
-                                                text = { Text(e.name) },
-                                                onClick = {
-                                                    selEngPkg = e.pkg
-                                                    prefs.setString("engine_$selLang", e.pkg)
-                                                    selLocTag = prefs.getLocaleForLangPkg(selLang, e.pkg)
-                                                    expEng = false
-                                                },
-                                                modifier = Modifier.clearAndSetSemantics {
-                                                    contentDescription = e.name
-                                                    stateDescription = if (e.pkg == selEngPkg) "selected" else ""
-                                                }
-                                            )
+                                            DropdownMenuItem(text = { Text(e.name) }, onClick = {
+                                                isInitEng = false; selEngPkg = e.pkg; prefs.setString("engine_$selLang", e.pkg)
+                                                selLocTag = prefs.getLocaleForLangPkg(selLang, e.pkg)
+                                                expEng = false
+                                            })
                                         }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
-
-                                // ── Voice / Locale dropdown ───────────────────────────────────────
-                                ExposedDropdownMenuBox(
-                                    expanded = expLoc,
-                                    onExpandedChange = { expLoc = !expLoc },
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Voice, $selLocName, double tap to change"
-                                        stateDescription = if (expLoc) "expanded" else "collapsed"
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = selLocName, onValueChange = {}, readOnly = true,
-                                        label = { Text("Voice / Locale") },
-                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLoc) },
-                                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                                    )
+                                ExposedDropdownMenuBox(expanded = expLoc, onExpandedChange = { expLoc = !expLoc }) {
+                                    val locName = availableLocales.find { it.toLanguageTag() == selLocTag }?.displayName ?: "Default System Voice"
+                                    OutlinedTextField(value = locName, onValueChange = {}, readOnly = true, label = { Text("Voice / Locale") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLoc) }, modifier = Modifier.fillMaxWidth().menuAnchor().semantics { contentDescription = "Select Voice Locale Dropdown" })
                                     ExposedDropdownMenu(expanded = expLoc, onDismissRequest = { expLoc = false }) {
-                                        availableLocales.forEach { loc ->
-                                            DropdownMenuItem(
-                                                text = { Text(loc.displayName) },
-                                                onClick = {
-                                                    selLocTag = loc.toLanguageTag()
-                                                    prefs.setLocaleForLangPkg(selLang, selEngPkg, selLocTag)
-                                                    expLoc = false
-                                                },
-                                                modifier = Modifier.clearAndSetSemantics {
-                                                    contentDescription = loc.displayName
-                                                    stateDescription = if (loc.toLanguageTag() == selLocTag) "selected" else ""
-                                                }
-                                            )
-                                        }
+                                        availableLocales.forEach { loc -> DropdownMenuItem(text = { Text(loc.displayName) }, onClick = { selLocTag = loc.toLanguageTag(); prefs.setLocaleForLangPkg(selLang, selEngPkg, selLocTag); expLoc = false }) }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(24.dp))
-
-                                Button(
-                                    onClick = {
-                                        val intent = Intent(context, LanguageSettingsActivity::class.java)
-                                        intent.putExtra("key", "${selLang}_${selEngPkg}")
-                                        context.startActivity(intent)
-                                    },
-                                    modifier = Modifier.fillMaxWidth().semantics {
-                                        contentDescription = "Language Speed and Pitch Settings for $selLang"
-                                    }
-                                ) { Text("LANGUAGE SPEED / PITCH SETTINGS") }
+                                Button(onClick = {
+                                    val intent = Intent(context, LanguageSettingsActivity::class.java)
+                                    intent.putExtra("key", "${selLang}_${selEngPkg}")
+                                    context.startActivity(intent)
+                                }, modifier = Modifier.fillMaxWidth()) { Text("LANGUAGE SPEED / PITCH SETTINGS") }
                                 Spacer(modifier = Modifier.height(12.dp))
-
-                                Button(
-                                    onClick = { startActivity(Intent("com.android.settings.TTS_SETTINGS")) },
-                                    modifier = Modifier.fillMaxWidth().semantics {
-                                        contentDescription = "Open System TTS Settings"
-                                    }
-                                ) { Text("OPEN SYSTEM TTS SETTINGS") }
+                                Button(onClick = { startActivity(Intent("com.android.settings.TTS_SETTINGS")) }, modifier = Modifier.fillMaxWidth()) { Text("OPEN SYSTEM TTS SETTINGS") }
                                 Spacer(modifier = Modifier.height(12.dp))
-
-                                Button(
-                                    onClick = { startActivity(Intent(context, AdvancedSettingsActivity::class.java)) },
-                                    modifier = Modifier.fillMaxWidth().semantics {
-                                        contentDescription = "Advanced Settings"
-                                    }
-                                ) { Text("ADVANCED SETTINGS") }
+                                Button(onClick = { startActivity(Intent(context, AdvancedSettingsActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("ADVANCED SETTINGS") }
                                 Spacer(modifier = Modifier.height(32.dp))
-
-                                Button(
-                                    onClick = {
-                                        try {
-                                            val logFile = VhLogger.exportToFile()
-                                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", logFile)
-                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_STREAM, uri)
-                                                putExtra(Intent.EXTRA_SUBJECT, "Omni Debug Log")
-                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            }
-                                            context.startActivity(Intent.createChooser(shareIntent, "Share Log"))
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Log export failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth().semantics {
-                                        contentDescription = "Export Debug Log, share log file"
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                ) { Text("EXPORT DEBUG LOG") }
+                                Button(onClick = {
+                                    try {
+                                        val logFile = VhLogger.exportToFile()
+                                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", logFile)
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_STREAM, uri); putExtra(Intent.EXTRA_SUBJECT, "Omni Debug Log"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                                        context.startActivity(Intent.createChooser(shareIntent, "Share Log"))
+                                    } catch (e: Exception) { Toast.makeText(context, "Log export failed: ${e.message}", Toast.LENGTH_SHORT).show() }
+                                }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("EXPORT DEBUG LOG") }
                             }
                         }
                     }
@@ -1181,12 +813,9 @@ jobs:
             override fun onDestroy() { tempTts?.shutdown(); super.onDestroy() }
         }
         EOF
-
-    - name: Generate Project Files Part 7
-      run: |
-
         cat > app/src/main/kotlin/com/omni/tts/LanguageSettingsActivity.kt << 'EOF'
         package com.omni.tts
+        import android.content.Intent
         import android.os.Bundle
         import androidx.activity.ComponentActivity
         import androidx.activity.compose.setContent
@@ -1196,7 +825,6 @@ jobs:
         import androidx.compose.ui.Alignment
         import androidx.compose.ui.Modifier
         import androidx.compose.ui.platform.LocalContext
-        import androidx.compose.ui.semantics.clearAndSetSemantics
         import androidx.compose.ui.semantics.contentDescription
         import androidx.compose.ui.semantics.semantics
         import androidx.compose.ui.unit.dp
@@ -1205,7 +833,6 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 val currentKey = intent.getStringExtra("key") ?: "English_NOT_SET"
-                val langName = currentKey.substringBefore("_")
                 val prefs = SharedPrefsManager(this)
                 setContent {
                     MaterialTheme {
@@ -1214,87 +841,45 @@ jobs:
                             var rate by remember { mutableIntStateOf(prefs.getInt("rate_$currentKey", 100)) }
                             var pitch by remember { mutableIntStateOf(prefs.getInt("pitch_$currentKey", 100)) }
                             var vol by remember { mutableIntStateOf(prefs.getInt("vol_$currentKey", 100)) }
-                            val rateLabel by remember(rate) { derivedStateOf { if (rate == 100) "System Default" else String.format(java.util.Locale.US, "%.2f times", rate / 100f) } }
-                            val pitchLabel by remember(pitch) { derivedStateOf { if (pitch == 100) "System Default" else String.format(java.util.Locale.US, "%.2f times", pitch / 100f) } }
-                            val volLabel by remember(vol) { derivedStateOf { if (vol == 100) "System Default" else "$vol percent" } }
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Language Settings for $langName",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    modifier = Modifier.semantics { contentDescription = "Language Settings for $langName" })
+                                Text("Language Settings", style = MaterialTheme.typography.headlineSmall)
                                 Spacer(modifier = Modifier.height(24.dp))
-
-                                Text("Speech Rate: ${if (rate == 100) "System Default" else String.format(java.util.Locale.US, "%.2fx", rate / 100f)}",
-                                    modifier = Modifier.semantics { contentDescription = "Speech Rate: $rateLabel" })
+                                Text("Speech Rate: ${if(rate==100) "System Default" else String.format(java.util.Locale.US, "%.2fx", rate/100f)}")
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Button(onClick = { rate = maxOf(0, rate - 5) },
-                                        modifier = Modifier.semantics { contentDescription = "Decrease Speech Rate, current $rateLabel" }) { Text("-") }
-                                    Slider(value = rate.toFloat(), onValueChange = { rate = it.toInt() },
-                                        valueRange = 0f..500f,
-                                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp).clearAndSetSemantics {
-                                            contentDescription = "Speech Rate Slider, $rateLabel"
-                                        })
-                                    Button(onClick = { rate = minOf(500, rate + 5) },
-                                        modifier = Modifier.semantics { contentDescription = "Increase Speech Rate, current $rateLabel" }) { Text("+") }
+                                    Button(onClick = { rate = Math.max(0, rate - 5) }, modifier = Modifier.semantics { contentDescription = "Decrease Speech Rate" }) { Text("-") }
+                                    Slider(value = rate.toFloat(), onValueChange = { rate = it.toInt() }, valueRange = 0f..500f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics { contentDescription = "Speech Rate Slider" })
+                                    Button(onClick = { rate = Math.min(500, rate + 5) }, modifier = Modifier.semantics { contentDescription = "Increase Speech Rate" }) { Text("+") }
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
-
-                                Text("Pitch: ${if (pitch == 100) "System Default" else String.format(java.util.Locale.US, "%.2fx", pitch / 100f)}",
-                                    modifier = Modifier.semantics { contentDescription = "Pitch: $pitchLabel" })
+                                Text("Pitch: ${if(pitch==100) "System Default" else String.format(java.util.Locale.US, "%.2fx", pitch/100f)}")
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Button(onClick = { pitch = maxOf(0, pitch - 5) },
-                                        modifier = Modifier.semantics { contentDescription = "Decrease Pitch, current $pitchLabel" }) { Text("-") }
-                                    Slider(value = pitch.toFloat(), onValueChange = { pitch = it.toInt() },
-                                        valueRange = 0f..500f,
-                                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp).clearAndSetSemantics {
-                                            contentDescription = "Pitch Slider, $pitchLabel"
-                                        })
-                                    Button(onClick = { pitch = minOf(500, pitch + 5) },
-                                        modifier = Modifier.semantics { contentDescription = "Increase Pitch, current $pitchLabel" }) { Text("+") }
+                                    Button(onClick = { pitch = Math.max(0, pitch - 5) }, modifier = Modifier.semantics { contentDescription = "Decrease Pitch" }) { Text("-") }
+                                    Slider(value = pitch.toFloat(), onValueChange = { pitch = it.toInt() }, valueRange = 0f..500f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics { contentDescription = "Pitch Slider" })
+                                    Button(onClick = { pitch = Math.min(500, pitch + 5) }, modifier = Modifier.semantics { contentDescription = "Increase Pitch" }) { Text("+") }
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
-
-                                Text("Volume: ${if (vol == 100) "System Default" else "$vol%"}",
-                                    modifier = Modifier.semantics { contentDescription = "Volume: $volLabel" })
+                                Text("Volume: ${if(vol==100) "System Default" else "$vol%"}")
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Button(onClick = { vol = maxOf(0, vol - 5) },
-                                        modifier = Modifier.semantics { contentDescription = "Decrease Volume, current $volLabel" }) { Text("-") }
-                                    Slider(value = vol.toFloat(), onValueChange = { vol = it.toInt() },
-                                        valueRange = 0f..100f,
-                                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp).clearAndSetSemantics {
-                                            contentDescription = "Volume Slider, $volLabel"
-                                        })
-                                    Button(onClick = { vol = minOf(100, vol + 5) },
-                                        modifier = Modifier.semantics { contentDescription = "Increase Volume, current $volLabel" }) { Text("+") }
+                                    Button(onClick = { vol = Math.max(0, vol - 5) }, modifier = Modifier.semantics { contentDescription = "Decrease Volume" }) { Text("-") }
+                                    Slider(value = vol.toFloat(), onValueChange = { vol = it.toInt() }, valueRange = 0f..100f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics { contentDescription = "Volume Slider" })
+                                    Button(onClick = { vol = Math.min(100, vol + 5) }, modifier = Modifier.semantics { contentDescription = "Increase Volume" }) { Text("+") }
                                 }
                                 Spacer(modifier = Modifier.height(32.dp))
-
                                 Button(onClick = {
-                                    val pkg = currentKey.substringAfter("_")
+                                    val pkg = if (currentKey.contains("_")) currentKey.substring(currentKey.indexOf('_') + 1) else "com.google.android.tts"
                                     testTts?.shutdown()
                                     testTts = android.speech.tts.TextToSpeech(context, { status ->
                                         if (status == android.speech.tts.TextToSpeech.SUCCESS) {
-                                            testTts?.setSpeechRate(rate / 100f)
-                                            testTts?.setPitch(pitch / 100f)
-                                            val params = Bundle()
-                                            params.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, vol / 100f)
+                                            testTts?.setSpeechRate(rate / 100f); testTts?.setPitch(pitch / 100f)
+                                            val params = Bundle(); params.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, vol / 100f)
                                             testTts?.speak("Testing audio settings", android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "test")
                                         }
                                     }, if (pkg == "NOT_SET") null else pkg)
-                                }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Test Audio with current settings" }) { Text("TEST AUDIO") }
+                                }, modifier = Modifier.fillMaxWidth()) { Text("TEST AUDIO") }
                                 Spacer(modifier = Modifier.height(12.dp))
-
-                                Button(onClick = {
-                                    prefs.setInt("rate_$currentKey", rate)
-                                    prefs.setInt("pitch_$currentKey", pitch)
-                                    prefs.setInt("vol_$currentKey", vol)
-                                    finish()
-                                }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Apply Settings and go back" },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Text("APPLY SETTINGS") }
+                                Button(onClick = { prefs.setInt("rate_$currentKey", rate); prefs.setInt("pitch_$currentKey", pitch); prefs.setInt("vol_$currentKey", vol); finish() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Text("APPLY SETTINGS") }
                                 Spacer(modifier = Modifier.height(12.dp))
-
-                                Button(onClick = { rate = 100; pitch = 100; vol = 100 },
-                                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Reset to Default settings" },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) { Text("RESET TO DEFAULT") }
+                                Button(onClick = { rate = 100; pitch = 100; vol = 100 }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) { Text("RESET TO DEFAULT") }
                             }
                         }
                     }
@@ -1303,7 +888,6 @@ jobs:
             override fun onDestroy() { testTts?.shutdown(); super.onDestroy() }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/AdvancedSettingsActivity.kt << 'EOF'
         package com.omni.tts
         import android.content.Intent
@@ -1318,10 +902,8 @@ jobs:
         import androidx.compose.ui.Alignment
         import androidx.compose.ui.Modifier
         import androidx.compose.ui.platform.LocalContext
-        import androidx.compose.ui.semantics.clearAndSetSemantics
         import androidx.compose.ui.semantics.contentDescription
         import androidx.compose.ui.semantics.semantics
-        import androidx.compose.ui.semantics.stateDescription
         import androidx.compose.ui.unit.dp
         class AdvancedSettingsActivity : ComponentActivity() {
             @OptIn(ExperimentalMaterial3Api::class)
@@ -1336,110 +918,34 @@ jobs:
                             var emojiCount by remember { mutableStateOf(prefs.getBoolean("emoji_count", false)) }
                             var punctCount by remember { mutableStateOf(prefs.getBoolean("punct_count", false)) }
                             var dictEnabled by remember { mutableStateOf(prefs.getBoolean("dict_enabled", false)) }
-                            val langs = remember { LanguageDetector.getAllLanguages() }
+                            val langs = LanguageDetector.getAllLanguages()
                             var expLat by remember { mutableStateOf(false) }
                             var latLang by remember { mutableStateOf(prefs.getString("mixed_mode_latin_language", "English")) }
                             var expNonLat by remember { mutableStateOf(false) }
                             var nonLatLang by remember { mutableStateOf(prefs.getString("mixed_mode_non_latin_language", "Hindi")) }
                             Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
-                                Text("Advanced Settings", style = MaterialTheme.typography.headlineSmall,
-                                    modifier = Modifier.semantics { contentDescription = "Advanced Settings screen" })
+                                Text("Advanced Settings", style = MaterialTheme.typography.headlineSmall)
                                 Spacer(modifier = Modifier.height(24.dp))
-
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Emoji Reading, ${if (emojiReading) "enabled" else "disabled"}, double tap to toggle"
-                                    }) {
-                                    Checkbox(checked = emojiReading, onCheckedChange = { emojiReading = it; prefs.setBoolean("emoji_reading", it) })
-                                    Text("Emoji Reading")
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Repeated Emoji Count, ${if (emojiCount) "enabled" else "disabled"}, double tap to toggle"
-                                    }) {
-                                    Checkbox(checked = emojiCount, onCheckedChange = { emojiCount = it; prefs.setBoolean("emoji_count", it) })
-                                    Text("Repeated Emoji Count")
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Repeated Punctuation Count, ${if (punctCount) "enabled" else "disabled"}, double tap to toggle"
-                                    }) {
-                                    Checkbox(checked = punctCount, onCheckedChange = { punctCount = it; prefs.setBoolean("punct_count", it) })
-                                    Text("Repeated Punctuation Count")
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Enable Dictionary, ${if (dictEnabled) "enabled" else "disabled"}, double tap to toggle"
-                                    }) {
-                                    Checkbox(checked = dictEnabled, onCheckedChange = { dictEnabled = it; prefs.setBoolean("dict_enabled", it) })
-                                    Text("Enable Dictionary")
-                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics { contentDescription = "Toggle Emoji Reading" }) { Checkbox(checked = emojiReading, onCheckedChange = { emojiReading = it; prefs.setBoolean("emoji_reading", it) }); Text("Emoji Reading") }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics { contentDescription = "Toggle Repeated Emoji Count" }) { Checkbox(checked = emojiCount, onCheckedChange = { emojiCount = it; prefs.setBoolean("emoji_count", it) }); Text("Repeated Emoji Count") }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics { contentDescription = "Toggle Repeated Punctuation Count" }) { Checkbox(checked = punctCount, onCheckedChange = { punctCount = it; prefs.setBoolean("punct_count", it) }); Text("Repeated Punctuation Count") }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics { contentDescription = "Toggle Enable Dictionary" }) { Checkbox(checked = dictEnabled, onCheckedChange = { dictEnabled = it; prefs.setBoolean("dict_enabled", it) }); Text("Enable Dictionary") }
                                 Spacer(modifier = Modifier.height(16.dp))
-
-                                // ── Default Latin Language dropdown ───────────────────────────────
-                                ExposedDropdownMenuBox(
-                                    expanded = expLat,
-                                    onExpandedChange = { expLat = !expLat },
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Default Latin Language, $latLang, double tap to change"
-                                        stateDescription = if (expLat) "expanded" else "collapsed"
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = latLang, onValueChange = {}, readOnly = true,
-                                        label = { Text("Default Latin Language") },
-                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLat) },
-                                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                                    )
+                                ExposedDropdownMenuBox(expanded = expLat, onExpandedChange = { expLat = !expLat }) {
+                                    OutlinedTextField(value = latLang, onValueChange = {}, readOnly = true, label = { Text("Default Latin Lang") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expLat) }, modifier = Modifier.fillMaxWidth().menuAnchor().semantics { contentDescription = "Select Default Latin Language" })
                                     ExposedDropdownMenu(expanded = expLat, onDismissRequest = { expLat = false }) {
-                                        langs.forEach { l ->
-                                            DropdownMenuItem(
-                                                text = { Text(l) },
-                                                onClick = { latLang = l; prefs.setString("mixed_mode_latin_language", l); expLat = false },
-                                                modifier = Modifier.clearAndSetSemantics {
-                                                    contentDescription = l
-                                                    stateDescription = if (l == latLang) "selected" else ""
-                                                }
-                                            )
-                                        }
+                                        langs.forEach { l -> DropdownMenuItem(text = { Text(l) }, onClick = { latLang = l; prefs.setString("mixed_mode_latin_language", l); expLat = false }) }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
-
-                                // ── Default Non-Latin Language dropdown ───────────────────────────
-                                ExposedDropdownMenuBox(
-                                    expanded = expNonLat,
-                                    onExpandedChange = { expNonLat = !expNonLat },
-                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
-                                        contentDescription = "Default Non-Latin Language, $nonLatLang, double tap to change"
-                                        stateDescription = if (expNonLat) "expanded" else "collapsed"
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = nonLatLang, onValueChange = {}, readOnly = true,
-                                        label = { Text("Default Non-Latin Language") },
-                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expNonLat) },
-                                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                                    )
+                                ExposedDropdownMenuBox(expanded = expNonLat, onExpandedChange = { expNonLat = !expNonLat }) {
+                                    OutlinedTextField(value = nonLatLang, onValueChange = {}, readOnly = true, label = { Text("Default Non-Latin Lang") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expNonLat) }, modifier = Modifier.fillMaxWidth().menuAnchor().semantics { contentDescription = "Select Default Non-Latin Language" })
                                     ExposedDropdownMenu(expanded = expNonLat, onDismissRequest = { expNonLat = false }) {
-                                        langs.forEach { l ->
-                                            DropdownMenuItem(
-                                                text = { Text(l) },
-                                                onClick = { nonLatLang = l; prefs.setString("mixed_mode_non_latin_language", l); expNonLat = false },
-                                                modifier = Modifier.clearAndSetSemantics {
-                                                    contentDescription = l
-                                                    stateDescription = if (l == nonLatLang) "selected" else ""
-                                                }
-                                            )
-                                        }
+                                        langs.forEach { l -> DropdownMenuItem(text = { Text(l) }, onClick = { nonLatLang = l; prefs.setString("mixed_mode_non_latin_language", l); expNonLat = false }) }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(32.dp))
-
-                                Button(
-                                    onClick = { startActivity(Intent(context, DictionaryActivity::class.java)) },
-                                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Manage Dictionary" }
-                                ) { Text("MANAGE DICTIONARY") }
+                                Button(onClick = { startActivity(Intent(context, DictionaryActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text("MANAGE DICTIONARY") }
                             }
                         }
                     }
@@ -1447,7 +953,6 @@ jobs:
             }
         }
         EOF
-
         cat > app/src/main/kotlin/com/omni/tts/DictionaryActivity.kt << 'EOF'
         package com.omni.tts
         import android.os.Bundle
@@ -1460,7 +965,6 @@ jobs:
         import androidx.compose.material3.*
         import androidx.compose.runtime.*
         import androidx.compose.ui.Modifier
-        import androidx.compose.ui.semantics.clearAndSetSemantics
         import androidx.compose.ui.semantics.contentDescription
         import androidx.compose.ui.semantics.semantics
         import androidx.compose.ui.unit.dp
@@ -1476,44 +980,22 @@ jobs:
                             var from by remember { mutableStateOf("") }
                             var to by remember { mutableStateOf("") }
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Dictionary", style = MaterialTheme.typography.headlineSmall,
-                                    modifier = Modifier.semantics { contentDescription = "Dictionary screen" })
+                                Text("Dictionary", style = MaterialTheme.typography.headlineSmall)
                                 Spacer(modifier = Modifier.height(16.dp))
-                                OutlinedTextField(value = from, onValueChange = { from = it },
-                                    label = { Text("Current Word") },
-                                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Current Word input field, enter word to replace" })
+                                OutlinedTextField(value = from, onValueChange = { from = it }, label = { Text("Current Word") }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Input Current Word" })
                                 Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedTextField(value = to, onValueChange = { to = it },
-                                    label = { Text("Replace With") },
-                                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Replace With input field, enter replacement text" })
+                                OutlinedTextField(value = to, onValueChange = { to = it }, label = { Text("Replace With") }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Input Replace With" })
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Button(
-                                        onClick = {
-                                            if (from.isNotBlank() && to.isNotBlank()) {
-                                                prefs.addDict(from.trim(), to.trim())
-                                                dict = prefs.getDict(); from = ""; to = ""
-                                            }
-                                        },
-                                        modifier = Modifier.semantics { contentDescription = "Add word replacement to Dictionary" }
-                                    ) { Text("ADD") }
-                                    Button(
-                                        onClick = { prefs.clearDict(); dict = prefs.getDict() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                                        modifier = Modifier.semantics { contentDescription = "Clear all Dictionary entries" }
-                                    ) { Text("CLEAR ALL") }
+                                    Button(onClick = { if(from.isNotBlank() && to.isNotBlank()) { prefs.addDict(from.trim(), to.trim()); dict = prefs.getDict(); from = ""; to = "" } }, modifier = Modifier.semantics { contentDescription = "Add Word to Dictionary" }) { Text("ADD") }
+                                    Button(onClick = { prefs.clearDict(); dict = prefs.getDict() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), modifier = Modifier.semantics { contentDescription = "Clear All Dictionary Words" }) { Text("CLEAR ALL") }
                                 }
                                 Spacer(modifier = Modifier.height(24.dp))
-                                Text("Word List, tap any entry to delete it", style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.semantics { contentDescription = "Word List, tap any entry to delete it" })
+                                Text("Word List (Tap to delete)", style = MaterialTheme.typography.titleMedium)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                                     items(dict.toList()) { (k, v) ->
-                                        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                            .clickable { prefs.removeDict(k); dict = prefs.getDict() }
-                                            .clearAndSetSemantics {
-                                                contentDescription = "$k replaced with $v, double tap to delete"
-                                            }) {
+                                        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { prefs.removeDict(k); dict = prefs.getDict() }.semantics { contentDescription = "Delete entry $k to $v" }) {
                                             Text("$k → $v", modifier = Modifier.padding(16.dp))
                                         }
                                     }
@@ -1525,69 +1007,29 @@ jobs:
             }
         }
         EOF
-
-        cat > app/src/main/AndroidManifest.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <queries>
-                <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
-            </queries>
-            <application
-                android:label="Omni"
-                android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-                android:allowBackup="true"
-                android:supportsRtl="true">
-                <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN" />
-                        <category android:name="android.intent.category.LAUNCHER" />
-                    </intent-filter>
-                </activity>
-                <activity android:name=".LanguageSettingsActivity" android:exported="false" />
-                <activity android:name=".AdvancedSettingsActivity" android:exported="false" />
-                <activity android:name=".DictionaryActivity" android:exported="false" />
-                <activity android:name=".CheckVoiceData" android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.speech.tts.engine.CHECK_TTS_DATA" />
-                        <category android:name="android.intent.category.DEFAULT" />
-                    </intent-filter>
-                </activity>
-                <activity android:name=".GetSampleText" android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.speech.tts.engine.GET_SAMPLE_TEXT" />
-                        <category android:name="android.intent.category.DEFAULT" />
-                    </intent-filter>
-                </activity>
-                <provider
-                    android:name="androidx.core.content.FileProvider"
-                    android:authorities="${applicationId}.provider"
-                    android:exported="false"
-                    android:grantUriPermissions="true">
-                    <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" />
-                </provider>
-                <service
-                    android:name=".ComposeTtsService"
-                    android:exported="true"
-                    android:permission="android.permission.BIND_TEXT_TO_SPEECH_SERVICE">
-                    <intent-filter>
-                        <action android:name="android.intent.action.TTS_SERVICE" />
-                        <category android:name="android.intent.category.DEFAULT" />
-                    </intent-filter>
-                    <meta-data android:name="android.speech.tts" android:resource="@xml/tts_engine" />
-                </service>
-            </application>
-        </manifest>
-        EOF
-
         cat > app/src/main/res/xml/provider_paths.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <paths><cache-path name="vh_logs" path="." /></paths>
         EOF
-
+        cat > app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
+            <application android:label="Omni" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" android:allowBackup="true" android:supportsRtl="true">
+                <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
+                <activity android:name=".LanguageSettingsActivity" android:exported="false" />
+                <activity android:name=".AdvancedSettingsActivity" android:exported="false" />
+                <activity android:name=".DictionaryActivity" android:exported="false" />
+                <activity android:name=".CheckVoiceData" android:exported="true"><intent-filter><action android:name="android.speech.tts.engine.CHECK_TTS_DATA" /><category android:name="android.intent.category.DEFAULT" /></intent-filter></activity>
+                <activity android:name=".GetSampleText" android:exported="true"><intent-filter><action android:name="android.speech.tts.engine.GET_SAMPLE_TEXT" /><category android:name="android.intent.category.DEFAULT" /></intent-filter></activity>
+                <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.provider" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" /></provider>
+                <service android:name=".ComposeTtsService" android:exported="true" android:permission="android.permission.BIND_TEXT_TO_SPEECH_SERVICE"><intent-filter><action android:name="android.intent.action.TTS_SERVICE" /><category android:name="android.intent.category.DEFAULT" /></intent-filter><meta-data android:name="android.speech.tts" android:resource="@xml/tts_engine" /></service>
+            </application>
+        </manifest>
+        EOF
         cat > app/src/main/res/xml/tts_engine.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
-        <tts-engine xmlns:android="http://schemas.android.com/apk/res/android"
-            android:settingsActivity="com.omni.tts.MainActivity" />
+        <tts-engine xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="com.omni.tts.MainActivity" />
         EOF
 
     - name: Setup Gradle
