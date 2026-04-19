@@ -1,4 +1,4 @@
-name: Build Omni Ultra Max Final
+name: Build Omni Ultra Max Native
 on:
   push:
     branches: [ "main", "master" ]
@@ -19,7 +19,7 @@ jobs:
     - name: Install NDK and CMake
       run: |
         echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.1.8937393" "cmake;3.22.1" --sdk_root=$ANDROID_HOME
-    - name: Clone CLD2
+    - name: Clone CLD2 Native Library
       run: |
         mkdir -p app/src/main/cpp
         git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
@@ -54,8 +54,8 @@ jobs:
                 minSdk = 24
                 targetSdk = 34
                 versionCode = 1
-                versionName = "10.0"
-                externalNativeBuild { cmake { cppFlags += listOf("-std=c++11", "-Wno-narrowing", "-O3"); arguments += listOf("-DANDROID_STL=c++_shared") } }
+                versionName = "12.0"
+                externalNativeBuild { cmake { cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3"); arguments += listOf("-DANDROID_STL=c++_shared") } }
                 ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) }
             }
             buildFeatures { compose = true }
@@ -81,28 +81,194 @@ jobs:
         cmake_minimum_required(VERSION 3.18.1)
         project("omni_native")
         set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
-        add_library(cld2 SHARED native-lib.cpp ${CLD2_DIR}/cldutil.cc ${CLD2_DIR}/cldutil_shared.cc ${CLD2_DIR}/compact_lang_det.cc ${CLD2_DIR}/compact_lang_det_hint_code.cc ${CLD2_DIR}/compact_lang_det_impl.cc ${CLD2_DIR}/debug.cc ${CLD2_DIR}/fixunicodevalue.cc ${CLD2_DIR}/generated_entities.cc ${CLD2_DIR}/generated_language.cc ${CLD2_DIR}/generated_ulscript.cc ${CLD2_DIR}/getonescriptspan.cc ${CLD2_DIR}/lang_script.cc ${CLD2_DIR}/offsetmap.cc ${CLD2_DIR}/scoreonescriptspan.cc ${CLD2_DIR}/tote.cc ${CLD2_DIR}/utf8statetable.cc ${CLD2_DIR}/cld_generated_cjk_uni_prop_80.cc ${CLD2_DIR}/cld2_generated_cjk_compatible.cc ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc ${CLD2_DIR}/generated_distinct_bi_0.cc ${CLD2_DIR}/cld2_generated_quadchrome_2.cc ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc)
-        target_include_directories(cld2 PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
+        add_library(omni_core SHARED tts_engine_core.cpp ${CLD2_DIR}/cldutil.cc ${CLD2_DIR}/cldutil_shared.cc ${CLD2_DIR}/compact_lang_det.cc ${CLD2_DIR}/compact_lang_det_hint_code.cc ${CLD2_DIR}/compact_lang_det_impl.cc ${CLD2_DIR}/debug.cc ${CLD2_DIR}/fixunicodevalue.cc ${CLD2_DIR}/generated_entities.cc ${CLD2_DIR}/generated_language.cc ${CLD2_DIR}/generated_ulscript.cc ${CLD2_DIR}/getonescriptspan.cc ${CLD2_DIR}/lang_script.cc ${CLD2_DIR}/offsetmap.cc ${CLD2_DIR}/scoreonescriptspan.cc ${CLD2_DIR}/tote.cc ${CLD2_DIR}/utf8statetable.cc ${CLD2_DIR}/cld_generated_cjk_uni_prop_80.cc ${CLD2_DIR}/cld2_generated_cjk_compatible.cc ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc ${CLD2_DIR}/generated_distinct_bi_0.cc ${CLD2_DIR}/cld2_generated_quadchrome_2.cc ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc)
+        target_include_directories(omni_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
         find_library(log-lib log)
-        target_link_libraries(cld2 ${log-lib})
+        target_link_libraries(omni_core ${log-lib})
         EOF
-        cat > app/src/main/cpp/native-lib.cpp << 'EOF'
+        cat > app/src/main/cpp/tts_engine_core.cpp << 'EOF'
         #include <jni.h>
         #include <string>
         #include <cstring>
+        #include <vector>
+        #include <sstream>
         #include "compact_lang_det.h"
-        extern "C" JNIEXPORT jstring JNICALL Java_com_omni_tts_LanguageDetector_nativeDetect(JNIEnv* env, jclass, jstring text) {
-            if (text == nullptr) return env->NewStringUTF("un");
-            const char* utf8 = env->GetStringUTFChars(text, nullptr);
-            if (utf8 == nullptr) return env->NewStringUTF("un");
-            bool is_reliable = false;
-            int bytes = static_cast<int>(strlen(utf8));
-            if (bytes == 0) { env->ReleaseStringUTFChars(text, utf8); return env->NewStringUTF("un"); }
-            CLD2::Language lang = CLD2::DetectLanguage(utf8, bytes, true, &is_reliable);
+
+        struct BlockDef { int start; int end; std::string lang; };
+        std::vector<BlockDef> blocks = {
+            {0x0900, 0x097F, "hi"}, {0x0980, 0x09FF, "bn"}, {0x0A00, 0x0A7F, "pa"}, {0x0A80, 0x0AFF, "gu"},
+            {0x0B00, 0x0B7F, "or"}, {0x0B80, 0x0BFF, "ta"}, {0x0C00, 0x0C7F, "te"}, {0x0C80, 0x0CFF, "kn"},
+            {0x0D00, 0x0D7F, "ml"}, {0x0D80, 0x0DFF, "si"}, {0x0E00, 0x0E7F, "th"}, {0x0600, 0x06FF, "ar"},
+            {0x3040, 0x309F, "ja"}, {0x1100, 0x11FF, "ko"}, {0x4E00, 0x9FFF, "zh"}
+        };
+
+        int utf8ToCodepoint(const unsigned char* p, int& len) {
+            if (p[0] < 0x80) { len = 1; return p[0]; }
+            if ((p[0] & 0xE0) == 0xC0) { len = 2; return ((p[0] & 0x1F) << 6) | (p[1] & 0x3F); }
+            if ((p[0] & 0xF0) == 0xE0) { len = 3; return ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F); }
+            if ((p[0] & 0xF8) == 0xF0) { len = 4; return ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) | ((p[2] & 0x3F) << 6) | (p[3] & 0x3F); }
+            len = 1; return p[0];
+        }
+
+        void codepointToUtf8(int cp, std::string& out) {
+            if (cp <= 0x7F) { out += static_cast<char>(cp); }
+            else if (cp <= 0x7FF) { out += static_cast<char>((cp >> 6) | 0xC0); out += static_cast<char>((cp & 0x3F) | 0x80); }
+            else if (cp <= 0xFFFF) { out += static_cast<char>((cp >> 12) | 0xE0); out += static_cast<char>(((cp >> 6) & 0x3F) | 0x80); out += static_cast<char>((cp & 0x3F) | 0x80); }
+            else if (cp <= 0x10FFFF) { out += static_cast<char>((cp >> 18) | 0xF0); out += static_cast<char>(((cp >> 12) & 0x3F) | 0x80); out += static_cast<char>(((cp >> 6) & 0x3F) | 0x80); out += static_cast<char>((cp & 0x3F) | 0x80); }
+        }
+
+        char mathUnicodeToAscii(int cp) {
+            if (cp >= 0x1D400 && cp <= 0x1D419) return 'A' + (cp - 0x1D400);
+            if (cp >= 0x1D434 && cp <= 0x1D44D) return 'A' + (cp - 0x1D434);
+            if (cp >= 0x1D468 && cp <= 0x1D481) return 'A' + (cp - 0x1D468);
+            if (cp >= 0x1D5A0 && cp <= 0x1D5B9) return 'A' + (cp - 0x1D5A0);
+            if (cp >= 0x1D670 && cp <= 0x1D689) return 'A' + (cp - 0x1D670);
+            if (cp >= 0x1D41A && cp <= 0x1D433) return 'a' + (cp - 0x1D41A);
+            if (cp >= 0x1D44E && cp <= 0x1D467) return 'a' + (cp - 0x1D44E);
+            if (cp >= 0x1D482 && cp <= 0x1D49B) return 'a' + (cp - 0x1D482);
+            if (cp >= 0x1D5BA && cp <= 0x1D5D3) return 'a' + (cp - 0x1D5BA);
+            if (cp >= 0x1D68A && cp <= 0x1D6A3) return 'a' + (cp - 0x1D68A);
+            if (cp >= 0xFF21 && cp <= 0xFF3A) return 'A' + (cp - 0xFF21);
+            if (cp >= 0xFF41 && cp <= 0xFF5A) return 'a' + (cp - 0xFF41);
+            if (cp >= 0x1D7CE && cp <= 0x1D7D7) return '0' + (cp - 0x1D7CE);
+            if (cp >= 0xFF10 && cp <= 0xFF19) return '0' + (cp - 0xFF10);
+            return 0;
+        }
+
+        bool isEmoji(int cp) { return cp > 0xFFFF || (cp >= 0x2600 && cp <= 0x27BF) || (cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0xFE00 && cp <= 0xFE0F); }
+        bool isPunct(int cp) { return cp == '.' || cp == '!' || cp == '?' || cp == ',' || cp == ';' || cp == ':' || cp == '-' || cp == '*' || cp == '_'; }
+
+        std::string normalizeText(const std::string& input, bool keepEmoji, bool countEmoji, bool countPunct) {
+            std::string result;
+            int i = 0, len = input.length();
+            while (i < len) {
+                int clen = 0;
+                int cp = utf8ToCodepoint(reinterpret_cast<const unsigned char*>(&input[i]), clen);
+                char ascii = mathUnicodeToAscii(cp);
+                if (ascii != 0) { result += ascii; i += clen; continue; }
+                
+                if (isEmoji(cp)) {
+                    if (!keepEmoji) { i += clen; continue; }
+                    int eCount = 1; int j = i + clen;
+                    while (j < len) {
+                        int nlen = 0; int ncp = utf8ToCodepoint(reinterpret_cast<const unsigned char*>(&input[j]), nlen);
+                        if (ncp == cp) { eCount++; j += nlen; } else break;
+                    }
+                    if (countEmoji && eCount > 1) result += std::to_string(eCount) + " ";
+                    codepointToUtf8(cp, result);
+                    i = j; continue;
+                }
+                
+                if (isPunct(cp) && countPunct) {
+                    int pCount = 1; int j = i + clen;
+                    while (j < len) {
+                        int nlen = 0; int ncp = utf8ToCodepoint(reinterpret_cast<const unsigned char*>(&input[j]), nlen);
+                        if (ncp == cp) { pCount++; j += nlen; } else break;
+                    }
+                    if (pCount > 1) result += std::to_string(pCount) + " ";
+                    codepointToUtf8(cp, result);
+                    i = j; continue;
+                }
+                
+                codepointToUtf8(cp, result);
+                i += clen;
+            }
+            return result;
+        }
+
+        std::string applyDictionary(std::string text, const std::vector<std::string>& keys, const std::vector<std::string>& vals) {
+            for (size_t i = 0; i < keys.size(); i++) {
+                if (keys[i].empty()) continue;
+                size_t start_pos = 0;
+                while((start_pos = text.find(keys[i], start_pos)) != std::string::npos) {
+                    text.replace(start_pos, keys[i].length(), vals[i]);
+                    start_pos += vals[i].length();
+                }
+            }
+            return text;
+        }
+
+        std::string detectLang(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
+            bool is_rel = false;
+            CLD2::Language lang = CLD2::DetectLanguage(text.c_str(), text.length(), true, &is_rel);
             const char* code = CLD2::LanguageCode(lang);
-            env->ReleaseStringUTFChars(text, utf8);
-            if (code == nullptr || strlen(code) == 0 || strcmp(code, "un") == 0) return env->NewStringUTF("un");
-            return env->NewStringUTF(code);
+            if (code != nullptr && strlen(code) >= 2 && strcmp(code, "un") != 0) return std::string(code);
+            
+            int i = 0; int len = text.length(); bool hasNonLatin = false;
+            while (i < len) {
+                int clen = 0;
+                int cp = utf8ToCodepoint(reinterpret_cast<const unsigned char*>(&text[i]), clen);
+                if (cp > 0x02AF && !(cp >= 0x1E00 && cp <= 0x1EFF)) {
+                    hasNonLatin = true;
+                    for (const auto& b : blocks) { if (cp >= b.start && cp <= b.end) return b.lang; }
+                }
+                i += clen;
+            }
+            return hasNonLatin ? nonLatFall : latFall;
+        }
+
+        extern "C" JNIEXPORT jstring JNICALL Java_com_omni_tts_NativeEngine_processSentences(
+            JNIEnv* env, jobject, jobjectArray jSentences, jobjectArray jKeys, jobjectArray jVals, 
+            jboolean keepEmoji, jboolean countEmoji, jboolean countPunct, 
+            jstring jLat, jstring jNonLat) 
+        {
+            const char* latStr = env->GetStringUTFChars(jLat, nullptr); std::string latFall(latStr); env->ReleaseStringUTFChars(jLat, latStr);
+            const char* nonLatStr = env->GetStringUTFChars(jNonLat, nullptr); std::string nonLatFall(nonLatStr); env->ReleaseStringUTFChars(jNonLat, nonLatStr);
+            
+            std::vector<std::string> keys, vals;
+            int dictSize = env->GetArrayLength(jKeys);
+            for (int i = 0; i < dictSize; i++) {
+                jstring jk = (jstring) env->GetObjectArrayElement(jKeys, i);
+                const char* kc = env->GetStringUTFChars(jk, nullptr); keys.push_back(std::string(kc)); env->ReleaseStringUTFChars(jk, kc);
+                env->DeleteLocalRef(jk);
+                
+                jstring jv = (jstring) env->GetObjectArrayElement(jVals, i);
+                const char* vc = env->GetStringUTFChars(jv, nullptr); vals.push_back(std::string(vc)); env->ReleaseStringUTFChars(jv, vc);
+                env->DeleteLocalRef(jv);
+            }
+
+            std::string resultChunks;
+            std::string currentLang = "";
+            std::string batch = "";
+            
+            int count = env->GetArrayLength(jSentences);
+            for (int i = 0; i < count; i++) {
+                jstring jstr = (jstring) env->GetObjectArrayElement(jSentences, i);
+                const char* utf8 = env->GetStringUTFChars(jstr, nullptr);
+                std::string sentence(utf8);
+                env->ReleaseStringUTFChars(jstr, utf8);
+                env->DeleteLocalRef(jstr);
+                
+                if (sentence.empty()) continue;
+                
+                sentence = applyDictionary(sentence, keys, vals);
+                sentence = normalizeText(sentence, keepEmoji, countEmoji, countPunct);
+                
+                if (sentence.empty()) continue;
+                
+                std::string sLang = detectLang(sentence, latFall, nonLatFall);
+                
+                if (currentLang.empty()) currentLang = sLang;
+                
+                if (sLang != currentLang) {
+                    if (!batch.empty()) resultChunks += currentLang + "|" + batch + "||";
+                    batch = sentence; currentLang = sLang;
+                } else {
+                    if (!batch.empty() && batch.back() != ' ' && batch.back() != '\n') batch += " ";
+                    batch += sentence;
+                }
+            }
+            
+            if (!batch.empty()) resultChunks += currentLang + "|" + batch;
+
+            return env->NewStringUTF(resultChunks.c_str());
+        }
+        EOF
+        cat > app/src/main/kotlin/com/omni/tts/NativeEngine.kt << 'EOF'
+        package com.omni.tts
+        object NativeEngine {
+            init { System.loadLibrary("omni_core") }
+            external fun processSentences(sentences: Array<String>, keys: Array<String>, vals: Array<String>, keepEmoji: Boolean, countEmoji: Boolean, countPunct: Boolean, latFall: String, nonLatFall: String): String
         }
         EOF
         cat > app/src/main/kotlin/com/omni/tts/VhLogger.kt << 'EOF'
@@ -119,7 +285,7 @@ jobs:
         import java.util.Locale
         import java.util.concurrent.atomic.AtomicLong
         object VhLogger {
-            private const val TAG = "OMNI-TTS"
+            private const val TAG = "OMNI-NATIVE"
             private const val MAX_LINES = 5000
             private val buffer = LinkedList<String>()
             private val sdf = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
@@ -247,107 +413,248 @@ jobs:
             }
         }
         EOF
-        cat > app/src/main/kotlin/com/omni/tts/LanguageDetector.kt << 'EOF'
+        cat > app/src/main/kotlin/com/omni/tts/LiveStreamProcessor.kt << 'EOF'
         package com.omni.tts
         import android.content.Context
+        import android.os.Bundle
+        import android.os.Process
+        import android.speech.tts.TextToSpeech
+        import android.speech.tts.SynthesisCallback
+        import android.speech.tts.UtteranceProgressListener
+        import java.io.File
+        import java.io.FileInputStream
+        import java.util.concurrent.CountDownLatch
+        import java.util.concurrent.atomic.AtomicBoolean
+        object LiveStreamProcessor {
+            fun process(context: Context, tts: TextToSpeech, text: String, lang: String, volume: Float, callback: SynthesisCallback, cbStarted: BooleanArray, isStopped: AtomicBoolean, chunkIndex: Int): Boolean {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
+                val tmp = File(context.cacheDir, "vh_live_${System.nanoTime()}.wav")
+                var pipeStream: FileInputStream? = null
+                val synthStart = VhLogger.markSynthStart(text, lang, chunkIndex)
+                var totalBytes = 0L
+                try {
+                    val latch = CountDownLatch(1)
+                    val synthError = BooleanArray(1) { false }
+                    tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(id: String) {}
+                        override fun onDone(id: String) { VhLogger.markSynthEnd(chunkIndex, synthStart); latch.countDown() }
+                        override fun onError(id: String) { synthError[0] = true; latch.countDown() }
+                        override fun onError(id: String, errorCode: Int) { synthError[0] = true; latch.countDown() }
+                    })
+                    val params = Bundle()
+                    params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume)
+                    val synthResult = tts.synthesizeToFile(text, params, tmp, "vh_$lang")
+                    if (synthResult != TextToSpeech.SUCCESS) { synthError[0] = true; latch.countDown() }
+                    if (synthError[0]) { VhLogger.markSynthError(chunkIndex, "synthesizeToFile returned error"); return isStopped.get() }
+                    var headerParsed = false
+                    var bytesRead = 0L
+                    while (latch.count > 0 || tmp.length() > bytesRead) {
+                        if (isStopped.get()) { tts.stop(); VhLogger.d("[CHUNK-$chunkIndex] STOPPED by user"); break }
+                        if (!headerParsed) {
+                            if (tmp.exists() && tmp.length() >= 44) {
+                                try {
+                                    pipeStream = FileInputStream(tmp)
+                                    val wavInfo = WavUtils.parse(pipeStream)
+                                    bytesRead = if(wavInfo.dataOffset > 0) wavInfo.dataOffset.toLong() else 44L
+                                    pipeStream.channel.position(bytesRead)
+                                    VhLogger.markHeaderFound(chunkIndex)
+                                    if (!cbStarted[0]) {
+                                        val enc = if(wavInfo.bitsPerSample.toInt() == 8) android.media.AudioFormat.ENCODING_PCM_8BIT else android.media.AudioFormat.ENCODING_PCM_16BIT
+                                        callback.start(wavInfo.sampleRate, enc, wavInfo.channels.toInt())
+                                        cbStarted[0] = true
+                                    }
+                                    headerParsed = true
+                                } catch (e: Exception) { if (pipeStream != null) { try { pipeStream.close(); pipeStream = null } catch (ignored: Exception) {} }; try { Thread.sleep(1) } catch (ignored: Exception) {}; continue }
+                            } else { try { Thread.sleep(0) } catch (ignored: Exception) {}; continue }
+                        }
+                        val currentLength = tmp.length()
+                        if (currentLength > bytesRead && pipeStream != null) {
+                            val buf = ByteArray(1024)
+                            val toRead = Math.min(buf.size.toLong(), currentLength - bytesRead).toInt()
+                            if (toRead > 0) {
+                                val r = pipeStream.read(buf, 0, toRead)
+                                if (r > 0) {
+                                    if (totalBytes == 0L) VhLogger.markFirstAudio(chunkIndex)
+                                    callback.audioAvailable(buf, 0, r)
+                                    bytesRead += r
+                                    totalBytes += r
+                                } else { try { Thread.sleep(1) } catch (ignored: Exception) {} }
+                            } else { try { Thread.sleep(1) } catch (ignored: Exception) {} }
+                        } else { if (latch.count > 0) { try { Thread.sleep(1) } catch (ignored: Exception) {} } }
+                    }
+                } catch (e: Exception) { VhLogger.e("[CHUNK-$chunkIndex] Exception: ${e.message}") } finally { VhLogger.markChunkDone(chunkIndex, synthStart, totalBytes); if (pipeStream != null) { try { pipeStream.close() } catch (ignored: Exception) {} }; if (tmp.exists()) tmp.delete() }
+                return isStopped.get()
+            }
+        }
+        EOF
+        cat > app/src/main/kotlin/com/omni/tts/ComposeTtsService.kt << 'EOF'
+        package com.omni.tts
+        import android.speech.tts.SynthesisCallback
+        import android.speech.tts.SynthesisRequest
+        import android.speech.tts.TextToSpeech
+        import android.speech.tts.TextToSpeechService
         import java.util.Locale
         import java.util.concurrent.ConcurrentHashMap
-        object LanguageDetector {
-            init { System.loadLibrary("cld2") }
-            @JvmStatic external fun nativeDetect(text: String): String
-            class Chunk(val text: String, val lang: String)
-            private val BLOCK_LANGS = arrayOf("Armenian","Hebrew","Arabic","Syriac","Hindi","Bengali","Punjabi","Gujarati","Oriya","Tamil","Telugu","Kannada","Malayalam","Sinhalese","Thai","Lao","Tibetan","Burmese","Georgian","Korean","Amharic","Cherokee","Irish","Greek","Khmer","Mongolian","Sundanese","Japanese","Chinese Simplified","Javanese","Persian","Turkish","Hungarian","Albanian","Somali","Italian","Sanskrit","Marathi","Sindhi","Coptic","Berber","Amharic")
-            private val BLOCK_TABLE = arrayOf(intArrayOf(0x0530,0x058F,0), intArrayOf(0x0590,0x05FF,1), intArrayOf(0x0600,0x06FF,2), intArrayOf(0x0700,0x074F,3), intArrayOf(0x0750,0x077F,2), intArrayOf(0x08A0,0x08FF,2), intArrayOf(0x0900,0x097F,4), intArrayOf(0x0980,0x09FF,5), intArrayOf(0x0A00,0x0A7F,6), intArrayOf(0x0A80,0x0AFF,7), intArrayOf(0x0B00,0x0B7F,8), intArrayOf(0x0B80,0x0BFF,9), intArrayOf(0x0C00,0x0C7F,10), intArrayOf(0x0C80,0x0CFF,11), intArrayOf(0x0D00,0x0D7F,12), intArrayOf(0x0D80,0x0DFF,13), intArrayOf(0x0E00,0x0E7F,14), intArrayOf(0x0E80,0x0EFF,15), intArrayOf(0x0F00,0x0FFF,16), intArrayOf(0x1000,0x109F,17), intArrayOf(0x10A0,0x10FF,18), intArrayOf(0x1100,0x11FF,19), intArrayOf(0x1200,0x137F,20), intArrayOf(0x1380,0x139F,20), intArrayOf(0x13A0,0x13FF,21), intArrayOf(0x1680,0x169F,22), intArrayOf(0x1780,0x17FF,24), intArrayOf(0x1800,0x18AF,25), intArrayOf(0x19E0,0x19FF,24), intArrayOf(0x1B80,0x1BBF,26), intArrayOf(0x1C90,0x1CBF,18), intArrayOf(0x1CC0,0x1CCF,26), intArrayOf(0x1CD0,0x1CFF,36), intArrayOf(0x1F00,0x1FFF,23), intArrayOf(0x2D00,0x2D2F,18), intArrayOf(0x2D30,0x2D7F,40), intArrayOf(0x2D80,0x2DDF,41), intArrayOf(0x3040,0x309F,27), intArrayOf(0x30A0,0x30FF,27), intArrayOf(0x3100,0x312F,28), intArrayOf(0x3130,0x318F,19), intArrayOf(0x3190,0x319F,28), intArrayOf(0x31A0,0x31BF,28), intArrayOf(0x31F0,0x31FF,27), intArrayOf(0x3400,0x4DBF,28), intArrayOf(0x4E00,0x9FFF,28), intArrayOf(0xA000,0xA48F,28), intArrayOf(0xA490,0xA4CF,28), intArrayOf(0xA8E0,0xA8FF,4), intArrayOf(0xA960,0xA97F,19), intArrayOf(0xA980,0xA9DF,29), intArrayOf(0xA9E0,0xA9FF,17), intArrayOf(0xAA60,0xAA7F,17), intArrayOf(0xAB00,0xAB2F,20), intArrayOf(0xAB70,0xABBF,21), intArrayOf(0xAC00,0xD7AF,19), intArrayOf(0xD7B0,0xD7FF,19), intArrayOf(0xFB50,0xFDFF,2), intArrayOf(0xFE70,0xFEFF,2), intArrayOf(0x10140,0x1018F,23), intArrayOf(0x103A0,0x103DF,30), intArrayOf(0x10B60,0x10B7F,30), intArrayOf(0x10B80,0x10BAF,30), intArrayOf(0x10C00,0x10C4F,31), intArrayOf(0x10C80,0x10CFF,32), intArrayOf(0x10500,0x1052F,33), intArrayOf(0x10530,0x1056F,33), intArrayOf(0x10480,0x104AF,34), intArrayOf(0x10300,0x1032F,35), intArrayOf(0x10A60,0x10A7F,2), intArrayOf(0x10A80,0x10A9F,2), intArrayOf(0x11100,0x1114F,5), intArrayOf(0x11150,0x1117F,4), intArrayOf(0x111E0,0x111FF,13), intArrayOf(0x112B0,0x112FF,38), intArrayOf(0x11300,0x1137F,9), intArrayOf(0x11580,0x115FF,36), intArrayOf(0x11600,0x1165F,37), intArrayOf(0x11660,0x1167F,25), intArrayOf(0x11FC0,0x11FFF,9), intArrayOf(0x1EE00,0x1EEFF,2), intArrayOf(0x20000,0x2A6DF,28), intArrayOf(0x2A700,0x2B73F,28), intArrayOf(0x2B740,0x2B81F,28), intArrayOf(0x2B820,0x2CEAF,28), intArrayOf(0x2CEB0,0x2EBEF,28))
-            private const val CACHE_MAX = 5000
-            private val cpCache = ConcurrentHashMap<Int, String>()
-            fun isLatinText(text: String?): Boolean {
-                if (text.isNullOrEmpty()) return true
-                var i = 0
-                while (i < text.length) {
-                    val cp = text.codePointAt(i)
-                    if (cp > 0x02AF && !(cp in 0x1E00..0x1EFF)) return false
-                    i += Character.charCount(cp)
-                }
-                return true
+        import java.util.concurrent.CountDownLatch
+        import java.util.concurrent.TimeUnit
+        import java.util.concurrent.atomic.AtomicBoolean
+        import java.util.concurrent.atomic.AtomicReference
+        class ComposeTtsService : TextToSpeechService() {
+            private val enginePool = ConcurrentHashMap<String, TextToSpeech>()
+            private lateinit var prefs: SharedPrefsManager
+            private val activeStop = AtomicReference(AtomicBoolean(true))
+            class LangState { var localeTag = ""; var rate = -1f; var pitch = -1f }
+            private val langStates = ConcurrentHashMap<String, LangState>()
+            
+            private fun getLocale(iso: String): Locale { return try { Locale(iso) } catch (e: Exception) { Locale.US } }
+
+            override fun onCreate() {
+                super.onCreate()
+                VhLogger.init(this)
+                VhLogger.i("[SERVICE] Native C++ Engine Booted")
+                prefs = SharedPrefsManager(this)
             }
-            private val ISO_TO_LANG = mapOf("hi" to "Hindi", "bho" to "Hindi", "mai" to "Hindi", "awa" to "Hindi", "raj" to "Hindi", "hne" to "Hindi", "kok" to "Hindi", "ne" to "Nepali", "mr" to "Marathi", "sa" to "Sanskrit", "bn" to "Bengali", "as" to "Bengali", "pa" to "Punjabi", "gu" to "Gujarati", "or" to "Oriya", "ta" to "Tamil", "te" to "Telugu", "kn" to "Kannada", "ml" to "Malayalam", "si" to "Sinhalese", "ur" to "Urdu", "sd" to "Sindhi", "en" to "English", "ar" to "Arabic", "zh" to "Chinese Simplified", "zh-hans" to "Chinese Simplified", "cmn" to "Chinese Simplified", "yue" to "Chinese Simplified", "zh-hant" to "Chinese Traditional", "ja" to "Japanese", "ko" to "Korean", "ru" to "Russian", "uk" to "Ukrainian", "be" to "Belarusian", "bg" to "Bulgarian", "mk" to "Macedonian", "sr" to "Serbian", "kk" to "Kazakh", "ky" to "Kyrgyz", "tg" to "Tajik", "tt" to "Tatar", "mn" to "Mongolian", "fa" to "Persian", "ps" to "Pashto", "he" to "Hebrew", "iw" to "Hebrew", "tr" to "Turkish", "ka" to "Georgian", "hy" to "Armenian", "el" to "Greek", "grc" to "Greek", "th" to "Thai", "vi" to "Vietnamese", "id" to "Indonesian", "in" to "Indonesian", "ms" to "Malay", "km" to "Khmer", "de" to "German", "fr" to "French", "es" to "Spanish", "it" to "Italian", "pt" to "Portuguese", "nl" to "Dutch", "pl" to "Polish", "cs" to "Czech", "sk" to "Slovak", "ro" to "Romanian", "hu" to "Hungarian", "fi" to "Finnish", "sv" to "Swedish", "da" to "Danish", "no" to "Norwegian", "nb" to "Norwegian", "nn" to "Norwegian", "is" to "Icelandic", "lv" to "Latvian", "lt" to "Lithuanian", "et" to "Estonian", "hr" to "Croatian", "sl" to "Slovenian", "bs" to "Bosnian", "sq" to "Albanian", "af" to "Afrikaans", "ca" to "Catalan", "gl" to "Galician", "eu" to "Basque", "cy" to "Welsh", "ga" to "Irish", "mt" to "Maltese", "sw" to "Swahili", "so" to "Somali", "am" to "Amharic", "yo" to "Yoruba", "zu" to "Zulu", "jv" to "Javanese", "su" to "Sundanese", "az" to "Azerbaijani", "uz" to "Uzbek", "lo" to "Lao")
-            fun detect(text: String?, fallback: String, prefs: SharedPrefsManager?): String {
-                if (text.isNullOrEmpty()) return fallback
-                val trimmed = if (text.length > 1500) text.substring(0, 1500) else text.trim()
-                val cld2Code = detectWithCld2(trimmed)
-                if (cld2Code != null) {
-                    val cld2Lang = isoToLang(cld2Code)
-                    if (cld2Lang != "Unknown" && isConfigured(cld2Lang, prefs)) { VhLogger.d("[DETECT] CLD2 direct: $cld2Lang"); return cld2Lang }
-                    val scriptPref = getScriptPref(trimmed, prefs)
-                    if (scriptPref != null) { VhLogger.d("[DETECT] script-pref: cld2=$cld2Code -> $scriptPref"); return scriptPref }
-                    val isoLang = findConfiguredByIso(cld2Code, prefs)
-                    if (isoLang != null) { VhLogger.d("[DETECT] iso-map: $cld2Code -> $isoLang"); return isoLang }
-                }
-                val cp = firstSignificantCp(trimmed)
-                if (cp > 0x2AF) {
-                    val cached = cpCache[cp]
-                    if (cached != null && isConfigured(cached, prefs)) return cached
-                    val blockLang = blockLookup(cp)
-                    if (blockLang != null) {
-                        if (cpCache.size < CACHE_MAX) cpCache[cp] = blockLang
-                        if (isConfigured(blockLang, prefs)) { VhLogger.d("[DETECT] block: U+${Integer.toHexString(cp)} -> $blockLang"); return blockLang }
-                        val sp = getScriptPref(trimmed, prefs)
-                        if (sp != null) { VhLogger.d("[DETECT] block-scriptpref: $blockLang -> $sp"); return sp }
+
+            private fun initEngineForLang(lang: String): TextToSpeech? {
+                val pkg = prefs.getEngineForLanguage(lang)
+                if (pkg == "NOT_SET") return null
+                if (enginePool.containsKey(lang)) return enginePool[lang]
+                val latch = CountDownLatch(1)
+                val ref = arrayOfNulls<TextToSpeech>(1)
+                ref[0] = TextToSpeech(this, { status ->
+                    if (status == TextToSpeech.SUCCESS) {
+                        var tag = prefs.getLocaleForLangPkg(lang, pkg)
+                        if (tag.isEmpty()) tag = getLocale(lang).toLanguageTag()
+                        try { ref[0]?.language = Locale.forLanguageTag(tag) } catch (e: Exception) { ref[0]?.language = getLocale(lang) }
                     }
-                } else if (cp >= 0) {
-                    val sp = getScriptPref(trimmed, prefs)
-                    if (sp != null) { VhLogger.d("[DETECT] ascii-scriptpref -> $sp"); return sp }
+                    latch.countDown()
+                }, pkg)
+                try { latch.await(5, TimeUnit.SECONDS) } catch (ignored: InterruptedException) {}
+                val tts = ref[0]
+                if (tts != null) enginePool[lang] = tts
+                return tts
+            }
+
+            override fun onGetLanguage(): Array<String> = arrayOf("eng", "USA", "")
+            override fun onIsLanguageAvailable(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
+            override fun onLoadLanguage(l: String?, c: String?, v: String?): Int = TextToSpeech.LANG_AVAILABLE
+            override fun onStop() { VhLogger.markStop(); activeStop.get().set(true); for (tts in enginePool.values) { try { tts.stop() } catch (ignored: Exception) {} } }
+
+            override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
+                activeStop.get().set(true)
+                val myStop = AtomicBoolean(false)
+                activeStop.set(myStop)
+                var rawText = request?.charSequenceText?.toString() ?: ""
+                if (rawText.isEmpty() || myStop.get()) { callback?.done(); return }
+                
+                // Natural In-built Splitter (Calling Android OS's native ICU BreakIterator)
+                val iterator = java.text.BreakIterator.getSentenceInstance()
+                iterator.setText(rawText)
+                val sentencesList = mutableListOf<String>()
+                var start = iterator.first()
+                var end = iterator.next()
+                while (end != java.text.BreakIterator.DONE) {
+                    val s = rawText.substring(start, end).trim()
+                    if (s.isNotEmpty()) sentencesList.add(s)
+                    start = end
+                    end = iterator.next()
                 }
-                VhLogger.markFallback(cld2Code ?: "null", fallback)
-                return fallback
-            }
-            private fun detectWithCld2(text: String): String? {
-                val len = text.length
-                var i = 0
-                while (i < len) {
-                    try { val code = nativeDetect(text.substring(i, Math.min(i + 64, len))); if (code != "un" && code.length >= 2) return code } catch (ignored: Exception) {}
-                    i += 64
+                
+                val dictMap = if (prefs.getBoolean("dict_enabled", false)) prefs.getDict() else emptyMap()
+                val keys = dictMap.keys.toTypedArray()
+                val vals = dictMap.values.toTypedArray()
+                val keepEmoji = prefs.getBoolean("emoji_reading", true)
+                val countEmoji = prefs.getBoolean("emoji_count", false)
+                val countPunct = prefs.getBoolean("punct_count", false)
+                val latFall = prefs.getString("mixed_mode_latin_language", "en")
+                val nonLatFall = prefs.getString("mixed_mode_non_latin_language", "hi")
+                
+                // --- ULTRA MAX NATIVE BRIDGE ---
+                // Sentences pass hone ke baad saari processing (Clean, Dict, Lang Detect) C++ kar raha hai
+                val nativeOutput = NativeEngine.processSentences(sentencesList.toTypedArray(), keys, vals, keepEmoji, countEmoji, countPunct, latFall, nonLatFall)
+                
+                val chunkStrings = nativeOutput.split("||").filter { it.isNotBlank() }
+                val cbStarted = BooleanArray(1) { false }
+                VhLogger.markRequest(rawText, chunkStrings.size)
+                
+                var chunkIndex = 0
+                for (chunkStr in chunkStrings) {
+                    if (myStop.get()) break
+                    val parts = chunkStr.split("|", limit = 2)
+                    if (parts.size < 2 || parts[1].trim().isEmpty()) continue
+                    
+                    chunkIndex++
+                    var effectiveLang = parts[0]
+                    val chunkText = parts[1]
+                    var pkg = prefs.getEngineForLanguage(effectiveLang)
+                    if (pkg == "NOT_SET") { VhLogger.markFallback(effectiveLang, latFall); effectiveLang = latFall; pkg = prefs.getEngineForLanguage(effectiveLang) }
+                    if (pkg == "NOT_SET") { VhLogger.markSkipped("no engine for lang=$effectiveLang"); continue }
+                    
+                    val key = "${effectiveLang}_${pkg}"
+                    val appRate = Math.max(0.1f, prefs.getInt("rate_$key", 100) / 100.0f)
+                    val appPitch = Math.max(0.1f, prefs.getInt("pitch_$key", 100) / 100.0f)
+                    val appVolume = prefs.getInt("vol_$key", 100) / 100.0f
+                    val sysRate = Math.max(0.1f, request!!.speechRate / 100.0f)
+                    val sysPitch = Math.max(0.1f, request.pitch / 100.0f)
+                    val finalRate = Math.max(0.1f, Math.min(6.0f, sysRate * appRate))
+                    val finalPitch = Math.max(0.1f, Math.min(6.0f, sysPitch * appPitch))
+                    
+                    val engineExists = enginePool.containsKey(effectiveLang)
+                    val initStart = System.currentTimeMillis()
+                    val tts = initEngineForLang(effectiveLang) ?: continue
+                    if (!engineExists) VhLogger.markEngineInit(effectiveLang, pkg, System.currentTimeMillis() - initStart) else VhLogger.markEngineReused(effectiveLang)
+                    val state = langStates.getOrPut(effectiveLang) { LangState() }
+                    
+                    if (Math.abs(state.rate - finalRate) > 0.01f) { tts.setSpeechRate(finalRate); state.rate = finalRate }
+                    if (Math.abs(state.pitch - finalPitch) > 0.01f) { tts.setPitch(finalPitch); state.pitch = finalPitch }
+                    var locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg)
+                    if (locTag.isEmpty()) locTag = getLocale(effectiveLang).toLanguageTag()
+                    if (state.localeTag != locTag) {
+                        try { tts.language = Locale.forLanguageTag(locTag) } catch (e: Exception) { tts.language = getLocale(effectiveLang) }
+                        state.localeTag = locTag
+                    }
+                    
+                    val stopped = LiveStreamProcessor.process(this, tts, chunkText, effectiveLang, appVolume, callback!!, cbStarted, myStop, chunkIndex)
+                    if (stopped) { VhLogger.markStop(); break }
                 }
-                try { val code = nativeDetect(text); if (code != "un" && code.length >= 2) return code } catch (ignored: Exception) {}
-                return null
+                if (!cbStarted[0] && !myStop.get()) callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
+                callback?.done()
             }
-            private fun getScriptPref(text: String, prefs: SharedPrefsManager?): String? {
-                if (prefs == null) return null
-                val latin = isLatinText(text)
-                val key = if (latin) "mixed_mode_latin_language" else "mixed_mode_non_latin_language"
-                val pref = prefs.getString(key, "")
-                return if (pref.isNotEmpty() && isConfigured(pref, prefs)) pref else null
+            override fun onDestroy() { VhLogger.i("[SERVICE] onDestroy"); activeStop.get().set(true); for (tts in enginePool.values) { try { tts.shutdown() } catch (ignored: Exception) {} }; enginePool.clear(); langStates.clear(); super.onDestroy() }
+        }
+        EOF
+        cat > app/src/main/kotlin/com/omni/tts/CheckVoiceData.kt << 'EOF'
+        package com.omni.tts
+        import android.app.Activity
+        import android.content.Intent
+        import android.os.Bundle
+        import android.speech.tts.TextToSpeech
+        class CheckVoiceData : Activity() {
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                val availableLocales = arrayListOf("en-US", "hi-IN", "es-ES", "fr-FR", "de-DE", "it-IT", "ja-JP", "ko-KR", "zh-CN", "ru-RU", "ar-SA", "gu-IN", "mr-IN", "ta-IN", "te-IN")
+                val data = Intent()
+                data.putStringArrayListExtra(TextToSpeech.Engine.EXTRA_AVAILABLE_VOICES, availableLocales)
+                data.putStringArrayListExtra(TextToSpeech.Engine.EXTRA_UNAVAILABLE_VOICES, java.util.ArrayList())
+                setResult(TextToSpeech.Engine.CHECK_VOICE_DATA_PASS, data)
+                finish()
             }
-            private fun isConfigured(lang: String, prefs: SharedPrefsManager?): Boolean = prefs != null && prefs.getEngineForLanguage(lang) != "NOT_SET"
-            private fun findConfiguredByIso(iso: String?, prefs: SharedPrefsManager?): String? {
-                if (iso == null || prefs == null) return null
-                val lang = isoToLang(iso)
-                return if (lang != "Unknown" && isConfigured(lang, prefs)) lang else null
+        }
+        EOF
+        cat > app/src/main/kotlin/com/omni/tts/GetSampleText.kt << 'EOF'
+        package com.omni.tts
+        import android.app.Activity
+        import android.content.Intent
+        import android.os.Bundle
+        import android.speech.tts.TextToSpeech
+        class GetSampleText : Activity() {
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                val data = Intent()
+                data.putExtra("sampleText", "This is a native sample text from Omni TTS.")
+                setResult(TextToSpeech.Engine.CHECK_VOICE_DATA_PASS, data)
+                finish()
             }
-            fun isoToLang(code: String?): String {
-                if (code == null) return "Unknown"
-                return ISO_TO_LANG[code.toLowerCase(Locale.ROOT).trim()] ?: "Unknown"
-            }
-            private fun firstSignificantCp(text: String): Int {
-                var i = 0
-                while (i < text.length) {
-                    val cp = text.codePointAt(i)
-                    if (!Character.isWhitespace(cp) && !Character.isDigit(cp) && !(cp in 0x21..0x2F) && !(cp in 0x3A..0x40) && !(cp in 0x5B..0x60) && !(cp in 0x7B..0x7E)) return cp
-                    i += Character.charCount(cp)
-                }
-                return -1
-            }
-            private fun blockLookup(cp: Int): String? {
-                for (e in BLOCK_TABLE) if (cp in e[0]..e[1]) return BLOCK_LANGS[e[2]]
-                return null
-            }
-            fun getAllLanguages(): List<String> = listOf("Afrikaans", "Albanian", "Arabic", "Armenian", "Azerbaijani", "Basque", "Belarusian", "Bengali", "Bosnian", "Bulgarian", "Catalan", "Chinese Simplified", "Chinese Traditional", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Finnish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latvian", "Lithuanian", "Macedonian", "Malay", "Malayalam", "Maltese", "Marathi", "Mongolian", "Nepali", "Norwegian", "Oriya", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Serbian", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tamil", "Telugu", "Thai", "Turkish", "Ukrainian", "Urdu", "Uzbek", "Vietnamese", "Welsh", "Yoruba", "Zulu")
-            fun getLocale(lang: String): Locale {
-                return when (lang) {
-                    "Afrikaans" -> Locale("af", "ZA"); "Albanian" -> Locale("sq", "AL"); "Arabic" -> Locale("ar", "SA"); "Armenian" -> Locale("hy", "AM"); "Azerbaijani" -> Locale("az", "AZ"); "Basque" -> Locale("eu", "ES"); "Belarusian" -> Locale("be", "BY"); "Bengali" -> Locale("bn", "BD"); "Bosnian" -> Locale("bs", "BA"); "Bulgarian" -> Locale("bg", "BG"); "Catalan" -> Locale("ca", "ES"); "Chinese Simplified" -> Locale.SIMPLIFIED_CHINESE; "Chinese Traditional" -> Locale.TRADITIONAL_CHINESE; "Croatian" -> Locale("hr", "HR"); "Czech" -> Locale("cs", "CZ"); "Danish" -> Locale("da", "DK"); "Dutch" -> Locale("nl", "NL"); "English" -> Locale.US; "Estonian" -> Locale("et", "EE"); "Finnish" -> Locale("fi", "FI"); "French" -> Locale.FRANCE; "Galician" -> Locale("gl", "ES"); "Georgian" -> Locale("ka", "GE"); "German" -> Locale.GERMANY; "Greek" -> Locale("el", "GR"); "Gujarati" -> Locale("gu", "IN"); "Hebrew" -> Locale("he", "IL"); "Hindi" -> Locale("hi", "IN"); "Hungarian" -> Locale("hu", "HU"); "Icelandic" -> Locale("is", "IS"); "Indonesian" -> Locale("in", "ID"); "Irish" -> Locale("ga", "IE"); "Italian" -> Locale.ITALY; "Japanese" -> Locale.JAPAN; "Javanese" -> Locale("jv", "ID"); "Kannada" -> Locale("kn", "IN"); "Kazakh" -> Locale("kk", "KZ"); "Khmer" -> Locale("km", "KH"); "Korean" -> Locale.KOREA; "Lao" -> Locale("lo", "LA"); "Latvian" -> Locale("lv", "LV"); "Lithuanian" -> Locale("lt", "LT"); "Macedonian" -> Locale("mk", "MK"); "Malay" -> Locale("ms", "MY"); "Malayalam" -> Locale("ml", "IN"); "Maltese" -> Locale("mt", "MT"); "Marathi" -> Locale("mr", "IN"); "Mongolian" -> Locale("mn", "MN"); "Nepali" -> Locale("ne", "NP"); "Norwegian" -> Locale("no", "NO"); "Oriya" -> Locale("or", "IN"); "Pashto" -> Locale("ps", "AF"); "Persian" -> Locale("fa", "IR"); "Polish" -> Locale("pl", "PL"); "Portuguese" -> Locale("pt", "BR"); "Punjabi" -> Locale("pa", "IN"); "Romanian" -> Locale("ro", "RO"); "Russian" -> Locale("ru", "RU"); "Serbian" -> Locale("sr", "RS"); "Sinhalese" -> Locale("si", "LK"); "Slovak" -> Locale("sk", "SK"); "Slovenian" -> Locale("sl", "SI"); "Somali" -> Locale("so", "SO"); "Spanish" -> Locale("es", "ES"); "Sundanese" -> Locale("su", "ID"); "Swahili" -> Locale("sw", "KE"); "Swedish" -> Locale("sv", "SE"); "Tamil" -> Locale("ta", "IN"); "Telugu" -> Locale("te", "IN"); "Thai" -> Locale("th", "TH"); "Turkish" -> Locale("tr", "TR"); "Ukrainian" -> Locale("uk", "UA"); "Urdu" -> Locale("ur", "PK"); "Uzbek" -> Locale("uz", "UZ"); "Vietnamese" -> Locale("vi", "VN"); "Welsh" -> Locale("cy", "GB"); "Yoruba" -> Locale("yo", "NG"); "Zulu" -> Locale("zu", "ZA"); else -> Locale.US
-                }
-            }
-            fun init(ctx: Context) {}
         }
         EOF
         cat > app/src/main/kotlin/com/omni/tts/MainActivity.kt << 'EOF'
@@ -390,7 +697,7 @@ jobs:
                         disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
-                Box(modifier = Modifier.matchParentSize().clickable(onClick = { showDialog = true }).semantics { contentDescription = "Select $label. Current selection is $selectedText. Double tap to change." })
+                Box(modifier = Modifier.matchParentSize().clickable(onClick = { showDialog = true }).semantics { contentDescription = "Select $label. Current is $selectedText. Double tap to change." })
             }
             if (showDialog) {
                 AlertDialog(
@@ -423,10 +730,10 @@ jobs:
                             val context = LocalContext.current
                             val engines = EngineFinder.getEngines(context).toMutableList()
                             engines.add(0, EngineFinder.TTSInfo("NOT_SET", "--- Not Set ---"))
-                            val languagesList = LanguageDetector.getAllLanguages()
+                            val languagesList = listOf("af", "sq", "ar", "hy", "az", "eu", "be", "bn", "bs", "bg", "ca", "zh", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "gl", "ka", "de", "el", "gu", "he", "hi", "hu", "is", "id", "ga", "it", "ja", "jv", "kn", "kk", "km", "ko", "lo", "lv", "lt", "mk", "ms", "ml", "mt", "mr", "mn", "ne", "no", "fa", "pl", "pt", "pa", "ro", "ru", "sr", "si", "sk", "sl", "so", "es", "su", "sw", "sv", "ta", "te", "th", "tr", "uk", "ur", "uz", "vi", "cy", "yo", "zu")
                             var isInitLang by remember { mutableStateOf(true) }
                             var isInitEng by remember { mutableStateOf(true) }
-                            var selLang by remember { mutableStateOf(prefs.getString("pref_lang", "English")) }
+                            var selLang by remember { mutableStateOf(prefs.getString("pref_lang", "en")) }
                             var selEngPkg by remember { mutableStateOf(prefs.getEngineForLanguage(selLang)) }
                             val selEngName = engines.find { it.pkg == selEngPkg }?.name ?: "Not Set"
                             var availableLocales by remember { mutableStateOf(listOf<Locale>()) }
@@ -436,18 +743,17 @@ jobs:
                                     tempTts?.shutdown()
                                     tempTts = android.speech.tts.TextToSpeech(context, { status ->
                                         if(status == android.speech.tts.TextToSpeech.SUCCESS) {
-                                            val targetIso = LanguageDetector.getLocale(selLang).language
-                                            val voices = try { tempTts?.voices?.map { it.locale }?.filter { it.language.equals(targetIso, true) } } catch(e:Exception){ null }
+                                            val voices = try { tempTts?.voices?.map { it.locale }?.filter { it.language.equals(selLang, true) } } catch(e:Exception){ null }
                                             availableLocales = voices?.distinctBy { it.toLanguageTag() }?.sortedBy { it.displayName } ?: listOf()
                                         }
                                     }, selEngPkg)
                                 } else { availableLocales = listOf(); tempTts?.shutdown(); tempTts = null }
                             }
                             Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
-                                Text("Omni Setup", style = MaterialTheme.typography.headlineMedium)
+                                Text("Omni Native Setup", style = MaterialTheme.typography.headlineMedium)
                                 Spacer(modifier = Modifier.height(24.dp))
                                 
-                                AccessibleDropdown("Select Language", selLang, languagesList) { idx ->
+                                AccessibleDropdown("Select ISO Language", selLang, languagesList) { idx ->
                                     isInitLang = false; selLang = languagesList[idx]; prefs.setString("pref_lang", selLang)
                                     selEngPkg = prefs.getEngineForLanguage(selLang)
                                     selLocTag = prefs.getLocaleForLangPkg(selLang, selEngPkg)
@@ -483,7 +789,7 @@ jobs:
                                     try {
                                         val logFile = VhLogger.exportToFile()
                                         val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", logFile)
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_STREAM, uri); putExtra(Intent.EXTRA_SUBJECT, "Omni Debug Log"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_STREAM, uri); putExtra(Intent.EXTRA_SUBJECT, "Omni Native Log"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                                         context.startActivity(Intent.createChooser(shareIntent, "Share Log"))
                                     } catch (e: Exception) { Toast.makeText(context, "Log export failed: ${e.message}", Toast.LENGTH_SHORT).show() }
                                 }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("EXPORT DEBUG LOG") }
@@ -514,7 +820,7 @@ jobs:
             private var testTts: android.speech.tts.TextToSpeech? = null
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
-                val currentKey = intent.getStringExtra("key") ?: "English_NOT_SET"
+                val currentKey = intent.getStringExtra("key") ?: "en_NOT_SET"
                 val prefs = SharedPrefsManager(this)
                 setContent {
                     MaterialTheme {
@@ -641,9 +947,9 @@ jobs:
                             var emojiCount by remember { mutableStateOf(prefs.getBoolean("emoji_count", false)) }
                             var punctCount by remember { mutableStateOf(prefs.getBoolean("punct_count", false)) }
                             var dictEnabled by remember { mutableStateOf(prefs.getBoolean("dict_enabled", false)) }
-                            val langs = LanguageDetector.getAllLanguages()
-                            var latLang by remember { mutableStateOf(prefs.getString("mixed_mode_latin_language", "English")) }
-                            var nonLatLang by remember { mutableStateOf(prefs.getString("mixed_mode_non_latin_language", "Hindi")) }
+                            val langs = listOf("af", "sq", "ar", "hy", "az", "eu", "be", "bn", "bs", "bg", "ca", "zh", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "gl", "ka", "de", "el", "gu", "he", "hi", "hu", "is", "id", "ga", "it", "ja", "jv", "kn", "kk", "km", "ko", "lo", "lv", "lt", "mk", "ms", "ml", "mt", "mr", "mn", "ne", "no", "fa", "pl", "pt", "pa", "ro", "ru", "sr", "si", "sk", "sl", "so", "es", "su", "sw", "sv", "ta", "te", "th", "tr", "uk", "ur", "uz", "vi", "cy", "yo", "zu")
+                            var latLang by remember { mutableStateOf(prefs.getString("mixed_mode_latin_language", "en")) }
+                            var nonLatLang by remember { mutableStateOf(prefs.getString("mixed_mode_non_latin_language", "hi")) }
                             Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                                 Text("Advanced Settings", style = MaterialTheme.typography.headlineSmall)
                                 Spacer(modifier = Modifier.height(24.dp))
@@ -653,11 +959,11 @@ jobs:
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics { contentDescription = "Toggle Enable Dictionary" }) { Checkbox(checked = dictEnabled, onCheckedChange = { dictEnabled = it; prefs.setBoolean("dict_enabled", it) }); Text("Enable Dictionary") }
                                 Spacer(modifier = Modifier.height(16.dp))
                                 
-                                AccessibleDropdownAdv("Default Latin Lang", latLang, langs) { idx ->
+                                AccessibleDropdownAdv("Default Latin ISO Lang", latLang, langs) { idx ->
                                     latLang = langs[idx]; prefs.setString("mixed_mode_latin_language", latLang)
                                 }
                                 
-                                AccessibleDropdownAdv("Default Non-Latin Lang", nonLatLang, langs) { idx ->
+                                AccessibleDropdownAdv("Default Non-Latin ISO Lang", nonLatLang, langs) { idx ->
                                     nonLatLang = langs[idx]; prefs.setString("mixed_mode_non_latin_language", nonLatLang)
                                 }
 
@@ -763,6 +1069,6 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: Omni-Ultra-Max-Final-APK
+        name: Omni-Ultra-Max-Native-APK
         path: app/build/outputs/apk/debug/app-debug.apk
         if-no-files-found: error
