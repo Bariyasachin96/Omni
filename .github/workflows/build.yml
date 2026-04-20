@@ -41,10 +41,10 @@ jobs:
 
           # ── gradle.properties ────────────────────────────────────────────────
           w("gradle.properties", """android.useAndroidX=true
-android.enableJetifier=true
-org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8
-org.gradle.daemon=false
-""")
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8
+          org.gradle.daemon=false
+          """)
 
           # ── settings.gradle.kts ──────────────────────────────────────────────
           w("settings.gradle.kts", """pluginManagement {
