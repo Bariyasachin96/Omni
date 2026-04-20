@@ -821,7 +821,7 @@ jobs:
                           override fun onError(id: String) { synthError[0] = true; latch.countDown() }
                           override fun onError(id: String, errorCode: Int) { synthError[0] = true; latch.countDown() }
                       })
-                      val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume); putFloat(TextToSpeech.Engine.KEY_PARAM_PITCH, pitch); putFloat(TextToSpeech.Engine.KEY_PARAM_RATE, rate) }
+                      val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume); putFloat("pitch", pitch); putFloat("rate", rate) }
                       if (tts.synthesizeToFile(text, params, tmp, "vh_$lang") != TextToSpeech.SUCCESS) {
                           synthError[0] = true; latch.countDown()
                       }
