@@ -804,7 +804,7 @@ jobs:
           object LiveStreamProcessor {
               fun process(
                   context: Context, tts: TextToSpeech, text: String, lang: String,
-                  volume: Float, pitch: Float, rate: Float, callback: SynthesisCallback, cbStarted: BooleanArray,
+                  volume: Float, callback: SynthesisCallback, cbStarted: BooleanArray,
                   isStopped: AtomicBoolean, chunkIndex: Int
               ): Boolean {
                   Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
@@ -821,7 +821,7 @@ jobs:
                           override fun onError(id: String) { synthError[0] = true; latch.countDown() }
                           override fun onError(id: String, errorCode: Int) { synthError[0] = true; latch.countDown() }
                       })
-                      val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume); putFloat("pitch", pitch); putFloat("rate", rate) }
+                      val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume) }
                       if (tts.synthesizeToFile(text, params, tmp, "vh_$lang") != TextToSpeech.SUCCESS) {
                           synthError[0] = true; latch.countDown()
                       }
@@ -892,7 +892,7 @@ jobs:
               private val engineLocks = ConcurrentHashMap<String, Any>()
               private lateinit var prefs: SharedPrefsManager
               private val activeStop = AtomicReference(AtomicBoolean(true))
-              class LangState { var localeTag = "" }
+              class LangState { var localeTag = ""; var rate = -1f; var pitch = -1f }
               private val langStates = ConcurrentHashMap<String, LangState>()
               private fun getLocale(iso: String): Locale = try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }
               override fun onCreate() { super.onCreate(); VhLogger.init(this); VhLogger.i("[SERVICE] Omni v16 Booted"); prefs = SharedPrefsManager(this) }
@@ -977,14 +977,14 @@ jobs:
                       val tts = initEngineForLang(effectiveLang) ?: continue
                       VhLogger.markEngineReused(effectiveLang)
                       val state = langStates.getOrPut(effectiveLang) { LangState() }
-                      tts.setSpeechRate(finalRate)
-                      tts.setPitch(finalPitch)
+                      if (Math.abs(state.rate - finalRate) > 0.01f) { tts.setSpeechRate(finalRate); state.rate = finalRate }
+                      if (Math.abs(state.pitch - finalPitch) > 0.01f) { tts.setPitch(finalPitch); state.pitch = finalPitch }
                       val locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg).ifEmpty { Locale.forLanguageTag(effectiveLang).toLanguageTag() }
                       if (state.localeTag != locTag) {
                           try { tts.language = Locale.forLanguageTag(locTag) } catch (_: Exception) { tts.language = Locale.forLanguageTag(effectiveLang) }
                           state.localeTag = locTag
                       }
-                      if (LiveStreamProcessor.process(this, tts, chunkText, effectiveLang, appVolume, finalPitch, finalRate, callback!!, cbStarted, myStop, chunkIndex)) {
+                      if (LiveStreamProcessor.process(this, tts, chunkText, effectiveLang, appVolume, callback!!, cbStarted, myStop, chunkIndex)) {
                           VhLogger.markStop(); break
                       }
                   }
