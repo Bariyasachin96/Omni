@@ -399,7 +399,7 @@ jobs:
               return nullptr;
           }
 
-          inline bool isSticky(int cp) {
+          inline bool isUnknownChar(int cp) {
               if(cp>='0'&&cp<='9') return true;
               if(cp==' '||cp=='\t'||cp=='\n'||cp=='\r') return true;
               if(cp=='.'||cp==','||cp=='!'||cp=='?'||cp==';'||cp==':'||cp=='-'||
@@ -407,6 +407,7 @@ jobs:
                  cp=='\''||cp=='/'||cp=='\\'||cp=='@'||cp=='#'||cp=='$'||cp=='%'||
                  cp=='&'||cp=='*'||cp=='+'||cp=='='||cp=='<'||cp=='>'||cp=='~'||
                  cp=='`'||cp=='^'||cp=='|'||cp=='_') return true;
+              if(isEmoji(cp)) return true;
               if(cp>=0x2000&&cp<=0x206F) return true;
               if(cp>=0x2E00&&cp<=0x2E7F) return true;
               if(cp>=0xFE50&&cp<=0xFE6F) return true;
@@ -481,50 +482,30 @@ jobs:
                   int len=(int)sentence.size();
                   std::string curLang="";
                   std::string curBuf="";
-                  std::string pendingSticky="";
                   int i=0;
                   while(i<len){
                       int clen=0;
                       int cp=utf8ToCodepoint((const unsigned char*)&sentence[i],clen);
-                      if(isSticky(cp)){
-                          std::string ch="";
-                          codepointToUtf8(cp,ch);
-                          pendingSticky+=ch;
-                          i+=clen;
-                          continue;
+                      std::string charLang;
+                      if(isUnknownChar(cp)){
+                          charLang="un";
+                      } else {
+                          const char* detectedScript=scriptLookupChar(cp);
+                          charLang=detectedScript?std::string(detectedScript):latFall;
                       }
-                      const char* detectedScript=scriptLookupChar(cp);
-                      std::string charLang=detectedScript?std::string(detectedScript):latFall;
                       if(curLang.empty()){
                           curLang=charLang;
-                          curBuf+=pendingSticky;
-                          pendingSticky="";
-                          std::string ch="";
-                          codepointToUtf8(cp,ch);
-                          curBuf+=ch;
-                          i+=clen;
-                          continue;
                       }
                       if(charLang!=curLang){
-                          curBuf+=pendingSticky;
-                          pendingSticky="";
                           if(!curBuf.empty()) result.push_back({curLang,curBuf});
                           curBuf="";
                           curLang=charLang;
-                          std::string ch="";
-                          codepointToUtf8(cp,ch);
-                          curBuf+=ch;
-                          i+=clen;
-                          continue;
                       }
-                      curBuf+=pendingSticky;
-                      pendingSticky="";
                       std::string ch="";
                       codepointToUtf8(cp,ch);
                       curBuf+=ch;
                       i+=clen;
                   }
-                  if(!pendingSticky.empty()) curBuf+=pendingSticky;
                   if(!curBuf.empty()){
                       if(curLang.empty()) curLang=latFall;
                       result.push_back({curLang,curBuf});
