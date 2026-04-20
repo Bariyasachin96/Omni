@@ -458,12 +458,12 @@ jobs:
               for(auto& s: sentences){
                   if(s.empty()) continue;
                   std::string sl=detectLang(s,latFall,nonLatFall);
-                  if(curLang.empty()){ curLang=sl; }
+                  if(curLang.empty()) curLang=sl;
                   if(sl!=curLang){
                       if(!batch.empty()) chunks.push_back({curLang,batch});
                       batch=s; curLang=sl;
                   } else {
-                      if(!batch.empty()&&batch.back()!=' '&&batch.back()!='\n') batch+=' ';
+                      if(!batch.empty()) batch+=' ';
                       batch+=s;
                   }
               }
@@ -482,30 +482,44 @@ jobs:
                   int len=(int)sentence.size();
                   std::string curLang="";
                   std::string curBuf="";
+                  std::string neutralBuf="";
                   int i=0;
                   while(i<len){
                       int clen=0;
                       int cp=utf8ToCodepoint((const unsigned char*)&sentence[i],clen);
-                      std::string charLang;
+                      std::string ch="";
+                      codepointToUtf8(cp,ch);
                       if(isUnknownChar(cp)){
-                          charLang="un";
-                      } else {
-                          const char* detectedScript=scriptLookupChar(cp);
-                          charLang=detectedScript?std::string(detectedScript):latFall;
+                          neutralBuf+=ch;
+                          i+=clen;
+                          continue;
                       }
+                      const char* detectedScript=scriptLookupChar(cp);
+                      std::string charLang=detectedScript?std::string(detectedScript):latFall;
                       if(curLang.empty()){
                           curLang=charLang;
+                          curBuf+=neutralBuf;
+                          neutralBuf="";
+                          curBuf+=ch;
+                          i+=clen;
+                          continue;
                       }
                       if(charLang!=curLang){
+                          curBuf+=neutralBuf;
+                          neutralBuf="";
                           if(!curBuf.empty()) result.push_back({curLang,curBuf});
                           curBuf="";
                           curLang=charLang;
+                          curBuf+=ch;
+                          i+=clen;
+                          continue;
                       }
-                      std::string ch="";
-                      codepointToUtf8(cp,ch);
+                      curBuf+=neutralBuf;
+                      neutralBuf="";
                       curBuf+=ch;
                       i+=clen;
                   }
+                  curBuf+=neutralBuf;
                   if(!curBuf.empty()){
                       if(curLang.empty()) curLang=latFall;
                       result.push_back({curLang,curBuf});
