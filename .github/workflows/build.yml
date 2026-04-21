@@ -648,48 +648,126 @@ jobs:
           import java.util.concurrent.atomic.AtomicLong
           object VhLogger {
               private const val TAG = "OMNI-NATIVE"
-              private const val MAX_LINES = 5000
+              private const val MAX_LINES = 8000
               private val buffer = LinkedList<String>()
               private val sdf = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
               private var appContext: Context? = null
               private val lastSynthStart = AtomicLong(0)
               private val firstAudioPerChunk = ConcurrentHashMap<Int, Long>()
-              fun init(ctx: Context) { appContext = ctx.applicationContext }
+              private val sleepCountPerChunk = ConcurrentHashMap<Int, Int>()
+              private val totalBytesPerChunk = ConcurrentHashMap<Int, Long>()
+              private val audioCallbackCount = ConcurrentHashMap<Int, Int>()
+              fun init(ctx: Context) {
+                  appContext = ctx.applicationContext
+                  write("I", "[LOGGER] VhLogger initialized — device=${android.os.Build.MODEL} sdk=${android.os.Build.VERSION.SDK_INT} android=${android.os.Build.VERSION.RELEASE}")
+              }
               @Synchronized private fun write(level: String, msg: String) {
                   val line = "${sdf.format(Date())} $level/$TAG: $msg"
-                  Log.d(TAG, msg); buffer.addLast(line); if (buffer.size > MAX_LINES) buffer.removeFirst()
+                  when (level) { "E" -> Log.e(TAG, msg); "W" -> Log.w(TAG, msg); else -> Log.d(TAG, msg) }
+                  buffer.addLast(line); if (buffer.size > MAX_LINES) buffer.removeFirst()
               }
               fun d(msg: String) = write("D", msg)
               fun w(msg: String) = write("W", msg)
               fun e(msg: String) = write("E", msg)
               fun i(msg: String) = write("I", msg)
+              // ── Request layer ────────────────────────────────────────────────
+              fun markRequest(text: String, totalChunks: Int) {
+                  write("I", "[REQUEST] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                  write("I", "[REQUEST] textLength=${text.length} totalChunks=$totalChunks")
+                  write("I", "[REQUEST] preview=${text.take(120)}")
+              }
+              fun markMode(mode: String) = write("D", "[MODE] readingMode=$mode")
+              fun markNativeInput(sentenceCount: Int, byteLen: Int) = write("D", "[NATIVE-IN] sentences=$sentenceCount inputBytes=$byteLen")
+              fun markNativeOutput(raw: String, chunkCount: Int) {
+                  write("D", "[NATIVE-OUT] chunkCount=$chunkCount rawLen=${raw.length} preview=${raw.take(200)}")
+              }
+              // ── Engine layer ─────────────────────────────────────────────────
+              fun markEngineInit(lang: String, pkg: String, ms: Long) = write("D", "[ENGINE-INIT] lang=$lang pkg=$pkg initTime=${ms}ms")
+              fun markEngineReused(lang: String) = write("D", "[ENGINE-REUSE] lang=$lang (already in pool)")
+              fun markEngineNull(lang: String) = write("E", "[ENGINE-NULL] initEngineForLang returned null for lang=$lang — chunk will be skipped")
+              fun markRateApplied(chunkIndex: Int, finalRate: Float, changed: Boolean) = write("D", "[CHUNK-$chunkIndex] setSpeechRate finalRate=$finalRate changed=$changed")
+              fun markPitchApplied(chunkIndex: Int, finalPitch: Float, changed: Boolean) = write("D", "[CHUNK-$chunkIndex] setPitch finalPitch=$finalPitch changed=$changed")
+              fun markLocaleApplied(chunkIndex: Int, locTag: String, changed: Boolean) = write("D", "[CHUNK-$chunkIndex] setLanguage locale=$locTag changed=$changed")
+              fun markEnginePoolSize(size: Int) = write("D", "[ENGINE-POOL] activeEngines=$size")
+              // ── Chunk layer ──────────────────────────────────────────────────
+              fun markChunkStart(chunkIndex: Int, total: Int, lang: String, pkg: String, locTag: String, text: String, finalRate: Float, finalPitch: Float, appVolume: Float, sysRate: Float, sysPitch: Float, appRate: Float, appPitch: Float) {
+                  sleepCountPerChunk[chunkIndex] = 0
+                  totalBytesPerChunk[chunkIndex] = 0L
+                  audioCallbackCount[chunkIndex] = 0
+                  write("I", "[CHUNK-$chunkIndex/$total] ──────────────────────────────────")
+                  write("I", "[CHUNK-$chunkIndex/$total] lang=$lang pkg=$pkg locale=$locTag")
+                  write("I", "[CHUNK-$chunkIndex/$total] textLen=${text.length} text=${text.take(80)}")
+                  write("I", "[CHUNK-$chunkIndex/$total] finalRate=$finalRate (sys=$sysRate × app=$appRate) finalPitch=$finalPitch (sys=$sysPitch × app=$appPitch) vol=$appVolume")
+              }
               fun markSynthStart(chunkText: String, lang: String, chunkIndex: Int): Long {
                   val t = System.currentTimeMillis()
                   lastSynthStart.set(t)
                   firstAudioPerChunk.remove(chunkIndex)
-                  write("D", "[CHUNK-$chunkIndex] lang=$lang len=${chunkText.length} text=${chunkText.take(50)}")
-                  write("D", "[CHUNK-$chunkIndex] synthesizeToFile START")
+                  write("D", "[CHUNK-$chunkIndex] synthesizeToFile CALLED lang=$lang textLen=${chunkText.length}")
                   return t
               }
-              fun markSynthEnd(chunkIndex: Int, startTime: Long) = write("D", "[CHUNK-$chunkIndex] synthesizeToFile DONE in ${System.currentTimeMillis()-startTime}ms")
+              fun markSynthToFileResult(chunkIndex: Int, result: Int) {
+                  if (result == 0) write("D", "[CHUNK-$chunkIndex] synthesizeToFile accepted (SUCCESS)")
+                  else write("E", "[CHUNK-$chunkIndex] synthesizeToFile REJECTED returnCode=$result")
+              }
+              fun markSynthEnd(chunkIndex: Int, startTime: Long) = write("D", "[CHUNK-$chunkIndex] onDone received — synthesizeToFile elapsed=${System.currentTimeMillis()-startTime}ms")
+              fun markSynthError(chunkIndex: Int, reason: String) = write("E", "[CHUNK-$chunkIndex] SYNTH ERROR: $reason")
+              fun markSynthErrorCode(chunkIndex: Int, errorCode: Int) = write("E", "[CHUNK-$chunkIndex] onError errorCode=$errorCode")
+              // ── WAV / File layer ─────────────────────────────────────────────
+              fun markTmpFileCreated(chunkIndex: Int, path: String) = write("D", "[CHUNK-$chunkIndex] tmp WAV file path=$path")
               fun markHeaderFound(chunkIndex: Int) {
                   val ms = System.currentTimeMillis() - lastSynthStart.get()
-                  write("D", "[CHUNK-$chunkIndex] WAV header found, time-to-header=${ms}ms")
+                  write("D", "[CHUNK-$chunkIndex] WAV header parsed OK — timeToHeader=${ms}ms")
+              }
+              fun markHeaderWaiting(chunkIndex: Int, tmpLen: Long) {
+                  val c = (sleepCountPerChunk[chunkIndex] ?: 0) + 1
+                  sleepCountPerChunk[chunkIndex] = c
+                  if (c == 1 || c % 50 == 0)
+                      write("W", "[CHUNK-$chunkIndex] waiting for WAV header — tmpLen=$tmpLen sleepCount=$c")
+              }
+              fun markHeaderParseFailed(chunkIndex: Int, msg: String?) = write("E", "[CHUNK-$chunkIndex] WAV header parse FAILED: $msg")
+              fun markDataOffset(chunkIndex: Int, dataOffset: Int, bytesRead: Long) = write("D", "[CHUNK-$chunkIndex] dataOffset=$dataOffset seeked to bytesRead=$bytesRead")
+              // ── Callback layer ───────────────────────────────────────────────
+              fun markCallbackStart(chunkIndex: Int, sampleRate: Int, encoding: Int, channels: Int) {
+                  write("I", "[CHUNK-$chunkIndex] callback.start sampleRate=$sampleRate encoding=$encoding channels=$channels")
+              }
+              fun markCallbackAlreadyStarted(chunkIndex: Int, chunkRate: Int, lockedRate: Int) {
+                  write("D", "[CHUNK-$chunkIndex] callback already started — chunkRate=$chunkRate lockedRate=$lockedRate (skipping start)")
+                  if (chunkRate != lockedRate) write("W", "[CHUNK-$chunkIndex] RATE MISMATCH chunkRate=$chunkRate != lockedRate=$lockedRate — bytes sent as-is")
+              }
+              fun markAudioAvailable(chunkIndex: Int, bytes: Int, totalSoFar: Long, curLen: Long, bytesRead: Long) {
+                  val cnt = (audioCallbackCount[chunkIndex] ?: 0) + 1
+                  audioCallbackCount[chunkIndex] = cnt
+                  totalBytesPerChunk[chunkIndex] = totalSoFar
+                  write("D", "[CHUNK-$chunkIndex] callback.audioAvailable bytes=$bytes totalSent=$totalSoFar callCount=$cnt (curLen=$curLen bytesRead=$bytesRead)")
               }
               fun markFirstAudio(chunkIndex: Int) {
                   val t = System.currentTimeMillis()
                   if (firstAudioPerChunk.putIfAbsent(chunkIndex, t) == null)
-                      write("D", "[CHUNK-$chunkIndex] FIRST AUDIO BYTE sent, latency=${t - lastSynthStart.get()}ms")
+                      write("I", "[CHUNK-$chunkIndex] FIRST AUDIO BYTE sent latency=${t - lastSynthStart.get()}ms")
               }
-              fun markChunkDone(chunkIndex: Int, startTime: Long, totalBytes: Long) = write("D", "[CHUNK-$chunkIndex] DONE totalBytes=$totalBytes totalTime=${System.currentTimeMillis()-startTime}ms")
-              fun markSynthError(chunkIndex: Int, reason: String) = write("E", "[CHUNK-$chunkIndex] SYNTH ERROR: $reason")
-              fun markEngineInit(lang: String, pkg: String, ms: Long) = write("D", "[ENGINE] init lang=$lang pkg=$pkg time=${ms}ms")
-              fun markEngineReused(lang: String) = write("D", "[ENGINE] reused lang=$lang")
-              fun markRequest(text: String, totalChunks: Int) = write("D", "[REQUEST] length=${text.length} chunks=$totalChunks text=${text.take(80)}")
-              fun markStop() = write("D", "[STOP] onStop called")
-              fun markFallback(det: String, fb: String) = write("W", "[FALLBACK] detected=$det -> using=$fb")
+              fun markCallbackDone(chunkIndex: Int) = write("D", "[CHUNK-$chunkIndex] callback.done called")
+              fun markFallbackCallbackStart(sampleRate: Int) = write("W", "[FALLBACK-START] no audio produced — calling callback.start with sampleRate=$sampleRate encoding=PCM_16BIT channels=1")
+              // ── Loop / sleep layer ───────────────────────────────────────────
+              fun markSleepNoData(chunkIndex: Int, reason: String, curLen: Long, bytesRead: Long) {
+                  val c = (sleepCountPerChunk[chunkIndex] ?: 0) + 1
+                  sleepCountPerChunk[chunkIndex] = c
+                  if (c == 1 || c % 100 == 0)
+                      write("W", "[CHUNK-$chunkIndex] Thread.sleep #$c reason=$reason curLen=$curLen bytesRead=$bytesRead")
+              }
+              fun markLoopExit(chunkIndex: Int, reason: String) = write("D", "[CHUNK-$chunkIndex] main loop exited reason=$reason")
+              // ── Chunk done ───────────────────────────────────────────────────
+              fun markChunkDone(chunkIndex: Int, startTime: Long, totalBytes: Long) {
+                  val sleeps = sleepCountPerChunk[chunkIndex] ?: 0
+                  val calls = audioCallbackCount[chunkIndex] ?: 0
+                  write("I", "[CHUNK-$chunkIndex] DONE totalBytes=$totalBytes audioCallbacks=$calls totalSleeps=$sleeps totalTime=${System.currentTimeMillis()-startTime}ms")
+              }
+              // ── Stop / fallback / skip ───────────────────────────────────────
+              fun markStop() = write("W", "[STOP] onStop called — cancelling active synthesis")
+              fun markStopped(chunkIndex: Int) = write("W", "[CHUNK-$chunkIndex] isStopped=true detected inside loop — aborting")
+              fun markFallback(det: String, fb: String) = write("W", "[LANG-FALLBACK] detected=$det engine NOT_SET -> fallback lang=$fb")
               fun markSkipped(reason: String) = write("W", "[SKIPPED] $reason")
-              fun markMode(mode: String) = write("D", "[MODE] reading=$mode")
+              // ── Export ───────────────────────────────────────────────────────
               @Synchronized @Throws(IOException::class) fun exportToFile(): File {
                   val ctx = appContext ?: throw IOException("VhLogger not initialized")
                   val f = File(ctx.cacheDir, "omni_tts_debug.txt")
@@ -704,7 +782,6 @@ jobs:
           """)
 
           # ── WavUtils.kt ──────────────────────────────────────────────────────
-          # LOGGING ADDED: After reading fmt chunk fields, log SampleRate/Channels/BitsPerSample.
           w("app/src/main/java/com/omni/tts/WavUtils.kt", """package com.omni.tts
           import java.io.EOFException
           import java.io.InputStream
@@ -712,28 +789,45 @@ jobs:
               class WavInfo { var sampleRate = 16000; var channels: Short = 1; var bitsPerSample: Short = 16; var dataOffset = 0 }
               fun parse(dis: InputStream): WavInfo {
                   val info = WavInfo()
+                  VhLogger.d("[WAV-PARSE] starting — reading RIFF header")
                   readFully(dis, ByteArray(4)); readIntLE(dis); readFully(dis, ByteArray(4))
                   var offset = 12
+                  VhLogger.d("[WAV-PARSE] RIFF/WAVE header consumed offset=$offset")
                   while (true) {
                       val chunkId = ByteArray(4); readFully(dis, chunkId)
                       val chunkSize = readIntLE(dis); offset += 8
-                      when (String(chunkId)) {
+                      val cName = String(chunkId)
+                      VhLogger.d("[WAV-PARSE] chunk='$cName' size=$chunkSize offset=$offset")
+                      when (cName) {
                           "fmt " -> {
-                              readShortLE(dis)
+                              val audioFmt = readShortLE(dis)
                               info.channels = readShortLE(dis)
                               info.sampleRate = readIntLE(dis)
-                              readIntLE(dis); readShortLE(dis)
+                              val byteRate = readIntLE(dis)
+                              val blockAlign = readShortLE(dis)
                               info.bitsPerSample = readShortLE(dis)
-                              VhLogger.d("[WAV-PARSE] SampleRate=${info.sampleRate} Channels=${info.channels} BitsPerSample=${info.bitsPerSample}")
-                              val rem = chunkSize - 16; if (rem > 0) skipFully(dis, rem); offset += chunkSize
+                              VhLogger.d("[WAV-PARSE] fmt: audioFmt=$audioFmt channels=${info.channels} sampleRate=${info.sampleRate} byteRate=$byteRate blockAlign=$blockAlign bitsPerSample=${info.bitsPerSample}")
+                              val rem = chunkSize - 16
+                              if (rem > 0) { VhLogger.d("[WAV-PARSE] fmt extra bytes rem=$rem — skipping"); skipFully(dis, rem) }
+                              offset += chunkSize
                           }
-                          "data" -> { info.dataOffset = offset; break }
-                          else   -> { skipFully(dis, chunkSize); offset += chunkSize }
+                          "data" -> {
+                              info.dataOffset = offset
+                              VhLogger.d("[WAV-PARSE] data chunk found dataOffset=$offset — stopping parse")
+                              break
+                          }
+                          else -> {
+                              VhLogger.d("[WAV-PARSE] unknown chunk='$cName' size=$chunkSize — skipping")
+                              skipFully(dis, chunkSize); offset += chunkSize
+                          }
                       }
                   }
-                  if (info.sampleRate <= 0) info.sampleRate = 16000
-                  if (info.channels <= 0) info.channels = 1
-                  if (info.bitsPerSample <= 0) info.bitsPerSample = 16
+                  var clamped = false
+                  if (info.sampleRate <= 0) { info.sampleRate = 16000; clamped = true }
+                  if (info.channels <= 0) { info.channels = 1; clamped = true }
+                  if (info.bitsPerSample <= 0) { info.bitsPerSample = 16; clamped = true }
+                  if (clamped) VhLogger.w("[WAV-PARSE] one or more fields were invalid and clamped to defaults sampleRate=${info.sampleRate} channels=${info.channels} bitsPerSample=${info.bitsPerSample}")
+                  VhLogger.d("[WAV-PARSE] FINAL sampleRate=${info.sampleRate} channels=${info.channels} bitsPerSample=${info.bitsPerSample} dataOffset=${info.dataOffset}")
                   return info
               }
               private fun readFully(i: InputStream, b: ByteArray) { var n=0; while(n<b.size){ val c=i.read(b,n,b.size-n); if(c<0)throw EOFException(); n+=c } }
@@ -792,13 +886,6 @@ jobs:
           """)
 
           # ── LiveStreamProcessor.kt ───────────────────────────────────────────
-          # LOGGING ADDED:
-          #   - Log chunkSourceRate and lockedRate[0] after header is parsed.
-          #   - Log bytes read in each loop iteration.
-          #   - Log callback.start call with parameters.
-          #   - Log callback.audioAvailable with byte count.
-          #   - Warn if tmp.length() < 44 (file too small for header).
-          #   - Warn when Thread.sleep is entered (waiting for data or synthesis).
           w("app/src/main/java/com/omni/tts/LiveStreamProcessor.kt", """package com.omni.tts
           import android.content.Context
           import android.os.Bundle
@@ -818,6 +905,7 @@ jobs:
               ): Boolean {
                   Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
                   val tmp = File(context.cacheDir, "vh_live_${System.nanoTime()}.wav")
+                  VhLogger.markTmpFileCreated(chunkIndex, tmp.absolutePath)
                   var pipeStream: FileInputStream? = null
                   val synthStart = VhLogger.markSynthStart(text, lang, chunkIndex)
                   var totalBytes = 0L
@@ -825,53 +913,55 @@ jobs:
                       val latch = CountDownLatch(1)
                       val synthError = BooleanArray(1)
                       tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                          override fun onStart(id: String) {}
+                          override fun onStart(id: String) { VhLogger.d("[CHUNK-$chunkIndex] UtteranceProgressListener.onStart id=$id") }
                           override fun onDone(id: String) { VhLogger.markSynthEnd(chunkIndex, synthStart); latch.countDown() }
-                          override fun onError(id: String) { synthError[0] = true; latch.countDown() }
-                          override fun onError(id: String, errorCode: Int) { synthError[0] = true; latch.countDown() }
+                          override fun onError(id: String) { VhLogger.markSynthError(chunkIndex, "onError id=$id"); synthError[0] = true; latch.countDown() }
+                          override fun onError(id: String, errorCode: Int) { VhLogger.markSynthErrorCode(chunkIndex, errorCode); synthError[0] = true; latch.countDown() }
                       })
                       val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume) }
-                      if (tts.synthesizeToFile(text, params, tmp, "vh_$lang") != TextToSpeech.SUCCESS) {
-                          synthError[0] = true; latch.countDown()
-                      }
-                      if (synthError[0]) { VhLogger.markSynthError(chunkIndex, "synthesizeToFile error"); return isStopped.get() }
+                      VhLogger.d("[CHUNK-$chunkIndex] calling synthesizeToFile volume=$volume utteranceId=vh_$lang")
+                      val sfResult = tts.synthesizeToFile(text, params, tmp, "vh_$lang")
+                      VhLogger.markSynthToFileResult(chunkIndex, sfResult)
+                      if (sfResult != TextToSpeech.SUCCESS) { synthError[0] = true; latch.countDown() }
+                      if (synthError[0]) { VhLogger.markSynthError(chunkIndex, "synthesizeToFile did not return SUCCESS"); return isStopped.get() }
                       var headerParsed = false
                       var bytesRead = 0L
                       var chunkSourceRate = 0
+                      var loopIter = 0
+                      VhLogger.d("[CHUNK-$chunkIndex] entering stream loop latch=${latch.count}")
                       while (latch.count > 0 || tmp.length() > bytesRead) {
-                          if (isStopped.get()) { tts.stop(); VhLogger.d("[CHUNK-$chunkIndex] STOPPED"); break }
+                          loopIter++
+                          if (isStopped.get()) { VhLogger.markStopped(chunkIndex); tts.stop(); break }
                           if (!headerParsed) {
                               val tmpLen = tmp.length()
                               if (tmp.exists() && tmpLen >= 44) {
                                   try {
+                                      VhLogger.d("[CHUNK-$chunkIndex] tmp ready tmpLen=$tmpLen — opening FileInputStream")
                                       pipeStream = FileInputStream(tmp)
                                       val wi = WavUtils.parse(pipeStream)
                                       bytesRead = if (wi.dataOffset > 0) wi.dataOffset.toLong() else 44L
+                                      VhLogger.markDataOffset(chunkIndex, wi.dataOffset, bytesRead)
                                       pipeStream.channel.position(bytesRead)
                                       chunkSourceRate = wi.sampleRate
                                       VhLogger.markHeaderFound(chunkIndex)
                                       if (!cbStarted[0]) {
                                           val enc = if (wi.bitsPerSample.toInt() == 8) android.media.AudioFormat.ENCODING_PCM_8BIT else android.media.AudioFormat.ENCODING_PCM_16BIT
-                                          VhLogger.d("[CHUNK-$chunkIndex] callback.start sampleRate=${wi.sampleRate} encoding=$enc channels=${wi.channels.toInt()}")
+                                          VhLogger.markCallbackStart(chunkIndex, wi.sampleRate, enc, wi.channels.toInt())
                                           callback.start(wi.sampleRate, enc, wi.channels.toInt())
                                           lockedRate[0] = wi.sampleRate
-                                          VhLogger.d("[CHUNK-$chunkIndex] ChunkSourceRate=$chunkSourceRate LockedRate=${lockedRate[0]}")
                                           cbStarted[0] = true
                                       } else {
-                                          VhLogger.d("[CHUNK-$chunkIndex] ChunkSourceRate=$chunkSourceRate LockedRate=${lockedRate[0]} (callback already started)")
+                                          VhLogger.markCallbackAlreadyStarted(chunkIndex, chunkSourceRate, lockedRate[0])
                                       }
                                       headerParsed = true
+                                      VhLogger.d("[CHUNK-$chunkIndex] header done — chunkSourceRate=$chunkSourceRate lockedRate=${lockedRate[0]} bytesRead=$bytesRead")
                                   } catch (e: Exception) {
+                                      VhLogger.markHeaderParseFailed(chunkIndex, e.message)
                                       pipeStream?.let { try { it.close() } catch (_: Exception) {} }; pipeStream = null
-                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — header parse failed: ${e.message}")
                                       try { Thread.sleep(1) } catch (_: Exception) {}; continue
                                   }
                               } else {
-                                  if (tmp.exists()) {
-                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — tmp.length()=$tmpLen < 44, waiting for WAV header")
-                                  } else {
-                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — tmp file does not exist yet")
-                                  }
+                                  VhLogger.markHeaderWaiting(chunkIndex, if (tmp.exists()) tmp.length() else -1L)
                                   try { Thread.sleep(1) } catch (_: Exception) {}; continue
                               }
                           }
@@ -882,29 +972,33 @@ jobs:
                               if (toRead > 0) {
                                   val r = pipeStream.read(buf, 0, toRead)
                                   if (r > 0) {
-                                      VhLogger.d("[CHUNK-$chunkIndex] READ $r bytes from file (bytesRead=$bytesRead curLen=$curLen)")
                                       if (totalBytes == 0L) VhLogger.markFirstAudio(chunkIndex)
-                                      val target = lockedRate[0]
-                                      if (chunkSourceRate != 0 && target != 0 && chunkSourceRate != target) {
-                                          VhLogger.w("[CHUNK-$chunkIndex] RATE MISMATCH chunkSourceRate=$chunkSourceRate lockedRate=$target — sending raw bytes WITHOUT resampling")
-                                      }
-                                      VhLogger.d("[CHUNK-$chunkIndex] callback.audioAvailable $r bytes (rate=$chunkSourceRate lockedRate=$target)")
+                                      totalBytes += r
+                                      VhLogger.markAudioAvailable(chunkIndex, r, totalBytes, curLen, bytesRead)
                                       callback.audioAvailable(buf, 0, r)
-                                      bytesRead += r; totalBytes += r
+                                      bytesRead += r
                                   } else {
-                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — pipeStream.read returned $r (no new data)")
+                                      VhLogger.markSleepNoData(chunkIndex, "read=$r (EOF or no data yet)", curLen, bytesRead)
                                       try { Thread.sleep(1) } catch (_: Exception) {}
                                   }
                               } else {
-                                  VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — toRead=$toRead (curLen=$curLen bytesRead=$bytesRead)")
+                                  VhLogger.markSleepNoData(chunkIndex, "toRead=$toRead (curLen==bytesRead)", curLen, bytesRead)
                                   try { Thread.sleep(1) } catch (_: Exception) {}
                               }
-                          } else { if (latch.count > 0) { VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — waiting for synthesis (latch=${latch.count} curLen=$curLen bytesRead=$bytesRead)"); try { Thread.sleep(1) } catch (_: Exception) {} } }
+                          } else {
+                              if (latch.count > 0) {
+                                  VhLogger.markSleepNoData(chunkIndex, "synthesis in progress latch=${latch.count}", curLen, bytesRead)
+                                  try { Thread.sleep(1) } catch (_: Exception) {}
+                              } else {
+                                  VhLogger.markLoopExit(chunkIndex, "latch=0 and curLen=$curLen <= bytesRead=$bytesRead — done")
+                              }
+                          }
                       }
-                  } catch (e: Exception) { VhLogger.e("[CHUNK-$chunkIndex] ${e.message}") } finally {
+                      VhLogger.d("[CHUNK-$chunkIndex] stream loop finished loopIter=$loopIter totalBytes=$totalBytes")
+                  } catch (e: Exception) { VhLogger.e("[CHUNK-$chunkIndex] EXCEPTION ${e.javaClass.simpleName}: ${e.message}") } finally {
                       VhLogger.markChunkDone(chunkIndex, synthStart, totalBytes)
                       pipeStream?.let { try { it.close() } catch (_: Exception) {} }
-                      if (tmp.exists()) tmp.delete()
+                      if (tmp.exists()) { tmp.delete(); VhLogger.d("[CHUNK-$chunkIndex] tmp file deleted") }
                   }
                   return isStopped.get()
               }
@@ -912,9 +1006,6 @@ jobs:
           """)
 
           # ── ComposeTtsService.kt ─────────────────────────────────────────────
-          # LOGGING ADDED:
-          #   - Log engine package and locale for every chunk.
-          #   - Log finalRate and finalPitch being applied.
           w("app/src/main/java/com/omni/tts/ComposeTtsService.kt", """package com.omni.tts
           import android.speech.tts.SynthesisCallback
           import android.speech.tts.SynthesisRequest
@@ -935,26 +1026,41 @@ jobs:
               class LangState { var localeTag = ""; var rate = -1f; var pitch = -1f }
               private val langStates = ConcurrentHashMap<String, LangState>()
               private fun getLocale(iso: String): Locale = try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }
-              override fun onCreate() { super.onCreate(); VhLogger.init(this); VhLogger.i("[SERVICE] Omni v16 Booted"); prefs = SharedPrefsManager(this) }
+              override fun onCreate() {
+                  super.onCreate()
+                  VhLogger.init(this)
+                  VhLogger.i("[SERVICE] Omni v16 Booted")
+                  prefs = SharedPrefsManager(this)
+              }
               private fun initEngineForLang(lang: String): TextToSpeech? {
                   val pkg = prefs.getEngineForLanguage(lang)
-                  if (pkg == "NOT_SET") return null
-                  enginePool[lang]?.let { return it }
+                  VhLogger.d("[ENGINE-INIT] initEngineForLang lang=$lang resolvedPkg=$pkg")
+                  if (pkg == "NOT_SET") { VhLogger.markEngineNull(lang); return null }
+                  enginePool[lang]?.let { VhLogger.markEngineReused(lang); return it }
                   val lock = engineLocks.getOrPut(lang) { Any() }
                   synchronized(lock) {
-                      enginePool[lang]?.let { return it }
+                      enginePool[lang]?.let { VhLogger.markEngineReused(lang); return it }
+                      VhLogger.d("[ENGINE-INIT] creating new TextToSpeech lang=$lang pkg=$pkg")
+                      val t0 = System.currentTimeMillis()
                       val latch = CountDownLatch(1)
                       val ref = arrayOfNulls<TextToSpeech>(1)
                       ref[0] = TextToSpeech(this, { status ->
+                          VhLogger.d("[ENGINE-INIT] onInit status=$status lang=$lang pkg=$pkg elapsed=${System.currentTimeMillis()-t0}ms")
                           if (status == TextToSpeech.SUCCESS) {
                               val tag = prefs.getLocaleForLangPkg(lang, pkg).ifEmpty { getLocale(lang).toLanguageTag() }
+                              VhLogger.d("[ENGINE-INIT] setting language tag=$tag for lang=$lang")
                               try { ref[0]?.language = Locale.forLanguageTag(tag) } catch (_: Exception) { ref[0]?.language = getLocale(lang) }
+                          } else {
+                              VhLogger.e("[ENGINE-INIT] FAILED status=$status lang=$lang pkg=$pkg")
                           }
                           latch.countDown()
                       }, pkg)
-                      try { latch.await(5, TimeUnit.SECONDS) } catch (_: InterruptedException) {}
+                      val waited = latch.await(5, TimeUnit.SECONDS)
+                      VhLogger.d("[ENGINE-INIT] latch done waited=$waited lang=$lang elapsed=${System.currentTimeMillis()-t0}ms")
                       val tts = ref[0]
-                      if (tts != null) enginePool[lang] = tts
+                      if (tts != null) { enginePool[lang] = tts; VhLogger.markEngineInit(lang, pkg, System.currentTimeMillis()-t0) }
+                      else VhLogger.e("[ENGINE-INIT] TextToSpeech ref is null after init lang=$lang")
+                      VhLogger.markEnginePoolSize(enginePool.size)
                       return tts
                   }
               }
@@ -967,11 +1073,16 @@ jobs:
                   val myStop = AtomicBoolean(false)
                   activeStop.set(myStop)
                   val rawText = request?.charSequenceText?.toString() ?: ""
-                  if (rawText.isEmpty() || myStop.get()) { callback?.done(); return }
+                  VhLogger.d("[SERVICE] onSynthesizeText received textLen=${rawText.length} speechRate=${request?.speechRate} pitch=${request?.pitch} lang=${request?.language}_${request?.country}")
+                  if (rawText.isEmpty() || myStop.get()) {
+                      VhLogger.w("[SERVICE] rawText empty or stopped — calling done immediately")
+                      callback?.done(); return
+                  }
                   val readingMode = prefs.getReadingMode()
                   VhLogger.markMode(readingMode)
                   val latFall = prefs.getString("mixed_mode_latin_language", "en")
                   val nonLatFall = prefs.getString("mixed_mode_non_latin_language", "hi")
+                  VhLogger.d("[SERVICE] latFall=$latFall nonLatFall=$nonLatFall")
                   val iterator = java.text.BreakIterator.getSentenceInstance()
                   iterator.setText(rawText)
                   val sentences = mutableListOf<String>()
@@ -980,11 +1091,14 @@ jobs:
                       val s = rawText.substring(start, end).trim(); if (s.isNotEmpty()) sentences.add(s)
                       start = end; end = iterator.next()
                   }
+                  VhLogger.d("[SERVICE] BreakIterator produced ${sentences.size} sentences")
                   val joined = sentences.joinToString("\\u0000")
                   val bytes = joined.toByteArray(Charsets.UTF_8)
+                  VhLogger.markNativeInput(sentences.size, bytes.size)
                   val directBuffer = ByteBuffer.allocateDirect(bytes.size)
                   directBuffer.put(bytes); directBuffer.position(0)
                   val dictMap = if (prefs.getBoolean("dict_enabled", false)) prefs.getDict() else emptyMap()
+                  VhLogger.d("[SERVICE] dictEnabled=${prefs.getBoolean("dict_enabled",false)} dictEntries=${dictMap.size}")
                   val nativeOutput = NativeEngine.processDirect(
                       directBuffer, bytes.size,
                       dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),
@@ -994,21 +1108,27 @@ jobs:
                       latFall, nonLatFall, readingMode
                   )
                   val chunkStrings = nativeOutput.split("||").filter { it.isNotBlank() }
+                  VhLogger.markNativeOutput(nativeOutput, chunkStrings.size)
                   val cbStarted = BooleanArray(1)
                   val lockedRate = IntArray(1)
                   VhLogger.markRequest(rawText, chunkStrings.size)
                   val sysRate = maxOf(0.1f, (request?.speechRate ?: 100) / 100.0f)
                   val sysPitch = maxOf(0.1f, (request?.pitch ?: 100) / 100.0f)
+                  VhLogger.d("[SERVICE] sysRate=$sysRate sysPitch=$sysPitch")
                   var chunkIndex = 0
                   for (chunkStr in chunkStrings) {
-                      if (myStop.get()) break
+                      if (myStop.get()) { VhLogger.w("[SERVICE] myStop=true before chunk — breaking loop"); break }
                       val parts = chunkStr.split("|", limit = 2)
-                      if (parts.size < 2 || parts[1].trim().isEmpty()) continue
+                      if (parts.size < 2 || parts[1].trim().isEmpty()) {
+                          VhLogger.w("[SERVICE] malformed or empty chunk='$chunkStr' — skipping")
+                          continue
+                      }
                       chunkIndex++
                       var effectiveLang = parts[0]; val chunkText = parts[1]
+                      VhLogger.d("[CHUNK-$chunkIndex] detected lang=$effectiveLang textLen=${chunkText.length}")
                       var pkg = prefs.getEngineForLanguage(effectiveLang)
                       if (pkg == "NOT_SET") { VhLogger.markFallback(effectiveLang, latFall); effectiveLang = latFall; pkg = prefs.getEngineForLanguage(effectiveLang) }
-                      if (pkg == "NOT_SET") { VhLogger.markSkipped("no engine for lang=$effectiveLang"); continue }
+                      if (pkg == "NOT_SET") { VhLogger.markSkipped("no engine for lang=$effectiveLang after fallback"); continue }
                       val key = "${effectiveLang}_${pkg}"
                       val appRate = maxOf(0.1f, prefs.getInt("rate_$key", 100) / 100.0f)
                       val appPitch = maxOf(0.1f, prefs.getInt("pitch_$key", 100) / 100.0f)
@@ -1016,26 +1136,35 @@ jobs:
                       val finalRate = maxOf(0.1f, minOf(6.0f, sysRate * appRate))
                       val finalPitch = maxOf(0.1f, minOf(6.0f, sysPitch * appPitch))
                       val locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg).ifEmpty { Locale.forLanguageTag(effectiveLang).toLanguageTag() }
-                      VhLogger.d("[CHUNK-$chunkIndex] EnginePackage=$pkg Locale=$locTag Lang=$effectiveLang")
-                      VhLogger.d("[CHUNK-$chunkIndex] finalRate=$finalRate (sysRate=$sysRate appRate=$appRate) finalPitch=$finalPitch (sysPitch=$sysPitch appPitch=$appPitch)")
-                      val tts = initEngineForLang(effectiveLang) ?: continue
-                      VhLogger.markEngineReused(effectiveLang)
+                      VhLogger.markChunkStart(chunkIndex, chunkStrings.size, effectiveLang, pkg, locTag, chunkText, finalRate, finalPitch, appVolume, sysRate, sysPitch, appRate, appPitch)
+                      val tts = initEngineForLang(effectiveLang)
+                      if (tts == null) { VhLogger.markEngineNull(effectiveLang); continue }
                       val state = langStates.getOrPut(effectiveLang) { LangState() }
-                      if (Math.abs(state.rate - finalRate) > 0.01f) { tts.setSpeechRate(finalRate); state.rate = finalRate }
-                      if (Math.abs(state.pitch - finalPitch) > 0.01f) { tts.setPitch(finalPitch); state.pitch = finalPitch }
-                      if (state.localeTag != locTag) {
+                      val rateChanged = Math.abs(state.rate - finalRate) > 0.01f
+                      if (rateChanged) { tts.setSpeechRate(finalRate); state.rate = finalRate }
+                      VhLogger.markRateApplied(chunkIndex, finalRate, rateChanged)
+                      val pitchChanged = Math.abs(state.pitch - finalPitch) > 0.01f
+                      if (pitchChanged) { tts.setPitch(finalPitch); state.pitch = finalPitch }
+                      VhLogger.markPitchApplied(chunkIndex, finalPitch, pitchChanged)
+                      val localeChanged = state.localeTag != locTag
+                      if (localeChanged) {
                           try { tts.language = Locale.forLanguageTag(locTag) } catch (_: Exception) { tts.language = Locale.forLanguageTag(effectiveLang) }
                           state.localeTag = locTag
                       }
+                      VhLogger.markLocaleApplied(chunkIndex, locTag, localeChanged)
                       if (LiveStreamProcessor.process(this, tts, chunkText, effectiveLang, appVolume, callback!!, cbStarted, myStop, chunkIndex, lockedRate)) {
                           VhLogger.markStop(); break
                       }
                   }
-                  if (!cbStarted[0] && !myStop.get()) callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
+                  if (!cbStarted[0] && !myStop.get()) {
+                      VhLogger.markFallbackCallbackStart(16000)
+                      callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
+                  }
+                  VhLogger.markCallbackDone(chunkIndex)
                   callback?.done()
               }
               override fun onDestroy() {
-                  VhLogger.i("[SERVICE] onDestroy")
+                  VhLogger.i("[SERVICE] onDestroy — shutting down ${enginePool.size} engines")
                   activeStop.get().set(true)
                   enginePool.values.forEach { try { it.shutdown() } catch (_: Exception) {} }
                   enginePool.clear(); langStates.clear(); super.onDestroy()
