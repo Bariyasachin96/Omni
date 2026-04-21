@@ -32,6 +32,20 @@ jobs:
       - name: Write Generator Script
         run: |
           cat > generate_project.py << 'PYEOF'
+          import os, base64, textwrap
+
+          def w(path, content):
+              d=os.path.dirname(path); d and os.makedirs(d, exist_ok=True)
+              with open(path, 'w', encoding='utf-8') as f:
+                  f.write(textwrap.dedent(content))
+
+          def wb(path, content_b64):
+              d=os.path.dirname(path); d and os.makedirs(d, exist_ok=True)
+              with open(path, 'wb') as f:
+                  f.write(base64.b64decode(content_b64))
+
+          PYEOF
+          python3 - << 'GENEOF'
           import os, textwrap
 
           def w(path, content):
@@ -690,6 +704,7 @@ jobs:
           """)
 
           # ── WavUtils.kt ──────────────────────────────────────────────────────
+          # LOGGING ADDED: After reading fmt chunk fields, log SampleRate/Channels/BitsPerSample.
           w("app/src/main/java/com/omni/tts/WavUtils.kt", """package com.omni.tts
           import java.io.EOFException
           import java.io.InputStream
@@ -709,6 +724,7 @@ jobs:
                               info.sampleRate = readIntLE(dis)
                               readIntLE(dis); readShortLE(dis)
                               info.bitsPerSample = readShortLE(dis)
+                              VhLogger.d("[WAV-PARSE] SampleRate=${info.sampleRate} Channels=${info.channels} BitsPerSample=${info.bitsPerSample}")
                               val rem = chunkSize - 16; if (rem > 0) skipFully(dis, rem); offset += chunkSize
                           }
                           "data" -> { info.dataOffset = offset; break }
@@ -775,9 +791,16 @@ jobs:
           }
           """)
 
+          # ── LiveStreamProcessor.kt ───────────────────────────────────────────
+          # LOGGING ADDED:
+          #   - Log chunkSourceRate and lockedRate[0] after header is parsed.
+          #   - Log bytes read in each loop iteration.
+          #   - Log callback.start call with parameters.
+          #   - Log callback.audioAvailable with byte count.
+          #   - Warn if tmp.length() < 44 (file too small for header).
+          #   - Warn when Thread.sleep is entered (waiting for data or synthesis).
           w("app/src/main/java/com/omni/tts/LiveStreamProcessor.kt", """package com.omni.tts
           import android.content.Context
-          import android.media.AudioFormat
           import android.os.Bundle
           import android.os.Process
           import android.speech.tts.SynthesisCallback
@@ -788,18 +811,30 @@ jobs:
           import java.util.concurrent.CountDownLatch
           import java.util.concurrent.atomic.AtomicBoolean
           object LiveStreamProcessor {
-              private fun resampleWholeArray(input: ByteArray, sourceRate: Int, targetRate: Int): ByteArray {
-                  if (sourceRate == targetRate || sourceRate == 0 || targetRate == 0) return input
-                  val inShorts = java.nio.ByteBuffer.wrap(input).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-                  val numInShorts = inShorts.capacity()
-                  val ratio = sourceRate.toDouble() / targetRate.toDouble()
-                  val numOutShorts = (numInShorts / ratio).toInt()
-                  val outBytes = ByteArray(numOutShorts * 2)
-                  val outShorts = java.nio.ByteBuffer.wrap(outBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-                  for (i in 0 until numOutShorts) {
-                      val inIdx = (i * ratio).toInt().coerceIn(0, numInShorts - 1)
-                      outShorts.put(i, inShorts.get(inIdx))
+              private fun matchSampleRate(input: ByteArray, length: Int, sourceRate: Int, targetRate: Int): ByteArray {
+                  if (sourceRate == targetRate) return input.copyOfRange(0, length)
+                  val numShorts = length / 2
+                  val inBuffer = java.nio.ByteBuffer.wrap(input, 0, length).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                  if (sourceRate == 24000 && targetRate == 16000) {
+                      val outLenShorts = (numShorts * 2) / 3
+                      val outBytes = ByteArray(outLenShorts * 2)
+                      val outBuffer = java.nio.ByteBuffer.wrap(outBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                      var outIdx = 0
+                      for (i in 0 until numShorts) { if ((i + 1) % 3 != 0) { outBuffer.put(outIdx++, inBuffer.get(i)) } }
+                      return outBytes
+                  } else if (sourceRate == 16000 && targetRate == 24000) {
+                      val outLenShorts = (numShorts * 3) / 2
+                      val outBytes = ByteArray(outLenShorts * 2)
+                      val outBuffer = java.nio.ByteBuffer.wrap(outBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                      var outIdx = 0
+                      for (i in 0 until numShorts) { outBuffer.put(outIdx++, inBuffer.get(i)); if ((i + 1) % 2 == 0) { outBuffer.put(outIdx++, inBuffer.get(i)) } }
+                      return outBytes
                   }
+                  val ratio = sourceRate.toDouble() / targetRate.toDouble()
+                  val outLenShorts = (numShorts / ratio).toInt()
+                  val outBytes = ByteArray(outLenShorts * 2)
+                  val outBuffer = java.nio.ByteBuffer.wrap(outBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                  for (i in 0 until outLenShorts) { val inIndex = (i * ratio).toInt().coerceIn(0, numShorts - 1); outBuffer.put(i, inBuffer.get(inIndex)) }
                   return outBytes
               }
               fun process(
@@ -808,7 +843,8 @@ jobs:
                   isStopped: AtomicBoolean, chunkIndex: Int, lockedRate: IntArray
               ): Boolean {
                   Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
-                  val tmp = File(context.cacheDir, "omni_synth_${System.nanoTime()}.wav")
+                  val tmp = File(context.cacheDir, "vh_live_${System.nanoTime()}.wav")
+                  var pipeStream: FileInputStream? = null
                   val synthStart = VhLogger.markSynthStart(text, lang, chunkIndex)
                   var totalBytes = 0L
                   try {
@@ -821,43 +857,82 @@ jobs:
                           override fun onError(id: String, errorCode: Int) { synthError[0] = true; latch.countDown() }
                       })
                       val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume) }
-                      if (tts.synthesizeToFile(text, params, tmp, "omni_synth_$chunkIndex") != TextToSpeech.SUCCESS) {
+                      if (tts.synthesizeToFile(text, params, tmp, "vh_$lang") != TextToSpeech.SUCCESS) {
                           synthError[0] = true; latch.countDown()
                       }
-                      latch.await()
                       if (synthError[0]) { VhLogger.markSynthError(chunkIndex, "synthesizeToFile error"); return isStopped.get() }
-                      if (isStopped.get()) { VhLogger.d("[CHUNK-$chunkIndex] STOPPED after synth"); return true }
-                      val fis = FileInputStream(tmp)
-                      val wi = WavUtils.parse(fis)
-                      VhLogger.markHeaderFound(chunkIndex)
-                      val pcmSize = (tmp.length() - wi.dataOffset).toInt().coerceAtLeast(0)
-                      val rawPcm = ByteArray(pcmSize)
-                      var readTotal = 0
-                      while (readTotal < pcmSize) {
-                          val r = fis.read(rawPcm, readTotal, pcmSize - readTotal)
-                          if (r < 0) break
-                          readTotal += r
-                      }
-                      fis.close()
-                      val targetRate = 16000
-                      val finalPcm = resampleWholeArray(rawPcm.copyOf(readTotal), wi.sampleRate, targetRate)
-                      if (!cbStarted[0]) {
-                          lockedRate[0] = targetRate
-                          callback.start(lockedRate[0], AudioFormat.ENCODING_PCM_16BIT, wi.channels.toInt())
-                          cbStarted[0] = true
-                      }
-                      VhLogger.markFirstAudio(chunkIndex)
-                      val chunkSize = 8192
-                      var offset = 0
-                      while (offset < finalPcm.size) {
-                          if (isStopped.get()) { VhLogger.d("[CHUNK-$chunkIndex] STOPPED during stream"); break }
-                          val toWrite = minOf(chunkSize, finalPcm.size - offset)
-                          callback.audioAvailable(finalPcm, offset, toWrite)
-                          totalBytes += toWrite
-                          offset += toWrite
+                      var headerParsed = false
+                      var bytesRead = 0L
+                      var chunkSourceRate = 0
+                      while (latch.count > 0 || tmp.length() > bytesRead) {
+                          if (isStopped.get()) { tts.stop(); VhLogger.d("[CHUNK-$chunkIndex] STOPPED"); break }
+                          if (!headerParsed) {
+                              val tmpLen = tmp.length()
+                              if (tmp.exists() && tmpLen >= 44) {
+                                  try {
+                                      pipeStream = FileInputStream(tmp)
+                                      val wi = WavUtils.parse(pipeStream)
+                                      bytesRead = if (wi.dataOffset > 0) wi.dataOffset.toLong() else 44L
+                                      pipeStream.channel.position(bytesRead)
+                                      chunkSourceRate = wi.sampleRate
+                                      VhLogger.markHeaderFound(chunkIndex)
+                                      if (!cbStarted[0]) {
+                                          val enc = if (wi.bitsPerSample.toInt() == 8) android.media.AudioFormat.ENCODING_PCM_8BIT else android.media.AudioFormat.ENCODING_PCM_16BIT
+                                          VhLogger.d("[CHUNK-$chunkIndex] callback.start sampleRate=${wi.sampleRate} encoding=$enc channels=${wi.channels.toInt()}")
+                                          callback.start(wi.sampleRate, enc, wi.channels.toInt())
+                                          lockedRate[0] = wi.sampleRate
+                                          VhLogger.d("[CHUNK-$chunkIndex] ChunkSourceRate=$chunkSourceRate LockedRate=${lockedRate[0]}")
+                                          cbStarted[0] = true
+                                      } else {
+                                          VhLogger.d("[CHUNK-$chunkIndex] ChunkSourceRate=$chunkSourceRate LockedRate=${lockedRate[0]} (callback already started)")
+                                      }
+                                      headerParsed = true
+                                  } catch (e: Exception) {
+                                      pipeStream?.let { try { it.close() } catch (_: Exception) {} }; pipeStream = null
+                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — header parse failed: ${e.message}")
+                                      try { Thread.sleep(1) } catch (_: Exception) {}; continue
+                                  }
+                              } else {
+                                  if (tmp.exists()) {
+                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — tmp.length()=$tmpLen < 44, waiting for WAV header")
+                                  } else {
+                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — tmp file does not exist yet")
+                                  }
+                                  try { Thread.sleep(1) } catch (_: Exception) {}; continue
+                              }
+                          }
+                          val curLen = tmp.length()
+                          if (curLen > bytesRead && pipeStream != null) {
+                              val buf = ByteArray(1024)
+                              val toRead = minOf(buf.size.toLong(), curLen - bytesRead).toInt()
+                              if (toRead > 0) {
+                                  val r = pipeStream.read(buf, 0, toRead)
+                                  if (r > 0) {
+                                      VhLogger.d("[CHUNK-$chunkIndex] READ $r bytes from file (bytesRead=$bytesRead curLen=$curLen)")
+                                      if (totalBytes == 0L) VhLogger.markFirstAudio(chunkIndex)
+                                      val target = lockedRate[0]
+                                      if (chunkSourceRate != 0 && target != 0 && chunkSourceRate != target) {
+                                          val resampled = matchSampleRate(buf, r, chunkSourceRate, target)
+                                          VhLogger.d("[CHUNK-$chunkIndex] callback.audioAvailable ${resampled.size} bytes (resampled from $chunkSourceRate to $target)")
+                                          callback.audioAvailable(resampled, 0, resampled.size)
+                                      } else {
+                                          VhLogger.d("[CHUNK-$chunkIndex] callback.audioAvailable $r bytes (passthrough rate=$chunkSourceRate)")
+                                          callback.audioAvailable(buf, 0, r)
+                                      }
+                                      bytesRead += r; totalBytes += r
+                                  } else {
+                                      VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — pipeStream.read returned $r (no new data)")
+                                      try { Thread.sleep(1) } catch (_: Exception) {}
+                                  }
+                              } else {
+                                  VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — toRead=$toRead (curLen=$curLen bytesRead=$bytesRead)")
+                                  try { Thread.sleep(1) } catch (_: Exception) {}
+                              }
+                          } else { if (latch.count > 0) { VhLogger.w("[CHUNK-$chunkIndex] Thread.sleep(1) — waiting for synthesis (latch=${latch.count} curLen=$curLen bytesRead=$bytesRead)"); try { Thread.sleep(1) } catch (_: Exception) {} } }
                       }
                   } catch (e: Exception) { VhLogger.e("[CHUNK-$chunkIndex] ${e.message}") } finally {
                       VhLogger.markChunkDone(chunkIndex, synthStart, totalBytes)
+                      pipeStream?.let { try { it.close() } catch (_: Exception) {} }
                       if (tmp.exists()) tmp.delete()
                   }
                   return isStopped.get()
@@ -865,6 +940,10 @@ jobs:
           }
           """)
 
+          # ── ComposeTtsService.kt ─────────────────────────────────────────────
+          # LOGGING ADDED:
+          #   - Log engine package and locale for every chunk.
+          #   - Log finalRate and finalPitch being applied.
           w("app/src/main/java/com/omni/tts/ComposeTtsService.kt", """package com.omni.tts
           import android.speech.tts.SynthesisCallback
           import android.speech.tts.SynthesisRequest
@@ -965,12 +1044,14 @@ jobs:
                       val appVolume = prefs.getInt("vol_$key", 100) / 100.0f
                       val finalRate = maxOf(0.1f, minOf(6.0f, sysRate * appRate))
                       val finalPitch = maxOf(0.1f, minOf(6.0f, sysPitch * appPitch))
+                      val locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg).ifEmpty { Locale.forLanguageTag(effectiveLang).toLanguageTag() }
+                      VhLogger.d("[CHUNK-$chunkIndex] EnginePackage=$pkg Locale=$locTag Lang=$effectiveLang")
+                      VhLogger.d("[CHUNK-$chunkIndex] finalRate=$finalRate (sysRate=$sysRate appRate=$appRate) finalPitch=$finalPitch (sysPitch=$sysPitch appPitch=$appPitch)")
                       val tts = initEngineForLang(effectiveLang) ?: continue
                       VhLogger.markEngineReused(effectiveLang)
                       val state = langStates.getOrPut(effectiveLang) { LangState() }
                       if (Math.abs(state.rate - finalRate) > 0.01f) { tts.setSpeechRate(finalRate); state.rate = finalRate }
                       if (Math.abs(state.pitch - finalPitch) > 0.01f) { tts.setPitch(finalPitch); state.pitch = finalPitch }
-                      val locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg).ifEmpty { Locale.forLanguageTag(effectiveLang).toLanguageTag() }
                       if (state.localeTag != locTag) {
                           try { tts.language = Locale.forLanguageTag(locTag) } catch (_: Exception) { tts.language = Locale.forLanguageTag(effectiveLang) }
                           state.localeTag = locTag
@@ -1418,7 +1499,7 @@ jobs:
           """)
 
           print("All files generated successfully.")
-          PYEOF
+          GENEOF
 
       - name: Generate Complete Project
         run: python3 generate_project.py
