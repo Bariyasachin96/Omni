@@ -776,57 +776,95 @@ jobs:
           """)
 
           w("app/src/main/java/com/omni/tts/LiveStreamProcessor.kt", """package com.omni.tts
-          import android.media.AudioAttributes
+          import android.content.Context
           import android.media.AudioFormat
           import android.os.Bundle
           import android.os.Process
           import android.speech.tts.SynthesisCallback
           import android.speech.tts.TextToSpeech
           import android.speech.tts.UtteranceProgressListener
+          import java.io.File
+          import java.io.FileInputStream
           import java.util.concurrent.CountDownLatch
           import java.util.concurrent.atomic.AtomicBoolean
           object LiveStreamProcessor {
+              private fun resampleWholeArray(input: ByteArray, sourceRate: Int, targetRate: Int): ByteArray {
+                  if (sourceRate == targetRate || sourceRate == 0 || targetRate == 0) return input
+                  val inShorts = java.nio.ByteBuffer.wrap(input).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                  val numInShorts = inShorts.capacity()
+                  val ratio = sourceRate.toDouble() / targetRate.toDouble()
+                  val numOutShorts = (numInShorts / ratio).toInt()
+                  val outBytes = ByteArray(numOutShorts * 2)
+                  val outShorts = java.nio.ByteBuffer.wrap(outBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                  for (i in 0 until numOutShorts) {
+                      val inIdx = (i * ratio).toInt().coerceIn(0, numInShorts - 1)
+                      outShorts.put(i, inShorts.get(inIdx))
+                  }
+                  return outBytes
+              }
               fun process(
-                  tts: TextToSpeech, text: String, lang: String,
-                  volume: Float, finalPitch: Float, finalRate: Float,
-                  callback: SynthesisCallback, cbStarted: BooleanArray,
-                  isStopped: AtomicBoolean, chunkIndex: Int
+                  context: Context, tts: TextToSpeech, text: String, lang: String,
+                  volume: Float, callback: SynthesisCallback, cbStarted: BooleanArray,
+                  isStopped: AtomicBoolean, chunkIndex: Int, lockedRate: IntArray
               ): Boolean {
                   Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
+                  val tmp = File(context.cacheDir, "omni_synth_${System.nanoTime()}.wav")
                   val synthStart = VhLogger.markSynthStart(text, lang, chunkIndex)
-                  if (!cbStarted[0]) {
-                      callback.start(16000, AudioFormat.ENCODING_PCM_16BIT, 1)
-                      cbStarted[0] = true
-                  }
-                  if (isStopped.get()) { VhLogger.d("[CHUNK-$chunkIndex] STOPPED before speak"); return true }
+                  var totalBytes = 0L
                   try {
-                      try {
-                          val attrs = AudioAttributes.Builder().setUsage(11).setContentType(1).build()
-                          tts.setAudioAttributes(attrs)
-                      } catch (e: Exception) { VhLogger.e("Attr Error: ${e.message}") }
-                      tts.setSpeechRate(finalRate)
-                      tts.setPitch(finalPitch)
                       val latch = CountDownLatch(1)
+                      val synthError = BooleanArray(1)
                       tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                           override fun onStart(id: String) {}
                           override fun onDone(id: String) { VhLogger.markSynthEnd(chunkIndex, synthStart); latch.countDown() }
-                          override fun onError(id: String) { VhLogger.markSynthError(chunkIndex, "onError"); latch.countDown() }
-                          override fun onError(id: String, errorCode: Int) { VhLogger.markSynthError(chunkIndex, "onError $errorCode"); latch.countDown() }
+                          override fun onError(id: String) { synthError[0] = true; latch.countDown() }
+                          override fun onError(id: String, errorCode: Int) { synthError[0] = true; latch.countDown() }
                       })
                       val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume) }
-                      val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "omni_$chunkIndex")
-                      if (result != TextToSpeech.SUCCESS) { VhLogger.markSynthError(chunkIndex, "speak() failed"); return isStopped.get() }
+                      if (tts.synthesizeToFile(text, params, tmp, "omni_synth_$chunkIndex") != TextToSpeech.SUCCESS) {
+                          synthError[0] = true; latch.countDown()
+                      }
                       latch.await()
-                      if (isStopped.get()) { tts.stop(); VhLogger.d("[CHUNK-$chunkIndex] STOPPED after latch"); return true }
+                      if (synthError[0]) { VhLogger.markSynthError(chunkIndex, "synthesizeToFile error"); return isStopped.get() }
+                      if (isStopped.get()) { VhLogger.d("[CHUNK-$chunkIndex] STOPPED after synth"); return true }
+                      val fis = FileInputStream(tmp)
+                      val wi = WavUtils.parse(fis)
+                      VhLogger.markHeaderFound(chunkIndex)
+                      val pcmSize = (tmp.length() - wi.dataOffset).toInt().coerceAtLeast(0)
+                      val rawPcm = ByteArray(pcmSize)
+                      var readTotal = 0
+                      while (readTotal < pcmSize) {
+                          val r = fis.read(rawPcm, readTotal, pcmSize - readTotal)
+                          if (r < 0) break
+                          readTotal += r
+                      }
+                      fis.close()
+                      val targetRate = 16000
+                      val finalPcm = resampleWholeArray(rawPcm.copyOf(readTotal), wi.sampleRate, targetRate)
+                      if (!cbStarted[0]) {
+                          lockedRate[0] = targetRate
+                          callback.start(lockedRate[0], AudioFormat.ENCODING_PCM_16BIT, wi.channels.toInt())
+                          cbStarted[0] = true
+                      }
+                      VhLogger.markFirstAudio(chunkIndex)
+                      val chunkSize = 8192
+                      var offset = 0
+                      while (offset < finalPcm.size) {
+                          if (isStopped.get()) { VhLogger.d("[CHUNK-$chunkIndex] STOPPED during stream"); break }
+                          val toWrite = minOf(chunkSize, finalPcm.size - offset)
+                          callback.audioAvailable(finalPcm, offset, toWrite)
+                          totalBytes += toWrite
+                          offset += toWrite
+                      }
                   } catch (e: Exception) { VhLogger.e("[CHUNK-$chunkIndex] ${e.message}") } finally {
-                      VhLogger.markChunkDone(chunkIndex, synthStart, 0L)
+                      VhLogger.markChunkDone(chunkIndex, synthStart, totalBytes)
+                      if (tmp.exists()) tmp.delete()
                   }
                   return isStopped.get()
               }
           }
           """)
 
-          # ── ComposeTtsService.kt ─────────────────────────────────────────────
           w("app/src/main/java/com/omni/tts/ComposeTtsService.kt", """package com.omni.tts
           import android.speech.tts.SynthesisCallback
           import android.speech.tts.SynthesisRequest
@@ -844,7 +882,7 @@ jobs:
               private val engineLocks = ConcurrentHashMap<String, Any>()
               private lateinit var prefs: SharedPrefsManager
               private val activeStop = AtomicReference(AtomicBoolean(true))
-              class LangState { var localeTag = "" }
+              class LangState { var localeTag = ""; var rate = -1f; var pitch = -1f }
               private val langStates = ConcurrentHashMap<String, LangState>()
               private fun getLocale(iso: String): Locale = try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }
               override fun onCreate() { super.onCreate(); VhLogger.init(this); VhLogger.i("[SERVICE] Omni v16 Booted"); prefs = SharedPrefsManager(this) }
@@ -907,6 +945,7 @@ jobs:
                   )
                   val chunkStrings = nativeOutput.split("||").filter { it.isNotBlank() }
                   val cbStarted = BooleanArray(1)
+                  val lockedRate = IntArray(1)
                   VhLogger.markRequest(rawText, chunkStrings.size)
                   val sysRate = maxOf(0.1f, (request?.speechRate ?: 100) / 100.0f)
                   val sysPitch = maxOf(0.1f, (request?.pitch ?: 100) / 100.0f)
@@ -929,12 +968,14 @@ jobs:
                       val tts = initEngineForLang(effectiveLang) ?: continue
                       VhLogger.markEngineReused(effectiveLang)
                       val state = langStates.getOrPut(effectiveLang) { LangState() }
+                      if (Math.abs(state.rate - finalRate) > 0.01f) { tts.setSpeechRate(finalRate); state.rate = finalRate }
+                      if (Math.abs(state.pitch - finalPitch) > 0.01f) { tts.setPitch(finalPitch); state.pitch = finalPitch }
                       val locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg).ifEmpty { Locale.forLanguageTag(effectiveLang).toLanguageTag() }
                       if (state.localeTag != locTag) {
                           try { tts.language = Locale.forLanguageTag(locTag) } catch (_: Exception) { tts.language = Locale.forLanguageTag(effectiveLang) }
                           state.localeTag = locTag
                       }
-                      if (LiveStreamProcessor.process(tts, chunkText, effectiveLang, appVolume, finalPitch, finalRate, callback!!, cbStarted, myStop, chunkIndex)) {
+                      if (LiveStreamProcessor.process(this, tts, chunkText, effectiveLang, appVolume, callback!!, cbStarted, myStop, chunkIndex, lockedRate)) {
                           VhLogger.markStop(); break
                       }
                   }
