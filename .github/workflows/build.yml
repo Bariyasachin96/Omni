@@ -32,20 +32,6 @@ jobs:
       - name: Write Generator Script
         run: |
           cat > generate_project.py << 'PYEOF'
-          import os, base64, textwrap
-
-          def w(path, content):
-              d=os.path.dirname(path); d and os.makedirs(d, exist_ok=True)
-              with open(path, 'w', encoding='utf-8') as f:
-                  f.write(textwrap.dedent(content))
-
-          def wb(path, content_b64):
-              d=os.path.dirname(path); d and os.makedirs(d, exist_ok=True)
-              with open(path, 'wb') as f:
-                  f.write(base64.b64decode(content_b64))
-
-          PYEOF
-          python3 - << 'GENEOF'
           import os, textwrap
 
           def w(path, content):
@@ -789,7 +775,6 @@ jobs:
           }
           """)
 
-          # ── LiveStreamProcessor.kt ───────────────────────────────────────────
           w("app/src/main/java/com/omni/tts/LiveStreamProcessor.kt", """package com.omni.tts
           import android.media.AudioAttributes
           import android.media.AudioFormat
@@ -815,7 +800,10 @@ jobs:
                   }
                   if (isStopped.get()) { VhLogger.d("[CHUNK-$chunkIndex] STOPPED before speak"); return true }
                   try {
-                      tts.setAudioAttributes(AudioAttributes.Builder().setUsage(11).setContentType(1).build())
+                      try {
+                          val attrs = AudioAttributes.Builder().setUsage(11).setContentType(1).build()
+                          tts.setAudioAttributes(attrs)
+                      } catch (e: Exception) { VhLogger.e("Attr Error: ${e.message}") }
                       tts.setSpeechRate(finalRate)
                       tts.setPitch(finalPitch)
                       val latch = CountDownLatch(1)
@@ -838,6 +826,7 @@ jobs:
           }
           """)
 
+          # ── ComposeTtsService.kt ─────────────────────────────────────────────
           w("app/src/main/java/com/omni/tts/ComposeTtsService.kt", """package com.omni.tts
           import android.speech.tts.SynthesisCallback
           import android.speech.tts.SynthesisRequest
@@ -1388,7 +1377,7 @@ jobs:
           """)
 
           print("All files generated successfully.")
-          GENEOF
+          PYEOF
 
       - name: Generate Complete Project
         run: python3 generate_project.py
