@@ -960,7 +960,7 @@ jobs:
           "            }\n"
           "            tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)\n"
           "            VhLogger.d(\"[CHUNK-$chunkIndex] speak() called — entering dummy silence loop\")\n"
-          "            while (!chunkLatch.await(15, TimeUnit.MILLISECONDS)) {\n"
+          "            while (!chunkLatch.await(1, TimeUnit.MILLISECONDS)) {\n"
           "                if (myStop.get()) {\n"
           "                    VhLogger.markStopped(chunkIndex)\n"
           "                    tts.stop()\n"
