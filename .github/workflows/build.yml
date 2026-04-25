@@ -961,8 +961,6 @@ jobs:
           "            val params = android.os.Bundle(request?.params ?: android.os.Bundle())\n"
           "            params.remove(\"pitch\")\n"
           "            params.remove(\"rate\")\n"
-          "            params.remove(\"pitch\")\n"
-          "            params.remove(\"rate\")\n"
           "            params.remove(\"language\")\n"
           "            params.remove(\"country\")\n"
           "            params.remove(\"variant\")\n"
@@ -1371,6 +1369,7 @@ jobs:
           w("app/src/main/AndroidManifest.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n"
+          "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n"
           "    <queries>\n"
           "        <intent><action android:name=\"android.intent.action.TTS_SERVICE\" /></intent>\n"
           "    </queries>\n"
@@ -1378,7 +1377,8 @@ jobs:
           "        android:label=\"@string/app_name\"\n"
           "        android:theme=\"@android:style/Theme.DeviceDefault.NoActionBar\"\n"
           "        android:allowBackup=\"true\"\n"
-          "        android:supportsRtl=\"true\">\n"
+          "        android:supportsRtl=\"true\"\n"
+          "        android:directBootAware=\"true\">\n"
           "        <activity android:name=\".MainActivity\" android:exported=\"true\" android:windowSoftInputMode=\"adjustResize\">\n"
           "            <intent-filter>\n"
           "                <action android:name=\"android.intent.action.MAIN\" />\n"
@@ -1410,6 +1410,7 @@ jobs:
           "        <service\n"
           "            android:name=\".ComposeTtsService\"\n"
           "            android:exported=\"true\"\n"
+          "            android:directBootAware=\"true\"\n"
           "            android:permission=\"android.permission.BIND_TEXT_TO_SPEECH_SERVICE\">\n"
           "            <intent-filter>\n"
           "                <action android:name=\"android.intent.action.TTS_SERVICE\" />\n"
@@ -1417,8 +1418,26 @@ jobs:
           "            </intent-filter>\n"
           "            <meta-data android:name=\"android.speech.tts\" android:resource=\"@xml/tts_engine\" />\n"
           "        </service>\n"
+          "        <receiver android:name=\".BootReceiver\" android:exported=\"true\" android:directBootAware=\"true\"><intent-filter><action android:name=\"android.intent.action.BOOT_COMPLETED\" /><action android:name=\"android.intent.action.LOCKED_BOOT_COMPLETED\" /></intent-filter></receiver>\n"
           "    </application>\n"
           "</manifest>\n")
+
+          # ── BootReceiver.kt ──────────────────────────────────────────────────
+          w("app/src/main/java/com/omni/tts/BootReceiver.kt",
+          "package com.omni.tts\n"
+          "import android.content.BroadcastReceiver\n"
+          "import android.content.Context\n"
+          "import android.content.Intent\n"
+          "class BootReceiver : BroadcastReceiver() {\n"
+          "    override fun onReceive(context: Context?, intent: Intent?) {\n"
+          "        if (intent?.action == Intent.ACTION_LOCKED_BOOT_COMPLETED || intent?.action == Intent.ACTION_BOOT_COMPLETED) {\n"
+          "            if (context != null) {\n"
+          "                VhLogger.init(context)\n"
+          "                SharedPrefsManager(context)\n"
+          "            }\n"
+          "        }\n"
+          "    }\n"
+          "}\n")
 
           print("All files generated successfully.")
           PYEOF
