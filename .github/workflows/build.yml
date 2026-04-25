@@ -795,7 +795,6 @@ jobs:
           "    private val engineLocks = ConcurrentHashMap<String, Any>()\n"
           "    private lateinit var prefs: SharedPrefsManager\n"
           "    private val activeStop = AtomicReference(AtomicBoolean(true))\n"
-          // Fix 3: Global latch declaration
           "    @Volatile private var currentChunkLatch: CountDownLatch? = null\n"
           "    class LangState { var localeTag = \"\"; var rate = -1f; var pitch = -1f }\n"
           "    private val langStates = ConcurrentHashMap<String, LangState>()\n"
@@ -805,7 +804,6 @@ jobs:
           "        VhLogger.init(this)\n"
           "        VhLogger.i(\"[SERVICE] Omni v16 Booted\")\n"
           "        prefs = SharedPrefsManager(this)\n"
-          // Fix 1: Pre-warm engines for both fallback languages on startup
           "        val latFall = prefs.getString(\"mixed_mode_latin_language\", \"en\")\n"
           "        val nonLatFall = prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")\n"
           "        VhLogger.i(\"[SERVICE] Pre-warming engines: latFall=$latFall nonLatFall=$nonLatFall\")\n"
@@ -854,7 +852,6 @@ jobs:
           "    override fun onGetLanguage(): Array<String> = arrayOf(\"eng\", \"USA\", \"\")\n"
           "    override fun onIsLanguageAvailable(l: String?, c: String?, v: String?) = TextToSpeech.LANG_AVAILABLE\n"
           "    override fun onLoadLanguage(l: String?, c: String?, v: String?) = TextToSpeech.LANG_AVAILABLE\n"
-          // Fix 4: Zero-latency kill via latch countDown in onStop
           "    override fun onStop() {\n"
           "        VhLogger.markStop()\n"
           "        activeStop.get().set(true)\n"
@@ -953,7 +950,6 @@ jobs:
           "            VhLogger.markLocaleApplied(currentChunk, locTag, localeChanged)\n"
           "            val utteranceId = \"omni_${effectiveLang}_$currentChunk\"\n"
           "            val queueMode = if (currentChunk == 1) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD\n"
-          // Fix 3: Create a fresh latch for this chunk before registering the listener
           "            val chunkLatch = CountDownLatch(1)\n"
           "            currentChunkLatch = chunkLatch\n"
           "            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {\n"
