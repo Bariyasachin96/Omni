@@ -670,6 +670,7 @@ jobs:
           "    fun setInt(key: String, v: Int) = prefs.edit().putInt(key, v).apply()\n"
           "    fun getInt(key: String, def: Int): Int = prefs.getInt(key, def)\n"
           "    fun setBoolean(key: String, v: Boolean) = prefs.edit().putBoolean(key, v).apply()\n"
+          "    fun getBoolean(key: String, def: Boolean): Boolean = prefs.getBoolean(key, def)\n"
           "    fun getFloat(key: String, def: Float): Float = prefs.getFloat(key, def)\n"
           "    fun setFloat(key: String, v: Float) = prefs.edit().putFloat(key, v).apply()\n"
           "    fun getReadingMode(): String = prefs.getString(\"reading_mode\", \"auto\") ?: \"auto\"\n"
