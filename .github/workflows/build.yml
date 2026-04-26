@@ -338,8 +338,6 @@ jobs:
               const int WINDOW = 64;
               int len = (int)text.size();
               int i = 0;
-
-              // 1. Direct CLD2 Detection (Trust CLD2 completely)
               while(i < len) {
                   int byteStart = i;
                   int charCount = 0;
@@ -350,20 +348,14 @@ jobs:
                       j += clen;
                       charCount++;
                   }
-
                   bool is_rel = false;
                   CLD2::Language lang = CLD2::DetectLanguage(text.c_str() + byteStart, j - byteStart, true, &is_rel);
                   const char* code = CLD2::LanguageCode(lang);
-
-                  // STRICT FIX: Accept CLD2's direct guess without forcing 'is_rel'. 
-                  // This restores the original app's highly accurate native auto-detection.
                   if(code && strlen(code) >= 2 && strcmp(code, "un") != 0 && strcmp(code, "xx") != 0 && strcmp(code, "Unknown") != 0) {
                       return std::string(code);
                   }
                   i = j;
               }
-
-              // 2. Ultimate Fallback ONLY if CLD2 returns completely "Unknown"
               i = 0;
               while(i < len) {
                   int clen = 0;
@@ -380,81 +372,75 @@ jobs:
 
           struct ChunkResult { std::string lang; std::string text; };
 
-          // Auto mode: WHOLE TEXT DETECTION (Applies universally everywhere)
+          // Auto mode: WHOLE TEXT DETECTION. No length limits. Return as ONE single chunk.
           static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> chunks;
               std::string fullText = "";
               for(auto& s: sentences) {
-                  if(!s.empty()) fullText += s + " ";
+                  if(!s.empty()) {
+                      if(!fullText.empty()) fullText += " ";
+                      fullText += s;
+                  }
               }
               if(fullText.empty()) return chunks;
-
-              // Detect language once for the "Whole Text"
               std::string dominantLang = detectLang(fullText, latFall, nonLatFall);
-
-              // Apply the exact same dominant language to all chunks to maintain voice consistency
-              for(auto& s: sentences){
-                  if(s.empty()) continue;
-                  chunks.push_back({dominantLang, s});
-              }
+              chunks.push_back({dominantLang, fullText});
               return chunks;
           }
 
-          // Pure Mix Mode: Sentence-level detection combined with character-by-character script split
+          // Pure Mix Mode: Split ONLY when script changes. No character length constraints.
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> result;
-              for(auto& sentence : sentences) {
-                  if (sentence.empty()) continue;
-
-                  std::string baseLang = detectLang(sentence, latFall, nonLatFall);
-                  std::string actualNonLat = (baseLang == latFall || baseLang == "en") ? nonLatFall : baseLang;
-
-                  std::string curLang = "";
-                  std::string curBuf = "";
-                  std::string neutralBuf = "";
-                  int i = 0;
-                  int len = (int)sentence.size();
-
-                  while(i < len) {
-                      int clen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&sentence[i], clen);
-                      std::string ch = sentence.substr(i, clen);
-
-                      if (isUnknownChar(cp)) {
-                          neutralBuf += ch;
-                          i += clen;
-                          continue;
-                      }
-
-                      std::string charLang;
-                      if (isLatinChar(cp)) {
-                          charLang = latFall;
-                      } else {
-                          const char* sl = scriptLookupChar(cp);
-                          charLang = sl ? std::string(sl) : actualNonLat;
-                      }
-
-                      if (curLang.empty()) {
-                          curLang = charLang;
-                          curBuf += neutralBuf + ch;
-                          neutralBuf = "";
-                      } else if (charLang != curLang) {
-                          curBuf += neutralBuf;
-                          neutralBuf = "";
-                          if (!curBuf.empty()) result.push_back({curLang, curBuf});
-                          curBuf = ch;
-                          curLang = charLang;
-                      } else {
-                          curBuf += neutralBuf + ch;
-                          neutralBuf = "";
-                      }
+              std::string fullText = "";
+              for(auto& s: sentences) {
+                  if(!s.empty()) {
+                      if(!fullText.empty()) fullText += " ";
+                      fullText += s;
+                  }
+              }
+              if(fullText.empty()) return result;
+              std::string curLang = "";
+              std::string curBuf = "";
+              std::string neutralBuf = "";
+              int i = 0;
+              int len = (int)fullText.size();
+              while(i < len) {
+                  int clen = 0;
+                  int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
+                  std::string ch = fullText.substr(i, clen);
+                  if (isUnknownChar(cp)) {
+                      neutralBuf += ch;
                       i += clen;
+                      continue;
                   }
-                  curBuf += neutralBuf;
-                  if (!curBuf.empty()) {
-                      if (curLang.empty()) curLang = actualNonLat;
-                      result.push_back({curLang, curBuf});
+                  std::string charLang;
+                  if (isLatinChar(cp)) {
+                      charLang = latFall;
+                  } else {
+                      const char* sl = scriptLookupChar(cp);
+                      charLang = sl ? std::string(sl) : nonLatFall;
                   }
+                  if (curLang.empty()) {
+                      curLang = charLang;
+                      curBuf += neutralBuf + ch;
+                      neutralBuf = "";
+                  } else if (charLang != curLang) {
+                      curBuf += neutralBuf;
+                      neutralBuf = "";
+                      if (!curBuf.empty()) result.push_back({curLang, curBuf});
+                      curBuf = ch;
+                      curLang = charLang;
+                  } else {
+                      curBuf += neutralBuf + ch;
+                      neutralBuf = "";
+                  }
+                  i += clen;
+              }
+              curBuf += neutralBuf;
+              while(!curBuf.empty() && (curBuf.back() == ' ' || curBuf.back() == '\n' || curBuf.back() == '\r')) curBuf.pop_back();
+              if (!curBuf.empty()) {
+                  if (curLang.empty()) curLang = nonLatFall;
+                  result.push_back({curLang, curBuf});
               }
               return result;
           }
@@ -675,8 +661,18 @@ jobs:
           "package com.omni.tts\n"
           "import android.content.Context\n"
           "import android.content.SharedPreferences\n"
+          "import android.os.Build\n"
+          "import android.os.UserManager\n"
           "class SharedPrefsManager(context: Context) {\n"
-          "    private val prefs: SharedPreferences = context.getSharedPreferences(\"VH_PREFS\", Context.MODE_PRIVATE)\n"
+          "    private val safeContext = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {\n"
+          "        val deCtx = context.createDeviceProtectedStorageContext()\n"
+          "        try {\n"
+          "            val um = context.getSystemService(Context.USER_SERVICE) as UserManager\n"
+          "            if (um.isUserUnlocked) deCtx.moveSharedPreferencesFrom(context, \"VH_PREFS\")\n"
+          "        } catch (e: Exception) {}\n"
+          "        deCtx\n"
+          "    } else context\n"
+          "    private val prefs: SharedPreferences = safeContext.getSharedPreferences(\"VH_PREFS\", Context.MODE_PRIVATE)\n"
           "    fun getEngineForLanguage(lang: String): String {\n"
           "        val sysLang = java.util.Locale.getDefault().language\n"
           "        val def = if (lang.equals(sysLang, ignoreCase = true)) \"com.google.android.tts\" else \"NOT_SET\"\n"
