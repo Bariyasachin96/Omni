@@ -339,7 +339,7 @@ jobs:
               int len = (int)text.size();
               int i = 0;
 
-              // 1. Try to detect "Most possible language"
+              // 1. Try to detect "Most possible language" using CLD2
               while(i < len) {
                   int byteStart = i;
                   int charCount = 0;
@@ -355,27 +355,43 @@ jobs:
                   CLD2::Language lang = CLD2::DetectLanguage(text.c_str() + byteStart, j - byteStart, true, &is_rel);
                   const char* code = CLD2::LanguageCode(lang);
 
-                  // CRITICAL FIX: Only accept the detected language if it is RELIABLE
+                  // Accept if reliable
                   if(is_rel && code && strlen(code) >= 2 && strcmp(code, "un") != 0 && strcmp(code, "xx") != 0 && strcmp(code, "Unknown") != 0) {
                       return std::string(code);
                   }
                   i = j;
               }
 
-              // 2. "If language can't be detected, reads by user-preferred language."
-              // Fallback: Check first valid char. Get exact script to prevent wrong TTS routing.
+              // 2. Fallback: Character Counting instead of First-Character guess
               i = 0;
+              int latinCount = 0;
+              int nonLatinCount = 0;
+              std::string firstNonLatScript = "";
+
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
                   if(!isUnknownChar(cp)) {
-                      if (isLatinChar(cp)) return latFall;
-                      const char* sl = scriptLookupChar(cp);
-                      return sl ? std::string(sl) : nonLatFall;
+                      if (isLatinChar(cp)) {
+                          latinCount++;
+                      } else {
+                          nonLatinCount++;
+                          if (firstNonLatScript.empty()) {
+                              const char* sl = scriptLookupChar(cp);
+                              if (sl) firstNonLatScript = std::string(sl);
+                          }
+                      }
                   }
                   i += clen;
               }
-              return nonLatFall;
+
+              // Give priority to Non-Latin. English engines butcher Hindi, but Hindi engines read English fine.
+              // If even 25% of the text is Non-Latin, route to the Non-Latin engine.
+              if (nonLatinCount > 0 && nonLatinCount >= (latinCount / 3)) {
+                  return firstNonLatScript.empty() ? nonLatFall : firstNonLatScript;
+              }
+
+              return (latinCount > nonLatinCount) ? latFall : nonLatFall;
           }
 
           struct ChunkResult { std::string lang; std::string text; };
