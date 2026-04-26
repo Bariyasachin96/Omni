@@ -333,38 +333,45 @@ jobs:
                      isUnknownChar(cp);
           }
 
-          // detectLang: 64-UTF8-char sliding window over CLD2, then script-block fallback.
+          // detectLang: "Reads text by most possible language. If language can't be detected, reads by user-preferred language."
           static std::string detectLang(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
               const int WINDOW = 64;
-              int len=(int)text.size();
-              int i=0;
-              while(i<len){
-                  int byteStart=i;
-                  int charCount=0;
-                  int j=i;
-                  while(j<len && charCount<WINDOW){
-                      int clen=0;
-                      utf8ToCodepoint((const unsigned char*)&text[j],clen);
-                      j+=clen;
+              int len = (int)text.size();
+              int i = 0;
+
+              // 1. Try to detect "Most possible language"
+              while(i < len) {
+                  int byteStart = i;
+                  int charCount = 0;
+                  int j = i;
+                  while(j < len && charCount < WINDOW) {
+                      int clen = 0;
+                      utf8ToCodepoint((const unsigned char*)&text[j], clen);
+                      j += clen;
                       charCount++;
                   }
-                  bool is_rel=false;
-                  CLD2::Language lang=CLD2::DetectLanguage(text.c_str()+byteStart, j-byteStart, true, &is_rel);
-                  const char* code=CLD2::LanguageCode(lang);
-                  if(code && strlen(code)>=2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0 && strcmp(code,"Unknown")!=0) {
+
+                  bool is_rel = false;
+                  CLD2::Language lang = CLD2::DetectLanguage(text.c_str() + byteStart, j - byteStart, true, &is_rel);
+                  const char* code = CLD2::LanguageCode(lang);
+
+                  // CRITICAL FIX: Only accept the detected language if it is RELIABLE
+                  if(is_rel && code && strlen(code) >= 2 && strcmp(code, "un") != 0 && strcmp(code, "xx") != 0 && strcmp(code, "Unknown") != 0) {
                       return std::string(code);
                   }
-                  i=j;
+                  i = j;
               }
-              i=0;
-              while(i<len){
-                  int clen=0;
-                  int cp=utf8ToCodepoint((const unsigned char*)&text[i],clen);
-                  if(!isUnknownChar(cp)){
-                      const char* sl=scriptLookupChar(cp);
-                      if(sl) return std::string(sl);
+
+              // 2. "If language can't be detected, reads by user-preferred language."
+              // Fallback: Check first valid char. If Latin -> latFall, If Non-Latin -> nonLatFall
+              i = 0;
+              while(i < len) {
+                  int clen = 0;
+                  int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
+                  if(!isUnknownChar(cp)) {
+                      return isLatinChar(cp) ? latFall : nonLatFall;
                   }
-                  i+=clen;
+                  i += clen;
               }
               return nonLatFall;
           }
@@ -654,9 +661,7 @@ jobs:
           "class SharedPrefsManager(context: Context) {\n"
           "    private val prefs: SharedPreferences = context.getSharedPreferences(\"VH_PREFS\", Context.MODE_PRIVATE)\n"
           "    fun getEngineForLanguage(lang: String): String {\n"
-          "        val sysLang = java.util.Locale.getDefault().language\n"
-          "        val def = if (lang.equals(sysLang, ignoreCase = true)) \"com.google.android.tts\" else \"NOT_SET\"\n"
-          "        return prefs.getString(\"engine_$lang\", def) ?: def\n"
+          "        return prefs.getString(\"engine_$lang\", \"com.google.android.tts\") ?: \"com.google.android.tts\"\n"
           "    }\n"
           "    fun getLocaleForLangPkg(lang: String, pkg: String): String = prefs.getString(\"locale_${lang}_${pkg}\", \"\") ?: \"\"\n"
           "    fun setLocaleForLangPkg(lang: String, pkg: String, tag: String) = prefs.edit().putString(\"locale_${lang}_${pkg}\", tag).apply()\n"
@@ -665,7 +670,6 @@ jobs:
           "    fun setInt(key: String, v: Int) = prefs.edit().putInt(key, v).apply()\n"
           "    fun getInt(key: String, def: Int): Int = prefs.getInt(key, def)\n"
           "    fun setBoolean(key: String, v: Boolean) = prefs.edit().putBoolean(key, v).apply()\n"
-          "    fun getBoolean(key: String, def: Boolean): Boolean = prefs.getBoolean(key, def)\n"
           "    fun getFloat(key: String, def: Float): Float = prefs.getFloat(key, def)\n"
           "    fun setFloat(key: String, v: Float) = prefs.edit().putFloat(key, v).apply()\n"
           "    fun getReadingMode(): String = prefs.getString(\"reading_mode\", \"auto\") ?: \"auto\"\n"
