@@ -380,12 +380,22 @@ jobs:
 
           struct ChunkResult { std::string lang; std::string text; };
 
-          // Auto mode: one CLD2 detection per sentence.
+          // Auto mode: WHOLE TEXT DETECTION (Applies universally everywhere)
           static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> chunks;
+              std::string fullText = "";
+              for(auto& s: sentences) {
+                  if(!s.empty()) fullText += s + " ";
+              }
+              if(fullText.empty()) return chunks;
+
+              // Detect language once for the "Whole Text"
+              std::string dominantLang = detectLang(fullText, latFall, nonLatFall);
+
+              // Apply the exact same dominant language to all chunks to maintain voice consistency
               for(auto& s: sentences){
                   if(s.empty()) continue;
-                  chunks.push_back({detectLang(s, latFall, nonLatFall), s});
+                  chunks.push_back({dominantLang, s});
               }
               return chunks;
           }
