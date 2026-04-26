@@ -162,151 +162,65 @@ jobs:
 
           struct BlockDef { int start; int end; const char* lang; };
           static const BlockDef SCRIPT_BLOCKS[] = {
-              {0x0370, 0x03FF, "el"},
-              {0x0400, 0x04FF, "ru"},
-              {0x0500, 0x052F, "ru"},
-              {0x0530, 0x058F, "hy"},
-              {0x0590, 0x05FF, "he"},
-              {0x0600, 0x06FF, "ar"},
-              {0x0700, 0x074F, "sy"},
-              {0x0750, 0x077F, "ar"},
-              {0x08A0, 0x08FF, "ar"},
-              {0x0900, 0x097F, "hi"},
-              {0x0980, 0x09FF, "bn"},
-              {0x0A00, 0x0A7F, "pa"},
-              {0x0A80, 0x0AFF, "gu"},
-              {0x0B00, 0x0B7F, "or"},
-              {0x0B80, 0x0BFF, "ta"},
-              {0x0C00, 0x0C7F, "te"},
-              {0x0C80, 0x0CFF, "kn"},
-              {0x0D00, 0x0D7F, "ml"},
-              {0x0D80, 0x0DFF, "si"},
-              {0x0E00, 0x0E7F, "th"},
-              {0x0E80, 0x0EFF, "lo"},
-              {0x0F00, 0x0FFF, "bo"},
-              {0x1000, 0x109F, "my"},
-              {0x10A0, 0x10FF, "ka"},
-              {0x1100, 0x11FF, "ko"},
-              {0x1200, 0x137F, "am"},
-              {0x1380, 0x139F, "am"},
-              {0x13A0, 0x13FF, "chr"},
-              {0x1680, 0x169F, "ga"},
-              {0x16A0, 0x16FF, "el"},
-              {0x1700, 0x171F, "ti"},
-              {0x1780, 0x17FF, "km"},
-              {0x1800, 0x18AF, "mn"},
-              {0x1900, 0x194F, "li"},
-              {0x1950, 0x197F, "tai"},
-              {0x1980, 0x19DF, "tai"},
-              {0x19E0, 0x19FF, "km"},
-              {0x1A00, 0x1A1F, "bug"},
-              {0x1A20, 0x1AAF, "tai"},
-              {0x1B00, 0x1B7F, "ban"},
-              {0x1B80, 0x1BBF, "su"},
-              {0x1BC0, 0x1BFF, "btk"},
-              {0x1C50, 0x1C7F, "sat"},
-              {0x1C80, 0x1C8F, "ru"},
-              {0x1C90, 0x1CBF, "ka"},
-              {0x1CC0, 0x1CCF, "su"},
-              {0x1CD0, 0x1CFF, "sa"},
-              {0x1F00, 0x1FFF, "el"},
-              {0x2C80, 0x2CFF, "cop"},
-              {0x2D00, 0x2D2F, "ka"},
-              {0x2D30, 0x2D7F, "zgh"},
-              {0x2D80, 0x2DDF, "am"},
-              {0x2DE0, 0x2DFF, "ru"},
-              {0x3040, 0x309F, "ja"},
-              {0x30A0, 0x30FF, "ja"},
-              {0x3100, 0x312F, "zh"},
-              {0x3130, 0x318F, "ko"},
-              {0x3190, 0x319F, "zh"},
-              {0x31A0, 0x31BF, "zh"},
-              {0x31F0, 0x31FF, "ja"},
-              {0x3400, 0x4DBF, "zh"},
-              {0x4DC0, 0x4DFF, "zh"},
-              {0x4E00, 0x9FFF, "zh"},
-              {0xA000, 0xA48F, "zh"},
-              {0xA490, 0xA4CF, "zh"},
-              {0xA4D0, 0xA4FF, "bo"},
-              {0xA500, 0xA63F, "vai"},
-              {0xA640, 0xA69F, "ru"},
-              {0xA830, 0xA83F, "inc"},
-              {0xA840, 0xA87F, "bo"},
-              {0xA8E0, 0xA8FF, "hi"},
-              {0xA960, 0xA97F, "ko"},
-              {0xA980, 0xA9DF, "jv"},
-              {0xA9E0, 0xA9FF, "my"},
-              {0xAA60, 0xAA7F, "my"},
-              {0xAA80, 0xAADF, "tai"},
-              {0xAB00, 0xAB2F, "am"},
-              {0xAB70, 0xABBF, "chr"},
-              {0xAC00, 0xD7AF, "ko"},
-              {0xD7B0, 0xD7FF, "ko"},
-              {0xF900, 0xFAFF, "zh"},
-              {0xFB50, 0xFDFF, "ar"},
-              {0xFE70, 0xFEFF, "ar"},
-              {0x10140, 0x1018F, "grc"},
-              {0x102E0, 0x102FF, "cop"},
-              {0x10300, 0x1032F, "it"},
-              {0x10330, 0x1034F, "got"},
-              {0x10380, 0x1039F, "uga"},
-              {0x103A0, 0x103DF, "fa"},
-              {0x10480, 0x104AF, "so"},
-              {0x104B0, 0x104FF, "osa"},
-              {0x10500, 0x1052F, "sq"},
-              {0x10530, 0x1056F, "sq"},
-              {0x10840, 0x1085F, "arc"},
-              {0x10880, 0x108AF, "arc"},
-              {0x108E0, 0x108FF, "arc"},
-              {0x10900, 0x1091F, "phn"},
-              {0x10A60, 0x10A7F, "ar"},
-              {0x10A80, 0x10A9F, "ar"},
-              {0x10B00, 0x10B3F, "ae"},
-              {0x10B40, 0x10B5F, "ira"},
-              {0x10B60, 0x10B7F, "fa"},
-              {0x10B80, 0x10BAF, "fa"},
-              {0x10C00, 0x10C4F, "tr"},
-              {0x10C80, 0x10CFF, "hu"},
-              {0x10F00, 0x10F2F, "sog"},
-              {0x10F30, 0x10F6F, "sog"},
-              {0x10FE0, 0x10FFF, "arc"},
-              {0x110D0, 0x110FF, "mun"},
-              {0x11100, 0x1114F, "bn"},
-              {0x11150, 0x1117F, "hi"},
-              {0x111E0, 0x111FF, "si"},
-              {0x112B0, 0x112FF, "sd"},
-              {0x11300, 0x1137F, "ta"},
-              {0x11580, 0x115FF, "sa"},
-              {0x11600, 0x1165F, "mr"},
-              {0x11660, 0x1167F, "mn"},
-              {0x11FC0, 0x11FFF, "ta"},
-              {0x13000, 0x1342F, "egy"},
-              {0x13430, 0x1343F, "egy"},
-              {0x1B000, 0x1B0FF, "ja"},
-              {0x1B100, 0x1B12F, "ja"},
-              {0x1EE00, 0x1EEFF, "ar"},
-              {0x20000, 0x2A6DF, "zh"},
-              {0x2A700, 0x2B73F, "zh"},
-              {0x2B740, 0x2B81F, "zh"},
-              {0x2B820, 0x2CEAF, "zh"},
-              {0x2CEB0, 0x2EBEF, "zh"},
-              {0x2F800, 0x2FA1F, "zh"},
+              {0x0370, 0x03FF, "el"}, {0x0400, 0x04FF, "ru"}, {0x0500, 0x052F, "ru"},
+              {0x0530, 0x058F, "hy"}, {0x0590, 0x05FF, "he"}, {0x0600, 0x06FF, "ar"},
+              {0x0700, 0x074F, "sy"}, {0x0750, 0x077F, "ar"}, {0x08A0, 0x08FF, "ar"},
+              {0x0900, 0x097F, "hi"}, {0x0980, 0x09FF, "bn"}, {0x0A00, 0x0A7F, "pa"},
+              {0x0A80, 0x0AFF, "gu"}, {0x0B00, 0x0B7F, "or"}, {0x0B80, 0x0BFF, "ta"},
+              {0x0C00, 0x0C7F, "te"}, {0x0C80, 0x0CFF, "kn"}, {0x0D00, 0x0D7F, "ml"},
+              {0x0D80, 0x0DFF, "si"}, {0x0E00, 0x0E7F, "th"}, {0x0E80, 0x0EFF, "lo"},
+              {0x0F00, 0x0FFF, "bo"}, {0x1000, 0x109F, "my"}, {0x10A0, 0x10FF, "ka"},
+              {0x1100, 0x11FF, "ko"}, {0x1200, 0x137F, "am"}, {0x1380, 0x139F, "am"},
+              {0x13A0, 0x13FF, "chr"}, {0x1680, 0x169F, "ga"}, {0x16A0, 0x16FF, "el"},
+              {0x1700, 0x171F, "ti"}, {0x1780, 0x17FF, "km"}, {0x1800, 0x18AF, "mn"},
+              {0x1900, 0x194F, "li"}, {0x1950, 0x197F, "tai"}, {0x1980, 0x19DF, "tai"},
+              {0x19E0, 0x19FF, "km"}, {0x1A00, 0x1A1F, "bug"}, {0x1A20, 0x1AAF, "tai"},
+              {0x1B00, 0x1B7F, "ban"}, {0x1B80, 0x1BBF, "su"}, {0x1BC0, 0x1BFF, "btk"},
+              {0x1C50, 0x1C7F, "sat"}, {0x1C80, 0x1C8F, "ru"}, {0x1C90, 0x1CBF, "ka"},
+              {0x1CC0, 0x1CCF, "su"}, {0x1CD0, 0x1CFF, "sa"}, {0x1F00, 0x1FFF, "el"},
+              {0x2C80, 0x2CFF, "cop"}, {0x2D00, 0x2D2F, "ka"}, {0x2D30, 0x2D7F, "zgh"},
+              {0x2D80, 0x2DDF, "am"}, {0x2DE0, 0x2DFF, "ru"}, {0x3040, 0x309F, "ja"},
+              {0x30A0, 0x30FF, "ja"}, {0x3100, 0x312F, "zh"}, {0x3130, 0x318F, "ko"},
+              {0x3190, 0x319F, "zh"}, {0x31A0, 0x31BF, "zh"}, {0x31F0, 0x31FF, "ja"},
+              {0x3400, 0x4DBF, "zh"}, {0x4DC0, 0x4DFF, "zh"}, {0x4E00, 0x9FFF, "zh"},
+              {0xA000, 0xA48F, "zh"}, {0xA490, 0xA4CF, "zh"}, {0xA4D0, 0xA4FF, "bo"},
+              {0xA500, 0xA63F, "vai"}, {0xA640, 0xA69F, "ru"}, {0xA830, 0xA83F, "inc"},
+              {0xA840, 0xA87F, "bo"}, {0xA8E0, 0xA8FF, "hi"}, {0xA960, 0xA97F, "ko"},
+              {0xA980, 0xA9DF, "jv"}, {0xA9E0, 0xA9FF, "my"}, {0xAA60, 0xAA7F, "my"},
+              {0xAA80, 0xAADF, "tai"}, {0xAB00, 0xAB2F, "am"}, {0xAB70, 0xABBF, "chr"},
+              {0xAC00, 0xD7AF, "ko"}, {0xD7B0, 0xD7FF, "ko"}, {0xF900, 0xFAFF, "zh"},
+              {0xFB50, 0xFDFF, "ar"}, {0xFE70, 0xFEFF, "ar"}, {0x10140, 0x1018F, "grc"},
+              {0x102E0, 0x102FF, "cop"}, {0x10300, 0x1032F, "it"}, {0x10330, 0x1034F, "got"},
+              {0x10380, 0x1039F, "uga"}, {0x103A0, 0x103DF, "fa"}, {0x10480, 0x104AF, "so"},
+              {0x104B0, 0x104FF, "osa"}, {0x10500, 0x1052F, "sq"}, {0x10530, 0x1056F, "sq"},
+              {0x10840, 0x1085F, "arc"}, {0x10880, 0x108AF, "arc"}, {0x108E0, 0x108FF, "arc"},
+              {0x10900, 0x1091F, "phn"}, {0x10A60, 0x10A7F, "ar"}, {0x10A80, 0x10A9F, "ar"},
+              {0x10B00, 0x10B3F, "ae"}, {0x10B40, 0x10B5F, "ira"}, {0x10B60, 0x10B7F, "fa"},
+              {0x10B80, 0x10BAF, "fa"}, {0x10C00, 0x10C4F, "tr"}, {0x10C80, 0x10CFF, "hu"},
+              {0x10F00, 0x10F2F, "sog"}, {0x10F30, 0x10F6F, "sog"}, {0x10FE0, 0x10FFF, "arc"},
+              {0x110D0, 0x110FF, "mun"}, {0x11100, 0x1114F, "bn"}, {0x11150, 0x1117F, "hi"},
+              {0x111E0, 0x111FF, "si"}, {0x112B0, 0x112FF, "sd"}, {0x11300, 0x1137F, "ta"},
+              {0x11580, 0x115FF, "sa"}, {0x11600, 0x1165F, "mr"}, {0x11660, 0x1167F, "mn"},
+              {0x11FC0, 0x11FFF, "ta"}, {0x13000, 0x1342F, "egy"}, {0x13430, 0x1343F, "egy"},
+              {0x1B000, 0x1B0FF, "ja"}, {0x1B100, 0x1B12F, "ja"}, {0x1EE00, 0x1EEFF, "ar"},
+              {0x20000, 0x2A6DF, "zh"}, {0x2A700, 0x2B73F, "zh"}, {0x2B740, 0x2B81F, "zh"},
+              {0x2B820, 0x2CEAF, "zh"}, {0x2CEB0, 0x2EBEF, "zh"}, {0x2F800, 0x2FA1F, "zh"},
               {0, 0, nullptr}
           };
 
           inline int utf8ToCodepoint(const unsigned char* p, int& len) {
               if (p[0] < 0x80)               { len=1; return p[0]; }
-              if ((p[0]&0xE0)==0xC0)          { len=2; return ((p[0]&0x1F)<<6)|(p[1]&0x3F); }
-              if ((p[0]&0xF0)==0xE0)          { len=3; return ((p[0]&0x0F)<<12)|((p[1]&0x3F)<<6)|(p[2]&0x3F); }
-              if ((p[0]&0xF8)==0xF0)          { len=4; return ((p[0]&0x07)<<18)|((p[1]&0x3F)<<12)|((p[2]&0x3F)<<6)|(p[3]&0x3F); }
+              if ((p[0]&0xE0)==0xC0)         { len=2; return ((p[0]&0x1F)<<6)|(p[1]&0x3F); }
+              if ((p[0]&0xF0)==0xE0)         { len=3; return ((p[0]&0x0F)<<12)|((p[1]&0x3F)<<6)|(p[2]&0x3F); }
+              if ((p[0]&0xF8)==0xF0)         { len=4; return ((p[0]&0x07)<<18)|((p[1]&0x3F)<<12)|((p[2]&0x3F)<<6)|(p[3]&0x3F); }
               len=1; return p[0];
           }
 
           inline void codepointToUtf8(int cp, std::string& out) {
-              if (cp<=0x7F)     { out+=(char)cp; }
-              else if(cp<=0x7FF){ out+=(char)((cp>>6)|0xC0); out+=(char)((cp&0x3F)|0x80); }
+              if (cp<=0x7F)      { out+=(char)cp; }
+              else if(cp<=0x7FF) { out+=(char)((cp>>6)|0xC0); out+=(char)((cp&0x3F)|0x80); }
               else if(cp<=0xFFFF){ out+=(char)((cp>>12)|0xE0); out+=(char)(((cp>>6)&0x3F)|0x80); out+=(char)((cp&0x3F)|0x80); }
-              else              { out+=(char)((cp>>18)|0xF0); out+=(char)(((cp>>12)&0x3F)|0x80); out+=(char)(((cp>>6)&0x3F)|0x80); out+=(char)((cp&0x3F)|0x80); }
+              else               { out+=(char)((cp>>18)|0xF0); out+=(char)(((cp>>12)&0x3F)|0x80); out+=(char)(((cp>>6)&0x3F)|0x80); out+=(char)((cp&0x3F)|0x80); }
           }
 
           inline char mathUnicodeToAscii(int cp) {
@@ -338,8 +252,7 @@ jobs:
               return cp=='.'||cp=='!'||cp=='?'||cp==','||cp==';'||cp==':'||cp=='-'||cp=='*'||cp=='_';
           }
 
-          static std::string normalizeText(const std::string& input,
-                                            bool keepEmoji, bool countEmoji, bool countPunct) {
+          static std::string normalizeText(const std::string& input, bool keepEmoji, bool countEmoji, bool countPunct) {
               std::string result;
               result.reserve(input.size());
               int i=0, len=(int)input.size();
@@ -369,9 +282,7 @@ jobs:
               return result;
           }
 
-          static std::string applyDictionary(std::string text,
-                                              const std::vector<std::string>& keys,
-                                              const std::vector<std::string>& vals) {
+          static std::string applyDictionary(std::string text, const std::vector<std::string>& keys, const std::vector<std::string>& vals) {
               for(size_t i=0;i<keys.size();i++){
                   if(keys[i].empty()) continue;
                   size_t pos=0;
@@ -423,15 +334,11 @@ jobs:
           }
 
           // detectLang: 64-UTF8-char sliding window over CLD2, then script-block fallback.
-          static std::string detectLang(const std::string& text,
-                                         const std::string& latFall,
-                                         const std::string& nonLatFall) {
+          static std::string detectLang(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
               const int WINDOW = 64;
               int len=(int)text.size();
               int i=0;
-              // Slide a window of up to 64 UTF-8 characters through the string.
               while(i<len){
-                  // Build a chunk of up to WINDOW codepoints starting at byte offset i.
                   int byteStart=i;
                   int charCount=0;
                   int j=i;
@@ -441,15 +348,14 @@ jobs:
                       j+=clen;
                       charCount++;
                   }
-                  // Pass this chunk to CLD2.
                   bool is_rel=false;
                   CLD2::Language lang=CLD2::DetectLanguage(text.c_str()+byteStart, j-byteStart, true, &is_rel);
                   const char* code=CLD2::LanguageCode(lang);
-                  if(code&&strlen(code)>=2&&strcmp(code,"un")!=0)
+                  if(code && strlen(code)>=2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0 && strcmp(code,"Unknown")!=0) {
                       return std::string(code);
+                  }
                   i=j;
               }
-              // All windows returned "un": fall back to first non-neutral script char.
               i=0;
               while(i<len){
                   int clen=0;
@@ -460,126 +366,62 @@ jobs:
                   }
                   i+=clen;
               }
-              return latFall;
+              return nonLatFall;
           }
 
           struct ChunkResult { std::string lang; std::string text; };
 
-          // Dual mode: character-by-character Latin vs non-Latin split, no CLD2.
-          static std::vector<ChunkResult> buildDualChunks(
-              const std::vector<std::string>& sentences,
-              const std::string& latFall,
-              const std::string& nonLatFall)
-          {
-              std::vector<ChunkResult> result;
-              for(auto& sentence: sentences){
-                  if(sentence.empty()) continue;
-                  int len=(int)sentence.size();
-                  std::string curLang="";
-                  std::string curBuf="";
-                  int i=0;
-                  while(i<len){
-                      int clen=0;
-                      int cp=utf8ToCodepoint((const unsigned char*)&sentence[i],clen);
-                      std::string ch="";
-                      codepointToUtf8(cp,ch);
-                      std::string charLang=isLatinChar(cp) ? latFall : nonLatFall;
-                      if(curLang.empty()){
-                          curLang=charLang;
-                          curBuf+=ch;
-                          i+=clen;
-                          continue;
-                      }
-                      if(charLang!=curLang){
-                          if(!curBuf.empty()) result.push_back({curLang,curBuf});
-                          curBuf="";
-                          curLang=charLang;
-                          curBuf+=ch;
-                          i+=clen;
-                          continue;
-                      }
-                      curBuf+=ch;
-                      i+=clen;
-                  }
-                  if(!curBuf.empty()){
-                      if(curLang.empty()) curLang=latFall;
-                      result.push_back({curLang,curBuf});
-                  }
-              }
-              return result;
-          }
-
-          // Auto mode: one CLD2 detection per sentence, whole sentence becomes one chunk.
-          static std::vector<ChunkResult> buildAutoChunks(
-              const std::vector<std::string>& sentences,
-              const std::string& latFall,
-              const std::string& nonLatFall)
-          {
+          // Auto mode: one CLD2 detection per sentence.
+          static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> chunks;
               for(auto& s: sentences){
                   if(s.empty()) continue;
-                  std::string sl=detectLang(s,latFall,nonLatFall);
-                  chunks.push_back({sl,s});
+                  chunks.push_back({detectLang(s, latFall, nonLatFall), s});
               }
               return chunks;
           }
 
-          // Mix mode: detect base lang of each sentence via CLD2, then split char-by-char
-          // using Latin -> latFall, non-Latin -> base lang from sentence detection.
-          static std::vector<ChunkResult> buildMixChunks(
-              const std::vector<std::string>& sentences,
-              const std::string& latFall,
-              const std::string& nonLatFall)
-          {
+          // Mix mode: CLD2 for sentence base language, then char-by-char splitting.
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> result;
-              for(auto& sentence: sentences){
-                  if(sentence.empty()) continue;
-                  // Step 1: detect base language for this entire sentence.
-                  std::string baseLang=detectLang(sentence,latFall,nonLatFall);
-                  // Step 2: iterate char-by-char; Latin -> latFall, non-Latin -> baseLang.
-                  int len=(int)sentence.size();
-                  std::string curLang="";
-                  std::string curBuf="";
-                  std::string neutralBuf="";
-                  int i=0;
-                  while(i<len){
-                      int clen=0;
-                      int cp=utf8ToCodepoint((const unsigned char*)&sentence[i],clen);
-                      std::string ch="";
-                      codepointToUtf8(cp,ch);
-                      if(isUnknownChar(cp)){
-                          neutralBuf+=ch;
-                          i+=clen;
+              for(auto& sentence : sentences) {
+                  if (sentence.empty()) continue;
+                  std::string baseLang = detectLang(sentence, latFall, nonLatFall);
+                  std::string curLang = "";
+                  std::string curBuf = "";
+                  std::string neutralBuf = "";
+                  int i = 0;
+                  int len = (int)sentence.size();
+                  while(i < len) {
+                      int clen = 0;
+                      int cp = utf8ToCodepoint((const unsigned char*)&sentence[i], clen);
+                      std::string ch = sentence.substr(i, clen);
+                      if (isUnknownChar(cp)) {
+                          neutralBuf += ch;
+                          i += clen;
                           continue;
                       }
-                      std::string charLang=isLatinChar(cp) ? latFall : baseLang;
-                      if(curLang.empty()){
-                          curLang=charLang;
-                          curBuf+=neutralBuf;
-                          neutralBuf="";
-                          curBuf+=ch;
-                          i+=clen;
-                          continue;
+                      std::string charLang = isLatinChar(cp) ? latFall : baseLang;
+                      if (curLang.empty()) {
+                          curLang = charLang;
+                          curBuf += neutralBuf + ch;
+                          neutralBuf = "";
+                      } else if (charLang != curLang) {
+                          curBuf += neutralBuf;
+                          neutralBuf = "";
+                          if (!curBuf.empty()) result.push_back({curLang, curBuf});
+                          curBuf = ch;
+                          curLang = charLang;
+                      } else {
+                          curBuf += neutralBuf + ch;
+                          neutralBuf = "";
                       }
-                      if(charLang!=curLang){
-                          curBuf+=neutralBuf;
-                          neutralBuf="";
-                          if(!curBuf.empty()) result.push_back({curLang,curBuf});
-                          curBuf="";
-                          curLang=charLang;
-                          curBuf+=ch;
-                          i+=clen;
-                          continue;
-                      }
-                      curBuf+=neutralBuf;
-                      neutralBuf="";
-                      curBuf+=ch;
-                      i+=clen;
+                      i += clen;
                   }
-                  curBuf+=neutralBuf;
-                  if(!curBuf.empty()){
-                      if(curLang.empty()) curLang=latFall;
-                      result.push_back({curLang,curBuf});
+                  curBuf += neutralBuf;
+                  if (!curBuf.empty()) {
+                      if (curLang.empty()) curLang = baseLang;
+                      result.push_back({curLang, curBuf});
                   }
               }
               return result;
@@ -587,12 +429,10 @@ jobs:
 
           extern "C" JNIEXPORT jstring JNICALL
           Java_com_omni_tts_NativeEngine_processDirect(
-              JNIEnv* env, jobject,
-              jobject directBuffer, jint length,
+              JNIEnv* env, jobject, jobject directBuffer, jint length,
               jobjectArray jKeys, jobjectArray jVals,
               jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
-              jstring jLat, jstring jNonLat,
-              jstring jMode)
+              jstring jLat, jstring jNonLat, jstring jMode)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
               void* buf=env->GetDirectBufferAddress(directBuffer);
@@ -633,23 +473,17 @@ jobs:
               std::string mode(modeC); env->ReleaseStringUTFChars(jMode,modeC);
 
               std::string result;
-              if(mode=="dual"){
-                  auto chunks=buildDualChunks(processed,latFall,nonLatFall);
-                  for(size_t i=0;i<chunks.size();i++){
-                      result+=chunks[i].lang+"|"+chunks[i].text;
-                      if(i+1<chunks.size()) result+="||";
-                  }
-              } else if(mode=="mix"){
-                  auto chunks=buildMixChunks(processed,latFall,nonLatFall);
-                  for(size_t i=0;i<chunks.size();i++){
-                      result+=chunks[i].lang+"|"+chunks[i].text;
-                      if(i+1<chunks.size()) result+="||";
+              if (mode == "mix") {
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall);
+                  for(size_t i=0; i<chunks.size(); i++){
+                      result += chunks[i].lang + "|" + chunks[i].text;
+                      if(i+1 < chunks.size()) result += "||";
                   }
               } else {
-                  auto chunks=buildAutoChunks(processed,latFall,nonLatFall);
-                  for(size_t i=0;i<chunks.size();i++){
-                      result+=chunks[i].lang+"|"+chunks[i].text;
-                      if(i+1<chunks.size()) result+="||";
+                  auto chunks = buildAutoChunks(processed, latFall, nonLatFall);
+                  for(size_t i=0; i<chunks.size(); i++){
+                      result += chunks[i].lang + "|" + chunks[i].text;
+                      if(i+1 < chunks.size()) result += "||";
                   }
               }
               return env->NewStringUTF(result.c_str());
@@ -1180,8 +1014,8 @@ jobs:
           "                    var availableLocales by remember { mutableStateOf(listOf<Locale>()) }\n"
           "                    var selLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(selLangIso, selEngPkg)) }\n"
           "                    var readingMode by remember { mutableStateOf(prefs.getReadingMode()) }\n"
-          "                    val readingModeOptions = listOf(\"Single Mode\", \"Auto Mode\", \"Mix Language Mode\")\n"
-          "                    val readingModeKeys = listOf(\"single\", \"auto\", \"mix\")\n"
+          "                    val readingModeOptions = listOf(\"Auto Mode\", \"Mix Language Mode\")\n"
+          "                    val readingModeKeys = listOf(\"auto\", \"mix\")\n"
           "                    LaunchedEffect(selEngPkg, selLangIso) {\n"
           "                        if (selEngPkg != \"NOT_SET\") {\n"
           "                            tempTts?.shutdown()\n"
