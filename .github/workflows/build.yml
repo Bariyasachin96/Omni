@@ -381,27 +381,35 @@ jobs:
               return chunks;
           }
 
-          // Mix mode: CLD2 for sentence base language, then char-by-char splitting.
+          // Pure Mix Mode: Sentence-level detection combined with character-by-character script split
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> result;
               for(auto& sentence : sentences) {
                   if (sentence.empty()) continue;
+
                   std::string baseLang = detectLang(sentence, latFall, nonLatFall);
+                  // Ensure Latin words read via latFall, and non-Latin read via baseLang (or nonLatFall if base is English)
+                  std::string actualNonLat = (baseLang == latFall || baseLang == "en") ? nonLatFall : baseLang;
+
                   std::string curLang = "";
                   std::string curBuf = "";
                   std::string neutralBuf = "";
                   int i = 0;
                   int len = (int)sentence.size();
+
                   while(i < len) {
                       int clen = 0;
                       int cp = utf8ToCodepoint((const unsigned char*)&sentence[i], clen);
                       std::string ch = sentence.substr(i, clen);
+
                       if (isUnknownChar(cp)) {
                           neutralBuf += ch;
                           i += clen;
                           continue;
                       }
-                      std::string charLang = isLatinChar(cp) ? latFall : baseLang;
+
+                      std::string charLang = isLatinChar(cp) ? latFall : actualNonLat;
+
                       if (curLang.empty()) {
                           curLang = charLang;
                           curBuf += neutralBuf + ch;
@@ -420,7 +428,7 @@ jobs:
                   }
                   curBuf += neutralBuf;
                   if (!curBuf.empty()) {
-                      if (curLang.empty()) curLang = baseLang;
+                      if (curLang.empty()) curLang = actualNonLat;
                       result.push_back({curLang, curBuf});
                   }
               }
