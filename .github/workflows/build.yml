@@ -363,13 +363,15 @@ jobs:
               }
 
               // 2. "If language can't be detected, reads by user-preferred language."
-              // Fallback: Check first valid char. If Latin -> latFall, If Non-Latin -> nonLatFall
+              // Fallback: Check first valid char. Get exact script to prevent wrong TTS routing.
               i = 0;
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
                   if(!isUnknownChar(cp)) {
-                      return isLatinChar(cp) ? latFall : nonLatFall;
+                      if (isLatinChar(cp)) return latFall;
+                      const char* sl = scriptLookupChar(cp);
+                      return sl ? std::string(sl) : nonLatFall;
                   }
                   i += clen;
               }
@@ -415,7 +417,14 @@ jobs:
                           continue;
                       }
 
-                      std::string charLang = isLatinChar(cp) ? latFall : actualNonLat;
+                      // STRICT SCRIPT ISOLATION: Don't group all Non-Latin into actualNonLat
+                      std::string charLang;
+                      if (isLatinChar(cp)) {
+                          charLang = latFall;
+                      } else {
+                          const char* sl = scriptLookupChar(cp);
+                          charLang = sl ? std::string(sl) : actualNonLat;
+                      }
 
                       if (curLang.empty()) {
                           curLang = charLang;
