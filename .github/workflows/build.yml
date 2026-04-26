@@ -333,13 +333,13 @@ jobs:
                      isUnknownChar(cp);
           }
 
-          // detectLang: "Reads text by most possible language. If language can't be detected, reads by user-preferred language."
+          // detectLang: Pure Direct CLD2 Detection
           static std::string detectLang(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
               const int WINDOW = 64;
               int len = (int)text.size();
               int i = 0;
 
-              // 1. Try to detect "Most possible language" using CLD2
+              // 1. Direct CLD2 Detection (Trust CLD2 completely)
               while(i < len) {
                   int byteStart = i;
                   int charCount = 0;
@@ -355,43 +355,27 @@ jobs:
                   CLD2::Language lang = CLD2::DetectLanguage(text.c_str() + byteStart, j - byteStart, true, &is_rel);
                   const char* code = CLD2::LanguageCode(lang);
 
-                  // Accept if reliable
-                  if(is_rel && code && strlen(code) >= 2 && strcmp(code, "un") != 0 && strcmp(code, "xx") != 0 && strcmp(code, "Unknown") != 0) {
+                  // STRICT FIX: Accept CLD2's direct guess without forcing 'is_rel'. 
+                  // This restores the original app's highly accurate native auto-detection.
+                  if(code && strlen(code) >= 2 && strcmp(code, "un") != 0 && strcmp(code, "xx") != 0 && strcmp(code, "Unknown") != 0) {
                       return std::string(code);
                   }
                   i = j;
               }
 
-              // 2. Fallback: Character Counting instead of First-Character guess
+              // 2. Ultimate Fallback ONLY if CLD2 returns completely "Unknown"
               i = 0;
-              int latinCount = 0;
-              int nonLatinCount = 0;
-              std::string firstNonLatScript = "";
-
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
                   if(!isUnknownChar(cp)) {
-                      if (isLatinChar(cp)) {
-                          latinCount++;
-                      } else {
-                          nonLatinCount++;
-                          if (firstNonLatScript.empty()) {
-                              const char* sl = scriptLookupChar(cp);
-                              if (sl) firstNonLatScript = std::string(sl);
-                          }
-                      }
+                      if (isLatinChar(cp)) return latFall;
+                      const char* sl = scriptLookupChar(cp);
+                      return sl ? std::string(sl) : nonLatFall;
                   }
                   i += clen;
               }
-
-              // Give priority to Non-Latin. English engines butcher Hindi, but Hindi engines read English fine.
-              // If even 25% of the text is Non-Latin, route to the Non-Latin engine.
-              if (nonLatinCount > 0 && nonLatinCount >= (latinCount / 3)) {
-                  return firstNonLatScript.empty() ? nonLatFall : firstNonLatScript;
-              }
-
-              return (latinCount > nonLatinCount) ? latFall : nonLatFall;
+              return nonLatFall;
           }
 
           struct ChunkResult { std::string lang; std::string text; };
@@ -413,7 +397,6 @@ jobs:
                   if (sentence.empty()) continue;
 
                   std::string baseLang = detectLang(sentence, latFall, nonLatFall);
-                  // Ensure Latin words read via latFall, and non-Latin read via baseLang (or nonLatFall if base is English)
                   std::string actualNonLat = (baseLang == latFall || baseLang == "en") ? nonLatFall : baseLang;
 
                   std::string curLang = "";
@@ -433,7 +416,6 @@ jobs:
                           continue;
                       }
 
-                      // STRICT SCRIPT ISOLATION: Don't group all Non-Latin into actualNonLat
                       std::string charLang;
                       if (isLatinChar(cp)) {
                           charLang = latFall;
