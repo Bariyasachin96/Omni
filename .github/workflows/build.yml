@@ -388,43 +388,67 @@ jobs:
               return chunks;
           }
 
-          // Pure Mix Mode: Split ONLY when script changes. No character length constraints.
+          // TRUE HYBRID MIX MODE: Native C++ Port of Auto TTS (Exact Script Splitting + CLD2 Verification)
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> result;
+
               std::string fullText = "";
-              for(auto& s: sentences) { if(!s.empty()) { if(!fullText.empty()) fullText += " "; fullText += s; } }
+              for(auto& s: sentences) {
+                  if(!s.empty()) fullText += s + " ";
+              }
               if(fullText.empty()) return result;
 
-              struct ScriptBlock { bool isLatin; std::string text; };
-              std::vector<ScriptBlock> scriptBlocks;
+              struct ScriptBlock { std::string text; std::string scriptType; };
+              std::vector<ScriptBlock> blocks;
+
               std::string curBuf = "";
-              bool curIsLatin = true;
-              bool isFirst = true;
+              std::string curScript = "";
 
               int i = 0;
               int len = (int)fullText.size();
+
+              // LAYER 1: Exact Script Boundary Splitting (Translating original a.java logic)
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
                   std::string ch = fullText.substr(i, clen);
 
+                  std::string charScript;
                   if (isUnknownChar(cp)) {
-                      curBuf += ch; i += clen; continue;
+                      charScript = "Neutral";
+                  } else if (isLatinChar(cp)) {
+                      charScript = "Latin";
+                  } else {
+                      // FIXED: Accurately distinguish between different non-Latin scripts
+                      const char* sl = scriptLookup(cp);
+                      charScript = sl ? std::string(sl) : "UnknownNonLatin";
                   }
 
-                  bool charIsLatin = isLatinChar(cp);
-                  if (isFirst) { curIsLatin = charIsLatin; curBuf += ch; isFirst = false; }
-                  else if (charIsLatin != curIsLatin) {
-                      scriptBlocks.push_back({curIsLatin, curBuf});
-                      curBuf = ch; curIsLatin = charIsLatin;
-                  } else { curBuf += ch; }
+                  if (curScript.empty() || curScript == "Neutral") {
+                      curScript = (charScript == "Neutral") ? "" : charScript;
+                      curBuf += ch;
+                  } else if (charScript == "Neutral" || charScript == curScript) {
+                      curBuf += ch;
+                  } else {
+                      blocks.push_back({curBuf, curScript});
+                      curBuf = ch;
+                      curScript = charScript;
+                  }
                   i += clen;
               }
-              if (!curBuf.empty()) scriptBlocks.push_back({curIsLatin, curBuf});
+              if (!curBuf.empty()) {
+                  blocks.push_back({curBuf, curScript});
+              }
 
-              // Apply CLD2 Logic to each Script Block
-              for (auto& block : scriptBlocks) {
+              // LAYER 2 & 3: CLD2 Verification and Zero-Latency Merge
+              for (auto& block : blocks) {
+                  if(block.text.find_first_not_of(" \t\n\r") == std::string::npos) {
+                      if(!result.empty()) result.back().text += block.text;
+                      continue;
+                  }
+
                   std::string detected = detectLang(block.text, latFall, nonLatFall);
+
                   if (!result.empty() && result.back().lang == detected) {
                       result.back().text += block.text;
                   } else {
@@ -433,10 +457,11 @@ jobs:
               }
 
               if (!result.empty()) {
-                  while(!result.back().text.empty() && (result.back().text.back() == ' ' || result.back().text.back() == '\n')) {
+                  while(!result.back().text.empty() && (result.back().text.back() == ' ' || result.back().text.back() == '\n' || result.back().text.back() == '\r')) {
                       result.back().text.pop_back();
                   }
               }
+
               return result;
           }
 
