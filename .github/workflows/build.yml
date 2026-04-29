@@ -880,7 +880,6 @@ jobs:
           "        VhLogger.markStop()\n"
           "        activeStop.get().set(true)\n"
           "        enginePool.values.forEach { try { it.stop() } catch (_: Exception) {} }\n"
-          "        currentChunkLatch?.countDown()\n"
           "    }\n"
           "    // ── KEY FIX: onSynthesizeText MUST NOT block on Android 16 ──\n"
           "    // TalkBack calls onStop() if this thread blocks, killing the chain.\n"
