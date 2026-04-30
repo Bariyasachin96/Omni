@@ -776,6 +776,7 @@ jobs:
           "    fun isDualMode(): Boolean = getReadingMode() == \"dual\"\n"
           "    fun isMixMode(): Boolean = getReadingMode() == \"mix\"\n"
           "    fun isSplitMode(): Boolean = isDualMode() || isMixMode()\n"
+          "    fun getReadingModeInt(): Int = when(getReadingMode()) { \"dual\" -> 1; \"mix\" -> 4; \"single\" -> 3; else -> 2 }\n"
           "    fun addDict(from: String, to: String) = prefs.edit().putString(\"word_$from\", to).apply()\n"
           "    fun removeDict(from: String) = prefs.edit().remove(\"word_$from\").apply()\n"
           "    fun clearDict() { val e=prefs.edit(); prefs.all.keys.filter{it.startsWith(\"word_\")}.forEach{e.remove(it)}; e.apply() }\n"
@@ -1194,10 +1195,6 @@ jobs:
           "    override fun onDestroy() {\n"
           "        activeStop.get().set(true)\n"
           "        enginePool.values.forEach { try { it.shutdown() } catch (_: Exception) {} }\n"
-          "        enginePool.clear()\n"
-          "        super.onDestroy()\n"
-          "    }\n"
-          "}\n")
           "        enginePool.clear()\n"
           "        super.onDestroy()\n"
           "    }\n"
