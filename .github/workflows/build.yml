@@ -388,161 +388,115 @@ jobs:
               return chunks;
           }
 
-          // TRUE HYBRID MIX MODE: Native C++ Port of Auto TTS (Exact Script Splitting + CLD2 Verification)
-          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall) {
+          // Pure Mix Mode: Split ONLY when script changes. No character length constraints.
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> result;
-
               std::string fullText = "";
               for(auto& s: sentences) {
-                  if(!s.empty()) fullText += s + " ";
+                  if(!s.empty()) {
+                      if(!fullText.empty()) fullText += " ";
+                      fullText += s;
+                  }
               }
               if(fullText.empty()) return result;
-
-              struct ScriptBlock { std::string text; std::string scriptType; };
-              std::vector<ScriptBlock> blocks;
-
+              std::string curLang = "";
               std::string curBuf = "";
-              std::string curScript = "";
-
+              std::string neutralBuf = "";
               int i = 0;
               int len = (int)fullText.size();
-
-              // LAYER 1: Exact Script Boundary Splitting (Translating original a.java logic)
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
                   std::string ch = fullText.substr(i, clen);
-
-                  // Check punc/num/emoji overrides first (same as dual mode)
-                  bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
-                  std::string forcedLang;
-                  if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
-                      forcedLang = emojiFall;
-                  } else if (isPunct(cp) && puncFall != "auto" && !puncFall.empty()) {
-                      forcedLang = puncFall;
-                  } else if (isNum && numFall != "auto" && !numFall.empty()) {
-                      forcedLang = numFall;
-                  }
-
-                  if (!forcedLang.empty()) {
-                      // Flush current buffer, emit forced-lang char as its own segment
-                      if (!curBuf.empty()) { blocks.push_back({curBuf, curScript}); curBuf = ""; curScript = ""; }
-                      blocks.push_back({ch, forcedLang});
+                  if (isUnknownChar(cp)) {
+                      neutralBuf += ch;
                       i += clen;
                       continue;
                   }
-
-                  std::string charScript;
-                  if (isUnknownChar(cp)) {
-                      charScript = "Neutral";
-                  } else if (isLatinChar(cp)) {
-                      charScript = "Latin";
+                  std::string charLang;
+                  if (isLatinChar(cp)) {
+                      charLang = latFall;
                   } else {
-                      // FIXED: Accurately distinguish between different non-Latin scripts
-                      const char* sl = scriptLookup(cp);
-                      charScript = sl ? std::string(sl) : "UnknownNonLatin";
+                      const char* sl = scriptLookupChar(cp);
+                      charLang = sl ? std::string(sl) : nonLatFall;
                   }
-
-                  if (curScript.empty() || curScript == "Neutral") {
-                      curScript = (charScript == "Neutral") ? "" : charScript;
-                      curBuf += ch;
-                  } else if (charScript == "Neutral" || charScript == curScript) {
-                      curBuf += ch;
-                  } else {
-                      blocks.push_back({curBuf, curScript});
+                  if (curLang.empty()) {
+                      curLang = charLang;
+                      curBuf += neutralBuf + ch;
+                      neutralBuf = "";
+                  } else if (charLang != curLang) {
+                      curBuf += neutralBuf;
+                      neutralBuf = "";
+                      if (!curBuf.empty()) result.push_back({curLang, curBuf});
                       curBuf = ch;
-                      curScript = charScript;
+                      curLang = charLang;
+                  } else {
+                      curBuf += neutralBuf + ch;
+                      neutralBuf = "";
                   }
                   i += clen;
               }
+              curBuf += neutralBuf;
+              while(!curBuf.empty() && (curBuf.back() == ' ' || curBuf.back() == '\n' || curBuf.back() == '\r')) curBuf.pop_back();
               if (!curBuf.empty()) {
-                  blocks.push_back({curBuf, curScript});
+                  if (curLang.empty()) curLang = nonLatFall;
+                  result.push_back({curLang, curBuf});
               }
-
-              // LAYER 2 & 3: CLD2 Verification and Zero-Latency Merge
-              for (auto& block : blocks) {
-                  if(block.text.find_first_not_of(" \t\n\r") == std::string::npos) {
-                      if(!result.empty()) result.back().text += block.text;
-                      continue;
-                  }
-
-                  std::string detected = detectLang(block.text, latFall, nonLatFall);
-
-                  if (!result.empty() && result.back().lang == detected) {
-                      result.back().text += block.text;
-                  } else {
-                      result.push_back({detected, block.text});
-                  }
-              }
-
-              if (!result.empty()) {
-                  while(!result.back().text.empty() && (result.back().text.back() == ' ' || result.back().text.back() == '\n' || result.back().text.back() == '\r')) {
-                      result.back().text.pop_back();
-                  }
-              }
-
               return result;
           }
 
-          // TRUE DUAL MODE: Strict Binary Routing + Punc/Num/Emoji Overrides (Zero Latency)
-          static std::vector<ChunkResult> buildDualChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall) {
+          // Dual Mode: Binary routing — Latin chars → latFall, Non-Latin → nonLatFall
+          static std::vector<ChunkResult> buildDualChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> result;
               std::string fullText = "";
               for(auto& s: sentences) {
-                  if(!s.empty()) fullText += s + " ";
+                  if(!s.empty()) {
+                      if(!fullText.empty()) fullText += " ";
+                      fullText += s;
+                  }
               }
               if(fullText.empty()) return result;
-
-              std::string curBuf = "";
               std::string curLang = "";
+              std::string curBuf = "";
+              std::string neutralBuf = "";
               int i = 0;
               int len = (int)fullText.size();
-
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
                   std::string ch = fullText.substr(i, clen);
-
-                  std::string targetLang;
-                  bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
-
-                  if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
-                      targetLang = emojiFall;
-                  } else if (isPunct(cp) && puncFall != "auto" && !puncFall.empty()) {
-                      targetLang = puncFall;
-                  } else if (isNum && numFall != "auto" && !numFall.empty()) {
-                      targetLang = numFall;
-                  } else if (isUnknownChar(cp)) {
-                      targetLang = "Neutral";
-                  } else if (isLatinChar(cp)) {
-                      targetLang = latFall;
-                  } else {
-                      targetLang = nonLatFall;
+                  if (isUnknownChar(cp)) {
+                      neutralBuf += ch;
+                      i += clen;
+                      continue;
                   }
-
-                  if (curLang.empty() || curLang == "Neutral") {
-                      curLang = (targetLang == "Neutral") ? "" : targetLang;
-                      curBuf += ch;
-                  } else if (targetLang == "Neutral" || targetLang == curLang) {
-                      curBuf += ch;
+                  std::string charLang;
+                  if (isLatinChar(cp)) {
+                      charLang = latFall;
                   } else {
-                      if(!curBuf.empty()) {
-                          if (!result.empty() && result.back().lang == curLang) result.back().text += curBuf;
-                          else result.push_back({curLang.empty() ? latFall : curLang, curBuf});
-                      }
+                      charLang = nonLatFall;
+                  }
+                  if (curLang.empty()) {
+                      curLang = charLang;
+                      curBuf += neutralBuf + ch;
+                      neutralBuf = "";
+                  } else if (charLang != curLang) {
+                      curBuf += neutralBuf;
+                      neutralBuf = "";
+                      if (!curBuf.empty()) result.push_back({curLang, curBuf});
                       curBuf = ch;
-                      curLang = targetLang;
+                      curLang = charLang;
+                  } else {
+                      curBuf += neutralBuf + ch;
+                      neutralBuf = "";
                   }
                   i += clen;
               }
+              curBuf += neutralBuf;
+              while(!curBuf.empty() && (curBuf.back() == ' ' || curBuf.back() == '\n' || curBuf.back() == '\r')) curBuf.pop_back();
               if (!curBuf.empty()) {
-                  if (!result.empty() && result.back().lang == curLang) result.back().text += curBuf;
-                  else result.push_back({curLang.empty() ? latFall : curLang, curBuf});
-              }
-              if (!result.empty()) {
-                  while(!result.back().text.empty() && (result.back().text.back() == ' ' || result.back().text.back() == '\n' || result.back().text.back() == '\r')) {
-                      result.back().text.pop_back();
-                  }
+                  if (curLang.empty()) curLang = latFall;
+                  result.push_back({curLang, curBuf});
               }
               return result;
           }
@@ -552,26 +506,27 @@ jobs:
               JNIEnv* env, jobject, jobject directBuffer, jint length,
               jobjectArray jKeys, jobjectArray jVals,
               jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
-              jstring jLat, jstring jNonLat, jstring jMode,
-              jstring jPunc, jstring jNum, jstring jEmoji)
+              jstring jLat, jstring jNonLat, jstring jMode)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
               void* buf=env->GetDirectBufferAddress(directBuffer);
               if(!buf) return env->NewStringUTF("");
               std::string rawInput((const char*)buf,(size_t)length);
 
-              const char* latC=env->GetStringUTFChars(jLat,nullptr); std::string latFall(latC); env->ReleaseStringUTFChars(jLat,latC);
-              const char* nonLatC=env->GetStringUTFChars(jNonLat,nullptr); std::string nonLatFall(nonLatC); env->ReleaseStringUTFChars(jNonLat,nonLatC);
-              const char* modeC=env->GetStringUTFChars(jMode,nullptr); std::string mode(modeC); env->ReleaseStringUTFChars(jMode,modeC);
-              const char* puncC=env->GetStringUTFChars(jPunc,nullptr); std::string puncFall(puncC); env->ReleaseStringUTFChars(jPunc,puncC);
-              const char* numC=env->GetStringUTFChars(jNum,nullptr); std::string numFall(numC); env->ReleaseStringUTFChars(jNum,numC);
-              const char* emojiC=env->GetStringUTFChars(jEmoji,nullptr); std::string emojiFall(emojiC); env->ReleaseStringUTFChars(jEmoji,emojiC);
+              const char* latC=env->GetStringUTFChars(jLat,nullptr);
+              std::string latFall(latC); env->ReleaseStringUTFChars(jLat,latC);
+              const char* nonLatC=env->GetStringUTFChars(jNonLat,nullptr);
+              std::string nonLatFall(nonLatC); env->ReleaseStringUTFChars(jNonLat,nonLatC);
 
               std::vector<std::string> keys,vals;
               int dictSize=env->GetArrayLength(jKeys);
               for(int i=0;i<dictSize;i++){
-                  jstring jk=(jstring)env->GetObjectArrayElement(jKeys,i); const char* kc=env->GetStringUTFChars(jk,nullptr); keys.push_back(kc); env->ReleaseStringUTFChars(jk,kc); env->DeleteLocalRef(jk);
-                  jstring jv=(jstring)env->GetObjectArrayElement(jVals,i); const char* vc=env->GetStringUTFChars(jv,nullptr); vals.push_back(vc); env->ReleaseStringUTFChars(jv,vc); env->DeleteLocalRef(jv);
+                  jstring jk=(jstring)env->GetObjectArrayElement(jKeys,i);
+                  const char* kc=env->GetStringUTFChars(jk,nullptr);
+                  keys.push_back(kc); env->ReleaseStringUTFChars(jk,kc); env->DeleteLocalRef(jk);
+                  jstring jv=(jstring)env->GetObjectArrayElement(jVals,i);
+                  const char* vc=env->GetStringUTFChars(jv,nullptr);
+                  vals.push_back(vc); env->ReleaseStringUTFChars(jv,vc); env->DeleteLocalRef(jv);
               }
 
               std::vector<std::string> sentences;
@@ -579,22 +534,37 @@ jobs:
               while(end!=std::string::npos){ sentences.push_back(rawInput.substr(start,end-start)); start=end+1; end=rawInput.find('\0',start); }
               if(start<rawInput.size()) sentences.push_back(rawInput.substr(start));
 
-              std::vector<std::string> processed; processed.reserve(sentences.size());
+              std::vector<std::string> processed;
+              processed.reserve(sentences.size());
               for(auto& s: sentences){
                   if(s.empty()){ processed.push_back(""); continue; }
-                  auto d=applyDictionary(s,keys,vals); d=normalizeText(d,keepEmoji,countEmoji,countPunct); processed.push_back(d);
+                  auto d=applyDictionary(s,keys,vals);
+                  d=normalizeText(d,keepEmoji,countEmoji,countPunct);
+                  processed.push_back(d);
               }
+
+              const char* modeC=env->GetStringUTFChars(jMode,nullptr);
+              std::string mode(modeC); env->ReleaseStringUTFChars(jMode,modeC);
 
               std::string result;
               if (mode == "dual") {
-                  auto chunks = buildDualChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall);
-                  for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+                  auto chunks = buildDualChunks(processed, latFall, nonLatFall);
+                  for(size_t i=0; i<chunks.size(); i++){
+                      result += chunks[i].lang + "|" + chunks[i].text;
+                      if(i+1 < chunks.size()) result += "||";
+                  }
               } else if (mode == "mix") {
-                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall);
-                  for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall);
+                  for(size_t i=0; i<chunks.size(); i++){
+                      result += chunks[i].lang + "|" + chunks[i].text;
+                      if(i+1 < chunks.size()) result += "||";
+                  }
               } else {
                   auto chunks = buildAutoChunks(processed, latFall, nonLatFall);
-                  for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+                  for(size_t i=0; i<chunks.size(); i++){
+                      result += chunks[i].lang + "|" + chunks[i].text;
+                      if(i+1 < chunks.size()) result += "||";
+                  }
               }
               return env->NewStringUTF(result.c_str());
           }
@@ -611,8 +581,7 @@ jobs:
           "        keys: Array<String>, vals: Array<String>,\n"
           "        keepEmoji: Boolean, countEmoji: Boolean, countPunct: Boolean,\n"
           "        latFall: String, nonLatFall: String,\n"
-          "        mode: String,\n"
-          "        puncFall: String, numFall: String, emojiFall: String\n"
+          "        mode: String\n"
           "    ): String\n"
           "}\n")
 
@@ -754,8 +723,18 @@ jobs:
           "package com.omni.tts\n"
           "import android.content.Context\n"
           "import android.content.SharedPreferences\n"
+          "import android.os.Build\n"
+          "import android.os.UserManager\n"
           "class SharedPrefsManager(context: Context) {\n"
-          "    private val prefs: SharedPreferences = context.getSharedPreferences(\"VH_PREFS\", Context.MODE_PRIVATE)\n"
+          "    private val safeContext = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {\n"
+          "        val deCtx = context.createDeviceProtectedStorageContext()\n"
+          "        try {\n"
+          "            val um = context.getSystemService(Context.USER_SERVICE) as UserManager\n"
+          "            if (um.isUserUnlocked) deCtx.moveSharedPreferencesFrom(context, \"VH_PREFS\")\n"
+          "        } catch (e: Exception) {}\n"
+          "        deCtx\n"
+          "    } else context\n"
+          "    private val prefs: SharedPreferences = safeContext.getSharedPreferences(\"VH_PREFS\", Context.MODE_PRIVATE)\n"
           "    fun getEngineForLanguage(lang: String): String {\n"
           "        val sysLang = java.util.Locale.getDefault().language\n"
           "        val def = if (lang.equals(sysLang, ignoreCase = true)) \"com.google.android.tts\" else \"NOT_SET\"\n"
@@ -775,8 +754,6 @@ jobs:
           "    fun setReadingMode(mode: String) = prefs.edit().putString(\"reading_mode\", mode).apply()\n"
           "    fun isDualMode(): Boolean = getReadingMode() == \"dual\"\n"
           "    fun isMixMode(): Boolean = getReadingMode() == \"mix\"\n"
-          "    fun isSplitMode(): Boolean = isDualMode() || isMixMode()\n"
-          "    fun getReadingModeInt(): Int = when(getReadingMode()) { \"dual\" -> 1; \"mix\" -> 4; \"single\" -> 3; else -> 2 }\n"
           "    fun addDict(from: String, to: String) = prefs.edit().putString(\"word_$from\", to).apply()\n"
           "    fun removeDict(from: String) = prefs.edit().remove(\"word_$from\").apply()\n"
           "    fun clearDict() { val e=prefs.edit(); prefs.all.keys.filter{it.startsWith(\"word_\")}.forEach{e.remove(it)}; e.apply() }\n"
@@ -801,7 +778,7 @@ jobs:
           "    }\n"
           "}\n")
 
-          # ── ComposeTtsService.kt — 100% Source-Verified Auto TTS Logic ──
+          # ── ComposeTtsService.kt — Auto TTS Architecture with Sequential Latch ──
           w("app/src/main/java/com/omni/tts/ComposeTtsService.kt",
           "package com.omni.tts\n"
           "import android.speech.tts.SynthesisCallback\n"
@@ -816,387 +793,208 @@ jobs:
           "import java.util.concurrent.TimeUnit\n"
           "import java.util.concurrent.atomic.AtomicBoolean\n"
           "import java.util.concurrent.atomic.AtomicReference\n"
-          "// ══════════════════════════════════════════════════════════════════\n"
-          "// SOURCE-VERIFIED Auto TTS field/method map:\n"
-          "//\n"
-          "// field_9018 (D) = static ArrayList  -> global chunk queue H\n"
-          "// field_9019 (E) = mode int           -> 1=dual 2=auto 3=single 4=mix\n"
-          "// field_9016 (B) = latFall string     -> mixed_mode_latin_language\n"
-          "// field_9017 (C) = nonLatFall string  -> mixed_mode_non_latin_language\n"
-          "// field_9033 (w) = auto mode lang     -> auto_mode_language\n"
-          "// field_9034 (x) = dual mode lang     -> dual_mode_language\n"
-          "// field_9029 (O) = current utteranceId\n"
-          "// field_9025 (K) = QUEUE_FLUSH/ADD\n"
-          "// field_9044 (h) = sysRate int        -> request.speechRate\n"
-          "// field_9045 (i) = sysPitch int       -> request.pitch\n"
-          "// field_9043 (g) = params Bundle      -> request.params\n"
-          "// field_9038 (b) = current engine idx\n"
-          "// field_9040 (d) = engine list ArrayList<class_357>\n"
-          "// field_9047 (k) = stop flag 1\n"
-          "// field_9048 (l) = stop flag 2\n"
-          "//\n"
-          "// method_11122 A(callback) = callback.start(16000,2,1) + callback.done()\n"
-          "// method_11123 B(callback) = k=true ONLY (no done!)\n"
-          "// method_11124 C(lang)     = engine pkg lookup (E==3 -> google)\n"
-          "// method_11125 D(lang)     = per-lang pitch%   (field_805)\n"
-          "// method_11126 E(lang)     = per-lang rate%    (field_803)\n"
-          "// method_11129 H(lang)     = per-lang vol%     (field_804)\n"
-          "// method_11127 F(lang)     = locale string for lang (field_807)\n"
-          "// method_11145 Y()         = onStop impl\n"
-          "//\n"
-          "// onDone SOURCE-VERIFIED:\n"
-          "//   if s != O -> B(callback) [k=true, NO done]\n"
-          "//   else if D.size() <= 1 -> B(callback) [k=true, NO done] -- WAIT LOOP CALLS A()\n"
-          "//   else D.remove(0) -> mode routing -> setSpeechRate/Pitch -> speak()\n"
-          "//   on onLoadLanguage==-2/-1 -> B(callback) [k=true only]\n"
-          "//   on speak()!=0 -> B(callback) [k=true only]\n"
-          "//\n"
-          "// onError SOURCE-VERIFIED:\n"
-          "//   calls A(callback) -- start+done BOTH! Not just k=true!\n"
-          "//\n"
-          "// Y() SOURCE-VERIFIED:\n"
-          "//   field_9018.clear() + each engine method_1400() [stop if status==2]\n"
-          "//   k=true + l=true\n"
-          "//\n"
-          "// ANDROID 16 ADAPTATION:\n"
-          "//   Original blocks onSynthesizeText via Thread.sleep(10) loop\n"
-          "//   We return immediately after speak() and drive chain from onDone\n"
-          "//   A() is called from speakNext() when queue empty / stop / error\n"
-          "// ══════════════════════════════════════════════════════════════════\n"
           "class ComposeTtsService : TextToSpeechService() {\n"
-          "    private val enginePool  = ConcurrentHashMap<String, TextToSpeech>()\n"
+          "    private val enginePool = ConcurrentHashMap<String, TextToSpeech>()\n"
           "    private val engineLocks = ConcurrentHashMap<String, Any>()\n"
           "    private lateinit var prefs: SharedPrefsManager\n"
-          "    // k + l stop flags (field_9047, field_9048)\n"
           "    private val activeStop = AtomicReference(AtomicBoolean(true))\n"
-          "    // D equivalent — global chunk queue cleared in Y()\n"
-          "    private val chunkQueueLock = Any()\n"
-          "    @Volatile private var pendingChunkQueue: ArrayDeque<Pair<String,String>> = ArrayDeque()\n"
-          "    private fun getLocale(iso: String): Locale =\n"
-          "        try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }\n"
+          "    @Volatile private var currentChunkLatch: CountDownLatch? = null\n"
+          "    private fun getLocale(iso: String): Locale = try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }\n"
           "    override fun onCreate() {\n"
           "        super.onCreate()\n"
           "        VhLogger.init(this)\n"
-          "        VhLogger.i(\"[SERVICE] Omni v20 Booted - 100% Source-Verified Auto TTS\")\n"
+          "        VhLogger.i(\"[SERVICE] Omni v16 Booted\")\n"
           "        prefs = SharedPrefsManager(this)\n"
-          "        val latFall    = prefs.getString(\"mixed_mode_latin_language\",     \"en\")\n"
+          "        val latFall = prefs.getString(\"mixed_mode_latin_language\", \"en\")\n"
           "        val nonLatFall = prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")\n"
+          "        VhLogger.i(\"[SERVICE] Pre-warming engines: latFall=$latFall nonLatFall=$nonLatFall\")\n"
           "        Thread {\n"
-          "            initEngine(latFall)\n"
-          "            if (nonLatFall != latFall) initEngine(nonLatFall)\n"
+          "            initEngineForLang(latFall)\n"
+          "            if (nonLatFall != latFall) initEngineForLang(nonLatFall)\n"
           "        }.start()\n"
           "    }\n"
-          "    // Engine init — mirrors class_2631.onInit chain\n"
-          "    private fun initEngine(lang: String): TextToSpeech? {\n"
-          "        val pkg = C(lang)\n"
-          "        if (pkg.isEmpty() || pkg == \"Disable\") return null\n"
-          "        enginePool[lang]?.let { return it }\n"
+          "    private fun initEngineForLang(lang: String): TextToSpeech? {\n"
+          "        val pkg = prefs.getEngineForLanguage(lang)\n"
+          "        VhLogger.d(\"[ENGINE-INIT] initEngineForLang lang=$lang resolvedPkg=$pkg\")\n"
+          "        if (pkg == \"NOT_SET\") { VhLogger.markEngineNull(lang); return null }\n"
+          "        enginePool[lang]?.let { VhLogger.markEngineReused(lang); return it }\n"
           "        val lock = engineLocks.getOrPut(lang) { Any() }\n"
           "        synchronized(lock) {\n"
-          "            enginePool[lang]?.let { return it }\n"
+          "            enginePool[lang]?.let { VhLogger.markEngineReused(lang); return it }\n"
+          "            VhLogger.d(\"[ENGINE-INIT] creating new TextToSpeech lang=$lang pkg=$pkg\")\n"
+          "            val t0 = System.currentTimeMillis()\n"
           "            val latch = CountDownLatch(1)\n"
-          "            val ref   = arrayOfNulls<TextToSpeech>(1)\n"
+          "            val ref = arrayOfNulls<TextToSpeech>(1)\n"
           "            ref[0] = TextToSpeech(this, { status ->\n"
+          "                VhLogger.d(\"[ENGINE-INIT] onInit status=$status lang=$lang pkg=$pkg elapsed=${System.currentTimeMillis()-t0}ms\")\n"
           "                if (status == TextToSpeech.SUCCESS) {\n"
-          "                    ref[0]?.setAudioAttributes(\n"
-          "                        android.media.AudioAttributes.Builder()\n"
-          "                            .setUsage(11).setContentType(1).build())\n"
-          "                    val tag = prefs.getLocaleForLangPkg(lang, pkg)\n"
-          "                        .ifEmpty { getLocale(lang).toLanguageTag() }\n"
-          "                    try { ref[0]?.language = Locale.forLanguageTag(tag) }\n"
-          "                    catch (_: Exception) { ref[0]?.language = getLocale(lang) }\n"
+          "                    val audioAttrs = android.media.AudioAttributes.Builder()\n"
+          "                        .setUsage(11)\n"
+          "                        .setContentType(1)\n"
+          "                        .build()\n"
+          "                    ref[0]?.setAudioAttributes(audioAttrs)\n"
+          "                    val tag = prefs.getLocaleForLangPkg(lang, pkg).ifEmpty { getLocale(lang).toLanguageTag() }\n"
+          "                    VhLogger.d(\"[ENGINE-INIT] setting language tag=$tag for lang=$lang\")\n"
+          "                    try { ref[0]?.language = Locale.forLanguageTag(tag) } catch (_: Exception) { ref[0]?.language = getLocale(lang) }\n"
+          "                } else {\n"
+          "                    VhLogger.e(\"[ENGINE-INIT] FAILED status=$status lang=$lang pkg=$pkg\")\n"
           "                }\n"
           "                latch.countDown()\n"
           "            }, pkg)\n"
-          "            latch.await(5, TimeUnit.SECONDS)\n"
+          "            val waited = latch.await(5, TimeUnit.SECONDS)\n"
+          "            VhLogger.d(\"[ENGINE-INIT] latch done waited=$waited lang=$lang elapsed=${System.currentTimeMillis()-t0}ms\")\n"
           "            val tts = ref[0]\n"
-          "            if (tts != null) enginePool[lang] = tts\n"
+          "            if (tts != null) { enginePool[lang] = tts; VhLogger.markEngineInit(lang, pkg, System.currentTimeMillis()-t0) }\n"
+          "            else VhLogger.e(\"[ENGINE-INIT] TextToSpeech ref is null after init lang=$lang\")\n"
+          "            VhLogger.markEnginePoolSize(enginePool.size)\n"
           "            return tts\n"
           "        }\n"
           "    }\n"
-          "    // ── C(lang) source-verified: E==3 -> return lang as-is (google)\n"
-          "    //   else iterate t2/g.b list, match .b field, check .i (disabled), return .f (pkg)\n"
-          "    //   empty string if not found\n"
-          "    private fun C(lang: String): String {\n"
-          "        val mode = prefs.getReadingModeInt()\n"
-          "        if (mode == 3) return \"com.google.android.tts\"\n"
-          "        val pkg = prefs.getEngineForLanguage(lang)\n"
-          "        return if (pkg == \"NOT_SET\") \"\" else pkg\n"
-          "    }\n"
-          "    // ── E(lang) source-verified: iterate class_365.field_764,\n"
-          "    //   match field_802==lang, return field_803 (rate%), default 100\n"
-          "    private fun E_rate(lang: String): Int = prefs.getInt(\"rate_\" + lang,  100)\n"
-          "    // ── D(lang) source-verified: field_805 = pitch%, default 100\n"
-          "    private fun D_pitch(lang: String): Int = prefs.getInt(\"pitch_\" + lang, 100)\n"
-          "    // ── H(lang) source-verified: field_804 = vol%, default 100\n"
-          "    private fun H_vol(lang: String): Int  = prefs.getInt(\"vol_\" + lang,   100)\n"
           "    override fun onGetLanguage(): Array<String> = arrayOf(\"eng\", \"USA\", \"\")\n"
-          "    override fun onIsLanguageAvailable(l: String?, c: String?, v: String?) =\n"
-          "        TextToSpeech.LANG_AVAILABLE\n"
-          "    override fun onLoadLanguage(l: String?, c: String?, v: String?) =\n"
-          "        TextToSpeech.LANG_AVAILABLE\n"
-          "    // ── Y() source-verified exact mirror ──\n"
-          "    // field_9018.clear()  -> pendingChunkQueue.clear()\n"
-          "    // for each engine in d: if status==2 -> method_1400() -> tts.stop()\n"
-          "    // field_9047=true (k), field_9048=true (l)\n"
+          "    override fun onIsLanguageAvailable(l: String?, c: String?, v: String?) = TextToSpeech.LANG_AVAILABLE\n"
+          "    override fun onLoadLanguage(l: String?, c: String?, v: String?) = TextToSpeech.LANG_AVAILABLE\n"
           "    override fun onStop() {\n"
-          "        VhLogger.w(\"[STOP] onStop -- Y() source-verified mirror\")\n"
-          "        synchronized(chunkQueueLock) { pendingChunkQueue.clear() }\n"
+          "        VhLogger.markStop()\n"
           "        activeStop.get().set(true)\n"
-          "        enginePool.values.forEach { tts ->\n"
-          "            try { tts.stop() } catch (_: Exception) {}\n"
-          "        }\n"
-          "        VhLogger.w(\"[STOP] onStop complete\")\n"
-          "    }\n"
-          "    // ── A(callback) source-verified: callback.start(16000,2,1) + callback.done() ──\n"
-          "    private fun A(callback: SynthesisCallback?) {\n"
-          "        try {\n"
-          "            if (callback != null && !callback.hasStarted())\n"
-          "                callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
-          "            callback?.done()\n"
-          "        } catch (_: Exception) {}\n"
+          "        enginePool.values.forEach { try { it.stop() } catch (_: Exception) {} }\n"
+          "        currentChunkLatch?.countDown()\n"
           "    }\n"
           "    override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {\n"
-          "        VhLogger.d(\"[SERVICE] onSynthesizeText textLen=\" +\n"
-          "            (request?.charSequenceText?.length ?: 0) +\n"
-          "            \" rate=\" + (request?.speechRate ?: 0) +\n"
-          "            \" pitch=\" + (request?.pitch ?: 0))\n"
-          "        // Source-verified sequence:\n"
-          "        // 1. Y()         -> clear queue + stop engines + k=l=true\n"
-          "        // 2. k=false, l=false\n"
-          "        // 3. store h=speechRate, i=pitch, g=params\n"
-          "        // 4. get utteranceId from params or V()\n"
-          "        // 5. mode branch -> build D queue\n"
-          "        // 6. onLoadLanguage check on D[0]\n"
-          "        // 7. set rate/pitch, build bundle, register d listener\n"
-          "        // 8. speak(D[0].c(), K, bundle, O)\n"
-          "        // 9. while(!k && !l) Thread.sleep(10)\n"
-          "        // 10. A(callback)\n"
           "        activeStop.get().set(true)\n"
           "        val myStop = AtomicBoolean(false)\n"
           "        activeStop.set(myStop)\n"
-          "        // h = speechRate, i = pitch, g = params (source fields)\n"
-          "        val sysRateInt  = request?.speechRate ?: 100\n"
-          "        val sysPitchInt = request?.pitch      ?: 100\n"
-          "        val sysRate     = sysRateInt  / 100.0f\n"
-          "        val sysPitch    = sysPitchInt / 100.0f\n"
-          "        val rawText = request?.charSequenceText?.toString()?.trim() ?: \"\"\n"
-          "        // Source: if text.equals(\"\") -> A(callback) return\n"
+          "        val rawText = request?.charSequenceText?.toString() ?: \"\"\n"
+          "        VhLogger.d(\"[SERVICE] onSynthesizeText received textLen=${rawText.length} speechRate=${request?.speechRate} pitch=${request?.pitch} lang=${request?.language}_${request?.country}\")\n"
           "        if (rawText.isEmpty() || myStop.get()) {\n"
-          "            VhLogger.d(\"[SERVICE] empty -- A()\")\n"
-          "            A(callback); return\n"
+          "            VhLogger.w(\"[SERVICE] rawText empty or stopped — calling done immediately\")\n"
+          "            callback?.done(); return\n"
           "        }\n"
-          "        val mode       = prefs.getReadingModeInt()  // E field\n"
-          "        val latFall    = prefs.getString(\"mixed_mode_latin_language\",     \"en\")  // B\n"
-          "        val nonLatFall = prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")  // C\n"
-          "        val autoLang   = prefs.getString(\"auto_mode_language\",  latFall)          // w\n"
-          "        val dualLang   = prefs.getString(\"dual_mode_language\",  latFall)          // x\n"
-          "        VhLogger.d(\"[SERVICE] mode=\" + mode + \" B=\" + latFall + \" C=\" + nonLatFall)\n"
-          "        // ── Build D queue via NativeEngine (our t2/l.g and t2/k.g equivalent) ──\n"
-          "        val sentences = mutableListOf<String>()\n"
-          "        val iter = java.text.BreakIterator.getSentenceInstance()\n"
-          "        iter.setText(rawText)\n"
-          "        var start = iter.first(); var end = iter.next()\n"
-          "        while (end != java.text.BreakIterator.DONE) {\n"
-          "            val s = rawText.substring(start, end).trim()\n"
-          "            if (s.isNotEmpty()) sentences.add(s)\n"
-          "            start = end; end = iter.next()\n"
-          "        }\n"
-          "        val joined = sentences.joinToString(\"\\u0000\")\n"
-          "        val bytes  = joined.toByteArray(Charsets.UTF_8)\n"
-          "        val buf    = ByteBuffer.allocateDirect(bytes.size)\n"
-          "        buf.put(bytes); buf.position(0)\n"
-          "        val dictMap    = if (prefs.getBoolean(\"dict_enabled\", false)) prefs.getDict() else emptyMap()\n"
           "        val readingMode = prefs.getReadingMode()\n"
-          "        val nativeOut  = NativeEngine.processDirect(\n"
-          "            buf, bytes.size,\n"
+          "        VhLogger.markMode(readingMode)\n"
+          "        val latFall = prefs.getString(\"mixed_mode_latin_language\", \"en\")\n"
+          "        val nonLatFall = prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")\n"
+          "        VhLogger.d(\"[SERVICE] latFall=$latFall nonLatFall=$nonLatFall\")\n"
+          "        val iterator = java.text.BreakIterator.getSentenceInstance()\n"
+          "        iterator.setText(rawText)\n"
+          "        val sentences = mutableListOf<String>()\n"
+          "        var start = iterator.first(); var end = iterator.next()\n"
+          "        while (end != java.text.BreakIterator.DONE) {\n"
+          "            val s = rawText.substring(start, end).trim(); if (s.isNotEmpty()) sentences.add(s)\n"
+          "            start = end; end = iterator.next()\n"
+          "        }\n"
+          "        VhLogger.d(\"[SERVICE] BreakIterator produced ${sentences.size} sentences\")\n"
+          "        val joined = sentences.joinToString(\"\\u0000\")\n"
+          "        val bytes = joined.toByteArray(Charsets.UTF_8)\n"
+          "        VhLogger.markNativeInput(sentences.size, bytes.size)\n"
+          "        val directBuffer = ByteBuffer.allocateDirect(bytes.size)\n"
+          "        directBuffer.put(bytes); directBuffer.position(0)\n"
+          "        val dictMap = if (prefs.getBoolean(\"dict_enabled\", false)) prefs.getDict() else emptyMap()\n"
+          "        val dictEnabledVal = prefs.getBoolean(\"dict_enabled\", false)\n"
+          "        VhLogger.d(\"[SERVICE] dictEnabled=$dictEnabledVal dictEntries=${dictMap.size}\")\n"
+          "        val nativeOutput = NativeEngine.processDirect(\n"
+          "            directBuffer, bytes.size,\n"
           "            dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
           "            prefs.getBoolean(\"emoji_reading\", true),\n"
-          "            prefs.getBoolean(\"emoji_count\",   false),\n"
-          "            prefs.getBoolean(\"punct_count\",   false),\n"
-          "            latFall, nonLatFall, readingMode,\n"
-          "            if (mode == 1) prefs.getString(\"dual_punc_lang\",  \"auto\") else prefs.getString(\"mix_punc_lang\",  \"auto\"),\n"
-          "            if (mode == 1) prefs.getString(\"dual_num_lang\",   \"auto\") else prefs.getString(\"mix_num_lang\",   \"auto\"),\n"
-          "            if (mode == 1) prefs.getString(\"dual_emoji_lang\", \"auto\") else prefs.getString(\"mix_emoji_lang\", \"auto\")\n"
+          "            prefs.getBoolean(\"emoji_count\", false),\n"
+          "            prefs.getBoolean(\"punct_count\", false),\n"
+          "            latFall, nonLatFall, readingMode\n"
           "        )\n"
-          "        // ── D queue build ──\n"
-          "        val H = ArrayDeque<Pair<String, String>>()\n"
-          "        for (chunkStr in nativeOut.split(\"||\")) {\n"
+          "        val chunkStrings = nativeOutput.split(\"||\").filter { it.isNotBlank() }\n"
+          "        VhLogger.markNativeOutput(nativeOutput, chunkStrings.size)\n"
+          "        VhLogger.markRequest(rawText, chunkStrings.size)\n"
+          "        val sysRate = maxOf(0.1f, (request?.speechRate ?: 100) / 100.0f)\n"
+          "        val sysPitch = maxOf(0.1f, (request?.pitch ?: 100) / 100.0f)\n"
+          "        VhLogger.d(\"[SERVICE] sysRate=$sysRate sysPitch=$sysPitch\")\n"
+          "        val totalChunks = chunkStrings.size\n"
+          "        if (totalChunks == 0) { callback?.done(); return }\n"
+          "        callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
+          "        var chunkIndex = 0\n"
+          "        for (chunkStr in chunkStrings) {\n"
+          "            if (myStop.get()) {\n"
+          "                VhLogger.w(\"[SERVICE] myStop=true before chunk — aborting loop\")\n"
+          "                break\n"
+          "            }\n"
           "            val parts = chunkStr.split(\"|\", limit = 2)\n"
-          "            if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank())\n"
-          "                H.addLast(Pair(parts[0], parts[1]))\n"
-          "        }\n"
-          "        synchronized(chunkQueueLock) { pendingChunkQueue = H }\n"
-          "        VhLogger.d(\"[QUEUE] chunks=\" + H.size + \" mode=\" + mode)\n"
-          "        if (H.isEmpty()) { A(callback); return }\n"
-          "        // ── Recursive chain: mirrors class_2632.onDone source logic ──\n"
-          "        var chunkIdx = 0\n"
-          "        fun speakNext() {\n"
-          "            // k||l check\n"
-          "            if (myStop.get()) { VhLogger.w(\"[CHAIN] stopped -- A()\"); A(callback); return }\n"
-          "            // D.size() <= 1 after remove(0) -> done\n"
-          "            val chunk: Pair<String, String>?\n"
-          "            synchronized(chunkQueueLock) {\n"
-          "                chunk = if (H.isEmpty()) null else H.removeFirst()\n"
+          "            if (parts.size < 2 || parts[1].trim().isEmpty()) {\n"
+          "                VhLogger.w(\"[SERVICE] malformed or empty chunk='$chunkStr' — skipping\")\n"
+          "                continue\n"
           "            }\n"
-          "            if (chunk == null) { VhLogger.i(\"[CHAIN] queue empty -- A()\"); A(callback); return }\n"
-          "            chunkIdx++\n"
-          "            val rawLang = chunk.first\n"
-          "            val text    = chunk.second\n"
-          "            // ── Per-mode lang resolution — source-verified from onDone ──\n"
-          "            val lang: String = when (mode) {\n"
-          "                1 -> {\n"
-          "                    // Dual mode source:\n"
-          "                    //   chunk.a()==1 -> onLoadLanguage(\"eng\")\n"
-          "                    //   chunk.a()==2 -> onLoadLanguage(field_9034/dualLang)\n"
-          "                    // NativeEngine marks lang as latFall or nonLatFall in dual mode\n"
-          "                    if (rawLang.isEmpty() || rawLang.equals(\"unknown\", ignoreCase = true)) latFall\n"
-          "                    else rawLang\n"
-          "                }\n"
-          "                4 -> {\n"
-          "                    // Mix mode source (class_2632.onDone E==4 path):\n"
-          "                    // 1. chunk.b() = lang stored in chunk\n"
-          "                    // 2. if empty or \"unknown\" -> CLD2(text) -> ISO map lookup\n"
-          "                    // 3. if map result null -> chunk.a()==1 -> B(latFall), a()==2 -> C(nonLatFall)\n"
-          "                    // 4. C(resolvedLang) check: empty/Disable -> same a() fallback\n"
-          "                    val resolved: String\n"
-          "                    if (rawLang.isEmpty() || rawLang.equals(\"unknown\", ignoreCase = true)) {\n"
-          "                        // CLD2 path: chunk text -> detect -> ISO map\n"
-          "                        // Our equivalent: isLatinScript fallback\n"
-          "                        resolved = if (isLatinScript(text)) latFall else nonLatFall\n"
-          "                    } else {\n"
-          "                        val pkg = C(rawLang)\n"
-          "                        resolved = if (pkg.isEmpty() || pkg == \"Disable\") {\n"
-          "                            // a()==1 -> B (latFall), a()==2 -> C (nonLatFall)\n"
-          "                            if (isLatinScript(text)) latFall else nonLatFall\n"
-          "                        } else rawLang\n"
-          "                    }\n"
-          "                    resolved\n"
-          "                }\n"
-          "                3 -> {\n"
-          "                    // Single mode: C() always returns google pkg\n"
-          "                    // lang from chunk or autoLang as fallback\n"
-          "                    if (rawLang.isEmpty() || rawLang.equals(\"unknown\", ignoreCase = true)) autoLang\n"
-          "                    else rawLang\n"
-          "                }\n"
-          "                else -> {\n"
-          "                    // Auto mode (E==2): source path (non-dual, non-mix, non-single)\n"
-          "                    // chunk.b() = CLD2-detected lang\n"
-          "                    // if empty/unknown -> w (autoLang)\n"
-          "                    // C(lang) empty/Disable -> w\n"
-          "                    if (rawLang.isEmpty() || rawLang.equals(\"unknown\", ignoreCase = true)) {\n"
-          "                        autoLang\n"
-          "                    } else {\n"
-          "                        val pkg = C(rawLang)\n"
-          "                        if (pkg.isEmpty() || pkg == \"Disable\") autoLang else rawLang\n"
-          "                    }\n"
-          "                }\n"
+          "            chunkIndex++\n"
+          "            val currentChunk = chunkIndex\n"
+          "            var effectiveLang = parts[0]; val chunkText = parts[1]\n"
+          "            VhLogger.d(\"[CHUNK-$currentChunk] detected lang=$effectiveLang textLen=${chunkText.length}\")\n"
+          "            var pkg = prefs.getEngineForLanguage(effectiveLang)\n"
+          "            if (pkg == \"NOT_SET\") { \n"
+          "                VhLogger.markSkipped(\"Language '$effectiveLang' is NOT configured. Staying silent as requested.\")\n"
+          "                if (currentChunk == totalChunks) callback?.done()\n"
+          "                continue \n"
           "            }\n"
-          "            VhLogger.d(\"[CHUNK-\" + chunkIdx + \"] lang=\" + lang + \" textLen=\" + text.length)\n"
-          "            val pkg = C(lang)\n"
-          "            if (pkg.isEmpty() || pkg == \"Disable\") {\n"
-          "                VhLogger.w(\"[CHUNK-\" + chunkIdx + \"] pkg empty/Disable -- skip\")\n"
-          "                speakNext(); return\n"
-          "            }\n"
-          "            val tts = initEngine(lang)\n"
-          "            if (tts == null) {\n"
-          "                VhLogger.e(\"[CHUNK-\" + chunkIdx + \"] tts null -- skip\")\n"
-          "                speakNext(); return\n"
-          "            }\n"
-          "            if (myStop.get()) { A(callback); return }\n"
-          "            // ── Rate/Pitch source-verified formula ──\n"
-          "            // finalRate  = h/100.0 * E(lang)/100.0  (field_9044 * field_803)\n"
-          "            // finalPitch = i/100.0 * D(lang)/100.0  (field_9045 * field_805)\n"
-          "            val langKey   = lang\n"
-          "            val rateVal   = E_rate(langKey)\n"
-          "            val pitchVal  = D_pitch(langKey)\n"
-          "            val volVal    = H_vol(langKey)\n"
-          "            val finalRate  = sysRate  * rateVal  / 100.0f\n"
-          "            val finalPitch = sysPitch * pitchVal / 100.0f\n"
+          "            val key = \"${effectiveLang}_${pkg}\"\n"
+          "            val appRate = maxOf(0.1f, prefs.getInt(\"rate_$key\", 100) / 100.0f)\n"
+          "            val appPitch = maxOf(0.1f, prefs.getInt(\"pitch_$key\", 100) / 100.0f)\n"
+          "            val appVolume = prefs.getInt(\"vol_$key\", 100) / 100.0f\n"
+          "            val finalRate = maxOf(0.1f, minOf(6.0f, sysRate * appRate))\n"
+          "            val finalPitch = maxOf(0.1f, minOf(6.0f, sysPitch * appPitch))\n"
+          "            val locTag = prefs.getLocaleForLangPkg(effectiveLang, pkg).ifEmpty { Locale.forLanguageTag(effectiveLang).toLanguageTag() }\n"
+          "            VhLogger.markChunkStart(currentChunk, totalChunks, effectiveLang, pkg, locTag, chunkText, finalRate, finalPitch, appVolume, sysRate, sysPitch, appRate, appPitch)\n"
+          "            val tts = initEngineForLang(effectiveLang)\n"
+          "            if (tts == null) { VhLogger.markEngineNull(effectiveLang); if (currentChunk == totalChunks) callback?.done(); continue }\n"
           "            tts.setSpeechRate(finalRate)\n"
           "            tts.setPitch(finalPitch)\n"
-          "            val locTag = prefs.getLocaleForLangPkg(lang, pkg)\n"
-          "                .ifEmpty { Locale.forLanguageTag(lang).toLanguageTag() }\n"
-          "            try { tts.language = Locale.forLanguageTag(locTag) }\n"
-          "            catch (_: Exception) { tts.language = Locale.forLanguageTag(lang) }\n"
-          "            // ── Bundle — source-verified keys to remove ──\n"
-          "            val params = android.os.Bundle(request?.params ?: android.os.Bundle())\n"
-          "            params.remove(\"language\");  params.remove(\"country\")\n"
-          "            params.remove(\"voiceName\"); params.remove(\"variant\")\n"
-          "            params.remove(\"pitch\");     params.remove(\"rate\")\n"
-          "            // ── Volume source-verified formula ──\n"
-          "            // f = bundle.getFloat(\"volume\")  [from g/params]\n"
-          "            // if f==0 -> f=1.0f\n"
-          "            // finalVol = f * H(lang)/100.0\n"
-          "            // if finalVol != 0 -> bundle.putFloat(\"volume\", finalVol)\n"
-          "            var volF = params.getFloat(\"volume\", 0f)\n"
-          "            if (volF == 0f) volF = 1.0f\n"
-          "            val finalVol = volF * volVal / 100.0f\n"
-          "            if (finalVol != 0f) params.putFloat(\"volume\", finalVol)\n"
-          "            val uid = \"AutoTTS_\" + chunkIdx\n"
-          "            VhLogger.d(\"[CHUNK-\" + chunkIdx + \"] speak rate=\" + finalRate +\n"
-          "                \" pitch=\" + finalPitch + \" vol=\" + finalVol)\n"
-          "            // ── Register class_2632 equivalent listener ──\n"
-          "            // Source: new AutoTtsService$d(this, callback)\n"
-          "            val capturedIdx = chunkIdx\n"
+          "            try { tts.language = Locale.forLanguageTag(locTag) } catch (_: Exception) { tts.language = Locale.forLanguageTag(effectiveLang) }\n"
+          "            val utteranceId = \"omni_${effectiveLang}_$currentChunk\"\n"
+          "            val queueMode = if (currentChunk == 1) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD\n"
+          "            val chunkLatch = CountDownLatch(1)\n"
+          "            currentChunkLatch = chunkLatch\n"
           "            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {\n"
-          "                // onStart source: empty body\n"
-          "                override fun onStart(id: String) {\n"
-          "                    VhLogger.d(\"[CHUNK-\" + capturedIdx + \"] onStart\")\n"
-          "                }\n"
-          "                // onDone source-verified:\n"
-          "                //   if id != O -> B(callback) [k=true, no done]\n"
-          "                //   else if D.size()>1 -> remove(0) -> mode routing -> speak next\n"
-          "                //   else -> B(callback) [k=true, no done] -- wait loop calls A()\n"
-          "                // Android 16 adaptation: we call speakNext() directly\n"
-          "                // B(callback) equivalent: set myStop=true (wait loop would exit -> A())\n"
-          "                // but we are non-blocking so just call speakNext which checks myStop\n"
+          "                override fun onStart(id: String) { VhLogger.markSynthStart(chunkText, effectiveLang, currentChunk) }\n"
           "                override fun onDone(id: String) {\n"
-          "                    VhLogger.d(\"[CHUNK-\" + capturedIdx + \"] onDone\")\n"
-          "                    speakNext()\n"
+          "                    VhLogger.markSynthEnd(currentChunk, System.currentTimeMillis())\n"
+          "                    chunkLatch.countDown()\n"
+          "                    if (currentChunk == totalChunks) { callback?.done() }\n"
           "                }\n"
-          "                // onError source-verified: calls A(callback) -- start+done BOTH!\n"
-          "                // This is the CORRECT source behavior (not just k=true)\n"
           "                override fun onError(id: String) {\n"
-          "                    VhLogger.e(\"[CHUNK-\" + capturedIdx + \"] onError -- A()\")\n"
-          "                    A(callback)\n"
+          "                    VhLogger.markSynthError(currentChunk, \"onError id=$id\")\n"
+          "                    chunkLatch.countDown()\n"
+          "                    if (currentChunk == totalChunks) { callback?.done() }\n"
           "                }\n"
           "                override fun onError(id: String, errorCode: Int) {\n"
-          "                    VhLogger.e(\"[CHUNK-\" + capturedIdx + \"] onError code=\" + errorCode + \" -- A()\")\n"
-          "                    A(callback)\n"
-          "                }\n"
-          "                // onStop source-verified: empty body\n"
-          "                override fun onStop(id: String?, interrupted: Boolean) {\n"
-          "                    VhLogger.w(\"[CHUNK-\" + capturedIdx + \"] listener.onStop -- empty\")\n"
+          "                    VhLogger.markSynthErrorCode(currentChunk, errorCode)\n"
+          "                    chunkLatch.countDown()\n"
+          "                    if (currentChunk == totalChunks) { callback?.done() }\n"
           "                }\n"
           "            })\n"
-          "            // speak() source: d[b].c().speak(text, K, bundle, O)\n"
-          "            val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, uid)\n"
-          "            VhLogger.d(\"[CHUNK-\" + capturedIdx + \"] speak result=\" + result)\n"
-          "            // speak()!=0 source: A(callback) + I() (reinit engines)\n"
-          "            if (result != TextToSpeech.SUCCESS) {\n"
-          "                VhLogger.e(\"[CHUNK-\" + capturedIdx + \"] speak ERROR -- A()\")\n"
-          "                A(callback)\n"
+          "            val params = android.os.Bundle(request?.params ?: android.os.Bundle())\n"
+          "            params.remove(\"pitch\")\n"
+          "            params.remove(\"rate\")\n"
+          "            params.remove(\"language\")\n"
+          "            params.remove(\"country\")\n"
+          "            params.remove(\"variant\")\n"
+          "            params.remove(\"voiceName\")\n"
+          "            params.remove(\"utteranceId\")\n"
+          "            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, appVolume)\n"
+          "            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)\n"
+          "            val speakResult = tts.speak(chunkText, queueMode, params, utteranceId)\n"
+          "            if (speakResult == TextToSpeech.ERROR) {\n"
+          "                VhLogger.e(\"[CHUNK-$currentChunk] tts.speak() ERROR! Unblocking latch instantly.\")\n"
+          "                chunkLatch.countDown()\n"
+          "            } else {\n"
+          "                VhLogger.d(\"[CHUNK-$currentChunk] speak() queued queueMode=$queueMode — awaiting latch\")\n"
           "            }\n"
-          "            // Return immediately (Android 16 non-blocking)\n"
+          "            chunkLatch.await()\n"
+          "            VhLogger.d(\"[CHUNK-$currentChunk] latch released — proceeding to next chunk\")\n"
+          "            if (myStop.get()) {\n"
+          "                VhLogger.w(\"[SERVICE] Swipe detected, breaking loop instantly!\")\n"
+          "                break\n"
+          "            }\n"
           "        }\n"
-          "        // callback.start() upfront then kick chain\n"
-          "        callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
-          "        VhLogger.d(\"[SERVICE] kicking chain\")\n"
-          "        speakNext()\n"
-          "    }\n"
-          "    // ── isLatinScript: used when CLD2 returns unknown ──\n"
-          "    // Mirrors chunk.a()==1 (latin/B) vs a()==2 (nonLatin/C) decision\n"
-          "    private fun isLatinScript(text: String): Boolean {\n"
-          "        val letters = text.filter { it.isLetter() }\n"
-          "        if (letters.isEmpty()) return true\n"
-          "        return letters.count { it.code in 0x0041..0x024F }.toFloat() / letters.length >= 0.5f\n"
           "    }\n"
           "    override fun onDestroy() {\n"
+          "        VhLogger.i(\"[SERVICE] onDestroy — shutting down ${enginePool.size} engines\")\n"
           "        activeStop.get().set(true)\n"
+          "        currentChunkLatch?.countDown()\n"
           "        enginePool.values.forEach { try { it.shutdown() } catch (_: Exception) {} }\n"
-          "        enginePool.clear()\n"
-          "        super.onDestroy()\n"
+          "        enginePool.clear(); super.onDestroy()\n"
           "    }\n"
           "}\n")
 
@@ -1294,7 +1092,9 @@ jobs:
           "import androidx.compose.ui.platform.LocalContext\n"
           "import androidx.compose.ui.unit.dp\n"
           "import androidx.core.content.FileProvider\n"
+          "import java.util.Locale\n"
           "class MainActivity : ComponentActivity() {\n"
+          "    private var tempTts: android.speech.tts.TextToSpeech? = null\n"
           "    @OptIn(ExperimentalMaterial3Api::class)\n"
           "    override fun onCreate(savedInstanceState: Bundle?) {\n"
           "        super.onCreate(savedInstanceState)\n"
@@ -1303,9 +1103,25 @@ jobs:
           "            MaterialTheme {\n"
           "                Surface(modifier = Modifier.fillMaxSize()) {\n"
           "                    val context = LocalContext.current\n"
+          "                    val engines = EngineFinder.getEngines(context).toMutableList().apply { add(0, EngineFinder.TTSInfo(\"NOT_SET\", \"--- Not Set ---\")) }\n"
+          "                    var selLangIso by remember { mutableStateOf(prefs.getString(\"pref_lang\", \"en\")) }\n"
+          "                    var selEngPkg by remember { mutableStateOf(prefs.getEngineForLanguage(selLangIso)) }\n"
+          "                    var availableLocales by remember { mutableStateOf(listOf<Locale>()) }\n"
+          "                    var selLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(selLangIso, selEngPkg)) }\n"
           "                    var readingMode by remember { mutableStateOf(prefs.getReadingMode()) }\n"
           "                    val readingModeOptions = listOf(\"Auto Mode\", \"Mix Language Mode\", \"Dual Language Mode\")\n"
           "                    val readingModeKeys = listOf(\"auto\", \"mix\", \"dual\")\n"
+          "                    LaunchedEffect(selEngPkg, selLangIso) {\n"
+          "                        if (selEngPkg != \"NOT_SET\") {\n"
+          "                            tempTts?.shutdown()\n"
+          "                            tempTts = android.speech.tts.TextToSpeech(context, { status ->\n"
+          "                                if (status == android.speech.tts.TextToSpeech.SUCCESS) {\n"
+          "                                    val voices = try { tempTts?.voices?.map { it.locale }?.filter { it.language.equals(selLangIso, true) } } catch (_: Exception) { null }\n"
+          "                                    availableLocales = voices?.distinctBy { it.toLanguageTag() }?.sortedBy { it.displayName } ?: listOf()\n"
+          "                                }\n"
+          "                            }, selEngPkg)\n"
+          "                        } else { availableLocales = listOf(); tempTts?.shutdown(); tempTts = null }\n"
+          "                    }\n"
           "                    Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {\n"
           "                        Text(\"Omni Native TTS\", style = MaterialTheme.typography.headlineMedium)\n"
           "                        Spacer(modifier = Modifier.height(8.dp))\n"
@@ -1314,8 +1130,22 @@ jobs:
           "                        AccessibleDropdown(\"Reading Mode\", readingModeOptions[readingModeKeys.indexOf(readingMode).coerceAtLeast(0)], readingModeOptions) { idx ->\n"
           "                            readingMode = readingModeKeys[idx]; prefs.setReadingMode(readingMode)\n"
           "                        }\n"
+          "                        Spacer(modifier = Modifier.height(8.dp))\n"
+          "                        AccessibleDropdown(\"Select ISO Language\", \"${Languages.map[selLangIso]} ($selLangIso)\", Languages.displayNames) { idx ->\n"
+          "                            selLangIso = Languages.isoCodes[idx]; prefs.setString(\"pref_lang\", selLangIso)\n"
+          "                            selEngPkg = prefs.getEngineForLanguage(selLangIso)\n"
+          "                            selLocTag = prefs.getLocaleForLangPkg(selLangIso, selEngPkg)\n"
+          "                        }\n"
+          "                        AccessibleDropdown(\"Select TTS Engine\", engines.find { it.pkg == selEngPkg }?.name ?: \"Not Set\", engines.map { it.name }) { idx ->\n"
+          "                            selEngPkg = engines[idx].pkg; prefs.setString(\"engine_$selLangIso\", selEngPkg)\n"
+          "                            selLocTag = prefs.getLocaleForLangPkg(selLangIso, selEngPkg)\n"
+          "                        }\n"
+          "                        val locNames = availableLocales.map { it.displayName }.ifEmpty { listOf(\"Default System Voice\") }\n"
+          "                        AccessibleDropdown(\"Voice / Locale\", availableLocales.find { it.toLanguageTag() == selLocTag }?.displayName ?: \"Default System Voice\", locNames) { idx ->\n"
+          "                            if (availableLocales.isNotEmpty()) { selLocTag = availableLocales[idx].toLanguageTag(); prefs.setLocaleForLangPkg(selLangIso, selEngPkg, selLocTag) }\n"
+          "                        }\n"
           "                        Spacer(modifier = Modifier.height(24.dp))\n"
-          "                        Button(onClick = { context.startActivity(Intent(context, LanguageSettingsActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) { Text(\"LANGUAGE & VOICE SETTINGS\") }\n"
+          "                        Button(onClick = { context.startActivity(Intent(context, LanguageSettingsActivity::class.java).putExtra(\"key\", \"${selLangIso}_${selEngPkg}\")) }, modifier = Modifier.fillMaxWidth()) { Text(\"LANGUAGE SPEED / PITCH SETTINGS\") }\n"
           "                        Spacer(modifier = Modifier.height(12.dp))\n"
           "                        Button(onClick = { startActivity(Intent(\"com.android.settings.TTS_SETTINGS\")) }, modifier = Modifier.fillMaxWidth()) { Text(\"OPEN SYSTEM TTS SETTINGS\") }\n"
           "                        Spacer(modifier = Modifier.height(12.dp))\n"
@@ -1333,18 +1163,16 @@ jobs:
           "            }\n"
           "        }\n"
           "    }\n"
+          "    override fun onDestroy() { tempTts?.shutdown(); super.onDestroy() }\n"
           "}\n")
 
           # ── LanguageSettingsActivity.kt ──────────────────────────────────────
           w("app/src/main/java/com/omni/tts/LanguageSettingsActivity.kt",
           "package com.omni.tts\n"
           "import android.os.Bundle\n"
-          "import android.widget.Toast\n"
           "import androidx.activity.ComponentActivity\n"
           "import androidx.activity.compose.setContent\n"
           "import androidx.compose.foundation.layout.*\n"
-          "import androidx.compose.foundation.rememberScrollState\n"
-          "import androidx.compose.foundation.verticalScroll\n"
           "import androidx.compose.material3.*\n"
           "import androidx.compose.runtime.*\n"
           "import androidx.compose.ui.Alignment\n"
@@ -1353,270 +1181,64 @@ jobs:
           "import androidx.compose.ui.semantics.contentDescription\n"
           "import androidx.compose.ui.semantics.semantics\n"
           "import androidx.compose.ui.unit.dp\n"
-          "import java.util.Locale\n"
           "class LanguageSettingsActivity : ComponentActivity() {\n"
-          "    private var tempTts: android.speech.tts.TextToSpeech? = null\n"
-          "    private var tempTts2: android.speech.tts.TextToSpeech? = null\n"
-          "    @OptIn(ExperimentalMaterial3Api::class)\n"
+          "    private var testTts: android.speech.tts.TextToSpeech? = null\n"
           "    override fun onCreate(savedInstanceState: Bundle?) {\n"
           "        super.onCreate(savedInstanceState)\n"
+          "        val currentKey = intent.getStringExtra(\"key\") ?: \"en_NOT_SET\"\n"
           "        val prefs = SharedPrefsManager(this)\n"
           "        setContent {\n"
           "            MaterialTheme {\n"
           "                Surface(modifier = Modifier.fillMaxSize()) {\n"
           "                    val context = LocalContext.current\n"
-          "                    val readingMode = prefs.getReadingMode()\n"
-          "                    val isDualMode = readingMode == \"dual\"\n"
-          "                    val isMixMode = readingMode == \"mix\"\n"
-          "                    val isSplitMode = isDualMode || isMixMode\n"
-          "                    val modeLabel = when(readingMode) { \"dual\" -> \"Dual Language\" ; \"mix\" -> \"Mix Language\" ; else -> \"Auto\" }\n"
-          "                    val engines = EngineFinder.getEngines(context).toMutableList().apply { add(0, EngineFinder.TTSInfo(\"NOT_SET\", \"--- Not Set ---\")) }\n"
-          "                    val overrideOptions = listOf(\"Auto (Follow Context)\") + Languages.displayNames\n"
-          "                    val overrideKeys = listOf(\"auto\") + Languages.isoCodes\n"
-          "                    if (isSplitMode) {\n"
-          "                        var primLangIso by remember { mutableStateOf(prefs.getString(\"mixed_mode_latin_language\", \"en\")) }\n"
-          "                        var primEngPkg by remember { mutableStateOf(prefs.getEngineForLanguage(primLangIso)) }\n"
-          "                        var primLocales by remember { mutableStateOf(listOf<Locale>()) }\n"
-          "                        var primLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(primLangIso, primEngPkg)) }\n"
-          "                        val primKey = \"${primLangIso}_${primEngPkg}\"\n"
-          "                        var primRate by remember(primKey) { mutableIntStateOf(prefs.getInt(\"rate_$primKey\", 100)) }\n"
-          "                        var primPitch by remember(primKey) { mutableIntStateOf(prefs.getInt(\"pitch_$primKey\", 100)) }\n"
-          "                        var primVol by remember(primKey) { mutableIntStateOf(prefs.getInt(\"vol_$primKey\", 100)) }\n"
-          "                        var secLangIso by remember { mutableStateOf(prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")) }\n"
-          "                        var secEngPkg by remember { mutableStateOf(prefs.getEngineForLanguage(secLangIso)) }\n"
-          "                        var secLocales by remember { mutableStateOf(listOf<Locale>()) }\n"
-          "                        var secLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(secLangIso, secEngPkg)) }\n"
-          "                        val secKey = \"${secLangIso}_${secEngPkg}\"\n"
-          "                        var secRate by remember(secKey) { mutableIntStateOf(prefs.getInt(\"rate_$secKey\", 100)) }\n"
-          "                        var secPitch by remember(secKey) { mutableIntStateOf(prefs.getInt(\"pitch_$secKey\", 100)) }\n"
-          "                        var secVol by remember(secKey) { mutableIntStateOf(prefs.getInt(\"vol_$secKey\", 100)) }\n"
-          "                        val puncKey  = if (isDualMode) \"dual_punc_lang\"  else \"mix_punc_lang\"\n"
-          "                        val numKey   = if (isDualMode) \"dual_num_lang\"   else \"mix_num_lang\"\n"
-          "                        val emojiKey = if (isDualMode) \"dual_emoji_lang\" else \"mix_emoji_lang\"\n"
-          "                        var puncLang by remember { mutableStateOf(prefs.getString(puncKey, \"auto\")) }\n"
-          "                        var numLang by remember { mutableStateOf(prefs.getString(numKey, \"auto\")) }\n"
-          "                        var emojiLang by remember { mutableStateOf(prefs.getString(emojiKey, \"auto\")) }\n"
-          "                        LaunchedEffect(primEngPkg, primLangIso) {\n"
-          "                            if (primEngPkg != \"NOT_SET\") {\n"
-          "                                tempTts?.shutdown()\n"
-          "                                tempTts = android.speech.tts.TextToSpeech(context, { status ->\n"
-          "                                    if (status == android.speech.tts.TextToSpeech.SUCCESS) {\n"
-          "                                        val voices = try { tempTts?.voices?.map { it.locale }?.filter { it.language.equals(primLangIso, true) } } catch (_: Exception) { null }\n"
-          "                                        primLocales = voices?.distinctBy { it.toLanguageTag() }?.sortedBy { it.displayName } ?: listOf()\n"
-          "                                    }\n"
-          "                                }, primEngPkg)\n"
-          "                            } else { primLocales = listOf(); tempTts?.shutdown(); tempTts = null }\n"
+          "                    var rate by remember { mutableIntStateOf(prefs.getInt(\"rate_$currentKey\", 100)) }\n"
+          "                    var pitch by remember { mutableIntStateOf(prefs.getInt(\"pitch_$currentKey\", 100)) }\n"
+          "                    var vol by remember { mutableIntStateOf(prefs.getInt(\"vol_$currentKey\", 100)) }\n"
+          "                    Column(modifier = Modifier.padding(16.dp)) {\n"
+          "                        Text(\"Language Settings [$currentKey]\", style = MaterialTheme.typography.headlineSmall)\n"
+          "                        Spacer(modifier = Modifier.height(24.dp))\n"
+          "                        Text(\"Speech Rate: ${if(rate==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",rate/100f)}\")\n"
+          "                        Row(verticalAlignment = Alignment.CenterVertically) {\n"
+          "                            Button(onClick={rate=maxOf(0,rate-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Speech Rate\"}){Text(\"-\")}\n"
+          "                            Slider(value=rate.toFloat(),onValueChange={rate=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
+          "                            Button(onClick={rate=minOf(500,rate+5)},modifier=Modifier.semantics{contentDescription=\"Increase Speech Rate\"}){Text(\"+\")}\n"
           "                        }\n"
-          "                        LaunchedEffect(secEngPkg, secLangIso) {\n"
-          "                            if (secEngPkg != \"NOT_SET\") {\n"
-          "                                tempTts2?.shutdown()\n"
-          "                                tempTts2 = android.speech.tts.TextToSpeech(context, { status ->\n"
-          "                                    if (status == android.speech.tts.TextToSpeech.SUCCESS) {\n"
-          "                                        val voices = try { tempTts2?.voices?.map { it.locale }?.filter { it.language.equals(secLangIso, true) } } catch (_: Exception) { null }\n"
-          "                                        secLocales = voices?.distinctBy { it.toLanguageTag() }?.sortedBy { it.displayName } ?: listOf()\n"
-          "                                    }\n"
-          "                                }, secEngPkg)\n"
-          "                            } else { secLocales = listOf(); tempTts2?.shutdown(); tempTts2 = null }\n"
+          "                        Spacer(modifier = Modifier.height(16.dp))\n"
+          "                        Text(\"Pitch: ${if(pitch==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",pitch/100f)}\")\n"
+          "                        Row(verticalAlignment = Alignment.CenterVertically) {\n"
+          "                            Button(onClick={pitch=maxOf(0,pitch-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Pitch\"}){Text(\"-\")}\n"
+          "                            Slider(value=pitch.toFloat(),onValueChange={pitch=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
+          "                            Button(onClick={pitch=minOf(500,pitch+5)},modifier=Modifier.semantics{contentDescription=\"Increase Pitch\"}){Text(\"+\")}\n"
           "                        }\n"
-          "                        Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {\n"
-          "                            Text(\"Language & Voice Settings\", style = MaterialTheme.typography.headlineSmall)\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            Text(\"Mode: $modeLabel\", style = MaterialTheme.typography.bodySmall)\n"
-          "                            Spacer(modifier = Modifier.height(24.dp))\n"
-          "                            Divider()\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            Text(\"Primary Language (Latin)\", style = MaterialTheme.typography.titleMedium)\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            AccessibleDropdown(\"Primary Language\", \"${Languages.map[primLangIso]} ($primLangIso)\", Languages.displayNames) { idx ->\n"
-          "                                primLangIso = Languages.isoCodes[idx]; prefs.setString(\"mixed_mode_latin_language\", primLangIso)\n"
-          "                                primEngPkg = prefs.getEngineForLanguage(primLangIso); primLocTag = prefs.getLocaleForLangPkg(primLangIso, primEngPkg)\n"
-          "                            }\n"
-          "                            AccessibleDropdown(\"Primary Engine\", engines.find { it.pkg == primEngPkg }?.name ?: \"Not Set\", engines.map { it.name }) { idx ->\n"
-          "                                primEngPkg = engines[idx].pkg; prefs.setString(\"engine_$primLangIso\", primEngPkg); primLocTag = prefs.getLocaleForLangPkg(primLangIso, primEngPkg)\n"
-          "                            }\n"
-          "                            val primLocNames = primLocales.map { it.displayName }.ifEmpty { listOf(\"Default System Voice\") }\n"
-          "                            AccessibleDropdown(\"Primary Voice\", primLocales.find { it.toLanguageTag() == primLocTag }?.displayName ?: \"Default System Voice\", primLocNames) { idx ->\n"
-          "                                if (primLocales.isNotEmpty()) { primLocTag = primLocales[idx].toLanguageTag(); prefs.setLocaleForLangPkg(primLangIso, primEngPkg, primLocTag) }\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(16.dp))\n"
-          "                            Text(\"Speech Rate: ${if(primRate==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",primRate/100f)}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={primRate=maxOf(0,primRate-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Primary Speech Rate\"}){Text(\"-\")}\n"
-          "                                Slider(value=primRate.toFloat(),onValueChange={primRate=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={primRate=minOf(500,primRate+5)},modifier=Modifier.semantics{contentDescription=\"Increase Primary Speech Rate\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Text(\"Pitch: ${if(primPitch==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",primPitch/100f)}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={primPitch=maxOf(0,primPitch-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Primary Pitch\"}){Text(\"-\")}\n"
-          "                                Slider(value=primPitch.toFloat(),onValueChange={primPitch=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={primPitch=minOf(500,primPitch+5)},modifier=Modifier.semantics{contentDescription=\"Increase Primary Pitch\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Text(\"Volume: ${if(primVol==100) \"System Default\" else \"$primVol%\"}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={primVol=maxOf(0,primVol-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Primary Volume\"}){Text(\"-\")}\n"
-          "                                Slider(value=primVol.toFloat(),onValueChange={primVol=it.toInt()},valueRange=0f..100f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={primVol=minOf(100,primVol+5)},modifier=Modifier.semantics{contentDescription=\"Increase Primary Volume\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(24.dp))\n"
-          "                            Divider()\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            Text(\"Secondary Language (Non-Latin)\", style = MaterialTheme.typography.titleMedium)\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            AccessibleDropdown(\"Secondary Language\", \"${Languages.map[secLangIso]} ($secLangIso)\", Languages.displayNames) { idx ->\n"
-          "                                secLangIso = Languages.isoCodes[idx]; prefs.setString(\"mixed_mode_non_latin_language\", secLangIso)\n"
-          "                                secEngPkg = prefs.getEngineForLanguage(secLangIso); secLocTag = prefs.getLocaleForLangPkg(secLangIso, secEngPkg)\n"
-          "                            }\n"
-          "                            AccessibleDropdown(\"Secondary Engine\", engines.find { it.pkg == secEngPkg }?.name ?: \"Not Set\", engines.map { it.name }) { idx ->\n"
-          "                                secEngPkg = engines[idx].pkg; prefs.setString(\"engine_$secLangIso\", secEngPkg); secLocTag = prefs.getLocaleForLangPkg(secLangIso, secEngPkg)\n"
-          "                            }\n"
-          "                            val secLocNames = secLocales.map { it.displayName }.ifEmpty { listOf(\"Default System Voice\") }\n"
-          "                            AccessibleDropdown(\"Secondary Voice\", secLocales.find { it.toLanguageTag() == secLocTag }?.displayName ?: \"Default System Voice\", secLocNames) { idx ->\n"
-          "                                if (secLocales.isNotEmpty()) { secLocTag = secLocales[idx].toLanguageTag(); prefs.setLocaleForLangPkg(secLangIso, secEngPkg, secLocTag) }\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(16.dp))\n"
-          "                            Text(\"Speech Rate: ${if(secRate==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",secRate/100f)}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={secRate=maxOf(0,secRate-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Secondary Speech Rate\"}){Text(\"-\")}\n"
-          "                                Slider(value=secRate.toFloat(),onValueChange={secRate=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={secRate=minOf(500,secRate+5)},modifier=Modifier.semantics{contentDescription=\"Increase Secondary Speech Rate\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Text(\"Pitch: ${if(secPitch==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",secPitch/100f)}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={secPitch=maxOf(0,secPitch-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Secondary Pitch\"}){Text(\"-\")}\n"
-          "                                Slider(value=secPitch.toFloat(),onValueChange={secPitch=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={secPitch=minOf(500,secPitch+5)},modifier=Modifier.semantics{contentDescription=\"Increase Secondary Pitch\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Text(\"Volume: ${if(secVol==100) \"System Default\" else \"$secVol%\"}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={secVol=maxOf(0,secVol-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Secondary Volume\"}){Text(\"-\")}\n"
-          "                                Slider(value=secVol.toFloat(),onValueChange={secVol=it.toInt()},valueRange=0f..100f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={secVol=minOf(100,secVol+5)},modifier=Modifier.semantics{contentDescription=\"Increase Secondary Volume\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(24.dp))\n"
-          "                            Divider()\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            Text(\"Overrides\", style = MaterialTheme.typography.titleMedium)\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            AccessibleDropdown(\"Punctuation Language\", overrideOptions[overrideKeys.indexOf(puncLang).coerceAtLeast(0)], overrideOptions) { idx ->\n"
-          "                                puncLang = overrideKeys[idx]; prefs.setString(puncKey, puncLang)\n"
-          "                            }\n"
-          "                            AccessibleDropdown(\"Numbers Language\", overrideOptions[overrideKeys.indexOf(numLang).coerceAtLeast(0)], overrideOptions) { idx ->\n"
-          "                                numLang = overrideKeys[idx]; prefs.setString(numKey, numLang)\n"
-          "                            }\n"
-          "                            AccessibleDropdown(\"Emoji Language\", overrideOptions[overrideKeys.indexOf(emojiLang).coerceAtLeast(0)], overrideOptions) { idx ->\n"
-          "                                emojiLang = overrideKeys[idx]; prefs.setString(emojiKey, emojiLang)\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(32.dp))\n"
-          "                            Button(onClick = {\n"
-          "                                tempTts?.shutdown()\n"
-          "                                val testPkg = if(primEngPkg == \"NOT_SET\") null else primEngPkg\n"
-          "                                tempTts = android.speech.tts.TextToSpeech(context, { status ->\n"
-          "                                    if(status == android.speech.tts.TextToSpeech.SUCCESS) {\n"
-          "                                        tempTts?.setSpeechRate(primRate/100f); tempTts?.setPitch(primPitch/100f)\n"
-          "                                        val p = android.os.Bundle(); p.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, primVol/100f)\n"
-          "                                        tempTts?.speak(\"Testing primary language audio\", android.speech.tts.TextToSpeech.QUEUE_FLUSH, p, \"test_prim\")\n"
-          "                                    }\n"
-          "                                }, testPkg)\n"
-          "                            }, modifier = Modifier.fillMaxWidth()) { Text(\"TEST PRIMARY AUDIO\") }\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            Button(onClick = {\n"
-          "                                tempTts2?.shutdown()\n"
-          "                                val testPkg = if(secEngPkg == \"NOT_SET\") null else secEngPkg\n"
-          "                                tempTts2 = android.speech.tts.TextToSpeech(context, { status ->\n"
-          "                                    if(status == android.speech.tts.TextToSpeech.SUCCESS) {\n"
-          "                                        tempTts2?.setSpeechRate(secRate/100f); tempTts2?.setPitch(secPitch/100f)\n"
-          "                                        val p = android.os.Bundle(); p.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, secVol/100f)\n"
-          "                                        tempTts2?.speak(\"Testing secondary language audio\", android.speech.tts.TextToSpeech.QUEUE_FLUSH, p, \"test_sec\")\n"
-          "                                    }\n"
-          "                                }, testPkg)\n"
-          "                            }, modifier = Modifier.fillMaxWidth()) { Text(\"TEST SECONDARY AUDIO\") }\n"
-          "                            Spacer(modifier = Modifier.height(12.dp))\n"
-          "                            Button(onClick = {\n"
-          "                                prefs.setInt(\"rate_$primKey\", primRate); prefs.setInt(\"pitch_$primKey\", primPitch); prefs.setInt(\"vol_$primKey\", primVol)\n"
-          "                                prefs.setInt(\"rate_$secKey\", secRate); prefs.setInt(\"pitch_$secKey\", secPitch); prefs.setInt(\"vol_$secKey\", secVol)\n"
-          "                                Toast.makeText(context, \"Settings Saved\", Toast.LENGTH_SHORT).show()\n"
-          "                            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Text(\"APPLY SETTINGS\") }\n"
-          "                            Spacer(modifier = Modifier.height(12.dp))\n"
-          "                            Button(onClick = { primRate=100; primPitch=100; primVol=100; secRate=100; secPitch=100; secVol=100 }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) { Text(\"RESET TO DEFAULT\") }\n"
+          "                        Spacer(modifier = Modifier.height(16.dp))\n"
+          "                        Text(\"Volume: ${if(vol==100) \"System Default\" else \"$vol%\"}\")\n"
+          "                        Row(verticalAlignment = Alignment.CenterVertically) {\n"
+          "                            Button(onClick={vol=maxOf(0,vol-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Volume\"}){Text(\"-\")}\n"
+          "                            Slider(value=vol.toFloat(),onValueChange={vol=it.toInt()},valueRange=0f..100f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
+          "                            Button(onClick={vol=minOf(100,vol+5)},modifier=Modifier.semantics{contentDescription=\"Increase Volume\"}){Text(\"+\")}\n"
           "                        }\n"
-          "                    } else {\n"
-          "                        var selLangIso by remember { mutableStateOf(prefs.getString(\"pref_lang\", \"en\")) }\n"
-          "                        var selEngPkg by remember { mutableStateOf(prefs.getEngineForLanguage(selLangIso)) }\n"
-          "                        var availableLocales by remember { mutableStateOf(listOf<Locale>()) }\n"
-          "                        var selLocTag by remember { mutableStateOf(prefs.getLocaleForLangPkg(selLangIso, selEngPkg)) }\n"
-          "                        val currentKey = \"${selLangIso}_${selEngPkg}\"\n"
-          "                        var rate by remember(currentKey) { mutableIntStateOf(prefs.getInt(\"rate_$currentKey\", 100)) }\n"
-          "                        var pitch by remember(currentKey) { mutableIntStateOf(prefs.getInt(\"pitch_$currentKey\", 100)) }\n"
-          "                        var vol by remember(currentKey) { mutableIntStateOf(prefs.getInt(\"vol_$currentKey\", 100)) }\n"
-          "                        LaunchedEffect(selEngPkg, selLangIso) {\n"
-          "                            if (selEngPkg != \"NOT_SET\") {\n"
-          "                                tempTts?.shutdown()\n"
-          "                                tempTts = android.speech.tts.TextToSpeech(context, { status ->\n"
-          "                                    if (status == android.speech.tts.TextToSpeech.SUCCESS) {\n"
-          "                                        val voices = try { tempTts?.voices?.map { it.locale }?.filter { it.language.equals(selLangIso, true) } } catch (_: Exception) { null }\n"
-          "                                        availableLocales = voices?.distinctBy { it.toLanguageTag() }?.sortedBy { it.displayName } ?: listOf()\n"
-          "                                    }\n"
-          "                                }, selEngPkg)\n"
-          "                            } else { availableLocales = listOf(); tempTts?.shutdown(); tempTts = null }\n"
-          "                        }\n"
-          "                        Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {\n"
-          "                            Text(\"Language & Voice Settings\", style = MaterialTheme.typography.headlineSmall)\n"
-          "                            Spacer(modifier = Modifier.height(16.dp))\n"
-          "                            AccessibleDropdown(\"Select ISO Language\", \"${Languages.map[selLangIso]} ($selLangIso)\", Languages.displayNames) { idx ->\n"
-          "                                selLangIso = Languages.isoCodes[idx]; prefs.setString(\"pref_lang\", selLangIso)\n"
-          "                                selEngPkg = prefs.getEngineForLanguage(selLangIso); selLocTag = prefs.getLocaleForLangPkg(selLangIso, selEngPkg)\n"
-          "                            }\n"
-          "                            AccessibleDropdown(\"Select TTS Engine\", engines.find { it.pkg == selEngPkg }?.name ?: \"Not Set\", engines.map { it.name }) { idx ->\n"
-          "                                selEngPkg = engines[idx].pkg; prefs.setString(\"engine_$selLangIso\", selEngPkg); selLocTag = prefs.getLocaleForLangPkg(selLangIso, selEngPkg)\n"
-          "                            }\n"
-          "                            val locNames = availableLocales.map { it.displayName }.ifEmpty { listOf(\"Default System Voice\") }\n"
-          "                            AccessibleDropdown(\"Voice / Locale\", availableLocales.find { it.toLanguageTag() == selLocTag }?.displayName ?: \"Default System Voice\", locNames) { idx ->\n"
-          "                                if (availableLocales.isNotEmpty()) { selLocTag = availableLocales[idx].toLanguageTag(); prefs.setLocaleForLangPkg(selLangIso, selEngPkg, selLocTag) }\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(24.dp))\n"
-          "                            Text(\"Speech Rate: ${if(rate==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",rate/100f)}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={rate=maxOf(0,rate-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Speech Rate\"}){Text(\"-\")}\n"
-          "                                Slider(value=rate.toFloat(),onValueChange={rate=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={rate=minOf(500,rate+5)},modifier=Modifier.semantics{contentDescription=\"Increase Speech Rate\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(16.dp))\n"
-          "                            Text(\"Pitch: ${if(pitch==100) \"System Default\" else String.format(java.util.Locale.US,\"%.2fx\",pitch/100f)}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={pitch=maxOf(0,pitch-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Pitch\"}){Text(\"-\")}\n"
-          "                                Slider(value=pitch.toFloat(),onValueChange={pitch=it.toInt()},valueRange=0f..500f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={pitch=minOf(500,pitch+5)},modifier=Modifier.semantics{contentDescription=\"Increase Pitch\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(16.dp))\n"
-          "                            Text(\"Volume: ${if(vol==100) \"System Default\" else \"$vol%\"}\")\n"
-          "                            Row(verticalAlignment = Alignment.CenterVertically) {\n"
-          "                                Button(onClick={vol=maxOf(0,vol-5)},modifier=Modifier.semantics{contentDescription=\"Decrease Volume\"}){Text(\"-\")}\n"
-          "                                Slider(value=vol.toFloat(),onValueChange={vol=it.toInt()},valueRange=0f..100f,modifier=Modifier.weight(1f).padding(horizontal=8.dp))\n"
-          "                                Button(onClick={vol=minOf(100,vol+5)},modifier=Modifier.semantics{contentDescription=\"Increase Volume\"}){Text(\"+\")}\n"
-          "                            }\n"
-          "                            Spacer(modifier = Modifier.height(32.dp))\n"
-          "                            Button(onClick = {\n"
-          "                                val pkg = if(currentKey.contains(\"_\")) currentKey.substring(currentKey.indexOf('_')+1) else \"com.google.android.tts\"\n"
-          "                                tempTts?.shutdown()\n"
-          "                                tempTts = android.speech.tts.TextToSpeech(context, { status ->\n"
-          "                                    if(status == android.speech.tts.TextToSpeech.SUCCESS) {\n"
-          "                                        tempTts?.setSpeechRate(rate/100f); tempTts?.setPitch(pitch/100f)\n"
-          "                                        val p = android.os.Bundle(); p.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, vol/100f)\n"
-          "                                        tempTts?.speak(\"Testing audio settings\", android.speech.tts.TextToSpeech.QUEUE_FLUSH, p, \"test\")\n"
-          "                                    }\n"
-          "                                }, if(pkg == \"NOT_SET\") null else pkg)\n"
-          "                            }, modifier = Modifier.fillMaxWidth()) { Text(\"TEST AUDIO\") }\n"
-          "                            Spacer(modifier = Modifier.height(12.dp))\n"
-          "                            Button(onClick = { prefs.setInt(\"rate_$currentKey\", rate); prefs.setInt(\"pitch_$currentKey\", pitch); prefs.setInt(\"vol_$currentKey\", vol); Toast.makeText(context, \"Settings Saved\", Toast.LENGTH_SHORT).show() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Text(\"APPLY SETTINGS\") }\n"
-          "                            Spacer(modifier = Modifier.height(12.dp))\n"
-          "                            Button(onClick = { rate=100; pitch=100; vol=100 }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) { Text(\"RESET TO DEFAULT\") }\n"
-          "                        }\n"
+          "                        Spacer(modifier = Modifier.height(32.dp))\n"
+          "                        Button(onClick = {\n"
+          "                            val pkg = if(currentKey.contains(\"_\")) currentKey.substring(currentKey.indexOf('_')+1) else \"com.google.android.tts\"\n"
+          "                            testTts?.shutdown()\n"
+          "                            testTts = android.speech.tts.TextToSpeech(context, { status ->\n"
+          "                                if(status == android.speech.tts.TextToSpeech.SUCCESS){\n"
+          "                                    testTts?.setSpeechRate(rate/100f); testTts?.setPitch(pitch/100f)\n"
+          "                                    val p = android.os.Bundle(); p.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME,vol/100f)\n"
+          "                                    testTts?.speak(\"Testing audio settings\",android.speech.tts.TextToSpeech.QUEUE_FLUSH,p,\"test\")\n"
+          "                                }\n"
+          "                            }, if(pkg==\"NOT_SET\") null else pkg)\n"
+          "                        }, modifier = Modifier.fillMaxWidth()) { Text(\"TEST AUDIO\") }\n"
+          "                        Spacer(modifier = Modifier.height(12.dp))\n"
+          "                        Button(onClick={prefs.setInt(\"rate_$currentKey\",rate);prefs.setInt(\"pitch_$currentKey\",pitch);prefs.setInt(\"vol_$currentKey\",vol);finish()},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.secondary)){Text(\"APPLY SETTINGS\")}\n"
+          "                        Spacer(modifier = Modifier.height(12.dp))\n"
+          "                        Button(onClick={rate=100;pitch=100;vol=100},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.surfaceVariant,contentColor=MaterialTheme.colorScheme.onSurfaceVariant)){Text(\"RESET TO DEFAULT\")}\n"
           "                    }\n"
           "                }\n"
           "            }\n"
           "        }\n"
           "    }\n"
-          "    override fun onDestroy() { tempTts?.shutdown(); tempTts2?.shutdown(); super.onDestroy() }\n"
+          "    override fun onDestroy() { testTts?.shutdown(); super.onDestroy() }\n"
           "}\n")
 
           # ── AdvancedSettingsActivity.kt ──────────────────────────────────────
@@ -1646,66 +1268,25 @@ jobs:
           "            MaterialTheme {\n"
           "                Surface(modifier = Modifier.fillMaxSize()) {\n"
           "                    val context = LocalContext.current\n"
-          "                    val readingMode = prefs.getReadingMode()\n"
-          "                    val isDualMode = readingMode == \"dual\"\n"
-          "                    val isMixMode = readingMode == \"mix\"\n"
-          "                    val isSplitMode = isDualMode || isMixMode\n"
-          "                    // Override pref keys: dual uses dual_*, mix uses mix_*\n"
-          "                    val puncKey = if (isDualMode) \"dual_punc_lang\" else \"mix_punc_lang\"\n"
-          "                    val numKey  = if (isDualMode) \"dual_num_lang\"  else \"mix_num_lang\"\n"
-          "                    val emojiKey = if (isDualMode) \"dual_emoji_lang\" else \"mix_emoji_lang\"\n"
           "                    var emojiReading by remember { mutableStateOf(prefs.getBoolean(\"emoji_reading\", true)) }\n"
           "                    var emojiCount by remember { mutableStateOf(prefs.getBoolean(\"emoji_count\", false)) }\n"
           "                    var punctCount by remember { mutableStateOf(prefs.getBoolean(\"punct_count\", false)) }\n"
           "                    var dictEnabled by remember { mutableStateOf(prefs.getBoolean(\"dict_enabled\", false)) }\n"
           "                    var latLangIso by remember { mutableStateOf(prefs.getString(\"mixed_mode_latin_language\", \"en\")) }\n"
           "                    var nonLatLangIso by remember { mutableStateOf(prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")) }\n"
-          "                    // Override options: \"auto\" means follow context (neutral chars go to current segment lang)\n"
-          "                    val overrideOptions = listOf(\"Auto (Follow Context)\") + Languages.displayNames\n"
-          "                    val overrideKeys   = listOf(\"auto\") + Languages.isoCodes\n"
-          "                    var puncLang by remember { mutableStateOf(prefs.getString(puncKey, \"auto\")) }\n"
-          "                    var numLang  by remember { mutableStateOf(prefs.getString(numKey,  \"auto\")) }\n"
-          "                    var emojiLang by remember { mutableStateOf(prefs.getString(emojiKey, \"auto\")) }\n"
           "                    Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {\n"
           "                        Text(\"Advanced Settings\", style = MaterialTheme.typography.headlineSmall)\n"
-          "                        Spacer(modifier = Modifier.height(8.dp))\n"
-          "                        Text(\"Mode: ${when(readingMode){\"dual\"->\"Dual Language\";\"mix\"->\"Mix Language\";else->\"Auto\"}}\", style = MaterialTheme.typography.bodySmall)\n"
           "                        Spacer(modifier = Modifier.height(24.dp))\n"
-          "                        // ── General toggles ─────────────────────────────────────────\n"
           "                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics{contentDescription=\"Toggle Emoji Reading\"}) { Checkbox(checked=emojiReading, onCheckedChange={emojiReading=it;prefs.setBoolean(\"emoji_reading\",it)}); Text(\"Emoji Reading\") }\n"
           "                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics{contentDescription=\"Toggle Repeated Emoji Count\"}) { Checkbox(checked=emojiCount, onCheckedChange={emojiCount=it;prefs.setBoolean(\"emoji_count\",it)}); Text(\"Repeated Emoji Count\") }\n"
           "                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics{contentDescription=\"Toggle Repeated Punctuation Count\"}) { Checkbox(checked=punctCount, onCheckedChange={punctCount=it;prefs.setBoolean(\"punct_count\",it)}); Text(\"Repeated Punctuation Count\") }\n"
           "                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics{contentDescription=\"Toggle Enable Dictionary\"}) { Checkbox(checked=dictEnabled, onCheckedChange={dictEnabled=it;prefs.setBoolean(\"dict_enabled\",it)}); Text(\"Enable Dictionary\") }\n"
           "                        Spacer(modifier = Modifier.height(16.dp))\n"
-          "                        // ── Fallback languages (used in all split modes) ──────────────\n"
-          "                        Divider()\n"
-          "                        Spacer(modifier = Modifier.height(8.dp))\n"
-          "                        Text(\"Fallback Languages\", style = MaterialTheme.typography.titleMedium)\n"
-          "                        Spacer(modifier = Modifier.height(8.dp))\n"
-          "                        AccessibleDropdown(\"Default Latin / Primary Language\", \"${Languages.map[latLangIso]} ($latLangIso)\", Languages.displayNames) { idx ->\n"
+          "                        AccessibleDropdown(\"Default Latin Language\", \"${Languages.map[latLangIso]} ($latLangIso)\", Languages.displayNames) { idx ->\n"
           "                            latLangIso=Languages.isoCodes[idx]; prefs.setString(\"mixed_mode_latin_language\",latLangIso)\n"
           "                        }\n"
-          "                        AccessibleDropdown(\"Default Non-Latin / Secondary Language\", \"${Languages.map[nonLatLangIso]} ($nonLatLangIso)\", Languages.displayNames) { idx ->\n"
+          "                        AccessibleDropdown(\"Default Non-Latin Language\", \"${Languages.map[nonLatLangIso]} ($nonLatLangIso)\", Languages.displayNames) { idx ->\n"
           "                            nonLatLangIso=Languages.isoCodes[idx]; prefs.setString(\"mixed_mode_non_latin_language\",nonLatLangIso)\n"
-          "                        }\n"
-          "                        // ── Character-type overrides (Dual mode & Mix mode only) ─────\n"
-          "                        if (isSplitMode) {\n"
-          "                            Spacer(modifier = Modifier.height(24.dp))\n"
-          "                            Divider()\n"
-          "                            Spacer(modifier = Modifier.height(8.dp))\n"
-          "                            Text(\"Character-Type Language Overrides\", style = MaterialTheme.typography.titleMedium)\n"
-          "                            Spacer(modifier = Modifier.height(4.dp))\n"
-          "                            Text(\"Override which language engine reads punctuation, numbers, and emoji. \\\"Auto\\\" follows the surrounding segment's language.\", style = MaterialTheme.typography.bodySmall)\n"
-          "                            Spacer(modifier = Modifier.height(12.dp))\n"
-          "                            AccessibleDropdown(\"Punctuation Language\", overrideOptions[overrideKeys.indexOf(puncLang).coerceAtLeast(0)], overrideOptions) { idx ->\n"
-          "                                puncLang = overrideKeys[idx]; prefs.setString(puncKey, puncLang)\n"
-          "                            }\n"
-          "                            AccessibleDropdown(\"Numbers Language\", overrideOptions[overrideKeys.indexOf(numLang).coerceAtLeast(0)], overrideOptions) { idx ->\n"
-          "                                numLang = overrideKeys[idx]; prefs.setString(numKey, numLang)\n"
-          "                            }\n"
-          "                            AccessibleDropdown(\"Emoji Language\", overrideOptions[overrideKeys.indexOf(emojiLang).coerceAtLeast(0)], overrideOptions) { idx ->\n"
-          "                                emojiLang = overrideKeys[idx]; prefs.setString(emojiKey, emojiLang)\n"
-          "                            }\n"
           "                        }\n"
           "                        Spacer(modifier = Modifier.height(32.dp))\n"
           "                        Button(onClick={startActivity(Intent(context,DictionaryActivity::class.java))},modifier=Modifier.fillMaxWidth()){Text(\"MANAGE DICTIONARY\")}\n"
@@ -1794,6 +1375,7 @@ jobs:
           w("app/src/main/AndroidManifest.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n"
+          "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n"
           "    <queries>\n"
           "        <intent><action android:name=\"android.intent.action.TTS_SERVICE\" /></intent>\n"
           "    </queries>\n"
@@ -1842,8 +1424,26 @@ jobs:
           "            </intent-filter>\n"
           "            <meta-data android:name=\"android.speech.tts\" android:resource=\"@xml/tts_engine\" />\n"
           "        </service>\n"
+          "        <receiver android:name=\".BootReceiver\" android:exported=\"true\" android:directBootAware=\"true\"><intent-filter><action android:name=\"android.intent.action.BOOT_COMPLETED\" /><action android:name=\"android.intent.action.LOCKED_BOOT_COMPLETED\" /></intent-filter></receiver>\n"
           "    </application>\n"
           "</manifest>\n")
+
+          # ── BootReceiver.kt ──────────────────────────────────────────────────
+          w("app/src/main/java/com/omni/tts/BootReceiver.kt",
+          "package com.omni.tts\n"
+          "import android.content.BroadcastReceiver\n"
+          "import android.content.Context\n"
+          "import android.content.Intent\n"
+          "class BootReceiver : BroadcastReceiver() {\n"
+          "    override fun onReceive(context: Context?, intent: Intent?) {\n"
+          "        if (intent?.action == Intent.ACTION_LOCKED_BOOT_COMPLETED || intent?.action == Intent.ACTION_BOOT_COMPLETED) {\n"
+          "            if (context != null) {\n"
+          "                VhLogger.init(context)\n"
+          "                SharedPrefsManager(context)\n"
+          "            }\n"
+          "        }\n"
+          "    }\n"
+          "}\n")
 
           print("All files generated successfully.")
           PYEOF
