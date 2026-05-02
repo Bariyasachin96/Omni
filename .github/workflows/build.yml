@@ -1359,7 +1359,7 @@ jobs:
           "                    val readingMode = targetMode\n"
           "                    val isDualMode = readingMode == \"dual\"\n"
           "                    val isMixMode = readingMode == \"mix\"\n"
-          "                    val isSplitMode = isDualMode || isMixMode\n"
+          "                    val isSplitMode = isDualMode\n"
           "                    val modeLabel = when(readingMode) { \"dual\" -> \"Dual Language\" ; \"mix\" -> \"Mix Language\" ; else -> \"Auto\" }\n"
           "                    val screenTitle = when(readingMode) { \"dual\" -> \"Configuring Dual Mode\" ; \"mix\" -> \"Configuring Mix Mode\" ; else -> \"Configuring Auto Mode\" }\n"
           "                    val engines = EngineFinder.getEngines(context).toMutableList().apply { add(0, EngineFinder.TTSInfo(\"NOT_SET\", \"--- Not Set ---\")) }\n"
