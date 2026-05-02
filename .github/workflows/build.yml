@@ -485,14 +485,6 @@ jobs:
           }
 
           // TRUE DUAL MODE: Strict Binary Routing + Punc/Num/Emoji Overrides (Zero Latency)
-          // ─────────────────────────────────────────────────────────────────
-          // LEGACY AUTO TTS DUAL MODE — Character-by-character binary slicer.
-          // No CLD2, no dictionaries, no Unicode block tables. Just two buckets:
-          //   Latin     : A-Z a-z 0-9 + basic ASCII punctuation/space (codepoint <= 127)
-          //   Non-Latin : everything else (Hindi, Arabic, Russian, emojis, symbols)
-          // Spaces/basic punctuation are neutral — they stick to whichever bucket
-          // is currently active so we don't emit unnecessary chunk boundaries.
-          // ─────────────────────────────────────────────────────────────────
           static std::vector<ChunkResult> buildDualChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall) {
               std::vector<ChunkResult> result;
               std::string fullText = "";
@@ -501,55 +493,52 @@ jobs:
               }
               if(fullText.empty()) return result;
 
-              std::string latinBuf = "";
-              std::string nonLatinBuf = "";
-              int active = 0; // 0 = none, 1 = Latin, 2 = Non-Latin
-
+              std::string curBuf = "";
+              std::string curLang = "";
               int i = 0;
               int len = (int)fullText.size();
+
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
                   std::string ch = fullText.substr(i, clen);
 
-                  int kind;
-                  if (cp == ' ' || cp == '\t' || cp == '\n' || cp == '\r') {
-                      kind = 0;
-                  } else if ((cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z') || (cp >= '0' && cp <= '9')) {
-                      kind = 1;
-                  } else if (cp <= 0x7F) {
-                      kind = 0;
+                  std::string targetLang;
+                  bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
+
+                  if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
+                      targetLang = emojiFall;
+                  } else if (isPunct(cp) && puncFall != "auto" && !puncFall.empty()) {
+                      targetLang = puncFall;
+                  } else if (isNum && numFall != "auto" && !numFall.empty()) {
+                      targetLang = numFall;
+                  } else if (isUnknownChar(cp)) {
+                      targetLang = "Neutral";
+                  } else if (isLatinChar(cp)) {
+                      targetLang = latFall;
                   } else {
-                      kind = 2;
+                      targetLang = nonLatFall;
                   }
 
-                  if (kind == 1) {
-                      if (active == 2 && !nonLatinBuf.empty()) {
-                          result.push_back({nonLatFall, nonLatinBuf});
-                          nonLatinBuf.clear();
-                      }
-                      latinBuf += ch;
-                      active = 1;
-                  } else if (kind == 2) {
-                      if (active == 1 && !latinBuf.empty()) {
-                          result.push_back({latFall, latinBuf});
-                          latinBuf.clear();
-                      }
-                      nonLatinBuf += ch;
-                      active = 2;
+                  if (curLang.empty() || curLang == "Neutral") {
+                      curLang = (targetLang == "Neutral") ? "" : targetLang;
+                      curBuf += ch;
+                  } else if (targetLang == "Neutral" || targetLang == curLang) {
+                      curBuf += ch;
                   } else {
-                      if (active == 2) {
-                          nonLatinBuf += ch;
-                      } else {
-                          latinBuf += ch;
-                          if (active == 0) active = 1;
+                      if(!curBuf.empty()) {
+                          if (!result.empty() && result.back().lang == curLang) result.back().text += curBuf;
+                          else result.push_back({curLang.empty() ? latFall : curLang, curBuf});
                       }
+                      curBuf = ch;
+                      curLang = targetLang;
                   }
                   i += clen;
               }
-              if (!latinBuf.empty()) result.push_back({latFall, latinBuf});
-              if (!nonLatinBuf.empty()) result.push_back({nonLatFall, nonLatinBuf});
-
+              if (!curBuf.empty()) {
+                  if (!result.empty() && result.back().lang == curLang) result.back().text += curBuf;
+                  else result.push_back({curLang.empty() ? latFall : curLang, curBuf});
+              }
               if (!result.empty()) {
                   while(!result.back().text.empty() && (result.back().text.back() == ' ' || result.back().text.back() == '\n' || result.back().text.back() == '\r')) {
                       result.back().text.pop_back();
@@ -815,7 +804,7 @@ jobs:
           # SpannableString + LocaleSpan for Mix mode (matches AutoTtsService.E==4)
           # Per-sentence CLD2 detection for unknowns
           # Engine availability check with fallback to user-preferred lang
-          # Thread.sleep(10) loop with @Volatile flags
+          # wait()/notifyAll() based — Auto TTS exact (zero-latency stop)
           w("app/src/main/java/com/omni/tts/ComposeTtsService.kt",
           "package com.omni.tts\n"
           "import android.os.Build\n"
@@ -843,6 +832,8 @@ jobs:
           "    @Volatile private var isDone        = false\n"
           "    @Volatile private var isInterrupted = false\n"
           "    @Volatile private var isStopped     = false\n"
+          "    // Auto TTS exact: this.f5663n — the lock object for wait()/notifyAll()\n"
+          "    private val syncLock = Object()\n"
           "    private fun getLocale(iso: String): Locale =\n"
           "        try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }\n"
           "    override fun onCreate() {\n"
@@ -888,11 +879,17 @@ jobs:
           "    override fun onGetLanguage(): Array<String> = arrayOf(\"eng\", \"USA\", \"\")\n"
           "    override fun onIsLanguageAvailable(l: String?, c: String?, v: String?) = TextToSpeech.LANG_AVAILABLE\n"
           "    override fun onLoadLanguage(l: String?, c: String?, v: String?) = TextToSpeech.LANG_AVAILABLE\n"
-          "    // Auto TTS exact onStop: just sets flags\n"
+          "    // Auto TTS exact onStop: Z(Boolean.TRUE) flow\n"
+          "    // 1. Set stop flags\n"
+          "    // 2. notifyAll() on lock — wakes up the wait() in synthesize loop INSTANTLY\n"
+          "    // (No 10ms polling delay — stop is immediate)\n"
           "    override fun onStop() {\n"
           "        VhLogger.markStop()\n"
-          "        isStopped     = true\n"
-          "        isInterrupted = true\n"
+          "        synchronized(syncLock) {\n"
+          "            isStopped     = true\n"
+          "            isInterrupted = true\n"
+          "            syncLock.notifyAll()\n"
+          "        }\n"
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    // Auto TTS class t2/l.g(CharSequence):ArrayList<l>  — EXACT PORT\n"
@@ -1096,18 +1093,18 @@ jobs:
           "                override fun onStart(id: String) { VhLogger.markSynthStart(chunkText, effectiveLang, currentChunk) }\n"
           "                override fun onDone(id: String) {\n"
           "                    VhLogger.markSynthEnd(currentChunk, System.currentTimeMillis())\n"
-          "                    isDone = true\n"
+          "                    synchronized(syncLock) { isDone = true; syncLock.notifyAll() }\n"
           "                }\n"
           "                override fun onError(id: String) {\n"
           "                    VhLogger.markSynthError(currentChunk, \"onError id=$id\")\n"
-          "                    isInterrupted = true\n"
+          "                    synchronized(syncLock) { isInterrupted = true; syncLock.notifyAll() }\n"
           "                }\n"
           "                override fun onError(id: String, errorCode: Int) {\n"
           "                    VhLogger.markSynthErrorCode(currentChunk, errorCode)\n"
-          "                    isInterrupted = true\n"
+          "                    synchronized(syncLock) { isInterrupted = true; syncLock.notifyAll() }\n"
           "                }\n"
           "                override fun onStop(id: String, interrupted: Boolean) {\n"
-          "                    isInterrupted = true\n"
+          "                    synchronized(syncLock) { isInterrupted = true; syncLock.notifyAll() }\n"
           "                }\n"
           "            })\n"
           "            val params = android.os.Bundle(request?.params ?: android.os.Bundle())\n"
@@ -1120,18 +1117,25 @@ jobs:
           "            val queueMode = if (currentChunk == 1) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD\n"
           "            val speakResult = tts.speak(chunkText, queueMode, params, utteranceId)\n"
           "            if (speakResult == TextToSpeech.ERROR) { VhLogger.e(\"[CHUNK-$currentChunk] speak ERROR\"); continue }\n"
-          "            // Auto TTS sleep loop\n"
-          "            while (!isDone && !isInterrupted) {\n"
-          "                try { Thread.sleep(10) }\n"
-          "                catch (_: InterruptedException) { isInterrupted = true; break }\n"
+          "            // Auto TTS exact: synchronized(f5663n) { while(!f5664o && !f5665p) f5663n.wait() }\n"
+          "            // wait() blocks the thread until notifyAll() is called from listener or onStop()\n"
+          "            // Zero-latency wake-up — no 10ms polling delay\n"
+          "            synchronized(syncLock) {\n"
+          "                while (!isDone && !isInterrupted) {\n"
+          "                    try { syncLock.wait() }\n"
+          "                    catch (_: InterruptedException) { isInterrupted = true; break }\n"
+          "                }\n"
           "            }\n"
           "            if (isInterrupted || isStopped) break\n"
           "        }\n"
           "        callback?.done()\n"
           "    }\n"
           "    override fun onDestroy() {\n"
-          "        isInterrupted = true\n"
-          "        isStopped     = true\n"
+          "        synchronized(syncLock) {\n"
+          "            isInterrupted = true\n"
+          "            isStopped     = true\n"
+          "            syncLock.notifyAll()\n"
+          "        }\n"
           "        enginePool.values.forEach { try { it.shutdown() } catch (_: Exception) {} }\n"
           "        enginePool.clear()\n"
           "        super.onDestroy()\n"
