@@ -485,6 +485,14 @@ jobs:
           }
 
           // TRUE DUAL MODE: Strict Binary Routing + Punc/Num/Emoji Overrides (Zero Latency)
+          // ─────────────────────────────────────────────────────────────────
+          // LEGACY AUTO TTS DUAL MODE — Character-by-character binary slicer.
+          // No CLD2, no dictionaries, no Unicode block tables. Just two buckets:
+          //   Latin     : A-Z a-z 0-9 + basic ASCII punctuation/space (codepoint <= 127)
+          //   Non-Latin : everything else (Hindi, Arabic, Russian, emojis, symbols)
+          // Spaces/basic punctuation are neutral — they stick to whichever bucket
+          // is currently active so we don't emit unnecessary chunk boundaries.
+          // ─────────────────────────────────────────────────────────────────
           static std::vector<ChunkResult> buildDualChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall) {
               std::vector<ChunkResult> result;
               std::string fullText = "";
@@ -493,52 +501,55 @@ jobs:
               }
               if(fullText.empty()) return result;
 
-              std::string curBuf = "";
-              std::string curLang = "";
+              std::string latinBuf = "";
+              std::string nonLatinBuf = "";
+              int active = 0; // 0 = none, 1 = Latin, 2 = Non-Latin
+
               int i = 0;
               int len = (int)fullText.size();
-
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
                   std::string ch = fullText.substr(i, clen);
 
-                  std::string targetLang;
-                  bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
-
-                  if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
-                      targetLang = emojiFall;
-                  } else if (isPunct(cp) && puncFall != "auto" && !puncFall.empty()) {
-                      targetLang = puncFall;
-                  } else if (isNum && numFall != "auto" && !numFall.empty()) {
-                      targetLang = numFall;
-                  } else if (isUnknownChar(cp)) {
-                      targetLang = "Neutral";
-                  } else if (isLatinChar(cp)) {
-                      targetLang = latFall;
+                  int kind;
+                  if (cp == ' ' || cp == '\t' || cp == '\n' || cp == '\r') {
+                      kind = 0;
+                  } else if ((cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z') || (cp >= '0' && cp <= '9')) {
+                      kind = 1;
+                  } else if (cp <= 0x7F) {
+                      kind = 0;
                   } else {
-                      targetLang = nonLatFall;
+                      kind = 2;
                   }
 
-                  if (curLang.empty() || curLang == "Neutral") {
-                      curLang = (targetLang == "Neutral") ? "" : targetLang;
-                      curBuf += ch;
-                  } else if (targetLang == "Neutral" || targetLang == curLang) {
-                      curBuf += ch;
-                  } else {
-                      if(!curBuf.empty()) {
-                          if (!result.empty() && result.back().lang == curLang) result.back().text += curBuf;
-                          else result.push_back({curLang.empty() ? latFall : curLang, curBuf});
+                  if (kind == 1) {
+                      if (active == 2 && !nonLatinBuf.empty()) {
+                          result.push_back({nonLatFall, nonLatinBuf});
+                          nonLatinBuf.clear();
                       }
-                      curBuf = ch;
-                      curLang = targetLang;
+                      latinBuf += ch;
+                      active = 1;
+                  } else if (kind == 2) {
+                      if (active == 1 && !latinBuf.empty()) {
+                          result.push_back({latFall, latinBuf});
+                          latinBuf.clear();
+                      }
+                      nonLatinBuf += ch;
+                      active = 2;
+                  } else {
+                      if (active == 2) {
+                          nonLatinBuf += ch;
+                      } else {
+                          latinBuf += ch;
+                          if (active == 0) active = 1;
+                      }
                   }
                   i += clen;
               }
-              if (!curBuf.empty()) {
-                  if (!result.empty() && result.back().lang == curLang) result.back().text += curBuf;
-                  else result.push_back({curLang.empty() ? latFall : curLang, curBuf});
-              }
+              if (!latinBuf.empty()) result.push_back({latFall, latinBuf});
+              if (!nonLatinBuf.empty()) result.push_back({nonLatFall, nonLatinBuf});
+
               if (!result.empty()) {
                   while(!result.back().text.empty() && (result.back().text.back() == ' ' || result.back().text.back() == '\n' || result.back().text.back() == '\r')) {
                       result.back().text.pop_back();
