@@ -162,49 +162,106 @@ jobs:
 
           struct BlockDef { int start; int end; const char* lang; };
           static const BlockDef SCRIPT_BLOCKS[] = {
-              {0x0370, 0x03FF, "el"}, {0x0400, 0x04FF, "ru"}, {0x0500, 0x052F, "ru"},
-              {0x0530, 0x058F, "hy"}, {0x0590, 0x05FF, "he"}, {0x0600, 0x06FF, "ar"},
-              {0x0700, 0x074F, "sy"}, {0x0750, 0x077F, "ar"}, {0x08A0, 0x08FF, "ar"},
+              {0x0000, 0x007F, "en"}, {0x0080, 0x00FF, "en"}, {0x0100, 0x017F, "Neutral"},
+              {0x0180, 0x024F, "Neutral"}, {0x0250, 0x02AF, "Neutral"}, {0x02B0, 0x02FF, "Neutral"},
+              {0x0300, 0x036F, "Neutral"}, {0x0370, 0x03FF, "el"}, {0x0400, 0x04FF, "ru"},
+              {0x0500, 0x052F, "ru"}, {0x0530, 0x058F, "hy"}, {0x0590, 0x05FF, "he"},
+              {0x0600, 0x06FF, "ar"}, {0x0700, 0x074F, "Neutral"}, {0x0750, 0x077F, "ar"},
+              {0x0780, 0x07BF, "Neutral"}, {0x07C0, 0x07FF, "Neutral"}, {0x0800, 0x083F, "Neutral"},
+              {0x0840, 0x085F, "Neutral"}, {0x0860, 0x086F, "Neutral"}, {0x08A0, 0x08FF, "ar"},
               {0x0900, 0x097F, "hi"}, {0x0980, 0x09FF, "bn"}, {0x0A00, 0x0A7F, "pa"},
               {0x0A80, 0x0AFF, "gu"}, {0x0B00, 0x0B7F, "or"}, {0x0B80, 0x0BFF, "ta"},
               {0x0C00, 0x0C7F, "te"}, {0x0C80, 0x0CFF, "kn"}, {0x0D00, 0x0D7F, "ml"},
               {0x0D80, 0x0DFF, "si"}, {0x0E00, 0x0E7F, "th"}, {0x0E80, 0x0EFF, "lo"},
               {0x0F00, 0x0FFF, "bo"}, {0x1000, 0x109F, "my"}, {0x10A0, 0x10FF, "ka"},
               {0x1100, 0x11FF, "ko"}, {0x1200, 0x137F, "am"}, {0x1380, 0x139F, "am"},
-              {0x13A0, 0x13FF, "chr"}, {0x1680, 0x169F, "ga"}, {0x16A0, 0x16FF, "el"},
-              {0x1700, 0x171F, "ti"}, {0x1780, 0x17FF, "km"}, {0x1800, 0x18AF, "mn"},
-              {0x1900, 0x194F, "li"}, {0x1950, 0x197F, "tai"}, {0x1980, 0x19DF, "tai"},
-              {0x19E0, 0x19FF, "km"}, {0x1A00, 0x1A1F, "bug"}, {0x1A20, 0x1AAF, "tai"},
-              {0x1B00, 0x1B7F, "ban"}, {0x1B80, 0x1BBF, "su"}, {0x1BC0, 0x1BFF, "btk"},
-              {0x1C50, 0x1C7F, "sat"}, {0x1C80, 0x1C8F, "ru"}, {0x1C90, 0x1CBF, "ka"},
-              {0x1CC0, 0x1CCF, "su"}, {0x1CD0, 0x1CFF, "sa"}, {0x1F00, 0x1FFF, "el"},
-              {0x2C80, 0x2CFF, "cop"}, {0x2D00, 0x2D2F, "ka"}, {0x2D30, 0x2D7F, "zgh"},
-              {0x2D80, 0x2DDF, "am"}, {0x2DE0, 0x2DFF, "ru"}, {0x3040, 0x309F, "ja"},
+              {0x13A0, 0x13FF, "Neutral"}, {0x1400, 0x167F, "Neutral"}, {0x1680, 0x169F, "Neutral"},
+              {0x16A0, 0x16FF, "Neutral"}, {0x1700, 0x171F, "Neutral"}, {0x1720, 0x173F, "Neutral"},
+              {0x1740, 0x175F, "Neutral"}, {0x1760, 0x177F, "Neutral"}, {0x1780, 0x17FF, "km"},
+              {0x1800, 0x18AF, "mn"}, {0x18B0, 0x18FF, "Neutral"}, {0x1900, 0x194F, "Neutral"},
+              {0x1950, 0x197F, "Neutral"}, {0x1980, 0x19DF, "Neutral"}, {0x19E0, 0x19FF, "km"},
+              {0x1A00, 0x1A1F, "Neutral"}, {0x1A20, 0x1AAF, "Neutral"}, {0x1AB0, 0x1AFF, "Neutral"},
+              {0x1B00, 0x1B7F, "Neutral"}, {0x1B80, 0x1BBF, "su"}, {0x1BC0, 0x1BFF, "Neutral"},
+              {0x1C00, 0x1C4F, "Neutral"}, {0x1C50, 0x1C7F, "Neutral"}, {0x1C80, 0x1C8F, "ru"},
+              {0x1C90, 0x1CBF, "ka"}, {0x1CC0, 0x1CCF, "su"}, {0x1CD0, 0x1CFF, "hi"},
+              {0x1D00, 0x1D7F, "Neutral"}, {0x1D80, 0x1DBF, "Neutral"}, {0x1DC0, 0x1DFF, "Neutral"},
+              {0x1E00, 0x1EFF, "Neutral"}, {0x1F00, 0x1FFF, "el"}, {0x2000, 0x206F, "Neutral"},
+              {0x2070, 0x209F, "Neutral"}, {0x20A0, 0x20CF, "Neutral"}, {0x20D0, 0x20FF, "Neutral"},
+              {0x2100, 0x214F, "Neutral"}, {0x2150, 0x218F, "Neutral"}, {0x2190, 0x21FF, "Neutral"},
+              {0x2200, 0x22FF, "Neutral"}, {0x2300, 0x23FF, "Neutral"}, {0x2400, 0x243F, "Neutral"},
+              {0x2440, 0x245F, "Neutral"}, {0x2460, 0x24FF, "Neutral"}, {0x2500, 0x257F, "Neutral"},
+              {0x2580, 0x259F, "Neutral"}, {0x25A0, 0x25FF, "Neutral"}, {0x2600, 0x26FF, "Neutral"},
+              {0x2700, 0x27BF, "Neutral"}, {0x27C0, 0x27EF, "Neutral"}, {0x27F0, 0x27FF, "Neutral"},
+              {0x2800, 0x28FF, "Neutral"}, {0x2900, 0x297F, "Neutral"}, {0x2980, 0x29FF, "Neutral"},
+              {0x2A00, 0x2AFF, "Neutral"}, {0x2B00, 0x2BFF, "Neutral"}, {0x2C00, 0x2C5F, "Neutral"},
+              {0x2C60, 0x2C7F, "Neutral"}, {0x2C80, 0x2CFF, "Neutral"}, {0x2D00, 0x2D2F, "ka"},
+              {0x2D30, 0x2D7F, "Neutral"}, {0x2D80, 0x2DDF, "am"}, {0x2DE0, 0x2DFF, "ru"},
+              {0x2E00, 0x2E7F, "Neutral"}, {0x2E80, 0x2EFF, "zh"}, {0x2F00, 0x2FDF, "zh"},
+              {0x2FF0, 0x2FFF, "Neutral"}, {0x3000, 0x303F, "Neutral"}, {0x3040, 0x309F, "ja"},
               {0x30A0, 0x30FF, "ja"}, {0x3100, 0x312F, "zh"}, {0x3130, 0x318F, "ko"},
-              {0x3190, 0x319F, "zh"}, {0x31A0, 0x31BF, "zh"}, {0x31F0, 0x31FF, "ja"},
-              {0x3400, 0x4DBF, "zh"}, {0x4DC0, 0x4DFF, "zh"}, {0x4E00, 0x9FFF, "zh"},
-              {0xA000, 0xA48F, "zh"}, {0xA490, 0xA4CF, "zh"}, {0xA4D0, 0xA4FF, "bo"},
-              {0xA500, 0xA63F, "vai"}, {0xA640, 0xA69F, "ru"}, {0xA830, 0xA83F, "inc"},
-              {0xA840, 0xA87F, "bo"}, {0xA8E0, 0xA8FF, "hi"}, {0xA960, 0xA97F, "ko"},
-              {0xA980, 0xA9DF, "jv"}, {0xA9E0, 0xA9FF, "my"}, {0xAA60, 0xAA7F, "my"},
-              {0xAA80, 0xAADF, "tai"}, {0xAB00, 0xAB2F, "am"}, {0xAB70, 0xABBF, "chr"},
-              {0xAC00, 0xD7AF, "ko"}, {0xD7B0, 0xD7FF, "ko"}, {0xF900, 0xFAFF, "zh"},
-              {0xFB50, 0xFDFF, "ar"}, {0xFE70, 0xFEFF, "ar"}, {0x10140, 0x1018F, "grc"},
-              {0x102E0, 0x102FF, "cop"}, {0x10300, 0x1032F, "it"}, {0x10330, 0x1034F, "got"},
-              {0x10380, 0x1039F, "uga"}, {0x103A0, 0x103DF, "fa"}, {0x10480, 0x104AF, "so"},
-              {0x104B0, 0x104FF, "osa"}, {0x10500, 0x1052F, "sq"}, {0x10530, 0x1056F, "sq"},
-              {0x10840, 0x1085F, "arc"}, {0x10880, 0x108AF, "arc"}, {0x108E0, 0x108FF, "arc"},
-              {0x10900, 0x1091F, "phn"}, {0x10A60, 0x10A7F, "ar"}, {0x10A80, 0x10A9F, "ar"},
-              {0x10B00, 0x10B3F, "ae"}, {0x10B40, 0x10B5F, "ira"}, {0x10B60, 0x10B7F, "fa"},
-              {0x10B80, 0x10BAF, "fa"}, {0x10C00, 0x10C4F, "tr"}, {0x10C80, 0x10CFF, "hu"},
-              {0x10F00, 0x10F2F, "sog"}, {0x10F30, 0x10F6F, "sog"}, {0x10FE0, 0x10FFF, "arc"},
-              {0x110D0, 0x110FF, "mun"}, {0x11100, 0x1114F, "bn"}, {0x11150, 0x1117F, "hi"},
-              {0x111E0, 0x111FF, "si"}, {0x112B0, 0x112FF, "sd"}, {0x11300, 0x1137F, "ta"},
-              {0x11580, 0x115FF, "sa"}, {0x11600, 0x1165F, "mr"}, {0x11660, 0x1167F, "mn"},
-              {0x11FC0, 0x11FFF, "ta"}, {0x13000, 0x1342F, "egy"}, {0x13430, 0x1343F, "egy"},
-              {0x1B000, 0x1B0FF, "ja"}, {0x1B100, 0x1B12F, "ja"}, {0x1EE00, 0x1EEFF, "ar"},
-              {0x20000, 0x2A6DF, "zh"}, {0x2A700, 0x2B73F, "zh"}, {0x2B740, 0x2B81F, "zh"},
-              {0x2B820, 0x2CEAF, "zh"}, {0x2CEB0, 0x2EBEF, "zh"}, {0x2F800, 0x2FA1F, "zh"},
+              {0x3190, 0x319F, "zh"}, {0x31A0, 0x31BF, "zh"}, {0x31C0, 0x31EF, "zh"},
+              {0x31F0, 0x31FF, "ja"}, {0x3200, 0x32FF, "Neutral"}, {0x3300, 0x33FF, "Neutral"},
+              {0x3400, 0x4DBF, "zh"}, {0x4DC0, 0x4DFF, "Neutral"}, {0x4E00, 0x9FFF, "zh"},
+              {0xA000, 0xA48F, "Neutral"}, {0xA490, 0xA4CF, "Neutral"}, {0xA4D0, 0xA4FF, "Neutral"},
+              {0xA500, 0xA63F, "Neutral"}, {0xA640, 0xA69F, "ru"}, {0xA6A0, 0xA6FF, "Neutral"},
+              {0xA700, 0xA71F, "Neutral"}, {0xA720, 0xA7FF, "Neutral"}, {0xA800, 0xA82F, "Neutral"},
+              {0xA830, 0xA83F, "Neutral"}, {0xA840, 0xA87F, "Neutral"}, {0xA880, 0xA8DF, "Neutral"},
+              {0xA8E0, 0xA8FF, "hi"}, {0xA900, 0xA92F, "Neutral"}, {0xA930, 0xA95F, "Neutral"},
+              {0xA960, 0xA97F, "ko"}, {0xA980, 0xA9DF, "jv"}, {0xA9E0, 0xA9FF, "my"},
+              {0xAA00, 0xAA5F, "Neutral"}, {0xAA60, 0xAA7F, "my"}, {0xAA80, 0xAADF, "Neutral"},
+              {0xAAE0, 0xAAFF, "Neutral"}, {0xAB00, 0xAB2F, "am"}, {0xAB30, 0xAB6F, "Neutral"},
+              {0xAB70, 0xABBF, "Neutral"}, {0xABC0, 0xABFF, "Neutral"}, {0xAC00, 0xD7AF, "ko"},
+              {0xD7B0, 0xD7FF, "ko"}, {0xD800, 0xDB7F, "Neutral"}, {0xDB80, 0xDBFF, "Neutral"},
+              {0xDC00, 0xDFFF, "Neutral"}, {0xE000, 0xF8FF, "Neutral"}, {0xF900, 0xFAFF, "zh"},
+              {0xFB00, 0xFB4F, "Neutral"}, {0xFB50, 0xFDFF, "ar"}, {0xFE00, 0xFE0F, "Neutral"},
+              {0xFE10, 0xFE1F, "Neutral"}, {0xFE20, 0xFE2F, "Neutral"}, {0xFE30, 0xFE4F, "Neutral"},
+              {0xFE50, 0xFE6F, "Neutral"}, {0xFE70, 0xFEFF, "ar"}, {0xFF00, 0xFFEF, "Neutral"},
+              {0xFFF0, 0xFFFF, "Neutral"}, {0x10000, 0x1007F, "Neutral"}, {0x10080, 0x100FF, "Neutral"},
+              {0x10100, 0x1013F, "Neutral"}, {0x10140, 0x1018F, "Neutral"}, {0x10190, 0x101CF, "Neutral"},
+              {0x101D0, 0x101FF, "Neutral"}, {0x10280, 0x1029F, "Neutral"}, {0x102A0, 0x102DF, "Neutral"},
+              {0x102E0, 0x102FF, "Neutral"}, {0x10300, 0x1032F, "Neutral"}, {0x10330, 0x1034F, "Neutral"},
+              {0x10350, 0x1037F, "Neutral"}, {0x10380, 0x1039F, "Neutral"}, {0x103A0, 0x103DF, "Neutral"},
+              {0x10400, 0x1044F, "Neutral"}, {0x10450, 0x1047F, "Neutral"}, {0x10480, 0x104AF, "Neutral"},
+              {0x104B0, 0x104FF, "Neutral"}, {0x10500, 0x1052F, "Neutral"}, {0x10530, 0x1056F, "Neutral"},
+              {0x10600, 0x1077F, "Neutral"}, {0x10800, 0x1083F, "Neutral"}, {0x10840, 0x1085F, "Neutral"},
+              {0x10860, 0x1087F, "Neutral"}, {0x10880, 0x108AF, "Neutral"}, {0x108E0, 0x108FF, "Neutral"},
+              {0x10900, 0x1091F, "Neutral"}, {0x10920, 0x1093F, "Neutral"}, {0x10980, 0x1099F, "Neutral"},
+              {0x109A0, 0x109FF, "Neutral"}, {0x10A00, 0x10A5F, "Neutral"}, {0x10A60, 0x10A7F, "Neutral"},
+              {0x10A80, 0x10A9F, "Neutral"}, {0x10AC0, 0x10AFF, "Neutral"}, {0x10B00, 0x10B3F, "Neutral"},
+              {0x10B40, 0x10B5F, "Neutral"}, {0x10B60, 0x10B7F, "Neutral"}, {0x10B80, 0x10BAF, "Neutral"},
+              {0x10C00, 0x10C4F, "Neutral"}, {0x10C80, 0x10CFF, "Neutral"}, {0x10D00, 0x10D3F, "Neutral"},
+              {0x10E60, 0x10E7F, "Neutral"}, {0x10F00, 0x10F2F, "Neutral"}, {0x10F30, 0x10F6F, "Neutral"},
+              {0x10FE0, 0x10FFF, "Neutral"}, {0x11000, 0x1107F, "Neutral"}, {0x11080, 0x110CF, "Neutral"},
+              {0x110D0, 0x110FF, "Neutral"}, {0x11100, 0x1114F, "Neutral"}, {0x11150, 0x1117F, "Neutral"},
+              {0x11180, 0x111DF, "Neutral"}, {0x111E0, 0x111FF, "si"}, {0x11200, 0x1124F, "Neutral"},
+              {0x11280, 0x112AF, "Neutral"}, {0x112B0, 0x112FF, "Neutral"}, {0x11300, 0x1137F, "Neutral"},
+              {0x11400, 0x1147F, "Neutral"}, {0x11480, 0x114DF, "Neutral"}, {0x11580, 0x115FF, "Neutral"},
+              {0x11600, 0x1165F, "Neutral"}, {0x11660, 0x1167F, "mn"}, {0x11680, 0x116CF, "Neutral"},
+              {0x11700, 0x1173F, "Neutral"}, {0x11800, 0x1184F, "Neutral"}, {0x118A0, 0x118FF, "Neutral"},
+              {0x119A0, 0x119FF, "Neutral"}, {0x11A00, 0x11A4F, "Neutral"}, {0x11A50, 0x11AAF, "Neutral"},
+              {0x11AC0, 0x11AFF, "Neutral"}, {0x11C00, 0x11C6F, "Neutral"}, {0x11C70, 0x11CBF, "Neutral"},
+              {0x11D00, 0x11D5F, "Neutral"}, {0x11D60, 0x11DAF, "Neutral"}, {0x11EE0, 0x11EFF, "Neutral"},
+              {0x11FC0, 0x11FFF, "ta"}, {0x12000, 0x123FF, "Neutral"}, {0x12400, 0x1247F, "Neutral"},
+              {0x12480, 0x1254F, "Neutral"}, {0x13000, 0x1342F, "Neutral"}, {0x13430, 0x1343F, "Neutral"},
+              {0x14400, 0x1467F, "Neutral"}, {0x16800, 0x16A3F, "Neutral"}, {0x16A40, 0x16A6F, "Neutral"},
+              {0x16AD0, 0x16AFF, "Neutral"}, {0x16B00, 0x16B8F, "Neutral"}, {0x16E40, 0x16E9F, "Neutral"},
+              {0x16F00, 0x16F9F, "Neutral"}, {0x16FE0, 0x16FFF, "Neutral"}, {0x17000, 0x187FF, "Neutral"},
+              {0x18800, 0x18AFF, "Neutral"}, {0x1B000, 0x1B0FF, "ja"}, {0x1B100, 0x1B12F, "ja"},
+              {0x1B130, 0x1B16F, "ja"}, {0x1B170, 0x1B2FF, "Neutral"}, {0x1BC00, 0x1BC9F, "Neutral"},
+              {0x1BCA0, 0x1BCAF, "Neutral"}, {0x1D000, 0x1D0FF, "Neutral"}, {0x1D100, 0x1D1FF, "Neutral"},
+              {0x1D200, 0x1D24F, "Neutral"}, {0x1D2E0, 0x1D2FF, "Neutral"}, {0x1D300, 0x1D35F, "Neutral"},
+              {0x1D360, 0x1D37F, "Neutral"}, {0x1D400, 0x1D7FF, "Neutral"}, {0x1D800, 0x1DAAF, "Neutral"},
+              {0x1E000, 0x1E02F, "Neutral"}, {0x1E100, 0x1E14F, "Neutral"}, {0x1E2C0, 0x1E2FF, "Neutral"},
+              {0x1E800, 0x1E8DF, "Neutral"}, {0x1E900, 0x1E95F, "Neutral"}, {0x1EC70, 0x1ECBF, "Neutral"},
+              {0x1ED00, 0x1ED4F, "Neutral"}, {0x1EE00, 0x1EEFF, "Neutral"}, {0x1F000, 0x1F02F, "Neutral"},
+              {0x1F030, 0x1F09F, "Neutral"}, {0x1F0A0, 0x1F0FF, "Neutral"}, {0x1F100, 0x1F1FF, "Neutral"},
+              {0x1F200, 0x1F2FF, "Neutral"}, {0x1F300, 0x1F5FF, "Neutral"}, {0x1F600, 0x1F64F, "Neutral"},
+              {0x1F650, 0x1F67F, "Neutral"}, {0x1F680, 0x1F6FF, "Neutral"}, {0x1F700, 0x1F77F, "Neutral"},
+              {0x1F780, 0x1F7FF, "Neutral"}, {0x1F800, 0x1F8FF, "Neutral"}, {0x1F900, 0x1F9FF, "Neutral"},
+              {0x1FA00, 0x1FA6F, "Neutral"}, {0x1FA70, 0x1FAFF, "Neutral"}, {0x20000, 0x2A6DF, "zh"},
+              {0x2A700, 0x2B73F, "zh"}, {0x2B740, 0x2B81F, "zh"}, {0x2B820, 0x2CEAF, "zh"},
+              {0x2CEB0, 0x2EBEF, "zh"}, {0x2F800, 0x2FA1F, "zh"}, {0xE0000, 0xE007F, "Neutral"},
+              {0xE0100, 0xE01EF, "Neutral"}, {0xF0000, 0xFFFFF, "Neutral"}, {0x100000, 0x10FFFF, "Neutral"},
               {0, 0, nullptr}
           };
 
@@ -333,11 +390,25 @@ jobs:
                      isUnknownChar(cp);
           }
 
-          // detectLang: Pure Direct CLD2 Detection
+          // detectLang: Prioritize SCRIPT_BLOCKS array lookup; CLD2 only if everything is Neutral
           static std::string detectLang(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
-              const int WINDOW = 64;
               int len = (int)text.size();
+              // PRIORITY 1: Scan codepoints and return the first non-Neutral language from SCRIPT_BLOCKS
               int i = 0;
+              while(i < len) {
+                  int clen = 0;
+                  int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
+                  if(!isUnknownChar(cp)) {
+                      const char* sl = scriptLookup(cp);
+                      if (sl && strcmp(sl, "Neutral") != 0) {
+                          return std::string(sl);
+                      }
+                  }
+                  i += clen;
+              }
+              // PRIORITY 2: Everything was Neutral / unknown — try CLD2 as a last resort
+              const int WINDOW = 64;
+              i = 0;
               while(i < len) {
                   int byteStart = i;
                   int charCount = 0;
@@ -356,14 +427,14 @@ jobs:
                   }
                   i = j;
               }
+              // PRIORITY 3: Final fallback by Latin/Non-Latin classification
               i = 0;
               while(i < len) {
                   int clen = 0;
                   int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
                   if(!isUnknownChar(cp)) {
                       if (isLatinChar(cp)) return latFall;
-                      const char* sl = scriptLookupChar(cp);
-                      return sl ? std::string(sl) : nonLatFall;
+                      return nonLatFall;
                   }
                   i += clen;
               }
@@ -435,20 +506,23 @@ jobs:
                   std::string charScript;
                   if (isUnknownChar(cp)) {
                       charScript = "Neutral";
-                  } else if (isLatinChar(cp)) {
-                      charScript = "Latin";
                   } else {
-                      // FIXED: Accurately distinguish between different non-Latin scripts
+                      // UNIVERSAL CHARACTER SPLITTER: scriptLookup returns the ISO code from
+                      // SCRIPT_BLOCKS (e.g. "en" for Basic Latin, "hi" for Devanagari, "Neutral"
+                      // for symbols/math/numbers). Any difference between charScript and
+                      // curScript triggers a new chunk immediately.
                       const char* sl = scriptLookup(cp);
-                      charScript = sl ? std::string(sl) : "UnknownNonLatin";
+                      charScript = sl ? std::string(sl) : "Neutral";
                   }
 
                   if (curScript.empty() || curScript == "Neutral") {
                       curScript = (charScript == "Neutral") ? "" : charScript;
                       curBuf += ch;
                   } else if (charScript == "Neutral" || charScript == curScript) {
+                      // Neutral chars stick to the active language flow
                       curBuf += ch;
                   } else {
+                      // Script boundary detected — split into a new chunk immediately
                       blocks.push_back({curBuf, curScript});
                       curBuf = ch;
                       curScript = charScript;
@@ -650,6 +724,7 @@ jobs:
           "        \"es\" to \"Spanish\", \"su\" to \"Sundanese\", \"sw\" to \"Swahili\", \"sv\" to \"Swedish\",\n"
           "        \"ta\" to \"Tamil\", \"te\" to \"Telugu\", \"th\" to \"Thai\", \"tr\" to \"Turkish\",\n"
           "        \"uk\" to \"Ukrainian\", \"ur\" to \"Urdu\", \"uz\" to \"Uzbek\", \"vi\" to \"Vietnamese\",\n"
+          "        \"am\" to \"Amharic\", \"bo\" to \"Tibetan\", \"my\" to \"Burmese\", \"or\" to \"Odia\",\n"
           "        \"cy\" to \"Welsh\", \"yo\" to \"Yoruba\", \"zu\" to \"Zulu\"\n"
           "    )\n"
           "    val isoCodes = map.keys.toList()\n"
@@ -815,7 +890,7 @@ jobs:
           # SpannableString + LocaleSpan for Mix mode (matches AutoTtsService.E==4)
           # Per-sentence CLD2 detection for unknowns
           # Engine availability check with fallback to user-preferred lang
-          # Thread.sleep(10) loop with @Volatile flags
+          # Responsive latch.await(5ms) loop with @Volatile flags — INSTANT STOP reaction
           w("app/src/main/java/com/omni/tts/ComposeTtsService.kt",
           "package com.omni.tts\n"
           "import android.os.Build\n"
@@ -996,36 +1071,33 @@ jobs:
           "        val chunks = mutableListOf<TextChunk>()\n"
           "        when (readingMode) {\n"
           "            \"mix\" -> {\n"
-          "                val sentences = splitByLocaleSpans(rawCharSeq)\n"
-          "                VhLogger.d(\"[SERVICE] mix mode: SpannableString produced ${sentences.size} sentences\")\n"
+          "                // UNIVERSAL CHARACTER SPLITTER: pass the full raw text directly to the\n"
+          "                // C++ engine. Native buildMixChunks does true character-by-character\n"
+          "                // script-boundary splitting via SCRIPT_BLOCKS. We deliberately do NOT\n"
+          "                // route through splitByLocaleSpans here, because TalkBack's LocaleSpan\n"
+          "                // hints can mis-tag mixed-script sentences (e.g. tagging \"भेजें Button\"\n"
+          "                // as entirely English).\n"
           "                val dictMap = if (prefs.getBoolean(\"dict_enabled\", false)) prefs.getDict() else emptyMap()\n"
-          "                for (sent in sentences) {\n"
-          "                    if (myStop.get()) break\n"
-          "                    if (sent.lang.equals(\"UNKNOWN\", ignoreCase = true)) {\n"
-          "                        val bytes = sent.text.toByteArray(Charsets.UTF_8)\n"
-          "                        val buf = ByteBuffer.allocateDirect(bytes.size)\n"
-          "                        buf.put(bytes); buf.position(0)\n"
-          "                        val out = NativeEngine.processDirect(\n"
-          "                            buf, bytes.size,\n"
-          "                            dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
-          "                            prefs.getBoolean(\"emoji_reading\", true),\n"
-          "                            prefs.getBoolean(\"emoji_count\", false),\n"
-          "                            prefs.getBoolean(\"punct_count\", false),\n"
-          "                            latFall, nonLatFall, \"mix\",\n"
-          "                            prefs.getString(\"mix_punc_lang\",  \"auto\"),\n"
-          "                            prefs.getString(\"mix_num_lang\",   \"auto\"),\n"
-          "                            prefs.getString(\"mix_emoji_lang\", \"auto\")\n"
-          "                        )\n"
-          "                        for (chunkStr in out.split(\"||\").filter { it.isNotBlank() }) {\n"
-          "                            val parts = chunkStr.split(\"|\", limit = 2)\n"
-          "                            if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
-          "                                val resolved = if (isEngineAvailable(parts[0])) parts[0] else latFall\n"
-          "                                chunks.add(TextChunk(parts[1], resolved))\n"
-          "                            }\n"
-          "                        }\n"
-          "                    } else {\n"
-          "                        val resolved = if (isEngineAvailable(sent.lang)) sent.lang else latFall\n"
-          "                        chunks.add(TextChunk(sent.text, resolved))\n"
+          "                val bytes = rawText.toByteArray(Charsets.UTF_8)\n"
+          "                val buf = ByteBuffer.allocateDirect(bytes.size)\n"
+          "                buf.put(bytes); buf.position(0)\n"
+          "                val out = NativeEngine.processDirect(\n"
+          "                    buf, bytes.size,\n"
+          "                    dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
+          "                    prefs.getBoolean(\"emoji_reading\", true),\n"
+          "                    prefs.getBoolean(\"emoji_count\", false),\n"
+          "                    prefs.getBoolean(\"punct_count\", false),\n"
+          "                    latFall, nonLatFall, \"mix\",\n"
+          "                    prefs.getString(\"mix_punc_lang\",  \"auto\"),\n"
+          "                    prefs.getString(\"mix_num_lang\",   \"auto\"),\n"
+          "                    prefs.getString(\"mix_emoji_lang\", \"auto\")\n"
+          "                )\n"
+          "                VhLogger.d(\"[SERVICE] mix mode: native returned ${out.length} chars\")\n"
+          "                for (chunkStr in out.split(\"||\").filter { it.isNotBlank() }) {\n"
+          "                    val parts = chunkStr.split(\"|\", limit = 2)\n"
+          "                    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
+          "                        val resolved = if (isEngineAvailable(parts[0])) parts[0] else latFall\n"
+          "                        chunks.add(TextChunk(parts[1], resolved))\n"
           "                    }\n"
           "                }\n"
           "            }\n"
@@ -1132,18 +1204,18 @@ jobs:
           "            val queueMode = if (currentChunk == 1) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD\n"
           "            val speakResult = tts.speak(chunkText, queueMode, params, utteranceId)\n"
           "            if (speakResult == TextToSpeech.ERROR) { VhLogger.e(\"[CHUNK-$currentChunk] speak ERROR\"); continue }\n"
-          "            val silence = ByteArray(2048)\n"
-          "            while (chunkLatch.count > 0 && !myStop.get() && !isStopped) {\n"
+          "            val silence = ByteArray(1024)\n"
+          "            while (chunkLatch.count > 0) {\n"
+          "                if (myStop.get() || isStopped || activeStop.get().get()) break\n"
           "                try {\n"
-          "                    // Feed silence to prevent TalkBack 5-second timeout (RESTORED LOGIC)\n"
+          "                    // Feed silence to prevent TalkBack 5-second timeout\n"
           "                    if (callback?.audioAvailable(silence, 0, silence.size) == TextToSpeech.ERROR) {\n"
-          "                        myStop.set(true)\n"
-          "                        break\n"
+          "                        myStop.set(true); break\n"
           "                    }\n"
-          "                    Thread.sleep(10)\n"
-          "                } catch (_: Exception) {\n"
-          "                    break\n"
-          "                }\n"
+          "                    // Responsive wait: returns true when latch counts down (chunk done),\n"
+          "                    // returns false after 5ms timeout (so we can check stop flags & feed silence again).\n"
+          "                    if (chunkLatch.await(5, TimeUnit.MILLISECONDS)) break\n"
+          "                } catch (_: Exception) { break }\n"
           "            }\n"
           "            if (myStop.get() || isStopped) break\n"
           "        }\n"
