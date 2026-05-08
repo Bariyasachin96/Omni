@@ -407,6 +407,67 @@ jobs:
                       i += clen;
                   }
               }
+              // PRIORITY 0.5: Latin/Cyrillic/Arabic micro-language detection via per-codepoint
+              // accent table — ported from original AutoTTS's a.java::b(int). Distinguishes
+              // fr/es/de/no/pl/cs/vi from accented Latin chars, uk/sr/bg/kk from Cyrillic
+              // letters, and fa/ur/ps/sd/ku from Arabic letters. First match wins so e.g.
+              // "café niño" → fr (because "é" comes before "ñ" — first match priority).
+              {
+                  int i = 0;
+                  while(i < len) {
+                      int clen = 0;
+                      int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
+                      // ── Latin diacritics (Latin-1 Supplement + Latin Extended-A) ──
+                      if (cp == 192 || cp == 194 || cp == 199 || cp == 200 || cp == 201 || cp == 202 || cp == 203
+                          || cp == 206 || cp == 207 || cp == 212 || cp == 217 || cp == 219
+                          || cp == 224 || cp == 226 || cp == 231 || cp == 232 || cp == 233 || cp == 234 || cp == 235
+                          || cp == 238 || cp == 239 || cp == 244 || cp == 249 || cp == 251 || cp == 338 || cp == 339)
+                          return "fr";
+                      if (cp == 193 || cp == 205 || cp == 209 || cp == 211 || cp == 218
+                          || cp == 225 || cp == 237 || cp == 241 || cp == 243 || cp == 250)
+                          return "es";
+                      if (cp == 196 || cp == 214 || cp == 220 || cp == 228 || cp == 246 || cp == 252 || cp == 223)
+                          return "de";
+                      if (cp == 197 || cp == 198 || cp == 216 || cp == 229 || cp == 230 || cp == 248)
+                          return "no";
+                      if (cp == 260 || cp == 261 || cp == 262 || cp == 263 || cp == 280 || cp == 281
+                          || cp == 321 || cp == 322 || cp == 323 || cp == 324 || cp == 346 || cp == 347
+                          || cp == 377 || cp == 378 || cp == 379 || cp == 380)
+                          return "pl";
+                      if (cp == 268 || cp == 269 || cp == 270 || cp == 271 || cp == 282 || cp == 283
+                          || cp == 327 || cp == 328 || cp == 344 || cp == 345 || cp == 352 || cp == 353
+                          || cp == 356 || cp == 357 || cp == 366 || cp == 367 || cp == 381 || cp == 382)
+                          return "cs";
+                      if ((cp >= 7840 && cp <= 7929) || cp == 272 || cp == 273
+                          || cp == 416 || cp == 417 || cp == 431 || cp == 432)
+                          return "vi";
+                      // ── Cyrillic micro-language splits ──
+                      if (cp == 1028 || cp == 1108 || cp == 1030 || cp == 1110 || cp == 1031 || cp == 1111
+                          || cp == 1168 || cp == 1169)
+                          return "uk";
+                      if (cp == 1026 || cp == 1106 || cp == 1032 || cp == 1112 || cp == 1033 || cp == 1113
+                          || cp == 1034 || cp == 1114 || cp == 1035 || cp == 1115 || cp == 1039 || cp == 1119)
+                          return "sr";
+                      if (cp == 1066 || cp == 1098)
+                          return "bg";
+                      if (cp == 1186 || cp == 1187 || cp == 1170 || cp == 1171 || cp == 1200 || cp == 1201
+                          || cp == 1198 || cp == 1199 || cp == 1240 || cp == 1241)
+                          return "kk";
+                      // ── Arabic micro-language splits ──
+                      if (cp == 1662 || cp == 1670 || cp == 1688 || cp == 1711)
+                          return "fa";
+                      if (cp == 1657 || cp == 1672 || cp == 1681 || cp == 1722 || cp == 1726 || cp == 1729 || cp == 1746)
+                          return "ur";
+                      if (cp == 1665 || cp == 1669 || cp == 1673 || cp == 1683 || cp == 1686 || cp == 1690
+                          || cp == 1724 || cp == 1744)
+                          return "ps";
+                      if (cp >= 1658 && cp <= 1661)
+                          return "sd";
+                      if (cp == 1742 || cp == 1685 || cp == 1717 || cp == 1734 || cp == 1738 || cp == 1739)
+                          return "ku";
+                      i += clen;
+                  }
+              }
               // PRIORITY 1: Scan codepoints and return the first non-Neutral language from SCRIPT_BLOCKS
               int i = 0;
               while(i < len) {
@@ -865,6 +926,24 @@ jobs:
           "    fun setLocaleForLangPkg(lang: String, pkg: String, tag: String) = prefs.edit().putString(\"locale_${lang}_${pkg}\", tag).apply()\n"
           "    fun getVoiceName(lang: String, pkg: String, locTag: String): String = prefs.getString(\"voice_name_${lang}_${pkg}_${locTag}\", \"*Default\") ?: \"*Default\"\n"
           "    fun setVoiceName(lang: String, pkg: String, locTag: String, voiceName: String) = prefs.edit().putString(\"voice_name_${lang}_${pkg}_${locTag}\", voiceName).apply()\n"
+          "    // ── voice_N sequential schema (for original-AutoTTS migration compatibility) ──\n"
+          "    // Keys: voice_0, voice_1, voice_2, …  Format: \"name#locale_country_variant\".\n"
+          "    // Used by CheckVoiceData.kt's optional sequential-mode and onGetVoices() upstream.\n"
+          "    fun getVoiceN(index: Int): String = prefs.getString(\"voice_$index\", \"\") ?: \"\"\n"
+          "    fun setVoiceN(index: Int, value: String) = prefs.edit().putString(\"voice_$index\", value).apply()\n"
+          "    fun getAllVoicePrefs(): List<String> {\n"
+          "        // Walk voice_0, voice_1, …  stopping at the first empty entry. Mirrors the\n"
+          "        // original AutoTtsService.V() loader.\n"
+          "        val out = mutableListOf<String>()\n"
+          "        var i = 0\n"
+          "        while (true) {\n"
+          "            val v = getVoiceN(i)\n"
+          "            if (v.isEmpty()) break\n"
+          "            out.add(v); i++\n"
+          "            if (i > 1000) break  // safety cap\n"
+          "        }\n"
+          "        return out\n"
+          "    }\n"
           "    fun setString(key: String, v: String) = prefs.edit().putString(key, v).apply()\n"
           "    fun getString(key: String, def: String): String = prefs.getString(key, def) ?: def\n"
           "    fun setInt(key: String, v: Int) = prefs.edit().putInt(key, v).apply()\n"
@@ -957,7 +1036,9 @@ jobs:
           "    private val activeStop = AtomicReference(AtomicBoolean(true))\n"
           "    // Original AutoTTS Producer-Consumer sync: pure wait()/notifyAll() lock — zero-lag stops\n"
           "    private val syncLock = Object()\n"
-          "    @Volatile private var isStopped = false\n"
+          "    @Volatile private var isStopped = false                  // hard stop (from onStop / onDestroy)\n"
+          "    @Volatile private var isFlushed = false                  // soft flush (from internal Z(false) path)\n"
+          "    @Volatile private var globalUtteranceCounter = 0         // matches original AutoTTS's static `I`\n"
           "    private fun getLocale(iso: String): Locale =\n"
           "        try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }\n"
           "    override fun onCreate() {\n"
@@ -1002,6 +1083,26 @@ jobs:
           "            }, pkg)\n"
           "            latch.await(5, TimeUnit.SECONDS)\n"
           "            val tts = ref[0]\n"
+          "            // ITEM 9: Reflection probe — some OEMs (Samsung, etc.) silently fall back to the\n"
+          "            // default TTS engine if the requested package can't bind, returning a TextToSpeech\n"
+          "            // whose internal mCurrentEngine differs from the package we asked for. Catch that\n"
+          "            // mismatch here and log it so the user knows their selection didn't actually load.\n"
+          "            if (tts != null) {\n"
+          "                try {\n"
+          "                    val field = TextToSpeech::class.java.getDeclaredField(\"mCurrentEngine\")\n"
+          "                    field.isAccessible = true\n"
+          "                    val actualPkg = field.get(tts)?.toString()\n"
+          "                    if (actualPkg != null && actualPkg != pkg) {\n"
+          "                        VhLogger.w(\"[ENGINE] Probe mismatch: requested=$pkg actual=$actualPkg — OEM cloaking suspected\")\n"
+          "                    } else if (actualPkg == pkg) {\n"
+          "                        VhLogger.d(\"[ENGINE] Probe verified: $pkg loaded correctly\")\n"
+          "                    }\n"
+          "                } catch (_: NoSuchFieldException) {\n"
+          "                    // mCurrentEngine field not present on this Android version — silently skip.\n"
+          "                } catch (e: Exception) {\n"
+          "                    VhLogger.d(\"[ENGINE] Probe reflection threw ${e.javaClass.simpleName}\")\n"
+          "                }\n"
+          "            }\n"
           "            if (tts != null) { enginePool[poolKey] = tts; VhLogger.markEngineInit(lang, pkg, System.currentTimeMillis()-t0) }\n"
           "            VhLogger.markEnginePoolSize(enginePool.size)\n"
           "            return tts\n"
@@ -1024,8 +1125,8 @@ jobs:
           "                val voice = Voice(\n"
           "                    \"omni_$iso\",\n"
           "                    locale,\n"
-          "                    Voice.QUALITY_NORMAL,\n"
-          "                    Voice.LATENCY_NORMAL,\n"
+          "                    400,                 // quality — matches original AutoTTS Voice ctor\n"
+          "                    100,                 // latency — matches original AutoTTS Voice ctor\n"
           "                    false,\n"
           "                    emptySet()\n"
           "                )\n"
@@ -1041,10 +1142,15 @@ jobs:
           "    // build-41 multi-level kill switch\n"
           "    override fun onStop() {\n"
           "        VhLogger.markStop()\n"
-          "        isStopped = true                    // break the active polling loop\n"
-          "        activeStop.get().set(true)          // signal current loop to abort\n"
+          "        // Original Z(TRUE) hard-stop: sets BOTH flags inside the same lock and notifies\n"
+          "        // all waiters (line ~937–944 of original AutoTtsService).\n"
+          "        synchronized(syncLock) {\n"
+          "            isStopped = true                    // hard stop primary signal\n"
+          "            isFlushed = true                    // matches original — both flags trip\n"
+          "            syncLock.notifyAll()                // WAKE UP INSTANTLY\n"
+          "        }\n"
+          "        activeStop.get().set(true)              // signal current loop to abort\n"
           "        enginePool.values.forEach { try { it.stop() } catch (_: Exception) {} } // silence hardware immediately\n"
-          "        synchronized(syncLock) { syncLock.notifyAll() }  // WAKE UP INSTANTLY\n"
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    // Auto TTS class t2/l.g(CharSequence):ArrayList<l>  — EXACT PORT\n"
@@ -1125,20 +1231,36 @@ jobs:
           "    // onSynthesizeText — Auto TTS exact pipeline\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {\n"
-          "        isStopped = false\n"
+          "        // ITEM 3: Reset BOTH stop flags atomically with notifyAll, matching the original\n"
+          "        // AutoTtsService line ~1137 prologue. Any thread blocked in syncLock.wait() from a\n"
+          "        // previous call gets woken so it doesn't leak state into this call.\n"
+          "        synchronized(syncLock) {\n"
+          "            isStopped = false       // hard stop cleared\n"
+          "            isFlushed = false       // soft flush cleared\n"
+          "            syncLock.notifyAll()\n"
+          "        }\n"
           "        // ── SOFT FLUSH (Z(false)): drain any residual hardware buffers from the prior\n"
-          "        // utterance without an immediate hard stop. Speak \"\" with QUEUE_ADD on every\n"
+          "        // utterance without an immediate hard stop. Speak \"\" with QUEUE_FLUSH on every\n"
           "        // engine in the pool — equivalent to AutoTTS's Z(false) softFlush() routine.\n"
           "        for (eng in enginePool.values) {\n"
           "            try { eng.speak(\"\", TextToSpeech.QUEUE_FLUSH, null, \"omni_soft_flush\") } catch (_: Exception) {}\n"
           "        }\n"
-          "        VhLogger.d(\"[SERVICE] onSynthesizeText textLen=${request?.charSequenceText?.length ?: 0}\")\n"
+          "        // ITEM 5/11: Pull the framework's utteranceId (`V` in original AutoTtsService) from\n"
+          "        // the request bundle. Per-chunk we'll combine it with globalUtteranceCounter to form\n"
+          "        // \"${V}_${I}\" — matching original line ~1378.\n"
+          "        val frameworkUtteranceId = request?.params?.getString(\n"
+          "            TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID\n"
+          "        )?.takeIf { it.isNotBlank() } ?: \"AutoTTS\"\n"
+          "        VhLogger.d(\"[SERVICE] onSynthesizeText textLen=${request?.charSequenceText?.length ?: 0} V=$frameworkUtteranceId\")\n"
           "        activeStop.get().set(true)\n"
           "        val myStop = AtomicBoolean(false)\n"
           "        activeStop.set(myStop)\n"
           "        val rawCharSeq = request?.charSequenceText ?: \"\"\n"
           "        val rawText = rawCharSeq.toString().trim()\n"
           "        if (rawText.isEmpty()) {\n"
+          "            // Original Z(false) soft-flush path: empty input → drain & finish, signalling\n"
+          "            // any waiter via isFlushed (NOT isStopped — this isn't a hard cancel).\n"
+          "            synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }\n"
           "            callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
           "            callback?.done()\n"
           "            return\n"
@@ -1166,18 +1288,50 @@ jobs:
           "            val end = rawText.indexOf(']')\n"
           "            if (end > \"[AutoTTS:\".length) {\n"
           "                val tag = rawText.substring(\"[AutoTTS:\".length, end)\n"
-          "                // Accept both separators: \"engine|locale\" (original AutoTTS format) and\n"
-          "                // \"engine:locale\" (used by GetSampleText, where engine is often empty —\n"
-          "                // i.e. \"[AutoTTS::en-US]\" means \"no forced engine, just route to en-US\").\n"
-          "                val tparts = if (tag.contains(\"|\")) tag.split(\"|\", limit = 2)\n"
-          "                             else tag.split(\":\", limit = 2)\n"
-          "                val forcedEng = tparts[0].takeIf { it.isNotBlank() }\n"
-          "                val forcedLoc = if (tparts.size == 2) tparts[1].takeIf { it.isNotBlank() } else null\n"
+          "                // Parse the in-band routing tag — supports four formats from original AutoTTS:\n"
+          "                //   2-part \"|\":  engine|locale            (our compact form)\n"
+          "                //   2-part \":\":  engine:locale\n"
+          "                //   3-part \":\":  engine:locale:variant     (engine routing + voice variant)\n"
+          "                //   4-part \":\":  license:engine:locale:variant   (full original AutoTTS form;\n"
+          "                //                                             license token is ignored on our side)\n"
+          "                val tparts: List<String> = if (tag.contains(\"|\")) tag.split(\"|\", limit = 2)\n"
+          "                                           else tag.split(\":\")\n"
+          "                var forcedEng: String? = null\n"
+          "                var forcedLoc: String? = null\n"
+          "                var forcedVariant: String? = null\n"
+          "                when (tparts.size) {\n"
+          "                    2 -> {\n"
+          "                        forcedEng = tparts[0].takeIf { it.isNotBlank() }\n"
+          "                        forcedLoc = tparts[1].takeIf { it.isNotBlank() }\n"
+          "                    }\n"
+          "                    3 -> {\n"
+          "                        forcedEng     = tparts[0].takeIf { it.isNotBlank() }\n"
+          "                        forcedLoc     = tparts[1].takeIf { it.isNotBlank() }\n"
+          "                        forcedVariant = tparts[2].takeIf { it.isNotBlank() }\n"
+          "                    }\n"
+          "                    4 -> {\n"
+          "                        // Original AutoTTS format: license:engine:locale:variant — drop license token.\n"
+          "                        forcedEng     = tparts[1].takeIf { it.isNotBlank() }\n"
+          "                        forcedLoc     = tparts[2].takeIf { it.isNotBlank() }\n"
+          "                        forcedVariant = tparts[3].takeIf { it.isNotBlank() }\n"
+          "                    }\n"
+          "                    else -> { /* malformed — fall through, bypassed stays false */ }\n"
+          "                }\n"
           "                val stripped = rawText.substring(end + 1).trimStart()\n"
-          "                val baseLang = forcedLoc?.substringBefore('-')?.takeIf { it.isNotBlank() } ?: latFall\n"
-          "                if (stripped.isNotEmpty()) {\n"
-          "                    chunks.add(TextChunk(stripped, baseLang, forcedEng, forcedLoc))\n"
-          "                    VhLogger.d(\"[SERVICE] [AutoTTS:] bypass engine=$forcedEng locale=$forcedLoc\")\n"
+          "                // forcedLoc may be \"en_US\" (Java Locale.toString format) or \"en-US\" (BCP-47);\n"
+          "                // normalise to BCP-47 for our downstream Locale.forLanguageTag() consumers.\n"
+          "                val locTag = forcedLoc?.replace('_', '-')\n"
+          "                val baseLang = locTag?.substringBefore('-')?.takeIf { it.isNotBlank() } ?: latFall\n"
+          "                if (stripped.isNotEmpty() && (forcedEng != null || locTag != null)) {\n"
+          "                    val chunk = TextChunk(stripped, baseLang, forcedEng, locTag)\n"
+          "                    // Stash variant in the chunk's lang field via a side channel? No — we route\n"
+          "                    // variant through prefs.getVoiceName at speak time. For [AutoTTS:] forced\n"
+          "                    // variant we temporarily inject the prefs entry for this lang+pkg+locTag pair.\n"
+          "                    if (forcedVariant != null && forcedEng != null && locTag != null) {\n"
+          "                        prefs.setVoiceName(baseLang, forcedEng, locTag, forcedVariant)\n"
+          "                    }\n"
+          "                    chunks.add(chunk)\n"
+          "                    VhLogger.d(\"[SERVICE] [AutoTTS:] bypass eng=$forcedEng loc=$locTag var=$forcedVariant\")\n"
           "                    bypassed = true\n"
           "                }\n"
           "            }\n"
@@ -1339,7 +1493,12 @@ jobs:
           "                try { tts.language = Locale.forLanguageTag(locTag) }\n"
           "                catch (_: Exception) { tts.language = Locale.forLanguageTag(effectiveLang) }\n"
           "            }\n"
-          "            val expectedId = \"AutoTTS_${currentChunk}\"\n"
+          "            // Per-chunk utteranceId pattern matches original AutoTTS: V + \"_\" + I\n"
+          "            // V = framework's utteranceId from the request bundle; I = global per-utterance\n"
+          "            // counter (auto-increments forever). This way clients tracking by V can correlate\n"
+          "            // their original ID even though we split into multiple chunks.\n"
+          "            globalUtteranceCounter++\n"
+          "            val expectedId = \"${frameworkUtteranceId}_${globalUtteranceCounter}\"\n"
           "            var isChunkDone = false\n"
           "            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {\n"
           "                override fun onStart(id: String) {\n"
@@ -1397,7 +1556,7 @@ jobs:
           "            // ORIGINAL AUTOTTS PRODUCER-CONSUMER PATTERN — zero-lag stops via wait()/notifyAll()\n"
           "            val heartbeat = ByteArray(2)  // tiny heartbeat just to prevent TalkBack timeout\n"
           "            synchronized(syncLock) {\n"
-          "                while (!isChunkDone && !myStop.get() && !isStopped && !activeStop.get().get()) {\n"
+          "                while (!isChunkDone && !myStop.get() && !isStopped && !isFlushed && !activeStop.get().get()) {\n"
           "                    try {\n"
           "                        // Deep sleep. Wakes INSTANTLY when onStop or onDone calls notifyAll().\n"
           "                        syncLock.wait(1000)\n"
@@ -1406,13 +1565,17 @@ jobs:
           "                    } catch (_: Exception) { break }\n"
           "                }\n"
           "            }\n"
-          "            if (myStop.get() || isStopped) break\n"
+          "            if (myStop.get() || isStopped || isFlushed) break\n"
           "        }\n"
           "        callback?.done()\n"
           "    }\n"
           "    override fun onDestroy() {\n"
           "        activeStop.get().set(true)\n"
-          "        synchronized(syncLock) { syncLock.notifyAll() }  // wake any waiting synthesis thread\n"
+          "        synchronized(syncLock) {\n"
+          "            isStopped = true\n"
+          "            isFlushed = true\n"
+          "            syncLock.notifyAll()                // wake any waiting synthesis thread\n"
+          "        }\n"
           "        enginePool.values.forEach { try { it.shutdown() } catch (_: Exception) {} }\n"
           "        enginePool.clear()\n"
           "        super.onDestroy()\n"
@@ -1431,14 +1594,38 @@ jobs:
           "    override fun onCreate(savedInstanceState: Bundle?) {\n"
           "        super.onCreate(savedInstanceState)\n"
           "        val prefs = SharedPrefsManager(this)\n"
-          "        // Dynamically build the available-voices list from languages the user has actually\n"
-          "        // configured an engine for. Anything still NOT_SET is excluded so Android's TTS\n"
-          "        // framework / TalkBack reports an honest capability surface.\n"
+          "        // Build the available-voices list from TWO sources, deduped:\n"
+          "        //   1. Languages the user has configured an engine for (modern direct keying).\n"
+          "        //   2. The legacy voice_N sequential pref schema (for original AutoTTS migration).\n"
+          "        // This way both schemas surface and the framework / TalkBack sees a complete set.\n"
           "        val available = arrayListOf<String>()\n"
+          "        val seen = hashSetOf<String>()\n"
           "        for (iso in Languages.map.keys) {\n"
           "            if (prefs.getEngineForLanguage(iso) != \"NOT_SET\") {\n"
-          "                try { available.add(Locale.forLanguageTag(iso).toLanguageTag()) } catch (_: Exception) {}\n"
+          "                try {\n"
+          "                    val tag = Locale.forLanguageTag(iso).toLanguageTag()\n"
+          "                    if (seen.add(tag)) available.add(tag)\n"
+          "                } catch (_: Exception) {}\n"
           "            }\n"
+          "        }\n"
+          "        for (raw in prefs.getAllVoicePrefs()) {\n"
+          "            // Format: \"name#locale_country_variant\"  → extract locale portion (after #)\n"
+          "            val parts = raw.split(\"#\")\n"
+          "            if (parts.size < 2) continue\n"
+          "            val locStr = parts.drop(1).joinToString(\"#\")  // re-join in case # appears in variant\n"
+          "            try {\n"
+          "                val locParts = locStr.split(\"_\")\n"
+          "                val locale: Locale? = when (locParts.size) {\n"
+          "                    1 -> Locale(locParts[0])\n"
+          "                    2 -> Locale(locParts[0], locParts[1])\n"
+          "                    3 -> Locale(locParts[0], locParts[1], locParts[2])\n"
+          "                    else -> null\n"
+          "                }\n"
+          "                if (locale != null) {\n"
+          "                    val tag = locale.toLanguageTag()\n"
+          "                    if (seen.add(tag)) available.add(tag)\n"
+          "                }\n"
+          "            } catch (_: Exception) {}\n"
           "        }\n"
           "        val data = Intent()\n"
           "        data.putStringArrayListExtra(TextToSpeech.Engine.EXTRA_AVAILABLE_VOICES, available)\n"
