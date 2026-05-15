@@ -351,6 +351,132 @@ jobs:
               return text;
           }
 
+          // ─────────────────────────────────────────────────────────────────
+          // BUNDLE-Y ITEM 14: Strip Markdown / HTML formatting tokens.
+          // TalkBack reads markdown literally — "**bold**" becomes "star star bold
+          // star star". Same for HTML tags. We strip these BEFORE language detection
+          // and chunking so the engine receives clean text.
+          // Conservative: only obvious patterns, leave doubtful text untouched.
+          // ─────────────────────────────────────────────────────────────────
+          static std::string stripMarkdownHtml(const std::string& input) {
+              std::string out;
+              out.reserve(input.size());
+              const char* s = input.c_str();
+              int len = (int)input.size();
+              int i = 0;
+              while (i < len) {
+                  char c = s[i];
+                  // HTML tag: <...> with letter immediately after '<' (so we don't strip "5 < 10")
+                  if (c == '<' && i + 1 < len) {
+                      char n = s[i+1];
+                      bool isTagStart = (n == '/' || (n >= 'a' && n <= 'z') || (n >= 'A' && n <= 'Z'));
+                      if (isTagStart) {
+                          int j = i + 1;
+                          while (j < len && s[j] != '>') j++;
+                          if (j < len) { i = j + 1; continue; }
+                      }
+                  }
+                  // Markdown link [text](url) → text
+                  if (c == '[' && i + 1 < len) {
+                      int closeBracket = -1;
+                      int j = i + 1;
+                      while (j < len && s[j] != ']' && s[j] != '\n') j++;
+                      if (j < len && s[j] == ']' && j + 1 < len && s[j+1] == '(') {
+                          closeBracket = j;
+                          // find matching ')'
+                          int k = j + 2;
+                          while (k < len && s[k] != ')' && s[k] != '\n') k++;
+                          if (k < len && s[k] == ')') {
+                              // emit text between [ and ], skip (...) entirely
+                              out.append(s + i + 1, closeBracket - i - 1);
+                              i = k + 1;
+                              continue;
+                          }
+                      }
+                  }
+                  // Markdown emphasis tokens: **bold**, __bold__, *ital*, _ital_, `code`, ~~strike~~
+                  // We strip just the marker characters, leaving content. To avoid breaking real
+                  // text that uses asterisks/underscores naturally, only strip when token is at
+                  // a word boundary (preceded/followed by space, start/end of text, or punctuation).
+                  if (c == '*' || c == '_' || c == '`' || c == '~') {
+                      // Detect token: `**`, `__`, `~~` (length 2) or single `*`, `_`, `` ` `` (length 1)
+                      int tokLen = 1;
+                      if (i + 1 < len && s[i+1] == c) tokLen = 2;
+                      // Check boundary on the side facing the consumed prefix
+                      char before = (i == 0) ? ' ' : s[i-1];
+                      char after  = (i + tokLen >= len) ? ' ' : s[i + tokLen];
+                      bool boundaryOk = ((before == ' ' || before == '\n' || before == '\t' ||
+                                          before == '.' || before == ',' || before == '!' ||
+                                          before == '?' || before == '(' || before == '[' ||
+                                          before == '"' || before == '\'' || i == 0) ||
+                                         (after == ' ' || after == '\n' || after == '\t' ||
+                                          after == '.' || after == ',' || after == '!' ||
+                                          after == '?' || after == ')' || after == ']' ||
+                                          after == '"' || after == '\'' || i + tokLen == len));
+                      if (boundaryOk) { i += tokLen; continue; }
+                  }
+                  out += c;
+                  i++;
+              }
+              return out;
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // BUNDLE-Y ITEM 13: Expand short all-caps acronyms with spaces.
+          // "USA" → "U S A", "IPL" → "I P L", "FBI" → "F B I".
+          // Without this TalkBack pronounces "USA" as one phantom word.
+          // Rules (conservative — minimise false positives):
+          //   - Token is exactly 2–3 ASCII uppercase letters (4+ like NASA / RADAR are
+          //     usually pronounced as words; leave them so TTS handles pronunciation)
+          //   - Bordered by whitespace, start/end of string, or punctuation
+          //   - Skipped if right-bordered by '.' (already in "U.S.A." dotted form)
+          // ─────────────────────────────────────────────────────────────────
+          static std::string expandAcronyms(const std::string& input) {
+              std::string out;
+              out.reserve(input.size() + input.size() / 4);  // up to ~25% expansion
+              const char* s = input.c_str();
+              int len = (int)input.size();
+              int i = 0;
+              while (i < len) {
+                  // Find run of uppercase ASCII letters
+                  if (s[i] >= 'A' && s[i] <= 'Z') {
+                      int j = i;
+                      while (j < len && s[j] >= 'A' && s[j] <= 'Z') j++;
+                      int runLen = j - i;
+                      // Check boundaries
+                      char before = (i == 0) ? ' ' : s[i-1];
+                      char after  = (j >= len) ? ' ' : s[j];
+                      bool leftOk  = (i == 0 || before == ' ' || before == '\n' || before == '\t' ||
+                                      before == '.' || before == ',' || before == '!' || before == '?' ||
+                                      before == ';' || before == ':' || before == '(' || before == '[' ||
+                                      before == '"' || before == '\'' || before == '-');
+                      bool rightOk = (j >= len || after == ' ' || after == '\n' || after == '\t' ||
+                                      after == ',' || after == '!' || after == '?' || after == ';' ||
+                                      after == ':' || after == ')' || after == ']' || after == '"' ||
+                                      after == '\'' || after == '-');
+                      // Skip if right-bordered by '.' (already dotted like U.S.A.)
+                      if (after == '.') rightOk = false;
+                      bool isShortAcronym = (runLen >= 2 && runLen <= 3) && leftOk && rightOk;
+                      if (isShortAcronym) {
+                          // Emit with spaces between letters: USA → U S A
+                          for (int k = i; k < j; k++) {
+                              if (k > i) out += ' ';
+                              out += s[k];
+                          }
+                          i = j;
+                          continue;
+                      }
+                      // Not an acronym — pass through verbatim
+                      out.append(s + i, runLen);
+                      i = j;
+                      continue;
+                  }
+                  out += s[i];
+                  i++;
+              }
+              return out;
+          }
+
           static const char* scriptLookup(int cp) {
               for(int i=0; SCRIPT_BLOCKS[i].lang; i++)
                   if(cp>=SCRIPT_BLOCKS[i].start && cp<=SCRIPT_BLOCKS[i].end)
@@ -467,6 +593,62 @@ jobs:
                           return "ku";
                       i += clen;
                   }
+              }
+              // BUNDLE-Y ITEM 10: Common-word language refinement.
+              // Before SCRIPT_BLOCKS resolves to a generic "ru"/"hi"/etc, scan for
+              // language-distinctive function words (high-frequency particles, conjunctions,
+              // pronouns) that disambiguate sibling languages within the same script.
+              // Only triggers on TEXT WITH SPACES so we get word boundaries cheaply.
+              // Single-word/no-space text falls through to SCRIPT_BLOCKS (current behaviour).
+              // Conservative: needs ≥2 hits of the same language's marker to commit; otherwise
+              // skipped so this never overrides correct script-based detection on its own.
+              if (text.find(' ') != std::string::npos) {
+                  // Build a lowercase ASCII-folded copy for fast scanning. Non-ASCII codepoints
+                  // are passed through verbatim — Cyrillic/Devanagari markers below will match.
+                  std::string lower;
+                  lower.reserve(text.size());
+                  for (size_t k = 0; k < text.size(); k++) {
+                      unsigned char ch = (unsigned char)text[k];
+                      if (ch >= 'A' && ch <= 'Z') lower += (char)(ch + 32);
+                      else lower += (char)ch;
+                  }
+                  // helper: count occurrences of " word " in " lower " (with leading/trailing space
+                  // so boundaries work). Returns count of distinct positions.
+                  auto countWord = [&](const char* w) -> int {
+                      std::string needle = " ";
+                      needle += w;
+                      needle += " ";
+                      std::string hay = " ";
+                      hay += lower;
+                      hay += " ";
+                      int c = 0;
+                      size_t pos = 0;
+                      while ((pos = hay.find(needle, pos)) != std::string::npos) {
+                          c++;
+                          pos += needle.size() - 1;  // -1 so overlapping " a b " can still trigger
+                      }
+                      return c;
+                  };
+                  // Marathi-distinctive vs Hindi: "ahe" (आहे), "tya" (त्या), "ka" (का), "ani" (आणि)
+                  // — but those won't appear in Latin form. We need Devanagari markers.
+                  // Top distinctive Marathi function words in native script:
+                  int mr = countWord("आहे") + countWord("होते") + countWord("त्या") + countWord("आणि");
+                  int hi = countWord("है") + countWord("था") + countWord("और") + countWord("नहीं");
+                  if (mr >= 2 && mr > hi) return "mr";
+                  if (hi >= 2 && hi > mr) return "hi";
+                  // Ukrainian-distinctive vs Russian: "що" (that), "це" (this), "не" appears in both,
+                  // but "є" (is) and "та" (and) are Ukrainian-leaning, "и" (and) is Russian.
+                  int uk = countWord("що") + countWord("це") + countWord("та");
+                  int ru = countWord("что") + countWord("это") + countWord("как");
+                  if (uk >= 2 && uk > ru) return "uk";
+                  if (ru >= 2 && ru > uk) return "ru";
+                  // Spanish-distinctive vs Italian (when neither has triggered the diacritic
+                  // detection above — usually means no accents present, so disambiguation needed).
+                  // Spanish: "que", "los", "las", "para"; Italian: "che", "gli", "del", "una"
+                  int es = countWord("que") + countWord("los") + countWord("para");
+                  int it = countWord("che") + countWord("gli") + countWord("del");
+                  if (es >= 2 && es > it) return "es";
+                  if (it >= 2 && it > es) return "it";
               }
               // PRIORITY 1: Scan codepoints and return the first non-Neutral language from SCRIPT_BLOCKS
               int i = 0;
@@ -742,7 +924,16 @@ jobs:
               std::vector<std::string> processed; processed.reserve(sentences.size());
               for(auto& s: sentences){
                   if(s.empty()){ processed.push_back(""); continue; }
-                  auto d=applyDictionary(s,keys,vals); d=normalizeText(d,keepEmoji,countEmoji,countPunct); processed.push_back(d);
+                  // Processing pipeline order (BUNDLE-Y additions in CAPS):
+                  //   1. applyDictionary    — user-defined word replacements
+                  //   2. STRIPMARKDOWNHTML  — drop markdown / HTML formatting tokens
+                  //   3. EXPANDACRONYMS     — "USA" → "U S A" so TalkBack spells out
+                  //   4. normalizeText      — emoji / punct / math-unicode normalisation
+                  auto d = applyDictionary(s, keys, vals);
+                  d = stripMarkdownHtml(d);
+                  d = expandAcronyms(d);
+                  d = normalizeText(d, keepEmoji, countEmoji, countPunct);
+                  processed.push_back(d);
               }
 
               std::string result;
@@ -1053,6 +1244,18 @@ jobs:
           "    // a pre-built name→Voice map gives O(1) lookup and zero per-chunk IPC.\n"
           "    // Key matches engine pool key (lang OR \"lang__pkg\" for forced routing).\n"
           "    private val voiceListCache = ConcurrentHashMap<String, Map<String, Voice>>()\n"
+          "    // BUNDLE-C ITEM 1: per-engine flag — has BT audio-attrs (USAGE=11) been applied yet?\n"
+          "    // Matches original AutoTtsService.b0.h field. The Bluetooth/SCO routing only needs\n"
+          "    // to be set ONCE per engine lifetime; reapplying it every speak() call (which we\n"
+          "    // previously did) is 5–20ms of wasted IPC for every chunk a BT-mode user speaks.\n"
+          "    // Backed by ConcurrentHashMap.newKeySet so add()/contains() is lock-free.\n"
+          "    private val btAppliedEngines = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()\n"
+          "    // BUNDLE-C ITEM 2: per-engine (rate, pitch) cache.\n"
+          "    // setSpeechRate + setPitch each cost 5–20ms IPC on most engines. For long-form\n"
+          "    // reading with many consecutive same-language chunks at unchanged rate/pitch,\n"
+          "    // this is 10–40ms wasted per chunk. Skip the calls when nothing has changed.\n"
+          "    // Key matches engine pool key (lang OR \"lang__pkg\" for forced routing).\n"
+          "    private val rateAndPitchCache = ConcurrentHashMap<String, Pair<Float, Float>>()\n"
           "    private lateinit var prefs: SharedPrefsManager\n"
           "    // build-41 Sequential Latch + Atomic Switch interruption\n"
           "    private val activeStop = AtomicReference(AtomicBoolean(true))\n"
@@ -1307,7 +1510,13 @@ jobs:
           "            syncLock.notifyAll()                // WAKE UP INSTANTLY\n"
           "        }\n"
           "        activeStop.get().set(true)              // signal current loop to abort\n"
-          "        enginePool.values.forEach { try { it.stop() } catch (_: Exception) {} } // silence hardware immediately\n"
+          "        // BUNDLE-C ITEM 3: selective engine stop. Original AutoTtsService.e0(true) only\n"
+          "        // calls .stop() on engines where isSpeaking() == true. We were unconditionally\n"
+          "        // stopping every engine in the pool (5–10 wasted IPC calls per stop event when\n"
+          "        // only 1 engine is actually mid-speech). isSpeaking() itself is a quick local check.\n"
+          "        enginePool.values.forEach {\n"
+          "            try { if (it.isSpeaking) it.stop() } catch (_: Exception) {}\n"
+          "        }\n"
           "        stopForegroundSafe()                    // drop FG notification when nothing's being spoken\n"
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
@@ -1627,8 +1836,17 @@ jobs:
           "            val tts = initEngineForLangPkg(effectiveLang, pkg)\n"
           "            if (tts == null) { VhLogger.markEngineNull(effectiveLang); continue }\n"
           "            if (myStop.get()) break\n"
-          "            tts.setSpeechRate(finalRate)\n"
-          "            tts.setPitch(finalPitch)\n"
+          "            // BUNDLE-C ITEM 2: cached rate/pitch — skip setSpeechRate + setPitch when\n"
+          "            // unchanged from the previous chunk on this engine. Two IPC calls saved.\n"
+          "            // Note: cacheKey is computed a few lines below for voice cache, but rate/pitch\n"
+          "            // belong to the engine instance so we derive it now (cheap string concat).\n"
+          "            val rpCacheKey = if (prefs.getEngineForLanguage(effectiveLang) == pkg) effectiveLang else \"${effectiveLang}__${pkg}\"\n"
+          "            val rpTuple = finalRate to finalPitch\n"
+          "            if (rateAndPitchCache[rpCacheKey] != rpTuple) {\n"
+          "                tts.setSpeechRate(finalRate)\n"
+          "                tts.setPitch(finalPitch)\n"
+          "                rateAndPitchCache[rpCacheKey] = rpTuple\n"
+          "            }\n"
           "            // ── Exact Voice Variant Matching ──\n"
           "            // The user can pin a specific voice (e.g. \"en-us-x-sfg#female_3-local\") via the\n"
           "            // Voice Variant dropdown. We look it up by name here. \"*Default\" means \"use the\n"
@@ -1718,15 +1936,24 @@ jobs:
           "            params.remove(\"pitch\"); params.remove(\"rate\")\n"
           "            params.remove(\"language\"); params.remove(\"country\")\n"
           "            params.remove(\"variant\"); params.remove(\"voiceName\"); params.remove(\"utteranceId\")\n"
-          "            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, appVolume)\n"
+          "            // BUNDLE-C ITEM 4: matches original AutoTtsService — only attach volume to the\n"
+          "            // bundle when non-zero. Engine defaults to 1.0f if absent; putting 0.0f could\n"
+          "            // confuse some engines into silent-but-busy state. Skip the putFloat IPC on\n"
+          "            // pure-silent rows (e.g. punctuation chunks the user has volume-zeroed).\n"
+          "            if (appVolume > 0.0f) {\n"
+          "                params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, appVolume)\n"
+          "            }\n"
           "            // ── Bluetooth Car Mode (SCO routing) ──\n"
           "            // Re-set audio attributes with USAGE_VOICE_COMMUNICATION (11) so the car's\n"
           "            // hands-free system routes TTS over the SCO/phone-call channel rather than A2DP.\n"
-          "            if (isBluetooth) {\n"
+          "            // BUNDLE-C ITEM 1: skip if already applied to this engine. Matches original\n"
+          "            // AutoTtsService.b0.h flag — apply once per engine, never again.\n"
+          "            if (isBluetooth && !btAppliedEngines.contains(rpCacheKey)) {\n"
           "                try {\n"
           "                    tts.setAudioAttributes(\n"
           "                        android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build()\n"
           "                    )\n"
+          "                    btAppliedEngines.add(rpCacheKey)\n"
           "                } catch (_: Exception) {}\n"
           "            }\n"
           "            // ── Broken Engine Protector ──\n"
@@ -1753,6 +1980,8 @@ jobs:
           "                val removed = enginePool.remove(evictKey)\n"
           "                lastVoiceCache.remove(evictKey)  // matched cache must be invalidated alongside the engine\n"
           "                voiceListCache.remove(evictKey)  // BUNDLE-B: voice list belongs to evicted engine\n"
+          "                btAppliedEngines.remove(evictKey)  // BUNDLE-C: BT flag must reset for fresh engine\n"
+          "                rateAndPitchCache.remove(evictKey)  // BUNDLE-C: rate/pitch must re-apply on fresh engine\n"
           "                try { removed?.shutdown() } catch (_: Exception) {}\n"
           "                continue\n"
           "            }\n"
@@ -1787,6 +2016,8 @@ jobs:
           "        enginePool.clear()\n"
           "        lastVoiceCache.clear()  // OPTION-A ITEM 2: cache lifetime tied to engine pool\n"
           "        voiceListCache.clear()  // BUNDLE-B: voice list cache lifetime tied to engine pool\n"
+          "        btAppliedEngines.clear()  // BUNDLE-C: per-engine BT flag\n"
+          "        rateAndPitchCache.clear()  // BUNDLE-C: per-engine rate/pitch state\n"
           "        super.onDestroy()\n"
           "    }\n"
           "}\n")
