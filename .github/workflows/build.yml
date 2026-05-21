@@ -421,62 +421,6 @@ jobs:
               return out;
           }
 
-          // ─────────────────────────────────────────────────────────────────
-          // BUNDLE-Y ITEM 13: Expand short all-caps acronyms with spaces.
-          // "USA" → "U S A", "IPL" → "I P L", "FBI" → "F B I".
-          // Without this TalkBack pronounces "USA" as one phantom word.
-          // Rules (conservative — minimise false positives):
-          //   - Token is exactly 2–3 ASCII uppercase letters (4+ like NASA / RADAR are
-          //     usually pronounced as words; leave them so TTS handles pronunciation)
-          //   - Bordered by whitespace, start/end of string, or punctuation
-          //   - Skipped if right-bordered by '.' (already in "U.S.A." dotted form)
-          // ─────────────────────────────────────────────────────────────────
-          static std::string expandAcronyms(const std::string& input) {
-              std::string out;
-              out.reserve(input.size() + input.size() / 4);  // up to ~25% expansion
-              const char* s = input.c_str();
-              int len = (int)input.size();
-              int i = 0;
-              while (i < len) {
-                  // Find run of uppercase ASCII letters
-                  if (s[i] >= 'A' && s[i] <= 'Z') {
-                      int j = i;
-                      while (j < len && s[j] >= 'A' && s[j] <= 'Z') j++;
-                      int runLen = j - i;
-                      // Check boundaries
-                      char before = (i == 0) ? ' ' : s[i-1];
-                      char after  = (j >= len) ? ' ' : s[j];
-                      bool leftOk  = (i == 0 || before == ' ' || before == '\n' || before == '\t' ||
-                                      before == '.' || before == ',' || before == '!' || before == '?' ||
-                                      before == ';' || before == ':' || before == '(' || before == '[' ||
-                                      before == '"' || before == '\'' || before == '-');
-                      bool rightOk = (j >= len || after == ' ' || after == '\n' || after == '\t' ||
-                                      after == ',' || after == '!' || after == '?' || after == ';' ||
-                                      after == ':' || after == ')' || after == ']' || after == '"' ||
-                                      after == '\'' || after == '-');
-                      // Skip if right-bordered by '.' (already dotted like U.S.A.)
-                      if (after == '.') rightOk = false;
-                      bool isShortAcronym = (runLen >= 2 && runLen <= 3) && leftOk && rightOk;
-                      if (isShortAcronym) {
-                          // Emit with spaces between letters: USA → U S A
-                          for (int k = i; k < j; k++) {
-                              if (k > i) out += ' ';
-                              out += s[k];
-                          }
-                          i = j;
-                          continue;
-                      }
-                      // Not an acronym — pass through verbatim
-                      out.append(s + i, runLen);
-                      i = j;
-                      continue;
-                  }
-                  out += s[i];
-                  i++;
-              }
-              return out;
-          }
-
           static const char* scriptLookup(int cp) {
               for(int i=0; SCRIPT_BLOCKS[i].lang; i++)
                   if(cp>=SCRIPT_BLOCKS[i].start && cp<=SCRIPT_BLOCKS[i].end)
@@ -924,14 +868,15 @@ jobs:
               std::vector<std::string> processed; processed.reserve(sentences.size());
               for(auto& s: sentences){
                   if(s.empty()){ processed.push_back(""); continue; }
-                  // Processing pipeline order (BUNDLE-Y additions in CAPS):
+                  // Processing pipeline order:
                   //   1. applyDictionary    — user-defined word replacements
-                  //   2. STRIPMARKDOWNHTML  — drop markdown / HTML formatting tokens
-                  //   3. EXPANDACRONYMS     — "USA" → "U S A" so TalkBack spells out
-                  //   4. normalizeText      — emoji / punct / math-unicode normalisation
+                  //   2. stripMarkdownHtml  — drop markdown / HTML formatting tokens
+                  //   3. normalizeText      — emoji / punct / math-unicode normalisation
+                  // Note: expandAcronyms was removed in v17.x — caused regressions on TalkBack
+                  // content where engines (Eloquence, Vocalizer, Google) already have built-in
+                  // acronym pronunciation. Original AutoTTS also doesn't expand acronyms.
                   auto d = applyDictionary(s, keys, vals);
                   d = stripMarkdownHtml(d);
-                  d = expandAcronyms(d);
                   d = normalizeText(d, keepEmoji, countEmoji, countPunct);
                   processed.push_back(d);
               }
