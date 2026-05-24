@@ -307,7 +307,11 @@ jobs:
           }
 
           inline bool isPunct(int cp) {
-              return cp=='.'||cp=='!'||cp=='?'||cp==','||cp==';'||cp==':'||cp=='-'||cp=='*'||cp=='_';
+              return cp=='.'||cp=='!'||cp=='?'||cp==','||cp==';'||cp==':'||cp=='-'||cp=='*'||cp=='_'
+                  ||cp=='='||cp=='+'||cp=='/'||cp=='\\'||cp=='|'||cp=='~'||cp=='^'
+                  ||cp=='&'||cp=='@'||cp=='#'||cp=='$'||cp=='%'
+                  ||cp=='('||cp==')'||cp=='['||cp==']'||cp=='{'||cp=='}'
+                  ||cp=='<'||cp=='>'||cp=='"'||cp=='\'';
           }
 
           static std::string normalizeText(const std::string& input, bool keepEmoji, bool countEmoji, bool countPunct) {
@@ -323,14 +327,24 @@ jobs:
                       if(!keepEmoji){ i+=clen; continue; }
                       int eCount=1, j=i+clen;
                       while(j<len){ int nl=0; int nc=utf8ToCodepoint((const unsigned char*)&input[j],nl); if(nc==cp){eCount++;j+=nl;}else break; }
-                      if(countEmoji&&eCount>1) result+=std::to_string(eCount)+" ";
-                      for(int k=0;k<eCount;k++) codepointToUtf8(cp,result);
+                      // BUGFIX: when count enabled, output "N <emoji>" once (not N copies).
+                      // TTS engines speak the emoji name once; the count prefix tells the user
+                      // there were multiple. Adding leading space ensures the number is read
+                      // as a separate word (e.g. "Hello 7 face" not "Hello7 face").
+                      if(countEmoji&&eCount>1) {
+                          result+=" "+std::to_string(eCount)+" ";
+                          codepointToUtf8(cp,result);
+                      } else {
+                          for(int k=0;k<eCount;k++) codepointToUtf8(cp,result);
+                      }
                       i=j; continue;
                   }
                   if(isPunct(cp)&&countPunct) {
                       int pCount=1, j=i+clen;
                       while(j<len){ int nl=0; int nc=utf8ToCodepoint((const unsigned char*)&input[j],nl); if(nc==cp){pCount++;j+=nl;}else break; }
-                      if(pCount>1) result+=std::to_string(pCount)+" ";
+                      // BUGFIX: leading space before count for clean spoken output.
+                      // "Hello======" → "Hello 6 =" (TTS reads "Hello 6 equals")
+                      if(pCount>1) result+=" "+std::to_string(pCount)+" ";
                       codepointToUtf8(cp,result);
                       i=j; continue;
                   }
