@@ -86,16 +86,24 @@ jobs:
                   versionName = "16.0"
                   externalNativeBuild {
                       cmake {
-                          cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3")
+                          cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3", "-g0")
                           arguments += listOf("-DANDROID_STL=c++_shared")
                       }
                   }
-                  ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) }
+                  ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
               }
               sourceSets { getByName("main") { java.srcDirs("src/main/java") } }
               buildFeatures { compose = true }
               composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
               externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+              buildTypes {
+                  release {
+                      isMinifyEnabled = true
+                      isShrinkResources = true
+                      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+                  }
+                  debug { isMinifyEnabled = false }
+              }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
               packaging { resources { pickFirsts.add("**/libc++_shared.so") } }
@@ -2450,7 +2458,7 @@ jobs:
           "                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant\n"
           "            )\n"
           "        )\n"
-          "        Box(modifier = Modifier.matchParentSize().clickable { showDialog = true }.semantics { contentDescription = \"$label. Current setting is $selectedText. Double tap to change.\" })\n"
+          "        Box(modifier = Modifier.matchParentSize().clickable { showDialog = true }.semantics { contentDescription = \"$label: $selectedText\" })\n"
           "    }\n"
           "    if (showDialog) {\n"
           "        AlertDialog(\n"
@@ -2650,12 +2658,7 @@ jobs:
           "    Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {\n"
           "        Text(if (mode == \"mix\") \"Mix Language Mode\" else \"Auto Language Mode\", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })\n"
           "        Spacer(modifier = Modifier.height(4.dp))\n"
-          "        Text(\n"
-          "            if (mode == \"mix\") \"This mode is active. Mix mode splits within a sentence by script (Latin vs Non-Latin) — backend handles character-level detection. Configure the single language below.\"\n"
-          "            else \"This mode is active. Configure the single language below.\",\n"
-          "            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant\n"
-          "        )\n"
-          "        Spacer(modifier = Modifier.height(16.dp))\n"
+          "        Spacer(modifier = Modifier.height(8.dp))\n"
           "        AccessibleDropdown(\"ISO Language\", \"${Languages.map[selLangIso]} ($selLangIso)\", Languages.displayNames) { idx ->\n"
           "            selLangIso = Languages.isoCodes[idx]; prefs.setString(\"pref_lang\", selLangIso)\n"
           "            selEngPkg = prefs.getEngineForLanguage(selLangIso); selLocTag = prefs.getLocaleForLangPkg(selLangIso, selEngPkg)\n"
@@ -2789,8 +2792,7 @@ jobs:
           "    Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {\n"
           "        Text(modeLabel, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })\n"
           "        Spacer(modifier = Modifier.height(4.dp))\n"
-          "        Text(\"This mode is active. Configure both languages below.\", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)\n"
-          "        Spacer(modifier = Modifier.height(16.dp))\n"
+          "        Spacer(modifier = Modifier.height(8.dp))\n"
           "        Divider()\n"
           "        Spacer(modifier = Modifier.height(8.dp))\n"
           "        Text(\"Primary Language (Latin)\", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })\n"
