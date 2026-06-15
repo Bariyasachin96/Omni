@@ -2434,6 +2434,7 @@ jobs:
           "import androidx.compose.ui.Modifier\n"
           "import androidx.compose.ui.semantics.Role\n"
           "import androidx.compose.ui.semantics.contentDescription\n"
+          "import androidx.compose.ui.semantics.role\n"
           "import androidx.compose.ui.semantics.semantics\n"
           "import androidx.compose.ui.unit.dp\n"
           "@Composable\n"
