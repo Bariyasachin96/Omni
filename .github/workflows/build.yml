@@ -713,8 +713,8 @@ jobs:
                   std::string forcedLang;
                   if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
                       forcedLang = emojiFall;
-                  } else if (isPunct(cp) && puncFall != "auto" && !puncFall.empty()) {
-                      forcedLang = puncFall;
+                  } else if (isPunct(cp)) {
+                      forcedLang = (puncFall.empty() || puncFall == "auto") ? latFall : puncFall;
                   } else if (isNum && numFall != "auto" && !numFall.empty()) {
                       forcedLang = numFall;
                   }
