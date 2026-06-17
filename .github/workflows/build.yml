@@ -713,8 +713,8 @@ jobs:
                   std::string forcedLang;
                   if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
                       forcedLang = emojiFall;
-                  } else if (isPunct(cp)) {
-                      forcedLang = (puncFall.empty() || puncFall == "auto") ? latFall : puncFall;
+                  } else if (isPunct(cp) && !puncFall.empty() && puncFall != "auto") {
+                      forcedLang = puncFall;
                   } else if (isNum && numFall != "auto" && !numFall.empty()) {
                       forcedLang = numFall;
                   }
@@ -728,7 +728,10 @@ jobs:
                   }
 
                   std::string charScript;
-                  if (isUnknownChar(cp)) {
+                  if (isUnknownChar(cp) || isPunct(cp)) {
+                      // Punctuation treated as Neutral so it sticks to the active script.
+                      // "Hello." stays one chunk for Google TTS; "नमस्ते." stays one chunk
+                      // for the non-latin engine — both produce natural pauses in context.
                       charScript = "Neutral";
                   } else {
                       // UNIVERSAL CHARACTER SPLITTER: scriptLookup returns the ISO code from
