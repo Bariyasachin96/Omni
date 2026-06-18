@@ -240,13 +240,85 @@ jobs:
               for(int i=0;i<32;i++) o[i]=k[i]^0xA5u;
           }
 
-          // Called automatically by Android runtime on System.loadLibrary()
-          // Kotlin cannot skip or bypass this — runtime calls it directly
+          // JNI_OnLoad: called by Android runtime, not by Kotlin — cannot be patched out
+          // Returns JNI_ERR on wrong signature → System.loadLibrary() throws → app crashes
           JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
               JNIEnv* env=nullptr;
               if(vm->GetEnv((void**)&env,JNI_VERSION_1_6)!=JNI_OK) return JNI_ERR;
-              // g_ok starts false; set to true only by verifyToken() after Kotlin
-              // computes the hash and passes it here. JNI_OnLoad just stores the VM.
+
+              // ── Get Application context via ActivityThread (private API, always available) ──
+              jclass atCls=env->FindClass("android/app/ActivityThread");
+              if(!atCls) return JNI_ERR;
+              jmethodID curApp=env->GetStaticMethodID(atCls,"currentApplication","()Landroid/app/Application;");
+              if(!curApp) return JNI_ERR;
+              jobject app=env->CallStaticObjectMethod(atCls,curApp);
+              if(!app||env->ExceptionCheck()){env->ExceptionClear();return JNI_ERR;}
+
+              // ── Package name ──────────────────────────────────────────────────────────────
+              jclass ctxCls=env->FindClass("android/content/Context");
+              jmethodID getPkg=env->GetMethodID(ctxCls,"getPackageName","()Ljava/lang/String;");
+              jstring pkg=(jstring)env->CallObjectMethod(app,getPkg);
+              if(!pkg) return JNI_ERR;
+
+              // ── PackageManager ────────────────────────────────────────────────────────────
+              jmethodID getPm=env->GetMethodID(ctxCls,"getPackageManager","()Landroid/content/pm/PackageManager;");
+              jobject pm=env->CallObjectMethod(app,getPm);
+              if(!pm) return JNI_ERR;
+
+              // ── SDK version ───────────────────────────────────────────────────────────────
+              jclass verCls=env->FindClass("android/os/Build$VERSION");
+              jfieldID sdkFld=env->GetStaticFieldID(verCls,"SDK_INT","I");
+              jint sdk=env->GetStaticIntField(verCls,sdkFld);
+
+              // ── PackageInfo with signatures ───────────────────────────────────────────────
+              jclass pmCls=env->GetObjectClass(pm);
+              jmethodID getPi=env->GetMethodID(pmCls,"getPackageInfo","(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;");
+              jint flags=(sdk>=28)?0x8000000:64;
+              jobject pi=env->CallObjectMethod(pm,getPi,pkg,flags);
+              if(!pi||env->ExceptionCheck()){env->ExceptionClear();return JNI_ERR;}
+
+              // ── Extract raw certificate bytes ─────────────────────────────────────────────
+              jbyteArray sigBytes=nullptr;
+              if(sdk>=28){
+                  jfieldID siFld=env->GetFieldID(env->GetObjectClass(pi),"signingInfo","Landroid/content/pm/SigningInfo;");
+                  jobject si=env->GetObjectField(pi,siFld);
+                  if(!si) return JNI_ERR;
+                  jmethodID getSigners=env->GetMethodID(env->GetObjectClass(si),"getApkContentsSigners","()[Landroid/content/pm/Signature;");
+                  jobjectArray arr=(jobjectArray)env->CallObjectMethod(si,getSigners);
+                  if(!arr||env->GetArrayLength(arr)==0) return JNI_ERR;
+                  jobject s0=env->GetObjectArrayElement(arr,0);
+                  jmethodID toBytes=env->GetMethodID(env->GetObjectClass(s0),"toByteArray","()[B");
+                  sigBytes=(jbyteArray)env->CallObjectMethod(s0,toBytes);
+              } else {
+                  jfieldID sigsFld=env->GetFieldID(env->GetObjectClass(pi),"signatures","[Landroid/content/pm/Signature;");
+                  jobjectArray arr=(jobjectArray)env->GetObjectField(pi,sigsFld);
+                  if(!arr||env->GetArrayLength(arr)==0) return JNI_ERR;
+                  jobject s0=env->GetObjectArrayElement(arr,0);
+                  jmethodID toBytes=env->GetMethodID(env->GetObjectClass(s0),"toByteArray","()[B");
+                  sigBytes=(jbyteArray)env->CallObjectMethod(s0,toBytes);
+              }
+              if(!sigBytes) return JNI_ERR;
+
+              // ── SHA-256 via Java MessageDigest ────────────────────────────────────────────
+              jclass mdCls=env->FindClass("java/security/MessageDigest");
+              jmethodID getInst=env->GetStaticMethodID(mdCls,"getInstance","(Ljava/lang/String;)Ljava/security/MessageDigest;");
+              jstring algo=env->NewStringUTF("SHA-256");
+              jobject md=env->CallStaticObjectMethod(mdCls,getInst,algo);
+              if(!md||env->ExceptionCheck()){env->ExceptionClear();return JNI_ERR;}
+              jmethodID digestM=env->GetMethodID(env->GetObjectClass(md),"digest","([B)[B");
+              jbyteArray hashArr=(jbyteArray)env->CallObjectMethod(md,digestM,sigBytes);
+              if(!hashArr||env->GetArrayLength(hashArr)!=32) return JNI_ERR;
+
+              // ── Compare against XOR-obfuscated expected hash ──────────────────────────────
+              jbyte* hb=env->GetByteArrayElements(hashArr,nullptr);
+              if(!hb) return JNI_ERR;
+              uint8_t ex[32]; s_exp(ex);
+              bool ok=true;
+              for(int i=0;i<32;i++) if((uint8_t)hb[i]!=ex[i]){ok=false;break;}
+              env->ReleaseByteArrayElements(hashArr,hb,JNI_ABORT);
+
+              if(!ok) return JNI_ERR; // wrong APK signature → loadLibrary throws → app crashes
+              g_ok=true;
               return JNI_VERSION_1_6;
           }
 
