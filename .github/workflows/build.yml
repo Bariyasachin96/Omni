@@ -3413,7 +3413,7 @@ jobs:
           "                IconButton(onClick = { selectedCategory = null }) { Icon(Icons.Filled.ArrowBack, contentDescription = \"Back\") }\n"
           "                Text(selectedCategory!!, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))\n"
           "            }\n"
-          "            HorizontalDivider()\n"
+          "            Divider()\n"
           "            Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {\n"
           "                when (selectedCategory) {\n"
           "                    \"Reading\" -> {\n"
