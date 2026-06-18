@@ -2847,6 +2847,7 @@ jobs:
           "import androidx.compose.foundation.lazy.LazyColumn\n"
           "import androidx.compose.material3.*\n"
           "import androidx.compose.runtime.*\n"
+          "import androidx.compose.ui.Alignment\n"
           "import androidx.compose.ui.Modifier\n"
           "import androidx.compose.ui.semantics.Role\n"
           "import androidx.compose.ui.semantics.contentDescription\n"
