@@ -245,49 +245,8 @@ jobs:
           JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
               JNIEnv* env=nullptr;
               if(vm->GetEnv((void**)&env,JNI_VERSION_1_6)!=JNI_OK) return JNI_ERR;
-              do {
-                  jclass at=env->FindClass("android/app/ActivityThread");
-                  if(!at) break;
-                  jmethodID ca=env->GetStaticMethodID(at,"currentApplication","()Landroid/app/Application;");
-                  if(!ca) break;
-                  jobject app=env->CallStaticObjectMethod(at,ca);
-                  if(!app||env->ExceptionCheck()){env->ExceptionClear();break;}
-                  jclass ctx=env->FindClass("android/content/Context");
-                  jmethodID gpm=env->GetMethodID(ctx,"getPackageManager","()Landroid/content/pm/PackageManager;");
-                  jobject pm=env->CallObjectMethod(app,gpm);
-                  if(!pm) break;
-                  jmethodID gpn=env->GetMethodID(ctx,"getPackageName","()Ljava/lang/String;");
-                  jstring pn=(jstring)env->CallObjectMethod(app,gpn);
-                  if(!pn) break;
-                  jclass pmc=env->GetObjectClass(pm);
-                  jmethodID gpi=env->GetMethodID(pmc,"getPackageInfo","(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;");
-                  jobject pi=env->CallObjectMethod(pm,gpi,pn,(jint)64);
-                  if(!pi||env->ExceptionCheck()){env->ExceptionClear();break;}
-                  jclass pic=env->GetObjectClass(pi);
-                  jfieldID sf=env->GetFieldID(pic,"signatures","[Landroid/content/pm/Signature;");
-                  jobjectArray sa=(jobjectArray)env->GetObjectField(pi,sf);
-                  if(!sa||env->GetArrayLength(sa)==0) break;
-                  jobject s0=env->GetObjectArrayElement(sa,0);
-                  jclass sc=env->GetObjectClass(s0);
-                  jmethodID tb=env->GetMethodID(sc,"toByteArray","()[B");
-                  jbyteArray sb=(jbyteArray)env->CallObjectMethod(s0,tb);
-                  if(!sb) break;
-                  jclass md=env->FindClass("java/security/MessageDigest");
-                  jmethodID gi=env->GetStaticMethodID(md,"getInstance","(Ljava/lang/String;)Ljava/security/MessageDigest;");
-                  jstring al=env->NewStringUTF("SHA-256");
-                  jobject mdi=env->CallStaticObjectMethod(md,gi,al);
-                  env->DeleteLocalRef(al);
-                  if(!mdi||env->ExceptionCheck()){env->ExceptionClear();break;}
-                  jmethodID dg=env->GetMethodID(md,"digest","([B)[B");
-                  jbyteArray ha=(jbyteArray)env->CallObjectMethod(mdi,dg,sb);
-                  if(!ha||env->GetArrayLength(ha)!=32) break;
-                  jbyte* hb=env->GetByteArrayElements(ha,nullptr);
-                  uint8_t ex[32]; s_exp(ex);
-                  bool ok=true;
-                  for(int i=0;i<32;i++) if((uint8_t)hb[i]!=ex[i]){ok=false;break;}
-                  env->ReleaseByteArrayElements(ha,hb,JNI_ABORT);
-                  g_ok=ok;
-              } while(0);
+              // g_ok starts false; set to true only by verifyToken() after Kotlin
+              // computes the hash and passes it here. JNI_OnLoad just stores the VM.
               return JNI_VERSION_1_6;
           }
 
@@ -908,9 +867,16 @@ jobs:
           }
 
           extern "C" JNIEXPORT jboolean JNICALL
-          Java_com_omni_tts_NativeEngine_verifyToken(JNIEnv*, jobject, jbyteArray) {
-              // Real check happened in JNI_OnLoad; just return cached result
-              return g_ok ? JNI_TRUE : JNI_FALSE;
+          Java_com_omni_tts_NativeEngine_verifyToken(JNIEnv* env, jobject, jbyteArray h) {
+              if (!h || env->GetArrayLength(h) != 32) { g_ok = false; return JNI_FALSE; }
+              jbyte* b = env->GetByteArrayElements(h, nullptr);
+              if (!b) { g_ok = false; return JNI_FALSE; }
+              uint8_t ex[32]; s_exp(ex);
+              bool ok = true;
+              for (int i = 0; i < 32; i++) if ((uint8_t)b[i] != ex[i]) { ok = false; break; }
+              env->ReleaseByteArrayElements(h, b, JNI_ABORT);
+              g_ok = ok;
+              return ok ? JNI_TRUE : JNI_FALSE;
           }
 
           extern "C" JNIEXPORT jstring JNICALL
@@ -2970,6 +2936,16 @@ jobs:
           "    @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)\n"
           "    override fun onCreate(savedInstanceState: Bundle?) {\n"
           "        super.onCreate(savedInstanceState)\n"
+          "        try {\n"
+          "            val pi = if (android.os.Build.VERSION.SDK_INT >= 28)\n"
+          "                packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)\n"
+          "            else @Suppress(\"DEPRECATION\") packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNATURES)\n"
+          "            val sb = if (android.os.Build.VERSION.SDK_INT >= 28)\n"
+          "                pi.signingInfo.apkContentsSigners[0].toByteArray()\n"
+          "            else @Suppress(\"DEPRECATION\") pi.signatures[0].toByteArray()\n"
+          "            val hash = java.security.MessageDigest.getInstance(\"SHA-256\").digest(sb)\n"
+          "            if (!NativeEngine.verifyToken(hash)) { finish(); return }\n"
+          "        } catch (_: Exception) { finish(); return }\n"
           "        // Android 13+ needs runtime POST_NOTIFICATIONS permission for the TTS\n"
           "        // foreground-service notification. Without it the service can't go foreground\n"
           "        // and Android kills it mid-speech — the root cause of repeated TTS stops.\n"
