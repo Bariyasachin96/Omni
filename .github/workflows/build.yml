@@ -134,14 +134,8 @@ jobs:
 
           # ── proguard-rules.pro ───────────────────────────────────────────────
           w("app/proguard-rules.pro", """\
-          # JNI class — naam wahi rehna chahiye jo libomni_core.so ke function names mein hai
-          -keep class com.omni.tts.NativeEngine { *; }
-
-          # Sab classes ek 'o' package mein repack — structure chhup jaata hai
           -repackageclasses 'o'
           -allowaccessmodification
-
-          # Kotlin coroutines internal volatile fields
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
           """)
