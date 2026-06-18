@@ -3675,30 +3675,14 @@ jobs:
           gradle-version: '8.5'
           cache-disabled: true
 
-      - name: Generate or Restore Keystore
+      - name: Restore Keystore
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > omni-release.keystore
-            echo "✅ Keystore restored from GitHub Secret (consistent signing)"
-          else
-            keytool -genkey -noprompt -v \
-              -keystore omni-release.keystore \
-              -alias "$KEY_ALIAS" \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$KEYSTORE_PASSWORD" \
-              -keypass "$KEY_PASSWORD" \
-              -dname "CN=Sachin, OU=Omni, O=Omni, L=India, S=India, C=IN"
-            echo "⚠️ New keystore generated (save base64 below as GitHub Secret KEYSTORE_BASE64 for consistent signing)"
-            echo "## Keystore Base64 (save as secret KEYSTORE_BASE64)" >> $GITHUB_STEP_SUMMARY
-            base64 -w 0 omni-release.keystore >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+          KSBASE64="${{ secrets.KEYSTORE_BASE64 }}"
+          if [ -z "$KSBASE64" ]; then
+            KSBASE64="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"
           fi
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
-
+          printf '%s' "$KSBASE64" | base64 -d > omni-release.keystore
+          echo "Keystore ready" 
       - name: Build APK
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
