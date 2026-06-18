@@ -132,50 +132,18 @@ jobs:
           }
           """)
 
-          # ── proguard-rules.pro (R8 keep rules) ───────────────────────────────
+          # ── proguard-rules.pro ───────────────────────────────────────────────
           w("app/proguard-rules.pro", """\
-          # ===================== JNI / Native (CRITICAL) =====================
-          # NativeEngine ka class name + native method names preserve karo,
-          # warna C++ ka Java_com_omni_tts_NativeEngine_processDirect match nahi karega
+          # JNI class — naam wahi rehna chahiye jo libomni_core.so ke function names mein hai
           -keep class com.omni.tts.NativeEngine { *; }
-          -keepclasseswithmembernames class * { native <methods>; }
 
-          # ===================== Android Components =====================
-          # Manifest/XML se referenced — TTS service + activities + provider
-          -keep class com.omni.tts.ComposeTtsService { *; }
-          -keep class com.omni.tts.MainActivity { *; }
-          -keep class com.omni.tts.DictionaryActivity { *; }
-          -keep class com.omni.tts.CheckVoiceData { *; }
-          -keep class com.omni.tts.GetSampleText { *; }
-          -keep public class * extends android.app.Activity
-          -keep public class * extends android.app.Service
-          -keep public class * extends android.speech.tts.TextToSpeechService
-          -keep public class * extends android.content.ContentProvider
-          -keep public class * extends android.content.BroadcastReceiver
-
-          # ===================== Kotlin =====================
-          -keep class kotlin.Metadata { *; }
-          -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
-          -dontwarn kotlinx.coroutines.**
-
-          # ===================== Enums / Parcelable =====================
-          -keepclassmembers enum * {
-              public static **[] values();
-              public static ** valueOf(java.lang.String);
-          }
-          -keepclassmembers class * implements android.os.Parcelable {
-              public static final ** CREATOR;
-          }
-
-          # ===================== Crash stack traces (line numbers rakho, file naam chhupao) =====================
-          -keepattributes SourceFile,LineNumberTable
-          -renamesourcefileattribute SourceFile
-
-          # ===================== Stronger obfuscation =====================
-          # Default toh acche short naam deta hai; ye repackaging sab classes ko
-          # ek hi package ('o') mein daal deta hai -> structure aur chhup jaata hai
+          # Sab classes ek 'o' package mein repack — structure chhup jaata hai
           -repackageclasses 'o'
           -allowaccessmodification
+
+          # Kotlin coroutines internal volatile fields
+          -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
+          -dontwarn kotlinx.coroutines.**
           """)
 
           # ── CMakeLists.txt ───────────────────────────────────────────────────
