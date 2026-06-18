@@ -3377,7 +3377,6 @@ jobs:
           "// AdditionalTabContent — 3rd tab: toggles + battery + dictionary + system TTS + logs\n"
           "// ─────────────────────────────────────────────────────────────────────────\n"
           "@Composable\n"
-          "@Composable\n"
           "@OptIn(ExperimentalMaterial3Api::class)\n"
           "private fun HomeTabContent(prefs: SharedPrefsManager) {\n"
           "    val context = LocalContext.current\n"
