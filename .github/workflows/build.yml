@@ -3042,7 +3042,7 @@ jobs:
           "                            val best = allVoices\n"
           "                                .filter { v -> try { localeMatchesIso(v.locale) } catch (_: Exception) { false } }\n"
           "                                .sortedWith(compareBy(\n"
-          "                                    { if (it.networkConnectionRequired) 1 else 0 },\n"
+          "                                    { if (it.isNetworkConnectionRequired()) 1 else 0 },\n"
           "                                    { -it.quality }\n"
           "                                )).firstOrNull()\n"
           "                            if (best != null) {\n"
