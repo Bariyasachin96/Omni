@@ -96,11 +96,20 @@ jobs:
               buildFeatures { compose = true }
               composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
               externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+              signingConfigs {
+                  create("release") {
+                      storeFile = rootProject.file("omni-release.keystore")
+                      storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "sachin1211"
+                      keyAlias = System.getenv("KEY_ALIAS") ?: "sachin"
+                      keyPassword = System.getenv("KEY_PASSWORD") ?: "sachin1211"
+                  }
+              }
               buildTypes {
                   release {
                       isMinifyEnabled = true
                       isShrinkResources = true
                       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+                      signingConfig = signingConfigs.getByName("release")
                   }
                   debug { isMinifyEnabled = false }
               }
@@ -3666,14 +3675,42 @@ jobs:
           gradle-version: '8.5'
           cache-disabled: true
 
+      - name: Generate or Restore Keystore
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > omni-release.keystore
+            echo "✅ Keystore restored from GitHub Secret (consistent signing)"
+          else
+            keytool -genkey -noprompt -v \
+              -keystore omni-release.keystore \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KEYSTORE_PASSWORD" \
+              -keypass "$KEY_PASSWORD" \
+              -dname "CN=Sachin, OU=Omni, O=Omni, L=India, S=India, C=IN"
+            echo "⚠️ New keystore generated (save base64 below as GitHub Secret KEYSTORE_BASE64 for consistent signing)"
+            echo "## Keystore Base64 (save as secret KEYSTORE_BASE64)" >> $GITHUB_STEP_SUMMARY
+            base64 -w 0 omni-release.keystore >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
+
       - name: Build APK
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          gradle assembleDebug
+          gradle assembleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Omni-Ultra-Max-Native-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
