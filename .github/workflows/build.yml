@@ -1,4 +1,4 @@
-name: Build Omni Ultra Max Native
+name: Build Easy Voice Native
 on:
   push:
     branches: ["main", "master"]
@@ -57,7 +57,7 @@ jobs:
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories { google(); mavenCentral() }
           }
-          rootProject.name = "Omni"
+          rootProject.name = "EasyVoice"
           include(":app")
           """)
 
@@ -76,11 +76,11 @@ jobs:
               id("org.jetbrains.kotlin.android")
           }
           android {
-              namespace = "com.omni.tts"
+              namespace = "com.easyvoice.tts"
               compileSdk = 34
               ndkVersion = "25.1.8937393"
               defaultConfig {
-                  applicationId = "com.omni.tts"
+                  applicationId = "com.easyvoice.tts"
                   minSdk = 24
                   targetSdk = 34
                   versionCode = 1
@@ -136,7 +136,7 @@ jobs:
           w("app/proguard-rules.pro", """\
           -repackageclasses 'o'
           -allowaccessmodification
-          -keep class com.omni.tts.NativeEngine { native <methods>; }
+          -keep class com.easyvoice.tts.NativeEngine { native <methods>; }
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
           """)
@@ -902,7 +902,7 @@ jobs:
           }
 
           extern "C" JNIEXPORT jboolean JNICALL
-          Java_com_omni_tts_NativeEngine_verifyToken(JNIEnv* env, jobject, jbyteArray h) {
+          Java_com_easyvoice_tts_NativeEngine_verifyToken(JNIEnv* env, jobject, jbyteArray h) {
               if (!h || env->GetArrayLength(h) != 32) { g_ok = false; return JNI_FALSE; }
               jbyte* b = env->GetByteArrayElements(h, nullptr);
               if (!b) { g_ok = false; return JNI_FALSE; }
@@ -915,7 +915,7 @@ jobs:
           }
 
           extern "C" JNIEXPORT jstring JNICALL
-          Java_com_omni_tts_NativeEngine_processDirect(
+          Java_com_easyvoice_tts_NativeEngine_processDirect(
               JNIEnv* env, jobject, jobject directBuffer, jint length,
               jobjectArray jKeys, jobjectArray jVals,
               jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
@@ -977,8 +977,8 @@ jobs:
           """)
 
           # ── NativeEngine.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/NativeEngine.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/NativeEngine.kt",
+          "package com.easyvoice.tts\n"
           "import java.nio.ByteBuffer\n"
           "object NativeEngine {\n"
           "    init { System.loadLibrary(\"omni_core\") }\n"
@@ -994,8 +994,8 @@ jobs:
           "}\n")
 
           # ── Languages.kt ─────────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/Languages.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/Languages.kt",
+          "package com.easyvoice.tts\n"
           "object Languages {\n"
           "    val map = linkedMapOf(\n"
           "        \"af\" to \"Afrikaans\", \"sq\" to \"Albanian\", \"ar\" to \"Arabic\", \"hy\" to \"Armenian\",\n"
@@ -1024,8 +1024,8 @@ jobs:
           "}\n")
 
           # ── VhLogger.kt ──────────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/VhLogger.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/VhLogger.kt",
+          "package com.easyvoice.tts\n"
           "import android.content.Context\n"
           "import android.util.Log\n"
           "import java.io.BufferedWriter\n"
@@ -1039,7 +1039,7 @@ jobs:
           "import java.util.concurrent.ConcurrentHashMap\n"
           "import java.util.concurrent.atomic.AtomicLong\n"
           "object VhLogger {\n"
-          "    private const val TAG = \"OMNI-NATIVE\"\n"
+          "    private const val TAG = \"EASYVOICE-NATIVE\"\n"
           "    private const val MAX_LINES = 8000\n"
           "    private val buffer = LinkedList<String>()\n"
           "    private val sdf = SimpleDateFormat(\"MM-dd HH:mm:ss.SSS\", Locale.US)\n"
@@ -1119,7 +1119,7 @@ jobs:
           "        val ctx = appContext ?: throw IOException(\"VhLogger not initialized\")\n"
           "        val f = File(ctx.cacheDir, \"omni_tts_debug.txt\")\n"
           "        BufferedWriter(FileWriter(f, false)).use { bw ->\n"
-          "            bw.write(\"=== Omni Full Debug Log ===\\nTime: ${Date()}\\nDevice: ${android.os.Build.MODEL}\\nAndroid: ${android.os.Build.VERSION.RELEASE}\\nEntries: ${buffer.size}\\n============================\\n\\n\")\n"
+          "            bw.write(\"=== Easy Voice Full Debug Log ===\\nTime: ${Date()}\\nDevice: ${android.os.Build.MODEL}\\nAndroid: ${android.os.Build.VERSION.RELEASE}\\nEntries: ${buffer.size}\\n============================\\n\\n\")\n"
           "            buffer.forEach { bw.write(it); bw.newLine() }\n"
           "        }\n"
           "        return f\n"
@@ -1128,8 +1128,8 @@ jobs:
           "}\n")
 
           # ── SharedPrefsManager.kt ────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/SharedPrefsManager.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/SharedPrefsManager.kt",
+          "package com.easyvoice.tts\n"
           "import android.content.Context\n"
           "import android.content.SharedPreferences\n"
           "class SharedPrefsManager(context: Context) {\n"
@@ -1206,8 +1206,8 @@ jobs:
           "}\n")
 
           # ── EngineFinder.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/EngineFinder.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/EngineFinder.kt",
+          "package com.easyvoice.tts\n"
           "import android.content.Context\n"
           "import android.content.Intent\n"
           "import android.speech.tts.TextToSpeech\n"
@@ -1241,8 +1241,8 @@ jobs:
           # Per-sentence CLD2 detection for unknowns
           # Engine availability check with fallback to user-preferred lang
           # Responsive latch.await(5ms) loop with @Volatile flags — INSTANT STOP reaction
-          w("app/src/main/java/com/omni/tts/ComposeTtsService.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/ComposeTtsService.kt",
+          "package com.easyvoice.tts\n"
           "import android.app.Notification\n"
           "import android.app.NotificationChannel\n"
           "import android.app.NotificationManager\n"
@@ -1328,12 +1328,12 @@ jobs:
           "    // ────────────────────────────────────────────────────────────────────\n"
           "    // Foreground service + Audio focus helpers (matches original AutoTtsService D/E/d0/a0)\n"
           "    // ────────────────────────────────────────────────────────────────────\n"
-          "    // Create the low-importance \"Omni TTS\" notification channel (idempotent — safe to call repeatedly).\n"
+          "    // Create the low-importance \"Easy Voice\" notification channel (idempotent — safe to call repeatedly).\n"
           "    private fun createNotificationChannel() {\n"
           "        try {\n"
           "            val nm = getSystemService(NotificationManager::class.java) ?: return\n"
           "            // IMPORTANCE_LOW: no sound, no popup, but persistent in notification shade.\n"
-          "            val channel = NotificationChannel(FG_CHANNEL_ID, \"Omni TTS Engine\", NotificationManager.IMPORTANCE_LOW)\n"
+          "            val channel = NotificationChannel(FG_CHANNEL_ID, \"Easy Voice Engine\", NotificationManager.IMPORTANCE_LOW)\n"
           "            channel.description = \"Keeps the TTS engine alive while speaking\"\n"
           "            channel.setShowBadge(false)\n"
           "            nm.createNotificationChannel(channel)\n"
@@ -1342,7 +1342,7 @@ jobs:
           "    // Build the persistent foreground notification (icon + title only, low-key).\n"
           "    private fun buildNotification(): Notification {\n"
           "        return NotificationCompat.Builder(this, FG_CHANNEL_ID)\n"
-          "            .setContentTitle(\"Omni TTS active\")\n"
+          "            .setContentTitle(\"Easy Voice active\")\n"
           "            .setSmallIcon(android.R.drawable.ic_btn_speak_now)\n"
           "            .setOngoing(true)\n"
           "            .setPriority(NotificationCompat.PRIORITY_LOW)\n"
@@ -1446,7 +1446,7 @@ jobs:
           "        createNotificationChannel()\n"
           "        requestAudioFocusIfNeeded()\n"
           "        val pm = getSystemService(POWER_SERVICE) as PowerManager\n"
-          "        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, \"OmniTTS:synthesis\")\n"
+          "        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, \"EasyVoice:synthesis\")\n"
           "        wakeLock?.setReferenceCounted(false)\n"
           "        // ── OPTION-B ITEM 1: Cascading engine pre-init ──\n"
           "        // Matches original AutoTtsService.N() pattern: walk every configured language and\n"
@@ -1574,8 +1574,8 @@ jobs:
           "        return if (prefs.getEngineForLanguage(iso) != \"NOT_SET\") \"omni_$iso\" else \"omni_en\"\n"
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
-          "    // onGetVoices(): advertise the languages Omni is configured for, so\n"
-          "    // Android's TTS framework / TalkBack can pick Omni and route requests here.\n"
+          "    // onGetVoices(): advertise the languages Easy Voice is configured for, so\n"
+          "    // Android's TTS framework / TalkBack can pick Easy Voice and route requests here.\n"
           "    // We surface only languages whose engine has actually been set by the user.\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    override fun onGetVoices(): MutableList<Voice> {\n"
@@ -2061,10 +2061,10 @@ jobs:
           "        // directly to the specified engine/locale via TextChunk.forcedEngine/forcedLocale.\n"
           "        // Also: if SynthesisRequest.language == \"zxx\" (Android's \"no-language\" hint),\n"
           "        // honour that by routing one chunk through without detection.\n"
-          "        // Support both our own [OmniTTS:...] tag and the original [AutoTTS:...] tag\n"
+          "        // Support both our own [EasyVoice:...] tag and the original [AutoTTS:...] tag\n"
           "        // for drop-in compatibility with AutoTTS scripts/integrations.\n"
           "        val activePrefix = when {\n"
-          "            rawText.startsWith(\"[OmniTTS:\") -> \"[OmniTTS:\"\n"
+          "            rawText.startsWith(\"[EasyVoice:\") -> \"[EasyVoice:\"\n"
           "            rawText.startsWith(\"[AutoTTS:\") -> \"[AutoTTS:\"\n"
           "            else -> null\n"
           "        }\n"
@@ -2464,8 +2464,8 @@ jobs:
           "}\n")
 
           # ── CheckVoiceData.kt ────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/CheckVoiceData.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/CheckVoiceData.kt",
+          "package com.easyvoice.tts\n"
           "import android.app.Activity\n"
           "import android.content.Intent\n"
           "import android.os.Bundle\n"
@@ -2516,8 +2516,8 @@ jobs:
           "}\n")
 
           # ── SampleTexts.kt ──────────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/SampleTexts.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/SampleTexts.kt",
+          "package com.easyvoice.tts\n"
           "object SampleTexts {\n"
           "    private val map = mapOf(\n"
           "        \"af\" to \"Dit is 'n voorbeeld van teks wat in Afrikaans gepraat word.\",\n"
@@ -2603,8 +2603,8 @@ jobs:
           "}\n")
 
           # ── GetSampleText.kt ─────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/GetSampleText.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/GetSampleText.kt",
+          "package com.easyvoice.tts\n"
           "import android.app.Activity\n"
           "import android.content.Intent\n"
           "import android.os.Bundle\n"
@@ -2867,8 +2867,8 @@ jobs:
           "}\n")
 
           # ── AccessibleDropdown.kt ────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/AccessibleDropdown.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/AccessibleDropdown.kt",
+          "package com.easyvoice.tts\n"
           "import androidx.compose.foundation.clickable\n"
           "import androidx.compose.foundation.layout.*\n"
           "import androidx.compose.foundation.lazy.LazyColumn\n"
@@ -2922,8 +2922,8 @@ jobs:
           "}\n")
 
           # ── MainActivity.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/MainActivity.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/MainActivity.kt",
+          "package com.easyvoice.tts\n"
           "import android.content.Intent\n"
           "import android.net.Uri\n"
           "import android.os.Build\n"
@@ -3467,8 +3467,8 @@ jobs:
           "                    \"Background Reliability\" -> {\n"
           "                        Spacer(modifier = Modifier.height(8.dp))\n"
           "                        Text(\n"
-          "                            if (batteryUnrestricted) \"Omni is exempt from battery optimization.\"\n"
-          "                            else \"Android may kill Omni mid-speech. Select \\\"Unrestricted\\\" to keep background TTS working.\",\n"
+          "                            if (batteryUnrestricted) \"Easy Voice is exempt from battery optimization.\"\n"
+          "                            else \"Android may kill Easy Voice mid-speech. Select \\\"Unrestricted\\\" to keep background TTS working.\",\n"
           "                            style = MaterialTheme.typography.bodyMedium,\n"
           "                            color = MaterialTheme.colorScheme.onSurfaceVariant\n"
           "                        )\n"
@@ -3507,7 +3507,7 @@ jobs:
           "                            try {\n"
           "                                val logFile = VhLogger.exportToFile()\n"
           "                                val uri = FileProvider.getUriForFile(context, \"${context.packageName}.provider\", logFile)\n"
-          "                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = \"text/plain\"; putExtra(Intent.EXTRA_STREAM, uri); putExtra(Intent.EXTRA_SUBJECT, \"Omni Log\"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, \"Share Log\"))\n"
+          "                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = \"text/plain\"; putExtra(Intent.EXTRA_STREAM, uri); putExtra(Intent.EXTRA_SUBJECT, \"Easy Voice Log\"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, \"Share Log\"))\n"
           "                            } catch (e: Exception) { Toast.makeText(context, \"Log export failed: ${e.message}\", Toast.LENGTH_SHORT).show() }\n"
           "                        }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text(\"EXPORT DEBUG LOG\") }\n"
           "                        Spacer(modifier = Modifier.height(8.dp))\n"
@@ -3595,8 +3595,8 @@ jobs:
           )
 
           # ── DictionaryActivity.kt ────────────────────────────────────────────
-          w("app/src/main/java/com/omni/tts/DictionaryActivity.kt",
-          "package com.omni.tts\n"
+          w("app/src/main/java/com/easyvoice/tts/DictionaryActivity.kt",
+          "package com.easyvoice.tts\n"
           "import android.os.Bundle\n"
           "import androidx.activity.ComponentActivity\n"
           "import androidx.activity.compose.setContent\n"
@@ -3655,7 +3655,7 @@ jobs:
           w("app/src/main/res/xml/tts_engine.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<tts-engine xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
-          "    android:settingsActivity=\"com.omni.tts.MainActivity\" />\n")
+          "    android:settingsActivity=\"com.easyvoice.tts.MainActivity\" />\n")
 
           # ── res/xml/provider_paths.xml ───────────────────────────────────────
           w("app/src/main/res/xml/provider_paths.xml",
@@ -3666,8 +3666,8 @@ jobs:
           w("app/src/main/res/values/strings.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
-          "    <string name=\"app_name\">Omni TTS</string>\n"
-          "    <string name=\"auto_reader_description\">Omni Auto Reader reads focused screen elements aloud using your configured TTS engine.</string>\n"
+          "    <string name=\"app_name\">Easy Voice</string>\n"
+          "    <string name=\"auto_reader_description\">Easy Voice Auto Reader reads focused screen elements aloud using your configured TTS engine.</string>\n"
           "</resources>\n")
 
           # ── AndroidManifest.xml ──────────────────────────────────────────────
@@ -3677,7 +3677,7 @@ jobs:
           "    <queries>\n"
           "        <intent><action android:name=\"android.intent.action.TTS_SERVICE\" /></intent>\n"
           "    </queries>\n"
-          "    <!-- Foreground service keeps Omni alive even when Android tries to kill\n"
+          "    <!-- Foreground service keeps Easy Voice alive even when Android tries to kill\n"
           "         long-running TTS services. MEDIA_PLAYBACK matches the original AutoTTS\n"
           "         choice — it's the Play-Store-standard foreground type for TTS apps,\n"
           "         no special-use review hassle, and integrates well with audio focus\n"
@@ -3687,7 +3687,7 @@ jobs:
           "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n"
           "    <!-- WAKE_LOCK lets us survive Doze mode mid-synthesis on screen-off. -->\n"
           "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n"
-          "    <!-- Lets the user grant Omni an exemption from aggressive battery\n"
+          "    <!-- Lets the user grant Easy Voice an exemption from aggressive battery\n"
           "         optimization (the real fix for OEMs that kill background services). -->\n"
           "    <uses-permission android:name=\"android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\" />\n"
           "    <application\n"
@@ -3717,7 +3717,7 @@ jobs:
           "        </activity>\n"
           "        <provider\n"
           "            android:name=\"androidx.core.content.FileProvider\"\n"
-          "            android:authorities=\"com.omni.tts.provider\"\n"
+          "            android:authorities=\"com.easyvoice.tts.provider\"\n"
           "            android:exported=\"false\"\n"
           "            android:grantUriPermissions=\"true\">\n"
           "            <meta-data android:name=\"android.support.FILE_PROVIDER_PATHS\" android:resource=\"@xml/provider_paths\" />\n"
@@ -3766,6 +3766,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Omni-Ultra-Max-Native-APK
+          name: Easy-Voice-Native-APK
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
