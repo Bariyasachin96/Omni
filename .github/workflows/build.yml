@@ -99,7 +99,7 @@ jobs:
               externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
               signingConfigs {
                   create("release") {
-                      storeFile = rootProject.file("omni-release.keystore")
+                      storeFile = rootProject.file("easyvoice-release.keystore")
                       storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "sachin1211"
                       keyAlias = System.getenv("KEY_ALIAS") ?: "sachin"
                       keyPassword = System.getenv("KEY_PASSWORD") ?: "sachin1211"
@@ -1117,7 +1117,7 @@ jobs:
           "    fun markSkipped(reason: String) = write(\"W\", \"[SKIPPED] $reason\")\n"
           "    @Synchronized @Throws(IOException::class) fun exportToFile(): File {\n"
           "        val ctx = appContext ?: throw IOException(\"VhLogger not initialized\")\n"
-          "        val f = File(ctx.cacheDir, \"omni_tts_debug.txt\")\n"
+          "        val f = File(ctx.cacheDir, \"easyvoice_debug.txt\")\n"
           "        BufferedWriter(FileWriter(f, false)).use { bw ->\n"
           "            bw.write(\"=== Easy Voice Full Debug Log ===\\nTime: ${Date()}\\nDevice: ${android.os.Build.MODEL}\\nAndroid: ${android.os.Build.VERSION.RELEASE}\\nEntries: ${buffer.size}\\n============================\\n\\n\")\n"
           "            buffer.forEach { bw.write(it); bw.newLine() }\n"
@@ -1315,12 +1315,12 @@ jobs:
           "    @Volatile private var isStopped = false                  // hard stop (from onStop / onDestroy)\n"
           "    @Volatile private var isFlushed = false                  // soft flush (from internal Z(false) path)\n"
           "    // ── Foreground service + Audio focus state ──\n"
-          "    // FG service: matches original AutoTtsService D()/E()/d0() — ID 136549 + channel \"omni_tts_channel\"\n"
+          "    // FG service: matches original AutoTtsService D()/E()/d0() — ID 136549 + channel \"easyvoice_tts_channel\"\n"
           "    // Audio focus: matches original AutoTtsService a0() — USAGE_ASSISTANCE_ACCESSIBILITY (11)\n"
           "    private var audioManager: AudioManager? = null\n"
           "    private var audioFocusRequest: AudioFocusRequest? = null\n"
           "    private val FG_NOTIFICATION_ID = 136549\n"
-          "    private val FG_CHANNEL_ID = \"omni_tts_channel\"\n"
+          "    private val FG_CHANNEL_ID = \"easyvoice_tts_channel\"\n"
           "    @Volatile private var foregroundActive = false\n"
           "    private var wakeLock: PowerManager.WakeLock? = null\n"
           "    private fun getLocale(iso: String): Locale =\n"
@@ -1568,10 +1568,10 @@ jobs:
           "        return result\n"
           "    }\n"
           "    override fun onGetDefaultVoiceNameFor(l: String?, c: String?, v: String?): String {\n"
-          "        if (l == null) return \"omni_en\"\n"
-          "        if (!::prefs.isInitialized) return \"omni_en\"\n"
+          "        if (l == null) return \"easyvoice_en\"\n"
+          "        if (!::prefs.isInitialized) return \"easyvoice_en\"\n"
           "        val iso = l.lowercase()\n"
-          "        return if (prefs.getEngineForLanguage(iso) != \"NOT_SET\") \"omni_$iso\" else \"omni_en\"\n"
+          "        return if (prefs.getEngineForLanguage(iso) != \"NOT_SET\") \"easyvoice_$iso\" else \"easyvoice_en\"\n"
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    // onGetVoices(): advertise the languages Easy Voice is configured for, so\n"
@@ -1585,7 +1585,7 @@ jobs:
           "                if (prefs.getEngineForLanguage(iso) == \"NOT_SET\") continue\n"
           "                val locale = try { Locale.forLanguageTag(iso) } catch (_: Exception) { continue }\n"
           "                val voice = Voice(\n"
-          "                    \"omni_$iso\",\n"
+          "                    \"easyvoice_$iso\",\n"
           "                    locale,\n"
           "                    400,                 // quality — matches original AutoTTS Voice ctor\n"
           "                    100,                 // latency — matches original AutoTTS Voice ctor\n"
@@ -1599,7 +1599,7 @@ jobs:
           "    }\n"
           "    private fun isKnownVoiceName(name: String?): Boolean {\n"
           "        if (name == null) return false\n"
-          "        if (name.startsWith(\"omni_\")) return true\n"
+          "        if (name.startsWith(\"easyvoice_\")) return true\n"
           "        val iso = name.lowercase()\n"
           "        return Languages.map.containsKey(iso) && prefs.getEngineForLanguage(iso) != \"NOT_SET\"\n"
           "    }\n"
@@ -1989,7 +1989,7 @@ jobs:
           "        // utterance without an immediate hard stop. Speak \"\" with QUEUE_FLUSH on every\n"
           "        // engine in the pool — equivalent to AutoTTS's Z(false) softFlush() routine.\n"
           "        for (eng in enginePool.values) {\n"
-          "            try { eng.speak(\"\", TextToSpeech.QUEUE_FLUSH, null, \"omni_soft_flush\") } catch (_: Exception) {}\n"
+          "            try { eng.speak(\"\", TextToSpeech.QUEUE_FLUSH, null, \"easyvoice_soft_flush\") } catch (_: Exception) {}\n"
           "        }\n"
           "        VhLogger.d(\"[SERVICE] onSynthesizeText textLen=${request?.charSequenceText?.length ?: 0}\")\n"
           "        activeStop.get().set(true)\n"
@@ -3752,7 +3752,7 @@ jobs:
           if [ -z "$KSBASE64" ]; then
             KSBASE64="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"
           fi
-          printf '%s' "$KSBASE64" | base64 -d > omni-release.keystore
+          printf '%s' "$KSBASE64" | base64 -d > easyvoice-release.keystore
           echo "Keystore ready" 
       - name: Build APK
         run: |
