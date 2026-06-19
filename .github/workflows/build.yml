@@ -3017,6 +3017,7 @@ jobs:
           import com.google.firebase.auth.FirebaseAuth
           import com.google.firebase.auth.GoogleAuthProvider
           import com.google.firebase.firestore.FirebaseFirestore
+          import com.google.firebase.firestore.FirebaseFirestoreException
 
           // Auth gate states
           private const val AUTH_LOADING = 0
@@ -3024,10 +3025,6 @@ jobs:
           private const val AUTH_OK = 2
           private const val AUTH_DENIED = 3
 
-          // Gates the whole app behind Google Sign-In + a Firestore `testers` allow-list.
-          // content() is only shown when the signed-in email exists in testers/{email}
-          // with active == true. The decision is cached in prefs ("auth_authorized") so
-          // the TTS service (ComposeTtsService) can honour the same gate offline.
           @Composable
           fun AuthGate(prefs: SharedPrefsManager, content: @Composable () -> Unit) {
               val context = LocalContext.current
@@ -3043,6 +3040,12 @@ jobs:
               }
               val googleClient = remember { GoogleSignIn.getClient(context, gso) }
 
+              fun signOut() {
+                  prefs.setBoolean("auth_authorized", false)
+                  auth.signOut()
+                  googleClient.signOut()
+              }
+
               fun verifyTester(email: String) {
                   FirebaseFirestore.getInstance().collection("testers").document(email).get()
                       .addOnSuccessListener { doc ->
@@ -3051,20 +3054,26 @@ jobs:
                               prefs.setString("auth_email", email)
                               state = AUTH_OK
                           } else {
-                              prefs.setBoolean("auth_authorized", false)
-                              auth.signOut()
-                              googleClient.signOut()
-                              message = "Aapko testing ke liye authorize nahi kiya gaya hai.\nAdmin se sampark karein."
+                              signOut()
+                              message = "Access denied. Your account ($email) is not on the testers list."
                               state = AUTH_DENIED
                           }
                       }
-                      .addOnFailureListener {
-                          // Offline / network error: fall back to the last cached decision.
-                          if (prefs.getBoolean("auth_authorized", false)) {
-                              state = AUTH_OK
-                          } else {
-                              message = "Network error. Internet check karke dobara try karein."
+                      .addOnFailureListener { e ->
+                          if (e is FirebaseFirestoreException &&
+                              e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                              // Rules blocked the read — treat as not authorized
+                              signOut()
+                              message = "Access denied. Your account ($email) is not on the testers list."
                               state = AUTH_DENIED
+                          } else {
+                              // Real network/offline error — fall back to cached decision
+                              if (prefs.getBoolean("auth_authorized", false)) {
+                                  state = AUTH_OK
+                              } else {
+                                  message = "Network error. Please check your internet connection and try again."
+                                  state = AUTH_NEED_LOGIN
+                              }
                           }
                       }
               }
@@ -3082,12 +3091,12 @@ jobs:
                           if (t.isSuccessful && email != null) {
                               verifyTester(email)
                           } else {
-                              message = "Sign-in fail ho gaya. Dobara koshish karein."
+                              message = "Sign-in failed. Please try again."
                               state = AUTH_NEED_LOGIN
                           }
                       }
                   } catch (e: ApiException) {
-                      message = if (e.statusCode == 12501) "" else "Google sign-in fail (code ${e.statusCode})."
+                      message = if (e.statusCode == 12501) "" else "Google sign-in failed (code ${e.statusCode})."
                       state = AUTH_NEED_LOGIN
                   }
               }
@@ -3095,7 +3104,6 @@ jobs:
               LaunchedEffect(Unit) {
                   val user = auth.currentUser
                   if (user?.email != null) {
-                      // Show cached-authorized UI immediately, then re-verify in background
                       if (prefs.getBoolean("auth_authorized", false)) state = AUTH_OK
                       verifyTester(user.email!!)
                   } else {
@@ -3127,7 +3135,7 @@ jobs:
                       Text("Easy Voice", style = MaterialTheme.typography.headlineLarge)
                       Spacer(Modifier.height(8.dp))
                       Text(
-                          "Testing access ke liye apne Google account se sign in karein.",
+                          "Sign in with your Google account to access the app.",
                           style = MaterialTheme.typography.bodyMedium,
                           textAlign = TextAlign.Center
                       )
@@ -3147,7 +3155,7 @@ jobs:
                       if (denied) {
                           Spacer(Modifier.height(16.dp))
                           OutlinedButton(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
-                              Text("Doosre account se try karein")
+                              Text("Try a different account")
                           }
                       }
                   }
