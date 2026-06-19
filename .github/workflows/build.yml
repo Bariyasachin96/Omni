@@ -3011,11 +3011,14 @@ jobs:
           import androidx.compose.ui.platform.LocalContext
           import androidx.compose.ui.text.style.TextAlign
           import androidx.compose.ui.unit.dp
+          import android.os.Handler
+          import android.os.Looper
           import com.google.android.gms.auth.api.signin.GoogleSignIn
           import com.google.android.gms.auth.api.signin.GoogleSignInOptions
           import com.google.android.gms.common.api.ApiException
           import com.google.firebase.auth.FirebaseAuth
           import com.google.firebase.auth.GoogleAuthProvider
+          import org.json.JSONObject
 
           // Auth gate states
           private const val AUTH_LOADING = 0
@@ -3045,11 +3048,63 @@ jobs:
               }
 
               fun verifyTester(email: String) {
-                  // Auth-only gate: Google Sign-In success = authorized.
-                  // Firestore allow-list check re-enabled once SDK connectivity confirmed.
-                  prefs.setBoolean("auth_authorized", true)
-                  prefs.setString("auth_email", email)
-                  state = AUTH_OK
+                  // Use Firestore REST API (plain HTTPS) instead of the Firestore SDK
+                  // (SDK uses gRPC which can fail on some mobile networks/devices).
+                  val user = auth.currentUser ?: return run {
+                      signOut(); message = "Session expired. Please sign in again."; state = AUTH_NEED_LOGIN
+                  }
+                  user.getIdToken(false)
+                      .addOnSuccessListener { result ->
+                          val token = result.token ?: return@addOnSuccessListener run {
+                              signOut(); message = "Auth error. Please sign in again."; state = AUTH_NEED_LOGIN
+                          }
+                          val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                          val url = "https://firestore.googleapis.com/v1/projects/easy-voice-e53f0/databases/(default)/documents/testers/$encodedEmail"
+                          val mainHandler = Handler(Looper.getMainLooper())
+                          Thread {
+                              try {
+                                  val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                                  conn.setRequestProperty("Authorization", "Bearer $token")
+                                  conn.connectTimeout = 10000
+                                  conn.readTimeout = 10000
+                                  val code = conn.responseCode
+                                  val body = if (code == 200) conn.inputStream.bufferedReader().readText() else ""
+                                  val isActive = if (code == 200) {
+                                      try {
+                                          JSONObject(body).getJSONObject("fields")
+                                              .getJSONObject("active").getBoolean("booleanValue")
+                                      } catch (_: Exception) { false }
+                                  } else false
+                                  mainHandler.post {
+                                      when {
+                                          isActive -> {
+                                              prefs.setBoolean("auth_authorized", true)
+                                              prefs.setString("auth_email", email)
+                                              state = AUTH_OK
+                                          }
+                                          code == 200 || code == 403 || code == 404 -> {
+                                              signOut()
+                                              message = "Access denied. Your account ($email) is not authorized."
+                                              state = AUTH_DENIED
+                                          }
+                                          else -> {
+                                              if (prefs.getBoolean("auth_authorized", false)) state = AUTH_OK
+                                              else { message = "Server error ($code). Please try again."; state = AUTH_NEED_LOGIN }
+                                          }
+                                      }
+                                  }
+                              } catch (e: Exception) {
+                                  mainHandler.post {
+                                      if (prefs.getBoolean("auth_authorized", false)) state = AUTH_OK
+                                      else { message = "Network error. Please check your connection."; state = AUTH_NEED_LOGIN }
+                                  }
+                              }
+                          }.start()
+                      }
+                      .addOnFailureListener {
+                          message = "Authentication error. Please sign in again."
+                          state = AUTH_NEED_LOGIN
+                      }
               }
 
               val launcher = rememberLauncherForActivityResult(
