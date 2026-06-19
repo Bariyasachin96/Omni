@@ -144,9 +144,9 @@ jobs:
           # ── CMakeLists.txt ───────────────────────────────────────────────────
           w("app/src/main/cpp/CMakeLists.txt", """\
           cmake_minimum_required(VERSION 3.18.1)
-          project("omni_native")
+          project("easyvoice_native")
           set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
-          add_library(omni_core SHARED
+          add_library(easyvoice_core SHARED
               tts_engine_core.cpp
               ${CLD2_DIR}/cldutil.cc
               ${CLD2_DIR}/cldutil_shared.cc
@@ -173,9 +173,9 @@ jobs:
               ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc
               ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc
           )
-          target_include_directories(omni_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
+          target_include_directories(easyvoice_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
           find_library(log-lib log)
-          target_link_libraries(omni_core ${log-lib})
+          target_link_libraries(easyvoice_core ${log-lib})
           """)
 
           # ── tts_engine_core.cpp ──────────────────────────────────────────────
@@ -981,7 +981,7 @@ jobs:
           "package com.easyvoice.tts\n"
           "import java.nio.ByteBuffer\n"
           "object NativeEngine {\n"
-          "    init { System.loadLibrary(\"omni_core\") }\n"
+          "    init { System.loadLibrary(\"easyvoice_core\") }\n"
           "    external fun verifyToken(h: ByteArray): Boolean\n"
           "    external fun processDirect(\n"
           "        buffer: ByteBuffer, length: Int,\n"
