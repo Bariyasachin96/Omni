@@ -88,7 +88,7 @@ jobs:
                   externalNativeBuild {
                       cmake {
                           cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3", "-g0")
-                          arguments += listOf("-DANDROID_STL=c++_shared")
+                          arguments += listOf("-DANDROID_STL=c++_static")
                       }
                   }
                   ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
@@ -116,7 +116,7 @@ jobs:
               }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
-              packaging { resources { pickFirsts.add("**/libc++_shared.so") } }
+              packaging { resources { excludes.add("**/libc++_shared.so") } }
           }
           dependencies {
               implementation("androidx.core:core-ktx:1.12.0")
