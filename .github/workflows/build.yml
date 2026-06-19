@@ -3071,7 +3071,8 @@ jobs:
                               if (prefs.getBoolean("auth_authorized", false)) {
                                   state = AUTH_OK
                               } else {
-                                  message = "Network error. Please check your internet connection and try again."
+                                  val code = if (e is FirebaseFirestoreException) "FS:${e.code}" else e.javaClass.simpleName
+                                  message = "Connection failed [$code]. Check internet and try again."
                                   state = AUTH_NEED_LOGIN
                               }
                           }
