@@ -38,10 +38,13 @@ jobs:
               'databaseURL': f'https://{project}-default-rtdb.firebaseio.com'
           })
 
-          # Add tester: testers/bariyasachin143@gmail.com/active = true
-          ref = db.reference('/testers/bariyasachin143@gmail.com')
+          # Add tester: dots replaced with commas (RTDB doesn't allow dots in keys)
+          # bariyasachin143@gmail.com → bariyasachin143@gmail,com
+          email = 'bariyasachin143@gmail.com'
+          rtdb_key = email.replace('.', ',')
+          ref = db.reference(f'/testers/{rtdb_key}')
           ref.set({'active': True})
-          print('SUCCESS: Tester added to Realtime Database!')
+          print(f'SUCCESS: Tester {email} added as {rtdb_key} in Realtime Database!')
           PYEOF
 
       - name: Install NDK and CMake
@@ -3079,8 +3082,9 @@ jobs:
                       val token = result.token ?: return@addOnSuccessListener run {
                           signOut(); message = "Auth error. Please sign in again."; state = AUTH_NEED_LOGIN
                       }
-                      val encodedEmail = email.replace("@", "%40").replace(".", "%2E")
-                      val url = "https://easy-voice-e53f0-default-rtdb.firebaseio.com/testers/$encodedEmail/active.json?auth=$token"
+                      val rtdbKey = email.replace(".", ",")
+                      val encodedKey = rtdbKey.replace("@", "%40")
+                      val url = "https://easy-voice-e53f0-default-rtdb.firebaseio.com/testers/$encodedKey/active.json?auth=$token"
                       val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
                       Thread {
                           try {
