@@ -136,6 +136,7 @@ jobs:
           w("app/proguard-rules.pro", """\
           -repackageclasses 'o'
           -allowaccessmodification
+          -keep class com.omni.tts.NativeEngine { native <methods>; }
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
           """)
