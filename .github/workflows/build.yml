@@ -19,6 +19,54 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Setup Firebase Firestore
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          pip3 install google-auth google-auth-httplib2 requests
+          python3 - << 'PYEOF'
+          import json, os, requests, time
+          import google.oauth2.service_account
+          import google.auth.transport.requests
+
+          sa = json.loads(os.environ['FIREBASE_SA'])
+          project = sa['project_id']
+
+          creds = google.oauth2.service_account.Credentials.from_service_account_info(
+              sa, scopes=['https://www.googleapis.com/auth/cloud-platform',
+                          'https://www.googleapis.com/auth/datastore']
+          )
+          auth_req = google.auth.transport.requests.Request()
+          creds.refresh(auth_req)
+          token = creds.token
+          headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+
+          # Create Firestore database if not exists
+          db_url = f'https://firestore.googleapis.com/v1/projects/{project}/databases'
+          r = requests.post(db_url, headers=headers,
+                            json={'type': 'FIRESTORE_NATIVE', 'locationId': 'us-east1'})
+          print(f'DB create: {r.status_code}')
+          if r.status_code == 200:
+              print('Database created, waiting 15s...')
+              time.sleep(15)
+          elif r.status_code == 409:
+              print('Database already exists')
+          else:
+              print(f'DB warning: {r.text[:300]}')
+
+          # Add/update tester document
+          doc_url = (f'https://firestore.googleapis.com/v1/projects/{project}'
+                     f'/databases/(default)/documents/testers/bariyasachin143%40gmail.com')
+          r2 = requests.patch(doc_url, headers=headers,
+                              json={'fields': {'active': {'booleanValue': True}}})
+          print(f'Tester add: {r2.status_code}')
+          if r2.status_code == 200:
+              print('SUCCESS: Tester document ready!')
+          else:
+              print(f'ERROR: {r2.text[:300]}')
+              exit(1)
+          PYEOF
+
       - name: Install NDK and CMake
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
@@ -3086,7 +3134,7 @@ jobs:
                                           }
                                           code == 200 || code == 403 || code == 404 -> {
                                               signOut()
-                                              message = "Access denied (HTTP $code).\n${body.take(200)}"
+                                              message = "Access denied. Your account ($email) is not authorized."
                                               state = AUTH_DENIED
                                           }
                                           else -> {
