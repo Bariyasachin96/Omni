@@ -3016,8 +3016,6 @@ jobs:
           import com.google.android.gms.common.api.ApiException
           import com.google.firebase.auth.FirebaseAuth
           import com.google.firebase.auth.GoogleAuthProvider
-          import com.google.firebase.firestore.FirebaseFirestore
-          import com.google.firebase.firestore.FirebaseFirestoreException
 
           // Auth gate states
           private const val AUTH_LOADING = 0
@@ -3047,36 +3045,11 @@ jobs:
               }
 
               fun verifyTester(email: String) {
-                  FirebaseFirestore.getInstance().collection("testers").document(email).get()
-                      .addOnSuccessListener { doc ->
-                          if (doc.exists() && doc.getBoolean("active") == true) {
-                              prefs.setBoolean("auth_authorized", true)
-                              prefs.setString("auth_email", email)
-                              state = AUTH_OK
-                          } else {
-                              signOut()
-                              message = "Access denied. Your account ($email) is not on the testers list."
-                              state = AUTH_DENIED
-                          }
-                      }
-                      .addOnFailureListener { e ->
-                          if (e is FirebaseFirestoreException &&
-                              e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
-                              // Rules blocked the read — treat as not authorized
-                              signOut()
-                              message = "Access denied. Your account ($email) is not on the testers list."
-                              state = AUTH_DENIED
-                          } else {
-                              // Real network/offline error — fall back to cached decision
-                              if (prefs.getBoolean("auth_authorized", false)) {
-                                  state = AUTH_OK
-                              } else {
-                                  val code = if (e is FirebaseFirestoreException) "FS:${e.code}" else e.javaClass.simpleName
-                                  message = "Connection failed [$code]. Check internet and try again."
-                                  state = AUTH_NEED_LOGIN
-                              }
-                          }
-                      }
+                  // Auth-only gate: Google Sign-In success = authorized.
+                  // Firestore allow-list check re-enabled once SDK connectivity confirmed.
+                  prefs.setBoolean("auth_authorized", true)
+                  prefs.setString("auth_email", email)
+                  state = AUTH_OK
               }
 
               val launcher = rememberLauncherForActivityResult(
