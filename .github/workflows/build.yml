@@ -3058,7 +3058,7 @@ jobs:
                           val token = result.token ?: return@addOnSuccessListener run {
                               signOut(); message = "Auth error. Please sign in again."; state = AUTH_NEED_LOGIN
                           }
-                          val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                          val encodedEmail = email.replace("@", "%40")
                           val url = "https://firestore.googleapis.com/v1/projects/easy-voice-e53f0/databases/(default)/documents/testers/$encodedEmail"
                           val mainHandler = Handler(Looper.getMainLooper())
                           Thread {
