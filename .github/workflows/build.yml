@@ -24,57 +24,23 @@ jobs:
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          pip3 install firebase-admin google-auth requests
+          pip3 install firebase-admin
           python3 - << 'PYEOF'
-          import json, os, requests
+          import json, os
           import firebase_admin
           from firebase_admin import credentials, db
-          import google.auth.transport.requests
-          from google.oauth2 import service_account
 
           sa = json.loads(os.environ['FIREBASE_SA'])
           project = sa['project_id']
-          db_url = f'https://{project}-default-rtdb.firebaseio.com'
 
           cred = credentials.Certificate(sa)
-          firebase_admin.initialize_app(cred, {'databaseURL': db_url})
+          firebase_admin.initialize_app(cred, {'databaseURL': f'https://{project}-default-rtdb.firebaseio.com'})
 
-          # Add tester (dots replaced with commas — RTDB does not allow dots in keys)
           email = 'bariyasachin143@gmail.com'
           rtdb_key = email.replace('.', ',')
           ref = db.reference(f'/testers/{rtdb_key}')
           ref.set({'active': True})
-          print(f'SUCCESS: Tester {email} added as key [{rtdb_key}]')
-
-          # Set security rules: only authenticated users can read, nobody can write
-          sa_creds = service_account.Credentials.from_service_account_info(
-              sa,
-              scopes=[
-                  'https://www.googleapis.com/auth/firebase',
-                  'https://www.googleapis.com/auth/cloud-platform'
-              ]
-          )
-          auth_req = google.auth.transport.requests.Request()
-          sa_creds.refresh(auth_req)
-
-          rules = {
-              'rules': {
-                  'testers': {
-                      '.read': 'auth != null',
-                      '.write': False
-                  }
-              }
-          }
-          resp = requests.put(
-              f'{db_url}/.settings/rules.json',
-              json=rules,
-              params={'access_token': sa_creds.token},
-              timeout=15
-          )
-          if resp.status_code == 200:
-              print('SUCCESS: Security rules set — only authenticated users can read testers')
-          else:
-              print(f'Rules update status: {resp.status_code} — {resp.text}')
+          print(f'SUCCESS: Tester {email} added')
           PYEOF
 
       - name: Install NDK and CMake
