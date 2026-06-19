@@ -146,6 +146,8 @@ jobs:
           -keep class com.easyvoice.tts.NativeEngine { native <methods>; }
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
+          -keep class androidx.compose.animation.** { *; }
+          -keep class androidx.compose.animation.core.** { *; }
           -dontwarn com.google.firebase.**
           -dontwarn com.google.android.gms.**
           -dontwarn javax.annotation.**
