@@ -1250,7 +1250,7 @@ jobs:
           "    fun setBrokenEngineProtector(v: Boolean) = prefs.edit().putBoolean(\"broken_engine_protector\", v).apply()\n"
           "    // Auto TTS f6830Q — force USAGE_ASSISTANCE_ACCESSIBILITY (11) on all engines globally,\n"
           "    // not just in Bluetooth Car Mode. Ensures TTS audio routes through the accessibility channel.\n"
-          "    fun isForceAccessibilityStream(): Boolean = prefs.getBoolean(\"force_accessibility_stream\", false)\n"
+          "    fun isForceAccessibilityStream(): Boolean = prefs.getBoolean(\"force_accessibility_stream\", true)\n"
           "    fun setForceAccessibilityStream(v: Boolean) = prefs.edit().putBoolean(\"force_accessibility_stream\", v).apply()\n"
           "    // Auto TTS f6831R — show_notification: when false, foreground notification is suppressed.\n"
           "    fun isShowNotification(): Boolean = prefs.getBoolean(\"show_notification\", true)\n"
