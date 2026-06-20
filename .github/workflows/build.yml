@@ -929,7 +929,9 @@ jobs:
                               int cl = 0;
                               int cp2 = utf8ToCodepoint(p + j, cl);
                               if (!isspace((unsigned char)buf[j])) allWs = false;
-                              if ((cp2 >= 'a' && cp2 <= 'z') || (cp2 >= 'A' && cp2 <= 'Z') || (cp2 >= 0x00C0 && cp2 <= 0x024F))
+                              // AutoTTS w.c(): emoji counts as "letter" (type 1) not neutral
+                              if ((cp2 >= 'a' && cp2 <= 'z') || (cp2 >= 'A' && cp2 <= 'Z') ||
+                                  (cp2 >= 0x00C0 && cp2 <= 0x024F) || isEmoji(cp2))
                                   hasLetter = true;
                               // Fix 2: track digits separately (AutoTTS w.c() type3 vs type4)
                               if ((cp2 >= '0' && cp2 <= '9') || (cp2 >= 0xFF10 && cp2 <= 0xFF19))
@@ -961,7 +963,10 @@ jobs:
                       }
                       // Latin range: cp<=0x024F (Basic Latin + Latin-1 + Latin Extended A/B)
                       // plus 0x2000-0x206F (General Punctuation/math — AutoTTS pattern d scope)
-                      bool latRange = (cp <= 0x024F) || (cp >= 0x2000 && cp <= 0x206F);
+                      // AutoTTS pattern d includes emoji (via c3.c.a()) — when emojiFall="auto",
+                      // emoji join the Latin bucket so they stick to surrounding text language.
+                      bool latRange = (cp <= 0x024F) || (cp >= 0x2000 && cp <= 0x206F) ||
+                                      ((emojiFall.empty() || emojiFall == "auto") && isEmoji(cp));
                       int kind = latRange ? 0 : 1;
                       if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, clen); bufKind = kind; }
                       else { flushBuf(); buf = fullText.substr(i, clen); bufKind = kind; }
