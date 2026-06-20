@@ -1,4 +1,9 @@
 require 'import'
+import 'android.widget.LinearLayout'
+import 'android.widget.TextView'
+import 'android.widget.EditText'
+import 'android.widget.Button'
+import 'android.view.ViewGroup$LayoutParams'
 
 local SA_EMAIL = "firebase-adminsdk-fbsvc@easy-voice-e53f0.iam.gserviceaccount.com"
 local SA_KEY   = [[-----BEGIN PRIVATE KEY-----
