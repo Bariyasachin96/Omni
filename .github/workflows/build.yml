@@ -19,30 +19,6 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Firebase Realtime Database
-        continue-on-error: true
-        env:
-          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          pip3 install firebase-admin
-          python3 - << 'PYEOF'
-          import json, os
-          import firebase_admin
-          from firebase_admin import credentials, db
-
-          sa = json.loads(os.environ['FIREBASE_SA'])
-          project = sa['project_id']
-
-          cred = credentials.Certificate(sa)
-          firebase_admin.initialize_app(cred, {'databaseURL': f'https://{project}-default-rtdb.firebaseio.com'})
-
-          email = 'bariyasachin143@gmail.com'
-          rtdb_key = email.replace('.', ',')
-          ref = db.reference(f'/testers/{rtdb_key}')
-          ref.set({'active': True})
-          print(f'SUCCESS: Tester {email} added')
-          PYEOF
-
       - name: Install NDK and CMake
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
