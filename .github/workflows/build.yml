@@ -865,105 +865,123 @@ jobs:
               return chunks;
           }
 
-          // TRUE HYBRID MIX MODE: Native C++ Port of Auto TTS (Exact Script Splitting + CLD2 Verification)
+          // AutoTTS w.java algorithm: Latin-range runs (cp<=0x024F) vs non-Latin runs.
+          // Runs with letters=type1(Latin text), digits/punct-only=type3(neutral), non-Latin=type2.
+          // Context-resolve type3: backward scan for non-first segments, forward for first (w.a/w.b).
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall) {
               std::vector<ChunkResult> result;
 
-              std::string fullText = "";
-              for(auto& s: sentences) {
-                  if(!s.empty()) fullText += s + " ";
-              }
-              if(fullText.empty()) return result;
+              std::string fullText;
+              for (auto& s : sentences) { if (!s.empty()) fullText += s + " "; }
+              if (fullText.empty()) return result;
 
-              struct ScriptBlock { std::string text; std::string scriptType; };
-              std::vector<ScriptBlock> blocks;
+              // type: -1=forced, 0=whitespace-only, 1=Latin text, 2=non-Latin, 3=neutral(digits/punct)
+              struct Seg { std::string text; int type; std::string lang; };
+              std::vector<Seg> segs;
 
-              std::string curBuf = "";
-              std::string curScript = "";
+              // Phase 1: scan into Latin-range vs non-Latin runs; forced overrides per character
+              {
+                  std::string buf;
+                  int bufKind = -1; // 0=latin_range, 1=non_latin
 
-              int i = 0;
-              int len = (int)fullText.size();
+                  auto flushBuf = [&]() {
+                      if (buf.empty()) return;
+                      if (bufKind == 1) {
+                          bool allWs = true;
+                          for (unsigned char c : buf) if (!isspace(c)) { allWs = false; break; }
+                          segs.push_back({buf, allWs ? 0 : 2, ""});
+                      } else {
+                          bool allWs = true, hasLetter = false;
+                          const unsigned char* p = (const unsigned char*)buf.c_str();
+                          int blen = (int)buf.size(), j = 0;
+                          while (j < blen) {
+                              int cl = 0;
+                              int cp2 = utf8ToCodepoint(p + j, cl);
+                              if (!isspace((unsigned char)buf[j])) allWs = false;
+                              if ((cp2 >= 'a' && cp2 <= 'z') || (cp2 >= 'A' && cp2 <= 'Z') || (cp2 >= 0x00C0 && cp2 <= 0x024F))
+                                  hasLetter = true;
+                              j += cl;
+                          }
+                          segs.push_back({buf, allWs ? 0 : (hasLetter ? 1 : 3), ""});
+                      }
+                      buf.clear(); bufKind = -1;
+                  };
 
-              // LAYER 1: Exact Script Boundary Splitting (Translating original a.java logic)
-              while(i < len) {
-                  int clen = 0;
-                  int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
-                  std::string ch = fullText.substr(i, clen);
-
-                  // Check punc/num/emoji overrides first (same as dual mode)
-                  bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
-                  std::string forcedLang;
-                  if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
-                      forcedLang = emojiFall;
-                  } else if (isPunct(cp) && !puncFall.empty() && puncFall != "auto") {
-                      forcedLang = puncFall;
-                  } else if (isNum && numFall != "auto" && !numFall.empty()) {
-                      forcedLang = numFall;
-                  }
-
-                  if (!forcedLang.empty()) {
-                      // Flush current buffer, emit forced-lang char as its own segment
-                      if (!curBuf.empty()) { blocks.push_back({curBuf, curScript}); curBuf = ""; curScript = ""; }
-                      blocks.push_back({ch, forcedLang});
+                  int len = (int)fullText.size(), i = 0;
+                  while (i < len) {
+                      int clen = 0;
+                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
+                      bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
+                      std::string forced;
+                      if      (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) forced = emojiFall;
+                      else if (isPunct(cp) && !puncFall.empty()   && puncFall  != "auto") forced = puncFall;
+                      else if (isNum       && numFall   != "auto"  && !numFall.empty())   forced = numFall;
+                      if (!forced.empty()) {
+                          flushBuf();
+                          if (!segs.empty() && segs.back().type == -1 && segs.back().lang == forced)
+                              segs.back().text += fullText.substr(i, clen);
+                          else
+                              segs.push_back({fullText.substr(i, clen), -1, forced});
+                          i += clen; continue;
+                      }
+                      // Latin range: cp<=0x024F (Basic Latin + Latin-1 + Latin Extended A/B)
+                      // plus 0x2000-0x206F (General Punctuation/math — AutoTTS pattern d scope)
+                      bool latRange = (cp <= 0x024F) || (cp >= 0x2000 && cp <= 0x206F);
+                      int kind = latRange ? 0 : 1;
+                      if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, clen); bufKind = kind; }
+                      else { flushBuf(); buf = fullText.substr(i, clen); bufKind = kind; }
                       i += clen;
-                      continue;
                   }
-
-                  std::string charScript;
-                  if (isUnknownChar(cp) || isPunct(cp)) {
-                      // Punctuation treated as Neutral so it sticks to the active script.
-                      // "Hello." stays one chunk for Google TTS; "नमस्ते." stays one chunk
-                      // for the non-latin engine — both produce natural pauses in context.
-                      charScript = "Neutral";
-                  } else {
-                      // UNIVERSAL CHARACTER SPLITTER: scriptLookup returns the ISO code from
-                      // SCRIPT_BLOCKS (e.g. "en" for Basic Latin, "hi" for Devanagari, "Neutral"
-                      // for symbols/math/numbers). Any difference between charScript and
-                      // curScript triggers a new chunk immediately.
-                      const char* sl = scriptLookup(cp);
-                      charScript = sl ? std::string(sl) : "Neutral";
-                  }
-
-                  if (curScript.empty() || curScript == "Neutral") {
-                      curScript = (charScript == "Neutral") ? "" : charScript;
-                      curBuf += ch;
-                  } else if (charScript == "Neutral" || charScript == curScript) {
-                      // Neutral chars stick to the active language flow
-                      curBuf += ch;
-                  } else {
-                      // Script boundary detected — split into a new chunk immediately
-                      blocks.push_back({curBuf, curScript});
-                      curBuf = ch;
-                      curScript = charScript;
-                  }
-                  i += clen;
-              }
-              if (!curBuf.empty()) {
-                  blocks.push_back({curBuf, curScript});
+                  flushBuf();
               }
 
-              // LAYER 2 & 3: CLD2 Verification and Zero-Latency Merge
-              for (auto& block : blocks) {
-                  if(block.text.find_first_not_of(" \t\n\r") == std::string::npos) {
-                      if(!result.empty()) result.back().text += block.text;
+              if (segs.empty()) return result;
+
+              // Phase 2: assign languages to type-1 and type-2 segments
+              for (auto& seg : segs) {
+                  if (seg.type == 1) seg.lang = latFall;
+                  else if (seg.type == 2) seg.lang = detectLang(seg.text, latFall, nonLatFall);
+              }
+
+              // Phase 3: context-resolve type-3 neutral segments (AutoTTS w.a / w.b pattern)
+              bool seenReal = false;
+              for (int k = 0; k < (int)segs.size(); k++) {
+                  int t = segs[k].type;
+                  if (t == 1 || t == 2) { seenReal = true; continue; }
+                  if (t != 3) continue;
+                  std::string resolved;
+                  if (!seenReal) {
+                      // w.a: look forward for first real segment (type 1 or 2)
+                      for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
+                          if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
+                  } else {
+                      // w.b: look backward for last real segment
+                      for (int b = k - 1; b >= 0 && resolved.empty(); b--)
+                          if (segs[b].type == 1 || segs[b].type == 2) resolved = segs[b].lang;
+                      if (resolved.empty()) // w.b returned 0 — fall back to forward scan
+                          for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
+                              if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
+                  }
+                  segs[k].lang = resolved.empty() ? latFall : resolved;
+                  segs[k].type = 1; // mark resolved so subsequent backward scans can find it
+              }
+
+              // Phase 4: emit output, merge consecutive same-lang, attach whitespace-only to prev
+              for (auto& seg : segs) {
+                  if (seg.text.find_first_not_of(" \t\n\r") == std::string::npos) {
+                      if (!result.empty()) result.back().text += seg.text;
                       continue;
                   }
-
-                  std::string detected = detectLang(block.text, latFall, nonLatFall);
-
-                  if (!result.empty() && result.back().lang == detected) {
-                      result.back().text += block.text;
-                  } else {
-                      result.push_back({detected, block.text});
-                  }
+                  std::string lang = seg.lang.empty() ? latFall : seg.lang;
+                  if (!result.empty() && result.back().lang == lang) result.back().text += seg.text;
+                  else result.push_back({lang, seg.text});
               }
 
               if (!result.empty()) {
-                  while(!result.back().text.empty() && (result.back().text.back() == ' ' || result.back().text.back() == '\n' || result.back().text.back() == '\r')) {
-                      result.back().text.pop_back();
-                  }
+                  auto& t = result.back().text;
+                  while (!t.empty() && (t.back() == ' ' || t.back() == '\n' || t.back() == '\r'))
+                      t.pop_back();
               }
-
               return result;
           }
 
