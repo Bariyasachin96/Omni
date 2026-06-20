@@ -860,7 +860,19 @@ jobs:
                   }
               }
               if(fullText.empty()) return chunks;
-              std::string dominantLang = detectLang(fullText, latFall, nonLatFall);
+              // AutoTTS clsCLD2.b() order: CLD2 on FULL text first.
+              // detectLang() picks first non-neutral codepoint — wrong for mixed text like
+              // "Relationships પણ..." where 'R' fires "en" before Gujarati chars are seen.
+              std::string dominantLang;
+              {
+                  bool is_rel = false;
+                  CLD2::Language cld2Lang = CLD2::DetectLanguage(fullText.c_str(), (int)fullText.size(), true, &is_rel);
+                  const char* code = CLD2::LanguageCode(cld2Lang);
+                  if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
+                      dominantLang = std::string(code);
+              }
+              if (dominantLang.empty())
+                  dominantLang = detectLang(fullText, latFall, nonLatFall);
               chunks.push_back({dominantLang, fullText});
               return chunks;
           }
