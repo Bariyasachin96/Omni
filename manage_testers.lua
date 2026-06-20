@@ -1,7 +1,7 @@
 require 'import'
 
-local SA_EMAIL  = "firebase-adminsdk-fbsvc@easy-voice-e53f0.iam.gserviceaccount.com"
-local SA_KEY    = [[-----BEGIN PRIVATE KEY-----
+local SA_EMAIL = "firebase-adminsdk-fbsvc@easy-voice-e53f0.iam.gserviceaccount.com"
+local SA_KEY   = [[-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDIupudAR/gXidY
 8aiqsfrUEgpDHr4qj/7BF6dBm/JV4QqkOCE9Mv4KJMsgK3fMRqQWk8kCkFuCybDn
 wXHkIWXTIVTLO1/ZSPdW0bVeqvDfj2USGjMdMlxYlVu8E5tp7hnu5VJB06JEcP7/
@@ -31,27 +31,24 @@ v4pKtRAuKXtBMLo0Bz/zEhk=
 -----END PRIVATE KEY-----]]
 local DB_URL = "https://easy-voice-e53f0-default-rtdb.firebaseio.com"
 
--- Base64URL encode bytes
 local function b64url(bytes)
     local B = luajava.bindClass("android.util.Base64")
-    return tostring(B.encodeToString(bytes, 11)) -- NO_PADDING|NO_WRAP|URL_SAFE
+    return tostring(B.encodeToString(bytes, 11))
 end
 
 local function b64url_str(s)
     return b64url(luajava.newInstance("java.lang.String", s):getBytes("UTF-8"))
 end
 
--- Load RSA private key from PEM
 local function loadKey(pem)
-    local keyStr = pem:gsub("%-%-%-%-%-[^\n]+%-%-%-%-%-", ""):gsub("%s","")
-    local B = luajava.bindClass("android.util.Base64")
-    local keyBytes = B.decode(keyStr, 0)
-    local KF   = luajava.bindClass("java.security.KeyFactory")
-    local Spec = luajava.bindClass("java.security.spec.PKCS8EncodedKeySpec")
-    return KF.getInstance("RSA"):generatePrivate(Spec(keyBytes))
+    local keyStr = pem:gsub("%-%-%-%-%-[^\n]+%-%-%-%-%-",""):gsub("%s","")
+    local B      = luajava.bindClass("android.util.Base64")
+    local bytes  = B.decode(keyStr, 0)
+    local KF     = luajava.bindClass("java.security.KeyFactory")
+    local Spec   = luajava.bindClass("java.security.spec.PKCS8EncodedKeySpec")
+    return KF.getInstance("RSA"):generatePrivate(Spec(bytes))
 end
 
--- Sign string with RS256
 local function rs256(data, key)
     local Sig = luajava.bindClass("java.security.Signature")
     local sig = Sig.getInstance("SHA256withRSA")
@@ -60,17 +57,16 @@ local function rs256(data, key)
     return sig:sign()
 end
 
--- Get OAuth2 access token from service account
 local function getToken()
     local t   = math.floor(os.time())
     local hdr = b64url_str('{"alg":"RS256","typ":"JWT"}')
     local pay = b64url_str(string.format(
         '{"iss":"%s","scope":"https://www.googleapis.com/auth/firebase","aud":"https://oauth2.googleapis.com/token","iat":%d,"exp":%d}',
         SA_EMAIL, t, t+3600))
-    local unsigned = hdr .. "." .. pay
-    local jwt = unsigned .. "." .. b64url(rs256(unsigned, loadKey(SA_KEY)))
+    local unsigned = hdr.."."..pay
+    local jwt      = unsigned.."."..b64url(rs256(unsigned, loadKey(SA_KEY)))
+    local body     = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion="..jwt
 
-    local body = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" .. jwt
     local URL  = luajava.bindClass("java.net.URL")
     local conn = URL("https://oauth2.googleapis.com/token"):openConnection()
     conn:setRequestMethod("POST")
@@ -83,18 +79,15 @@ local function getToken()
     local code   = conn:getResponseCode()
     local stream = code == 200 and conn:getInputStream() or conn:getErrorStream()
     local reader = luajava.newInstance("java.io.BufferedReader",
-                       luajava.newInstance("java.io.InputStreamReader", stream))
-    local resp = ""
-    local line = reader:readLine()
-    while line do resp = resp .. tostring(line); line = reader:readLine() end
-
+                     luajava.newInstance("java.io.InputStreamReader", stream))
+    local resp, line = "", reader:readLine()
+    while line do resp = resp..tostring(line); line = reader:readLine() end
     return resp:match('"access_token"%s*:%s*"([^"]+)"')
 end
 
--- Firebase REST call
 local function fbRequest(method, email, token)
-    local key = email:match("^%s*(.-)%s*$"):gsub("%.", ",")
-    local url = DB_URL .. "/testers/" .. key .. ".json?access_token=" .. token
+    local key  = email:match("^%s*(.-)%s*$"):gsub("%.", ",")
+    local url  = DB_URL.."/testers/"..key..".json?access_token="..token
     local body = method == "PUT" and '{"active":true}' or nil
 
     local URL  = luajava.bindClass("java.net.URL")
@@ -113,64 +106,57 @@ local function fbRequest(method, email, token)
 end
 
 local function runBg(fn)
-    local t = luajava.newInstance("java.lang.Thread",
-        luajava.createProxy("java.lang.Runnable", {run = fn}))
-    t:start()
+    luajava.newInstance("java.lang.Thread",
+        luajava.createProxy("java.lang.Runnable",{run=fn})):start()
 end
 
 -- UI
-activity:setTitle("Tester Manager")
 local root = LinearLayout(activity)
 root:setOrientation(1)
-root:setPadding(40,50,40,40)
+root:setPadding(40,60,40,40)
 
 local lbl = TextView(activity)
-lbl:setText("Easy Voice — Tester Manager")
+lbl:setText("Easy Voice - Tester Manager")
 lbl:setTextSize(20)
 root:addView(lbl)
-
-local sp = Space(activity); sp:setMinimumHeight(24); root:addView(sp)
 
 local emailField = EditText(activity)
 emailField:setHint("Email: name@gmail.com")
 root:addView(emailField)
 
-local sp2 = Space(activity); sp2:setMinimumHeight(16); root:addView(sp2)
-
 local addBtn = Button(activity)
-addBtn:setText("Add Tester")
+addBtn:setText("  Add Tester  ")
 root:addView(addBtn)
 
 local removeBtn = Button(activity)
-removeBtn:setText("Remove Tester")
+removeBtn:setText("  Remove Tester  ")
 root:addView(removeBtn)
 
-local sp3 = Space(activity); sp3:setMinimumHeight(20); root:addView(sp3)
-
-local status = TextView(activity)
-status:setText("")
-status:setTextSize(15)
-root:addView(status)
+local statusView = TextView(activity)
+statusView:setText("")
+statusView:setTextSize(15)
+root:addView(statusView)
 
 local function setStatus(msg)
-    activity:runOnUiThread(function() status:setText(msg) end)
+    activity:runOnUiThread(function() statusView:setText(msg) end)
 end
 
 local function doAction(method)
     local email = emailField:getText():toString()
-    if email:match("^%s*$") then setStatus("Email daalo!"); return end
-    setStatus("Connecting...")
+    if email == "" then setStatus("Email daalo!"); return end
+    setStatus("Please wait...")
     runBg(function()
         local ok, token = pcall(getToken)
         if not ok or not token then
-            setStatus("Token error — internet check karo"); return
+            setStatus("Token error — internet check karo")
+            return
         end
         local ok2, code = pcall(fbRequest, method, email, token)
         if ok2 and code == 200 then
-            local action = method == "PUT" and "ADDED" or "REMOVED"
-            setStatus(action .. ": " .. email:match("^%s*(.-)%s*$"))
+            local act = method == "PUT" and "ADDED" or "REMOVED"
+            setStatus(act..": "..email:match("^%s*(.-)%s*$"))
         else
-            setStatus("Error: " .. tostring(ok2 and code or code))
+            setStatus("Error code: "..tostring(ok2 and code or code))
         end
     end)
 end
