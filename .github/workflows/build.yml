@@ -880,7 +880,7 @@ jobs:
           // AutoTTS w.java algorithm: Latin-range runs (cp<=0x024F) vs non-Latin runs.
           // Runs with letters=type1(Latin text), digits/punct-only=type3(neutral), non-Latin=type2.
           // Context-resolve type3: backward scan for non-first segments, forward for first (w.a/w.b).
-          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault) {
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, bool isDual = false) {
               std::vector<ChunkResult> result;
 
               std::string fullText;
@@ -1037,19 +1037,26 @@ jobs:
               for (auto& seg : segs) {
                   if (seg.type == 1) seg.lang = latFall;
                   else if (seg.type == 2) {
-                      // AutoTTS rule: type-2 (non-Latin) always → nonLatFall when CLD2 returns
-                      // a Latin-script language. Use CLD2 only to distinguish non-Latin languages
-                      // (hi vs gu vs ta). After merge pass, segments are large — CLD2 is reliable.
-                      bool is_rel = false;
-                      CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
-                      const char* code = CLD2::LanguageCode(cld2Lang);
-                      std::string detected;
-                      if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                          detected = std::string(code);
-                      if (!detected.empty() && detected != latFall)
-                          seg.lang = detected;
-                      else
-                          seg.lang = detectLang(seg.text, latFall, nonLatFall);
+                      if (isDual) {
+                          // Dual mode: NO CLD2 — all non-Latin script maps directly to the
+                          // user's secondary language. Matches AutoTTS L=1 onDone behaviour
+                          // where type=2 always → AutoTtsService.D with no detection step.
+                          seg.lang = nonLatFall;
+                      } else {
+                          // AutoTTS rule: type-2 (non-Latin) always → nonLatFall when CLD2 returns
+                          // a Latin-script language. Use CLD2 only to distinguish non-Latin languages
+                          // (hi vs gu vs ta). After merge pass, segments are large — CLD2 is reliable.
+                          bool is_rel = false;
+                          CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
+                          const char* code = CLD2::LanguageCode(cld2Lang);
+                          std::string detected;
+                          if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
+                              detected = std::string(code);
+                          if (!detected.empty() && detected != latFall)
+                              seg.lang = detected;
+                          else
+                              seg.lang = detectLang(seg.text, latFall, nonLatFall);
+                      }
                   }
               }
 
@@ -1161,8 +1168,9 @@ jobs:
               }
 
               std::string result;
-              if (mode == "mix") {
-                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault);
+              if (mode == "mix" || mode == "dual") {
+                  bool isDual = (mode == "dual");
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, isDual);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else {
                   auto chunks = buildAutoChunks(processed, latFall, nonLatFall);
@@ -1369,7 +1377,7 @@ jobs:
           "    fun getReadingMode(): String = prefs.getString(\"reading_mode\", \"auto\") ?: \"auto\"\n"
           "    fun setReadingMode(mode: String) = prefs.edit().putString(\"reading_mode\", mode).apply()\n"
           "    fun isMixMode(): Boolean = getReadingMode() == \"mix\"\n"
-          "    fun isSplitMode(): Boolean = isMixMode()\n"
+          "    fun isSplitMode(): Boolean = getReadingMode() == \"mix\" || getReadingMode() == \"dual\"\n"
           "    fun addDict(from: String, to: String) = prefs.edit().putString(\"word_$from\", to).apply()\n"
           "    fun removeDict(from: String) = prefs.edit().remove(\"word_$from\").apply()\n"
           "    fun clearDict() { val e=prefs.edit(); prefs.all.keys.filter{it.startsWith(\"word_\")}.forEach{e.remove(it)}; e.apply() }\n"
@@ -2294,8 +2302,16 @@ jobs:
           "        // tag mixed-language content; harmful for apps that mis-tag (the default reason\n"
           "        // we kept it off by default).\n"
           "        val useLocaleSpans    = prefs.getBoolean(\"locale_spans\", false)\n"
-          "        val latFall    = if (readingMode == \"mix\") prefs.getString(\"mixed_mode_latin_language\", \"en\") else prefs.getString(\"pref_lang\", \"en\")\n"
-          "        val nonLatFall = if (readingMode == \"mix\") prefs.getString(\"mixed_mode_non_latin_language\", \"hi\") else prefs.getString(\"pref_lang\", \"hi\")\n"
+          "        val latFall    = when (readingMode) {\n"
+          "            \"mix\"  -> prefs.getString(\"mixed_mode_latin_language\", \"en\")\n"
+          "            \"dual\" -> \"en\"  // AutoTTS Dual mode: Latin partner is ALWAYS hardcoded English\n"
+          "            else   -> prefs.getString(\"pref_lang\", \"en\")\n"
+          "        }\n"
+          "        val nonLatFall = when (readingMode) {\n"
+          "            \"mix\"  -> prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")\n"
+          "            \"dual\" -> prefs.getString(\"dual_mode_language\", \"hi\")\n"
+          "            else   -> prefs.getString(\"pref_lang\", \"hi\")\n"
+          "        }\n"
           "        // Native-mode prefs (used by mix/dual paths only) — read once even if branch unused.\n"
           "        val dictEnabled       = prefs.getBoolean(\"dict_enabled\", false)\n"
           "        val emojiReading      = prefs.getBoolean(\"emoji_reading\", true)\n"
@@ -2304,6 +2320,9 @@ jobs:
           "        val mixPuncLang       = prefs.getString(\"mix_punc_lang\",  \"auto\")\n"
           "        val mixNumLang        = prefs.getString(\"mix_num_lang\",   \"auto\")\n"
           "        val mixEmojiLang      = prefs.getString(\"mix_emoji_lang\", \"auto\")\n"
+          "        val dualPuncLang      = prefs.getString(\"dual_punc_lang\",  \"auto\")\n"
+          "        val dualNumLang       = prefs.getString(\"dual_num_lang\",   \"auto\")\n"
+          "        val dualEmojiLang     = prefs.getString(\"dual_emoji_lang\", \"auto\")\n"
           "        // Dict map: only fetch if enabled — getDict() reads multiple SharedPreferences keys.\n"
           "        val cachedDictMap: Map<String, String> = if (dictEnabled) prefs.getDict() else emptyMap()\n"
           "        val chunks = mutableListOf<TextChunk>()\n"
@@ -2484,6 +2503,38 @@ jobs:
           "                    }\n"
           "                    for ((lang, sb) in batched) chunks.add(TextChunk(sb.toString(), lang))\n"
           "                }\n"
+          "            }\n"
+          "            \"dual\" -> {\n"
+          "                // DUAL MODE — mirrors AutoTTS L=1: char-by-char Latin/non-Latin split,\n"
+          "                // NO CLD2 detection. type-1 (Latin) → latFall (\"en\", hardcoded per AutoTTS),\n"
+          "                // type-2 (non-Latin) → nonLatFall (dual_mode_language pref). Fast, reliable\n"
+          "                // for a single Latin+one-non-Latin language setup with no ambiguity.\n"
+          "                val dualDictMap = cachedDictMap\n"
+          "                VhLogger.d(\"[SERVICE] dual mode: lat=$latFall nonLat=$nonLatFall\")\n"
+          "                val dualNeutralDefault = if (Locale.getDefault().language.equals(nonLatFall, ignoreCase = true)) nonLatFall else latFall\n"
+          "                val dBytes = rawText.toByteArray(Charsets.UTF_8)\n"
+          "                val dBuf = ByteBuffer.allocateDirect(dBytes.size)\n"
+          "                dBuf.put(dBytes); dBuf.position(0)\n"
+          "                val dOut = NativeEngine.processDirect(\n"
+          "                    dBuf, dBytes.size,\n"
+          "                    dualDictMap.keys.toTypedArray(), dualDictMap.values.toTypedArray(),\n"
+          "                    emojiReading, emojiCount, punctCount,\n"
+          "                    latFall, nonLatFall, \"dual\",\n"
+          "                    dualPuncLang, dualNumLang, dualEmojiLang, dualNeutralDefault\n"
+          "                )\n"
+          "                val dBatched = mutableListOf<Pair<String, StringBuilder>>()\n"
+          "                for (chunkStr in dOut.split(\"||\").filter { it.isNotBlank() }) {\n"
+          "                    val parts = chunkStr.split(\"|\", limit = 2)\n"
+          "                    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
+          "                        val lang = normalizeLangCode(parts[0])\n"
+          "                        if (dBatched.isNotEmpty() && dBatched.last().first == lang) {\n"
+          "                            dBatched.last().second.append(parts[1])\n"
+          "                        } else {\n"
+          "                            dBatched.add(lang to StringBuilder(parts[1]))\n"
+          "                        }\n"
+          "                    }\n"
+          "                }\n"
+          "                for ((lang, sb) in dBatched) chunks.add(TextChunk(sb.toString(), lang))\n"
           "            }\n"
           "            else -> {\n"
           "                // AUTO MODE — exact AutoTTS logic (c3.x.g → LocaleSpan first, CLD2 fallback).\n"
@@ -3871,7 +3922,7 @@ jobs:
           "private fun HomeTabContent(prefs: SharedPrefsManager, onDetailOpenChange: (Boolean) -> Unit = {}) {\n"
           "    val context = LocalContext.current\n"
           "    val clipboardManager = LocalClipboardManager.current\n"
-          "    var readingMode by remember { mutableStateOf(prefs.getReadingMode().let { if (it == \"mix\") \"mix\" else \"auto\" }) }\n"
+          "    var readingMode by remember { mutableStateOf(prefs.getReadingMode().let { when (it) { \"mix\" -> \"mix\"; \"dual\" -> \"dual\"; else -> \"auto\" } }) }\n"
           "    var emojiReading by remember { mutableStateOf(prefs.getBoolean(\"emoji_reading\", true)) }\n"
           "    var emojiCount by remember { mutableStateOf(prefs.getBoolean(\"emoji_count\", false)) }\n"
           "    var punctCount by remember { mutableStateOf(prefs.getBoolean(\"punct_count\", false)) }\n"
@@ -3898,6 +3949,10 @@ jobs:
           "    var mixNumLang by remember { mutableStateOf(prefs.getString(\"mix_num_lang\", \"auto\")) }\n"
           "    var mixPuncLang by remember { mutableStateOf(prefs.getString(\"mix_punc_lang\", \"auto\")) }\n"
           "    var mixEmojiLang by remember { mutableStateOf(prefs.getString(\"mix_emoji_lang\", \"auto\")) }\n"
+          "    var dualLangIso by remember { mutableStateOf(prefs.getString(\"dual_mode_language\", \"hi\")) }\n"
+          "    var dualNumLang by remember { mutableStateOf(prefs.getString(\"dual_num_lang\", \"auto\")) }\n"
+          "    var dualPuncLang by remember { mutableStateOf(prefs.getString(\"dual_punc_lang\", \"auto\")) }\n"
+          "    var dualEmojiLang by remember { mutableStateOf(prefs.getString(\"dual_emoji_lang\", \"auto\")) }\n"
           "    var selectedCategory by remember { mutableStateOf<String?>(null) }\n"
           "    LaunchedEffect(selectedCategory) { onDetailOpenChange(selectedCategory != null) }\n"
           "    if (selectedCategory != null) {\n"
@@ -3953,6 +4008,35 @@ jobs:
           "                            }\n"
           "                            AccessibleDropdown(\"Emoji\", if (mixEmojiLang == \"auto\") \"Auto (follow text)\" else \"${Languages.map[mixEmojiLang] ?: mixEmojiLang} ($mixEmojiLang)\", routingOpts) { idx ->\n"
           "                                mixEmojiLang = routingCodes[idx]; prefs.setString(\"mix_emoji_lang\", mixEmojiLang)\n"
+          "                            }\n"
+          "                        }\n"
+          "                        if (readingMode == \"dual\") {\n"
+          "                            Spacer(modifier = Modifier.height(16.dp))\n"
+          "                            Text(\"Dual Mode Language\", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)\n"
+          "                            Spacer(modifier = Modifier.height(4.dp))\n"
+          "                            Text(\"Non-Latin language for Dual mode. Latin text is always read in English.\", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)\n"
+          "                            Spacer(modifier = Modifier.height(8.dp))\n"
+          "                            AccessibleDropdown(\"Non-Latin Language\", \"${Languages.map[dualLangIso] ?: dualLangIso} ($dualLangIso)\", Languages.displayNames) { idx ->\n"
+          "                                dualLangIso = Languages.isoCodes[idx]; prefs.setString(\"dual_mode_language\", dualLangIso)\n"
+          "                            }\n"
+          "                            Spacer(modifier = Modifier.height(16.dp))\n"
+          "                            Text(\"Special Content Routing\", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)\n"
+          "                            Spacer(modifier = Modifier.height(4.dp))\n"
+          "                            Text(\"Which language reads numbers, punctuation and emojis in Dual mode.\", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)\n"
+          "                            Spacer(modifier = Modifier.height(8.dp))\n"
+          "                            val dualRoutingOpts = listOf(\"Auto (follow text)\", \"English (primary)\", \"${Languages.map[dualLangIso] ?: dualLangIso} (secondary)\")\n"
+          "                            val dualRoutingCodes = listOf(\"auto\", \"en\", dualLangIso)\n"
+          "                            val dualNumLabel = when (dualNumLang) { \"auto\" -> \"Auto (follow text)\"; \"en\" -> \"English (primary)\"; else -> \"${Languages.map[dualNumLang] ?: dualNumLang} (secondary)\" }\n"
+          "                            val dualPuncLabel = when (dualPuncLang) { \"auto\" -> \"Auto (follow text)\"; \"en\" -> \"English (primary)\"; else -> \"${Languages.map[dualPuncLang] ?: dualPuncLang} (secondary)\" }\n"
+          "                            val dualEmojiLabel = when (dualEmojiLang) { \"auto\" -> \"Auto (follow text)\"; \"en\" -> \"English (primary)\"; else -> \"${Languages.map[dualEmojiLang] ?: dualEmojiLang} (secondary)\" }\n"
+          "                            AccessibleDropdown(\"Numbers\", dualNumLabel, dualRoutingOpts) { idx ->\n"
+          "                                dualNumLang = dualRoutingCodes[idx]; prefs.setString(\"dual_num_lang\", dualNumLang)\n"
+          "                            }\n"
+          "                            AccessibleDropdown(\"Punctuation\", dualPuncLabel, dualRoutingOpts) { idx ->\n"
+          "                                dualPuncLang = dualRoutingCodes[idx]; prefs.setString(\"dual_punc_lang\", dualPuncLang)\n"
+          "                            }\n"
+          "                            AccessibleDropdown(\"Emoji\", dualEmojiLabel, dualRoutingOpts) { idx ->\n"
+          "                                dualEmojiLang = dualRoutingCodes[idx]; prefs.setString(\"dual_emoji_lang\", dualEmojiLang)\n"
           "                            }\n"
           "                        }\n"
           "                    }\n"
@@ -4036,6 +4120,14 @@ jobs:
           "                        Checkbox(checked = readingMode == \"mix\", onCheckedChange = null)\n"
           "                        Spacer(modifier = Modifier.width(8.dp))\n"
           "                        Text(\"Mix Mode\", style = MaterialTheme.typography.bodyLarge)\n"
+          "                    }\n"
+          "                    Row(\n"
+          "                        modifier = Modifier.fillMaxWidth().toggleable(value = readingMode == \"dual\", onValueChange = { if (it) { readingMode = \"dual\"; prefs.setReadingMode(\"dual\") } }, role = androidx.compose.ui.semantics.Role.Checkbox),\n"
+          "                        verticalAlignment = Alignment.CenterVertically\n"
+          "                    ) {\n"
+          "                        Checkbox(checked = readingMode == \"dual\", onCheckedChange = null)\n"
+          "                        Spacer(modifier = Modifier.width(8.dp))\n"
+          "                        Text(\"Dual Mode\", style = MaterialTheme.typography.bodyLarge)\n"
           "                    }\n"
           "                }\n"
           "            }\n"
