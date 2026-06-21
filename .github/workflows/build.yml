@@ -1083,28 +1083,17 @@ jobs:
 
               if (segs.empty()) return result;
 
-              // Phase 2: assign languages to type-1 and type-2 segments.
-              // Mirrors AutoTTS onDone L=4: clsCLD2.b() on ALL chunks, type-based fallback.
+              // Phase 2: assign languages. AutoTTS w.g() path (plain text, no LocaleSpans):
+              // type-1 (Latin) → H via clsCLD2_b (detects Latin sub-lang within {latFall,nonLatFall}).
+              // type-2 (non-Latin) → I (nonLatFall) directly, NO CLD2.
+              // onDone L=4: empty-lang chunk, type==1 → H, type==2 → I. No detection on type-2.
               for (auto& seg : segs) {
                   if (seg.type == 1) {
-                      // AutoTTS: clsCLD2.b() on type-1 too; k.f={H,I} → always returns H=latFall.
-                      // Use clsCLD2_b() to match exactly; result for Latin text is always latFall.
                       std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
-                      // AutoTTS type==1 fallback → H (latFall)
                       seg.lang = (res == "UNKNOWN" || res.empty()) ? latFall : res;
                   } else if (seg.type == 2) {
-                      if (isDual) {
-                          // Dual mode: NO CLD2 — all non-Latin script maps directly to the
-                          // user's secondary language. Matches AutoTTS L=1 onDone behaviour
-                          // where type=2 always → AutoTtsService.D with no detection step.
-                          seg.lang = nonLatFall;
-                      } else {
-                          // AutoTTS: clsCLD2.b() with k.f={latFall,nonLatFall} filter.
-                          // If returns latFall (CLD2 confused on non-Latin text) or UNKNOWN →
-                          // type!=1 fallback → I (nonLatFall). Matches AutoTTS onDone L=4 exactly.
-                          std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
-                          seg.lang = (res == "UNKNOWN" || res.empty() || res == latFall) ? nonLatFall : res;
-                      }
+                      // AutoTTS: type-2 → nonLatFall directly. No CLD2 on non-Latin segments.
+                      seg.lang = nonLatFall;
                   }
               }
 
@@ -1132,9 +1121,10 @@ jobs:
                   segs[k].type = resolved.empty() ? 1 : resolvedType; // AutoTTS: set actual resolved type (1 or 2)
               }
 
-              // Phase 4: emit output, merge consecutive same-type, attach whitespace-only to prev.
-              // Matches AutoTTS w.g() final merge step (type-based, not lang-based).
-              // Whitespace set matches AutoTTS v.a(): U+0009-000D, U+001C-001F, U+0020, U+2028, U+2029.
+              // Phase 4: emit output. AutoTTS w.g() final merge: type-based (seg.type == lastType).
+              // Whitespace-only segments absorbed into previous chunk (AutoTTS v.a() pattern).
+              // Whitespace set: U+0009-000D, U+001C-001F, U+0020, U+2028, U+2029.
+              int lastType = -1;
               for (auto& seg : segs) {
                   bool wsOnly = true;
                   { int wi=0,wlen=(int)seg.text.size();
@@ -1144,10 +1134,9 @@ jobs:
                       wi+=wcl;} }
                   if (wsOnly) { if (!result.empty()) result.back().text += seg.text; continue; }
                   std::string lang = seg.lang.empty() ? latFall : seg.lang;
-                  // type-based merge: same type (1 or 2) → merge (matches AutoTTS w.g() final pass)
-                  if (!result.empty() && !segs.empty() && result.back().lang == lang)
+                  if (!result.empty() && seg.type == lastType)
                       result.back().text += seg.text;
-                  else result.push_back({lang, seg.text});
+                  else { result.push_back({lang, seg.text}); lastType = seg.type; }
               }
 
               if (!result.empty()) {
