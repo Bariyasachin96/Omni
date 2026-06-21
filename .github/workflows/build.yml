@@ -877,6 +877,56 @@ jobs:
               return chunks;
           }
 
+          // Mirrors clsCLD2.a(): first codepoint that is not whitespace, digit, or ASCII punct.
+          static int getFirstNonNeutralCp(const std::string& text) {
+              int i=0,len=(int)text.size();
+              while(i<len){
+                  int cl=0; int cp=utf8ToCodepoint((const unsigned char*)&text[i],cl);
+                  bool ws=(cp==0x09||cp==0x0A||cp==0x0B||cp==0x0C||cp==0x0D||cp==0x20||(cp>=0x1C&&cp<=0x1F)||cp==0x2028||cp==0x2029);
+                  bool dig=(cp>='0'&&cp<='9');
+                  bool pun=(cp>=0x21&&cp<=0x2F)||(cp>=0x3A&&cp<=0x40)||(cp>=0x5B&&cp<=0x60)||(cp>=0x7B&&cp<=0x7E);
+                  if(!ws&&!dig&&!pun) return cp;
+                  i+=cl;
+              }
+              return -1;
+          }
+
+          // Latin codepoint check — mirrors AutoTTS a.java script detection for Latin.
+          static bool isLatinCp(int cp) {
+              return cp<=0x024F||(cp>=0x1E00&&cp<=0x1EFF)||(cp>=0x2C60&&cp<=0x2C7F)||(cp>=0xA720&&cp<=0xA7FF);
+          }
+
+          // Mirrors AutoTTS clsCLD2.b() with k.f = {latFall, nonLatFall}.
+          // 64-codepoint windows → CLD2 → configured-lang filter → script fallback.
+          // Returns latFall, nonLatFall, or "UNKNOWN".
+          static std::string clsCLD2_b(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
+              if(text.empty()) return "UNKNOWN";
+              int n=(int)text.size(), pos=0;
+              while(pos<n){
+                  // 64 UTF-8 codepoints per window (matches Java String.substring char count)
+                  int wend=pos;
+                  for(int c=0;c<64&&wend<n;c++){ int cl=0; utf8ToCodepoint((const unsigned char*)&text[wend],cl); wend+=cl; }
+                  std::string chunk=text.substr(pos,wend-pos);
+                  bool is_rel=false;
+                  CLD2::Language cld2Lang=CLD2::DetectLanguage(chunk.c_str(),(int)chunk.size(),true,&is_rel);
+                  const char* code=CLD2::LanguageCode(cld2Lang);
+                  if(code&&strlen(code)>=2&&strcmp(code,"un")!=0&&strcmp(code,"xx")!=0){
+                      std::string det(code);
+                      // k.o() check: is result in configured set {latFall, nonLatFall}?
+                      if(det==latFall) return latFall;
+                      if(det==nonLatFall) return nonLatFall;
+                      // not configured → a.e(firstCp, k.f): script-based fallback on this chunk
+                      int cp=getFirstNonNeutralCp(chunk);
+                      if(cp>=0) return isLatinCp(cp)?latFall:nonLatFall;
+                  }
+                  pos=wend;
+              }
+              // all windows returned UNKNOWN → script fallback on full string (AutoTTS post-loop)
+              int cp=getFirstNonNeutralCp(text);
+              if(cp<0) return "UNKNOWN";
+              return isLatinCp(cp)?latFall:nonLatFall;
+          }
+
           // AutoTTS w.java algorithm: Latin-range runs (cp<=0x024F) vs non-Latin runs.
           // Runs with letters=type1(Latin text), digits/punct-only=type3(neutral), non-Latin=type2.
           // Context-resolve type3: backward scan for non-first segments, forward for first (w.a/w.b).
@@ -1033,29 +1083,27 @@ jobs:
 
               if (segs.empty()) return result;
 
-              // Phase 2: assign languages to type-1 and type-2 segments
+              // Phase 2: assign languages to type-1 and type-2 segments.
+              // Mirrors AutoTTS onDone L=4: clsCLD2.b() on ALL chunks, type-based fallback.
               for (auto& seg : segs) {
-                  if (seg.type == 1) seg.lang = latFall;
-                  else if (seg.type == 2) {
+                  if (seg.type == 1) {
+                      // AutoTTS: clsCLD2.b() on type-1 too; k.f={H,I} → always returns H=latFall.
+                      // Use clsCLD2_b() to match exactly; result for Latin text is always latFall.
+                      std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
+                      // AutoTTS type==1 fallback → H (latFall)
+                      seg.lang = (res == "UNKNOWN" || res.empty()) ? latFall : res;
+                  } else if (seg.type == 2) {
                       if (isDual) {
                           // Dual mode: NO CLD2 — all non-Latin script maps directly to the
                           // user's secondary language. Matches AutoTTS L=1 onDone behaviour
                           // where type=2 always → AutoTtsService.D with no detection step.
                           seg.lang = nonLatFall;
                       } else {
-                          // AutoTTS rule: type-2 (non-Latin) always → nonLatFall when CLD2 returns
-                          // a Latin-script language. Use CLD2 only to distinguish non-Latin languages
-                          // (hi vs gu vs ta). After merge pass, segments are large — CLD2 is reliable.
-                          bool is_rel = false;
-                          CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
-                          const char* code = CLD2::LanguageCode(cld2Lang);
-                          std::string detected;
-                          if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                              detected = std::string(code);
-                          if (!detected.empty() && detected != latFall)
-                              seg.lang = detected;
-                          else
-                              seg.lang = detectLang(seg.text, latFall, nonLatFall);
+                          // AutoTTS: clsCLD2.b() with k.f={latFall,nonLatFall} filter.
+                          // If returns latFall (CLD2 confused on non-Latin text) or UNKNOWN →
+                          // type!=1 fallback → I (nonLatFall). Matches AutoTTS onDone L=4 exactly.
+                          std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
+                          seg.lang = (res == "UNKNOWN" || res.empty() || res == latFall) ? nonLatFall : res;
                       }
                   }
               }
@@ -1084,14 +1132,21 @@ jobs:
                   segs[k].type = resolved.empty() ? 1 : resolvedType; // AutoTTS: set actual resolved type (1 or 2)
               }
 
-              // Phase 4: emit output, merge consecutive same-lang, attach whitespace-only to prev
+              // Phase 4: emit output, merge consecutive same-type, attach whitespace-only to prev.
+              // Matches AutoTTS w.g() final merge step (type-based, not lang-based).
+              // Whitespace set matches AutoTTS v.a(): U+0009-000D, U+001C-001F, U+0020, U+2028, U+2029.
               for (auto& seg : segs) {
-                  if (seg.text.find_first_not_of(" \t\n\r") == std::string::npos) {
-                      if (!result.empty()) result.back().text += seg.text;
-                      continue;
-                  }
+                  bool wsOnly = true;
+                  { int wi=0,wlen=(int)seg.text.size();
+                    while(wi<wlen){ int wcl=0; int wcp=utf8ToCodepoint((const unsigned char*)&seg.text[wi],wcl);
+                      if(!(wcp==0x09||wcp==0x0A||wcp==0x0B||wcp==0x0C||wcp==0x0D||
+                           (wcp>=0x1C&&wcp<=0x1F)||wcp==0x20||wcp==0x2028||wcp==0x2029)){wsOnly=false;break;}
+                      wi+=wcl;} }
+                  if (wsOnly) { if (!result.empty()) result.back().text += seg.text; continue; }
                   std::string lang = seg.lang.empty() ? latFall : seg.lang;
-                  if (!result.empty() && result.back().lang == lang) result.back().text += seg.text;
+                  // type-based merge: same type (1 or 2) → merge (matches AutoTTS w.g() final pass)
+                  if (!result.empty() && !segs.empty() && result.back().lang == lang)
+                      result.back().text += seg.text;
                   else result.push_back({lang, seg.text});
               }
 
