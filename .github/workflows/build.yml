@@ -990,20 +990,46 @@ jobs:
                   flushBuf();
               }
 
+              // Merge pass — AutoTTS w.java Step 5: merge consecutive same-type segments,
+              // absorbing whitespace (type-0) into the surrounding run. This produces large
+              // merged non-Latin segments so CLD2 gets enough text to detect reliably.
+              // Without this, individual Hindi words (2-5 chars) fool CLD2 into returning "en".
+              {
+                  std::vector<Seg> merged2;
+                  int mi = 0, mtotal = (int)segs.size();
+                  while (mi < mtotal) {
+                      if (segs[mi].type == -1) { merged2.push_back(segs[mi]); mi++; continue; }
+                      std::string mtext = segs[mi].text;
+                      int mtype = segs[mi].type;
+                      int mj = mi + 1;
+                      while (mj < mtotal && segs[mj].type != -1 &&
+                             (segs[mj].type == mtype || segs[mj].type == 0)) {
+                          mtext += segs[mj].text;
+                          mj++;
+                      }
+                      merged2.push_back({mtext, mtype, ""});
+                      mi = mj;
+                  }
+                  segs = std::move(merged2);
+              }
+
               if (segs.empty()) return result;
 
               // Phase 2: assign languages to type-1 and type-2 segments
               for (auto& seg : segs) {
                   if (seg.type == 1) seg.lang = latFall;
                   else if (seg.type == 2) {
-                      // Fix 3: CLD2 first for non-Latin segments (AutoTTS clsCLD2.b() approach).
-                      // detectLang() picks first codepoint only — wrong for Devanagari (Hindi vs Marathi).
-                      // CLD2 considers full segment content for accurate per-script language detection.
+                      // AutoTTS rule: type-2 (non-Latin) always → nonLatFall when CLD2 returns
+                      // a Latin-script language. Use CLD2 only to distinguish non-Latin languages
+                      // (hi vs gu vs ta). After merge pass, segments are large — CLD2 is reliable.
                       bool is_rel = false;
                       CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
                       const char* code = CLD2::LanguageCode(cld2Lang);
+                      std::string detected;
                       if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                          seg.lang = std::string(code);
+                          detected = std::string(code);
+                      if (!detected.empty() && detected != latFall)
+                          seg.lang = detected;
                       else
                           seg.lang = detectLang(seg.text, latFall, nonLatFall);
                   }
