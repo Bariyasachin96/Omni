@@ -1022,11 +1022,13 @@ jobs:
                   while (i < len) {
                       int clen = 0;
                       int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
-                      bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
+                      // Emoji forced path only — isPunct/isNum removed: digits/punct flow through
+                      // normal Latin classification → type-3/4 in Phase 1 → E/F override in Phase 3.
+                      // This exactly mirrors AutoTTS w.g() where E/F are applied in the context-
+                      // resolution step, not in the character scan. emojiFall forced stays as our
+                      // extension (AutoTTS G is not passed to w.g()).
                       std::string forced;
-                      if      (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) forced = emojiFall;
-                      else if (isPunct(cp) && !puncFall.empty()   && puncFall  != "auto") forced = puncFall;
-                      else if (isNum       && numFall   != "auto"  && !numFall.empty())   forced = numFall;
+                      if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) forced = emojiFall;
                       if (!forced.empty()) {
                           flushBuf();
                           if (!segs.empty() && segs.back().type == -1 && segs.back().lang == forced)
@@ -1042,14 +1044,14 @@ jobs:
                       //   U+20A0-U+20CF: Currency Symbols (€, ₹, ₩, ₽...)
                       //   U+2C60-U+2C7F: Latin Extended-C
                       //   U+A720-U+A7FF: Latin Extended-D
-                      //   + emoji when emojiFall="auto"
+                      // Emoji excluded: in AutoTTS, emoji is not in pattern `d` → type-2 non-Latin gap.
+                      // Emoji with emojiFall != "auto" is handled by the forced path above.
                       bool latRange = (cp <= 0x024F) ||
                                       (cp >= 0x1E00 && cp <= 0x1EFF) ||
                                       (cp >= 0x2000 && cp <= 0x206F) ||
                                       (cp >= 0x20A0 && cp <= 0x20CF) ||
                                       (cp >= 0x2C60 && cp <= 0x2C7F) ||
-                                      (cp >= 0xA720 && cp <= 0xA7FF) ||
-                                      ((emojiFall.empty() || emojiFall == "auto") && isEmoji(cp));
+                                      (cp >= 0xA720 && cp <= 0xA7FF);
                       int kind = latRange ? 0 : 1;
                       if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, clen); bufKind = kind; }
                       else { flushBuf(); buf = fullText.substr(i, clen); bufKind = kind; }
@@ -1084,41 +1086,63 @@ jobs:
               if (segs.empty()) return result;
 
               // Phase 2: assign languages. AutoTTS w.g() path (plain text, no LocaleSpans):
-              // type-1 (Latin) → H via clsCLD2_b (detects Latin sub-lang within {latFall,nonLatFall}).
-              // type-2 (non-Latin) → I (nonLatFall) directly, NO CLD2.
-              // onDone L=4: empty-lang chunk, type==1 → H, type==2 → I. No detection on type-2.
+              // type-1 (Latin) → H. MIX: clsCLD2_b detects sub-lang; Dual: latFall directly (no CLD2).
+              // type-2 (non-Latin) → I (nonLatFall) directly, NO CLD2 in either mode.
+              // onDone L=4/L=1: empty-lang + type==1 → H, type==2 → I. No detection on type-2.
               for (auto& seg : segs) {
                   if (seg.type == 1) {
-                      std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
-                      seg.lang = (res == "UNKNOWN" || res.empty()) ? latFall : res;
+                      if (isDual) {
+                          // AutoTTS L=1: type-1 always → "eng" (latFall). No CLD2.
+                          seg.lang = latFall;
+                      } else {
+                          std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
+                          seg.lang = (res == "UNKNOWN" || res.empty()) ? latFall : res;
+                      }
                   } else if (seg.type == 2) {
                       // AutoTTS: type-2 → nonLatFall directly. No CLD2 on non-Latin segments.
                       seg.lang = nonLatFall;
                   }
               }
 
-              // Phase 3: context-resolve type-3 (digits) and type-4 (punct-only) neutral segments
-              // AutoTTS w.a (forward) / w.b (backward) pattern — both types use same context logic
-              bool seenReal = false;
+              // Phase 3: E/F override then context-resolve type-3 (digits) and type-4 (punct-only) neutral segments.
+              // AutoTTS w.g() exact behavior:
+              //   n3/n4 != 0 (E/F not "auto"): directly assign lang (type-1 if latFall, type-2 if nonLatFall).
+              //   k==0 (first segment, if neutral): w.a() — forward scan from index 1.
+              //   k>=1 (all other neutral segments): w.b() — backward scan only, NO forward fallback.
+              //   If w.b returns 0 (no real neighbor behind): use neutralDefault (AutoTTS n6).
               for (int k = 0; k < (int)segs.size(); k++) {
                   int t = segs[k].type;
-                  if (t == 1 || t == 2) { seenReal = true; continue; }
-                  if (t != 3 && t != 4) continue;
-                  std::string resolved; int resolvedType = 1;
-                  if (!seenReal) {
-                      // w.a: look forward for first real segment (type 1 or 2)
-                      for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
+                  if (t == 1 || t == 2) continue;      // real segments: no change
+                  if (t != 3 && t != 4) continue;      // skip forced(-1) and whitespace(0)
+                  // AutoTTS E/F override (mirrors n3/n4 != 0 branch in w.g())
+                  if (t == 3 && !numFall.empty() && numFall != "auto") {
+                      segs[k].lang = numFall;
+                      segs[k].type = (numFall == nonLatFall) ? 2 : 1;
+                      continue;
+                  }
+                  if (t == 4 && !puncFall.empty() && puncFall != "auto") {
+                      segs[k].lang = puncFall;
+                      segs[k].type = (puncFall == nonLatFall) ? 2 : 1;
+                      continue;
+                  }
+                  std::string resolved; int resolvedType = -1;
+                  if (k == 0) {
+                      // AutoTTS w.a(): forward scan — ONLY for the first segment
+                      for (int f = 1; f < (int)segs.size() && resolvedType < 0; f++)
                           if (segs[f].type == 1 || segs[f].type == 2) { resolved = segs[f].lang; resolvedType = segs[f].type; }
                   } else {
-                      // w.b: look backward for last real segment
-                      for (int b = k - 1; b >= 0 && resolved.empty(); b--)
+                      // AutoTTS w.b(): backward scan — for all other neutral segments, no forward fallback
+                      for (int b = k - 1; b >= 0 && resolvedType < 0; b--)
                           if (segs[b].type == 1 || segs[b].type == 2) { resolved = segs[b].lang; resolvedType = segs[b].type; }
-                      if (resolved.empty()) // w.b returned 0 — fall back to forward scan
-                          for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
-                              if (segs[f].type == 1 || segs[f].type == 2) { resolved = segs[f].lang; resolvedType = segs[f].type; }
                   }
-                  segs[k].lang = resolved.empty() ? neutralDefault : resolved;
-                  segs[k].type = resolved.empty() ? 1 : resolvedType; // AutoTTS: set actual resolved type (1 or 2)
+                  if (resolvedType < 0) {
+                      // w.a/w.b returned 0: use neutralDefault (mirrors AutoTTS n6 = locale-based default)
+                      segs[k].lang = neutralDefault;
+                      segs[k].type = (neutralDefault == nonLatFall) ? 2 : 1;
+                  } else {
+                      segs[k].lang = resolved;
+                      segs[k].type = resolvedType;
+                  }
               }
 
               // Phase 4: emit output. AutoTTS w.g() final merge: type-based (seg.type == lastType).
