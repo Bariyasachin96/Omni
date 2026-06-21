@@ -1060,21 +1060,21 @@ jobs:
                   int t = segs[k].type;
                   if (t == 1 || t == 2) { seenReal = true; continue; }
                   if (t != 3 && t != 4) continue;
-                  std::string resolved;
+                  std::string resolved; int resolvedType = 1;
                   if (!seenReal) {
                       // w.a: look forward for first real segment (type 1 or 2)
                       for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
-                          if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
+                          if (segs[f].type == 1 || segs[f].type == 2) { resolved = segs[f].lang; resolvedType = segs[f].type; }
                   } else {
                       // w.b: look backward for last real segment
                       for (int b = k - 1; b >= 0 && resolved.empty(); b--)
-                          if (segs[b].type == 1 || segs[b].type == 2) resolved = segs[b].lang;
+                          if (segs[b].type == 1 || segs[b].type == 2) { resolved = segs[b].lang; resolvedType = segs[b].type; }
                       if (resolved.empty()) // w.b returned 0 — fall back to forward scan
                           for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
-                              if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
+                              if (segs[f].type == 1 || segs[f].type == 2) { resolved = segs[f].lang; resolvedType = segs[f].type; }
                   }
                   segs[k].lang = resolved.empty() ? neutralDefault : resolved;
-                  segs[k].type = 1; // mark resolved so subsequent backward scans can find it
+                  segs[k].type = resolved.empty() ? 1 : resolvedType; // AutoTTS: set actual resolved type (1 or 2)
               }
 
               // Phase 4: emit output, merge consecutive same-lang, attach whitespace-only to prev
@@ -2393,22 +2393,43 @@ jobs:
           "                if (useLocaleSpans) {\n"
           "                    val localeChunks = splitByLocaleSpans(rawCharSeq)\n"
           "                    if (localeChunks.isNotEmpty() && localeChunks.any { it.lang != \"UNKNOWN\" }) {\n"
-          "                        // At least one chunk got a real lang — use the locale-span result.\n"
           "                        VhLogger.d(\"[SERVICE] mix mode: locale_spans path produced ${localeChunks.size} chunks\")\n"
+          "                        val lsNeutralDefault = if (Locale.getDefault().language.equals(nonLatFall, ignoreCase = true)) nonLatFall else latFall\n"
+          "                        val lsDictMap = cachedDictMap\n"
+          "                        val lsBatched = mutableListOf<Pair<String, StringBuilder>>()\n"
           "                        for (lc in localeChunks) {\n"
-          "                            val effectiveLang = if (lc.lang == \"UNKNOWN\") {\n"
-          "                                // span-less segment — use script detection on it\n"
-          "                                detectLanguage(lc.text, latFall, nonLatFall)\n"
-          "                            } else lc.lang\n"
-          "                            val resolved = if (isDedicated || isEngineAvailable(effectiveLang)) effectiveLang else {\n"
-          "                                smartLangFallback(effectiveLang, latFall, nonLatFall)\n"
+          "                            if (lc.lang == \"UNKNOWN\") {\n"
+          "                                // AutoTTS MIX UNKNOWN: w.g() equivalent — re-segment via processDirect\n"
+          "                                val subBytes = lc.text.toByteArray(Charsets.UTF_8)\n"
+          "                                if (subBytes.isNotEmpty()) {\n"
+          "                                    val subBuf = ByteBuffer.allocateDirect(subBytes.size)\n"
+          "                                    subBuf.put(subBytes); subBuf.position(0)\n"
+          "                                    val subOut = NativeEngine.processDirect(\n"
+          "                                        subBuf, subBytes.size,\n"
+          "                                        lsDictMap.keys.toTypedArray(), lsDictMap.values.toTypedArray(),\n"
+          "                                        emojiReading, emojiCount, punctCount,\n"
+          "                                        latFall, nonLatFall, \"mix\",\n"
+          "                                        mixPuncLang, mixNumLang, mixEmojiLang, lsNeutralDefault\n"
+          "                                    )\n"
+          "                                    for (chunkStr in subOut.split(\"||\").filter { it.isNotBlank() }) {\n"
+          "                                        val subParts = chunkStr.split(\"|\", limit = 2)\n"
+          "                                        if (subParts.size == 2 && subParts[0].isNotBlank() && subParts[1].trim().isNotEmpty()) {\n"
+          "                                            val lang = normalizeLangCode(subParts[0])\n"
+          "                                            val resolved = if (isDedicated || isEngineAvailable(lang)) lang else smartLangFallback(lang, latFall, nonLatFall)\n"
+          "                                            if (lsBatched.isNotEmpty() && lsBatched.last().first == resolved) lsBatched.last().second.append(subParts[1])\n"
+          "                                            else lsBatched.add(resolved to StringBuilder(subParts[1]))\n"
+          "                                        }\n"
+          "                                    }\n"
+          "                                }\n"
+          "                            } else {\n"
+          "                                val resolved = if (isDedicated || isEngineAvailable(lc.lang)) lc.lang else smartLangFallback(lc.lang, latFall, nonLatFall)\n"
+          "                                if (lsBatched.isNotEmpty() && lsBatched.last().first == resolved) lsBatched.last().second.append(lc.text)\n"
+          "                                else lsBatched.add(resolved to StringBuilder(lc.text))\n"
           "                            }\n"
-          "                            chunks.add(TextChunk(lc.text, resolved))\n"
           "                        }\n"
+          "                        for ((lang, sb) in lsBatched) chunks.add(TextChunk(sb.toString(), lang))\n"
           "                        localeSpanHandled = true\n"
           "                    } else {\n"
-          "                        // All UNKNOWN — original text had no usable LocaleSpans. Silently fall\n"
-          "                        // through to native splitter so user still gets correct output.\n"
           "                        VhLogger.d(\"[SERVICE] mix mode: locale_spans path empty, falling back to native splitter\")\n"
           "                    }\n"
           "                }\n"
