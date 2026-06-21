@@ -880,7 +880,7 @@ jobs:
           // AutoTTS w.java algorithm: Latin-range runs (cp<=0x024F) vs non-Latin runs.
           // Runs with letters=type1(Latin text), digits/punct-only=type3(neutral), non-Latin=type2.
           // Context-resolve type3: backward scan for non-first segments, forward for first (w.a/w.b).
-          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall) {
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault) {
               std::vector<ChunkResult> result;
 
               std::string fullText;
@@ -1058,7 +1058,7 @@ jobs:
                           for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
                               if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
                   }
-                  segs[k].lang = resolved.empty() ? latFall : resolved;
+                  segs[k].lang = resolved.empty() ? neutralDefault : resolved;
                   segs[k].type = 1; // mark resolved so subsequent backward scans can find it
               }
 
@@ -1100,7 +1100,7 @@ jobs:
               jobjectArray jKeys, jobjectArray jVals,
               jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
               jstring jLat, jstring jNonLat, jstring jMode,
-              jstring jPunc, jstring jNum, jstring jEmoji)
+              jstring jPunc, jstring jNum, jstring jEmoji, jstring jNeutralDefault)
           {
               // Integrity gate — checked in JNI_OnLoad; no Kotlin path can bypass this
               if(!g_ok) return env->NewStringUTF("");
@@ -1115,6 +1115,7 @@ jobs:
               const char* puncC=env->GetStringUTFChars(jPunc,nullptr); std::string puncFall(puncC); env->ReleaseStringUTFChars(jPunc,puncC);
               const char* numC=env->GetStringUTFChars(jNum,nullptr); std::string numFall(numC); env->ReleaseStringUTFChars(jNum,numC);
               const char* emojiC=env->GetStringUTFChars(jEmoji,nullptr); std::string emojiFall(emojiC); env->ReleaseStringUTFChars(jEmoji,emojiC);
+              const char* neutralDefC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(neutralDefC); env->ReleaseStringUTFChars(jNeutralDefault,neutralDefC);
 
               std::vector<std::string> keys,vals;
               int dictSize=env->GetArrayLength(jKeys);
@@ -1146,7 +1147,7 @@ jobs:
 
               std::string result;
               if (mode == "mix") {
-                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall);
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else {
                   auto chunks = buildAutoChunks(processed, latFall, nonLatFall);
@@ -1169,7 +1170,8 @@ jobs:
           "        keepEmoji: Boolean, countEmoji: Boolean, countPunct: Boolean,\n"
           "        latFall: String, nonLatFall: String,\n"
           "        mode: String,\n"
-          "        puncFall: String, numFall: String, emojiFall: String\n"
+          "        puncFall: String, numFall: String, emojiFall: String,\n"
+          "        neutralDefault: String\n"
           "    ): String\n"
           "}\n")
 
@@ -1899,7 +1901,8 @@ jobs:
           "                emptyArray(), emptyArray(),\n"
           "                false, false, false,\n"
           "                latFall, nonLatFall, \"auto\",\n"
-          "                \"auto\", \"auto\", \"auto\"\n"
+          "                \"auto\", \"auto\", \"auto\",\n"
+          "                latFall\n"
           "            )\n"
           "            // \"auto\" mode returns single chunk: \"lang|text\"\n"
           "            val parts = out.split(\"|\", limit = 2)\n"
@@ -2406,6 +2409,9 @@ jobs:
           "                    // so whitespace is preserved and engines produce natural pauses.\n"
           "                    val dictMap = cachedDictMap\n"
           "                    VhLogger.d(\"[SERVICE] mix mode: processing full text directly\")\n"
+          "                    // AutoTTS w.g() line 120: n6 = (mode==MIX && sysLocale==nonLatFall) ? 2 : 1\n"
+          "                    // neutralDefault is the fallback for segments with no Latin/non-Latin context.\n"
+          "                    val neutralDefault = if (Locale.getDefault().language.equals(nonLatFall, ignoreCase = true)) nonLatFall else latFall\n"
           "                    val tBytes = rawText.toByteArray(Charsets.UTF_8)\n"
           "                    val tBuf = ByteBuffer.allocateDirect(tBytes.size)\n"
           "                    tBuf.put(tBytes); tBuf.position(0)\n"
@@ -2418,7 +2424,8 @@ jobs:
           "                        latFall, nonLatFall, \"mix\",\n"
           "                        mixPuncLang,\n"
           "                        mixNumLang,\n"
-          "                        mixEmojiLang\n"
+          "                        mixEmojiLang,\n"
+          "                        neutralDefault\n"
           "                    )\n"
           "                    val batched = mutableListOf<Pair<String, StringBuilder>>()\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
