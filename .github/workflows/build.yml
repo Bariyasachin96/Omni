@@ -919,7 +919,10 @@ jobs:
                       if (buf.empty()) return;
                       if (bufKind == 1) {
                           bool allWs = true;
-                          for (unsigned char c : buf) if (!isspace(c)) { allWs = false; break; }
+                          { const unsigned char* pb=(const unsigned char*)buf.c_str(); int bi=0,bl=(int)buf.size();
+                            while(bi<bl){int bcl=0; int bcp=utf8ToCodepoint(pb+bi,bcl);
+                              if(!(bcp==0x09||bcp==0x0A||bcp==0x0B||bcp==0x0C||bcp==0x0D||(bcp>=0x1C&&bcp<=0x1F)||bcp==0x20||bcp==0x2028||bcp==0x2029)){allWs=false;break;}
+                              bi+=bcl;} }
                           segs.push_back({buf, allWs ? 0 : 2, ""});
                       } else {
                           bool allWs = true, hasLetter = false, hasDigit = false;
@@ -928,12 +931,12 @@ jobs:
                           while (j < blen) {
                               int cl = 0;
                               int cp2 = utf8ToCodepoint(p + j, cl);
-                              if (!isspace((unsigned char)buf[j])) allWs = false;
+                              if (!(cp2==0x09||cp2==0x0A||cp2==0x0B||cp2==0x0C||cp2==0x0D||(cp2>=0x1C&&cp2<=0x1F)||cp2==0x20||cp2==0x2028||cp2==0x2029)) allWs = false;
                               // AutoTTS w.c(): emoji counts as "letter" (type 1) not neutral
                               // Also covers Latin Extended Additional (U+1E00-U+1EFF, Vietnamese),
                               // Latin Extended-C (U+2C60-U+2C7F), Latin Extended-D (U+A720-U+A7FF)
                               if ((cp2 >= 'a' && cp2 <= 'z') || (cp2 >= 'A' && cp2 <= 'Z') ||
-                                  (cp2 >= 0x00C0 && cp2 <= 0x024F) ||
+                                  (cp2 >= 0x0080 && cp2 <= 0x024F) ||
                                   (cp2 >= 0x1E00 && cp2 <= 0x1EFF) ||
                                   (cp2 >= 0x2C60 && cp2 <= 0x2C7F) ||
                                   (cp2 >= 0xA720 && cp2 <= 0xA7FF) ||
