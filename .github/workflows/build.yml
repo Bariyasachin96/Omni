@@ -887,6 +887,21 @@ jobs:
               for (auto& s : sentences) { if (!s.empty()) fullText += s + " "; }
               if (fullText.empty()) return result;
 
+              // AutoTTS w.g() line 116: trim + collapse consecutive ASCII whitespace (\\s+) to single space.
+              // Java \\s matches [ \t\n\x0B\f\r] (ASCII set, no UNICODE_CHARACTER_CLASS flag).
+              {
+                  std::string ws; ws.reserve(fullText.size()); bool prevWs = false;
+                  int wi=0, wlen=(int)fullText.size();
+                  while(wi<wlen){ int wcl=0; int wcp=utf8ToCodepoint((const unsigned char*)&fullText[wi],wcl);
+                    bool isWs=(wcp==0x09||wcp==0x0A||wcp==0x0B||wcp==0x0C||wcp==0x0D||wcp==0x20);
+                    if(isWs){if(!prevWs)ws+=' ';prevWs=true;}else{codepointToUtf8(wcp,ws);prevWs=false;}
+                    wi+=wcl;}
+                  while(!ws.empty()&&ws.back()==' ')ws.pop_back();
+                  size_t first=ws.find_first_not_of(' ');
+                  fullText=(first==std::string::npos)?"":(first>0?ws.substr(first):ws);
+              }
+              if (fullText.empty()) return result;
+
               // Fix 1: Remove BiDi control characters (AutoTTS w.f() / pattern-e).
               // U+061C Arabic Letter Mark, U+200E LRM, U+200F RLM, U+202A-U+202E directional.
               // These break Latin/non-Latin boundary detection for Arabic/Hebrew/Urdu text.
@@ -2388,7 +2403,7 @@ jobs:
           "                                detectLanguage(lc.text, latFall, nonLatFall)\n"
           "                            } else lc.lang\n"
           "                            val resolved = if (isDedicated || isEngineAvailable(effectiveLang)) effectiveLang else {\n"
-          "                                if (isLatinScript(effectiveLang) || effectiveLang == latFall) latFall else nonLatFall\n"
+          "                                smartLangFallback(effectiveLang, latFall, nonLatFall)\n"
           "                            }\n"
           "                            chunks.add(TextChunk(lc.text, resolved))\n"
           "                        }\n"
@@ -2432,7 +2447,7 @@ jobs:
           "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
           "                        if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
           "                            val resolved = if (isDedicated || isEngineAvailable(parts[0])) parts[0] else {\n"
-          "                                if (isLatinScript(parts[0]) || parts[0] == latFall) latFall else nonLatFall\n"
+          "                                smartLangFallback(parts[0], latFall, nonLatFall)\n"
           "                            }\n"
           "                            if (batched.isNotEmpty() && batched.last().first == resolved) {\n"
           "                                batched.last().second.append(parts[1])\n"
@@ -2457,7 +2472,7 @@ jobs:
           "                        for (lc in localeChunks) {\n"
           "                            val detected = if (lc.lang == \"UNKNOWN\") detectLanguage(lc.text, latFall, nonLatFall) else lc.lang\n"
           "                            val resolved = if (isDedicated || isEngineAvailable(detected)) detected else {\n"
-          "                                if (isLatinScript(detected) || detected == latFall) latFall else nonLatFall\n"
+          "                                smartLangFallback(detected, latFall, nonLatFall)\n"
           "                            }\n"
           "                            if (batched.isNotEmpty() && batched.last().first == resolved) {\n"
           "                                batched.last().second.append(lc.text)\n"
@@ -2478,7 +2493,7 @@ jobs:
           "                    VhLogger.d(\"[SERVICE] auto mode: CLD2 on full text textLen=${rawText.length} snip='${rawText.take(80).replace('\\n',' ')}'\")\n"
           "                    val detected = detectLanguage(rawText, latFall, nonLatFall)\n"
           "                    val resolved = if (isDedicated || isEngineAvailable(detected)) detected else {\n"
-          "                        if (isLatinScript(detected) || detected == latFall) latFall else nonLatFall\n"
+          "                        smartLangFallback(detected, latFall, nonLatFall)\n"
           "                    }\n"
           "                    VhLogger.d(\"[SERVICE] auto mode: detected=$detected resolved=$resolved\")\n"
           "                    chunks.add(TextChunk(rawText, resolved))\n"
