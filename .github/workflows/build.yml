@@ -1000,15 +1000,22 @@ jobs:
                               // AutoTTS w.c(): emoji counts as "letter" (type 1) not neutral
                               // Also covers Latin Extended Additional (U+1E00-U+1EFF, Vietnamese),
                               // Latin Extended-C (U+2C60-U+2C7F), Latin Extended-D (U+A720-U+A7FF)
+                              // Exclude U+00B0 ° / U+00D7 × / U+00F7 ÷ — explicitly listed in
+                              // AutoTTS pattern b (neutral/digit-like), NOT treated as letters.
                               if ((cp2 >= 'a' && cp2 <= 'z') || (cp2 >= 'A' && cp2 <= 'Z') ||
-                                  (cp2 >= 0x0080 && cp2 <= 0x024F) ||
+                                  (cp2 >= 0x0080 && cp2 <= 0x024F && cp2 != 0x00B0 && cp2 != 0x00D7 && cp2 != 0x00F7) ||
                                   (cp2 >= 0x1E00 && cp2 <= 0x1EFF) ||
                                   (cp2 >= 0x2C60 && cp2 <= 0x2C7F) ||
                                   (cp2 >= 0xA720 && cp2 <= 0xA7FF) ||
                                   isEmoji(cp2))
                                   hasLetter = true;
-                              // Fix 2: track digits separately (AutoTTS w.c() type3 vs type4)
-                              if ((cp2 >= '0' && cp2 <= '9') || (cp2 >= 0xFF10 && cp2 <= 0xFF19))
+                              // Track AutoTTS pattern-b neutral chars as digit-like → type-3 not type-4.
+                              // Pattern b includes: digits 0-9, ° (U+00B0), × (U+00D7), ÷ (U+00F7),
+                              // and currency symbols U+20A0-U+20CF. These ensure "100×", "₹500",
+                              // "45°" are classified type-3 (neutral digit) rather than type-4 (punct).
+                              if ((cp2 >= '0' && cp2 <= '9') || (cp2 >= 0xFF10 && cp2 <= 0xFF19) ||
+                                  cp2 == 0x00B0 || cp2 == 0x00D7 || cp2 == 0x00F7 ||
+                                  (cp2 >= 0x20A0 && cp2 <= 0x20CF))
                                   hasDigit = true;
                               j += cl;
                           }
