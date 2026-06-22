@@ -889,7 +889,7 @@ jobs:
           }
 
           // Auto mode: WHOLE TEXT DETECTION. No length limits. Return as ONE single chunk.
-          static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
+          static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, bool disableAdvancedDetection) {
               std::vector<ChunkResult> chunks;
               std::string fullText = "";
               for(auto& s: sentences) {
@@ -899,9 +899,6 @@ jobs:
                   }
               }
               if(fullText.empty()) return chunks;
-              // AutoTTS clsCLD2.b() order: CLD2 on FULL text first.
-              // detectLang() picks first non-neutral codepoint — wrong for mixed text like
-              // "Relationships પણ..." where 'R' fires "en" before Gujarati chars are seen.
               std::string dominantLang;
               {
                   bool is_rel = false;
@@ -910,8 +907,10 @@ jobs:
                   if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
                       dominantLang = normalizeLangCode(std::string(code));
               }
-              if (dominantLang.empty())
+              // disable_advanced_detection=true: trust CLD2 result blindly, skip codepoint fallback
+              if (dominantLang.empty() && !disableAdvancedDetection)
                   dominantLang = detectLang(fullText, latFall, nonLatFall);
+              if (dominantLang.empty()) dominantLang = latFall;
               chunks.push_back({dominantLang, fullText});
               return chunks;
           }
@@ -919,7 +918,7 @@ jobs:
           // AutoTTS w.java algorithm: Latin-range runs (cp<=0x024F) vs non-Latin runs.
           // Runs with letters=type1(Latin text), digits/punct-only=type3(neutral), non-Latin=type2.
           // Context-resolve type3: backward scan for non-first segments, forward for first (w.a/w.b).
-          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault) {
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, bool disableAdvancedDetection) {
               std::vector<ChunkResult> result;
 
               std::string fullText;
@@ -1094,31 +1093,48 @@ jobs:
               if (segs.empty()) return result;
 
               // Phase 2: assign languages to type-1 and type-2 segments
-              // Fix E: AutoTTS calls CLD2 on ALL segments (type-1 Latin AND type-2 non-Latin).
+              // MISSING-A: disableAdvancedDetection=true → trust CLD2 blindly (AutoTTS S flag)
               for (auto& seg : segs) {
                   if (seg.type == 1) {
-                      // Latin segment: CLD2 → normalize → keep only Latin results (Fix 1, Fix 2)
                       bool is_rel = false;
                       CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
                       const char* code = CLD2::LanguageCode(cld2Lang);
                       std::string detected;
                       if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
                           detected = normalizeLangCode(std::string(code));
-                      // For Latin segments: reject non-Latin CLD2 results (Fix 2)
-                      seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
+                      if (disableAdvancedDetection) {
+                          // S=true: accept any CLD2 result without script filtering
+                          seg.lang = detected.empty() ? latFall : detected;
+                      } else {
+                          // For Latin segments: reject non-Latin CLD2 results
+                          seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
+                      }
                   } else if (seg.type == 2) {
-                      // Non-Latin segment: CLD2 → normalize → reject ANY Latin result (Fix 1, Fix 3)
                       bool is_rel = false;
                       CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
                       const char* code = CLD2::LanguageCode(cld2Lang);
                       std::string detected;
                       if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
                           detected = normalizeLangCode(std::string(code));
-                      // Reject ANY Latin-script CLD2 result for non-Latin segments (Fix 3)
-                      if (!detected.empty() && !isLatinScriptLang(detected))
-                          seg.lang = detected;
-                      else
+                      if (disableAdvancedDetection) {
+                          // S=true: accept CLD2 result directly
+                          seg.lang = detected.empty() ? nonLatFall : detected;
+                      } else if (!detected.empty() && !isLatinScriptLang(detected)) {
+                          // MISSING-B: CLD2 returned non-Latin — cross-check with codepoint detection.
+                          // AutoTTS a.e(firstCp, k.f): if CLD2 confused scripts (e.g. "hi" for Gujarati),
+                          // codepoint scan is more reliable for script-family identification.
+                          std::string cpLang = detectLang(seg.text, latFall, nonLatFall);
+                          if (cpLang != detected && cpLang != latFall && cpLang != nonLatFall) {
+                              // Codepoint detection disagrees AND returns a specific language →
+                              // CLD2 confused the script (e.g. Gujarati→"hi"); use codepoint result
+                              seg.lang = cpLang;
+                          } else {
+                              // CLD2 result confirmed or codepoint detection returned a fallback
+                              seg.lang = detected;
+                          }
+                      } else {
                           seg.lang = detectLang(seg.text, latFall, nonLatFall);
+                      }
                   }
               }
 
@@ -1184,7 +1200,7 @@ jobs:
               jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
               jstring jLat, jstring jNonLat, jstring jMode,
               jstring jPunc, jstring jNum, jstring jEmoji,
-              jstring jNeutralDefault)
+              jstring jNeutralDefault, jboolean jDisableAdvancedDetection)
           {
               // Integrity gate — checked in JNI_OnLoad; no Kotlin path can bypass this
               if(!g_ok) return env->NewStringUTF("");
@@ -1200,6 +1216,7 @@ jobs:
               const char* numC=env->GetStringUTFChars(jNum,nullptr); std::string numFall(numC); env->ReleaseStringUTFChars(jNum,numC);
               const char* emojiC=env->GetStringUTFChars(jEmoji,nullptr); std::string emojiFall(emojiC); env->ReleaseStringUTFChars(jEmoji,emojiC);
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
+              bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
 
               std::vector<std::string> keys,vals;
               int dictSize=env->GetArrayLength(jKeys);
@@ -1231,10 +1248,10 @@ jobs:
 
               std::string result;
               if (mode == "mix") {
-                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault);
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else {
-                  auto chunks = buildAutoChunks(processed, latFall, nonLatFall);
+                  auto chunks = buildAutoChunks(processed, latFall, nonLatFall, disableAdvancedDetection);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               }
               return env->NewStringUTF(result.c_str());
@@ -1255,7 +1272,8 @@ jobs:
           "        latFall: String, nonLatFall: String,\n"
           "        mode: String,\n"
           "        puncFall: String, numFall: String, emojiFall: String,\n"
-          "        neutralDefault: String\n"
+          "        neutralDefault: String,\n"
+          "        disableAdvancedDetection: Boolean\n"
           "    ): String\n"
           "}\n")
 
@@ -2247,6 +2265,43 @@ jobs:
           "        \"hak\" to listOf(\"hak\", \"zh\"),              // Hakka Chinese\n"
           "        \"wuu\" to listOf(\"wuu\", \"zh\"),              // Wu Chinese (Shanghainese)\n"
           "        \"nan\" to listOf(\"nan\", \"zh\"),              // Min Nan (Hokkien/Taiwanese)\n"
+          "        // Primary Indic languages (CLD2 returns these directly)\n"
+          "        \"hi\" to listOf(\"hi\", \"mr\", \"ne\", \"kok\"),  // Hindi → Marathi/Nepali/Konkani (Devanagari)\n"
+          "        \"mr\" to listOf(\"mr\", \"hi\", \"ne\"),          // Marathi → Hindi/Nepali\n"
+          "        \"bn\" to listOf(\"bn\", \"as\"),                 // Bengali → Assamese\n"
+          "        \"gu\" to listOf(\"gu\"),                        // Gujarati\n"
+          "        \"pa\" to listOf(\"pa\"),                        // Punjabi (Gurmukhi)\n"
+          "        \"ta\" to listOf(\"ta\", \"kn\"),                 // Tamil → Kannada\n"
+          "        \"te\" to listOf(\"te\", \"kn\", \"ta\"),          // Telugu → Kannada/Tamil\n"
+          "        \"ml\" to listOf(\"ml\"),                        // Malayalam\n"
+          "        \"si\" to listOf(\"si\"),                        // Sinhala\n"
+          "        \"or\" to listOf(\"or\"),                        // Odia/Oriya\n"
+          "        // Primary Arabic-script languages\n"
+          "        \"ur\" to listOf(\"ur\", \"fa\", \"ar\"),          // Urdu → Persian/Arabic\n"
+          "        \"fa\" to listOf(\"fa\", \"ur\", \"ar\"),          // Persian → Urdu/Arabic\n"
+          "        \"ar\" to listOf(\"ar\", \"fa\", \"ur\"),          // Arabic → Persian/Urdu\n"
+          "        // Primary Semitic\n"
+          "        \"he\" to listOf(\"he\", \"yi\"),                 // Hebrew → Yiddish\n"
+          "        // Primary Cyrillic\n"
+          "        \"ru\" to listOf(\"ru\", \"uk\", \"be\", \"bg\"),   // Russian → Ukrainian/Belarusian/Bulgarian\n"
+          "        \"uk\" to listOf(\"uk\", \"ru\", \"be\"),          // Ukrainian → Russian/Belarusian\n"
+          "        \"kk\" to listOf(\"kk\", \"ky\"),                 // Kazakh → Kyrgyz\n"
+          "        // CJK primaries\n"
+          "        \"ja\" to listOf(\"ja\", \"zh\"),                 // Japanese → Chinese\n"
+          "        \"zh\" to listOf(\"zh\", \"ja\"),                 // Chinese → Japanese\n"
+          "        \"ko\" to listOf(\"ko\"),                        // Korean\n"
+          "        // Other Asian scripts\n"
+          "        \"th\" to listOf(\"th\"),                        // Thai\n"
+          "        \"my\" to listOf(\"my\"),                        // Myanmar/Burmese\n"
+          "        \"km\" to listOf(\"km\"),                        // Khmer\n"
+          "        \"lo\" to listOf(\"lo\"),                        // Lao\n"
+          "        \"bo\" to listOf(\"bo\"),                        // Tibetan\n"
+          "        \"mn\" to listOf(\"mn\"),                        // Mongolian\n"
+          "        // Caucasian scripts\n"
+          "        \"ka\" to listOf(\"ka\"),                        // Georgian\n"
+          "        \"hy\" to listOf(\"hy\"),                        // Armenian\n"
+          "        // Ethiopic primary\n"
+          "        \"am\" to listOf(\"am\", \"ti\"),                 // Amharic → Tigrinya\n"
           "    )\n"
           "    // AutoTTS a.c() smart CLD2 fallback: when CLD2 returns a disabled language,\n"
           "    // check if any language in the same script family is enabled.\n"
@@ -2506,6 +2561,7 @@ jobs:
           "                    // Fix H: neutralDefault = (sysLocale==nonLatFall) ? nonLatFall : latFall\n"
           "                    val sysLang = java.util.Locale.getDefault().language\n"
           "                    val neutralDefault = if (sysLang == nonLatFall) nonLatFall else latFall\n"
+          "                    val disableAdvDet = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
           "                    val tOut = NativeEngine.processDirect(\n"
           "                        tBuf, tBytes.size,\n"
           "                        dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
@@ -2516,17 +2572,18 @@ jobs:
           "                        mixPuncLang,\n"
           "                        mixNumLang,\n"
           "                        mixEmojiLang,\n"
-          "                        neutralDefault\n"
+          "                        neutralDefault,\n"
+          "                        disableAdvDet\n"
           "                    )\n"
           "                    val batched = mutableListOf<Pair<String, StringBuilder>>()\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
           "                        if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
-          "                            // Fix I: use normalizeLangCode + smartLangFallback (AutoTTS a.c() pattern)\n"
           "                            val norm = normalizeLangCode(parts[0])\n"
-          "                            val resolved = if (isDedicated || isEngineAvailable(norm)) norm else {\n"
-          "                                smartLangFallback(norm, latFall, nonLatFall)\n"
-          "                            }\n"
+          "                            // MISSING-A: disable_advanced_detection → skip smartLangFallback\n"
+          "                            val resolved = if (isDedicated || isEngineAvailable(norm)) norm\n"
+          "                                else if (disableAdvDet) { if (isLatinScript(norm)) latFall else nonLatFall }\n"
+          "                                else smartLangFallback(norm, latFall, nonLatFall)\n"
           "                            if (batched.isNotEmpty() && batched.last().first == resolved) {\n"
           "                                batched.last().second.append(parts[1])\n"
           "                            } else {\n"
