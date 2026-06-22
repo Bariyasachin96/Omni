@@ -849,6 +849,45 @@ jobs:
 
           struct ChunkResult { std::string lang; std::string text; };
 
+          // ISO 639-3 → ISO 639-1 normalization: CLD2 occasionally returns 3-letter codes.
+          // Must run immediately after every CLD2 call so all internal comparisons use 2-letter codes.
+          static std::string normalizeLangCode(const std::string& code) {
+              if (code.size() <= 2) return code;
+              static const char* tbl[][2] = {
+                  {"zho","zh"},{"hin","hi"},{"ben","bn"},{"ara","ar"},{"por","pt"},
+                  {"rus","ru"},{"jpn","ja"},{"kor","ko"},{"deu","de"},{"fra","fr"},
+                  {"ita","it"},{"spa","es"},{"nld","nl"},{"tur","tr"},{"pol","pl"},
+                  {"vie","vi"},{"fas","fa"},{"tha","th"},{"ind","id"},{"msa","ms"},
+                  {"ukr","uk"},{"ces","cs"},{"ron","ro"},{"hun","hu"},{"swe","sv"},
+                  {"nor","no"},{"dan","da"},{"fin","fi"},{"ell","el"},{"bul","bg"},
+                  {"hrv","hr"},{"slk","sk"},{"slv","sl"},{"srp","sr"},{"mkd","mk"},
+                  {"lit","lt"},{"lav","lv"},{"est","et"},{"afr","af"},{"cat","ca"},
+                  {"tam","ta"},{"tel","te"},{"mal","ml"},{"kan","kn"},{"guj","gu"},
+                  {"mar","mr"},{"pan","pa"},{"urd","ur"},{"nep","ne"},{"sin","si"},
+                  {"khm","km"},{"lao","lo"},{"mya","my"},{"amh","am"},{"bod","bo"},
+                  {"ori","or"},{"kat","ka"},{"hye","hy"},{"kaz","kk"},{"mon","mn"},
+                  {"uzb","uz"},{"heb","he"},{"swa","sw"},{"zul","zu"},{"yor","yo"},
+                  {"jav","jv"},{"sun","su"},{"wel","cy"},{"gle","ga"},{"glg","gl"},
+                  {"eus","eu"},{"bos","bs"},{"mlt","mt"},{"isl","is"},{"sqi","sq"},
+                  {nullptr,nullptr}
+              };
+              for (int i = 0; tbl[i][0]; i++)
+                  if (code == tbl[i][0]) return tbl[i][1];
+              return code;
+          }
+
+          // Latin-script language check (mirrors Kotlin isLatinScript).
+          static bool isLatinScriptLang(const std::string& lang) {
+              static const char* lat[] = {
+                  "en","fr","de","es","it","pt","nl","sv","da","no","nb","nn",
+                  "fi","pl","cs","ro","hu","sk","sl","hr","lt","lv","et","tr",
+                  "vi","af","ca","cy","eu","ga","gl","is","lb","mt","sq","sw",
+                  "tl","id","ms","bs","az","uz","tk","ky",nullptr
+              };
+              for (int i = 0; lat[i]; i++) if (lang == lat[i]) return true;
+              return false;
+          }
+
           // Auto mode: WHOLE TEXT DETECTION. No length limits. Return as ONE single chunk.
           static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall) {
               std::vector<ChunkResult> chunks;
@@ -869,7 +908,7 @@ jobs:
                   CLD2::Language cld2Lang = CLD2::DetectLanguage(fullText.c_str(), (int)fullText.size(), true, &is_rel);
                   const char* code = CLD2::LanguageCode(cld2Lang);
                   if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                      dominantLang = std::string(code);
+                      dominantLang = normalizeLangCode(std::string(code));
               }
               if (dominantLang.empty())
                   dominantLang = detectLang(fullText, latFall, nonLatFall);
@@ -1058,23 +1097,25 @@ jobs:
               // Fix E: AutoTTS calls CLD2 on ALL segments (type-1 Latin AND type-2 non-Latin).
               for (auto& seg : segs) {
                   if (seg.type == 1) {
-                      // Latin segment: CLD2 to detect specific Latin language (fr/de/es/etc.)
+                      // Latin segment: CLD2 → normalize → keep only Latin results (Fix 1, Fix 2)
                       bool is_rel = false;
                       CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
                       const char* code = CLD2::LanguageCode(cld2Lang);
                       std::string detected;
                       if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                          detected = std::string(code);
-                      seg.lang = detected.empty() ? latFall : detected;
+                          detected = normalizeLangCode(std::string(code));
+                      // For Latin segments: reject non-Latin CLD2 results (Fix 2)
+                      seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
                   } else if (seg.type == 2) {
-                      // Non-Latin segment: CLD2 to distinguish hi/gu/ta/etc.; reject Latin CLD2 results
+                      // Non-Latin segment: CLD2 → normalize → reject ANY Latin result (Fix 1, Fix 3)
                       bool is_rel = false;
                       CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
                       const char* code = CLD2::LanguageCode(cld2Lang);
                       std::string detected;
                       if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                          detected = std::string(code);
-                      if (!detected.empty() && detected != latFall)
+                          detected = normalizeLangCode(std::string(code));
+                      // Reject ANY Latin-script CLD2 result for non-Latin segments (Fix 3)
+                      if (!detected.empty() && !isLatinScriptLang(detected))
                           seg.lang = detected;
                       else
                           seg.lang = detectLang(seg.text, latFall, nonLatFall);
@@ -2435,8 +2476,10 @@ jobs:
           "                                // span-less segment — use script detection on it\n"
           "                                detectLanguage(lc.text, latFall, nonLatFall)\n"
           "                            } else lc.lang\n"
-          "                            val resolved = if (isDedicated || isEngineAvailable(effectiveLang)) effectiveLang else {\n"
-          "                                if (isLatinScript(effectiveLang) || effectiveLang == latFall) latFall else nonLatFall\n"
+          "                            // Fix J: normalize + smartLangFallback (mirrors native splitter path)\n"
+          "                            val norm = normalizeLangCode(effectiveLang)\n"
+          "                            val resolved = if (isDedicated || isEngineAvailable(norm)) norm else {\n"
+          "                                smartLangFallback(norm, latFall, nonLatFall)\n"
           "                            }\n"
           "                            chunks.add(TextChunk(lc.text, resolved))\n"
           "                        }\n"
