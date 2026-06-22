@@ -1086,21 +1086,29 @@ jobs:
               if (segs.empty()) return result;
 
               // Phase 2: assign languages. AutoTTS w.g() path (plain text, no LocaleSpans):
-              // type-1 (Latin) → H. MIX: clsCLD2_b detects sub-lang; Dual: latFall directly (no CLD2).
-              // type-2 (non-Latin) → I (nonLatFall) directly, NO CLD2 in either mode.
-              // onDone L=4/L=1: empty-lang + type==1 → H, type==2 → I. No detection on type-2.
+              // type-1 (Latin)     → MIX: clsCLD2_b(text, latFall, nonLatFall). Dual: latFall directly.
+              // type-2 (non-Latin) → MIX: clsCLD2_b(text, latFall, nonLatFall). Dual: nonLatFall directly.
+              // AutoTTS log confirms CLD2 is called on BOTH type-1 and type-2 chunks in MIX mode.
+              // For type-2 (Hindi), CLD2 with "hi" hint → "hin" = nonLatFall (script fallback path).
               for (auto& seg : segs) {
                   if (seg.type == 1) {
                       if (isDual) {
-                          // AutoTTS L=1: type-1 always → "eng" (latFall). No CLD2.
+                          // AutoTTS L=1: type-1 always → latFall. No CLD2.
                           seg.lang = latFall;
                       } else {
                           std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
                           seg.lang = (res == "UNKNOWN" || res.empty()) ? latFall : res;
                       }
                   } else if (seg.type == 2) {
-                      // AutoTTS: type-2 → nonLatFall directly. No CLD2 on non-Latin segments.
-                      seg.lang = nonLatFall;
+                      if (isDual) {
+                          // AutoTTS L=1: type-2 always → nonLatFall. No CLD2.
+                          seg.lang = nonLatFall;
+                      } else {
+                          // AutoTTS MIX: type-2 also goes through CLD2 (mirrors "Cld2: hi 'भारत...'" in logs).
+                          // Script fallback in clsCLD2_b: non-Latin cp → nonLatFall. Result = nonLatFall.
+                          std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
+                          seg.lang = (res == "UNKNOWN" || res.empty()) ? nonLatFall : res;
+                      }
                   }
               }
 
