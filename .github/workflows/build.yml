@@ -896,9 +896,10 @@ jobs:
               return cp<=0x024F||(cp>=0x1E00&&cp<=0x1EFF)||(cp>=0x2C60&&cp<=0x2C7F)||(cp>=0xA720&&cp<=0xA7FF);
           }
 
-          // Mirrors AutoTTS clsCLD2.b() with k.f = {latFall, nonLatFall}.
-          // 64-codepoint windows → CLD2 → configured-lang filter → script fallback.
-          // Returns latFall, nonLatFall, or "UNKNOWN".
+          // Mirrors AutoTTS clsCLD2.b(): 64-codepoint windows → CLD2 → actual language.
+          // Returns actual 2-letter CLD2 code (e.g. "gu", "hi", "en"), latFall/nonLatFall
+          // as script fallback when CLD2 is UNKNOWN, or "UNKNOWN" for all-neutral text.
+          // Kotlin checks isEngineAvailable(result) + smartLangFallback for final resolution.
           static std::string clsCLD2_b(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
               if(text.empty()) return "UNKNOWN";
               int n=(int)text.size(), pos=0;
@@ -911,17 +912,11 @@ jobs:
                   CLD2::Language cld2Lang=CLD2::DetectLanguage(chunk.c_str(),(int)chunk.size(),true,&is_rel);
                   const char* code=CLD2::LanguageCode(cld2Lang);
                   if(code&&strlen(code)>=2&&strcmp(code,"un")!=0&&strcmp(code,"xx")!=0){
-                      std::string det(code);
-                      // k.o() check: is result in configured set {latFall, nonLatFall}?
-                      if(det==latFall) return latFall;
-                      if(det==nonLatFall) return nonLatFall;
-                      // not configured → a.e(firstCp, k.f): script-based fallback on this chunk
-                      int cp=getFirstNonNeutralCp(chunk);
-                      if(cp>=0) return isLatinCp(cp)?latFall:nonLatFall;
+                      return std::string(code);  // actual language; Kotlin checks isEngineAvailable
                   }
                   pos=wend;
               }
-              // all windows returned UNKNOWN → script fallback on full string (AutoTTS post-loop)
+              // CLD2 returned UNKNOWN for all windows → script fallback on full text
               int cp=getFirstNonNeutralCp(text);
               if(cp<0) return "UNKNOWN";
               return isLatinCp(cp)?latFall:nonLatFall;
@@ -1096,7 +1091,8 @@ jobs:
               // type-1 (Latin)     → MIX: clsCLD2_b(text, latFall, nonLatFall). Dual: latFall directly.
               // type-2 (non-Latin) → MIX: clsCLD2_b(text, latFall, nonLatFall). Dual: nonLatFall directly.
               // AutoTTS log confirms CLD2 is called on BOTH type-1 and type-2 chunks in MIX mode.
-              // For type-2 (Hindi), CLD2 with "hi" hint → "hin" = nonLatFall (script fallback path).
+              // type-2: CLD2 returns actual script language (e.g. "gu" for Gujarati, "hi" for Hindi).
+              // Kotlin resolves engine availability; falls back to nonLatFall if no engine found.
               for (auto& seg : segs) {
                   if (seg.type == 1) {
                       if (isDual) {
@@ -1111,8 +1107,8 @@ jobs:
                           // AutoTTS L=1: type-2 always → nonLatFall. No CLD2.
                           seg.lang = nonLatFall;
                       } else {
-                          // AutoTTS MIX: type-2 also goes through CLD2 (mirrors "Cld2: hi 'भारत...'" in logs).
-                          // Script fallback in clsCLD2_b: non-Latin cp → nonLatFall. Result = nonLatFall.
+                          // AutoTTS MIX: type-2 goes through CLD2 (mirrors "Cld2: gu 'జీవన...'" in logs).
+                          // clsCLD2_b returns actual CLD2 language; Kotlin maps to engine if available.
                           std::string res = clsCLD2_b(seg.text, latFall, nonLatFall);
                           seg.lang = (res == "UNKNOWN" || res.empty()) ? nonLatFall : res;
                       }
