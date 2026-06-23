@@ -634,21 +634,16 @@ jobs:
           }
 
           inline bool isUnknownChar(int cp) {
-              if(cp>='0'&&cp<='9') return true;
-              if(cp==' '||cp=='\t'||cp=='\n'||cp=='\r') return true;
-              if(cp=='.'||cp==','||cp=='!'||cp=='?'||cp==';'||cp==':'||cp=='-'||
-                 cp=='('||cp==')'||cp=='['||cp==']'||cp=='{'||cp=='}'||cp=='"'||
-                 cp=='\''||cp=='/'||cp=='\\'||cp=='@'||cp=='#'||cp=='$'||cp=='%'||
-                 cp=='&'||cp=='*'||cp=='+'||cp=='='||cp=='<'||cp=='>'||cp=='~'||
-                 cp=='`'||cp=='^'||cp=='|'||cp=='_') return true;
-              if(isEmoji(cp)) return true;
-              if(cp>=0x2000&&cp<=0x206F) return true;
-              if(cp>=0x2E00&&cp<=0x2E7F) return true;
-              if(cp>=0xFE50&&cp<=0xFE6F) return true;
-              if(cp>=0xFF00&&cp<=0xFF0F) return true;
-              if(cp>=0xFF1A&&cp<=0xFF20) return true;
-              if(cp>=0xFF3B&&cp<=0xFF40) return true;
-              if(cp>=0xFF5B&&cp<=0xFF65) return true;
+              // Java Character.isWhitespace(): HT LF VT FF CR FS GS RS US SP
+              // mirrors clsCLD2.a() which calls Character.isWhitespace(c3)
+              if((cp>=0x09&&cp<=0x0D)||(cp>=0x1C&&cp<=0x1F)||cp==0x20) return true;
+              // digits 0-9
+              if(cp>=0x30&&cp<=0x39) return true;
+              // clsCLD2.c() ASCII punct ranges exactly
+              if(cp>=0x21&&cp<=0x2F) return true;  // ! " # $ % & ' ( ) * + , - . /
+              if(cp>=0x3A&&cp<=0x40) return true;  // : ; < = > ? @
+              if(cp>=0x5B&&cp<=0x60) return true;  // [ \ ] ^ _ `
+              if(cp>=0x7B&&cp<=0x7E) return true;  // { | } ~
               return false;
           }
 
