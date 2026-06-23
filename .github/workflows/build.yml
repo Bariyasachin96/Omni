@@ -1074,6 +1074,19 @@ jobs:
                           seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
                       }
                   } else if (seg.type == 2) {
+                      // AutoTTS: emoji-only non-Latin segment → emojiFall (mirrors puncFall/numFall)
+                      if (!emojiFall.empty() && emojiFall != "auto") {
+                          bool hasAny = false, allEmoji = true;
+                          const unsigned char* ep = (const unsigned char*)seg.text.c_str();
+                          int ei = 0, elen = (int)seg.text.size();
+                          while (ei < elen) {
+                              int cl = 0; int cp3 = utf8ToCodepoint(ep + ei, cl);
+                              bool isWs = (cp3>=0x09&&cp3<=0x0D)||(cp3>=0x1C&&cp3<=0x1F)||cp3==0x20;
+                              if (!isWs) { hasAny = true; if (!isEmoji(cp3)) { allEmoji = false; break; } }
+                              ei += cl;
+                          }
+                          if (hasAny && allEmoji) { seg.lang = emojiFall; continue; }
+                      }
                       std::string detected = cld2Detect64(seg.text);
                       if (disableAdvancedDetection) {
                           // S=true: accept CLD2 result directly
