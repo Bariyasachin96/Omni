@@ -1031,17 +1031,17 @@ jobs:
                   while (i < len) {
                       int clen = 0;
                       int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
-                      bool isNum = (cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19);
-                      std::string forced;
-                      if      (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) forced = emojiFall;
-                      else if (isPunct(cp) && !puncFall.empty()   && puncFall  != "auto") forced = puncFall;
-                      else if (isNum       && numFall   != "auto"  && !numFall.empty())   forced = numFall;
-                      if (!forced.empty()) {
+                      // AutoTTS w.g(): only emoji gets per-character forced routing (EasyVoice
+                      // extension). Punct and digits are NOT forced per-char — they flow into
+                      // normal Latin-range segmentation so that "Hello, world!" stays ONE
+                      // type-1 segment (not split at each comma/period). puncFall and numFall
+                      // are applied at the segment level in Phase 3, matching AutoTTS exactly.
+                      if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
                           flushBuf();
-                          if (!segs.empty() && segs.back().type == -1 && segs.back().lang == forced)
+                          if (!segs.empty() && segs.back().type == -1 && segs.back().lang == emojiFall)
                               segs.back().text += fullText.substr(i, clen);
                           else
-                              segs.push_back({fullText.substr(i, clen), -1, forced});
+                              segs.push_back({fullText.substr(i, clen), -1, emojiFall});
                           i += clen; continue;
                       }
                       // Latin range — mirrors AutoTTS w.java pattern `d` exactly:
@@ -1138,26 +1138,35 @@ jobs:
                   }
               }
 
-              // Phase 3: context-resolve type-3 (digits) and type-4 (punct-only) neutral segments
-              // Fix F: AutoTTS w.a (forward, pre-real) / w.b (backward-only, post-real).
-              // w.b has NO forward fallback; truly unresolved neutrals use neutralDefault.
+              // Phase 3: resolve type-3 (digits) and type-4 (punct-only) neutral segments.
+              // AutoTTS w.g() n3/n4 branches: when numFall/puncFall IS set, the whole
+              // segment gets that lang directly — no context scan. When NOT set, use
+              // w.a() (forward, pre-real) or w.b() (backward-only, post-real). w.b has
+              // NO forward fallback; truly unresolved neutrals fall to neutralDefault.
               bool seenReal = false;
               for (int k = 0; k < (int)segs.size(); k++) {
                   int t = segs[k].type;
                   if (t == 1 || t == 2) { seenReal = true; continue; }
                   if (t != 3 && t != 4) continue;
-                  std::string resolved;
-                  if (!seenReal) {
-                      // w.a: look forward for first real segment (type 1 or 2)
-                      for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
-                          if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
+                  if (t == 4 && !puncFall.empty() && puncFall != "auto") {
+                      // AutoTTS w.g() n4 != 0: pure-punct segment → puncFall directly
+                      segs[k].lang = puncFall;
+                  } else if (t == 3 && !numFall.empty() && numFall != "auto") {
+                      // AutoTTS w.g() n3 != 0: digit/neutral segment → numFall directly
+                      segs[k].lang = numFall;
                   } else {
-                      // w.b: backward scan only — NO forward fallback (Fix F)
-                      for (int b = k - 1; b >= 0 && resolved.empty(); b--)
-                          if (segs[b].type == 1 || segs[b].type == 2) resolved = segs[b].lang;
+                      // AutoTTS w.a (forward, pre-real) / w.b (backward-only, post-real)
+                      std::string resolved;
+                      if (!seenReal) {
+                          for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
+                              if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
+                      } else {
+                          for (int b = k - 1; b >= 0 && resolved.empty(); b--)
+                              if (segs[b].type == 1 || segs[b].type == 2) resolved = segs[b].lang;
+                      }
+                      // Unresolved → neutralDefault: (sysLocale==nonLat) ? nonLat : lat
+                      segs[k].lang = resolved.empty() ? neutralDefault : resolved;
                   }
-                  // Unresolved → neutralDefault (Fix G): (sysLocale==nonLat) ? nonLat : lat
-                  segs[k].lang = resolved.empty() ? neutralDefault : resolved;
                   segs[k].type = 1; // mark resolved so subsequent backward scans can find it
               }
 
