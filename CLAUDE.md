@@ -1,0 +1,65 @@
+# EasyVoice — Claude Session Context
+
+## Project Overview
+- **App name**: Easy Voice — Android TTS screen reader for 100% blind users
+- **Goal**: Exactly match AutoTTS (com.vnspeak.autotts) behavior in all modes
+- **All source code** is embedded as Python string literals in `.github/workflows/build.yml`
+- **Working branch**: `claude/yaml-file-nk3czh`
+- **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
+
+## HARD RULES (NEVER violate)
+1. **NEVER build/push without explicit user request**
+2. **Fix #16 (Disable engine handling) — SET ASIDE, do NOT implement ever**
+3. **Always develop on branch `claude/yaml-file-nk3czh`**
+4. **After every push, manually trigger GitHub Actions** (workflow_dispatch, workflow ID: 262884892)
+
+## How to Trigger Build
+```
+mcp__github__actions_run_trigger → run_workflow
+owner: bariyasachin96, repo: omni
+workflow_id: 262884892, ref: claude/yaml-file-nk3czh
+```
+
+## AutoTTS Reference Files (in scratchpad)
+- `/tmp/claude-0/.../autotts_java/com/vnspeak/autotts/clsCLD2.java` — main detection
+- `/tmp/claude-0/.../autotts_java/com/vnspeak/autotts/a.java` — script/lang mapping
+- `/tmp/claude-0/.../autotts_java/c3/k.java` — settings, engine check
+
+## Completed Fixes (all in branch, build verified)
+| Commit | Fix |
+|--------|-----|
+| `d55a46b` | MISSING-C: type-based disabled-engine fallback |
+| `c6fc8e8` | `isUnknownChar()` exact AutoTTS clsCLD2.c() match |
+| `d195364` | Fix #1/#2/#4: emoji latRange, non-Latin type, CLD2 windowing |
+| `0b91941` | Fix #3: smartLangFallback → type-based in Mix mode |
+| `431b694` | Remove stripMarkdownHtml, MISSING-B, per-char emoji routing |
+| `80ac1ce` | Emoji routing: segment-level emojiFall |
+| `32a8486` | Phase 4 whitespace detection — full Java isWhitespace set |
+| `f80216c` | getScriptLang() SCRIPT_BLOCKS mirror |
+| `83b7a80` | getScriptLang() exact Blocks.txt match |
+| `d6cb130` | getScriptLang() exact port of AutoTTS `a.b(int)` |
+| `10794af` | Script fallback: first codepoint only + script family fallbacks (a.w map) |
+
+## Pending / Known Remaining Differences
+1. **emojiFall="auto" + segmentation**: Jab `emojiFall="auto"` hota hai, emoji ko
+   Latin range mein daala jata hai. AutoTTS emoji ko non-Latin (type-2) mein dalta
+   hai kyunki woh `latRange` (pattern d) mein nahin hote. Note: `emojiFall` feature
+   AutoTTS mein hai hi nahin — yeh hamare apne addition ka impact hai.
+
+2. **Fresh comparison pending**: Dobara AutoTTS se full compare karke baaki differences
+   nikalne hain (user ne request ki hai).
+
+## Key Architecture
+- 3 modes: "auto", "mix", "dual"
+- CLD2 native library for language detection
+- `getScriptLang(cp)` — port of AutoTTS `a.b(int)` — codepoint → language
+- `getScriptLangFallbacks(primary)` — port of AutoTTS `a.w` map — fallback list
+- `isEngineAvailable(lang)` — mirrors AutoTTS `k.o(lang)`
+
+## Key AutoTTS Concepts
+- `clsCLD2.b()` — main detection, calls `a.e(cp, k.f)` for script fallback
+- `a.e(cp, k.f)` — returns script family object (filtered by user's enabled langs)
+- `a.a.b()` — primary lang of script family
+- `a.a.a()` — fallback lang set of script family
+- `k.f` — Set of user-enabled ISO lang codes
+- `k.o(lang)` — checks if engine available and not disabled
