@@ -2653,7 +2653,7 @@ jobs:
           "        }\n"
           "        val sysRate  = maxOf(0.1f, (request?.speechRate ?: 100) / 100.0f)\n"
           "        val sysPitch = maxOf(0.1f, (request?.pitch       ?: 100) / 100.0f)\n"
-          "        val sysVol   = request?.params?.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0f).let { v -> if (v == 0f) 1.0f else v }\n"
+          "        val sysVol   = request?.params?.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0f)?.takeIf { it != 0f } ?: 1.0f\n"
           "        val totalChunks = chunks.size\n"
           "        callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
           "        for ((idx, chunk) in chunks.withIndex()) {\n"
