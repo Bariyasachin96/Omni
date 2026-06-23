@@ -660,6 +660,41 @@ jobs:
                      isUnknownChar(cp);
           }
 
+          // Returns true for non-Latin codepoints that are NOT Unicode \p{L} (Letter category).
+          // Used in flushBuf(bufKind==1) to mirror AutoTTS w.c() which uses Java \p{L} regex.
+          static bool isNonLatinNonLetter(int cp) {
+              // Non-Latin digit blocks (Unicode Nd — not \p{L})
+              if(cp>=0x0660&&cp<=0x066B) return true;  // Arabic-Indic digits + decimal/thousands sep
+              if(cp>=0x06F0&&cp<=0x06F9) return true;  // Extended Arabic-Indic digits
+              if(cp>=0x07C0&&cp<=0x07C9) return true;  // NKo digits
+              if(cp>=0x0966&&cp<=0x096F) return true;  // Devanagari digits
+              if(cp>=0x09E6&&cp<=0x09EF) return true;  // Bengali digits
+              if(cp>=0x0A66&&cp<=0x0A6F) return true;  // Gurmukhi digits
+              if(cp>=0x0AE6&&cp<=0x0AEF) return true;  // Gujarati digits
+              if(cp>=0x0B66&&cp<=0x0B6F) return true;  // Oriya digits
+              if(cp>=0x0BE6&&cp<=0x0BEF) return true;  // Tamil digits
+              if(cp>=0x0C66&&cp<=0x0C6F) return true;  // Telugu digits
+              if(cp>=0x0CE6&&cp<=0x0CEF) return true;  // Kannada digits
+              if(cp>=0x0D66&&cp<=0x0D6F) return true;  // Malayalam digits
+              if(cp>=0x0E50&&cp<=0x0E59) return true;  // Thai digits
+              if(cp>=0x0ED0&&cp<=0x0ED9) return true;  // Lao digits
+              if(cp>=0x0F20&&cp<=0x0F29) return true;  // Tibetan digits
+              if(cp>=0x1040&&cp<=0x1049) return true;  // Myanmar digits
+              if(cp>=0x1090&&cp<=0x1099) return true;  // Myanmar Shan digits
+              if(cp>=0x17E0&&cp<=0x17E9) return true;  // Khmer digits
+              if(cp>=0x1810&&cp<=0x1819) return true;  // Mongolian digits
+              if(cp>=0xFF10&&cp<=0xFF19) return true;  // Fullwidth digits (also pattern-b)
+              // Combining marks (Unicode M category — not \p{L})
+              if(cp>=0x0300&&cp<=0x036F) return true;  // Combining Diacritical Marks
+              if(cp>=0x1DC0&&cp<=0x1DFF) return true;  // Combining Diacritical Marks Supplement
+              if(cp>=0x20D0&&cp<=0x20FF) return true;  // Combining Diacritical Marks for Symbols
+              // Non-Latin punct blocks (not in latRange, not \p{L})
+              if(cp>=0x2E00&&cp<=0x2E7F) return true;  // Supplemental Punctuation
+              if(cp>=0x3000&&cp<=0x303F) return true;  // CJK Symbols and Punctuation
+              if(cp>=0xFE10&&cp<=0xFE6F) return true;  // Vertical Forms + CJK Compat + Small Forms
+              return false;
+          }
+
           // detectLang: Prioritize SCRIPT_BLOCKS array lookup; CLD2 only if everything is Neutral
           static std::string detectLang(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
               int len = (int)text.size();
@@ -973,8 +1008,9 @@ jobs:
                   auto flushBuf = [&]() {
                       if (buf.empty()) return;
                       if (bufKind == 1) {
-                          // Fix B: use Java Character.isWhitespace() equivalence (adds 0x1C-0x1F, 0x2028, 0x2029)
-                          bool allWs = true;
+                          // AutoTTS w.c(): non-Latin buffer classified same as Latin.
+                          // \p{L} letter → type-2; fullwidth digits (pattern b) → type-3; else → type-4
+                          bool allWs = true, hasNonLatLetter = false, hasFFDigit = false;
                           {
                               const unsigned char* ap = (const unsigned char*)buf.c_str();
                               int ai = 0, alen = (int)buf.size();
@@ -983,11 +1019,13 @@ jobs:
                                   int cp3 = utf8ToCodepoint(ap + ai, cl2);
                                   bool isJWs = (cp3 >= 0x09 && cp3 <= 0x0D) || (cp3 >= 0x1C && cp3 <= 0x1F) ||
                                                cp3 == 0x20 || cp3 == 0x2028 || cp3 == 0x2029;
-                                  if (!isJWs) { allWs = false; break; }
+                                  if (!isJWs) allWs = false;
+                                  if (cp3 >= 0xFF10 && cp3 <= 0xFF19) hasFFDigit = true;
+                                  else if (!isJWs && !isNonLatinNonLetter(cp3)) hasNonLatLetter = true;
                                   ai += cl2;
                               }
                           }
-                          segs.push_back({buf, allWs ? 0 : 2, ""});
+                          segs.push_back({buf, allWs ? 0 : (hasNonLatLetter ? 2 : (hasFFDigit ? 3 : 4)), ""});
                       } else {
                           bool allWs = true, hasLetter = false, hasDigit = false;
                           const unsigned char* p = (const unsigned char*)buf.c_str();
@@ -1039,21 +1077,20 @@ jobs:
                               segs.push_back({fullText.substr(i, clen), -1, emojiFall});
                           i += clen; continue;
                       }
-                      // Latin range — mirrors AutoTTS w.java pattern `d` exactly:
+                      // Latin range — AutoTTS w.java pattern `d` exactly:
                       //   U+0000-U+024F: Basic Latin + Latin-1 + Latin Extended A/B
                       //   U+1E00-U+1EFF: Latin Extended Additional (Vietnamese: ắ, ề, ổ...)
                       //   U+2000-U+206F: General Punctuation / math symbols
                       //   U+20A0-U+20CF: Currency Symbols (€, ₹, ₩, ₽...)
                       //   U+2C60-U+2C7F: Latin Extended-C
                       //   U+A720-U+A7FF: Latin Extended-D
-                      //   + emoji when emojiFall="auto"
+                      // Emoji are NOT in AutoTTS latRange — they go to non-Latin buffer (kind=1)
                       bool latRange = (cp <= 0x024F) ||
                                       (cp >= 0x1E00 && cp <= 0x1EFF) ||
                                       (cp >= 0x2000 && cp <= 0x206F) ||
                                       (cp >= 0x20A0 && cp <= 0x20CF) ||
                                       (cp >= 0x2C60 && cp <= 0x2C7F) ||
-                                      (cp >= 0xA720 && cp <= 0xA7FF) ||
-                                      ((emojiFall.empty() || emojiFall == "auto") && isEmoji(cp));
+                                      (cp >= 0xA720 && cp <= 0xA7FF);
                       int kind = latRange ? 0 : 1;
                       if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, clen); bufKind = kind; }
                       else { flushBuf(); buf = fullText.substr(i, clen); bufKind = kind; }
@@ -1087,16 +1124,32 @@ jobs:
 
               if (segs.empty()) return result;
 
+              // AutoTTS clsCLD2.b(): CLD2 in 64-char windows, return first non-UNKNOWN result.
+              // Returns "" if all windows return UNKNOWN.
+              auto cld2Detect64 = [](const std::string& text) -> std::string {
+                  int slen = (int)text.size(), idx = 0;
+                  while (idx < slen) {
+                      int windowStart = idx, charCount = 0;
+                      while (idx < slen && charCount < 64) {
+                          int cl = 0;
+                          utf8ToCodepoint((const unsigned char*)text.c_str() + idx, cl);
+                          idx += cl; charCount++;
+                      }
+                      bool is_rel = false;
+                      CLD2::Language cld2Lang = CLD2::DetectLanguage(
+                          text.c_str() + windowStart, idx - windowStart, true, &is_rel);
+                      const char* code = CLD2::LanguageCode(cld2Lang);
+                      if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
+                          return normalizeLangCode(std::string(code));
+                  }
+                  return "";
+              };
+
               // Phase 2: assign languages to type-1 and type-2 segments
               // MISSING-A: disableAdvancedDetection=true → trust CLD2 blindly (AutoTTS S flag)
               for (auto& seg : segs) {
                   if (seg.type == 1) {
-                      bool is_rel = false;
-                      CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
-                      const char* code = CLD2::LanguageCode(cld2Lang);
-                      std::string detected;
-                      if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                          detected = normalizeLangCode(std::string(code));
+                      std::string detected = cld2Detect64(seg.text);
                       if (disableAdvancedDetection) {
                           // S=true: accept any CLD2 result without script filtering
                           seg.lang = detected.empty() ? latFall : detected;
@@ -1105,12 +1158,7 @@ jobs:
                           seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
                       }
                   } else if (seg.type == 2) {
-                      bool is_rel = false;
-                      CLD2::Language cld2Lang = CLD2::DetectLanguage(seg.text.c_str(), (int)seg.text.size(), true, &is_rel);
-                      const char* code = CLD2::LanguageCode(cld2Lang);
-                      std::string detected;
-                      if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                          detected = normalizeLangCode(std::string(code));
+                      std::string detected = cld2Detect64(seg.text);
                       if (disableAdvancedDetection) {
                           // S=true: accept CLD2 result directly
                           seg.lang = detected.empty() ? nonLatFall : detected;
