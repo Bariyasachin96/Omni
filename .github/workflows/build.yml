@@ -948,7 +948,10 @@ jobs:
                                   int cl2 = 0;
                                   int cp3 = utf8ToCodepoint(ap + ai, cl2);
                                   bool isJWs = (cp3 >= 0x09 && cp3 <= 0x0D) || (cp3 >= 0x1C && cp3 <= 0x1F) ||
-                                               cp3 == 0x20 || cp3 == 0x2028 || cp3 == 0x2029;
+                                               cp3 == 0x20 || cp3 == 0x1680 ||
+                                               (cp3 >= 0x2000 && cp3 <= 0x200A && cp3 != 0x2007) ||
+                                               cp3 == 0x205F || cp3 == 0x3000 ||
+                                               cp3 == 0x2028 || cp3 == 0x2029;
                                   if (!isJWs) allWs = false;
                                   if (cp3 >= 0xFF10 && cp3 <= 0xFF19) hasFFDigit = true;
                                   else if (!isJWs && !isNonLatinNonLetter(cp3)) hasNonLatLetter = true;
@@ -965,7 +968,10 @@ jobs:
                               int cp2 = utf8ToCodepoint(p + j, cl);
                               // Fix C: use codepoint (not first byte) for allWs + Java Character.isWhitespace() set
                               { bool isJWs = (cp2 >= 0x09 && cp2 <= 0x0D) || (cp2 >= 0x1C && cp2 <= 0x1F) ||
-                                             cp2 == 0x20 || cp2 == 0x2028 || cp2 == 0x2029;
+                                             cp2 == 0x20 || cp2 == 0x1680 ||
+                                             (cp2 >= 0x2000 && cp2 <= 0x200A && cp2 != 0x2007) ||
+                                             cp2 == 0x205F || cp2 == 0x3000 ||
+                                             cp2 == 0x2028 || cp2 == 0x2029;
                                 if (!isJWs) allWs = false; }
                               // AutoTTS w.c(): emoji counts as "letter" (type 1) not neutral
                               // Also covers Latin Extended Additional (U+1E00-U+1EFF, Vietnamese),
@@ -1141,7 +1147,10 @@ jobs:
                       while (wi < wlen) {
                           int cl = 0; int cp4 = utf8ToCodepoint(wp + wi, cl);
                           bool isJWs = (cp4>=0x09&&cp4<=0x0D)||(cp4>=0x1C&&cp4<=0x1F)||
-                                       cp4==0x20||cp4==0x2028||cp4==0x2029;
+                                       cp4==0x20||cp4==0x1680||
+                                       (cp4>=0x2000&&cp4<=0x200A&&cp4!=0x2007)||
+                                       cp4==0x205F||cp4==0x3000||
+                                       cp4==0x2028||cp4==0x2029;
                           if (!isJWs) { wsOnly = false; break; }
                           wi += cl;
                       }
@@ -1975,8 +1984,12 @@ jobs:
           "        if (text.isEmpty()) return \"UNKNOWN\"\n"
           "        val readingMode = prefs.getReadingMode()\n"
           "        VhLogger.d(\"[DETECT] start textLen=${text.length} snip='${text.take(60).replace('\\n',' ')}' latFall=$latFall nonLatFall=$nonLatFall\")\n"
-          "        // Auto TTS f6834S: disable_advanced_detection — skip CLD2, go straight to script detection.\n"
-          "        if (!prefs.isDisableAdvancedDetection()) {\n"
+          "        // Auto TTS S-flag (AutoTtsService.S): when disable_advanced_detection=true,\n"
+          "        // CLD2 still runs but engine check is skipped — result returned directly.\n"
+          "        // If CLD2 UNKNOWN or exception: skip script scan, return nonLatFall.\n"
+          "        // Mirrors clsCLD2.b(): S=true → return string2 immediately after nativeGetLanguage;\n"
+          "        // after all-UNKNOWN windows → return \"UNKNOWN\" (we return nonLatFall).\n"
+          "        val isDisableAdv = prefs.isDisableAdvancedDetection()\n"
           "        // Use NativeEngine for CLD2 detection — single chunk auto mode call\n"
           "        try {\n"
           "            val joined = text\n"
@@ -1996,6 +2009,12 @@ jobs:
           "            val parts = out.split(\"|\", limit = 2)\n"
           "            val cldResult = if (parts.size == 2 && parts[0].isNotBlank()) parts[0] else null\n"
           "            VhLogger.d(\"[DETECT] CLD2 raw='$cldResult'\")\n"
+          "            if (isDisableAdv) {\n"
+          "                // S=true: return CLD2 result directly without engine check (AutoTTS clsCLD2.b() S=true path)\n"
+          "                val r = if (cldResult != null && cldResult != \"UNKNOWN\") cldResult else nonLatFall\n"
+          "                VhLogger.d(\"[DETECT] S=true CLD2=$cldResult → $r (no engine check, skip script scan)\")\n"
+          "                return r\n"
+          "            }\n"
           "            if (cldResult != null && (prefs.isAllLanguagesMode() || isEngineAvailable(cldResult))) {\n"
           "                VhLogger.d(\"[DETECT] CLD2=$cldResult engineOK=true → returning $cldResult\")\n"
           "                return cldResult\n"
@@ -2007,8 +2026,9 @@ jobs:
           "                return fb\n"
           "            }\n"
           "            VhLogger.d(\"[DETECT] CLD2=null/UNKNOWN → falling to script scan\")\n"
-          "        } catch (_: Exception) {}\n"
-          "        } // end: !isDisableAdvancedDetection block\n"
+          "        } catch (_: Exception) {\n"
+          "            if (isDisableAdv) return nonLatFall // S=true: skip script scan on exception too\n"
+          "        }\n"
           "        // Fallback: first valid codepoint → script family primary + ordered fallbacks.\n"
           "        // Mirrors clsCLD2.b() final path: clsCLD2.a(text) for first codepoint,\n"
           "        // then a.e(cp, k.f).b() for primary and a.e(cp,k.f).a() for fallback list.\n"
