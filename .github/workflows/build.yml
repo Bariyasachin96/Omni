@@ -556,76 +556,6 @@ jobs:
               return text;
           }
 
-          // ─────────────────────────────────────────────────────────────────
-          // BUNDLE-Y ITEM 14: Strip Markdown / HTML formatting tokens.
-          // TalkBack reads markdown literally — "**bold**" becomes "star star bold
-          // star star". Same for HTML tags. We strip these BEFORE language detection
-          // and chunking so the engine receives clean text.
-          // Conservative: only obvious patterns, leave doubtful text untouched.
-          // ─────────────────────────────────────────────────────────────────
-          static std::string stripMarkdownHtml(const std::string& input) {
-              std::string out;
-              out.reserve(input.size());
-              const char* s = input.c_str();
-              int len = (int)input.size();
-              int i = 0;
-              while (i < len) {
-                  char c = s[i];
-                  // HTML tag: <...> with letter immediately after '<' (so we don't strip "5 < 10")
-                  if (c == '<' && i + 1 < len) {
-                      char n = s[i+1];
-                      bool isTagStart = (n == '/' || (n >= 'a' && n <= 'z') || (n >= 'A' && n <= 'Z'));
-                      if (isTagStart) {
-                          int j = i + 1;
-                          while (j < len && s[j] != '>') j++;
-                          if (j < len) { i = j + 1; continue; }
-                      }
-                  }
-                  // Markdown link [text](url) → text
-                  if (c == '[' && i + 1 < len) {
-                      int closeBracket = -1;
-                      int j = i + 1;
-                      while (j < len && s[j] != ']' && s[j] != '\n') j++;
-                      if (j < len && s[j] == ']' && j + 1 < len && s[j+1] == '(') {
-                          closeBracket = j;
-                          // find matching ')'
-                          int k = j + 2;
-                          while (k < len && s[k] != ')' && s[k] != '\n') k++;
-                          if (k < len && s[k] == ')') {
-                              // emit text between [ and ], skip (...) entirely
-                              out.append(s + i + 1, closeBracket - i - 1);
-                              i = k + 1;
-                              continue;
-                          }
-                      }
-                  }
-                  // Markdown emphasis tokens: **bold**, __bold__, *ital*, _ital_, `code`, ~~strike~~
-                  // We strip just the marker characters, leaving content. To avoid breaking real
-                  // text that uses asterisks/underscores naturally, only strip when token is at
-                  // a word boundary (preceded/followed by space, start/end of text, or punctuation).
-                  if (c == '*' || c == '_' || c == '`' || c == '~') {
-                      // Detect token: `**`, `__`, `~~` (length 2) or single `*`, `_`, `` ` `` (length 1)
-                      int tokLen = 1;
-                      if (i + 1 < len && s[i+1] == c) tokLen = 2;
-                      // Check boundary on the side facing the consumed prefix
-                      char before = (i == 0) ? ' ' : s[i-1];
-                      char after  = (i + tokLen >= len) ? ' ' : s[i + tokLen];
-                      bool boundaryOk = ((before == ' ' || before == '\n' || before == '\t' ||
-                                          before == '.' || before == ',' || before == '!' ||
-                                          before == '?' || before == '(' || before == '[' ||
-                                          before == '"' || before == '\'' || i == 0) ||
-                                         (after == ' ' || after == '\n' || after == '\t' ||
-                                          after == '.' || after == ',' || after == '!' ||
-                                          after == '?' || after == ')' || after == ']' ||
-                                          after == '"' || after == '\'' || i + tokLen == len));
-                      if (boundaryOk) { i += tokLen; continue; }
-                  }
-                  out += c;
-                  i++;
-              }
-              return out;
-          }
-
           static const char* scriptLookup(int cp) {
               for(int i=0; SCRIPT_BLOCKS[i].lang; i++)
                   if(cp>=SCRIPT_BLOCKS[i].start && cp<=SCRIPT_BLOCKS[i].end)
@@ -1064,19 +994,6 @@ jobs:
                   while (i < len) {
                       int clen = 0;
                       int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
-                      // AutoTTS w.g(): only emoji gets per-character forced routing (EasyVoice
-                      // extension). Punct and digits are NOT forced per-char — they flow into
-                      // normal Latin-range segmentation so that "Hello, world!" stays ONE
-                      // type-1 segment (not split at each comma/period). puncFall and numFall
-                      // are applied at the segment level in Phase 3, matching AutoTTS exactly.
-                      if (isEmoji(cp) && emojiFall != "auto" && !emojiFall.empty()) {
-                          flushBuf();
-                          if (!segs.empty() && segs.back().type == -1 && segs.back().lang == emojiFall)
-                              segs.back().text += fullText.substr(i, clen);
-                          else
-                              segs.push_back({fullText.substr(i, clen), -1, emojiFall});
-                          i += clen; continue;
-                      }
                       // Latin range — AutoTTS w.java pattern `d` exactly:
                       //   U+0000-U+024F: Basic Latin + Latin-1 + Latin Extended A/B
                       //   U+1E00-U+1EFF: Latin Extended Additional (Vietnamese: ắ, ề, ổ...)
@@ -1107,7 +1024,6 @@ jobs:
                   std::vector<Seg> merged2;
                   int mi = 0, mtotal = (int)segs.size();
                   while (mi < mtotal) {
-                      if (segs[mi].type == -1) { merged2.push_back(segs[mi]); mi++; continue; }
                       std::string mtext = segs[mi].text;
                       int mtype = segs[mi].type;
                       int mj = mi + 1;
@@ -1163,18 +1079,7 @@ jobs:
                           // S=true: accept CLD2 result directly
                           seg.lang = detected.empty() ? nonLatFall : detected;
                       } else if (!detected.empty() && !isLatinScriptLang(detected)) {
-                          // MISSING-B: CLD2 returned non-Latin — cross-check with codepoint detection.
-                          // AutoTTS a.e(firstCp, k.f): if CLD2 confused scripts (e.g. "hi" for Gujarati),
-                          // codepoint scan is more reliable for script-family identification.
-                          std::string cpLang = detectLang(seg.text, latFall, nonLatFall);
-                          if (cpLang != detected && cpLang != latFall && cpLang != nonLatFall) {
-                              // Codepoint detection disagrees AND returns a specific language →
-                              // CLD2 confused the script (e.g. Gujarati→"hi"); use codepoint result
-                              seg.lang = cpLang;
-                          } else {
-                              // CLD2 result confirmed or codepoint detection returned a fallback
-                              seg.lang = detected;
-                          }
+                          seg.lang = detected;
                       } else {
                           seg.lang = detectLang(seg.text, latFall, nonLatFall);
                       }
@@ -1287,13 +1192,11 @@ jobs:
                   if(s.empty()){ processed.push_back(""); continue; }
                   // Processing pipeline order:
                   //   1. applyDictionary    — user-defined word replacements
-                  //   2. stripMarkdownHtml  — drop markdown / HTML formatting tokens
-                  //   3. normalizeText      — emoji / punct / math-unicode normalisation
+                  //   2. normalizeText      — emoji / punct / math-unicode normalisation
                   // Note: expandAcronyms was removed in v17.x — caused regressions on TalkBack
                   // content where engines (Eloquence, Vocalizer, Google) already have built-in
                   // acronym pronunciation. Original AutoTTS also doesn't expand acronyms.
                   auto d = applyDictionary(s, keys, vals);
-                  d = stripMarkdownHtml(d);
                   d = normalizeText(d, keepEmoji, countEmoji, countPunct);
                   processed.push_back(d);
               }
