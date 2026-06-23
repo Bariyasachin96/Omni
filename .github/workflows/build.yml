@@ -3957,7 +3957,7 @@ jobs:
           "        }\n"
           "        Divider()\n"
           "        Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {\n"
-          "            val displayEngines = compatibleEngines?.let { compat -> engines.filter { it.pkg in compat } }.takeIf { !it.isNullOrEmpty() } ?: engines\n"
+          "            val displayEngines = compatibleEngines?.let { compat -> engines.filter { it.pkg in compat } }?.takeIf { it.isNotEmpty() } ?: engines\n"
           "            AccessibleDropdown(\"TTS Engine\", displayEngines.find { it.pkg == selEngPkg }?.name ?: engines.find { it.pkg == selEngPkg }?.name ?: \"Not Set\", displayEngines.map { it.name }) { idx ->\n"
           "                selEngPkg = displayEngines[idx].pkg; prefs.setString(\"engine_$iso\", selEngPkg); selLocTag = prefs.getLocaleForLangPkg(iso, selEngPkg)\n"
           "            }\n"
