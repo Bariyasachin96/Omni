@@ -1133,7 +1133,20 @@ jobs:
 
               // Phase 4: emit output, merge consecutive same-lang, attach whitespace-only to prev
               for (auto& seg : segs) {
-                  if (seg.text.find_first_not_of(" \t\n\r") == std::string::npos) {
+                  // Whitespace-only check using full Java isWhitespace set (mirrors flushBuf isJWs)
+                  bool wsOnly = true;
+                  {
+                      const unsigned char* wp = (const unsigned char*)seg.text.c_str();
+                      int wi = 0, wlen = (int)seg.text.size();
+                      while (wi < wlen) {
+                          int cl = 0; int cp4 = utf8ToCodepoint(wp + wi, cl);
+                          bool isJWs = (cp4>=0x09&&cp4<=0x0D)||(cp4>=0x1C&&cp4<=0x1F)||
+                                       cp4==0x20||cp4==0x2028||cp4==0x2029;
+                          if (!isJWs) { wsOnly = false; break; }
+                          wi += cl;
+                      }
+                  }
+                  if (wsOnly) {
                       if (!result.empty()) result.back().text += seg.text;
                       continue;
                   }
@@ -1144,8 +1157,12 @@ jobs:
 
               if (!result.empty()) {
                   auto& t = result.back().text;
-                  while (!t.empty() && (t.back() == ' ' || t.back() == '\n' || t.back() == '\r'))
-                      t.pop_back();
+                  while (!t.empty()) {
+                      unsigned char last = (unsigned char)t.back();
+                      if (last == 0x20 || (last >= 0x09 && last <= 0x0D) || (last >= 0x1C && last <= 0x1F))
+                          t.pop_back();
+                      else break;
+                  }
               }
               return result;
           }
