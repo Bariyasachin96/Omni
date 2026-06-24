@@ -1858,7 +1858,7 @@ jobs:
           "            return tts\n"
           "        }\n"
           "    }\n"
-          "    override fun onGetLanguage(): Array<String> = arrayOf(\"eng\", \"USA\", \"\")\n"
+          "    override fun onGetLanguage(): Array<String> = arrayOf(try { java.util.Locale.getDefault().isO3Language } catch (_: Exception) { \"eng\" })\n"
           "    override fun onIsLanguageAvailable(l: String?, c: String?, v: String?): Int {\n"
           "        if (l == null) return TextToSpeech.LANG_NOT_SUPPORTED\n"
           "        // Guard: TextToSpeechService.onCreate() calls onLoadLanguage() BEFORE our onCreate()\n"
