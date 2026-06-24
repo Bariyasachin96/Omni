@@ -2768,7 +2768,7 @@ jobs:
           "        fun speakChunk() {\n"
           "            if (isStopped || isFlushed) return\n"
           "            if (chunkQueue.isEmpty()) {\n"
-          "                synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }\n"
+          "                synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }\n"
           "                return\n"
           "            }\n"
           "            val (currentChunk, chunk) = chunkQueue.removeFirst()\n"
