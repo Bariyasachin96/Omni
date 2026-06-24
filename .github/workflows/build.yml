@@ -2490,7 +2490,7 @@ jobs:
           "        // Auto TTS c3.w.f(): strip Unicode bidirectional control marks before processing.\n"
           "        // \\u061C=Arabic Letter Mark, \\u200E/\\u200F=LTR/RTL marks, \\u202A-\\u202E=embed/override codes.\n"
           "        // Without this, TTS engines read them literally (\"right to left mark\" etc.).\n"
-          "        val rawText = rawCharSeq.toString().replace(Regex(\"[\\u061C\\u200E\\u200F\\u202A-\\u202E]\"), \"\").trim()\n"
+          "        val rawText = rawCharSeq.toString().replace(Regex(\"[\\u061C\\u200E\\u200F\\u202A-\\u202E]\"), \"\")\n"
           "        if (rawText.isEmpty()) {\n"
           "            // Empty input (TalkBack's rapid textLen=0 priming requests) → drain & finish.\n"
           "            // Return BEFORE foreground/wakeLock work below: a no-op flush must not start a\n"
