@@ -2838,6 +2838,7 @@ jobs:
           "                    }\n"
           "                }\n"
           "                override fun onStop(id: String, interrupted: Boolean) {\n"
+          "                    VhLogger.d(id)\n"
           "                }\n"
           "            })\n"
           "            val params = android.os.Bundle(request?.params ?: android.os.Bundle())\n"
