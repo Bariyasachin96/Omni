@@ -2876,7 +2876,7 @@ jobs:
           "        // AutoTTS: ONE wait for entire synthesis — onDone advances chunks via speakChunk()\n"
           "        synchronized(syncLock) {\n"
           "            while (!isStopped && !isFlushed) {\n"
-          "                try { syncLock.wait(1000) } catch (_: Exception) { break }\n"
+          "                try { syncLock.wait() } catch (_: Exception) { break }\n"
           "            }\n"
           "        }\n"
           "        if (callback?.hasStarted() == false) callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
