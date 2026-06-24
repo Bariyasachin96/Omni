@@ -2336,7 +2336,6 @@ jobs:
           "    private fun isLatinPunct(cp: Int) = (cp in 33..47) || (cp in 58..64) || (cp in 91..96) || (cp in 123..126)\n"
           "    // Engine availability check (Auto TTS t2/g.o)\n"
           "    private fun isEngineAvailable(lang: String): Boolean {\n"
-          "        if (lang == \"UNKNOWN\" || lang.isEmpty()) return false\n"
           "        return prefs.getEngineForLanguage(lang) != \"NOT_SET\"\n"
           "    }\n"
           "    // Latin-script languages: if detected but engine not configured, fall to latFall\n"
