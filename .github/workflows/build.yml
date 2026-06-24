@@ -2339,6 +2339,7 @@ jobs:
           "        \"bg\" -> listOf(\"mk\")\n"
           "        \"kk\" -> listOf(\"ky\")\n"
           "        \"he\" -> listOf(\"yi\", \"lad\")\n"
+          "        \"ar\" -> listOf(\"ar\")\n"
           "        \"fa\" -> listOf(\"ur\", \"ps\", \"ku\", \"ckb\", \"sd\", \"az\", \"ks\", \"ug\")\n"
           "        \"ur\" -> listOf(\"ps\", \"sd\", \"pa\")\n"
           "        \"ku\" -> listOf(\"ckb\")\n"
