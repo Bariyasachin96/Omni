@@ -2280,7 +2280,7 @@ jobs:
           "            cp in 0x1FA30..0x1FAFF ||\n"
           "            cp in 0x2600..0x26FF || cp in 0x2700..0x27BF -> null\n"
           "            cp in 0x1D400..0x1D7FF || cp in 0x2100..0x214F ||\n"
-          "            cp in 0x2200..0x22FF -> null\n"
+          "            cp in 0x2200..0x22FF -> \"zz\"\n"
           "            cp in 0x10000..0x1007F -> \"grc\"\n"
           "            cp in 0x10300..0x1032F -> \"la\"\n"
           "            cp in 0x10330..0x1034F -> \"got\"\n"
