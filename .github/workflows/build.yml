@@ -1968,7 +1968,7 @@ jobs:
           "        }\n"
           "    }\n"
           "    override fun onGetDefaultVoiceNameFor(l: String?, c: String?, v: String?): String {\n"
-          "        return l ?: \"\"\n"
+          "        return l!!\n"
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    // onGetVoices(): advertise the languages Easy Voice is configured for, so\n"
