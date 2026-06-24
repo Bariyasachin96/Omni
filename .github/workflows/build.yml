@@ -2288,7 +2288,7 @@ jobs:
           "            cp in 0x10800..0x1083F -> \"grc\"\n"
           "            cp in 0x10A00..0x10A5F -> \"sa\"\n"
           "            cp in 0x12000..0x124FF -> \"akk\"\n"
-          "            cp in 0x13000..0x1345F -> \"egy\"\n"
+          "            cp in 0x13000..0x1344F || cp in 0x13450..0x1347F -> \"egy\"\n"
           "            else -> null\n"
           "        }\n"
           "        if (scriptLangCache.size < 5000) scriptLangCache[cp] = lang\n"
