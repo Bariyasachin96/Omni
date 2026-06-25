@@ -3108,7 +3108,7 @@ jobs:
           "                params.remove(\"streamType\")\n"
           "                params.remove(\"audioAttributes\")\n"
           "            }\n"
-          "            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, expectedId)\n"
+          "            // AutoTTS: utteranceId NOT added to bundle — only passed as 4th arg to speak()\n"
           "            val speakResult = tts!!.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)\n"
           "            if (speakResult == TextToSpeech.ERROR) {\n"
           "                VhLogger.e(\"[CHUNK-$currentChunk] speak ERROR — evicting & reinitialising engine $pkg for $effectiveLang\")\n"
