@@ -1658,6 +1658,7 @@ jobs:
           "    @Volatile private var foregroundActive = false\n"
           "    // AutoTTS: K is companion object (static) below\n"
           "    // AutoTTS: X is companion object (static volatile) below\n"
+          "    @Volatile private var c = \"\"              // AutoTTS: public volatile String c — current engine pkg (V()/X() skip optimization)\n"
           "    private fun getLocale(iso: String): Locale =\n"
           "        try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }\n"
           "    // ────────────────────────────────────────────────────────────────────\n"
