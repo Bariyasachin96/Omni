@@ -1009,6 +1009,7 @@ jobs:
                       //   U+A720-U+A7FF: Latin Extended-D
                       // Emoji are NOT in AutoTTS latRange — they go to non-Latin buffer (kind=1)
                       bool latRange = (cp <= 0x024F) ||
+                                      (cp >= 0x1D00 && cp <= 0x1D7F) ||  // Phonetic Extensions/IPA — AutoTTS \p{L} catches these
                                       (cp >= 0x1E00 && cp <= 0x1EFF) ||
                                       (cp >= 0x2000 && cp <= 0x206F) ||
                                       (cp >= 0x20A0 && cp <= 0x20CF) ||
@@ -1521,7 +1522,8 @@ jobs:
           "    // ── Advanced Settings flags ──\n"
           "    fun isBluetoothCarMode(): Boolean = prefs.getBoolean(\"bluetooth_car_mode\", false)\n"
           "    fun setBluetoothCarMode(v: Boolean) = prefs.edit().putBoolean(\"bluetooth_car_mode\", v).apply()\n"
-          "    fun isBrokenEngineProtector(): Boolean = prefs.getBoolean(\"broken_engine_protector\", false)\n"
+          "    // AutoTTS key was strip_audio_attr; read both for migration\n"
+          "    fun isBrokenEngineProtector(): Boolean = prefs.getBoolean(\"broken_engine_protector\", false) || prefs.getBoolean(\"strip_audio_attr\", false)\n"
           "    fun setBrokenEngineProtector(v: Boolean) = prefs.edit().putBoolean(\"broken_engine_protector\", v).apply()\n"
           "    // Auto TTS f6830Q — force USAGE_ASSISTANCE_ACCESSIBILITY (11) on all engines globally,\n"
           "    // not just in Bluetooth Car Mode. Ensures TTS audio routes through the accessibility channel.\n"
@@ -2436,8 +2438,9 @@ jobs:
           "            cp in 0x2B740..0x2B81F || cp in 0x2B820..0x2CEAF ||\n"
           "            cp in 0x2CEB0..0x2EBEF ||\n"
           "            cp in 196608..201551 || cp in 201552..205743 -> \"zh\"\n"
+          "            cp in 0xF900..0xFAFF -> \"zh\"  // CJK Compatibility Ideographs — AutoTTS a.b() returns zh\n"
           "            cp in 0x1F000..0x1F02F || cp in 0x1F300..0x1F9FF ||\n"
-          "            cp in 0x1FA30..0x1FAFF ||\n"
+          "            cp in 0x1FA70..0x1FAFF ||  // AutoTTS emoji range starts at 0x1FA70, not 0x1FA30\n"
           "            cp in 0x2600..0x26FF || cp in 0x2700..0x27BF -> null\n"
           "            cp in 0x1D400..0x1D7FF || cp in 0x2100..0x214F ||\n"
           "            cp in 0x2200..0x22FF -> \"zz\"\n"
@@ -2494,7 +2497,7 @@ jobs:
           "        \"cs\" -> listOf(\"sk\")\n"
           "        \"en\" -> listOf(\"es\", \"fr\", \"de\", \"it\", \"pt\", \"nl\", \"sv\", \"no\", \"da\", \"fi\", \"pl\", \"cs\", \"sk\", \"hu\", \"ro\", \"tr\", \"id\", \"ms\", \"vi\", \"tl\", \"sw\", \"hr\", \"sr\", \"sl\", \"et\", \"lv\", \"lt\", \"is\", \"ga\", \"cy\", \"sq\", \"mt\")\n"
           "        \"el\" -> listOf(\"grc\", \"pnt\")\n"
-          "        \"ru\" -> listOf(\"uk\", \"be\", \"bg\", \"mk\", \"sr\", \"bs\", \"hr\", \"kk\", \"ky\", \"tg\", \"mn\", \"uz\", \"tt\", \"ba\", \"cv\", \"sah\", \"ce\", \"av\", \"ab\")\n"
+          "        \"ru\" -> listOf(\"be\")  // AutoTTS ru_sp family: primary=ru, fallback=[be] only\n"
           "        \"sr\" -> listOf(\"bs\", \"hr\")\n"
           "        \"bg\" -> listOf(\"mk\")\n"
           "        \"kk\" -> listOf(\"ky\")\n"
