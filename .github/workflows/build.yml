@@ -1657,7 +1657,7 @@ jobs:
           "    private val FG_CHANNEL_ID = \"easyvoice_tts_channel\"\n"
           "    @Volatile private var foregroundActive = false\n"
           "    // AutoTTS: K is companion object (static) below\n"
-          "    private var X = \"\"                                        // AutoTTS: request utteranceId\n"
+          "    // AutoTTS: X is companion object (static volatile) below\n"
           "    private fun getLocale(iso: String): Locale =\n"
           "        try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }\n"
           "    // ────────────────────────────────────────────────────────────────────\n"
@@ -2933,7 +2933,8 @@ jobs:
           "    }\n"
           "    // AutoTTS: public static int K — global chunk counter, incremented per onDone\n"
           "    companion object {\n"
-          "        @JvmField var K = 0\n"
+          "        @JvmField var K = 0           // AutoTTS: public static int K\n"
+          "        @Volatile @JvmField var X = \"\" // AutoTTS: public static volatile String X\n"
           "    }\n"
           "}\n")
 
