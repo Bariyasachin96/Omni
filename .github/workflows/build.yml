@@ -2180,7 +2180,7 @@ jobs:
           "    // SpannableString + LocaleSpan splitter (TalkBack passes locale hints!)\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    private fun splitByLocaleSpans(input: CharSequence): MutableList<TextChunk> {\n"
-          "        VhLogger.d(\"[SPANS] splitByLocaleSpans inputLen=${input.length} snip='${input.take(40).replace('\\n',' ')}'\")\n"
+          "        VhLogger.d(\"[SPANS] splitByLocaleSpans inputLen=${input.length} snip='${input.toString().take(40)}'\")\n"
           "        val result = mutableListOf<TextChunk>()\n"
           "        // Auto TTS field G — when true, use SpannableString detection\n"
           "        // Default true for mix mode\n"
