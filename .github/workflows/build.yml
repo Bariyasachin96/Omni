@@ -878,7 +878,7 @@ jobs:
           // AutoTTS w.java algorithm: Latin-range runs (cp<=0x024F) vs non-Latin runs.
           // Runs with letters=type1(Latin text), digits/punct-only=type3(neutral), non-Latin=type2.
           // Context-resolve type3: backward scan for non-first segments, forward for first (w.a/w.b).
-          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, bool disableAdvancedDetection) {
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, bool disableAdvancedDetection, bool isDual = false) {
               std::vector<ChunkResult> result;
 
               std::string fullText;
@@ -1068,16 +1068,22 @@ jobs:
               };
 
               // Phase 2: assign languages to type-1 and type-2 segments
-              // MISSING-A: disableAdvancedDetection=true → trust CLD2 blindly (AutoTTS S flag)
+              // isDual=true (AutoTTS L=1): pure type-based — no CLD2, type-1→latFall, type-2→nonLatFall.
+              // isDual=false (mix): MISSING-A: disableAdvancedDetection=true → trust CLD2 blindly.
               for (auto& seg : segs) {
                   if (seg.type == 1) {
-                      std::string detected = cld2Detect64(seg.text);
-                      if (disableAdvancedDetection) {
-                          // S=true: accept any CLD2 result without script filtering
-                          seg.lang = detected.empty() ? latFall : detected;
+                      if (isDual) {
+                          // AutoTTS L=1: type-1 always gets latFall (="en"), no CLD2 refinement
+                          seg.lang = latFall;
                       } else {
-                          // For Latin segments: reject non-Latin CLD2 results
-                          seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
+                          std::string detected = cld2Detect64(seg.text);
+                          if (disableAdvancedDetection) {
+                              // S=true: accept any CLD2 result without script filtering
+                              seg.lang = detected.empty() ? latFall : detected;
+                          } else {
+                              // For Latin segments: reject non-Latin CLD2 results
+                              seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
+                          }
                       }
                   } else if (seg.type == 2) {
                       // AutoTTS: emoji-only non-Latin segment → emojiFall (mirrors puncFall/numFall)
@@ -1093,14 +1099,19 @@ jobs:
                           }
                           if (hasAny && allEmoji) { seg.lang = emojiFall; continue; }
                       }
-                      std::string detected = cld2Detect64(seg.text);
-                      if (disableAdvancedDetection) {
-                          // S=true: accept CLD2 result directly
-                          seg.lang = detected.empty() ? nonLatFall : detected;
-                      } else if (!detected.empty() && !isLatinScriptLang(detected)) {
-                          seg.lang = detected;
+                      if (isDual) {
+                          // AutoTTS L=1: type-2 always gets nonLatFall (=D), no CLD2 refinement
+                          seg.lang = nonLatFall;
                       } else {
-                          seg.lang = detectLang(seg.text, latFall, nonLatFall);
+                          std::string detected = cld2Detect64(seg.text);
+                          if (disableAdvancedDetection) {
+                              // S=true: accept CLD2 result directly
+                              seg.lang = detected.empty() ? nonLatFall : detected;
+                          } else if (!detected.empty() && !isLatinScriptLang(detected)) {
+                              seg.lang = detected;
+                          } else {
+                              seg.lang = detectLang(seg.text, latFall, nonLatFall);
+                          }
                       }
                   }
               }
@@ -1243,6 +1254,10 @@ jobs:
               std::string result;
               if (mode == "mix") {
                   auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection);
+                  for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+              } else if (mode == "dual") {
+                  // AutoTTS L=1: same latRange segmentation as mix but type-1→latFall, type-2→nonLatFall, no CLD2.
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection, true);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else {
                   auto chunks = buildAutoChunks(processed, latFall, nonLatFall, disableAdvancedDetection);
@@ -2350,7 +2365,7 @@ jobs:
           "    private fun getForceEnabledLangs(mode: String, latFall: String, nonLatFall: String): Set<String> = when (mode) {\n"
           "        \"auto\" -> setOf(latFall)             // AutoTTS L=2/3: [C] = auto_mode_language only\n"
           "        \"mix\"  -> setOf(latFall, nonLatFall) // AutoTTS L=4:   [H, I] = latin + non-latin both\n"
-          "        \"dual\" -> setOf(latFall, \"en\")       // AutoTTS L=1:   [D, \"eng\"] = dual_mode_language + en\n"
+          "        \"dual\" -> setOf(latFall, nonLatFall) // AutoTTS L=1:   [\"eng\", D] = eng + dual_mode_language\n"
           "        else   -> emptySet()\n"
           "    }\n"
           "    // AutoTTS a.e(cp, k.f): returns first enabled lang for script family of cp\n"
@@ -2650,13 +2665,13 @@ jobs:
           "        // AutoTTS k.q(): H=mixed_lat, I=mixed_nonlat, C=auto_mode_lang, D=dual_mode_lang\n"
           "        val latFall = when (readingMode) {\n"
           "            \"mix\"  -> prefs.getString(\"mixed_mode_latin_language\", \"en\")        // AutoTTS H\n"
-          "            \"dual\" -> prefs.getString(\"dual_mode_language\", \"\").ifEmpty { \"en\" } // AutoTTS D\n"
+          "            \"dual\" -> \"en\"                                                       // AutoTTS L=1: type-1 always uses \"eng\"\n"
           "            else   -> prefs.getString(\"pref_lang\", \"en\")                         // AutoTTS C\n"
           "        }\n"
           "        val nonLatFall = when (readingMode) {\n"
           "            \"mix\"  -> prefs.getString(\"mixed_mode_non_latin_language\", \"hi\")    // AutoTTS I\n"
-          "            \"dual\" -> \"en\"                                                       // AutoTTS: L=1 force-enables \"eng\"\n"
-          "            else   -> prefs.getString(\"pref_lang\", \"hi\")                         // AutoTTS C (same lang, auto fallback)\n"
+          "            \"dual\" -> prefs.getString(\"dual_mode_language\", \"\")                 // AutoTTS D: dual_mode_language (non-Latin engine)\n"
+          "            else   -> prefs.getString(\"pref_lang\", \"hi\")                         // AutoTTS C\n"
           "        }\n"
           "        // AutoTTS k.f + k.n(): build enabledLangs — configured engines + mode force-enabled langs\n"
           "        val baseEnabled = Languages.map.keys.filter { prefs.getEngineForLanguage(it) != \"NOT_SET\" }.toHashSet()\n"
@@ -2815,6 +2830,49 @@ jobs:
           "                                        .anyMatch { cp -> cp > 0x024F && Character.isLetter(cp) }\n"
           "                                    if (hasNonLatin) nonLatFall else latFall\n"
           "                                }\n"
+          "                            if (batched.isNotEmpty() && batched.last().first == resolved) {\n"
+          "                                batched.last().second.append(parts[1])\n"
+          "                            } else {\n"
+          "                                batched.add(resolved to StringBuilder(parts[1]))\n"
+          "                            }\n"
+          "                        }\n"
+          "                    }\n"
+          "                    for ((lang, sb) in batched) chunks.add(TextChunk(sb.toString(), lang))\n"
+          "                }\n"
+          "            }\n"
+          "            \"dual\" -> {\n"
+          "                // AutoTTS L==1: dual mode — c3.w.g() latRange segmentation.\n"
+          "                // type-1 (Latin) → latFall (\"en\"), type-2 (non-Latin) → nonLatFall (D = dual_mode_language).\n"
+          "                // No CLD2 per-segment refinement — pure type-based routing, same as AutoTTS.\n"
+          "                if (nonLatFall.isEmpty()) {\n"
+          "                    // No D language configured — single chunk on latFall.\n"
+          "                    chunks.add(TextChunk(rawText, latFall))\n"
+          "                } else {\n"
+          "                    val dictMap = cachedDictMap\n"
+          "                    VhLogger.d(\"[SERVICE] dual mode: lat=$latFall nonLat=$nonLatFall punc=$mixPuncLang num=$mixNumLang\")\n"
+          "                    val tBytes = rawText.toByteArray(Charsets.UTF_8)\n"
+          "                    val tBuf = ByteBuffer.allocateDirect(tBytes.size)\n"
+          "                    tBuf.put(tBytes); tBuf.position(0)\n"
+          "                    // AutoTTS w.g(): neutralDefault = (sysLocale == D) ? D : \"en\"\n"
+          "                    val sysLang = java.util.Locale.getDefault().language\n"
+          "                    val neutralDefault = if (sysLang == nonLatFall) nonLatFall else latFall\n"
+          "                    val disableAdvDet = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
+          "                    val tOut = NativeEngine.processDirect(\n"
+          "                        tBuf, tBytes.size,\n"
+          "                        dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
+          "                        emojiReading, emojiCount, punctCount,\n"
+          "                        latFall, nonLatFall, \"dual\",\n"
+          "                        mixPuncLang, mixNumLang, mixEmojiLang,\n"
+          "                        neutralDefault, disableAdvDet\n"
+          "                    )\n"
+          "                    val batched = mutableListOf<Pair<String, StringBuilder>>()\n"
+          "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
+          "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
+          "                        if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
+          "                            val norm = normalizeLangCode(parts[0])\n"
+          "                            val resolved = if (isDedicated || isEngineAvailable(norm)) norm\n"
+          "                                else if (parts[1].codePoints().anyMatch { cp -> cp > 0x024F && Character.isLetter(cp) }) nonLatFall\n"
+          "                                else latFall\n"
           "                            if (batched.isNotEmpty() && batched.last().first == resolved) {\n"
           "                                batched.last().second.append(parts[1])\n"
           "                            } else {\n"
