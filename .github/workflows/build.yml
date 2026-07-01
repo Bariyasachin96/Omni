@@ -698,7 +698,7 @@ jobs:
                           return "ps";
                       if (cp >= 1658 && cp <= 1661)
                           return "sd";
-                      if (cp == 1742 || cp == 1685 || cp == 1717 || cp == 1734 || cp == 1738 || cp == 1739)
+                      if (cp == 1742 || cp == 1685 || cp == 1717 || cp == 1734)  // AutoTTS a.b ku set = {1742,1685,1717,1734} exactly; 0x6CA/0x6CB(1738,1739) fall through to ar
                           return "ku";
                       i += clen;
                   }
@@ -3193,6 +3193,10 @@ jobs:
           "                // AutoTTS F(synthesisCallback, 7): J empty → callback.done()\n"
           "                if (callback?.hasStarted() == false) callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
           "                if (callback?.hasFinished() == false) callback?.done()\n"
+          "                // AutoTTS G(): normal completion sets the wait-loop flag + notifyAll so the\n"
+          "                // onSynthesizeText synth thread returns immediately (instead of parking until\n"
+          "                // the next onStop). Mirrors AutoTTS last-chunk G(cb,7) o=true+notifyAll.\n"
+          "                synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }\n"
           "                return\n"
           "            }\n"
           "            val (currentChunk, chunk) = pair\n"
@@ -3237,7 +3241,7 @@ jobs:
           "                }\n"
           "                override fun onDone(id: String) {\n"
           "                    VhLogger.markSynthEnd(currentChunk, synthStartTime)\n"
-          "                    K++; if (K > 100000) K = 0  // AutoTTS A(): post-increment, wrap at 100000\n"
+          "                    K++  // AutoTTS A(): pure post-increment, NO wrap (the >100000 wrap belongs to V, the license counter — not K)\n"
           "                    // AutoTTS onDone: call onLoadLanguage(next_chunk_lang, \"\", \"\") before speakChunk\n"
           "                    val nextLang = synchronized(J) { J.firstOrNull()?.second?.lang }\n"
           "                    if (nextLang != null) {\n"
