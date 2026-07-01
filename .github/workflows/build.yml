@@ -1007,14 +1007,20 @@ jobs:
                       //   U+20A0-U+20CF: Currency Symbols (€, ₹, ₩, ₽...)
                       //   U+2C60-U+2C7F: Latin Extended-C
                       //   U+A720-U+A7FF: Latin Extended-D
-                      // Emoji are NOT in AutoTTS latRange — they go to non-Latin buffer (kind=1)
+                      // AutoTTS pattern d (w.java:35-37) INCLUDES emoji (via c3.c.a() appended into the
+                      // latRange char class) → emoji land in the Latin buffer and w.c() classifies them
+                      // type-1 (latFall). Pattern d does NOT include IPA/Phonetic Extensions (U+1D00-1D7F),
+                      // so those stay non-Latin (type-2). Emoji routed to latRange only when emojiFall is
+                      // "auto"/unset (exact AutoTTS); when the user set an explicit emoji mode, keep them
+                      // non-Latin so the emojiFall override still applies.
+                      bool emojiAuto = emojiFall.empty() || emojiFall == "auto";
                       bool latRange = (cp <= 0x024F) ||
-                                      (cp >= 0x1D00 && cp <= 0x1D7F) ||  // Phonetic Extensions/IPA — AutoTTS \p{L} catches these
                                       (cp >= 0x1E00 && cp <= 0x1EFF) ||
                                       (cp >= 0x2000 && cp <= 0x206F) ||
                                       (cp >= 0x20A0 && cp <= 0x20CF) ||
                                       (cp >= 0x2C60 && cp <= 0x2C7F) ||
-                                      (cp >= 0xA720 && cp <= 0xA7FF);
+                                      (cp >= 0xA720 && cp <= 0xA7FF) ||
+                                      (emojiAuto && isEmoji(cp));
                       int kind = latRange ? 0 : 1;
                       if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, clen); bufKind = kind; }
                       else { flushBuf(); buf = fullText.substr(i, clen); bufKind = kind; }
@@ -1452,6 +1458,12 @@ jobs:
           "        val pkg = combined.split(\"#\", limit = 2).getOrElse(0) { \"\" }\n"
           "        if (pkg.isNotEmpty()) return pkg\n"
           "        return \"NOT_SET\"\n"
+          "    }\n"
+          "    // AutoTTS: language is \"in list c\" (configured) — engine pref non-empty, IGNORING the\n"
+          "    // _disabled flag. Used by mode force-enable (k.h/k.l), which un-disables configured mode langs.\n"
+          "    fun isLanguageConfigured(lang: String): Boolean {\n"
+          "        val combined = prefs.getString(toIso3(lang), \"\") ?: \"\"\n"
+          "        return combined.split(\"#\", limit = 2).getOrElse(0) { \"\" }.isNotEmpty()\n"
           "    }\n"
           "    fun getLocaleForLangPkg(lang: String, pkg: String): String {\n"
           "        val combined = prefs.getString(toIso3(lang), \"\") ?: \"\"\n"
@@ -2864,6 +2876,14 @@ jobs:
           "        // AutoTTS k.f + k.n(): build enabledLangs — configured engines + mode force-enabled langs\n"
           "        val baseEnabled = Languages.map.keys.filter { prefs.getEngineForLanguage(it) != \"NOT_SET\" }.toHashSet()\n"
           "        val forceEnabled = getForceEnabledLangs(readingMode, latFall, nonLatFall)\n"
+          "        // AutoTTS k.h/k.l: the mode's force-enable target langs OVERRIDE the user's _disabled\n"
+          "        // flag (d.i=false, persisted via k.z). Un-disable any configured force-enable target so\n"
+          "        // the mode's primary language is always available — matches AutoTTS exactly.\n"
+          "        for (fl in forceEnabled) {\n"
+          "            if (prefs.isLanguageConfigured(fl) && prefs.isLanguageDisabled(fl)) {\n"
+          "                prefs.setLanguageDisabled(fl, false)  // AutoTTS d.i=false + k.z persist\n"
+          "            }\n"
+          "        }\n"
           "        enabledLangs = (baseEnabled + forceEnabled.filter { prefs.getEngineForLanguage(it) != \"NOT_SET\" }).toHashSet()\n"
           "        // Native-mode prefs (used by mix/dual paths only) — read once even if branch unused.\n"
           "        val dictEnabled       = prefs.getBoolean(\"dict_enabled\", false)\n"
