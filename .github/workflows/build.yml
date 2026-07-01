@@ -940,27 +940,12 @@ jobs:
                   auto flushBuf = [&]() {
                       if (buf.empty()) return;
                       if (bufKind == 1) {
-                          // AutoTTS w.c(): non-Latin buffer classified same as Latin.
-                          // \p{L} letter → type-2; fullwidth digits (pattern b) → type-3; else → type-4
-                          bool allWs = true, hasNonLatLetter = false, hasFFDigit = false;
-                          {
-                              const unsigned char* ap = (const unsigned char*)buf.c_str();
-                              int ai = 0, alen = (int)buf.size();
-                              while (ai < alen) {
-                                  int cl2 = 0;
-                                  int cp3 = utf8ToCodepoint(ap + ai, cl2);
-                                  bool isJWs = (cp3 >= 0x09 && cp3 <= 0x0D) || (cp3 >= 0x1C && cp3 <= 0x1F) ||
-                                               cp3 == 0x20 || cp3 == 0x1680 ||
-                                               (cp3 >= 0x2000 && cp3 <= 0x200A && cp3 != 0x2007) ||
-                                               cp3 == 0x205F || cp3 == 0x3000 ||
-                                               cp3 == 0x2028 || cp3 == 0x2029;
-                                  if (!isJWs) allWs = false;
-                                  if (cp3 >= 0xFF10 && cp3 <= 0xFF19) hasFFDigit = true;
-                                  else if (!isJWs && !isNonLatinNonLetter(cp3)) hasNonLatLetter = true;
-                                  ai += cl2;
-                              }
-                          }
-                          segs.push_back({buf, allWs ? 0 : (hasNonLatLetter ? 2 : (hasFFDigit ? 3 : 4)), ""});
+                          // AutoTTS w.g(): the GAPS between pattern-d (latRange) matches are hardcoded
+                          // type-2, UNCONDITIONALLY (w.java:128,135) — never 0/3/4. w.c() (which yields
+                          // 1/3/4) is applied ONLY to pattern-d/Latin-range runs. So a non-Latin run —
+                          // including fullwidth digits (U+FF10-19), non-ASCII whitespace (U+3000 etc), and
+                          // non-Latin punctuation — is always type-2 (nonLatFall). Matches AutoTTS exactly.
+                          segs.push_back({buf, 2, ""});
                       } else {
                           bool allWs = true, hasLetter = false, hasDigit = false;
                           const unsigned char* p = (const unsigned char*)buf.c_str();
