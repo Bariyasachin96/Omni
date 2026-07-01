@@ -358,7 +358,7 @@ jobs:
               {0x0300, 0x036F, "Neutral"}, {0x0370, 0x03FF, "el"}, {0x0400, 0x04FF, "ru"},
               {0x0500, 0x052F, "ru"}, {0x0530, 0x058F, "hy"}, {0x0590, 0x05FF, "he"},
               {0x0600, 0x06FF, "ar"}, {0x0700, 0x074F, "Neutral"}, {0x0750, 0x077F, "ar"},
-              {0x0780, 0x07BF, "Neutral"}, {0x07C0, 0x07FF, "Neutral"}, {0x0800, 0x083F, "Neutral"},
+              {0x0780, 0x07BF, "dv"}, {0x07C0, 0x07FF, "Neutral"}, {0x0800, 0x083F, "Neutral"},  // Thaana = Dhivehi (AutoTTS a.b → dv); unambiguous script
               {0x0840, 0x085F, "Neutral"}, {0x0860, 0x086F, "Neutral"}, {0x08A0, 0x08FF, "ar"},
               {0x0900, 0x097F, "hi"}, {0x0980, 0x09FF, "bn"}, {0x0A00, 0x0A7F, "pa"},
               {0x0A80, 0x0AFF, "gu"}, {0x0B00, 0x0B7F, "or"}, {0x0B80, 0x0BFF, "ta"},
@@ -781,9 +781,11 @@ jobs:
                   int j = i;
                   while(j < len && charCount < WINDOW) {
                       int clen = 0;
-                      utf8ToCodepoint((const unsigned char*)&text[j], clen);
+                      int cp = utf8ToCodepoint((const unsigned char*)&text[j], clen);
                       j += clen;
-                      charCount++;
+                      // AutoTTS clsCLD2.b() windows by UTF-16 units (substring(n6, n6+64)): an astral
+                      // codepoint (>0xFFFF, e.g. emoji / rare CJK ext) counts as 2 Java chars, not 1.
+                      charCount += (cp > 0xFFFF) ? 2 : 1;
                   }
                   bool is_rel = false;
                   CLD2::Language lang = CLD2::DetectLanguage(text.c_str() + byteStart, j - byteStart, true, &is_rel);
