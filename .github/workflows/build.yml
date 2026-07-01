@@ -372,9 +372,9 @@ jobs:
               {0x1800, 0x18AF, "mn"}, {0x18B0, 0x18FF, "Neutral"}, {0x1900, 0x194F, "Neutral"},
               {0x1950, 0x197F, "Neutral"}, {0x1980, 0x19DF, "Neutral"}, {0x19E0, 0x19FF, "km"},
               {0x1A00, 0x1A1F, "Neutral"}, {0x1A20, 0x1AAF, "Neutral"}, {0x1AB0, 0x1AFF, "Neutral"},
-              {0x1B00, 0x1B7F, "Neutral"}, {0x1B80, 0x1BBF, "su"}, {0x1BC0, 0x1BFF, "Neutral"},
-              {0x1C00, 0x1C4F, "Neutral"}, {0x1C50, 0x1C7F, "Neutral"}, {0x1C80, 0x1C8F, "ru"},
-              {0x1C90, 0x1CBF, "ka"}, {0x1CC0, 0x1CCF, "su"}, {0x1CD0, 0x1CFF, "hi"},
+              {0x1B00, 0x1B7F, "Neutral"}, {0x1B80, 0x1BBF, "Neutral"}, {0x1BC0, 0x1BFF, "Neutral"},
+              {0x1C00, 0x1C4F, "Neutral"}, {0x1C50, 0x1C7F, "Neutral"}, {0x1C80, 0x1C8F, "Neutral"},
+              {0x1C90, 0x1CBF, "Neutral"}, {0x1CC0, 0x1CCF, "Neutral"}, {0x1CD0, 0x1CFF, "Neutral"},  // AutoTTS a.b has no mapping for these extended blocks → Unknown
               {0x1D00, 0x1D7F, "Neutral"}, {0x1D80, 0x1DBF, "Neutral"}, {0x1DC0, 0x1DFF, "Neutral"},
               {0x1E00, 0x1EFF, "Neutral"}, {0x1F00, 0x1FFF, "el"}, {0x2000, 0x206F, "Neutral"},
               {0x2070, 0x209F, "Neutral"}, {0x20A0, 0x20CF, "Neutral"}, {0x20D0, 0x20FF, "Neutral"},
@@ -398,7 +398,7 @@ jobs:
               {0xA700, 0xA71F, "Neutral"}, {0xA720, 0xA7FF, "Neutral"}, {0xA800, 0xA82F, "Neutral"},
               {0xA830, 0xA83F, "Neutral"}, {0xA840, 0xA87F, "Neutral"}, {0xA880, 0xA8DF, "Neutral"},
               {0xA8E0, 0xA8FF, "hi"}, {0xA900, 0xA92F, "Neutral"}, {0xA930, 0xA95F, "Neutral"},
-              {0xA960, 0xA97F, "ko"}, {0xA980, 0xA9DF, "jv"}, {0xA9E0, 0xA9FF, "my"},
+              {0xA960, 0xA97F, "ko"}, {0xA980, 0xA9DF, "Neutral"}, {0xA9E0, 0xA9FF, "my"},  // Javanese: AutoTTS a.b → Unknown
               {0xAA00, 0xAA5F, "Neutral"}, {0xAA60, 0xAA7F, "my"}, {0xAA80, 0xAADF, "Neutral"},
               {0xAAE0, 0xAAFF, "Neutral"}, {0xAB00, 0xAB2F, "am"}, {0xAB30, 0xAB6F, "Neutral"},
               {0xAB70, 0xABBF, "Neutral"}, {0xABC0, 0xABFF, "Neutral"}, {0xAC00, 0xD7AF, "ko"},
@@ -432,7 +432,7 @@ jobs:
               {0x119A0, 0x119FF, "Neutral"}, {0x11A00, 0x11A4F, "Neutral"}, {0x11A50, 0x11AAF, "Neutral"},
               {0x11AC0, 0x11AFF, "Neutral"}, {0x11C00, 0x11C6F, "Neutral"}, {0x11C70, 0x11CBF, "Neutral"},
               {0x11D00, 0x11D5F, "Neutral"}, {0x11D60, 0x11DAF, "Neutral"}, {0x11EE0, 0x11EFF, "Neutral"},
-              {0x11FC0, 0x11FFF, "ta"}, {0x12000, 0x123FF, "Neutral"}, {0x12400, 0x1247F, "Neutral"},
+              {0x11FC0, 0x11FFF, "Neutral"}, {0x12000, 0x123FF, "Neutral"}, {0x12400, 0x1247F, "Neutral"},  // Tamil Supplement: AutoTTS a.b → Unknown
               {0x12480, 0x1254F, "Neutral"}, {0x13000, 0x1342F, "Neutral"}, {0x13430, 0x1343F, "Neutral"},
               {0x14400, 0x1467F, "Neutral"}, {0x16800, 0x16A3F, "Neutral"}, {0x16A40, 0x16A6F, "Neutral"},
               {0x16AD0, 0x16AFF, "Neutral"}, {0x16B00, 0x16B8F, "Neutral"}, {0x16E40, 0x16E9F, "Neutral"},
@@ -1433,6 +1433,11 @@ jobs:
           "import android.content.SharedPreferences\n"
           "class SharedPrefsManager(context: Context) {\n"
           "    private val prefs: SharedPreferences = context.getSharedPreferences(\"auto_tts_settings\", Context.MODE_PRIVATE)\n"
+          "    private val appCtx: Context = context.applicationContext\n"
+          "    // AutoTTS c3.t.a(context): is the Google TTS package installed?\n"
+          "    private fun isGoogleTtsInstalled(): Boolean = try {\n"
+          "        appCtx.packageManager.getPackageInfo(\"com.google.android.tts\", 0); true\n"
+          "    } catch (_: Exception) { false }\n"
           "    fun toIso3(lang: String): String {\n"
           "        if (lang.length != 2) return lang\n"
           "        return try { java.util.Locale(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }\n"
@@ -1523,7 +1528,9 @@ jobs:
           "            setReadingMode(mapped)\n"
           "            return mapped\n"
           "        }\n"
-          "        return \"auto\"\n"
+          "        // AutoTTS k.p(): fresh install → auto_mode default 3 (google-only); if Google TTS is\n"
+          "        // NOT installed it falls to 0 (auto). So default = \"google\" when Google TTS present, else \"auto\".\n"
+          "        return if (isGoogleTtsInstalled()) \"google\" else \"auto\"\n"
           "    }\n"
           "    fun setReadingMode(mode: String) = prefs.edit().putString(\"reading_mode\", mode).apply()\n"
           "    fun isMixMode(): Boolean = getReadingMode() == \"mix\"\n"
