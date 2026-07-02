@@ -234,7 +234,7 @@ jobs:
               ${CLD2_DIR}/cld2_generated_cjk_compatible.cc
               ${CLD2_DIR}/cld_generated_cjk_delta_bi_4.cc
               ${CLD2_DIR}/generated_distinct_bi_0.cc
-              ${CLD2_DIR}/cld2_generated_quadchrome_2.cc
+              ${CLD2_DIR}/cld2_generated_quadchrome_16.cc
               ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc
               ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc
               ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc
