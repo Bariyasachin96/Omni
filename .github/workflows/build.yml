@@ -964,7 +964,13 @@ jobs:
                               // Also covers Latin Extended Additional (U+1E00-U+1EFF, Vietnamese),
                               // Latin Extended-C (U+2C60-U+2C7F), Latin Extended-D (U+A720-U+A7FF)
                               if ((cp2 >= 'a' && cp2 <= 'z') || (cp2 >= 'A' && cp2 <= 'Z') ||
-                                  (cp2 >= 0x00C0 && cp2 <= 0x024F) ||
+                                  // AutoTTS w.c(): Latin-1 SYMBOLS (¡ £ ¥ © § « » ¿ ± µ ¶ ® ...) are not in pattern-b/c,
+                                  // so c() falls through to type-1 (Latin text), NOT type-4 punct. Range 0xA1-0xBF minus
+                                  // 0xB0 (degree, a pattern-b digit-like -> type-3, handled below).
+                                  (cp2 >= 0x00A1 && cp2 <= 0x00BF && cp2 != 0x00B0) ||
+                                  // 0xC0-0x24F letters, EXCLUDING x (0xD7) and division (0xF7): those are pattern-b members
+                                  // -> type-3 (number/neutral), not Latin text (they also set hasDigit below).
+                                  (cp2 >= 0x00C0 && cp2 <= 0x024F && cp2 != 0x00D7 && cp2 != 0x00F7) ||
                                   (cp2 >= 0x1E00 && cp2 <= 0x1EFF) ||
                                   (cp2 >= 0x2C60 && cp2 <= 0x2C7F) ||
                                   (cp2 >= 0xA720 && cp2 <= 0xA7FF) ||
@@ -1993,12 +1999,14 @@ jobs:
           "                    w.tts?.setLanguage(locale); w.localeSet = true\n"
           "                }\n"
           "            } else if (variant != curVoiceName) {\n"
+          "                // AutoTTS V() (AutoTtsService.java:841-862): the setLanguage fallback runs ONLY when\n"
+          "                // getVoices()==null. If the voices list is non-null but NO name matches the requested\n"
+          "                // variant, V() does nothing and keeps the current voice — it does NOT reset to the\n"
+          "                // locale default. (X()/X_eng always falls back; V() must not — that was the bug.)\n"
           "                val voices = try { w.tts?.voices } catch (_: Exception) { null }\n"
-          "                var matched = false\n"
           "                if (voices != null) {\n"
-          "                    for (v in voices) { if (v.name.equals(variant, ignoreCase = true)) { w.tts?.voice = v; w.localeSet = true; matched = true; break } }\n"
-          "                }\n"
-          "                if (!matched && !localeMatchesP(locale.toLanguageTag(), curLocale.toLanguageTag())) { w.tts?.setLanguage(locale); w.localeSet = true }\n"
+          "                    for (v in voices) { if (v.name.equals(variant, ignoreCase = true)) { w.tts?.voice = v; w.localeSet = true; break } }\n"
+          "                } else if (!localeMatchesP(locale.toLanguageTag(), curLocale.toLanguageTag())) { w.tts?.setLanguage(locale); w.localeSet = true }\n"
           "            }\n"
           "            w.locale = locale; w.voiceName = variant\n"
           "        } else { VhLogger.e(\"[ENGINE] V TTS is not ready d_=-1\"); d_ = -1 }\n"
@@ -2613,7 +2621,7 @@ jobs:
           "    // AutoTTS k.n(): mode-based force-enabled language list — overrides disabled status\n"
           "    // Mode auto(1): latFall+eng; mix(2/3): latFall; dual/dedicated(4): latFall+nonLatFall\n"
           "    private fun getForceEnabledLangs(mode: String, latFall: String, nonLatFall: String): Set<String> = when (mode) {\n"
-          "        \"auto\" -> setOf(latFall)             // AutoTTS L=2/3: [C] = auto_mode_language only\n"
+          "        \"auto\", \"google\" -> setOf(latFall) // AutoTTS k.n(): L==2 AND L==3 add [C]=auto_mode_language. Google (L=3) still detects, so C must be force-enabled & kept in the CLD2 script-fallback set.\n"
           "        \"mix\"  -> setOf(latFall, nonLatFall) // AutoTTS L=4:   [H, I] = latin + non-latin both\n"
           "        \"dual\" -> setOf(latFall, nonLatFall) // AutoTTS L=1:   [\"eng\", D] = eng + dual_mode_language\n"
           "        else   -> emptySet()\n"
@@ -2630,10 +2638,20 @@ jobs:
           "            VhLogger.d(\"[SCRIPT] getScriptLangFiltered cp=U+${cp.toString(16)} primary=$primary → $primary (in enabled)\")\n"
           "            return primary\n"
           "        }\n"
-          "        // AutoTTS Cyrillic: base family (m) fallback = full Cyrillic set, but the ru_sp letters\n"
-          "        // (Ё ё Э э Ы ы = 0x401/0x451/0x42D/0x44D/0x42B/0x44B) are a distinct family with [be] ONLY.\n"
-          "        val fallbacks = if (primary == \"ru\" && (cp == 0x401 || cp == 0x451 || cp == 0x42D || cp == 0x44D || cp == 0x42B || cp == 0x44B))\n"
-          "            listOf(\"be\") else getScriptLangFallbacks(primary)\n"
+          "        // AutoTTS a.b() returns distinct ScriptFamily objects that share a primary string but have\n"
+          "        // NARROWER possible-sets for certain codepoints. Mirror those (like ru_sp) so the fallback\n"
+          "        // set isn't over-broad:\n"
+          "        val fallbacks = when {\n"
+          "            // Cyrillic ru_sp letters (Ё ё Э э Ы ы) are family with [be] ONLY, not the full Cyrillic set.\n"
+          "            primary == \"ru\" && (cp == 0x401 || cp == 0x451 || cp == 0x42D || cp == 0x44D || cp == 0x42B || cp == 0x44B) -> listOf(\"be\")\n"
+          "            // AutoTTS a.java:197 — the 5 core Urdu letters (ٹ ڈ ڑ ہ ے) are family {ur,pa} → fallback [pa] only.\n"
+          "            primary == \"ur\" && (cp == 0x0679 || cp == 0x0688 || cp == 0x0691 || cp == 0x06C1 || cp == 0x06D2) -> listOf(\"pa\")\n"
+          "            // AutoTTS a.java:115 — Hiragana (ja_h) family is {ja} ONLY, no fallback (Katakana keeps [ain]).\n"
+          "            primary == \"ja\" && ((cp in 0x3040..0x309F) || (cp in 0x1B000..0x1B12F)) -> emptyList()\n"
+          "            // AutoTTS a.java:123 — Deseret (en_d) family is {en} ONLY, no Latin fallback list.\n"
+          "            primary == \"en\" && (cp in 0x10400..0x1044F) -> emptyList()\n"
+          "            else -> getScriptLangFallbacks(primary)\n"
+          "        }\n"
           "        for (fb in fallbacks) {\n"
           "            if (fb in enabled) {\n"
           "                VhLogger.d(\"[SCRIPT] getScriptLangFiltered cp=U+${cp.toString(16)} primary=$primary → fallback=$fb\")\n"
