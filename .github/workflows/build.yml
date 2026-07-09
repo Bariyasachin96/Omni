@@ -66,7 +66,6 @@ jobs:
           plugins {
               id("com.android.application") version "8.2.2" apply false
               id("org.jetbrains.kotlin.android") version "1.9.22" apply false
-              id("com.google.gms.google-services") version "4.4.1" apply false
           }
           """)
 
@@ -75,7 +74,6 @@ jobs:
           plugins {
               id("com.android.application")
               id("org.jetbrains.kotlin.android")
-              id("com.google.gms.google-services")
           }
           android {
               namespace = "com.easyvoice.tts"
@@ -131,11 +129,6 @@ jobs:
               implementation("androidx.compose.material3:material3")
               implementation("androidx.compose.material:material-icons-extended")
               implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-              // ── Firebase Auth + Firestore + Google Sign-In (tester gating) ──
-              implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-              implementation("com.google.firebase:firebase-auth-ktx")
-              implementation("com.google.firebase:firebase-firestore-ktx")
-              implementation("com.google.android.gms:play-services-auth:20.7.0")
           }
           """)
 
@@ -148,63 +141,11 @@ jobs:
           -dontwarn kotlinx.coroutines.**
           -keep class androidx.compose.animation.** { *; }
           -keep class androidx.compose.animation.core.** { *; }
-          -dontwarn com.google.firebase.**
-          -dontwarn com.google.android.gms.**
           -dontwarn javax.annotation.**
           -dontwarn javax.naming.**
           -dontwarn org.checkerframework.**
           -dontwarn com.google.auto.value.**
           -dontwarn com.google.errorprone.annotations.**
-          """)
-
-          # ── google-services.json (Firebase config for easy-voice-e53f0) ──────
-          w("app/google-services.json", r"""{
-            "project_info": {
-              "project_number": "52658031074",
-              "project_id": "easy-voice-e53f0",
-              "storage_bucket": "easy-voice-e53f0.firebasestorage.app"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:52658031074:android:41314524da1e7a20f611bb",
-                  "android_client_info": {
-                    "package_name": "com.easyvoice.tts"
-                  }
-                },
-                "oauth_client": [
-                  {
-                    "client_id": "52658031074-p6g4v6jg20mojso2nqr4363pg12oif65.apps.googleusercontent.com",
-                    "client_type": 1,
-                    "android_info": {
-                      "package_name": "com.easyvoice.tts",
-                      "certificate_hash": "575005c65a20d51ad8bd3c3da72aa3517fee161d"
-                    }
-                  },
-                  {
-                    "client_id": "52658031074-4096h9qu4or21458d45k9g8bfb9ho57d.apps.googleusercontent.com",
-                    "client_type": 3
-                  }
-                ],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyB0f3IdSvu2bmX0q3os58iDBCIFMaKdR1Y"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": [
-                      {
-                        "client_id": "52658031074-4096h9qu4or21458d45k9g8bfb9ho57d.apps.googleusercontent.com",
-                        "client_type": 3
-                      }
-                    ]
-                  }
-                }
-              }
-            ],
-            "configuration_version": "1"
-          }
           """)
 
           # ── CMakeLists.txt ───────────────────────────────────────────────────
@@ -3974,187 +3915,6 @@ jobs:
           "    }\n"
           "}\n")
 
-          # ── AuthGate.kt — Firebase Google Sign-In + Firestore tester gating ──
-          w("app/src/main/java/com/easyvoice/tts/AuthGate.kt", r"""
-          package com.easyvoice.tts
-
-          import androidx.activity.compose.rememberLauncherForActivityResult
-          import androidx.activity.result.contract.ActivityResultContracts
-          import androidx.compose.foundation.layout.*
-          import androidx.compose.material3.*
-          import androidx.compose.runtime.*
-          import androidx.compose.ui.Alignment
-          import androidx.compose.ui.Modifier
-          import androidx.compose.ui.platform.LocalContext
-          import androidx.compose.ui.text.style.TextAlign
-          import androidx.compose.ui.unit.dp
-
-          import com.google.android.gms.auth.api.signin.GoogleSignIn
-          import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-          import com.google.android.gms.common.api.ApiException
-          import com.google.firebase.auth.FirebaseAuth
-          import com.google.firebase.auth.GoogleAuthProvider
-          import org.json.JSONObject
-
-          // Auth gate states
-          private const val AUTH_LOADING = 0
-          private const val AUTH_NEED_LOGIN = 1
-          private const val AUTH_OK = 2
-          private const val AUTH_DENIED = 3
-
-          @Composable
-          fun AuthGate(prefs: SharedPrefsManager, content: @Composable () -> Unit) {
-              val context = LocalContext.current
-              val auth = remember { FirebaseAuth.getInstance() }
-              var state by remember { mutableStateOf(AUTH_LOADING) }
-              var message by remember { mutableStateOf("") }
-
-              val gso = remember {
-                  GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                      .requestIdToken(context.getString(R.string.default_web_client_id))
-                      .requestEmail()
-                      .build()
-              }
-              val googleClient = remember { GoogleSignIn.getClient(context, gso) }
-
-              fun signOut() {
-                  prefs.setBoolean("auth_authorized", false)
-                  auth.signOut()
-                  googleClient.signOut()
-              }
-
-              fun verifyTester(email: String) {
-                  val user = auth.currentUser ?: return run {
-                      signOut(); message = "Session expired. Please sign in again."; state = AUTH_NEED_LOGIN
-                  }
-                  user.getIdToken(false).addOnSuccessListener { result ->
-                      val token = result.token ?: return@addOnSuccessListener run {
-                          signOut(); message = "Auth error. Please sign in again."; state = AUTH_NEED_LOGIN
-                      }
-                      val rtdbKey = email.replace(".", ",")
-                      val encodedKey = rtdbKey.replace("@", "%40")
-                      val url = "https://easy-voice-e53f0-default-rtdb.firebaseio.com/testers/$encodedKey/active.json?auth=$token"
-                      val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
-                      Thread {
-                          try {
-                              val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                              conn.connectTimeout = 10000
-                              conn.readTimeout = 10000
-                              val code = conn.responseCode
-                              val body = if (code == 200) conn.inputStream.bufferedReader().readText().trim() else ""
-                              val isActive = body == "true"
-                              mainHandler.post {
-                                  if (isActive) {
-                                      prefs.setBoolean("auth_authorized", true)
-                                      prefs.setString("auth_email", email)
-                                      state = AUTH_OK
-                                  } else if (body == "null" || code == 404 || code == 403) {
-                                      signOut()
-                                      message = "Access denied. Your account ($email) is not authorized."
-                                      state = AUTH_DENIED
-                                  } else {
-                                      if (prefs.getBoolean("auth_authorized", false)) state = AUTH_OK
-                                      else { message = "Server error ($code). Please try again."; state = AUTH_NEED_LOGIN }
-                                  }
-                              }
-                          } catch (e: Exception) {
-                              mainHandler.post {
-                                  if (prefs.getBoolean("auth_authorized", false)) state = AUTH_OK
-                                  else { message = "Network error. Please check connection."; state = AUTH_NEED_LOGIN }
-                              }
-                          }
-                      }.start()
-                  }.addOnFailureListener {
-                      message = "Authentication error. Please sign in again."
-                      state = AUTH_NEED_LOGIN
-                  }
-              }
-
-              val launcher = rememberLauncherForActivityResult(
-                  ActivityResultContracts.StartActivityForResult()
-              ) { result ->
-                  try {
-                      val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                          .getResult(ApiException::class.java)
-                      val cred = GoogleAuthProvider.getCredential(account.idToken, null)
-                      state = AUTH_LOADING
-                      auth.signInWithCredential(cred).addOnCompleteListener { t ->
-                          val email = auth.currentUser?.email
-                          if (t.isSuccessful && email != null) {
-                              verifyTester(email)
-                          } else {
-                              message = "Sign-in failed. Please try again."
-                              state = AUTH_NEED_LOGIN
-                          }
-                      }
-                  } catch (e: ApiException) {
-                      message = if (e.statusCode == 12501) "" else "Google sign-in failed (code ${e.statusCode})."
-                      state = AUTH_NEED_LOGIN
-                  }
-              }
-
-              LaunchedEffect(Unit) {
-                  val user = auth.currentUser
-                  if (user?.email != null) {
-                      if (prefs.getBoolean("auth_authorized", false)) state = AUTH_OK
-                      verifyTester(user.email!!)
-                  } else {
-                      state = AUTH_NEED_LOGIN
-                  }
-              }
-
-              when (state) {
-                  AUTH_OK -> content()
-                  AUTH_LOADING -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                      CircularProgressIndicator()
-                  }
-                  else -> LoginScreen(
-                      message = message,
-                      denied = state == AUTH_DENIED,
-                      onSignIn = { state = AUTH_LOADING; launcher.launch(googleClient.signInIntent) }
-                  )
-              }
-          }
-
-          @Composable
-          private fun LoginScreen(message: String, denied: Boolean, onSignIn: () -> Unit) {
-              Surface(Modifier.fillMaxSize()) {
-                  Column(
-                      modifier = Modifier.fillMaxSize().padding(32.dp),
-                      horizontalAlignment = Alignment.CenterHorizontally,
-                      verticalArrangement = Arrangement.Center
-                  ) {
-                      Text("Easy Voice", style = MaterialTheme.typography.headlineLarge)
-                      Spacer(Modifier.height(8.dp))
-                      Text(
-                          "Sign in with your Google account to access the app.",
-                          style = MaterialTheme.typography.bodyMedium,
-                          textAlign = TextAlign.Center
-                      )
-                      Spacer(Modifier.height(32.dp))
-                      Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
-                          Text("Sign in with Google")
-                      }
-                      if (message.isNotBlank()) {
-                          Spacer(Modifier.height(20.dp))
-                          Text(
-                              message,
-                              color = if (denied) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                              style = MaterialTheme.typography.bodyMedium,
-                              textAlign = TextAlign.Center
-                          )
-                      }
-                      if (denied) {
-                          Spacer(Modifier.height(16.dp))
-                          OutlinedButton(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
-                              Text("Try a different account")
-                          }
-                      }
-                  }
-              }
-          }
-          """)
-
           # ── MainActivity.kt ──────────────────────────────────────────────────
           w("app/src/main/java/com/easyvoice/tts/MainActivity.kt",
           "package com.easyvoice.tts\n"
@@ -5123,9 +4883,6 @@ jobs:
           "    <queries>\n"
           "        <intent><action android:name=\"android.intent.action.TTS_SERVICE\" /></intent>\n"
           "    </queries>\n"
-          "    <!-- Firebase Auth + Firestore (Google Sign-In tester gating) need network. -->\n"
-          "    <uses-permission android:name=\"android.permission.INTERNET\" />\n"
-          "    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n"
           "    <!-- Foreground service keeps Easy Voice alive even when Android tries to kill\n"
           "         long-running TTS services. MEDIA_PLAYBACK matches the original AutoTTS\n"
           "         choice — it's the Play-Store-standard foreground type for TTS apps,\n"
