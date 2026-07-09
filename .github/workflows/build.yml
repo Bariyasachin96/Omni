@@ -3775,7 +3775,7 @@ jobs:
           "        // Locale.getDefault() (NOT a hard-coded \"eng\") — matches com.vnspeak.autotts exactly.\n"
           "        val langExtra = intent?.getStringExtra(\"language\")\n"
           "        val locale = if (langExtra != null) try { Locale(langExtra) } catch (_: Exception) { Locale.getDefault() } else Locale.getDefault()\n"
-          "        val iso = locale.language\n"
+          "        val iso = try { locale.isO3Language } catch (_: Exception) { locale.language }  // AutoTTS y.a(locale.getISO3Language())\n"
           "        val sample = SampleTexts.get(iso)\n"
           "        // AutoTTS GetSampleText: when y.a() has no sample for the language, return the exact\n"
           "        // fallback notice (\"Sorry. Sample text for language <DisplayName> is missing.\") — the\n"
