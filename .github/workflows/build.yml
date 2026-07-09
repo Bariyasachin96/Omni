@@ -196,12 +196,8 @@ jobs:
           #include <stdint.h>
           #include "compact_lang_det.h"
 
-          // ── Integrity flag — license/signature verification removed per project owner ──
-          static bool g_ok = true;
-
-          // JNI_OnLoad: signature verification removed per project owner — always succeeds.
+          // JNI_OnLoad: no integrity/signature check — just report the JNI version so the lib loads.
           JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
-              g_ok = true;
               return JNI_VERSION_1_6;
           }
 
@@ -1041,13 +1037,6 @@ jobs:
               return result;
           }
 
-          extern "C" JNIEXPORT jboolean JNICALL
-          Java_com_easyvoice_tts_NativeEngine_verifyToken(JNIEnv*, jobject, jbyteArray) {
-              // Signature verification removed per project owner — always succeeds.
-              g_ok = true;
-              return JNI_TRUE;
-          }
-
           extern "C" JNIEXPORT jstring JNICALL
           Java_com_easyvoice_tts_NativeEngine_processDirect(
               JNIEnv* env, jobject, jobject directBuffer, jint length,
@@ -1119,7 +1108,6 @@ jobs:
           "import java.nio.ByteBuffer\n"
           "object NativeEngine {\n"
           "    init { System.loadLibrary(\"easyvoice_core\") }\n"
-          "    external fun verifyToken(h: ByteArray): Boolean\n"
           "    external fun processDirect(\n"
           "        buffer: ByteBuffer, length: Int,\n"
           "        keys: Array<String>, vals: Array<String>,\n"
@@ -1591,7 +1579,10 @@ jobs:
           "                    try {\n"
           "                        if (status == TextToSpeech.SUCCESS) {\n"
           "                            val avail = try { holder[0]?.availableLanguages } catch (_: Exception) { null }\n"
-          "                            if (avail != null) for (loc in avail) { val l = loc.language; if (l.isNotEmpty()) langs.add(l.lowercase()) }\n"
+          "                            // AutoTTS k.f(): canonicalise every scanned language to ISO3 so an engine\n"
+          "                            // reporting ISO2 (\"en\") and another reporting ISO3 (\"eng\") collapse to ONE\n"
+          "                            // entry — fixes duplicate languages in the Languages/Voices lists.\n"
+          "                            if (avail != null) for (loc in avail) { val l = try { loc.isO3Language } catch (_: Exception) { loc.language }; if (l.isNotEmpty()) langs.add(l.lowercase()) }\n"
           "                        }\n"
           "                    } catch (_: Exception) {}\n"
           "                    try { holder[0]?.shutdown() } catch (_: Exception) {}\n"
