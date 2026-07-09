@@ -4296,6 +4296,7 @@ jobs:
           "import androidx.compose.ui.semantics.clearAndSetSemantics\n"
           "import androidx.compose.ui.semantics.contentDescription\n"
           "import androidx.compose.ui.semantics.heading\n"
+          "import androidx.compose.ui.semantics.role\n"
           "import androidx.compose.ui.semantics.semantics\n"
           "import androidx.compose.ui.semantics.isTraversalGroup\n"
           "import androidx.compose.ui.semantics.liveRegion\n"
