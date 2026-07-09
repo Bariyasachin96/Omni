@@ -255,99 +255,12 @@ jobs:
           #include <stdint.h>
           #include "compact_lang_det.h"
 
-          // ── Integrity flag (set in JNI_OnLoad, checked in processDirect) ──
-          static bool g_ok = false;
+          // ── Integrity flag — license/signature verification removed per project owner ──
+          static bool g_ok = true;
 
-          static void s_exp(uint8_t o[32]) {
-              // XOR-obfuscated SHA-256 of release cert (key=0xA5)
-              static const uint8_t k[32]={
-                  0xc5,0x10,0xc0,0xfa,0x06,0xb1,0xe0,0xf6,
-                  0xb0,0x96,0x25,0x6a,0xbd,0xc2,0x90,0x0f,
-                  0x9f,0xdc,0x62,0x73,0x7b,0x9b,0x66,0xed,
-                  0x0e,0x23,0xc3,0x74,0x51,0xbb,0x01,0xed
-              };
-              for(int i=0;i<32;i++) o[i]=k[i]^0xA5u;
-          }
-
-          // JNI_OnLoad: called by Android runtime, not by Kotlin — cannot be patched out
-          // Returns JNI_ERR on wrong signature → System.loadLibrary() throws → app crashes
-          JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
-              JNIEnv* env=nullptr;
-              if(vm->GetEnv((void**)&env,JNI_VERSION_1_6)!=JNI_OK) return JNI_ERR;
-
-              // ── Get Application context via ActivityThread (private API, always available) ──
-              jclass atCls=env->FindClass("android/app/ActivityThread");
-              if(!atCls) return JNI_ERR;
-              jmethodID curApp=env->GetStaticMethodID(atCls,"currentApplication","()Landroid/app/Application;");
-              if(!curApp) return JNI_ERR;
-              jobject app=env->CallStaticObjectMethod(atCls,curApp);
-              if(!app||env->ExceptionCheck()){env->ExceptionClear();return JNI_ERR;}
-
-              // ── Package name ──────────────────────────────────────────────────────────────
-              jclass ctxCls=env->FindClass("android/content/Context");
-              jmethodID getPkg=env->GetMethodID(ctxCls,"getPackageName","()Ljava/lang/String;");
-              jstring pkg=(jstring)env->CallObjectMethod(app,getPkg);
-              if(!pkg) return JNI_ERR;
-
-              // ── PackageManager ────────────────────────────────────────────────────────────
-              jmethodID getPm=env->GetMethodID(ctxCls,"getPackageManager","()Landroid/content/pm/PackageManager;");
-              jobject pm=env->CallObjectMethod(app,getPm);
-              if(!pm) return JNI_ERR;
-
-              // ── SDK version ───────────────────────────────────────────────────────────────
-              jclass verCls=env->FindClass("android/os/Build$VERSION");
-              jfieldID sdkFld=env->GetStaticFieldID(verCls,"SDK_INT","I");
-              jint sdk=env->GetStaticIntField(verCls,sdkFld);
-
-              // ── PackageInfo with signatures ───────────────────────────────────────────────
-              jclass pmCls=env->GetObjectClass(pm);
-              jmethodID getPi=env->GetMethodID(pmCls,"getPackageInfo","(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;");
-              jint flags=(sdk>=28)?0x8000000:64;
-              jobject pi=env->CallObjectMethod(pm,getPi,pkg,flags);
-              if(!pi||env->ExceptionCheck()){env->ExceptionClear();return JNI_ERR;}
-
-              // ── Extract raw certificate bytes ─────────────────────────────────────────────
-              jbyteArray sigBytes=nullptr;
-              if(sdk>=28){
-                  jfieldID siFld=env->GetFieldID(env->GetObjectClass(pi),"signingInfo","Landroid/content/pm/SigningInfo;");
-                  jobject si=env->GetObjectField(pi,siFld);
-                  if(!si) return JNI_ERR;
-                  jmethodID getSigners=env->GetMethodID(env->GetObjectClass(si),"getApkContentsSigners","()[Landroid/content/pm/Signature;");
-                  jobjectArray arr=(jobjectArray)env->CallObjectMethod(si,getSigners);
-                  if(!arr||env->GetArrayLength(arr)==0) return JNI_ERR;
-                  jobject s0=env->GetObjectArrayElement(arr,0);
-                  jmethodID toBytes=env->GetMethodID(env->GetObjectClass(s0),"toByteArray","()[B");
-                  sigBytes=(jbyteArray)env->CallObjectMethod(s0,toBytes);
-              } else {
-                  jfieldID sigsFld=env->GetFieldID(env->GetObjectClass(pi),"signatures","[Landroid/content/pm/Signature;");
-                  jobjectArray arr=(jobjectArray)env->GetObjectField(pi,sigsFld);
-                  if(!arr||env->GetArrayLength(arr)==0) return JNI_ERR;
-                  jobject s0=env->GetObjectArrayElement(arr,0);
-                  jmethodID toBytes=env->GetMethodID(env->GetObjectClass(s0),"toByteArray","()[B");
-                  sigBytes=(jbyteArray)env->CallObjectMethod(s0,toBytes);
-              }
-              if(!sigBytes) return JNI_ERR;
-
-              // ── SHA-256 via Java MessageDigest ────────────────────────────────────────────
-              jclass mdCls=env->FindClass("java/security/MessageDigest");
-              jmethodID getInst=env->GetStaticMethodID(mdCls,"getInstance","(Ljava/lang/String;)Ljava/security/MessageDigest;");
-              jstring algo=env->NewStringUTF("SHA-256");
-              jobject md=env->CallStaticObjectMethod(mdCls,getInst,algo);
-              if(!md||env->ExceptionCheck()){env->ExceptionClear();return JNI_ERR;}
-              jmethodID digestM=env->GetMethodID(env->GetObjectClass(md),"digest","([B)[B");
-              jbyteArray hashArr=(jbyteArray)env->CallObjectMethod(md,digestM,sigBytes);
-              if(!hashArr||env->GetArrayLength(hashArr)!=32) return JNI_ERR;
-
-              // ── Compare against XOR-obfuscated expected hash ──────────────────────────────
-              jbyte* hb=env->GetByteArrayElements(hashArr,nullptr);
-              if(!hb) return JNI_ERR;
-              uint8_t ex[32]; s_exp(ex);
-              bool ok=true;
-              for(int i=0;i<32;i++) if((uint8_t)hb[i]!=ex[i]){ok=false;break;}
-              env->ReleaseByteArrayElements(hashArr,hb,JNI_ABORT);
-
-              if(!ok) return JNI_ERR; // wrong APK signature → loadLibrary throws → app crashes
-              g_ok=true;
+          // JNI_OnLoad: signature verification removed per project owner — always succeeds.
+          JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
+              g_ok = true;
               return JNI_VERSION_1_6;
           }
 
@@ -1188,16 +1101,10 @@ jobs:
           }
 
           extern "C" JNIEXPORT jboolean JNICALL
-          Java_com_easyvoice_tts_NativeEngine_verifyToken(JNIEnv* env, jobject, jbyteArray h) {
-              if (!h || env->GetArrayLength(h) != 32) { g_ok = false; return JNI_FALSE; }
-              jbyte* b = env->GetByteArrayElements(h, nullptr);
-              if (!b) { g_ok = false; return JNI_FALSE; }
-              uint8_t ex[32]; s_exp(ex);
-              bool ok = true;
-              for (int i = 0; i < 32; i++) if ((uint8_t)b[i] != ex[i]) { ok = false; break; }
-              env->ReleaseByteArrayElements(h, b, JNI_ABORT);
-              g_ok = ok;
-              return ok ? JNI_TRUE : JNI_FALSE;
+          Java_com_easyvoice_tts_NativeEngine_verifyToken(JNIEnv*, jobject, jbyteArray) {
+              // Signature verification removed per project owner — always succeeds.
+              g_ok = true;
+              return JNI_TRUE;
           }
 
           extern "C" JNIEXPORT jstring JNICALL
@@ -1209,8 +1116,6 @@ jobs:
               jstring jPunc, jstring jNum, jstring jEmoji,
               jstring jNeutralDefault, jboolean jDisableAdvancedDetection)
           {
-              // Integrity gate — checked in JNI_OnLoad; no Kotlin path can bypass this
-              if(!g_ok) return env->NewStringUTF("");
               if(!directBuffer||length<=0) return env->NewStringUTF("");
               void* buf=env->GetDirectBufferAddress(directBuffer);
               if(!buf) return env->NewStringUTF("");
@@ -1948,16 +1853,6 @@ jobs:
           "        } catch (e: Exception) { VhLogger.e(\"[AF] abandon failed: ${e.message}\") }\n"
           "    }\n"
           "    override fun onCreate() {\n"
-          "        try {\n"
-          "            val pi = if (android.os.Build.VERSION.SDK_INT >= 28)\n"
-          "                packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)\n"
-          "            else @Suppress(\"DEPRECATION\") packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNATURES)\n"
-          "            val sb = if (android.os.Build.VERSION.SDK_INT >= 28)\n"
-          "                pi.signingInfo.apkContentsSigners[0].toByteArray()\n"
-          "            else @Suppress(\"DEPRECATION\") pi.signatures[0].toByteArray()\n"
-          "            val hash = java.security.MessageDigest.getInstance(\"SHA-256\").digest(sb)\n"
-          "            if (!NativeEngine.verifyToken(hash)) { stopSelf(); return }\n"
-          "        } catch (_: Exception) { stopSelf(); return }\n"
           "        g = this                                             // AutoTTS: g = this in onCreate\n"
           "        VhLogger.init(this)\n"
           "        prefs = SharedPrefsManager(this)\n"
@@ -4321,16 +4216,6 @@ jobs:
           "    @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)\n"
           "    override fun onCreate(savedInstanceState: Bundle?) {\n"
           "        super.onCreate(savedInstanceState)\n"
-          "        try {\n"
-          "            val pi = if (android.os.Build.VERSION.SDK_INT >= 28)\n"
-          "                packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)\n"
-          "            else @Suppress(\"DEPRECATION\") packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNATURES)\n"
-          "            val sb = if (android.os.Build.VERSION.SDK_INT >= 28)\n"
-          "                pi.signingInfo.apkContentsSigners[0].toByteArray()\n"
-          "            else @Suppress(\"DEPRECATION\") pi.signatures[0].toByteArray()\n"
-          "            val hash = java.security.MessageDigest.getInstance(\"SHA-256\").digest(sb)\n"
-          "            if (!NativeEngine.verifyToken(hash)) { finish(); return }\n"
-          "        } catch (_: Exception) { finish(); return }\n"
           "        // Android 13+ needs runtime POST_NOTIFICATIONS permission for the TTS\n"
           "        // foreground-service notification. Without it the service can't go foreground\n"
           "        // and Android kills it mid-speech — the root cause of repeated TTS stops.\n"
@@ -4342,7 +4227,6 @@ jobs:
           "        val prefs = SharedPrefsManager(this)\n"
           "        setContent {\n"
           "            MaterialTheme {\n"
-          "                AuthGate(prefs = prefs) {\n"
           "                Surface(modifier = Modifier.fillMaxSize()) {\n"
           "                    val pagerState = rememberPagerState(initialPage = 0) { 5 }\n"
           "                    val coroutineScope = rememberCoroutineScope()\n"
@@ -4389,7 +4273,6 @@ jobs:
           "                        }\n"
           "                    }\n"
           "                }\n"
-          "                } // end AuthGate\n"
           "            }\n"
           "        }\n"
           "    }\n"
