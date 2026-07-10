@@ -749,10 +749,16 @@ jobs:
                   if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
                       dominantLang = normalizeLangCode(std::string(code));
               }
-              // disable_advanced_detection=true: trust CLD2 result blindly, skip codepoint fallback
-              if (dominantLang.empty() && !disableAdvancedDetection)
-                  dominantLang = detectLang(fullText, latFall, nonLatFall);
-              if (dominantLang.empty()) dominantLang = latFall;
+              // AutoTTS clsCLD2.b(): nativeGetLanguage returns the RAW CLD2 result — "UNKNOWN" when
+              // CLD2 cannot identify this window. The codepoint/script-family fallback (a.e/k.o) and the
+              // end-of-loop clsCLD2.a() first-codepoint fallback are performed by the Kotlin caller
+              // (detectLanguage), which windows this primitive exactly like clsCLD2.b's 64-char loop.
+              // Do NOT resolve UNKNOWN to detectLang()/latFall here: that made the caller accept
+              // window-1's latFall and never advance to later windows or the faithful codepoint tail
+              // (e.g. "<ambiguous Latin> <clear Russian>" wrongly returned latFall instead of ru).
+              // (void)disableAdvancedDetection/(void)latFall/(void)nonLatFall — kept for signature parity.
+              (void)disableAdvancedDetection; (void)latFall; (void)nonLatFall;
+              if (dominantLang.empty()) dominantLang = "UNKNOWN";
               chunks.push_back({dominantLang, fullText});
               return chunks;
           }
