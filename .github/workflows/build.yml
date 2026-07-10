@@ -1102,19 +1102,13 @@ jobs:
               while(end!=std::string::npos){ sentences.push_back(rawInput.substr(start,end-start)); start=end+1; end=rawInput.find('\0',start); }
               if(start<rawInput.size()) sentences.push_back(rawInput.substr(start));
 
+              // AutoTTS c3.w.g() does NO pre-normalisation: it feeds the raw text straight into the
+              // segmenter, which only trims + collapses whitespace + strips bidi marks. There is no
+              // math-unicode/fullwidth→ASCII fold, no emoji removal/counting, no punctuation counting,
+              // and no dictionary — none of those exist in AutoTTS. Match exactly: pass each sentence
+              // through UNCHANGED. (applyDictionary/normalizeText/mathUnicodeToAscii are now unused.)
               std::vector<std::string> processed; processed.reserve(sentences.size());
-              for(auto& s: sentences){
-                  if(s.empty()){ processed.push_back(""); continue; }
-                  // Processing pipeline order:
-                  //   1. applyDictionary    — user-defined word replacements
-                  //   2. normalizeText      — emoji / punct / math-unicode normalisation
-                  // Note: expandAcronyms was removed in v17.x — caused regressions on TalkBack
-                  // content where engines (Eloquence, Vocalizer, Google) already have built-in
-                  // acronym pronunciation. Original AutoTTS also doesn't expand acronyms.
-                  auto d = applyDictionary(s, keys, vals);
-                  d = normalizeText(d, keepEmoji, countEmoji, countPunct);
-                  processed.push_back(d);
-              }
+              for(auto& s: sentences){ processed.push_back(s); }
 
               std::string result;
               if (mode == "mix") {
