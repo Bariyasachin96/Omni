@@ -358,11 +358,22 @@ jobs:
               return 0;
           }
 
+          // EXACT port of AutoTTS c3.c.a() — the precise emoji codepoint set used inside pattern `d`.
+          // (200D ZWJ and the 2000-206F block are already latRange elsewhere, so they are not repeated here;
+          //  FE00-FE0E are NOT emoji in c.a() and must NOT be included; only FE0F is the trailing modifier.)
           inline bool isEmoji(int cp) {
-              return (cp>=0x1F300&&cp<=0x1F9FF)||(cp>=0x2600&&cp<=0x27BF)||
-                     (cp>=0x2300&&cp<=0x23FF)||(cp>=0x2B50&&cp<=0x2B55)||
-                     (cp>=0xFE00&&cp<=0xFE0F)||(cp>=0x1FA00&&cp<=0x1FAFF)||
-                     (cp>=0x1F1E0&&cp<=0x1F1FF)||cp==0x200D||cp==0xFE0F;
+              return cp==0x00A9||cp==0x00AE||cp==0x203C||cp==0x2049||cp==0x2122||cp==0x2139||
+                     (cp>=0x2194&&cp<=0x2199)||(cp>=0x21A9&&cp<=0x21AA)||
+                     cp==0x231A||cp==0x231B||cp==0x2328||cp==0x23CF||(cp>=0x23E9&&cp<=0x23F3)||(cp>=0x23F8&&cp<=0x23FA)||
+                     cp==0x24C2||cp==0x25AA||cp==0x25AB||cp==0x25B6||cp==0x25C0||(cp>=0x25FB&&cp<=0x25FE)||
+                     (cp>=0x2600&&cp<=0x26FF)||(cp>=0x2700&&cp<=0x27BF)||cp==0x2934||cp==0x2935||
+                     (cp>=0x2B05&&cp<=0x2B07)||cp==0x2B1B||cp==0x2B1C||cp==0x2B50||cp==0x2B55||
+                     cp==0x3030||cp==0x303D||cp==0x3297||cp==0x3299||cp==0x20E3||cp==0xFE0F||
+                     cp==0x1F004||cp==0x1F0CF||
+                     cp==0x1F170||cp==0x1F171||cp==0x1F17E||cp==0x1F17F||cp==0x1F18E||(cp>=0x1F191&&cp<=0x1F19A)||
+                     (cp>=0x1F1E6&&cp<=0x1F1FF)||
+                     cp==0x1F201||cp==0x1F202||cp==0x1F21A||cp==0x1F22F||(cp>=0x1F232&&cp<=0x1F23A)||cp==0x1F250||cp==0x1F251||
+                     (cp>=0x1F300&&cp<=0x1F5FF)||(cp>=0x1F600&&cp<=0x1F64F)||(cp>=0x1F680&&cp<=0x1F6FF)||(cp>=0x1F900&&cp<=0x1F9FF);
           }
 
           inline bool isPunct(int cp) {
