@@ -9,7 +9,7 @@
 
 ## HARD RULES (NEVER violate)
 1. **NEVER build/push without explicit user request**
-2. **Fix #16 (Disable engine handling) — SET ASIDE, do NOT implement ever**
+2. **Fix #16 (Disable engine handling) — IMPLEMENTED 2026-07-10** (user override: "exactly AutoTTS"). `ko(lang)` helper = `k.o()` parity (configured AND not-disabled), applied at detection-acceptance (clsCLD2.b:60), script-fallback primary+fallbacks (a.e+k.o), and auto/mix span resolution (H()=="Disable"→C). Dual mode untouched (type-based, no k.o). Previously set-aside; no longer.
 3. **Always develop on branch `claude/yaml-file-nk3czh`**
 4. **After every push, manually trigger GitHub Actions** (workflow_dispatch, workflow ID: 262884892)
 
