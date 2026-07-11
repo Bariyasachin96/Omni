@@ -746,7 +746,14 @@ jobs:
                   bool is_rel = false;
                   CLD2::Language cld2Lang = CLD2::DetectLanguage(fullText.c_str(), (int)fullText.size(), true, &is_rel);
                   const char* code = CLD2::LanguageCode(cld2Lang);
-                  if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
+                  // AutoTTS parity (log-proven divergence): CLD2 biases toward ENGLISH with
+                  // is_reliable=false on short/ambiguous text (e.g. 2-char CJK "解说" → en!). AutoTTS's
+                  // nativeGetLanguage returns "UNKNOWN" for unreliable results — that is exactly why
+                  // clsCLD2.b has the per-window a.e()/k.o() script fallback and the clsCLD2.a()
+                  // first-codepoint tail. Accept CLD2's answer ONLY when it is reliable; otherwise
+                  // return UNKNOWN so the Kotlin caller runs the faithful script fallback
+                  // (解说 → Han script → zho; engine empty → type-2 → I, the user's non-Latin choice).
+                  if (is_rel && code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
                       dominantLang = normalizeLangCode(std::string(code));
               }
               // AutoTTS clsCLD2.b(): nativeGetLanguage returns the RAW CLD2 result — "UNKNOWN" when
@@ -947,7 +954,9 @@ jobs:
                       CLD2::Language cld2Lang = CLD2::DetectLanguage(
                           text.c_str() + windowStart, idx - windowStart, true, &is_rel);
                       const char* code = CLD2::LanguageCode(cld2Lang);
-                      if (code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
+                      // AutoTTS parity: accept only RELIABLE CLD2 results (unreliable short text is
+                      // biased to ENGLISH by CLD2 — AutoTTS's native wrapper reports it as UNKNOWN).
+                      if (is_rel && code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
                           return normalizeLangCode(std::string(code));
                   }
                   return "";
