@@ -4130,7 +4130,7 @@ jobs:
           "            onValueChange = { searchQuery = it },\n"
           "            label = { Text(\"Search languages\") },\n"
           "            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },\n"
-          "            trailingIcon = { if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = \"\" }) { Icon(Icons.Filled.Clear, contentDescription = \"Clear search\") } },\n"
+          "            trailingIcon = { if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = \"\" }) { Icon(Icons.Filled.Clear, contentDescription = \"Clear text\") } },\n"
           "            modifier = Modifier.fillMaxWidth(),\n"
           "            singleLine = true\n"
           "        )\n"
