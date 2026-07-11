@@ -220,144 +220,6 @@ jobs:
               return JNI_VERSION_1_6;
           }
 
-          struct BlockDef { int start; int end; const char* lang; };
-          static const BlockDef SCRIPT_BLOCKS[] = {
-              {0x0000, 0x007F, "en"}, {0x0080, 0x00FF, "en"}, {0x0100, 0x017F, "Neutral"},
-              {0x0180, 0x024F, "Neutral"}, {0x0250, 0x02AF, "Neutral"}, {0x02B0, 0x02FF, "Neutral"},
-              {0x0300, 0x036F, "Neutral"}, {0x0370, 0x03FF, "el"}, {0x0400, 0x04FF, "ru"},
-              {0x0500, 0x052F, "ru"}, {0x0530, 0x058F, "hy"}, {0x0590, 0x05FF, "he"},
-              {0x0600, 0x06FF, "ar"}, {0x0700, 0x074F, "Neutral"}, {0x0750, 0x077F, "ar"},
-              {0x0780, 0x07BF, "dv"}, {0x07C0, 0x07FF, "Neutral"}, {0x0800, 0x083F, "Neutral"},  // Thaana = Dhivehi (AutoTTS a.b → dv); unambiguous script
-              {0x0840, 0x085F, "Neutral"}, {0x0860, 0x086F, "Neutral"}, {0x08A0, 0x08FF, "ar"},
-              {0x0900, 0x097F, "hi"}, {0x0980, 0x09FF, "bn"}, {0x0A00, 0x0A7F, "pa"},
-              {0x0A80, 0x0AFF, "gu"}, {0x0B00, 0x0B7F, "or"}, {0x0B80, 0x0BFF, "ta"},
-              {0x0C00, 0x0C7F, "te"}, {0x0C80, 0x0CFF, "kn"}, {0x0D00, 0x0D7F, "ml"},
-              {0x0D80, 0x0DFF, "si"}, {0x0E00, 0x0E7F, "th"}, {0x0E80, 0x0EFF, "lo"},
-              {0x0F00, 0x0FFF, "bo"}, {0x1000, 0x109F, "my"}, {0x10A0, 0x10FF, "ka"},
-              {0x1100, 0x11FF, "ko"}, {0x1200, 0x137F, "am"}, {0x1380, 0x139F, "am"},
-              {0x13A0, 0x13FF, "Neutral"}, {0x1400, 0x167F, "Neutral"}, {0x1680, 0x169F, "Neutral"},
-              {0x16A0, 0x16FF, "Neutral"}, {0x1700, 0x171F, "Neutral"}, {0x1720, 0x173F, "Neutral"},
-              {0x1740, 0x175F, "Neutral"}, {0x1760, 0x177F, "Neutral"}, {0x1780, 0x17FF, "km"},
-              {0x1800, 0x18AF, "mn"}, {0x18B0, 0x18FF, "Neutral"}, {0x1900, 0x194F, "Neutral"},
-              {0x1950, 0x197F, "Neutral"}, {0x1980, 0x19DF, "Neutral"}, {0x19E0, 0x19FF, "km"},
-              {0x1A00, 0x1A1F, "Neutral"}, {0x1A20, 0x1AAF, "Neutral"}, {0x1AB0, 0x1AFF, "Neutral"},
-              {0x1B00, 0x1B7F, "Neutral"}, {0x1B80, 0x1BBF, "Neutral"}, {0x1BC0, 0x1BFF, "Neutral"},
-              {0x1C00, 0x1C4F, "Neutral"}, {0x1C50, 0x1C7F, "Neutral"}, {0x1C80, 0x1C8F, "Neutral"},
-              {0x1C90, 0x1CBF, "Neutral"}, {0x1CC0, 0x1CCF, "Neutral"}, {0x1CD0, 0x1CFF, "Neutral"},  // AutoTTS a.b has no mapping for these extended blocks → Unknown
-              {0x1D00, 0x1D7F, "Neutral"}, {0x1D80, 0x1DBF, "Neutral"}, {0x1DC0, 0x1DFF, "Neutral"},
-              {0x1E00, 0x1EFF, "Neutral"}, {0x1F00, 0x1FFF, "el"}, {0x2000, 0x206F, "Neutral"},
-              {0x2070, 0x209F, "Neutral"}, {0x20A0, 0x20CF, "Neutral"}, {0x20D0, 0x20FF, "Neutral"},
-              {0x2100, 0x214F, "Neutral"}, {0x2150, 0x218F, "Neutral"}, {0x2190, 0x21FF, "Neutral"},
-              {0x2200, 0x22FF, "Neutral"}, {0x2300, 0x23FF, "Neutral"}, {0x2400, 0x243F, "Neutral"},
-              {0x2440, 0x245F, "Neutral"}, {0x2460, 0x24FF, "Neutral"}, {0x2500, 0x257F, "Neutral"},
-              {0x2580, 0x259F, "Neutral"}, {0x25A0, 0x25FF, "Neutral"}, {0x2600, 0x26FF, "Neutral"},
-              {0x2700, 0x27BF, "Neutral"}, {0x27C0, 0x27EF, "Neutral"}, {0x27F0, 0x27FF, "Neutral"},
-              {0x2800, 0x28FF, "Neutral"}, {0x2900, 0x297F, "Neutral"}, {0x2980, 0x29FF, "Neutral"},
-              {0x2A00, 0x2AFF, "Neutral"}, {0x2B00, 0x2BFF, "Neutral"}, {0x2C00, 0x2C5F, "Neutral"},
-              {0x2C60, 0x2C7F, "Neutral"}, {0x2C80, 0x2CFF, "Neutral"}, {0x2D00, 0x2D2F, "ka"},
-              {0x2D30, 0x2D7F, "Neutral"}, {0x2D80, 0x2DDF, "am"}, {0x2DE0, 0x2DFF, "ru"},
-              {0x2E00, 0x2E7F, "Neutral"}, {0x2E80, 0x2EFF, "zh"}, {0x2F00, 0x2FDF, "zh"},
-              {0x2FF0, 0x2FFF, "Neutral"}, {0x3000, 0x303F, "Neutral"}, {0x3040, 0x309F, "ja"},
-              {0x30A0, 0x30FF, "ja"}, {0x3100, 0x312F, "zh"}, {0x3130, 0x318F, "ko"},
-              {0x3190, 0x319F, "zh"}, {0x31A0, 0x31BF, "zh"}, {0x31C0, 0x31EF, "zh"},
-              {0x31F0, 0x31FF, "ja"}, {0x3200, 0x32FF, "Neutral"}, {0x3300, 0x33FF, "Neutral"},
-              {0x3400, 0x4DBF, "zh"}, {0x4DC0, 0x4DFF, "Neutral"}, {0x4E00, 0x9FFF, "zh"},
-              {0xA000, 0xA48F, "Neutral"}, {0xA490, 0xA4CF, "Neutral"}, {0xA4D0, 0xA4FF, "Neutral"},
-              {0xA500, 0xA63F, "Neutral"}, {0xA640, 0xA69F, "ru"}, {0xA6A0, 0xA6FF, "Neutral"},
-              {0xA700, 0xA71F, "Neutral"}, {0xA720, 0xA7FF, "Neutral"}, {0xA800, 0xA82F, "Neutral"},
-              {0xA830, 0xA83F, "Neutral"}, {0xA840, 0xA87F, "Neutral"}, {0xA880, 0xA8DF, "Neutral"},
-              {0xA8E0, 0xA8FF, "hi"}, {0xA900, 0xA92F, "Neutral"}, {0xA930, 0xA95F, "Neutral"},
-              {0xA960, 0xA97F, "ko"}, {0xA980, 0xA9DF, "Neutral"}, {0xA9E0, 0xA9FF, "my"},  // Javanese: AutoTTS a.b → Unknown
-              {0xAA00, 0xAA5F, "Neutral"}, {0xAA60, 0xAA7F, "my"}, {0xAA80, 0xAADF, "Neutral"},
-              {0xAAE0, 0xAAFF, "Neutral"}, {0xAB00, 0xAB2F, "am"}, {0xAB30, 0xAB6F, "Neutral"},
-              {0xAB70, 0xABBF, "Neutral"}, {0xABC0, 0xABFF, "Neutral"}, {0xAC00, 0xD7AF, "ko"},
-              {0xD7B0, 0xD7FF, "ko"}, {0xD800, 0xDB7F, "Neutral"}, {0xDB80, 0xDBFF, "Neutral"},
-              {0xDC00, 0xDFFF, "Neutral"}, {0xE000, 0xF8FF, "Neutral"}, {0xF900, 0xFAFF, "zh"},
-              {0xFB00, 0xFB4F, "Neutral"}, {0xFB50, 0xFDFF, "ar"}, {0xFE00, 0xFE0F, "Neutral"},
-              {0xFE10, 0xFE1F, "Neutral"}, {0xFE20, 0xFE2F, "Neutral"}, {0xFE30, 0xFE4F, "Neutral"},
-              {0xFE50, 0xFE6F, "Neutral"}, {0xFE70, 0xFEFF, "ar"}, {0xFF00, 0xFFEF, "Neutral"},
-              {0xFFF0, 0xFFFF, "Neutral"}, {0x10000, 0x1007F, "Neutral"}, {0x10080, 0x100FF, "Neutral"},
-              {0x10100, 0x1013F, "Neutral"}, {0x10140, 0x1018F, "Neutral"}, {0x10190, 0x101CF, "Neutral"},
-              {0x101D0, 0x101FF, "Neutral"}, {0x10280, 0x1029F, "Neutral"}, {0x102A0, 0x102DF, "Neutral"},
-              {0x102E0, 0x102FF, "Neutral"}, {0x10300, 0x1032F, "Neutral"}, {0x10330, 0x1034F, "Neutral"},
-              {0x10350, 0x1037F, "Neutral"}, {0x10380, 0x1039F, "Neutral"}, {0x103A0, 0x103DF, "Neutral"},
-              {0x10400, 0x1044F, "Neutral"}, {0x10450, 0x1047F, "Neutral"}, {0x10480, 0x104AF, "Neutral"},
-              {0x104B0, 0x104FF, "Neutral"}, {0x10500, 0x1052F, "Neutral"}, {0x10530, 0x1056F, "Neutral"},
-              {0x10600, 0x1077F, "Neutral"}, {0x10800, 0x1083F, "Neutral"}, {0x10840, 0x1085F, "Neutral"},
-              {0x10860, 0x1087F, "Neutral"}, {0x10880, 0x108AF, "Neutral"}, {0x108E0, 0x108FF, "Neutral"},
-              {0x10900, 0x1091F, "Neutral"}, {0x10920, 0x1093F, "Neutral"}, {0x10980, 0x1099F, "Neutral"},
-              {0x109A0, 0x109FF, "Neutral"}, {0x10A00, 0x10A5F, "Neutral"}, {0x10A60, 0x10A7F, "Neutral"},
-              {0x10A80, 0x10A9F, "Neutral"}, {0x10AC0, 0x10AFF, "Neutral"}, {0x10B00, 0x10B3F, "Neutral"},
-              {0x10B40, 0x10B5F, "Neutral"}, {0x10B60, 0x10B7F, "Neutral"}, {0x10B80, 0x10BAF, "Neutral"},
-              {0x10C00, 0x10C4F, "Neutral"}, {0x10C80, 0x10CFF, "Neutral"}, {0x10D00, 0x10D3F, "Neutral"},
-              {0x10E60, 0x10E7F, "Neutral"}, {0x10F00, 0x10F2F, "Neutral"}, {0x10F30, 0x10F6F, "Neutral"},
-              {0x10FE0, 0x10FFF, "Neutral"}, {0x11000, 0x1107F, "Neutral"}, {0x11080, 0x110CF, "Neutral"},
-              {0x110D0, 0x110FF, "Neutral"}, {0x11100, 0x1114F, "Neutral"}, {0x11150, 0x1117F, "Neutral"},
-              {0x11180, 0x111DF, "Neutral"}, {0x111E0, 0x111FF, "si"}, {0x11200, 0x1124F, "Neutral"},
-              {0x11280, 0x112AF, "Neutral"}, {0x112B0, 0x112FF, "Neutral"}, {0x11300, 0x1137F, "Neutral"},
-              {0x11400, 0x1147F, "Neutral"}, {0x11480, 0x114DF, "Neutral"}, {0x11580, 0x115FF, "Neutral"},
-              {0x11600, 0x1165F, "Neutral"}, {0x11660, 0x1167F, "mn"}, {0x11680, 0x116CF, "Neutral"},
-              {0x11700, 0x1173F, "Neutral"}, {0x11800, 0x1184F, "Neutral"}, {0x118A0, 0x118FF, "Neutral"},
-              {0x119A0, 0x119FF, "Neutral"}, {0x11A00, 0x11A4F, "Neutral"}, {0x11A50, 0x11AAF, "Neutral"},
-              {0x11AC0, 0x11AFF, "Neutral"}, {0x11C00, 0x11C6F, "Neutral"}, {0x11C70, 0x11CBF, "Neutral"},
-              {0x11D00, 0x11D5F, "Neutral"}, {0x11D60, 0x11DAF, "Neutral"}, {0x11EE0, 0x11EFF, "Neutral"},
-              {0x11FC0, 0x11FFF, "Neutral"}, {0x12000, 0x123FF, "Neutral"}, {0x12400, 0x1247F, "Neutral"},  // Tamil Supplement: AutoTTS a.b → Unknown
-              {0x12480, 0x1254F, "Neutral"}, {0x13000, 0x1342F, "Neutral"}, {0x13430, 0x1343F, "Neutral"},
-              {0x14400, 0x1467F, "Neutral"}, {0x16800, 0x16A3F, "Neutral"}, {0x16A40, 0x16A6F, "Neutral"},
-              {0x16AD0, 0x16AFF, "Neutral"}, {0x16B00, 0x16B8F, "Neutral"}, {0x16E40, 0x16E9F, "Neutral"},
-              {0x16F00, 0x16F9F, "Neutral"}, {0x16FE0, 0x16FFF, "Neutral"}, {0x17000, 0x187FF, "Neutral"},
-              {0x18800, 0x18AFF, "Neutral"}, {0x1B000, 0x1B0FF, "ja"}, {0x1B100, 0x1B12F, "ja"},
-              {0x1B130, 0x1B16F, "ja"}, {0x1B170, 0x1B2FF, "Neutral"}, {0x1BC00, 0x1BC9F, "Neutral"},
-              {0x1BCA0, 0x1BCAF, "Neutral"}, {0x1D000, 0x1D0FF, "Neutral"}, {0x1D100, 0x1D1FF, "Neutral"},
-              {0x1D200, 0x1D24F, "Neutral"}, {0x1D2E0, 0x1D2FF, "Neutral"}, {0x1D300, 0x1D35F, "Neutral"},
-              {0x1D360, 0x1D37F, "Neutral"}, {0x1D400, 0x1D7FF, "Neutral"}, {0x1D800, 0x1DAAF, "Neutral"},
-              {0x1E000, 0x1E02F, "Neutral"}, {0x1E100, 0x1E14F, "Neutral"}, {0x1E2C0, 0x1E2FF, "Neutral"},
-              {0x1E800, 0x1E8DF, "Neutral"}, {0x1E900, 0x1E95F, "Neutral"}, {0x1EC70, 0x1ECBF, "Neutral"},
-              {0x1ED00, 0x1ED4F, "Neutral"}, {0x1EE00, 0x1EEFF, "Neutral"}, {0x1F000, 0x1F02F, "Neutral"},
-              {0x1F030, 0x1F09F, "Neutral"}, {0x1F0A0, 0x1F0FF, "Neutral"}, {0x1F100, 0x1F1FF, "Neutral"},
-              {0x1F200, 0x1F2FF, "Neutral"}, {0x1F300, 0x1F5FF, "Neutral"}, {0x1F600, 0x1F64F, "Neutral"},
-              {0x1F650, 0x1F67F, "Neutral"}, {0x1F680, 0x1F6FF, "Neutral"}, {0x1F700, 0x1F77F, "Neutral"},
-              {0x1F780, 0x1F7FF, "Neutral"}, {0x1F800, 0x1F8FF, "Neutral"}, {0x1F900, 0x1F9FF, "Neutral"},
-              {0x1FA00, 0x1FA6F, "Neutral"}, {0x1FA70, 0x1FAFF, "Neutral"}, {0x20000, 0x2A6DF, "zh"},
-              {0x2A700, 0x2B73F, "zh"}, {0x2B740, 0x2B81F, "zh"}, {0x2B820, 0x2CEAF, "zh"},
-              {0x2CEB0, 0x2EBEF, "zh"}, {0x2F800, 0x2FA1F, "zh"}, {0xE0000, 0xE007F, "Neutral"},
-              {0xE0100, 0xE01EF, "Neutral"}, {0xF0000, 0xFFFFF, "Neutral"}, {0x100000, 0x10FFFF, "Neutral"},
-              {0, 0, nullptr}
-          };
-
-          inline int utf8ToCodepoint(const unsigned char* p, int& len) {
-              if (p[0] < 0x80)               { len=1; return p[0]; }
-              if ((p[0]&0xE0)==0xC0)         { len=2; return ((p[0]&0x1F)<<6)|(p[1]&0x3F); }
-              if ((p[0]&0xF0)==0xE0)         { len=3; return ((p[0]&0x0F)<<12)|((p[1]&0x3F)<<6)|(p[2]&0x3F); }
-              if ((p[0]&0xF8)==0xF0)         { len=4; return ((p[0]&0x07)<<18)|((p[1]&0x3F)<<12)|((p[2]&0x3F)<<6)|(p[3]&0x3F); }
-              len=1; return p[0];
-          }
-
-          inline void codepointToUtf8(int cp, std::string& out) {
-              if (cp<=0x7F)      { out+=(char)cp; }
-              else if(cp<=0x7FF) { out+=(char)((cp>>6)|0xC0); out+=(char)((cp&0x3F)|0x80); }
-              else if(cp<=0xFFFF){ out+=(char)((cp>>12)|0xE0); out+=(char)(((cp>>6)&0x3F)|0x80); out+=(char)((cp&0x3F)|0x80); }
-              else               { out+=(char)((cp>>18)|0xF0); out+=(char)(((cp>>12)&0x3F)|0x80); out+=(char)(((cp>>6)&0x3F)|0x80); out+=(char)((cp&0x3F)|0x80); }
-          }
-
-          inline char mathUnicodeToAscii(int cp) {
-              if(cp>=0x1D400&&cp<=0x1D419) return 'A'+(cp-0x1D400);
-              if(cp>=0x1D434&&cp<=0x1D44D) return 'A'+(cp-0x1D434);
-              if(cp>=0x1D468&&cp<=0x1D481) return 'A'+(cp-0x1D468);
-              if(cp>=0x1D5A0&&cp<=0x1D5B9) return 'A'+(cp-0x1D5A0);
-              if(cp>=0x1D670&&cp<=0x1D689) return 'A'+(cp-0x1D670);
-              if(cp>=0x1D41A&&cp<=0x1D433) return 'a'+(cp-0x1D41A);
-              if(cp>=0x1D44E&&cp<=0x1D467) return 'a'+(cp-0x1D44E);
-              if(cp>=0x1D482&&cp<=0x1D49B) return 'a'+(cp-0x1D482);
-              if(cp>=0x1D5BA&&cp<=0x1D5D3) return 'a'+(cp-0x1D5BA);
-              if(cp>=0x1D68A&&cp<=0x1D6A3) return 'a'+(cp-0x1D68A);
-              if(cp>=0xFF21&&cp<=0xFF3A)   return 'A'+(cp-0xFF21);
-              if(cp>=0xFF41&&cp<=0xFF5A)   return 'a'+(cp-0xFF41);
-              if(cp>=0x1D7CE&&cp<=0x1D7D7) return '0'+(cp-0x1D7CE);
-              if(cp>=0xFF10&&cp<=0xFF19)   return '0'+(cp-0xFF10);
-              return 0;
-          }
-
           // EXACT port of AutoTTS c3.c.a() — the precise emoji codepoint set used inside pattern `d`.
           // (200D ZWJ and the 2000-206F block are already latRange elsewhere, so they are not repeated here;
           //  FE00-FE0E are NOT emoji in c.a() and must NOT be included; only FE0F is the trailing modifier.)
@@ -374,100 +236,6 @@ jobs:
                      (cp>=0x1F1E6&&cp<=0x1F1FF)||
                      cp==0x1F201||cp==0x1F202||cp==0x1F21A||cp==0x1F22F||(cp>=0x1F232&&cp<=0x1F23A)||cp==0x1F250||cp==0x1F251||
                      (cp>=0x1F300&&cp<=0x1F5FF)||(cp>=0x1F600&&cp<=0x1F64F)||(cp>=0x1F680&&cp<=0x1F6FF)||(cp>=0x1F900&&cp<=0x1F9FF);
-          }
-
-          inline bool isPunct(int cp) {
-              return cp=='.'||cp=='!'||cp=='?'||cp==','||cp==';'||cp==':'||cp=='-'||cp=='*'||cp=='_'
-                  ||cp=='='||cp=='+'||cp=='/'||cp=='\\'||cp=='|'||cp=='~'||cp=='^'
-                  ||cp=='&'||cp=='@'||cp=='#'||cp=='$'||cp=='%'
-                  ||cp=='('||cp==')'||cp=='['||cp==']'||cp=='{'||cp=='}'
-                  ||cp=='<'||cp=='>'||cp=='"'||cp=='\'';
-          }
-
-          static std::string normalizeText(const std::string& input, bool keepEmoji, bool countEmoji, bool countPunct) {
-              std::string result;
-              result.reserve(input.size());
-              int i=0, len=(int)input.size();
-              while(i<len) {
-                  int clen=0;
-                  int cp=utf8ToCodepoint((const unsigned char*)&input[i], clen);
-                  char ascii=mathUnicodeToAscii(cp);
-                  if(ascii){ result+=ascii; i+=clen; continue; }
-                  if(isEmoji(cp)) {
-                      if(!keepEmoji){ i+=clen; continue; }
-                      int eCount=1, j=i+clen;
-                      while(j<len){ int nl=0; int nc=utf8ToCodepoint((const unsigned char*)&input[j],nl); if(nc==cp){eCount++;j+=nl;}else break; }
-                      // BUGFIX: when count enabled, output "N <emoji>" once (not N copies).
-                      // TTS engines speak the emoji name once; the count prefix tells the user
-                      // there were multiple. Adding leading space ensures the number is read
-                      // as a separate word (e.g. "Hello 7 face" not "Hello7 face").
-                      if(countEmoji&&eCount>1) {
-                          result+=" "+std::to_string(eCount)+" ";
-                          codepointToUtf8(cp,result);
-                      } else {
-                          for(int k=0;k<eCount;k++) codepointToUtf8(cp,result);
-                      }
-                      i=j; continue;
-                  }
-                  if(isPunct(cp)&&countPunct) {
-                      int pCount=1, j=i+clen;
-                      while(j<len){ int nl=0; int nc=utf8ToCodepoint((const unsigned char*)&input[j],nl); if(nc==cp){pCount++;j+=nl;}else break; }
-                      // BUGFIX: leading space before count for clean spoken output.
-                      // "Hello======" → "Hello 6 =" (TTS reads "Hello 6 equals")
-                      if(pCount>1) result+=" "+std::to_string(pCount)+" ";
-                      codepointToUtf8(cp,result);
-                      i=j; continue;
-                  }
-                  codepointToUtf8(cp,result);
-                  i+=clen;
-              }
-              return result;
-          }
-
-          static std::string applyDictionary(std::string text, const std::vector<std::string>& keys, const std::vector<std::string>& vals) {
-              for(size_t i=0;i<keys.size();i++){
-                  if(keys[i].empty()) continue;
-                  size_t pos=0;
-                  while((pos=text.find(keys[i],pos))!=std::string::npos){
-                      text.replace(pos,keys[i].size(),vals[i]);
-                      pos+=vals[i].size();
-                  }
-              }
-              return text;
-          }
-
-          static const char* scriptLookup(int cp) {
-              for(int i=0; SCRIPT_BLOCKS[i].lang; i++)
-                  if(cp>=SCRIPT_BLOCKS[i].start && cp<=SCRIPT_BLOCKS[i].end)
-                      return SCRIPT_BLOCKS[i].lang;
-              return nullptr;
-          }
-
-          inline bool isUnknownChar(int cp) {
-              // Java Character.isWhitespace(): HT LF VT FF CR FS GS RS US SP
-              // mirrors clsCLD2.a() which calls Character.isWhitespace(c3)
-              if((cp>=0x09&&cp<=0x0D)||(cp>=0x1C&&cp<=0x1F)||cp==0x20) return true;
-              // digits 0-9
-              if(cp>=0x30&&cp<=0x39) return true;
-              // clsCLD2.c() ASCII punct ranges exactly
-              if(cp>=0x21&&cp<=0x2F) return true;  // ! " # $ % & ' ( ) * + , - . /
-              if(cp>=0x3A&&cp<=0x40) return true;  // : ; < = > ? @
-              if(cp>=0x5B&&cp<=0x60) return true;  // [ \ ] ^ _ `
-              if(cp>=0x7B&&cp<=0x7E) return true;  // { | } ~
-              return false;
-          }
-
-          static const char* scriptLookupChar(int cp) {
-              if(cp<=0x007F) return "en";
-              if(cp>=0x0080&&cp<=0x00FF) return "en";
-              if(cp>=0x0100&&cp<=0x024F) return "en";
-              return scriptLookup(cp);
-          }
-
-          inline bool isLatinChar(int cp) {
-              return (cp>=0x0020&&cp<=0x007F)||
-                     (cp>=0x0080&&cp<=0x024F)||
-                     isUnknownChar(cp);
           }
 
           // Returns true for non-Latin codepoints that are NOT Unicode \p{L} (Letter category).
@@ -505,189 +273,6 @@ jobs:
               return false;
           }
 
-          // detectLang: Prioritize SCRIPT_BLOCKS array lookup; CLD2 only if everything is Neutral
-          static std::string detectLang(const std::string& text, const std::string& latFall, const std::string& nonLatFall) {
-              int len = (int)text.size();
-              // PRIORITY 0: Micro-codepoint language hack — single-character markers that
-              // unambiguously distinguish Marathi from Hindi (within Devanagari) and Assamese
-              // from Bengali (within Bengali block). Run BEFORE the broad SCRIPT_BLOCKS scan
-              // so e.g. "ळ" (U+0933) tags the whole phrase as "mr" rather than the default "hi".
-              {
-                  int i = 0;
-                  while(i < len) {
-                      int clen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
-                      if (cp == 0x0933) return "mr";                         // ळ — Marathi-only
-                      if (cp == 0x09F0 || cp == 0x09F1) return "as";         // ৰ ৱ — Assamese-only
-                      i += clen;
-                  }
-              }
-              // PRIORITY 0.5: Latin/Cyrillic/Arabic micro-language detection via per-codepoint
-              // accent table — ported from original AutoTTS's a.java::b(int). Distinguishes
-              // fr/es/de/no/pl/cs/vi from accented Latin chars, uk/sr/bg/kk from Cyrillic
-              // letters, and fa/ur/ps/sd/ku from Arabic letters. First match wins so e.g.
-              // "café niño" → fr (because "é" comes before "ñ" — first match priority).
-              {
-                  int i = 0;
-                  while(i < len) {
-                      int clen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
-                      // ── Latin diacritics (Latin-1 Supplement + Latin Extended-A) ──
-                      if (cp == 192 || cp == 194 || cp == 199 || cp == 200 || cp == 201 || cp == 202 || cp == 203
-                          || cp == 206 || cp == 207 || cp == 212 || cp == 217 || cp == 219
-                          || cp == 224 || cp == 226 || cp == 231 || cp == 232 || cp == 233 || cp == 234 || cp == 235
-                          || cp == 238 || cp == 239 || cp == 244 || cp == 249 || cp == 251 || cp == 338 || cp == 339)
-                          return "fr";
-                      if (cp == 193 || cp == 205 || cp == 209 || cp == 211 || cp == 218
-                          || cp == 225 || cp == 237 || cp == 241 || cp == 243 || cp == 250)
-                          return "es";
-                      if (cp == 196 || cp == 214 || cp == 220 || cp == 228 || cp == 246 || cp == 252 || cp == 223)
-                          return "de";
-                      if (cp == 197 || cp == 198 || cp == 216 || cp == 229 || cp == 230 || cp == 248)
-                          return "no";
-                      if (cp == 260 || cp == 261 || cp == 262 || cp == 263 || cp == 280 || cp == 281
-                          || cp == 321 || cp == 322 || cp == 323 || cp == 324 || cp == 346 || cp == 347
-                          || cp == 377 || cp == 378 || cp == 379 || cp == 380)
-                          return "pl";
-                      if (cp == 268 || cp == 269 || cp == 270 || cp == 271 || cp == 282 || cp == 283
-                          || cp == 327 || cp == 328 || cp == 344 || cp == 345 || cp == 352 || cp == 353
-                          || cp == 356 || cp == 357 || cp == 366 || cp == 367 || cp == 381 || cp == 382)
-                          return "cs";
-                      if ((cp >= 7840 && cp <= 7929) || cp == 272 || cp == 273
-                          || cp == 416 || cp == 417 || cp == 431 || cp == 432)
-                          return "vi";
-                      // ── Cyrillic micro-language splits ──
-                      if (cp == 1028 || cp == 1108 || cp == 1030 || cp == 1110 || cp == 1031 || cp == 1111
-                          || cp == 1168 || cp == 1169)
-                          return "uk";
-                      if (cp == 1026 || cp == 1106 || cp == 1032 || cp == 1112 || cp == 1033 || cp == 1113
-                          || cp == 1034 || cp == 1114 || cp == 1035 || cp == 1115 || cp == 1039 || cp == 1119)
-                          return "sr";
-                      if (cp == 1066 || cp == 1098)
-                          return "bg";
-                      if (cp == 1186 || cp == 1187 || cp == 1170 || cp == 1171 || cp == 1200 || cp == 1201
-                          || cp == 1198 || cp == 1199 || cp == 1240 || cp == 1241)
-                          return "kk";
-                      // ── Arabic micro-language splits ──
-                      if (cp == 1662 || cp == 1670 || cp == 1688 || cp == 1711)
-                          return "fa";
-                      if (cp == 1657 || cp == 1672 || cp == 1681 || cp == 1722 || cp == 1726 || cp == 1729 || cp == 1746)
-                          return "ur";
-                      if (cp == 1665 || cp == 1669 || cp == 1673 || cp == 1683 || cp == 1686 || cp == 1690
-                          || cp == 1724 || cp == 1744)
-                          return "ps";
-                      if (cp >= 1658 && cp <= 1661)
-                          return "sd";
-                      if (cp == 1742 || cp == 1685 || cp == 1717 || cp == 1734)  // AutoTTS a.b ku set = {1742,1685,1717,1734} exactly; 0x6CA/0x6CB(1738,1739) fall through to ar
-                          return "ku";
-                      i += clen;
-                  }
-              }
-              // BUNDLE-Y ITEM 10: Common-word language refinement.
-              // Before SCRIPT_BLOCKS resolves to a generic "ru"/"hi"/etc, scan for
-              // language-distinctive function words (high-frequency particles, conjunctions,
-              // pronouns) that disambiguate sibling languages within the same script.
-              // Only triggers on TEXT WITH SPACES so we get word boundaries cheaply.
-              // Single-word/no-space text falls through to SCRIPT_BLOCKS (current behaviour).
-              // Conservative: needs ≥2 hits of the same language's marker to commit; otherwise
-              // skipped so this never overrides correct script-based detection on its own.
-              if (text.find(' ') != std::string::npos) {
-                  // Build a lowercase ASCII-folded copy for fast scanning. Non-ASCII codepoints
-                  // are passed through verbatim — Cyrillic/Devanagari markers below will match.
-                  std::string lower;
-                  lower.reserve(text.size());
-                  for (size_t k = 0; k < text.size(); k++) {
-                      unsigned char ch = (unsigned char)text[k];
-                      if (ch >= 'A' && ch <= 'Z') lower += (char)(ch + 32);
-                      else lower += (char)ch;
-                  }
-                  // helper: count occurrences of " word " in " lower " (with leading/trailing space
-                  // so boundaries work). Returns count of distinct positions.
-                  auto countWord = [&](const char* w) -> int {
-                      std::string needle = " ";
-                      needle += w;
-                      needle += " ";
-                      std::string hay = " ";
-                      hay += lower;
-                      hay += " ";
-                      int c = 0;
-                      size_t pos = 0;
-                      while ((pos = hay.find(needle, pos)) != std::string::npos) {
-                          c++;
-                          pos += needle.size() - 1;  // -1 so overlapping " a b " can still trigger
-                      }
-                      return c;
-                  };
-                  // Marathi-distinctive vs Hindi: "ahe" (आहे), "tya" (त्या), "ka" (का), "ani" (आणि)
-                  // — but those won't appear in Latin form. We need Devanagari markers.
-                  // Top distinctive Marathi function words in native script:
-                  int mr = countWord("आहे") + countWord("होते") + countWord("त्या") + countWord("आणि");
-                  int hi = countWord("है") + countWord("था") + countWord("और") + countWord("नहीं");
-                  if (mr >= 2 && mr > hi) return "mr";
-                  if (hi >= 2 && hi > mr) return "hi";
-                  // Ukrainian-distinctive vs Russian: "що" (that), "це" (this), "не" appears in both,
-                  // but "є" (is) and "та" (and) are Ukrainian-leaning, "и" (and) is Russian.
-                  int uk = countWord("що") + countWord("це") + countWord("та");
-                  int ru = countWord("что") + countWord("это") + countWord("как");
-                  if (uk >= 2 && uk > ru) return "uk";
-                  if (ru >= 2 && ru > uk) return "ru";
-                  // Spanish-distinctive vs Italian (when neither has triggered the diacritic
-                  // detection above — usually means no accents present, so disambiguation needed).
-                  // Spanish: "que", "los", "las", "para"; Italian: "che", "gli", "del", "una"
-                  int es = countWord("que") + countWord("los") + countWord("para");
-                  int it = countWord("che") + countWord("gli") + countWord("del");
-                  if (es >= 2 && es > it) return "es";
-                  if (it >= 2 && it > es) return "it";
-              }
-              // PRIORITY 1: Scan codepoints and return the first non-Neutral language from SCRIPT_BLOCKS
-              int i = 0;
-              while(i < len) {
-                  int clen = 0;
-                  int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
-                  if(!isUnknownChar(cp)) {
-                      const char* sl = scriptLookup(cp);
-                      if (sl && strcmp(sl, "Neutral") != 0) {
-                          return std::string(sl);
-                      }
-                  }
-                  i += clen;
-              }
-              // PRIORITY 2: Everything was Neutral / unknown — try CLD2 as a last resort
-              const int WINDOW = 64;
-              i = 0;
-              while(i < len) {
-                  int byteStart = i;
-                  int charCount = 0;
-                  int j = i;
-                  while(j < len && charCount < WINDOW) {
-                      int clen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&text[j], clen);
-                      j += clen;
-                      // AutoTTS clsCLD2.b() windows by UTF-16 units (substring(n6, n6+64)): an astral
-                      // codepoint (>0xFFFF, e.g. emoji / rare CJK ext) counts as 2 Java chars, not 1.
-                      charCount += (cp > 0xFFFF) ? 2 : 1;
-                  }
-                  bool is_rel = false;
-                  CLD2::Language lang = CLD2::DetectLanguage(text.c_str() + byteStart, j - byteStart, true, &is_rel);
-                  const char* code = CLD2::LanguageCode(lang);
-                  if(code && strlen(code) >= 2 && strcmp(code, "un") != 0 && strcmp(code, "xx") != 0 && strcmp(code, "Unknown") != 0) {
-                      return std::string(code);
-                  }
-                  i = j;
-              }
-              // PRIORITY 3: Final fallback by Latin/Non-Latin classification
-              i = 0;
-              while(i < len) {
-                  int clen = 0;
-                  int cp = utf8ToCodepoint((const unsigned char*)&text[i], clen);
-                  if(!isUnknownChar(cp)) {
-                      if (isLatinChar(cp)) return latFall;
-                      return nonLatFall;
-                  }
-                  i += clen;
-              }
-              return nonLatFall;
-          }
 
           struct ChunkResult { std::string lang; std::string text; };
 
@@ -896,17 +481,15 @@ jobs:
                       // AutoTTS pattern d (w.java:35-37) INCLUDES emoji (via c3.c.a() appended into the
                       // latRange char class) → emoji land in the Latin buffer and w.c() classifies them
                       // type-1 (latFall). Pattern d does NOT include IPA/Phonetic Extensions (U+1D00-1D7F),
-                      // so those stay non-Latin (type-2). Emoji routed to latRange only when emojiFall is
-                      // "auto"/unset (exact AutoTTS); when the user set an explicit emoji mode, keep them
-                      // non-Latin so the emojiFall override still applies.
-                      bool emojiAuto = emojiFall.empty() || emojiFall == "auto";
+                      // so those stay non-Latin (type-2). Emoji are ALWAYS latRange — AutoTTS has no
+                      // emoji-language feature (the old emojiFall gate was dead code, always "auto").
                       bool latRange = (cp <= 0x024F) ||
                                       (cp >= 0x1E00 && cp <= 0x1EFF) ||
                                       (cp >= 0x2000 && cp <= 0x206F) ||
                                       (cp >= 0x20A0 && cp <= 0x20CF) ||
                                       (cp >= 0x2C60 && cp <= 0x2C7F) ||
                                       (cp >= 0xA720 && cp <= 0xA7FF) ||
-                                      (emojiAuto && isEmoji(cp));
+                                      isEmoji(cp);
                       int kind = latRange ? 0 : 1;
                       if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, clen); bufKind = kind; }
                       else { flushBuf(); buf = fullText.substr(i, clen); bufKind = kind; }
@@ -939,76 +522,21 @@ jobs:
 
               if (segs.empty()) return result;
 
-              // AutoTTS clsCLD2.b(): CLD2 in 64-char windows, return first non-UNKNOWN result.
-              // Returns "" if all windows return UNKNOWN.
-              auto cld2Detect64 = [](const std::string& text) -> std::string {
-                  int slen = (int)text.size(), idx = 0;
-                  while (idx < slen) {
-                      int windowStart = idx, charCount = 0;
-                      while (idx < slen && charCount < 64) {
-                          int cl = 0;
-                          utf8ToCodepoint((const unsigned char*)text.c_str() + idx, cl);
-                          idx += cl; charCount++;
-                      }
-                      bool is_rel = false;
-                      CLD2::Language cld2Lang = CLD2::DetectLanguage(
-                          text.c_str() + windowStart, idx - windowStart, true, &is_rel);
-                      const char* code = CLD2::LanguageCode(cld2Lang);
-                      // AutoTTS parity: accept only RELIABLE CLD2 results (unreliable short text is
-                      // biased to ENGLISH by CLD2 — AutoTTS's native wrapper reports it as UNKNOWN).
-                      if (is_rel && code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                          return normalizeLangCode(std::string(code));
-                  }
-                  return "";
-              };
-
-              // Phase 2: assign languages to type-1 and type-2 segments
-              // isDual=true (AutoTTS L=1): pure type-based — no CLD2, type-1→latFall, type-2→nonLatFall.
-              // isDual=false (mix): MISSING-A: disableAdvancedDetection=true → trust CLD2 blindly.
+              // Phase 2: assign languages to type-1/type-2 segments — PURELY TYPE-BASED for BOTH
+              // mix and dual, exactly like AutoTTS c3.w.g (w.g NEVER runs CLD2; the per-chunk CLD2
+              // = clsCLD2.b happens in the SERVICE loop, which the Kotlin caller ports via
+              // detectLanguage() on each emitted chunk). Keeping phase 2 type-based means the
+              // phase-3 neutral inheritance and the phase-4 same-lang merge produce chunk
+              // BOUNDARIES identical to w.g's type-based merging. (The old per-segment CLD2 here
+              // was dead work — its result was discarded by the Kotlin caller — and it could
+              // split neighbouring same-type runs into different chunks, unlike w.g.)
+              // emojiFall is always "auto" (AutoTTS has no emoji language feature); the parameter
+              // is kept for JNI-signature stability. disableAdvancedDetection (S) only affects
+              // clsCLD2.b — handled in Kotlin detectLanguage — never w.g.
+              (void)emojiFall; (void)disableAdvancedDetection;
               for (auto& seg : segs) {
-                  if (seg.type == 1) {
-                      if (isDual) {
-                          // AutoTTS L=1: type-1 always gets latFall (="en"), no CLD2 refinement
-                          seg.lang = latFall;
-                      } else {
-                          std::string detected = cld2Detect64(seg.text);
-                          if (disableAdvancedDetection) {
-                              // S=true: accept any CLD2 result without script filtering
-                              seg.lang = detected.empty() ? latFall : detected;
-                          } else {
-                              // For Latin segments: reject non-Latin CLD2 results
-                              seg.lang = (!detected.empty() && isLatinScriptLang(detected)) ? detected : latFall;
-                          }
-                      }
-                  } else if (seg.type == 2) {
-                      // AutoTTS: emoji-only non-Latin segment → emojiFall (mirrors puncFall/numFall)
-                      if (!emojiFall.empty() && emojiFall != "auto") {
-                          bool hasAny = false, allEmoji = true;
-                          const unsigned char* ep = (const unsigned char*)seg.text.c_str();
-                          int ei = 0, elen = (int)seg.text.size();
-                          while (ei < elen) {
-                              int cl = 0; int cp3 = utf8ToCodepoint(ep + ei, cl);
-                              bool isWs = (cp3>=0x09&&cp3<=0x0D)||(cp3>=0x1C&&cp3<=0x1F)||cp3==0x20;
-                              if (!isWs) { hasAny = true; if (!isEmoji(cp3)) { allEmoji = false; break; } }
-                              ei += cl;
-                          }
-                          if (hasAny && allEmoji) { seg.lang = emojiFall; continue; }
-                      }
-                      if (isDual) {
-                          // AutoTTS L=1: type-2 always gets nonLatFall (=D), no CLD2 refinement
-                          seg.lang = nonLatFall;
-                      } else {
-                          std::string detected = cld2Detect64(seg.text);
-                          if (disableAdvancedDetection) {
-                              // S=true: accept CLD2 result directly
-                              seg.lang = detected.empty() ? nonLatFall : detected;
-                          } else if (!detected.empty() && !isLatinScriptLang(detected)) {
-                              seg.lang = detected;
-                          } else {
-                              seg.lang = detectLang(seg.text, latFall, nonLatFall);
-                          }
-                      }
-                  }
+                  if (seg.type == 1) seg.lang = latFall;        // AutoTTS w.g/onDone: type-1 → H/eng
+                  else if (seg.type == 2) seg.lang = nonLatFall; // AutoTTS w.g/onDone: type-2 → I/D
               }
 
               // Phase 3: resolve type-3 (digits) and type-4 (punct-only) neutral segments.
@@ -1105,23 +633,18 @@ jobs:
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
               bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
 
-              std::vector<std::string> keys,vals;
-              int dictSize=env->GetArrayLength(jKeys);
-              for(int i=0;i<dictSize;i++){
-                  jstring jk=(jstring)env->GetObjectArrayElement(jKeys,i); const char* kc=env->GetStringUTFChars(jk,nullptr); keys.push_back(kc); env->ReleaseStringUTFChars(jk,kc); env->DeleteLocalRef(jk);
-                  jstring jv=(jstring)env->GetObjectArrayElement(jVals,i); const char* vc=env->GetStringUTFChars(jv,nullptr); vals.push_back(vc); env->ReleaseStringUTFChars(jv,vc); env->DeleteLocalRef(jv);
-              }
+              // AutoTTS c3.w.g() has NO dictionary/emoji/punct pre-processing — the jKeys/jVals/
+              // keepEmoji/countEmoji/countPunct params are accepted for JNI-signature stability but
+              // intentionally IGNORED (dead pre-pass removed to match AutoTTS exactly).
+              (void)jKeys; (void)jVals; (void)keepEmoji; (void)countEmoji; (void)countPunct;
 
               std::vector<std::string> sentences;
               size_t start=0, end=rawInput.find('\0');
               while(end!=std::string::npos){ sentences.push_back(rawInput.substr(start,end-start)); start=end+1; end=rawInput.find('\0',start); }
               if(start<rawInput.size()) sentences.push_back(rawInput.substr(start));
 
-              // AutoTTS c3.w.g() does NO pre-normalisation: it feeds the raw text straight into the
-              // segmenter, which only trims + collapses whitespace + strips bidi marks. There is no
-              // math-unicode/fullwidth→ASCII fold, no emoji removal/counting, no punctuation counting,
-              // and no dictionary — none of those exist in AutoTTS. Match exactly: pass each sentence
-              // through UNCHANGED. (applyDictionary/normalizeText/mathUnicodeToAscii are now unused.)
+              // AutoTTS c3.w.g() does NO pre-normalisation: the segmenter itself trims + collapses
+              // whitespace + strips bidi marks. Pass each sentence through UNCHANGED.
               std::vector<std::string> processed; processed.reserve(sentences.size());
               for(auto& s: sentences){ processed.push_back(s); }
 
@@ -1356,7 +879,6 @@ jobs:
           "    // Keys: voice_0, voice_1, voice_2, …  Format: \"name#locale_country_variant\".\n"
           "    // Used by CheckVoiceData.kt's optional sequential-mode and onGetVoices() upstream.\n"
           "    fun getVoiceN(index: Int): String = prefs.getString(\"voice_$index\", \"\") ?: \"\"\n"
-          "    fun setVoiceN(index: Int, value: String) = prefs.edit().putString(\"voice_$index\", value).apply()\n"
           "    fun getAllVoicePrefs(): List<String> {\n"
           "        // Walk voice_0, voice_1, …  stopping at the first empty entry. Mirrors the\n"
           "        // original AutoTtsService.V() loader.\n"
@@ -1405,15 +927,11 @@ jobs:
           "        val autoMode = when (mode) { \"none\" -> 0; \"dual\" -> 1; \"auto\" -> 2; \"google\" -> 3; \"mix\" -> 4; else -> 2 }\n"
           "        prefs.edit().putInt(\"auto_mode\", autoMode).remove(\"reading_mode\").apply()\n"
           "    }\n"
-          "    fun isMixMode(): Boolean = getReadingMode() == \"mix\"\n"
-          "    fun isSplitMode(): Boolean = isMixMode()\n"
           "    fun addDict(from: String, to: String) = prefs.edit().putString(\"word_$from\", to).apply()\n"
           "    fun removeDict(from: String) = prefs.edit().remove(\"word_$from\").apply()\n"
           "    fun clearDict() { val e=prefs.edit(); prefs.all.keys.filter{it.startsWith(\"word_\")}.forEach{e.remove(it)}; e.apply() }\n"
           "    fun getDict(): Map<String,String> = prefs.all.filterKeys{it.startsWith(\"word_\")}.mapKeys{it.key.substring(5)}.mapValues{it.value.toString()}\n"
           "    // ── Advanced Settings flags ──\n"
-          "    fun isBluetoothCarMode(): Boolean = prefs.getBoolean(\"bluetooth_car_mode\", false)\n"
-          "    fun setBluetoothCarMode(v: Boolean) = prefs.edit().putBoolean(\"bluetooth_car_mode\", v).apply()\n"
           "    // AutoTTS key was strip_audio_attr; read both for migration\n"
           "    fun isBrokenEngineProtector(): Boolean = prefs.getBoolean(\"broken_engine_protector\", false) || prefs.getBoolean(\"strip_audio_attr\", false)\n"
           "    fun setBrokenEngineProtector(v: Boolean) = prefs.edit().putBoolean(\"strip_audio_attr\", v).apply()  // AutoTTS key\n"
@@ -1432,7 +950,6 @@ jobs:
           "    fun setShowNotification(v: Boolean) = prefs.edit().putBoolean(\"show_notification\", v).apply()\n"
           "    // Auto TTS f6825L==3 — google_tts_only: bypass all detection, route to com.google.android.tts.\n"
           "    fun isGoogleTtsOnly(): Boolean = prefs.getBoolean(\"google_tts_only\", false)\n"
-          "    fun setGoogleTtsOnly(v: Boolean) = prefs.edit().putBoolean(\"google_tts_only\", v).apply()\n"
           "    fun isDedicatedEnginesEnabled(): Boolean = prefs.getBoolean(\"dedicated_engines\", false)\n"
           "    fun setDedicatedEnginesEnabled(v: Boolean) = prefs.edit().putBoolean(\"dedicated_engines\", v).apply()\n"
           "    // BUNDLE-Z ITEM 2: LocaleSpan splitter pref (matches original AutoTtsService.N field).\n"
@@ -1444,8 +961,6 @@ jobs:
           "    fun setDisableAdvancedDetection(v: Boolean) = prefs.edit().putBoolean(\"disable_advanced_detection\", v).apply()\n"
           "    fun isLoggingEnabled(): Boolean = prefs.getBoolean(\"logging_enabled\", false)\n"
           "    fun setLoggingEnabled(v: Boolean) = prefs.edit().putBoolean(\"logging_enabled\", v).apply()\n"
-          "    fun isAllLanguagesMode(): Boolean = prefs.getBoolean(\"all_languages_mode\", false)\n"
-          "    fun setAllLanguagesMode(v: Boolean) = prefs.edit().putBoolean(\"all_languages_mode\", v).apply()\n"
           "    // ── Settings backup / restore (AutoTTS z.d export + i.x2/y2 import parity) ──\n"
           "    // EasyVoice's prefs file is named \"auto_tts_settings\" (same as AutoTTS), so the\n"
           "    // exported XML uses Android's standard SharedPreferences format and is cross-compatible.\n"
@@ -2254,33 +1769,6 @@ jobs:
           "        return result\n"
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
-          "    // SENTENCE SEGMENTATION HELPER (used by all 3 reading modes)\n"
-          "    // Uses java.text.BreakIterator which is Unicode-aware: respects sentence\n"
-          "    // boundaries in Hindi (।), Chinese (。), Arabic (؟), etc. and avoids\n"
-          "    // mid-word breaks. This is a significant upgrade over AutoTTS's\n"
-          "    // fixed 64-char window approach (which breaks words/sentences mid-way).\n"
-          "    // ─────────────────────────────────────────────────────────────────\n"
-          "    private fun splitSentences(text: String): List<String> {\n"
-          "        if (text.isBlank()) return emptyList()\n"
-          "        val result = mutableListOf<String>()\n"
-          "        try {\n"
-          "            val iter = java.text.BreakIterator.getSentenceInstance()\n"
-          "            iter.setText(text)\n"
-          "            var st = iter.first(); var en = iter.next()\n"
-          "            while (en != java.text.BreakIterator.DONE) {\n"
-          "                val s = text.substring(st, en).trim()\n"
-          "                if (s.isNotEmpty()) result.add(s)\n"
-          "                st = en; en = iter.next()\n"
-          "            }\n"
-          "        } catch (t: Throwable) {\n"
-          "            VhLogger.d(\"[SERVICE] splitSentences failed: ${t.message} — treating as single sentence\")\n"
-          "            result.add(text.trim())\n"
-          "        }\n"
-          "        // Safety: if BreakIterator returned nothing usable, treat input as one sentence.\n"
-          "        if (result.isEmpty()) result.add(text.trim())\n"
-          "        return result\n"
-          "    }\n"
-          "    // ─────────────────────────────────────────────────────────────────\n"
           "    // Auto TTS clsCLD2.b(text, R, N, ctx):String — EXACT PORT\n"
           "    // 64-char sliding window loop: per-window CLD2 + script-family fallback\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
@@ -2733,113 +2221,6 @@ jobs:
           "        val variant1 = loc1.variant\n"
           "        if (variant1.isEmpty()) return true\n"
           "        return variant1 == loc2.variant\n"
-          "    }\n"
-          "    // Latin-script languages: if detected but engine not configured, fall to latFall\n"
-          "    // (not nonLatFall). Mirrors AutoTTS mix-mode which assigns Latin engine directly\n"
-          "    // without per-block sub-language detection.\n"
-          "    private fun isLatinScript(lang: String) = lang in setOf(\n"
-          "        \"en\",\"fr\",\"de\",\"es\",\"it\",\"pt\",\"nl\",\"sv\",\"da\",\"no\",\"nb\",\"nn\",\n"
-          "        \"fi\",\"pl\",\"cs\",\"ro\",\"hu\",\"sk\",\"sl\",\"hr\",\"lt\",\"lv\",\"et\",\n"
-          "        \"tr\",\"vi\",\"af\",\"ca\",\"cy\",\"eu\",\"ga\",\"gl\",\"is\",\"lb\",\"mt\",\n"
-          "        \"sq\",\"sw\",\"tl\",\"id\",\"ms\",\"bs\",\"az\",\"uz\",\"tk\",\"ky\"\n"
-          "    )\n"
-          "    // Returns first candidate lang that has an engine configured (AutoTTS a.c() enabled-set pattern)\n"
-          "    private fun pickEnabledLang(vararg candidates: String): String? =\n"
-          "        candidates.firstOrNull { isEngineAvailable(it) }\n"
-          "    // Script-family map: when CLD2 detects a disabled language, try related languages in the same script family.\n"
-          "    // Derived from AutoTTS a.java a() map (script groups: primary + possible languages).\n"
-          "    // Key = CLD2 result lang, Value = ordered list of fallback candidates to try (most related first).\n"
-          "    private val scriptGroups: Map<String, List<String>> = mapOf(\n"
-          "        // Latin — closely related language pairs CLD2 commonly confuses\n"
-          "        \"ca\" to listOf(\"ca\", \"es\", \"fr\"),         // Catalan → Spanish/French\n"
-          "        \"oc\" to listOf(\"oc\", \"fr\", \"ca\"),         // Occitan → French/Catalan\n"
-          "        \"gl\" to listOf(\"gl\", \"es\", \"pt\"),         // Galician → Spanish/Portuguese\n"
-          "        \"lb\" to listOf(\"lb\", \"de\"),                // Luxembourgish → German\n"
-          "        \"nl\" to listOf(\"nl\", \"de\", \"af\"),         // Dutch → German/Afrikaans\n"
-          "        \"af\" to listOf(\"af\", \"nl\"),                // Afrikaans → Dutch\n"
-          "        \"nb\" to listOf(\"nb\", \"no\", \"da\"),         // Bokmål → Norwegian/Danish\n"
-          "        \"nn\" to listOf(\"nn\", \"no\", \"da\", \"sv\"),  // Nynorsk → Norwegian/Danish/Swedish\n"
-          "        \"fo\" to listOf(\"fo\", \"no\", \"da\", \"sv\"),  // Faroese → Norwegian/Danish/Swedish\n"
-          "        \"is\" to listOf(\"is\", \"no\", \"da\", \"sv\"),  // Icelandic → Scandinavian\n"
-          "        \"sk\" to listOf(\"sk\", \"cs\"),                // Slovak → Czech\n"
-          "        \"bs\" to listOf(\"bs\", \"sr\", \"hr\"),         // Bosnian → Serbian/Croatian\n"
-          "        \"hr\" to listOf(\"hr\", \"bs\", \"sr\"),         // Croatian → Bosnian/Serbian\n"
-          "        \"sl\" to listOf(\"sl\", \"hr\"),                // Slovenian → Croatian\n"
-          "        // Cyrillic families\n"
-          "        \"be\" to listOf(\"be\", \"ru\"),                // Belarusian → Russian\n"
-          "        \"bg\" to listOf(\"bg\", \"mk\"),                // Bulgarian → Macedonian\n"
-          "        \"mk\" to listOf(\"mk\", \"bg\"),                // Macedonian → Bulgarian\n"
-          "        \"sr\" to listOf(\"sr\", \"bs\", \"hr\"),         // Serbian → Bosnian/Croatian\n"
-          "        \"ky\" to listOf(\"ky\", \"kk\"),                // Kyrgyz → Kazakh\n"
-          "        // Arabic-script families\n"
-          "        \"ckb\" to listOf(\"ckb\", \"ku\"),              // Sorani Kurdish → Kurmanji\n"
-          "        \"ku\" to listOf(\"ku\", \"ckb\"),               // Kurmanji → Sorani\n"
-          "        \"tg\" to listOf(\"tg\", \"fa\"),                // Tajik → Persian\n"
-          "        // Indic families\n"
-          "        \"kok\" to listOf(\"kok\", \"mr\"),              // Konkani → Marathi\n"
-          "        \"as\" to listOf(\"as\", \"bn\"),                // Assamese → Bengali\n"
-          "        \"ne\" to listOf(\"ne\", \"hi\"),                // Nepali → Hindi\n"
-          "        \"kn\" to listOf(\"kn\", \"ta\"),                // Kannada → Tamil\n"
-          "        // Semitic\n"
-          "        \"yi\" to listOf(\"yi\", \"he\"),                // Yiddish → Hebrew\n"
-          "        // Ethiopic\n"
-          "        \"ti\" to listOf(\"ti\", \"am\"),                // Tigrinya → Amharic\n"
-          "        // CJK — AutoTTS c3.k.java:267-270 maps all Chinese variants to zho\n"
-          "        \"yue\" to listOf(\"yue\", \"zh\"),              // Cantonese\n"
-          "        \"cmn\" to listOf(\"cmn\", \"zh\"),              // Mandarin (ISO-3)\n"
-          "        \"lzh\" to listOf(\"lzh\", \"zh\"),              // Literary Chinese\n"
-          "        \"gan\" to listOf(\"gan\", \"zh\"),              // Gan Chinese\n"
-          "        \"hak\" to listOf(\"hak\", \"zh\"),              // Hakka Chinese\n"
-          "        \"wuu\" to listOf(\"wuu\", \"zh\"),              // Wu Chinese (Shanghainese)\n"
-          "        \"nan\" to listOf(\"nan\", \"zh\"),              // Min Nan (Hokkien/Taiwanese)\n"
-          "        // Primary Indic languages (CLD2 returns these directly)\n"
-          "        \"hi\" to listOf(\"hi\", \"mr\", \"ne\", \"kok\"),  // Hindi → Marathi/Nepali/Konkani (Devanagari)\n"
-          "        \"mr\" to listOf(\"mr\", \"hi\", \"ne\"),          // Marathi → Hindi/Nepali\n"
-          "        \"bn\" to listOf(\"bn\", \"as\"),                 // Bengali → Assamese\n"
-          "        \"gu\" to listOf(\"gu\"),                        // Gujarati\n"
-          "        \"pa\" to listOf(\"pa\"),                        // Punjabi (Gurmukhi)\n"
-          "        \"ta\" to listOf(\"ta\", \"kn\"),                 // Tamil → Kannada\n"
-          "        \"te\" to listOf(\"te\", \"kn\", \"ta\"),          // Telugu → Kannada/Tamil\n"
-          "        \"ml\" to listOf(\"ml\"),                        // Malayalam\n"
-          "        \"si\" to listOf(\"si\"),                        // Sinhala\n"
-          "        \"or\" to listOf(\"or\"),                        // Odia/Oriya\n"
-          "        // Primary Arabic-script languages\n"
-          "        \"ur\" to listOf(\"ur\", \"fa\", \"ar\"),          // Urdu → Persian/Arabic\n"
-          "        \"fa\" to listOf(\"fa\", \"ur\", \"ar\"),          // Persian → Urdu/Arabic\n"
-          "        \"ar\" to listOf(\"ar\", \"fa\", \"ur\"),          // Arabic → Persian/Urdu\n"
-          "        // Primary Semitic\n"
-          "        \"he\" to listOf(\"he\", \"yi\"),                 // Hebrew → Yiddish\n"
-          "        // Primary Cyrillic\n"
-          "        \"ru\" to listOf(\"ru\", \"uk\", \"be\", \"bg\"),   // Russian → Ukrainian/Belarusian/Bulgarian\n"
-          "        \"uk\" to listOf(\"uk\", \"ru\", \"be\"),          // Ukrainian → Russian/Belarusian\n"
-          "        \"kk\" to listOf(\"kk\", \"ky\"),                 // Kazakh → Kyrgyz\n"
-          "        // CJK primaries\n"
-          "        \"ja\" to listOf(\"ja\", \"zh\"),                 // Japanese → Chinese\n"
-          "        \"zh\" to listOf(\"zh\", \"ja\"),                 // Chinese → Japanese\n"
-          "        \"ko\" to listOf(\"ko\"),                        // Korean\n"
-          "        // Other Asian scripts\n"
-          "        \"th\" to listOf(\"th\"),                        // Thai\n"
-          "        \"my\" to listOf(\"my\"),                        // Myanmar/Burmese\n"
-          "        \"km\" to listOf(\"km\"),                        // Khmer\n"
-          "        \"lo\" to listOf(\"lo\"),                        // Lao\n"
-          "        \"bo\" to listOf(\"bo\"),                        // Tibetan\n"
-          "        \"mn\" to listOf(\"mn\"),                        // Mongolian\n"
-          "        // Caucasian scripts\n"
-          "        \"ka\" to listOf(\"ka\"),                        // Georgian\n"
-          "        \"hy\" to listOf(\"hy\"),                        // Armenian\n"
-          "        // Ethiopic primary\n"
-          "        \"am\" to listOf(\"am\", \"ti\"),                 // Amharic → Tigrinya\n"
-          "    )\n"
-          "    // AutoTTS a.c() smart CLD2 fallback: when CLD2 returns a disabled language,\n"
-          "    // check if any language in the same script family is enabled.\n"
-          "    // Falls back to latFall/nonLatFall if no family member is enabled.\n"
-          "    private fun smartLangFallback(cldLang: String, latFall: String, nonLatFall: String): String {\n"
-          "        val group = scriptGroups[cldLang]\n"
-          "        if (group != null) {\n"
-          "            val enabled = group.firstOrNull { isEngineAvailable(it) }\n"
-          "            if (enabled != null) return enabled\n"
-          "        }\n"
-          "        return if (isLatinScript(cldLang)) latFall else nonLatFall\n"
           "    }\n"
           "    // ISO 639-3 → ISO 639-1 normalization for CLD2 edge cases (AutoTTS k.o ISO3 comparison)\n"
           "    private fun normalizeLangCode(code: String): String {\n"
@@ -4595,20 +3976,14 @@ jobs:
           "    val context = LocalContext.current\n"
           "    val clipboardManager = LocalClipboardManager.current\n"
           "    var readingMode by remember { mutableStateOf(prefs.getReadingMode().let { when(it) { \"mix\", \"dual\", \"google\", \"none\" -> it; else -> \"auto\" } }) }\n"
-          "    var emojiReading by remember { mutableStateOf(prefs.getBoolean(\"emoji_reading\", true)) }\n"
-          "    var emojiCount by remember { mutableStateOf(prefs.getBoolean(\"emoji_count\", false)) }\n"
-          "    var punctCount by remember { mutableStateOf(prefs.getBoolean(\"punct_count\", false)) }\n"
-          "    var btCarMode by remember { mutableStateOf(prefs.isBluetoothCarMode()) }\n"
           "    var brokenProt by remember { mutableStateOf(prefs.isBrokenEngineProtector()) }\n"
           "    var forceAccessibility by remember { mutableStateOf(prefs.isForceAccessibilityStream()) }\n"
           "    var showNotification by remember { mutableStateOf(prefs.isShowNotification()) }\n"
           "    // AutoTTS c3.i P0 launcher + I2(): POST_NOTIFICATIONS is requested ONLY when the\n"
           "    // show-notification checkbox turns ON (SDK>=33 && not yet granted). Result is unused.\n"
           "    val notifPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }\n"
-          "    var googleTtsOnly by remember { mutableStateOf(prefs.isGoogleTtsOnly()) }\n"
           "    var localeSpans by remember { mutableStateOf(prefs.isLocaleSpansEnabled()) }\n"
           "    var disableAdvancedDet by remember { mutableStateOf(prefs.isDisableAdvancedDetection()) }\n"
-          "    var allLangMode by remember { mutableStateOf(prefs.isAllLanguagesMode()) }\n"
           "    var loggingEnabledState by remember { mutableStateOf(prefs.isLoggingEnabled()) }\n"
           "    // Settings backup/restore (AutoTTS parity). Import picks an XML, applies it, then\n"
           "    // offers Play-Store install for any referenced-but-missing TTS engine.\n"
