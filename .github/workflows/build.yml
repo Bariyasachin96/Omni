@@ -289,6 +289,9 @@ jobs:
           static std::string normalizeLangCode(const std::string& code) {
               if (code.size() <= 2) return code;
               static const char* tbl[][2] = {
+                  // Keep this table IDENTICAL to Kotlin normalizeLangCode (ComposeTtsService) —
+                  // the two are the only duplicated logic across the JNI boundary.
+                  {"eng","en"},
                   {"zho","zh"},{"hin","hi"},{"ben","bn"},{"ara","ar"},{"por","pt"},
                   {"rus","ru"},{"jpn","ja"},{"kor","ko"},{"deu","de"},{"fra","fr"},
                   {"ita","it"},{"spa","es"},{"nld","nl"},{"tur","tr"},{"pol","pl"},
