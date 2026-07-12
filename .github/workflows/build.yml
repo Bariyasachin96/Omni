@@ -377,18 +377,18 @@ jobs:
               // Java \\s = ASCII 0x09-0x0D, 0x20 only.
               {
                   // Trim leading
-                  size_t fs = fullText.find_first_not_of(" \t\n\r\x0B\x0C");
-                  if (fs == std::string::npos) return result;
-                  fullText = fullText.substr(fs);
+                  size_t firstNonWs = fullText.find_first_not_of(" \t\n\r\x0B\x0C");
+                  if (firstNonWs == std::string::npos) return result;
+                  fullText = fullText.substr(firstNonWs);
                   // Trim trailing
-                  size_t fe = fullText.find_last_not_of(" \t\n\r\x0B\x0C");
-                  if (fe != std::string::npos) fullText = fullText.substr(0, fe + 1);
+                  size_t lastNonWs = fullText.find_last_not_of(" \t\n\r\x0B\x0C");
+                  if (lastNonWs != std::string::npos) fullText = fullText.substr(0, lastNonWs + 1);
                   // Collapse internal runs
                   std::string collapsed; collapsed.reserve(fullText.size());
                   bool prevWs = false;
                   for (unsigned char c : fullText) {
-                      bool iw = (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\x0B' || c == '\x0C');
-                      if (iw) { if (!prevWs) collapsed += ' '; prevWs = true; }
+                      bool isWsChar = (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\x0B' || c == '\x0C');
+                      if (isWsChar) { if (!prevWs) collapsed += ' '; prevWs = true; }
                       else { collapsed += (char)c; prevWs = false; }
                   }
                   fullText = std::move(collapsed);
@@ -400,14 +400,14 @@ jobs:
               // These break Latin/non-Latin boundary detection for Arabic/Hebrew/Urdu text.
               {
                   std::string clean;
-                  int fi = 0, flen = (int)fullText.size();
-                  while (fi < flen) {
-                      int cl = 0;
-                      int cp2 = utf8ToCodepoint((const unsigned char*)&fullText[fi], cl);
-                      if (cp2 == 0x061C || cp2 == 0x200E || cp2 == 0x200F ||
-                          (cp2 >= 0x202A && cp2 <= 0x202E)) { fi += cl; continue; }
-                      clean += fullText.substr(fi, cl);
-                      fi += cl;
+                  int bytePos = 0, byteLen = (int)fullText.size();
+                  while (bytePos < byteLen) {
+                      int cpLen = 0;
+                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[bytePos], cpLen);
+                      if (cp == 0x061C || cp == 0x200E || cp == 0x200F ||
+                          (cp >= 0x202A && cp <= 0x202E)) { bytePos += cpLen; continue; }
+                      clean += fullText.substr(bytePos, cpLen);
+                      bytePos += cpLen;
                   }
                   fullText = clean;
               }
@@ -435,39 +435,39 @@ jobs:
                       } else {
                           bool allWs = true, hasLetter = false, hasDigit = false;
                           const unsigned char* p = (const unsigned char*)buf.c_str();
-                          int blen = (int)buf.size(), j = 0;
-                          while (j < blen) {
-                              int cl = 0;
-                              int cp2 = utf8ToCodepoint(p + j, cl);
+                          int bufLen = (int)buf.size(), j = 0;
+                          while (j < bufLen) {
+                              int cpLen = 0;
+                              int cp = utf8ToCodepoint(p + j, cpLen);
                               // Fix C: use codepoint (not first byte) for allWs + Java Character.isWhitespace() set
-                              { bool isJWs = (cp2 >= 0x09 && cp2 <= 0x0D) || (cp2 >= 0x1C && cp2 <= 0x1F) ||
-                                             cp2 == 0x20 || cp2 == 0x1680 ||
-                                             (cp2 >= 0x2000 && cp2 <= 0x200A && cp2 != 0x2007) ||
-                                             cp2 == 0x205F || cp2 == 0x3000 ||
-                                             cp2 == 0x2028 || cp2 == 0x2029;
+                              { bool isJWs = (cp >= 0x09 && cp <= 0x0D) || (cp >= 0x1C && cp <= 0x1F) ||
+                                             cp == 0x20 || cp == 0x1680 ||
+                                             (cp >= 0x2000 && cp <= 0x200A && cp != 0x2007) ||
+                                             cp == 0x205F || cp == 0x3000 ||
+                                             cp == 0x2028 || cp == 0x2029;
                                 if (!isJWs) allWs = false; }
                               // AutoTTS w.c(): emoji counts as "letter" (type 1) not neutral
                               // Also covers Latin Extended Additional (U+1E00-U+1EFF, Vietnamese),
                               // Latin Extended-C (U+2C60-U+2C7F), Latin Extended-D (U+A720-U+A7FF)
-                              if ((cp2 >= 'a' && cp2 <= 'z') || (cp2 >= 'A' && cp2 <= 'Z') ||
+                              if ((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') ||
                                   // AutoTTS w.c(): Latin-1 SYMBOLS (¡ £ ¥ © § « » ¿ ± µ ¶ ® ...) are not in pattern-b/c,
                                   // so c() falls through to type-1 (Latin text), NOT type-4 punct. Range 0xA1-0xBF minus
                                   // 0xB0 (degree, a pattern-b digit-like -> type-3, handled below).
-                                  (cp2 >= 0x00A1 && cp2 <= 0x00BF && cp2 != 0x00B0) ||
+                                  (cp >= 0x00A1 && cp <= 0x00BF && cp != 0x00B0) ||
                                   // 0xC0-0x24F letters, EXCLUDING x (0xD7) and division (0xF7): those are pattern-b members
                                   // -> type-3 (number/neutral), not Latin text (they also set hasDigit below).
-                                  (cp2 >= 0x00C0 && cp2 <= 0x024F && cp2 != 0x00D7 && cp2 != 0x00F7) ||
-                                  (cp2 >= 0x1E00 && cp2 <= 0x1EFF) ||
-                                  (cp2 >= 0x2C60 && cp2 <= 0x2C7F) ||
-                                  (cp2 >= 0xA720 && cp2 <= 0xA7FF) ||
-                                  isEmoji(cp2))
+                                  (cp >= 0x00C0 && cp <= 0x024F && cp != 0x00D7 && cp != 0x00F7) ||
+                                  (cp >= 0x1E00 && cp <= 0x1EFF) ||
+                                  (cp >= 0x2C60 && cp <= 0x2C7F) ||
+                                  (cp >= 0xA720 && cp <= 0xA7FF) ||
+                                  isEmoji(cp))
                                   hasLetter = true;
                               // Fix D: track digits + AutoTTS pattern-b extras: °(0x00B0) ×(0x00D7) ÷(0x00F7) currency(0x20A0-0x20CF)
-                              if ((cp2 >= '0' && cp2 <= '9') || (cp2 >= 0xFF10 && cp2 <= 0xFF19) ||
-                                  cp2 == 0x00B0 || cp2 == 0x00D7 || cp2 == 0x00F7 ||
-                                  (cp2 >= 0x20A0 && cp2 <= 0x20CF))
+                              if ((cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19) ||
+                                  cp == 0x00B0 || cp == 0x00D7 || cp == 0x00F7 ||
+                                  (cp >= 0x20A0 && cp <= 0x20CF))
                                   hasDigit = true;
-                              j += cl;
+                              j += cpLen;
                           }
                           // type 3=has digits, type 4=punct-only(no digits) — mirrors AutoTTS w.c()
                           segs.push_back({buf, allWs ? 0 : (hasLetter ? 1 : (hasDigit ? 3 : 4)), ""});
@@ -477,8 +477,8 @@ jobs:
 
                   int len = (int)fullText.size(), i = 0;
                   while (i < len) {
-                      int clen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], clen);
+                      int cpLen = 0;
+                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], cpLen);
                       // Latin range — AutoTTS w.java pattern `d` exactly:
                       //   U+0000-U+024F: Basic Latin + Latin-1 + Latin Extended A/B
                       //   U+1E00-U+1EFF: Latin Extended Additional (Vietnamese: ắ, ề, ổ...)
@@ -499,9 +499,9 @@ jobs:
                                       (cp >= 0xA720 && cp <= 0xA7FF) ||
                                       isEmoji(cp);
                       int kind = latRange ? 0 : 1;
-                      if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, clen); bufKind = kind; }
-                      else { flushBuf(); buf = fullText.substr(i, clen); bufKind = kind; }
-                      i += clen;
+                      if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, cpLen); bufKind = kind; }
+                      else { flushBuf(); buf = fullText.substr(i, cpLen); bufKind = kind; }
+                      i += cpLen;
                   }
                   flushBuf();
               }
@@ -512,18 +512,18 @@ jobs:
               // Without this, individual Hindi words (2-5 chars) fool CLD2 into returning "en".
               {
                   std::vector<Seg> merged2;
-                  int mi = 0, mtotal = (int)segs.size();
-                  while (mi < mtotal) {
-                      std::string mtext = segs[mi].text;
-                      int mtype = segs[mi].type;
-                      int mj = mi + 1;
-                      while (mj < mtotal && segs[mj].type != -1 &&
-                             (segs[mj].type == mtype || segs[mj].type == 0)) {
-                          mtext += segs[mj].text;
-                          mj++;
+                  int segIdx = 0, segCount = (int)segs.size();
+                  while (segIdx < segCount) {
+                      std::string runText = segs[segIdx].text;
+                      int runType = segs[segIdx].type;
+                      int runEnd = segIdx + 1;
+                      while (runEnd < segCount && segs[runEnd].type != -1 &&
+                             (segs[runEnd].type == runType || segs[runEnd].type == 0)) {
+                          runText += segs[runEnd].text;
+                          runEnd++;
                       }
-                      merged2.push_back({mtext, mtype, ""});
-                      mi = mj;
+                      merged2.push_back({runText, runType, ""});
+                      segIdx = runEnd;
                   }
                   segs = std::move(merged2);
               }
@@ -553,30 +553,30 @@ jobs:
               // w.a() (forward, pre-real) or w.b() (backward-only, post-real). w.b has
               // NO forward fallback; truly unresolved neutrals fall to neutralDefault.
               bool seenReal = false;
-              for (int k = 0; k < (int)segs.size(); k++) {
-                  int t = segs[k].type;
-                  if (t == 1 || t == 2) { seenReal = true; continue; }
-                  if (t != 3 && t != 4) continue;
-                  if (t == 4 && !puncFall.empty() && puncFall != "auto") {
+              for (int segPos = 0; segPos < (int)segs.size(); segPos++) {
+                  int segType = segs[segPos].type;
+                  if (segType == 1 || segType == 2) { seenReal = true; continue; }
+                  if (segType != 3 && segType != 4) continue;
+                  if (segType == 4 && !puncFall.empty() && puncFall != "auto") {
                       // AutoTTS w.g() n4 != 0: pure-punct segment → puncFall directly
-                      segs[k].lang = puncFall;
-                  } else if (t == 3 && !numFall.empty() && numFall != "auto") {
+                      segs[segPos].lang = puncFall;
+                  } else if (segType == 3 && !numFall.empty() && numFall != "auto") {
                       // AutoTTS w.g() n3 != 0: digit/neutral segment → numFall directly
-                      segs[k].lang = numFall;
+                      segs[segPos].lang = numFall;
                   } else {
                       // AutoTTS w.a (forward, pre-real) / w.b (backward-only, post-real)
                       std::string resolved;
                       if (!seenReal) {
-                          for (int f = k + 1; f < (int)segs.size() && resolved.empty(); f++)
-                              if (segs[f].type == 1 || segs[f].type == 2) resolved = segs[f].lang;
+                          for (int fwd = segPos + 1; fwd < (int)segs.size() && resolved.empty(); fwd++)
+                              if (segs[fwd].type == 1 || segs[fwd].type == 2) resolved = segs[fwd].lang;
                       } else {
-                          for (int b = k - 1; b >= 0 && resolved.empty(); b--)
-                              if (segs[b].type == 1 || segs[b].type == 2) resolved = segs[b].lang;
+                          for (int bwd = segPos - 1; bwd >= 0 && resolved.empty(); bwd--)
+                              if (segs[bwd].type == 1 || segs[bwd].type == 2) resolved = segs[bwd].lang;
                       }
                       // Unresolved → neutralDefault: (sysLocale==nonLat) ? nonLat : lat
-                      segs[k].lang = resolved.empty() ? neutralDefault : resolved;
+                      segs[segPos].lang = resolved.empty() ? neutralDefault : resolved;
                   }
-                  segs[k].type = 1; // mark resolved so subsequent backward scans can find it
+                  segs[segPos].type = 1; // mark resolved so subsequent backward scans can find it
               }
 
               // Phase 4: emit output, merge consecutive same-lang, attach whitespace-only to prev
@@ -584,17 +584,17 @@ jobs:
                   // Whitespace-only check using full Java isWhitespace set (mirrors flushBuf isJWs)
                   bool wsOnly = true;
                   {
-                      const unsigned char* wp = (const unsigned char*)seg.text.c_str();
-                      int wi = 0, wlen = (int)seg.text.size();
-                      while (wi < wlen) {
-                          int cl = 0; int cp4 = utf8ToCodepoint(wp + wi, cl);
-                          bool isJWs = (cp4>=0x09&&cp4<=0x0D)||(cp4>=0x1C&&cp4<=0x1F)||
-                                       cp4==0x20||cp4==0x1680||
-                                       (cp4>=0x2000&&cp4<=0x200A&&cp4!=0x2007)||
-                                       cp4==0x205F||cp4==0x3000||
-                                       cp4==0x2028||cp4==0x2029;
+                      const unsigned char* bytePtr = (const unsigned char*)seg.text.c_str();
+                      int bytePos = 0, byteLen = (int)seg.text.size();
+                      while (bytePos < byteLen) {
+                          int cpLen = 0; int cp = utf8ToCodepoint(bytePtr + bytePos, cpLen);
+                          bool isJWs = (cp>=0x09&&cp<=0x0D)||(cp>=0x1C&&cp<=0x1F)||
+                                       cp==0x20||cp==0x1680||
+                                       (cp>=0x2000&&cp<=0x200A&&cp!=0x2007)||
+                                       cp==0x205F||cp==0x3000||
+                                       cp==0x2028||cp==0x2029;
                           if (!isJWs) { wsOnly = false; break; }
-                          wi += cl;
+                          bytePos += cpLen;
                       }
                   }
                   if (wsOnly) {
@@ -607,11 +607,11 @@ jobs:
               }
 
               if (!result.empty()) {
-                  auto& t = result.back().text;
-                  while (!t.empty()) {
-                      unsigned char last = (unsigned char)t.back();
+                  auto& txt = result.back().text;
+                  while (!txt.empty()) {
+                      unsigned char last = (unsigned char)txt.back();
                       if (last == 0x20 || (last >= 0x09 && last <= 0x0D) || (last >= 0x1C && last <= 0x1F))
-                          t.pop_back();
+                          txt.pop_back();
                       else break;
                   }
               }
@@ -723,9 +723,9 @@ jobs:
           "    val sortedIsoCodes: List<String> = run {\n"
           "        val col = java.text.Collator.getInstance()\n"
           "        map.keys.sortedWith { a, b ->\n"
-          "            val nA = java.text.Normalizer.normalize(map[a] ?: a, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
-          "            val nB = java.text.Normalizer.normalize(map[b] ?: b, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
-          "            col.compare(nA, nB)\n"
+          "            val normA = java.text.Normalizer.normalize(map[a] ?: a, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
+          "            val normB = java.text.Normalizer.normalize(map[b] ?: b, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
+          "            col.compare(normA, normB)\n"
           "        }\n"
           "    }\n"
           "    val sortedDisplayNames: List<String> = sortedIsoCodes.map { \"${map[it]} ($it)\" }\n"
@@ -1248,8 +1248,6 @@ jobs:
           "        java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, \"TtsStop\").apply { isDaemon = true } }\n"
           "    @Volatile private var isStopped = false                  // hard stop (from onStop / onDestroy)\n"
           "    @Volatile private var isFlushed = false                  // soft flush (from internal Z(false) path)\n"
-          "    var s = 0L                                               // AutoTTS: public long s — profiling/timing counter\n"
-          "    var t = 0L                                               // AutoTTS: public long t — profiling/timing counter\n"
           "    lateinit var appCtx: Context                                  // AutoTTS: public Context g — set to this in onCreate\n"
           "    @Volatile var googleEngineIdx = -1                                     // AutoTTS: public volatile int e — index of the Google TTS engine in the pool (set in the onInit chain)\n"
           "    var reqVolume = 1.0f                                             // AutoTTS: public float j — volume, set at top of onSynthesizeText\n"
@@ -1289,10 +1287,10 @@ jobs:
           "    // Create the low-importance \"Easy Voice\" notification channel (idempotent — safe to call repeatedly).\n"
           "    private fun createNotificationChannel() {\n"
           "        try {\n"
-          "            val nm = getSystemService(NotificationManager::class.java) ?: return\n"
+          "            val notifMgr = getSystemService(NotificationManager::class.java) ?: return\n"
           "            // IMPORTANCE_LOW: no sound, no popup, but persistent in notification shade.\n"
           "            val channel = NotificationChannel(FG_CHANNEL_ID, \"TTS Engine\", NotificationManager.IMPORTANCE_LOW)  // AutoTTS E(): id+name+importance ONLY\n"
-          "            nm.createNotificationChannel(channel)  // AutoTTS E() sets no description and no setShowBadge — match exactly\n"
+          "            notifMgr.createNotificationChannel(channel)  // AutoTTS E() sets no description and no setShowBadge — match exactly\n"
           "        } catch (e: Exception) { VhLogger.e(\"[FG] createChannel failed: ${e.message}\") }\n"
           "    }\n"
           "    // Build the persistent foreground notification (icon + title only, low-key).\n"
@@ -1316,8 +1314,8 @@ jobs:
           "    // AutoTTS Q(): check if FG notification is currently active via NotificationManager (avoids local state field)\n"
           "    private fun isForegroundActive(): Boolean {\n"
           "        if (Build.VERSION.SDK_INT >= 23) {\n"
-          "            val nm = getSystemService(NotificationManager::class.java) ?: return false\n"
-          "            return nm.activeNotifications.any { it.id == FG_NOTIFICATION_ID }\n"
+          "            val notifMgr = getSystemService(NotificationManager::class.java) ?: return false\n"
+          "            return notifMgr.activeNotifications.any { it.id == FG_NOTIFICATION_ID }\n"
           "        }\n"
           "        return false\n"
           "    }\n"
@@ -1363,7 +1361,7 @@ jobs:
           "    private fun requestAudioFocusIfNeeded() {\n"
           "        if (audioFocusReq != null) return\n"
           "        try {\n"
-          "            val am = audioMgr\n"
+          "            "
           "            val attrs = AudioAttributes.Builder()\n"
           "                .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)  // 11 in original\n"
           "                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)\n"
@@ -1377,7 +1375,7 @@ jobs:
           "                }\n"
           "                .build()\n"
           "            audioFocusReq = req\n"
-          "            val result = am.requestAudioFocus(req)\n"
+          "            val result = audioMgr.requestAudioFocus(req)\n"
           "            VhLogger.d(\"[AF] requestAudioFocus result=$result\")\n"
           "        } catch (e: Exception) { VhLogger.e(\"[AF] request failed: ${e.message}\") }\n"
           "    }\n"
@@ -1718,11 +1716,11 @@ jobs:
           "        val locale = parseVoiceNameAsLocale(name) ?: return TextToSpeech.ERROR\n"
           "        // AutoTTS onLoadVoice calls onLoadLanguage(k.f(locale), k.e(locale), variant) — k.f folds\n"
           "        // cmn/lzh/gan/hak → zho.\n"
-          "        val l0 = try { locale.isO3Language } catch (_: Exception) { return TextToSpeech.ERROR }\n"
-          "        val l = if (l0 == \"cmn\" || l0 == \"lzh\" || l0 == \"gan\" || l0 == \"hak\") \"zho\" else l0\n"
-          "        val c = try { locale.isO3Country } catch (_: Exception) { \"\" }\n"
-          "        val v = locale.variant\n"
-          "        val loadRes = onLoadLanguage(l, c, v)\n"
+          "        val rawIso3 = try { locale.isO3Language } catch (_: Exception) { return TextToSpeech.ERROR }\n"
+          "        val iso3Lang = if (rawIso3 == \"cmn\" || rawIso3 == \"lzh\" || rawIso3 == \"gan\" || rawIso3 == \"hak\") \"zho\" else rawIso3\n"
+          "        val iso3Country = try { locale.isO3Country } catch (_: Exception) { \"\" }\n"
+          "        val variantStr = locale.variant\n"
+          "        val loadRes = onLoadLanguage(iso3Lang, iso3Country, variantStr)\n"
           "        return if (loadRes == TextToSpeech.LANG_AVAILABLE ||\n"
           "                   loadRes == TextToSpeech.LANG_COUNTRY_AVAILABLE ||\n"
           "                   loadRes == TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE) TextToSpeech.SUCCESS\n"
@@ -2320,7 +2318,7 @@ jobs:
           "        if (rawText.trim().isEmpty()) {\n"
           "            // AutoTTS e0(false) (line 1277-1278): iterate ALL engines f, speak(\"\") on each where\n"
           "            // state==2 AND listenerSet(g) AND isSpeaking — not just the active engine (exact parity).\n"
-          "            run { var en = 0; while (en < enginePool.size) { val wrapper = enginePool[en]; if (wrapper.state == 2 && wrapper.listenerSet && wrapper.tts?.isSpeaking == true) { try { enginePool.getOrNull(engineIndex)?.tts?.speak(\"\", TextToSpeech.QUEUE_FLUSH, null, null) } catch (_: Exception) {} }; en++ } }  // AutoTTS e0(false): speak(\"\") on f[this.d] (current engine), not the speaking one\n"
+          "            run { var poolIdx = 0; while (poolIdx < enginePool.size) { val wrapper = enginePool[poolIdx]; if (wrapper.state == 2 && wrapper.listenerSet && wrapper.tts?.isSpeaking == true) { try { enginePool.getOrNull(engineIndex)?.tts?.speak(\"\", TextToSpeech.QUEUE_FLUSH, null, null) } catch (_: Exception) {} }; poolIdx++ } }  // AutoTTS e0(false): speak(\"\") on f[this.d] (current engine), not the speaking one\n"
           "            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }\n"
           "            synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }\n"
           "            // Auto TTS F(synthesisCallback, 1)\n"
@@ -3263,10 +3261,10 @@ jobs:
           "        \"sd\" to \"هيءَ سنڌي ۾ ڳالهائي وئي ٽيڪسٽ جو هڪ نمونو آهي.\"\n"
           "    )\n"
           "    fun get(iso: String): String {\n"
-          "        val k = iso.substringBefore(\"-\").substringBefore(\"_\").lowercase()\n"
+          "        val key = iso.substringBefore(\"-\").substringBefore(\"_\").lowercase()\n"
           "        // AutoTTS y.a(): returns \"\" when the language has no sample — GetSampleText then speaks the\n"
           "        // exact \"Sorry. Sample text for language <name> is missing.\" notice. Match that (no synthesized default).\n"
-          "        return map[k] ?: map[toIso3(k)] ?: map[iso] ?: \"\"\n"
+          "        return map[key] ?: map[toIso3(key)] ?: map[iso] ?: \"\"\n"
           "    }\n"
           "    private fun toIso3(l: String): String = try { java.util.Locale(l).isO3Language.ifEmpty { l } } catch (_: Exception) { l }\n"
           "}\n")
@@ -3571,12 +3569,12 @@ jobs:
           "    val forceEnabledIso3 = remember(readingMode) {\n"
           "        val dev = try { java.util.Locale.getDefault().isO3Language } catch (_: Exception) { \"eng\" }\n"
           "        fun norm(s: String) = if (s.isEmpty()) dev else prefs.toIso3(s)\n"
-          "        val fe = HashSet<String>()\n"
+          "        val forceSet = HashSet<String>()\n"
           "        when (readingMode) {\n"
-          "            \"auto\", \"google\" -> fe.add(norm(prefs.getString(\"auto_mode_language\", \"\")))\n"
-          "            \"mix\" -> { fe.add(norm(prefs.getString(\"mixed_mode_latin_language\", \"\"))); fe.add(norm(prefs.getString(\"mixed_mode_non_latin_language\", \"\"))) }\n"
+          "            \"auto\", \"google\" -> forceSet.add(norm(prefs.getString(\"auto_mode_language\", \"\")))\n"
+          "            \"mix\" -> { forceSet.add(norm(prefs.getString(\"mixed_mode_latin_language\", \"\"))); forceSet.add(norm(prefs.getString(\"mixed_mode_non_latin_language\", \"\"))) }\n"
           "        }\n"
-          "        fe\n"
+          "        forceSet\n"
           "    }\n"
           "    fun isForceEnabled(code: String) = prefs.toIso3(code) in forceEnabledIso3\n"
           "    // AutoTTS M2: checkbox = !d.i; a force-enabled (k.n) language is always kept checked.\n"
@@ -3594,9 +3592,9 @@ jobs:
           "            }\n"
           "            Pair(code, \"$name ($code)\")\n"
           "        }.sortedWith { a, b ->\n"
-          "            val nA = java.text.Normalizer.normalize(a.second, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
-          "            val nB = java.text.Normalizer.normalize(b.second, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
-          "            col.compare(nA, nB)\n"
+          "            val normA = java.text.Normalizer.normalize(a.second, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
+          "            val normB = java.text.Normalizer.normalize(b.second, java.text.Normalizer.Form.NFD).replace(\"\\\\p{M}\".toRegex(), \"\")\n"
+          "            col.compare(normA, normB)\n"
           "        }\n"
           "    }\n"
           "    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {\n"
@@ -3717,11 +3715,11 @@ jobs:
           "        //   auto/mix     → k.j(null, false) = ALL NON-DISABLED langs\n"
           "        // i.e. ONLY the languages the user SELECTED (not disabled) are shown — not every scanned lang.\n"
           "        val src: List<String> = if (voicesReadingMode == \"dual\") {\n"
-          "            val d = prefs.toIso3(prefs.getString(\"dual_mode_language\", \"\").ifEmpty { java.util.Locale.getDefault().language })\n"
+          "            val dualIso3 = prefs.toIso3(prefs.getString(\"dual_mode_language\", \"\").ifEmpty { java.util.Locale.getDefault().language })\n"
           "            // AutoTTS c3.k.d(): the dual list contains eng/D ONLY when a SCANNED VOICE exists for\n"
           "            // that language (k.d iterates the scanned voice entries u and matches eng/D). A language\n"
           "            // with no installed voice does NOT appear. Filter by the scan exactly like that.\n"
-          "            listOf(\"eng\", d).distinct().filter { it in scannedLangs }\n"
+          "            listOf(\"eng\", dualIso3).distinct().filter { it in scannedLangs }\n"
           "        } else {\n"
           "            (if (scannedLangs.isNotEmpty()) scannedLangs else prefs.getLanguageList().toSet())\n"
           "                .filter { !prefs.isLanguageDisabled(it) }  // AutoTTS k.j(pkg, false): exclude disabled languages\n"
@@ -3767,20 +3765,20 @@ jobs:
           "private fun abbrevEngineName(name: String): String {\n"
           "    val parts = name.split(\" \")\n"
           "    if (parts.size < 2) return name\n"
-          "    val sb1 = StringBuilder(parts[0])\n"
-          "    val sb2 = StringBuilder(parts[parts.size - 1])\n"
-          "    var n4 = 1\n"
-          "    var n3 = parts.size - 2\n"
-          "    var obj = \"$sb1 ... $sb2\"\n"
-          "    while (n4 < n3) {\n"
-          "        if (obj.length > 15) return obj\n"
-          "        val cs = \"$sb1 ... $sb2\"\n"
-          "        if (cs.length > 15) return if (cs.length >= 20) obj else cs\n"
-          "        if (parts[n4].length < parts[n3].length) { sb1.append(\" \").append(parts[n4]); n4++ }\n"
-          "        else { sb2.insert(0, parts[n3] + \" \"); n3-- }\n"
-          "        obj = cs\n"
+          "    val headBuf = StringBuilder(parts[0])\n"
+          "    val tailBuf = StringBuilder(parts[parts.size - 1])\n"
+          "    var headIdx = 1\n"
+          "    var tailIdx = parts.size - 2\n"
+          "    var best = \"$headBuf ... $tailBuf\"\n"
+          "    while (headIdx < tailIdx) {\n"
+          "        if (best.length > 15) return best\n"
+          "        val candidate = \"$headBuf ... $tailBuf\"\n"
+          "        if (candidate.length > 15) return if (candidate.length >= 20) best else candidate\n"
+          "        if (parts[headIdx].length < parts[tailIdx].length) { headBuf.append(\" \").append(parts[headIdx]); headIdx++ }\n"
+          "        else { tailBuf.insert(0, parts[tailIdx] + \" \"); tailIdx-- }\n"
+          "        best = candidate\n"
           "    }\n"
-          "    return if (name.length >= 15) obj else name\n"
+          "    return if (name.length >= 15) best else name\n"
           "}\n"
           "\n"
           "// ─────────────────────────────────────────────────────────────────────────\n"
@@ -3940,11 +3938,11 @@ jobs:
           "                AccessibleDropdown(\"Choose a voice for above language:\", curLabel, vLabels) { idx ->\n"
           "                    if (idx == 0) { prefs.setLocaleForLangPkg(iso, \"NOT_SET\", \"\"); selEngPkg = \"NOT_SET\"; selLocTag = \"\" }\n"
           "                    else {\n"
-          "                        val e = vEntries[idx - 1]\n"
+          "                        val entry = vEntries[idx - 1]\n"
           "                        // Persist engine + locale together (combined key \"pkg#localeTag\"), exactly like\n"
           "                        // AutoTTS storing d.f (engine) + d.b (locale) for the selected voice.\n"
-          "                        prefs.setLocaleForLangPkg(iso, e.pkg, e.locTag)\n"
-          "                        selEngPkg = e.pkg; selLocTag = e.locTag\n"
+          "                        prefs.setLocaleForLangPkg(iso, entry.pkg, entry.locTag)\n"
+          "                        selEngPkg = entry.pkg; selLocTag = entry.locTag\n"
           "                    }\n"
           "                }\n"
           "            } else {\n"
@@ -4157,12 +4155,12 @@ jobs:
           "                        Triple(\"google\", \"Google TTS\", \"Same as auto mode, but only Google TTS is used.\"),\n"
           "                        Triple(\"mix\", \"Mixed mode (experimental)\", \"Mixed Auto and Dual mode. All settings in Dual and Auto Mode are applied.\")\n"
           "                    ).forEach { (mode, label, desc) ->\n"
-          "                        val en = if (mode == \"google\") googleInstalled else true\n"
+          "                        val modeEnabled = if (mode == \"google\") googleInstalled else true\n"
           "                        // AutoTTS fragment_modes.xml: each RadioButton and its description TextView are\n"
           "                        // SEPARATE SIBLING views — the radio announces ONLY its label (\"None, radio\n"
           "                        // button\"); the description is its own TalkBack-focusable text below. Do NOT put\n"
           "                        // the description inside the selectable row.\n"
-          "                        Row(modifier = Modifier.fillMaxWidth().selectable(selected = readingMode == mode, enabled = en, onClick = { readingMode = mode; prefs.setReadingMode(mode) }, role = androidx.compose.ui.semantics.Role.RadioButton), verticalAlignment = Alignment.CenterVertically) {\n"
+          "                        Row(modifier = Modifier.fillMaxWidth().selectable(selected = readingMode == mode, enabled = modeEnabled, onClick = { readingMode = mode; prefs.setReadingMode(mode) }, role = androidx.compose.ui.semantics.Role.RadioButton), verticalAlignment = Alignment.CenterVertically) {\n"
           "                            RadioButton(selected = readingMode == mode, onClick = null, enabled = en)\n"
           "                            Spacer(modifier = Modifier.width(8.dp))\n"
           "                            val tint = if (en) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)\n"
