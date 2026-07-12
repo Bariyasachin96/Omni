@@ -289,7 +289,7 @@ jobs:
           static std::string normalizeLangCode(const std::string& code) {
               if (code.size() <= 2) return code;
               static const char* tbl[][2] = {
-                  // Keep this table IDENTICAL to Kotlin normalizeLangCode (ComposeTtsService) —
+                  // Keep this table IDENTICAL to Kotlin normalizeLangCode (EasyVoiceTtsService) —
                   // the two are the only duplicated logic across the JNI boundary.
                   {"eng","en"},
                   {"zho","zh"},{"hin","hi"},{"ben","bn"},{"ara","ar"},{"por","pt"},
@@ -747,7 +747,7 @@ jobs:
           "import java.util.Locale\n"
           "object VhLogger {\n"
           "    private const val TAG = \"EASYVOICE-NATIVE\"\n"
-          "    // AutoTTS c3.m: persistent file log at filesDir/logs/auto_tts.log, 2MB rotation (.1/.2/.3).\n"
+          "    // AutoTTS c3.m: persistent file log at filesDir/logs/easy_voice.log, 2MB rotation (.1/.2/.3).\n"
           "    private const val MAX_LOG_BYTES = 2L * 1024L * 1024L  // AutoTTS c3.m.i(): 0x200000 rotate threshold\n"
           "    private val sdf = SimpleDateFormat(\"yyyy-MM-dd HH:mm:ss.SSS\", Locale.US)  // AutoTTS c3.m timestamp (with year)\n"
           "    private var logFile: File? = null\n"
@@ -756,7 +756,7 @@ jobs:
           "    fun setLoggingEnabled(v: Boolean) { loggingEnabled = v }\n"
           "    fun init(ctx: Context) {\n"
           "        appContext = ctx.applicationContext\n"
-          "        try { val dir = File(ctx.applicationContext.filesDir, \"logs\"); if (!dir.exists()) dir.mkdirs(); logFile = File(dir, \"auto_tts.log\") } catch (_: Exception) {}  // AutoTTS c3.m ctor: filesDir/logs/auto_tts.log\n"
+          "        try { val dir = File(ctx.applicationContext.filesDir, \"logs\"); if (!dir.exists()) dir.mkdirs(); logFile = File(dir, \"easy_voice.log\") } catch (_: Exception) {}  // AutoTTS c3.m ctor: filesDir/logs/easy_voice.log\n"
           "        write(\"I\", \"[LOGGER] VhLogger initialized — device=${android.os.Build.MODEL} sdk=${android.os.Build.VERSION.SDK_INT} android=${android.os.Build.VERSION.RELEASE}\")\n"
           "    }\n"
           "    @Synchronized private fun write(level: String, msg: String) {\n"
@@ -768,14 +768,14 @@ jobs:
           "            FileWriter(f, true).use { it.append(\"${sdf.format(Date())} $level/$TAG: $msg\\n\") }  // AutoTTS c3.m.h(): append to file\n"
           "        } catch (_: Exception) {}\n"
           "    }\n"
-          "    // AutoTTS c3.m.i(): when auto_tts.log reaches 2MB, rotate → .1/.2/.3 (keep 3 backups, drop oldest).\n"
+          "    // AutoTTS c3.m.i(): when easy_voice.log reaches 2MB, rotate → .1/.2/.3 (keep 3 backups, drop oldest).\n"
           "    private fun rotateIfNeeded(f: File) {\n"
           "        try {\n"
           "            if (!f.exists() || f.length() < MAX_LOG_BYTES) return\n"
           "            val parent = f.parent ?: return\n"
-          "            File(parent, \"auto_tts.log.3\").let { if (it.exists()) it.delete() }\n"
-          "            for (idx in 2 downTo 1) { val src = File(parent, \"auto_tts.log.$idx\"); if (src.exists()) src.renameTo(File(parent, \"auto_tts.log.${idx + 1}\")) }\n"
-          "            f.renameTo(File(parent, \"auto_tts.log.1\"))\n"
+          "            File(parent, \"easy_voice.log.3\").let { if (it.exists()) it.delete() }\n"
+          "            for (idx in 2 downTo 1) { val src = File(parent, \"easy_voice.log.$idx\"); if (src.exists()) src.renameTo(File(parent, \"easy_voice.log.${idx + 1}\")) }\n"
+          "            f.renameTo(File(parent, \"easy_voice.log.1\"))\n"
           "        } catch (_: Exception) {}\n"
           "    }\n"
           "    fun d(msg: String) = write(\"D\", msg)\n"
@@ -1198,12 +1198,12 @@ jobs:
           "    }\n"
           "}\n")
 
-          # ── ComposeTtsService.kt — FULL Auto TTS Port ──
+          # ── EasyVoiceTtsService.kt — FULL Auto TTS Port ──
           # SpannableString + LocaleSpan for Mix mode (matches AutoTtsService.E==4)
           # Per-sentence CLD2 detection for unknowns
           # Engine availability check with fallback to user-preferred lang
           # Responsive latch.await(5ms) loop with @Volatile flags — INSTANT STOP reaction
-          w("app/src/main/java/com/easyvoice/tts/ComposeTtsService.kt",
+          w("app/src/main/java/com/easyvoice/tts/EasyVoiceTtsService.kt",
           "package com.easyvoice.tts\n"
           "import android.app.Notification\n"
           "import android.app.NotificationChannel\n"
@@ -1231,7 +1231,7 @@ jobs:
           "// Chunk class — exact mirror of Auto TTS class t2/l\n"
           "// fields: text (a), typeCode (b: 0=unknown,1=Latin,2=non-Latin), lang (c) — exact AutoTTS x class\n"
           "data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null)\n"
-          "class ComposeTtsService : TextToSpeechService() {\n"
+          "class EasyVoiceTtsService : TextToSpeechService() {\n"
           "    // AutoTTS: public final ArrayList f — engine wrappers (EngineWrapper = c3.d0), one per M entry\n"
           "    private val enginePool = ArrayList<EngineWrapper>()\n"
           "    // AutoTTS: public volatile int d = -1 — current active engine index into f\n"
@@ -4441,7 +4441,7 @@ jobs:
           "            <meta-data android:name=\"android.support.FILE_PROVIDER_PATHS\" android:resource=\"@xml/provider_paths\" />\n"
           "        </provider>\n"
           "        <service\n"
-          "            android:name=\".ComposeTtsService\"\n"
+          "            android:name=\".EasyVoiceTtsService\"\n"
           "            android:exported=\"true\"\n"
           "            android:foregroundServiceType=\"mediaPlayback\"\n"
           "            android:permission=\"android.permission.BIND_TEXT_TO_SPEECH_SERVICE\">\n"
