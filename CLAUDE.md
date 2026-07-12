@@ -9,7 +9,7 @@
 
 ## HARD RULES (NEVER violate)
 1. **NEVER build/push without explicit user request**
-2. **Fix #16 (Disable engine handling) — IMPLEMENTED 2026-07-10** (user override: "exactly AutoTTS"). `ko(lang)` helper = `k.o()` parity (configured AND not-disabled), applied at detection-acceptance (clsCLD2.b:60), script-fallback primary+fallbacks (a.e+k.o), and auto/mix span resolution (H()=="Disable"→C). Dual mode untouched (type-based, no k.o). Previously set-aside; no longer.
+2. **Fix #16 (Disable engine handling) — IMPLEMENTED 2026-07-10** (user override: "exactly AutoTTS"). `isLangRoutable(lang)` helper (formerly `ko`) = `k.o()` parity (configured AND not-disabled), applied at detection-acceptance (clsCLD2.b:60), script-fallback primary+fallbacks (a.e+k.o), and auto/mix span resolution (H()=="Disable"→C). Dual mode untouched (type-based, no k.o). Previously set-aside; no longer.
 3. **Always develop on branch `claude/yaml-file-nk3czh`**
 4. **After every push, manually trigger GitHub Actions** (workflow_dispatch, workflow ID: 262884892)
 5. **NO OWN JUDGMENT / NO "manmani" — fix EXACTLY like AutoTTS, always.** Never take shortcuts justified by "minimal risk", "behaviorally same", "cosmetic/inaudible", or "already equivalent". If EasyVoice diverges from AutoTTS in ANY way (UI or processing/backend), match AutoTTS's actual behavior precisely — not an approximation, not my own preference. When I say something is "already fine" without a full AutoTTS source match, that is a violation. Verify every claim against the decompiled AutoTTS source before concluding, and match it byte-for-byte where possible. The user's decision is AutoTTS's behavior; I have no independent decision.
@@ -68,11 +68,12 @@ workflow_id: 262884892, ref: claude/yaml-file-nk3czh
    nikalne hain (user ne request ki hai).
 
 ## Key Architecture
+- **Naming (2026-07-12)**: service ke obfuscated AutoTTS mirror-names descriptive kiye gaye — modeInt(L), dualLang(D), localeSpansFlag(N), stripAudioAttrFlag(P), forceAccessibilityFlag(Q), numberModeInt(E), puncModeInt(F), emojiModeInt(G), dedicatedEnginesFlag(O), voiceList(T), engineList(M), chunkQueue(J), chunkCounter(K), utteranceIdStr(X), initializingTts(U), enginePool(f), engineIndex(d_), lastEnginePkg(c), reqParams/reqVolume/reqRate/reqPitch(i/j/k/l), loadVoice(V), loadVoiceOriginal(W), loadVoiceDedicated(X_eng), findEngineForLocale(c0), isLangRoutable(ko), isLangRoutableRaw(koRaw), localeIso3(kfLocale), isKnownIso2(khMappable). Har declaration par AutoTTS mapping comment hai.
 - 3 modes: "auto", "mix", "dual"
 - CLD2 native library for language detection
 - `getScriptLang(cp)` — port of AutoTTS `a.b(int)` — codepoint → language
 - `getScriptLangFallbacks(primary)` — port of AutoTTS `a.w` map — fallback list
-- `isEngineAvailable(lang)` — mirrors AutoTTS `k.o(lang)`
+- `isLangRoutable(lang)`/`isEngineAvailable(lang)` — mirrors AutoTTS `k.o(lang)`
 
 ## Key AutoTTS Concepts
 - `clsCLD2.b()` — main detection, calls `a.e(cp, k.f)` for script fallback
