@@ -621,7 +621,6 @@ jobs:
           extern "C" JNIEXPORT jstring JNICALL
           Java_com_easyvoice_tts_NativeEngine_processDirect(
               JNIEnv* env, jobject, jobject directBuffer, jint length,
-              jobjectArray jKeys, jobjectArray jVals,
               jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
               jstring jLat, jstring jNonLat, jstring jMode,
               jstring jPunc, jstring jNum, jstring jEmoji,
@@ -641,10 +640,11 @@ jobs:
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
               bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
 
-              // AutoTTS c3.w.g() has NO dictionary/emoji/punct pre-processing — the jKeys/jVals/
-              // keepEmoji/countEmoji/countPunct params are accepted for JNI-signature stability but
-              // intentionally IGNORED (dead pre-pass removed to match AutoTTS exactly).
-              (void)jKeys; (void)jVals; (void)keepEmoji; (void)countEmoji; (void)countPunct;
+              // AutoTTS c3.w.g() has NO emoji/punct pre-processing — the keepEmoji/countEmoji/
+              // countPunct params are accepted for JNI-signature stability but intentionally
+              // IGNORED (dead pre-pass removed to match AutoTTS exactly). Dictionary params
+              // removed entirely — AutoTTS has no dictionary feature at all.
+              (void)keepEmoji; (void)countEmoji; (void)countPunct;
 
               std::vector<std::string> sentences;
               size_t start=0, end=rawInput.find('\0');
@@ -680,7 +680,6 @@ jobs:
           "    init { System.loadLibrary(\"easyvoice_core\") }\n"
           "    external fun processDirect(\n"
           "        buffer: ByteBuffer, length: Int,\n"
-          "        keys: Array<String>, vals: Array<String>,\n"
           "        keepEmoji: Boolean, countEmoji: Boolean, countPunct: Boolean,\n"
           "        latFall: String, nonLatFall: String,\n"
           "        mode: String,\n"
@@ -935,14 +934,18 @@ jobs:
           "        val autoMode = when (mode) { \"none\" -> 0; \"dual\" -> 1; \"auto\" -> 2; \"google\" -> 3; \"mix\" -> 4; else -> 2 }\n"
           "        prefs.edit().putInt(\"auto_mode\", autoMode).remove(\"reading_mode\").apply()\n"
           "    }\n"
-          "    fun addDict(from: String, to: String) = prefs.edit().putString(\"word_$from\", to).apply()\n"
-          "    fun removeDict(from: String) = prefs.edit().remove(\"word_$from\").apply()\n"
-          "    fun clearDict() { val e=prefs.edit(); prefs.all.keys.filter{it.startsWith(\"word_\")}.forEach{e.remove(it)}; e.apply() }\n"
-          "    fun getDict(): Map<String,String> = prefs.all.filterKeys{it.startsWith(\"word_\")}.mapKeys{it.key.substring(5)}.mapValues{it.value.toString()}\n"
           "    // ── Advanced Settings flags ──\n"
-          "    // AutoTTS key was strip_audio_attr; read both for migration\n"
-          "    fun isBrokenEngineProtector(): Boolean = prefs.getBoolean(\"broken_engine_protector\", false) || prefs.getBoolean(\"strip_audio_attr\", false)\n"
-          "    fun setBrokenEngineProtector(v: Boolean) = prefs.edit().putBoolean(\"strip_audio_attr\", v).apply()  // AutoTTS key\n"
+          "    // AutoTTS k.r(): the ONLY key is \"strip_audio_attr\" (→ static P). One-time migration\n"
+          "    // folds EasyVoice's legacy \"broken_engine_protector\" key in, then removes it — after\n"
+          "    // that the pref schema is byte-for-byte AutoTTS.\n"
+          "    fun isStripAudioAttr(): Boolean {\n"
+          "        if (prefs.contains(\"broken_engine_protector\")) {\n"
+          "            val merged = prefs.getBoolean(\"broken_engine_protector\", false) || prefs.getBoolean(\"strip_audio_attr\", false)\n"
+          "            prefs.edit().putBoolean(\"strip_audio_attr\", merged).remove(\"broken_engine_protector\").apply()\n"
+          "        }\n"
+          "        return prefs.getBoolean(\"strip_audio_attr\", false)\n"
+          "    }\n"
+          "    fun setStripAudioAttr(v: Boolean) = prefs.edit().putBoolean(\"strip_audio_attr\", v).remove(\"broken_engine_protector\").apply()  // AutoTTS key\n"
           "    // Auto TTS f6830Q — force USAGE_ASSISTANCE_ACCESSIBILITY (11) on all engines globally,\n"
           "    // not just in Bluetooth Car Mode. Ensures TTS audio routes through the accessibility channel.\n"
           "    fun isForceAccessibilityStream(): Boolean = prefs.getBoolean(\"force_accessibility_stream\", false)\n"
@@ -1850,7 +1853,6 @@ jobs:
           "        buf.put(bytes); buf.position(0)\n"
           "        val out = NativeEngine.processDirect(\n"
           "            buf, bytes.size,\n"
-          "            emptyArray(), emptyArray(),\n"
           "            false, false, false,\n"
           "            latFall, nonLatFall, \"auto\",\n"
           "            \"auto\", \"auto\", \"auto\",\n"
@@ -2220,12 +2222,12 @@ jobs:
           "        prefs.isShowNotification()\n"
           "        prefs.isDisableAdvancedDetection()\n"
           "        N = prefs.isLocaleSpansEnabled()         // AutoTTS k.p(): locale_spans → N\n"
-          "        P = prefs.isBrokenEngineProtector()      // AutoTTS k.r(): strip_audio_attr → P\n"
+          "        P = prefs.isStripAudioAttr()             // AutoTTS k.r(): strip_audio_attr → P\n"
           "        Q = prefs.isForceAccessibilityStream()   // AutoTTS k.r(): force_accessibility_stream → Q\n"
           "        E = prefs.getNumberModeLang()            // AutoTTS k.q(): number_mode_language → E\n"
           "        F = prefs.getPuncModeLang()              // AutoTTS k.q(): punc_mode_language → F\n"
           "        EmojiMode = prefs.getEmojiModeLang()     // AutoTTS k.q(): emoji_mode_language → G\n"
-          "        VhLogger.d(\"[SERVICE] eagerLoadPrefs: N(localeSpans)=$N P(brokenProtector)=$P Q(forceAccessibility)=$Q\")\n"
+          "        VhLogger.d(\"[SERVICE] eagerLoadPrefs: N(localeSpans)=$N P(stripAudioAttr)=$P Q(forceAccessibility)=$Q\")\n"
           "        VhLogger.d(\"[SERVICE] eagerLoadPrefs: E(numberMode)=$E F(puncMode)=$F EmojiMode=$EmojiMode\")\n"
           "        VhLogger.d(\"[SERVICE] eagerLoadPrefs: readingMode=${prefs.getReadingMode()} dedEngines=${prefs.isDedicatedEnginesEnabled()} disableAdv=${prefs.isDisableAdvancedDetection()}\")\n"
           "        VhLogger.d(\"[SERVICE] eagerLoadPrefs: latLang=$eLatLang nonLatLang=$eNonLatLang\")\n"
@@ -2296,7 +2298,7 @@ jobs:
           "        // so a runtime settings change applies without needing a service restart.\n"
           "        L = when { prefs.getReadingMode() == \"google\" || prefs.isGoogleTtsOnly() -> 3; prefs.getReadingMode() == \"dual\" -> 1; prefs.getReadingMode() == \"mix\" -> 4; else -> 0 }\n"
           "        D = prefs.getString(\"dual_mode_language\", \"\").ifEmpty { kfLocale() }\n"
-          "        N = prefs.isLocaleSpansEnabled(); P = prefs.isBrokenEngineProtector(); Q = prefs.isForceAccessibilityStream()\n"
+          "        N = prefs.isLocaleSpansEnabled(); P = prefs.isStripAudioAttr(); Q = prefs.isForceAccessibilityStream()\n"
           "        E = prefs.getNumberModeLang(); F = prefs.getPuncModeLang(); EmojiMode = prefs.getEmojiModeLang()\n"
           "        // AutoTTS c3.i:1502 writes AutoTtsService.O live when the dedicated-engines checkbox\n"
           "        // toggles — the service reads the static per chunk (T()→V(...,O)). EasyVoice's channel\n"
@@ -2345,7 +2347,7 @@ jobs:
           "        // they vary by chunk language and the engine pool key depends on them.\n"
           "        val isForceAccessibility  = prefs.isForceAccessibilityStream()   // read live so the toggle applies without a service restart (AutoTTS Q static field)\n"
           "        val isGoogleOnly          = prefs.isGoogleTtsOnly()              // Auto TTS f6825L==3\n"
-          "        val isBrokenProtector     = prefs.isBrokenEngineProtector()      // read live (AutoTTS P static field)\n"
+          "        val isStripAudioAttr      = prefs.isStripAudioAttr()             // read live (AutoTTS P static field, strip_audio_attr)\n"
           "        // BUNDLE-Z ITEM 2: locale_spans pref controls whether TalkBack's pre-tagged\n"
           "        // LocaleSpan hints are used in mix mode (matches original AutoTtsService.N field).\n"
           "        // Default OFF (false) — when ON, splitByLocaleSpans is invoked instead of the\n"
@@ -2386,15 +2388,12 @@ jobs:
           "        // ── ROUTING SNAPSHOT: the context that decides where each chunk goes. If speech is wrong,\n"
           "        //    this one line explains why (latFall = Latin engine, nonLatFall = non-Latin engine). ──\n"
           "        // Native-mode prefs (used by mix/dual paths only) — read once even if branch unused.\n"
-          "        val dictEnabled       = prefs.getBoolean(\"dict_enabled\", false)\n"
           "        val emojiReading      = prefs.getBoolean(\"emoji_reading\", true)\n"
           "        val emojiCount        = prefs.getBoolean(\"emoji_count\", false)\n"
           "        val punctCount        = prefs.getBoolean(\"punct_count\", false)\n"
           "        val mixNumLang        = modeIntToLang(prefs.getNumberModeLang(), latFall, nonLatFall)   // AutoTTS E: number_mode_language (read live so the dropdown applies without a service restart)\n"
           "        val mixPuncLang       = modeIntToLang(prefs.getPuncModeLang(), latFall, nonLatFall)     // AutoTTS F: punc_mode_language (live)\n"
           "        val mixEmojiLang      = \"auto\"    // AutoTTS G (emoji_mode_language) is DEAD — w.g takes only E/F, never emoji. Keep emoji type/neighbour-based for exact parity (the emoji dropdown UI is kept but inert, like AutoTTS).\n"
-          "        // Dict map: only fetch if enabled — getDict() reads multiple SharedPreferences keys.\n"
-          "        val cachedDictMap: Map<String, String> = if (dictEnabled) prefs.getDict() else emptyMap()\n"
           "        val chunks = mutableListOf<TextChunk>()\n"
           "        // ── [AutoTTS:] PREFIX BYPASS ──\n"
           "        // AutoTTS: length>=9 && substring(0,9).equals(\"[AutoTTS:\")\n"
@@ -2497,7 +2496,6 @@ jobs:
           "                        // AutoTTS mix mode N=true: c3.x.g() chunks → known spans use locale directly;\n"
           "                        // UNKNOWN spans → c3.w.g(text,E,F,a0,W) = NativeEngine.processDirect(\"mix\").\n"
           "                        VhLogger.d(\"[SERVICE] mix mode: locale_spans path produced ${localeChunks.size} chunks\")\n"
-          "                        val dictMap = cachedDictMap\n"
           "                        val neutralDefault = if (kfLocale() == prefs.toIso3(nonLatFall)) nonLatFall else latFall  // AutoTTS w.g n6: ISO3 compare (nonLatFall may be ISO2 from the dropdown)\n"
           "                        val disableAdvDet = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
           "                        // AutoTTS mix (AutoTtsService:1811-1818): a KNOWN LocaleSpan goes through\n"
@@ -2518,7 +2516,6 @@ jobs:
           "                                tBuf.put(tBytes); tBuf.position(0)\n"
           "                                val tOut = NativeEngine.processDirect(\n"
           "                                    tBuf, tBytes.size,\n"
-          "                                    dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
           "                                    emojiReading, emojiCount, punctCount,\n"
           "                                    latFall, nonLatFall, \"mix\",\n"
           "                                    mixPuncLang, mixNumLang, mixEmojiLang,\n"
@@ -2554,7 +2551,6 @@ jobs:
           "                    // The C++ engine handles Latin/non-Latin splitting character-by-character\n"
           "                    // and treats punctuation as Neutral (sticks to surrounding script),\n"
           "                    // so whitespace is preserved and engines produce natural pauses.\n"
-          "                    val dictMap = cachedDictMap\n"
           "                    VhLogger.d(\"[SERVICE] mix mode: processing full text directly\")\n"
           "                    val tBytes = rawText.toByteArray(Charsets.UTF_8)\n"
           "                    val tBuf = ByteBuffer.allocateDirect(tBytes.size)\n"
@@ -2563,7 +2559,6 @@ jobs:
           "                    val disableAdvDet = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
           "                    val tOut = NativeEngine.processDirect(\n"
           "                        tBuf, tBytes.size,\n"
-          "                        dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
           "                        emojiReading,\n"
           "                        emojiCount,\n"
           "                        punctCount,\n"
@@ -2605,7 +2600,6 @@ jobs:
           "                    // No D language configured — single chunk on latFall.\n"
           "                    chunks.add(TextChunk(trimmedText, latFall))\n"
           "                } else {\n"
-          "                    val dictMap = cachedDictMap\n"
           "                    VhLogger.d(\"[SERVICE] dual mode: lat=$latFall nonLat=$nonLatFall punc=$mixPuncLang num=$mixNumLang\")\n"
           "                    val tBytes = trimmedText.toByteArray(Charsets.UTF_8)\n"
           "                    val tBuf = ByteBuffer.allocateDirect(tBytes.size)\n"
@@ -2615,7 +2609,6 @@ jobs:
           "                    val disableAdvDet = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
           "                    val tOut = NativeEngine.processDirect(\n"
           "                        tBuf, tBytes.size,\n"
-          "                        dictMap.keys.toTypedArray(), dictMap.values.toTypedArray(),\n"
           "                        emojiReading, emojiCount, punctCount,\n"
           "                        latFall, nonLatFall, \"dual\",\n"
           "                        mixPuncLang, mixNumLang, mixEmojiLang,\n"
@@ -2831,7 +2824,7 @@ jobs:
           "            if (isForceAccessibility && !wrapper.audioAttrSet) {\n"
           "                try { tts.setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build()); wrapper.audioAttrSet = true } catch (_: Exception) {}\n"
           "            }\n"
-          "            if (isBrokenProtector) { params.remove(\"streamType\"); params.remove(\"audioAttributes\") }\n"
+          "            if (isStripAudioAttr) { params.remove(\"streamType\"); params.remove(\"audioAttributes\") }\n"
           "            val speakResult = tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)\n"
           "            if (speakResult != 0) {\n"
           "                // AutoTTS: speak()!=0 → \"Speaking failed!!!\" → F(cb,12) → N() → return\n"
@@ -4030,7 +4023,7 @@ jobs:
           "}\n"
           "\n"
           "// ─────────────────────────────────────────────────────────────────────────\n"
-          "// AdditionalTabContent — 3rd tab: toggles + battery + dictionary + system TTS + logs\n"
+          "// AdditionalTabContent — 3rd tab: toggles + battery + system TTS + logs\n"
           "// ─────────────────────────────────────────────────────────────────────────\n"
           "@Composable\n"
           "@OptIn(ExperimentalMaterial3Api::class)\n"
@@ -4038,7 +4031,7 @@ jobs:
           "    val context = LocalContext.current\n"
           "    val clipboardManager = LocalClipboardManager.current\n"
           "    var readingMode by remember { mutableStateOf(prefs.getReadingMode().let { when(it) { \"mix\", \"dual\", \"google\", \"none\" -> it; else -> \"auto\" } }) }\n"
-          "    var brokenProt by remember { mutableStateOf(prefs.isBrokenEngineProtector()) }\n"
+          "    var stripAudioAttr by remember { mutableStateOf(prefs.isStripAudioAttr()) }\n"
           "    var forceAccessibility by remember { mutableStateOf(prefs.isForceAccessibilityStream()) }\n"
           "    var showNotification by remember { mutableStateOf(prefs.isShowNotification()) }\n"
           "    // AutoTTS c3.i P0 launcher + I2(): POST_NOTIFICATIONS is requested ONLY when the\n"
@@ -4240,7 +4233,7 @@ jobs:
           "                Text(\"Synthesis Options\", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)\n"
           "                Spacer(modifier = Modifier.height(4.dp))\n"
           "                Text(\"Advanced options for processing synthesization requests. On some devices (such as Oppo, OnePlus, Realme…), the accessibility audio stream is strictly reserved for accessibility apps. Enabling below options allows Easy Voice to work properly.\", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)\n"
-          "                ToggleRow(\"Remove audio attributes from synthesize request.\", \"Strip audio attributes when sending synthesis requests to third-party TTS engines.\", brokenProt) { brokenProt = it; prefs.setBrokenEngineProtector(it) }\n"
+          "                ToggleRow(\"Remove audio attributes from synthesize request.\", \"Strip audio attributes when sending synthesis requests to third-party TTS engines.\", stripAudioAttr) { stripAudioAttr = it; prefs.setStripAudioAttr(it) }\n"
           "                ToggleRow(\"Force to use audio accessibility stream\", \"Route TTS audio output through the accessibility audio stream.\", forceAccessibility) { forceAccessibility = it; prefs.setForceAccessibilityStream(it) }\n"
           "                Spacer(modifier = Modifier.height(16.dp))\n"
           "                // ── Persistence Options (AutoTTS heading persistence_settings) ──\n"
