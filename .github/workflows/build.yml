@@ -95,11 +95,11 @@ jobs:
               id("org.jetbrains.kotlin.android")
           }
           android {
-              namespace = "com.easyvoice.tts"
+              namespace = "com.tts.easyvoice"
               compileSdk = 34
               ndkVersion = "25.1.8937393"
               defaultConfig {
-                  applicationId = "com.easyvoice.tts"
+                  applicationId = "com.tts.easyvoice"
                   minSdk = 24
                   targetSdk = 34
                   versionCode = 1
@@ -155,7 +155,7 @@ jobs:
           w("app/proguard-rules.pro", """\
           -repackageclasses 'o'
           -allowaccessmodification
-          -keep class com.easyvoice.tts.NativeEngine { native <methods>; }
+          -keep class com.tts.easyvoice.NativeEngine { native <methods>; }
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
           -keep class androidx.compose.animation.** { *; }
@@ -622,7 +622,7 @@ jobs:
           }
 
           extern "C" JNIEXPORT jstring JNICALL
-          Java_com_easyvoice_tts_NativeEngine_processDirect(
+          Java_com_tts_easyvoice_NativeEngine_processDirect(
               JNIEnv* env, jobject, jobject directBuffer, jint length,
               jstring jLat, jstring jNonLat, jstring jMode,
               jstring jPunc, jstring jNum, jstring jEmoji,
@@ -672,8 +672,8 @@ jobs:
           """)
 
           # ── NativeEngine.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/NativeEngine.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/NativeEngine.kt",
+          "package com.tts.easyvoice\n"
           "import java.nio.ByteBuffer\n"
           "object NativeEngine {\n"
           "    init { System.loadLibrary(\"easyvoice_core\") }\n"
@@ -688,8 +688,8 @@ jobs:
           "}\n")
 
           # ── Languages.kt ─────────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/Languages.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/Languages.kt",
+          "package com.tts.easyvoice\n"
           "object Languages {\n"
           "    val map = linkedMapOf(\n"
           "        \"af\" to \"Afrikaans\", \"sq\" to \"Albanian\", \"ar\" to \"Arabic\", \"hy\" to \"Armenian\",\n"
@@ -735,8 +735,8 @@ jobs:
           "}\n")
 
           # ── VhLogger.kt ──────────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/VhLogger.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/VhLogger.kt",
+          "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.util.Log\n"
           "import java.io.File\n"
@@ -793,8 +793,8 @@ jobs:
           "}\n")
 
           # ── SharedPrefsManager.kt ────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/SharedPrefsManager.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/SharedPrefsManager.kt",
+          "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.content.SharedPreferences\n"
           "class SharedPrefsManager(context: Context) {\n"
@@ -1056,8 +1056,8 @@ jobs:
           "}\n")
 
           # ── EngineFinder.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/EngineFinder.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/EngineFinder.kt",
+          "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.content.Intent\n"
           "import android.speech.tts.TextToSpeech\n"
@@ -1106,7 +1106,7 @@ jobs:
           "        for (ri in (list1 + list2 + list3)) {\n"
           "            val pkg = ri.serviceInfo.packageName\n"
           "            // AutoTTS c3.l.a(): skip self / sibling meta-engines. AutoTTS excludes pkgs containing\n"
-          "            // \"autotts\"/\"multilingualtts\" (its own identity). EasyVoice's own pkg is com.easyvoice.tts,\n"
+          "            // \"autotts\"/\"multilingualtts\" (its own identity). EasyVoice's own pkg is com.tts.easyvoice,\n"
           "            // so it must exclude \"easyvoice\" to avoid listing itself as a routable downstream engine.\n"
           "            if (pkg.contains(\"easyvoice\", ignoreCase = true) || pkg.contains(\"multilingualtts\", ignoreCase = true)) continue\n"
           "            if (!seen.add(pkg)) continue                                // dedupe\n"
@@ -1162,7 +1162,7 @@ jobs:
           "            // AutoTTS k.x(): engine_0..N = the engine packages that responded (skip our own service),\n"
           "            // terminated by engine_<n>=\"end\". This IS the engine pool M — buildEngineList reads it, so\n"
           "            // every installed engine (not just configured ones) is available for forced-engine routing.\n"
-          "            val eng = synchronized(respondedPkgs) { respondedPkgs.toList() }; var ei = 0; for (p in eng) { if (p.isNotEmpty() && p != \"com.easyvoice.tts\") { ed.putString(\"engine_$ei\", p); ei++ } }; ed.putString(\"engine_$ei\", \"end\"); ed.apply() } catch (_: Exception) {} }; onResult(res) } }  // AutoTTS k.y()/k.x(): persist the FULL scan (language_N = k.c/k.f set; engine_N = pool M) — exactly AutoTTS's pref schema; scoped (google-only) scans must not pollute lastScan or the persisted sets\n"
+          "            val eng = synchronized(respondedPkgs) { respondedPkgs.toList() }; var ei = 0; for (p in eng) { if (p.isNotEmpty() && p != \"com.tts.easyvoice\") { ed.putString(\"engine_$ei\", p); ei++ } }; ed.putString(\"engine_$ei\", \"end\"); ed.apply() } catch (_: Exception) {} }; onResult(res) } }  // AutoTTS k.y()/k.x(): persist the FULL scan (language_N = k.c/k.f set; engine_N = pool M) — exactly AutoTTS's pref schema; scoped (google-only) scans must not pollute lastScan or the persisted sets\n"
           "        // AutoTTS NewSettingsActivity B0()/z0() timeout model: a 30s watchdog PER ENGINE (a hung\n"
           "        // engine whose OnInitListener never fires is DROPPED after 30s and the scan moves on) plus a\n"
           "        // 180s global cap. This gives slow engines the same budget AutoTTS allows — a single 12s cap\n"
@@ -1203,8 +1203,8 @@ jobs:
           # Per-sentence CLD2 detection for unknowns
           # Engine availability check with fallback to user-preferred lang
           # Responsive latch.await(5ms) loop with @Volatile flags — INSTANT STOP reaction
-          w("app/src/main/java/com/easyvoice/tts/EasyVoiceTtsService.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
+          "package com.tts.easyvoice\n"
           "import android.app.Notification\n"
           "import android.app.NotificationChannel\n"
           "import android.app.NotificationManager\n"
@@ -2864,8 +2864,8 @@ jobs:
           "}\n")
 
           # ── CheckVoiceData.kt ────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/CheckVoiceData.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/CheckVoiceData.kt",
+          "package com.tts.easyvoice\n"
           "import android.app.Activity\n"
           "import android.content.Intent\n"
           "import android.os.Bundle\n"
@@ -2917,8 +2917,8 @@ jobs:
           "}\n")
 
           # ── SampleTexts.kt ──────────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/SampleTexts.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/SampleTexts.kt",
+          "package com.tts.easyvoice\n"
           "object SampleTexts {\n"
           "    // AutoTTS c3.y.java — full sample-text table (ISO3 keys, 340 languages).\n"
           "    private val map = mapOf(\n"
@@ -3273,8 +3273,8 @@ jobs:
           "}\n")
 
           # ── GetSampleText.kt ─────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/GetSampleText.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/GetSampleText.kt",
+          "package com.tts.easyvoice\n"
           "import android.app.Activity\n"
           "import android.content.Intent\n"
           "import android.os.Bundle\n"
@@ -3308,8 +3308,8 @@ jobs:
           "}\n")
 
           # ── AccessibleDropdown.kt ────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/AccessibleDropdown.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/AccessibleDropdown.kt",
+          "package com.tts.easyvoice\n"
           "import androidx.compose.foundation.clickable\n"
           "import androidx.compose.foundation.layout.*\n"
           "import androidx.compose.foundation.lazy.LazyColumn\n"
@@ -3376,8 +3376,8 @@ jobs:
           "}\n")
 
           # ── MainActivity.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/easyvoice/tts/MainActivity.kt",
-          "package com.easyvoice.tts\n"
+          w("app/src/main/java/com/tts/easyvoice/MainActivity.kt",
+          "package com.tts.easyvoice\n"
           "import android.content.Intent\n"
           "import android.net.Uri\n"
           "import android.os.Build\n"
@@ -3454,7 +3454,7 @@ jobs:
           "        val prefs = SharedPrefsManager(this)\n"
           "        // AutoTTS NewSettingsActivity:481 — c3.k.g created when the settings screen loads,\n"
           "        // null listener, bound to our own engine. Alive for the whole activity lifetime.\n"
-          "        testTts = android.speech.tts.TextToSpeech(this, null, \"com.easyvoice.tts\")\n"
+          "        testTts = android.speech.tts.TextToSpeech(this, null, \"com.tts.easyvoice\")\n"
           "        setContent {\n"
           "            MaterialTheme {\n"
           "                Surface(modifier = Modifier.fillMaxSize()) {\n"
@@ -4369,7 +4369,7 @@ jobs:
           w("app/src/main/res/xml/tts_engine.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<tts-engine xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
-          "    android:settingsActivity=\"com.easyvoice.tts.MainActivity\" />\n")
+          "    android:settingsActivity=\"com.tts.easyvoice.MainActivity\" />\n")
 
           # ── res/xml/provider_paths.xml ───────────────────────────────────────
           w("app/src/main/res/xml/provider_paths.xml",
@@ -4435,7 +4435,7 @@ jobs:
           "        </activity>\n"
           "        <provider\n"
           "            android:name=\"androidx.core.content.FileProvider\"\n"
-          "            android:authorities=\"com.easyvoice.tts.provider\"\n"
+          "            android:authorities=\"com.tts.easyvoice.provider\"\n"
           "            android:exported=\"false\"\n"
           "            android:grantUriPermissions=\"true\">\n"
           "            <meta-data android:name=\"android.support.FILE_PROVIDER_PATHS\" android:resource=\"@xml/provider_paths\" />\n"
