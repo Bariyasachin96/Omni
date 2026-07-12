@@ -621,7 +621,6 @@ jobs:
           extern "C" JNIEXPORT jstring JNICALL
           Java_com_easyvoice_tts_NativeEngine_processDirect(
               JNIEnv* env, jobject, jobject directBuffer, jint length,
-              jboolean keepEmoji, jboolean countEmoji, jboolean countPunct,
               jstring jLat, jstring jNonLat, jstring jMode,
               jstring jPunc, jstring jNum, jstring jEmoji,
               jstring jNeutralDefault, jboolean jDisableAdvancedDetection)
@@ -640,11 +639,8 @@ jobs:
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
               bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
 
-              // AutoTTS c3.w.g() has NO emoji/punct pre-processing — the keepEmoji/countEmoji/
-              // countPunct params are accepted for JNI-signature stability but intentionally
-              // IGNORED (dead pre-pass removed to match AutoTTS exactly). Dictionary params
-              // removed entirely — AutoTTS has no dictionary feature at all.
-              (void)keepEmoji; (void)countEmoji; (void)countPunct;
+              // AutoTTS c3.w.g() has NO dictionary/emoji/punct pre-processing — those
+              // EasyVoice-only params and prefs were removed entirely (AutoTTS has neither).
 
               std::vector<std::string> sentences;
               size_t start=0, end=rawInput.find('\0');
@@ -680,7 +676,6 @@ jobs:
           "    init { System.loadLibrary(\"easyvoice_core\") }\n"
           "    external fun processDirect(\n"
           "        buffer: ByteBuffer, length: Int,\n"
-          "        keepEmoji: Boolean, countEmoji: Boolean, countPunct: Boolean,\n"
           "        latFall: String, nonLatFall: String,\n"
           "        mode: String,\n"
           "        puncFall: String, numFall: String, emojiFall: String,\n"
@@ -959,8 +954,6 @@ jobs:
           "    // Auto TTS f6831R — show_notification: when false, foreground notification is suppressed.\n"
           "    fun isShowNotification(): Boolean = prefs.getBoolean(\"show_notification\", false)\n"
           "    fun setShowNotification(v: Boolean) = prefs.edit().putBoolean(\"show_notification\", v).apply()\n"
-          "    // Auto TTS f6825L==3 — google_tts_only: bypass all detection, route to com.google.android.tts.\n"
-          "    fun isGoogleTtsOnly(): Boolean = prefs.getBoolean(\"google_tts_only\", false)\n"
           "    fun isDedicatedEnginesEnabled(): Boolean = prefs.getBoolean(\"dedicated_engines\", false)\n"
           "    fun setDedicatedEnginesEnabled(v: Boolean) = prefs.edit().putBoolean(\"dedicated_engines\", v).apply()\n"
           "    // BUNDLE-Z ITEM 2: LocaleSpan splitter pref (matches original AutoTtsService.N field).\n"
@@ -1853,7 +1846,6 @@ jobs:
           "        buf.put(bytes); buf.position(0)\n"
           "        val out = NativeEngine.processDirect(\n"
           "            buf, bytes.size,\n"
-          "            false, false, false,\n"
           "            latFall, nonLatFall, \"auto\",\n"
           "            \"auto\", \"auto\", \"auto\",\n"
           "            latFall,\n"
@@ -2152,7 +2144,7 @@ jobs:
           "            // \"com.google.android.tts\" (H() line 315), so Google is forced into the pool at M[0].\n"
           "            // Without this a google-mode chunk forces engine=Google but the pool lacks it →\n"
           "            // V() can't find it → d_=-1 → no speech and no onStart/onDone/onStop callbacks.\n"
-          "            val isGoogleMode = prefs.getReadingMode() == \"google\" || prefs.isGoogleTtsOnly()\n"
+          "            val isGoogleMode = prefs.getReadingMode() == \"google\"\n"
           "            val defaultEngine = if (isGoogleMode) \"com.google.android.tts\" else prefs.getEngineForLanguage(kfLocale())  // AutoTTS: H(c3.k.f(Locale.getDefault()))\n"
           "            var n = 0\n"
           "            while (true) {\n"
@@ -2213,10 +2205,9 @@ jobs:
           "        buildVoiceList()   // AutoTTS: Y() loads voice list T + dedicated_engines O\n"
           "        Languages.map.keys.forEach { prefs.getEngineForLanguage(it) }\n"
           "        prefs.isDedicatedEnginesEnabled()\n"
-          "        L = when { prefs.getReadingMode() == \"google\" || prefs.isGoogleTtsOnly() -> 3; prefs.getReadingMode() == \"dual\" -> 1; prefs.getReadingMode() == \"mix\" -> 4; else -> 0 }  // AutoTTS: L (0=auto,1=dual,3=google,4=mix)\n"
+          "        L = when (prefs.getReadingMode()) { \"google\" -> 3; \"dual\" -> 1; \"mix\" -> 4; else -> 0 }  // AutoTTS: L (0=auto,1=dual,3=google,4=mix)\n"
           "        val eLatLang = prefs.getString(\"mixed_mode_latin_language\", \"\").ifEmpty { kfLocale() }  // AutoTTS H default: device locale ISO3\n"
           "        val eNonLatLang = prefs.getString(\"mixed_mode_non_latin_language\", \"\").ifEmpty { kfLocale() }  // AutoTTS I default: device locale ISO3\n"
-          "        prefs.getString(\"pref_lang\", \"en\")\n"
           "        prefs.getString(\"auto_mode_language\", \"\")\n"
           "        D = prefs.getString(\"dual_mode_language\", \"\").ifEmpty { kfLocale() }  // AutoTTS R(): D = dual_mode_language, default=device locale ISO3\n"
           "        prefs.isShowNotification()\n"
@@ -2296,7 +2287,7 @@ jobs:
           "        // so a bound service always speaks with current settings. EasyVoice caches these once at\n"
           "        // boot (eagerLoadPrefs); re-read the cheap pref-backed ones here — NO engine/voice rebuild —\n"
           "        // so a runtime settings change applies without needing a service restart.\n"
-          "        L = when { prefs.getReadingMode() == \"google\" || prefs.isGoogleTtsOnly() -> 3; prefs.getReadingMode() == \"dual\" -> 1; prefs.getReadingMode() == \"mix\" -> 4; else -> 0 }\n"
+          "        L = when (prefs.getReadingMode()) { \"google\" -> 3; \"dual\" -> 1; \"mix\" -> 4; else -> 0 }\n"
           "        D = prefs.getString(\"dual_mode_language\", \"\").ifEmpty { kfLocale() }\n"
           "        N = prefs.isLocaleSpansEnabled(); P = prefs.isStripAudioAttr(); Q = prefs.isForceAccessibilityStream()\n"
           "        E = prefs.getNumberModeLang(); F = prefs.getPuncModeLang(); EmojiMode = prefs.getEmojiModeLang()\n"
@@ -2346,7 +2337,6 @@ jobs:
           "        // Lang-specific prefs (rate/pitch/vol/engine/locale/voice) stay per-chunk since\n"
           "        // they vary by chunk language and the engine pool key depends on them.\n"
           "        val isForceAccessibility  = prefs.isForceAccessibilityStream()   // read live so the toggle applies without a service restart (AutoTTS Q static field)\n"
-          "        val isGoogleOnly          = prefs.isGoogleTtsOnly()              // Auto TTS f6825L==3\n"
           "        val isStripAudioAttr      = prefs.isStripAudioAttr()             // read live (AutoTTS P static field, strip_audio_attr)\n"
           "        // BUNDLE-Z ITEM 2: locale_spans pref controls whether TalkBack's pre-tagged\n"
           "        // LocaleSpan hints are used in mix mode (matches original AutoTtsService.N field).\n"
@@ -2388,9 +2378,6 @@ jobs:
           "        // ── ROUTING SNAPSHOT: the context that decides where each chunk goes. If speech is wrong,\n"
           "        //    this one line explains why (latFall = Latin engine, nonLatFall = non-Latin engine). ──\n"
           "        // Native-mode prefs (used by mix/dual paths only) — read once even if branch unused.\n"
-          "        val emojiReading      = prefs.getBoolean(\"emoji_reading\", true)\n"
-          "        val emojiCount        = prefs.getBoolean(\"emoji_count\", false)\n"
-          "        val punctCount        = prefs.getBoolean(\"punct_count\", false)\n"
           "        val mixNumLang        = modeIntToLang(prefs.getNumberModeLang(), latFall, nonLatFall)   // AutoTTS E: number_mode_language (read live so the dropdown applies without a service restart)\n"
           "        val mixPuncLang       = modeIntToLang(prefs.getPuncModeLang(), latFall, nonLatFall)     // AutoTTS F: punc_mode_language (live)\n"
           "        val mixEmojiLang      = \"auto\"    // AutoTTS G (emoji_mode_language) is DEAD — w.g takes only E/F, never emoji. Keep emoji type/neighbour-based for exact parity (the emoji dropdown UI is kept but inert, like AutoTTS).\n"
@@ -2461,7 +2448,7 @@ jobs:
           "        // CLD2 detection (like L==3) but — unlike L==3 — H()/K() are NOT forced to Google, so\n"
           "        // engine routing is per-config. That is exactly EasyVoice's \"auto\" (always-detect +\n"
           "        // normal engine routing), so L==2 → \"auto\" is an exact behavioral match (verified 2026-07-01).\n"
-          "        val forceGoogle = isGoogleOnly || readingMode == \"google\"\n"
+          "        val forceGoogle = readingMode == \"google\"  // AutoTTS L==3 (auto_mode int is the ONLY mode source)\n"
           "        val reqLang0 = request?.language ?: \"\"\n"
           "        val effectiveMode = when {\n"
           "            forceGoogle -> \"auto\"                                          // AutoTTS L=3: Google mode DETECTS like auto; engine forced to Google below\n"
@@ -2516,7 +2503,6 @@ jobs:
           "                                tBuf.put(tBytes); tBuf.position(0)\n"
           "                                val tOut = NativeEngine.processDirect(\n"
           "                                    tBuf, tBytes.size,\n"
-          "                                    emojiReading, emojiCount, punctCount,\n"
           "                                    latFall, nonLatFall, \"mix\",\n"
           "                                    mixPuncLang, mixNumLang, mixEmojiLang,\n"
           "                                    neutralDefault, disableAdvDet\n"
@@ -2559,9 +2545,6 @@ jobs:
           "                    val disableAdvDet = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
           "                    val tOut = NativeEngine.processDirect(\n"
           "                        tBuf, tBytes.size,\n"
-          "                        emojiReading,\n"
-          "                        emojiCount,\n"
-          "                        punctCount,\n"
           "                        latFall, nonLatFall, \"mix\",\n"
           "                        mixPuncLang,\n"
           "                        mixNumLang,\n"
@@ -2609,7 +2592,6 @@ jobs:
           "                    val disableAdvDet = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
           "                    val tOut = NativeEngine.processDirect(\n"
           "                        tBuf, tBytes.size,\n"
-          "                        emojiReading, emojiCount, punctCount,\n"
           "                        latFall, nonLatFall, \"dual\",\n"
           "                        mixPuncLang, mixNumLang, mixEmojiLang,\n"
           "                        neutralDefault, disableAdvDet\n"
