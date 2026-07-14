@@ -555,10 +555,9 @@ jobs:
               // segment gets that lang directly — no context scan. When NOT set, use
               // w.a() (forward, pre-real) or w.b() (backward-only, post-real). w.b has
               // NO forward fallback; truly unresolved neutrals fall to neutralDefault.
-              bool seenReal = false;
               for (int segPos = 0; segPos < (int)segs.size(); segPos++) {
                   int segType = segs[segPos].type;
-                  if (segType == 1 || segType == 2) { seenReal = true; continue; }
+                  if (segType == 1 || segType == 2) continue;
                   if (segType != 3 && segType != 4) continue;
                   if (segType == 4 && !puncFall.empty() && puncFall != "auto") {
                       // AutoTTS w.g() n4 != 0: pure-punct segment → puncFall directly
@@ -567,9 +566,14 @@ jobs:
                       // AutoTTS w.g() n3 != 0: digit/neutral segment → numFall directly
                       segs[segPos].lang = numFall;
                   } else {
-                      // AutoTTS w.a (forward, pre-real) / w.b (backward-only, post-real)
+                      // AutoTTS w.g (:170-223): the FIRST merged segment resolves via w.a() — a
+                      // FORWARD scan for the first non-neutral in the whole list; every LATER
+                      // segment resolves via w.b() — a BACKWARD-only scan. Segments are processed
+                      // in order and w.b() reads the already-UPDATED types, so a later neutral
+                      // inherits the resolution of the segment before it (including an E/F-forced
+                      // one) — never a forward value.
                       std::string resolved;
-                      if (!seenReal) {
+                      if (segPos == 0) {
                           for (int fwd = segPos + 1; fwd < (int)segs.size() && resolved.empty(); fwd++)
                               if (segs[fwd].type == 1 || segs[fwd].type == 2) resolved = segs[fwd].lang;
                       } else {
@@ -2517,12 +2521,11 @@ jobs:
           "                                    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
           "                                        // OPTION B: faithful clsCLD2.b via detectLanguage() (ignore the C++ parts[0]).\n"
           "                                        val det = detectLanguage(parts[1], latFall, nonLatFall)\n"
-          "                                        val textNonLatin = parts[1].codePoints().anyMatch { cp -> cp > 0x024F && Character.isLetter(cp) }\n"
           "                                        // AutoTTS mix onDone (AutoTtsService:2201-2229): a per-chunk CLD2 result whose\n"
           "                                        // engine H() is empty/\"Disable\" falls to the chunk's TYPE — type-1(Latin)→H(latFall),\n"
           "                                        // type-2(non-Latin)→I(nonLatFall) — NOT to C. Same type fallback on UNKNOWN.\n"
           "                                        // No O/dedicated bypass; each w.g chunk is its OWN J element (no merge).\n"
-          "                                        val resolved = if (det != \"UNKNOWN\" && isLangRoutable(det)) det else (if (textNonLatin) nonLatFall else latFall)\n"
+          "                                        val resolved = if (det != \"UNKNOWN\" && isLangRoutable(det)) det else normalizeLangCode(parts[0])\n"
           "                                        chunks.add(TextChunk(parts[1], resolved))\n"
           "                                    }\n"
           "                                }\n"
@@ -2567,13 +2570,12 @@ jobs:
           "                            // now byte-for-byte identical to AutoTTS's per-segment clsCLD2.b. On\n"
           "                            // UNKNOWN, fall back by the chunk's own script (AutoTTS service type→I/H).\n"
           "                            val det = detectLanguage(parts[1], latFall, nonLatFall)\n"
-          "                            val textNonLatin = parts[1].codePoints().anyMatch { cp -> cp > 0x024F && Character.isLetter(cp) }\n"
           "                            // AutoTTS mix onDone (AutoTtsService:2201-2229): the per-chunk CLD2 result is used\n"
           "                            // only if its engine H() is non-empty and not \"Disable\"; otherwise it falls to the\n"
           "                            // chunk's TYPE — type-1(Latin)→H(latFall), type-2(non-Latin)→I(nonLatFall) — NOT to C.\n"
           "                            // Same type fallback when CLD2 is UNKNOWN. (C is only the KNOWN-LocaleSpan fallback.)\n"
           "                            // No O/dedicated bypass; each w.g chunk is its OWN J element (no merge, w.g→J.addAll :1822-1823).\n"
-          "                            val resolved = if (det != \"UNKNOWN\" && isLangRoutable(det)) det else (if (textNonLatin) nonLatFall else latFall)\n"
+          "                            val resolved = if (det != \"UNKNOWN\" && isLangRoutable(det)) det else normalizeLangCode(parts[0])\n"
           "                            chunks.add(TextChunk(parts[1], resolved))\n"
           "                        }\n"
           "                    }\n"
