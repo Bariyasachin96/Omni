@@ -1541,7 +1541,7 @@ jobs:
           "            VhLogger.d(\"[SERVICE] initAllTTS (AutoTTS N()) — enginePool.size=${enginePool.size} engineList=$engineList\")\n"
           "            var n = 0\n"
           "            while (n < enginePool.size) { val ae = enginePool[n].tts; ttsStopExecutor.execute { try { ae?.stop() } catch (_: Exception) {}; try { ae?.shutdown() } catch (_: Exception) {} }; n++ }  // AutoTTS N(): d0.k()/d0.j() async on daemon\n"
-          "            enginePool.clear(); engineIndex = -1; initIndex = 0\n"
+          "            enginePool.clear(); initIndex = 0  // AutoTTS N(): f.clear() + h=0 ONLY — this.d (engineIndex) is NOT reset; the speak-path range guard handles a stale index\n"
           "            if (!engineList.isEmpty()) {\n"
           "                enginePool.add(EngineWrapper(engineList[0]))\n"
           "                initializingTts = TextToSpeech(applicationContext, OnInitListenerImpl(), engineList[0])\n"
