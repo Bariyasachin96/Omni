@@ -1,0 +1,5 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:drawable="@7F0700CB">
+  <target android:name="@7F0E00B2" android:animation="@7F07001A"/>
+  <target android:name="@7F0E00B2" android:animation="@7F07001B"/>
+  <target android:name="@7F0E00B4" android:animation="@7F07001C"/>
+</animated-vector>

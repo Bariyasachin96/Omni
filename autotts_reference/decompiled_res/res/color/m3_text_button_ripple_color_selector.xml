@@ -1,0 +1,14 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:state_checkable="false" android:state_pressed="true" android:color="?7F030107" android:alpha="@7F06012E"/>
+  <item android:state_focused="true" android:state_checkable="false" android:color="?7F030107" android:alpha="@7F06012C"/>
+  <item android:state_checkable="false" android:color="?7F030107" android:alpha="@7F06012D" android:state_hovered="true"/>
+  <item android:state_checkable="false" android:color="?7F030107" android:alpha="@7F0602A8"/>
+  <item android:state_checked="true" android:state_pressed="true" android:color="?7F030115" android:alpha="@7F06012E"/>
+  <item android:state_focused="true" android:state_checked="true" android:color="?7F030112" android:alpha="@7F06012C"/>
+  <item android:state_checked="true" android:color="?7F030112" android:alpha="@7F06012D" android:state_hovered="true"/>
+  <item android:state_checked="true" android:color="?7F030112" android:alpha="@7F0602A8"/>
+  <item android:state_pressed="true" android:color="?7F030112" android:alpha="@7F06012E"/>
+  <item android:state_focused="true" android:color="?7F030115" android:alpha="@7F06012C"/>
+  <item android:color="?7F030115" android:alpha="@7F06012D" android:state_hovered="true"/>
+  <item android:color="?7F030115" android:alpha="@7F0602A8"/>
+</selector>

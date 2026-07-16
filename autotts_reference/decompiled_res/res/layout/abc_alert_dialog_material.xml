@@ -1,0 +1,18 @@
+<androidx.appcompat.widget.AlertDialogLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:gravity="0x00800033" android:orientation="1" android:id="@7F08019D" android:layout_width="-1" android:layout_height="-2">
+  <include layout="@7F0B000A"/>
+  <FrameLayout android:id="@7F0800A2" android:layout_width="-1" android:layout_height="-2" android:minHeight="48.000000dip">
+    <ImageView android:layout_gravity="0x00000030" android:id="@7F0801C3" android:background="#1F000000" android:visibility="2" android:layout_width="-1" android:layout_height="1.000000dip" app:backgroundTint="?android:01010030"/>
+    <androidx.core.widget.NestedScrollView android:id="@7F0801C4" android:clipToPadding="false" android:layout_width="-1" android:layout_height="-2">
+      <LinearLayout android:orientation="1" android:layout_width="-1" android:layout_height="-2">
+        <android.widget.Space android:id="@7F08021B" android:visibility="2" android:layout_width="-1" android:layout_height="@7F060025"/>
+        <TextView android:id="@android:0102000B" android:paddingLeft="?7F030197" android:paddingRight="?7F030197" android:layout_width="-1" android:layout_height="-2" style="@7F0F01D5"/>
+        <android.widget.Space android:id="@7F08021A" android:visibility="2" android:layout_width="-1" android:layout_height="@7F060025"/>
+      </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+    <ImageView android:layout_gravity="0x00000050" android:id="@7F0801C2" android:background="#1F000000" android:visibility="2" android:layout_width="-1" android:layout_height="1.000000dip" app:backgroundTint="?android:01010030"/>
+  </FrameLayout>
+  <FrameLayout android:id="@7F0800AC" android:layout_width="-1" android:layout_height="-2" android:minHeight="48.000000dip">
+    <FrameLayout android:id="@7F0800AB" android:layout_width="-1" android:layout_height="-2"/>
+  </FrameLayout>
+  <include android:layout_width="-1" android:layout_height="-2" layout="@7F0B0008"/>
+</androidx.appcompat.widget.AlertDialogLayout>

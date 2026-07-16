@@ -1,0 +1,78 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="-1" android:layout_height="-1">
+  <LinearLayout android:orientation="1" android:layout_width="-1" android:layout_height="-2" android:layout_marginLeft="0.000000dip" android:layout_marginRight="0.000000dip">
+    <LinearLayout android:gravity="0x00000011" android:orientation="1" android:id="@7F080127" android:visibility="0" android:layout_width="-1" android:layout_height="-1">
+      <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0033" style="@android:01030042"/>
+      <ProgressBar android:gravity="0x00000011" android:id="@7F0801A3" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="10.000000dip" style="@android:0103001D"/>
+    </LinearLayout>
+    <LinearLayout android:orientation="1" android:id="@7F080009" android:visibility="2" android:layout_width="-1" android:layout_height="-1" android:layout_marginTop="2.000000dip">
+      <LinearLayout android:gravity="0x00800003" android:id="@7F080062" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E001F"/>
+      </LinearLayout>
+      <RadioGroup android:orientation="1" android:id="@7F08006A" android:layout_width="-1" android:layout_height="-2" android:layout_below="@7F080062">
+        <RadioButton android:id="@7F080069" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0026" android:onClick="onRadioButtonClicked" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E00F2" style="@android:01030046"/>
+        <RadioButton android:id="@7F080064" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0022" android:onClick="onRadioButtonClicked" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0061" style="@android:01030046"/>
+        <RadioButton android:id="@7F080063" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0020" android:onClick="onRadioButtonClicked" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0021" style="@android:01030046"/>
+        <RadioButton android:id="@7F080065" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0023" android:onClick="onRadioButtonClicked" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0074" style="@android:01030046"/>
+      </RadioGroup>
+      <LinearLayout android:orientation="1" android:id="@7F080001" android:visibility="2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:layout_below="@7F08006A">
+        <RelativeLayout android:gravity="0x00800003" android:id="@7F080066" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+          <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0024" style="@android:01030044"/>
+        </RelativeLayout>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0025" style="@android:01030044"/>
+        <Spinner android:id="@7F080067" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E0025" style="@android:01030044"/>
+      </LinearLayout>
+      <LinearLayout android:orientation="1" android:id="@7F080005" android:visibility="2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:layout_below="@7F080001">
+        <RelativeLayout android:gravity="0x00800003" android:id="@7F0800CE" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+          <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0062" style="@android:01030044"/>
+        </RelativeLayout>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0063" style="@android:01030044"/>
+        <Spinner android:id="@7F0800CF" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E0063" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E00F4" style="@android:01030044"/>
+        <Spinner android:id="@7F080181" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E00F4" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E00FF" style="@android:01030044"/>
+        <Spinner android:id="@7F0801AE" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E00FF" style="@android:01030044"/>
+      </LinearLayout>
+      <Button android:id="@7F0800F9" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0073" android:onClick="goToVoiceSettings" style="@android:01030044"/>
+    </LinearLayout>
+    <LinearLayout android:orientation="1" android:id="@7F080013" android:visibility="2" android:layout_width="-1" android:layout_height="-1">
+      <LinearLayout android:orientation="1" android:id="@7F080126" android:layout_width="-1" android:layout_height="-2" android:layout_above="@7F08019B">
+        <RelativeLayout android:gravity="0x00800003" android:id="@7F0801D6" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+          <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0119" style="@android:01030044"/>
+        </RelativeLayout>
+        <TextView android:gravity="0x00800003" android:id="@7F080214" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E003C" android:layout_below="@7F0801D6" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:id="@7F080216" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0037" android:layout_below="@7F080214" style="@android:01030044"/>
+        <Spinner android:id="@7F08006B" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E002E" android:layout_below="@7F080216" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:id="@7F080217" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E003B" android:layout_below="@7F08006B" style="@android:01030044"/>
+        <LinearLayout android:orientation="0" android:id="@7F08024C" android:layout_width="-1" android:layout_height="-1" android:layout_below="@7F080217">
+          <Spinner android:id="@7F080072" android:layout_width="0.000000dip" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E002E" android:layout_weight="1.000000" style="@android:01030044"/>
+          <Button android:id="@7F080212" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E011A" android:onClick="testCurrentVoice"/>
+        </LinearLayout>
+      </LinearLayout>
+      <LinearLayout android:orientation="1" android:id="@7F08019B" android:layout_width="-1" android:layout_height="-2">
+        <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E003E"/>
+        <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2">
+          <Button android:layout_gravity="0x00000003" android:id="@7F08006F" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0029" android:contentDescription="@7F0E003F" style="?android:01010049"/>
+          <SeekBar android:gravity="0x00000011" android:layout_gravity="0x00000011" android:id="@7F0801EC" android:layout_width="0.000000dip" android:layout_height="-2" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.000000"/>
+          <Button android:layout_gravity="0x00000005" android:id="@7F080070" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E002C" android:contentDescription="@7F0E0040" style="?android:01010049"/>
+        </LinearLayout>
+        <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0044"/>
+        <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2">
+          <Button android:layout_gravity="0x00000003" android:id="@7F080073" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0029" android:contentDescription="@7F0E0045" style="?android:01010049"/>
+          <SeekBar android:gravity="0x00000011" android:layout_gravity="0x00000011" android:id="@7F08024D" android:layout_width="0.000000dip" android:layout_height="-2" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.000000"/>
+          <Button android:layout_gravity="0x00000005" android:id="@7F080074" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E002C" android:contentDescription="@7F0E0046" style="?android:01010049"/>
+        </LinearLayout>
+        <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0030"/>
+        <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2">
+          <Button android:layout_gravity="0x00000003" android:id="@7F08006C" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0029" android:contentDescription="@7F0E0031" style="?android:01010049"/>
+          <SeekBar android:gravity="0x00000011" android:layout_gravity="0x00000011" android:id="@7F0801A7" android:layout_width="0.000000dip" android:layout_height="-2" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.000000"/>
+          <Button android:layout_gravity="0x00000005" android:id="@7F08006D" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E002C" android:contentDescription="@7F0E0032" style="?android:01010049"/>
+        </LinearLayout>
+      </LinearLayout>
+      <Button android:id="@7F0800F8" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0072" android:layout_below="@7F08024C" android:onClick="goToModeSettings" style="@android:01030044"/>
+    </LinearLayout>
+  </LinearLayout>
+</ScrollView>

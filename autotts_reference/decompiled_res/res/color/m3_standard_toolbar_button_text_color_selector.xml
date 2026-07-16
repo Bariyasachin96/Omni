@@ -1,0 +1,11 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:state_enabled="false" android:color="?7F030115" android:alpha="@7F06025F"/>
+  <item android:color="?7F030117" android:state_hovered="true"/>
+  <item android:state_checkable="true" android:state_checked="true" android:color="?7F030112" android:state_hovered="true"/>
+  <item android:state_focused="true" android:color="?7F030117"/>
+  <item android:state_focused="true" android:state_checkable="true" android:state_checked="true" android:color="?7F030112"/>
+  <item android:state_pressed="true" android:color="?7F030117"/>
+  <item android:state_checkable="true" android:state_checked="true" android:state_pressed="true" android:color="?7F030112"/>
+  <item android:state_checkable="true" android:state_checked="true" android:color="?7F030112"/>
+  <item android:color="?7F030117"/>
+</selector>

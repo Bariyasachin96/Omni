@@ -1,0 +1,1 @@
+<TextView xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android" android:gravity="0x00800053" android:id="@7F080163" android:layout_width="-1" android:layout_height="-2" app:autoSizeTextType="1" app:firstBaselineToTopHeight="@7F06037B" app:lineHeight="@7F06036D" style="?7F030335"/>

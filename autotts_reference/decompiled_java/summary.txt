@@ -1,0 +1,663 @@
+Summary for tools/autotts.jar
+Decompiled with CFR 0.152
+
+
+a3.a
+----------------------------
+
+g(java.security.PublicKey int java.lang.String java.lang.String )
+  Loose catch block
+
+
+androidx.activity.ImmLeaksCleaner
+----------------------------
+
+d(androidx.lifecycle.k androidx.lifecycle.f$a )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [5 : 78->98)] java.lang.Throwable
+
+
+androidx.appcompat.widget.ContentFrameLayout
+----------------------------
+
+onMeasure(int int )
+  Unable to fully structure code
+
+
+androidx.appcompat.app.n
+----------------------------
+
+s(android.content.Context java.lang.String java.lang.String )
+  Unable to fully structure code
+t(android.content.Context java.lang.String android.util.AttributeSet )
+  Loose catch block
+a(android.content.Context )
+  Loose catch block
+
+
+androidx.appcompat.view.menu.ActionMenuItemView
+----------------------------
+
+u()
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Statement already marked as first in another block
+
+
+androidx.appcompat.widget.LinearLayoutCompat
+----------------------------
+
+e(android.graphics.Canvas )
+  Unable to fully structure code
+  Could not resolve type clashes
+v(int int )
+  Unable to fully structure code
+  Could not resolve type clashes
+x(int int )
+  Unable to fully structure code
+
+
+androidx.appcompat.widget.ActionMenuView
+----------------------------
+
+J(android.view.View int int int int )
+  Unable to fully structure code
+K(int int )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+androidx.appcompat.widget.AppCompatSpinner
+----------------------------
+
+<init>(android.content.Context android.util.AttributeSet int int android.content.res.Resources$Theme )
+  Loose catch block
+
+
+androidx.appcompat.widget.a0
+----------------------------
+
+e(android.view.MotionEvent int )
+  Unable to fully structure code
+
+
+androidx.appcompat.widget.SearchView
+----------------------------
+
+onTouchEvent(android.view.MotionEvent )
+  Unable to fully structure code
+
+
+androidx.appcompat.widget.Toolbar
+----------------------------
+
+onLayout(boolean int int int int )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+androidx.appcompat.widget.g
+----------------------------
+
+a(android.content.Context int android.graphics.drawable.Drawable )
+  Unable to fully structure code
+
+
+androidx.appcompat.widget.h0
+----------------------------
+
+p(android.net.Uri )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3 : 29->83)] java.io.FileNotFoundException
+
+
+androidx.appcompat.widget.z
+----------------------------
+
+<clinit>()
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+androidx.constraintlayout.widget.ConstraintLayout
+----------------------------
+
+z(u.f int int int int )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+androidx.constraintlayout.motion.widget.MotionLayout
+----------------------------
+
+h0(boolean )
+  Unable to fully structure code
+
+
+androidx.constraintlayout.motion.widget.a
+----------------------------
+
+K(android.content.Context int )
+  Unable to fully structure code
+onClick(android.view.View )
+  Unable to fully structure code
+
+
+androidx.constraintlayout.motion.widget.c
+----------------------------
+
+<init>(android.content.Context org.xmlpull.v1.XmlPullParser )
+  Unable to fully structure code
+
+
+androidx.constraintlayout.utils.widget.MotionLabel
+----------------------------
+
+setGravity(int )
+  Unable to fully structure code
+
+
+androidx.constraintlayout.widget.b
+----------------------------
+
+H(androidx.constraintlayout.widget.ConstraintLayout$LayoutParams java.lang.String )
+  Unable to fully structure code
+D(android.content.Context org.xmlpull.v1.XmlPullParser )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [7, 6 : 131->145)] java.io.IOException
+
+
+androidx.coordinatorlayout.widget.CoordinatorLayout
+----------------------------
+
+onMeasure(int int )
+  Unable to fully structure code
+  Could not resolve type clashes
+onTouchEvent(android.view.MotionEvent )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+androidx.core.graphics.drawable.IconCompat
+----------------------------
+
+e(androidx.core.graphics.drawable.IconCompat android.content.Context )
+  Unable to fully structure code
+
+
+androidx.emoji2.text.o
+----------------------------
+
+onSpanChanged(android.text.Spannable java.lang.Object int int int int )
+  Unable to fully structure code
+
+
+androidx.fragment.app.a
+----------------------------
+
+A(java.util.ArrayList androidx.fragment.app.Fragment )
+  Unable to fully structure code
+
+
+androidx.fragment.app.e0
+----------------------------
+
+j()
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [3 : 75->95)] java.lang.Throwable
+
+
+androidx.fragment.app.w
+----------------------------
+
+m()
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [3 : 123->155)] java.lang.Throwable
+
+
+androidx.profileinstaller.b
+----------------------------
+
+e()
+  Loose catch block
+i(java.io.InputStream )
+  Unable to fully structure code
+m()
+  Unable to fully structure code
+
+
+androidx.profileinstaller.c
+----------------------------
+
+d(android.content.pm.PackageInfo java.io.File androidx.profileinstaller.c$c )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Started 2 blocks at once
+e(android.content.pm.PackageInfo java.io.File )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Started 2 blocks at once
+
+
+androidx.profileinstaller.d
+----------------------------
+
+c(android.content.Context boolean )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3, 2 : 51->62)] java.lang.Throwable
+
+
+androidx.recyclerview.widget.RecyclerView
+----------------------------
+
+B(android.content.Context java.lang.String android.util.AttributeSet int int )
+  Loose catch block
+Y0(float float float float )
+  Unable to fully structure code
+f0(int boolean )
+  Unable to fully structure code
+onGenericMotionEvent(android.view.MotionEvent )
+  Unable to fully structure code
+onTouchEvent(android.view.MotionEvent )
+  Unable to fully structure code
+  Could not resolve type clashes
+l1(androidx.recyclerview.widget.RecyclerView$v androidx.recyclerview.widget.RecyclerView$z int android.os.Bundle )
+  Unable to fully structure code
+N(int boolean long )
+  Unable to fully structure code
+
+
+androidx.recyclerview.widget.StaggeredGridLayoutManager
+----------------------------
+
+A2(androidx.recyclerview.widget.RecyclerView$v androidx.recyclerview.widget.RecyclerView$z boolean )
+  Unable to fully structure code
+
+
+androidx.recyclerview.widget.h
+----------------------------
+
+f(java.util.List int androidx.recyclerview.widget.a$b int androidx.recyclerview.widget.a$b )
+  Unable to fully structure code
+
+
+androidx.transition.Visibility
+----------------------------
+
+u0(android.view.ViewGroup m1.y int m1.y int )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+androidx.viewpager.widget.ViewPager
+----------------------------
+
+c(int )
+  Unable to fully structure code
+
+
+androidx.viewpager2.widget.e
+----------------------------
+
+b(androidx.recyclerview.widget.RecyclerView int int )
+  Unable to fully structure code
+
+
+c0.d
+----------------------------
+
+i(android.app.Activity )
+  Unable to fully structure code
+
+
+c0.e
+----------------------------
+
+a(android.content.Context java.lang.String )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 1[TRYBLOCK] [2 : 29->41)] java.lang.Throwable
+b(android.content.Context )
+  Unable to fully structure code
+
+
+c1.u
+----------------------------
+
+<init>(java.util.List float float )
+  Unable to fully structure code
+
+
+c3.i
+----------------------------
+
+y2(android.content.Context java.lang.String )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 4[TRYBLOCK] [4 : 186->336)] java.lang.Exception
+G2(android.net.Uri )
+  Loose catch block
+
+
+c3.k
+----------------------------
+
+h(android.content.Context boolean )
+  Unable to fully structure code
+
+
+c3.m
+----------------------------
+
+h(c3.m$a java.lang.String java.lang.String )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [2 : 47->59)] java.lang.Throwable
+
+
+c3.z
+----------------------------
+
+a(java.io.File java.io.File )
+  Loose catch block
+
+
+com.google.android.gms.common.internal.a
+----------------------------
+
+j(com.google.android.gms.common.internal.b )
+  Loose catch block
+
+
+y1.a
+----------------------------
+
+h(int android.os.Parcel )
+  Loose catch block
+
+
+com.google.android.gms.common.zzt
+----------------------------
+
+<init>(java.lang.String android.os.IBinder boolean boolean )
+  Loose catch block
+
+
+com.google.android.material.appbar.HeaderBehavior
+----------------------------
+
+H(androidx.coordinatorlayout.widget.CoordinatorLayout android.view.View android.view.MotionEvent )
+  Unable to fully structure code
+
+
+com.google.android.material.appbar.AppBarLayout
+----------------------------
+
+getDownNestedPreScrollRange()
+  Unable to fully structure code
+
+
+com.google.android.material.navigation.NavigationBarView
+----------------------------
+
+<init>(android.content.Context android.util.AttributeSet int int )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Statement already marked as first in another block
+
+
+com.google.android.material.bottomsheet.BottomSheetBehavior
+----------------------------
+
+G(androidx.coordinatorlayout.widget.CoordinatorLayout android.view.View android.view.View int )
+  Unable to fully structure code
+
+
+com.google.android.material.button.MaterialButtonGroup
+----------------------------
+
+h(boolean boolean int )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Statement already marked as first in another block
+
+
+com.google.android.material.chip.Chip
+----------------------------
+
+onTouchEvent(android.view.MotionEvent )
+  Unable to fully structure code
+
+
+com.google.android.material.datepicker.p
+----------------------------
+
+e(int android.view.View android.view.ViewGroup )
+  Unable to fully structure code
+
+
+com.google.android.material.navigation.NavigationView
+----------------------------
+
+onGlobalLayout()
+  Unable to fully structure code
+
+
+com.google.android.material.slider.BaseSlider
+----------------------------
+
+C0(int android.view.KeyEvent )
+  Recovered potentially malformed switches.  Disable with '--allowmalformedswitch false'
+  Unable to fully structure code
+
+
+com.google.android.material.textfield.TextInputLayout
+----------------------------
+
+p0()
+  Unable to fully structure code
+
+
+com.google.android.play.core.common.PlayCoreDialogWrapperActivity
+----------------------------
+
+onCreate(android.os.Bundle )
+  Unable to fully structure code
+
+
+com.google.android.vending.licensing.LicenseChecker
+----------------------------
+
+j(java.lang.String )
+  Loose catch block
+f(com.google.android.vending.licensing.LicenseCheckerCallback )
+  Loose catch block
+
+
+com.pairip.licensecheck.LicenseClient
+----------------------------
+
+checkLicenseInternal(android.os.IBinder )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 1[TRYBLOCK] [3 : 91->114)] java.lang.Throwable
+processResponse(int android.os.Bundle )
+  Unable to fully structure code
+  Could not resolve type clashes
+reportSuccessfulLicenseCheck(android.os.IBinder )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 119->156)] java.lang.Throwable
+
+
+com.vnspeak.autotts.AutoTtsService
+----------------------------
+
+N()
+  Loose catch block
+onSynthesizeText(android.speech.tts.SynthesisRequest android.speech.tts.SynthesisCallback )
+  Loose catch block
+run()
+  Unable to fully structure code
+
+
+com.vnspeak.autotts.NewSettingsActivity
+----------------------------
+
+D0()
+  Loose catch block
+
+
+g0.d
+----------------------------
+
+g(java.lang.String int g0.d$a )
+  Unable to fully structure code
+e(android.graphics.Path float[] char char float[] )
+  Handled duff style switch with additional control
+
+
+g0.g
+----------------------------
+
+b(android.content.Context android.os.CancellationSignal l0.g$b[] int )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Started 2 blocks at once
+
+
+g0.i
+----------------------------
+
+a(android.content.Context f0.e$c android.content.res.Resources int )
+  Loose catch block
+b(android.content.Context android.os.CancellationSignal l0.g$b[] int )
+  Unable to fully structure code
+
+
+g0.k
+----------------------------
+
+b(java.io.File android.content.res.Resources int )
+  Loose catch block
+c(java.io.File java.io.InputStream )
+  Loose catch block
+e(android.content.Context android.os.CancellationSignal android.net.Uri )
+  Loose catch block
+
+
+h.g
+----------------------------
+
+inflate(int android.view.Menu )
+  Loose catch block
+
+
+h1.c
+----------------------------
+
+b(byte[] )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 4[TRYBLOCK] [4 : 58->65)] java.lang.Throwable
+
+
+k1.a
+----------------------------
+
+a()
+  Loose catch block
+d(java.lang.Class java.util.Set )
+  Unable to fully structure code
+
+
+m1.a
+----------------------------
+
+a(android.graphics.Canvas boolean )
+  Unable to fully structure code
+
+
+m1.q
+----------------------------
+
+h(android.view.View int int int int int int int int )
+  Unable to fully structure code
+
+
+q.a
+----------------------------
+
+a(java.lang.StringBuilder )
+  Loose catch block
+
+
+r.b
+----------------------------
+
+g(r.d )
+  Unable to fully structure code
+z()
+  Unable to fully structure code
+
+
+r.d
+----------------------------
+
+d(r.b )
+  Unable to fully structure code
+
+
+s.a
+----------------------------
+
+<init>(int[] double[] double[][] )
+  Unable to fully structure code
+
+
+u.e
+----------------------------
+
+I0(java.lang.String )
+  Unable to fully structure code
+g(r.d boolean )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+u.b
+----------------------------
+
+a(u.f r.d int int u.c )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+u.f
+----------------------------
+
+x1()
+  Unable to fully structure code
+
+
+u.g
+----------------------------
+
+r2(u.e[] int int int int[] )
+  Unable to fully structure code
+  Could not resolve type clashes
+s2(u.e[] int int int int[] )
+  Unable to fully structure code
+  Could not resolve type clashes
+t2(u.e[] int int int int[] )
+  Unable to fully structure code
+  Could not resolve type clashes
+d(boolean int boolean )
+  Unable to fully structure code
+
+
+v.b
+----------------------------
+
+b(u.f )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+v.e
+----------------------------
+
+h(boolean int )
+  Unable to fully structure code
+  Could not resolve type clashes
+
+
+v.i
+----------------------------
+
+c(u.f v.b$b )
+  Unable to fully structure code
+
+
+w.a
+----------------------------
+
+b(androidx.constraintlayout.widget.a android.view.View float[] )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [8, 7, 6 : 158->176)] java.lang.reflect.InvocationTargetException
+
+
+y.a
+----------------------------
+
+a(android.content.Context int )
+  Unable to fully structure code

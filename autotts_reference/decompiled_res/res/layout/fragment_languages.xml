@@ -1,0 +1,20 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
+  <LinearLayout android:orientation="1" android:layout_width="-1" android:layout_height="-1" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
+    <RelativeLayout android:gravity="0x00800003" android:id="@7F0801D5" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+      <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0038" style="@android:01030044"/>
+    </RelativeLayout>
+    <LinearLayout android:orientation="1" android:id="@7F08012A" android:visibility="2" android:layout_width="-1" android:layout_height="-2">
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E003A" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+    </LinearLayout>
+    <LinearLayout android:orientation="1" android:id="@7F080129" android:visibility="0" android:layout_width="-1" android:layout_height="-2">
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0039" android:layout_marginStart="5.000000dip" style="@android:01030046"/>
+      <LinearLayout android:gravity="0x00000011" android:orientation="0" android:layout_width="-1" android:layout_height="-2">
+        <Button android:id="@7F0801D3" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0109"/>
+        <Button android:id="@7F080094" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0057"/>
+        <Button android:id="@7F08022C" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E010D"/>
+      </LinearLayout>
+      <androidx.appcompat.widget.SearchView android:id="@7F0801CD" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:layout_marginBottom="5.000000dip" android:queryHint="@7F0E0104" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip"/>
+      <ListView android:id="@7F08012C" android:layout_width="-1" android:layout_height="-2"/>
+    </LinearLayout>
+  </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,14 @@
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+  <LinearLayout android:layout_gravity="0x00000031" android:orientation="1" android:id="@7F08016D" android:duplicateParentState="true" android:clipChildren="false" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="@7F0603BA">
+    <FrameLayout android:layout_gravity="0x00000011" android:id="@7F08016E" android:duplicateParentState="true" android:clipChildren="false" android:layout_width="-2" android:layout_height="-2">
+      <View android:layout_gravity="0x00000011" android:id="@7F08016C" android:layout_width="0.000000dip" android:layout_height="0.000000dip"/>
+      <LinearLayout android:gravity="0x00000011" android:layout_gravity="0x00000011" android:orientation="0" android:id="@7F080170" android:duplicateParentState="true" android:clipChildren="false" android:layout_width="-2" android:layout_height="-2">
+        <ImageView android:layout_gravity="0x00000011" android:id="@7F08016F" android:duplicateParentState="true" android:layout_width="@7F0603B9" android:layout_height="@7F0603B9" android:contentDescription="@00000000"/>
+      </LinearLayout>
+    </FrameLayout>
+    <com.google.android.material.internal.BaselineLayout android:layout_gravity="0x00000011" android:id="@7F080171" android:paddingBottom="@7F0603BB" android:duplicateParentState="true" android:clipChildren="false" android:clipToPadding="false" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="@7F060298">
+      <TextView android:textSize="@7F0603BC" android:ellipsize="3" android:gravity="0x00000010" android:id="@7F080173" android:duplicateParentState="true" android:layout_width="-2" android:layout_height="-2" android:paddingStart="@7F0602A2" android:paddingEnd="@7F0602A2"/>
+      <TextView android:textSize="@7F0603B4" android:ellipsize="3" android:gravity="0x00000010" android:id="@7F080172" android:visibility="1" android:duplicateParentState="true" android:layout_width="-2" android:layout_height="-2" android:paddingStart="@7F0602A2" android:paddingEnd="@7F0602A2"/>
+    </com.google.android.material.internal.BaselineLayout>
+  </LinearLayout>
+</merge>

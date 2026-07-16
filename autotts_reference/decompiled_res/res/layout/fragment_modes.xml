@@ -1,0 +1,50 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
+  <ScrollView android:id="@7F0801C6" android:visibility="0" android:layout_width="-1" android:layout_height="-1" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
+    <LinearLayout android:orientation="1" android:id="@7F080009" android:layout_width="-1" android:layout_height="-2">
+      <LinearLayout android:gravity="0x00800003" android:id="@7F080062" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E001F"/>
+      </LinearLayout>
+      <RadioGroup android:orientation="1" android:id="@7F08006A" android:layout_width="-1" android:layout_height="-2" android:layout_marginStart="5.000000dip">
+        <RadioButton android:id="@7F080069" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0026" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E00F2" style="@android:01030046"/>
+        <RadioButton android:id="@7F080064" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0022" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0061" style="@android:01030046"/>
+        <RadioButton android:id="@7F080063" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0020" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0021" style="@android:01030046"/>
+        <RadioButton android:id="@7F080065" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0023" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0074" style="@android:01030046"/>
+        <RadioButton android:id="@7F080068" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E00A9" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E00AA" style="@android:01030046"/>
+      </RadioGroup>
+      <LinearLayout android:orientation="1" android:id="@7F080001" android:visibility="2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip">
+        <RelativeLayout android:gravity="0x00800003" android:id="@7F080066" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+          <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0024" style="@android:01030044"/>
+        </RelativeLayout>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0025" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F080067" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E0025" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0027" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <CheckBox android:gravity="0x00000010" android:id="@7F08012D" android:layout_width="-1" android:layout_height="-1" android:checked="false" android:text="@7F0E0111"/>
+      </LinearLayout>
+      <LinearLayout android:orientation="1" android:id="@7F080005" android:visibility="2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip">
+        <RelativeLayout android:gravity="0x00800003" android:id="@7F0800CE" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+          <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0062" style="@android:01030044"/>
+        </RelativeLayout>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0063" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F0800CF" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E0063" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E00F4" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F080181" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E00F4" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E00FF" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F0801AE" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E00FF" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+      </LinearLayout>
+      <LinearLayout android:orientation="1" android:id="@7F080008" android:visibility="2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip">
+        <RelativeLayout android:gravity="0x00800003" android:id="@7F08014B" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+          <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E00AB" style="@android:01030044"/>
+        </RelativeLayout>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E00AC" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F08014C" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E00AC" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E00AD" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F08014D" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E00AD" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+      </LinearLayout>
+    </LinearLayout>
+  </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,3 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
+  <TextView android:id="@7F0801D2" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="@7F060052" android:layout_marginBottom="@7F060052" android:layout_marginStart="@7F060051" android:layout_marginEnd="@7F060051" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

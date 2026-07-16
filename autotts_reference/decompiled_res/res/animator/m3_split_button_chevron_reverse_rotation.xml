@@ -1,0 +1,3 @@
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+  <objectAnimator android:interpolator="@7F020018" android:duration="200" android:fillAfter="true" android:valueFrom="0" android:valueTo="-180" android:valueType="0" android:propertyName="rotation"/>
+</set>

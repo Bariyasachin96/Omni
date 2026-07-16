@@ -1,0 +1,49 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
+  <LinearLayout android:orientation="1" android:id="@7F080014" android:visibility="2" android:layout_width="-1" android:layout_height="-2" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
+    <RelativeLayout android:gravity="0x00800003" android:id="@7F0801D5" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+      <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0119" style="@android:01030044"/>
+    </RelativeLayout>
+    <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0043" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+  </LinearLayout>
+  <ScrollView android:id="@7F0801C6" android:layout_width="-1" android:layout_height="-1" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
+    <LinearLayout android:orientation="1" android:id="@7F080013" android:layout_width="-1" android:layout_height="-2">
+      <LinearLayout android:orientation="1" android:id="@7F080126" android:layout_width="-1" android:layout_height="-2">
+        <RelativeLayout android:gravity="0x00800003" android:id="@7F0801D6" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+          <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0119" style="@android:01030044"/>
+        </RelativeLayout>
+        <TextView android:gravity="0x00800003" android:id="@7F080214" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E003C" android:layout_marginStart="5.000000dip" style="@android:01030046"/>
+        <TextView android:gravity="0x00800003" android:id="@7F080216" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E0037" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F08006B" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E002E" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:id="@7F080217" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E003B" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F080072" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E003B" style="@android:01030044"/>
+        <TextView android:gravity="0x00800003" android:id="@7F080218" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:text="@7F0E003D" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+        <Spinner android:id="@7F080071" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="2.000000dip" android:prompt="@7F0E003D" style="@android:01030044"/>
+        <Button android:id="@7F080212" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E011A"/>
+      </LinearLayout>
+      <LinearLayout android:orientation="1" android:id="@7F08019B" android:layout_width="-1" android:layout_height="-2" android:layout_marginStart="5.000000dip">
+        <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E003E"/>
+        <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2">
+          <Button android:layout_gravity="0x00800003" android:id="@7F08006F" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0029" android:contentDescription="@7F0E003F" style="?android:01010049"/>
+          <SeekBar android:gravity="0x00000011" android:layout_gravity="0x00000011" android:id="@7F0801EC" android:layout_width="0.000000dip" android:layout_height="-2" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.000000"/>
+          <Button android:layout_gravity="0x00800005" android:id="@7F080070" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E002C" android:contentDescription="@7F0E0040" style="?android:01010049"/>
+        </LinearLayout>
+        <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0044"/>
+        <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2">
+          <Button android:layout_gravity="0x00800003" android:id="@7F080073" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0029" android:contentDescription="@7F0E0045" style="?android:01010049"/>
+          <SeekBar android:gravity="0x00000011" android:layout_gravity="0x00000011" android:id="@7F08024D" android:layout_width="0.000000dip" android:layout_height="-2" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.000000"/>
+          <Button android:layout_gravity="0x00800005" android:id="@7F080074" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E002C" android:contentDescription="@7F0E0046" style="?android:01010049"/>
+        </LinearLayout>
+        <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0030"/>
+        <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2">
+          <Button android:layout_gravity="0x00800003" android:id="@7F08006C" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0029" android:contentDescription="@7F0E0031" style="?android:01010049"/>
+          <SeekBar android:gravity="0x00000011" android:layout_gravity="0x00000011" android:id="@7F0801A7" android:layout_width="0.000000dip" android:layout_height="-2" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.000000"/>
+          <Button android:layout_gravity="0x00800005" android:id="@7F08006D" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E002C" android:contentDescription="@7F0E0032" style="?android:01010049"/>
+        </LinearLayout>
+      </LinearLayout>
+      <Button android:layout_gravity="0x00000011" android:id="@7F08006E" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0034" android:contentDescription="@7F0E0034" style="?android:01010049"/>
+      <TextView android:layout_width="-2" android:layout_height="-2" android:text="@7F0E006A" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+      <CheckBox android:id="@7F0800B2" android:layout_width="-1" android:layout_height="-2" android:checked="false" android:text="@7F0E005B" android:layout_marginStart="5.000000dip"/>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E005C" android:layout_marginStart="5.000000dip" style="@android:01030046"/>
+    </LinearLayout>
+  </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,16 @@
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:insetLeft="@7F060019" android:insetRight="@7F060019" android:insetTop="@7F060019" android:insetBottom="@7F060019">
+  <selector>
+    <item android:state_checked="false" android:state_pressed="false">
+      <layer-list>
+        <item android:drawable="@7F070072"/>
+        <item android:drawable="@7F070065"/>
+      </layer-list>
+    </item>
+    <item>
+      <layer-list>
+        <item android:drawable="@7F070071"/>
+        <item android:drawable="@7F070065"/>
+      </layer-list>
+    </item>
+  </selector>
+</inset>

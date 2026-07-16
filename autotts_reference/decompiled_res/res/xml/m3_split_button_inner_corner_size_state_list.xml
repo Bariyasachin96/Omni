@@ -1,0 +1,5 @@
+<selector xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:state_checkable="true" android:state_pressed="true" app:cornerSize="12.000000dip"/>
+  <item android:state_checked="true" app:cornerSize="50.000001%"/>
+  <item app:cornerSize="4.000000dip"/>
+</selector>

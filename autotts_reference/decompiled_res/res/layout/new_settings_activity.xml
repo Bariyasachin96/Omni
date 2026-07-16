@@ -1,0 +1,15 @@
+<LinearLayout xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="1" android:fitsSystemWindows="true" android:layout_width="-1" android:layout_height="-1">
+  <com.google.android.material.appbar.AppBarLayout android:theme="@7F0F000C" android:layout_width="-1" android:layout_height="-2">
+    <LinearLayout android:gravity="0x00000010" android:orientation="0" android:padding="@7F060053" android:layout_width="-1" android:layout_height="-2" android:minHeight="?7F030005">
+      <ImageView android:layout_width="32.000000dip" android:layout_height="32.000000dip" android:src="@7F070092" android:contentDescription="@7F0E001D" android:layout_marginEnd="8.000000dip"/>
+      <TextView android:textAppearance="@7F0F0252" android:id="@7F080228" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E001D"/>
+    </LinearLayout>
+  </com.google.android.material.appbar.AppBarLayout>
+  <LinearLayout android:gravity="0x00000011" android:orientation="1" android:id="@7F080127" android:visibility="0" android:layout_width="-1" android:layout_height="0.000000dip" android:layout_weight="1.000000">
+    <TextView android:gravity="0x00000011" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0033" style="@android:01030042"/>
+    <ProgressBar android:gravity="0x00000011" android:id="@7F0801A3" android:layout_width="-2" android:layout_height="-2" android:layout_marginTop="10.000000dip" style="@android:0103001D"/>
+    <TextView android:gravity="0x00000011" android:id="@7F0800AA" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0036" style="@android:01030044"/>
+  </LinearLayout>
+  <androidx.viewpager2.widget.ViewPager2 android:id="@7F080244" android:visibility="2" android:layout_width="-1" android:layout_height="0.000000dip" android:layout_weight="1.000000"/>
+  <com.google.android.material.tabs.TabLayout android:id="@7F080204" android:background="?7F03011E" android:layout_width="-1" android:layout_height="-2" app:tabGravity="0" app:tabIndicatorGravity="2" app:tabMode="1"/>
+</LinearLayout>

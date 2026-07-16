@@ -1,0 +1,43 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
+  <ScrollView android:id="@7F0801C6" android:visibility="0" android:layout_width="-1" android:layout_height="-1" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
+    <LinearLayout android:orientation="1" android:id="@7F080010" android:layout_width="-1" android:layout_height="-2">
+      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0112"/>
+      </LinearLayout>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0113" android:layout_marginStart="5.000000dip" style="@android:01030046"/>
+      <CheckBox android:id="@7F0801B2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0102" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0103" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
+      <CheckBox android:id="@7F0800F1" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E006F" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0070" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
+      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
+        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E00FD"/>
+      </LinearLayout>
+      <CheckBox android:id="@7F0801E0" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E010B" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E010C" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
+      <Button android:layout_gravity="0x00000001" android:id="@7F0800C3" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E005F"/>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0060" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
+      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
+        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E007C"/>
+      </LinearLayout>
+      <CheckBox android:id="@7F0800C2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E005D" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E005E" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
+      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
+        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0077"/>
+      </LinearLayout>
+      <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip" android:layout_marginBottom="8.000000dip" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip">
+        <Button android:id="@7F080110" android:layout_width="0.000000dip" android:layout_height="-2" android:text="@7F0E0078" android:layout_weight="1.000000" android:layout_marginEnd="4.000000dip"/>
+        <Button android:id="@7F0800E3" android:layout_width="0.000000dip" android:layout_height="-2" android:text="@7F0E006B" android:layout_weight="1.000000" android:layout_marginStart="4.000000dip"/>
+      </LinearLayout>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0079" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
+      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
+        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0080"/>
+      </LinearLayout>
+      <CheckBox android:id="@7F0800D9" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E007F" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
+      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E007E" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
+      <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip" android:layout_marginBottom="8.000000dip" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip">
+        <Button android:layout_gravity="0x00000001" android:id="@7F0801D9" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0081"/>
+        <Button android:layout_gravity="0x00000001" android:id="@7F080095" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E007D"/>
+      </LinearLayout>
+    </LinearLayout>
+  </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

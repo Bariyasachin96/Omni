@@ -1,0 +1,7 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="1" android:id="@7F08022E" android:layout_width="-1" android:layout_height="-2">
+  <LinearLayout android:id="@7F08022A" style="?7F030326">
+    <ImageView android:id="@android:01020006" style="?7F030325"/>
+    <androidx.appcompat.widget.DialogTitle android:id="@7F080050" style="?7F030327"/>
+  </LinearLayout>
+  <android.widget.Space android:id="@7F080229" android:visibility="2" android:layout_width="-1" android:layout_height="@7F060026"/>
+</LinearLayout>

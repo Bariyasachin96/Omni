@@ -1,0 +1,10 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
+  <ScrollView android:id="@7F0801C6" android:layout_width="-1" android:layout_height="-1" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
+    <LinearLayout android:orientation="1" android:layout_width="-1" android:layout_height="-2">
+      <RelativeLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
+        <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0118" style="@android:01030044"/>
+      </RelativeLayout>
+      <TextView android:id="@7F080122" android:layout_width="-1" android:layout_height="-2" android:layout_margin="5.000000dip" style="@android:01030046"/>
+    </LinearLayout>
+  </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

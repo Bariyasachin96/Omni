@@ -1,0 +1,21 @@
+<merge xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+  <View android:id="@7F080190" android:background="?7F030406" android:layout_width="-1" android:layout_height="-1" android:alpha="0.000000"/>
+  <com.google.android.material.internal.ClippableRoundedCornerLayout android:id="@7F08018F" android:focusable="true" android:focusableInTouchMode="true" android:visibility="2" android:layout_width="-1" android:layout_height="-1">
+    <LinearLayout android:orientation="1" android:id="@7F080188" android:layout_width="-1" android:layout_height="-1">
+      <View android:id="@7F080192" android:visibility="2" android:layout_width="-1" android:layout_height="-2"/>
+      <FrameLayout android:id="@7F08018E" android:visibility="2" android:layout_width="-1" android:layout_height="-2"/>
+      <FrameLayout android:id="@7F080195" android:layout_width="-1" android:layout_height="-2">
+        <com.google.android.material.appbar.MaterialToolbar android:layout_gravity="0x00800005" android:id="@7F08018C" android:visibility="2" android:layout_width="-2" android:layout_height="-2" app:navigationIcon="@00000000" style="?7F03034E"/>
+        <com.google.android.material.appbar.MaterialToolbar android:id="@7F080194" android:clipChildren="false" android:layout_width="-1" android:layout_height="-2" app:navigationContentDescription="@7F0E0108" style="?7F03034E">
+          <LinearLayout android:gravity="0x00000010" android:orientation="0" android:id="@7F080193" android:layout_width="-1" android:layout_height="?7F03034D">
+            <TextView android:id="@7F080191" android:visibility="2" android:layout_width="-2" android:layout_height="-2" style="?7F03034B"/>
+            <EditText android:id="@7F08018D" android:background="@00000000" android:layout_width="0.000000dip" android:layout_height="-1" android:layout_weight="1.000000" android:inputType="0x00080001" android:imeOptions="0x10000003" android:textDirection="1" android:importantForAutofill="0x00000002"/>
+            <ImageButton android:id="@7F080189" android:background="?7F030003" android:padding="16.000000dip" android:visibility="2" android:layout_width="-2" android:layout_height="-2" android:contentDescription="@7F0E0107" app:srcCompat="@7F07008D"/>
+          </LinearLayout>
+        </com.google.android.material.appbar.MaterialToolbar>
+      </FrameLayout>
+      <View android:id="@7F08018B" android:background="?7F03011C" android:layout_width="-1" android:layout_height="@7F0602B5"/>
+      <com.google.android.material.internal.TouchObserverFrameLayout android:id="@7F08018A" android:layout_width="-1" android:layout_height="-1"/>
+    </LinearLayout>
+  </com.google.android.material.internal.ClippableRoundedCornerLayout>
+</merge>

@@ -1,0 +1,11 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="-1" android:layout_height="-2">
+  <LinearLayout android:orientation="1" android:paddingLeft="@7F06035F" android:paddingTop="@7F06037C" android:paddingRight="@7F06035F" android:paddingBottom="16.000000dip" android:layout_width="-1" android:layout_height="-2">
+    <com.google.android.material.textfield.TextInputLayout android:layout_gravity="0x00000001" android:id="@7F080168" android:layout_width="-1" android:layout_height="-2" android:maxWidth="@7F06032B" android:minWidth="@7F06032D">
+      <com.google.android.material.textfield.TextInputEditText android:layout_width="-1" android:layout_height="-2" android:hint="@7F0E00DB" android:inputType="0x00000014" android:imeOptions="0x10000000"/>
+    </com.google.android.material.textfield.TextInputLayout>
+    <Space android:layout_width="0.000000dip" android:layout_height="8.000000dip"/>
+    <com.google.android.material.textfield.TextInputLayout android:layout_gravity="0x00000001" android:id="@7F080167" android:layout_width="-1" android:layout_height="-2" android:maxWidth="@7F06032B" android:minWidth="@7F06032D">
+      <com.google.android.material.textfield.TextInputEditText android:layout_width="-1" android:layout_height="-2" android:hint="@7F0E00DA" android:inputType="0x00000014" android:imeOptions="0x10000000"/>
+    </com.google.android.material.textfield.TextInputLayout>
+  </LinearLayout>
+</ScrollView>
