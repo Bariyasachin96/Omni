@@ -3438,7 +3438,7 @@ jobs:
           "        val applyCodes: (Set<String>) -> Unit = { langs ->\n"
           "            val collator = java.text.Collator.getInstance()\n"
           "            val sorted = langs.sortedWith(compareBy(collator) { code -> Languages.map[code] ?: (try { java.util.Locale(code).displayLanguage } catch (_: Exception) { code }).ifEmpty { code } })\n"
-          "            (context as? android.app.Activity)?.runOnUiThread { languageCodes = sorted; refreshLanguageSpinners() }\n"
+          "            android.os.Handler(android.os.Looper.getMainLooper()).post { languageCodes = sorted; refreshLanguageSpinners() }\n"
           "        }\n"
           "        if (scopedPkg == null && EngineFinder.lastScan.isNotEmpty()) applyCodes(EngineFinder.lastScan)\n"
           "        else try { EngineFinder.scanLanguages(context, scopedPkg) { langs -> applyCodes(langs) } } catch (_: Exception) {}\n"
