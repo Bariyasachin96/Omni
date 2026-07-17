@@ -4455,3 +4455,7 @@ jobs:
           name: Easy-Voice-Native-APK
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+          # Short retention so APK artifacts don't accumulate and exhaust the
+          # Actions artifact-storage quota (download the APK soon after a build).
+          retention-days: 1
+          overwrite: true
