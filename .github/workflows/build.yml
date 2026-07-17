@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # publish the APK as a GitHub Release asset (release assets do NOT count against the Actions artifact-storage quota)
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -4449,13 +4451,18 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # Publish the APK to a GitHub Release instead of an Actions artifact.
+      # Release assets do NOT count against the Actions artifact-storage quota
+      # (which was full), and the APK is downloadable from the repo's Releases
+      # page. A fixed tag ("latest-build") is updated on every build, so the
+      # Releases page always has the newest APK at the same URL.
+      - name: Publish APK to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: Easy-Voice-Native-APK
-          path: app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-          # Short retention so APK artifacts don't accumulate and exhaust the
-          # Actions artifact-storage quota (download the APK soon after a build).
-          retention-days: 1
-          overwrite: true
+          tag_name: latest-build
+          name: Easy Voice — latest build
+          files: app/build/outputs/apk/release/app-release.apk
+          make_latest: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
