@@ -66,13 +66,16 @@ on demand, gets wiped): base path
 | `10794af` | Script fallback: first codepoint only + script family fallbacks (a.w map) |
 
 ## Pending / Known Remaining Differences
-1. **emojiFall="auto" + segmentation**: Jab `emojiFall="auto"` hota hai, emoji ko
-   Latin range mein daala jata hai. AutoTTS emoji ko non-Latin (type-2) mein dalta
-   hai kyunki woh `latRange` (pattern d) mein nahin hote. Note: `emojiFall` feature
-   AutoTTS mein hai hi nahin — yeh hamare apne addition ka impact hai.
+1. **~~emojiFall~~ — RESOLVED (verified 2026-07-17)**: emoji handling ab AutoTTS ke
+   barabar hai. AutoTTS pattern `d` (c3/w.java:25-32) khud `c3.c.a()` (emoji regex)
+   append karta hai → emoji `latRange` pattern `d` mein MATCH hote hain → Latin segment
+   → `w.c()` type **1** (Latin) deta hai (v.a/w.e/w.d nahi matchte). Hamara C++
+   (buildMixChunks: emoji Latin buffer mein, type 1; `emojiFall` dead-code `(void)`)
+   isse exact match karta hai. Purana note (emoji type-2) galat tha.
 
-2. **Fresh comparison pending**: Dobara AutoTTS se full compare karke baaki differences
-   nikalne hain (user ne request ki hai).
+2. **Mix mode flow — VERIFIED A-to-Z (2026-07-17)**: N gating (x.g khud N check),
+   N=true LocaleSpan split → H()/w.g, N=false whole-text w.g, per-chunk clsCLD2.b +
+   type fallback, emoji type-1 — sab AutoTTS ke barabar. Koi divergence nahi.
 
 ## Key Architecture
 - **Naming (2026-07-12)**: service ke obfuscated AutoTTS mirror-names descriptive kiye gaye — modeInt(L), dualLang(D), localeSpansFlag(N), stripAudioAttrFlag(P), forceAccessibilityFlag(Q), numberModeInt(E), puncModeInt(F), emojiModeInt(G), dedicatedEnginesFlag(O), voiceList(T), engineList(M), chunkQueue(J), chunkCounter(K), utteranceIdStr(X), initializingTts(U), enginePool(f), engineIndex(d_), lastEnginePkg(c), reqParams/reqVolume/reqRate/reqPitch(i/j/k/l), loadVoice(V), loadVoiceOriginal(W), loadVoiceDedicated(X_eng), findEngineForLocale(c0), isLangRoutable(ko), isLangRoutableRaw(koRaw), localeIso3(kfLocale), isKnownIso2(khMappable). Har declaration par AutoTTS mapping comment hai.
