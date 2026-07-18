@@ -160,10 +160,67 @@ jobs:
           }
           """)
 
+          # ── obfuscation dictionary: R8 draws renamed identifiers from here, so the
+          #     decompiled output is a wall of near-identical l/I/O names (hard to read/mod).
+          w("app/proguard-dict.txt", """\
+          l
+          I
+          O
+          ll
+          lI
+          Il
+          II
+          lO
+          Ol
+          OO
+          lll
+          llI
+          lIl
+          lII
+          Ill
+          IlI
+          IIl
+          III
+          llO
+          lOl
+          Oll
+          OOl
+          OlO
+          lOO
+          OOO
+          OII
+          IOI
+          OIO
+          llll
+          IIII
+          OOOO
+          lIlI
+          IlIl
+          OlOl
+          lOlO
+          IOOI
+          OIIO
+          llII
+          IIll
+          OOII
+          """)
+
           # ── proguard-rules.pro ───────────────────────────────────────────────
           w("app/proguard-rules.pro", """\
-          -repackageclasses 'o'
+          # ── Anti-reverse-engineering hardening ──────────────────────────────
+          -optimizationpasses 5
           -allowaccessmodification
+          # Collapse every class into the root package (single flat namespace).
+          -repackageclasses ''
+          # Draw all renamed classes/members/packages from the ambiguous dictionary.
+          -obfuscationdictionary proguard-dict.txt
+          -classobfuscationdictionary proguard-dict.txt
+          -packageobfuscationdictionary proguard-dict.txt
+          # Drop source-file names + line numbers from stack traces (no code map leak).
+          # (Log calls are kept — EasyVoiceLogger's file log is used for debugging.)
+          -renamesourcefileattribute ''
+          -keepattributes !SourceFile,!LineNumberTable
+          # ── Required keeps ──────────────────────────────────────────────────
           -keep class com.tts.easyvoice.NativeEngine { native <methods>; }
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
