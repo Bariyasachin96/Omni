@@ -446,22 +446,42 @@ jobs:
               if (fullText.empty()) return result;
 
               // Fix A: trim + collapse whitespace (AutoTTS trim().replaceAll("\\s+", " ")).
-              // Java \\s = ASCII 0x09-0x0D, 0x20 only.
+              // AutoTTS's replaceAll("\\s+"," ") collapses the FULL Unicode whitespace/separator
+              // set — [\t\n\x0B\f\r] + \p{Z} (Zs/Zl/Zp) — to a single ASCII space, NOT just ASCII
+              // whitespace. This matters: source apps (e.g. WhatsApp) emit U+202F NARROW NO-BREAK
+              // SPACE / U+00A0 / U+2007 around names & times (raw text is literally "~ waqas").
+              // If such a codepoint survives to the child engine, Eloquence swallows the adjacent
+              // punctuation — e.g. the '~' in "~<U+202F>waqas" is NOT spoken, while AutoTTS (whose
+              // collapse turned it into a plain space) DOES speak it. Collapse over CODEPOINTS, not
+              // bytes, so multi-byte Unicode spaces are caught and the output matches AutoTTS exactly.
+              // (Like AutoTTS, this runs only in the w.g mix/dual path; auto mode preserves text as-is.)
               {
-                  // Trim leading
+                  // Trim leading (Java String.trim: strip leading chars <= U+0020)
                   size_t firstNonWs = fullText.find_first_not_of(" \t\n\r\x0B\x0C");
                   if (firstNonWs == std::string::npos) return result;
                   fullText = fullText.substr(firstNonWs);
-                  // Trim trailing
+                  // Trim trailing (Java String.trim: strip trailing chars <= U+0020)
                   size_t lastNonWs = fullText.find_last_not_of(" \t\n\r\x0B\x0C");
                   if (lastNonWs != std::string::npos) fullText = fullText.substr(0, lastNonWs + 1);
-                  // Collapse internal runs
+                  // Java/ICU \\s for the collapse = [\t\n\x0B\f\r] + \p{Z} (Zs/Zl/Zp)
+                  auto isUniWs = [](int cp) -> bool {
+                      return (cp >= 0x09 && cp <= 0x0D) || cp == 0x20 ||
+                             cp == 0xA0 || cp == 0x1680 ||
+                             (cp >= 0x2000 && cp <= 0x200A) ||   // includes U+2007 FIGURE SPACE
+                             cp == 0x2028 || cp == 0x2029 ||
+                             cp == 0x202F || cp == 0x205F || cp == 0x3000;
+                  };
+                  // Collapse internal runs (codepoint-aware), each run -> one ASCII space
                   std::string collapsed; collapsed.reserve(fullText.size());
                   bool prevWs = false;
-                  for (unsigned char c : fullText) {
-                      bool isWsChar = (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\x0B' || c == '\x0C');
-                      if (isWsChar) { if (!prevWs) collapsed += ' '; prevWs = true; }
-                      else { collapsed += (char)c; prevWs = false; }
+                  int cbPos = 0, cbLen = (int)fullText.size();
+                  while (cbPos < cbLen) {
+                      int cpLen = 0;
+                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[cbPos], cpLen);
+                      if (cpLen <= 0) cpLen = 1;
+                      if (isUniWs(cp)) { if (!prevWs) collapsed += ' '; prevWs = true; }
+                      else { collapsed.append(fullText, cbPos, (size_t)cpLen); prevWs = false; }
+                      cbPos += cpLen;
                   }
                   fullText = std::move(collapsed);
               }
