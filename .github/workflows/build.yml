@@ -4518,8 +4518,13 @@ jobs:
       - name: Publish APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest-build
-          name: Easy Voice — latest build
+          # A DISTINCT release per build (unique tag = build number) so each build
+          # is easy to tell apart. The newest is always marked "Latest".
+          tag_name: build-${{ github.run_number }}
+          name: Easy Voice build #${{ github.run_number }}
+          body: |
+            Build #${{ github.run_number }}
+            Commit: ${{ github.sha }}
           files: app/build/outputs/apk/release/app-release.apk
           make_latest: true
           fail_on_unmatched_files: true
