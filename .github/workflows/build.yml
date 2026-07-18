@@ -742,6 +742,123 @@ jobs:
               }
               return env->NewStringUTF(result.c_str());
           }
+
+          // ── AutoTTS a.b (getScriptLang) + a.w (fallbacks), moved to native ──────
+          // Byte-exact port of the Kotlin table, verified against it over EVERY
+          // codepoint 0..0x10FFFF and every fallback key. First-match-wins order
+          // preserved exactly (each branch returns).
+          static const char* scriptLangC(int cp){
+              if(cp>=0x30&&cp<=0x39) return "en";
+              if((cp>=0x20&&cp<=0x2F)||(cp>=0x3A&&cp<=0x40)||(cp>=0x5B&&cp<=0x60)||(cp>=0x7B&&cp<=0x7E)||(cp>=0x2000&&cp<=0x206F)) return "zz";
+              if(cp==0xC0||cp==0xC2||cp==0xC7||cp==0xC8||cp==0xC9||cp==0xCA||cp==0xCB||cp==0xCE||cp==0xCF||cp==0xD4||cp==0xD9||cp==0xDB||cp==0xE0||cp==0xE2||cp==0xE7||cp==0xE8||cp==0xE9||cp==0xEA||cp==0xEB||cp==0xEE||cp==0xEF||cp==0xF4||cp==0xF9||cp==0xFB||cp==0x152||cp==0x153) return "fr";
+              if(cp==0xC1||cp==0xCD||cp==0xD1||cp==0xD3||cp==0xDA||cp==0xE1||cp==0xED||cp==0xF1||cp==0xF3||cp==0xFA) return "es";
+              if(cp==0xC4||cp==0xD6||cp==0xDC||cp==0xE4||cp==0xF6||cp==0xFC||cp==0xDF) return "de";
+              if(cp==0xC5||cp==0xC6||cp==0xD8||cp==0xE5||cp==0xE6||cp==0xF8) return "no";
+              if(cp==0x104||cp==0x105||cp==0x106||cp==0x107||cp==0x118||cp==0x119||cp==0x141||cp==0x142||cp==0x143||cp==0x144||cp==0x15A||cp==0x15B||cp==0x179||cp==0x17A||cp==0x17B||cp==0x17C) return "pl";
+              if(cp==0x10C||cp==0x10D||cp==0x10E||cp==0x10F||cp==0x11A||cp==0x11B||cp==0x147||cp==0x148||cp==0x158||cp==0x159||cp==0x160||cp==0x161||cp==0x164||cp==0x165||cp==0x16E||cp==0x16F||cp==0x17D||cp==0x17E) return "cs";
+              if((cp>=0x1EA0&&cp<=0x1EF9)||cp==0x110||cp==0x111||cp==0x1A0||cp==0x1A1||cp==0x1AF||cp==0x1B0) return "vi";
+              if((cp>=0x41&&cp<=0x5A)||(cp>=0x61&&cp<=0x7A)||(cp>=0xC0&&cp<=0xFF)||(cp>=0x100&&cp<=0x24F)) return "en";
+              if((cp>=0x370&&cp<=0x3FF)||(cp>=0x1F00&&cp<=0x1FFF)) return "el";
+              if(cp>=0x400&&cp<=0x52F){
+                  if(cp==0x404||cp==0x454||cp==0x406||cp==0x456||cp==0x407||cp==0x457||cp==0x490||cp==0x491) return "uk";
+                  if(cp==0x402||cp==0x452||cp==0x408||cp==0x458||cp==0x409||cp==0x459||cp==0x40A||cp==0x45A||cp==0x40B||cp==0x45B||cp==0x40F||cp==0x45F) return "sr";
+                  if(cp==0x42A||cp==0x44A) return "bg";
+                  if(cp==0x4A2||cp==0x4A3||cp==0x492||cp==0x493||cp==0x4B0||cp==0x4B1||cp==0x4AE||cp==0x4AF||cp==0x4D8||cp==0x4D9) return "kk";
+                  return "ru";
+              }
+              if((cp>=0x530&&cp<=0x58F)||(cp>=0xFB00&&cp<=0xFB17)) return "hy";
+              if((cp>=0x590&&cp<=0x5FF)||(cp>=0xFB1D&&cp<=0xFB4F)) return "he";
+              if((cp>=0x600&&cp<=0x6FF)||(cp>=0x750&&cp<=0x77F)||(cp>=0x8A0&&cp<=0x8FF)||(cp>=0xFB50&&cp<=0xFDFF)||(cp>=0xFE70&&cp<=0xFEFF)){
+                  if(cp==0x679||cp==0x688||cp==0x691||cp==0x6C1||cp==0x6D2||cp==0x6BA||cp==0x6BE) return "ur";
+                  if(cp==0x681||cp==0x685||cp==0x689||cp==0x693||cp==0x696||cp==0x69A||cp==0x6BC||cp==0x6D0) return "ps";
+                  if(cp>=0x67A&&cp<=0x67D) return "sd";
+                  if(cp==0x6CE||cp==0x695||cp==0x6B5||cp==0x6C6) return "ku";
+                  if(cp==0x67E||cp==0x686||cp==0x698||cp==0x6AF) return "fa";
+                  return "ar";
+              }
+              if(cp>=0x780&&cp<=0x7BF) return "dv";
+              if((cp>=0x900&&cp<=0x97F)||(cp>=0xA8E0&&cp<=0xA8FF)) return (cp==0x933)?"mr":"hi";
+              if(cp>=0x980&&cp<=0x9FF) return (cp==0x9F0||cp==0x9F1)?"as":"bn";
+              if(cp>=0xA00&&cp<=0xA7F) return "pa";
+              if(cp>=0xA80&&cp<=0xAFF) return "gu";
+              if(cp>=0xB00&&cp<=0xB7F) return "or";
+              if(cp>=0xB80&&cp<=0xBFF) return "ta";
+              if(cp>=0xC00&&cp<=0xC7F) return "te";
+              if(cp>=0xC80&&cp<=0xCFF) return "kn";
+              if(cp>=0xD00&&cp<=0xD7F) return "ml";
+              if(cp>=0xD80&&cp<=0xDFF) return "si";
+              if(cp>=0xE00&&cp<=0xE7F) return "th";
+              if(cp>=0xE80&&cp<=0xEFF) return "lo";
+              if(cp>=0xF00&&cp<=0xFFF) return "bo";
+              if((cp>=0x1000&&cp<=0x109F)||(cp>=0xAA60&&cp<=0xAA7F)) return "my";
+              if((cp>=0x10A0&&cp<=0x10FF)||(cp>=0x2D00&&cp<=0x2D2F)) return "ka";
+              if((cp>=0x1100&&cp<=0x11FF)||(cp>=0x3130&&cp<=0x318F)||(cp>=0xA960&&cp<=0xA97F)||(cp>=0xAC00&&cp<=0xD7AF)||(cp>=0xD7B0&&cp<=0xD7FF)) return "ko";
+              if((cp>=0x1200&&cp<=0x137F)||(cp>=0x1380&&cp<=0x139F)||(cp>=0x2D80&&cp<=0x2DDF)) return "am";
+              if((cp>=0x1780&&cp<=0x17FF)||(cp>=0x19E0&&cp<=0x19FF)) return "km";
+              if((cp>=0x1800&&cp<=0x18AF)||(cp>=0x11660&&cp<=0x1167F)) return "mn";
+              if(cp>=0x3000&&cp<=0x303F) return "zh";
+              if((cp>=0x3040&&cp<=0x309F)||(cp>=0x1B000&&cp<=0x1B12F)) return "ja";
+              if((cp>=0x30A0&&cp<=0x30FF)||(cp>=0x31F0&&cp<=0x31FF)||(cp>=0x1B130&&cp<=0x1B16F)) return "ja";
+              if((cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF)||(cp>=0x20000&&cp<=0x2A6DF)||(cp>=0x2A700&&cp<=0x2B73F)||(cp>=0x2B740&&cp<=0x2B81F)||(cp>=0x2B820&&cp<=0x2CEAF)||(cp>=0x2CEB0&&cp<=0x2EBEF)||(cp>=196608&&cp<=201551)||(cp>=201552&&cp<=205743)) return "zh";
+              if((cp>=0x1F000&&cp<=0x1F02F)||(cp>=0x1F300&&cp<=0x1F9FF)||(cp>=0x1FA70&&cp<=0x1FAFF)||(cp>=0x2600&&cp<=0x26FF)||(cp>=0x2700&&cp<=0x27BF)) return "zz";
+              if((cp>=0x1D400&&cp<=0x1D7FF)||(cp>=0x2100&&cp<=0x214F)||(cp>=0x2200&&cp<=0x22FF)) return "zz";
+              if(cp>=0x10000&&cp<=0x1007F) return "grc";
+              if(cp>=0x10300&&cp<=0x1032F) return "la";
+              if(cp>=0x10330&&cp<=0x1034F) return "got";
+              if(cp>=0x10400&&cp<=0x1044F) return "en";
+              if(cp>=0x10800&&cp<=0x1083F) return "grc";
+              if(cp>=0x10A00&&cp<=0x10A5F) return "sa";
+              if(cp>=0x12000&&cp<=0x1247F) return "akk";
+              if((cp>=0x13000&&cp<=0x1342F)||(cp>=0x13430&&cp<=0x1345F)) return "egy";
+              return nullptr;
+          }
+          static std::vector<std::string> scriptLangFallbacksC(const std::string& p){
+              if(p=="fr") return {"ca","oc"};
+              if(p=="es") return {"pt","gl","ca"};
+              if(p=="de") return {"lb"};
+              if(p=="no") return {"da","sv","is","fo"};
+              if(p=="cs") return {"sk"};
+              if(p=="en") return {"es","fr","de","it","pt","nl","sv","no","da","fi","pl","cs","sk","hu","ro","tr","id","ms","vi","tl","sw","hr","sr","sl","et","lv","lt","is","ga","cy","sq","mt"};
+              if(p=="el") return {"grc","pnt"};
+              if(p=="ru") return {"uk","be","bg","mk","sr","bs","hr","kk","ky","tg","mn","uz","tt","ba","cv","sah","ce","av","ab"};
+              if(p=="sr") return {"bs","hr"};
+              if(p=="bg") return {"mk"};
+              if(p=="kk") return {"ky"};
+              if(p=="he") return {"yi","lad"};
+              if(p=="ar") return {"ar"};
+              if(p=="fa") return {"ur","ps","ku","ckb","sd","az","ks","ug"};
+              if(p=="ur") return {"ps","sd","pa"};
+              if(p=="ku") return {"ckb"};
+              if(p=="hi") return {"mr","ne","sa","kok","mai","bh","new","awa","bho","raj","hne"};
+              if(p=="mr") return {"kok"};
+              if(p=="bn") return {"as","mni"};
+              if(p=="ta") return {"kn"};
+              if(p=="kn") return {"tcy"};
+              if(p=="th") return {"nod","sou","tts"};
+              if(p=="lo") return {"hnx"};
+              if(p=="bo") return {"dz"};
+              if(p=="my") return {"shn","kar","mnw"};
+              if(p=="ka") return {"xmf","lzz"};
+              if(p=="am") return {"ti","om","aa","so","sid","wal","gez"};
+              if(p=="mn") return {"mnc","xal"};
+              if(p=="ja") return {"ain"};
+              if(p=="zh") return {"ja","ko","vi"};
+              return {};
+          }
+          extern "C" JNIEXPORT jstring JNICALL
+          Java_com_tts_easyvoice_NativeEngine_scriptLang(JNIEnv* env, jclass, jint cp){
+              const char* r = scriptLangC((int)cp);
+              return env->NewStringUTF(r ? r : "");  // "" = null sentinel (Kotlin maps ""->null)
+          }
+          extern "C" JNIEXPORT jobjectArray JNICALL
+          Java_com_tts_easyvoice_NativeEngine_scriptLangFallbacks(JNIEnv* env, jclass, jstring jP){
+              const char* pc=env->GetStringUTFChars(jP,nullptr); std::string p(pc); env->ReleaseStringUTFChars(jP,pc);
+              std::vector<std::string> v = scriptLangFallbacksC(p);
+              jclass sc=env->FindClass("java/lang/String");
+              jobjectArray arr=env->NewObjectArray((jsize)v.size(), sc, nullptr);
+              for(jsize i=0;i<(jsize)v.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(v[i].c_str()));
+              return arr;
+          }
           """)
 
           # ── NativeEngine.kt ──────────────────────────────────────────────────
@@ -758,6 +875,9 @@ jobs:
           "        neutralDefault: String,\n"
           "        disableAdvancedDetection: Boolean\n"
           "    ): String\n"
+          "    // AutoTTS a.b / a.w ports (moved native): codepoint→language + script-family fallbacks.\n"
+          "    external fun scriptLang(cp: Int): String            // \"\" = no mapping (null)\n"
+          "    external fun scriptLangFallbacks(primary: String): Array<String>\n"
           "}\n")
 
           # ── Languages.kt ─────────────────────────────────────────────────────
@@ -1995,109 +2115,7 @@ jobs:
           "    private val scriptLangCache = ConcurrentHashMap<Int, String>(1024)\n"
           "    private fun getScriptLang(cp: Int): String? {\n"
           "        scriptLangCache[cp]?.let { EasyVoiceLogger.d(\"[SCRIPT] getScriptLang cp=U+${cp.toString(16)} → $it (cached)\"); return it.ifEmpty { null } }  // \"\" sentinel = cached null (AutoTTS caches u for Unknown)\n"
-          "        val lang: String? = when {\n"
-          "            cp in 0x30..0x39 -> \"en\"  // AutoTTS a.b rule 1: ASCII digits → Digit family (primary \"en\"). Inert (detection skips digits) but exact.\n"
-          "            cp in 0x20..0x2F || cp in 0x3A..0x40 || cp in 0x5B..0x60 || cp in 0x7B..0x7E || cp in 0x2000..0x206F -> \"zz\"  // AutoTTS a.b rule 2: ASCII punct bands + General Punctuation → Punctuation family (primary \"zz\").\n"
-          "            cp == 0xC0 || cp == 0xC2 || cp == 0xC7 || cp == 0xC8 || cp == 0xC9 ||\n"
-          "            cp == 0xCA || cp == 0xCB || cp == 0xCE || cp == 0xCF || cp == 0xD4 ||\n"
-          "            cp == 0xD9 || cp == 0xDB || cp == 0xE0 || cp == 0xE2 || cp == 0xE7 ||\n"
-          "            cp == 0xE8 || cp == 0xE9 || cp == 0xEA || cp == 0xEB || cp == 0xEE ||\n"
-          "            cp == 0xEF || cp == 0xF4 || cp == 0xF9 || cp == 0xFB ||\n"
-          "            cp == 0x152 || cp == 0x153 -> \"fr\"\n"
-          "            cp == 0xC1 || cp == 0xCD || cp == 0xD1 || cp == 0xD3 || cp == 0xDA ||\n"
-          "            cp == 0xE1 || cp == 0xED || cp == 0xF1 || cp == 0xF3 || cp == 0xFA -> \"es\"\n"
-          "            cp == 0xC4 || cp == 0xD6 || cp == 0xDC || cp == 0xE4 || cp == 0xF6 ||\n"
-          "            cp == 0xFC || cp == 0xDF -> \"de\"\n"
-          "            cp == 0xC5 || cp == 0xC6 || cp == 0xD8 || cp == 0xE5 || cp == 0xE6 ||\n"
-          "            cp == 0xF8 -> \"no\"\n"
-          "            cp == 0x104 || cp == 0x105 || cp == 0x106 || cp == 0x107 ||\n"
-          "            cp == 0x118 || cp == 0x119 || cp == 0x141 || cp == 0x142 ||\n"
-          "            cp == 0x143 || cp == 0x144 || cp == 0x15A || cp == 0x15B ||\n"
-          "            cp == 0x179 || cp == 0x17A || cp == 0x17B || cp == 0x17C -> \"pl\"\n"
-          "            cp == 0x10C || cp == 0x10D || cp == 0x10E || cp == 0x10F ||\n"
-          "            cp == 0x11A || cp == 0x11B || cp == 0x147 || cp == 0x148 ||\n"
-          "            cp == 0x158 || cp == 0x159 || cp == 0x160 || cp == 0x161 ||\n"
-          "            cp == 0x164 || cp == 0x165 || cp == 0x16E || cp == 0x16F ||\n"
-          "            cp == 0x17D || cp == 0x17E -> \"cs\"\n"
-          "            cp in 0x1EA0..0x1EF9 || cp == 0x110 || cp == 0x111 ||\n"
-          "            cp == 0x1A0 || cp == 0x1A1 || cp == 0x1AF || cp == 0x1B0 -> \"vi\"\n"
-          "            cp in 0x41..0x5A || cp in 0x61..0x7A ||\n"
-          "            cp in 0xC0..0xFF || cp in 0x100..0x24F -> \"en\"\n"
-          "            cp in 0x370..0x3FF || cp in 0x1F00..0x1FFF -> \"el\"\n"
-          "            cp in 0x400..0x52F -> when {\n"
-          "                cp == 0x404 || cp == 0x454 || cp == 0x406 || cp == 0x456 ||\n"
-          "                cp == 0x407 || cp == 0x457 || cp == 0x490 || cp == 0x491 -> \"uk\"\n"
-          "                cp == 0x402 || cp == 0x452 || cp == 0x408 || cp == 0x458 ||\n"
-          "                cp == 0x409 || cp == 0x459 || cp == 0x40A || cp == 0x45A ||\n"
-          "                cp == 0x40B || cp == 0x45B || cp == 0x40F || cp == 0x45F -> \"sr\"\n"
-          "                cp == 0x42A || cp == 0x44A -> \"bg\"\n"
-          "                cp == 0x4A2 || cp == 0x4A3 || cp == 0x492 || cp == 0x493 ||\n"
-          "                cp == 0x4B0 || cp == 0x4B1 || cp == 0x4AE || cp == 0x4AF ||\n"
-          "                cp == 0x4D8 || cp == 0x4D9 -> \"kk\"\n"
-          "                else -> \"ru\"\n"
-          "            }\n"
-          "            cp in 0x530..0x58F || cp in 0xFB00..0xFB17 -> \"hy\"\n"
-          "            cp in 0x590..0x5FF || cp in 0xFB1D..0xFB4F -> \"he\"\n"
-          "            cp in 0x600..0x6FF || cp in 0x750..0x77F || cp in 0x8A0..0x8FF ||\n"
-          "            cp in 0xFB50..0xFDFF || cp in 0xFE70..0xFEFF -> when {\n"
-          "                cp == 0x679 || cp == 0x688 || cp == 0x691 || cp == 0x6C1 ||\n"
-          "                cp == 0x6D2 || cp == 0x6BA || cp == 0x6BE -> \"ur\"\n"
-          "                cp == 0x681 || cp == 0x685 || cp == 0x689 || cp == 0x693 ||\n"
-          "                cp == 0x696 || cp == 0x69A || cp == 0x6BC || cp == 0x6D0 -> \"ps\"\n"
-          "                cp in 0x67A..0x67D -> \"sd\"\n"
-          "                cp == 0x6CE || cp == 0x695 || cp == 0x6B5 || cp == 0x6C6 -> \"ku\"\n"
-          "                cp == 0x67E || cp == 0x686 || cp == 0x698 || cp == 0x6AF -> \"fa\"\n"
-          "                else -> \"ar\"\n"
-          "            }\n"
-          "            cp in 0x780..0x7BF -> \"dv\"\n"
-          "            cp in 0x900..0x97F || cp in 0xA8E0..0xA8FF ->\n"
-          "                if (cp == 0x933) \"mr\" else \"hi\"\n"
-          "            cp in 0x980..0x9FF ->\n"
-          "                if (cp == 0x9F0 || cp == 0x9F1) \"as\" else \"bn\"\n"
-          "            cp in 0xA00..0xA7F -> \"pa\"\n"
-          "            cp in 0xA80..0xAFF -> \"gu\"\n"
-          "            cp in 0xB00..0xB7F -> \"or\"\n"
-          "            cp in 0xB80..0xBFF -> \"ta\"\n"
-          "            cp in 0xC00..0xC7F -> \"te\"\n"
-          "            cp in 0xC80..0xCFF -> \"kn\"\n"
-          "            cp in 0xD00..0xD7F -> \"ml\"\n"
-          "            cp in 0xD80..0xDFF -> \"si\"\n"
-          "            cp in 0xE00..0xE7F -> \"th\"\n"
-          "            cp in 0xE80..0xEFF -> \"lo\"\n"
-          "            cp in 0xF00..0xFFF -> \"bo\"\n"
-          "            cp in 0x1000..0x109F || cp in 0xAA60..0xAA7F -> \"my\"\n"
-          "            cp in 0x10A0..0x10FF || cp in 0x2D00..0x2D2F -> \"ka\"\n"
-          "            cp in 0x1100..0x11FF || cp in 0x3130..0x318F || cp in 0xA960..0xA97F ||\n"
-          "            cp in 0xAC00..0xD7AF || cp in 0xD7B0..0xD7FF -> \"ko\"\n"
-          "            cp in 0x1200..0x137F || cp in 0x1380..0x139F || cp in 0x2D80..0x2DDF -> \"am\"\n"
-          "            cp in 0x1780..0x17FF || cp in 0x19E0..0x19FF -> \"km\"\n"
-          "            cp in 0x1800..0x18AF || cp in 0x11660..0x1167F -> \"mn\"\n"
-          "            cp in 0x3000..0x303F -> \"zh\"\n"
-          "            cp in 0x3040..0x309F || cp in 0x1B000..0x1B12F -> \"ja\"\n"
-          "            cp in 0x30A0..0x30FF || cp in 0x31F0..0x31FF || cp in 0x1B130..0x1B16F -> \"ja\"\n"
-          "            cp in 0x4E00..0x9FFF || cp in 0x3400..0x4DBF ||\n"
-          "            cp in 0x20000..0x2A6DF || cp in 0x2A700..0x2B73F ||\n"
-          "            cp in 0x2B740..0x2B81F || cp in 0x2B820..0x2CEAF ||\n"
-          "            cp in 0x2CEB0..0x2EBEF ||\n"
-          "            cp in 196608..201551 || cp in 201552..205743 -> \"zh\"\n"
-          "            // NOTE: 0xF900-0xFAFF (CJK Compatibility Ideographs) is INTENTIONALLY not mapped —\n"
-          "            // AutoTTS a.b() has no range for it (CJK ends at 0x9FFF/ext blocks; presentation\n"
-          "            // forms start at 0xFB00), so it falls through to Unknown. Matching AutoTTS exactly.\n"
-          "            cp in 0x1F000..0x1F02F || cp in 0x1F300..0x1F9FF ||\n"
-          "            cp in 0x1FA70..0x1FAFF ||  // AutoTTS emoji range starts at 0x1FA70, not 0x1FA30\n"
-          "            cp in 0x2600..0x26FF || cp in 0x2700..0x27BF -> \"zz\"  // AutoTTS a.b emoji family primary=\"zz\" (same as math); getScriptLangFiltered collapses \"zz\"→null identically to null, so behavior is unchanged — this only matches AutoTTS's exact return value.\n"
-          "            cp in 0x1D400..0x1D7FF || cp in 0x2100..0x214F ||\n"
-          "            cp in 0x2200..0x22FF -> \"zz\"\n"
-          "            cp in 0x10000..0x1007F -> \"grc\"\n"
-          "            cp in 0x10300..0x1032F -> \"la\"\n"
-          "            cp in 0x10330..0x1034F -> \"got\"\n"
-          "            cp in 0x10400..0x1044F -> \"en\"\n"
-          "            cp in 0x10800..0x1083F -> \"grc\"\n"
-          "            cp in 0x10A00..0x10A5F -> \"sa\"\n"
-          "            cp in 0x12000..0x1247F -> \"akk\"  // AutoTTS a.b: Cuneiform 0x12000-0x1247F (0x12480+ Cuneiform Numbers → Unknown)\n"
-          "            cp in 0x13000..0x1342F || cp in 0x13430..0x1345F -> \"egy\"  // AutoTTS a.b: Egyptian 0x13000-0x1342F + 0x13430-0x1345F exactly\n"
-          "            else -> null\n"
-          "        }\n"
+          "        val lang: String? = NativeEngine.scriptLang(cp).ifEmpty { null }  // AutoTTS a.b — moved to native (byte-exact, verified all codepoints)\n"
           "        scriptLangCache[cp] = lang ?: \"\"  // null → \"\" sentinel: CHM forbids null values (field NPE); AutoTTS a.a caches UNBOUNDED (every codepoint, incl. the Unknown object u) — no size cap\n"
           "        EasyVoiceLogger.d(\"[SCRIPT] getScriptLang cp=U+${cp.toString(16)} → $lang (computed)\")\n"
           "        return lang\n"
@@ -2159,39 +2177,7 @@ jobs:
           "    }\n"
           "    // Port of AutoTTS a.w map — ordered fallback lang list for each script family primary.\n"
           "    // Mirrors blockObj.a() iteration in clsCLD2.b() final fallback path.\n"
-          "    private fun getScriptLangFallbacks(primary: String): List<String> = when (primary) {\n"
-          "        \"fr\" -> listOf(\"ca\", \"oc\")\n"
-          "        \"es\" -> listOf(\"pt\", \"gl\", \"ca\")\n"
-          "        \"de\" -> listOf(\"lb\")\n"
-          "        \"no\" -> listOf(\"da\", \"sv\", \"is\", \"fo\")\n"
-          "        \"cs\" -> listOf(\"sk\")\n"
-          "        \"en\" -> listOf(\"es\", \"fr\", \"de\", \"it\", \"pt\", \"nl\", \"sv\", \"no\", \"da\", \"fi\", \"pl\", \"cs\", \"sk\", \"hu\", \"ro\", \"tr\", \"id\", \"ms\", \"vi\", \"tl\", \"sw\", \"hr\", \"sr\", \"sl\", \"et\", \"lv\", \"lt\", \"is\", \"ga\", \"cy\", \"sq\", \"mt\")\n"
-          "        \"el\" -> listOf(\"grc\", \"pnt\")\n"
-          "        \"ru\" -> listOf(\"uk\", \"be\", \"bg\", \"mk\", \"sr\", \"bs\", \"hr\", \"kk\", \"ky\", \"tg\", \"mn\", \"uz\", \"tt\", \"ba\", \"cv\", \"sah\", \"ce\", \"av\", \"ab\")  // AutoTTS base Cyrillic family (m): full set c minus ru. (ru_sp letters Ё/Э/Ы use [be] — handled in getScriptLangFiltered)\n"
-          "        \"sr\" -> listOf(\"bs\", \"hr\")\n"
-          "        \"bg\" -> listOf(\"mk\")\n"
-          "        \"kk\" -> listOf(\"ky\")\n"
-          "        \"he\" -> listOf(\"yi\", \"lad\")\n"
-          "        \"ar\" -> listOf(\"ar\")\n"
-          "        \"fa\" -> listOf(\"ur\", \"ps\", \"ku\", \"ckb\", \"sd\", \"az\", \"ks\", \"ug\")\n"
-          "        \"ur\" -> listOf(\"ps\", \"sd\", \"pa\")\n"
-          "        \"ku\" -> listOf(\"ckb\")\n"
-          "        \"hi\" -> listOf(\"mr\", \"ne\", \"sa\", \"kok\", \"mai\", \"bh\", \"new\", \"awa\", \"bho\", \"raj\", \"hne\")\n"
-          "        \"mr\" -> listOf(\"kok\")\n"
-          "        \"bn\" -> listOf(\"as\", \"mni\")\n"
-          "        \"ta\" -> listOf(\"kn\")\n"
-          "        \"kn\" -> listOf(\"tcy\")\n"
-          "        \"th\" -> listOf(\"nod\", \"sou\", \"tts\")\n"
-          "        \"lo\" -> listOf(\"hnx\")\n"
-          "        \"bo\" -> listOf(\"dz\")\n"
-          "        \"my\" -> listOf(\"shn\", \"kar\", \"mnw\")\n"
-          "        \"ka\" -> listOf(\"xmf\", \"lzz\")\n"
-          "        \"am\" -> listOf(\"ti\", \"om\", \"aa\", \"so\", \"sid\", \"wal\", \"gez\")\n"
-          "        \"mn\" -> listOf(\"mnc\", \"xal\")\n"
-          "        \"ja\" -> listOf(\"ain\")\n"
-          "        \"zh\" -> listOf(\"ja\", \"ko\", \"vi\")\n"
-          "        else -> emptyList()\n"
-          "    }\n"
+          "    private fun getScriptLangFallbacks(primary: String): List<String> = NativeEngine.scriptLangFallbacks(primary).toList()  // AutoTTS a.w — moved to native (byte-exact, verified)\n"
           "    // Auto TTS clsCLD2.c(char):boolean — ASCII punctuation check\n"
           "    private fun isLatinPunct(c: Char): Boolean {\n"
           "        val v = c.code\n"
