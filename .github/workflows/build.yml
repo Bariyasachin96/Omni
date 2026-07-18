@@ -108,7 +108,7 @@ jobs:
                   versionName = "16.0"
                   externalNativeBuild {
                       cmake {
-                          cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O3", "-g0")
+                          cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-O2", "-g0", "-fvisibility=hidden", "-ffunction-sections", "-fdata-sections")
                           arguments += listOf("-DANDROID_STL=c++_static")
                       }
                   }
@@ -211,6 +211,8 @@ jobs:
           target_include_directories(easyvoice_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
           find_library(log-lib log)
           target_link_libraries(easyvoice_core ${log-lib})
+          # Strip unused code/data (pairs with -ffunction-sections/-fdata-sections) → smaller .so
+          target_link_options(easyvoice_core PRIVATE "-Wl,--gc-sections")
           """)
 
           # ── tts_engine_core.cpp ──────────────────────────────────────────────
