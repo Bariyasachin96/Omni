@@ -456,16 +456,22 @@ jobs:
               // bytes, so multi-byte Unicode spaces are caught and the output matches AutoTTS exactly.
               // (Like AutoTTS, this runs only in the w.g mix/dual path; auto mode preserves text as-is.)
               {
-                  // Trim leading (Java String.trim: strip leading chars <= U+0020)
-                  size_t firstNonWs = fullText.find_first_not_of(" \t\n\r\x0B\x0C");
-                  if (firstNonWs == std::string::npos) return result;
-                  fullText = fullText.substr(firstNonWs);
-                  // Trim trailing (Java String.trim: strip trailing chars <= U+0020)
-                  size_t lastNonWs = fullText.find_last_not_of(" \t\n\r\x0B\x0C");
-                  if (lastNonWs != std::string::npos) fullText = fullText.substr(0, lastNonWs + 1);
-                  // Java/ICU \\s for the collapse = [\t\n\x0B\f\r] + \p{Z} (Zs/Zl/Zp)
+                  // Java String.trim(): strips ALL chars <= U+0020 from both ends (controls
+                  // 0x00-0x1F included, not just whitespace). Safe on raw UTF-8 bytes — every
+                  // multi-byte sequence uses bytes >= 0x80, so no continuation byte matches.
+                  {
+                      size_t tb = 0, te = fullText.size();
+                      while (tb < te && (unsigned char)fullText[tb] <= 0x20) ++tb;
+                      while (te > tb && (unsigned char)fullText[te - 1] <= 0x20) --te;
+                      if (tb == te) return result;
+                      fullText = fullText.substr(tb, te - tb);
+                  }
+                  // Android/ICU regex \\s (UTS#18): the White_Space property —
+                  // [\t-\r] U+0020 U+0085(NEL) U+00A0 U+1680 U+2000-200A U+2028 U+2029
+                  // U+202F U+205F U+3000. (NOT Java Character.isWhitespace: no 0x1C-0x1F,
+                  // and the no-break spaces U+00A0/U+2007/U+202F ARE included here.)
                   auto isUniWs = [](int cp) -> bool {
-                      return (cp >= 0x09 && cp <= 0x0D) || cp == 0x20 ||
+                      return (cp >= 0x09 && cp <= 0x0D) || cp == 0x20 || cp == 0x85 ||
                              cp == 0xA0 || cp == 0x1680 ||
                              (cp >= 0x2000 && cp <= 0x200A) ||   // includes U+2007 FIGURE SPACE
                              cp == 0x2028 || cp == 0x2029 ||
