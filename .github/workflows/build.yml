@@ -277,6 +277,7 @@ jobs:
           #include <jni.h>
           #include <string>
           #include <cstring>
+          #include <cstdio>
           #include <vector>
           #include <unordered_map>
           #include <unordered_set>
@@ -871,6 +872,190 @@ jobs:
               if(p=="zh") return {"ja","ko","vi"};
               return {};
           }
+          // ── clsCLD2.b FULL LOOP moved native (one JNI call per detection) + helpers ──────
+          // The Kotlin detectLanguage() previously crossed JNI once per 64-unit window; the
+          // whole loop now runs here. Behaviour is a byte-exact transliteration of the Kotlin
+          // port (itself the audited clsCLD2.b port) — same windows, same acceptance gates,
+          // same script fallback, same logs (returned as a transcript for EasyVoiceLogger).
+
+          // ISO2→ISO3 map — fed ONCE from Kotlin initIsoMaps() (source = the DEVICE's own
+          // java.util.Locale data, exactly what AutoTTS k.c() reads — platform parity kept).
+          static std::unordered_map<std::string,std::string> g_iso2to3;
+
+          // SharedPrefsManager.toIso3 EXACT: len!=2 → as-is; len==2 → map (absent → as-is);
+          // then the k.f cmn/lzh/gan/hak → zho fold.
+          static std::string toIso3C(const std::string& lang){
+              std::string i3 = lang;
+              if (lang.size()==2){ auto it=g_iso2to3.find(lang); if(it!=g_iso2to3.end() && !it->second.empty()) i3=it->second; }
+              if (i3=="cmn"||i3=="lzh"||i3=="gan"||i3=="hak") return "zho";
+              return i3;
+          }
+          // Java Character.isWhitespace for BMP chars (same set buildMixChunks mirrors).
+          static bool isJavaWsCp(int cp){
+              return (cp>=0x09&&cp<=0x0D)||(cp>=0x1C&&cp<=0x1F)||cp==0x20||cp==0x1680||
+                     (cp>=0x2000&&cp<=0x200A&&cp!=0x2007)||cp==0x205F||cp==0x3000||cp==0x2028||cp==0x2029;
+          }
+          static bool isLatinPunctCp(int cp){ return (cp>=33&&cp<=47)||(cp>=58&&cp<=64)||(cp>=91&&cp<=96)||(cp>=123&&cp<=126); }
+          // clsCLD2.a: first valid codepoint of UTF-16 text (skip whitespace/digits/ASCII punct).
+          // Per-CHAR checks then codePointAt — exactly the Kotlin firstValidCodepoint.
+          static int firstValidCpU16(const jchar* s, int len){
+              int j=0;
+              while(j<len){
+                  jchar c=s[j];
+                  if(!isJavaWsCp((int)c) && !(c>='0'&&c<='9') && !isLatinPunctCp((int)c)){
+                      if(c>=0xD800&&c<=0xDBFF&&j+1<len&&s[j+1]>=0xDC00&&s[j+1]<=0xDFFF)
+                          return 0x10000+((((int)c)-0xD800)<<10)+(((int)s[j+1])-0xDC00);
+                      return (int)c;
+                  }
+                  j++;
+              }
+              return -1;
+          }
+          static std::string utf16to8(const jchar* s, int len){
+              std::string out; out.reserve((size_t)len*3);
+              int j=0;
+              while(j<len){
+                  int cp=(int)s[j];
+                  if(cp>=0xD800&&cp<=0xDBFF&&j+1<len&&s[j+1]>=0xDC00&&s[j+1]<=0xDFFF){ cp=0x10000+((cp-0xD800)<<10)+(((int)s[j+1])-0xDC00); j+=2; } else j++;
+                  if(cp<0x80) out+=(char)cp;
+                  else if(cp<0x800){ out+=(char)(0xC0|(cp>>6)); out+=(char)(0x80|(cp&0x3F)); }
+                  else if(cp<0x10000){ out+=(char)(0xE0|(cp>>12)); out+=(char)(0x80|((cp>>6)&0x3F)); out+=(char)(0x80|(cp&0x3F)); }
+                  else { out+=(char)(0xF0|(cp>>18)); out+=(char)(0x80|((cp>>12)&0x3F)); out+=(char)(0x80|((cp>>6)&0x3F)); out+=(char)(0x80|(cp&0x3F)); }
+              }
+              return out;
+          }
+          // getScriptLangFiltered (AutoTTS a.e) EXACT — `enabled` is PRE-FILTERED in Kotlin to
+          // members that also pass the not-disabled half of k.o(), so plain membership here is
+          // exactly (x in enabledLangs && !isLanguageDisabled(x)).
+          static std::string scriptLangFilteredC(int cp, const std::unordered_set<std::string>& enabled, std::string* lb){
+              char hex[16]; snprintf(hex,sizeof(hex),"%x",cp);
+              const char* pr = scriptLangC(cp);
+              if(lb) *lb += std::string("[SCRIPT] getScriptLang cp=U+")+hex+" → "+(pr&&*pr?pr:"null")+" (native)\n";
+              if(!pr||!*pr){ if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" → null (no primary script)\n"; return ""; }
+              std::string primary(pr);
+              if((cp>=0x10000&&cp<=0x1007F)||(cp>=0x10300&&cp<=0x1034F)||(cp>=0x10400&&cp<=0x1044F)||
+                 (cp>=0x10800&&cp<=0x1083F)||(cp>=0x10A00&&cp<=0x10A5F)||(cp>=0x12000&&cp<=0x1247F)||
+                 (cp>=0x13000&&cp<=0x1345F)){
+                  if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" → null (archaic script dropped in filtered path)\n";
+                  return "";
+              }
+              if(enabled.count(primary)){
+                  if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → "+primary+" (in enabled, k.o ok)\n";
+                  return primary;
+              }
+              std::vector<std::string> fallbacks;
+              if(primary=="ru"&&(cp==0x401||cp==0x451||cp==0x42D||cp==0x44D||cp==0x42B||cp==0x44B)) fallbacks={"be"};
+              else if(primary=="ur"&&(cp==0x0679||cp==0x0688||cp==0x0691||cp==0x06C1||cp==0x06D2)) fallbacks={"pa"};
+              else if(primary=="ja"&&((cp>=0x3040&&cp<=0x309F)||(cp>=0x1B000&&cp<=0x1B12F))) fallbacks={};
+              else if(primary=="en"&&(cp>=0x10400&&cp<=0x1044F)) fallbacks={};
+              else fallbacks = scriptLangFallbacksC(primary);
+              for(auto& fb: fallbacks){
+                  if(enabled.count(fb)){
+                      if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → fallback="+fb+" (k.o ok)\n";
+                      return fb;
+                  }
+              }
+              if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → null (no enabled fallback found)\n";
+              return "";
+          }
+          // The single-window CLD2 primitive — identical to buildAutoChunks' acceptance
+          // (reliable + not un/xx → normalized code; else UNKNOWN/"").
+          static std::string cld2WindowDetectC(const std::string& u8){
+              bool is_rel=false;
+              CLD2::Language l = CLD2::DetectLanguage(u8.c_str(), (int)u8.size(), true, &is_rel);
+              const char* code = CLD2::LanguageCode(l);
+              if(is_rel && code && strlen(code)>=2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
+                  return normalizeLangCode(std::string(code));
+              return "";
+          }
+          static std::unordered_set<std::string> jarrToSet(JNIEnv* env, jobjectArray arr){
+              std::unordered_set<std::string> out;
+              if(!arr) return out;
+              jsize n = env->GetArrayLength(arr);
+              for(jsize i=0;i<n;i++){
+                  jstring js=(jstring)env->GetObjectArrayElement(arr,i);
+                  if(!js) continue;
+                  const char* c=env->GetStringUTFChars(js,nullptr);
+                  out.insert(std::string(c));
+                  env->ReleaseStringUTFChars(js,c);
+                  env->DeleteLocalRef(js);
+              }
+              return out;
+          }
+          extern "C" JNIEXPORT void JNICALL
+          Java_com_tts_easyvoice_NativeEngine_setIsoMap(JNIEnv* env, jclass, jobjectArray jIso2, jobjectArray jIso3){
+              if(!jIso2||!jIso3) return;
+              jsize n=env->GetArrayLength(jIso2); jsize m=env->GetArrayLength(jIso3);
+              if(m<n) n=m;
+              for(jsize i=0;i<n;i++){
+                  jstring a=(jstring)env->GetObjectArrayElement(jIso2,i);
+                  jstring b=(jstring)env->GetObjectArrayElement(jIso3,i);
+                  if(a&&b){
+                      const char* ca=env->GetStringUTFChars(a,nullptr);
+                      const char* cb=env->GetStringUTFChars(b,nullptr);
+                      g_iso2to3[std::string(ca)]=std::string(cb);
+                      env->ReleaseStringUTFChars(a,ca); env->ReleaseStringUTFChars(b,cb);
+                  }
+                  if(a) env->DeleteLocalRef(a); if(b) env->DeleteLocalRef(b);
+              }
+          }
+          // AutoTTS k.q() int routing (modeIntToLang): 1 → latFall, 2 → nonLatFall, else "auto".
+          extern "C" JNIEXPORT jstring JNICALL
+          Java_com_tts_easyvoice_NativeEngine_modeLang(JNIEnv* env, jclass, jint mode, jstring jLat, jstring jNonLat){
+              if(mode==1) return jLat ? (jstring)env->NewLocalRef(jLat) : env->NewStringUTF("");
+              if(mode==2) return jNonLat ? (jstring)env->NewLocalRef(jNonLat) : env->NewStringUTF("");
+              return env->NewStringUTF("auto");
+          }
+          // clsCLD2.b(text, R, N, ctx) EXACT — the whole windowed loop in one call.
+          // Returns "result\x01logline\nlogline..." (log transcript empty when jWantLog false).
+          extern "C" JNIEXPORT jstring JNICALL
+          Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
+              JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
+              jboolean jDisableAdv, jobjectArray jDetectOkIso3, jobjectArray jEnabledLangs, jboolean jWantLog)
+          {
+              if(!jText) return env->NewStringUTF("UNKNOWN\x01");
+              const jchar* chars = env->GetStringChars(jText, nullptr);
+              int n5 = (int)env->GetStringLength(jText);
+              const char* latC = jLat?env->GetStringUTFChars(jLat,nullptr):nullptr; std::string latFall(latC?latC:""); if(latC) env->ReleaseStringUTFChars(jLat,latC);
+              const char* nlC = jNonLat?env->GetStringUTFChars(jNonLat,nullptr):nullptr; std::string nonLatFall(nlC?nlC:""); if(nlC) env->ReleaseStringUTFChars(jNonLat,nlC);
+              bool disableAdv = (jDisableAdv==JNI_TRUE);
+              std::unordered_set<std::string> okIso3 = jarrToSet(env, jDetectOkIso3);
+              std::unordered_set<std::string> enabled = jarrToSet(env, jEnabledLangs);
+              std::string log; std::string* lb = (jWantLog==JNI_TRUE) ? &log : nullptr;
+              std::string result = "UNKNOWN"; bool done=false;
+              int n6=0;
+              while(n6<n5 && !done){
+                  int n7=n6+64; int wend = n7<n5?n7:n5;
+                  std::string wu8 = utf16to8(chars+n6, wend-n6);
+                  if(lb){
+                      int snipLen = (wend-n6)<30?(wend-n6):30;
+                      char nbuf[32]; snprintf(nbuf,sizeof(nbuf),"%d",wend-n6);
+                      *lb += std::string("[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latFall+" nonLatFall="+nonLatFall+" isDisableAdv="+(disableAdv?"true":"false")+" snip='"+utf16to8(chars+n6,snipLen)+"'\n";
+                  }
+                  std::string det = cld2WindowDetectC(wu8);
+                  if(lb) *lb += std::string("[CLD2] cld2DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+wu8+"' → result="+(det.empty()?"null":det)+"\n";
+                  if(!det.empty()){
+                      if(disableAdv){ result=det; done=true; break; }
+                      if(okIso3.count(toIso3C(det))){ result=det; done=true; break; }  // clsCLD2.b:60 k.o() accept
+                      int winCp = firstValidCpU16(chars+n6, wend-n6);
+                      if(winCp!=-1){
+                          std::string p = scriptLangFilteredC(winCp, enabled, lb);
+                          if(!p.empty()){ result=p; done=true; break; }
+                      }
+                  }
+                  n6=n7;
+              }
+              if(!done && !disableAdv){
+                  int firstCp = firstValidCpU16(chars, n5);
+                  if(firstCp!=-1){
+                      std::string p = scriptLangFilteredC(firstCp, enabled, lb);
+                      if(!p.empty()) result=p;
+                  }
+              }
+              env->ReleaseStringChars(jText, chars);
+              std::string out = result + "\x01" + log;
+              return env->NewStringUTF(out.c_str());
+          }
           extern "C" JNIEXPORT jstring JNICALL
           Java_com_tts_easyvoice_NativeEngine_scriptLang(JNIEnv* env, jclass, jint cp){
               const char* r = scriptLangC((int)cp);
@@ -904,6 +1089,13 @@ jobs:
           "    // AutoTTS a.b / a.w ports (moved native): codepoint→language + script-family fallbacks.\n"
           "    external fun scriptLang(cp: Int): String            // \"\" = no mapping (null)\n"
           "    external fun scriptLangFallbacks(primary: String): Array<String>\n"
+          "    // ISO2→ISO3 map feed (device java.util.Locale data — platform parity, AutoTTS k.c()).\n"
+          "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
+          "    // AutoTTS k.q() int routing (modeIntToLang) — logic native.\n"
+          "    external fun modeLang(mode: Int, latFall: String, nonLatFall: String): String\n"
+          "    // clsCLD2.b FULL windowed loop in ONE call. Returns \"result\\u0001log-transcript\".\n"
+          "    external fun detectLanguageFull(text: String, latFall: String, nonLatFall: String,\n"
+          "        disableAdv: Boolean, detectOkIso3: Array<String>, enabledLangs: Array<String>, wantLog: Boolean): String\n"
           "}\n")
 
           # ── Languages.kt ─────────────────────────────────────────────────────
@@ -2119,6 +2311,29 @@ jobs:
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    private fun detectLanguage(text: String, latFall: String, nonLatFall: String): String {\n"
           "        if (text.isEmpty()) return \"UNKNOWN\"\n"
+          "        // BATTERY/JNI: with CLD2 (optimise-performance OFF) the WHOLE clsCLD2.b windowed loop\n"
+          "        // now runs in ONE native call — no per-window JNI crossings. The native code is a\n"
+          "        // byte-exact transliteration of the loop below (same windows, k.o accept via the\n"
+          "        // pre-filtered sets, same a.e script fallback + clsCLD2.a tail, same log lines —\n"
+          "        // returned as a transcript and written to EasyVoiceLogger here). The JVM loop below\n"
+          "        // remains for the ML Kit path (a GMS Java API that cannot run in C++), and as the\n"
+          "        // fallback if the native call ever throws.\n"
+          "        if (!prefs.isOptimisePerformance()) {\n"
+          "            try {\n"
+          "                initIsoMaps()  // ensures the native ISO2→ISO3 map is fed (idempotent)\n"
+          "                // isEnabled(l) ≡ toIso3(l) ∈ scannedLangsIso3 && !disabled — pre-filter the iso3 set.\n"
+          "                val detectOk = scannedLangsIso3.filter { !prefs.isLanguageDisabled(it) }.toTypedArray()\n"
+          "                // a.e filter ≡ (x ∈ enabledLangs && !disabled(x)) — pre-filter the ISO2 set.\n"
+          "                val enabledOk = enabledLangs.filter { !prefs.isLanguageDisabled(it) }.toTypedArray()\n"
+          "                val out = NativeEngine.detectLanguageFull(text, latFall, nonLatFall, prefs.isDisableAdvancedDetection(), detectOk, enabledOk, prefs.isLoggingEnabled())\n"
+          "                val sep = out.indexOf('\\u0001')\n"
+          "                if (sep >= 0) {\n"
+          "                    if (sep + 1 < out.length) for (line in out.substring(sep + 1).split('\\n')) if (line.isNotEmpty()) EasyVoiceLogger.d(line)\n"
+          "                    return out.substring(0, sep)\n"
+          "                }\n"
+          "                return out\n"
+          "            } catch (_: Throwable) { /* fall through to the JVM loop */ }\n"
+          "        }\n"
           "        val isDisableAdv = prefs.isDisableAdvancedDetection()\n"
           "        val n5 = text.length\n"
           "        var n6 = 0\n"
@@ -2354,6 +2569,12 @@ jobs:
           "                iso3ToIso[iso3] = iso\n"
           "            } catch (_: Exception) {}\n"
           "        }\n"
+          "        // Feed the native side ONCE (detectLanguageFull's toIso3C) — same device-Locale data,\n"
+          "        // so the in-C++ lookups stay byte-identical to the platform (AutoTTS k.c parity).\n"
+          "        try {\n"
+          "            val entries = isoToIso3.entries.toList()\n"
+          "            NativeEngine.setIsoMap(entries.map { it.key }.toTypedArray(), entries.map { it.value }.toTypedArray())\n"
+          "        } catch (_: Throwable) {}\n"
           "    }\n"
           "    // Engine availability check (AutoTTS k.o()) — normalizes 3-letter ISO to 2-letter before lookup\n"
           "    private fun isEngineAvailable(lang: String): Boolean {\n"
@@ -2393,12 +2614,12 @@ jobs:
           "    // (that is the separate H()/routing concern). Used for CLD2 accept (clsCLD2.b:60) and the\n"
           "    // a.e() script-family fallback filter (enabledLangs). Differs from isLangRoutable(): isLangRoutable() = H() routing.\n"
           "    private fun isEnabled(lang: String): Boolean = prefs.toIso3(lang) in scannedLangsIso3 && !prefs.isLanguageDisabled(lang)\n"
-          "    // AutoTTS k.q() int routing: 0=auto, 1=latFall, 2=nonLatFall\n"
-          "    private fun modeIntToLang(mode: Int, latFall: String, nonLatFall: String): String = when (mode) {\n"
-          "        1 -> latFall\n"
-          "        2 -> nonLatFall\n"
-          "        else -> \"auto\"\n"
-          "    }\n"
+          "    // AutoTTS k.q() int routing: 0=auto, 1=latFall, 2=nonLatFall — logic lives native\n"
+          "    // (NativeEngine.modeLang); the when-fallback only guards a native-load failure.\n"
+          "    private fun modeIntToLang(mode: Int, latFall: String, nonLatFall: String): String =\n"
+          "        try { NativeEngine.modeLang(mode, latFall, nonLatFall) } catch (_: Throwable) {\n"
+          "            when (mode) { 1 -> latFall; 2 -> nonLatFall; else -> \"auto\" }\n"
+          "        }\n"
           "    // AutoTTS S(): build ordered engine list M — system default engine FIRST, then engine_N prefs, Google TTS as last resort.\n"
           "    private fun buildEngineList() {\n"
           "        synchronized(this) {\n"
