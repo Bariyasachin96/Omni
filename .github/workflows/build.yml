@@ -404,6 +404,34 @@ jobs:
           // "bg-Latn"; kUnknown = "und"). Same acceptance CONTRACT as the CLD2 call had:
           // reliable + known → bare normalized code; else "" (UNKNOWN) so the exact AutoTTS
           // script-family/type/C fallback pipeline downstream runs completely unchanged.
+          // Forward decls (definitions live later in this file)
+          static const char* scriptLangC(int cp);
+          static std::vector<std::string> scriptLangFallbacksC(const std::string& p);
+          static bool isJavaWsCp(int cp);
+          static bool isLatinPunctCp(int cp);
+          // Script-consistency gate (the SAME structural rule the ML Kit path used, now for
+          // CLD3): CLD2 was script-bound — it could NEVER label Latin text as a non-Latin-
+          // script language, so romanized Hindi always stayed on the Latin/English side.
+          // CLD3 (like ML Kit) IS trained on romanized text ("hi"/"hi-Latn" for Roman Hindi),
+          // which routed Latin text to the Hindi engine. Enforce the AutoTTS Latin/non-Latin
+          // boundary (a.b script side of the first REAL letter vs a.w("en") Latin family):
+          // mismatch → "" (UNKNOWN) → the exact script-family/type/C fallback pipeline.
+          static bool cld3ScriptConsistent(const std::string& detected, const std::string& u8){
+              int i=0, n=(int)u8.size();
+              std::string winScript;
+              while(i<n){
+                  int len=0; int cp=utf8ToCodepoint((const unsigned char*)u8.data()+i, len); if(len<=0) len=1;
+                  if(!isJavaWsCp(cp) && !(cp>='0'&&cp<='9') && !isLatinPunctCp(cp)){
+                      const char* sc=scriptLangC(cp);
+                      if(sc && *sc && strcmp(sc,"zz")!=0){ winScript=sc; break; }  // neutral zz carries no script evidence — skip (U+202F/GP-block lesson)
+                  }
+                  i+=len;
+              }
+              if(winScript.empty()) return false;  // nothing scriptable
+              std::vector<std::string> latinFamily = scriptLangFallbacksC("en");
+              auto isLatinSide=[&](const std::string& l){ if(l=="en") return true; for(const auto& f: latinFamily) if(f==l) return true; return false; };
+              return isLatinSide(winScript)==isLatinSide(detected);
+          }
           static std::string cld3DetectRaw(const std::string& u8){
               static std::mutex g_cld3Mutex;
               static chrome_lang_id::NNetLanguageIdentifier* g_cld3 = nullptr;
@@ -413,7 +441,9 @@ jobs:
               if(!r.is_reliable || r.language == chrome_lang_id::NNetLanguageIdentifier::kUnknown) return "";
               std::string lang = r.language;
               size_t dash = lang.find('-'); if(dash != std::string::npos) lang = lang.substr(0, dash);  // "zh-Latn" → "zh"
-              return normalizeLangCode(lang);
+              std::string norm = normalizeLangCode(lang);
+              if(!cld3ScriptConsistent(norm, u8)) return "";  // romanized/misscripted answer → UNKNOWN → faithful fallback
+              return norm;
           }
           static bool isLatinScriptLang(const std::string& lang) {
               static const char* lat[] = {
