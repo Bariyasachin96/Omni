@@ -2814,6 +2814,7 @@ jobs:
           "        reqRate = (request?.speechRate ?: 100) / 100.0f\n"
           "        reqPitch = (request?.pitch ?: 100) / 100.0f\n"
           "        if (rawText.trim().isEmpty()) {\n"
+          "            synchronized(chunkQueue) { chunkQueue.clear() }  // AutoTTS e0(): J.clear() is the FIRST line in BOTH branches — the empty-utterance path must drop pending chunks too\n"
           "            // AutoTTS e0(false) (line 1277-1278): iterate ALL engines f, speak(\"\") on each where\n"
           "            // state==2 AND listenerSet(g) AND isSpeaking — not just the active engine (exact parity).\n"
           "            run { var poolIdx = 0; while (poolIdx < enginePool.size) { val wrapper = enginePool[poolIdx]; if (wrapper.state == 2 && wrapper.listenerSet && wrapper.tts?.isSpeaking == true) { try { enginePool.getOrNull(engineIndex)?.tts?.speak(\"\", TextToSpeech.QUEUE_FLUSH, null, null) } catch (_: Exception) {} }; poolIdx++ } }  // AutoTTS e0(false): speak(\"\") on f[this.d] (current engine), not the speaking one\n"
