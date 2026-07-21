@@ -3665,7 +3665,7 @@ jobs:
           "        val key = iso.substringBefore(\"-\").substringBefore(\"_\").lowercase()\n"
           "        // AutoTTS y.a(): returns \"\" when the language has no sample — GetSampleText then speaks the\n"
           "        // exact \"Sorry. Sample text for language <name> is missing.\" notice. Match that (no synthesized default).\n"
-          "        return map[key] ?: map[toIso3(key)] ?: map[iso] ?: \"\"\n"
+          "        return map[iso] ?: map[key] ?: map[toIso3(key)] ?: \"\"\n"
           "    }\n"
           "    private fun toIso3(l: String): String = try { java.util.Locale(l).isO3Language.ifEmpty { l } } catch (_: Exception) { l }\n"
           "}\n")
