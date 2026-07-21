@@ -314,40 +314,6 @@ jobs:
                      (cp>=0x1F300&&cp<=0x1F5FF)||(cp>=0x1F600&&cp<=0x1F64F)||(cp>=0x1F680&&cp<=0x1F6FF)||(cp>=0x1F900&&cp<=0x1F9FF);
           }
 
-          // Returns true for non-Latin codepoints that are NOT Unicode \p{L} (Letter category).
-          // Used in flushBuf(bufKind==1) to mirror AutoTTS w.c() which uses Java \p{L} regex.
-          static bool isNonLatinNonLetter(int cp) {
-              // Non-Latin digit blocks (Unicode Nd — not \p{L})
-              if(cp>=0x0660&&cp<=0x066B) return true;  // Arabic-Indic digits + decimal/thousands sep
-              if(cp>=0x06F0&&cp<=0x06F9) return true;  // Extended Arabic-Indic digits
-              if(cp>=0x07C0&&cp<=0x07C9) return true;  // NKo digits
-              if(cp>=0x0966&&cp<=0x096F) return true;  // Devanagari digits
-              if(cp>=0x09E6&&cp<=0x09EF) return true;  // Bengali digits
-              if(cp>=0x0A66&&cp<=0x0A6F) return true;  // Gurmukhi digits
-              if(cp>=0x0AE6&&cp<=0x0AEF) return true;  // Gujarati digits
-              if(cp>=0x0B66&&cp<=0x0B6F) return true;  // Oriya digits
-              if(cp>=0x0BE6&&cp<=0x0BEF) return true;  // Tamil digits
-              if(cp>=0x0C66&&cp<=0x0C6F) return true;  // Telugu digits
-              if(cp>=0x0CE6&&cp<=0x0CEF) return true;  // Kannada digits
-              if(cp>=0x0D66&&cp<=0x0D6F) return true;  // Malayalam digits
-              if(cp>=0x0E50&&cp<=0x0E59) return true;  // Thai digits
-              if(cp>=0x0ED0&&cp<=0x0ED9) return true;  // Lao digits
-              if(cp>=0x0F20&&cp<=0x0F29) return true;  // Tibetan digits
-              if(cp>=0x1040&&cp<=0x1049) return true;  // Myanmar digits
-              if(cp>=0x1090&&cp<=0x1099) return true;  // Myanmar Shan digits
-              if(cp>=0x17E0&&cp<=0x17E9) return true;  // Khmer digits
-              if(cp>=0x1810&&cp<=0x1819) return true;  // Mongolian digits
-              if(cp>=0xFF10&&cp<=0xFF19) return true;  // Fullwidth digits (also pattern-b)
-              // Combining marks (Unicode M category — not \p{L})
-              if(cp>=0x0300&&cp<=0x036F) return true;  // Combining Diacritical Marks
-              if(cp>=0x1DC0&&cp<=0x1DFF) return true;  // Combining Diacritical Marks Supplement
-              if(cp>=0x20D0&&cp<=0x20FF) return true;  // Combining Diacritical Marks for Symbols
-              // Non-Latin punct blocks (not in latRange, not \p{L})
-              if(cp>=0x2E00&&cp<=0x2E7F) return true;  // Supplemental Punctuation
-              if(cp>=0x3000&&cp<=0x303F) return true;  // CJK Symbols and Punctuation
-              if(cp>=0xFE10&&cp<=0xFE6F) return true;  // Vertical Forms + CJK Compat + Small Forms
-              return false;
-          }
 
 
           struct ChunkResult { std::string lang; std::string text; };
@@ -381,18 +347,6 @@ jobs:
               for (int i = 0; tbl[i][0]; i++)
                   if (code == tbl[i][0]) return tbl[i][1];
               return code;
-          }
-
-          // Latin-script language check (mirrors Kotlin isLatinScript).
-          static bool isLatinScriptLang(const std::string& lang) {
-              static const char* lat[] = {
-                  "en","fr","de","es","it","pt","nl","sv","da","no","nb","nn",
-                  "fi","pl","cs","ro","hu","sk","sl","hr","lt","lv","et","tr",
-                  "vi","af","ca","cy","eu","ga","gl","is","lb","mt","sq","sw",
-                  "tl","id","ms","bs","az","uz","tk","ky",nullptr
-              };
-              for (int i = 0; lat[i]; i++) if (lang == lat[i]) return true;
-              return false;
           }
 
           // Auto mode: WHOLE TEXT DETECTION. No length limits. Return as ONE single chunk.
@@ -1750,8 +1704,6 @@ jobs:
           "    // AutoTTS: K is companion object (static) below\n"
           "    // AutoTTS: X is companion object (static volatile) below\n"
           "    @Volatile private var lastEnginePkg = \"\"              // AutoTTS: public volatile String c — current engine pkg (V()/X() skip optimization)\n"
-          "    private fun getLocale(iso: String): Locale =\n"
-          "        try { Locale.forLanguageTag(iso) } catch (_: Exception) { Locale.US }\n"
           "    // ────────────────────────────────────────────────────────────────────\n"
           "    // Foreground service + Audio focus helpers (matches original AutoTtsService D/E/d0/a0)\n"
           "    // ────────────────────────────────────────────────────────────────────\n"
