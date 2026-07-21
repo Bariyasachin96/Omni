@@ -45,10 +45,19 @@ jobs:
             echo "::error::NDK install failed after $n retries."; exit 1
           fi
 
-      - name: Clone CLD2 Native Library
+      - name: Clone CLD2 + CLD3 Native Libraries
         run: |
           mkdir -p app/src/main/cpp
           git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+          # CLD3 (optional NN detector — Advanced-tab "Use CLD3" option; CLD2 stays default) + its
+          # protobuf-lite runtime, pinned to the runner's protoc so the generated pb sources match.
+          git clone --depth 1 https://github.com/google/cld3.git app/src/main/cpp/cld3_src
+          git clone --depth 1 -b v3.21.12 https://github.com/protocolbuffers/protobuf.git app/src/main/cpp/protobuf_src
+          sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
+          protoc --version
+          mkdir -p app/src/main/cpp/cld3_gen/cld_3/protos
+          protoc -Iapp/src/main/cpp/cld3_src/src --cpp_out=app/src/main/cpp/cld3_gen/cld_3/protos app/src/main/cpp/cld3_src/src/*.proto
+          ls app/src/main/cpp/cld3_gen/cld_3/protos
 
       - name: Generate Complete Project
         run: |
@@ -237,6 +246,16 @@ jobs:
           cmake_minimum_required(VERSION 3.18.1)
           project("easyvoice_native")
           set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
+          # ── CLD3 (optional NN detector) + protobuf-lite, compiled ALONGSIDE CLD2 ──
+          set(CLD3_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld3_src/src)
+          set(CLD3_GEN ${CMAKE_CURRENT_SOURCE_DIR}/cld3_gen)
+          set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+          set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "" FORCE)
+          set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
+          set(protobuf_WITH_ZLIB OFF CACHE BOOL "" FORCE)
+          add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/protobuf_src/cmake protobuf_build)
+          file(GLOB CLD3_SCRIPT_SPAN ${CLD3_DIR}/script_span/*.cc)
+          list(FILTER CLD3_SCRIPT_SPAN EXCLUDE REGEX "test")
           add_library(easyvoice_core SHARED
               tts_engine_core.cpp
               ${CLD2_DIR}/cldutil.cc
@@ -263,10 +282,31 @@ jobs:
               ${CLD2_DIR}/cld2_generated_deltaoctachrome.cc
               ${CLD2_DIR}/cld2_generated_distinctoctachrome.cc
               ${CLD2_DIR}/cld_generated_score_quad_octa_2.cc
+              ${CLD3_GEN}/cld_3/protos/feature_extractor.pb.cc
+              ${CLD3_GEN}/cld_3/protos/sentence.pb.cc
+              ${CLD3_GEN}/cld_3/protos/task_spec.pb.cc
+              ${CLD3_DIR}/base.cc
+              ${CLD3_DIR}/embedding_feature_extractor.cc
+              ${CLD3_DIR}/embedding_network.cc
+              ${CLD3_DIR}/feature_extractor.cc
+              ${CLD3_DIR}/feature_types.cc
+              ${CLD3_DIR}/fml_parser.cc
+              ${CLD3_DIR}/language_identifier_features.cc
+              ${CLD3_DIR}/lang_id_nn_params.cc
+              ${CLD3_DIR}/nnet_language_identifier.cc
+              ${CLD3_DIR}/registry.cc
+              ${CLD3_DIR}/relevant_script_feature.cc
+              ${CLD3_DIR}/sentence_features.cc
+              ${CLD3_DIR}/task_context.cc
+              ${CLD3_DIR}/task_context_params.cc
+              ${CLD3_DIR}/unicodetext.cc
+              ${CLD3_DIR}/utils.cc
+              ${CLD3_DIR}/workspace.cc
+              ${CLD3_SCRIPT_SPAN}
           )
-          target_include_directories(easyvoice_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
+          target_include_directories(easyvoice_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR} ${CLD3_DIR} ${CLD3_GEN})
           find_library(log-lib log)
-          target_link_libraries(easyvoice_core ${log-lib})
+          target_link_libraries(easyvoice_core libprotobuf-lite ${log-lib})
           # Strip unused code/data (pairs with -ffunction-sections/-fdata-sections) → smaller .so
           target_link_options(easyvoice_core PRIVATE "-Wl,--gc-sections")
           """)
@@ -281,7 +321,9 @@ jobs:
           #include <unordered_map>
           #include <unordered_set>
           #include <stdint.h>
+          #include <mutex>
           #include "compact_lang_det.h"
+          #include "nnet_language_identifier.h"
 
           // JNI_OnLoad: no integrity/signature check — just report the JNI version so the lib loads.
           JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
@@ -913,7 +955,52 @@ jobs:
           }
           // The single-window CLD2 primitive — identical to buildAutoChunks' acceptance
           // (reliable + not un/xx → normalized code; else UNKNOWN/"").
-          static std::string cld2WindowDetectC(const std::string& u8){
+          // ── CLD3 (optional NN detector — Advanced-tab "Use CLD3"; CLD2 is the default) ──────
+          // Forward decls (defined later in the JNI section):
+          static const char* scriptLangC(int cp);
+          static std::vector<std::string> scriptLangFallbacksC(const std::string& p);
+          static bool isJavaWsCp(int cp);
+          static bool isLatinPunctCp(int cp);
+          // Script-consistency gate: CLD2 is script-bound (never labels Latin text as a non-Latin
+          // language). CLD3 IS trained on romanized text ("hi"/"hi-Latn" for Roman Hindi), which
+          // would route Latin text to the Hindi engine. Enforce the AutoTTS Latin/non-Latin boundary
+          // (a.b script side of the first REAL letter vs a.w("en") Latin family) — mismatch → ""
+          // (UNKNOWN) → the exact script-family/type/C fallback, so Roman Hindi stays on the Latin side.
+          static bool cld3ScriptConsistent(const std::string& detected, const std::string& u8){
+              int i=0, n=(int)u8.size();
+              std::string winScript;
+              while(i<n){
+                  int len=0; int cp=utf8ToCodepoint((const unsigned char*)u8.data()+i, len); if(len<=0) len=1;
+                  if(!isJavaWsCp(cp) && !(cp>='0'&&cp<='9') && !isLatinPunctCp(cp)){
+                      const char* sc=scriptLangC(cp);
+                      if(sc && *sc && strcmp(sc,"zz")!=0){ winScript=sc; break; }  // neutral zz has no script evidence — skip (U+202F lesson)
+                  }
+                  i+=len;
+              }
+              if(winScript.empty()) return false;
+              std::vector<std::string> latinFamily = scriptLangFallbacksC("en");
+              auto isLatinSide=[&](const std::string& l){ if(l=="en") return true; for(const auto& f: latinFamily) if(f==l) return true; return false; };
+              return isLatinSide(winScript)==isLatinSide(detected);
+          }
+          // chrome_lang_id::NNetLanguageIdentifier: NN model, BCP-47 output (kUnknown="und"). Same
+          // acceptance CONTRACT as the CLD2 primitive: reliable+known → bare normalized code, else "".
+          static std::string cld3DetectRaw(const std::string& u8){
+              static std::mutex g_cld3Mutex;
+              static chrome_lang_id::NNetLanguageIdentifier* g_cld3 = nullptr;
+              std::lock_guard<std::mutex> lk(g_cld3Mutex);
+              if(!g_cld3) g_cld3 = new chrome_lang_id::NNetLanguageIdentifier(0, 1000);
+              const chrome_lang_id::NNetLanguageIdentifier::Result r = g_cld3->FindLanguage(u8);
+              if(!r.is_reliable || r.language == chrome_lang_id::NNetLanguageIdentifier::kUnknown) return "";
+              std::string lang = r.language;
+              size_t dash = lang.find('-'); if(dash != std::string::npos) lang = lang.substr(0, dash);  // "zh-Latn" → "zh"
+              std::string norm = normalizeLangCode(lang);
+              if(!cld3ScriptConsistent(norm, u8)) return "";
+              return norm;
+          }
+          // The single-window detection primitive. useCld3 picks the engine; both share the exact
+          // same reliable-gated contract so the whole downstream pipeline is identical either way.
+          static std::string cld2WindowDetectC(const std::string& u8, bool useCld3){
+              if(useCld3) return cld3DetectRaw(u8);
               bool is_rel=false;
               CLD2::Language l = CLD2::DetectLanguage(u8.c_str(), (int)u8.size(), true, &is_rel);
               const char* code = CLD2::LanguageCode(l);
@@ -964,8 +1051,9 @@ jobs:
           extern "C" JNIEXPORT jstring JNICALL
           Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
               JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
-              jboolean jDisableAdv, jobjectArray jDetectOkIso3, jobjectArray jEnabledLangs, jboolean jWantLog)
+              jboolean jDisableAdv, jobjectArray jDetectOkIso3, jobjectArray jEnabledLangs, jboolean jWantLog, jboolean jUseCld3)
           {
+              bool useCld3 = (jUseCld3==JNI_TRUE);
               if(!jText) return env->NewStringUTF("UNKNOWN\x01");
               const jchar* chars = env->GetStringChars(jText, nullptr);
               int n5 = (int)env->GetStringLength(jText);
@@ -983,10 +1071,10 @@ jobs:
                   if(lb){
                       int snipLen = (wend-n6)<30?(wend-n6):30;
                       char nbuf[32]; snprintf(nbuf,sizeof(nbuf),"%d",wend-n6);
-                      *lb += std::string("[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latFall+" nonLatFall="+nonLatFall+" isDisableAdv="+(disableAdv?"true":"false")+" snip='"+utf16to8(chars+n6,snipLen)+"'\n";
+                      *lb += std::string(useCld3?"[CLD3] detectWindow windowLen=":"[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latFall+" nonLatFall="+nonLatFall+" isDisableAdv="+(disableAdv?"true":"false")+" snip='"+utf16to8(chars+n6,snipLen)+"'\n";
                   }
-                  std::string det = cld2WindowDetectC(wu8);
-                  if(lb) *lb += std::string("[CLD2] cld2DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+wu8+"' → result="+(det.empty()?"null":det)+"\n";
+                  std::string det = cld2WindowDetectC(wu8, useCld3);
+                  if(lb) *lb += std::string(useCld3?"[CLD3] detectWindow rawOut='":"[CLD2] cld2DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+wu8+"' → result="+(det.empty()?"null":det)+"\n";
                   if(!det.empty()){
                       if(disableAdv){ result=det; done=true; break; }
                       if(okIso3.count(toIso3C(det))){ result=det; done=true; break; }  // clsCLD2.b:60 k.o() accept
@@ -1048,7 +1136,7 @@ jobs:
           "    external fun modeLang(mode: Int, latFall: String, nonLatFall: String): String\n"
           "    // clsCLD2.b FULL windowed loop in ONE call. Returns \"result\\u0001log-transcript\".\n"
           "    external fun detectLanguageFull(text: String, latFall: String, nonLatFall: String,\n"
-          "        disableAdv: Boolean, detectOkIso3: Array<String>, enabledLangs: Array<String>, wantLog: Boolean): String\n"
+          "        disableAdv: Boolean, detectOkIso3: Array<String>, enabledLangs: Array<String>, wantLog: Boolean, useCld3: Boolean): String\n"
           "}\n")
 
           # ── Languages.kt ─────────────────────────────────────────────────────
@@ -1333,6 +1421,10 @@ jobs:
           "    // EasyVoice-only feature (user request): ML Kit language identification instead of CLD2.\n"
           "    fun setDisableAdvancedDetection(v: Boolean) = prefs.edit().putBoolean(\"disable_advanced_detection\", v).apply()\n"
           "    fun isLoggingEnabled(): Boolean = prefs.getBoolean(\"logging_enabled\", false)\n"
+          "    // EasyVoice-only (user option, default OFF = CLD2/AutoTTS parity): use the CLD3 neural\n"
+          "    // detector instead of CLD2 for language detection (better on short/mixed text, more CPU).\n"
+          "    fun isUseCld3(): Boolean = prefs.getBoolean(\"use_cld3\", false)\n"
+          "    fun setUseCld3(v: Boolean) = prefs.edit().putBoolean(\"use_cld3\", v).apply()\n"
           "    fun setLoggingEnabled(v: Boolean) = prefs.edit().putBoolean(\"logging_enabled\", v).apply()\n"
           "    // ── Settings backup / restore (AutoTTS z.d export + i.x2/y2 import parity) ──\n"
           "    // EasyVoice's prefs file is named \"easy_voice_settings\" (schema is AutoTTS's), so the\n"
@@ -2291,7 +2383,7 @@ jobs:
           "                val detectOk = scannedLangsIso3.filter { !prefs.isLanguageDisabled(it) }.toTypedArray()\n"
           "                // a.e filter ≡ (x ∈ enabledLangs && !disabled(x)) — pre-filter the ISO2 set.\n"
           "                val enabledOk = enabledLangs.filter { !prefs.isLanguageDisabled(it) }.toTypedArray()\n"
-          "                val out = NativeEngine.detectLanguageFull(text, latFall, nonLatFall, prefs.isDisableAdvancedDetection(), detectOk, enabledOk, prefs.isLoggingEnabled())\n"
+          "                val out = NativeEngine.detectLanguageFull(text, latFall, nonLatFall, prefs.isDisableAdvancedDetection(), detectOk, enabledOk, prefs.isLoggingEnabled(), prefs.isUseCld3())\n"
           "                val sep = out.indexOf('\\u0001')\n"
           "                if (sep >= 0) {\n"
           "                    if (sep + 1 < out.length) for (line in out.substring(sep + 1).split('\\n')) if (line.isNotEmpty()) EasyVoiceLogger.d(line)\n"
@@ -3956,6 +4048,9 @@ jobs:
           "    // ── Language Detection Options ──\n"
           "    root.addView(sectionHeader(context, \"Language Detection Options\"))\n"
           "    addCheckRow(root, context, \"Disable advanced language detection\", \"Disable advanced language detection for better performance.\", prefs.isDisableAdvancedDetection()) { prefs.setDisableAdvancedDetection(it) }\n"
+          "    // EasyVoice-only option (default OFF): CLD3 neural detector instead of CLD2. More accurate on\n"
+          "    // short/mixed text, uses more battery. OFF keeps CLD2 = exact AutoTTS behavior.\n"
+          "    addCheckRow(root, context, \"Use CLD3 (neural language detection)\", \"Use the CLD3 neural network detector instead of CLD2. Can be more accurate on short or mixed text, but uses more battery. Off = CLD2 (default).\", prefs.isUseCld3()) { prefs.setUseCld3(it) }\n"
           "    // ── Import/Export Configuration — AutoTTS button order: Import then Export ──\n"
           "    root.addView(sectionHeader(context, \"Import/Export Configuration\"))\n"
           "    root.addView(fullWidthButton(\"Import\") { launchImportPicker() })\n"
