@@ -115,7 +115,7 @@ jobs:
                   versionName = "16.0"
                   externalNativeBuild {
                       cmake {
-                          // -Os: size-optimized codegen (CLD2 is table-lookup bound — no measurable speed
+                          // -Os: size-optimized codegen (detector is lookup/NN-bound — no measurable speed
                           // cost vs -O2, smaller .so) + the existing dead-code stripping flags.
                           cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-Os", "-g0", "-fvisibility=hidden", "-ffunction-sections", "-fdata-sections")
                           arguments += listOf("-DANDROID_STL=c++_static")
@@ -367,13 +367,13 @@ jobs:
 
           struct ChunkResult { std::string lang; std::string text; };
 
-          // ISO 639-3 → ISO 639-1 normalization: CLD2 occasionally returns 3-letter codes.
-          // Must run immediately after every CLD2 call so all internal comparisons use 2-letter codes.
+          // ISO 639-3 → ISO 639-1 normalization: the detector may return 3-letter codes.
+          // Must run immediately after every detector call so all internal comparisons use 2-letter codes.
           static std::string normalizeLangCode(const std::string& code) {
               if (code.size() <= 2) return code;
               static const char* tbl[][2] = {
                   // Defensive ISO3→ISO2 table. In practice unreachable: every input here is a
-                  // 2-letter CLD2 code (size<=2 early-return above). The Kotlin side now uses the
+                  // 2-letter code (size<=2 early-return above). The Kotlin side now uses the
                   // FULL Locale-derived map (AutoTTS k.i) instead of a hardcoded subset.
                   {"eng","en"},
                   {"zho","zh"},{"hin","hi"},{"ben","bn"},{"ara","ar"},{"por","pt"},
@@ -443,7 +443,7 @@ jobs:
               // AutoTTS script fallback exactly as before (see the note that follows).
               dominantLang = cld3DetectRaw(fullText);
               // AutoTTS clsCLD2.b(): nativeGetLanguage returns the RAW CLD2 result — "UNKNOWN" when
-              // CLD2 cannot identify this window. The codepoint/script-family fallback (a.e/k.o) and the
+              // the detector cannot identify this window. The codepoint/script-family fallback (a.e/k.o) and the
               // end-of-loop clsCLD2.a() first-codepoint fallback are performed by the Kotlin caller
               // (detectLanguage), which windows this primitive exactly like clsCLD2.b's 64-char loop.
               // Do NOT resolve UNKNOWN to detectLang()/latFall here: that made the caller accept
@@ -627,8 +627,8 @@ jobs:
 
               // Merge pass — AutoTTS w.java Step 5: merge consecutive same-type segments,
               // absorbing whitespace (type-0) into the surrounding run. This produces large
-              // merged non-Latin segments so CLD2 gets enough text to detect reliably.
-              // Without this, individual Hindi words (2-5 chars) fool CLD2 into returning "en".
+              // merged non-Latin segments so the detector gets enough text to detect reliably.
+              // Without this, individual Hindi words (2-5 chars) fooled detection into returning "en".
               {
                   std::vector<Seg> merged2;
                   int segIdx = 0, segCount = (int)segs.size();
@@ -978,10 +978,10 @@ jobs:
               if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → null (no enabled fallback found)\n";
               return "";
           }
-          // The single-window CLD2 primitive — identical to buildAutoChunks' acceptance
+          // The single-window detection primitive (CLD3) — identical to buildAutoChunks' acceptance
           // (reliable + not un/xx → normalized code; else UNKNOWN/"").
-          static std::string cld2WindowDetectC(const std::string& u8){
-              return cld3DetectRaw(u8);  // CLD3 (was CLD2) — same reliable-gated contract, name kept to minimize churn
+          static std::string cld3WindowDetectC(const std::string& u8){
+              return cld3DetectRaw(u8);  // CLD3 — same reliable-gated contract the CLD2 primitive had
           }
           static std::unordered_set<std::string> jarrToSet(JNIEnv* env, jobjectArray arr){
               std::unordered_set<std::string> out;
@@ -1045,10 +1045,10 @@ jobs:
                   if(lb){
                       int snipLen = (wend-n6)<30?(wend-n6):30;
                       char nbuf[32]; snprintf(nbuf,sizeof(nbuf),"%d",wend-n6);
-                      *lb += std::string("[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latFall+" nonLatFall="+nonLatFall+" isDisableAdv="+(disableAdv?"true":"false")+" snip='"+utf16to8(chars+n6,snipLen)+"'\n";
+                      *lb += std::string("[CLD3] cld3DetectWindow windowLen=")+nbuf+" latFall="+latFall+" nonLatFall="+nonLatFall+" isDisableAdv="+(disableAdv?"true":"false")+" snip='"+utf16to8(chars+n6,snipLen)+"'\n";
                   }
-                  std::string det = cld2WindowDetectC(wu8);
-                  if(lb) *lb += std::string("[CLD2] cld2DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+wu8+"' → result="+(det.empty()?"null":det)+"\n";
+                  std::string det = cld3WindowDetectC(wu8);
+                  if(lb) *lb += std::string("[CLD3] cld3DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+wu8+"' → result="+(det.empty()?"null":det)+"\n";
                   if(!det.empty()){
                       if(disableAdv){ result=det; done=true; break; }
                       if(okIso3.count(toIso3C(det))){ result=det; done=true; break; }  // clsCLD2.b:60 k.o() accept
@@ -1392,7 +1392,6 @@ jobs:
           "    // Auto TTS f6834S: disable_advanced_detection — skip CLD2, use only script-based detection.\n"
           "    // Useful when CLD2 gives wrong results or as a debug fallback.\n"
           "    fun isDisableAdvancedDetection(): Boolean = prefs.getBoolean(\"disable_advanced_detection\", false)\n"
-          "    // EasyVoice-only feature (user request): ML Kit language identification instead of CLD2.\n"
           "    fun setDisableAdvancedDetection(v: Boolean) = prefs.edit().putBoolean(\"disable_advanced_detection\", v).apply()\n"
           "    fun isLoggingEnabled(): Boolean = prefs.getBoolean(\"logging_enabled\", false)\n"
           "    fun setLoggingEnabled(v: Boolean) = prefs.edit().putBoolean(\"logging_enabled\", v).apply()\n"
@@ -1685,7 +1684,7 @@ jobs:
 
           # ── EasyVoiceTtsService.kt — FULL Auto TTS Port ──
           # SpannableString + LocaleSpan for Mix mode (matches AutoTtsService.E==4)
-          # Per-sentence CLD2 detection for unknowns
+          # Per-sentence detection for unknowns
           # Engine availability check with fallback to user-preferred lang
           # Responsive latch.await(5ms) loop with @Volatile flags — INSTANT STOP reaction
           w("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
@@ -2335,7 +2334,7 @@ jobs:
           "    }\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    // Auto TTS clsCLD2.b(text, R, N, ctx):String — EXACT PORT\n"
-          "    // 64-char sliding window loop: per-window CLD2 + script-family fallback\n"
+          "    // 64-char sliding window loop: per-window detection + script-family fallback\n"
           "    // ─────────────────────────────────────────────────────────────────\n"
           "    private fun detectLanguage(text: String, latFall: String, nonLatFall: String): String {\n"
           "        if (text.isEmpty()) return \"UNKNOWN\"\n"
@@ -2371,7 +2370,7 @@ jobs:
           "            val n7 = n6 + 64\n"
           "            val window = text.substring(n6, minOf(n7, n5))\n"
           "            try {\n"
-          "                val cldResult = cld2DetectWindow(window, latFall, nonLatFall, isDisableAdv)\n"
+          "                val cldResult = cld3DetectWindow(window, latFall, nonLatFall, isDisableAdv)\n"
           "                if (cldResult != null && cldResult != \"UNKNOWN\") {\n"
           "                    if (isDisableAdv) {\n"
           "                        return cldResult\n"
@@ -2413,10 +2412,10 @@ jobs:
           "        }\n"
           "        return \"UNKNOWN\"\n"
           "    }\n"
-          "    // CLD2 detection for a single window — calls NativeEngine in auto mode.\n"
+          "    // CLD3 detection for a single window — calls NativeEngine in auto mode (JVM fallback path).\n"
           "    // Returns detected lang or null if UNKNOWN/blank.\n"
-          "    private fun cld2DetectWindow(window: String, latFall: String, nonLatFall: String, isDisableAdv: Boolean): String? {\n"
-          "        EasyVoiceLogger.d(\"[CLD2] cld2DetectWindow windowLen=${window.length} latFall=$latFall nonLatFall=$nonLatFall isDisableAdv=$isDisableAdv snip='${window.take(30)}'\")\n"
+          "    private fun cld3DetectWindow(window: String, latFall: String, nonLatFall: String, isDisableAdv: Boolean): String? {\n"
+          "        EasyVoiceLogger.d(\"[CLD3] cld3DetectWindow windowLen=${window.length} latFall=$latFall nonLatFall=$nonLatFall isDisableAdv=$isDisableAdv snip='${window.take(30)}'\")\n"
           "        val bytes = window.toByteArray(Charsets.UTF_8)\n"
           "        val buf = ByteBuffer.allocateDirect(bytes.size)\n"
           "        buf.put(bytes); buf.position(0)\n"
@@ -2429,7 +2428,7 @@ jobs:
           "        )\n"
           "        val parts = out.split(\"|\", limit = 2)\n"
           "        val result = if (parts.size == 2 && parts[0].isNotBlank()) parts[0] else null\n"
-          "        EasyVoiceLogger.d(\"[CLD2] cld2DetectWindow rawOut='$out' → result=$result\")\n"
+          "        EasyVoiceLogger.d(\"[CLD3] cld3DetectWindow rawOut='$out' → result=$result\")\n"
           "        return result\n"
           "    }\n"
           "    // Auto TTS clsCLD2.a(String):int — first valid codepoint (skip whitespace/digits/ASCII punct)\n"
@@ -2706,7 +2705,7 @@ jobs:
           "            variant1 == l2.variant\n"
           "        } catch (_: Exception) { false }  // AutoTTS P has no catch (a MissingResourceException would crash); no-match keeps the flow alive and forces a setLanguage — never wrong-voice\n"
           "    }\n"
-          "    // ISO 639-3 → ISO 639-1 normalization for CLD2 edge cases (AutoTTS k.o ISO3 comparison)\n"
+          "    // ISO 639-3 → ISO 639-1 normalization for detector edge cases (AutoTTS k.o ISO3 comparison)\n"
           "    private fun normalizeLangCode(code: String): String {\n"
           "        if (code.length <= 2) return code\n"
           "        // AutoTTS k.i — built by k.c() from Locale.getISOLanguages(): the FULL ISO3→ISO2\n"
@@ -3022,7 +3021,7 @@ jobs:
           "                            // plus mixPendingDetect, and resolveMixChunk() runs detectLanguage() — the SAME\n"
           "                            // faithful clsCLD2.b port auto mode uses (64-UTF-16-unit windows + per-window\n"
           "                            // k.o() check + a.e() script-family fallback) — at speak time. The C++\n"
-          "                            // cld2Detect64 result (parts[0]) is used ONLY as the TYPE fallback. Output is\n"
+          "                            // C++ type-fallback result (parts[0]) is used ONLY as the TYPE fallback. Output is\n"
           "                            // byte-identical (deterministic CLD2); only detection timing now matches AutoTTS.\n"
           "                            // On a routable CLD2 hit → detected lang; else → TYPE fallback (type-1→H(latFall),\n"
           "                            // type-2→I(nonLatFall)) — NOT C (C is only the KNOWN-LocaleSpan fallback).\n"
@@ -3100,14 +3099,14 @@ jobs:
           "                        }\n"
           "                        localeSpanHandled = true\n"
           "                    } else {\n"
-          "                        EasyVoiceLogger.d(\"[SERVICE] auto mode: locale_spans path empty, falling back to CLD2\")\n"
+          "                        EasyVoiceLogger.d(\"[SERVICE] auto mode: locale_spans path empty, falling back to CLD3\")\n"
           "                    }\n"
           "                }\n"
           "                if (!localeSpanHandled) {\n"
-          "                    // AutoTTS-style: single CLD2 call on the full raw text.\n"
+          "                    // AutoTTS-style: single detection call (CLD3 here; AutoTTS uses CLD2) on the full raw text.\n"
           "                    // No splitSentences() — that was trimming trailing spaces between\n"
           "                    // sentences, causing engines to miss natural pause cues.\n"
-          "                    EasyVoiceLogger.d(\"[SERVICE] auto mode: CLD2 on full text textLen=${rawText.length} snip='${rawText.take(80).replace('\\n',' ')}'\")\n"
+          "                    EasyVoiceLogger.d(\"[SERVICE] auto mode: CLD3 on full text textLen=${rawText.length} snip='${rawText.take(80).replace('\\n',' ')}'\")\n"
           "                    val detected = detectLanguage(rawText, latFall, nonLatFall)\n"
           "                    // AutoTTS auto/google (AutoTtsService:1669-1675): k.h-unmapped → C, then H-gate → C\n"
           "                    // (google L=3: H() forced → H-gate never fires). No O/dedicated bypass in AutoTTS.\n"
@@ -4072,9 +4071,9 @@ jobs:
           "    val engineNames = EngineFinder.getEngines(context).map { it.name }.filter { it.isNotBlank() }\n"
           "    if (engineNames.isNotEmpty()) root.addView(descriptionText(context, \"Installed engines: \" + engineNames.joinToString(\", \")))\n"
           "    root.addView(sectionHeader(context, \"Open Source Licenses\"))\n"
-          "    root.addView(descriptionText(context, \"Easy Voice uses the Android Open Source Project (AOSP) and Compact Language Detector 2 (CLD2). Both are licensed under the Apache License, Version 2.0.\"))\n"
+          "    root.addView(descriptionText(context, \"Easy Voice uses the Android Open Source Project (AOSP) and Compact Language Detector 3 (CLD3). Both are licensed under the Apache License, Version 2.0.\"))\n"
           "    root.addView(descriptionText(context, \"• Android Open Source Project (AOSP) — Copyright © 2011 The Android Open Source Project. Licensed under the Apache License, Version 2.0.\"))\n"
-          "    root.addView(descriptionText(context, \"• Compact Language Detector 2 (CLD2) — Copyright © 2013 Google Inc. All Rights Reserved. Licensed under the Apache License, Version 2.0.\"))\n"
+          "    root.addView(descriptionText(context, \"• Compact Language Detector 3 (CLD3) — Copyright © 2016 Google Inc. All Rights Reserved. Licensed under the Apache License, Version 2.0.\"))\n"
           "    root.addView(TextView(context).apply {\n"
           "        text = \"https://www.apache.org/licenses/LICENSE-2.0\"\n"
           "        contentDescription = \"Open Apache License 2.0 web page\"\n"
