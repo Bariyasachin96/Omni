@@ -253,6 +253,11 @@ jobs:
           set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "" FORCE)
           set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
           set(protobuf_WITH_ZLIB OFF CACHE BOOL "" FORCE)
+          # ONE .so ONLY: build protobuf-lite (and CLD3) as STATIC archives that link INTO
+          # libeasyvoice_core.so — never a separate libprotobuf-lite.so in the APK. easyvoice_core
+          # is declared SHARED explicitly below, so it stays the one and only shared library.
+          set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+          set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
           add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/protobuf_src/cmake protobuf_build)
           file(GLOB CLD3_SCRIPT_SPAN ${CLD3_DIR}/script_span/*.cc)
           list(FILTER CLD3_SCRIPT_SPAN EXCLUDE REGEX "test")
