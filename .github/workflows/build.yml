@@ -397,7 +397,8 @@ jobs:
           }
 
           // Auto mode: WHOLE TEXT DETECTION. No length limits. Return as ONE single chunk.
-          static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, bool disableAdvancedDetection) {
+          static std::string cld3DetectRaw(const std::string& u8);  // fwd (defined later); used when the CLD3 option is on
+          static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, bool disableAdvancedDetection, bool useCld3) {
               std::vector<ChunkResult> chunks;
               std::string fullText = "";
               for(auto& s: sentences) {
@@ -408,7 +409,9 @@ jobs:
               }
               if(fullText.empty()) return chunks;
               std::string dominantLang;
-              {
+              if (useCld3) {
+                  dominantLang = cld3DetectRaw(fullText);  // CLD3 option ON: same reliable-gated + script-consistent contract
+              } else {
                   bool is_rel = false;
                   CLD2::Language cld2Lang = CLD2::DetectLanguage(fullText.c_str(), (int)fullText.size(), true, &is_rel);
                   const char* code = CLD2::LanguageCode(cld2Lang);
@@ -726,7 +729,7 @@ jobs:
               JNIEnv* env, jobject, jobject directBuffer, jint length,
               jstring jLat, jstring jNonLat, jstring jMode,
               jstring jPunc, jstring jNum, jstring jEmoji,
-              jstring jNeutralDefault, jboolean jDisableAdvancedDetection)
+              jstring jNeutralDefault, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
               void* buf=env->GetDirectBufferAddress(directBuffer);
@@ -741,6 +744,7 @@ jobs:
               const char* emojiC=env->GetStringUTFChars(jEmoji,nullptr); std::string emojiFall(emojiC); env->ReleaseStringUTFChars(jEmoji,emojiC);
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
               bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
+              bool pdUseCld3 = (jUseCld3 == JNI_TRUE);
 
               // AutoTTS c3.w.g() has NO dictionary/emoji/punct pre-processing — those
               // EasyVoice-only params and prefs were removed entirely (AutoTTS has neither).
@@ -764,7 +768,7 @@ jobs:
                   auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection, true);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else {
-                  auto chunks = buildAutoChunks(processed, latFall, nonLatFall, disableAdvancedDetection);
+                  auto chunks = buildAutoChunks(processed, latFall, nonLatFall, disableAdvancedDetection, pdUseCld3);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               }
               return env->NewStringUTF(result.c_str());
@@ -1130,7 +1134,7 @@ jobs:
           "        mode: String,\n"
           "        puncFall: String, numFall: String, emojiFall: String,\n"
           "        neutralDefault: String,\n"
-          "        disableAdvancedDetection: Boolean\n"
+          "        disableAdvancedDetection: Boolean, useCld3: Boolean\n"
           "    ): String\n"
           "    // AutoTTS a.b / a.w ports (moved native): codepoint→language + script-family fallbacks.\n"
           "    external fun scriptLang(cp: Int): String            // \"\" = no mapping (null)\n"
@@ -2458,7 +2462,7 @@ jobs:
           "            latFall, nonLatFall, \"auto\",\n"
           "            \"auto\", \"auto\", \"auto\",\n"
           "            latFall,\n"
-          "            isDisableAdv\n"
+          "            isDisableAdv, prefs.isUseCld3()\n"
           "        )\n"
           "        val parts = out.split(\"|\", limit = 2)\n"
           "        val result = if (parts.size == 2 && parts[0].isNotBlank()) parts[0] else null\n"
@@ -2988,7 +2992,7 @@ jobs:
           "                                    tBuf, tBytes.size,\n"
           "                                    latFall, nonLatFall, \"mix\",\n"
           "                                    mixPuncLang, mixNumLang, mixEmojiLang,\n"
-          "                                    neutralDefault, disableAdvDet\n"
+          "                                    neutralDefault, disableAdvDet, prefs.isUseCld3()\n"
           "                                )\n"
           "                                for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                                    val parts = chunkStr.split(\"|\", limit = 2)\n"
@@ -3035,7 +3039,7 @@ jobs:
           "                        mixNumLang,\n"
           "                        mixEmojiLang,\n"
           "                        neutralDefault,\n"
-          "                        disableAdvDet\n"
+          "                        disableAdvDet, prefs.isUseCld3()\n"
           "                    )\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
@@ -3078,7 +3082,7 @@ jobs:
           "                        tBuf, tBytes.size,\n"
           "                        latFall, nonLatFall, \"dual\",\n"
           "                        mixPuncLang, mixNumLang, mixEmojiLang,\n"
-          "                        neutralDefault, disableAdvDet\n"
+          "                        neutralDefault, disableAdvDet, prefs.isUseCld3()\n"
           "                    )\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
