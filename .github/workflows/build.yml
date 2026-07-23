@@ -3807,7 +3807,7 @@ jobs:
           "                    }\n"
           "                    TabRow(selectedTabIndex = pager.currentPage) {\n"
           "                        titles.forEachIndexed { i, t ->\n"
-          "                            Tab(selected = pager.currentPage == i, onClick = { scope.launch { pager.animateScrollToPage(i) } }, text = { Text(t) }, icon = { Icon(painterResource(icons[i]), contentDescription = null) })\n"
+          "                            Tab(selected = pager.currentPage == i, onClick = { scope.launch { pager.animateScrollToPage(i) } }, modifier = Modifier.semantics { contentDescription = \"${titles[i]}, tab ${i + 1} of ${titles.size}\"; role = Role.Tab }, text = { Text(t, modifier = Modifier.clearAndSetSemantics { }) }, icon = { Icon(painterResource(icons[i]), contentDescription = null) })\n"
           "                        }\n"
           "                    }\n"
           "                }\n"
