@@ -3854,12 +3854,109 @@ jobs:
           w("app/src/main/res/drawable/ic_tab_licenses.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\" android:tint=\"?attr/colorControlNormal\">\n    <path android:fillColor=\"@android:color/white\" android:pathData=\"M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM13,17h-2v-6h2v6zM13,9h-2L11,7h2v2z\"/>\n</vector>\n")
 
+          # Material 3 theme. Dynamic Color (Material You) is applied at runtime by
+          # EasyVoiceApp on Android 12+; these teal colours are the fallback scheme for
+          # older devices (and pre-dynamic surfaces). Light values here, dark in values-night.
           w("app/src/main/res/values/styles.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
-          "    <style name=\"AppTheme\" parent=\"Theme.Material3.DayNight.NoActionBar\" />\n"
+          "    <style name=\"AppTheme\" parent=\"Theme.Material3.DayNight.NoActionBar\">\n"
+          "        <item name=\"colorPrimary\">@color/md_primary</item>\n"
+          "        <item name=\"colorOnPrimary\">@color/md_on_primary</item>\n"
+          "        <item name=\"colorPrimaryContainer\">@color/md_primary_container</item>\n"
+          "        <item name=\"colorOnPrimaryContainer\">@color/md_on_primary_container</item>\n"
+          "        <item name=\"colorSecondary\">@color/md_secondary</item>\n"
+          "        <item name=\"colorOnSecondary\">@color/md_on_secondary</item>\n"
+          "        <item name=\"colorSecondaryContainer\">@color/md_secondary_container</item>\n"
+          "        <item name=\"colorOnSecondaryContainer\">@color/md_on_secondary_container</item>\n"
+          "        <item name=\"colorTertiary\">@color/md_tertiary</item>\n"
+          "        <item name=\"colorOnTertiary\">@color/md_on_tertiary</item>\n"
+          "        <item name=\"colorTertiaryContainer\">@color/md_tertiary_container</item>\n"
+          "        <item name=\"colorOnTertiaryContainer\">@color/md_on_tertiary_container</item>\n"
+          "        <item name=\"colorError\">@color/md_error</item>\n"
+          "        <item name=\"colorOnError\">@color/md_on_error</item>\n"
+          "        <item name=\"colorErrorContainer\">@color/md_error_container</item>\n"
+          "        <item name=\"colorOnErrorContainer\">@color/md_on_error_container</item>\n"
+          "        <item name=\"android:colorBackground\">@color/md_background</item>\n"
+          "        <item name=\"colorOnBackground\">@color/md_on_background</item>\n"
+          "        <item name=\"colorSurface\">@color/md_surface</item>\n"
+          "        <item name=\"colorOnSurface\">@color/md_on_surface</item>\n"
+          "        <item name=\"colorSurfaceVariant\">@color/md_surface_variant</item>\n"
+          "        <item name=\"colorOnSurfaceVariant\">@color/md_on_surface_variant</item>\n"
+          "        <item name=\"colorOutline\">@color/md_outline</item>\n"
+          "    </style>\n"
           "    <style name=\"AppTheme.NoActionBar\" parent=\"AppTheme\" />\n"
           "</resources>\n")
+
+          # Light fallback palette (teal seed). Dynamic Color overrides these on Android 12+.
+          w("app/src/main/res/values/colors.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<resources>\n"
+          "    <color name=\"md_primary\">#006A60</color>\n"
+          "    <color name=\"md_on_primary\">#FFFFFF</color>\n"
+          "    <color name=\"md_primary_container\">#9EF2E4</color>\n"
+          "    <color name=\"md_on_primary_container\">#00201C</color>\n"
+          "    <color name=\"md_secondary\">#4A635E</color>\n"
+          "    <color name=\"md_on_secondary\">#FFFFFF</color>\n"
+          "    <color name=\"md_secondary_container\">#CCE8E1</color>\n"
+          "    <color name=\"md_on_secondary_container\">#051F1B</color>\n"
+          "    <color name=\"md_tertiary\">#446278</color>\n"
+          "    <color name=\"md_on_tertiary\">#FFFFFF</color>\n"
+          "    <color name=\"md_tertiary_container\">#C9E6FF</color>\n"
+          "    <color name=\"md_on_tertiary_container\">#001E30</color>\n"
+          "    <color name=\"md_error\">#BA1A1A</color>\n"
+          "    <color name=\"md_on_error\">#FFFFFF</color>\n"
+          "    <color name=\"md_error_container\">#FFDAD6</color>\n"
+          "    <color name=\"md_on_error_container\">#410002</color>\n"
+          "    <color name=\"md_background\">#FAFDFA</color>\n"
+          "    <color name=\"md_on_background\">#191C1B</color>\n"
+          "    <color name=\"md_surface\">#FAFDFA</color>\n"
+          "    <color name=\"md_on_surface\">#191C1B</color>\n"
+          "    <color name=\"md_surface_variant\">#DAE5E1</color>\n"
+          "    <color name=\"md_on_surface_variant\">#3F4946</color>\n"
+          "    <color name=\"md_outline\">#6F7976</color>\n"
+          "</resources>\n")
+
+          # Dark fallback palette (teal seed).
+          w("app/src/main/res/values-night/colors.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<resources>\n"
+          "    <color name=\"md_primary\">#82D5C8</color>\n"
+          "    <color name=\"md_on_primary\">#00382F</color>\n"
+          "    <color name=\"md_primary_container\">#005046</color>\n"
+          "    <color name=\"md_on_primary_container\">#9EF2E4</color>\n"
+          "    <color name=\"md_secondary\">#B0CCC5</color>\n"
+          "    <color name=\"md_on_secondary\">#1C3530</color>\n"
+          "    <color name=\"md_secondary_container\">#334B47</color>\n"
+          "    <color name=\"md_on_secondary_container\">#CCE8E1</color>\n"
+          "    <color name=\"md_tertiary\">#ACCBE4</color>\n"
+          "    <color name=\"md_on_tertiary\">#123348</color>\n"
+          "    <color name=\"md_tertiary_container\">#2B4A5F</color>\n"
+          "    <color name=\"md_on_tertiary_container\">#C9E6FF</color>\n"
+          "    <color name=\"md_error\">#FFB4AB</color>\n"
+          "    <color name=\"md_on_error\">#690005</color>\n"
+          "    <color name=\"md_error_container\">#93000A</color>\n"
+          "    <color name=\"md_on_error_container\">#FFDAD6</color>\n"
+          "    <color name=\"md_background\">#191C1B</color>\n"
+          "    <color name=\"md_on_background\">#E1E3E0</color>\n"
+          "    <color name=\"md_surface\">#191C1B</color>\n"
+          "    <color name=\"md_on_surface\">#E1E3E0</color>\n"
+          "    <color name=\"md_surface_variant\">#3F4946</color>\n"
+          "    <color name=\"md_on_surface_variant\">#BEC9C4</color>\n"
+          "    <color name=\"md_outline\">#899390</color>\n"
+          "</resources>\n")
+
+          # Application: enables Material You dynamic colour on Android 12+ (no-op below that).
+          w("app/src/main/java/com/tts/easyvoice/EasyVoiceApp.kt",
+          "package com.tts.easyvoice\n"
+          "import android.app.Application\n"
+          "import com.google.android.material.color.DynamicColors\n"
+          "class EasyVoiceApp : Application() {\n"
+          "    override fun onCreate() {\n"
+          "        super.onCreate()\n"
+          "        DynamicColors.applyToActivitiesIfAvailable(this)\n"
+          "    }\n"
+          "}\n")
 
           w("app/src/main/res/values/strings.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
@@ -3881,6 +3978,7 @@ jobs:
           "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n"
           "    <uses-permission android:name=\"android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\" />\n"
           "    <application\n"
+          "        android:name=\".EasyVoiceApp\"\n"
           "        android:label=\"@string/app_name\"\n"
           "        android:theme=\"@style/AppTheme.NoActionBar\"\n"
           "        android:allowBackup=\"true\"\n"
