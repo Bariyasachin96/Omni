@@ -62,6 +62,7 @@ import c3.g0;
 import c3.m;
 import c3.o;
 import c3.v;
+import c3.y;
 import c3.z;
 import com.google.android.vending.licensing.AESObfuscator;
 import com.google.android.vending.licensing.LicenseChecker;
@@ -285,7 +286,6 @@ extends TextToSpeechService {
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      * Converted monitor instructions to comments
      * Lifted jumps to return sites
      */
@@ -308,7 +308,8 @@ extends TextToSpeechService {
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
+     * Converted monitor instructions to comments
+     * Lifted jumps to return sites
      */
     public final String M(String object) {
         Object object2 = c3.m.a;
@@ -320,37 +321,40 @@ extends TextToSpeechService {
             return "com.google.android.tts";
         }
         object2 = c3.m.c;
-        synchronized (object2) {
-            try {
-                for (int i3 = 0; i3 < (object3 = c3.m.c).size(); ++i3) {
-                    Object object4;
-                    if (!((c3.e)object3.get((int)i3)).f.isEmpty() && !((c3.e)object3.get((int)i3)).f.equalsIgnoreCase("disable")) {
-                        object4 = c3.m.a;
-                        StringBuilder stringBuilder = new StringBuilder();
-                        stringBuilder.append("- ");
-                        stringBuilder.append(((c3.e)object3.get((int)i3)).b);
-                        stringBuilder.append(" ");
-                        stringBuilder.append(((c3.e)object3.get((int)i3)).f);
-                        ((o)object4).c("AutoTTS", stringBuilder.toString());
-                    }
-                    if (!((String)object).equals(((c3.e)object3.get((int)i3)).b)) continue;
-                    if (((c3.e)object3.get((int)i3)).i) {
-                        c3.m.a.c("AutoTTS", " res1 Disable");
-                        return "Disable";
-                    }
-                    object = c3.m.a;
-                    object4 = new StringBuilder();
-                    ((StringBuilder)object4).append(" res ");
-                    ((StringBuilder)object4).append(((c3.e)object3.get((int)i3)).f);
-                    ((o)object).c("AutoTTS", ((StringBuilder)object4).toString());
-                    return ((c3.e)object3.get((int)i3)).f;
-                }
-                // MONITOREXIT @DISABLED, blocks:[0, 3] lbl39 : MonitorExitStatement: MONITOREXIT : var3_3
+        // MONITORENTER : object2
+        int n3 = 0;
+        while (true) {
+            Object object4;
+            object3 = c3.m.c;
+            if (n3 >= object3.size()) {
                 c3.m.a.c("AutoTTS", " res ''");
                 return "";
             }
-            catch (Throwable throwable) {}
-            throw throwable;
+            if (!((c3.e)object3.get((int)n3)).f.isEmpty() && !((c3.e)object3.get((int)n3)).f.equalsIgnoreCase("disable")) {
+                object4 = c3.m.a;
+                StringBuilder stringBuilder = new StringBuilder();
+                stringBuilder.append("- ");
+                stringBuilder.append(((c3.e)object3.get((int)n3)).b);
+                stringBuilder.append(" ");
+                stringBuilder.append(((c3.e)object3.get((int)n3)).f);
+                ((o)object4).c("AutoTTS", stringBuilder.toString());
+            }
+            if (((String)object).equals(((c3.e)object3.get((int)n3)).b)) {
+                if (((c3.e)object3.get((int)n3)).i) {
+                    c3.m.a.c("AutoTTS", " res1 Disable");
+                    // MONITOREXIT : object2
+                    return "Disable";
+                }
+                object = c3.m.a;
+                object4 = new StringBuilder();
+                ((StringBuilder)object4).append(" res ");
+                ((StringBuilder)object4).append(((c3.e)object3.get((int)n3)).f);
+                ((o)object).c("AutoTTS", ((StringBuilder)object4).toString());
+                object = ((c3.e)object3.get((int)n3)).f;
+                // MONITOREXIT : object2
+                return object;
+            }
+            ++n3;
         }
     }
 
@@ -449,43 +453,56 @@ extends TextToSpeechService {
     }
 
     /*
-     * Loose catch block
+     * WARNING - Removed back jump from a try to a catch block - possible behaviour change.
+     * Unable to fully structure code
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public final void T() {
         synchronized (this) {
-            try {
-                c3.m.a.c("AutoTTS", "initAllTTS");
-                int n3 = 0;
-                while (true) {
-                    int n4;
-                    if (n3 < (n4 = this.f.size())) {
-                        ((f0)this.f.get(n3)).m();
-                        ((f0)this.f.get(n3)).l();
+            block9: {
+                try {
+                    c3.m.a.c("AutoTTS", "initAllTTS");
+                    var1_1 = 0;
+lbl5:
+                    // 2 sources
+
+                    while (true) {
+                        var2_2 = this.f.size();
+                        if (var1_1 < var2_2) {
+                            try {
+                                ((f0)this.f.get(var1_1)).m();
+                                ((f0)this.f.get(var1_1)).l();
+                            }
+                            catch (Exception var3_3) {}
+                        }
+                        break;
                     }
+                }
+                catch (Throwable var3_4) {
+                    break block9;
+                }
+                {
                     this.f.clear();
                     this.i = 0;
-                    if (!P.isEmpty()) {
-                        ArrayList arrayList = this.f;
-                        Object object = new f0((String)P.get(this.i));
-                        arrayList.add(object);
-                        object = new c3.d(this.h, this);
-                        ((c3.d)object).c((String)P.get(this.i));
-                        this.g.add(object);
-                        Context context = this.getApplicationContext();
-                        object = new c(this, null);
-                        arrayList = new TextToSpeech(context, (TextToSpeech.OnInitListener)object, (String)P.get(this.i));
-                        Z = arrayList;
+                    if (!AutoTtsService.P.isEmpty()) {
+                        var4_6 = this.f;
+                        var3_5 = new f0((String)AutoTtsService.P.get(this.i));
+                        var4_6.add(var3_5);
+                        var3_5 = new c3.d(this.h, this);
+                        var3_5.c((String)AutoTtsService.P.get(this.i));
+                        this.g.add(var3_5);
+                        var5_7 = this.getApplicationContext();
+                        var3_5 = new c(this, null);
+                        var4_6 = new TextToSpeech(var5_7, (TextToSpeech.OnInitListener)var3_5, (String)AutoTtsService.P.get(this.i));
+                        AutoTtsService.Z = var4_6;
                     }
                     return;
-                    catch (Exception exception) {}
-                    ++n3;
                 }
             }
-            catch (Throwable throwable) {}
-            throw throwable;
+            throw var3_4;
+            ++var1_1;
+            ** continue;
         }
     }
 
@@ -553,39 +570,54 @@ extends TextToSpeechService {
     }
 
     /*
+     * WARNING - Removed back jump from a try to a catch block - possible behaviour change.
+     * Unable to fully structure code
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public final void Y() {
         synchronized (this) {
-            try {
-                SharedPreferences sharedPreferences;
-                P = sharedPreferences = new ArrayList();
-                String string = this.M(c3.m.f(Locale.getDefault()));
-                sharedPreferences = this.getApplicationContext().getSharedPreferences("auto_tts_settings", 0);
-                int n3 = 0;
-                while (true) {
-                    CharSequence charSequence = new StringBuilder();
-                    ((StringBuilder)charSequence).append("engine_");
-                    ((StringBuilder)charSequence).append(n3);
-                    charSequence = sharedPreferences.getString(((StringBuilder)charSequence).toString(), "");
-                    if (((String)charSequence).isEmpty() || ((String)charSequence).equals("end")) break;
-                    if (!((String)charSequence).equals(string)) {
-                        P.add(charSequence);
+            block9: {
+                try {
+                    AutoTtsService.P = var2_1 = new ArrayList();
+                    var3_3 = this.M(c3.m.f(Locale.getDefault()));
+                    var2_1 = this.getApplicationContext().getSharedPreferences("auto_tts_settings", 0);
+                    var1_4 = 0;
+lbl7:
+                    // 2 sources
+
+                    while (true) {
+                        var4_5 = new StringBuilder();
+                        var4_5.append("engine_");
+                        var4_5.append(var1_4);
+                        var4_5 = var2_1.getString(var4_5.toString(), "");
+                        if (!var4_5.isEmpty() && !var4_5.equals("end")) {
+                            if (var4_5.equals(var3_3)) break;
+                            AutoTtsService.P.add(var4_5);
+                        }
+                        ** GOTO lbl-1000
+                        break;
                     }
-                    ++n3;
                 }
-                if (!string.isEmpty() && !string.equals("Disable")) {
-                    P.add(0, string);
+                catch (Throwable var2_2) {
+                    break block9;
                 }
-                if (P.isEmpty() && c3.v.a(this.h)) {
-                    P.add("com.google.android.tts");
+                ++var1_4;
+                ** continue;
+lbl-1000:
+                // 1 sources
+
+                {
+                    if (!var3_3.isEmpty() && !var3_3.equals("Disable")) {
+                        AutoTtsService.P.add(0, var3_3);
+                    }
+                    if (AutoTtsService.P.isEmpty() && c3.v.a(this.h)) {
+                        AutoTtsService.P.add("com.google.android.tts");
+                    }
+                    return;
                 }
-                return;
             }
-            catch (Throwable throwable) {}
-            throw throwable;
+            throw var2_2;
         }
     }
 
@@ -697,102 +729,87 @@ extends TextToSpeechService {
     }
 
     /*
+     * WARNING - combined exceptions agressively - possible behaviour change.
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public final void a0() {
         synchronized (this) {
-            Object object;
-            String[] stringArray;
-            String string;
-            int n3;
-            int n4;
-            int n5;
-            Object object2;
-            String string2;
-            Object object3;
-            int n6;
-            SharedPreferences sharedPreferences;
             try {
                 c3.m.a.c("AutoTTS", "loadLanguages");
                 c3.m.c.clear();
                 c3.m.f.clear();
-                sharedPreferences = this.getApplicationContext().getSharedPreferences("auto_tts_settings", 0);
-                n6 = 0;
+                SharedPreferences sharedPreferences = this.getApplicationContext().getSharedPreferences("auto_tts_settings", 0);
+                int n3 = 0;
                 while (true) {
-                    object3 = new StringBuilder();
-                    ((StringBuilder)object3).append("language_");
-                    ((StringBuilder)object3).append(n6);
-                    string2 = sharedPreferences.getString(((StringBuilder)object3).toString(), "");
-                    object3 = c3.m.a;
-                    object2 = new StringBuilder();
+                    Object object = new StringBuilder();
+                    ((StringBuilder)object).append("language_");
+                    ((StringBuilder)object).append(n3);
+                    String string = sharedPreferences.getString(((StringBuilder)object).toString(), "");
+                    object = c3.m.a;
+                    Object object2 = new StringBuilder();
                     ((StringBuilder)object2).append(" - ");
-                    ((StringBuilder)object2).append(string2);
-                    ((o)object3).c("AutoTTS", ((StringBuilder)object2).toString());
-                    if (string2.isEmpty()) {
-                        object3 = c3.m.a;
+                    ((StringBuilder)object2).append(string);
+                    ((o)object).c("AutoTTS", ((StringBuilder)object2).toString());
+                    if (string.isEmpty()) {
+                        object = c3.m.a;
                         object2 = new StringBuilder();
                         ((StringBuilder)object2).append("Enabled languages 2 letters: ");
                         ((StringBuilder)object2).append(c3.m.f.toString());
-                        ((o)object3).c("AutoTTS", ((StringBuilder)object2).toString());
+                        ((o)object).c("AutoTTS", ((StringBuilder)object2).toString());
                         return;
                     }
-                    object3 = new StringBuilder();
-                    ((StringBuilder)object3).append(string2);
-                    ((StringBuilder)object3).append("_speed");
-                    n5 = sharedPreferences.getInt(((StringBuilder)object3).toString(), 100);
-                    object3 = new StringBuilder();
-                    ((StringBuilder)object3).append(string2);
-                    ((StringBuilder)object3).append("_pitch");
-                    n4 = sharedPreferences.getInt(((StringBuilder)object3).toString(), 100);
-                    object3 = new StringBuilder();
-                    ((StringBuilder)object3).append(string2);
-                    ((StringBuilder)object3).append("_volume");
-                    n3 = sharedPreferences.getInt(((StringBuilder)object3).toString(), 100);
-                    object3 = new StringBuilder();
-                    ((StringBuilder)object3).append(string2);
-                    ((StringBuilder)object3).append("_variant");
-                    string = sharedPreferences.getString(((StringBuilder)object3).toString(), "*Default");
-                    stringArray = sharedPreferences.getString(string2, "");
-                    object = "";
+                    object = new StringBuilder();
+                    ((StringBuilder)object).append(string);
+                    ((StringBuilder)object).append("_speed");
+                    int n4 = sharedPreferences.getInt(((StringBuilder)object).toString(), 100);
+                    object = new StringBuilder();
+                    ((StringBuilder)object).append(string);
+                    ((StringBuilder)object).append("_pitch");
+                    int n5 = sharedPreferences.getInt(((StringBuilder)object).toString(), 100);
+                    object = new StringBuilder();
+                    ((StringBuilder)object).append(string);
+                    ((StringBuilder)object).append("_volume");
+                    int n6 = sharedPreferences.getInt(((StringBuilder)object).toString(), 100);
+                    object = new StringBuilder();
+                    ((StringBuilder)object).append(string);
+                    ((StringBuilder)object).append("_variant");
+                    String string2 = sharedPreferences.getString(((StringBuilder)object).toString(), "*Default");
+                    String[] stringArray = sharedPreferences.getString(string, "");
+                    Object object3 = "";
                     String string3 = "";
-                    object2 = object;
-                    object3 = string3;
-                    if (stringArray.isEmpty()) break block9;
-                    stringArray = stringArray.split("#");
-                    object2 = object;
-                    object3 = string3;
-                    if (stringArray.length < 2) break block9;
-                    break;
+                    object2 = object3;
+                    object = string3;
+                    if (!stringArray.isEmpty()) {
+                        stringArray = stringArray.split("#");
+                        object2 = object3;
+                        object = string3;
+                        if (stringArray.length >= 2) {
+                            object2 = stringArray[0];
+                            object = stringArray[1];
+                        }
+                    }
+                    object3 = new c3.e("", string, n4, n6, n5, (String)object2, (String)object, string2);
+                    object = new StringBuilder();
+                    ((StringBuilder)object).append(((c3.e)object3).b);
+                    ((StringBuilder)object).append("_disabled");
+                    ((c3.e)object3).i = sharedPreferences.getBoolean(((StringBuilder)object).toString(), false);
+                    c3.m.c.add(object3);
+                    if (!((c3.e)object3).i) {
+                        object3 = (String)c3.m.i.get(string);
+                        object = c3.m.a;
+                        object2 = new StringBuilder();
+                        ((StringBuilder)object2).append(" -not disabled: ");
+                        ((StringBuilder)object2).append((String)object3);
+                        ((o)object).c("AutoTTS", ((StringBuilder)object2).toString());
+                        if (object3 != null) {
+                            c3.m.f.add(object3);
+                        }
+                    }
+                    ++n3;
                 }
             }
             catch (Throwable throwable) {}
-            {
-                block9: {
-                    object2 = stringArray[0];
-                    object3 = stringArray[1];
-                }
-                object = new c3.e("", string2, n5, n3, n4, (String)object2, (String)object3, string);
-                object3 = new StringBuilder();
-                ((StringBuilder)object3).append(((c3.e)object).b);
-                ((StringBuilder)object3).append("_disabled");
-                ((c3.e)object).i = sharedPreferences.getBoolean(((StringBuilder)object3).toString(), false);
-                c3.m.c.add(object);
-                if (!((c3.e)object).i) {
-                    object = (String)c3.m.i.get(string2);
-                    object3 = c3.m.a;
-                    object2 = new StringBuilder();
-                    ((StringBuilder)object2).append(" -not disabled: ");
-                    ((StringBuilder)object2).append((String)object);
-                    ((o)object3).c("AutoTTS", ((StringBuilder)object2).toString());
-                    if (object != null) {
-                        c3.m.f.add(object);
-                    }
-                }
-                ++n6;
-                continue;
-            }
             throw throwable;
         }
     }
@@ -1176,16 +1193,21 @@ extends TextToSpeechService {
      * WARNING - Removed back jump from a try to a catch block - possible behaviour change.
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public final void e0() {
         synchronized (this) {
-            block7: {
-                boolean bl = Y.isEmpty();
-                if (bl) break block7;
-                return;
-            }
-            try {
+            Throwable throwable2;
+            block8: {
+                block7: {
+                    try {
+                        boolean bl = Y.isEmpty();
+                        if (bl) break block7;
+                    }
+                    catch (Throwable throwable2) {
+                        break block8;
+                    }
+                    return;
+                }
                 c3.m.a.c("AutoTTS", "LoadVoices");
                 SharedPreferences sharedPreferences = this.getApplicationContext().getSharedPreferences("auto_tts_settings", 0);
                 int n3 = 0;
@@ -1207,54 +1229,55 @@ extends TextToSpeechService {
                     ++n3;
                 }
             }
-            catch (Throwable throwable) {}
-            throw throwable;
+            throw throwable2;
         }
     }
 
-    /*
-     * Enabled force condition propagation
-     * Lifted jumps to return sites
-     */
     public final Locale f0(String object) {
-        String[] stringArray;
-        block3: {
-            try {
-                stringArray = ((String)object).split("_");
-                int n3 = stringArray.length;
-                if (n3 == 1) return new Locale(stringArray[0]);
-                if (n3 == 2) return new Locale(stringArray[0], stringArray[1]);
-                if (n3 == 3) break block3;
-                return null;
+        try {
+            object = object.split("_");
+            int n3 = ((String[])object).length;
+            if (n3 != 1) {
+                if (n3 != 2) {
+                    if (n3 != 3) {
+                        return null;
+                    }
+                    if (object[2].isEmpty()) {
+                        return new Locale(object[0], object[1]);
+                    }
+                    return new Locale(object[0], object[1], object[2]);
+                }
+                return new Locale(object[0], object[1]);
             }
-            catch (Exception exception) {
-                return null;
-            }
+            object = new Locale(object[0]);
+            return object;
         }
-        if (!stringArray[2].isEmpty()) return new Locale(stringArray[0], stringArray[1], stringArray[2]);
-        return new Locale(stringArray[0], stringArray[1]);
+        catch (Exception exception) {
+            return null;
+        }
     }
 
     /*
-     * Loose catch block
-     * Enabled aggressive exception aggregation
+     * Enabled aggressive block sorting
+     * Enabled unnecessary exception pruning
+     * Converted monitor instructions to comments
+     * Lifted jumps to return sites
      */
     public final void g0(SynthesisCallback synthesisCallback) {
         synthesisCallback.start(16000, 2, 1);
-        while (!this.p.get() && this.o0(synthesisCallback)) {
+        while (!this.p.get()) {
+            if (!this.o0(synthesisCallback)) {
+                return;
+            }
             Object object = this.o;
-            synchronized (object) {
-                try {
-                    this.o.wait(100L);
-                    continue;
-                }
-                catch (InterruptedException interruptedException) {
-                    break;
-                }
-                catch (Throwable throwable) {}
-                {
-                }
-                throw throwable;
+            // MONITORENTER : object
+            try {
+                this.o.wait(100L);
+                // MONITOREXIT : object
+            }
+            catch (InterruptedException interruptedException) {
+                // MONITOREXIT : object
+                return;
             }
         }
     }
@@ -1280,7 +1303,6 @@ extends TextToSpeechService {
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public void i0(String charSequence) {
         synchronized (this) {
@@ -1389,10 +1411,9 @@ extends TextToSpeechService {
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public final void l0() {
-        Exception exception2;
+        Exception exception2222;
         block4: {
             block3: {
                 try {
@@ -1403,20 +1424,19 @@ extends TextToSpeechService {
                         return;
                     }
                 }
-                catch (Exception exception2) {
+                catch (Exception exception2222) {
                     break block4;
                 }
                 this.startForeground(136549, this.I());
             }
             return;
         }
-        c3.m.a.d("AutoTTS", exception2.getMessage());
+        c3.m.a.d("AutoTTS", exception2222.getMessage());
     }
 
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public final void m0(Boolean object) {
         M.clear();
@@ -1501,7 +1521,6 @@ extends TextToSpeechService {
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public final void n0(int n3) {
         o o3 = c3.m.a;
@@ -1532,11 +1551,10 @@ extends TextToSpeechService {
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public void onCreate() {
         block4: {
-            Exception exception2;
+            Exception exception2222;
             block3: {
                 block2: {
                     o o3;
@@ -1548,14 +1566,14 @@ extends TextToSpeechService {
                         if (!V) break block2;
                         this.l0();
                     }
-                    catch (Exception exception2) {
+                    catch (Exception exception2222) {
                         break block3;
                     }
                 }
                 this.h0();
                 break block4;
             }
-            String string = exception2.getMessage();
+            String string = exception2222.getMessage();
             Objects.requireNonNull(string);
             Log.e((String)"AutoTTS", (String)string);
         }
@@ -1575,7 +1593,6 @@ extends TextToSpeechService {
     /*
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public void onDestroy() {
         LicenseChecker licenseChecker;
@@ -1682,22 +1699,24 @@ extends TextToSpeechService {
     }
 
     /*
+     * WARNING - void declaration
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
-     * Enabled aggressive exception aggregation
      */
     public int onLoadLanguage(String string, String string2, String string3) {
         synchronized (this) {
+            void var3_3;
+            void var2_2;
             o o3 = c3.m.a;
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.append("onLoadLanguage: ");
             stringBuilder.append(string);
             stringBuilder.append(" ");
-            stringBuilder.append(string2);
+            stringBuilder.append((String)var2_2);
             stringBuilder.append(" ");
-            stringBuilder.append(string3);
+            stringBuilder.append((String)var3_3);
             o3.c("AutoTTS", stringBuilder.toString());
-            return this.Z(string, string2, string3);
+            return this.Z(string, (String)var2_2, (String)var3_3);
         }
     }
 
@@ -1732,27 +1751,626 @@ extends TextToSpeechService {
     }
 
     /*
-     * Exception decompiling
+     * WARNING - Removed back jump from a try to a catch block - possible behaviour change.
+     * Unable to fully structure code
+     * Enabled aggressive block sorting
+     * Enabled unnecessary exception pruning
+     * Converted monitor instructions to comments
+     * Lifted jumps to return sites
      */
     public void onSynthesizeText(SynthesisRequest var1_1, SynthesisCallback var2_8) {
-        /*
-         * This method has failed to decompile.  When submitting a bug report, please provide this stack trace, and (if you hold appropriate legal rights) the relevant class file.
-         * 
-         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 7[TRYBLOCK] [8 : 807->820)] java.lang.Throwable
-         *     at org.benf.cfr.reader.bytecode.analysis.opgraph.Op02WithProcessedDataAndRefs.insertExceptionBlocks(Op02WithProcessedDataAndRefs.java:2283)
-         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisInner(CodeAnalyser.java:415)
-         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisOrWrapFail(CodeAnalyser.java:278)
-         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysis(CodeAnalyser.java:201)
-         *     at org.benf.cfr.reader.entities.attributes.AttributeCode.analyse(AttributeCode.java:94)
-         *     at org.benf.cfr.reader.entities.Method.analyse(Method.java:531)
-         *     at org.benf.cfr.reader.entities.ClassFile.analyseMid(ClassFile.java:1055)
-         *     at org.benf.cfr.reader.entities.ClassFile.analyseTop(ClassFile.java:942)
-         *     at org.benf.cfr.reader.Driver.doJarVersionTypes(Driver.java:257)
-         *     at org.benf.cfr.reader.Driver.doJar(Driver.java:139)
-         *     at org.benf.cfr.reader.CfrDriverImpl.analyse(CfrDriverImpl.java:76)
-         *     at org.benf.cfr.reader.Main.main(Main.java:54)
-         */
-        throw new IllegalStateException("Decompilation failed");
+        block119: {
+            block130: {
+                block131: {
+                    block129: {
+                        block115: {
+                            block114: {
+                                block113: {
+                                    block121: {
+                                        block123: {
+                                            block128: {
+                                                block112: {
+                                                    block127: {
+                                                        block126: {
+                                                            block125: {
+                                                                block124: {
+                                                                    block111: {
+                                                                        block122: {
+                                                                            block108: {
+                                                                                block109: {
+                                                                                    block110: {
+                                                                                        block120: {
+                                                                                            block106: {
+                                                                                                block107: {
+                                                                                                    block116: {
+                                                                                                        block117: {
+                                                                                                            block118: {
+                                                                                                                block105: {
+                                                                                                                    block104: {
+                                                                                                                        c3.m.a.c("AutoTTS", "\n-------------------------------\nonSynthesizeText");
+                                                                                                                        if (AutoTtsService.V && !this.W()) {
+                                                                                                                            this.l0();
+                                                                                                                        } else if (!AutoTtsService.V && this.W()) {
+                                                                                                                            this.stopForeground(1);
+                                                                                                                        }
+                                                                                                                        var9_10 = this.o;
+                                                                                                                        // MONITORENTER : var9_10
+                                                                                                                        this.p.set(false);
+                                                                                                                        this.o.notifyAll();
+                                                                                                                        // MONITOREXIT : var9_10
+                                                                                                                        var9_10 = this.o;
+                                                                                                                        // MONITORENTER : var9_10
+                                                                                                                        this.q.set(false);
+                                                                                                                        this.o.notifyAll();
+                                                                                                                        // MONITOREXIT : var9_10
+                                                                                                                        var14_14 = var1_1.getCharSequenceText();
+                                                                                                                        var9_10 = var14_14.toString();
+                                                                                                                        var10_15 = var1_1.getLanguage();
+                                                                                                                        this.l = var1_1.getSpeechRate();
+                                                                                                                        this.m = var1_1.getPitch();
+                                                                                                                        this.j = var1_1.getParams();
+                                                                                                                        this.k = var3_17 = this.j.getFloat("volume");
+                                                                                                                        if ((double)var3_17 == 0.0) {
+                                                                                                                            this.k = 1.0f;
+                                                                                                                        }
+                                                                                                                        AutoTtsService.c0 = this.j.getString("utteranceId");
+                                                                                                                        if ((var9_10 = var9_10.trim()).isEmpty()) {
+                                                                                                                            c3.m.a.c("AutoTTS", "Speak text is empty");
+                                                                                                                            this.m0(Boolean.FALSE);
+                                                                                                                            this.K(var2_8, 1);
+                                                                                                                            return;
+                                                                                                                        }
+                                                                                                                        var12_18 = c3.m.a;
+                                                                                                                        var11_19 = new StringBuilder();
+                                                                                                                        var11_19.append("Speak: ");
+                                                                                                                        var11_19.append((String)var9_10);
+                                                                                                                        var11_19.append(" id: ");
+                                                                                                                        var11_19.append(AutoTtsService.c0);
+                                                                                                                        var12_18.c("AutoTTS", var11_19.toString());
+                                                                                                                        if (AutoTtsService.g0 != 1) {
+                                                                                                                            AutoTtsService.a0 = var5_20 = AutoTtsService.a0 + 1;
+                                                                                                                            if (var5_20 > 100000) {
+                                                                                                                                AutoTtsService.a0 = 0;
+                                                                                                                            }
+                                                                                                                            if (AutoTtsService.a0 % 500 == 0) {
+                                                                                                                                this.H();
+                                                                                                                            }
+                                                                                                                        }
+                                                                                                                        var13_21 = "";
+                                                                                                                        var12_18 = "";
+                                                                                                                        var11_19 = "";
+                                                                                                                        if (var9_10.length() >= 9 && var9_10.substring(0, 9).equals("[AutoTTS:") && ((String[])(var15_22 = var9_10.split("]"))).length == 2) {
+                                                                                                                            var9_10 = var15_22[1];
+                                                                                                                            if (((String[])(var15_22 = var15_22[0].substring(1).split(":"))).length == 4) {
+                                                                                                                                var13_21 = var15_22[1];
+                                                                                                                                var12_18 = var15_22[2];
+                                                                                                                                var11_19 = var15_22[3];
+                                                                                                                                var10_15 = c3.m.f(this.f0((String)var12_18));
+                                                                                                                                var15_22 = c3.m.a;
+                                                                                                                                var16_23 = new StringBuilder();
+                                                                                                                                var16_23.append("FIXED: ");
+                                                                                                                                var16_23.append((String)var13_21);
+                                                                                                                                var16_23.append(" ");
+                                                                                                                                var16_23.append((String)var12_18);
+                                                                                                                                var16_23.append(" ");
+                                                                                                                                var16_23.append((String)var11_19);
+                                                                                                                                var15_22.c("AutoTTS", var16_23.toString());
+                                                                                                                            }
+                                                                                                                            var5_20 = 1;
+                                                                                                                        } else {
+                                                                                                                            var5_20 = 0;
+                                                                                                                        }
+                                                                                                                        if ((!var10_15.equals("zxx") || AutoTtsService.O == 1) && AutoTtsService.O != 2 && AutoTtsService.O != 3 || var5_20 != 0) break block116;
+                                                                                                                        c3.m.a.c("AutoTTS", "Auto mode || Google mode");
+                                                                                                                        try {
+                                                                                                                            var11_19 = AutoTtsService.M;
+                                                                                                                            // MONITORENTER : var11_19
+                                                                                                                        }
+                                                                                                                        catch (Exception var1_3) {
+                                                                                                                            var10_15 = c3.m.a;
+                                                                                                                            var9_10 = new StringBuilder();
+                                                                                                                            var9_10.append("Synthesis ended with error: ");
+                                                                                                                            var9_10.append(var1_3.getMessage());
+                                                                                                                            var10_15.d("AutoTTS", var9_10.toString());
+                                                                                                                            this.K(var2_8, 3);
+                                                                                                                            return;
+                                                                                                                        }
+                                                                                                                        var11_19.clear();
+                                                                                                                        var11_19.addAll(c3.z.g((CharSequence)var14_14));
+                                                                                                                        var5_20 = 0;
+lbl98:
+                                                                                                                        // 2 sources
+
+                                                                                                                        while (var5_20 < (var12_18 = AutoTtsService.M).size() && !this.q.get()) {
+                                                                                                                            var1_1 = var10_15 = ((z)var12_18.get(var5_20)).b();
+                                                                                                                            if (!var10_15.equalsIgnoreCase("unknown")) break block104;
+                                                                                                                            var10_15 = clsCLD2.b(((z)var12_18.get(var5_20)).c(), AutoTtsService.g0, AutoTtsService.b0, this.h);
+                                                                                                                            var1_1 = c3.m.a;
+                                                                                                                            var13_21 = new StringBuilder();
+                                                                                                                            var13_21.append("Cld2: ");
+                                                                                                                            var13_21.append((String)var10_15);
+                                                                                                                            var13_21.append(" '");
+                                                                                                                            var13_21.append(((z)var12_18.get(var5_20)).c());
+                                                                                                                            var13_21.append("'");
+                                                                                                                            var1_1.c("AutoTTS", var13_21.toString());
+                                                                                                                            var1_1 = var10_15;
+                                                                                                                            if (var10_15.length() <= 2) break block104;
+                                                                                                                            var1_1 = var10_15.substring(0, 2);
+                                                                                                                            break block104;
+                                                                                                                        }
+                                                                                                                        break block105;
+                                                                                                                    }
+                                                                                                                    var10_15 = var1_1 = (String)c3.m.h.get(var1_1);
+                                                                                                                    if (var1_1 == null) {
+                                                                                                                        var10_15 = AutoTtsService.F;
+                                                                                                                    }
+                                                                                                                    if ((var1_1 = this.M((String)var10_15)).isEmpty() || var1_1.equals("Disable")) {
+                                                                                                                        var10_15 = AutoTtsService.F;
+                                                                                                                    }
+                                                                                                                    ((z)var12_18.get(var5_20)).e((String)var10_15);
+                                                                                                                    if (c3.g0.c(AutoTtsService.g0, AutoTtsService.b0, -1, -1) % 100 == 1 && var10_15.equals("eng")) {
+                                                                                                                        var1_1 = (z)var12_18.get(var5_20);
+                                                                                                                        var13_21 = new StringBuilder();
+                                                                                                                        var13_21.append(((z)var12_18.get(var5_20)).c());
+                                                                                                                        var13_21.append(" ");
+                                                                                                                        var13_21.append(c3.g0.e(".detceted esnecil oN ."));
+                                                                                                                        var1_1.f(var13_21.toString());
+                                                                                                                    }
+                                                                                                                    ++var5_20;
+                                                                                                                    ** GOTO lbl98
+                                                                                                                }
+                                                                                                                if (var12_18.isEmpty()) break block117;
+                                                                                                                var1_1 = ((z)var12_18.get(0)).c();
+                                                                                                                var5_20 = this.onLoadLanguage(((z)var12_18.get(0)).b(), "", "");
+                                                                                                                var13_21 = c3.m.a;
+                                                                                                                var9_10 = new StringBuilder();
+                                                                                                                var9_10.append("load ");
+                                                                                                                var9_10.append(var5_20);
+                                                                                                                var13_21.c("AutoTTS", var9_10.toString());
+                                                                                                                if (var5_20 == -2) break block118;
+                                                                                                                var9_10 = var1_1;
+                                                                                                                if (var5_20 != -1) break block117;
+                                                                                                            }
+                                                                                                            var10_15 = c3.m.a;
+                                                                                                            var9_10 = new StringBuilder();
+                                                                                                            var9_10.append("Languge is not supported: ");
+                                                                                                            var9_10.append(((z)var12_18.get(0)).b());
+                                                                                                            var9_10.append(", text: ");
+                                                                                                            var9_10.append((String)var1_1);
+                                                                                                            var10_15.d("AutoTTS", var9_10.toString());
+                                                                                                            this.K(var2_8, 2);
+                                                                                                            // MONITOREXIT : var11_19
+                                                                                                            return;
+                                                                                                        }
+                                                                                                        // MONITOREXIT : var11_19
+                                                                                                        var11_19 = var9_10;
+                                                                                                        break block119;
+                                                                                                    }
+                                                                                                    if (AutoTtsService.O != 1 || var5_20 != 0) break block120;
+                                                                                                    c3.m.a.c("AutoTTS", "Dual mode");
+                                                                                                    var1_1 = var9_10;
+                                                                                                    if (c3.g0.c(AutoTtsService.g0, AutoTtsService.b0, -1, -1) % 100 == 1) {
+                                                                                                        var1_1 = new StringBuilder();
+                                                                                                        var1_1.append((String)var9_10);
+                                                                                                        var1_1.append(c3.g0.e(".detceted esnecil oN ."));
+                                                                                                        var1_1 = var1_1.toString();
+                                                                                                    }
+                                                                                                    try {
+                                                                                                        var9_10 = AutoTtsService.M;
+                                                                                                        // MONITORENTER : var9_10
+                                                                                                    }
+                                                                                                    catch (Exception var9_11) {
+                                                                                                        var1_1 = c3.m.a;
+                                                                                                        var10_15 = new StringBuilder();
+                                                                                                        var10_15.append("Synthesis ended with error: ");
+                                                                                                        var10_15.append(var9_11.getMessage());
+                                                                                                        var1_1.d("AutoTTS", var10_15.toString());
+                                                                                                        this.K(var2_8, 6);
+                                                                                                        return;
+                                                                                                    }
+                                                                                                    var9_10.clear();
+                                                                                                    var9_10.addAll(c3.y.g((String)var1_1, AutoTtsService.H, AutoTtsService.I, AutoTtsService.g0, AutoTtsService.b0));
+                                                                                                    if (var9_10.isEmpty()) break block106;
+                                                                                                    var1_1 = ((z)var9_10.get(0)).c();
+                                                                                                    var5_20 = ((z)var9_10.get(0)).a();
+                                                                                                    if (var5_20 == 1) break block107;
+                                                                                                    if (var5_20 == 2) {
+                                                                                                        var12_18 = c3.m.a;
+                                                                                                        var11_19 = new StringBuilder();
+                                                                                                        var11_19.append("language: ");
+                                                                                                        var11_19.append(AutoTtsService.G);
+                                                                                                        var12_18.c("AutoTTS", var11_19.toString());
+                                                                                                        var5_20 = this.onLoadLanguage(AutoTtsService.G, "", "");
+                                                                                                        if (var5_20 == -2 || var5_20 == -1) {
+                                                                                                            var10_15 = c3.m.a;
+                                                                                                            var11_19 = new StringBuilder();
+                                                                                                            var11_19.append("Languge is not supported: ");
+                                                                                                            var11_19.append(AutoTtsService.G);
+                                                                                                            var11_19.append(", text: ");
+                                                                                                            var11_19.append((String)var1_1);
+                                                                                                            var10_15.d("AutoTTS", var11_19.toString());
+                                                                                                            this.K(var2_8, 5);
+                                                                                                            // MONITOREXIT : var9_10
+                                                                                                            return;
+                                                                                                        }
+                                                                                                    }
+                                                                                                    break block106;
+                                                                                                }
+                                                                                                c3.m.a.c("AutoTTS", "language: eng");
+                                                                                                var5_20 = this.onLoadLanguage("eng", "", "");
+                                                                                                if (var5_20 == -2 || var5_20 == -1) {
+                                                                                                    var10_15 = c3.m.a;
+                                                                                                    var11_19 = new StringBuilder();
+                                                                                                    var11_19.append("Languge is not supported: eng, text: ");
+                                                                                                    var11_19.append((String)var1_1);
+                                                                                                    var10_15.d("AutoTTS", var11_19.toString());
+                                                                                                    this.K(var2_8, 4);
+                                                                                                    // MONITOREXIT : var9_10
+                                                                                                    return;
+                                                                                                }
+                                                                                            }
+                                                                                            // MONITOREXIT : var9_10
+                                                                                            var11_19 = var1_1;
+                                                                                            break block119;
+                                                                                        }
+                                                                                        if (AutoTtsService.O != 4 || var5_20 != 0) break block121;
+                                                                                        c3.m.a.c("AutoTTS", "Mixed mode");
+                                                                                        try {
+                                                                                            var13_21 = AutoTtsService.M;
+                                                                                            // MONITORENTER : var13_21
+                                                                                        }
+                                                                                        catch (Exception var1_6) {
+                                                                                            var9_10 = c3.m.a;
+                                                                                            var10_15 = new StringBuilder();
+                                                                                            var10_15.append("Synthesis ended with error: ");
+                                                                                            var10_15.append(var1_6.getMessage());
+                                                                                            var9_10.d("AutoTTS", var10_15.toString());
+                                                                                            this.K(var2_8, 8);
+                                                                                            return;
+                                                                                        }
+                                                                                        var13_21.clear();
+                                                                                        var11_19 = c3.z.g((CharSequence)var14_14);
+                                                                                        var5_20 = 0;
+lbl273:
+                                                                                        // 2 sources
+
+                                                                                        while (var5_20 < var11_19.size() && !this.q.get()) {
+                                                                                            var1_1 = ((z)var11_19.get(var5_20)).b();
+                                                                                            if (var1_1.equalsIgnoreCase("unknown") || var1_1.equals("")) break block108;
+                                                                                            var12_18 = this.M((String)var1_1);
+                                                                                            if (!var12_18.isEmpty() && !var12_18.equals("Disable")) break block109;
+                                                                                            break block110;
+                                                                                        }
+                                                                                        break block111;
+                                                                                    }
+                                                                                    var1_1 = AutoTtsService.F;
+                                                                                }
+                                                                                ((z)var11_19.get(var5_20)).e((String)var1_1);
+                                                                                AutoTtsService.M.add((z)var11_19.get(var5_20));
+                                                                                break block122;
+                                                                            }
+                                                                            var1_1 = c3.y.g(((z)var11_19.get(var5_20)).c(), AutoTtsService.H, AutoTtsService.I, AutoTtsService.g0, AutoTtsService.b0);
+                                                                            AutoTtsService.M.addAll(var1_1);
+                                                                        }
+                                                                        ++var5_20;
+                                                                        ** GOTO lbl273
+                                                                    }
+                                                                    var14_14 = AutoTtsService.M;
+                                                                    var11_19 = var9_10;
+                                                                    var1_1 = var10_15;
+                                                                    if (var14_14.isEmpty()) break block123;
+                                                                    var12_18 = ((z)var14_14.get(0)).c();
+                                                                    var9_10 = ((z)var14_14.get(0)).b();
+                                                                    if (var9_10.isEmpty()) break block124;
+                                                                    var1_1 = var10_15;
+                                                                    if (!var9_10.equals("unknown")) break block125;
+                                                                }
+                                                                var9_10 = clsCLD2.b((String)var12_18, AutoTtsService.g0, AutoTtsService.b0, this.h);
+                                                                var11_19 = c3.m.a;
+                                                                var1_1 = new StringBuilder();
+                                                                var1_1.append("language: ");
+                                                                var1_1.append((String)var9_10);
+                                                                var1_1.append(" '");
+                                                                var1_1.append((String)var12_18);
+                                                                var1_1.append("'");
+                                                                var11_19.c("AutoTTS", var1_1.toString());
+                                                                var1_1 = var9_10;
+                                                                if (var9_10.length() > 2) {
+                                                                    var1_1 = var9_10.substring(0, 2);
+                                                                }
+                                                                if ((var1_1 = (String)c3.m.h.get(var1_1)) == null && !var14_14.isEmpty()) {
+                                                                    var5_20 = ((z)var14_14.get(0)).a();
+                                                                    var1_1 = var5_20 != 1 ? (var5_20 != 2 ? var10_15 : AutoTtsService.L) : AutoTtsService.K;
+                                                                }
+                                                            }
+                                                            var9_10 = c3.m.a;
+                                                            var10_15 = new StringBuilder();
+                                                            var10_15.append("language: ");
+                                                            var10_15.append((String)var1_1);
+                                                            var9_10.c("AutoTTS", var10_15.toString());
+                                                            var10_15 = this.M((String)var1_1);
+                                                            var11_19 = c3.m.a;
+                                                            var9_10 = new StringBuilder();
+                                                            var9_10.append("engine: ");
+                                                            var9_10.append((String)var10_15);
+                                                            var11_19.c("AutoTTS", var9_10.toString());
+                                                            if (var10_15.isEmpty()) break block126;
+                                                            var9_10 = var1_1;
+                                                            if (!var10_15.equals("Disable")) break block112;
+                                                        }
+                                                        var9_10 = var1_1;
+                                                        if (var14_14.isEmpty()) break block112;
+                                                        var5_20 = ((z)var14_14.get(0)).a();
+                                                        if (var5_20 == 1) break block127;
+                                                        if (var5_20 != 2) {
+                                                            var9_10 = var1_1;
+                                                            break block112;
+                                                        } else {
+                                                            var1_1 = AutoTtsService.L;
+lbl355:
+                                                            // 2 sources
+
+                                                            while (true) {
+                                                                var9_10 = var1_1;
+                                                                break block112;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    var1_1 = AutoTtsService.K;
+                                                    ** while (true)
+                                                }
+                                                if ((var5_20 = this.onLoadLanguage((String)var9_10, "", "")) == -2) break block128;
+                                                var11_19 = var12_18;
+                                                var1_1 = var9_10;
+                                                if (var5_20 != -1) break block123;
+                                            }
+                                            var1_1 = c3.m.a;
+                                            var10_15 = new StringBuilder();
+                                            var10_15.append("Languge is not supported: ");
+                                            var10_15.append((String)var9_10);
+                                            var10_15.append(", text: ");
+                                            var10_15.append((String)var12_18);
+                                            var1_1.d("AutoTTS", var10_15.toString());
+                                            this.K(var2_8, 7);
+                                            // MONITOREXIT : var13_21
+                                            return;
+                                        }
+                                        // MONITOREXIT : var13_21
+                                        var10_15 = var1_1;
+                                        break block119;
+                                    }
+                                    if (AutoTtsService.O != 5 || var5_20 != 0) break block129;
+                                    c3.m.a.c("AutoTTS", "Multilingual mode");
+                                    try {
+                                        var12_18 = AutoTtsService.M;
+                                        // MONITORENTER : var12_18
+                                    }
+                                    catch (Exception var10_16) {
+                                        var1_1 = c3.m.a;
+                                        var9_10 = new StringBuilder();
+                                        var9_10.append("Synthesis ended with error: ");
+                                        var9_10.append(var10_16.getMessage());
+                                        var1_1.d("AutoTTS", var9_10.toString());
+                                        this.K(var2_8, 8);
+                                        return;
+                                    }
+                                    var12_18.clear();
+                                    var10_15 = c3.z.g((CharSequence)var14_14);
+                                    var5_20 = 0;
+lbl406:
+                                    // 2 sources
+
+                                    while (var5_20 < var10_15.size() && !this.q.get()) {
+                                        var1_1 = ((z)var10_15.get(var5_20)).b();
+                                        if (var1_1.equalsIgnoreCase("unknown") || var1_1.isEmpty() || (var1_1 = this.M((String)var1_1)).isEmpty() || var1_1.equals("Disable")) break block113;
+                                        AutoTtsService.M.add((z)var10_15.get(var5_20));
+                                        break block114;
+                                    }
+                                    break block115;
+                                }
+                                var11_19 = clsCLD2.c(((z)var10_15.get(var5_20)).c(), AutoTtsService.g0, AutoTtsService.b0, this.h);
+                                for (var6_24 = 0; var6_24 < var11_19.size(); ++var6_24) {
+                                    var1_1 = var9_10 = (String)c3.m.h.get(((clsCLD2.a)var11_19.get((int)var6_24)).a);
+                                    if (var9_10 == null) {
+                                        var1_1 = ((clsCLD2.a)var11_19.get((int)var6_24)).b != false ? AutoTtsService.K : AutoTtsService.L;
+                                    }
+                                    if ((var9_10 = this.M((String)var1_1)).isEmpty() || var9_10.equals("Disable")) {
+                                        var1_1 = ((clsCLD2.a)var11_19.get((int)var6_24)).b != false ? AutoTtsService.K : AutoTtsService.L;
+                                    }
+                                    var13_21 = AutoTtsService.M;
+                                    var9_10 = new z(((clsCLD2.a)var11_19.get((int)var6_24)).c, (String)var1_1);
+                                    var13_21.add(var9_10);
+                                }
+                            }
+                            ++var5_20;
+                            ** GOTO lbl406
+                        }
+                        var1_1 = AutoTtsService.M;
+                        if (var1_1.isEmpty()) {
+                            c3.m.a.d("AutoTTS", "lstLanString is empty!");
+                            this.K(var2_8, 7);
+                            // MONITOREXIT : var12_18
+                            return;
+                        }
+                        var11_19 = ((z)var1_1.get(0)).c();
+                        var10_15 = ((z)var1_1.get(0)).b();
+                        var5_20 = this.onLoadLanguage((String)var10_15, "", "");
+                        if (var5_20 != -2 && var5_20 != -1) {
+                            // MONITOREXIT : var12_18
+                            break block119;
+                        } else {
+                            var9_10 = c3.m.a;
+                            var1_1 = new StringBuilder();
+                            var1_1.append("Language is not supported: ");
+                            var1_1.append((String)var10_15);
+                            var1_1.append(", text: ");
+                            var1_1.append((String)var11_19);
+                            var9_10.d("AutoTTS", var1_1.toString());
+                            this.K(var2_8, 7);
+                            // MONITOREXIT : var12_18
+                            return;
+                        }
+                    }
+                    if (!var13_21.isEmpty() || !var12_18.isEmpty()) break block130;
+                    var5_20 = this.onLoadLanguage(var1_1.getLanguage(), var1_1.getCountry(), var1_1.getVariant());
+                    var11_19 = c3.m.a;
+                    var12_18 = new StringBuilder();
+                    var12_18.append("load ");
+                    var12_18.append(var5_20);
+                    var11_19.c("AutoTTS", var12_18.toString());
+                    if (var5_20 == -2) break block131;
+                    var11_19 = var9_10;
+                    if (var5_20 != -1) break block119;
+                }
+                var10_15 = c3.m.a;
+                var11_19 = new StringBuilder();
+                var11_19.append("Language is not supported: ");
+                var11_19.append(var1_1.getLanguage());
+                var11_19.append(", text: ");
+                var11_19.append((String)var9_10);
+                var10_15.d("AutoTTS", var11_19.toString());
+                this.K(var2_8, 9);
+                return;
+            }
+            this.b0((String)var13_21, this.f0((String)var12_18), (String)var11_19, false);
+            var11_19 = var9_10;
+        }
+        if (this.d >= 0 && this.d < this.f.size()) {
+            if (((f0)this.f.get(this.d)).g() == null) {
+                c3.m.a.d("AutoTTS", "mTTSIndex refers null tts.");
+                this.K(var2_8, 10);
+                return;
+            }
+            var5_20 = this.O((String)var10_15);
+            var7_25 = this.R((String)var10_15);
+            var6_24 = this.N((String)var10_15);
+            var4_26 = (float)this.l / 100.0f * (float)var5_20 / 100.0f;
+            var3_17 = (float)this.m / 100.0f * (float)var6_24 / 100.0f;
+            ((f0)this.f.get(this.d)).g().setSpeechRate(var4_26);
+            ((f0)this.f.get(this.d)).g().setPitch(var3_17);
+            var1_1 = new Bundle(this.j);
+            var1_1.remove("language");
+            var1_1.remove("country");
+            var1_1.remove("voiceName");
+            var1_1.remove("variant");
+            var1_1.remove("pitch");
+            var1_1.remove("rate");
+            var1_1.remove("utteranceId");
+            if (AutoTtsService.S) {
+                var1_1.remove("streamType");
+                var1_1.remove("audioAttributes");
+            }
+            if ((double)(var3_17 = this.k * (float)var7_25 / 100.0f) != 0.0) {
+                var1_1.putFloat("volume", var3_17);
+            }
+            ((f0)this.f.get(this.d)).g().setOnUtteranceProgressListener((UtteranceProgressListener)new e(this, var2_8, null));
+            if (!this.p.get() && !this.q.get()) {
+                ((f0)this.f.get((int)this.d)).g = true;
+                if (AutoTtsService.T && !((f0)this.f.get((int)this.d)).h) {
+                    try {
+                        var9_10 = new AudioAttributes.Builder();
+                        var9_10 = var9_10.setUsage(11).setContentType(1).build();
+                        ((f0)this.f.get(this.d)).g().setAudioAttributes((AudioAttributes)var9_10);
+                        ((f0)this.f.get((int)this.d)).h = true;
+                    }
+                    catch (Exception var9_12) {
+                        c3.m.a.d("AutoTTS", var9_12.toString());
+                    }
+                }
+                this.t.postDelayed(new Runnable(this, (String)var11_19, (Bundle)var1_1, var2_8){
+                    public final String c;
+                    public final Bundle d;
+                    public final SynthesisCallback e;
+                    public final AutoTtsService f;
+                    {
+                        this.f = autoTtsService;
+                        this.c = string;
+                        this.d = bundle;
+                        this.e = synthesisCallback;
+                    }
+
+                    @Override
+                    public void run() {
+                        Exception exception2;
+                        block3: {
+                            try {
+                                AutoTtsService.d(1);
+                                Object object = c3.m.a;
+                                Object object2 = new StringBuilder();
+                                ((StringBuilder)object2).append("Current engine: ");
+                                ((StringBuilder)object2).append(((f0)this.f.f.get(this.f.d)).e());
+                                ((o)object).c("AutoTTS", ((StringBuilder)object2).toString());
+                                object2 = c3.m.a;
+                                object = new StringBuilder();
+                                ((StringBuilder)object).append(c0);
+                                ((StringBuilder)object).append("_");
+                                ((StringBuilder)object).append(N);
+                                ((o)object2).c("AutoTTS", ((StringBuilder)object).toString());
+                                object2 = c3.m.a;
+                                object = new StringBuilder();
+                                ((StringBuilder)object).append("speak 1: ");
+                                ((StringBuilder)object).append(this.c);
+                                ((o)object2).c("AutoTTS", ((StringBuilder)object).toString());
+                                TextToSpeech textToSpeech = ((f0)this.f.f.get(this.f.d)).g();
+                                String string = this.c;
+                                object2 = this.d;
+                                object = new StringBuilder();
+                                ((StringBuilder)object).append(c0);
+                                ((StringBuilder)object).append("_");
+                                ((StringBuilder)object).append(N);
+                                if (textToSpeech.speak((CharSequence)string, 0, (Bundle)object2, ((StringBuilder)object).toString()) != 0) {
+                                    c3.m.a.d("AutoTTS", "Speaking failed!!!");
+                                    this.f.K(this.e, 12);
+                                    this.f.n0(12);
+                                    return;
+                                }
+                            }
+                            catch (Exception exception2) {
+                                break block3;
+                            }
+                            return;
+                        }
+                        o o3 = c3.m.a;
+                        StringBuilder stringBuilder = new StringBuilder();
+                        stringBuilder.append("onSynthesis Error: ");
+                        stringBuilder.append(exception2.getMessage());
+                        o3.d("AutoTTS", stringBuilder.toString());
+                        this.f.K(this.e, 14);
+                        this.f.n0(14);
+                    }
+                }, 50L);
+            }
+            if (!AutoTtsService.U) {
+                var1_1 = this.o;
+                // MONITORENTER : var1_1
+                while (!this.p.get() && !(var8_27 = this.q.get())) {
+                    this.o.wait();
+                }
+lbl541:
+                // 2 sources
+
+                while (true) {
+                    // MONITOREXIT : var1_1
+lbl543:
+                    // 2 sources
+
+                    while (true) {
+                        c3.m.a.c("AutoTTS", "onSynthesizeText ended");
+                        this.K(var2_8, 13);
+                        return;
+                    }
+                    break;
+                }
+                catch (InterruptedException var9_13) {
+                    ** continue;
+                }
+            }
+            this.g0(var2_8);
+            ** continue;
+        }
+        c3.m.a.d("AutoTTS", "mTTSIndex out of range.");
+        this.K(var2_8, 10);
     }
 
     public void onTaskRemoved(Intent intent) {
@@ -1957,190 +2575,32 @@ extends TextToSpeechService {
                     }
 
                     /*
-                     * Unable to fully structure code
-                     * Enabled aggressive block sorting
-                     * Enabled unnecessary exception pruning
-                     * Enabled aggressive exception aggregation
+                     * Exception decompiling
                      */
                     @Override
                     public void run() {
-                        block24: {
-                            block22: {
-                                block31: {
-                                    block23: {
-                                        block21: {
-                                            block26: {
-                                                block30: {
-                                                    block28: {
-                                                        block29: {
-                                                            block27: {
-                                                                block25: {
-                                                                    AutoTtsService.e();
-                                                                    AutoTtsService.k().remove(0);
-                                                                    var9_1 = ((z)AutoTtsService.k().get(0)).c();
-                                                                    var3_3 = AutoTtsService.O;
-                                                                    if (var3_3 != 1) break block25;
-                                                                    var3_3 = ((z)AutoTtsService.k().get(0)).a();
-                                                                    var7_4 /* !! */  = "eng";
-                                                                    if (var3_3 != 1) {
-                                                                        if (var3_3 == 2) {
-                                                                            var7_4 /* !! */  = AutoTtsService.G;
-                                                                            var3_3 = AutoTtsService.l(this.c.c, AutoTtsService.G, "", "");
-                                                                            if (var3_3 == -2 || var3_3 == -1) {
-                                                                                var8_5 = c3.m.a;
-                                                                                var7_4 /* !! */  = new StringBuilder();
-                                                                                var7_4 /* !! */ .append("Language ");
-                                                                                var7_4 /* !! */ .append(AutoTtsService.G);
-                                                                                var7_4 /* !! */ .append(" is not supported.\n Text: ");
-                                                                                var7_4 /* !! */ .append(var9_1);
-                                                                                var8_5.d("AutoTTS", var7_4 /* !! */ .toString());
-                                                                                var7_4 /* !! */  = this.c;
-                                                                                AutoTtsService.m(var7_4 /* !! */ .c, com.vnspeak.autotts.AutoTtsService$e.a((e)var7_4 /* !! */ ), 3);
-                                                                                return;
-                                                                            }
-                                                                        }
-                                                                        break block21;
-                                                                    } else {
-                                                                        var3_3 = AutoTtsService.l(this.c.c, "eng", "", "");
-                                                                        if (var3_3 == -2 || var3_3 == -1) {
-                                                                            var8_7 = c3.m.a;
-                                                                            var7_4 /* !! */  = new StringBuilder();
-                                                                            var7_4 /* !! */ .append("Language eng is not supported.\n Text: ");
-                                                                            var7_4 /* !! */ .append(var9_1);
-                                                                            var8_7.d("AutoTTS", var7_4 /* !! */ .toString());
-                                                                            var7_4 /* !! */  = this.c;
-                                                                            AutoTtsService.m(var7_4 /* !! */ .c, com.vnspeak.autotts.AutoTtsService$e.a((e)var7_4 /* !! */ ), 2);
-                                                                            return;
-                                                                        }
-                                                                    }
-                                                                    break block21;
-                                                                }
-                                                                if (AutoTtsService.O != 4) break block26;
-                                                                var8_6 = ((z)AutoTtsService.k().get(0)).b();
-                                                                if (var8_6.isEmpty()) break block27;
-                                                                var7_4 /* !! */  = var8_6;
-                                                                if (!var8_6.equals("unknown")) break block28;
-                                                            }
-                                                            var8_6 = clsCLD2.b(var9_1, AutoTtsService.n(), AutoTtsService.q(), AutoTtsService.D(this.c.c));
-                                                            var10_10 = c3.m.a;
-                                                            var7_4 /* !! */  = new StringBuilder();
-                                                            var7_4 /* !! */ .append("Cld2: ");
-                                                            var7_4 /* !! */ .append((String)var8_6);
-                                                            var7_4 /* !! */ .append(" '");
-                                                            var7_4 /* !! */ .append(var9_1);
-                                                            var7_4 /* !! */ .append("'");
-                                                            var10_10.c("AutoTTS", var7_4 /* !! */ .toString());
-                                                            var7_4 /* !! */  = var8_6;
-                                                            if (var8_6.length() > 2) {
-                                                                var7_4 /* !! */  = var8_6.substring(0, 2);
-                                                            }
-                                                            var8_6 = var7_4 /* !! */  = (String)c3.m.h.get(var7_4 /* !! */ );
-                                                            if (var7_4 /* !! */  == null) {
-                                                                var8_6 = ((z)AutoTtsService.k().get(0)).a() != 1 ? AutoTtsService.L : AutoTtsService.K;
-                                                            }
-                                                            if ((var10_10 = AutoTtsService.r(this.c.c, (String)var8_6)).isEmpty()) break block29;
-                                                            var7_4 /* !! */  = var8_6;
-                                                            if (!var10_10.equals("Disable")) break block28;
-                                                        }
-                                                        var7_4 /* !! */  = (var3_3 = ((z)AutoTtsService.k().get(0)).a()) != 1 ? (var3_3 != 2 ? var8_6 : AutoTtsService.L) : AutoTtsService.K;
-                                                    }
-                                                    if ((var3_3 = AutoTtsService.l(this.c.c, (String)(var8_6 = var7_4 /* !! */ ), "", "")) == -2) break block30;
-                                                    var7_4 /* !! */  = var8_6;
-                                                    if (var3_3 != -1) break block21;
-                                                }
-                                                var10_10 = c3.m.a;
-                                                var7_4 /* !! */  = new StringBuilder();
-                                                var7_4 /* !! */ .append("Language ");
-                                                var7_4 /* !! */ .append((String)var8_6);
-                                                var7_4 /* !! */ .append(" is not supported.\n Text: ");
-                                                var7_4 /* !! */ .append(var9_1);
-                                                var10_10.d("AutoTTS", var7_4 /* !! */ .toString());
-                                                var7_4 /* !! */  = this.c;
-                                                AutoTtsService.i(var7_4 /* !! */ .c, com.vnspeak.autotts.AutoTtsService$e.a((e)var7_4 /* !! */ ), 14);
-                                                return;
-                                            }
-                                            var7_4 /* !! */  = ((z)AutoTtsService.k().get(0)).b();
-                                            var3_3 = AutoTtsService.l(this.c.c, (String)var7_4 /* !! */ , "", "");
-                                            if (var3_3 == -2 || var3_3 == -1) break block22;
-                                        }
-                                        var4_12 = AutoTtsService.s(this.c.c, (String)var7_4 /* !! */ );
-                                        var5_13 = AutoTtsService.t(this.c.c, (String)var7_4 /* !! */ );
-                                        var3_3 = AutoTtsService.u(this.c.c, (String)var7_4 /* !! */ );
-                                        var1_14 = (float)AutoTtsService.v(this.c.c) / 100.0f * (float)var4_12 / 100.0f;
-                                        var2_15 = (float)AutoTtsService.w(this.c.c) / 100.0f * (float)var3_3 / 100.0f;
-                                        ((f0)AutoTtsService.p(this.c.c).get(AutoTtsService.g(this.c.c))).g().setSpeechRate(var1_14);
-                                        ((f0)AutoTtsService.p(this.c.c).get(AutoTtsService.g(this.c.c))).g().setPitch(var2_15);
-                                        var7_4 /* !! */  = new Bundle(AutoTtsService.x(this.c.c));
-                                        var7_4 /* !! */ .remove("language");
-                                        var7_4 /* !! */ .remove("country");
-                                        var7_4 /* !! */ .remove("voiceName");
-                                        var7_4 /* !! */ .remove("variant");
-                                        var7_4 /* !! */ .remove("pitch");
-                                        var7_4 /* !! */ .remove("rate");
-                                        var7_4 /* !! */ .remove("utteranceId");
-                                        if (!AutoTtsService.S) break block23;
-                                        var7_4 /* !! */ .remove("streamType");
-                                        var7_4 /* !! */ .remove("audioAttributes");
-                                        {
-                                            catch (Exception var9_2) {}
-                                        }
-                                    }
-                                    if ((double)(var1_14 = AutoTtsService.y(this.c.c) * (float)var5_13 / 100.0f) == 0.0) ** GOTO lbl126
-                                    var7_4 /* !! */ .putFloat("volume", var1_14);
-lbl126:
-                                    // 2 sources
-
-                                    var10_10 = ((f0)AutoTtsService.p(this.c.c).get(AutoTtsService.g(this.c.c))).g();
-                                    var8_6 = this.c;
-                                    var11_16 = new e(var8_6.c, com.vnspeak.autotts.AutoTtsService$e.a((e)var8_6), null);
-                                    var10_10.setOnUtteranceProgressListener((UtteranceProgressListener)var11_16);
-                                    ((f0)AutoTtsService.p((AutoTtsService)this.c.c).get((int)AutoTtsService.g((AutoTtsService)this.c.c))).g = true;
-                                    if (!AutoTtsService.T || (var6_17 = ((f0)AutoTtsService.p((AutoTtsService)this.c.c).get((int)AutoTtsService.g((AutoTtsService)this.c.c))).h)) break block31;
-                                    try {
-                                        var8_6 = new AudioAttributes.Builder();
-                                        var8_6 = var8_6.setUsage(11).setContentType(1).build();
-                                        ((f0)AutoTtsService.p(this.c.c).get(AutoTtsService.g(this.c.c))).g().setAudioAttributes((AudioAttributes)var8_6);
-                                        ((f0)AutoTtsService.p((AutoTtsService)this.c.c).get((int)AutoTtsService.g((AutoTtsService)this.c.c))).h = true;
-                                    }
-                                    catch (Exception var8_8) {
-                                        c3.m.a.d("AutoTTS", var8_8.toString());
-                                        break block24;
-                                    }
-                                }
-                                var10_10 = c3.m.a;
-                                var8_6 = new StringBuilder();
-                                var8_6.append("speak 2: ");
-                                var8_6.append(var9_1);
-                                var10_10.c("AutoTTS", var8_6.toString());
-                                var8_6 = ((f0)AutoTtsService.p(this.c.c).get(AutoTtsService.g(this.c.c))).g();
-                                var10_10 = new StringBuilder();
-                                var10_10.append(AutoTtsService.h());
-                                var10_10.append("_");
-                                var10_10.append(AutoTtsService.c());
-                                if (var8_6.speak((CharSequence)var9_1, 0, (Bundle)var7_4 /* !! */ , var10_10.toString()) == 0) return;
-                                c3.m.a.d("AutoTTS", "Speaking failed!!!");
-                                var7_4 /* !! */  = this.c;
-                                AutoTtsService.m(var7_4 /* !! */ .c, com.vnspeak.autotts.AutoTtsService$e.a((e)var7_4 /* !! */ ), 5);
-                                return;
-                            }
-                            var10_11 = c3.m.a;
-                            var8_9 = new StringBuilder();
-                            var8_9.append("Language ");
-                            var8_9.append((String)var7_4 /* !! */ );
-                            var8_9.append(" is not supported.\n Text: ");
-                            var8_9.append(var9_1);
-                            var10_11.d("AutoTTS", var8_9.toString());
-                            var7_4 /* !! */  = this.c;
-                            AutoTtsService.m(var7_4 /* !! */ .c, com.vnspeak.autotts.AutoTtsService$e.a((e)var7_4 /* !! */ ), 4);
-                            return;
-                        }
-                        var7_4 /* !! */  = c3.m.a;
-                        var8_6 = new StringBuilder();
-                        var8_6.append("onDone Error: ");
-                        var8_6.append(var9_2.getMessage());
-                        var7_4 /* !! */ .d("AutoTTS", var8_6.toString());
-                        var7_4 /* !! */  = this.c;
-                        AutoTtsService.m(var7_4 /* !! */ .c, com.vnspeak.autotts.AutoTtsService$e.a((e)var7_4 /* !! */ ), 6);
+                        /*
+                         * This method has failed to decompile.  When submitting a bug report, please provide this stack trace, and (if you hold appropriate legal rights) the relevant class file.
+                         * 
+                         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 1[TRYBLOCK] [23 : 1007->1148)] java.lang.Exception
+                         *     at org.benf.cfr.reader.bytecode.analysis.opgraph.Op02WithProcessedDataAndRefs.insertExceptionBlocks(Op02WithProcessedDataAndRefs.java:2283)
+                         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisInner(CodeAnalyser.java:415)
+                         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisOrWrapFail(CodeAnalyser.java:278)
+                         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysis(CodeAnalyser.java:201)
+                         *     at org.benf.cfr.reader.entities.attributes.AttributeCode.analyse(AttributeCode.java:94)
+                         *     at org.benf.cfr.reader.entities.Method.analyse(Method.java:531)
+                         *     at org.benf.cfr.reader.entities.ClassFile.analyseMid(ClassFile.java:1055)
+                         *     at org.benf.cfr.reader.entities.ClassFile.analyseInnerClassesPass1(ClassFile.java:923)
+                         *     at org.benf.cfr.reader.entities.ClassFile.analyseMid(ClassFile.java:1035)
+                         *     at org.benf.cfr.reader.entities.ClassFile.analyseInnerClassesPass1(ClassFile.java:923)
+                         *     at org.benf.cfr.reader.entities.ClassFile.analyseMid(ClassFile.java:1035)
+                         *     at org.benf.cfr.reader.entities.ClassFile.analyseTop(ClassFile.java:942)
+                         *     at org.benf.cfr.reader.Driver.doJarVersionTypes(Driver.java:257)
+                         *     at org.benf.cfr.reader.Driver.doJar(Driver.java:139)
+                         *     at org.benf.cfr.reader.CfrDriverImpl.analyse(CfrDriverImpl.java:76)
+                         *     at org.benf.cfr.reader.Main.main(Main.java:54)
+                         */
+                        throw new IllegalStateException("Decompilation failed");
                     }
                 }, 50L);
                 return;
