@@ -73,8 +73,11 @@ for each span:
         if null → type-based: chunk.type ? K (Latin) : L (non-Latin)
         M.add( new z(chunk.text, lang) )
 ```
-Needs native `nativeGetLanguages` (CLD2 multi-language chunking) — EasyVoice does
-not have this yet.
+Needs native `nativeGetLanguages` (CLD2 multi-language chunking).
+**IMPLEMENTED (commit 011c6ca):** `NativeEngine.nativeGetLanguages` uses CLD2
+`ExtDetectLanguageSummary` + `ResultChunkVector`; latin flag via
+`Character.UnicodeScript` LATIN/COMMON/INHERITED (exact `clsCLD2.d`); shares
+mixed K/L prefs; z.g LocaleSpan split → keep-routable-span or per-span chunk.
 
 ## 6. Quick character reading (X, `quick_character_reading`, default true)
 - `clsCLD2.b`: `if (text.length()==1 && X) return "UNKNOWN"`.
@@ -109,6 +112,6 @@ not have this yet.
 4. **Detection**: single-char UNKNOWN gate when quick_character_reading on (in the
    window detector and the mix chunk builder).
 5. **Mix mode**: number/punc language applied inside the latRange chunk builder.
-6. **Multilingual mode (native)**: implement `nativeGetLanguages` multi-language
-   chunking + type fallback (bigger native C++ task).
+6. **Multilingual mode (native)**: ✅ DONE (commit 011c6ca) — `nativeGetLanguages`
+   multi-language chunking + type fallback + full 6th-mode UI/wiring.
 7. **Keep-alive**: skip the post-utterance wait when `keep_alive_mode` on.
