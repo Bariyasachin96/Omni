@@ -3707,7 +3707,6 @@ jobs:
           "            }\n"
           "        } catch (_: Exception) { Toast.makeText(this, \"Unable to load configuration. Please verify the file settings.\", Toast.LENGTH_LONG).show() }\n"
           "    }\n"
-          "    @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)\n"
           "    override fun onCreate(savedInstanceState: Bundle?) {\n"
           "        super.onCreate(savedInstanceState)\n"
           "        val prefs = SharedPrefsManager(this)\n"
