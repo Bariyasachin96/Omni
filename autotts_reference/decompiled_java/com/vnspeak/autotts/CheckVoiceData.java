@@ -11,17 +11,17 @@ package com.vnspeak.autotts;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import c3.k;
+import c3.m;
 import java.util.ArrayList;
 
 public class CheckVoiceData
 extends Activity {
-    public void onCreate(Bundle bundle) {
-        super.onCreate(bundle);
-        ArrayList arrayList = k.j(null, true);
-        bundle = new Intent();
-        bundle.putStringArrayListExtra("availableVoices", arrayList);
-        this.setResult(1, (Intent)bundle);
+    public void onCreate(Bundle object) {
+        super.onCreate(object);
+        object = m.j(null, true);
+        Intent intent = new Intent();
+        intent.putStringArrayListExtra("availableVoices", (ArrayList)object);
+        this.setResult(1, intent);
         this.finish();
     }
 }

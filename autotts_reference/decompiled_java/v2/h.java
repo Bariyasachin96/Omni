@@ -21,11 +21,11 @@ extends g {
 
     @Override
     public void b(float f3, float f4, float f5, q q3) {
-        f3 = (float)((double)this.c * Math.sqrt(2.0) / 2.0);
-        f5 = (float)Math.sqrt(Math.pow(this.c, 2.0) - Math.pow(f3, 2.0));
-        q3.n(f4 - f3, (float)(-((double)this.c * Math.sqrt(2.0) - (double)this.c)) + f5);
+        f5 = (float)((double)this.c * Math.sqrt(2.0) / 2.0);
+        f3 = (float)Math.sqrt(Math.pow(this.c, 2.0) - Math.pow(f5, 2.0));
+        q3.n(f4 - f5, (float)(-((double)this.c * Math.sqrt(2.0) - (double)this.c)) + f3);
         q3.m(f4, (float)(-((double)this.c * Math.sqrt(2.0) - (double)this.c)));
-        q3.m(f4 + f3, (float)(-((double)this.c * Math.sqrt(2.0) - (double)this.c)) + f5);
+        q3.m(f4 + f5, (float)(-((double)this.c * Math.sqrt(2.0) - (double)this.c)) + f3);
     }
 }
 

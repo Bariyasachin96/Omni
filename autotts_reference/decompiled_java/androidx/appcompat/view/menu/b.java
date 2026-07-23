@@ -278,19 +278,19 @@ PopupWindow.OnDismissListener {
     }
 
     public final int G(int n3) {
-        List list = this.k;
-        ListView listView = ((d)list.get(list.size() - 1)).a();
-        int[] nArray = new int[2];
-        listView.getLocationOnScreen(nArray);
-        list = new Rect();
-        this.r.getWindowVisibleDisplayFrame((Rect)list);
+        Object object = this.k;
+        ListView listView = ((d)object.get(object.size() - 1)).a();
+        object = new int[2];
+        listView.getLocationOnScreen((int[])object);
+        Rect rect = new Rect();
+        this.r.getWindowVisibleDisplayFrame(rect);
         if (this.s == 1) {
-            if (nArray[0] + listView.getWidth() + n3 > ((Rect)list).right) {
+            if (object[0] + listView.getWidth() + n3 > rect.right) {
                 return 0;
             }
             return 1;
         }
-        if (nArray[0] - n3 < 0) {
+        if (object[0] - n3 < 0) {
             return 1;
         }
         return 0;
@@ -344,11 +344,11 @@ PopupWindow.OnDismissListener {
         object = menuPopupWindow.h();
         object.setOnKeyListener((View.OnKeyListener)this);
         if (object2 == null && this.y && e3.z() != null) {
-            object2 = (FrameLayout)layoutInflater.inflate(c.g.abc_popup_menu_header_item_layout, (ViewGroup)object, false);
-            layoutInflater = (TextView)object2.findViewById(16908310);
-            object2.setEnabled(false);
-            layoutInflater.setText(e3.z());
-            object.addHeaderView((View)object2, null, false);
+            layoutInflater = (FrameLayout)layoutInflater.inflate(c.g.abc_popup_menu_header_item_layout, (ViewGroup)object, false);
+            object2 = (TextView)layoutInflater.findViewById(16908310);
+            layoutInflater.setEnabled(false);
+            object2.setText(e3.z());
+            object.addHeaderView((View)layoutInflater, null, false);
             menuPopupWindow.e();
         }
     }
@@ -440,16 +440,17 @@ PopupWindow.OnDismissListener {
 
     @Override
     public boolean f(l l3) {
-        for (d d3 : this.k) {
-            if (l3 != d3.b) continue;
-            d3.a().requestFocus();
+        for (Object object : this.k) {
+            if (l3 != ((d)object).b) continue;
+            ((d)object).a().requestFocus();
             return true;
         }
         if (l3.hasVisibleItems()) {
+            Object object;
             this.n(l3);
-            i.a a4 = this.z;
-            if (a4 != null) {
-                a4.b(l3);
+            object = this.z;
+            if (object != null) {
+                object.b(l3);
             }
             return true;
         }

@@ -90,21 +90,21 @@ public class d {
      * Enabled aggressive exception aggregation
      */
     public static String m(Context context, int n3) {
-        Object object = context.getResources();
+        context = context.getResources();
         if (n3 == 0) return null;
-        if (!object.getResourceTypeName(n3).equals("font")) {
+        if (!context.getResourceTypeName(n3).equals("font")) {
             return null;
         }
         try {
-            context = object.getXml(n3);
-            while (context.getEventType() != 1) {
-                if (context.getEventType() == 2 && context.getName().equals("font-family")) {
-                    context = object.obtainAttributes(Xml.asAttributeSet((XmlPullParser)context), b0.c.FontFamily);
+            Object object = context.getXml(n3);
+            while (object.getEventType() != 1) {
+                if (object.getEventType() == 2 && object.getName().equals("font-family")) {
+                    context = context.obtainAttributes(Xml.asAttributeSet((XmlPullParser)object), b0.c.FontFamily);
                     object = context.getString(b0.c.FontFamily_fontProviderSystemFontFamily);
                     context.recycle();
                     return object;
                 }
-                context.next();
+                object.next();
             }
             return null;
         }

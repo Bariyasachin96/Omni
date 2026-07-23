@@ -1,3 +1,5 @@
-<set xmlns:android="http://schemas.android.com/apk/res/android" android:shareInterpolator="false">
-  <alpha android:interpolator="@android:010A0006" android:duration="@7F090001" android:fromAlpha="0.000000" android:toAlpha="1.000000"/>
+<?xml version="1.0" encoding="utf-8"?>
+<set android:shareInterpolator="false"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <alpha android:interpolator="@android:anim/decelerate_interpolator" android:duration="@integer/abc_config_activityShortDur" android:fromAlpha="0.0" android:toAlpha="1.0" />
 </set>

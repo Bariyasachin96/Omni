@@ -24,10 +24,10 @@ extends AbstractSafeParcelable {
     }
 
     public final void writeToParcel(Parcel parcel, int n3) {
-        int n4 = this.c;
-        n3 = b.a(parcel);
-        b.g(parcel, 1, n4);
-        b.b(parcel, n3);
+        n3 = this.c;
+        int n4 = b.a(parcel);
+        b.g(parcel, 1, n3);
+        b.b(parcel, n4);
     }
 }
 

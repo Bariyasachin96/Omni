@@ -139,11 +139,11 @@ implements ServiceConnection {
                                 object = this.a;
                                 if (object != null) break block11;
                                 try {
-                                    object = this.c;
+                                    nullDeviceLimiter = this.c;
                                     String string = new String(b3.a.a("Y29tLmFuZHJvaWQudmVuZGluZy5saWNlbnNpbmcuSUxpY2Vuc2luZ1NlcnZpY2U="));
-                                    nullDeviceLimiter = new Intent(string);
+                                    object = new Intent(string);
                                     string = new String(b3.a.a("Y29tLmFuZHJvaWQudmVuZGluZw=="));
-                                    if (!object.bindService(nullDeviceLimiter.setPackage(string), (ServiceConnection)this, 1)) break block9;
+                                    if (!nullDeviceLimiter.bindService(object.setPackage(string), this, 1)) break block9;
                                     this.i.offer(a4);
                                     break block7;
                                 }

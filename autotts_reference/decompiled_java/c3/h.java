@@ -1,22 +1,26 @@
 /*
  * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  android.widget.CompoundButton
+ *  android.widget.CompoundButton$OnCheckedChangeListener
  */
 package c3;
 
-import c3.i;
-import c3.r;
+import android.widget.CompoundButton;
+import c3.j;
+import c3.o;
 
 public final class h
-implements r.c {
-    public final i a;
+implements CompoundButton.OnCheckedChangeListener {
+    public final o a;
 
-    public /* synthetic */ h(i i3) {
-        this.a = i3;
+    public /* synthetic */ h(o o3) {
+        this.a = o3;
     }
 
-    @Override
-    public final void a(r.d d3, r.a a4) {
-        i.G1(this.a, d3, a4);
+    public final void onCheckedChanged(CompoundButton compoundButton, boolean bl) {
+        j.F1(this.a, compoundButton, bl);
     }
 }
 

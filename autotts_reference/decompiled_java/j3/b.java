@@ -36,14 +36,14 @@ public abstract class b {
                     throw nullPointerException;
                 }
                 ClassLoader classLoader = object.getClass().getClassLoader();
-                object = a.class.getClassLoader();
-                if (!k.a(classLoader, object)) {
-                    StringBuilder stringBuilder = new StringBuilder();
-                    stringBuilder.append("Instance class was loaded from a different classloader: ");
-                    stringBuilder.append(classLoader);
-                    stringBuilder.append(", base type classloader: ");
-                    stringBuilder.append(object);
-                    ClassNotFoundException classNotFoundException = new ClassNotFoundException(stringBuilder.toString(), classCastException2);
+                ClassLoader classLoader2 = a.class.getClassLoader();
+                if (!k.a(classLoader, classLoader2)) {
+                    object = new StringBuilder();
+                    ((StringBuilder)object).append("Instance class was loaded from a different classloader: ");
+                    ((StringBuilder)object).append(classLoader);
+                    ((StringBuilder)object).append(", base type classloader: ");
+                    ((StringBuilder)object).append(classLoader2);
+                    ClassNotFoundException classNotFoundException = new ClassNotFoundException(((StringBuilder)object).toString(), classCastException2);
                     throw classNotFoundException;
                 }
                 throw classCastException2;
@@ -66,20 +66,20 @@ public abstract class b {
                         NullPointerException nullPointerException = new NullPointerException("null cannot be cast to non-null type kotlin.internal.PlatformImplementations");
                         throw nullPointerException;
                     }
-                    ClassLoader classLoader = object.getClass().getClassLoader();
-                    ClassLoader classLoader2 = a.class.getClassLoader();
-                    if (!k.a(classLoader, classLoader2)) {
+                    object = object.getClass().getClassLoader();
+                    ClassLoader classLoader = a.class.getClassLoader();
+                    if (!k.a(object, classLoader)) {
                         StringBuilder stringBuilder = new StringBuilder();
                         stringBuilder.append("Instance class was loaded from a different classloader: ");
-                        stringBuilder.append(classLoader);
+                        stringBuilder.append(object);
                         stringBuilder.append(", base type classloader: ");
-                        stringBuilder.append(classLoader2);
-                        object = new Object(stringBuilder.toString(), classCastException3);
-                        throw object;
+                        stringBuilder.append(classLoader);
+                        ClassNotFoundException classNotFoundException2 = new ClassNotFoundException(stringBuilder.toString(), classCastException3);
+                        throw classNotFoundException2;
                     }
                     throw classCastException3;
                 }
-                catch (ClassNotFoundException classNotFoundException2) {
+                catch (ClassNotFoundException classNotFoundException3) {
                     try {
                         ClassCastException classCastException4;
                         Object object;
@@ -106,12 +106,12 @@ public abstract class b {
                             ((StringBuilder)object).append(classLoader);
                             ((StringBuilder)object).append(", base type classloader: ");
                             ((StringBuilder)object).append(classLoader3);
-                            ClassNotFoundException classNotFoundException3 = new ClassNotFoundException(((StringBuilder)object).toString(), classCastException4);
-                            throw classNotFoundException3;
+                            ClassNotFoundException classNotFoundException4 = new ClassNotFoundException(((StringBuilder)object).toString(), classCastException4);
+                            throw classNotFoundException4;
                         }
                         throw classCastException4;
                     }
-                    catch (ClassNotFoundException classNotFoundException4) {
+                    catch (ClassNotFoundException classNotFoundException5) {
                         try {
                             ClassCastException classCastException5;
                             Object object;
@@ -131,19 +131,19 @@ public abstract class b {
                                 throw nullPointerException;
                             }
                             ClassLoader classLoader = object.getClass().getClassLoader();
-                            ClassLoader classLoader4 = a.class.getClassLoader();
-                            if (!k.a(classLoader, classLoader4)) {
-                                object = new StringBuilder();
-                                ((StringBuilder)object).append("Instance class was loaded from a different classloader: ");
-                                ((StringBuilder)object).append(classLoader);
-                                ((StringBuilder)object).append(", base type classloader: ");
-                                ((StringBuilder)object).append(classLoader4);
-                                ClassNotFoundException classNotFoundException5 = new ClassNotFoundException(((StringBuilder)object).toString(), classCastException5);
-                                throw classNotFoundException5;
+                            object = a.class.getClassLoader();
+                            if (!k.a(classLoader, object)) {
+                                StringBuilder stringBuilder = new StringBuilder();
+                                stringBuilder.append("Instance class was loaded from a different classloader: ");
+                                stringBuilder.append(classLoader);
+                                stringBuilder.append(", base type classloader: ");
+                                stringBuilder.append(object);
+                                ClassNotFoundException classNotFoundException6 = new ClassNotFoundException(stringBuilder.toString(), classCastException5);
+                                throw classNotFoundException6;
                             }
                             throw classCastException5;
                         }
-                        catch (ClassNotFoundException classNotFoundException6) {
+                        catch (ClassNotFoundException classNotFoundException7) {
                             a4 = new a();
                         }
                     }

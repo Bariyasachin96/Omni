@@ -38,27 +38,30 @@ extends b {
     @Override
     public double c(double d3, int n3) {
         int n4;
+        double d4;
         double[] dArray = this.a;
         int n5 = dArray.length;
         boolean bl = this.d;
         int n6 = 0;
         if (bl) {
-            double d4;
             double d5;
-            double d6 = dArray[0];
-            if (d3 <= d6) {
-                d5 = this.b[0][n3];
-                d4 = d3 - d6;
-                d3 = this.f(d6, n3);
-                return d5 + d4 * d3;
+            d4 = dArray[0];
+            if (d3 <= d4) {
+                double d6 = this.b[0][n3];
+                d5 = d3 - d4;
+                d4 = this.f(d4, n3);
+                d3 = d6;
+                return d3 + d5 * d4;
             }
             n4 = n5 - 1;
-            d6 = dArray[n4];
-            if (d3 >= d6) {
-                d5 = this.b[n4][n3];
-                d4 = d3 - d6;
-                d3 = this.f(d6, n3);
-                return d5 + d4 * d3;
+            double d7 = dArray[n4];
+            if (d3 >= d7) {
+                d4 = this.b[n4][n3];
+                d5 = d3 - d7;
+                d7 = this.f(d7, n3);
+                d3 = d4;
+                d4 = d7;
+                return d3 + d5 * d4;
             }
         } else {
             if (d3 <= dArray[0]) {
@@ -71,14 +74,14 @@ extends b {
         }
         while (n6 < n5 - 1) {
             double[] dArray2 = this.a;
-            double d7 = dArray2[n6];
-            if (d3 == d7) {
+            d4 = dArray2[n6];
+            if (d3 == d4) {
                 return this.b[n6][n3];
             }
             n4 = n6 + 1;
             double d8 = dArray2[n4];
             if (d3 < d8) {
-                d3 = (d3 - d7) / (d8 - d7);
+                d3 = (d3 - d4) / (d8 - d4);
                 double[][] dArray3 = this.b;
                 return dArray3[n6][n3] * (1.0 - d3) + dArray3[n4][n3] * d3;
             }
@@ -104,8 +107,8 @@ extends b {
                             object = this.a;
                             n7 = ((double[])object).length;
                             double[][] dArray2 = this.b;
-                            int n8 = 0;
                             n6 = 0;
+                            int n8 = 0;
                             n5 = dArray2[0].length;
                             if (!this.d) break block11;
                             d4 = object[0];
@@ -116,12 +119,12 @@ extends b {
                             }
                             break block10;
                         }
-                        n3 = n7 - 1;
-                        d4 = object[n3];
+                        n6 = n7 - 1;
+                        d4 = object[n6];
                         if (!(d3 >= d4)) break block13;
                         this.g(d4, this.e);
-                        for (n4 = n6; n4 < n5; ++n4) {
-                            dArray[n4] = this.b[n3][n4] + (d3 - this.a[n3]) * this.e[n4];
+                        for (n4 = 0; n4 < n5; ++n4) {
+                            dArray[n4] = this.b[n6][n4] + (d3 - this.a[n6]) * this.e[n4];
                         }
                         break block10;
                     }
@@ -131,10 +134,10 @@ extends b {
                     }
                     break block10;
                 }
-                n6 = n7 - 1;
-                if (d3 >= object[n6]) {
-                    for (n4 = 0; n4 < n5; ++n4) {
-                        dArray[n4] = this.b[n6][n4];
+                n3 = n7 - 1;
+                if (d3 >= object[n3]) {
+                    for (n4 = n6; n4 < n5; ++n4) {
+                        dArray[n4] = this.b[n3][n4];
                     }
                 }
                 break block13;
@@ -142,15 +145,14 @@ extends b {
             }
             n4 = 0;
             while (n4 < n7 - 1) {
-                double d5;
                 if (d3 == this.a[n4]) {
                     for (n6 = 0; n6 < n5; ++n6) {
                         dArray[n6] = this.b[n4][n6];
                     }
                 }
-                if (d3 < (d5 = (object = this.a)[n3 = n4 + 1])) {
-                    d4 = object[n4];
-                    d3 = (d3 - d4) / (d5 - d4);
+                if (d3 < (d4 = (object = this.a)[n3 = n4 + 1])) {
+                    double d5 = object[n4];
+                    d3 = (d3 - d5) / (d4 - d5);
                     for (n6 = n8; n6 < n5; ++n6) {
                         object = this.b;
                         dArray[n6] = object[n4][n6] * (1.0 - d3) + object[n3][n6] * d3;
@@ -217,15 +219,14 @@ extends b {
             }
             n4 = 0;
             while (n4 < n7 - 1) {
-                double d5;
                 if (d3 == this.a[n4]) {
                     for (n6 = 0; n6 < n5; ++n6) {
                         fArray[n6] = (float)this.b[n4][n6];
                     }
                 }
-                if (d3 < (d5 = (object = this.a)[n3 = n4 + 1])) {
-                    d4 = object[n4];
-                    d3 = (d3 - d4) / (d5 - d4);
+                if (d3 < (d4 = (object = this.a)[n3 = n4 + 1])) {
+                    double d5 = object[n4];
+                    d3 = (d3 - d5) / (d4 - d5);
                     for (n6 = n8; n6 < n5; ++n6) {
                         object = this.b;
                         fArray[n6] = (float)(object[n4][n6] * (1.0 - d3) + object[n3][n6] * d3);
@@ -273,10 +274,10 @@ extends b {
             n5 = n4 + 1;
             d3 = dArray[n5];
             if (d5 <= d3) {
-                d5 = dArray[n4];
+                d4 = dArray[n4];
                 double[][] dArray2 = this.b;
-                d4 = dArray2[n4][n3];
-                return (dArray2[n5][n3] - d4) / (d3 - d5);
+                d5 = dArray2[n4][n3];
+                return (dArray2[n5][n3] - d5) / (d3 - d4);
             }
             n4 = n5;
         }

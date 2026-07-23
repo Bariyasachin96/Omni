@@ -46,15 +46,15 @@ extends k {
             }
         } else {
             n3 = a4.a();
-            n4 = a4.b();
-            int n6 = a4.c();
-            if (n6 > 0 && n3 <= n4 || n6 < 0 && n4 <= n3) {
+            int n6 = a4.b();
+            n4 = a4.c();
+            if (n4 > 0 && n3 <= n6 || n4 < 0 && n6 <= n3) {
                 while (true) {
                     if (bl2 = l.l(charSequence2, 0, charSequence, n3, charSequence2.length(), bl)) {
                         return n3;
                     }
-                    if (n3 == n4) break;
-                    n3 += n6;
+                    if (n3 == n6) break;
+                    n3 += n4;
                 }
             }
         }

@@ -300,10 +300,10 @@ implements ClockHandView.b {
         DisplayMetrics displayMetrics = this.getResources().getDisplayMetrics();
         float f3 = displayMetrics.heightPixels;
         float f4 = displayMetrics.widthPixels;
-        n3 = (int)((float)this.P / ClockFaceView.R((float)this.N / f3, (float)this.O / f4, 1.0f));
-        n4 = View.MeasureSpec.makeMeasureSpec((int)n3, (int)0x40000000);
-        this.setMeasuredDimension(n3, n3);
-        super.onMeasure(n4, n4);
+        n4 = (int)((float)this.P / ClockFaceView.R((float)this.N / f3, (float)this.O / f4, 1.0f));
+        n3 = View.MeasureSpec.makeMeasureSpec((int)n4, (int)0x40000000);
+        this.setMeasuredDimension(n4, n4);
+        super.onMeasure(n3, n3);
     }
 }
 

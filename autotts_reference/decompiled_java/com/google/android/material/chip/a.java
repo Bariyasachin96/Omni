@@ -432,12 +432,12 @@ w.b {
             float f3 = this.k0 + this.E0() + this.n0;
             if (h0.a.f(this) == 0) {
                 pointF.x = (float)rect.left + f3;
+                align2 = align;
             } else {
                 pointF.x = (float)rect.right - f3;
-                align = Paint.Align.RIGHT;
+                align2 = Paint.Align.RIGHT;
             }
             pointF.y = (float)rect.centerY() - this.K0();
-            align2 = align;
         }
         return align2;
     }
@@ -724,8 +724,8 @@ w.b {
             float f3 = rect.left;
             float f4 = this.Q;
             rectF.set(f3 + f4 / 2.0f, (float)rect.top + f4 / 2.0f, (float)rect.right - f4 / 2.0f, (float)rect.bottom - f4 / 2.0f);
-            f4 = this.O - this.Q / 2.0f;
-            canvas.drawRoundRect(this.w0, f4, f4, this.t0);
+            f3 = this.O - this.Q / 2.0f;
+            canvas.drawRoundRect(this.w0, f3, f3, this.t0);
         }
     }
 

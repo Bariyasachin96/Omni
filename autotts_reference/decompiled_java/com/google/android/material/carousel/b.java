@@ -35,14 +35,14 @@ public abstract class b {
         float f10 = b.j(f9, b.a(f7, a4.f, a4.g), a4.f, a4.g);
         f9 = b.b(f10, a4.e, a4.d);
         float f11 = b.b(b.j(f10, b.a(f9, a4.e, (int)Math.ceil((float)a4.d / 2.0f)), a4.e, a4.d), a4.b, a4.c);
-        f10 = n3;
-        float f12 = a.b(f4, a4.f, f3);
-        float f13 = a.b(a4.b, a4.f, f3);
+        float f12 = n3;
+        float f13 = a.b(f4, a4.f, f3);
+        f10 = a.b(a4.b, a4.f, f3);
         f3 = a.b(a4.e, a4.f, f3);
-        object = new c.b(a4.f, n3).a(0.0f - f5, f12, f4);
+        object = new c.b(a4.f, n3).a(0.0f - f5, f13, f4);
         n3 = a4.c;
         if (n3 > 0) {
-            ((c.b)object).g(f6, f13, a4.b, (int)Math.floor((float)n3 / 2.0f));
+            ((c.b)object).g(f6, f10, a4.b, (int)Math.floor((float)n3 / 2.0f));
         }
         if ((n3 = a4.d) > 0) {
             ((c.b)object).g(f8, f3, a4.e, (int)Math.floor((float)n3 / 2.0f));
@@ -53,9 +53,9 @@ public abstract class b {
             ((c.b)object).g(f9, f3, a4.e, (int)Math.ceil((float)n3 / 2.0f));
         }
         if ((n3 = a4.c) > 0) {
-            ((c.b)object).g(f11, f13, a4.b, (int)Math.ceil((float)n3 / 2.0f));
+            ((c.b)object).g(f11, f10, a4.b, (int)Math.ceil((float)n3 / 2.0f));
         }
-        ((c.b)object).a(f10 + f5, f12, f4);
+        ((c.b)object).a(f12 + f5, f13, f4);
         return ((c.b)object).i();
     }
 
@@ -72,8 +72,8 @@ public abstract class b {
         float f6 = b.b(0.0f, a4.f, a4.g);
         float f7 = b.j(0.0f, b.a(f6, a4.f, a4.g), a4.f, a4.g);
         float f8 = b.b(f7, a4.e, a4.d);
-        float f9 = b.b(b.j(f7, f8, a4.e, a4.d), a4.b, a4.c);
-        f7 = n3;
+        f7 = b.b(b.j(f7, f8, a4.e, a4.d), a4.b, a4.c);
+        float f9 = n3;
         float f10 = a.b(f4, a4.f, f3);
         float f11 = a.b(a4.b, a4.f, f3);
         f3 = a.b(a4.e, a4.f, f3);
@@ -82,9 +82,9 @@ public abstract class b {
             ((c.b)object).b(f8, f3, a4.e);
         }
         if ((n3 = a4.c) > 0) {
-            ((c.b)object).g(f9, f11, a4.b, n3);
+            ((c.b)object).g(f7, f11, a4.b, n3);
         }
-        ((c.b)object).a(f7 + f5, f10, f4);
+        ((c.b)object).a(f9 + f5, f10, f4);
         return ((c.b)object).i();
     }
 

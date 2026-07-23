@@ -32,16 +32,16 @@ public class c {
     public final Matrix c = new Matrix();
 
     static {
-        m[] mArray = k.Q(k.E, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u3 = k.Q(k.y, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u4 = k.Q(k.r, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u5 = k.Q(k.n, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u3 = k.Q(k.E, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u4 = k.Q(k.y, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u5 = k.Q(k.r, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        m[] mArray = k.Q(k.n, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
         u u6 = k.Q(k.t, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u[] uArray = k.Q(k.v, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u7 = k.Q(k.m, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u[] uArray2 = new u[]{mArray, u3, u4, u5, u6, uArray, u7};
-        d = uArray2;
-        e = new m[uArray2.length];
+        u u7 = k.Q(k.v, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u8 = k.Q(k.m, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u[] uArray = new u[]{u3, u4, u5, mArray, u6, u7, u8};
+        d = uArray;
+        e = new m[uArray.length];
         int n3 = 0;
         while (n3 < (uArray = d).length) {
             mArray = e;
@@ -72,10 +72,10 @@ public class c {
         paint.setColor(h2.a.a(n3, n4));
         paint.setStyle(Paint.Style.FILL);
         loadingIndicatorSpec = this.a;
-        n3 = loadingIndicatorSpec.c;
-        float f4 = (float)(-n3) / 2.0f;
-        n4 = loadingIndicatorSpec.d;
-        canvas.drawRoundRect(new RectF(f4, (float)(-n4) / 2.0f, (float)n3 / 2.0f, (float)n4 / 2.0f), f3, f3, paint);
+        n4 = loadingIndicatorSpec.c;
+        float f4 = (float)(-n4) / 2.0f;
+        n3 = loadingIndicatorSpec.d;
+        canvas.drawRoundRect(new RectF(f4, (float)(-n3) / 2.0f, (float)n4 / 2.0f, (float)n3 / 2.0f), f3, f3, paint);
     }
 
     public void c(Canvas canvas, Paint paint, a a4, int n3) {

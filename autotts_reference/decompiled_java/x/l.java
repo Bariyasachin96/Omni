@@ -155,21 +155,21 @@ implements Comparable {
             switch (n5) {
                 default: {
                     if (string.startsWith("CUSTOM")) {
-                        CharSequence charSequence = string.split(",")[1];
-                        if (!((AbstractMap)this.f).containsKey(charSequence)) continue block32;
-                        a a4 = (a)this.f.get(charSequence);
+                        Object object2 = string.split(",")[1];
+                        if (!((AbstractMap)this.f).containsKey(object2)) continue block32;
+                        object2 = (a)this.f.get(object2);
                         if (object instanceof d.b) {
-                            ((d.b)object).i(n3, a4);
+                            ((d.b)object).i(n3, (a)object2);
                             continue block32;
                         }
-                        charSequence = new StringBuilder();
-                        ((StringBuilder)charSequence).append(string);
-                        ((StringBuilder)charSequence).append(" ViewSpline not a CustomSet frame = ");
-                        ((StringBuilder)charSequence).append(n3);
-                        ((StringBuilder)charSequence).append(", value");
-                        ((StringBuilder)charSequence).append(a4.e());
-                        ((StringBuilder)charSequence).append(object);
-                        Log.e((String)"MotionPaths", (String)((StringBuilder)charSequence).toString());
+                        StringBuilder stringBuilder = new StringBuilder();
+                        stringBuilder.append(string);
+                        stringBuilder.append(" ViewSpline not a CustomSet frame = ");
+                        stringBuilder.append(n3);
+                        stringBuilder.append(", value");
+                        stringBuilder.append(((a)object2).e());
+                        stringBuilder.append(object);
+                        Log.e((String)"MotionPaths", (String)stringBuilder.toString());
                         continue block32;
                     }
                     object = new StringBuilder();
@@ -277,34 +277,34 @@ implements Comparable {
     public void c(b.a a4) {
         int n3;
         int n4;
-        Object object2 = a4.c;
-        this.d = n4 = ((b.d)object2).c;
-        this.e = n3 = ((b.d)object2).b;
-        float f3 = n3 != 0 && n4 == 0 ? 0.0f : ((b.d)object2).d;
+        Object object = a4.c;
+        this.d = n4 = ((b.d)object).c;
+        this.e = n3 = ((b.d)object).b;
+        float f3 = n3 != 0 && n4 == 0 ? 0.0f : ((b.d)object).d;
         this.j = f3;
-        object2 = a4.f;
-        this.k = ((b.e)object2).m;
-        this.l = ((b.e)object2).n;
-        this.m = ((b.e)object2).b;
-        this.n = ((b.e)object2).c;
-        this.c = ((b.e)object2).d;
-        this.o = ((b.e)object2).e;
-        this.p = ((b.e)object2).f;
-        this.q = ((b.e)object2).g;
-        this.r = ((b.e)object2).h;
-        this.s = ((b.e)object2).j;
-        this.t = ((b.e)object2).k;
-        this.u = ((b.e)object2).l;
+        object = a4.f;
+        this.k = ((b.e)object).m;
+        this.l = ((b.e)object).n;
+        this.m = ((b.e)object).b;
+        this.n = ((b.e)object).c;
+        this.c = ((b.e)object).d;
+        this.o = ((b.e)object).e;
+        this.p = ((b.e)object).f;
+        this.q = ((b.e)object).g;
+        this.r = ((b.e)object).h;
+        this.s = ((b.e)object).j;
+        this.t = ((b.e)object).k;
+        this.u = ((b.e)object).l;
         this.v = s.c.c(a4.d.d);
-        object2 = a4.d;
-        this.C = ((b.c)object2).i;
-        this.w = ((b.c)object2).f;
-        this.E = ((b.c)object2).b;
+        object = a4.d;
+        this.C = ((b.c)object).i;
+        this.w = ((b.c)object).f;
+        this.E = ((b.c)object).b;
         this.D = a4.c.e;
-        for (Object object2 : a4.g.keySet()) {
-            a a5 = (a)a4.g.get(object2);
-            if (!a5.g()) continue;
-            ((AbstractMap)this.f).put(object2, a5);
+        for (String string : a4.g.keySet()) {
+            object = (a)a4.g.get(string);
+            if (!((a)object).g()) continue;
+            ((AbstractMap)this.f).put(string, object);
         }
     }
 

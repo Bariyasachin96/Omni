@@ -4,7 +4,6 @@
  * Could not load the following classes:
  *  android.animation.Animator
  *  android.animation.ValueAnimator
- *  android.animation.ValueAnimator$AnimatorUpdateListener
  *  android.view.View
  *  android.view.ViewGroup
  */
@@ -38,10 +37,10 @@ extends Transition {
     public Animator o(ViewGroup viewGroup, y y3, y y4) {
         if (y3 != null && y4 != null && y3.a.get("NavigationRailLabelVisibility") != null && y4.a.get("NavigationRailLabelVisibility") != null) {
             if ((Integer)y3.a.get("NavigationRailLabelVisibility") == 8 && (Integer)y4.a.get("NavigationRailLabelVisibility") == 0) {
-                y3 = y4.b;
-                viewGroup = ValueAnimator.ofFloat((float[])new float[]{0.0f, 1.0f});
-                viewGroup.addUpdateListener((ValueAnimator.AnimatorUpdateListener)new a((View)y3));
-                return viewGroup;
+                viewGroup = y4.b;
+                y3 = ValueAnimator.ofFloat((float[])new float[]{0.0f, 1.0f});
+                y3.addUpdateListener(new a((View)viewGroup));
+                return y3;
             }
             return super.o(viewGroup, y3, y4);
         }

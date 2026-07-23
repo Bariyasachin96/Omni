@@ -1,5 +1,7 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="@7F0603E2" android:width="@7F0603E2" android:viewportWidth="@7F09003F" android:viewportHeight="@7F09003F">
-  <group android:name="@7F0E00E6" android:pivotX="@7F09003E" android:pivotY="@7F09003E">
-    <path android:name="@7F0E00E9" android:fillColor="#FFFFFFFF" android:pathData="@7F0E00E7"/>
-  </group>
+<?xml version="1.0" encoding="utf-8"?>
+<vector android:height="@dimen/mtrl_switch_thumb_size" android:width="@dimen/mtrl_switch_thumb_size" android:viewportWidth="@integer/mtrl_switch_thumb_viewport_size" android:viewportHeight="@integer/mtrl_switch_thumb_viewport_size"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:name="@string/mtrl_switch_thumb_group_name" android:pivotX="@integer/mtrl_switch_thumb_viewport_center_coordinate" android:pivotY="@integer/mtrl_switch_thumb_viewport_center_coordinate">
+        <path android:name="@string/mtrl_switch_thumb_path_name" android:fillColor="#ffffffff" android:pathData="@string/mtrl_switch_thumb_path_checked" />
+    </group>
 </vector>

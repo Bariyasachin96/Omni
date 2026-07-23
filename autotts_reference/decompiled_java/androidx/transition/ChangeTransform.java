@@ -95,11 +95,11 @@ extends Transition {
             f3 = f3 != null && !f3.isIdentity() ? new Matrix((Matrix)f3) : null;
             y3.a.put("android:changeTransform:matrix", f3);
             if (this.Q) {
-                f3 = new Matrix();
-                ViewGroup viewGroup = (ViewGroup)view.getParent();
-                b0.h((View)viewGroup, (Matrix)f3);
-                f3.preTranslate(-viewGroup.getScrollX(), -viewGroup.getScrollY());
-                y3.a.put("android:changeTransform:parentMatrix", f3);
+                Matrix matrix = new Matrix();
+                f3 = (ViewGroup)view.getParent();
+                b0.h((View)f3, matrix);
+                matrix.preTranslate((float)(-f3.getScrollX()), (float)(-f3.getScrollY()));
+                y3.a.put("android:changeTransform:parentMatrix", matrix);
                 y3.a.put("android:changeTransform:intermediateMatrix", view.getTag(m1.n.transition_transform));
                 y3.a.put("android:changeTransform:intermediateParentMatrix", view.getTag(m1.n.parent_matrix));
             }

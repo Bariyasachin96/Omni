@@ -8,6 +8,7 @@ package c2;
 
 import a2.a;
 import android.view.View;
+import java.util.Iterator;
 import java.util.List;
 import o0.m1;
 import o0.z1;
@@ -37,11 +38,11 @@ extends m1.b {
 
     @Override
     public z1 d(z1 z12, List object) {
-        object = object.iterator();
-        while (object.hasNext()) {
-            m1 m12 = (m1)object.next();
-            if ((m12.c() & z1.m.b()) == 0) continue;
-            float f3 = a2.a.c(this.e, 0, m12.b());
+        Iterator iterator = object.iterator();
+        while (iterator.hasNext()) {
+            object = (m1)iterator.next();
+            if ((((m1)object).c() & z1.m.b()) == 0) continue;
+            float f3 = a2.a.c(this.e, 0, ((m1)object).b());
             this.c.setTranslationY(f3);
             break;
         }

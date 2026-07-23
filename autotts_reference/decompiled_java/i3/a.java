@@ -3,6 +3,7 @@
  */
 package i3;
 
+import d3.e;
 import h3.c;
 import i3.e;
 import i3.f;
@@ -34,7 +35,7 @@ Serializable {
                 object = d3.e.a(object);
             }
             catch (Throwable throwable) {
-                object = d3.e.c;
+                e.a a6 = d3.e.c;
                 object = d3.e.a(d3.f.a(throwable));
             }
             a5.k();

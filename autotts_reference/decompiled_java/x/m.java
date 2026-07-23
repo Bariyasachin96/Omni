@@ -150,10 +150,10 @@ public class m {
                     if (n3 != 4) {
                         return;
                     }
-                    n5 = rect.left;
-                    n3 = rect.right;
+                    n3 = rect.left;
+                    n5 = rect.right;
                     rect2.left = n4 - (rect.bottom + rect.top + rect.width()) / 2;
-                    rect2.top = (n5 + n3 - rect.height()) / 2;
+                    rect2.top = (n3 + n5 - rect.height()) / 2;
                     rect2.right = rect2.left + rect.width();
                     rect2.bottom = rect2.top + rect.height();
                     return;
@@ -165,18 +165,18 @@ public class m {
                 rect2.bottom = rect2.top + rect.height();
                 return;
             }
-            n3 = rect.left;
-            n5 = rect.right;
+            n5 = rect.left;
+            n3 = rect.right;
             rect2.left = n4 - (rect.top + rect.bottom + rect.width()) / 2;
-            rect2.top = (n3 + n5 - rect.height()) / 2;
+            rect2.top = (n5 + n3 - rect.height()) / 2;
             rect2.right = rect2.left + rect.width();
             rect2.bottom = rect2.top + rect.height();
             return;
         }
-        n4 = rect.left;
-        n3 = rect.right;
+        n3 = rect.left;
+        n4 = rect.right;
         rect2.left = (rect.top + rect.bottom - rect.width()) / 2;
-        rect2.top = n5 - (n4 + n3 + rect.height()) / 2;
+        rect2.top = n5 - (n3 + n4 + rect.height()) / 2;
         rect2.right = rect2.left + rect.width();
         rect2.bottom = rect2.top + rect.height();
     }
@@ -274,10 +274,10 @@ public class m {
         Object object3;
         int n6;
         Object object42;
-        Object object5;
+        Object object52;
         int n7;
         new HashSet();
-        Object object62 = new HashSet();
+        Object object6 = new HashSet();
         Object object7 = new HashSet();
         Object object8 = new HashSet();
         o[] oArray = new HashMap();
@@ -290,9 +290,9 @@ public class m {
         if (object9 != null) {
             n7 = ((ArrayList)object9).size();
             n8 = 0;
-            object5 = null;
+            object52 = null;
             while (true) {
-                object42 = object5;
+                object42 = object52;
                 if (n8 < n7) {
                     object42 = ((ArrayList)object9).get(n8);
                     n6 = n8 + 1;
@@ -308,27 +308,27 @@ public class m {
                         continue;
                     }
                     if (object3 instanceof f) {
-                        ((d)object3).d((HashSet)object8);
+                        object3.d((HashSet)object8);
                         n8 = n6;
                         continue;
                     }
                     if (object3 instanceof j) {
-                        ((d)object3).d((HashSet)object62);
+                        object3.d((HashSet)object6);
                         n8 = n6;
                         continue;
                     }
                     if (object3 instanceof k) {
-                        object42 = object5;
-                        if (object5 == null) {
+                        object42 = object52;
+                        if (object52 == null) {
                             object42 = new ArrayList();
                         }
-                        ((ArrayList)object42).add((k)((k)object3));
-                        object5 = object42;
+                        ((ArrayList)object42).add((k)object3);
+                        object52 = object42;
                         n8 = n6;
                         continue;
                     }
-                    ((d)object3).h((HashMap)oArray);
-                    ((d)object3).d((HashSet)object7);
+                    object3.h((HashMap)oArray);
+                    object3.d((HashSet)object7);
                     n8 = n6;
                     continue;
                 }
@@ -348,32 +348,32 @@ public class m {
             while (object42.hasNext()) {
                 object9 = (String)object42.next();
                 if (((String)object9).startsWith("CUSTOM,")) {
-                    object5 = new SparseArray();
-                    object2 = ((String)object9).split(",")[n3];
-                    object3 = this.A;
-                    n8 = ((ArrayList)object3).size();
+                    object2 = new SparseArray();
+                    object3 = ((String)object9).split(",")[n3];
+                    object52 = this.A;
+                    n8 = ((ArrayList)object52).size();
                     for (n4 = 0; n4 < n8; ++n4) {
-                        object = ((ArrayList)object3).get(n4);
+                        object = ((ArrayList)object52).get(n4);
                         object = (d)object;
                         Object object10 = ((d)object).e;
-                        if (object10 == null || (object10 = (androidx.constraintlayout.widget.a)((HashMap)object10).get(object2)) == null) continue;
-                        object5.append(((d)object).a, object10);
+                        if (object10 == null || (object10 = (androidx.constraintlayout.widget.a)((HashMap)object10).get(object3)) == null) continue;
+                        object2.append(((d)object).a, object10);
                     }
-                    object5 = w.d.f((String)object9, (SparseArray)object5);
+                    object52 = w.d.f((String)object9, (SparseArray)object2);
                 } else {
-                    object5 = w.d.g((String)object9);
+                    object52 = w.d.g((String)object9);
                 }
-                if (object5 == null) continue;
-                ((s.j)object5).d((String)object9);
-                this.C.put(object9, object5);
+                if (object52 == null) continue;
+                ((s.j)object52).d((String)object9);
+                this.C.put(object9, object52);
             }
             n4 = n3;
-            object5 = this.A;
-            if (object5 != null) {
-                n6 = ((ArrayList)object5).size();
+            object52 = this.A;
+            if (object52 != null) {
+                n6 = ((ArrayList)object52).size();
                 n3 = 0;
                 while (n3 < n6) {
-                    object42 = ((ArrayList)object5).get(n3);
+                    object42 = ((ArrayList)object52).get(n3);
                     n8 = n3 + 1;
                     object42 = (d)object42;
                     n3 = n8;
@@ -384,11 +384,11 @@ public class m {
             }
             this.i.a(this.C, 0);
             this.j.a(this.C, 100);
-            object5 = this.C.keySet().iterator();
+            object52 = this.C.keySet().iterator();
             while (true) {
                 n3 = n4;
-                if (object5.hasNext()) {
-                    object9 = (String)object5.next();
+                if (object52.hasNext()) {
+                    object9 = (String)object52.next();
                     n3 = oArray.containsKey(object9) && (object42 = (Integer)oArray.get(object9)) != null ? (Integer)object42 : 0;
                     object42 = (s.j)this.C.get(object9);
                     if (object42 == null) continue;
@@ -400,22 +400,22 @@ public class m {
         } else {
             n3 = 1;
         }
-        if (!((HashSet)object62).isEmpty()) {
+        if (!((HashSet)object6).isEmpty()) {
             if (this.B == null) {
                 this.B = new HashMap();
             }
-            object62 = ((HashSet)object62).iterator();
-            while (object62.hasNext()) {
-                object42 = (String)object62.next();
-                if (this.B.containsKey(object42)) continue;
-                if (((String)object42).startsWith("CUSTOM,")) {
-                    object9 = new SparseArray();
-                    object5 = ((String)object42).split(",")[n3];
-                    object3 = this.A;
-                    n6 = ((ArrayList)object3).size();
+            object42 = ((HashSet)object6).iterator();
+            while (object42.hasNext()) {
+                object6 = (String)object42.next();
+                if (this.B.containsKey(object6)) continue;
+                if (((String)object6).startsWith("CUSTOM,")) {
+                    object3 = new SparseArray();
+                    object52 = ((String)object6).split(",")[n3];
+                    object9 = this.A;
+                    n6 = ((ArrayList)object9).size();
                     n4 = 0;
                     while (n4 < n6) {
-                        object2 = ((ArrayList)object3).get(n4);
+                        object2 = ((ArrayList)object9).get(n4);
                         n8 = n4 + 1;
                         object2 = (d)object2;
                         object = ((d)object2).e;
@@ -423,26 +423,26 @@ public class m {
                             n4 = n8;
                             continue;
                         }
-                        object = (androidx.constraintlayout.widget.a)((HashMap)object).get(object5);
+                        object = (androidx.constraintlayout.widget.a)((HashMap)object).get(object52);
                         n4 = n8;
                         if (object == null) continue;
-                        object9.append(((d)object2).a, object);
+                        object3.append(((d)object2).a, object);
                         n4 = n8;
                     }
-                    object5 = w.f.g((String)object42, object9);
+                    object52 = w.f.g((String)object6, (SparseArray)object3);
                 } else {
-                    object5 = w.f.h(object42, l3);
+                    object52 = w.f.h((String)object6, l3);
                 }
-                if (object5 == null) continue;
-                ((s.o)object5).d((String)object42);
-                this.B.put(object42, object5);
+                if (object52 == null) continue;
+                ((s.o)object52).d((String)object6);
+                this.B.put(object6, object52);
             }
-            object5 = this.A;
-            if (object5 != null) {
-                n6 = ((ArrayList)object5).size();
+            object52 = this.A;
+            if (object52 != null) {
+                n6 = ((ArrayList)object52).size();
                 n4 = 0;
                 while (n4 < n6) {
-                    object42 = ((ArrayList)object5).get(n4);
+                    object42 = ((ArrayList)object52).get(n4);
                     n8 = n4 + 1;
                     object42 = (d)object42;
                     n4 = n8;
@@ -451,9 +451,9 @@ public class m {
                     n4 = n8;
                 }
             }
-            for (Object object42 : this.B.keySet()) {
-                n4 = oArray.containsKey(object42) ? (Integer)oArray.get(object42) : 0;
-                ((w.f)this.B.get(object42)).e(n4);
+            for (Object object52 : this.B.keySet()) {
+                n4 = oArray.containsKey(object52) ? (Integer)oArray.get(object52) : 0;
+                ((w.f)this.B.get(object52)).e(n4);
             }
         }
         n4 = this.y.size();
@@ -464,158 +464,158 @@ public class m {
         if (this.y.size() > 0 && this.f == -1) {
             this.f = 0;
         }
-        object42 = this.y;
-        n6 = ((ArrayList)object42).size();
+        object52 = this.y;
+        n6 = ((ArrayList)object52).size();
         n4 = n3;
         n8 = 0;
         while (n8 < n6) {
-            object5 = ((ArrayList)object42).get(n8);
+            object42 = ((ArrayList)object52).get(n8);
             ++n8;
-            oArray[n4] = (o)object5;
+            oArray[n4] = (o)object42;
             ++n4;
         }
-        object9 = new HashSet();
-        for (Object object62 : this.h.q.keySet()) {
-            if (!((AbstractMap)this.g.q).containsKey(object62)) continue;
-            object5 = new StringBuilder();
-            ((StringBuilder)object5).append("CUSTOM,");
-            ((StringBuilder)object5).append((String)object62);
-            if (((HashSet)object7).contains(((StringBuilder)object5).toString())) continue;
-            ((HashSet)object9).add(object62);
+        object9 = new HashSet<Object>();
+        for (Object object42 : this.h.q.keySet()) {
+            if (!((AbstractMap)this.g.q).containsKey(object42)) continue;
+            object6 = new StringBuilder();
+            ((StringBuilder)object6).append("CUSTOM,");
+            ((StringBuilder)object6).append((String)object42);
+            if (((HashSet)object7).contains(((StringBuilder)object6).toString())) continue;
+            ((HashSet)object9).add(object42);
         }
-        object5 = ((HashSet)object9).toArray(new String[0]);
-        this.u = object5;
-        this.v = new int[((String[])object5).length];
-        block11: for (n4 = 0; n4 < ((Object)(object5 = this.u)).length; ++n4) {
-            object42 = object5[n4];
+        object52 = ((HashSet)object9).toArray(new String[0]);
+        this.u = object52;
+        this.v = new int[((String[])object52).length];
+        block11: for (n4 = 0; n4 < ((String[])(object52 = this.u)).length; ++n4) {
+            object42 = object52[n4];
             this.v[n4] = 0;
             for (n8 = 0; n8 < n7; ++n8) {
-                if (!((AbstractMap)oArray[n8].q).containsKey(object42) || (object5 = (androidx.constraintlayout.widget.a)oArray[n8].q.get(object42)) == null) continue;
+                if (!((AbstractMap)oArray[n8].q).containsKey(object42) || (object52 = (androidx.constraintlayout.widget.a)oArray[n8].q.get(object42)) == null) continue;
                 object42 = this.v;
-                object42[n4] = object42[n4] + ((androidx.constraintlayout.widget.a)object5).h();
+                object42[n4] = object42[n4] + ((androidx.constraintlayout.widget.a)object52).h();
                 continue block11;
             }
         }
         n4 = oArray[0].m != x.d.f ? n3 : 0;
-        n5 = 18 + ((Object)object5).length;
-        object5 = new boolean[n5];
+        n5 = 18 + ((String[])object52).length;
+        object52 = new boolean[n5];
         for (n8 = n3; n8 < n7; ++n8) {
-            oArray[n8].d(oArray[n8 - 1], (boolean[])object5, this.u, n4 != 0);
+            oArray[n8].d(oArray[n8 - 1], (boolean[])object52, this.u, n4 != 0);
         }
-        n8 = 0;
+        n6 = 0;
         for (n4 = n3; n4 < n5; ++n4) {
-            n6 = n8;
-            if (object5[n4] != false) {
-                n6 = n8 + 1;
-            }
             n8 = n6;
+            if (object52[n4] != false) {
+                n8 = n6 + 1;
+            }
+            n6 = n8;
         }
-        this.r = new int[n8];
-        n4 = Math.max(2, n8);
+        this.r = new int[n6];
+        n4 = Math.max(2, n6);
         this.s = new double[n4];
         this.t = new double[n4];
         n6 = 0;
         for (n4 = n3; n4 < n5; ++n4) {
             n8 = n6;
-            if (object5[n4] != false) {
+            if (object52[n4] != false) {
                 this.r[n6] = n4;
                 n8 = n6 + 1;
             }
             n6 = n8;
         }
         n4 = this.r.length;
-        object5 = new int[2];
-        object5[n3] = (String)n4;
-        object5[0] = (String)n7;
+        object52 = new int[2];
+        object52[n3] = (String)n4;
+        object52[0] = (String)n7;
         object7 = Double.TYPE;
-        object62 = (double[][])Array.newInstance(object7, (int[])object5);
+        object6 = (double[][])Array.newInstance(object7, (int[])object52);
         object9 = new double[n7];
         for (n4 = 0; n4 < n7; ++n4) {
-            oArray[n4].e((double[])object62[n4], this.r);
+            oArray[n4].e((double[])object6[n4], this.r);
             object9[n4] = (double)oArray[n4].e;
         }
-        for (n4 = 0; n4 < ((String[])(object5 = (Object)this.r)).length; ++n4) {
-            if (object5[n4] >= x.o.v.length) continue;
-            object5 = new StringBuilder();
-            ((StringBuilder)object5).append(x.o.v[this.r[n4]]);
-            ((StringBuilder)object5).append(" [");
-            object5 = ((StringBuilder)object5).toString();
+        for (n4 = 0; n4 < ((String[])(object52 = (Object)this.r)).length; ++n4) {
+            if (object52[n4] >= x.o.v.length) continue;
+            object52 = new StringBuilder();
+            ((StringBuilder)object52).append(x.o.v[this.r[n4]]);
+            ((StringBuilder)object52).append(" [");
+            object52 = ((StringBuilder)object52).toString();
             for (n8 = 0; n8 < n7; ++n8) {
                 object42 = new StringBuilder();
-                ((StringBuilder)object42).append((String)object5);
-                ((StringBuilder)object42).append((double)object62[n8][n4]);
-                object5 = ((StringBuilder)object42).toString();
+                ((StringBuilder)object42).append((String)object52);
+                ((StringBuilder)object42).append((double)object6[n8][n4]);
+                object52 = ((StringBuilder)object42).toString();
             }
         }
         this.k = new s.b[this.u.length + 1];
         n4 = 0;
-        while (n4 < ((String[])(object5 = this.u)).length) {
-            object3 = object5[n4];
+        while (n4 < ((String[])(object52 = this.u)).length) {
+            object3 = object52[n4];
             n6 = 0;
             object42 = null;
-            object5 = null;
+            object52 = null;
             for (n8 = 0; n8 < n7; ++n8) {
                 if (!oArray[n8].k((String)object3)) continue;
-                if (object5 == null) {
+                if (object52 == null) {
                     object42 = new double[n7];
                     n5 = oArray[n8].i((String)object3);
-                    object5 = new int[2];
-                    object5[n3] = n5;
-                    object5[0] = n7;
-                    object5 = (double[][])Array.newInstance(object7, (int[])object5);
+                    object52 = new int[2];
+                    object52[n3] = n5;
+                    object52[0] = n7;
+                    object52 = (double[][])Array.newInstance(object7, (int[])object52);
                 }
                 object2 = oArray[n8];
                 object42[n6] = (Iterator)((double)((o)object2).e);
-                ((o)object2).h((String)object3, (double[])object5[n6], 0);
+                ((o)object2).h((String)object3, (double[])object52[n6], 0);
                 ++n6;
             }
             object42 = Arrays.copyOf((double[])object42, n6);
-            object3 = (double[][])Arrays.copyOf(object5, n6);
-            object5 = this.k;
-            object5[++n4] = s.b.a(this.f, object42, (double[][])object3);
+            object52 = (double[][])Arrays.copyOf(object52, n6);
+            object3 = this.k;
+            object3[++n4] = s.b.a(this.f, object42, (double[][])object52);
         }
-        this.k[0] = s.b.a(this.f, (double[])object9, (double[][])object62);
+        this.k[0] = s.b.a(this.f, (double[])object9, (double[][])object6);
         if (oArray[0].m != x.d.f) {
             object42 = new int[n7];
-            object5 = new double[n7];
-            object62 = new int[2];
-            object62[n3] = 2;
-            object62[0] = n7;
-            object9 = (double[][])Array.newInstance(object7, (int[])object62);
+            object52 = new double[n7];
+            object6 = new int[2];
+            object6[n3] = 2;
+            object6[0] = n7;
+            object7 = (double[][])Array.newInstance(object7, (int[])object6);
             for (n4 = 0; n4 < n7; ++n4) {
-                object62 = oArray[n4];
-                object42[n4] = (Iterator)((o)object62).m;
-                object5[n4] = (double)((o)object62).e;
-                object7 = object9[n4];
-                object7[0] = (double)((o)object62).g;
-                object7[n3] = (double)((o)object62).h;
+                object9 = oArray[n4];
+                object42[n4] = (Iterator)((o)object9).m;
+                object52[n4] = (double)((o)object9).e;
+                object6 = object7[n4];
+                object6[0] = (double)((o)object9).g;
+                object6[n3] = (double)((o)object9).h;
             }
-            this.l = s.b.b(object42, (double[])object5, (double[][])object9);
+            this.l = s.b.b(object42, (double[])object52, (double[][])object7);
         }
         this.D = new HashMap();
         if (this.A != null) {
             object42 = ((HashSet)object8).iterator();
-            f3 = Float.NaN;
+            float f4 = Float.NaN;
             while (object42.hasNext()) {
                 object8 = (String)object42.next();
-                object5 = w.c.i((String)object8);
-                if (object5 == null) continue;
-                float f4 = f3;
-                if (((s.e)object5).h()) {
-                    f4 = f3;
-                    if (Float.isNaN(f3)) {
-                        f4 = this.s();
+                object52 = w.c.i((String)object8);
+                if (object52 == null) continue;
+                f3 = f4;
+                if (((s.e)object52).h()) {
+                    f3 = f4;
+                    if (Float.isNaN(f4)) {
+                        f3 = this.s();
                     }
                 }
-                ((s.e)object5).f((String)object8);
-                this.D.put(object8, object5);
-                f3 = f4;
+                ((s.e)object52).f((String)object8);
+                this.D.put(object8, object52);
+                f4 = f3;
             }
-            object5 = this.A;
-            n8 = ((ArrayList)object5).size();
+            object52 = this.A;
+            n8 = ((ArrayList)object52).size();
             n3 = 0;
             while (n3 < n8) {
-                object42 = ((ArrayList)object5).get(n3);
+                object42 = ((ArrayList)object52).get(n3);
                 n4 = n3 + 1;
                 object42 = (d)object42;
                 n3 = n4;
@@ -623,9 +623,9 @@ public class m {
                 ((f)object42).Y(this.D);
                 n3 = n4;
             }
-            object5 = this.D.values().iterator();
-            while (object5.hasNext()) {
-                ((w.c)object5.next()).g(f3);
+            object52 = this.D.values().iterator();
+            while (object52.hasNext()) {
+                ((w.c)object52.next()).g(f4);
             }
         }
     }
@@ -688,88 +688,89 @@ public class m {
             Object object5;
             Object object6;
             float f4;
-            float f5 = (float)i3 * f3;
-            float f6 = this.o;
-            float f7 = 0.0f;
-            float f8 = f5;
-            if (f6 != 1.0f) {
-                float f9 = this.n;
-                f4 = f5;
-                if (f5 < f9) {
+            float f5;
+            float f6 = (float)i3 * f3;
+            float f7 = this.o;
+            float f8 = 0.0f;
+            float f9 = f6;
+            if (f7 != 1.0f) {
+                f5 = this.n;
+                f4 = f6;
+                if (f6 < f5) {
                     f4 = 0.0f;
                 }
-                f8 = f4;
-                if (f4 > f9) {
-                    f8 = f4;
+                f9 = f4;
+                if (f4 > f5) {
+                    f9 = f4;
                     if ((double)f4 < 1.0) {
-                        f8 = Math.min((f4 - f9) * f6, 1.0f);
+                        f9 = Math.min((f4 - f5) * f7, 1.0f);
                     }
                 }
             }
-            double d3 = f8;
+            double d3 = f9;
             object4 = this.g.c;
             ArrayList arrayList = this.y;
             int n4 = arrayList.size();
             f4 = Float.NaN;
             int n5 = 0;
-            f5 = f7;
+            f6 = f8;
             while (n5 < n4) {
                 object6 = arrayList.get(n5);
                 ++n5;
                 o o3 = (o)object6;
                 object5 = o3.c;
-                f7 = f5;
+                f8 = f6;
                 object6 = object4;
-                f6 = f4;
+                f5 = f4;
                 if (object5 != null) {
-                    f7 = o3.e;
-                    if (f7 < f8) {
+                    f8 = o3.e;
+                    if (f8 < f9) {
                         object6 = object5;
-                        f6 = f4;
+                        f5 = f4;
                     } else {
-                        f7 = f5;
+                        f8 = f6;
                         object6 = object4;
-                        f6 = f4;
+                        f5 = f4;
                         if (Float.isNaN(f4)) {
-                            f6 = o3.e;
+                            f5 = o3.e;
                             object6 = object4;
-                            f7 = f5;
+                            f8 = f6;
                         }
                     }
                 }
-                f5 = f7;
+                f6 = f8;
                 object4 = object6;
-                f4 = f6;
+                f4 = f5;
             }
             if (object4 != null) {
-                f7 = f4;
+                f8 = f4;
                 if (Float.isNaN(f4)) {
-                    f7 = 1.0f;
+                    f8 = 1.0f;
                 }
-                f4 = f7 - f5;
-                d3 = (float)((c)object4).a((f8 - f5) / f4) * f4 + f5;
+                f4 = f8 - f6;
+                d3 = (float)((c)object4).a((f9 - f6) / f4) * f4 + f6;
             }
             this.k[0].d(d3, this.s);
-            object6 = this.l;
-            if (object6 != null && ((Object)(object4 = (Object)this.s)).length > 0) {
-                ((s.b)object6).d(d3, (double[])object4);
+            object4 = this.l;
+            if (object4 != null && ((E)(object6 = (Object)this.s)).length > 0) {
+                ((s.b)object4).d(d3, (double[])object6);
             }
             object6 = this.g;
-            object5 = this.r;
-            object4 = this.s;
+            object4 = this.r;
+            object5 = this.s;
             n5 = i3 * 2;
-            ((o)object6).f(d3, (int[])object5, (double[])object4, fArray, n5);
+            ((o)object6).f(d3, (int[])object4, (double[])object5, fArray, n5);
             if (object3 != null) {
-                fArray[n5] = fArray[n5] + ((s.e)object3).a(f8);
+                fArray[n5] = fArray[n5] + ((s.e)object3).a(f9);
             } else if (object != null) {
-                fArray[n5] = fArray[n5] + ((s.j)object).a(f8);
+                fArray[n5] = fArray[n5] + ((s.j)object).a(f9);
             }
             if (c3 != null) {
-                fArray[++n5] = fArray[n5] + c3.a(f8);
+                fArray[++n5] = fArray[n5] + c3.a(f9);
                 continue;
             }
             if (object2 == null) continue;
-            fArray[++n5] = fArray[n5] + ((s.j)object2).a(f8);
+            fArray[++n5] = fArray[n5] + ((s.j)object2).a(f9);
         }
     }
 
@@ -903,17 +904,17 @@ public class m {
             this.g.r(f4, f5, fArray, this.r, dArray, this.s);
             return;
         }
-        o o3 = this.h;
-        f3 = o3.g;
-        object = this.g;
-        float f6 = f3 - ((o)object).g;
-        float f7 = o3.h - ((o)object).h;
-        f3 = o3.i;
-        float f8 = ((o)object).i;
-        float f9 = o3.j;
-        float f10 = ((o)object).j;
-        fArray[0] = f6 * (1.0f - f4) + (f3 - f8 + f6) * f4;
-        fArray[1] = f7 * (1.0f - f5) + (f9 - f10 + f7) * f5;
+        object = this.h;
+        f3 = ((o)object).g;
+        o o3 = this.g;
+        float f6 = f3 - o3.g;
+        f3 = ((o)object).h - o3.h;
+        float f7 = ((o)object).i;
+        float f8 = o3.i;
+        float f9 = ((o)object).j;
+        float f10 = o3.j;
+        fArray[0] = f6 * (1.0f - f4) + (f7 - f8 + f6) * f4;
+        fArray[1] = f3 * (1.0f - f5) + (f9 - f10 + f3) * f5;
     }
 
     public int m() {
@@ -1005,11 +1006,11 @@ public class m {
         float f7 = f6 - object11.g;
         float f8 = o3.h - object11.h;
         float f9 = o3.i;
-        f6 = object11.i;
-        float f10 = o3.j;
+        float f10 = object11.i;
+        f6 = o3.j;
         float f11 = object11.j;
-        fArray[0] = f7 * (1.0f - f4) + (f9 - f6 + f7) * f4;
-        fArray[1] = f8 * (1.0f - f5) + (f8 + (f10 - f11)) * f5;
+        fArray[0] = f7 * (1.0f - f4) + (f9 - f10 + f7) * f4;
+        fArray[1] = f8 * (1.0f - f5) + (f8 + (f6 - f11)) * f5;
         ((p)object10).b();
         ((p)object10).d((s.j)object3, f3);
         ((p)object10).h((s.j)object, (s.j)object2, f3);
@@ -1127,7 +1128,7 @@ public class m {
         float f4;
         Object object2;
         boolean bl2;
-        Object object32;
+        Object object3;
         Object object42;
         float f5;
         float f6;
@@ -1151,11 +1152,11 @@ public class m {
             }
         }
         if ((object42 = this.B) != null) {
-            object32 = ((HashMap)object42).values().iterator();
+            object3 = ((HashMap)object42).values().iterator();
             object42 = null;
             bl2 = false;
-            while (object32.hasNext()) {
-                object2 = (w.f)object32.next();
+            while (object3.hasNext()) {
+                object2 = (w.f)object3.next();
                 if (object2 instanceof f.d) {
                     object42 = (f.d)object2;
                     continue;
@@ -1166,14 +1167,14 @@ public class m {
             object42 = null;
             bl2 = false;
         }
-        if ((object32 = this.k) != null) {
-            object32 = object32[0];
+        if ((object3 = this.k) != null) {
+            object3 = object3[0];
             double d3 = f3;
-            object32.d(d3, this.s);
+            object3.d(d3, this.s);
             this.k[0].g(d3, this.t);
-            object32 = this.l;
-            if (object32 != null && ((Object)(object2 = (Object)this.s)).length > 0) {
-                object32.d(d3, (double[])object2);
+            object2 = this.l;
+            if (object2 != null && ((s.b[])(object3 = (Object)this.s)).length > 0) {
+                ((s.b)object2).d(d3, (double[])object3);
                 this.l.g(d3, this.t);
             }
             if (!this.L) {
@@ -1184,26 +1185,26 @@ public class m {
                 if (this.H == null) {
                     this.H = ((View)view.getParent()).findViewById(this.G);
                 }
-                if ((object32 = this.H) != null) {
-                    f5 = (float)(object32.getTop() + this.H.getBottom()) / 2.0f;
-                    f6 = (float)(this.H.getLeft() + this.H.getRight()) / 2.0f;
+                if ((object3 = this.H) != null) {
+                    f6 = (float)(object3.getTop() + this.H.getBottom()) / 2.0f;
+                    f7 = (float)(this.H.getLeft() + this.H.getRight()) / 2.0f;
                     if (view.getRight() - view.getLeft() > 0 && view.getBottom() - view.getTop() > 0) {
                         f4 = view.getLeft();
-                        f7 = view.getTop();
-                        view.setPivotX(f6 - f4);
-                        view.setPivotY(f5 - f7);
+                        f5 = view.getTop();
+                        view.setPivotX(f7 - f4);
+                        view.setPivotY(f6 - f5);
                     }
                 }
             }
-            if ((object32 = this.C) != null) {
-                for (Object object32 : object32.values()) {
-                    if (!(object32 instanceof d.d) || ((Object)(object2 = (Object)this.t)).length <= 1) continue;
-                    ((d.d)object32).i(view, f3, (double)object2[0], (double)object2[1]);
+            if ((object3 = this.C) != null) {
+                for (s.j j3 : object3.values()) {
+                    if (!(j3 instanceof d.d) || ((Object)(object2 = (Object)this.t)).length <= 1) continue;
+                    ((d.d)j3).i(view, f3, (double)object2[0], (double)object2[1]);
                 }
             }
             if (object42 != null) {
-                object32 = this.t;
-                bl = ((f.d)object42).j(view, (s.d)object, f3, l3, (double)object32[0], (double)object32[1]);
+                object3 = this.t;
+                bl = ((f.d)object42).j(view, (s.d)object, f3, l3, (double)object3[0], (double)object3[1]);
                 bl2 |= bl;
             }
             for (n3 = 1; n3 < ((s.b[])(object = this.k)).length; ++n3) {
@@ -1243,21 +1244,21 @@ public class m {
             float f9 = ((o)object).g;
             float f10 = ((o)object42).h;
             float f11 = ((o)object).h;
-            f4 = ((o)object42).i;
-            f7 = ((o)object).i;
-            f6 = ((o)object42).j;
-            f5 = ((o)object).j;
-            f8 = f8 + (f9 - f8) * f3 + 0.5f;
-            int n4 = (int)f8;
+            f6 = ((o)object42).i;
+            f5 = ((o)object).i;
+            f4 = ((o)object42).j;
+            f7 = ((o)object).j;
+            f9 = f8 + (f9 - f8) * f3 + 0.5f;
+            int n4 = (int)f9;
             f10 = f10 + (f11 - f10) * f3 + 0.5f;
-            int n5 = (int)f10;
-            n3 = (int)(f8 + ((f7 - f4) * f3 + f4));
-            int n6 = (int)(f10 + ((f5 - f6) * f3 + f6));
-            if (f7 != f4 || f5 != f6 || this.d) {
-                view.measure(View.MeasureSpec.makeMeasureSpec((int)(n3 - n4), (int)0x40000000), View.MeasureSpec.makeMeasureSpec((int)(n6 - n5), (int)0x40000000));
+            n3 = (int)f10;
+            int n5 = (int)(f9 + ((f5 - f6) * f3 + f6));
+            int n6 = (int)(f10 + ((f7 - f4) * f3 + f4));
+            if (f5 != f6 || f7 != f4 || this.d) {
+                view.measure(View.MeasureSpec.makeMeasureSpec((int)(n5 - n4), (int)0x40000000), View.MeasureSpec.makeMeasureSpec((int)(n6 - n3), (int)0x40000000));
                 this.d = false;
             }
-            view.layout(n4, n5, n3, n6);
+            view.layout(n4, n3, n5, n6);
             bl = bl2;
             f7 = f3;
         }
@@ -1265,8 +1266,8 @@ public class m {
             for (Object object42 : ((HashMap)object).values()) {
                 if (object42 instanceof c.d) {
                     object42 = (c.d)object42;
-                    object32 = this.t;
-                    ((c.d)object42).k(view, f7, (double)object32[0], (double)object32[1]);
+                    object3 = this.t;
+                    ((c.d)object42).k(view, f7, (double)object3[0], (double)object3[1]);
                     continue;
                 }
                 ((w.c)object42).j(view, f7);

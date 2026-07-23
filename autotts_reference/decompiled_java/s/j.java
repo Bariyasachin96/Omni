@@ -41,33 +41,32 @@ public abstract class j {
     }
 
     public void e(int n3) {
-        int n4;
-        Object object;
-        int n5 = this.d;
-        if (n5 == 0) {
+        Object[] objectArray;
+        int n4 = this.d;
+        if (n4 == 0) {
             return;
         }
-        s.j$a.a(this.b, this.c, 0, n5 - 1);
-        int n6 = 1;
-        for (n5 = 1; n5 < this.d; ++n5) {
-            object = this.b;
-            n4 = n6;
-            if (object[n5 - 1] != object[n5]) {
-                n4 = n6 + 1;
+        s.j$a.a(this.b, this.c, 0, n4 - 1);
+        int n5 = 1;
+        for (int i3 = 1; i3 < this.d; ++i3) {
+            objectArray = this.b;
+            n4 = n5;
+            if (objectArray[i3 - 1] != objectArray[i3]) {
+                n4 = n5 + 1;
             }
-            n6 = n4;
+            n5 = n4;
         }
-        double[] dArray = new double[n6];
-        object = new double[n6][1];
-        n4 = 0;
-        for (n5 = 0; n5 < this.d; ++n5) {
+        objectArray = new double[n5];
+        double[][] dArray = new double[n5][1];
+        n5 = 0;
+        for (n4 = 0; n4 < this.d; ++n4) {
             int[] nArray;
-            if (n5 > 0 && (nArray = this.b)[n5] == nArray[n5 - 1]) continue;
-            dArray[n4] = (double)this.b[n5] * 0.01;
-            object[n4][0] = this.c[n5];
-            ++n4;
+            if (n4 > 0 && (nArray = this.b)[n4] == nArray[n4 - 1]) continue;
+            objectArray[n5] = (int)((double)this.b[n4] * 0.01);
+            dArray[n5][0] = this.c[n4];
+            ++n5;
         }
-        this.a = s.b.a(n3, dArray, (double[][])object);
+        this.a = s.b.a(n3, objectArray, dArray);
     }
 
     public String toString() {

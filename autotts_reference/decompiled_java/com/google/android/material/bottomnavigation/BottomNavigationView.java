@@ -70,16 +70,16 @@ extends NavigationBarView {
                 if (n3 != 1) {
                     bl = false;
                 }
-                n3 = z12.j();
-                int n4 = z12.k();
+                int n4 = z12.j();
+                n3 = z12.k();
                 int n5 = e3.a;
-                int n6 = bl ? n4 : n3;
+                int n6 = bl ? n3 : n4;
                 e3.a = n5 + n6;
                 n6 = e3.c;
                 if (!bl) {
-                    n3 = n4;
+                    n4 = n3;
                 }
-                e3.c = n6 + n3;
+                e3.c = n6 + n4;
                 e3.a(view);
                 return z12;
             }
@@ -97,9 +97,9 @@ extends NavigationBarView {
         if (View.MeasureSpec.getMode((int)n3) != 0x40000000) {
             n5 = n3;
             if (n4 > 0) {
-                n5 = this.getPaddingTop();
-                int n6 = this.getPaddingBottom();
-                n5 = View.MeasureSpec.makeMeasureSpec((int)Math.max(View.MeasureSpec.getSize((int)n3), n4 + (n5 + n6)), (int)Integer.MIN_VALUE);
+                int n6 = this.getPaddingTop();
+                n5 = this.getPaddingBottom();
+                n5 = View.MeasureSpec.makeMeasureSpec((int)Math.max(View.MeasureSpec.getSize((int)n3), n4 + (n6 + n5)), (int)Integer.MIN_VALUE);
             }
         }
         return n5;

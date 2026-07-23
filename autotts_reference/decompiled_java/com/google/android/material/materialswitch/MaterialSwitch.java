@@ -55,27 +55,27 @@ extends SwitchCompat {
         this(context, attributeSet, z1.c.materialSwitchStyle);
     }
 
-    public MaterialSwitch(Context object, AttributeSet attributeSet, int n3) {
+    public MaterialSwitch(Context context, AttributeSet object, int n3) {
         int n4 = m0;
-        super(y2.a.d((Context)object, attributeSet, n3, n4), attributeSet, n3);
+        super(y2.a.d(context, (AttributeSet)object, n3, n4), (AttributeSet)object, n3);
         this.b0 = -1;
-        object = this.getContext();
+        context = this.getContext();
         this.W = super.getThumbDrawable();
         this.e0 = super.getThumbTintList();
         super.setThumbTintList(null);
         this.c0 = super.getTrackDrawable();
         this.h0 = super.getTrackTintList();
         super.setTrackTintList(null);
-        object = com.google.android.material.internal.z.j((Context)object, attributeSet, z1.m.MaterialSwitch, n3, n4, new int[0]);
+        object = com.google.android.material.internal.z.j(context, (AttributeSet)object, z1.m.MaterialSwitch, n3, n4, new int[0]);
         this.a0 = ((m0)object).g(z1.m.MaterialSwitch_thumbIcon);
         this.b0 = ((m0)object).f(z1.m.MaterialSwitch_thumbIconSize, -1);
         this.f0 = ((m0)object).c(z1.m.MaterialSwitch_thumbIconTint);
         n3 = ((m0)object).k(z1.m.MaterialSwitch_thumbIconTintMode, -1);
-        attributeSet = PorterDuff.Mode.SRC_IN;
-        this.g0 = com.google.android.material.internal.c0.n(n3, (PorterDuff.Mode)attributeSet);
+        context = PorterDuff.Mode.SRC_IN;
+        this.g0 = com.google.android.material.internal.c0.n(n3, (PorterDuff.Mode)context);
         this.d0 = ((m0)object).g(z1.m.MaterialSwitch_trackDecoration);
         this.i0 = ((m0)object).c(z1.m.MaterialSwitch_trackDecorationTint);
-        this.j0 = com.google.android.material.internal.c0.n(((m0)object).k(z1.m.MaterialSwitch_trackDecorationTintMode, -1), (PorterDuff.Mode)attributeSet);
+        this.j0 = com.google.android.material.internal.c0.n(((m0)object).k(z1.m.MaterialSwitch_trackDecorationTintMode, -1), (PorterDuff.Mode)context);
         ((m0)object).x();
         this.setEnforceSwitchWidth(false);
         this.p();

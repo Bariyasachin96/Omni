@@ -77,7 +77,8 @@ public class h {
         objectArray = this.b;
         float f5 = objectArray[n4];
         float f6 = objectArray[n3];
-        return this.c[n3] + ((double)f4 - (d4 /= f5 - f6) * f6) * (d3 - f6) + d4 * (d3 * d3 - f6 * f6) / 2.0;
+        f5 = (float)(d4 / (f5 - f6));
+        return this.c[n3] + ((double)f4 - f5 * f6) * (d3 - f6) + f5 * (d3 * d3 - f6 * f6) / 2.0;
     }
 
     public double d(double d3, double d4, double d5) {

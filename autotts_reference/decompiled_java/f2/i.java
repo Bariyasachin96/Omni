@@ -35,8 +35,8 @@ extends com.google.android.material.carousel.a {
         float f6 = Math.max(this.c() + f3, f5);
         float f7 = n3;
         float f8 = Math.min(f4 + f3, f7);
-        float f9 = j0.a.a(f4 / 3.0f + f3, f5 + f3, f6 + f3);
-        f4 = (f8 + f9) / 2.0f;
+        f4 = j0.a.a(f4 / 3.0f + f3, f5 + f3, f6 + f3);
+        float f9 = (f8 + f4) / 2.0f;
         object = d;
         float f10 = 2.0f * f5;
         if (f7 <= f10) {
@@ -50,14 +50,14 @@ extends com.google.android.material.carousel.a {
             object2 = com.google.android.material.carousel.a.a((int[])object);
             object3 = com.google.android.material.carousel.a.a(nArray);
         }
-        int n4 = (int)Math.max(1.0, Math.floor((f7 - (float)com.google.android.material.carousel.b.i((int[])object3) * f4 - (float)com.google.android.material.carousel.b.i((int[])object2) * f6) / f8));
+        int n4 = (int)Math.max(1.0, Math.floor((f7 - (float)com.google.android.material.carousel.b.i((int[])object3) * f9 - (float)com.google.android.material.carousel.b.i((int[])object2) * f6) / f8));
         int n5 = (int)Math.ceil(f7 / f8);
         int n6 = n5 - n4 + 1;
         object = new int[n6];
         for (n4 = 0; n4 < n6; ++n4) {
             object[n4] = (RecyclerView.LayoutParams)(n5 - n4);
         }
-        object3 = f2.a.c(f7, f9, f5, f6, (int[])object2, f4, (int[])object3, f8, (int[])object);
+        object3 = f2.a.c(f7, f4, f5, f6, (int[])object2, f9, (int[])object3, f8, (int[])object);
         this.c = ((a)object3).e();
         boolean bl = this.i((a)object3, b3.e());
         n5 = ((a)object3).d;
@@ -67,9 +67,9 @@ extends com.google.android.material.carousel.a {
         }
         object = object3;
         if (bl) {
-            n4 = ((a)object3).c;
-            n6 = ((a)object3).g;
-            object = f2.a.c(f7, f9, f5, f6, new int[]{n4}, f4, new int[]{n5}, f8, new int[]{n6});
+            n6 = ((a)object3).c;
+            n4 = ((a)object3).g;
+            object = f2.a.c(f7, f4, f5, f6, new int[]{n6}, f9, new int[]{n5}, f8, new int[]{n4});
         }
         return com.google.android.material.carousel.b.d(view.getContext(), f3, n3, (a)object, b3.b());
     }

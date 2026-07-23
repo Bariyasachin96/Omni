@@ -368,9 +368,9 @@ extends m {
             this.h.remove(n4);
         }
         for (n4 = this.i.size() - 1; n4 >= 0; --n4) {
-            object2 = (RecyclerView.d0)this.i.get(n4);
-            ((RecyclerView.d0)object2).a.setAlpha(1.0f);
-            this.A((RecyclerView.d0)object2);
+            object = (RecyclerView.d0)this.i.get(n4);
+            ((RecyclerView.d0)object).a.setAlpha(1.0f);
+            this.A((RecyclerView.d0)object);
             this.i.remove(n4);
         }
         for (n4 = this.k.size() - 1; n4 >= 0; --n4) {
@@ -381,16 +381,16 @@ extends m {
             return;
         }
         for (n4 = this.m.size() - 1; n4 >= 0; --n4) {
-            object2 = (ArrayList)this.m.get(n4);
-            for (n3 = ((ArrayList)object2).size() - 1; n3 >= 0; --n3) {
-                j j3 = (j)((ArrayList)object2).get(n3);
-                object = j3.a.a;
-                object.setTranslationY(0.0f);
-                object.setTranslationX(0.0f);
-                this.E(j3.a);
-                ((ArrayList)object2).remove(n3);
-                if (!((ArrayList)object2).isEmpty()) continue;
-                this.m.remove(object2);
+            object = (ArrayList)this.m.get(n4);
+            for (n3 = ((ArrayList)object).size() - 1; n3 >= 0; --n3) {
+                object2 = (j)((ArrayList)object).get(n3);
+                View view = ((j)object2).a.a;
+                view.setTranslationY(0.0f);
+                view.setTranslationX(0.0f);
+                this.E(((j)object2).a);
+                ((ArrayList)object).remove(n3);
+                if (!((ArrayList)object).isEmpty()) continue;
+                this.m.remove(object);
             }
         }
         for (n4 = this.l.size() - 1; n4 >= 0; --n4) {
@@ -405,11 +405,11 @@ extends m {
             }
         }
         for (n4 = this.n.size() - 1; n4 >= 0; --n4) {
-            object2 = (ArrayList)this.n.get(n4);
-            for (n3 = ((ArrayList)object2).size() - 1; n3 >= 0; --n3) {
-                this.X((i)((ArrayList)object2).get(n3));
-                if (!((ArrayList)object2).isEmpty()) continue;
-                this.n.remove(object2);
+            object = (ArrayList)this.n.get(n4);
+            for (n3 = ((ArrayList)object).size() - 1; n3 >= 0; --n3) {
+                this.X((i)((ArrayList)object).get(n3));
+                if (!((ArrayList)object).isEmpty()) continue;
+                this.n.remove(object);
             }
         }
         this.U(this.q);
@@ -434,19 +434,19 @@ extends m {
         boolean bl4 = this.i.isEmpty();
         if (!(bl && bl2 && bl4 && bl3)) {
             Object object;
-            ArrayList arrayList = this.h;
-            int n3 = arrayList.size();
+            Object object2 = this.h;
+            int n3 = ((ArrayList)object2).size();
             for (int i3 = 0; i3 < n3; ++i3) {
-                object = arrayList.get(i3);
+                object = ((ArrayList)object2).get(i3);
                 this.T((RecyclerView.d0)object);
             }
             this.h.clear();
             if (!bl2) {
-                arrayList = new ArrayList();
-                arrayList.addAll(this.j);
-                this.m.add(arrayList);
+                object2 = new ArrayList();
+                ((ArrayList)object2).addAll(this.j);
+                this.m.add(object2);
                 this.j.clear();
-                object = new Runnable(this, arrayList){
+                object = new Runnable(this, (ArrayList)object2){
                     public final ArrayList c;
                     public final c d;
                     {
@@ -468,17 +468,17 @@ extends m {
                     }
                 };
                 if (!bl) {
-                    x0.a0(((j)arrayList.get((int)0)).a.a, (Runnable)object, this.o());
+                    x0.a0(((j)((ArrayList)object2).get((int)0)).a.a, (Runnable)object, this.o());
                 } else {
                     object.run();
                 }
             }
             if (!bl3) {
-                arrayList = new ArrayList();
-                arrayList.addAll(this.k);
-                this.n.add(arrayList);
+                object2 = new ArrayList();
+                ((ArrayList)object2).addAll(this.k);
+                this.n.add(object2);
                 this.k.clear();
-                object = new Runnable(this, arrayList){
+                object = new Runnable(this, (ArrayList)object2){
                     public final ArrayList c;
                     public final c d;
                     {
@@ -500,17 +500,17 @@ extends m {
                     }
                 };
                 if (!bl) {
-                    x0.a0(((i)arrayList.get((int)0)).a.a, (Runnable)object, this.o());
+                    x0.a0(((i)((ArrayList)object2).get((int)0)).a.a, (Runnable)object, this.o());
                 } else {
                     object.run();
                 }
             }
             if (!bl4) {
-                arrayList = new ArrayList();
-                arrayList.addAll(this.i);
-                this.l.add(arrayList);
+                object = new ArrayList();
+                ((ArrayList)object).addAll(this.i);
+                this.l.add(object);
                 this.i.clear();
-                object = new Runnable(this, arrayList){
+                object2 = new Runnable(this, (ArrayList)object){
                     public final ArrayList c;
                     public final c d;
                     {
@@ -532,7 +532,7 @@ extends m {
                     }
                 };
                 if (bl && bl2 && bl3) {
-                    object.run();
+                    object2.run();
                     return;
                 }
                 long l3 = 0L;
@@ -542,7 +542,7 @@ extends m {
                     l3 = this.m();
                 }
                 l5 = Math.max(l5, l3);
-                x0.a0(((RecyclerView.d0)arrayList.get((int)0)).a, (Runnable)object, l4 + l5);
+                x0.a0(((RecyclerView.d0)((ArrayList)object).get((int)0)).a, (Runnable)object2, l4 + l5);
             }
         }
     }

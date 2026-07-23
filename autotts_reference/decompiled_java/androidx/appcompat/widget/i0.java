@@ -67,10 +67,10 @@ public abstract class i0 {
         return i0.d(context, n3, colorStateList.getFloat());
     }
 
-    public static int c(Context context, int n3) {
-        Object object = j;
-        object[0] = n3;
-        object = m0.u(context, null, (int[])object);
+    public static int c(Context object, int n3) {
+        int[] nArray = j;
+        nArray[0] = n3;
+        object = m0.u((Context)object, null, nArray);
         try {
             n3 = ((m0)object).b(0, 0);
             return n3;

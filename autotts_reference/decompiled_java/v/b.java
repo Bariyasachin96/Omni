@@ -12,6 +12,7 @@ import u.h;
 import u.i;
 import u.k;
 import u.m;
+import v.p;
 
 public class b {
     public final ArrayList a = new ArrayList();
@@ -52,72 +53,71 @@ public class b {
         return ((a)object).i;
     }
 
-    /*
-     * Unable to fully structure code
-     * Could not resolve type clashes
-     */
-    public final void b(f var1_1) {
-        var6_2 = var1_1.V0.size();
-        var7_3 = var1_1.Z1(64);
-        var8_4 = var1_1.O1();
-        for (var4_5 = 0; var4_5 < var6_2; ++var4_5) {
-            block11: {
-                var9_9 = (e)var1_1.V0.get(var4_5);
-                if (var9_9 instanceof h || var9_9 instanceof u.a || var9_9.n0() || var7_3 && (var11_11 /* !! */  = var9_9.e) != null && (var10_10 /* !! */  = var9_9.f) != null && var11_11 /* !! */ .e.j && var10_10 /* !! */ .e.j) continue;
-                var12_12 = var9_9.w(0);
-                var5_8 = true;
-                var10_10 /* !! */  = var9_9.w(1);
-                var11_11 /* !! */  = e.b.e;
-                var2_6 = var12_12 == var11_11 /* !! */  && var9_9.w != 1 && var10_10 /* !! */  == var11_11 /* !! */  && var9_9.x != 1;
-                var3_7 = var2_6;
-                if (var2_6) ** GOTO lbl-1000
-                var3_7 = var2_6;
-                if (!var1_1.Z1(1)) ** GOTO lbl-1000
-                var3_7 = var2_6;
-                if (var9_9 instanceof m) ** GOTO lbl-1000
-                var3_7 = var2_6;
-                if (var12_12 == var11_11 /* !! */ ) {
-                    var3_7 = var2_6;
-                    if (var9_9.w == 0) {
-                        var3_7 = var2_6;
-                        if (var10_10 /* !! */  != var11_11 /* !! */ ) {
-                            var3_7 = var2_6;
-                            if (!var9_9.k0()) {
-                                var3_7 = true;
+    public final void b(f f3) {
+        int n3 = f3.V0.size();
+        boolean bl = f3.Z1(64);
+        b b3 = f3.O1();
+        for (int i3 = 0; i3 < n3; ++i3) {
+            boolean bl2;
+            e e3;
+            block13: {
+                boolean bl3;
+                boolean bl4;
+                block14: {
+                    Object object;
+                    Object object2;
+                    e3 = (e)f3.V0.get(i3);
+                    if (e3 instanceof h || e3 instanceof u.a || e3.n0() || bl && (object2 = e3.e) != null && (object = e3.f) != null && object2.e.j && ((p)object).e.j) continue;
+                    object = e3.w(0);
+                    bl4 = true;
+                    object2 = e3.w(1);
+                    e.b b4 = e.b.e;
+                    bl3 = object == b4 && e3.w != 1 && object2 == b4 && e3.x != 1;
+                    bl2 = bl3;
+                    if (bl3) break block13;
+                    bl2 = bl3;
+                    if (!f3.Z1(1)) break block13;
+                    bl2 = bl3;
+                    if (e3 instanceof m) break block13;
+                    bl2 = bl3;
+                    if (object == b4) {
+                        bl2 = bl3;
+                        if (e3.w == 0) {
+                            bl2 = bl3;
+                            if (object2 != b4) {
+                                bl2 = bl3;
+                                if (!e3.k0()) {
+                                    bl2 = true;
+                                }
                             }
                         }
                     }
-                }
-                var2_6 = var3_7;
-                if (var10_10 /* !! */  == var11_11 /* !! */ ) {
-                    var2_6 = var3_7;
-                    if (var9_9.x == 0) {
-                        var2_6 = var3_7;
-                        if (var12_12 != var11_11 /* !! */ ) {
-                            var2_6 = var3_7;
-                            if (!var9_9.k0()) {
-                                var2_6 = true;
+                    bl3 = bl2;
+                    if (object2 == b4) {
+                        bl3 = bl2;
+                        if (e3.x == 0) {
+                            bl3 = bl2;
+                            if (object != b4) {
+                                bl3 = bl2;
+                                if (!e3.k0()) {
+                                    bl3 = true;
+                                }
                             }
                         }
                     }
+                    if (object == b4) break block14;
+                    bl2 = bl3;
+                    if (object2 != b4) break block13;
                 }
-                if (var12_12 == var11_11 /* !! */ ) break block11;
-                var3_7 = var2_6;
-                if (var10_10 /* !! */  != var11_11 /* !! */ ) ** GOTO lbl-1000
+                bl2 = bl3;
+                if (e3.f0 > 0.0f) {
+                    bl2 = bl4;
+                }
             }
-            var3_7 = var2_6;
-            if (var9_9.f0 > 0.0f) {
-                var2_6 = var5_8;
-            } else lbl-1000:
-            // 5 sources
-
-            {
-                var2_6 = var3_7;
-            }
-            if (var2_6) continue;
-            this.a(var8_4, var9_9, v.b$a.k);
+            if (bl2) continue;
+            this.a(b3, e3, v.b$a.k);
         }
-        var8_4.a();
+        b3.a();
     }
 
     public final void c(f f3, String string, int n3, int n4, int n5) {
@@ -141,8 +141,8 @@ public class b {
     public long d(f f3, int n3, int n4, int n5, int n6, int n7, int n8, int n9, int n10, int n11) {
         void var21_21;
         int n12;
-        e.b b3;
         Object object;
+        e.b b3;
         b b4 = f3.O1();
         int n13 = f3.V0.size();
         n11 = f3.Y();
@@ -153,15 +153,14 @@ public class b {
         if (n3 != 0) {
             n4 = 0;
             while (true) {
-                e.b b5;
                 n5 = n3;
                 if (n4 >= n13) break;
-                object = (e)f3.V0.get(n4);
-                b3 = ((e)object).C();
-                n5 = b3 == (b5 = e.b.e) ? 1 : 0;
-                n10 = ((e)object).V() == b5 ? 1 : 0;
-                n5 = n5 != 0 && n10 != 0 && ((e)object).x() > 0.0f ? 1 : 0;
-                if (((e)object).k0() && n5 != 0 || ((e)object).m0() && n5 != 0 || object instanceof m || ((e)object).k0() || ((e)object).m0()) {
+                e e3 = (e)f3.V0.get(n4);
+                b3 = e3.C();
+                n5 = b3 == (object = e.b.e) ? 1 : 0;
+                n10 = e3.V() == object ? 1 : 0;
+                n5 = n5 != 0 && n10 != 0 && e3.x() > 0.0f ? 1 : 0;
+                if (e3.k0() && n5 != 0 || e3.m0() && n5 != 0 || e3 instanceof m || e3.k0() || e3.m0()) {
                     n5 = 0;
                     break;
                 }
@@ -243,10 +242,10 @@ public class b {
                         n6 = n5;
                     } else {
                         n17 = ((e)object).Y();
-                        n13 = ((e)object).z();
+                        n16 = ((e)object).z();
                         int n18 = this.a(b4, (e)object, v.b$a.l);
                         n6 = ((e)object).Y();
-                        n16 = ((e)object).z();
+                        n13 = ((e)object).z();
                         if (n6 != n17) {
                             ((e)object).p1(n6);
                             n5 = n4;
@@ -262,8 +261,8 @@ public class b {
                             n6 = n18 | n5;
                         }
                         n5 = n3;
-                        if (n16 != n13) {
-                            ((e)object).Q0(n16);
+                        if (n13 != n16) {
+                            ((e)object).Q0(n13);
                             n5 = n3;
                             if (n10 != 0) {
                                 n5 = n3;

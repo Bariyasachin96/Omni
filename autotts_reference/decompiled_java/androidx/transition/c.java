@@ -15,7 +15,6 @@ import android.view.ViewTreeObserver;
 import androidx.transition.AutoTransition;
 import androidx.transition.Transition;
 import androidx.transition.b;
-import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import m1.p;
@@ -40,14 +39,14 @@ public abstract class c {
     }
 
     public static o.a b() {
-        Object object = (WeakReference)b.get();
-        if (object != null && (object = (o.a)((Reference)object).get()) != null) {
-            return object;
+        WeakReference weakReference = (WeakReference)b.get();
+        if (weakReference != null && (weakReference = (o.a)weakReference.get()) != null) {
+            return weakReference;
         }
-        object = new o.a();
-        WeakReference<Object> weakReference = new WeakReference<Object>(object);
+        o.a a4 = new o.a();
+        weakReference = new WeakReference(a4);
         b.set(weakReference);
-        return object;
+        return a4;
     }
 
     public static void c(ViewGroup viewGroup, Transition object) {
@@ -96,16 +95,16 @@ public abstract class c {
                 return true;
             }
             o.a a4 = androidx.transition.c.b();
-            ViewGroup viewGroup = (ViewGroup)a4.get(this.d);
+            Object object2 = (ViewGroup)a4.get(this.d);
             ArrayList arrayList = null;
-            if (viewGroup == null) {
+            if (object2 == null) {
                 object = new ArrayList();
                 a4.put(this.d, object);
             } else {
-                object = viewGroup;
-                if (viewGroup.size() > 0) {
-                    arrayList = new ArrayList(viewGroup);
-                    object = viewGroup;
+                object = object2;
+                if (((ArrayList)object2).size() > 0) {
+                    arrayList = new ArrayList(object2);
+                    object = object2;
                 }
             }
             object.add(this.c);
@@ -123,9 +122,9 @@ public abstract class c {
                     transition.a0(this);
                 }
             });
-            object = this.c;
-            viewGroup = this.d;
-            object.l(viewGroup, false);
+            object2 = this.c;
+            object = this.d;
+            ((Transition)object2).l((ViewGroup)object, false);
             if (arrayList != null) {
                 int n3 = arrayList.size();
                 for (int i3 = 0; i3 < n3; ++i3) {
@@ -143,12 +142,12 @@ public abstract class c {
         public void onViewDetachedFromWindow(View object) {
             this.a();
             c.remove(this.d);
-            ArrayList arrayList = (ArrayList)androidx.transition.c.b().get(this.d);
-            if (arrayList != null && arrayList.size() > 0) {
-                int n3 = arrayList.size();
+            object = (ArrayList)androidx.transition.c.b().get(this.d);
+            if (object != null && ((ArrayList)object).size() > 0) {
+                int n3 = ((ArrayList)object).size();
                 for (int i3 = 0; i3 < n3; ++i3) {
-                    object = arrayList.get(i3);
-                    ((Transition)object).c0((View)this.d);
+                    Object e3 = ((ArrayList)object).get(i3);
+                    ((Transition)e3).c0((View)this.d);
                 }
             }
             this.c.m(true);

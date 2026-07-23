@@ -44,12 +44,12 @@ public abstract class e {
             }
         }
         l1.b(window, bl ^ true);
-        n7 = e.c(window.getContext(), bl);
-        n8 = e.b(window.getContext(), bl);
-        window.setStatusBarColor(n7);
-        window.setNavigationBarColor(n8);
-        e.f(window, e.d(n7, h2.a.h(n6)));
-        e.e(window, e.d(n8, h2.a.h(n5)));
+        n8 = e.c(window.getContext(), bl);
+        n7 = e.b(window.getContext(), bl);
+        window.setStatusBarColor(n8);
+        window.setNavigationBarColor(n7);
+        e.f(window, e.d(n8, h2.a.h(n6)));
+        e.e(window, e.d(n7, h2.a.h(n5)));
     }
 
     public static int b(Context context, boolean bl) {

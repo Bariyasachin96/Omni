@@ -201,12 +201,12 @@ public class b {
             int n8 = this.E() ? this.e : n4 - this.e - this.f - n6;
             n3 = this.F() ? this.e : n3 - this.e - this.f - n5;
             n4 = this.E() ? n4 - this.e - this.f - n6 : this.e;
-            if (this.a.getLayoutDirection() == 1) {
-                n6 = n7;
-                n7 = n3;
-                n3 = n6;
+            if (this.a.getLayoutDirection() != 1) {
+                n6 = n3;
+                n3 = n7;
+                n7 = n6;
             }
-            this.p.setLayerInset(2, n7, n4, n3, n8);
+            this.p.setLayerInset(2, n3, n4, n7, n8);
         }
     }
 

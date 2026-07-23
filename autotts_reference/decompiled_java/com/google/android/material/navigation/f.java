@@ -3,12 +3,10 @@
  * 
  * Could not load the following classes:
  *  android.view.MenuItem
- *  android.view.SubMenu
  */
 package com.google.android.material.navigation;
 
 import android.view.MenuItem;
-import android.view.SubMenu;
 import androidx.appcompat.view.menu.e;
 import androidx.appcompat.view.menu.i;
 import com.google.android.material.navigation.a;
@@ -62,15 +60,15 @@ public class f {
                     this.b.add(new a());
                 }
                 this.b.add(object);
-                SubMenu subMenu = object.getSubMenu();
-                for (int i4 = 0; i4 < subMenu.size(); ++i4) {
-                    list = subMenu.getItem(i4);
+                list = object.getSubMenu();
+                for (int i4 = 0; i4 < list.size(); ++i4) {
+                    MenuItem menuItem = list.getItem(i4);
                     if (!object.isVisible()) {
-                        list.setVisible(false);
+                        menuItem.setVisible(false);
                     }
-                    this.b.add(list);
+                    this.b.add(menuItem);
                     ++this.c;
-                    if (!list.isVisible()) continue;
+                    if (!menuItem.isVisible()) continue;
                     ++this.d;
                 }
                 this.b.add(new a());

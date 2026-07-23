@@ -41,22 +41,22 @@ extends c {
         this.f(this.size() + 1);
         int n4 = this.i(this.c + n3);
         if (n3 < this.size() + 1 >> 1) {
-            int n5 = this.e(n4);
-            n4 = this.e(this.c);
-            n3 = this.c;
-            if (n5 >= n3) {
+            n4 = this.e(n4);
+            n3 = this.e(this.c);
+            int n5 = this.c;
+            if (n4 >= n5) {
                 Object[] objectArray = this.d;
-                objectArray[n4] = objectArray[n3];
-                h.g(objectArray, objectArray, n3, n3 + 1, n5 + 1);
+                objectArray[n3] = objectArray[n5];
+                h.g(objectArray, objectArray, n5, n5 + 1, n4 + 1);
             } else {
                 Object[] objectArray = this.d;
-                h.g(objectArray, objectArray, n3 - 1, n3, objectArray.length);
+                h.g(objectArray, objectArray, n5 - 1, n5, objectArray.length);
                 objectArray = this.d;
                 objectArray[objectArray.length - 1] = objectArray[0];
-                h.g(objectArray, objectArray, 0, 1, n5 + 1);
+                h.g(objectArray, objectArray, 0, 1, n4 + 1);
             }
-            this.d[n5] = object;
-            this.c = n4;
+            this.d[n4] = object;
+            this.c = n3;
         } else {
             n3 = this.i(this.c + this.size());
             if (n4 < n3) {
@@ -270,9 +270,9 @@ extends c {
         Object[] objectArray2 = this.d;
         h.g(objectArray2, objectArray, 0, this.c, objectArray2.length);
         objectArray2 = this.d;
-        int n4 = objectArray2.length;
-        n3 = this.c;
-        h.g(objectArray2, objectArray, n4 - n3, 0, n3);
+        n3 = objectArray2.length;
+        int n4 = this.c;
+        h.g(objectArray2, objectArray, n3 - n4, 0, n4);
         this.c = 0;
         this.d = objectArray;
     }
@@ -452,17 +452,17 @@ extends c {
                     h.m(this.d, null, n6, n5);
                     n4 = n6;
                 } else {
-                    Object object;
                     Object[] objectArray;
+                    Object object;
                     int n7 = this.d.length;
                     bl2 = false;
                     int n8 = n4;
                     while (n4 < n7) {
-                        objectArray = this.d;
-                        object = objectArray[n4];
-                        objectArray[n4] = null;
-                        if (!collection.contains(object)) {
-                            this.d[n8] = object;
+                        object = this.d;
+                        objectArray = object[n4];
+                        object[n4] = null;
+                        if (!collection.contains(objectArray)) {
+                            this.d[n8] = objectArray;
                             ++n8;
                         } else {
                             bl2 = true;
@@ -535,14 +535,13 @@ extends c {
                 int n5 = this.i(this.c + this.size());
                 if (n4 < n5) {
                     int n6 = n4;
-                    bl2 = bl3;
                     while (n4 < n5) {
                         Object object = this.d[n4];
                         if (collection.contains(object)) {
                             this.d[n6] = object;
                             ++n6;
                         } else {
-                            bl2 = true;
+                            bl3 = true;
                         }
                         ++n4;
                     }
@@ -552,7 +551,7 @@ extends c {
                     Object object;
                     Object[] objectArray;
                     int n7 = this.d.length;
-                    bl2 = false;
+                    bl3 = false;
                     int n8 = n4;
                     while (n4 < n7) {
                         objectArray = this.d;
@@ -562,7 +561,7 @@ extends c {
                             this.d[n8] = object;
                             ++n8;
                         } else {
-                            bl2 = true;
+                            bl3 = true;
                         }
                         ++n4;
                     }
@@ -576,13 +575,13 @@ extends c {
                             n4 = this.g(n4);
                             continue;
                         }
-                        bl2 = true;
+                        bl3 = true;
                     }
                 }
-                bl4 = bl2;
-                if (bl2) {
+                bl4 = bl3;
+                if (bl3) {
                     this.e = this.h(n4 - this.c);
-                    bl4 = bl2;
+                    bl4 = bl3;
                 }
             }
         }

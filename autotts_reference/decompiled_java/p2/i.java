@@ -193,25 +193,25 @@ extends a {
     }
 
     public void w(float f3, boolean bl, float f4, float f5) {
-        float f6 = this.a(f3);
-        float f7 = this.b.getWidth();
-        float f8 = this.b.getHeight();
-        if (!(f7 <= 0.0f) && !(f8 <= 0.0f)) {
-            f3 = a2.a.a(1.0f, 0.9f, f6);
-            f7 = a2.a.a(0.0f, Math.max(0.0f, (f7 - 0.9f * f7) / 2.0f - this.g), f6);
+        f3 = this.a(f3);
+        float f6 = this.b.getWidth();
+        float f7 = this.b.getHeight();
+        if (!(f6 <= 0.0f) && !(f7 <= 0.0f)) {
+            float f8 = a2.a.a(1.0f, 0.9f, f3);
+            f6 = a2.a.a(0.0f, Math.max(0.0f, (f6 - 0.9f * f6) / 2.0f - this.g), f3);
             int n3 = bl ? 1 : -1;
-            float f9 = Math.min(Math.max(0.0f, (f8 - f3 * f8) / 2.0f - this.g), this.h);
-            f8 = Math.abs(f4 -= this.i) / f8;
+            float f9 = Math.min(Math.max(0.0f, (f7 - f8 * f7) / 2.0f - this.g), this.h);
+            f7 = Math.abs(f4 -= this.i) / f7;
             f4 = Math.signum(f4);
-            f4 = a2.a.a(0.0f, f9, f8) * f4;
-            if (!(Float.isNaN(f3) || Float.isNaN(f7 *= (float)n3) || Float.isNaN(f4))) {
-                this.b.setScaleX(f3);
-                this.b.setScaleY(f3);
-                this.b.setTranslationX(f7);
+            f4 = a2.a.a(0.0f, f9, f7) * f4;
+            if (!(Float.isNaN(f8) || Float.isNaN(f6 *= (float)n3) || Float.isNaN(f4))) {
+                this.b.setScaleX(f8);
+                this.b.setScaleY(f8);
+                this.b.setTranslationX(f6);
                 this.b.setTranslationY(f4);
                 View view = this.b;
                 if (view instanceof ClippableRoundedCornerLayout) {
-                    ((ClippableRoundedCornerLayout)view).e(p2.i.r(this.n(), f5, f6));
+                    ((ClippableRoundedCornerLayout)view).e(p2.i.r(this.n(), f5, f3));
                 }
             }
         }

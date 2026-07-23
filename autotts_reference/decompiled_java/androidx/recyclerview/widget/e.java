@@ -282,18 +282,16 @@ implements Runnable {
         public void a(int n3, int n4) {
             if (n3 >= 0) {
                 if (n4 >= 0) {
-                    int[] nArray;
                     int n5 = this.d;
                     int n6 = n5 * 2;
-                    int[] nArray2 = this.c;
-                    if (nArray2 == null) {
-                        nArray = new int[4];
-                        this.c = nArray;
+                    int[] nArray = this.c;
+                    if (nArray == null) {
+                        this.c = nArray = new int[4];
                         Arrays.fill(nArray, -1);
-                    } else if (n6 >= nArray2.length) {
-                        nArray = new int[n5 * 4];
-                        this.c = nArray;
-                        System.arraycopy(nArray2, 0, nArray, 0, nArray2.length);
+                    } else if (n6 >= nArray.length) {
+                        int[] nArray2 = new int[n5 * 4];
+                        this.c = nArray2;
+                        System.arraycopy(nArray, 0, nArray2, 0, nArray.length);
                     }
                     nArray = this.c;
                     nArray[n6] = n3;

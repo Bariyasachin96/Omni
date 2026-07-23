@@ -124,46 +124,46 @@ extends Toolbar {
                 }
             }
         };
-        Context context2 = this.getContext();
+        context = this.getContext();
         this.j0((AttributeSet)object);
-        this.h0 = d.a.b(context2, this.getDefaultNavigationIconResource());
+        this.h0 = d.a.b(context, this.getDefaultNavigationIconResource());
         this.g0 = new b();
-        context = com.google.android.material.internal.z.i(context2, object, z1.m.SearchBar, n3, n4, new int[0]);
-        o o3 = v2.o.e(context2, object, n3, n4).m();
-        this.b0 = n3 = context.getColor(z1.m.SearchBar_backgroundTint, 0);
-        this.d0 = s2.c.a(context2, (TypedArray)context, z1.m.SearchBar_liftOnScrollColor);
-        float f3 = context.getDimension(z1.m.SearchBar_elevation, 0.0f);
-        this.f0 = context.getBoolean(z1.m.SearchBar_defaultMarginsEnabled, true);
-        this.o0 = context.getBoolean(z1.m.SearchBar_defaultScrollFlagsEnabled, true);
-        boolean bl = context.getBoolean(z1.m.SearchBar_hideNavigationIcon, false);
-        this.j0 = context.getBoolean(z1.m.SearchBar_forceDefaultNavigationOnClickListener, false);
-        this.i0 = context.getBoolean(z1.m.SearchBar_tintNavigationIcon, true);
+        TypedArray typedArray = com.google.android.material.internal.z.i(context, object, z1.m.SearchBar, n3, n4, new int[0]);
+        object = v2.o.e(context, object, n3, n4).m();
+        this.b0 = n3 = typedArray.getColor(z1.m.SearchBar_backgroundTint, 0);
+        this.d0 = s2.c.a(context, typedArray, z1.m.SearchBar_liftOnScrollColor);
+        float f3 = typedArray.getDimension(z1.m.SearchBar_elevation, 0.0f);
+        this.f0 = typedArray.getBoolean(z1.m.SearchBar_defaultMarginsEnabled, true);
+        this.o0 = typedArray.getBoolean(z1.m.SearchBar_defaultScrollFlagsEnabled, true);
+        boolean bl = typedArray.getBoolean(z1.m.SearchBar_hideNavigationIcon, false);
+        this.j0 = typedArray.getBoolean(z1.m.SearchBar_forceDefaultNavigationOnClickListener, false);
+        this.i0 = typedArray.getBoolean(z1.m.SearchBar_tintNavigationIcon, true);
         n4 = z1.m.SearchBar_navigationIconTint;
-        if (context.hasValue(n4)) {
-            this.l0 = context.getColor(n4, -1);
+        if (typedArray.hasValue(n4)) {
+            this.l0 = typedArray.getColor(n4, -1);
         }
-        int n5 = context.getResourceId(z1.m.SearchBar_android_textAppearance, -1);
-        object = context.getString(z1.m.SearchBar_android_text);
-        String string = context.getString(z1.m.SearchBar_android_hint);
-        float f4 = context.getDimension(z1.m.SearchBar_strokeWidth, -1.0f);
-        n4 = context.getColor(z1.m.SearchBar_strokeColor, 0);
-        this.q0 = context.getBoolean(z1.m.SearchBar_textCentered, false);
-        this.c0 = context.getBoolean(z1.m.SearchBar_liftOnScroll, false);
-        this.r0 = context.getDimensionPixelSize(z1.m.SearchBar_android_maxWidth, -1);
-        context.recycle();
+        int n5 = typedArray.getResourceId(z1.m.SearchBar_android_textAppearance, -1);
+        String string = typedArray.getString(z1.m.SearchBar_android_text);
+        String string2 = typedArray.getString(z1.m.SearchBar_android_hint);
+        float f4 = typedArray.getDimension(z1.m.SearchBar_strokeWidth, -1.0f);
+        n4 = typedArray.getColor(z1.m.SearchBar_strokeColor, 0);
+        this.q0 = typedArray.getBoolean(z1.m.SearchBar_textCentered, false);
+        this.c0 = typedArray.getBoolean(z1.m.SearchBar_liftOnScroll, false);
+        this.r0 = typedArray.getDimensionPixelSize(z1.m.SearchBar_android_maxWidth, -1);
+        typedArray.recycle();
         if (!bl) {
             this.X();
         }
         this.setClickable(true);
         this.setFocusable(true);
-        LayoutInflater.from((Context)context2).inflate(z1.i.mtrl_search_bar, (ViewGroup)this);
+        LayoutInflater.from((Context)context).inflate(z1.i.mtrl_search_bar, (ViewGroup)this);
         this.e0 = true;
         this.V = (TextView)this.findViewById(z1.g.open_search_bar_text_view);
         this.W = (TextView)this.findViewById(z1.g.open_search_bar_placeholder_text_view);
         this.a0 = (FrameLayout)this.findViewById(z1.g.open_search_bar_text_view_container);
         this.setElevation(f3);
-        this.Y(n5, (String)object, string);
-        this.W(o3, n3, f3, f4, n4);
+        this.Y(n5, string, string2);
+        this.W((o)object, n3, f3, f4, n4);
     }
 
     private Drawable c0(Drawable drawable) {
@@ -248,9 +248,9 @@ extends Toolbar {
         }
         n4 = h2.a.d((View)this, a.colorControlHighlight);
         this.p0.i0(ColorStateList.valueOf((int)n3));
-        ColorStateList colorStateList = ColorStateList.valueOf((int)n4);
-        object = this.p0;
-        this.setBackground((Drawable)new RippleDrawable(colorStateList, (Drawable)object, (Drawable)object));
+        object = ColorStateList.valueOf((int)n4);
+        i i3 = this.p0;
+        this.setBackground((Drawable)new RippleDrawable((ColorStateList)object, (Drawable)i3, (Drawable)i3));
     }
 
     public final void X() {

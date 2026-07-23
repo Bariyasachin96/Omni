@@ -145,12 +145,12 @@ extends Visibility {
                 f6 = (float)(Math.random() * 2.0) - 1.0f;
             }
         }
-        f4 = Explode.w0(f5, f6);
-        f5 /= f4;
-        f4 = f6 / f4;
-        f6 = Explode.x0(view, n4 - n5, n3 - n6);
-        nArray[0] = Math.round(f5 * f6);
-        nArray[1] = Math.round(f6 * f4);
+        f3 = Explode.w0(f5, f6);
+        f5 /= f3;
+        f6 /= f3;
+        f3 = Explode.x0(view, n4 - n5, n3 - n6);
+        nArray[0] = Math.round(f5 * f3);
+        nArray[1] = Math.round(f3 * f6);
     }
 }
 

@@ -40,21 +40,21 @@ extends Transition {
     }
 
     @Override
-    public Animator o(ViewGroup object, y object2, y y3) {
+    public Animator o(ViewGroup object, y y3, y object2) {
         TextView textView = null;
         object = textView;
-        if (object2 != null) {
+        if (y3 != null) {
             object = textView;
-            if (y3 != null) {
+            if (object2 != null) {
                 object = textView;
-                if (((y)object2).b instanceof TextView) {
-                    object = y3.b;
+                if (y3.b instanceof TextView) {
+                    object = ((y)object2).b;
                     if (!(object instanceof TextView)) {
                         object = textView;
                     } else {
                         textView = (TextView)object;
-                        object = ((y)object2).a;
-                        object2 = y3.a;
+                        object = y3.a;
+                        object2 = ((y)object2).a;
                         y3 = object.get("android:textscale:scale");
                         float f3 = 1.0f;
                         float f4 = y3 != null ? ((Float)object.get("android:textscale:scale")).floatValue() : 1.0f;

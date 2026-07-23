@@ -233,10 +233,10 @@ extends b0 {
     @Override
     public void p(Object object, View view) {
         if (view != null) {
-            object = (Transition)object;
-            Rect rect = new Rect();
-            this.h(view, rect);
-            ((Transition)object).g0(new Transition.f(this, rect){
+            Transition transition = (Transition)object;
+            object = new Rect();
+            this.h(view, (Rect)object);
+            transition.g0(new Transition.f(this, (Rect)object){
                 public final Rect a;
                 public final a b;
                 {
@@ -292,27 +292,27 @@ extends b0 {
 
     public void x(Object object, ArrayList arrayList, ArrayList arrayList2) {
         block4: {
-            List list;
             int n3;
             int n4;
+            Transition transition;
             block3: {
-                object = (Transition)object;
-                boolean bl = object instanceof TransitionSet;
+                transition = (Transition)object;
+                boolean bl = transition instanceof TransitionSet;
                 if (!bl) break block3;
-                object = (TransitionSet)object;
+                object = (TransitionSet)transition;
                 n4 = ((TransitionSet)object).t0();
                 for (n3 = 0; n3 < n4; ++n3) {
                     this.x(((TransitionSet)object).s0(n3), arrayList, arrayList2);
                 }
                 break block4;
             }
-            if (a.w((Transition)object) || (list = ((Transition)object).J()).size() != arrayList.size() || !list.containsAll(arrayList)) break block4;
+            if (a.w(transition) || (object = transition.J()).size() != arrayList.size() || !object.containsAll(arrayList)) break block4;
             n3 = arrayList2 == null ? 0 : arrayList2.size();
             for (n4 = 0; n4 < n3; ++n4) {
-                ((Transition)object).b((View)arrayList2.get(n4));
+                transition.b((View)arrayList2.get(n4));
             }
             for (n3 = arrayList.size() - 1; n3 >= 0; --n3) {
-                ((Transition)object).b0((View)arrayList.get(n3));
+                transition.b0((View)arrayList.get(n3));
             }
         }
     }

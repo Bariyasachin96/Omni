@@ -89,21 +89,21 @@ public abstract class c {
         int[] nArray = new int[20];
         int n6 = 0;
         while ((n4 = object2.next()) != 1 && ((n3 = object2.getDepth()) >= n5 || n4 != 3)) {
-            Object object3 = nArray;
-            Object object4 = nArrayArray;
+            int[] nArray2 = nArray;
+            Object object3 = nArrayArray;
             int n7 = n6;
             if (n4 == 2) {
-                object3 = nArray;
-                object4 = nArrayArray;
+                nArray2 = nArray;
+                object3 = nArrayArray;
                 n7 = n6;
                 if (n3 <= n5) {
                     if (!object2.getName().equals("item")) {
-                        object3 = nArray;
-                        object4 = nArrayArray;
+                        nArray2 = nArray;
+                        object3 = nArrayArray;
                         n7 = n6;
                     } else {
                         object3 = c.h(object, theme, attributeSet, b0.c.ColorStateListItem);
-                        n7 = object3.getResourceId(n4 = b0.c.ColorStateListItem_android_color, -1);
+                        n7 = object3.getResourceId(n3 = b0.c.ColorStateListItem_android_color, -1);
                         if (n7 != -1 && !c.f(object, n7)) {
                             try {
                                 n7 = c.a(object, (XmlPullParser)object.getXml(n7), theme).getDefaultColor();
@@ -112,59 +112,59 @@ public abstract class c {
                                 n7 = object3.getColor(b0.c.ColorStateListItem_android_color, -65281);
                             }
                         } else {
-                            n7 = object3.getColor(n4, -65281);
+                            n7 = object3.getColor(n3, -65281);
                         }
-                        n4 = b0.c.ColorStateListItem_android_alpha;
-                        boolean bl = object3.hasValue(n4);
+                        n3 = b0.c.ColorStateListItem_android_alpha;
+                        boolean bl = object3.hasValue(n3);
                         float f3 = 1.0f;
                         if (bl) {
-                            f3 = object3.getFloat(n4, 1.0f);
+                            f3 = object3.getFloat(n3, 1.0f);
                         } else {
-                            n4 = b0.c.ColorStateListItem_alpha;
-                            if (object3.hasValue(n4)) {
-                                f3 = object3.getFloat(n4, 1.0f);
+                            n3 = b0.c.ColorStateListItem_alpha;
+                            if (object3.hasValue(n3)) {
+                                f3 = object3.getFloat(n3, 1.0f);
                             }
                         }
-                        float f4 = Build.VERSION.SDK_INT >= 31 && object3.hasValue(n4 = b0.c.ColorStateListItem_android_lStar) ? object3.getFloat(n4, -1.0f) : object3.getFloat(b0.c.ColorStateListItem_lStar, -1.0f);
+                        float f4 = Build.VERSION.SDK_INT >= 31 && object3.hasValue(n3 = b0.c.ColorStateListItem_android_lStar) ? object3.getFloat(n3, -1.0f) : object3.getFloat(b0.c.ColorStateListItem_lStar, -1.0f);
                         object3.recycle();
                         int n8 = attributeSet.getAttributeCount();
-                        object4 = new int[n8];
-                        n3 = 0;
-                        for (n4 = 0; n4 < n8; ++n4) {
-                            int n9 = attributeSet.getAttributeNameResource(n4);
-                            int n10 = n3;
+                        object3 = new int[n8];
+                        n4 = 0;
+                        for (n3 = 0; n3 < n8; ++n3) {
+                            int n9 = attributeSet.getAttributeNameResource(n3);
+                            int n10 = n4;
                             if (n9 != 16843173) {
-                                n10 = n3;
+                                n10 = n4;
                                 if (n9 != 16843551) {
-                                    n10 = n3;
+                                    n10 = n4;
                                     if (n9 != b0.a.alpha) {
-                                        n10 = n3;
+                                        n10 = n4;
                                         if (n9 != b0.a.lStar) {
-                                            n10 = attributeSet.getAttributeBooleanValue(n4, false) ? n9 : -n9;
-                                            object4[n3] = (int[])n10;
-                                            n10 = n3 + 1;
+                                            n10 = attributeSet.getAttributeBooleanValue(n3, false) ? n9 : -n9;
+                                            object3[n4] = (int[])n10;
+                                            n10 = n4 + 1;
                                         }
                                     }
                                 }
                             }
-                            n3 = n10;
+                            n4 = n10;
                         }
-                        object4 = StateSet.trimStateSet((int[])object4, (int)n3);
-                        object3 = g.a(nArray, n6, c.g(n7, f3, f4));
-                        object4 = (int[][])g.b((Object[])nArrayArray, n6, object4);
+                        object3 = StateSet.trimStateSet((int[])object3, (int)n4);
+                        nArray2 = g.a(nArray, n6, c.g(n7, f3, f4));
+                        object3 = (int[][])g.b((Object[])nArrayArray, n6, object3);
                         n7 = n6 + 1;
                     }
                 }
             }
-            nArray = object3;
-            nArrayArray = object4;
+            nArray = nArray2;
+            nArrayArray = object3;
             n6 = n7;
         }
-        object = new int[n6];
-        object2 = new int[n6][];
-        System.arraycopy(nArray, 0, object, 0, n6);
-        System.arraycopy(nArrayArray, 0, object2, 0, n6);
-        return new ColorStateList((int[][])object2, (int[])object);
+        object2 = new int[n6];
+        object = new int[n6][];
+        System.arraycopy(nArray, 0, object2, 0, n6);
+        System.arraycopy(nArrayArray, 0, object, 0, n6);
+        return new ColorStateList((int[][])object, (int[])object2);
     }
 
     public static boolean f(Resources resources, int n3) {

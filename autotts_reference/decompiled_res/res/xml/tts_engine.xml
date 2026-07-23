@@ -1,1 +1,3 @@
-<tts-engine xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="com.vnspeak.autotts.NewSettingsActivity"/>
+<?xml version="1.0" encoding="utf-8"?>
+<tts-engine android:settingsActivity="com.vnspeak.autotts.NewSettingsActivity"
+  xmlns:android="http://schemas.android.com/apk/res/android" />

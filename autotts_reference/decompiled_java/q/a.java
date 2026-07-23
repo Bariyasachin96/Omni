@@ -27,20 +27,20 @@ implements Future {
     public volatile h e;
 
     static {
-        Object var1_1;
+        Object var0_1;
         b b3;
         f = Boolean.parseBoolean(System.getProperty("guava.concurrent.generate_cancellation_cause", "false"));
         g = Logger.getLogger(a.class.getName());
         try {
             b3 = new f(AtomicReferenceFieldUpdater.newUpdater(h.class, Thread.class, "a"), AtomicReferenceFieldUpdater.newUpdater(h.class, h.class, "b"), AtomicReferenceFieldUpdater.newUpdater(a.class, h.class, "e"), AtomicReferenceFieldUpdater.newUpdater(a.class, e.class, "d"), AtomicReferenceFieldUpdater.newUpdater(a.class, Object.class, "c"));
-            var1_1 = null;
+            var0_1 = null;
         }
         catch (Throwable throwable) {
             b3 = new g();
         }
         h = b3;
-        if (var1_1 != null) {
-            g.log(Level.SEVERE, "SafeAtomicHelper is broken!", (Throwable)var1_1);
+        if (var0_1 != null) {
+            g.log(Level.SEVERE, "SafeAtomicHelper is broken!", (Throwable)var0_1);
         }
         i = new Object();
     }

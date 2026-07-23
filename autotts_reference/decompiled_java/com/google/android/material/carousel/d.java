@@ -144,23 +144,21 @@ public class d {
                 arrayList.add(com.google.android.material.carousel.d.x(c3, f5 + c3.b().f + f4, n4));
                 return arrayList;
             }
-            int n6 = 0;
             float f6 = 0.0f;
-            int n7 = n4;
-            for (n4 = n6; n4 < n5; ++n4) {
+            for (int i3 = 0; i3 < n5; ++i3) {
                 object = (c)arrayList.get(arrayList.size() - 1);
-                int n8 = n3 + n4;
-                n6 = c3.h().size() - 1;
-                f6 += ((c.c)c3.h().get((int)n8)).f;
-                if (--n8 >= 0) {
-                    n6 = com.google.android.material.carousel.d.b((c)object, ((c.c)c3.h().get((int)n8)).c) - 1;
+                int n6 = n3 + i3;
+                int n7 = c3.h().size() - 1;
+                f6 += ((c.c)c3.h().get((int)n6)).f;
+                if (--n6 >= 0) {
+                    n7 = com.google.android.material.carousel.d.b((c)object, ((c.c)c3.h().get((int)n6)).c) - 1;
                 }
-                c c4 = com.google.android.material.carousel.d.t((c)object, n3, n6, f5 + f6, c3.c() - n4 - 1, c3.j() - n4 - 1, n7);
+                c c4 = com.google.android.material.carousel.d.t((c)object, n3, n7, f5 + f6, c3.c() - i3 - 1, c3.j() - i3 - 1, n4);
                 object = c4;
-                if (n4 == n5 - 1) {
+                if (i3 == n5 - 1) {
                     object = c4;
                     if (f4 > 0.0f) {
-                        object = com.google.android.material.carousel.d.u(c4, f4, n7, true, f3, a4);
+                        object = com.google.android.material.carousel.d.u(c4, f4, n4, true, f3, a4);
                     }
                 }
                 arrayList.add(object);
@@ -191,16 +189,16 @@ public class d {
     public static c t(c object, int n3, int n4, float f3, int n5, int n6, int n7) {
         ArrayList<c.c> arrayList = new ArrayList<c.c>(((c)object).h());
         arrayList.add(n4, (c.c)arrayList.remove(n3));
-        object = new c.b(((c)object).g(), n7);
+        c.b b3 = new c.b(((c)object).g(), n7);
         for (n3 = 0; n3 < arrayList.size(); ++n3) {
-            c.c c3 = (c.c)arrayList.get(n3);
-            float f4 = c3.d;
+            object = (c.c)arrayList.get(n3);
+            float f4 = ((c.c)object).d;
             float f5 = f4 / 2.0f;
             boolean bl = n3 >= n5 && n3 <= n6;
-            ((c.b)object).e(f3 + f5, c3.c, f4, bl, c3.e, c3.f);
-            f3 += c3.d;
+            b3.e(f3 + f5, ((c.c)object).c, f4, bl, ((c.c)object).e, ((c.c)object).f);
+            f3 += ((c.c)object).d;
         }
-        return ((c.b)object).i();
+        return b3.i();
     }
 
     public static c u(c c3, float f3, int n3, boolean bl, float f4, a.a a4) {

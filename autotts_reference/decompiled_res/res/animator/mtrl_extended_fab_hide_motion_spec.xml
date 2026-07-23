@@ -1,3 +1,5 @@
-<set xmlns:android="http://schemas.android.com/apk/res/android">
-  <objectAnimator android:interpolator="@7F0A0010" android:duration="75" android:startOffset="0" android:valueFrom="1.000000" android:valueTo="0.000000" android:valueType="0" android:propertyName="opacity"/>
+<?xml version="1.0" encoding="utf-8"?>
+<set
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator android:interpolator="@interpolator/mtrl_linear" android:duration="75" android:startOffset="0" android:valueFrom="1.0" android:valueTo="0.0" android:valueType="floatType" android:propertyName="opacity" />
 </set>

@@ -69,12 +69,10 @@ public class b {
     public float z = 10.0f;
 
     static {
-        float[] fArray = new float[]{0.0f, 0.5f};
-        G = new float[][]{{0.5f, 0.0f}, fArray, {1.0f, 0.5f}, {0.5f, 1.0f}, {0.5f, 0.5f}, {0.0f, 0.5f}, {1.0f, 0.5f}};
-        float[] fArray2 = new float[]{0.0f, -1.0f};
-        float[] fArray3 = new float[]{1.0f, 0.0f};
-        fArray = new float[]{-1.0f, 0.0f};
-        H = new float[][]{fArray2, {0.0f, 1.0f}, {-1.0f, 0.0f}, fArray3, fArray, {1.0f, 0.0f}};
+        float[] fArray = new float[]{1.0f, 0.5f};
+        float[] fArray2 = new float[]{0.5f, 1.0f};
+        G = new float[][]{{0.5f, 0.0f}, {0.0f, 0.5f}, fArray, fArray2, {0.5f, 0.5f}, {0.0f, 0.5f}, {1.0f, 0.5f}};
+        H = new float[][]{{0.0f, -1.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {1.0f, 0.0f}, {-1.0f, 0.0f}, {1.0f, 0.0f}};
     }
 
     public b(Context context, MotionLayout motionLayout, XmlPullParser xmlPullParser) {
@@ -361,19 +359,19 @@ public class b {
                                         object2[0] = 0.01f;
                                         object2[1] = 0.01f;
                                     }
-                                    f6 = this.m != 0.0f ? f7 / this.p[0] : (f6 /= this.p[1]);
-                                    f6 = f9 = Math.max(Math.min(f9 + f6, 1.0f), 0.0f);
+                                    f7 = this.m != 0.0f ? (f7 /= this.p[0]) : f6 / this.p[1];
+                                    f7 = f9 = Math.max(Math.min(f9 + f7, 1.0f), 0.0f);
                                     if (this.c == 6) {
-                                        f6 = Math.max(f9, 0.01f);
+                                        f7 = Math.max(f9, 0.01f);
                                     }
-                                    f9 = f6;
+                                    f9 = f7;
                                     if (this.c == 7) {
-                                        f9 = Math.min(f6, 0.99f);
+                                        f9 = Math.min(f7, 0.99f);
                                     }
-                                    if (f9 != (f6 = this.t.getProgress())) {
-                                        float f10 = f6 - 0.0f;
+                                    if (f9 != (f7 = this.t.getProgress())) {
+                                        float f10 = f7 - 0.0f;
                                         n3 = f10 == 0.0f ? 0 : (f10 > 0.0f ? 1 : -1);
-                                        if (n3 == 0 || f6 == 1.0f) {
+                                        if (n3 == 0 || f7 == 1.0f) {
                                             object2 = this.t;
                                             boolean bl = n3 == 0;
                                             ((MotionLayout)object2).g0(bl);
@@ -381,9 +379,9 @@ public class b {
                                         this.t.setProgress(f9);
                                         f3.e(1000);
                                         f9 = f3.c();
-                                        f6 = f3.b();
-                                        f6 = this.m != 0.0f ? f9 / this.p[0] : (f6 /= this.p[1]);
-                                        this.t.E = f6;
+                                        f7 = f3.b();
+                                        f7 = this.m != 0.0f ? f9 / this.p[0] : (f7 /= this.p[1]);
+                                        this.t.E = f7;
                                     } else {
                                         this.t.E = 0.0f;
                                     }
@@ -408,11 +406,11 @@ public class b {
                             object[1] = (MotionEvent)(this.n * f5);
                             object[0] = (MotionEvent)(f5 * this.m);
                         }
-                        f5 = this.m;
+                        float f13 = this.m;
                         object = this.p;
-                        MotionEvent motionEvent = object[0];
-                        MotionEvent motionEvent2 = object[1];
-                        f11 = f5 != 0.0f ? (f11 /= motionEvent) : f4 / motionEvent2;
+                        f5 = (float)object[0];
+                        MotionEvent motionEvent = object[1];
+                        f11 = f13 != 0.0f ? (f11 /= f5) : f4 / motionEvent;
                         f4 = !Float.isNaN(f11) ? f11 / 3.0f + f12 : f12;
                         if (f4 == 0.0f || f4 == 1.0f || (n3 = this.c) == 3) break block26;
                         f5 = (double)f4 < 0.5 ? 0.0f : 1.0f;
@@ -490,11 +488,11 @@ public class b {
                         if (n4 != -1) {
                             object5 = this.t.findViewById(n4);
                             this.t.getLocationOnScreen(this.q);
-                            f9 = this.q[0];
-                            f11 = (float)(object5.getLeft() + object5.getRight()) / 2.0f;
+                            f10 = this.q[0];
+                            f9 = (float)(object5.getLeft() + object5.getRight()) / 2.0f;
                             f8 = this.q[1];
                             f8 = (float)(object5.getTop() + object5.getBottom()) / 2.0f + f8;
-                            f9 += f11;
+                            f9 = f10 + f9;
                         } else {
                             n4 = this.d;
                             f9 = f10;
@@ -515,31 +513,31 @@ public class b {
                         float f12 = object.getRawX();
                         float f13 = object.getRawY();
                         double d3 = Math.atan2(object.getRawY() - f8, object.getRawX() - f9);
-                        f10 = (float)((d3 - Math.atan2(this.s - f8, this.r - f9)) * 180.0 / Math.PI);
-                        if (f10 > 330.0f) {
-                            f11 = f10 - 360.0f;
+                        f11 = (float)((d3 - Math.atan2(this.s - f8, this.r - f9)) * 180.0 / Math.PI);
+                        if (f11 > 330.0f) {
+                            f10 = f11 - 360.0f;
                         } else {
-                            f11 = f10;
-                            if (f10 < -330.0f) {
-                                f11 = f10 + 360.0f;
+                            f10 = f11;
+                            if (f11 < -330.0f) {
+                                f10 = f11 + 360.0f;
                             }
                         }
-                        if (!((double)Math.abs(f11) > 0.01)) {
+                        if (!((double)Math.abs(f10) > 0.01)) {
                             if (!this.o) return;
                         }
-                        f10 = this.t.getProgress();
+                        f11 = this.t.getProgress();
                         if (!this.o) {
                             this.o = true;
-                            this.t.setProgress(f10);
+                            this.t.setProgress(f11);
                         }
                         if ((n4 = this.d) != -1) {
-                            this.t.n0(n4, f10, this.h, this.g, this.p);
+                            this.t.n0(n4, f11, this.h, this.g, this.p);
                             object5 = this.p;
                             object5[1] = (View)((float)Math.toDegrees((double)object5[1]));
                         } else {
                             this.p[1] = 360.0f;
                         }
-                        f10 = Math.max(Math.min(f10 + f11 * this.x / this.p[1], 1.0f), 0.0f);
+                        f10 = Math.max(Math.min(f11 + f10 * this.x / this.p[1], 1.0f), 0.0f);
                         f11 = this.t.getProgress();
                         if (f10 != f11) {
                             float f14 = f11 - 0.0f;
@@ -553,11 +551,11 @@ public class b {
                             }
                             this.t.setProgress(f10);
                             object4.e(1000);
-                            f11 = object4.c();
+                            f10 = object4.c();
                             double d4 = object4.b();
-                            double d5 = f11;
-                            f9 = (float)(Math.hypot(d4, d5) * Math.sin(Math.atan2(d4, d5) - d3) / Math.hypot(f12 - f9, f13 - f8));
-                            this.t.E = (float)Math.toDegrees(f9);
+                            double d5 = f10;
+                            f8 = (float)(Math.hypot(d4, d5) * Math.sin(Math.atan2(d4, d5) - d3) / Math.hypot(f12 - f9, f13 - f8));
+                            this.t.E = (float)Math.toDegrees(f8);
                         } else {
                             this.t.E = 0.0f;
                         }

@@ -122,9 +122,9 @@ extends i {
         TimeInterpolator timeInterpolator = a2.a.a;
         this.C = p2.k.g(context, n3, timeInterpolator);
         this.D = p2.k.g(this.c, z1.c.motionEasingEmphasizedAccelerateInterpolator, timeInterpolator);
-        timeInterpolator = new ValueAnimator();
-        this.A = timeInterpolator;
-        timeInterpolator.setDuration(500L);
+        context = new ValueAnimator();
+        this.A = context;
+        context.setDuration(500L);
         this.A.setFloatValues(new float[]{0.0f, 1.0f});
         this.A.setInterpolator(null);
         this.A.addUpdateListener((ValueAnimator.AnimatorUpdateListener)new g(this));

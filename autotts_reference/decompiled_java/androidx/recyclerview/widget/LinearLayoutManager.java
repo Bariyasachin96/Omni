@@ -315,24 +315,24 @@ implements RecyclerView.y.b {
         object = this.t;
         n3 = bl2 ? n8 : n7;
         ((c)object).h = n3;
-        if (bl2) {
-            n8 = n7;
+        if (!bl2) {
+            n7 = n8;
         }
-        ((c)object).i = n8;
+        ((c)object).i = n7;
         if (bl2) {
             ((c)object).h = n3 + this.u.j();
-            View view = this.m2();
+            object = this.m2();
             object2 = this.t;
             n3 = n6;
             if (this.x) {
                 n3 = -1;
             }
             object2.e = n3;
-            n3 = this.l0(view);
-            object = this.t;
-            object2.d = n3 + ((c)object).e;
-            ((c)object).b = this.u.d(view);
-            n3 = this.u.d(view) - this.u.i();
+            n3 = this.l0((View)object);
+            c c3 = this.t;
+            object2.d = n3 + c3.e;
+            c3.b = this.u.d((View)object);
+            n3 = this.u.d((View)object) - this.u.i();
         } else {
             object = this.n2();
             object2 = this.t;
@@ -341,9 +341,9 @@ implements RecyclerView.y.b {
             n3 = this.x ? n5 : -1;
             object2.e = n3;
             n3 = this.l0((View)object);
-            c c3 = this.t;
-            object2.d = n3 + c3.e;
-            c3.b = this.u.g((View)object);
+            c c4 = this.t;
+            object2.d = n3 + c4.e;
+            c4.b = this.u.g((View)object);
             n3 = -this.u.g((View)object) + this.u.m();
         }
         object = this.t;
@@ -447,17 +447,15 @@ implements RecyclerView.y.b {
 
     public void Q1(RecyclerView.z z3, int[] nArray) {
         int n3;
-        int n4;
-        int n5 = this.o2(z3);
+        int n4 = this.o2(z3);
         if (this.t.f == -1) {
-            n4 = 0;
-            n3 = n5;
-        } else {
             n3 = 0;
-            n4 = n5;
+        } else {
+            n3 = n4;
+            n4 = 0;
         }
-        nArray[0] = n3;
-        nArray[1] = n4;
+        nArray[0] = n4;
+        nArray[1] = n3;
     }
 
     public void R1(RecyclerView.z z3, c c3, RecyclerView.p.c c4) {
@@ -643,19 +641,19 @@ implements RecyclerView.y.b {
         this.Q1(z3, (int[])object);
         int n6 = Math.max(0, this.H[0]) + this.u.m();
         int n7 = Math.max(0, this.H[1]) + this.u.j();
-        int n8 = n6;
-        n5 = n7;
+        n5 = n6;
+        int n8 = n7;
         if (z3.e()) {
             n3 = this.A;
-            n8 = n6;
-            n5 = n7;
+            n5 = n6;
+            n8 = n7;
             if (n3 != -1) {
-                n8 = n6;
-                n5 = n7;
+                n5 = n6;
+                n8 = n7;
                 if (this.B != Integer.MIN_VALUE) {
                     object = this.H(n3);
-                    n8 = n6;
-                    n5 = n7;
+                    n5 = n6;
+                    n8 = n7;
                     if (object != null) {
                         if (this.x) {
                             n5 = this.u.i() - this.u.d((View)object);
@@ -665,11 +663,11 @@ implements RecyclerView.y.b {
                             n5 = this.B;
                         }
                         if ((n5 -= n8) > 0) {
-                            n8 = n6 + n5;
-                            n5 = n7;
+                            n5 = n6 + n5;
+                            n8 = n7;
                         } else {
-                            n5 = n7 - n5;
-                            n8 = n6;
+                            n8 = n7 - n5;
+                            n5 = n6;
                         }
                     }
                 }
@@ -688,19 +686,19 @@ implements RecyclerView.y.b {
         if (((a)object).d) {
             this.M2((a)object);
             object = this.t;
-            ((c)object).h = n8;
+            ((c)object).h = n5;
             this.Y1(v3, (c)object, z3, false);
             object = this.t;
             n4 = ((c)object).b;
             n7 = ((c)object).d;
             n6 = ((c)object).c;
-            n8 = n5;
+            n5 = n8;
             if (n6 > 0) {
-                n8 = n5 + n6;
+                n5 = n8 + n6;
             }
             this.K2(this.E);
             object = this.t;
-            ((c)object).h = n8;
+            ((c)object).h = n5;
             ((c)object).d += ((c)object).e;
             this.Y1(v3, (c)object, z3, false);
             object = this.t;
@@ -719,19 +717,19 @@ implements RecyclerView.y.b {
         } else {
             this.K2((a)object);
             object = this.t;
-            ((c)object).h = n5;
+            ((c)object).h = n8;
             this.Y1(v3, (c)object, z3, false);
             object = this.t;
             n4 = ((c)object).b;
             n7 = ((c)object).d;
             n6 = ((c)object).c;
-            n5 = n8;
+            n8 = n5;
             if (n6 > 0) {
-                n5 = n8 + n6;
+                n8 = n5 + n6;
             }
             this.M2(this.E);
             object = this.t;
-            ((c)object).h = n5;
+            ((c)object).h = n8;
             ((c)object).d += ((c)object).e;
             this.Y1(v3, (c)object, z3, false);
             object = this.t;
@@ -1434,10 +1432,10 @@ implements RecyclerView.y.b {
                 n3 = this.a.i() - n4 - this.a.d(view);
                 this.c = this.a.i() - n3;
                 if (n3 > 0) {
-                    n4 = this.a.e(view);
-                    int n5 = this.c;
-                    int n6 = this.a.m();
-                    if ((n4 = n5 - n4 - (n6 + Math.min(this.a.g(view) - n6, 0))) < 0) {
+                    int n5 = this.a.e(view);
+                    int n6 = this.c;
+                    n4 = this.a.m();
+                    if ((n4 = n6 - n5 - (n4 + Math.min(this.a.g(view) - n4, 0))) < 0) {
                         this.c += Math.min(n3, -n4);
                         return;
                     }

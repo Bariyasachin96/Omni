@@ -36,13 +36,13 @@ extends j {
             do {
                 stringBuilder.append(string, n3, n4);
                 stringBuilder.append(string3);
-                n8 = n4 + n5;
+                n7 = n4 + n5;
                 if (n4 >= string.length()) break;
-                n7 = l.f(string, string2, n4 + n6, bl);
-                n3 = n8;
-                n4 = n7;
-            } while (n7 > 0);
-            stringBuilder.append(string, n8, string.length());
+                n8 = l.f(string, string2, n4 + n6, bl);
+                n3 = n7;
+                n4 = n8;
+            } while (n8 > 0);
+            stringBuilder.append(string, n7, string.length());
             string = stringBuilder.toString();
             o3.k.d(string, "stringBuilder.append(this, i, length).toString()");
             return string;

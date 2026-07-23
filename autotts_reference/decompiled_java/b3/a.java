@@ -125,10 +125,9 @@ public abstract class a {
 
     public static byte[] g(byte[] byArray, int n3, int n4, byte[] byArray2, int n5) {
         int n6;
-        int n7;
-        int n8 = (n4 + 2) / 3 * 4;
-        byte[] byArray3 = new byte[n8 + n8 / n5];
-        n8 = n7 = 0;
+        int n7 = (n4 + 2) / 3 * 4;
+        byte[] byArray3 = new byte[n7 + n7 / n5];
+        int n8 = n7 = 0;
         for (n6 = 0; n6 < n4 - 2; n6 += 3) {
             int n9 = byArray[n6 + n3] << 24 >>> 8 | byArray[n6 + 1 + n3] << 24 >>> 16 | byArray[n6 + 2 + n3] << 24 >>> 24;
             byArray3[n7] = byArray2[n9 >>> 18];

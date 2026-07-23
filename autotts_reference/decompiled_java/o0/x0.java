@@ -221,8 +221,8 @@ public abstract class x0 {
         boolean bl;
         block10: {
             block9: {
-                AccessibilityManager accessibilityManager = (AccessibilityManager)view.getContext().getSystemService("accessibility");
-                if (!accessibilityManager.isEnabled()) break block9;
+                Object object = (AccessibilityManager)view.getContext().getSystemService("accessibility");
+                if (!object.isEnabled()) break block9;
                 bl = x0.n(view) != null && view.isShown() && view.getWindowVisibility() == 0;
                 int n5 = view.getAccessibilityLiveRegion();
                 n4 = 32;
@@ -235,13 +235,13 @@ public abstract class x0 {
                     accessibilityEvent.setSource(view);
                     view.onPopulateAccessibilityEvent(accessibilityEvent);
                     accessibilityEvent.getText().add(x0.n(view));
-                    accessibilityManager.sendAccessibilityEvent(accessibilityEvent);
+                    object.sendAccessibilityEvent(accessibilityEvent);
                     return;
                 }
                 if (view.getParent() != null) {
-                    Object object = view.getParent();
+                    ViewParent viewParent = view.getParent();
                     try {
-                        object.notifySubtreeAccessibilityStateChanged(view, view, n3);
+                        viewParent.notifySubtreeAccessibilityStateChanged(view, view, n3);
                         return;
                     }
                     catch (AbstractMethodError abstractMethodError) {
@@ -1277,11 +1277,11 @@ public abstract class x0 {
             WeakHashMap weakHashMap = this.a;
             if (weakHashMap != null && weakHashMap.containsKey(view)) {
                 if (view instanceof ViewGroup) {
-                    ViewGroup viewGroup = (ViewGroup)view;
-                    for (int i3 = viewGroup.getChildCount() - 1; i3 >= 0; --i3) {
-                        weakHashMap = this.c(viewGroup.getChildAt(i3), keyEvent);
-                        if (weakHashMap == null) continue;
-                        return weakHashMap;
+                    weakHashMap = (ViewGroup)view;
+                    for (int i3 = weakHashMap.getChildCount() - 1; i3 >= 0; --i3) {
+                        View view2 = this.c(weakHashMap.getChildAt(i3), keyEvent);
+                        if (view2 == null) continue;
+                        return view2;
                     }
                 }
                 if (this.e(view, keyEvent)) {

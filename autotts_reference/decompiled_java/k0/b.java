@@ -23,11 +23,11 @@ public final class b {
         return k0.b.h(k0.b$b.a(localeArray));
     }
 
-    public static b b(String localeArray) {
-        if (localeArray != null && !localeArray.isEmpty()) {
-            String[] stringArray = localeArray.split(",", -1);
+    public static b b(String stringArray) {
+        if (stringArray != null && !stringArray.isEmpty()) {
+            stringArray = stringArray.split(",", -1);
             int n3 = stringArray.length;
-            localeArray = new Locale[n3];
+            Locale[] localeArray = new Locale[n3];
             for (int i3 = 0; i3 < n3; ++i3) {
                 localeArray[i3] = k0.b$a.a(stringArray[i3]);
             }

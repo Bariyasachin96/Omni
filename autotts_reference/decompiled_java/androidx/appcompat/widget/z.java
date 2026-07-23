@@ -97,20 +97,20 @@ public abstract class z {
          */
         static {
             block23: {
-                var3 /* !! */  = Class.forName("android.graphics.Insets");
+                var3 = Class.forName("android.graphics.Insets");
                 var1_6 /* !! */  = Drawable.class.getMethod("getOpticalInsets", null);
-                var2_10 = var3 /* !! */ .getField("left");
-                var4_14 = var3 /* !! */ .getField("top");
-                var5_15 = var3 /* !! */ .getField("right");
-                var3 /* !! */  = var3 /* !! */ .getField("bottom");
-                var0_16 = true;
-                var6_17 = var1_6 /* !! */ ;
+                var2_10 = var3.getField("left");
+                var4_14 = var3.getField("top");
+                var5_15 = var3.getField("right");
+                var6_18 = var3.getField("bottom");
+                var0_19 = true;
+                var3 = var1_6 /* !! */ ;
                 var1_6 /* !! */  = var5_15;
-                ** GOTO lbl59
+                ** GOTO lbl57
                 catch (ClassNotFoundException | NoSuchFieldException | NoSuchMethodException var3_1) {
-                    var5_15 = null;
-                    var3 /* !! */  = var1_6 /* !! */ ;
-                    var1_6 /* !! */  = var5_15;
+                    var5_16 = null;
+                    var3 = var1_6 /* !! */ ;
+                    var1_6 /* !! */  = var5_16;
                     break block23;
                 }
                 catch (NoSuchFieldException var3_2) lbl-1000:
@@ -119,9 +119,9 @@ public abstract class z {
                 {
                     while (true) {
                         var4_14 = null;
-                        var5_15 = null;
-                        var3 /* !! */  = var1_6 /* !! */ ;
-                        var1_6 /* !! */  = var5_15;
+                        var5_17 = null;
+                        var3 = var1_6 /* !! */ ;
+                        var1_6 /* !! */  = var5_17;
                         break block23;
                         break;
                     }
@@ -179,19 +179,17 @@ lbl54:
             // 2 sources
 
             while (true) {
-                var5_15 = null;
-                var0_16 = false;
-                var6_17 = var3 /* !! */ ;
-                var3 /* !! */  = var5_15;
-lbl59:
+                var6_18 = null;
+                var0_19 = false;
+lbl57:
                 // 2 sources
 
-                if (var0_16) {
-                    androidx.appcompat.widget.z$a.b = var6_17;
+                if (var0_19) {
+                    androidx.appcompat.widget.z$a.b = var3;
                     androidx.appcompat.widget.z$a.c = var2_10;
                     androidx.appcompat.widget.z$a.d = var4_14;
                     androidx.appcompat.widget.z$a.e = var1_6 /* !! */ ;
-                    androidx.appcompat.widget.z$a.f = var3 /* !! */ ;
+                    androidx.appcompat.widget.z$a.f = var6_18;
                     androidx.appcompat.widget.z$a.a = true;
                 } else {
                     androidx.appcompat.widget.z$a.b = null;
@@ -204,7 +202,7 @@ lbl59:
                 return;
             }
             catch (ClassNotFoundException | NoSuchFieldException | NoSuchMethodException var3_5) {
-                var3 /* !! */  = var1_6 /* !! */ ;
+                var3 = var1_6 /* !! */ ;
                 var1_6 /* !! */  = var5_15;
                 ** continue;
             }

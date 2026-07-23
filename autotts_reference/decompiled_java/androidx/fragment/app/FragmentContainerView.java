@@ -66,19 +66,19 @@ extends FrameLayout {
             k.d(object3, "FragmentContainerView");
             object3 = object.obtainStyledAttributes(object2, object3, 0, 0);
             if (charSequence == null) {
-                object2 = object3.getString(a1.c.FragmentContainerView_android_name);
-                object = "android:name";
+                object = object3.getString(a1.c.FragmentContainerView_android_name);
+                object2 = "android:name";
             } else {
-                object = "class";
-                object2 = charSequence;
+                object2 = "class";
+                object = charSequence;
             }
             object3.recycle();
-            if (object2 != null && !this.isInEditMode()) {
+            if (object != null && !this.isInEditMode()) {
                 charSequence = new StringBuilder();
                 ((StringBuilder)charSequence).append("FragmentContainerView must be within a FragmentActivity to use ");
-                ((StringBuilder)charSequence).append((String)object);
-                ((StringBuilder)charSequence).append("=\"");
                 ((StringBuilder)charSequence).append((String)object2);
+                ((StringBuilder)charSequence).append("=\"");
+                ((StringBuilder)charSequence).append((String)object);
                 ((StringBuilder)charSequence).append('\"');
                 throw new UnsupportedOperationException(((StringBuilder)charSequence).toString());
             }

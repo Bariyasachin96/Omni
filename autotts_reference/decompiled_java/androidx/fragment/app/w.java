@@ -170,36 +170,36 @@ public class w {
                 n3 = this.e < 4 ? Math.min(n5, object.c) : Math.min(n5, 1);
             }
         }
-        n5 = n3;
+        n4 = n3;
         if (!this.c.n) {
-            n5 = Math.min(n3, 1);
+            n4 = Math.min(n3, 1);
         }
-        object = this.c;
-        ViewGroup viewGroup = object.J;
-        object = viewGroup != null ? e0.n(viewGroup, object.E()).l(this) : null;
+        Fragment fragment = this.c;
+        object = fragment.J;
+        object = object != null ? e0.n((ViewGroup)object, fragment.E()).l(this) : null;
         if (object == e0.e.b.d) {
-            n3 = Math.min(n5, 6);
+            n5 = Math.min(n4, 6);
         } else if (object == e0.e.b.e) {
-            n3 = Math.max(n5, 3);
+            n5 = Math.max(n4, 3);
         } else {
             object = this.c;
-            n3 = n5;
+            n5 = n4;
             if (object.o) {
-                n3 = object.Z() ? Math.min(n5, 1) : Math.min(n5, -1);
+                n5 = object.Z() ? Math.min(n4, 1) : Math.min(n4, -1);
             }
         }
         object = this.c;
-        n5 = n3;
+        n3 = n5;
         if (object.L) {
-            n5 = n3;
+            n3 = n5;
             if (object.c < 5) {
-                n5 = Math.min(n3, 4);
+                n3 = Math.min(n5, 4);
             }
         }
         if (FragmentManager.I0(2)) {
             Objects.toString(this.c);
         }
-        return n5;
+        return n3;
     }
 
     public void e() {
@@ -322,9 +322,9 @@ public class w {
                 });
             }
             this.c.i1();
-            object = this.a;
-            object2 = this.c;
-            ((n)object).m((Fragment)object2, ((Fragment)object2).K, ((Fragment)object2).d, false);
+            object2 = this.a;
+            object = this.c;
+            ((n)object2).m((Fragment)object, ((Fragment)object).K, ((Fragment)object).d, false);
             n3 = this.c.K.getVisibility();
             float f3 = this.c.K.getAlpha();
             this.c.z1(f3);
@@ -385,10 +385,10 @@ public class w {
             ((Fragment)object3).j = this.c;
             ((Fragment)object3).k = null;
         }
-        object2 = this.c;
-        object3 = ((Fragment)object2).k;
-        if (object3 != null) {
-            ((Fragment)object2).j = this.b.f((String)object3);
+        object3 = this.c;
+        object2 = ((Fragment)object3).k;
+        if (object2 != null) {
+            ((Fragment)object3).j = this.b.f((String)object2);
         }
         this.b.s(this);
     }
@@ -518,13 +518,13 @@ public class w {
             if (((Fragment)object).k != null) {
                 ((Fragment)object).l = ((Fragment)object).d.getInt("android:target_req_state", 0);
             }
-            object2 = this.c;
-            object = object2.g;
-            if (object != null) {
-                object2.M = (Boolean)object;
+            object = this.c;
+            object2 = ((Fragment)object).g;
+            if (object2 != null) {
+                ((Fragment)object).M = (Boolean)object2;
                 this.c.g = null;
             } else {
-                object2.M = object2.d.getBoolean("android:user_visible_hint", true);
+                ((Fragment)object).M = ((Fragment)object).d.getBoolean("android:user_visible_hint", true);
             }
             object = this.c;
             if (!((Fragment)object).M) {

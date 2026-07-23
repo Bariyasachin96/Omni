@@ -12,7 +12,6 @@
  *  android.view.View$OnClickListener
  *  android.view.ViewGroup
  *  android.view.ViewGroup$LayoutParams
- *  android.view.ViewParent
  *  android.view.Window$Callback
  */
 package androidx.appcompat.widget;
@@ -25,7 +24,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewParent;
 import android.view.Window;
 import androidx.appcompat.view.menu.e;
 import androidx.appcompat.view.menu.i;
@@ -246,10 +244,10 @@ implements u {
 
     @Override
     public void h(ScrollingTabContainerView scrollingTabContainerView) {
-        ViewParent viewParent;
+        Toolbar toolbar;
         Object object = this.c;
-        if (object != null && (viewParent = object.getParent()) == (object = this.a)) {
-            object.removeView(this.c);
+        if (object != null && (object = object.getParent()) == (toolbar = this.a)) {
+            toolbar.removeView(this.c);
         }
         this.c = scrollingTabContainerView;
         if (scrollingTabContainerView != null && this.o == 2) {

@@ -122,13 +122,17 @@ extends LinearLayoutManager {
         if (this.s == 1) {
             n4 = RecyclerView.p.s(n4, object.height() + n6, this.f0());
             object = this.K;
-            n3 = RecyclerView.p.s(n3, (int)(object[((Rect)object).length - 1] + n5), this.g0());
+            n5 = RecyclerView.p.s(n3, (int)(object[((Rect)object).length - 1] + n5), this.g0());
+            n3 = n4;
+            n4 = n5;
         } else {
             n3 = RecyclerView.p.s(n3, object.width() + n5, this.g0());
             object = this.K;
-            n4 = RecyclerView.p.s(n4, (int)(object[((Rect)object).length - 1] + n6), this.f0());
+            n5 = RecyclerView.p.s(n4, (int)(object[((Rect)object).length - 1] + n6), this.f0());
+            n4 = n3;
+            n3 = n5;
         }
-        this.F1(n3, n4);
+        this.F1(n4, n3);
     }
 
     @Override
@@ -333,16 +337,16 @@ extends LinearLayoutManager {
                 int n3 = this.O.b(this.l0(view), this.J);
                 int n4 = this.O.b(this.l0(view2), this.J);
                 int n5 = Math.min(n3, n4);
-                n4 = Math.max(n3, n4);
-                n3 = this.O.b(z3.b() - 1, this.J);
-                n5 = this.x ? Math.max(0, n3 + 1 - n4 - 1) : Math.max(0, n5);
+                n3 = Math.max(n3, n4);
+                n4 = this.O.b(z3.b() - 1, this.J);
+                n5 = this.x ? Math.max(0, n4 + 1 - n3 - 1) : Math.max(0, n5);
                 if (!bl) {
                     return n5;
                 }
                 n3 = Math.abs(this.u.d(view2) - this.u.g(view));
-                int n6 = this.O.b(this.l0(view), this.J);
-                n4 = this.O.b(this.l0(view2), this.J);
-                float f3 = (float)n3 / (float)(n4 - n6 + 1);
+                n4 = this.O.b(this.l0(view), this.J);
+                int n6 = this.O.b(this.l0(view2), this.J);
+                float f3 = (float)n3 / (float)(n6 - n4 + 1);
                 return Math.round((float)n5 * f3 + (float)(this.u.m() - this.u.g(view)));
             }
         }
@@ -663,7 +667,7 @@ extends LinearLayoutManager {
      * Enabled aggressive block sorting
      */
     @Override
-    public void s2(RecyclerView.v object, RecyclerView.z object2, LinearLayoutManager.c c3, LinearLayoutManager.b b3) {
+    public void s2(RecyclerView.v object, RecyclerView.z z3, LinearLayoutManager.c c3, LinearLayoutManager.b b3) {
         View view;
         int n3;
         int n4;
@@ -677,11 +681,11 @@ extends LinearLayoutManager {
         boolean bl = c3.e == 1;
         int n9 = this.J;
         if (!bl) {
-            n9 = this.Z2((RecyclerView.v)object, (RecyclerView.z)object2, c3.d) + this.a3((RecyclerView.v)object, (RecyclerView.z)object2, c3.d);
+            n9 = this.Z2((RecyclerView.v)object, z3, c3.d) + this.a3((RecyclerView.v)object, z3, c3.d);
         }
-        for (n5 = 0; n5 < this.J && c3.c((RecyclerView.z)object2) && n9 > 0; ++n5) {
+        for (n5 = 0; n5 < this.J && c3.c(z3) && n9 > 0; ++n5) {
             n4 = c3.d;
-            n3 = this.a3((RecyclerView.v)object, (RecyclerView.z)object2, n4);
+            n3 = this.a3((RecyclerView.v)object, z3, n4);
             if (n3 > this.J) {
                 object = new StringBuilder();
                 ((StringBuilder)object).append("Item at position ");
@@ -700,31 +704,31 @@ extends LinearLayoutManager {
             b3.b = true;
             return;
         }
-        this.N2((RecyclerView.v)object, (RecyclerView.z)object2, n5, bl);
+        this.N2((RecyclerView.v)object, z3, n5, bl);
         float f3 = 0.0f;
         n9 = 0;
         for (n3 = 0; n3 < n5; ++n3) {
-            object = this.L[n3];
+            z3 = this.L[n3];
             if (c3.l == null) {
                 if (bl) {
-                    this.i((View)object);
+                    this.i((View)z3);
                 } else {
-                    this.j((View)object, 0);
+                    this.j((View)z3, 0);
                 }
             } else if (bl) {
-                this.g((View)object);
+                this.g((View)z3);
             } else {
-                this.h((View)object, 0);
+                this.h((View)z3, 0);
             }
-            this.o((View)object, this.P);
-            this.c3((View)object, n6, false);
-            int n10 = this.u.e((View)object);
+            this.o((View)z3, this.P);
+            this.c3((View)z3, n6, false);
+            int n10 = this.u.e((View)z3);
             n4 = n9;
             if (n10 > n9) {
                 n4 = n10;
             }
-            object2 = (LayoutParams)object.getLayoutParams();
-            float f4 = (float)this.u.f((View)object) * 1.0f / (float)((LayoutParams)((Object)object2)).f;
+            object = (LayoutParams)z3.getLayoutParams();
+            float f4 = (float)this.u.f((View)z3) * 1.0f / (float)((LayoutParams)((Object)object)).f;
             float f5 = f3;
             if (f4 > f3) {
                 f5 = f4;
@@ -732,51 +736,51 @@ extends LinearLayoutManager {
             f3 = f5;
             n9 = n4;
         }
-        n4 = n9;
+        n3 = n9;
         if (n7 != 0) {
             this.b3(f3, n8);
             n7 = 0;
             n9 = 0;
             while (true) {
-                n4 = n9;
+                n3 = n9;
                 if (n7 >= n5) break;
                 object = this.L[n7];
                 this.c3((View)object, 0x40000000, true);
                 n8 = this.u.e((View)object);
-                n4 = n9;
+                n3 = n9;
                 if (n8 > n9) {
-                    n4 = n8;
+                    n3 = n8;
                 }
                 ++n7;
-                n9 = n4;
+                n9 = n3;
             }
         }
         for (n9 = 0; n9 < n5; ++n9) {
-            object2 = this.L[n9];
-            if (this.u.e((View)object2) == n4) continue;
-            object = (LayoutParams)object2.getLayoutParams();
-            view = ((RecyclerView.LayoutParams)((Object)object)).b;
-            n8 = view.top + view.bottom + ((ViewGroup.MarginLayoutParams)object).topMargin + ((ViewGroup.MarginLayoutParams)object).bottomMargin;
-            n7 = view.left + view.right + ((ViewGroup.MarginLayoutParams)object).leftMargin + ((ViewGroup.MarginLayoutParams)object).rightMargin;
-            n3 = this.W2(((LayoutParams)((Object)object)).e, ((LayoutParams)((Object)object)).f);
+            view = this.L[n9];
+            if (this.u.e(view) == n3) continue;
+            object = (LayoutParams)view.getLayoutParams();
+            z3 = ((RecyclerView.LayoutParams)((Object)object)).b;
+            n8 = ((Rect)z3).top + ((Rect)z3).bottom + ((ViewGroup.MarginLayoutParams)object).topMargin + ((ViewGroup.MarginLayoutParams)object).bottomMargin;
+            n7 = ((Rect)z3).left + ((Rect)z3).right + ((ViewGroup.MarginLayoutParams)object).leftMargin + ((ViewGroup.MarginLayoutParams)object).rightMargin;
+            n4 = this.W2(((LayoutParams)((Object)object)).e, ((LayoutParams)((Object)object)).f);
             if (this.s == 1) {
-                n7 = RecyclerView.p.P(n3, 0x40000000, n7, ((ViewGroup.MarginLayoutParams)object).width, false);
-                n8 = View.MeasureSpec.makeMeasureSpec((int)(n4 - n8), (int)0x40000000);
+                n7 = RecyclerView.p.P(n4, 0x40000000, n7, ((ViewGroup.MarginLayoutParams)object).width, false);
+                n8 = View.MeasureSpec.makeMeasureSpec((int)(n3 - n8), (int)0x40000000);
             } else {
-                n7 = View.MeasureSpec.makeMeasureSpec((int)(n4 - n7), (int)0x40000000);
-                n8 = RecyclerView.p.P(n3, 0x40000000, n8, ((ViewGroup.MarginLayoutParams)object).height, false);
+                n7 = View.MeasureSpec.makeMeasureSpec((int)(n3 - n7), (int)0x40000000);
+                n8 = RecyclerView.p.P(n4, 0x40000000, n8, ((ViewGroup.MarginLayoutParams)object).height, false);
             }
-            this.d3((View)object2, n7, n8, true);
+            this.d3(view, n7, n8, true);
         }
-        b3.a = n4;
+        b3.a = n3;
         if (this.s == 1) {
             if (c3.f == -1) {
                 n7 = c3.b;
-                n9 = n7 - n4;
-                n4 = n7;
+                n9 = n7 - n3;
+                n3 = n7;
             } else {
                 n9 = c3.b;
-                n4 = n9 + n4;
+                n3 = n9 + n3;
             }
             n8 = n9;
             n9 = 0;
@@ -784,43 +788,43 @@ extends LinearLayoutManager {
         } else {
             if (c3.f == -1) {
                 n9 = c3.b;
-                n7 = n9 - n4;
+                n7 = n9 - n3;
             } else {
                 n7 = c3.b;
-                n9 = n7 + n4;
+                n9 = n7 + n3;
             }
             n8 = 0;
-            n4 = 0;
+            n3 = 0;
         }
-        n3 = 0;
+        n4 = 0;
         while (true) {
-            if (n3 >= n5) {
+            if (n4 >= n5) {
                 Arrays.fill(this.L, null);
                 return;
             }
-            object = this.L[n3];
-            object2 = (LayoutParams)object.getLayoutParams();
+            z3 = this.L[n4];
+            object = (LayoutParams)z3.getLayoutParams();
             if (this.s == 1) {
                 if (this.q2()) {
-                    n9 = this.i0() + this.K[this.J - ((LayoutParams)((Object)object2)).e];
-                    n7 = n9 - this.u.f((View)object);
+                    n9 = this.i0() + this.K[this.J - ((LayoutParams)((Object)object)).e];
+                    n7 = n9 - this.u.f((View)z3);
                 } else {
                     n9 = this.i0();
-                    n7 = this.K[((LayoutParams)((Object)object2)).e] + n9;
-                    n9 = this.u.f((View)object) + n7;
+                    n7 = this.K[((LayoutParams)((Object)object)).e] + n9;
+                    n9 = this.u.f((View)z3) + n7;
                 }
             } else {
-                n4 = this.k0();
-                n8 = this.K[((LayoutParams)((Object)object2)).e] + n4;
-                n4 = this.u.f((View)object) + n8;
+                n3 = this.k0();
+                n8 = this.K[((LayoutParams)((Object)object)).e] + n3;
+                n3 = this.u.f((View)z3) + n8;
             }
-            this.D0((View)object, n7, n8, n9, n4);
-            if (((RecyclerView.LayoutParams)((Object)object2)).c() || ((RecyclerView.LayoutParams)((Object)object2)).b()) {
+            this.D0((View)z3, n7, n8, n9, n3);
+            if (((RecyclerView.LayoutParams)((Object)object)).c() || ((RecyclerView.LayoutParams)((Object)object)).b()) {
                 b3.c = true;
             }
             bl = b3.d;
-            b3.d = object.hasFocusable() | bl;
-            ++n3;
+            b3.d = z3.hasFocusable() | bl;
+            ++n4;
         }
     }
 

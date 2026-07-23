@@ -102,14 +102,14 @@ extends MotionHelper {
     @Override
     public void D(MotionLayout motionLayout, HashMap hashMap) {
         int n3;
-        int n4;
+        Object object;
         float f3;
         float f4;
         e e3;
         e e4;
-        Object object = 0;
-        int n5 = 1;
-        Object object2 = 1;
+        Object object2 = 0;
+        Object object3 = 1;
+        Object object4 = 1;
         View[] viewArray = this.n((ConstraintLayout)this.getParent());
         if (viewArray == null) {
             a.a();
@@ -124,98 +124,98 @@ extends MotionHelper {
         h h3 = new h();
         h3.g(this.q);
         h3.m(0);
-        h3.n("percentX", object);
-        h3.n("percentY", object);
+        h3.n("percentX", object2);
+        h3.n("percentY", object2);
         h h4 = new h();
         h4.g(this.r);
         h4.m(0);
-        h4.n("percentX", object2);
-        h4.n("percentY", object2);
-        int n6 = this.s;
+        h4.n("percentX", object4);
+        h4.n("percentY", object4);
+        int n4 = this.s;
         e e7 = null;
-        if (n6 > 0) {
+        if (n4 > 0) {
             e4 = new e();
-            object2 = new e();
+            object4 = new e();
             e4.R("translationX", this.s);
             e4.g(this.r);
-            ((e)object2).R("translationX", object);
-            ((d)object2).g(this.r - 1);
+            ((e)object4).R("translationX", object2);
+            ((d)object4).g(this.r - 1);
         } else {
             e4 = null;
-            object2 = null;
+            object4 = null;
         }
         if (this.t > 0) {
             e7 = new e();
             e3 = new e();
             e7.R("translationY", this.t);
             e7.g(this.r);
-            e3.R("translationY", object);
+            e3.R("translationY", object2);
             e3.g(this.r - 1);
         } else {
             e3 = null;
         }
-        n6 = this.w;
-        if (n6 == -1) {
-            int[] nArray = new int[4];
-            for (n6 = 0; n6 < viewArray.length; ++n6) {
-                object = (m)hashMap.get(viewArray[n6]);
-                if (object == null) continue;
-                f4 = ((m)object).n() - ((m)object).t();
-                f3 = ((m)object).o() - ((m)object).u();
+        n4 = this.w;
+        if (n4 == -1) {
+            object2 = new int[4];
+            for (n4 = 0; n4 < viewArray.length; ++n4) {
+                m m3 = (m)hashMap.get(viewArray[n4]);
+                if (m3 == null) continue;
+                f4 = m3.n() - m3.t();
+                f3 = m3.o() - m3.u();
                 if (f3 < 0.0f) {
-                    nArray[1] = nArray[1] + 1;
+                    object2[1] = object2[1] + true;
                 }
                 if (f3 > 0.0f) {
-                    nArray[0] = nArray[0] + 1;
+                    object2[0] = object2[0] + true;
                 }
                 if (f4 > 0.0f) {
-                    nArray[3] = nArray[3] + 1;
+                    object2[3] = object2[3] + true;
                 }
                 if (!(f4 < 0.0f)) continue;
-                nArray[2] = nArray[2] + 1;
+                object2[2] = object2[2] + true;
             }
-            n4 = nArray[0];
+            object = object2[0];
             n3 = 0;
-            for (n6 = n5; n6 < 4; ++n6) {
-                int n7 = nArray[n6];
-                n5 = n4;
-                if (n4 < n7) {
-                    n5 = n7;
-                    n3 = n6;
+            for (n4 = object3; n4 < 4; ++n4) {
+                Object object5 = object2[n4];
+                object3 = object;
+                if (object < object5) {
+                    object3 = object5;
+                    n3 = n4;
                 }
-                n4 = n5;
+                object = object3;
             }
-            n6 = n3;
+            n4 = n3;
         }
         for (n3 = 0; n3 < viewArray.length; ++n3) {
-            object = (m)hashMap.get(viewArray[n3]);
-            if (object == null) continue;
-            f4 = ((m)object).n() - ((m)object).t();
-            f3 = ((m)object).o() - ((m)object).u();
-            if (n6 == 0) {
-                if (f3 > 0.0f && (!this.u || f4 == 0.0f)) {
+            object2 = (m)hashMap.get(viewArray[n3]);
+            if (object2 == null) continue;
+            f3 = ((m)object2).n() - ((m)object2).t();
+            f4 = ((m)object2).o() - ((m)object2).u();
+            if (n4 == 0) {
+                if (f4 > 0.0f && (!this.u || f3 == 0.0f)) {
                     continue;
                 }
-            } else if (n6 == 1) {
-                if (f3 < 0.0f && (!this.u || f4 == 0.0f)) {
+            } else if (n4 == 1) {
+                if (f4 < 0.0f && (!this.u || f3 == 0.0f)) {
                     continue;
                 }
-            } else if (n6 != 2 ? n6 == 3 && f4 > 0.0f && (!this.u || f3 == 0.0f) : f4 < 0.0f && (!this.u || f3 == 0.0f)) continue;
-            if ((n4 = this.v) == -1) {
-                ((m)object).a(e5);
-                ((m)object).a(e6);
-                ((m)object).a(h3);
-                ((m)object).a(h4);
+            } else if (n4 != 2 ? n4 == 3 && f3 > 0.0f && (!this.u || f4 == 0.0f) : f3 < 0.0f && (!this.u || f4 == 0.0f)) continue;
+            if ((object = (Object)this.v) == -1) {
+                ((m)object2).a(e5);
+                ((m)object2).a(e6);
+                ((m)object2).a(h3);
+                ((m)object2).a(h4);
                 if (this.s > 0) {
-                    ((m)object).a(e4);
-                    ((m)object).a((d)object2);
+                    ((m)object2).a(e4);
+                    ((m)object2).a((d)object4);
                 }
                 if (this.t <= 0) continue;
-                ((m)object).a(e7);
-                ((m)object).a(e3);
+                ((m)object2).a(e7);
+                ((m)object2).a(e3);
                 continue;
             }
-            motionLayout.a0(n4, (m)object);
+            motionLayout.a0((int)object, (m)object2);
         }
     }
 

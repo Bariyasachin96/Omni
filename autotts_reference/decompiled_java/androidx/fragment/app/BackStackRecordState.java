@@ -121,12 +121,13 @@ implements Parcelable {
         while (true) {
             int n5;
             int n6;
-            int n7 = this.c.length;
+            int n7;
+            int n8 = this.c.length;
             boolean bl = true;
-            if (n3 >= n7) break;
+            if (n3 >= n8) break;
             y.a a5 = new y.a();
             int[] nArray = this.c;
-            int n8 = n3 + 1;
+            n8 = n3 + 1;
             a5.a = nArray[n3];
             if (FragmentManager.I0(2)) {
                 Objects.toString(a4);
@@ -139,18 +140,18 @@ implements Parcelable {
                 bl = false;
             }
             a5.c = bl;
-            a5.d = n6 = nArray[n3 + 2];
-            a5.e = n8 = nArray[n3 + 3];
+            a5.d = n7 = nArray[n3 + 2];
+            a5.e = n6 = nArray[n3 + 3];
             a5.f = n5 = nArray[n3 + 4];
-            n7 = n3 + 6;
+            n8 = n3 + 6;
             a5.g = n3 = nArray[n3 + 5];
-            a4.d = n6;
-            a4.e = n8;
+            a4.d = n7;
+            a4.e = n6;
             a4.f = n5;
             a4.g = n3;
             a4.e(a5);
             ++n4;
-            n3 = n7;
+            n3 = n8;
         }
         a4.h = this.g;
         a4.k = this.h;

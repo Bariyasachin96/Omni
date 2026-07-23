@@ -29,21 +29,22 @@ public final class t {
 
     public t(long l3, long l4, long l5, c c3) {
         float f3;
+        float f4;
         this.a = l3;
         this.b = l4;
         this.c = l5;
         this.d = c3;
         this.e = l3 = p.e(p.j(l3, l4));
         this.f = l4 = p.e(p.j(l5, l4));
-        float f4 = c3 != null ? c3.a() : 0.0f;
-        this.g = f4;
-        float f5 = c3 != null ? c3.b() : 0.0f;
-        this.h = f5;
-        this.i = f5 = p.d(l3, l4);
-        float f6 = 1.0f;
-        this.j = f3 = (float)Math.sqrt(f6 - y.n(f5));
-        f4 = (double)f3 > 0.001 ? f4 * (f5 + f6) / f3 : 0.0f;
-        this.k = f4;
+        float f5 = c3 != null ? c3.a() : 0.0f;
+        this.g = f5;
+        float f6 = c3 != null ? c3.b() : 0.0f;
+        this.h = f6;
+        this.i = f4 = p.d(l3, l4);
+        f6 = 1.0f;
+        this.j = f3 = (float)Math.sqrt(f6 - y.n(f4));
+        f5 = (double)f3 > 0.001 ? f5 * (f4 + f6) / f3 : 0.0f;
+        this.k = f5;
         this.l = o.e.b(0.0f, 0.0f);
     }
 

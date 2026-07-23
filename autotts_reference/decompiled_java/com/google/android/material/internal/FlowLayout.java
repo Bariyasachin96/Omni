@@ -164,9 +164,10 @@ extends ViewGroup {
                 n15 = 0;
             }
             if (n10 + n16 + view.getMeasuredWidth() > n9 - n12 && !this.c()) {
-                n10 = this.getPaddingLeft();
-                n13 = this.c + n11;
-                n11 = n10;
+                n13 = this.getPaddingLeft();
+                n10 = this.c + n11;
+                n11 = n13;
+                n13 = n10;
             } else {
                 n11 = n10;
             }
@@ -184,9 +185,9 @@ extends ViewGroup {
             n11 = n13 + n18;
             n10 = n16;
         }
-        n4 = this.getPaddingRight();
-        n3 = this.getPaddingBottom();
-        this.setMeasuredDimension(FlowLayout.a(n5, n6, n14 + n4), FlowLayout.a(n7, n8, n11 + n3));
+        n3 = this.getPaddingRight();
+        n4 = this.getPaddingBottom();
+        this.setMeasuredDimension(FlowLayout.a(n5, n6, n14 + n3), FlowLayout.a(n7, n8, n11 + n4));
     }
 
     public void setItemSpacing(int n3) {

@@ -79,21 +79,21 @@ public class w {
             object.recycle();
             int n6 = attributeSet.getAttributeCount();
             object = new int[n6];
-            n4 = 0;
-            for (n3 = 0; n3 < n6; ++n3) {
-                int n7 = attributeSet.getAttributeNameResource(n3);
-                int n8 = n4;
+            n3 = 0;
+            for (n4 = 0; n4 < n6; ++n4) {
+                int n7 = attributeSet.getAttributeNameResource(n4);
+                int n8 = n3;
                 if (n7 != z1.c.shapeAppearance) {
-                    n8 = n4;
+                    n8 = n3;
                     if (n7 != z1.c.shapeAppearanceOverlay) {
-                        n8 = attributeSet.getAttributeBooleanValue(n3, false) ? n7 : -n7;
-                        object[n4] = (Resources)n8;
-                        n8 = n4 + 1;
+                        n8 = attributeSet.getAttributeBooleanValue(n4, false) ? n7 : -n7;
+                        object[n3] = (Resources)n8;
+                        n8 = n3 + 1;
                     }
                 }
-                n4 = n8;
+                n3 = n8;
             }
-            b3.i(StateSet.trimStateSet((int[])object, (int)n4), o3);
+            b3.i(StateSet.trimStateSet((int[])object, (int)n3), o3);
         }
     }
 

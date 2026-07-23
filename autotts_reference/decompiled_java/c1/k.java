@@ -175,11 +175,11 @@ extends e3.b {
                 for (n4 = 0; n4 < n3; ++n4) {
                     Object object3 = arrayList.get(n4);
                     object3 = (d)object3;
-                    f3 = ((Number)object).floatValue();
-                    float f4 = l3.a((d)object3);
-                    if (f4 >= 0.0f) {
+                    float f4 = ((Number)object).floatValue();
+                    f3 = l3.a((d)object3);
+                    if (f3 >= 0.0f) {
                         object = j.a;
-                        object = Float.valueOf(f3 + f4);
+                        object = Float.valueOf(f4 + f3);
                         ((ArrayList)object2).add(object);
                         continue;
                     }

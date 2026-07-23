@@ -72,13 +72,13 @@ extends j {
         this.g = (float)Math.min(((CircularProgressIndicatorSpec)object).a / 2, ((CircularProgressIndicatorSpec)object).a()) * f3;
         object = this.a;
         this.h = (float)((CircularProgressIndicatorSpec)object).l * f3;
-        this.i = f6 = (float)(((CircularProgressIndicatorSpec)object).p - ((CircularProgressIndicatorSpec)object).a) / 2.0f;
+        this.i = f4 = (float)(((CircularProgressIndicatorSpec)object).p - ((CircularProgressIndicatorSpec)object).a) / 2.0f;
         if (bl || bl2) {
-            f4 = (1.0f - f3) * (float)((CircularProgressIndicatorSpec)object).a / 2.0f;
+            f6 = (1.0f - f3) * (float)((CircularProgressIndicatorSpec)object).a / 2.0f;
             if (bl && ((CircularProgressIndicatorSpec)object).g == 2 || bl2 && ((CircularProgressIndicatorSpec)object).h == 1) {
-                this.i = f6 + f4;
+                this.i = f4 + f6;
             } else if (bl && ((CircularProgressIndicatorSpec)object).g == 1 || bl2 && ((CircularProgressIndicatorSpec)object).h == 2) {
-                this.i = f6 - f4;
+                this.i = f4 - f6;
             }
         }
         if (bl2 && ((CircularProgressIndicatorSpec)object).h == 3) {
@@ -94,14 +94,14 @@ extends j {
 
     @Override
     public void c(Canvas canvas, Paint paint, j.a a4, int n3) {
-        n3 = h2.a.a(a4.c, n3);
+        int n4 = h2.a.a(a4.c, n3);
         canvas.save();
         canvas.rotate(a4.g);
         this.n = a4.h;
         float f3 = a4.a;
         float f4 = a4.b;
-        int n4 = a4.d;
-        this.m(canvas, paint, f3, f4, n3, n4, n4, a4.e, a4.f, true);
+        n3 = a4.d;
+        this.m(canvas, paint, f3, f4, n4, n3, n3, a4.e, a4.f, true);
         canvas.restore();
     }
 
@@ -152,22 +152,22 @@ extends j {
         ((j.b)object).b(-object2);
         object3 = ((j.b)object3).a;
         Object object4 = object3[0];
-        Object object5 = object3[1];
+        object2 = object3[1];
         object = ((j.b)object).a;
-        object2 = object[0];
+        Object object5 = object[0];
         Object object6 = object[1];
         object = b3.a;
-        path.cubicTo((float)object4, (float)object5, object2, (float)object6, (float)object[0], (float)object[1]);
+        path.cubicTo((float)object4, object2, (float)object5, (float)object6, (float)object[0], (float)object[1]);
     }
 
     public final void k(PathMeasure pathMeasure, Path path, Pair object, float f3, float f4, float f5, float f6) {
-        float f7 = this.h * f5;
+        f5 = this.h * f5;
         int n3 = this.n ? ((CircularProgressIndicatorSpec)this.a).j : ((CircularProgressIndicatorSpec)this.a).k;
-        f5 = this.i;
-        if (f5 != this.m || pathMeasure == this.d && (f7 != this.k || n3 != this.l)) {
-            this.k = f7;
+        float f7 = this.i;
+        if (f7 != this.m || pathMeasure == this.d && (f5 != this.k || n3 != this.l)) {
+            this.k = f5;
             this.l = n3;
-            this.m = f5;
+            this.m = f7;
             this.g();
         }
         path.rewind();
@@ -257,27 +257,27 @@ extends j {
         f4 = o2.a.f(0.0f, this.o, f7);
         f7 = (float)Math.toDegrees((float)n4 / this.i);
         f4 = f4 * 360.0f - f7 - (float)Math.toDegrees((float)n5 / this.i);
-        f7 = f3 * 360.0f + f7;
+        f10 = f3 * 360.0f + f7;
         if (!(f4 <= 0.0f)) {
             n4 = ((CircularProgressIndicatorSpec)this.a).b(this.n) && bl && f5 > 0.0f ? 1 : 0;
             paint.setAntiAlias(true);
             paint.setColor(n3);
             paint.setStrokeWidth(this.f);
             f3 = this.g * 2.0f;
-            f10 = f8 * 2.0f;
-            if (f4 < f10) {
-                f6 = f7 + f8 * (f4 /= f10);
+            f7 = f8 * 2.0f;
+            if (f4 < f7) {
+                f6 = f10 + f8 * (f4 /= f7);
                 j.b b3 = new j.b(this);
                 if (n4 == 0) {
                     b3.d(f6 + 90.0f);
                     b3.a(-this.i);
                 } else {
                     f6 = f6 / 360.0f * this.d.getLength() / 2.0f;
-                    f7 = this.h * f5;
-                    f5 = this.i;
-                    if (f5 != this.m || f7 != this.k) {
-                        this.k = f7;
-                        this.m = f5;
+                    f5 = this.h * f5;
+                    f7 = this.i;
+                    if (f7 != this.m || f5 != this.k) {
+                        this.k = f5;
+                        this.m = f7;
                         this.g();
                     }
                     this.d.getPosTan(f6, b3.a, b3.b);
@@ -289,21 +289,21 @@ extends j {
             paint.setStyle(Paint.Style.STROKE);
             Paint.Cap cap = ((CircularProgressIndicatorSpec)this.a).g() ? Paint.Cap.ROUND : Paint.Cap.BUTT;
             paint.setStrokeCap(cap);
-            f7 += f8;
-            f4 -= f10;
+            f10 += f8;
+            f4 -= f7;
             ((j.b)this.q.first).c();
             ((j.b)this.q.second).c();
             if (n4 == 0) {
-                ((j.b)this.q.first).d(f7 + 90.0f);
+                ((j.b)this.q.first).d(f10 + 90.0f);
                 ((j.b)this.q.first).a(-this.i);
-                ((j.b)this.q.second).d(f7 + f4 + 90.0f);
+                ((j.b)this.q.second).d(f10 + f4 + 90.0f);
                 ((j.b)this.q.second).a(-this.i);
                 cap = this.p;
                 f5 = this.i;
                 cap.set(-f5, -f5, f5, f5);
-                canvas.drawArc(this.p, f7, f4, false, paint);
+                canvas.drawArc(this.p, f10, f4, false, paint);
             } else {
-                this.k(this.d, this.c, this.q, f7 / 360.0f, f4 / 360.0f, f5, f6);
+                this.k(this.d, this.c, this.q, f10 / 360.0f, f4 / 360.0f, f5, f6);
                 canvas.drawPath(this.c, paint);
             }
             if (!((CircularProgressIndicatorSpec)this.a).g() && this.g > 0.0f) {
@@ -319,17 +319,17 @@ extends j {
     }
 
     public final void o(Canvas canvas, Paint paint, j.b b3, float f3, float f4, float f5) {
-        float f6 = Math.min(f4, this.f);
-        float f7 = this.g * f6 / this.f;
-        f4 = f3 / 2.0f;
-        f7 = Math.min(f4, f7);
-        RectF rectF = new RectF(-f3 / 2.0f, -f6 / 2.0f, f4, f6 / 2.0f);
+        f4 = Math.min(f4, this.f);
+        float f6 = this.g * f4 / this.f;
+        float f7 = f3 / 2.0f;
+        f6 = Math.min(f7, f6);
+        RectF rectF = new RectF(-f3 / 2.0f, -f4 / 2.0f, f7, f4 / 2.0f);
         canvas.save();
         float[] fArray = b3.a;
         canvas.translate(fArray[0], fArray[1]);
         canvas.rotate(this.i(b3.b));
         canvas.scale(f5, f5);
-        canvas.drawRoundRect(rectF, f7, f7, paint);
+        canvas.drawRoundRect(rectF, f6, f6, paint);
         canvas.restore();
     }
 

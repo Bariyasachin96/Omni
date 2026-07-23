@@ -46,22 +46,22 @@ public final class c {
         k.e(fragment, "fragment");
         k.e(object, "previousFragmentId");
         b1.a a4 = new b1.a(fragment, (String)object);
-        c c3 = a;
-        c3.e(a4);
-        object = c3.b(fragment);
-        if (((c)object).a().contains((Object)b1.c$a.e) && c3.k((c)object, fragment.getClass(), a4.getClass())) {
-            c3.c((c)object, a4);
+        object = a;
+        ((c)object).e(a4);
+        c c3 = ((c)object).b(fragment);
+        if (c3.a().contains((Object)b1.c$a.e) && ((c)object).k(c3, fragment.getClass(), a4.getClass())) {
+            ((c)object).c(c3, a4);
         }
     }
 
     public static final void g(Fragment fragment, ViewGroup object) {
         k.e(fragment, "fragment");
-        object = new d(fragment, (ViewGroup)object);
-        c c3 = a;
-        c3.e((g)object);
-        c c4 = c3.b(fragment);
-        if (c4.a().contains((Object)b1.c$a.f) && c3.k(c4, fragment.getClass(), object.getClass())) {
-            c3.c(c4, (g)object);
+        d d3 = new d(fragment, (ViewGroup)object);
+        object = a;
+        ((c)object).e(d3);
+        c c3 = ((c)object).b(fragment);
+        if (c3.a().contains((Object)b1.c$a.f) && ((c)object).k(c3, fragment.getClass(), d3.getClass())) {
+            ((c)object).c(c3, d3);
         }
     }
 
@@ -80,11 +80,11 @@ public final class c {
         k.e(fragment, "fragment");
         k.e(object, "container");
         h h3 = new h(fragment, (ViewGroup)object);
-        c c3 = a;
-        c3.e(h3);
-        object = c3.b(fragment);
-        if (((c)object).a().contains((Object)b1.c$a.j) && c3.k((c)object, fragment.getClass(), h3.getClass())) {
-            c3.c((c)object, h3);
+        object = a;
+        ((c)object).e(h3);
+        c c3 = ((c)object).b(fragment);
+        if (c3.a().contains((Object)b1.c$a.j) && ((c)object).k(c3, fragment.getClass(), h3.getClass())) {
+            ((c)object).c(c3, h3);
         }
     }
 

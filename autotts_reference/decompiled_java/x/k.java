@@ -198,11 +198,11 @@ extends d {
                             block31: {
                                 block30: {
                                     block28: {
-                                        n3 = this.t;
-                                        int n4 = x.d.f;
+                                        int n4 = this.t;
+                                        n3 = x.d.f;
                                         bl2 = true;
                                         bl = false;
-                                        if (n3 == n4) break block28;
+                                        if (n4 == n3) break block28;
                                         if (this.u == null) {
                                             this.u = ((ViewGroup)view.getParent()).findViewById(this.t);
                                         }
@@ -268,9 +268,9 @@ extends d {
                 bl = false;
             }
             if (this.x) {
-                f5 = this.y;
-                f4 = f3 - f5;
-                if ((this.z - f5) * f4 < 0.0f && f4 > 0.0f) {
+                f4 = this.y;
+                f5 = f3 - f4;
+                if ((this.z - f4) * f5 < 0.0f && f5 > 0.0f) {
                     this.x = false;
                 } else {
                     bl2 = false;
@@ -431,14 +431,13 @@ extends d {
                         continue block15;
                     }
                     case 8: {
-                        int n5;
-                        k3.a = n5 = typedArray.getInteger(n4, k3.a);
-                        x.k.m(k3, ((float)n5 + 0.5f) / 100.0f);
+                        k3.a = n4 = typedArray.getInteger(n4, k3.a);
+                        x.k.m(k3, ((float)n4 + 0.5f) / 100.0f);
                         continue block15;
                     }
                     case 7: {
-                        int n5;
                         if (MotionLayout.f1) {
+                            int n5;
                             k3.b = n5 = typedArray.getResourceId(n4, k3.b);
                             if (n5 != -1) continue block15;
                             k3.c = typedArray.getString(n4);

@@ -101,10 +101,10 @@ Set {
             }
         }
         if (n7 < n5) {
-            nArray = this.c();
             objectArray = this.c();
+            nArray = this.c();
             n4 = n7 + 1;
-            h.e(nArray, objectArray, n4, n7, n5);
+            h.e(objectArray, nArray, n4, n7, n5);
             h.g(this.b(), this.b(), n4, n7, n5);
         }
         if (n5 == this.e() && n7 < this.c().length) {

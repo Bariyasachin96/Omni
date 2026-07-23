@@ -58,9 +58,9 @@ public abstract class g {
                     long l4 = lArray[n7 + 1] << 64 - n8 & -((long)n8) >> 63 | l3 >>> n8;
                     l3 = (long)(n4 & 0x7F) * 0x101010101010101L ^ l4;
                     for (l3 = (l3 ^ 0xFFFFFFFFFFFFFFFFL) & l3 - 0x101010101010101L & 0x8080808080808080L; l3 != 0L; l3 &= l3 - 1L) {
-                        n7 = (Long.numberOfTrailingZeros(l3) >> 3) + n3 & n5;
-                        if (this.b[n7] != f3) continue;
-                        n3 = n7;
+                        n8 = (Long.numberOfTrailingZeros(l3) >> 3) + n3 & n5;
+                        if (this.b[n8] != f3) continue;
+                        n3 = n8;
                         break block4;
                     }
                     if ((l4 & (l4 ^ 0xFFFFFFFFFFFFFFFFL) << 6 & 0x8080808080808080L) == 0L) break block5;
@@ -131,24 +131,24 @@ public abstract class g {
         if (!(object instanceof g)) {
             return false;
         }
-        object = (g)object;
-        if (((g)object).d != this.d) {
+        g g3 = (g)object;
+        if (g3.d != this.d) {
             return false;
         }
         float[] fArray = this.b;
-        long[] lArray = this.a;
-        int n3 = lArray.length - 2;
+        object = this.a;
+        int n3 = ((Object)object).length - 2;
         if (n3 >= 0) {
             int n4 = 0;
             while (true) {
-                long l3;
-                if ((((l3 = lArray[n4]) ^ 0xFFFFFFFFFFFFFFFFL) << 7 & l3 & 0x8080808080808080L) != -9187201950435737472L) {
+                reference var6_8;
+                if ((((var6_8 = object[n4]) ^ 0xFFFFFFFFFFFFFFFFL) << 7 & var6_8 & 0x8080808080808080L) != -9187201950435737472L) {
                     int n5 = 8 - (~(n4 - n3) >>> 31);
                     for (int i3 = 0; i3 < n5; ++i3) {
-                        if ((0xFFL & l3) < 128L && !((g)object).a(fArray[(n4 << 3) + i3])) {
+                        if ((0xFFL & var6_8) < 128L && !g3.a(fArray[(n4 << 3) + i3])) {
                             return false;
                         }
-                        l3 >>= 8;
+                        var6_8 >>= 8;
                     }
                     if (n5 != 8) break;
                 }

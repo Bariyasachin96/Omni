@@ -3,7 +3,6 @@
  */
 package v;
 
-import java.util.Iterator;
 import u.a;
 import u.e;
 import u.j;
@@ -24,17 +23,17 @@ extends p {
 
     @Override
     public void a(d object) {
-        object = (a)this.b;
-        int n3 = ((a)object).A1();
-        Iterator iterator = this.h.l.iterator();
+        a a4 = (a)this.b;
+        int n3 = a4.A1();
+        object = this.h.l.iterator();
         int n4 = 0;
         int n5 = -1;
-        while (iterator.hasNext()) {
+        while (object.hasNext()) {
             int n6;
             int n7;
             block6: {
                 block5: {
-                    n7 = ((f)iterator.next()).g;
+                    n7 = ((f)object.next()).g;
                     if (n5 == -1) break block5;
                     n6 = n5;
                     if (n7 >= n5) break block6;
@@ -47,10 +46,10 @@ extends p {
             n5 = n6;
         }
         if (n3 != 0 && n3 != 2) {
-            this.h.d(n4 + ((a)object).B1());
+            this.h.d(n4 + a4.B1());
             return;
         }
-        this.h.d(n5 + ((a)object).B1());
+        this.h.d(n5 + a4.B1());
     }
 
     /*
@@ -86,7 +85,7 @@ extends p {
                     return;
                 }
                 this.h.e = f.a.h;
-                for (n3 = n5; n3 < ((j)e3).W0; ++n3) {
+                for (n3 = 0; n3 < ((j)e3).W0; ++n3) {
                     Object object = ((j)e3).V0[n3];
                     if (!bl && ((e)object).X() == 8) continue;
                     object = ((e)object).f.h;
@@ -98,7 +97,7 @@ extends p {
                 return;
             }
             this.h.e = f.a.g;
-            for (n3 = 0; n3 < ((j)e3).W0; ++n3) {
+            for (n3 = n5; n3 < ((j)e3).W0; ++n3) {
                 Object object = ((j)e3).V0[n3];
                 if (!bl && ((e)object).X() == 8) continue;
                 object = ((e)object).e.i;

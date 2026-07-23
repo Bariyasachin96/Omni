@@ -329,17 +329,17 @@ implements c {
         attributeSet = this.findViewById(c.f.submit_area);
         this.u = attributeSet;
         this.v = imageView4 = (ImageView)this.findViewById(c.f.search_button);
-        object2 = (ImageView)this.findViewById(c.f.search_go_btn);
-        this.w = (ImageView)object2;
-        this.x = imageView3 = (ImageView)this.findViewById(c.f.search_close_btn);
+        this.w = imageView3 = (ImageView)this.findViewById(c.f.search_go_btn);
+        object2 = (ImageView)this.findViewById(c.f.search_close_btn);
+        this.x = (ImageView)object2;
         this.y = imageView2 = (ImageView)this.findViewById(c.f.search_voice_btn);
         this.F = imageView = (ImageView)this.findViewById(c.f.search_mag_icon);
         x0.k0(view, m02.g(c.j.SearchView_queryBackground));
         x0.k0((View)attributeSet, m02.g(c.j.SearchView_submitBackground));
         n3 = c.j.SearchView_searchIcon;
         imageView4.setImageDrawable(m02.g(n3));
-        object2.setImageDrawable(m02.g(c.j.SearchView_goIcon));
-        imageView3.setImageDrawable(m02.g(c.j.SearchView_closeIcon));
+        imageView3.setImageDrawable(m02.g(c.j.SearchView_goIcon));
+        object2.setImageDrawable(m02.g(c.j.SearchView_closeIcon));
         imageView2.setImageDrawable(m02.g(c.j.SearchView_voiceIcon));
         imageView.setImageDrawable(m02.g(n3));
         this.G = m02.g(c.j.SearchView_searchHintIcon);
@@ -347,8 +347,8 @@ implements c {
         this.H = m02.n(c.j.SearchView_suggestionRowLayout, c.g.abc_search_dropdown_item_icons_2line);
         this.I = m02.n(c.j.SearchView_commitIcon, 0);
         imageView4.setOnClickListener(onClickListener);
-        imageView3.setOnClickListener(onClickListener);
         object2.setOnClickListener(onClickListener);
+        imageView3.setOnClickListener(onClickListener);
         imageView2.setOnClickListener(onClickListener);
         object.setOnClickListener(onClickListener);
         object.addTextChangedListener(this.p0);
@@ -1175,9 +1175,9 @@ implements c {
             int n5 = bl ? -rect.left : n3 - (rect.left + n4);
             this.r.setDropDownHorizontalOffset(n5);
             int n6 = this.z.getWidth();
-            n5 = rect.left;
-            int n7 = rect.right;
-            this.r.setDropDownWidth(n6 + n5 + n7 + n4 - n3);
+            int n7 = rect.left;
+            n5 = rect.right;
+            this.r.setDropDownWidth(n6 + n7 + n5 + n4 - n3);
         }
     }
 
@@ -1536,8 +1536,8 @@ implements c {
             block7: {
                 block8: {
                     block9: {
-                        var4_2 = (int)var1_1.getX();
-                        var3_3 = (int)var1_1.getY();
+                        var3_2 = (int)var1_1.getX();
+                        var4_3 = (int)var1_1.getY();
                         var2_4 = var1_1.getAction();
                         var5_5 = true;
                         if (var2_4 == 0) break block8;
@@ -1559,13 +1559,13 @@ lbl10:
                     var5_5 = var6_6 = this.f;
                     if (!var6_6) ** GOTO lbl10
                     var5_5 = var6_6;
-                    if (!this.d.contains(var4_2, var3_3)) ** break;
+                    if (!this.d.contains(var3_2, var4_3)) ** break;
                     ** while (true)
                     var5_5 = var6_6;
                     var2_4 = 0;
                     break block7;
                 }
-                if (this.b.contains(var4_2, var3_3)) {
+                if (this.b.contains(var3_2, var4_3)) {
                     this.f = true;
                     var2_4 = 1;
                 } else lbl-1000:
@@ -1577,11 +1577,11 @@ lbl10:
                 }
             }
             if (var5_5) {
-                if (var2_4 != 0 && !this.c.contains(var4_2, var3_3)) {
+                if (var2_4 != 0 && !this.c.contains(var3_2, var4_3)) {
                     var1_1.setLocation((float)(this.a.getWidth() / 2), (float)(this.a.getHeight() / 2));
                 } else {
                     var7_7 = this.c;
-                    var1_1.setLocation((float)(var4_2 - var7_7.left), (float)(var3_3 - var7_7.top));
+                    var1_1.setLocation((float)(var3_2 - var7_7.left), (float)(var4_3 - var7_7.top));
                 }
                 return this.a.dispatchTouchEvent(var1_1);
             }

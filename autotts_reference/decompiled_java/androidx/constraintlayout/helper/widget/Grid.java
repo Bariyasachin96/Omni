@@ -245,13 +245,13 @@ extends VirtualLayout {
         if (!this.K((CharSequence)stringArray)) {
             return null;
         }
-        stringArray = stringArray.split(",");
-        int n3 = stringArray.length;
+        String[] stringArray2 = stringArray.split(",");
+        int n3 = stringArray2.length;
         int[][] nArray = new int[n3][3];
-        for (n3 = 0; n3 < stringArray.length; ++n3) {
-            String[] stringArray2 = stringArray[n3].trim().split(":");
-            String[] stringArray3 = stringArray2[1].split("x");
-            nArray[n3][0] = Integer.parseInt(stringArray2[0]);
+        for (n3 = 0; n3 < stringArray2.length; ++n3) {
+            stringArray = stringArray2[n3].trim().split(":");
+            String[] stringArray3 = stringArray[1].split("x");
+            nArray[n3][0] = Integer.parseInt(stringArray[0]);
             nArray[n3][1] = Integer.parseInt(stringArray3[0]);
             nArray[n3][2] = Integer.parseInt(stringArray3[1]);
         }
@@ -330,27 +330,26 @@ extends VirtualLayout {
     }
 
     public final void R() {
-        ConstraintLayout.LayoutParams layoutParams;
         int n3;
         int n4 = this.getId();
         int n5 = Math.max(this.r, this.t);
-        float[] fArray = this.P(this.r, this.x);
+        Object object = this.P(this.r, this.x);
         int n6 = this.r;
         int n7 = 0;
         if (n6 == 1) {
-            ConstraintLayout.LayoutParams layoutParams2 = this.N(this.p[0]);
+            object = (Object)this.N(this.p[0]);
             this.B(this.p[0]);
-            layoutParams2.i = n4;
-            layoutParams2.l = n4;
-            this.p[0].setLayoutParams((ViewGroup.LayoutParams)layoutParams2);
+            object.i = n4;
+            object.l = n4;
+            this.p[0].setLayoutParams((ViewGroup.LayoutParams)object);
             return;
         }
         while (true) {
             if (n7 >= n3) break;
-            layoutParams = this.N(this.p[n7]);
+            ConstraintLayout.LayoutParams layoutParams = this.N(this.p[n7]);
             this.B(this.p[n7]);
-            if (fArray != null) {
-                layoutParams.M = fArray[n7];
+            if (object != null) {
+                layoutParams.M = object[n7];
             }
             if (n7 > 0) {
                 layoutParams.j = this.H[n7 - 1];
@@ -369,11 +368,11 @@ extends VirtualLayout {
             ++n7;
         }
         for (n6 = n3 = this.r; n6 < n5; ++n6) {
-            layoutParams = this.N(this.p[n6]);
+            object = (Object)this.N(this.p[n6]);
             this.B(this.p[n6]);
-            layoutParams.i = n4;
-            layoutParams.l = n4;
-            this.p[n6].setLayoutParams((ViewGroup.LayoutParams)layoutParams);
+            object.i = n4;
+            object.l = n4;
+            this.p[n6].setLayoutParams((ViewGroup.LayoutParams)object);
         }
     }
 

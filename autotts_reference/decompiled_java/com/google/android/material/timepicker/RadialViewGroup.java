@@ -91,21 +91,17 @@ extends ConstraintLayout {
         this.I();
     }
 
-    /*
-     * WARNING - void declaration
-     */
     public void I() {
         b b3 = new b();
         b3.o(this);
         HashMap hashMap = new HashMap();
         for (int i3 = 0; i3 < this.getChildCount(); ++i3) {
-            void object2;
-            Object object;
             View view = this.getChildAt(i3);
             if (view.getId() == z1.g.circle_center || RadialViewGroup.H(view)) continue;
-            Object object3 = object = (Integer)view.getTag(z1.g.material_clock_level);
+            Integer object = (Integer)view.getTag(z1.g.material_clock_level);
+            Object object2 = object;
             if (object == null) {
-                Integer n3 = 1;
+                object2 = 1;
             }
             if (!hashMap.containsKey(object2)) {
                 hashMap.put(object2, new ArrayList());

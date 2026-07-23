@@ -201,9 +201,9 @@ s.a {
         super.onConfigurationChanged(configuration);
         this.V().v(configuration);
         if (this.C != null) {
-            configuration = super.getResources().getConfiguration();
-            DisplayMetrics displayMetrics = super.getResources().getDisplayMetrics();
-            this.C.updateConfiguration(configuration, displayMetrics);
+            Configuration configuration2 = super.getResources().getConfiguration();
+            configuration = super.getResources().getDisplayMetrics();
+            this.C.updateConfiguration(configuration2, (DisplayMetrics)configuration);
         }
     }
 

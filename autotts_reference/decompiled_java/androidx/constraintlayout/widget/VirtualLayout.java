@@ -4,13 +4,13 @@
  * Could not load the following classes:
  *  android.content.Context
  *  android.util.AttributeSet
- *  android.view.ViewParent
+ *  android.view.View
  */
 package androidx.constraintlayout.widget;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.ViewParent;
+import android.view.View;
 import androidx.constraintlayout.widget.ConstraintHelper;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import u.m;
@@ -59,20 +59,20 @@ extends ConstraintHelper {
 
     @Override
     public void onAttachedToWindow() {
-        ViewParent viewParent;
+        Object object;
         super.onAttachedToWindow();
-        if ((this.l || this.m) && (viewParent = this.getParent()) instanceof ConstraintLayout) {
-            ConstraintLayout constraintLayout = (ConstraintLayout)viewParent;
+        if ((this.l || this.m) && (object = this.getParent()) instanceof ConstraintLayout) {
+            object = (ConstraintLayout)((Object)object);
             int n3 = this.getVisibility();
             float f3 = this.getElevation();
             for (int i3 = 0; i3 < this.d; ++i3) {
-                viewParent = constraintLayout.q(this.c[i3]);
-                if (viewParent == null) continue;
+                View view = ((ConstraintLayout)((Object)object)).q(this.c[i3]);
+                if (view == null) continue;
                 if (this.l) {
-                    viewParent.setVisibility(n3);
+                    view.setVisibility(n3);
                 }
                 if (!this.m || !(f3 > 0.0f)) continue;
-                viewParent.setTranslationZ(viewParent.getTranslationZ() + f3);
+                view.setTranslationZ(view.getTranslationZ() + f3);
             }
         }
     }

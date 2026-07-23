@@ -83,11 +83,11 @@ public class a {
         if (f6 <= 0.0f) {
             return;
         }
-        f5 = 1.0f - (float)n3 / f6;
-        float f7 = (1.0f - f5) / 2.0f;
+        float f7 = 1.0f - (float)n3 / f6;
+        f5 = (1.0f - f7) / 2.0f;
         object = l;
-        object[1] = (int)f5;
-        object[2] = (int)(f7 + f5);
+        object[1] = (int)f7;
+        object[2] = (int)(f5 + f7);
         object = new RadialGradient(rectF.centerX(), rectF.centerY(), f6, k, (float[])object, Shader.TileMode.CLAMP);
         this.b.setShader((Shader)object);
         canvas.save();

@@ -39,9 +39,9 @@ implements Obfuscator {
             object2 = c;
             object4 = new IvParameterSpec((byte[])object2);
             ((Cipher)object3).init(1, (Key)object, (AlgorithmParameterSpec)object4);
-            this.b = object3 = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            object4 = new IvParameterSpec((byte[])object2);
-            ((Cipher)object3).init(2, (Key)object, (AlgorithmParameterSpec)object4);
+            this.b = object4 = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            object3 = new IvParameterSpec((byte[])object2);
+            ((Cipher)object4).init(2, (Key)object, (AlgorithmParameterSpec)object3);
             return;
         }
         catch (GeneralSecurityException generalSecurityException) {
@@ -81,24 +81,24 @@ implements Obfuscator {
      * Enabled aggressive exception aggregation
      */
     @Override
-    public String b(String string, String charSequence) {
+    public String b(String string, String object) {
         b b32;
         block9: {
             IllegalBlockSizeException illegalBlockSizeException2;
             block8: {
                 BadPaddingException badPaddingException2;
                 block7: {
-                    Object object;
+                    CharSequence charSequence;
                     if (string == null) {
                         return null;
                     }
                     try {
-                        object = new String(this.b.doFinal(b3.a.a(string)), "UTF-8");
+                        charSequence = new String(this.b.doFinal(b3.a.a(string)), "UTF-8");
                         StringBuilder stringBuilder = new StringBuilder();
                         stringBuilder.append("com.google.android.vending.licensing.AESObfuscator-1|");
-                        stringBuilder.append((String)charSequence);
-                        if (((String)object).indexOf(stringBuilder.toString()) == 0) {
-                            return ((String)object).substring(53 + ((String)charSequence).length(), ((String)object).length());
+                        stringBuilder.append((String)object);
+                        if (((String)charSequence).indexOf(stringBuilder.toString()) == 0) {
+                            return ((String)charSequence).substring(53 + ((String)object).length(), ((String)charSequence).length());
                         }
                     }
                     catch (UnsupportedEncodingException unsupportedEncodingException) {
@@ -125,11 +125,11 @@ implements Obfuscator {
                 stringBuilder.append(string);
                 throw new ValidationException(stringBuilder.toString());
             }
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append(illegalBlockSizeException2.getMessage());
-            stringBuilder.append(":");
-            stringBuilder.append(string);
-            throw new ValidationException(stringBuilder.toString());
+            object = new StringBuilder();
+            ((StringBuilder)object).append(illegalBlockSizeException2.getMessage());
+            ((StringBuilder)object).append(":");
+            ((StringBuilder)object).append(string);
+            throw new ValidationException(((StringBuilder)object).toString());
         }
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(b32.getMessage());

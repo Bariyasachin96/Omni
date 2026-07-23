@@ -10,7 +10,6 @@
  *  android.content.Intent
  *  android.content.ServiceConnection
  *  android.content.pm.PackageInfo
- *  android.content.pm.PackageManager
  *  android.os.Build$VERSION
  *  android.os.Bundle
  *  android.os.Handler
@@ -32,7 +31,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -64,6 +62,7 @@ import java.util.Objects;
 
 public class LicenseClient
 implements ServiceConnection {
+    private static final String BACKGROUND_SERVICE_INTERFACE_CLASS_NAME = "com.android.vending.licensing.IBackgroundLicensingService";
     private static final int ERROR_INVALID_PACKAGE_NAME = 3;
     private static final int EVENTUAL_SHUTDOWN_DELAY_MILLIS = 30000;
     private static final int FIRST_ISOLATED_UID = 99000;
@@ -82,8 +81,9 @@ implements ServiceConnection {
     private static final String TAG = "LicenseClient";
     private static final int TRANSACTION_CHECK_LICENSE_V2 = 2;
     private static final int TRANSACTION_REPORT_SUCCESSFUL_LICENSE_CHECK = 3;
+    protected static boolean backgroundLicensingServiceEnabled = false;
     protected static ImmediateTaskExecutor backgroundRunner;
-    protected static boolean eventualShutdownEnabled = false;
+    protected static boolean eventualShutdownEnabled = true;
     protected static Runnable exitAction;
     public static boolean gracefulShutdownEnabled = true;
     private static final Handler handler;
@@ -93,7 +93,7 @@ implements ServiceConnection {
     protected static ImmediateTaskExecutor mainThreadRunner;
     protected static String packageName = "com.vnspeak.autotts";
     protected static boolean repeatedCheckEnabled = true;
-    private static Bundle responsePayload;
+    protected static Bundle responsePayload;
     private final Context context;
     protected DelayedTaskExecutor delayedTaskExecutor = new DelayedTaskExecutorImpl(null);
     private long repeatedCheckStartElapsedRealtime = 0L;
@@ -102,6 +102,10 @@ implements ServiceConnection {
 
     public static /* synthetic */ void $r8$lambda$8YRQpF8qc5JOZUcKq79QHnbGjYY(LicenseClient licenseClient, RepeatedCheckMetadata repeatedCheckMetadata) {
         licenseClient.lambda$scheduleRepeatedLicenseCheck$0(repeatedCheckMetadata);
+    }
+
+    public static /* synthetic */ void $r8$lambda$BhclTRnzXKpP3pw7j8AqgaeaCG4(LicenseClient licenseClient, boolean bl) {
+        licenseClient.lambda$retryOrThrow$0(bl);
     }
 
     public static /* synthetic */ void $r8$lambda$GS82Fij7VQePgSFog_s63_Rcyb0(LicenseClient licenseClient) {
@@ -118,10 +122,6 @@ implements ServiceConnection {
 
     public static /* synthetic */ void $r8$lambda$q2q7YKfx3jIZHqiUNn7fQ55wwzI(LicenseClient licenseClient, boolean bl) {
         licenseClient.lambda$initializeLicenseCheck$1(bl);
-    }
-
-    public static /* synthetic */ void $r8$lambda$tTRuJInP7s484yRu_m6AsnoI1z4(LicenseClient licenseClient) {
-        licenseClient.connectToLicensingService();
     }
 
     public static /* synthetic */ void $r8$lambda$xzrAfByzooHDT9oIsgTdQvzthuE(LicenseClient licenseClient, IBinder iBinder) {
@@ -159,11 +159,11 @@ implements ServiceConnection {
     /*
      * Exception decompiling
      */
-    private void checkLicenseInternal(IBinder var1_1) throws LicenseCheckException {
+    private void checkLicenseInternal(IBinder var1_1) throws LicenseCheckException, RemoteException {
         /*
          * This method has failed to decompile.  When submitting a bug report, please provide this stack trace, and (if you hold appropriate legal rights) the relevant class file.
          * 
-         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 1[TRYBLOCK] [3 : 91->114)] java.lang.Throwable
+         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 1[TRYBLOCK] [3 : 106->129)] java.lang.Throwable
          *     at org.benf.cfr.reader.bytecode.analysis.opgraph.Op02WithProcessedDataAndRefs.insertExceptionBlocks(Op02WithProcessedDataAndRefs.java:2283)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisInner(CodeAnalyser.java:415)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisOrWrapFail(CodeAnalyser.java:278)
@@ -180,19 +180,21 @@ implements ServiceConnection {
         throw new IllegalStateException("Decompilation failed");
     }
 
-    private void connectToLicensingService() {
+    private void connectToLicensingService(boolean bl) {
         block2: {
-            Log.d((String)TAG, (String)"Connecting to the licensing service...");
-            Intent intent = new Intent(SERVICE_INTERFACE_CLASS_NAME).setPackage(SERVICE_PACKAGE).setAction(SERVICE_INTERFACE_CLASS_NAME);
+            String string = bl ? "Connecting to the background licensing service..." : "Connecting to the main licensing service...";
+            Log.d((String)TAG, (String)string);
+            string = bl ? BACKGROUND_SERVICE_INTERFACE_CLASS_NAME : SERVICE_INTERFACE_CLASS_NAME;
+            Intent intent = new Intent(string).setPackage(SERVICE_PACKAGE).setAction(string);
             try {
-                boolean bl = this.context.bindService(intent, (ServiceConnection)this, 1);
-                if (bl) break block2;
+                boolean bl2 = this.context.bindService(intent, (ServiceConnection)this, 1);
+                if (bl2) break block2;
             }
             catch (SecurityException securityException) {
-                this.retryOrThrow(new LicenseCheckException("Not allowed to bind with the licensing service.", securityException));
+                this.retryOrThrow(new LicenseCheckException("Not allowed to bind with the licensing service: ".concat(string), securityException), bl, bl);
                 return;
             }
-            this.retryOrThrow(new LicenseCheckException("Could not bind with the licensing service."));
+            this.retryOrThrow(new LicenseCheckException("Could not bind with the licensing service: ".concat(string)), bl, bl);
         }
     }
 
@@ -256,14 +258,15 @@ implements ServiceConnection {
 
     private /* synthetic */ void lambda$initializeLicenseCheck$0() {
         boolean bl = this.performLocalInstallerCheck();
-        mainThreadRunner.run(new LicenseClient$$ExternalSyntheticLambda1(this, bl));
+        mainThreadRunner.run(new LicenseClient$$ExternalSyntheticLambda0(this, bl));
     }
 
     private /* synthetic */ void lambda$initializeLicenseCheck$1(boolean bl) {
         if (bl) {
             licenseCheckState = LicenseCheckState.LOCAL_CHECK_OK;
         }
-        this.connectToLicensingService();
+        bl = bl && backgroundLicensingServiceEnabled;
+        this.connectToLicensingService(bl);
     }
 
     private /* synthetic */ void lambda$onServiceConnected$0(IBinder iBinder) {
@@ -271,9 +274,11 @@ implements ServiceConnection {
             this.checkLicenseInternal(iBinder);
             return;
         }
+        catch (RemoteException remoteException) {
+            this.handleError(new LicenseCheckException("Error when getting interface descriptor.", remoteException));
+        }
         catch (LicenseCheckException licenseCheckException) {
             this.handleError(licenseCheckException);
-            return;
         }
     }
 
@@ -306,6 +311,10 @@ implements ServiceConnection {
         licenseCheckState = LicenseCheckState.LOCAL_CHECK_REPORTED;
     }
 
+    private /* synthetic */ void lambda$retryOrThrow$0(boolean bl) {
+        this.connectToLicensingService(bl);
+    }
+
     private /* synthetic */ void lambda$scheduleRepeatedLicenseCheck$0(RepeatedCheckMetadata repeatedCheckMetadata) {
         long l3 = this.getElapsedRealtimeMillis();
         long l4 = this.repeatedCheckStartElapsedRealtime;
@@ -315,7 +324,7 @@ implements ServiceConnection {
             return;
         }
         this.waitingForRepeatedCheck = false;
-        this.connectToLicensingService();
+        this.connectToLicensingService(false);
     }
 
     static /* synthetic */ void lambda$static$0(Runnable runnable) {
@@ -328,7 +337,6 @@ implements ServiceConnection {
                 block18: {
                     Object object;
                     block17: {
-                        PackageManager packageManager;
                         block14: {
                             block13: {
                                 try {
@@ -341,17 +349,17 @@ implements ServiceConnection {
                                     return false;
                                 }
                             }
-                            packageManager = this.context.getPackageManager();
-                            if (packageManager != null) break block14;
+                            object = this.context.getPackageManager();
+                            if (object != null) break block14;
                             Log.i((String)TAG, (String)"Local install check bypassed due to package manager not found.");
                             return false;
                         }
-                        object = packageManager.getPackageInfo(packageName, 0);
-                        if (object == null) break block15;
-                        if (((PackageInfo)object).applicationInfo == null) break block15;
-                        int n3 = ((PackageInfo)object).applicationInfo.flags;
+                        PackageInfo packageInfo = object.getPackageInfo(packageName, 0);
+                        if (packageInfo == null) break block15;
+                        if (packageInfo.applicationInfo == null) break block15;
+                        int n3 = packageInfo.applicationInfo.flags;
                         if ((n3 & 1) != 0 || (n3 & 0x80) != 0) break block16;
-                        object = packageManager.getInstallSourceInfo(packageName);
+                        object = object.getInstallSourceInfo(packageName);
                         if (object != null) break block17;
                         Log.i((String)TAG, (String)"Local install check bypassed due to install source info not found.");
                         return false;
@@ -421,14 +429,14 @@ lbl19:
     }
 
     private void retryOrThrow(LicenseCheckException licenseCheckException) {
-        this.retryOrThrow(licenseCheckException, false);
+        this.retryOrThrow(licenseCheckException, false, false);
     }
 
-    private void retryOrThrow(LicenseCheckException object, boolean bl) {
+    private void retryOrThrow(LicenseCheckException object, boolean bl, boolean bl2) {
         int n3 = this.retryNum;
         if (n3 < 3) {
             this.retryNum = n3 + 1;
-            this.delayedTaskExecutor.schedule(new LicenseClient$$ExternalSyntheticLambda0(this), 1000L);
+            this.delayedTaskExecutor.schedule(new LicenseClient$$ExternalSyntheticLambda1(this, bl2), 1000L);
             n3 = this.retryNum;
             object = object == null ? "null" : ((Throwable)object).getMessage();
             Log.d((String)TAG, (String)String.format("Retry #%d. License check failed with error '%s'. Next try in %ds...", n3, object, 1L));
@@ -496,7 +504,7 @@ lbl19:
                 if (n3 != 4) {
                     return;
                 }
-                this.connectToLicensingService();
+                this.connectToLicensingService(false);
                 return;
             }
             try {
@@ -512,7 +520,7 @@ lbl19:
             backgroundRunner.run(new LicenseClient$$ExternalSyntheticLambda4(this));
             return;
         }
-        this.connectToLicensingService();
+        this.connectToLicensingService(false);
     }
 
     public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
@@ -547,7 +555,7 @@ lbl19:
         /*
          * This method has failed to decompile.  When submitting a bug report, please provide this stack trace, and (if you hold appropriate legal rights) the relevant class file.
          * 
-         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 119->156)] java.lang.Throwable
+         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 120->157)] java.lang.Throwable
          *     at org.benf.cfr.reader.bytecode.analysis.opgraph.Op02WithProcessedDataAndRefs.insertExceptionBlocks(Op02WithProcessedDataAndRefs.java:2283)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisInner(CodeAnalyser.java:415)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisOrWrapFail(CodeAnalyser.java:278)

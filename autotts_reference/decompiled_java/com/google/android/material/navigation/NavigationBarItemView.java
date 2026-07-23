@@ -126,18 +126,18 @@ implements g {
     public NavigationBarItemView(Context context) {
         super(context);
         TextView textView;
+        TextView textView2;
         BaselineLayout baselineLayout;
-        LinearLayout linearLayout;
         LayoutInflater.from((Context)context).inflate(this.getItemLayoutResId(), (ViewGroup)this, true);
         this.r = (LinearLayout)this.findViewById(z1.g.navigation_bar_item_content_container);
-        this.s = linearLayout = (LinearLayout)this.findViewById(z1.g.navigation_bar_item_inner_content_container);
+        context = (LinearLayout)this.findViewById(z1.g.navigation_bar_item_inner_content_container);
+        this.s = context;
         this.t = this.findViewById(z1.g.navigation_bar_item_active_indicator_view);
         this.u = (FrameLayout)this.findViewById(z1.g.navigation_bar_item_icon_container);
         this.v = (ImageView)this.findViewById(z1.g.navigation_bar_item_icon_view);
         this.w = baselineLayout = (BaselineLayout)this.findViewById(z1.g.navigation_bar_item_labels_group);
-        this.x = textView = (TextView)this.findViewById(z1.g.navigation_bar_item_small_label_view);
-        context = (TextView)this.findViewById(z1.g.navigation_bar_item_large_label_view);
-        this.y = context;
+        this.x = textView2 = (TextView)this.findViewById(z1.g.navigation_bar_item_small_label_view);
+        this.y = textView = (TextView)this.findViewById(z1.g.navigation_bar_item_large_label_view);
         this.j();
         this.C = baselineLayout;
         this.setBackgroundResource(this.getItemBackgroundResId());
@@ -145,14 +145,14 @@ implements g {
         this.g = baselineLayout.getPaddingBottom();
         this.h = 0;
         this.i = 0;
+        textView2.setImportantForAccessibility(2);
         textView.setImportantForAccessibility(2);
-        context.setImportantForAccessibility(2);
         this.A.setImportantForAccessibility(2);
         this.B.setImportantForAccessibility(2);
         this.setFocusable(true);
         this.f();
         this.V = this.getResources().getDimensionPixelSize(z1.e.m3_navigation_item_expanded_active_indicator_height_default);
-        linearLayout.addOnLayoutChangeListener((View.OnLayoutChangeListener)new com.google.android.material.navigation.d(this));
+        context.addOnLayoutChangeListener((View.OnLayoutChangeListener)new com.google.android.material.navigation.d(this));
     }
 
     public static void G(View view, int n3) {
@@ -266,11 +266,10 @@ implements g {
             n4 = n3;
         }
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams)this.t.getLayoutParams();
-        n3 = n5;
         if (this.k()) {
-            n3 = n4;
+            n5 = n4;
         }
-        layoutParams.height = n3;
+        layoutParams.height = n5;
         layoutParams.width = Math.max(0, n4);
         this.t.setLayoutParams((ViewGroup.LayoutParams)layoutParams);
     }
@@ -343,12 +342,14 @@ implements g {
             n4 = 0;
             n3 = n9;
         } else {
-            n6 = 0;
-            n8 = n7 = (n9 = (n5 = 0));
+            int n11 = 0;
+            n5 = n7 = (n9 = (n6 = 0));
             n4 = 8;
-            n10 = n8;
-            n3 = n8;
+            n10 = n5;
+            n3 = n5;
             n8 = n9;
+            n5 = n6;
+            n6 = n11;
         }
         this.w.setVisibility(n10);
         this.z.setVisibility(n4);
@@ -405,11 +406,11 @@ implements g {
         this.j = f3 - f4;
         this.k = f4 * 1.0f / f3;
         this.l = f3 * 1.0f / f4;
-        f3 = this.A.getTextSize();
-        f4 = this.B.getTextSize();
-        this.m = f3 - f4;
-        this.n = f4 * 1.0f / f3;
-        this.o = f3 * 1.0f / f4;
+        f4 = this.A.getTextSize();
+        f3 = this.B.getTextSize();
+        this.m = f4 - f3;
+        this.n = f3 * 1.0f / f4;
+        this.o = f4 * 1.0f / f3;
     }
 
     public void g() {
@@ -776,15 +777,15 @@ implements g {
         this.l(f3);
         TextView textView = this.y;
         TextView textView2 = this.x;
-        f3 = this.j;
-        float f4 = this.k;
-        float f5 = this.l;
+        float f4 = this.j;
+        float f5 = this.k;
+        f3 = this.l;
         if (this.d0 == 1) {
             textView = this.B;
             textView2 = this.A;
-            f3 = this.m;
-            f4 = this.n;
-            f5 = this.o;
+            f4 = this.m;
+            f5 = this.n;
+            f3 = this.o;
         }
         if ((n3 = this.p) != -1) {
             if (n3 != 0) {
@@ -793,25 +794,25 @@ implements g {
                         this.s();
                     }
                 } else if (bl) {
-                    this.r((View)textView, (View)textView2, f4, f3);
+                    this.r((View)textView, (View)textView2, f5, f4);
                 } else {
-                    this.r((View)textView2, (View)textView, f5, 0.0f);
+                    this.r((View)textView2, (View)textView, f3, 0.0f);
                 }
             } else if (bl) {
-                this.r((View)textView, (View)textView2, f4, 0.0f);
+                this.r((View)textView, (View)textView2, f5, 0.0f);
             } else {
                 this.s();
             }
         } else if (this.q) {
             if (bl) {
-                this.r((View)textView, (View)textView2, f4, 0.0f);
+                this.r((View)textView, (View)textView2, f5, 0.0f);
             } else {
                 this.s();
             }
         } else if (bl) {
-            this.r((View)textView, (View)textView2, f4, f3);
+            this.r((View)textView, (View)textView2, f5, f4);
         } else {
-            this.r((View)textView2, (View)textView, f5, 0.0f);
+            this.r((View)textView2, (View)textView, f3, 0.0f);
         }
         this.refreshDrawableState();
         this.setSelected(bl);

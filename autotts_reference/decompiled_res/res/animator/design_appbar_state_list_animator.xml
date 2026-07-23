@@ -1,11 +1,13 @@
-<selector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
-  <item android:state_enabled="true" app:state_liftable="true" app:state_lifted="false">
-    <objectAnimator android:duration="@7F090002" android:valueTo="0.000000dip" android:valueType="0" android:propertyName="elevation"/>
-  </item>
-  <item android:state_enabled="true">
-    <objectAnimator android:duration="@7F090002" android:valueTo="@7F060064" android:valueType="0" android:propertyName="elevation"/>
-  </item>
-  <item>
-    <objectAnimator android:duration="0" android:valueTo="0" android:valueType="0" android:propertyName="elevation"/>
-  </item>
+<?xml version="1.0" encoding="utf-8"?>
+<selector
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:state_enabled="true" app:state_liftable="true" app:state_lifted="false">
+        <objectAnimator android:duration="@integer/app_bar_elevation_anim_duration" android:valueTo="0.0dip" android:valueType="floatType" android:propertyName="elevation" />
+    </item>
+    <item android:state_enabled="true">
+        <objectAnimator android:duration="@integer/app_bar_elevation_anim_duration" android:valueTo="@dimen/design_appbar_elevation" android:valueType="floatType" android:propertyName="elevation" />
+    </item>
+    <item>
+        <objectAnimator android:duration="0" android:valueTo="0" android:valueType="floatType" android:propertyName="elevation" />
+    </item>
 </selector>

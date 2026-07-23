@@ -447,11 +447,11 @@ extends ViewGroup {
                 }
                 view2 = LayoutInflater.from((Context)this.g.getContext()).inflate(c.g.abc_activity_chooser_view_list_item, viewGroup, false);
             }
-            viewGroup = this.g.getContext().getPackageManager();
-            ImageView imageView = (ImageView)view2.findViewById(c.f.icon);
-            view = (ResolveInfo)this.getItem(n3);
-            imageView.setImageDrawable(view.loadIcon((PackageManager)viewGroup));
-            ((TextView)view2.findViewById(c.f.title)).setText(view.loadLabel((PackageManager)viewGroup));
+            view = this.g.getContext().getPackageManager();
+            viewGroup = (ImageView)view2.findViewById(c.f.icon);
+            ResolveInfo resolveInfo = (ResolveInfo)this.getItem(n3);
+            viewGroup.setImageDrawable(resolveInfo.loadIcon((PackageManager)view));
+            ((TextView)view2.findViewById(c.f.title)).setText(resolveInfo.loadLabel((PackageManager)view));
             if (this.d && n3 == 0 && this.e) {
                 view2.setActivated(true);
                 return view2;

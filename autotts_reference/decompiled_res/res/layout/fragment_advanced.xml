@@ -1,43 +1,52 @@
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
-  <ScrollView android:id="@7F0801C6" android:visibility="0" android:layout_width="-1" android:layout_height="-1" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
-    <LinearLayout android:orientation="1" android:id="@7F080010" android:layout_width="-1" android:layout_height="-2">
-      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
-        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0112"/>
-      </LinearLayout>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0113" android:layout_marginStart="5.000000dip" style="@android:01030046"/>
-      <CheckBox android:id="@7F0801B2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0102" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0103" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
-      <CheckBox android:id="@7F0800F1" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E006F" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0070" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
-      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
-        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E00FD"/>
-      </LinearLayout>
-      <CheckBox android:id="@7F0801E0" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E010B" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E010C" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
-      <Button android:layout_gravity="0x00000001" android:id="@7F0800C3" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E005F"/>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0060" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
-      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
-        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E007C"/>
-      </LinearLayout>
-      <CheckBox android:id="@7F0800C2" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E005D" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E005E" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
-      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
-        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0077"/>
-      </LinearLayout>
-      <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip" android:layout_marginBottom="8.000000dip" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip">
-        <Button android:id="@7F080110" android:layout_width="0.000000dip" android:layout_height="-2" android:text="@7F0E0078" android:layout_weight="1.000000" android:layout_marginEnd="4.000000dip"/>
-        <Button android:id="@7F0800E3" android:layout_width="0.000000dip" android:layout_height="-2" android:text="@7F0E006B" android:layout_weight="1.000000" android:layout_marginStart="4.000000dip"/>
-      </LinearLayout>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E0079" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
-      <LinearLayout android:gravity="0x00800003" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip">
-        <TextView android:textSize="18.000000sp" android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0080"/>
-      </LinearLayout>
-      <CheckBox android:id="@7F0800D9" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E007F" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030044"/>
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:text="@7F0E007E" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip" style="@android:01030046"/>
-      <LinearLayout android:orientation="0" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="16.000000dip" android:layout_marginBottom="8.000000dip" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip">
-        <Button android:layout_gravity="0x00000001" android:id="@7F0801D9" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0081"/>
-        <Button android:layout_gravity="0x00000001" android:id="@7F080095" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E007D"/>
-      </LinearLayout>
-    </LinearLayout>
-  </ScrollView>
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:id="@id/constraintLayout" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <ScrollView android:id="@id/scroller" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="fill_parent" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintTop_toTopOf="@id/constraintLayout">
+        <LinearLayout android:orientation="vertical" android:id="@id/SettingsContainer" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <LinearLayout android:gravity="start" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                <TextView android:textSize="18.0sp" android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/synthesis_settings" />
+            </LinearLayout>
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/synthesis_settings_description" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+            <CheckBox android:id="@id/remove_audio_attributes" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/remove_audio_attributes" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/remove_audio_attributes_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <CheckBox android:id="@id/force_accessibility_stream" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/force_accessibility_stream" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <TextView android:gravity="start" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/force_accessibility_stream_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:gravity="start" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dip">
+                <TextView android:textSize="18.0sp" android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/keep_alive_mode" />
+            </LinearLayout>
+            <CheckBox android:id="@id/keep_alive_mode" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/keep_alive" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/keep_alive_mode_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:gravity="start" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dip">
+                <TextView android:textSize="18.0sp" android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/persistence_settings" />
+            </LinearLayout>
+            <CheckBox android:id="@id/show_notification" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/show_notification" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/show_notification_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <Button android:layout_gravity="center_horizontal" android:id="@id/disable_battery_optimization_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/disable_battery_optimization" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/disable_battery_optimization_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:gravity="start" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dip">
+                <TextView android:textSize="18.0sp" android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/language_detection_settings" />
+            </LinearLayout>
+            <CheckBox android:id="@id/disable_advanced_detect" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/disable_advanced_language_delection" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/disable_advanced_language_delection_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <CheckBox android:id="@id/quick_character_reading" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/quick_character_reading" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/quick_character_reading_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:gravity="start" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dip">
+                <TextView android:textSize="18.0sp" android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/import_export" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dip" android:layout_marginBottom="8.0dip" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip">
+                <Button android:id="@id/import_settings_button" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/import_settings" android:layout_weight="1.0" android:layout_marginEnd="4.0dip" />
+                <Button android:id="@id/export_settings_button" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/export_settings" android:layout_weight="1.0" android:layout_marginStart="4.0dip" />
+            </LinearLayout>
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/import_settings_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:gravity="start" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dip">
+                <TextView android:textSize="18.0sp" android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/logger_logging" />
+            </LinearLayout>
+            <CheckBox android:id="@id/enable_logging" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/logger_enable" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/logger_description" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dip" android:layout_marginBottom="8.0dip" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip">
+                <Button android:layout_gravity="center_horizontal" android:id="@id/share_logs" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/logger_share" />
+                <Button android:layout_gravity="center_horizontal" android:id="@id/clear_logs" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/logger_clear" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

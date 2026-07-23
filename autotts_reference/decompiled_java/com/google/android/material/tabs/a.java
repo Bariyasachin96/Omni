@@ -33,11 +33,10 @@ public class a {
         if (n4 < n6) {
             n3 = n6;
         }
-        n4 = (tabView.getLeft() + tabView.getRight()) / 2;
-        n6 = (tabView.getTop() + tabView.getBottom()) / 2;
-        int n7 = n5 / 2;
-        n5 = n4 / 2;
-        return new RectF((float)(n4 - (n3 /= 2)), (float)(n6 - n7), (float)(n3 + n4), (float)(n6 + n5));
+        n6 = (tabView.getLeft() + tabView.getRight()) / 2;
+        n4 = (tabView.getTop() + tabView.getBottom()) / 2;
+        int n7 = n6 / 2;
+        return new RectF((float)(n6 - (n3 /= 2)), (float)(n4 - (n5 /= 2)), (float)(n3 + n6), (float)(n4 + n7));
     }
 
     public void c(TabLayout tabLayout, View view, Drawable drawable) {

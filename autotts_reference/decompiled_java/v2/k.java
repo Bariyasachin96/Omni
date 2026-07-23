@@ -239,12 +239,12 @@ public abstract class k {
         } else {
             u3.a((float[])object);
         }
-        object = new RectF(object[0], object[1], object[2], object[3]);
-        float f3 = Math.min(rectF.width() / object.width(), rectF.height() / object.height());
-        Matrix matrix = v2.k.b(f3, f3);
-        matrix.preTranslate(-object.centerX(), -object.centerY());
-        matrix.postTranslate(rectF.centerX(), rectF.centerY());
-        return c1.x.c(u3, matrix);
+        RectF rectF2 = new RectF(object[0], object[1], object[2], object[3]);
+        float f3 = Math.min(rectF.width() / rectF2.width(), rectF.height() / rectF2.height());
+        object = v2.k.b(f3, f3);
+        object.preTranslate(-rectF2.centerX(), -rectF2.centerY());
+        object.postTranslate(rectF.centerX(), rectF.centerY());
+        return c1.x.c(u3, (Matrix)object);
     }
 
     public static void R(List list, List list2, int n3, float f3, float f4, boolean bl) {

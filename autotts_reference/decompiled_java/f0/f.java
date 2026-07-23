@@ -87,15 +87,15 @@ public abstract class f {
         while ((n4 = xmlPullParser.next()) != 1 && ((n3 = xmlPullParser.getDepth()) >= n5 || n4 != 3)) {
             if (n4 != 2 || n3 > n5 || !xmlPullParser.getName().equals("item")) continue;
             TypedArray typedArray = k.k((Resources)object, theme, attributeSet, c.GradientColorItem);
-            n4 = c.GradientColorItem_android_color;
-            boolean bl = typedArray.hasValue(n4);
-            n3 = c.GradientColorItem_android_offset;
-            boolean bl2 = typedArray.hasValue(n3);
+            n3 = c.GradientColorItem_android_color;
+            boolean bl = typedArray.hasValue(n3);
+            n4 = c.GradientColorItem_android_offset;
+            boolean bl2 = typedArray.hasValue(n4);
             if (bl && bl2) {
-                n4 = typedArray.getColor(n4, 0);
-                float f3 = typedArray.getFloat(n3, 0.0f);
+                n3 = typedArray.getColor(n3, 0);
+                float f3 = typedArray.getFloat(n4, 0.0f);
                 typedArray.recycle();
-                arrayList2.add(n4);
+                arrayList2.add(n3);
                 arrayList.add(Float.valueOf(f3));
                 continue;
             }

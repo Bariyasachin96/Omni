@@ -35,9 +35,9 @@ implements TypeEvaluator {
         f11 = (float)Math.pow(f11, 2.2);
         f5 = (float)Math.pow(f5 + (f9 - f5) * f3, 0.45454545454545453);
         f6 = (float)Math.pow(f6 + (f10 - f6) * f3, 0.45454545454545453);
-        f7 = (float)Math.pow(f7 + f3 * (f11 - f7), 0.45454545454545453);
+        f11 = (float)Math.pow(f7 + f3 * (f11 - f7), 0.45454545454545453);
         n5 = Math.round((f4 + (f8 - f4) * f3) * 255.0f);
-        return Math.round(f5 * 255.0f) << 16 | n5 << 24 | Math.round(f6 * 255.0f) << 8 | Math.round(f7 * 255.0f);
+        return Math.round(f5 * 255.0f) << 16 | n5 << 24 | Math.round(f6 * 255.0f) << 8 | Math.round(f11 * 255.0f);
     }
 }
 

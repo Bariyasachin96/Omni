@@ -241,10 +241,10 @@ implements j {
         int n4 = object.data;
         n3 = colorStateList.getDefaultColor();
         int[] nArray = c0;
-        object = b0;
-        int[] nArray2 = ViewGroup.EMPTY_STATE_SET;
+        int[] nArray2 = b0;
+        object = ViewGroup.EMPTY_STATE_SET;
         int n5 = colorStateList.getColorForState(nArray, n3);
-        return new ColorStateList((int[][])new int[][]{nArray, (int[])object, nArray2}, new int[]{n5, n4, n3});
+        return new ColorStateList((int[][])new int[][]{nArray, nArray2, (int[])object}, new int[]{n5, n4, n3});
     }
 
     public final Drawable f() {
@@ -710,9 +710,9 @@ implements j {
         }
     }
 
-    public void setItemActiveIndicatorColor(ColorStateList object2) {
-        this.M = object2;
-        g[] gArray = this.i;
+    public void setItemActiveIndicatorColor(ColorStateList gArray) {
+        this.M = gArray;
+        gArray = this.i;
         if (gArray != null) {
             for (g g3 : gArray) {
                 if (!(g3 instanceof NavigationBarItemView)) continue;
@@ -755,12 +755,12 @@ implements j {
     }
 
     public void setItemActiveIndicatorExpandedPadding(int n3, int n4, int n5, int n6) {
-        Rect object2 = this.a0;
-        object2.left = n3;
-        object2.top = n4;
-        object2.right = n5;
-        object2.bottom = n6;
-        g[] gArray = this.i;
+        g[] gArray = this.a0;
+        gArray.left = n3;
+        gArray.top = n4;
+        gArray.right = n5;
+        gArray.bottom = n6;
+        gArray = this.i;
         if (gArray != null) {
             for (g g3 : gArray) {
                 if (!(g3 instanceof NavigationBarItemView)) continue;

@@ -1,3 +1,5 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="@7F0603E3" android:width="@7F0603E4" android:viewportWidth="@7F090041" android:viewportHeight="@7F090040">
-  <path android:name="outline" android:pathData="@7F0E00EC" android:strokeColor="?7F03011C" android:strokeWidth="2.000000"/>
+<?xml version="1.0" encoding="utf-8"?>
+<vector android:height="@dimen/mtrl_switch_track_height" android:width="@dimen/mtrl_switch_track_width" android:viewportWidth="@integer/mtrl_switch_track_viewport_width" android:viewportHeight="@integer/mtrl_switch_track_viewport_height"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <path android:name="outline" android:pathData="@string/mtrl_switch_track_decoration_path" android:strokeColor="?colorOutline" android:strokeWidth="2.0" />
 </vector>

@@ -491,7 +491,8 @@ public final class b {
         } else {
             this.s = ((Rect)charSequence).top;
         }
-        this.u = (n3 &= 0x800007) != 1 ? (n3 != 5 ? (float)((Rect)charSequence).left : (float)((Rect)charSequence).right - this.k0) : (float)charSequence.centerX() - this.k0 / 2.0f;
+        n4 = n3 & 0x800007;
+        this.u = n4 != 1 ? (n4 != 5 ? (float)((Rect)charSequence).left : (float)((Rect)charSequence).right - this.k0) : (float)charSequence.centerX() - this.k0 / 2.0f;
         if (this.k0 <= (float)this.h.width()) {
             f3 = this.u;
             f3 += Math.max(0.0f, (float)this.h.left - f3);
@@ -510,12 +511,12 @@ public final class b {
         charSequence = this.j0;
         f3 = charSequence != null && this.o0 > 1 ? (float)charSequence.getWidth() : ((charSequence = this.I) != null ? this.a0(this.U, charSequence) : 0.0f);
         charSequence = this.j0;
-        n3 = charSequence != null ? charSequence.getLineCount() : 0;
-        this.q = n3;
-        n4 = Gravity.getAbsoluteGravity((int)this.k, (int)(this.J ? 1 : 0));
-        n3 = n4 & 0x70;
-        if (n3 != 48) {
-            if (n3 != 80) {
+        n4 = charSequence != null ? charSequence.getLineCount() : 0;
+        this.q = n4;
+        n3 = Gravity.getAbsoluteGravity((int)this.k, (int)(this.J ? 1 : 0));
+        n4 = n3 & 0x70;
+        if (n4 != 48) {
+            if (n4 != 80) {
                 this.r = (float)this.g.centerY() - (f5 /= 2.0f);
             } else {
                 float f6 = this.g.bottom;
@@ -527,8 +528,8 @@ public final class b {
         } else {
             this.r = this.g.top;
         }
-        n3 = n4 & 0x800007;
-        this.t = n3 != 1 ? (n3 != 5 ? (float)this.g.left : (float)this.g.right - f3) : (float)this.g.centerX() - f3 / 2.0f;
+        n4 = n3 & 0x800007;
+        this.t = n4 != 1 ? (n4 != 5 ? (float)this.g.left : (float)this.g.right - f3) : (float)this.g.centerX() - f3 / 2.0f;
         this.H0(this.b);
     }
 
@@ -658,9 +659,9 @@ public final class b {
     }
 
     public final void i(float f3, boolean bl) {
-        Object object;
+        StaticLayout staticLayout;
         int n3;
-        Typeface typeface;
+        Object object;
         float f4;
         float f5;
         block15: {
@@ -679,12 +680,12 @@ public final class b {
                     if (this.T0()) {
                         f5 = f8;
                     }
-                    typeface = this.x;
+                    object = this.x;
                     f6 = f9;
                 } else {
                     f6 = this.m;
                     f7 = this.h0;
-                    typeface = this.A;
+                    object = this.A;
                     this.L = com.google.android.material.internal.b.U(f3, 0.0f) ? 1.0f : com.google.android.material.internal.b.Y(this.m, this.n, f3, this.X) / this.m;
                     float f10 = this.n / this.m;
                     float f11 = f5;
@@ -709,21 +710,21 @@ public final class b {
                 if (f5 > 0.0f) {
                     bl2 = this.M != f6;
                     boolean bl3 = this.i0 != f7;
-                    boolean bl4 = this.D != typeface;
-                    object = this.j0;
-                    boolean bl5 = object != null && f5 != (float)object.getWidth();
+                    boolean bl4 = this.D != object;
+                    staticLayout = this.j0;
+                    boolean bl5 = staticLayout != null && f5 != (float)staticLayout.getWidth();
                     boolean bl6 = this.R != n3;
                     bl2 = bl2 || bl3 || bl5 || bl4 || bl6 || this.T;
                     this.M = f6;
                     this.i0 = f7;
-                    this.D = typeface;
+                    this.D = object;
                     this.T = false;
                     this.R = n3;
-                    typeface = this.U;
+                    object = this.U;
                     if (this.L != 1.0f) {
                         bl = true;
                     }
-                    typeface.setLinearText(bl);
+                    object.setLinearText(bl);
                 }
                 if (this.I == null || bl2) break block15;
             }
@@ -736,12 +737,12 @@ public final class b {
         if (!this.S0()) {
             n3 = 1;
         }
-        typeface = this.U;
+        staticLayout = this.U;
         object = this.H;
         f3 = this.T0() ? f4 : this.L;
-        typeface = this.j(n3, (TextPaint)typeface, (CharSequence)object, f5 * f3, this.J);
-        this.j0 = typeface;
-        this.I = typeface.getText();
+        object = this.j(n3, (TextPaint)staticLayout, (CharSequence)object, f5 * f3, this.J);
+        this.j0 = object;
+        this.I = object.getText();
     }
 
     public void i0(int n3) {

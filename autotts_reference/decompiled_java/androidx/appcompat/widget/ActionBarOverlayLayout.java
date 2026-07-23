@@ -320,11 +320,11 @@ d0 {
         }
         bl2 = bl;
         if (bl4) {
-            n4 = object.rightMargin;
-            n3 = rect.right;
+            n3 = object.rightMargin;
+            n4 = rect.right;
             bl2 = bl;
-            if (n4 != n3) {
-                object.rightMargin = n3;
+            if (n3 != n4) {
+                object.rightMargin = n4;
                 bl2 = true;
             }
         }
@@ -372,17 +372,17 @@ d0 {
     }
 
     public void onLayout(boolean bl, int n3, int n4, int n5, int n6) {
-        n4 = this.getChildCount();
-        n6 = this.getPaddingLeft();
-        n5 = this.getPaddingTop();
-        for (n3 = 0; n3 < n4; ++n3) {
+        n6 = this.getChildCount();
+        n5 = this.getPaddingLeft();
+        n4 = this.getPaddingTop();
+        for (n3 = 0; n3 < n6; ++n3) {
             View view = this.getChildAt(n3);
             if (view.getVisibility() == 8) continue;
             LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
             int n7 = view.getMeasuredWidth();
             int n8 = view.getMeasuredHeight();
-            int n9 = layoutParams.leftMargin + n6;
-            int n10 = layoutParams.topMargin + n5;
+            int n9 = layoutParams.leftMargin + n5;
+            int n10 = layoutParams.topMargin + n4;
             view.layout(n9, n10, n7 + n9, n8 + n10);
         }
     }
@@ -429,11 +429,11 @@ d0 {
         object = (LayoutParams)this.e.getLayoutParams();
         n5 = Math.max(n7, this.e.getMeasuredWidth() + object.leftMargin + object.rightMargin);
         n8 = Math.max(n8, this.e.getMeasuredHeight() + object.topMargin + object.bottomMargin);
-        n9 = View.combineMeasuredStates((int)n9, (int)this.e.getMeasuredState());
-        n6 = this.getPaddingLeft();
-        n10 = this.getPaddingRight();
+        n10 = View.combineMeasuredStates((int)n9, (int)this.e.getMeasuredState());
+        n9 = this.getPaddingLeft();
+        n6 = this.getPaddingRight();
         n8 = Math.max(n8 + (this.getPaddingTop() + this.getPaddingBottom()), this.getSuggestedMinimumHeight());
-        this.setMeasuredDimension(View.resolveSizeAndState((int)Math.max(n5 + (n6 + n10), this.getSuggestedMinimumWidth()), (int)n3, (int)n9), View.resolveSizeAndState((int)n8, (int)n4, (int)(n9 << 16)));
+        this.setMeasuredDimension(View.resolveSizeAndState((int)Math.max(n5 + (n9 + n6), this.getSuggestedMinimumWidth()), (int)n3, (int)n10), View.resolveSizeAndState((int)n8, (int)n4, (int)(n10 << 16)));
     }
 
     public boolean onNestedFling(View view, float f3, float f4, boolean bl) {

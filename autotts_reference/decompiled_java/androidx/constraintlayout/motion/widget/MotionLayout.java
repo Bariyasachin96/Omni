@@ -297,20 +297,20 @@ implements d0 {
 
     public void H0(int n3, int n4, int n5, int n6) {
         float f3;
-        m m3;
-        int n7;
         Object object;
+        int n7;
+        Object object2;
         block27: {
             block24: {
                 block26: {
                     block25: {
-                        object = this.B;
+                        object2 = this.B;
                         n7 = n3;
-                        if (object != null) {
-                            object = ((a)object).b;
+                        if (object2 != null) {
+                            object2 = ((a)object2).b;
                             n7 = n3;
-                            if (object != null) {
-                                n4 = ((y.e)object).a(this.G, n3, n4, n5);
+                            if (object2 != null) {
+                                n4 = ((y.e)object2).a(this.G, n3, n4, n5);
                                 n7 = n3;
                                 if (n4 != -1) {
                                     n7 = n4;
@@ -360,7 +360,7 @@ implements d0 {
         }
         this.F = -1;
         this.B.X(-1, this.H);
-        SparseArray sparseArray = new SparseArray();
+        object2 = new SparseArray();
         if (n6 == 0) {
             this.N = (float)this.B.p() / 1000.0f;
         } else if (n6 > 0) {
@@ -370,40 +370,40 @@ implements d0 {
         this.L.clear();
         for (n3 = 0; n3 < n6; ++n3) {
             object = this.getChildAt(n3);
-            m3 = new m((View)object);
+            m m3 = new m((View)object);
             this.L.put(object, m3);
-            sparseArray.put(object.getId(), (Object)((m)this.L.get(object)));
+            object2.put(object.getId(), (Object)((m)this.L.get(object)));
         }
         this.T = true;
         this.Z0.e(this.e, null, this.B.l(n7));
         this.y0();
         this.Z0.a();
         this.f0();
-        n4 = this.getWidth();
-        n7 = this.getHeight();
+        n7 = this.getWidth();
+        n4 = this.getHeight();
         if (this.u0 != null) {
             for (n3 = 0; n3 < n6; ++n3) {
-                object = (m)this.L.get(this.getChildAt(n3));
-                if (object == null) continue;
-                this.B.t((m)object);
+                object2 = (m)this.L.get(this.getChildAt(n3));
+                if (object2 == null) continue;
+                this.B.t((m)object2);
             }
-            object = this.u0;
-            int n8 = ((ArrayList)object).size();
+            object2 = this.u0;
+            int n8 = ((ArrayList)object2).size();
             for (n3 = 0; n3 < n8; ++n3) {
-                m3 = ((ArrayList)object).get(n3);
-                ((MotionHelper)((Object)m3)).D(this, this.L);
+                object = ((ArrayList)object2).get(n3);
+                ((MotionHelper)object).D(this, this.L);
             }
             for (n3 = 0; n3 < n6; ++n3) {
-                object = (m)this.L.get(this.getChildAt(n3));
-                if (object == null) continue;
-                ((m)object).I(n4, n7, this.N, this.getNanoTime());
+                object2 = (m)this.L.get(this.getChildAt(n3));
+                if (object2 == null) continue;
+                ((m)object2).I(n7, n4, this.N, this.getNanoTime());
             }
         } else {
             for (n3 = 0; n3 < n6; ++n3) {
-                object = (m)this.L.get(this.getChildAt(n3));
-                if (object == null) continue;
-                this.B.t((m)object);
-                ((m)object).I(n4, n7, this.N, this.getNanoTime());
+                object2 = (m)this.L.get(this.getChildAt(n3));
+                if (object2 == null) continue;
+                this.B.t((m)object2);
+                ((m)object2).I(n7, n4, this.N, this.getNanoTime());
             }
         }
         if ((f3 = this.B.E()) != 0.0f) {
@@ -413,19 +413,19 @@ implements d0 {
             n3 = 0;
             while (true) {
                 if (n3 >= n6) break;
-                object = (m)this.L.get(this.getChildAt(n3));
-                f4 = ((m)object).n();
-                f4 = ((m)object).o() + f4;
+                object2 = (m)this.L.get(this.getChildAt(n3));
+                f4 = ((m)object2).n();
+                f4 = ((m)object2).o() + f4;
                 f5 = Math.min(f5, f4);
                 f6 = Math.max(f6, f4);
                 ++n3;
             }
             for (n4 = n5; n4 < n6; ++n4) {
-                object = (m)this.L.get(this.getChildAt(n4));
-                f4 = ((m)object).n();
-                float f7 = ((m)object).o();
-                ((m)object).o = 1.0f / (1.0f - f3);
-                ((m)object).n = f3 - (f4 + f7 - f5) * f3 / (f6 - f5);
+                object2 = (m)this.L.get(this.getChildAt(n4));
+                f4 = ((m)object2).n();
+                float f7 = ((m)object2).o();
+                ((m)object2).o = 1.0f / (1.0f - f3);
+                ((m)object2).n = f3 - (f4 + f7 - f5) * f3 / (f6 - f5);
             }
         }
         this.O = 0.0f;
@@ -526,101 +526,101 @@ implements d0 {
     }
 
     public final void c0() {
-        Object object = this.B;
-        if (object == null) {
+        a a4 = this.B;
+        if (a4 == null) {
             Log.e((String)"MotionLayout", (String)"CHECK: motion scene not set! set \"app:layoutDescription=\"@xml/file\"");
             return;
         }
-        int n3 = ((a)object).F();
-        object = this.B;
-        this.d0(n3, ((a)object).l(((a)object).F()));
+        int n3 = a4.F();
+        a4 = this.B;
+        this.d0(n3, a4.l(a4.F()));
         SparseIntArray sparseIntArray = new SparseIntArray();
-        SparseIntArray sparseIntArray2 = new SparseIntArray();
-        object = this.B.o();
-        int n4 = ((ArrayList)object).size();
+        a4 = new SparseIntArray();
+        ArrayList arrayList = this.B.o();
+        int n4 = arrayList.size();
         n3 = 0;
         while (n3 < n4) {
             StringBuilder stringBuilder;
-            Object object2 = ((ArrayList)object).get(n3);
+            Object object = arrayList.get(n3);
             int n5 = n3 + 1;
-            Object object3 = (a.b)object2;
-            object2 = this.B.c;
-            this.e0((a.b)object3);
-            n3 = ((a.b)object3).A();
-            int n6 = ((a.b)object3).y();
-            object2 = x.a.c(this.getContext(), n3);
-            object3 = x.a.c(this.getContext(), n6);
+            Object object2 = (a.b)object;
+            object = this.B.c;
+            this.e0((a.b)object2);
+            n3 = ((a.b)object2).A();
+            int n6 = ((a.b)object2).y();
+            object = x.a.c(this.getContext(), n3);
+            object2 = x.a.c(this.getContext(), n6);
             if (sparseIntArray.get(n3) == n6) {
                 stringBuilder = new StringBuilder();
                 stringBuilder.append("CHECK: two transitions with the same start and end ");
-                stringBuilder.append((String)object2);
+                stringBuilder.append((String)object);
                 stringBuilder.append("->");
-                stringBuilder.append((String)object3);
+                stringBuilder.append((String)object2);
                 Log.e((String)"MotionLayout", (String)stringBuilder.toString());
             }
-            if (sparseIntArray2.get(n6) == n3) {
+            if (a4.get(n6) == n3) {
                 stringBuilder = new StringBuilder();
                 stringBuilder.append("CHECK: you can't have reverse transitions");
-                stringBuilder.append((String)object2);
+                stringBuilder.append((String)object);
                 stringBuilder.append("->");
-                stringBuilder.append((String)object3);
+                stringBuilder.append((String)object2);
                 Log.e((String)"MotionLayout", (String)stringBuilder.toString());
             }
             sparseIntArray.put(n3, n6);
-            sparseIntArray2.put(n6, n3);
+            a4.put(n6, n3);
             if (this.B.l(n3) == null) {
-                object3 = new StringBuilder();
-                ((StringBuilder)object3).append(" no such constraintSetStart ");
-                ((StringBuilder)object3).append((String)object2);
-                Log.e((String)"MotionLayout", (String)((StringBuilder)object3).toString());
+                object2 = new StringBuilder();
+                ((StringBuilder)object2).append(" no such constraintSetStart ");
+                ((StringBuilder)object2).append((String)object);
+                Log.e((String)"MotionLayout", (String)((StringBuilder)object2).toString());
             }
             n3 = n5;
             if (this.B.l(n6) != null) continue;
-            object3 = new StringBuilder();
-            ((StringBuilder)object3).append(" no such constraintSetEnd ");
-            ((StringBuilder)object3).append((String)object2);
-            Log.e((String)"MotionLayout", (String)((StringBuilder)object3).toString());
+            object2 = new StringBuilder();
+            ((StringBuilder)object2).append(" no such constraintSetEnd ");
+            ((StringBuilder)object2).append((String)object);
+            Log.e((String)"MotionLayout", (String)((StringBuilder)object2).toString());
             n3 = n5;
         }
     }
 
     public final void d0(int n3, androidx.constraintlayout.widget.b b3) {
-        CharSequence charSequence;
         Object object;
+        Object object2;
         String string = x.a.c(this.getContext(), n3);
         int n4 = this.getChildCount();
         int n5 = 0;
         for (n3 = 0; n3 < n4; ++n3) {
-            object = this.getChildAt(n3);
-            int n6 = object.getId();
+            object2 = this.getChildAt(n3);
+            int n6 = object2.getId();
             if (n6 == -1) {
-                charSequence = new StringBuilder();
-                ((StringBuilder)charSequence).append("CHECK: ");
-                ((StringBuilder)charSequence).append(string);
-                ((StringBuilder)charSequence).append(" ALL VIEWS SHOULD HAVE ID's ");
-                ((StringBuilder)charSequence).append(object.getClass().getName());
-                ((StringBuilder)charSequence).append(" does not!");
-                Log.w((String)"MotionLayout", (String)((StringBuilder)charSequence).toString());
+                object = new StringBuilder();
+                ((StringBuilder)object).append("CHECK: ");
+                ((StringBuilder)object).append(string);
+                ((StringBuilder)object).append(" ALL VIEWS SHOULD HAVE ID's ");
+                ((StringBuilder)object).append(object2.getClass().getName());
+                ((StringBuilder)object).append(" does not!");
+                Log.w((String)"MotionLayout", (String)((StringBuilder)object).toString());
             }
             if (b3.v(n6) != null) continue;
-            charSequence = new StringBuilder();
-            ((StringBuilder)charSequence).append("CHECK: ");
-            ((StringBuilder)charSequence).append(string);
-            ((StringBuilder)charSequence).append(" NO CONSTRAINTS for ");
-            ((StringBuilder)charSequence).append(x.a.d((View)object));
-            Log.w((String)"MotionLayout", (String)((StringBuilder)charSequence).toString());
+            object = new StringBuilder();
+            ((StringBuilder)object).append("CHECK: ");
+            ((StringBuilder)object).append(string);
+            ((StringBuilder)object).append(" NO CONSTRAINTS for ");
+            ((StringBuilder)object).append(x.a.d((View)object2));
+            Log.w((String)"MotionLayout", (String)((StringBuilder)object).toString());
         }
         object = b3.x();
         for (n3 = n5; n3 < ((int[])object).length; ++n3) {
             StringBuilder stringBuilder;
             n5 = object[n3];
-            charSequence = x.a.c(this.getContext(), n5);
-            if (this.findViewById(object[n3]) == null) {
+            object2 = x.a.c(this.getContext(), n5);
+            if (this.findViewById((int)object[n3]) == null) {
                 stringBuilder = new StringBuilder();
                 stringBuilder.append("CHECK: ");
                 stringBuilder.append(string);
                 stringBuilder.append(" NO View matches id ");
-                stringBuilder.append((String)charSequence);
+                stringBuilder.append((String)object2);
                 Log.w((String)"MotionLayout", (String)stringBuilder.toString());
             }
             if (b3.w(n5) == -1) {
@@ -628,7 +628,7 @@ implements d0 {
                 stringBuilder.append("CHECK: ");
                 stringBuilder.append(string);
                 stringBuilder.append("(");
-                stringBuilder.append((String)charSequence);
+                stringBuilder.append((String)object2);
                 stringBuilder.append(") no LAYOUT_HEIGHT");
                 Log.w((String)"MotionLayout", (String)stringBuilder.toString());
             }
@@ -637,7 +637,7 @@ implements d0 {
             stringBuilder.append("CHECK: ");
             stringBuilder.append(string);
             stringBuilder.append("(");
-            stringBuilder.append((String)charSequence);
+            stringBuilder.append((String)object2);
             stringBuilder.append(") no LAYOUT_HEIGHT");
             Log.w((String)"MotionLayout", (String)stringBuilder.toString());
         }
@@ -849,9 +849,9 @@ implements d0 {
                 if (((f5 = this.O) == 1.0f || f5 == 0.0f) && view.canScrollVertically(n5)) break block9;
             }
             if (b3.B() != null && (b3.B().e() & 1) != 0) {
-                f5 = a4.x(n3, n4);
-                f4 = this.P;
-                if (f4 <= 0.0f && f5 < 0.0f || f4 >= 1.0f && f5 > 0.0f) {
+                f4 = a4.x(n3, n4);
+                f5 = this.P;
+                if (f5 <= 0.0f && f4 < 0.0f || f5 >= 1.0f && f4 > 0.0f) {
                     view.setNestedScrollingEnabled(false);
                     view.post(new Runnable(this, view){
                         public final View c;
@@ -869,14 +869,14 @@ implements d0 {
                     return;
                 }
             }
-            f5 = this.O;
+            f4 = this.O;
             long l3 = this.getNanoTime();
-            this.n0 = f4 = (float)n3;
-            this.o0 = f3 = (float)n4;
+            this.n0 = f3 = (float)n3;
+            this.o0 = f5 = (float)n4;
             this.q0 = (float)((double)(l3 - this.p0) * 1.0E-9);
             this.p0 = l3;
-            a4.P(f4, f3);
-            if (f5 != this.O) {
+            a4.P(f3, f5);
+            if (f4 != this.O) {
                 nArray[0] = n3;
                 nArray[1] = n4;
             }
@@ -888,231 +888,233 @@ implements d0 {
     }
 
     /*
-     * Unable to fully structure code
+     * Enabled aggressive block sorting
      */
-    public void h0(boolean var1_1) {
-        block45: {
-            block52: {
-                block48: {
+    public void h0(boolean bl) {
+        int n3;
+        block63: {
+            int n4;
+            block62: {
+                int n5;
+                int n6;
+                float f3;
+                block61: {
                     block51: {
-                        block50: {
-                            block49: {
-                                block43: {
-                                    block46: {
-                                        block47: {
-                                            block44: {
-                                                if (this.Q == -1L) {
-                                                    this.Q = this.getNanoTime();
+                        block60: {
+                            Object object;
+                            float f4;
+                            float f5;
+                            Interpolator interpolator;
+                            long l3;
+                            float f6;
+                            int n7;
+                            block56: {
+                                block59: {
+                                    block58: {
+                                        block57: {
+                                            block54: {
+                                                block55: {
+                                                    block52: {
+                                                        block53: {
+                                                            float f7;
+                                                            float f8;
+                                                            block50: {
+                                                                if (this.Q == -1L) {
+                                                                    this.Q = this.getNanoTime();
+                                                                }
+                                                                if ((f3 = this.P) > 0.0f && f3 < 1.0f) {
+                                                                    this.G = -1;
+                                                                }
+                                                                boolean bl2 = this.r0;
+                                                                n6 = 1;
+                                                                n5 = 1;
+                                                                n7 = 0;
+                                                                n3 = 0;
+                                                                if (bl2) break block50;
+                                                                n4 = n7;
+                                                                if (!this.T) break block51;
+                                                                if (bl) break block50;
+                                                                n4 = n7;
+                                                                if (this.R == f3) break block51;
+                                                            }
+                                                            f6 = Math.signum(this.R - f3);
+                                                            l3 = this.getNanoTime();
+                                                            interpolator = this.C;
+                                                            f5 = !(interpolator instanceof n) ? (float)(l3 - this.Q) * f6 * 1.0E-9f / this.N : 0.0f;
+                                                            f3 = this.P + f5;
+                                                            if (this.S) {
+                                                                f3 = this.R;
+                                                            }
+                                                            if ((n7 = (int)((f8 = f6 - 0.0f) == 0.0f ? 0 : (f8 > 0.0f ? 1 : -1))) > 0 && f3 >= this.R || f6 <= 0.0f && f3 <= this.R) {
+                                                                f3 = this.R;
+                                                                this.T = false;
+                                                                n4 = 1;
+                                                            } else {
+                                                                n4 = 0;
+                                                            }
+                                                            this.P = f3;
+                                                            this.O = f3;
+                                                            this.Q = l3;
+                                                            if (interpolator == null || n4 != 0) break block52;
+                                                            if (!this.d0) break block53;
+                                                            f4 = interpolator.getInterpolation((float)(l3 - this.M) * 1.0E-9f);
+                                                            interpolator = this.C;
+                                                            object = this.e0;
+                                                            n4 = interpolator == object ? (((w.b)object).c() ? 2 : 1) : 0;
+                                                            this.P = f4;
+                                                            this.Q = l3;
+                                                            interpolator = this.C;
+                                                            f3 = f4;
+                                                            if (!(interpolator instanceof n)) break block54;
+                                                            this.E = f7 = ((n)interpolator).a();
+                                                            if (Math.abs(f7) * this.N <= 1.0E-5f && n4 == 2) {
+                                                                this.T = false;
+                                                            }
+                                                            f5 = f4;
+                                                            if (f7 > 0.0f) {
+                                                                f5 = f4;
+                                                                if (f4 >= 1.0f) {
+                                                                    this.P = 1.0f;
+                                                                    this.T = false;
+                                                                    f5 = 1.0f;
+                                                                }
+                                                            }
+                                                            f3 = f5;
+                                                            if (f7 < 0.0f) {
+                                                                f3 = f5;
+                                                                if (f5 <= 0.0f) {
+                                                                    this.P = 0.0f;
+                                                                    this.T = false;
+                                                                    f3 = 0.0f;
+                                                                }
+                                                            }
+                                                            break block54;
+                                                        }
+                                                        f4 = interpolator.getInterpolation(f3);
+                                                        interpolator = this.C;
+                                                        this.E = interpolator instanceof n ? ((n)interpolator).a() : (interpolator.getInterpolation(f3 + f5) - f4) * f6 / f5;
+                                                        f3 = f4;
+                                                        break block55;
+                                                    }
+                                                    this.E = f5;
                                                 }
-                                                if ((var2_2 = this.P) > 0.0f && var2_2 < 1.0f) {
-                                                    this.G = -1;
-                                                }
-                                                var16_3 = this.r0;
-                                                var9_4 = 1;
-                                                var10_5 = 1;
-                                                var11_6 = 0;
-                                                var8_7 = 0;
-                                                if (var16_3) break block44;
-                                                var7_8 = var11_6;
-                                                if (!this.T) break block45;
-                                                if (var1_1) break block44;
-                                                var7_8 = var11_6;
-                                                if (this.R == var2_2) break block45;
+                                                n4 = 0;
                                             }
-                                            var5_9 = Math.signum(this.R - var2_2);
-                                            var14_10 = this.getNanoTime();
-                                            var17_11 = this.C;
-                                            var3_12 = var17_11 instanceof n == false ? (float)(var14_10 - this.Q) * var5_9 * 1.0E-9f / this.N : 0.0f;
-                                            var2_2 = this.P + var3_12;
-                                            if (this.S) {
-                                                var2_2 = this.R;
+                                            if (Math.abs(this.E) > 1.0E-5f) {
+                                                this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.e);
                                             }
-                                            if ((var11_6 = (int)((cfr_temp_0 = var5_9 - 0.0f) == 0.0f ? 0 : (cfr_temp_0 > 0.0f ? 1 : -1))) > 0 && var2_2 >= this.R || var5_9 <= 0.0f && var2_2 <= this.R) {
-                                                var2_2 = this.R;
-                                                this.T = false;
-                                                var7_8 = 1;
-                                            } else {
-                                                var7_8 = 0;
-                                            }
-                                            this.P = var2_2;
-                                            this.O = var2_2;
-                                            this.Q = var14_10;
-                                            if (var17_11 == null || var7_8 != 0) break block46;
-                                            if (!this.d0) break block47;
-                                            var4_13 = var17_11.getInterpolation((float)(var14_10 - this.M) * 1.0E-9f);
-                                            var18_14 = this.C;
-                                            var17_11 = this.e0;
-                                            var7_8 = var18_14 == var17_11 ? (var17_11.c() ? 2 : 1) : 0;
-                                            this.P = var4_13;
-                                            this.Q = var14_10;
-                                            var17_11 = this.C;
-                                            var3_12 = var4_13;
-                                            if (!(var17_11 instanceof n)) ** GOTO lbl-1000
-                                            this.E = var6_15 = ((n)var17_11).a();
-                                            if (Math.abs(var6_15) * this.N <= 1.0E-5f && var7_8 == 2) {
-                                                this.T = false;
-                                            }
-                                            var2_2 = var4_13;
-                                            if (var6_15 > 0.0f) {
-                                                var2_2 = var4_13;
-                                                if (var4_13 >= 1.0f) {
-                                                    this.P = 1.0f;
-                                                    this.T = false;
-                                                    var2_2 = 1.0f;
-                                                }
-                                            }
-                                            var3_12 = var2_2;
-                                            if (!(var6_15 < 0.0f)) ** GOTO lbl-1000
-                                            var3_12 = var2_2;
-                                            if (var2_2 <= 0.0f) {
-                                                this.P = 0.0f;
-                                                this.T = false;
-                                                var2_2 = 0.0f;
-                                            } else lbl-1000:
-                                            // 3 sources
-
-                                            {
-                                                var2_2 = var3_12;
-                                            }
-                                            break block43;
+                                            f5 = f3;
+                                            if (n4 == 1) break block56;
+                                            if (n7 > 0 && f3 >= this.R) break block57;
+                                            f4 = f3;
+                                            if (!(f6 <= 0.0f)) break block58;
+                                            f4 = f3;
+                                            if (!(f3 <= this.R)) break block58;
                                         }
-                                        var4_13 = var17_11.getInterpolation(var2_2);
-                                        var17_11 = this.C;
-                                        this.E = var17_11 instanceof n != false ? ((n)var17_11).a() : (var17_11.getInterpolation(var2_2 + var3_12) - var4_13) * var5_9 / var3_12;
-                                        var2_2 = var4_13;
-lbl69:
-                                        // 2 sources
-
-                                        while (true) {
-                                            var7_8 = 0;
-                                            break block43;
-                                            break;
-                                        }
+                                        f4 = this.R;
+                                        this.T = false;
                                     }
-                                    this.E = var3_12;
-                                    ** while (true)
+                                    if (f4 >= 1.0f) break block59;
+                                    f5 = f4;
+                                    if (!(f4 <= 0.0f)) break block56;
                                 }
-                                if (Math.abs(this.E) > 1.0E-5f) {
-                                    this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.e);
-                                }
-                                var3_12 = var2_2;
-                                if (var7_8 == 1) break block48;
-                                if (var11_6 > 0 && var2_2 >= this.R) break block49;
-                                var4_13 = var2_2;
-                                if (!(var5_9 <= 0.0f)) break block50;
-                                var4_13 = var2_2;
-                                if (!(var2_2 <= this.R)) break block50;
+                                this.T = false;
+                                this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
+                                f5 = f4;
                             }
-                            var4_13 = this.R;
-                            this.T = false;
+                            int n8 = this.getChildCount();
+                            this.r0 = false;
+                            l3 = this.getNanoTime();
+                            this.J0 = f5;
+                            interpolator = this.D;
+                            f3 = interpolator == null ? f5 : interpolator.getInterpolation(f5);
+                            interpolator = this.D;
+                            if (interpolator != null) {
+                                this.E = f4 = interpolator.getInterpolation(f6 / this.N + f5);
+                                this.E = f4 - this.D.getInterpolation(f5);
+                            }
+                            for (n4 = 0; n4 < n8; ++n4) {
+                                interpolator = this.getChildAt(n4);
+                                object = (m)this.L.get(interpolator);
+                                if (object == null) continue;
+                                this.r0 |= ((m)object).x((View)interpolator, f3, l3, this.K0);
+                            }
+                            n4 = n7 > 0 && f5 >= this.R || f6 <= 0.0f && f5 <= this.R ? 1 : 0;
+                            if (!this.r0 && !this.T && n4 != 0) {
+                                this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
+                            }
+                            if (this.C0) {
+                                this.requestLayout();
+                            }
+                            this.r0 = n4 ^ 1 | this.r0;
+                            n4 = n3;
+                            if (f5 <= 0.0f) {
+                                n8 = this.F;
+                                n4 = n3;
+                                if (n8 != -1) {
+                                    n4 = n3;
+                                    if (this.G != n8) {
+                                        this.G = n8;
+                                        this.B.l(n8).g(this);
+                                        this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
+                                        n4 = 1;
+                                    }
+                                }
+                            }
+                            n3 = n4;
+                            if ((double)f5 >= 1.0) {
+                                int n9 = this.G;
+                                n8 = this.H;
+                                n3 = n4;
+                                if (n9 != n8) {
+                                    this.G = n8;
+                                    this.B.l(n8).g(this);
+                                    this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
+                                    n3 = 1;
+                                }
+                            }
+                            if (!this.r0 && !this.T) {
+                                if (n7 > 0 && f5 == 1.0f || f6 < 0.0f && f5 == 0.0f) {
+                                    this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
+                                }
+                            } else {
+                                this.invalidate();
+                            }
+                            n4 = n3;
+                            if (this.r0) break block51;
+                            n4 = n3;
+                            if (this.T) break block51;
+                            if (n7 > 0 && f5 == 1.0f) break block60;
+                            n4 = n3;
+                            if (!(f6 < 0.0f)) break block51;
+                            n4 = n3;
+                            if (f5 != 0.0f) break block51;
                         }
-                        if (var4_13 >= 1.0f) break block51;
-                        var3_12 = var4_13;
-                        if (!(var4_13 <= 0.0f)) break block48;
+                        this.w0();
+                        n4 = n3;
                     }
-                    this.T = false;
-                    this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
-                    var3_12 = var4_13;
-                }
-                var12_16 = this.getChildCount();
-                this.r0 = false;
-                var14_10 = this.getNanoTime();
-                this.J0 = var3_12;
-                var17_11 = this.D;
-                var2_2 = var17_11 == null ? var3_12 : var17_11.getInterpolation(var3_12);
-                var17_11 = this.D;
-                if (var17_11 != null) {
-                    this.E = var4_13 = var17_11.getInterpolation(var5_9 / this.N + var3_12);
-                    this.E = var4_13 - this.D.getInterpolation(var3_12);
-                }
-                for (var7_8 = 0; var7_8 < var12_16; ++var7_8) {
-                    var18_14 = this.getChildAt(var7_8);
-                    var17_11 = (m)this.L.get(var18_14);
-                    if (var17_11 == null) continue;
-                    this.r0 |= var17_11.x((View)var18_14, var2_2, var14_10, this.K0);
-                }
-                var7_8 = var11_6 > 0 && var3_12 >= this.R || var5_9 <= 0.0f && var3_12 <= this.R ? 1 : 0;
-                if (!this.r0 && !this.T && var7_8 != 0) {
-                    this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
-                }
-                if (this.C0) {
-                    this.requestLayout();
-                }
-                this.r0 = var7_8 ^ 1 | this.r0;
-                var7_8 = var8_7;
-                if (var3_12 <= 0.0f) {
-                    var12_16 = this.F;
-                    var7_8 = var8_7;
-                    if (var12_16 != -1) {
-                        var7_8 = var8_7;
-                        if (this.G != var12_16) {
-                            this.G = var12_16;
-                            this.B.l(var12_16).g(this);
-                            this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
-                            var7_8 = 1;
-                        }
+                    if (!((f3 = this.P) >= 1.0f)) break block61;
+                    n6 = this.G;
+                    n3 = this.H;
+                    if (n6 != n3) {
+                        n4 = n5;
                     }
+                    this.G = n3;
+                    break block62;
                 }
-                var8_7 = var7_8;
-                if ((double)var3_12 >= 1.0) {
-                    var13_17 = this.G;
-                    var12_16 = this.H;
-                    var8_7 = var7_8;
-                    if (var13_17 != var12_16) {
-                        this.G = var12_16;
-                        this.B.l(var12_16).g(this);
-                        this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
-                        var8_7 = 1;
-                    }
+                n3 = n4;
+                if (!(f3 <= 0.0f)) break block63;
+                n5 = this.G;
+                n3 = this.F;
+                if (n5 != n3) {
+                    n4 = n6;
                 }
-                if (!this.r0 && !this.T) {
-                    if (var11_6 > 0 && var3_12 == 1.0f || var5_9 < 0.0f && var3_12 == 0.0f) {
-                        this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
-                    }
-                } else {
-                    this.invalidate();
-                }
-                var7_8 = var8_7;
-                if (this.r0) break block45;
-                var7_8 = var8_7;
-                if (this.T) break block45;
-                if (var11_6 > 0 && var3_12 == 1.0f) break block52;
-                var7_8 = var8_7;
-                if (!(var5_9 < 0.0f)) break block45;
-                var7_8 = var8_7;
-                if (var3_12 != 0.0f) break block45;
+                this.G = n3;
             }
-            this.w0();
-            var7_8 = var8_7;
+            n3 = n4;
         }
-        if ((var2_2 = this.P) >= 1.0f) {
-            var9_4 = this.G;
-            var8_7 = this.H;
-            if (var9_4 != var8_7) {
-                var7_8 = var10_5;
-            }
-            this.G = var8_7;
-lbl164:
-            // 2 sources
-
-            while (true) {
-                var8_7 = var7_8;
-                break;
-            }
-        } else {
-            var8_7 = var7_8;
-            if (var2_2 <= 0.0f) {
-                var10_5 = this.G;
-                var8_7 = this.F;
-                if (var10_5 != var8_7) {
-                    var7_8 = var9_4;
-                }
-                this.G = var8_7;
-                ** continue;
-            }
-        }
-        this.a1 |= var8_7;
-        if (var8_7 != 0 && !this.L0) {
+        this.a1 |= n3;
+        if (n3 != 0 && !this.L0) {
             this.requestLayout();
         }
         this.O = this.P;
@@ -1366,16 +1368,16 @@ lbl164:
     public boolean onInterceptTouchEvent(MotionEvent motionEvent) {
         Object object = this.B;
         if (object != null && this.K) {
+            b b3;
             object = ((a)object).r;
             if (object != null) {
                 ((androidx.constraintlayout.motion.widget.d)object).h(motionEvent);
             }
-            if ((object = this.B.c) != null && ((a.b)object).C() && (object = ((a.b)object).B()) != null) {
-                RectF rectF;
-                if (motionEvent.getAction() == 0 && (rectF = ((b)object).p(this, new RectF())) != null && !rectF.contains(motionEvent.getX(), motionEvent.getY())) {
+            if ((object = this.B.c) != null && ((a.b)object).C() && (b3 = ((a.b)object).B()) != null) {
+                if (motionEvent.getAction() == 0 && (object = b3.p(this, new RectF())) != null && !object.contains(motionEvent.getX(), motionEvent.getY())) {
                     return false;
                 }
-                int n3 = ((b)object).q();
+                int n3 = b3.q();
                 if (n3 != -1) {
                     object = this.c1;
                     if (object == null || object.getId() != n3) {
@@ -1580,10 +1582,10 @@ lbl164:
         float f5 = this.E;
         float f6 = this.P;
         if (this.C != null) {
-            f5 = Math.signum(this.R - f6);
-            float f7 = this.C.getInterpolation(this.P + 1.0E-5f);
+            float f7 = Math.signum(this.R - f6);
+            f5 = this.C.getInterpolation(this.P + 1.0E-5f);
             f6 = this.C.getInterpolation(this.P);
-            f5 = f5 * ((f7 - f6) / 1.0E-5f) / this.N;
+            f5 = f7 * ((f5 - f6) / 1.0E-5f) / this.N;
         }
         if ((object = this.C) instanceof n) {
             f5 = ((n)object).a();
@@ -2097,45 +2099,45 @@ lbl164:
             int n11 = this.B.j();
             if (n11 != -1) {
                 for (n4 = 0; n4 < n5; ++n4) {
-                    object3 = (m)this.L.get(this.getChildAt(n4));
-                    if (object3 == null) continue;
-                    ((m)object3).D(n11);
+                    object2 = (m)this.L.get(this.getChildAt(n4));
+                    if (object2 == null) continue;
+                    ((m)object2).D(n11);
                 }
             }
-            object3 = new SparseBooleanArray();
-            object2 = new int[this.L.size()];
+            object2 = new SparseBooleanArray();
+            object3 = new int[this.L.size()];
             n4 = 0;
             for (n11 = 0; n11 < n5; ++n11) {
                 object = this.getChildAt(n11);
                 object = (m)this.L.get(object);
                 n3 = n4;
                 if (((m)object).h() != -1) {
-                    object3.put(((m)object).h(), true);
-                    object2[n4] = (View)((m)object).h();
+                    object2.put(((m)object).h(), true);
+                    object3[n4] = (SparseArray)((m)object).h();
                     n3 = n4 + 1;
                 }
                 n4 = n3;
             }
             if (this.u0 != null) {
                 for (n11 = 0; n11 < n4; ++n11) {
-                    object = (m)this.L.get(this.findViewById((int)object2[n11]));
+                    object = (m)this.L.get(this.findViewById((int)object3[n11]));
                     if (object == null) continue;
                     this.B.t((m)object);
                 }
-                ArrayList arrayList = this.u0;
-                n3 = arrayList.size();
+                object = this.u0;
+                n3 = ((ArrayList)object).size();
                 for (n11 = 0; n11 < n3; ++n11) {
-                    object = arrayList.get(n11);
-                    ((MotionHelper)object).D(this, this.L);
+                    Object e3 = ((ArrayList)object).get(n11);
+                    ((MotionHelper)e3).D(this, this.L);
                 }
                 for (n11 = 0; n11 < n4; ++n11) {
-                    object = (m)this.L.get(this.findViewById((int)object2[n11]));
+                    object = (m)this.L.get(this.findViewById((int)object3[n11]));
                     if (object == null) continue;
                     ((m)object).I(n9, n10, this.N, this.getNanoTime());
                 }
             } else {
                 for (n11 = 0; n11 < n4; ++n11) {
-                    object = (m)this.L.get(this.findViewById((int)object2[n11]));
+                    object = (m)this.L.get(this.findViewById((int)object3[n11]));
                     if (object == null) continue;
                     this.B.t((m)object);
                     ((m)object).I(n9, n10, this.N, this.getNanoTime());
@@ -2143,10 +2145,10 @@ lbl164:
             }
             for (n4 = 0; n4 < n5; ++n4) {
                 object = this.getChildAt(n4);
-                object2 = (m)this.L.get(object);
-                if (object3.get(object.getId()) || object2 == null) continue;
-                this.B.t((m)object2);
-                ((m)object2).I(n9, n10, this.N, this.getNanoTime());
+                object3 = (m)this.L.get(object);
+                if (object2.get(object.getId()) || object3 == null) continue;
+                this.B.t((m)object3);
+                ((m)object3).I(n9, n10, this.N, this.getNanoTime());
             }
             float f3 = this.B.E();
             if (f3 != 0.0f) {
@@ -2160,46 +2162,46 @@ lbl164:
                 float f8 = Float.MAX_VALUE;
                 while (true) {
                     if (n11 >= n5) break;
-                    object3 = (m)this.L.get(this.getChildAt(n11));
-                    if (!Float.isNaN(((m)object3).m)) {
+                    object2 = (m)this.L.get(this.getChildAt(n11));
+                    if (!Float.isNaN(((m)object2).m)) {
                         n11 = 0;
                         f3 = f7;
                         f4 = f6;
                         while (true) {
                             if (n11 >= n5) break;
-                            object3 = (m)this.L.get(this.getChildAt(n11));
+                            object2 = (m)this.L.get(this.getChildAt(n11));
                             f6 = f4;
                             f8 = f3;
-                            if (!Float.isNaN(((m)object3).m)) {
-                                f8 = Math.min(f3, ((m)object3).m);
-                                f6 = Math.max(f4, ((m)object3).m);
+                            if (!Float.isNaN(((m)object2).m)) {
+                                f8 = Math.min(f3, ((m)object2).m);
+                                f6 = Math.max(f4, ((m)object2).m);
                             }
                             ++n11;
                             f4 = f6;
                             f3 = f8;
                         }
                         for (n3 = n8; n3 < n5; ++n3) {
-                            object3 = (m)this.L.get(this.getChildAt(n3));
-                            if (Float.isNaN(((m)object3).m)) continue;
-                            ((m)object3).o = 1.0f / (1.0f - f5);
-                            ((m)object3).n = n4 != 0 ? f5 - (f4 - ((m)object3).m) / (f4 - f3) * f5 : f5 - (((m)object3).m - f3) * f5 / (f4 - f3);
+                            object2 = (m)this.L.get(this.getChildAt(n3));
+                            if (Float.isNaN(((m)object2).m)) continue;
+                            ((m)object2).o = 1.0f / (1.0f - f5);
+                            ((m)object2).n = n4 != 0 ? f5 - (f4 - ((m)object2).m) / (f4 - f3) * f5 : f5 - (((m)object2).m - f3) * f5 / (f4 - f3);
                         }
                         break block19;
                     }
-                    float f9 = ((m)object3).n();
-                    f4 = ((m)object3).o();
+                    float f9 = ((m)object2).n();
+                    f4 = ((m)object2).o();
                     f4 = n4 != 0 ? (f4 -= f9) : (f4 += f9);
                     f8 = Math.min(f8, f4);
                     f3 = Math.max(f3, f4);
                     ++n11;
                 }
                 for (n3 = n7; n3 < n5; ++n3) {
-                    object3 = (m)this.L.get(this.getChildAt(n3));
-                    f4 = ((m)object3).n();
-                    f6 = ((m)object3).o();
-                    f4 = n4 != 0 ? f6 - f4 : f6 + f4;
-                    ((m)object3).o = 1.0f / (1.0f - f5);
-                    ((m)object3).n = f5 - (f4 - f8) * f5 / (f3 - f8);
+                    object2 = (m)this.L.get(this.getChildAt(n3));
+                    f6 = ((m)object2).n();
+                    f4 = ((m)object2).o();
+                    f4 = n4 != 0 ? (f4 -= f6) : (f4 += f6);
+                    ((m)object2).o = 1.0f / (1.0f - f5);
+                    ((m)object2).n = f5 - (f4 - f8) * f5 / (f3 - f8);
                 }
             }
         }
@@ -2243,9 +2245,9 @@ lbl164:
                     f4 = f5 / f6;
                 }
                 this.d.E = f5 - f6 * f4;
-                f4 = f5 * f4 - f6 * f4 * f4 / 2.0f;
-                f3 = this.b;
-                return f4 + f3;
+                f3 = f5 * f4 - f6 * f4 * f4 / 2.0f;
+                f4 = this.b;
+                return f3 + f4;
             }
             float f7 = -f5;
             float f8 = this.c;
@@ -2254,9 +2256,9 @@ lbl164:
                 f4 = -f5 / f8;
             }
             this.d.E = f8 * f4 + f5;
-            f4 = f5 * f4 + f8 * f4 * f4 / 2.0f;
-            f3 = this.b;
-            return f4 + f3;
+            f3 = f5 * f4 + f8 * f4 * f4 / 2.0f;
+            f4 = this.b;
+            return f3 + f4;
         }
     }
 
@@ -2332,12 +2334,11 @@ lbl164:
             }
         }
 
-        public void a(Canvas canvas, HashMap object3, int n3, int n4) {
-            if (object3 != null && ((HashMap)object3).size() != 0) {
-                Object object2;
+        public void a(Canvas canvas, HashMap object, int n3, int n4) {
+            if (object != null && ((HashMap)object).size() != 0) {
                 canvas.save();
                 if (!this.u.isInEditMode() && (n4 & 1) == 2) {
-                    object2 = new StringBuilder();
+                    Object object2 = new StringBuilder();
                     ((StringBuilder)object2).append(this.u.getContext().getResources().getResourceName(this.u.H));
                     ((StringBuilder)object2).append(":");
                     ((StringBuilder)object2).append(this.u.getProgress());
@@ -2345,9 +2346,9 @@ lbl164:
                     canvas.drawText((String)object2, 10.0f, (float)(this.u.getHeight() - 30), this.h);
                     canvas.drawText((String)object2, 11.0f, (float)(this.u.getHeight() - 29), this.e);
                 }
-                for (Object object3 : ((HashMap)object3).values()) {
+                for (Object object2 : ((HashMap)object).values()) {
                     int n5;
-                    int n6 = n5 = ((m)object3).m();
+                    int n6 = n5 = ((m)object2).m();
                     if (n4 > 0) {
                         n6 = n5;
                         if (n5 == 0) {
@@ -2355,11 +2356,11 @@ lbl164:
                         }
                     }
                     if (n6 == 0) continue;
-                    this.q = ((m)object3).c(this.c, this.b);
+                    this.q = ((m)object2).c(this.c, this.b);
                     if (n6 < 1) continue;
                     int n7 = n3 / 16;
-                    object2 = this.a;
-                    if (object2 == null || ((Object)object2).length != n7 * 2) {
+                    object = this.a;
+                    if (object == null || ((Object)object).length != n7 * 2) {
                         this.a = new float[n7 * 2];
                         this.d = new Path();
                     }
@@ -2369,17 +2370,17 @@ lbl164:
                     this.i.setColor(0x77000000);
                     this.f.setColor(0x77000000);
                     this.g.setColor(0x77000000);
-                    ((m)object3).d(this.a, n7);
-                    this.b(canvas, n6, this.q, (m)object3);
+                    ((m)object2).d(this.a, n7);
+                    this.b(canvas, n6, this.q, (m)object2);
                     this.e.setColor(-21965);
                     this.f.setColor(-2067046);
                     this.i.setColor(-2067046);
                     this.g.setColor(-13391360);
                     n5 = this.t;
                     canvas.translate((float)(-n5), (float)(-n5));
-                    this.b(canvas, n6, this.q, (m)object3);
+                    this.b(canvas, n6, this.q, (m)object2);
                     if (n6 != 5) continue;
-                    this.j(canvas, (m)object3);
+                    this.j(canvas, (m)object2);
                 }
                 canvas.restore();
             }
@@ -2471,17 +2472,18 @@ lbl164:
             float f8 = object[((float[])object).length - 1];
             float f9 = (float)Math.hypot(f5 - f7, f6 - f8);
             float f10 = ((f3 - f5) * (f7 -= f5) + (f4 - f6) * (f8 -= f6)) / (f9 * f9);
+            f8 = f6 + f10 * f8;
             object = new Path();
             object.moveTo(f3, f4);
-            object.lineTo(f5 += f7 * f10, f6 += f10 * f8);
-            f8 = (float)Math.hypot(f5 - f3, f6 - f4);
+            object.lineTo(f5 += f7 * f10, f8);
+            f6 = (float)Math.hypot(f5 - f3, f8 - f4);
             CharSequence charSequence = new StringBuilder();
             charSequence.append("");
-            charSequence.append((float)((int)(f8 * 100.0f / f9)) / 100.0f);
+            charSequence.append((float)((int)(f6 * 100.0f / f9)) / 100.0f);
             charSequence = charSequence.toString();
             this.l((String)charSequence, this.h);
-            canvas.drawTextOnPath((String)charSequence, (Path)object, f8 / 2.0f - (float)(this.r.width() / 2), -20.0f, this.h);
-            canvas.drawLine(f3, f4, f5, f6, this.g);
+            canvas.drawTextOnPath((String)charSequence, (Path)object, f6 / 2.0f - (float)(this.r.width() / 2), -20.0f, this.h);
+            canvas.drawLine(f3, f4, f5, f8, this.g);
         }
 
         public final void i(Canvas canvas, float f3, float f4, int n3, int n4) {
@@ -2678,42 +2680,42 @@ lbl164:
             int n6 = this.g.getOptimizationLevel();
             Object object2 = this.g;
             if (((MotionLayout)object2).G == ((MotionLayout)object2).getStartState()) {
-                MotionLayout motionLayout = this.g;
-                object2 = this.b;
-                Object object3 = this.d;
-                int n7 = object3 != null && ((androidx.constraintlayout.widget.b)object3).e != 0 ? n4 : n3;
-                int n8 = object3 != null && ((androidx.constraintlayout.widget.b)object3).e != 0 ? n3 : n4;
-                motionLayout.x((u.f)object2, n6, n7, n8);
-                object2 = this.c;
-                if (object2 != null) {
-                    motionLayout = this.g;
-                    object3 = this.a;
-                    n8 = ((androidx.constraintlayout.widget.b)object2).e;
+                object2 = this.g;
+                Object object3 = this.b;
+                Object object4 = this.d;
+                int n7 = object4 != null && ((androidx.constraintlayout.widget.b)object4).e != 0 ? n4 : n3;
+                int n8 = object4 != null && ((androidx.constraintlayout.widget.b)object4).e != 0 ? n3 : n4;
+                ((MotionLayout)object2).x((u.f)object3, n6, n7, n8);
+                object3 = this.c;
+                if (object3 != null) {
+                    object2 = this.g;
+                    object4 = this.a;
+                    n8 = ((androidx.constraintlayout.widget.b)object3).e;
                     n7 = n8 == 0 ? n3 : n4;
                     if (n8 == 0) {
                         n3 = n4;
                     }
-                    motionLayout.x((u.f)object3, n6, n7, n3);
+                    ((MotionLayout)object2).x((u.f)object4, n6, n7, n3);
                 }
                 return;
             }
-            Object object4 = this.c;
-            if (object4 != null) {
+            Object object5 = this.c;
+            if (object5 != null) {
                 object2 = this.g;
                 object = this.a;
-                int n9 = ((androidx.constraintlayout.widget.b)object4).e;
+                int n9 = ((androidx.constraintlayout.widget.b)object5).e;
                 n5 = n9 == 0 ? n3 : n4;
                 n9 = n9 == 0 ? n4 : n3;
                 ((MotionLayout)object2).x((u.f)object, n6, n5, n9);
             }
-            object2 = this.g;
-            object4 = this.b;
+            object5 = this.g;
+            object2 = this.b;
             object = this.d;
             n5 = object != null && ((androidx.constraintlayout.widget.b)object).e != 0 ? n4 : n3;
             if (object == null || ((androidx.constraintlayout.widget.b)object).e == 0) {
                 n3 = n4;
             }
-            ((MotionLayout)object2).x((u.f)object4, n6, n5, n3);
+            ((MotionLayout)object5).x((u.f)object2, n6, n5, n3);
         }
 
         public void c(u.f e3, u.f f3) {
@@ -2754,9 +2756,9 @@ lbl164:
             return null;
         }
 
-        public void e(u.f f3, androidx.constraintlayout.widget.b object, androidx.constraintlayout.widget.b b3) {
-            this.c = object;
-            this.d = b3;
+        public void e(u.f object, androidx.constraintlayout.widget.b object2, androidx.constraintlayout.widget.b object3) {
+            this.c = object2;
+            this.d = object3;
             this.a = new u.f();
             this.b = new u.f();
             this.a.b2(this.g.e.O1());
@@ -2766,32 +2768,32 @@ lbl164:
             this.c(this.g.e, this.a);
             this.c(this.g.e, this.b);
             if ((double)this.g.P > 0.5) {
-                if (object != null) {
-                    this.j(this.a, (androidx.constraintlayout.widget.b)object);
+                if (object2 != null) {
+                    this.j(this.a, (androidx.constraintlayout.widget.b)object2);
                 }
-                this.j(this.b, b3);
+                this.j(this.b, (androidx.constraintlayout.widget.b)object3);
             } else {
-                this.j(this.b, b3);
-                if (object != null) {
-                    this.j(this.a, (androidx.constraintlayout.widget.b)object);
+                this.j(this.b, (androidx.constraintlayout.widget.b)object3);
+                if (object2 != null) {
+                    this.j(this.a, (androidx.constraintlayout.widget.b)object2);
                 }
             }
             this.a.e2(this.g.t());
             this.a.g2();
             this.b.e2(this.g.t());
             this.b.g2();
-            b3 = this.g.getLayoutParams();
-            if (b3 != null) {
-                if (((ViewGroup.LayoutParams)b3).width == -2) {
-                    f3 = this.a;
-                    object = e.b.d;
-                    f3.U0((e.b)((Object)object));
-                    this.b.U0((e.b)((Object)object));
+            object = this.g.getLayoutParams();
+            if (object != null) {
+                if (((ViewGroup.LayoutParams)object).width == -2) {
+                    object3 = this.a;
+                    object2 = e.b.d;
+                    ((u.e)object3).U0((e.b)((Object)object2));
+                    this.b.U0((e.b)((Object)object2));
                 }
-                if (((ViewGroup.LayoutParams)b3).height == -2) {
-                    f3 = this.a;
+                if (((ViewGroup.LayoutParams)object).height == -2) {
+                    object2 = this.a;
                     object = e.b.d;
-                    f3.l1((e.b)((Object)object));
+                    ((u.e)object2).l1((e.b)((Object)object));
                     this.b.l1((e.b)((Object)object));
                 }
             }
@@ -2884,27 +2886,27 @@ lbl164:
                 ((u.e)object2).E0(true);
                 sparseArray.put(((View)((u.e)object2).u()).getId(), object2);
             }
-            object3 = f3.w1();
-            n5 = ((ArrayList)object3).size();
+            object2 = f3.w1();
+            n5 = ((ArrayList)object2).size();
             for (n3 = 0; n3 < n5; ++n3) {
-                object2 = (u.e)((ArrayList)object3).get(n3);
-                View view = (View)((u.e)object2).u();
-                ((androidx.constraintlayout.widget.b)object).l(view.getId(), (ConstraintLayout.LayoutParams)((Object)object4));
-                ((u.e)object2).p1(((androidx.constraintlayout.widget.b)object).B(view.getId()));
-                ((u.e)object2).Q0(((androidx.constraintlayout.widget.b)object).w(view.getId()));
-                if (view instanceof ConstraintHelper) {
-                    ((androidx.constraintlayout.widget.b)object).j((ConstraintHelper)view, (u.e)object2, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
-                    if (view instanceof Barrier) {
-                        ((Barrier)view).w();
+                u.e e3 = (u.e)((ArrayList)object2).get(n3);
+                object3 = (View)e3.u();
+                ((androidx.constraintlayout.widget.b)object).l(object3.getId(), (ConstraintLayout.LayoutParams)((Object)object4));
+                e3.p1(((androidx.constraintlayout.widget.b)object).B(object3.getId()));
+                e3.Q0(((androidx.constraintlayout.widget.b)object).w(object3.getId()));
+                if (object3 instanceof ConstraintHelper) {
+                    ((androidx.constraintlayout.widget.b)object).j((ConstraintHelper)((Object)object3), e3, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
+                    if (object3 instanceof Barrier) {
+                        ((Barrier)((Object)object3)).w();
                     }
                 }
                 ((ConstraintLayout.LayoutParams)((Object)object4)).resolveLayoutDirection(this.g.getLayoutDirection());
-                this.g.f(false, view, (u.e)object2, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
-                if (((androidx.constraintlayout.widget.b)object).A(view.getId()) == 1) {
-                    ((u.e)object2).o1(view.getVisibility());
+                this.g.f(false, (View)object3, e3, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
+                if (((androidx.constraintlayout.widget.b)object).A(object3.getId()) == 1) {
+                    e3.o1(object3.getVisibility());
                     continue;
                 }
-                ((u.e)object2).o1(((androidx.constraintlayout.widget.b)object).z(view.getId()));
+                e3.o1(((androidx.constraintlayout.widget.b)object).z(object3.getId()));
             }
             object = f3.w1();
             n5 = ((ArrayList)object).size();

@@ -346,34 +346,34 @@ public class a {
         return this.v.isLaidOut() && !this.v.isInEditMode();
     }
 
-    public void a0(g g3, boolean bl) {
+    public void a0(g object, boolean bl) {
         if (!this.C()) {
-            Object object = this.m;
-            if (object != null) {
-                object.cancel();
+            Object object2 = this.m;
+            if (object2 != null) {
+                object2.cancel();
             }
-            object = this.n;
+            object2 = this.n;
             int n3 = 0;
-            int n4 = object == null ? 1 : 0;
+            int n4 = object2 == null ? 1 : 0;
             if (this.Z()) {
                 if (this.v.getVisibility() != 0) {
-                    object = this.v;
+                    object2 = this.v;
                     float f3 = 0.0f;
-                    object.setAlpha(0.0f);
-                    object = this.v;
+                    object2.setAlpha(0.0f);
+                    object2 = this.v;
                     float f4 = n4 != 0 ? 0.4f : 0.0f;
-                    ((FloatingActionButton)object).setScaleY(f4);
-                    object = this.v;
+                    ((FloatingActionButton)object2).setScaleY(f4);
+                    object2 = this.v;
                     f4 = n4 != 0 ? 0.4f : 0.0f;
-                    ((FloatingActionButton)object).setScaleX(f4);
+                    ((FloatingActionButton)object2).setScaleX(f4);
                     f4 = f3;
                     if (n4 != 0) {
                         f4 = 0.4f;
                     }
                     this.Q(f4);
                 }
-                object = (object = this.n) != null ? this.i((a2.h)object, 1.0f, 1.0f, 1.0f) : this.k(1.0f, 1.0f, 1.0f, D, E);
-                object.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, bl, g3){
+                object2 = (object2 = this.n) != null ? this.i((a2.h)object2, 1.0f, 1.0f, 1.0f) : this.k(1.0f, 1.0f, 1.0f, D, E);
+                object2.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, bl, (g)object){
                     public final boolean a;
                     public final g b;
                     public final a c;
@@ -398,15 +398,15 @@ public class a {
                         com.google.android.material.floatingactionbutton.a.c(this.c, animator);
                     }
                 });
-                ArrayList arrayList = this.s;
-                if (arrayList != null) {
-                    int n5 = arrayList.size();
+                object = this.s;
+                if (object != null) {
+                    int n5 = ((ArrayList)object).size();
                     for (n4 = n3; n4 < n5; ++n4) {
-                        g3 = arrayList.get(n4);
-                        object.addListener((Animator.AnimatorListener)g3);
+                        Object e3 = ((ArrayList)object).get(n4);
+                        object2.addListener((Animator.AnimatorListener)e3);
                     }
                 }
-                object.start();
+                object2.start();
                 return;
             }
             this.v.b(0, bl);
@@ -414,8 +414,8 @@ public class a {
             this.v.setScaleY(1.0f);
             this.v.setScaleX(1.0f);
             this.Q(1.0f);
-            if (g3 != null) {
-                g3.a();
+            if (object != null) {
+                object.a();
             }
         }
     }

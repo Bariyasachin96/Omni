@@ -302,10 +302,10 @@ extends MenuInflater {
         {
             xmlResourceParser = xmlResourceParser3;
             n6 = n5;
-            InflateException inflateException = new InflateException("Error inflating menu XML", (Throwable)iOException);
+            xmlResourceParser2 = new InflateException("Error inflating menu XML", (Throwable)iOException);
             xmlResourceParser = xmlResourceParser3;
             n6 = n5;
-            throw inflateException;
+            throw xmlResourceParser2;
             catch (XmlPullParserException xmlPullParserException) {}
             xmlResourceParser = xmlResourceParser2;
             n6 = n4;

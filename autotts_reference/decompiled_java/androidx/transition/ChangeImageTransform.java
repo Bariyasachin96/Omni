@@ -156,9 +156,9 @@ extends Transition {
                         }
                         y4 = (ImageView)y4.b;
                         object = y4.getDrawable();
-                        n3 = object.getIntrinsicWidth();
-                        int n4 = object.getIntrinsicHeight();
-                        if (n3 > 0 && n4 > 0) {
+                        int n4 = object.getIntrinsicWidth();
+                        n3 = object.getIntrinsicHeight();
+                        if (n4 > 0 && n3 > 0) {
                             object = y3;
                             if (y3 == null) {
                                 object = m1.k.a;

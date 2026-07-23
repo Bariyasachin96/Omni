@@ -654,7 +654,7 @@ CoordinatorLayout.b {
                 int n4 = coordinatorLayout.getWidth();
                 int n5 = e3.rightMargin;
                 int n6 = 0;
-                n3 = n3 >= n4 - n5 ? rect.right : (floatingActionButton.getLeft() <= e3.leftMargin ? -rect.left : 0);
+                n4 = n3 >= n4 - n5 ? rect.right : (floatingActionButton.getLeft() <= e3.leftMargin ? -rect.left : 0);
                 if (floatingActionButton.getBottom() >= coordinatorLayout.getHeight() - e3.bottomMargin) {
                     n6 = rect.bottom;
                 } else if (floatingActionButton.getTop() <= e3.topMargin) {
@@ -663,8 +663,8 @@ CoordinatorLayout.b {
                 if (n6 != 0) {
                     x0.S((View)floatingActionButton, n6);
                 }
-                if (n3 != 0) {
-                    x0.R((View)floatingActionButton, n3);
+                if (n4 != 0) {
+                    x0.R((View)floatingActionButton, n4);
                 }
             }
         }

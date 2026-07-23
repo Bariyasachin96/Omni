@@ -182,22 +182,22 @@ implements DateSelector<d> {
     }
 
     @Override
-    public View n(LayoutInflater object, ViewGroup object2, Bundle bundle, CalendarConstraints calendarConstraints, r r3) {
+    public View n(LayoutInflater object, ViewGroup object2, Bundle object3, CalendarConstraints calendarConstraints, r r3) {
         int n3 = z1.i.mtrl_picker_text_input_date_range;
         boolean bl = false;
         View view = object.inflate(n3, object2, false);
         TextInputLayout textInputLayout = (TextInputLayout)view.findViewById(z1.g.mtrl_picker_text_input_range_start);
-        TextInputLayout textInputLayout2 = (TextInputLayout)view.findViewById(z1.g.mtrl_picker_text_input_range_end);
+        object3 = (TextInputLayout)view.findViewById(z1.g.mtrl_picker_text_input_range_end);
         EditText editText = textInputLayout.getEditText();
-        bundle = textInputLayout2.getEditText();
+        EditText editText2 = ((TextInputLayout)((Object)object3)).getEditText();
         object = a.f(view.getContext(), z1.c.colorOnSurfaceVariant);
         if (object != null) {
             editText.setHintTextColor(((Integer)object).intValue());
-            bundle.setHintTextColor(((Integer)object).intValue());
+            editText2.setHintTextColor(((Integer)object).intValue());
         }
         if (com.google.android.material.internal.i.b()) {
             editText.setInputType(17);
-            bundle.setInputType(17);
+            editText2.setInputType(17);
         }
         this.d = view.getResources().getString(k.mtrl_picker_invalid_range);
         object = this.j;
@@ -213,13 +213,13 @@ implements DateSelector<d> {
             this.h = this.f;
         }
         if ((object2 = this.g) != null) {
-            bundle.setText((CharSequence)((Format)object).format(object2));
+            editText2.setText((CharSequence)((Format)object).format(object2));
             this.i = this.g;
         }
         object2 = bl ? ((SimpleDateFormat)object).toPattern() : v.g(view.getResources(), (SimpleDateFormat)object);
         textInputLayout.setPlaceholderText((CharSequence)object2);
-        textInputLayout2.setPlaceholderText((CharSequence)object2);
-        editText.addTextChangedListener((TextWatcher)new e(this, (String)object2, (DateFormat)object, textInputLayout, calendarConstraints, textInputLayout, textInputLayout2, r3){
+        ((TextInputLayout)((Object)object3)).setPlaceholderText((CharSequence)object2);
+        editText.addTextChangedListener((TextWatcher)new e(this, (String)object2, (DateFormat)object, textInputLayout, calendarConstraints, textInputLayout, (TextInputLayout)((Object)object3), r3){
             public final TextInputLayout k;
             public final TextInputLayout l;
             public final r m;
@@ -244,7 +244,7 @@ implements DateSelector<d> {
                 this.n.y(this.k, this.l, this.m);
             }
         });
-        bundle.addTextChangedListener((TextWatcher)new e(this, (String)object2, (DateFormat)object, textInputLayout2, calendarConstraints, textInputLayout, textInputLayout2, r3){
+        editText2.addTextChangedListener((TextWatcher)new e(this, (String)object2, (DateFormat)object, (TextInputLayout)((Object)object3), calendarConstraints, textInputLayout, (TextInputLayout)((Object)object3), r3){
             public final TextInputLayout k;
             public final TextInputLayout l;
             public final r m;
@@ -270,7 +270,7 @@ implements DateSelector<d> {
             }
         });
         if (!DateSelector.l(view.getContext())) {
-            DateSelector.m(new EditText[]{editText, bundle});
+            DateSelector.m(editText, editText2);
         }
         return view;
     }

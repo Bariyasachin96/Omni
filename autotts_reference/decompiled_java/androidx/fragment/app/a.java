@@ -510,19 +510,19 @@ implements FragmentManager.l {
                     }
                     fragment2 = a4.b;
                     int n5 = fragment2.A;
-                    boolean bl = false;
+                    int n6 = 0;
                     n4 = n3;
                     object = fragment;
                     for (int i3 = arrayList.size() - 1; i3 >= 0; --i3) {
                         Fragment fragment3 = (Fragment)arrayList.get(i3);
                         fragment = object;
-                        n3 = n4;
-                        boolean bl2 = bl;
+                        int n7 = n4;
+                        n3 = n6;
                         if (fragment3.A == n5) {
                             if (fragment3 == fragment2) {
-                                bl2 = true;
+                                n3 = 1;
                                 fragment = object;
-                                n3 = n4;
+                                n7 = n4;
                             } else {
                                 fragment = object;
                                 n3 = n4;
@@ -538,14 +538,15 @@ implements FragmentManager.l {
                                 ((y.a)object).g = a4.g;
                                 this.c.add(n3, object);
                                 arrayList.remove(fragment3);
-                                bl2 = bl;
+                                n7 = n3 + 1;
+                                n3 = n6;
                             }
                         }
                         object = fragment;
-                        n4 = ++n3;
-                        bl = bl2;
+                        n4 = n7;
+                        n6 = n3;
                     }
-                    if (bl) {
+                    if (n6 != 0) {
                         this.c.remove(n4);
                         --n4;
                     } else {

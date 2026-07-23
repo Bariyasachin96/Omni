@@ -213,10 +213,10 @@ extends k {
             f3 = this.b(n3, l[i3], 667);
             ((j.a)object).a += this.e.getInterpolation(f3) * 250.0f;
         }
-        float f4 = ((j.a)object).a;
-        f3 = ((j.a)object).b;
-        ((j.a)object).a = (f4 + (f3 - f4) * this.i) / 360.0f;
-        ((j.a)object).b = f3 / 360.0f;
+        f3 = ((j.a)object).a;
+        float f4 = ((j.a)object).b;
+        ((j.a)object).a = (f3 + (f4 - f3) * this.i) / 360.0f;
+        ((j.a)object).b = f4 / 360.0f;
     }
 }
 

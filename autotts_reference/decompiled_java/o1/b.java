@@ -73,11 +73,11 @@ extends o1.a {
     public void a() {
         int n3 = this.i;
         if (n3 >= 0) {
-            int n4 = this.d.get(n3);
-            n3 = this.e.dataPosition();
-            this.e.setDataPosition(n4);
-            this.e.writeInt(n3 - n4);
+            n3 = this.d.get(n3);
+            int n4 = this.e.dataPosition();
             this.e.setDataPosition(n3);
+            this.e.writeInt(n4 - n3);
+            this.e.setDataPosition(n4);
         }
     }
 

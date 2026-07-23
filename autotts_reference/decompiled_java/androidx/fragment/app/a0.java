@@ -228,10 +228,10 @@ extends b0 {
     @Override
     public void p(Object object, View view) {
         if (view != null) {
-            object = (Transition)object;
-            Rect rect = new Rect();
-            this.h(view, rect);
-            object.setEpicenterCallback(new Transition.EpicenterCallback(this, rect){
+            Transition transition = (Transition)object;
+            object = new Rect();
+            this.h(view, (Rect)object);
+            transition.setEpicenterCallback(new Transition.EpicenterCallback(this, (Rect)object){
                 public final Rect a;
                 public final a0 b;
                 {
@@ -276,16 +276,16 @@ extends b0 {
 
     @Override
     public void s(Object object, View view, ArrayList arrayList) {
-        TransitionSet transitionSet = (TransitionSet)object;
-        object = transitionSet.getTargets();
-        object.clear();
+        object = (TransitionSet)object;
+        List list = object.getTargets();
+        list.clear();
         int n3 = arrayList.size();
         for (int i3 = 0; i3 < n3; ++i3) {
-            b0.d((List)object, (View)arrayList.get(i3));
+            b0.d(list, (View)arrayList.get(i3));
         }
-        object.add(view);
+        list.add(view);
         arrayList.add(view);
-        this.b(transitionSet, arrayList);
+        this.b(object, arrayList);
     }
 
     @Override

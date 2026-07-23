@@ -85,18 +85,18 @@ implements Comparable {
 
     public void a(b.a a4) {
         this.c = s.c.c(a4.d.d);
-        b.c c3 = a4.d;
-        this.m = c3.e;
-        this.n = c3.b;
-        this.k = c3.i;
-        this.d = c3.f;
-        this.s = c3.c;
+        Object object2 = a4.d;
+        this.m = ((b.c)object2).e;
+        this.n = ((b.c)object2).b;
+        this.k = ((b.c)object2).i;
+        this.d = ((b.c)object2).f;
+        this.s = ((b.c)object2).c;
         this.l = a4.c.e;
         this.o = a4.e.D;
-        for (String string : a4.g.keySet()) {
-            a a5 = (a)a4.g.get(string);
+        for (Object object2 : a4.g.keySet()) {
+            a a5 = (a)a4.g.get(object2);
             if (a5 == null || !a5.g()) continue;
-            ((AbstractMap)this.q).put(string, a5);
+            ((AbstractMap)this.q).put(object2, a5);
         }
     }
 
@@ -143,15 +143,15 @@ implements Comparable {
         }
     }
 
-    public void f(double d3, int[] object, double[] objectArray, float[] fArray, int n3) {
+    public void f(double d3, int[] objectArray, double[] object, float[] fArray, int n3) {
         float f3;
         float f4 = this.g;
         float f5 = this.h;
         float f6 = this.i;
         float f7 = this.j;
-        for (int i3 = 0; i3 < ((int[])object).length; ++i3) {
-            f3 = (float)objectArray[i3];
-            int n4 = object[i3];
+        for (int i3 = 0; i3 < objectArray.length; ++i3) {
+            f3 = (float)object[i3];
+            int n4 = objectArray[i3];
             if (n4 != 1) {
                 if (n4 != 2) {
                     if (n4 != 3) {
@@ -173,13 +173,14 @@ implements Comparable {
         if (object != null) {
             objectArray = new float[2];
             ((m)object).i(d3, (float[])objectArray, new float[2]);
-            f8 = (float)objectArray[0];
-            f3 = (float)objectArray[1];
-            d3 = f8;
-            double d4 = f4;
+            f8 = objectArray[0];
+            f3 = objectArray[1];
+            double d4 = f8;
+            d3 = f4;
             double d5 = f5;
-            f8 = (float)(d3 + Math.sin(d5) * d4 - (double)(f6 / 2.0f));
-            f3 = (float)((double)f3 - d4 * Math.cos(d5) - (double)(f7 / 2.0f));
+            f5 = (float)(d4 + Math.sin(d5) * d3 - (double)(f6 / 2.0f));
+            f3 = (float)((double)f3 - d3 * Math.cos(d5) - (double)(f7 / 2.0f));
+            f8 = f5;
         }
         fArray[n3] = f8 + f6 / 2.0f + 0.0f;
         fArray[n3 + 1] = f3 + f7 / 2.0f + 0.0f;
@@ -219,34 +220,34 @@ implements Comparable {
             f9 = f3;
             f5 = f4;
         }
-        f3 = f10 / 2.0f + f9;
-        f4 = f12 / 2.0f + f11;
+        f4 = f10 / 2.0f + f9;
+        f3 = f12 / 2.0f + f11;
         object = this.p;
         if (object != null) {
-            objectArray2 = new float[2];
             objectArray = new float[2];
-            ((m)object).i(d3, (float[])objectArray2, (float[])objectArray);
-            f10 = (float)objectArray2[0];
-            f12 = (float)objectArray2[1];
-            f3 = objectArray[0];
-            f4 = objectArray[1];
+            objectArray2 = new float[2];
+            ((m)object).i(d3, (float[])objectArray, (float[])objectArray2);
+            f10 = objectArray[0];
+            f12 = objectArray[1];
+            f4 = (float)objectArray2[0];
+            f3 = (float)objectArray2[1];
             double d4 = f10;
             double d5 = f5;
             d3 = f6;
             f5 = (float)(d4 + Math.sin(d3) * d5 - (double)(f7 / 2.0f));
             f6 = (float)((double)f12 - Math.cos(d3) * d5 - (double)(f8 / 2.0f));
-            d5 = f3;
+            d5 = f4;
             double d6 = f9;
             double d7 = Math.sin(d3);
-            double d8 = Math.cos(d3);
-            d4 = f11;
-            f3 = (float)(d5 + d7 * d6 + d8 * d4);
-            f4 = (float)((double)f4 - d6 * Math.cos(d3) + Math.sin(d3) * d4);
+            d4 = Math.cos(d3);
+            double d8 = f11;
+            f4 = (float)(d5 + d7 * d6 + d4 * d8);
+            f3 = (float)((double)f3 - d6 * Math.cos(d3) + Math.sin(d3) * d8);
         }
         fArray[0] = f5 + f7 / 2.0f + 0.0f;
         fArray[1] = f6 + f8 / 2.0f + 0.0f;
-        fArray2[0] = f3;
-        fArray2[1] = f4;
+        fArray2[0] = f4;
+        fArray2[1] = f3;
     }
 
     public int h(String object, double[] dArray, int n3) {
@@ -355,33 +356,32 @@ implements Comparable {
             f16 = f11;
         }
         if (!(f13 > f15)) {
-            f11 = f13;
-            f13 = f15;
-            f15 = f11;
+            f11 = f15;
+            f15 = f13;
+            f13 = f11;
         }
-        f17 = f16 - f17;
-        f16 = f13 - f15;
+        f13 -= f15;
         f4 = (f6 - f7) * f4;
         f15 = f4 / 2.0f;
-        this.g = (int)(f10 + f17 * f3 - f15);
+        this.g = (int)(f10 + (f16 -= f17) * f3 - f15);
         f5 = (f8 - f9) * f5;
         f11 = f5 / 2.0f;
-        this.h = (int)(f12 + f16 * f3 - f11);
+        this.h = (int)(f12 + f13 * f3 - f11);
         this.i = (int)(f7 + f4);
         this.j = (int)(f9 + f5);
-        f4 = Float.isNaN(h3.m) ? f3 : h3.m;
+        f5 = Float.isNaN(h3.m) ? f3 : h3.m;
         boolean bl = Float.isNaN(h3.p);
-        f13 = 0.0f;
-        f5 = bl ? 0.0f : h3.p;
+        f17 = 0.0f;
+        f4 = bl ? 0.0f : h3.p;
         if (!Float.isNaN(h3.n)) {
             f3 = h3.n;
         }
         if (!Float.isNaN(h3.o)) {
-            f13 = h3.o;
+            f17 = h3.o;
         }
         this.r = 0;
-        this.g = (int)(o3.g + f4 * f17 + f13 * f16 - f15);
-        this.h = (int)(o3.h + f17 * f5 + f16 * f3 - f11);
+        this.g = (int)(o3.g + f5 * f16 + f17 * f13 - f15);
+        this.h = (int)(o3.h + f16 * f4 + f13 * f3 - f11);
         this.c = s.c.c(h3.h);
         this.m = h3.i;
     }
@@ -415,19 +415,19 @@ implements Comparable {
         this.h = (int)(f12 + f13 * f3 - f10);
         this.i = (int)(f7 + f4);
         this.j = (int)(f9 + f5);
-        f5 = Float.isNaN(h3.m) ? f3 : h3.m;
+        f4 = Float.isNaN(h3.m) ? f3 : h3.m;
         boolean bl = Float.isNaN(h3.p);
-        f12 = 0.0f;
-        f4 = bl ? 0.0f : h3.p;
+        f7 = 0.0f;
+        f5 = bl ? 0.0f : h3.p;
         if (!Float.isNaN(h3.n)) {
             f3 = h3.n;
         }
         if (!Float.isNaN(h3.o)) {
-            f12 = h3.o;
+            f7 = h3.o;
         }
         this.r = 0;
-        this.g = (int)(o3.g + f5 * f11 + f12 * f13 - f6);
-        this.h = (int)(o3.h + f11 * f4 + f13 * f3 - f10);
+        this.g = (int)(o3.g + f4 * f11 + f7 * f13 - f6);
+        this.h = (int)(o3.h + f11 * f5 + f13 * f3 - f10);
         this.c = s.c.c(h3.h);
         this.m = h3.i;
     }
@@ -459,21 +459,21 @@ implements Comparable {
         f17 = f16 + f17 - (f12 + f10);
         f15 = f18 + f19 - (f15 + f13);
         f18 = f17 * f3;
-        f7 = (f6 - f7) * f4;
-        f4 = f7 / 2.0f;
+        f6 = (f6 - f7) * f4;
+        f4 = f6 / 2.0f;
         this.g = (int)(f10 + f18 - f4);
-        f6 = f15 * f3;
+        f7 = f15 * f3;
         f3 = (f8 - f9) * f5;
         f5 = f3 / 2.0f;
-        this.h = (int)(f13 + f6 - f5);
-        this.i = (int)(f11 + f7);
+        this.h = (int)(f13 + f7 - f5);
+        this.i = (int)(f11 + f6);
         this.j = (int)(f14 + f3);
         f3 = Float.isNaN(h3.n) ? 0.0f : h3.n;
-        f11 = -f15;
+        f8 = -f15;
         this.r = 1;
         f4 = (int)(o3.g + f18 - f4);
-        f5 = (int)(o3.h + f6 - f5);
-        this.g = f4 + f11 * f3;
+        f5 = (int)(o3.h + f7 - f5);
+        this.g = f4 + f8 * f3;
         this.h = f5 + f17 * f3;
         this.n = this.n;
         this.c = s.c.c(h3.h);
@@ -496,23 +496,23 @@ implements Comparable {
         this.j = (int)(f9 + (f8 - f9) * f5);
         if (h3.q != 2) {
             f4 = Float.isNaN(h3.m) ? f3 : h3.m;
-            f7 = o4.g;
+            f6 = o4.g;
             f5 = o3.g;
-            this.g = f4 * (f7 - f5) + f5;
+            this.g = f4 * (f6 - f5) + f5;
             if (!Float.isNaN(h3.n)) {
                 f3 = h3.n;
             }
-            f5 = o4.h;
-            f4 = o3.h;
-            this.h = f3 * (f5 - f4) + f4;
+            f4 = o4.h;
+            f5 = o3.h;
+            this.h = f3 * (f4 - f5) + f5;
         } else {
             if (Float.isNaN(h3.m)) {
                 f5 = o4.g;
                 f4 = o3.g;
                 f4 = (f5 - f4) * f3 + f4;
             } else {
-                f7 = h3.m;
-                f4 = Math.min(f5, f4) * f7;
+                f6 = h3.m;
+                f4 = Math.min(f5, f4) * f6;
             }
             this.g = f4;
             if (Float.isNaN(h3.n)) {
@@ -605,7 +605,7 @@ implements Comparable {
         fArray[1] = (f9 -= 0.0f * f8 / 2.0f) * (1.0f - f4) + (f8 * 1.0f + f9) * f4 + 0.0f;
     }
 
-    public void s(float f3, View view, int[] objectArray, double[] object, double[] dArray, double[] objectArray2, boolean bl) {
+    public void s(float f3, View view, int[] object, double[] objectArray, double[] dArray, double[] objectArray2, boolean bl) {
         double d3;
         float f4;
         double d4;
@@ -615,16 +615,16 @@ implements Comparable {
         float f6 = this.h;
         float f7 = this.i;
         float f8 = this.j;
-        if (objectArray.length != 0 && this.t.length <= objectArray[objectArray.length - 1]) {
-            n4 = objectArray[objectArray.length - 1] + 1;
+        if (((int[])object).length != 0 && this.t.length <= object[((int[])object).length - 1]) {
+            n4 = object[((int[])object).length - 1] + 1;
             this.t = new double[n4];
             this.u = new double[n4];
         }
         Arrays.fill(this.t, Double.NaN);
-        for (n4 = 0; n4 < objectArray.length; ++n4) {
+        for (n4 = 0; n4 < ((int[])object).length; ++n4) {
             double[] dArray2 = this.t;
-            n3 = objectArray[n4];
-            dArray2[n3] = object[n4];
+            n3 = object[n4];
+            dArray2[n3] = objectArray[n4];
             this.u[n3] = dArray[n4];
         }
         float f9 = Float.NaN;
@@ -632,8 +632,8 @@ implements Comparable {
         float f11 = 0.0f;
         float f12 = 0.0f;
         float f13 = 0.0f;
-        for (n4 = 0; n4 < (objectArray = (Object[])this.t).length; ++n4) {
-            boolean bl2 = Double.isNaN(objectArray[n4]);
+        for (n4 = 0; n4 < ((int[])(object = (Object)this.t)).length; ++n4) {
+            boolean bl2 = Double.isNaN(object[n4]);
             d4 = 0.0;
             if (bl2 && (objectArray2 == null || objectArray2[n4] == 0.0)) continue;
             if (objectArray2 != null) {
@@ -674,20 +674,20 @@ implements Comparable {
             ((m)object).i(f3, (float[])objectArray2, (float[])objectArray);
             d3 = objectArray2[0];
             f13 = (float)objectArray2[1];
-            f4 = objectArray[0];
-            f3 = objectArray[1];
+            f4 = (float)objectArray[0];
+            f3 = (float)objectArray[1];
             double d5 = d3;
             d4 = f5;
             double d6 = f6;
             d3 = (float)(d5 + Math.sin(d6) * d4 - (double)(f7 / 2.0f));
             f6 = (float)((double)f13 - Math.cos(d6) * d4 - (double)(f8 / 2.0f));
-            d5 = f4;
-            double d7 = f10;
-            double d8 = Math.sin(d6);
+            double d7 = f4;
+            double d8 = f10;
+            d5 = Math.sin(d6);
             double d9 = Math.cos(d6);
             double d10 = f11;
-            f5 = (float)(d5 + d8 * d7 + d9 * d4 * d10);
-            f11 = (float)((double)f3 - d7 * Math.cos(d6) + Math.sin(d6) * d4 * d10);
+            f5 = (float)(d7 + d5 * d8 + d9 * d4 * d10);
+            f11 = (float)((double)f3 - d8 * Math.cos(d6) + Math.sin(d6) * d4 * d10);
             if (dArray.length >= 2) {
                 dArray[0] = f5;
                 dArray[1] = f11;
@@ -715,15 +715,15 @@ implements Comparable {
         }
         f9 = f4 + 0.5f;
         n3 = (int)f9;
-        n4 = (int)(f3 += 0.5f);
-        int n5 = (int)(f9 + f7);
+        int n5 = (int)(f3 += 0.5f);
+        n4 = (int)(f9 + f7);
         int n6 = (int)(f3 + f8);
-        int n7 = n5 - n3;
-        int n8 = n6 - n4;
+        int n7 = n4 - n3;
+        int n8 = n6 - n5;
         if (n7 != view.getMeasuredWidth() || n8 != view.getMeasuredHeight() || bl) {
             view.measure(View.MeasureSpec.makeMeasureSpec((int)n7, (int)0x40000000), View.MeasureSpec.makeMeasureSpec((int)n8, (int)0x40000000));
         }
-        view.layout(n3, n4, n5, n6);
+        view.layout(n3, n5, n4, n6);
     }
 
     public void t(m m3, o o3) {

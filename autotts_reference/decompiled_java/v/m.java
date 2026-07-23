@@ -58,10 +58,10 @@ public class m {
         f f3 = var18_7.h;
         object = n3 == 0 ? ((e)object).e : ((e)object).f;
         object = ((p)object).i;
-        boolean bl2 = p3.h.l.contains(f3);
-        bl = this.c.i.l.contains(object);
+        bl = p3.h.l.contains(f3);
+        boolean bl2 = this.c.i.l.contains(object);
         long l6 = this.c.j();
-        if (bl2 && bl) {
+        if (bl && bl2) {
             float f4;
             l3 = this.d(this.c.h, 0L);
             long l7 = this.c(this.c.i, 0L);
@@ -82,18 +82,18 @@ public class m {
                 l4 = (long)((float)l8 / f4 + (float)l3 / (1.0f - f4));
             }
             float f5 = l4;
-            l8 = (long)(f5 * f4 + 0.5f);
-            l3 = (long)(f5 * (1.0f - f4) + 0.5f);
+            l3 = (long)(f5 * f4 + 0.5f);
+            l8 = (long)(f5 * (1.0f - f4) + 0.5f);
             object = this.c;
-            l3 = (long)((p)object).h.f + (l8 + l6 + l3);
+            l3 = (long)((p)object).h.f + (l3 + l6 + l8);
             n3 = ((p)object).i.f;
             return l3 - (long)n3;
         }
-        if (bl2) {
+        if (bl) {
             object = this.c.h;
             return Math.max(this.d((f)object, ((f)object).f), (long)this.c.h.f + l6);
         }
-        if (bl) {
+        if (bl2) {
             object = this.c.i;
             long l9 = this.c((f)object, ((f)object).f);
             long l10 = -this.c.i.f;

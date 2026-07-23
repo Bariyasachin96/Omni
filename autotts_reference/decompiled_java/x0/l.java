@@ -47,10 +47,10 @@ public final class l {
                 double d4 = -d3;
                 double d5 = this.a;
                 this.f = d4 * d5 + d5 * Math.sqrt(d3 * d3 - 1.0);
-                d4 = this.b;
-                d3 = -d4;
-                d5 = this.a;
-                this.g = d3 * d5 - d5 * Math.sqrt(d4 * d4 - 1.0);
+                d5 = this.b;
+                d4 = -d5;
+                d3 = this.a;
+                this.g = d4 * d3 - d3 * Math.sqrt(d5 * d5 - 1.0);
             } else if (d3 >= 0.0 && d3 < 1.0) {
                 this.h = this.a * Math.sqrt(1.0 - d3 * d3);
             }
@@ -103,32 +103,32 @@ public final class l {
             d7 = d6 - (d3 * d6 - d4) / (d3 - d8);
             d4 = (d6 * d3 - d4) / (d3 - d8);
             d3 = Math.pow(Math.E, d3 * d5) * d7 + Math.pow(Math.E, this.f * d5) * d4;
-            double d9 = this.g;
-            d6 = Math.pow(Math.E, d9 * d5);
+            d6 = this.g;
+            double d9 = Math.pow(Math.E, d6 * d5);
             d8 = this.f;
-            d4 = d7 * d9 * d6 + d4 * d8 * Math.pow(Math.E, d8 * d5);
+            d4 = d7 * d6 * d9 + d4 * d8 * Math.pow(Math.E, d8 * d5);
         } else if (d7 == 1.0) {
             d3 = this.a;
             d4 += d3 * d6;
             d3 = Math.pow(Math.E, -d3 * d5) * (d6 += d4 * d5);
             double d10 = Math.pow(Math.E, -this.a * d5);
-            d7 = this.a;
-            double d11 = -d7;
-            d4 = d4 * Math.pow(Math.E, -d7 * d5) + d6 * d10 * d11;
+            double d11 = this.a;
+            d7 = -d11;
+            d4 = d4 * Math.pow(Math.E, -d11 * d5) + d6 * d10 * d7;
         } else {
             double d12 = 1.0 / this.h;
             d3 = this.a;
             d4 = d12 * (d7 * d3 * d6 + d4);
             d3 = Math.pow(Math.E, -d7 * d3 * d5) * (Math.cos(this.h * d5) * d6 + Math.sin(this.h * d5) * d4);
             double d13 = this.a;
-            d12 = -d13;
-            d7 = this.b;
-            d13 = Math.pow(Math.E, -d7 * d13 * d5);
+            d7 = -d13;
+            d12 = this.b;
+            d13 = Math.pow(Math.E, -d12 * d13 * d5);
             double d14 = this.h;
             double d15 = -d14;
             d14 = Math.sin(d14 * d5);
             double d16 = this.h;
-            d4 = d12 * d3 * d7 + d13 * (d15 * d6 * d14 + d4 * d16 * Math.cos(d16 * d5));
+            d4 = d7 * d3 * d12 + d13 * (d15 * d6 * d14 + d4 * d16 * Math.cos(d16 * d5));
         }
         h.o o3 = this.j;
         o3.a = (float)(d3 + this.i);

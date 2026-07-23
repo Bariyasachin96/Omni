@@ -181,19 +181,19 @@ public abstract class e0 {
                         n4 = n3;
                     }
                     this.q();
-                    arrayList2 = new ArrayList(this.b);
+                    object = new ArrayList(this.b);
                     this.b.clear();
-                    this.c.addAll(arrayList2);
+                    this.c.addAll(object);
                     FragmentManager.I0(2);
-                    n3 = arrayList2.size();
+                    n3 = ((ArrayList)object).size();
                 }
                 catch (Throwable throwable) {}
                 throw throwable;
                 for (n4 = 0; n4 < n3; ++n4) {
-                    object = arrayList2.get(n4);
-                    ((e)object).l();
+                    arrayList2 = ((ArrayList)object).get(n4);
+                    ((e)((Object)arrayList2)).l();
                 }
-                this.f(arrayList2, this.d);
+                this.f((List)object, this.d);
                 this.d = false;
                 FragmentManager.I0(2);
             }

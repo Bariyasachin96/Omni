@@ -69,20 +69,20 @@ i.a {
 
     public void d(IBinder iBinder) {
         c c3;
-        e e3 = this.c;
-        Object object = new a.a(e3.w());
-        this.e = c3 = new c(((a.a)object).b(), c.g.abc_list_menu_item_layout);
+        Object object = this.c;
+        a.a a4 = new a.a(((e)object).w());
+        this.e = c3 = new c(a4.b(), c.g.abc_list_menu_item_layout);
         c3.m(this);
         this.c.b(this.e);
-        ((a.a)object).c(this.e.c(), this);
-        c3 = e3.A();
+        a4.c(this.e.c(), this);
+        c3 = ((e)object).A();
         if (c3 != null) {
-            ((a.a)object).d((View)c3);
+            a4.d((View)c3);
         } else {
-            ((a.a)object).e(e3.y()).h(e3.z());
+            a4.e(((e)object).y()).h(((e)object).z());
         }
-        ((a.a)object).f(this);
-        this.d = object = ((a.a)object).a();
+        a4.f(this);
+        this.d = object = a4.a();
         object.setOnDismissListener((DialogInterface.OnDismissListener)this);
         object = this.d.getWindow().getAttributes();
         ((WindowManager.LayoutParams)object).type = 1003;

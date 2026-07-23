@@ -13,17 +13,16 @@ public final class g {
 
     public final a a(i3.a object) {
         try {
-            a a4;
             Method method = Class.class.getDeclaredMethod("getModule", null);
             Method method2 = object.getClass().getClassLoader().loadClass("java.lang.Module").getDeclaredMethod("getDescriptor", null);
-            object = object.getClass().getClassLoader().loadClass("java.lang.module.ModuleDescriptor").getDeclaredMethod("name", null);
-            c = a4 = new a(method, method2, (Method)object);
-            return a4;
+            Method method3 = object.getClass().getClassLoader().loadClass("java.lang.module.ModuleDescriptor").getDeclaredMethod("name", null);
+            c = object = new a(method, method2, method3);
+            return object;
         }
         catch (Exception exception) {
-            a a5;
-            c = a5 = b;
-            return a5;
+            a a4;
+            c = a4 = b;
+            return a4;
         }
     }
 

@@ -86,14 +86,15 @@ View.OnAttachStateChangeListener {
     }
 
     public final boolean f(MotionEvent motionEvent) {
+        a0 a02;
         View view = this.f;
-        Object object = this.b();
-        if (object != null && object.c() && (object = (a0)object.h()) != null && object.isShown()) {
-            MotionEvent motionEvent2 = MotionEvent.obtainNoHistory((MotionEvent)motionEvent);
-            this.i(view, motionEvent2);
-            this.j((View)object, motionEvent2);
-            boolean bl = ((a0)((Object)object)).e(motionEvent2, this.j);
-            motionEvent2.recycle();
+        f f3 = this.b();
+        if (f3 != null && f3.c() && (a02 = (a0)f3.h()) != null && a02.isShown()) {
+            f3 = MotionEvent.obtainNoHistory((MotionEvent)motionEvent);
+            this.i(view, (MotionEvent)f3);
+            this.j((View)a02, (MotionEvent)f3);
+            boolean bl = a02.e((MotionEvent)f3, this.j);
+            f3.recycle();
             int n3 = motionEvent.getActionMasked();
             n3 = n3 != 1 && n3 != 3 ? 1 : 0;
             if (bl && n3 != 0) {

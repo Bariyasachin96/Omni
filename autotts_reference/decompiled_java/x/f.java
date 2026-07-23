@@ -154,15 +154,16 @@ extends d {
 
     public void Y(HashMap hashMap) {
         for (Object object : hashMap.keySet()) {
+            Object object2;
             if (((String)object).startsWith("CUSTOM")) {
-                Object object2 = ((String)object).substring(7);
+                object2 = ((String)object).substring(7);
                 if ((object2 = (androidx.constraintlayout.widget.a)this.e.get(object2)) == null || ((androidx.constraintlayout.widget.a)object2).d() != a.a.d || (object = (c)hashMap.get(object)) == null) continue;
                 ((e)object).e(this.a, this.i, this.j, this.o, this.k, this.l, this.m, ((androidx.constraintlayout.widget.a)object2).e(), object2);
                 continue;
             }
             float f3 = this.Z((String)object);
-            if (Float.isNaN(f3) || (object = (c)hashMap.get(object)) == null) continue;
-            ((e)object).d(this.a, this.i, this.j, this.o, this.k, this.l, this.m, f3);
+            if (Float.isNaN(f3) || (object2 = (c)hashMap.get(object)) == null) continue;
+            ((e)object2).d(this.a, this.i, this.j, this.o, this.k, this.l, this.m, f3);
         }
     }
 
@@ -295,14 +296,14 @@ extends d {
 
     @Override
     public void a(HashMap hashMap) {
-        Object object = new StringBuilder();
-        ((StringBuilder)object).append("add ");
-        ((StringBuilder)object).append(hashMap.size());
-        ((StringBuilder)object).append(" values");
-        x.a.g("KeyCycle", ((StringBuilder)object).toString(), 2);
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("add ");
+        stringBuilder.append(hashMap.size());
+        stringBuilder.append(" values");
+        x.a.g("KeyCycle", stringBuilder.toString(), 2);
         block32: for (String string : hashMap.keySet()) {
-            object = (j)hashMap.get(string);
-            if (object == null) continue;
+            j j3 = (j)hashMap.get(string);
+            if (j3 == null) continue;
             string.getClass();
             int n3 = string.hashCode();
             int n4 = -1;
@@ -386,60 +387,60 @@ extends d {
                     continue block32;
                 }
                 case 13: {
-                    ((j)object).c(this.a, this.m);
+                    j3.c(this.a, this.m);
                     continue block32;
                 }
                 case 12: {
-                    ((j)object).c(this.a, this.l);
+                    j3.c(this.a, this.l);
                     continue block32;
                 }
                 case 11: {
-                    ((j)object).c(this.a, this.p);
+                    j3.c(this.a, this.p);
                     continue block32;
                 }
                 case 10: {
-                    ((j)object).c(this.a, this.s);
+                    j3.c(this.a, this.s);
                     continue block32;
                 }
                 case 9: {
-                    ((j)object).c(this.a, this.q);
+                    j3.c(this.a, this.q);
                     continue block32;
                 }
                 case 8: {
-                    ((j)object).c(this.a, this.r);
+                    j3.c(this.a, this.r);
                     continue block32;
                 }
                 case 7: {
-                    ((j)object).c(this.a, this.w);
+                    j3.c(this.a, this.w);
                     continue block32;
                 }
                 case 6: {
-                    ((j)object).c(this.a, this.v);
+                    j3.c(this.a, this.v);
                     continue block32;
                 }
                 case 5: {
-                    ((j)object).c(this.a, this.n);
+                    j3.c(this.a, this.n);
                     continue block32;
                 }
                 case 4: {
-                    ((j)object).c(this.a, this.z);
+                    j3.c(this.a, this.z);
                     continue block32;
                 }
                 case 3: {
-                    ((j)object).c(this.a, this.y);
+                    j3.c(this.a, this.y);
                     continue block32;
                 }
                 case 2: {
-                    ((j)object).c(this.a, this.x);
+                    j3.c(this.a, this.x);
                     continue block32;
                 }
                 case 1: {
-                    ((j)object).c(this.a, this.u);
+                    j3.c(this.a, this.u);
                     continue block32;
                 }
                 case 0: 
             }
-            ((j)object).c(this.a, this.t);
+            j3.c(this.a, this.t);
         }
     }
 

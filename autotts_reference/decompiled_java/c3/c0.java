@@ -3,19 +3,14 @@
  */
 package c3;
 
-import c3.d0;
+import c3.f0;
+import java.util.concurrent.ThreadFactory;
 
 public final class c0
-implements Runnable {
-    public final d0 c;
-
-    public /* synthetic */ c0(d0 d02) {
-        this.c = d02;
-    }
-
+implements ThreadFactory {
     @Override
-    public final void run() {
-        d0.c(this.c);
+    public final Thread newThread(Runnable runnable) {
+        return f0.a(runnable);
     }
 }
 

@@ -36,10 +36,11 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager2.widget.ViewPager2;
-import c3.k;
 import c3.l;
 import c3.m;
-import c3.u;
+import c3.n;
+import c3.o;
+import c3.w;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.b;
 import java.lang.reflect.AccessibleObject;
@@ -60,9 +61,9 @@ extends AppCompatActivity {
     public TextView E;
     public TextToSpeech F = null;
     public ViewPager2 G;
-    public c3.j H;
+    public l H;
     public Context I;
-    public Map J = new HashMap();
+    public final Map J = new HashMap();
     public Handler K;
     public int L = 0;
     public boolean M = false;
@@ -74,23 +75,23 @@ extends AppCompatActivity {
         return bl;
     }
 
-    public final void A0(l l3, Set object) {
+    public final void A0(n n3, Set object) {
         if (object != null && !object.isEmpty()) {
             Iterator iterator = object.iterator();
             while (iterator.hasNext()) {
                 Voice voice = (Voice)iterator.next();
                 object = voice.getName();
-                if (((String)object).isEmpty() || c3.k.b(voice.getLocale(), l3.b, (String)object)) continue;
-                c3.k.a((Context)this, voice.getLocale(), l3);
-                c3.k.b(voice.getLocale(), l3.b, (String)object);
+                if (((String)object).isEmpty() || c3.m.b(voice.getLocale(), n3.b, (String)object)) continue;
+                c3.m.a((Context)this, voice.getLocale(), n3);
+                c3.m.b(voice.getLocale(), n3.b, (String)object);
             }
         }
     }
 
     public final void B0() {
         Exception exception2;
-        c3.k.b.clear();
-        c3.k.d.clear();
+        c3.m.b.clear();
+        c3.m.d.clear();
         Object object = new Intent("android.intent.action.TTS_SERVICE");
         PackageManager packageManager = this.I.getPackageManager();
         ArrayList<List> arrayList = new ArrayList<List>();
@@ -120,15 +121,15 @@ extends AppCompatActivity {
             {
                 object2 = ((ServiceInfo)object2).packageName;
                 if (((String)object2).contains("autotts") || this.J.containsKey(object2)) continue;
-                object3 = object3.loadLabel(packageManager).toString();
-                l l3 = new l((String)object3, (String)object2);
-                this.J.put(object2, l3);
-                c3.k.b.add(l3);
+                String string = object3.loadLabel(packageManager).toString();
+                object3 = new n(string, (String)object2);
+                this.J.put(object2, object3);
+                c3.m.b.add(object3);
                 continue;
             }
         }
         return;
-        c3.k.a.e("AutoTTS", "Error in service discovery", exception2);
+        c3.m.a.e("AutoTTS", "Error in service discovery", exception2);
     }
 
     public final String C0() {
@@ -147,10 +148,10 @@ extends AppCompatActivity {
             int n3 = this.L;
             int n4 = 1;
             this.L = n3 + 1;
-            List list = c3.k.b;
+            List list = c3.m.b;
             synchronized (list) {
                 if (this.L < list.size()) {
-                    while ((n3 = ++this.L) < (object = c3.k.b).size() && ((l)object.get(this.L)).a()) {
+                    while ((n3 = ++this.L) < (object = c3.m.b).size() && ((n)object.get(this.L)).a()) {
                     }
                     if (this.L < object.size()) {
                         n4 = 0;
@@ -158,20 +159,20 @@ extends AppCompatActivity {
                 }
                 // MONITOREXIT @DISABLED, blocks:[0, 6] lbl12 : MonitorExitStatement: MONITOREXIT : var3_3
                 if (n4 != 0) break block17;
-                n3 = this.L;
-                list = c3.k.b;
+                n4 = this.L;
+                list = c3.m.b;
             }
             synchronized (list) {
-                if (n3 >= list.size()) {
+                if (n4 >= list.size()) {
                     this.K.removeCallbacksAndMessages(null);
                     this.z0();
                     return;
                 }
                 // MONITOREXIT @DISABLED, blocks:[1, 7] lbl23 : MonitorExitStatement: MONITOREXIT : var3_3
-                object = ((l)list.get((int)n3)).b;
+                object = ((n)list.get((int)n4)).b;
                 this.M = false;
             }
-            this.N.postDelayed(new Runnable(this, n3){
+            this.N.postDelayed(new Runnable(this, n4){
                 public final int c;
                 public final NewSettingsActivity d;
                 {
@@ -195,7 +196,7 @@ extends AppCompatActivity {
                     this.d.D0();
                 }
             }, 30000L);
-            this.runOnUiThread(new Runnable(this, n3){
+            this.runOnUiThread(new Runnable(this, n4){
                 public final int c;
                 public final NewSettingsActivity d;
                 {
@@ -210,7 +211,7 @@ extends AppCompatActivity {
                  */
                 @Override
                 public void run() {
-                    List list = c3.k.b;
+                    List list = c3.m.b;
                     synchronized (list) {
                         Throwable throwable2;
                         block4: {
@@ -218,7 +219,7 @@ extends AppCompatActivity {
                                 try {
                                     if (this.c >= list.size()) break block3;
                                     String string = this.d.getResources().getString(2131623989);
-                                    this.d.E.setText((CharSequence)String.format("%s %s... (2)", string, ((l)list.get((int)this.c)).b));
+                                    this.d.E.setText((CharSequence)String.format("%s %s... (2)", string, ((n)list.get((int)this.c)).b));
                                 }
                                 catch (Throwable throwable2) {
                                     break block4;
@@ -236,24 +237,24 @@ extends AppCompatActivity {
                     block18: {
                         try {
                             TextToSpeech textToSpeech;
-                            n4 = list.size();
-                            if (n3 >= n4) break block18;
+                            n3 = list.size();
+                            if (n4 >= n3) break block18;
                             Context context = this.getApplicationContext();
                             object = new j(this, null);
-                            this.F = textToSpeech = new TextToSpeech(context, (TextToSpeech.OnInitListener)object, ((l)list.get((int)n3)).b);
+                            this.F = textToSpeech = new TextToSpeech(context, (TextToSpeech.OnInitListener)object, ((n)list.get((int)n4)).b);
                             break block18;
                         }
                         catch (Throwable throwable22) {
                             break block19;
                         }
                         catch (Exception exception) {
-                            object = c3.k.a;
-                            StringBuilder stringBuilder = new StringBuilder();
-                            stringBuilder.append("Error when initialize ");
-                            stringBuilder.append(((l)c3.k.b.get((int)n3)).b);
-                            stringBuilder.append("\n");
-                            stringBuilder.append(exception.getMessage());
-                            ((m)object).d("AutoTTS", stringBuilder.toString());
+                            o o3 = c3.m.a;
+                            object = new StringBuilder();
+                            ((StringBuilder)object).append("Error when initialize ");
+                            ((StringBuilder)object).append(((n)c3.m.b.get((int)n4)).b);
+                            ((StringBuilder)object).append("\n");
+                            ((StringBuilder)object).append(exception.getMessage());
+                            o3.d("AutoTTS", ((StringBuilder)object).toString());
                             this.D0();
                         }
                     }
@@ -275,13 +276,13 @@ extends AppCompatActivity {
         }
     }
 
-    public final void E0(c3.j j3, TabLayout tabLayout, int n3) {
+    public final void E0(l l3, TabLayout tabLayout, int n3) {
         n3 = 0;
-        while (n3 < j3.f()) {
+        while (n3 < l3.f()) {
             TabLayout.f f3 = tabLayout.B(n3);
-            CharSequence charSequence = j3.T(n3);
+            CharSequence charSequence = l3.T(n3);
             int n4 = n3 + 1;
-            charSequence = this.getString(2131624019, new Object[]{charSequence, n4, j3.f()});
+            charSequence = this.getString(2131624019, new Object[]{charSequence, n4, l3.f()});
             n3 = n4;
             if (f3 == null) continue;
             f3.m(charSequence);
@@ -294,12 +295,12 @@ extends AppCompatActivity {
         super.onCreate((Bundle)object);
         this.I = this;
         this.setContentView(2131427435);
-        this.H = new c3.j(this);
-        object = (ViewPager2)this.findViewById(2131231300);
+        this.H = new l(this);
+        object = (ViewPager2)this.findViewById(2131231311);
         this.G = object;
         ((ViewPager2)((Object)object)).setOffscreenPageLimit(4);
         this.G.setAdapter(this.H);
-        object = (TabLayout)this.findViewById(2131231236);
+        object = (TabLayout)this.findViewById(2131231247);
         new b((TabLayout)((Object)object), this.G, new b.b(this){
             public final NewSettingsActivity a;
             {
@@ -316,28 +317,28 @@ extends AppCompatActivity {
                                     return;
                                 }
                                 f3.p(2131165341);
-                                f3.s(2131624216);
-                                f3.m(this.a.getString(2131624216));
+                                f3.s(2131624223);
+                                f3.m(this.a.getString(2131624223));
                                 return;
                             }
                             f3.p(2131165343);
-                            f3.s(2131624215);
-                            f3.m(this.a.getString(2131624215));
+                            f3.s(2131624222);
+                            f3.m(this.a.getString(2131624222));
                             return;
                         }
                         f3.p(2131165344);
-                        f3.s(2131624214);
-                        f3.m(this.a.getString(2131624214));
+                        f3.s(2131624221);
+                        f3.m(this.a.getString(2131624221));
                         return;
                     }
                     f3.p(2131165340);
-                    f3.s(2131624213);
-                    f3.m(this.a.getString(2131624213));
+                    f3.s(2131624220);
+                    f3.m(this.a.getString(2131624220));
                     return;
                 }
                 f3.p(2131165342);
-                f3.s(2131624212);
-                f3.m(this.a.getString(2131624212));
+                f3.s(2131624219);
+                f3.m(this.a.getString(2131624219));
             }
         }).a();
         this.E0(this.H, (TabLayout)((Object)object), 0);
@@ -349,41 +350,40 @@ extends AppCompatActivity {
                 this.a = tabLayout;
             }
 
+            /*
+             * Enabled force condition propagation
+             * Lifted jumps to return sites
+             */
             @Override
             public void c(int n3) {
-                Exception exception2;
-                block3: {
-                    super.c(n3);
-                    Object object = this.b;
-                    ((NewSettingsActivity)object).E0(((NewSettingsActivity)object).H, this.a, n3);
-                    try {
-                        FragmentManager fragmentManager = this.b.P();
-                        object = new StringBuilder();
-                        ((StringBuilder)object).append("f");
-                        ((StringBuilder)object).append(n3);
-                        object = fragmentManager.i0(((StringBuilder)object).toString());
-                        if (object instanceof c3.i) {
-                            ((c3.i)object).F0();
-                            return;
-                        }
-                    }
-                    catch (Exception exception2) {
-                        break block3;
+                super.c(n3);
+                Object object = this.b;
+                ((NewSettingsActivity)object).E0(((NewSettingsActivity)object).H, this.a, n3);
+                try {
+                    object = this.b.P();
+                    StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append("f");
+                    stringBuilder.append(n3);
+                    object = ((FragmentManager)object).i0(stringBuilder.toString());
+                    if (object instanceof c3.j) {
+                        ((c3.j)object).F0();
                     }
                     return;
                 }
-                exception2.printStackTrace();
+                catch (Exception exception) {
+                    return;
+                }
             }
         });
-        c3.k.q((Context)this);
-        c3.k.p((Context)this);
-        c3.k.r((Context)this);
-        this.D = (LinearLayout)this.findViewById(2131231015);
+        c3.m.q((Context)this);
+        c3.m.p((Context)this);
+        c3.m.r((Context)this);
+        this.D = (LinearLayout)this.findViewById(2131231018);
         object = this.C0();
         if (((String)object).compareTo("Valid license") != 0 && !((String)object).isEmpty()) {
-            ((TextView)this.findViewById(2131231272)).setText((CharSequence)String.format("Auto TTS (%s)", object));
+            ((TextView)this.findViewById(2131231283)).setText((CharSequence)String.format("Auto TTS (%s)", object));
         }
-        this.E = (TextView)this.findViewById(2131230890);
+        this.E = (TextView)this.findViewById(2131230892);
         object = new Handler(Looper.getMainLooper());
         this.K = object;
         object.postDelayed(new Runnable(this){
@@ -409,7 +409,7 @@ extends AppCompatActivity {
 
     @Override
     public void onPause() {
-        c3.k.u((Context)this);
+        c3.m.u((Context)this);
         super.onPause();
     }
 
@@ -439,10 +439,10 @@ extends AppCompatActivity {
             @Override
             public void run() {
                 String string = this.c.getResources().getString(2131623989);
-                this.c.E.setText((CharSequence)String.format("%s %s... (3)", string, ((l)c3.k.b.get((int)((NewSettingsActivity)this.c).L)).b));
+                this.c.E.setText((CharSequence)String.format("%s %s... (3)", string, ((n)c3.m.b.get((int)((NewSettingsActivity)this.c).L)).b));
             }
         });
-        this.F = new TextToSpeech((Context)this, (TextToSpeech.OnInitListener)new j(this, null), ((l)c3.k.b.get((int)this.L)).b);
+        this.F = new TextToSpeech((Context)this, (TextToSpeech.OnInitListener)new j(this, null), ((n)c3.m.b.get((int)this.L)).b);
     }
 
     public final void z0() {
@@ -456,24 +456,24 @@ extends AppCompatActivity {
         list2 = new ArrayList();
         for (n3 = 0; n3 < this.O.size(); ++n3) {
             int n4 = (Integer)this.O.get(n3);
-            if (n4 >= (list = c3.k.b).size()) continue;
-            list2.add(((l)list.get((int)((Integer)this.O.get((int)n3)).intValue())).b);
+            if (n4 >= (list = c3.m.b).size()) continue;
+            list2.add(((n)list.get((int)((Integer)this.O.get((int)n3)).intValue())).b);
             list.remove((Integer)this.O.get(n3));
         }
         list = new ArrayList();
-        for (n3 = 0; n3 < c3.k.d.size(); ++n3) {
-            if (!list2.contains(((u)c3.k.d.get((int)n3)).d.b)) continue;
+        for (n3 = 0; n3 < c3.m.d.size(); ++n3) {
+            if (!list2.contains(((w)c3.m.d.get((int)n3)).d.b)) continue;
             list.add(n3);
         }
         list.sort(Comparator.reverseOrder());
         for (n3 = 0; n3 < list.size(); ++n3) {
-            c3.k.d.remove((Integer)list.get(n3));
+            c3.m.d.remove((Integer)list.get(n3));
         }
-        list2 = c3.k.c;
+        list2 = c3.m.c;
         list2.clear();
-        list2.addAll(c3.k.h((Context)this, false));
-        c3.k.u((Context)this);
-        c3.k.g = new TextToSpeech((Context)this, null, "com.vnspeak.autotts");
+        list2.addAll(c3.m.h((Context)this, false));
+        c3.m.u((Context)this);
+        c3.m.g = new TextToSpeech((Context)this, null, "com.vnspeak.autotts");
         this.runOnUiThread(new Runnable(this){
             public final NewSettingsActivity c;
             {
@@ -509,7 +509,7 @@ extends AppCompatActivity {
             List list;
             if (n3 == 0 && this.a.F != null) {
                 list = this.a.F.getEngines();
-                List list2 = c3.k.b;
+                List list2 = c3.m.b;
                 synchronized (list2) {
                 }
             } else {
@@ -522,9 +522,9 @@ extends AppCompatActivity {
                     for (n3 = 0; n3 < list.size(); ++n3) {
                         String string = ((TextToSpeech.EngineInfo)list.get((int)n3)).name;
                         if (this.a.J.containsKey(string) || string.contains("autotts")) continue;
-                        List list3 = c3.k.b;
-                        l l3 = new l(((TextToSpeech.EngineInfo)list.get((int)n3)).label, string);
-                        list3.add(l3);
+                        List list3 = c3.m.b;
+                        n n4 = new n(((TextToSpeech.EngineInfo)list.get((int)n3)).label, string);
+                        list3.add(n4);
                     }
                     this.a.F.shutdown();
                     this.a.y0();
@@ -577,27 +577,27 @@ extends AppCompatActivity {
                                     break block12;
                                 }
                             }
-                            object = ((l)c3.k.b.get((int)((NewSettingsActivity)this.a).L)).b;
+                            object = ((n)c3.m.b.get((int)((NewSettingsActivity)this.a).L)).b;
                             break block11;
                         }
-                        c3.k.a.e("AutoTTS", "Reflection failed", exception2);
+                        c3.m.a.e("AutoTTS", "Reflection failed", exception2);
                         n3 = this.a.L;
-                        object = c3.k.b;
-                        object = n3 < object.size() ? ((l)object.get((int)((NewSettingsActivity)this.a).L)).b : "";
+                        object = c3.m.b;
+                        object = n3 < object.size() ? ((n)object.get((int)((NewSettingsActivity)this.a).L)).b : "";
                     }
                     n3 = this.a.L;
-                    List list = c3.k.b;
+                    List list = c3.m.b;
                     if (n3 < list.size()) {
-                        if (((String)object).equals(((l)list.get((int)((NewSettingsActivity)this.a).L)).b)) {
+                        if (((String)object).equals(((n)list.get((int)((NewSettingsActivity)this.a).L)).b)) {
                             try {
                                 object = this.a.F.getVoices();
                                 if (object != null) {
                                     NewSettingsActivity newSettingsActivity = this.a;
-                                    newSettingsActivity.A0((l)list.get(newSettingsActivity.L), (Set)object);
+                                    newSettingsActivity.A0((n)list.get(newSettingsActivity.L), (Set)object);
                                 }
                             }
                             catch (Exception exception) {
-                                c3.k.a.d("AutoTTS", exception.getMessage());
+                                c3.m.a.d("AutoTTS", exception.getMessage());
                             }
                         } else {
                             this.a.O.add(this.a.L);
@@ -607,7 +607,7 @@ extends AppCompatActivity {
                         this.a.F.shutdown();
                     }
                     catch (Exception exception) {
-                        c3.k.a.d("AutoTTS", exception.getMessage());
+                        c3.m.a.d("AutoTTS", exception.getMessage());
                     }
                     break block15;
                 }

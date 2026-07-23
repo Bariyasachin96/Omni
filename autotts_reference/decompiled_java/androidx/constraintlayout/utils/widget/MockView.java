@@ -120,15 +120,15 @@ extends View {
         }
         if ((string = this.h) != null && this.g) {
             this.d.getTextBounds(string, 0, string.length(), this.i);
-            f3 = (float)(n3 - this.i.width()) / 2.0f;
-            f4 = (float)(n4 - this.i.height()) / 2.0f + (float)this.i.height();
-            this.i.offset((int)f3, (int)f4);
+            f4 = (float)(n3 - this.i.width()) / 2.0f;
+            f3 = (float)(n4 - this.i.height()) / 2.0f + (float)this.i.height();
+            this.i.offset((int)f4, (int)f3);
             string = this.i;
             n4 = ((Rect)string).left;
             n3 = this.m;
             string.set(n4 - n3, ((Rect)string).top - n3, ((Rect)string).right + n3, ((Rect)string).bottom + n3);
             canvas.drawRect(this.i, this.e);
-            canvas.drawText(this.h, f3, f4, this.d);
+            canvas.drawText(this.h, f4, f3, this.d);
         }
     }
 }

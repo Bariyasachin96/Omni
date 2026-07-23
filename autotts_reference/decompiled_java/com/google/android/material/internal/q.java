@@ -57,15 +57,15 @@ implements androidx.appcompat.view.menu.i {
         }
 
         public void onClick(View object) {
-            Object object2 = (NavigationMenuItemView)object;
-            object = this.c;
+            object = (NavigationMenuItemView)object;
+            q q3 = this.c;
             boolean bl = true;
-            ((q)object).Y(true);
-            object2 = ((NavigationMenuItemView)object2).getItemData();
-            object = this.c;
-            boolean bl2 = ((q)object).f.P((MenuItem)object2, (androidx.appcompat.view.menu.i)object, 0);
-            if (object2 != null && ((androidx.appcompat.view.menu.g)object2).isCheckable() && bl2) {
-                this.c.h.O((androidx.appcompat.view.menu.g)object2);
+            q3.Y(true);
+            object = ((NavigationMenuItemView)object).getItemData();
+            q3 = this.c;
+            boolean bl2 = q3.f.P((MenuItem)object, q3, 0);
+            if (object != null && ((androidx.appcompat.view.menu.g)object).isCheckable() && bl2) {
+                this.c.h.O((androidx.appcompat.view.menu.g)object);
             } else {
                 bl = false;
             }
@@ -527,15 +527,15 @@ implements androidx.appcompat.view.menu.i {
                     ((RecyclerView.d0)object).a.setPaddingRelative(this.g.v, f3.b(), this.g.w, f3.a());
                     return;
                 }
-                TextView textView = (TextView)((RecyclerView.d0)object).a;
-                textView.setText(((g)this.d.get(n3)).a().getTitle());
-                androidx.core.widget.j.m(textView, this.g.j);
-                textView.setPaddingRelative(this.g.x, textView.getPaddingTop(), this.g.y, textView.getPaddingBottom());
-                object = this.g.k;
-                if (object != null) {
-                    textView.setTextColor((ColorStateList)object);
+                object = (TextView)((RecyclerView.d0)object).a;
+                object.setText(((g)this.d.get(n3)).a().getTitle());
+                androidx.core.widget.j.m((TextView)object, this.g.j);
+                object.setPaddingRelative(this.g.x, object.getPaddingTop(), this.g.y, object.getPaddingBottom());
+                ColorStateList colorStateList = this.g.k;
+                if (colorStateList != null) {
+                    object.setTextColor(colorStateList);
                 }
-                this.N((View)textView, n3, true);
+                this.N((View)object, n3, true);
                 return;
             }
             NavigationMenuItemView navigationMenuItemView = (NavigationMenuItemView)((RecyclerView.d0)object).a;

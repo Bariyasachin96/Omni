@@ -168,10 +168,9 @@ extends ExpandableTransformationBehavior {
         float f6;
         if (f3 != 0.0f && (f6 = (f5 = f4 - 0.0f) == 0.0f ? 0 : (f5 > 0.0f ? 1 : -1)) != false) {
             if (bl && f4 < 0.0f || !bl && f6 > 0) {
-                i3 = ((e)object).a.h("translationXCurveUpwards");
-                i i4 = ((e)object).a.h("translationYCurveUpwards");
-                object = i3;
-                i3 = i4;
+                i i4 = ((e)object).a.h("translationXCurveUpwards");
+                i3 = ((e)object).a.h("translationYCurveUpwards");
+                object = i4;
             } else {
                 i3 = ((e)object).a.h("translationXCurveDownwards");
                 i i5 = ((e)object).a.h("translationYCurveDownwards");
@@ -477,19 +476,18 @@ extends ExpandableTransformationBehavior {
                 object.setTranslationX(-f3);
                 object.setTranslationY(-f4);
             }
-            list2 = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{0.0f});
-            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{0.0f});
+            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{0.0f});
+            list2 = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{0.0f});
             this.P((View)object, e3, i3, i4, -f3, -f4, 0.0f, 0.0f, rectF);
             object = list2;
         } else {
-            e3 = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{-f3});
-            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{-f4});
-            object = e3;
+            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{-f3});
+            object = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{-f4});
         }
-        i3.a((Animator)object);
-        i4.a((Animator)view);
-        list.add(object);
+        i3.a((Animator)view);
+        i4.a((Animator)object);
         list.add(view);
+        list.add(object);
     }
 
     public final int h0(View view) {

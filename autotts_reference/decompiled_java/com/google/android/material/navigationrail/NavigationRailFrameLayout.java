@@ -48,9 +48,9 @@ extends FrameLayout {
             view = this.getChildAt(0);
             this.measureChild(view, n3, n4);
             layoutParams = (FrameLayout.LayoutParams)view.getLayoutParams();
-            n8 = view.getMeasuredHeight();
-            n6 = layoutParams.bottomMargin;
-            n5 = layoutParams.topMargin + (n8 + n6);
+            n6 = view.getMeasuredHeight();
+            n8 = layoutParams.bottomMargin;
+            n5 = layoutParams.topMargin + (n6 + n8);
             int n9 = this.c;
             layoutParams = this.getChildAt(1);
             n6 = n5;
@@ -64,10 +64,10 @@ extends FrameLayout {
         }
         layoutParams = (FrameLayout.LayoutParams)view.getLayoutParams();
         this.measureChild(view, n3, n8);
-        n8 = view.getMeasuredHeight();
-        n3 = layoutParams.bottomMargin;
-        n4 = layoutParams.topMargin;
-        n3 = Math.max(n7, this.c + n6 + (n8 + n3 + n4));
+        n4 = view.getMeasuredHeight();
+        n8 = layoutParams.bottomMargin;
+        n3 = layoutParams.topMargin;
+        n3 = Math.max(n7, this.c + n6 + (n4 + n8 + n3));
         this.setMeasuredDimension(this.getMeasuredWidth(), n3);
     }
 

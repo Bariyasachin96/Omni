@@ -3,45 +3,105 @@
  * 
  * Could not load the following classes:
  *  android.content.Context
- *  android.content.Intent
  *  android.content.SharedPreferences
- *  android.os.Parcelable
+ *  android.content.SharedPreferences$Editor
+ *  android.speech.tts.TextToSpeech
  *  android.util.Log
- *  android.widget.Toast
  */
 package c3;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Parcelable;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
-import android.widget.Toast;
-import androidx.core.content.FileProvider;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
-import java.text.SimpleDateFormat;
+import c3.e;
+import c3.n;
+import c3.o;
+import c3.v;
+import c3.w;
+import com.vnspeak.autotts.AutoTtsService;
+import java.text.Collator;
+import java.text.Normalizer;
+import java.util.AbstractCollection;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
-public class m {
-    public static m e;
-    public final File a;
-    public final SimpleDateFormat b;
-    public final SharedPreferences c;
-    public boolean d;
+public abstract class m {
+    public static o a;
+    public static final List b;
+    public static final List c;
+    public static List d;
+    public static List e;
+    public static Set f;
+    public static TextToSpeech g;
+    public static Map h;
+    public static Map i;
 
-    public m(Context context) {
-        File file = new File(context.getFilesDir(), "logs");
-        if (!file.exists()) {
-            file.mkdirs();
+    static {
+        b = new ArrayList();
+        c = new ArrayList();
+        d = new ArrayList();
+        e = new ArrayList();
+        f = new HashSet();
+        g = null;
+        h = new HashMap();
+        i = new HashMap();
+    }
+
+    public static void A(Context context) {
+        context = context.getSharedPreferences("auto_tts_settings", 0).edit();
+        context.putBoolean("strip_audio_attr", AutoTtsService.S);
+        context.putBoolean("force_accessibility_stream", AutoTtsService.T);
+        context.putBoolean("keep_alive_mode", AutoTtsService.U);
+        context.putBoolean("show_notification", AutoTtsService.V);
+        context.putBoolean("disable_advanced_detection", AutoTtsService.W);
+        context.putBoolean("quick_character_reading", AutoTtsService.X);
+        context.commit();
+    }
+
+    public static void B(Context context, w w3, int n3) {
+        context = context.getSharedPreferences("auto_tts_settings", 0).edit();
+        context.putString(w3.f(), String.valueOf(n3));
+        if (n3 == 0) {
+            context.putString(m.f(w3.c), w3.f());
         }
-        this.a = new File(file, "auto_tts.log");
-        this.b = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
-        context = context.getSharedPreferences("auto_tts_settings", 0);
-        this.c = context;
-        this.d = context.getBoolean("logging_enabled", false);
+        context.commit();
+    }
+
+    public static void C(Context context) {
+        for (int i3 = 0; i3 < e.size(); ++i3) {
+            m.B(context, (w)e.get(i3), i3);
+        }
+    }
+
+    public static void D(Context context) {
+        StringBuilder stringBuilder;
+        if (d.isEmpty()) {
+            return;
+        }
+        context = context.getSharedPreferences("auto_tts_settings", 0).edit();
+        AutoTtsService.Y = new ArrayList();
+        for (int i3 = 0; i3 < d.size(); ++i3) {
+            String string = ((w)d.get(i3)).f();
+            stringBuilder = new StringBuilder();
+            stringBuilder.append("voice_");
+            stringBuilder.append(i3);
+            context.putString(stringBuilder.toString(), string);
+            AutoTtsService.Y.add(string);
+        }
+        stringBuilder = new StringBuilder();
+        stringBuilder.append("voice_");
+        stringBuilder.append(d.size());
+        context.putString(stringBuilder.toString(), "");
+        context.putBoolean("dedicated_engines", AutoTtsService.R);
+        context.commit();
     }
 
     /*
@@ -49,176 +109,564 @@ public class m {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public static m f(Context object) {
+    public static void a(Context context, Locale locale, n n3) {
+        synchronized (m.class) {
+            CharSequence charSequence = new StringBuilder();
+            charSequence.append(n3.b);
+            charSequence.append("#");
+            charSequence.append(locale.toString());
+            charSequence = charSequence.toString();
+            w w3 = new w(locale, n3, m.s(context, (String)charSequence));
+            d.add(w3);
+            return;
+        }
+    }
+
+    /*
+     * WARNING - Removed back jump from a try to a catch block - possible behaviour change.
+     * Enabled aggressive block sorting
+     * Enabled unnecessary exception pruning
+     * Enabled aggressive exception aggregation
+     */
+    public static boolean b(Locale object, String string, String string2) {
         synchronized (m.class) {
             try {
-                m m3;
-                if (e != null) return e;
-                e = m3 = new m(object.getApplicationContext());
-                return e;
+                String string3 = m.f((Locale)object);
+                String string4 = m.e((Locale)object);
+                boolean bl = false;
+                int n3 = 0;
+                while (true) {
+                    boolean bl2 = bl;
+                    if (n3 >= d.size()) return bl2;
+                    if (((w)m.d.get((int)n3)).d.b.equals(string)) {
+                        Object object2 = m.t(((w)m.d.get((int)n3)).c);
+                        object = m.f((Locale)object2);
+                        object2 = m.e((Locale)object2);
+                        if (((String)object).equalsIgnoreCase(string3) && ((String)object2).equalsIgnoreCase(string4)) {
+                            if (((w)m.d.get((int)n3)).f.contains(string2)) return true;
+                            ((w)d.get(n3)).a(string2);
+                            return true;
+                        }
+                    }
+                    ++n3;
+                }
             }
             catch (Throwable throwable) {}
             throw throwable;
         }
     }
 
+    public static void c() {
+        if (h.isEmpty()) {
+            for (String string : Locale.getISOLanguages()) {
+                String string2 = m.f(new Locale(string));
+                try {
+                    h.put(string, string2);
+                }
+                catch (Exception exception) {
+                    Log.e((String)"AutoTTS", (String)exception.getMessage());
+                }
+                try {
+                    i.put(string2, string);
+                }
+                catch (Exception exception) {
+                    Log.e((String)"AutoTTS", (String)exception.getMessage());
+                }
+            }
+        }
+    }
+
+    public static ArrayList d(Context context) {
+        ArrayList<String> arrayList = new ArrayList<String>();
+        ArrayList<Object> arrayList2 = new ArrayList<Object>();
+        for (int i3 = 0; i3 < d.size(); ++i3) {
+            Object object = ((w)d.get(i3)).c();
+            String[] stringArray = ((w)d.get(i3)).e();
+            if (!stringArray.equalsIgnoreCase("eng") && !stringArray.equalsIgnoreCase(AutoTtsService.G) || arrayList.contains(object)) continue;
+            arrayList.add((String)object);
+            object = new e((String)object, (String)stringArray);
+            SharedPreferences sharedPreferences = context.getSharedPreferences("auto_tts_settings", 0);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append((String)stringArray);
+            stringBuilder.append("_volume");
+            ((e)object).d = sharedPreferences.getInt(stringBuilder.toString(), 100);
+            stringBuilder = new StringBuilder();
+            stringBuilder.append((String)stringArray);
+            stringBuilder.append("_pitch");
+            ((e)object).e = sharedPreferences.getInt(stringBuilder.toString(), 100);
+            stringBuilder = new StringBuilder();
+            stringBuilder.append((String)stringArray);
+            stringBuilder.append("_speed");
+            ((e)object).c = sharedPreferences.getInt(stringBuilder.toString(), 100);
+            stringBuilder = new StringBuilder();
+            stringBuilder.append((String)stringArray);
+            stringBuilder.append("_variant");
+            ((e)object).h = sharedPreferences.getString(stringBuilder.toString(), "*Default");
+            ((e)object).f = "";
+            ((e)object).g = "";
+            stringBuilder = new StringBuilder();
+            stringBuilder.append((String)stringArray);
+            stringBuilder.append("_disabled");
+            ((e)object).i = sharedPreferences.getBoolean(stringBuilder.toString(), false);
+            stringArray = sharedPreferences.getString((String)stringArray, "");
+            if (!stringArray.equals("") && (stringArray = stringArray.split("#")).length >= 2) {
+                ((e)object).f = stringArray[0];
+                ((e)object).g = stringArray[1];
+            }
+            arrayList2.add(object);
+        }
+        Collections.sort(arrayList2, new Comparator(){
+
+            public int a(e object, e e3) {
+                String string = object.a;
+                object = Normalizer.Form.NFD;
+                string = Normalizer.normalize(string, (Normalizer.Form)((Object)object)).replaceAll("\\p{M}", "");
+                object = Normalizer.normalize(e3.a, (Normalizer.Form)((Object)object)).replaceAll("\\p{M}", "");
+                return Collator.getInstance().compare(string, (String)object);
+            }
+        });
+        return arrayList2;
+    }
+
+    public static String e(Locale object) {
+        if (object == null) {
+            return "";
+        }
+        try {
+            object = ((Locale)object).getISO3Country();
+            return object;
+        }
+        catch (Exception exception) {
+            return "";
+        }
+    }
+
+    public static String f(Locale object) {
+        if (object == null) {
+            return "zxx";
+        }
+        try {
+            object = ((Locale)object).getISO3Language();
+            if (!(((String)object).equals("cmn") || ((String)object).equals("lzh") || ((String)object).equals("gan") || ((String)object).equals("hak"))) {
+                return object;
+            }
+            return "zho";
+        }
+        catch (Exception exception) {
+            return "zxx";
+        }
+    }
+
+    public static int g(String string) {
+        List list;
+        for (int i3 = 0; i3 < (list = c).size(); ++i3) {
+            if (!string.equals(((e)list.get((int)i3)).b)) continue;
+            return i3;
+        }
+        return -1;
+    }
+
     /*
+     * Unable to fully structure code
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public void a() {
-        synchronized (this) {
-            try {
-                boolean bl = this.a.exists();
-                if (bl) {
+    public static ArrayList h(Context var0, boolean var1_2) {
+        synchronized (m.class) {
+            block16: {
+                block17: {
                     try {
-                        FileWriter fileWriter = new FileWriter(this.a, false);
-                        ((Writer)fileWriter).close();
+                        var9_3 = m.n();
+                        var10_4 = new ArrayList<String>();
+                        var8_5 = new ArrayList<e>();
+                        var4_6 = 0;
+                        var2_7 = 0;
+lbl8:
+                        // 2 sources
+
+                        while (true) {
+                            if (var4_6 < m.d.size()) {
+                                var14_15 = ((w)m.d.get(var4_6)).c();
+                                var11_12 = ((w)m.d.get(var4_6)).e();
+                                var13_14 = ((w)m.d.get((int)var4_6)).d.b;
+                                if (AutoTtsService.O == 3 && !var13_14.equalsIgnoreCase("com.google.android.tts")) {
+                                    var5_9 = var2_7;
+                                    break block16;
+                                }
+                                if (!var10_4.contains(var14_15)) {
+                                    var10_4.add(var14_15);
+                                    var12_13 /* !! */  = new e(var14_15, (String)var11_12);
+                                    var14_15 = var0.getSharedPreferences("auto_tts_settings", 0);
+                                    var15_16 = new StringBuilder();
+                                    var15_16.append((String)var11_12);
+                                    var15_16.append("_volume");
+                                    var12_13 /* !! */ .d = var14_15.getInt(var15_16.toString(), 100);
+                                    var15_16 = new StringBuilder();
+                                    var15_16.append((String)var11_12);
+                                    var15_16.append("_pitch");
+                                    var12_13 /* !! */ .e = var14_15.getInt(var15_16.toString(), 100);
+                                    var15_16 = new StringBuilder();
+                                    var15_16.append((String)var11_12);
+                                    var15_16.append("_speed");
+                                    var12_13 /* !! */ .c = var14_15.getInt(var15_16.toString(), 100);
+                                    var15_16 = new StringBuilder();
+                                    var15_16.append((String)var11_12);
+                                    var15_16.append("_variant");
+                                    var12_13 /* !! */ .h = var14_15.getString(var15_16.toString(), "*Default");
+                                    var12_13 /* !! */ .f = "";
+                                    var12_13 /* !! */ .g = "";
+                                    var15_16 = new StringBuilder();
+                                    var15_16.append((String)var11_12);
+                                    var15_16.append("_disabled");
+                                    var12_13 /* !! */ .i = var7_11 = var14_15.getBoolean(var15_16.toString(), false);
+                                    var3_8 = var2_7;
+                                    if (var7_11) {
+                                        var3_8 = var2_7;
+                                        if (var9_3.contains(var11_12)) {
+                                            var12_13 /* !! */ .i = false;
+                                            var3_8 = 1;
+                                        }
+                                    }
+                                    var12_13 /* !! */ .j.add(var13_14);
+                                    var11_12 = var14_15.getString((String)var11_12, "");
+                                    if (!var11_12.equals("") && (var11_12 = var11_12.split("#")).length >= 2) {
+                                        var12_13 /* !! */ .f = var11_12[0];
+                                        var12_13 /* !! */ .g = var11_12[1];
+                                    }
+                                    if (var1_2) {
+                                        var5_9 = var3_8;
+                                        if (!var12_13 /* !! */ .i) {
+                                            var8_5.add(var12_13 /* !! */ );
+                                            var5_9 = var3_8;
+                                        }
+                                        break block16;
+                                    }
+                                    var8_5.add(var12_13 /* !! */ );
+                                    var5_9 = var3_8;
+                                    break block16;
+                                }
+                                var6_10 = var8_5.size();
+                                var3_8 = 0;
+                                break block17;
+                            }
+                            var9_3 = new Comparator(){
+
+                                public int a(e object, e e3) {
+                                    String string = object.a;
+                                    object = Normalizer.Form.NFD;
+                                    string = Normalizer.normalize(string, (Normalizer.Form)((Object)object)).replaceAll("\\p{M}", "");
+                                    object = Normalizer.normalize(e3.a, (Normalizer.Form)((Object)object)).replaceAll("\\p{M}", "");
+                                    return Collator.getInstance().compare(string, (String)object);
+                                }
+                            };
+                            Collections.sort(var8_5, var9_3);
+                            if (var2_7 == 0) ** break block18
+                            m.z(var0);
+                            break;
+                        }
                     }
-                    catch (IOException iOException) {
-                        Log.e((String)"TtsLogger", (String)"Failed to clear log", (Throwable)iOException);
+                    catch (Throwable var0_1) {}
+                    {
+                        return var8_5;
                     }
+                    throw var0_1;
                 }
-                return;
+                do {
+                    var5_9 = var2_7;
+                    if (var3_8 >= var6_10) break block16;
+                    var12_13 /* !! */  = var8_5.get(var3_8);
+                    ++var3_8;
+                } while (!var12_13 /* !! */ .b.equalsIgnoreCase((String)var11_12));
+                var12_13 /* !! */ .j.add(var13_14);
+                var5_9 = var2_7;
             }
-            catch (Throwable throwable22) {}
-            throw throwable22;
+            ++var4_6;
+            var2_7 = var5_9;
+            ** continue;
         }
     }
 
-    public Intent b(Context context) {
-        if (this.a.exists() && this.a.length() != 0L) {
+    public static ArrayList i() {
+        List list;
+        ArrayList<String> arrayList = new ArrayList<String>();
+        for (int i3 = 0; i3 < (list = c).size(); ++i3) {
+            if (!((e)list.get((int)i3)).b.equalsIgnoreCase("eng") && !((e)list.get((int)i3)).b.equalsIgnoreCase(AutoTtsService.G)) continue;
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append(context.getPackageName());
-            stringBuilder.append(".fileprovider");
-            stringBuilder = FileProvider.h(context, stringBuilder.toString(), this.a);
-            context = new Intent("android.intent.action.SEND");
-            context.setType("text/plain");
-            context.putExtra("android.intent.extra.STREAM", (Parcelable)stringBuilder);
-            context.putExtra("android.intent.extra.SUBJECT", "Auto TTS Log");
-            context.addFlags(1);
-            return context;
+            stringBuilder.append(((e)list.get((int)i3)).a);
+            stringBuilder.append(" (");
+            stringBuilder.append(((e)list.get((int)i3)).b);
+            stringBuilder.append(")");
+            arrayList.add(stringBuilder.toString());
         }
-        return null;
+        return arrayList;
     }
 
-    public void c(String string, String string2) {
-        this.h(c3.m$a.d, string, string2);
-    }
-
-    public void d(String string, String string2) {
-        this.h(c3.m$a.g, string, string2);
-    }
-
-    public void e(String string, String string2, Throwable throwable) {
-        a a4 = c3.m$a.g;
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(string2);
-        stringBuilder.append("\n");
-        stringBuilder.append(Log.getStackTraceString((Throwable)throwable));
-        this.h(a4, string, stringBuilder.toString());
-    }
-
-    public boolean g() {
-        return this.d;
-    }
-
-    /*
-     * Exception decompiling
-     */
-    public void h(a var1_1, String var2_5, String var3_7) {
-        /*
-         * This method has failed to decompile.  When submitting a bug report, please provide this stack trace, and (if you hold appropriate legal rights) the relevant class file.
-         * 
-         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [2 : 47->59)] java.lang.Throwable
-         *     at org.benf.cfr.reader.bytecode.analysis.opgraph.Op02WithProcessedDataAndRefs.insertExceptionBlocks(Op02WithProcessedDataAndRefs.java:2283)
-         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisInner(CodeAnalyser.java:415)
-         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisOrWrapFail(CodeAnalyser.java:278)
-         *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysis(CodeAnalyser.java:201)
-         *     at org.benf.cfr.reader.entities.attributes.AttributeCode.analyse(AttributeCode.java:94)
-         *     at org.benf.cfr.reader.entities.Method.analyse(Method.java:531)
-         *     at org.benf.cfr.reader.entities.ClassFile.analyseMid(ClassFile.java:1055)
-         *     at org.benf.cfr.reader.entities.ClassFile.analyseTop(ClassFile.java:942)
-         *     at org.benf.cfr.reader.Driver.doJarVersionTypes(Driver.java:257)
-         *     at org.benf.cfr.reader.Driver.doJar(Driver.java:139)
-         *     at org.benf.cfr.reader.CfrDriverImpl.analyse(CfrDriverImpl.java:76)
-         *     at org.benf.cfr.reader.Main.main(Main.java:54)
-         */
-        throw new IllegalStateException("Decompilation failed");
-    }
-
-    public final void i() {
-        if (this.a.exists() && this.a.length() >= 0x200000L) {
-            Object object = new File(this.a.getParent(), "auto_tts.log.3");
-            if (((File)object).exists()) {
-                ((File)object).delete();
+    public static ArrayList j(String string, boolean bl) {
+        List list;
+        ArrayList<String> arrayList = new ArrayList<String>();
+        for (int i3 = 0; i3 < (list = c).size(); ++i3) {
+            if (string != null && !((AbstractCollection)((e)list.get((int)i3)).j).contains(string) || ((e)list.get((int)i3)).i) continue;
+            if (!bl) {
+                StringBuilder stringBuilder = new StringBuilder();
+                stringBuilder.append(((e)list.get((int)i3)).a);
+                stringBuilder.append(" (");
+                stringBuilder.append(((e)list.get((int)i3)).b);
+                stringBuilder.append(")");
+                arrayList.add(stringBuilder.toString());
+                continue;
             }
-            for (int i3 = 2; i3 >= 1; --i3) {
-                object = this.a.getParent();
-                Comparable<StringBuilder> comparable = new StringBuilder();
-                comparable.append("auto_tts.log.");
-                comparable.append(i3);
-                object = new File((String)object, comparable.toString());
-                String string = this.a.getParent();
-                comparable = new StringBuilder();
-                comparable.append("auto_tts.log.");
-                comparable.append(i3 + 1);
-                comparable = new File(string, comparable.toString());
-                if (!((File)object).exists()) continue;
-                ((File)object).renameTo((File)comparable);
+            arrayList.add(((e)list.get((int)i3)).b);
+        }
+        return arrayList;
+    }
+
+    public static ArrayList k(String string) {
+        List list;
+        ArrayList<String> arrayList = new ArrayList<String>();
+        for (int i3 = 0; i3 < (list = c).size(); ++i3) {
+            if (string != null && !((AbstractCollection)((e)list.get((int)i3)).j).contains(string)) continue;
+            arrayList.add(((e)list.get((int)i3)).b);
+        }
+        return arrayList;
+    }
+
+    public static ArrayList l(String string) {
+        List list;
+        ArrayList<Boolean> arrayList = new ArrayList<Boolean>();
+        for (int i3 = 0; i3 < (list = c).size(); ++i3) {
+            if (string != null && !((AbstractCollection)((e)list.get((int)i3)).j).contains(string)) continue;
+            int n3 = AutoTtsService.O;
+            if (n3 != 1) {
+                if (n3 != 2 && n3 != 3) {
+                    if (n3 == 4 && (((e)list.get((int)i3)).b.equalsIgnoreCase(AutoTtsService.K) || ((e)list.get((int)i3)).b.equalsIgnoreCase(AutoTtsService.L))) {
+                        ((e)list.get((int)i3)).i = false;
+                    }
+                } else if (((e)list.get((int)i3)).b.equalsIgnoreCase(AutoTtsService.F)) {
+                    ((e)list.get((int)i3)).i = false;
+                }
+            } else if (((e)list.get((int)i3)).b.equalsIgnoreCase(AutoTtsService.G)) {
+                ((e)list.get((int)i3)).i = false;
             }
-            this.a.renameTo(new File(this.a.getParent(), "auto_tts.log.1"));
+            arrayList.add(((e)list.get((int)i3)).i ^ true);
         }
+        return arrayList;
     }
 
-    public void j(boolean bl) {
-        this.d = bl;
-        this.c.edit().putBoolean("logging_enabled", bl).apply();
+    public static ArrayList m(String string) {
+        List list;
+        ArrayList<String> arrayList = new ArrayList<String>();
+        for (int i3 = 0; i3 < (list = c).size(); ++i3) {
+            if (string != null && !((AbstractCollection)((e)list.get((int)i3)).j).contains(string)) continue;
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append(((e)list.get((int)i3)).a);
+            stringBuilder.append(" (");
+            stringBuilder.append(((e)list.get((int)i3)).b);
+            stringBuilder.append(")");
+            arrayList.add(stringBuilder.toString());
+        }
+        return arrayList;
     }
 
-    public void k(Context context) {
-        Intent intent = this.b(context);
-        if (intent == null) {
-            Toast.makeText((Context)context, (CharSequence)"No log file to share", (int)0).show();
-            return;
+    public static ArrayList n() {
+        ArrayList<String> arrayList = new ArrayList<String>();
+        int n3 = AutoTtsService.O;
+        if (n3 != 1) {
+            if (n3 != 2 && n3 != 3) {
+                if (n3 != 4) {
+                    return arrayList;
+                }
+                arrayList.add(AutoTtsService.K);
+                arrayList.add(AutoTtsService.L);
+                return arrayList;
+            }
+            arrayList.add(AutoTtsService.F);
+            return arrayList;
         }
-        intent = Intent.createChooser((Intent)intent, (CharSequence)"Share Auto TTS Log");
-        intent.addFlags(0x10000000);
-        context.startActivity(intent);
+        arrayList.add(AutoTtsService.G);
+        arrayList.add("eng");
+        return arrayList;
     }
 
-    public static final class a
-    extends Enum {
-        public static final /* enum */ a d = new a("DEBUG", 0, "D");
-        public static final /* enum */ a e = new a("INFO", 1, "I");
-        public static final /* enum */ a f = new a("WARN", 2, "W");
-        public static final /* enum */ a g = new a("ERROR", 3, "E");
-        public static final a[] h = c3.m$a.a();
-        public final String c;
-
-        /*
-         * WARNING - Possible parameter corruption
-         * WARNING - void declaration
-         */
-        public a() {
-            void var3_2;
-            void cfr_renamed_1;
-            void cfr_renamed_2;
-            this.c = var3_2;
+    public static Boolean o(String object) {
+        Object object2 = object;
+        if (((String)object).length() != 3) {
+            object2 = object = (String)h.get(object);
+            if (object == null) {
+                return Boolean.FALSE;
+            }
         }
-
-        public static /* synthetic */ a[] a() {
-            return new a[]{d, e, f, g};
+        for (int i3 = 0; i3 < (object = c).size(); ++i3) {
+            if (((e)object.get((int)i3)).b.compareTo((String)object2) != 0) continue;
+            return ((e)object.get((int)i3)).i ^ true;
         }
+        return Boolean.FALSE;
+    }
 
-        public static a valueOf(String string) {
-            return Enum.valueOf(a.class, string);
+    public static void p(Context context) {
+        int n3;
+        SharedPreferences sharedPreferences = context.getSharedPreferences("auto_tts_settings", 0);
+        int n4 = n3 = sharedPreferences.getInt("auto_mode", 3);
+        if (n3 == 3) {
+            n4 = n3;
+            if (!v.a(context)) {
+                n4 = 0;
+            }
         }
+        AutoTtsService.O = n4;
+        AutoTtsService.Q = sharedPreferences.getBoolean("locale_spans", false);
+    }
 
-        public static a[] values() {
-            return (a[])h.clone();
+    public static void q(Context context) {
+        AutoTtsService.F = (context = context.getSharedPreferences("auto_tts_settings", 0)).getString("auto_mode_language", "");
+        if (AutoTtsService.F.equals("")) {
+            AutoTtsService.F = m.f(Locale.getDefault());
         }
+        if ((AutoTtsService.K = context.getString("mixed_mode_latin_language", "")).equals("")) {
+            AutoTtsService.K = m.f(Locale.getDefault());
+        }
+        if ((AutoTtsService.L = context.getString("mixed_mode_non_latin_language", "")).equals("")) {
+            AutoTtsService.L = m.f(Locale.getDefault());
+        }
+        if ((AutoTtsService.G = context.getString("dual_mode_language", "")).equals("")) {
+            AutoTtsService.G = m.f(Locale.getDefault());
+        }
+        AutoTtsService.H = context.getInt("number_mode_language", 0);
+        AutoTtsService.I = context.getInt("punc_mode_language", 0);
+        AutoTtsService.J = context.getInt("emoji_mode_language", 0);
+    }
+
+    public static void r(Context context) {
+        context = context.getSharedPreferences("auto_tts_settings", 0);
+        AutoTtsService.S = context.getBoolean("strip_audio_attr", false);
+        AutoTtsService.T = context.getBoolean("force_accessibility_stream", false);
+        AutoTtsService.U = context.getBoolean("keep_alive_mode", false);
+        AutoTtsService.V = context.getBoolean("show_notification", false);
+        AutoTtsService.W = context.getBoolean("disable_advanced_detection", true);
+        AutoTtsService.X = context.getBoolean("quick_character_reading", true);
+    }
+
+    public static int s(Context context, String string) {
+        return Integer.parseInt(context.getSharedPreferences("auto_tts_settings", 0).getString(string, "1000"));
+    }
+
+    public static Locale t(Locale object) {
+        if (object == null) {
+            return null;
+        }
+        String string = m.f((Locale)object);
+        String string2 = m.e((Locale)object);
+        if (!((String)(object = ((Locale)object).getVariant())).isEmpty()) {
+            return new Locale(string, string2, (String)object);
+        }
+        if (!string2.isEmpty()) {
+            return new Locale(string, string2);
+        }
+        return new Locale(string);
+    }
+
+    public static void u(Context context) {
+        m.x(context);
+        m.D(context);
+        m.C(context);
+        m.w(context);
+        m.y(context);
+        m.v(context);
+        m.A(context);
+    }
+
+    public static void v(Context context) {
+        context = context.getSharedPreferences("auto_tts_settings", 0).edit();
+        context.putInt("auto_mode", AutoTtsService.O);
+        context.putBoolean("locale_spans", AutoTtsService.Q);
+        context.commit();
+    }
+
+    public static void w(Context context) {
+        context = context.getSharedPreferences("auto_tts_settings", 0).edit();
+        context.putString("auto_mode_language", AutoTtsService.F);
+        context.putString("dual_mode_language", AutoTtsService.G);
+        context.putString("mixed_mode_latin_language", AutoTtsService.K);
+        context.putString("mixed_mode_non_latin_language", AutoTtsService.L);
+        context.putInt("number_mode_language", AutoTtsService.H);
+        context.putInt("punc_mode_language", AutoTtsService.I);
+        context.putInt("emoji_mode_language", AutoTtsService.J);
+        context.commit();
+    }
+
+    public static void x(Context context) {
+        StringBuilder stringBuilder;
+        List list;
+        AutoTtsService.P = new ArrayList();
+        context = context.getSharedPreferences("auto_tts_settings", 0).edit();
+        int n3 = 0;
+        for (int i3 = 0; i3 != (list = b).size(); ++i3) {
+            int n4 = n3;
+            if (!((n)list.get((int)i3)).b.equals("com.vnspeak.autotts")) {
+                stringBuilder = new StringBuilder();
+                stringBuilder.append("engine_");
+                stringBuilder.append(n3);
+                context.putString(stringBuilder.toString(), ((n)list.get((int)i3)).b);
+                AutoTtsService.P.add(((n)list.get((int)i3)).b);
+                n4 = n3 + 1;
+            }
+            n3 = n4;
+        }
+        stringBuilder = new StringBuilder();
+        stringBuilder.append("engine_");
+        stringBuilder.append(n3);
+        context.putString(stringBuilder.toString(), "end");
+        context.commit();
+    }
+
+    public static void y(Context object) {
+        StringBuilder stringBuilder;
+        SharedPreferences.Editor editor = object.getSharedPreferences("auto_tts_settings", 0).edit();
+        for (int i3 = 0; i3 < (object = c).size(); ++i3) {
+            stringBuilder = new StringBuilder();
+            stringBuilder.append("language_");
+            stringBuilder.append(i3);
+            editor.putString(stringBuilder.toString(), ((e)object.get((int)i3)).b);
+            if (((e)object.get((int)i3)).c != 100) {
+                stringBuilder = new StringBuilder();
+                stringBuilder.append(((e)object.get((int)i3)).b);
+                stringBuilder.append("_speed");
+                editor.putInt(stringBuilder.toString(), ((e)object.get((int)i3)).c);
+            }
+            if (((e)object.get((int)i3)).d != 100) {
+                stringBuilder = new StringBuilder();
+                stringBuilder.append(((e)object.get((int)i3)).b);
+                stringBuilder.append("_volume");
+                editor.putInt(stringBuilder.toString(), ((e)object.get((int)i3)).d);
+            }
+            if (((e)object.get((int)i3)).e != 100) {
+                stringBuilder = new StringBuilder();
+                stringBuilder.append(((e)object.get((int)i3)).b);
+                stringBuilder.append("_pitch");
+                editor.putInt(stringBuilder.toString(), ((e)object.get((int)i3)).e);
+            }
+            if (((e)object.get((int)i3)).h.equals("*Default")) continue;
+            stringBuilder = new StringBuilder();
+            stringBuilder.append(((e)object.get((int)i3)).b);
+            stringBuilder.append("_variant");
+            editor.putString(stringBuilder.toString(), ((e)object.get((int)i3)).h);
+        }
+        stringBuilder = new StringBuilder();
+        stringBuilder.append("language_");
+        stringBuilder.append(object.size());
+        editor.putString(stringBuilder.toString(), "");
+        editor.commit();
+    }
+
+    public static void z(Context object) {
+        SharedPreferences.Editor editor = object.getSharedPreferences("auto_tts_settings", 0).edit();
+        for (int i3 = 0; i3 < (object = c).size(); ++i3) {
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append(((e)object.get((int)i3)).b);
+            stringBuilder.append("_disabled");
+            editor.putBoolean(stringBuilder.toString(), ((e)object.get((int)i3)).i);
+        }
+        editor.commit();
     }
 }
 

@@ -150,23 +150,23 @@ implements Cloneable {
             n4 = n5;
             if (n6 >= lArray.length) {
                 objectArray = this.e;
-                n3 = 0;
-                for (n5 = 0; n5 < n6; ++n5) {
-                    Object object2 = objectArray[n5];
-                    n4 = n3;
+                n5 = 0;
+                for (n4 = 0; n4 < n6; ++n4) {
+                    Object object2 = objectArray[n4];
+                    n3 = n5;
                     if (object2 != o.k.a()) {
-                        if (n5 != n3) {
-                            lArray[n3] = lArray[n5];
-                            objectArray[n3] = object2;
-                            objectArray[n5] = null;
+                        if (n4 != n5) {
+                            lArray[n5] = lArray[n4];
+                            objectArray[n5] = object2;
+                            objectArray[n4] = null;
                         }
-                        n4 = n3 + 1;
+                        n3 = n5 + 1;
                     }
-                    n3 = n4;
+                    n5 = n3;
                 }
                 this.c = false;
-                this.f = n3;
-                n4 = ~a.b(this.d, n3, l3);
+                this.f = n5;
+                n4 = ~a.b(this.d, n5, l3);
             }
         }
         if ((n5 = this.f) >= this.d.length) {
@@ -178,12 +178,12 @@ implements Cloneable {
             k.d(objectArray, "copyOf(this, newSize)");
             this.e = objectArray;
         }
-        if ((n5 = this.f) - n4 != 0) {
+        if ((n3 = this.f) - n4 != 0) {
             objectArray = this.d;
-            n3 = n4 + 1;
-            h.f((long[])objectArray, (long[])objectArray, n3, n4, n5);
+            n5 = n4 + 1;
+            h.f((long[])objectArray, (long[])objectArray, n5, n4, n3);
             objectArray = this.e;
-            h.g(objectArray, objectArray, n3, n4, this.f);
+            h.g(objectArray, objectArray, n5, n4, this.f);
         }
         this.d[n4] = l3;
         this.e[n4] = object;

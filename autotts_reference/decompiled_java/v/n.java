@@ -116,20 +116,19 @@ extends p {
                 object = (f)this.i.l.get(0);
                 n4 = f5.g;
                 f5 = this.h;
-                int n5 = n4 + f5.f;
-                n4 = ((f)object).g + this.i.f;
-                f5.d(n5);
-                this.i.d(n4);
-                this.e.d(n4 - n5);
+                int n5 = ((f)object).g + this.i.f;
+                f5.d(n4 += f5.f);
+                this.i.d(n5);
+                this.e.d(n5 - n4);
                 return;
             }
         }
         if (!this.e.j && this.d == e.b.e && this.a == 1 && this.h.l.size() > 0 && this.i.l.size() > 0) {
-            object = (f)this.h.l.get(0);
-            f5 = (f)this.i.l.get(0);
-            n3 = ((f)object).g;
+            f5 = (f)this.h.l.get(0);
+            object = (f)this.i.l.get(0);
+            n3 = f5.g;
             n4 = this.h.f;
-            n3 = f5.g + this.i.f - (n3 + n4);
+            n3 = ((f)object).g + this.i.f - (n3 + n4);
             object = this.e;
             n4 = ((g)object).m;
             if (n3 < n4) {

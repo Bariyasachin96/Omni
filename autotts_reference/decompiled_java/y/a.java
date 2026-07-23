@@ -50,21 +50,21 @@ public class a {
                     var4_6 = null;
                     break block15;
                 }
-                catch (IOException var4_7) {
+                catch (IOException var1_2) {
                 }
-                catch (XmlPullParserException var1_2) {
+                catch (XmlPullParserException var4_7) {
                     break block16;
                 }
-                var1_1 = new StringBuilder();
-                var1_1.append("Error parsing resource: ");
-                var1_1.append(var2_3);
-                Log.e((String)"ConstraintLayoutStates", (String)var1_1.toString(), (Throwable)var4_7);
+                var4_8 = new StringBuilder();
+                var4_8.append("Error parsing resource: ");
+                var4_8.append(var2_3);
+                Log.e((String)"ConstraintLayoutStates", (String)var4_8.toString(), (Throwable)var1_2);
                 return;
             }
-            var4_8 = new StringBuilder();
-            var4_8.append("Error parsing resource: ");
-            var4_8.append(var2_3);
-            Log.e((String)"ConstraintLayoutStates", (String)var4_8.toString(), (Throwable)var1_2);
+            var1_1 = new StringBuilder();
+            var1_1.append("Error parsing resource: ");
+            var1_1.append(var2_3);
+            Log.e((String)"ConstraintLayoutStates", (String)var1_1.toString(), (Throwable)var4_7);
             return;
         }
         while (var3_5 != 1) {
@@ -167,16 +167,16 @@ lbl53:
                     if (n4 != n3) break block6;
                     a a4 = n3 == -1 ? (a)this.e.valueAt(0) : (a)this.e.get(n4);
                     n3 = this.d;
-                    if (n3 != -1 && ((b)a4.b.get(n3)).a(f3, f4) || this.d == (n3 = a4.b(f3, f4))) break block7;
-                    b3 = n3 == -1 ? this.b : ((b)a4.b.get((int)n3)).f;
-                    if (n3 != -1) {
-                        n4 = ((b)a4.b.get((int)n3)).e;
+                    if (n3 != -1 && ((b)a4.b.get(n3)).a(f3, f4) || this.d == (n4 = a4.b(f3, f4))) break block7;
+                    b3 = n4 == -1 ? this.b : ((b)a4.b.get((int)n4)).f;
+                    if (n4 != -1) {
+                        n3 = ((b)a4.b.get((int)n4)).e;
                     }
                     if (b3 != null) break block8;
                 }
                 return;
             }
-            this.d = n3;
+            this.d = n4;
             b3.i(this.a);
             return;
         }

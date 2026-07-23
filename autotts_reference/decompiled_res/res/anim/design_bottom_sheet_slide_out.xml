@@ -1,4 +1,6 @@
-<set xmlns:android="http://schemas.android.com/apk/res/android" android:interpolator="@android:010C000D" android:duration="@7F090003">
-  <translate android:fromYDelta="0.000000" android:toYDelta="20.000005%p"/>
-  <alpha android:fromAlpha="1.000000" android:toAlpha="0.000000"/>
+<?xml version="1.0" encoding="utf-8"?>
+<set android:interpolator="@android:interpolator/fast_out_slow_in" android:duration="@integer/bottom_sheet_slide_duration"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <translate android:fromYDelta="0.0" android:toYDelta="20.000004%p" />
+    <alpha android:fromAlpha="1.0" android:toAlpha="0.0" />
 </set>

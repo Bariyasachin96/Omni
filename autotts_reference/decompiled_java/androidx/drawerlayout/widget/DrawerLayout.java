@@ -135,7 +135,6 @@ extends ViewGroup {
         block7: {
             v0.c c3;
             g g3;
-            g g4;
             super(context, attributeSet, n3);
             this.c = new d();
             this.f = -1728053248;
@@ -167,16 +166,18 @@ extends ViewGroup {
             this.setDescendantFocusability(262144);
             float f3 = this.getResources().getDisplayMetrics().density;
             this.e = (int)(64.0f * f3 + 0.5f);
-            this.k = g4 = new g(this, 3);
+            f3 *= 400.0f;
+            Object object = new g(this, 3);
+            this.k = object;
             this.l = g3 = new g(this, 5);
-            this.i = c3 = v0.c.n(this, 1.0f, g4);
+            this.i = c3 = v0.c.n(this, 1.0f, (c.c)object);
             c3.M(1);
-            c3.N(f3 *= 400.0f);
-            g4.q(c3);
-            this.j = c3 = v0.c.n(this, 1.0f, g3);
-            c3.M(2);
             c3.N(f3);
-            g3.q(c3);
+            ((g)object).q(c3);
+            this.j = object = v0.c.n(this, 1.0f, g3);
+            ((v0.c)object).M(2);
+            ((v0.c)object).N(f3);
+            g3.q((v0.c)object);
             this.setFocusableInTouchMode(true);
             x0.o0((View)this, 1);
             x0.h0((View)this, new c(this));
@@ -566,45 +567,45 @@ extends ViewGroup {
             n7 = 0;
             for (n8 = 0; n8 < n9; ++n8) {
                 View view2 = this.getChildAt(n8);
-                n3 = n5;
-                int n10 = n7;
+                int n10 = n5;
+                n3 = n7;
                 if (view2 != view) {
-                    n3 = n5;
-                    n10 = n7;
+                    n10 = n5;
+                    n3 = n7;
                     if (view2.getVisibility() == 0) {
-                        n3 = n5;
-                        n10 = n7;
+                        n10 = n5;
+                        n3 = n7;
                         if (DrawerLayout.v(view2)) {
-                            n3 = n5;
-                            n10 = n7;
+                            n10 = n5;
+                            n3 = n7;
                             if (this.B(view2)) {
                                 int n11;
                                 if (view2.getHeight() < n4) {
-                                    n3 = n5;
-                                    n10 = n7;
+                                    n10 = n5;
+                                    n3 = n7;
                                 } else if (this.c(view2, 3)) {
                                     n11 = view2.getRight();
-                                    n3 = n5;
-                                    n10 = n7;
+                                    n10 = n5;
+                                    n3 = n7;
                                     if (n11 > n7) {
-                                        n10 = n11;
-                                        n3 = n5;
+                                        n3 = n11;
+                                        n10 = n5;
                                     }
                                 } else {
                                     n11 = view2.getLeft();
-                                    n3 = n5;
-                                    n10 = n7;
+                                    n10 = n5;
+                                    n3 = n7;
                                     if (n11 < n5) {
-                                        n3 = n11;
-                                        n10 = n7;
+                                        n10 = n11;
+                                        n3 = n7;
                                     }
                                 }
                             }
                         }
                     }
                 }
-                n5 = n3;
-                n7 = n10;
+                n5 = n10;
+                n7 = n3;
             }
             canvas.clipRect(n7, 0, n5, this.getHeight());
             n8 = n5;
@@ -613,29 +614,29 @@ extends ViewGroup {
         canvas.restoreToCount(n6);
         float f3 = this.g;
         if (f3 > 0.0f && bl) {
-            n3 = this.f;
-            n5 = (int)((float)((0xFF000000 & n3) >>> 24) * f3);
-            this.h.setColor(n3 & 0xFFFFFF | n5 << 24);
+            n5 = this.f;
+            n3 = (int)((float)((0xFF000000 & n5) >>> 24) * f3);
+            this.h.setColor(n5 & 0xFFFFFF | n3 << 24);
             canvas.drawRect((float)n7, 0.0f, (float)n8, (float)this.getHeight(), this.h);
             return bl2;
         }
         if (this.z != null && this.c(view, 3)) {
-            n8 = this.z.getIntrinsicWidth();
-            n7 = view.getRight();
-            n5 = this.i.x();
-            f3 = Math.max(0.0f, Math.min((float)n7 / (float)n5, 1.0f));
-            this.z.setBounds(n7, view.getTop(), n8 + n7, view.getBottom());
+            n5 = this.z.getIntrinsicWidth();
+            n8 = view.getRight();
+            n7 = this.i.x();
+            f3 = Math.max(0.0f, Math.min((float)n8 / (float)n7, 1.0f));
+            this.z.setBounds(n8, view.getTop(), n5 + n8, view.getBottom());
             this.z.setAlpha((int)(f3 * 255.0f));
             this.z.draw(canvas);
             return bl2;
         }
         if (this.A != null && this.c(view, 5)) {
-            n3 = this.A.getIntrinsicWidth();
-            n5 = view.getLeft();
-            n7 = this.getWidth();
-            n8 = this.j.x();
-            f3 = Math.max(0.0f, Math.min((float)(n7 - n5) / (float)n8, 1.0f));
-            this.A.setBounds(n5 - n3, view.getTop(), n5, view.getBottom());
+            n5 = this.A.getIntrinsicWidth();
+            n8 = view.getLeft();
+            n3 = this.getWidth();
+            n7 = this.j.x();
+            f3 = Math.max(0.0f, Math.min((float)(n3 - n8) / (float)n7, 1.0f));
+            this.A.setBounds(n8 - n5, view.getTop(), n8, view.getBottom());
             this.A.setAlpha((int)(f3 * 255.0f));
             this.A.draw(canvas);
         }
@@ -965,8 +966,8 @@ extends ViewGroup {
             if (object2.getVisibility() == 8) continue;
             object = (LayoutParams)object2.getLayoutParams();
             if (this.z((View)object2)) {
-                n3 = object.leftMargin;
-                object2.layout(n3, object.topMargin, object2.getMeasuredWidth() + n3, object.topMargin + object2.getMeasuredHeight());
+                n3 = ((ViewGroup.MarginLayoutParams)object).leftMargin;
+                object2.layout(n3, ((ViewGroup.MarginLayoutParams)object).topMargin, object2.getMeasuredWidth() + n3, ((ViewGroup.MarginLayoutParams)object).topMargin + object2.getMeasuredHeight());
                 continue;
             }
             int n10 = object2.getMeasuredWidth();
@@ -974,29 +975,29 @@ extends ViewGroup {
             if (this.c((View)object2, 3)) {
                 n3 = -n10;
                 f3 = n10;
-                n9 = n3 + (int)(object.b * f3);
+                n9 = n3 + (int)(((LayoutParams)((Object)object)).b * f3);
                 f3 = (float)(n10 + n9) / f3;
             } else {
                 f3 = n10;
-                n9 = n7 - (int)(object.b * f3);
+                n9 = n7 - (int)(((LayoutParams)((Object)object)).b * f3);
                 f3 = (float)(n7 - n9) / f3;
             }
-            boolean bl2 = f3 != object.b;
-            n3 = object.a & 0x70;
+            boolean bl2 = f3 != ((LayoutParams)((Object)object)).b;
+            n3 = ((LayoutParams)((Object)object)).a & 0x70;
             if (n3 != 16) {
                 if (n3 != 80) {
-                    n3 = object.topMargin;
+                    n3 = ((ViewGroup.MarginLayoutParams)object).topMargin;
                     object2.layout(n9, n3, n10 + n9, n11 + n3);
                 } else {
                     n3 = n6 - n4;
-                    object2.layout(n9, n3 - object.bottomMargin - object2.getMeasuredHeight(), n10 + n9, n3 - object.bottomMargin);
+                    object2.layout(n9, n3 - ((ViewGroup.MarginLayoutParams)object).bottomMargin - object2.getMeasuredHeight(), n10 + n9, n3 - ((ViewGroup.MarginLayoutParams)object).bottomMargin);
                 }
             } else {
                 int n12 = n6 - n4;
                 int n13 = (n12 - n11) / 2;
-                n3 = object.topMargin;
+                n3 = ((ViewGroup.MarginLayoutParams)object).topMargin;
                 if (n13 >= n3) {
-                    int n14 = object.bottomMargin;
+                    int n14 = ((ViewGroup.MarginLayoutParams)object).bottomMargin;
                     n3 = n13;
                     if (n13 + n11 > n12 - n14) {
                         n3 = n12 - n14 - n11;
@@ -1007,16 +1008,16 @@ extends ViewGroup {
             if (bl2) {
                 this.M((View)object2, f3);
             }
-            n3 = object.b > 0.0f ? 0 : 4;
+            n3 = ((LayoutParams)((Object)object)).b > 0.0f ? 0 : 4;
             if (object2.getVisibility() == n3) continue;
             object2.setVisibility(n3);
         }
-        if (R && (object = this.getRootWindowInsets()) != null) {
-            object = z1.w(object).h();
-            object2 = this.i;
-            ((v0.c)object2).L(Math.max(((v0.c)object2).w(), object.a));
-            object2 = this.j;
-            ((v0.c)object2).L(Math.max(((v0.c)object2).w(), object.c));
+        if (R && (object2 = this.getRootWindowInsets()) != null) {
+            object2 = z1.w((WindowInsets)object2).h();
+            object = this.i;
+            ((v0.c)object).L(Math.max(((v0.c)object).w(), object2.a));
+            object = this.j;
+            ((v0.c)object).L(Math.max(((v0.c)object).w(), object2.c));
         }
         this.n = false;
         this.o = false;

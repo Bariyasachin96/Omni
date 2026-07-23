@@ -46,7 +46,6 @@ import e0.b;
 import e0.c;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
-import java.util.Iterator;
 import o0.y;
 
 public class FragmentActivity
@@ -81,26 +80,26 @@ implements b.b {
     }
 
     public static boolean S(FragmentManager object, f.b b3) {
-        Iterator iterator = ((FragmentManager)object).u0().iterator();
+        object = ((FragmentManager)object).u0().iterator();
         boolean bl = false;
-        while (iterator.hasNext()) {
-            object = (Fragment)iterator.next();
-            if (object == null) continue;
+        while (object.hasNext()) {
+            Fragment fragment = (Fragment)object.next();
+            if (fragment == null) continue;
             boolean bl2 = bl;
-            if (((Fragment)object).z() != null) {
-                bl2 = bl | FragmentActivity.S(((Fragment)object).o(), b3);
+            if (fragment.z() != null) {
+                bl2 = bl | FragmentActivity.S(fragment.o(), b3);
             }
-            c0 c02 = ((Fragment)object).V;
+            c0 c02 = fragment.V;
             bl = bl2;
             if (c02 != null) {
                 bl = bl2;
                 if (c02.t().b().b(f.b.f)) {
-                    ((Fragment)object).V.h(b3);
+                    fragment.V.h(b3);
                     bl = true;
                 }
             }
-            if (!((Fragment)object).U.b().b(f.b.f)) continue;
-            ((Fragment)object).U.m(b3);
+            if (!fragment.U.b().b(f.b.f)) continue;
+            fragment.U.m(b3);
             bl = true;
         }
         return bl;

@@ -220,9 +220,9 @@ extends n1.f {
             int n3 = (int)((float)this.l.width() * f3);
             int n4 = (int)((float)this.l.height() * f4);
             n3 = Math.min(2048, n3);
-            n4 = Math.min(2048, n4);
-            if (n3 > 0 && n4 > 0) {
-                int n5 = canvas.save();
+            int n5 = Math.min(2048, n4);
+            if (n3 > 0 && n5 > 0) {
+                n4 = canvas.save();
                 colorFilter = this.l;
                 canvas.translate((float)colorFilter.left, (float)colorFilter.top);
                 if (this.e()) {
@@ -230,15 +230,15 @@ extends n1.f {
                     canvas.scale(-1.0f, 1.0f);
                 }
                 this.l.offsetTo(0, 0);
-                this.d.c(n3, n4);
+                this.d.c(n3, n5);
                 if (!this.h) {
-                    this.d.j(n3, n4);
+                    this.d.j(n3, n5);
                 } else if (!this.d.b()) {
-                    this.d.j(n3, n4);
+                    this.d.j(n3, n5);
                     this.d.i();
                 }
                 this.d.d(canvas, (ColorFilter)drawable, this.l);
-                canvas.restoreToCount(n5);
+                canvas.restoreToCount(n4);
             }
         }
     }
@@ -436,20 +436,20 @@ extends n1.f {
     public boolean onStateChange(int[] nArray) {
         boolean bl;
         PorterDuff.Mode mode;
-        Drawable drawable = this.c;
-        if (drawable != null) {
-            return drawable.setState(nArray);
+        Object object = this.c;
+        if (object != null) {
+            return object.setState(nArray);
         }
-        h h3 = this.d;
-        drawable = h3.c;
-        if (drawable != null && (mode = h3.d) != null) {
-            this.e = this.i(this.e, (ColorStateList)drawable, mode);
+        object = this.d;
+        ColorStateList colorStateList = ((h)((Object)object)).c;
+        if (colorStateList != null && (mode = ((h)((Object)object)).d) != null) {
+            this.e = this.i(this.e, colorStateList, mode);
             this.invalidateSelf();
             bl = true;
         } else {
             bl = false;
         }
-        if (h3.g() && h3.h(nArray)) {
+        if (((h)((Object)object)).g() && ((h)((Object)object)).h(nArray)) {
             this.invalidateSelf();
             return true;
         }
@@ -780,9 +780,8 @@ extends n1.f {
 
         public d(d e3, o.a a4) {
             super(null);
-            String string;
-            Object object = new Matrix();
-            this.j = object;
+            Object object;
+            this.j = object = new Matrix();
             this.m = null;
             this.c = e3.c;
             this.d = e3.d;
@@ -792,18 +791,19 @@ extends n1.f {
             this.h = e3.h;
             this.i = e3.i;
             this.l = e3.l;
-            this.m = string = e3.m;
+            Object object2 = e3.m;
+            this.m = object2;
             this.k = e3.k;
-            if (string != null) {
-                a4.put(string, this);
+            if (object2 != null) {
+                a4.put(object2, this);
             }
             object.set(e3.j);
-            object = e3.b;
-            for (int i3 = 0; i3 < ((ArrayList)object).size(); ++i3) {
+            object2 = e3.b;
+            for (int i3 = 0; i3 < ((ArrayList)object2).size(); ++i3) {
                 block8: {
                     block7: {
                         block6: {
-                            e3 = ((ArrayList)object).get(i3);
+                            e3 = ((ArrayList)object2).get(i3);
                             if (e3 instanceof d) {
                                 this.b.add(new d((d)e3, a4));
                                 continue;
@@ -816,9 +816,9 @@ extends n1.f {
                         e3 = new b((b)e3);
                     }
                     this.b.add(e3);
-                    string = ((f)e3).b;
-                    if (string == null) continue;
-                    a4.put(string, e3);
+                    object = ((f)e3).b;
+                    if (object == null) continue;
+                    a4.put(object, e3);
                     continue;
                 }
                 throw new IllegalStateException("Unknown object in the tree!");
@@ -1103,13 +1103,13 @@ extends n1.f {
             if (f5 != 0.0f) {
                 Paint.Join join;
                 f3.d(this.a);
-                Object object2 = this.a;
+                Path path = this.a;
                 this.b.reset();
                 if (f3.c()) {
                     colorFilter = this.b;
                     object = f3.c == 0 ? Path.FillType.WINDING : Path.FillType.EVEN_ODD;
                     colorFilter.setFillType((Path.FillType)object);
-                    this.b.addPath((Path)object2, this.c);
+                    this.b.addPath(path, this.c);
                     canvas.clipPath(this.b);
                     return;
                 }
@@ -1125,69 +1125,69 @@ extends n1.f {
                     f4 = this.f.getLength();
                     f7 = (f7 + f8) % 1.0f * f4;
                     f8 = (f9 + f8) % 1.0f * f4;
-                    object2.reset();
+                    path.reset();
                     if (f7 > f8) {
-                        this.f.getSegment(f7, f4, (Path)object2, true);
-                        this.f.getSegment(0.0f, f8, (Path)object2, true);
+                        this.f.getSegment(f7, f4, path, true);
+                        this.f.getSegment(0.0f, f8, path, true);
                     } else {
-                        this.f.getSegment(f7, f8, (Path)object2, true);
+                        this.f.getSegment(f7, f8, path, true);
                     }
-                    object2.rLineTo(0.0f, 0.0f);
+                    path.rLineTo(0.0f, 0.0f);
                 }
-                this.b.addPath((Path)object2, this.c);
+                this.b.addPath(path, this.c);
                 if (((c)f3).h.l()) {
                     object = ((c)f3).h;
                     if (this.e == null) {
-                        object2 = new Paint(1);
-                        this.e = object2;
-                        object2.setStyle(Paint.Style.FILL);
+                        path = new Paint(1);
+                        this.e = path;
+                        path.setStyle(Paint.Style.FILL);
                     }
-                    object2 = this.e;
+                    path = this.e;
                     if (((f0.d)object).h()) {
                         object = ((f0.d)object).f();
                         object.setLocalMatrix(this.c);
-                        object2.setShader((Shader)object);
-                        object2.setAlpha(Math.round(((c)f3).j * 255.0f));
+                        path.setShader((Shader)object);
+                        path.setAlpha(Math.round(((c)f3).j * 255.0f));
                     } else {
-                        object2.setShader(null);
-                        object2.setAlpha(255);
-                        object2.setColor(n1.g.a(((f0.d)object).e(), ((c)f3).j));
+                        path.setShader(null);
+                        path.setAlpha(255);
+                        path.setColor(n1.g.a(((f0.d)object).e(), ((c)f3).j));
                     }
-                    object2.setColorFilter(colorFilter);
+                    path.setColorFilter(colorFilter);
                     join = this.b;
                     object = f3.c == 0 ? Path.FillType.WINDING : Path.FillType.EVEN_ODD;
                     join.setFillType((Path.FillType)object);
-                    canvas.drawPath(this.b, (Paint)object2);
+                    canvas.drawPath(this.b, (Paint)path);
                 }
                 if (((c)f3).f.l()) {
-                    object2 = ((c)f3).f;
+                    object = ((c)f3).f;
                     if (this.d == null) {
-                        object = new Paint(1);
-                        this.d = object;
-                        object.setStyle(Paint.Style.STROKE);
+                        path = new Paint(1);
+                        this.d = path;
+                        path.setStyle(Paint.Style.STROKE);
                     }
-                    object = this.d;
+                    path = this.d;
                     join = ((c)f3).o;
                     if (join != null) {
-                        object.setStrokeJoin(join);
+                        path.setStrokeJoin(join);
                     }
                     if ((join = ((c)f3).n) != null) {
-                        object.setStrokeCap((Paint.Cap)join);
+                        path.setStrokeCap((Paint.Cap)join);
                     }
-                    object.setStrokeMiter(((c)f3).p);
-                    if (((f0.d)object2).h()) {
-                        object2 = ((f0.d)object2).f();
-                        object2.setLocalMatrix(this.c);
-                        object.setShader((Shader)object2);
-                        object.setAlpha(Math.round(((c)f3).i * 255.0f));
+                    path.setStrokeMiter(((c)f3).p);
+                    if (((f0.d)object).h()) {
+                        object = ((f0.d)object).f();
+                        object.setLocalMatrix(this.c);
+                        path.setShader((Shader)object);
+                        path.setAlpha(Math.round(((c)f3).i * 255.0f));
                     } else {
-                        object.setShader(null);
-                        object.setAlpha(255);
-                        object.setColor(n1.g.a(((f0.d)object2).e(), ((c)f3).i));
+                        path.setShader(null);
+                        path.setAlpha(255);
+                        path.setColor(n1.g.a(((f0.d)object).e(), ((c)f3).i));
                     }
-                    object.setColorFilter(colorFilter);
-                    object.setStrokeWidth(((c)f3).g * (f6 * f5));
-                    canvas.drawPath(this.b, (Paint)object);
+                    path.setColorFilter(colorFilter);
+                    path.setStrokeWidth(((c)f3).g * (f6 * f5));
+                    canvas.drawPath(this.b, (Paint)path);
                 }
             }
         }

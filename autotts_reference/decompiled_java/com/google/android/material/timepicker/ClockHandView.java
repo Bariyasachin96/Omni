@@ -130,10 +130,10 @@ extends View {
         double d3 = Math.sin(this.t);
         double d4 = Math.cos(this.t);
         double d5 = n5 - this.m;
-        f4 = n4 + (int)(d4 * d5);
-        f5 = n3 + (int)(d5 * d3);
+        f5 = n4 + (int)(d4 * d5);
+        f7 = n3 + (int)(d5 * d3);
         this.o.setStrokeWidth((float)this.q);
-        canvas.drawLine(f3, f6, f4, f5, this.o);
+        canvas.drawLine(f3, f6, f5, f7, this.o);
         canvas.drawCircle(f3, f6, this.n, this.o);
     }
 
@@ -194,10 +194,10 @@ extends View {
 
     public final boolean k(float f3, float f4, boolean bl, boolean bl2, boolean bl3) {
         int n3 = this.f(f3, f4);
-        f3 = this.g();
-        f4 = n3;
+        f4 = this.g();
+        f3 = n3;
         boolean bl4 = false;
-        n3 = f3 != f4 ? 1 : 0;
+        n3 = f4 != f3 ? 1 : 0;
         if (bl2 && n3 != 0) {
             return true;
         }
@@ -211,7 +211,7 @@ extends View {
                 bl = true;
             }
         }
-        this.o(f4, bl);
+        this.o(f3, bl);
         return true;
     }
 
@@ -313,8 +313,8 @@ extends View {
         f4 += (float)Math.cos(this.t) * f5;
         f5 = (float)n3 + f5 * (float)Math.sin(this.t);
         Object object = this.p;
-        n5 = this.m;
-        object.set(f4 - (float)n5, f5 - (float)n5, f4 + (float)n5, f5 + (float)n5);
+        n4 = this.m;
+        object.set(f4 - (float)n4, f5 - (float)n4, f4 + (float)n4, f5 + (float)n4);
         object = this.l.iterator();
         while (object.hasNext()) {
             ((b)object.next()).a(f3, bl);

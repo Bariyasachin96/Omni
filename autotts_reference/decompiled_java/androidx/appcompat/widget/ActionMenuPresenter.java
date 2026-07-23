@@ -248,8 +248,7 @@ implements b.a {
         while (((l)object).j0() != this.e) {
             object = (l)((l)object).j0();
         }
-        View view = this.C(((l)object).getItem());
-        if (view == null) {
+        if ((object = this.C(((l)object).getItem())) == null) {
             return false;
         }
         this.F = l3.getItem().getItemId();
@@ -258,14 +257,14 @@ implements b.a {
         while (true) {
             bl = bl2;
             if (n4 >= n3) break;
-            object = l3.getItem(n4);
-            if (object.isVisible() && object.getIcon() != null) {
+            MenuItem menuItem = l3.getItem(n4);
+            if (menuItem.isVisible() && menuItem.getIcon() != null) {
                 bl = true;
                 break;
             }
             ++n4;
         }
-        this.B = object = new a(this, this.d, l3, view);
+        this.B = object = new a(this, this.d, l3, (View)object);
         ((h)object).g(bl);
         this.B.k();
         super.f(l3);
@@ -732,15 +731,15 @@ implements b.a {
             Drawable drawable2 = this.getBackground();
             if (drawable != null && drawable2 != null) {
                 int n7 = this.getWidth();
-                n6 = this.getHeight();
-                n3 = Math.max(n7, n6) / 2;
+                n5 = this.getHeight();
+                n3 = Math.max(n7, n5) / 2;
                 int n8 = this.getPaddingLeft();
                 int n9 = this.getPaddingRight();
                 n4 = this.getPaddingTop();
-                n5 = this.getPaddingBottom();
-                n9 = (n7 + (n8 - n9)) / 2;
-                n4 = (n6 + (n4 - n5)) / 2;
-                h0.a.l(drawable2, n9 - n3, n4 - n3, n9 + n3, n4 + n3);
+                n6 = this.getPaddingBottom();
+                n7 = (n7 + (n8 - n9)) / 2;
+                n4 = (n5 + (n4 - n6)) / 2;
+                h0.a.l(drawable2, n7 - n3, n4 - n3, n7 + n3, n4 + n3);
             }
             return bl;
         }

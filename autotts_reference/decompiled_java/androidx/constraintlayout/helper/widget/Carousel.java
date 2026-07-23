@@ -4,14 +4,17 @@
  * Could not load the following classes:
  *  android.content.Context
  *  android.util.AttributeSet
+ *  android.view.View
  */
 package androidx.constraintlayout.helper.widget;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.View;
 import androidx.constraintlayout.motion.widget.MotionHelper;
 import androidx.constraintlayout.motion.widget.MotionLayout;
 import androidx.constraintlayout.motion.widget.a;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import java.util.ArrayList;
 import y.d;
 
@@ -157,21 +160,19 @@ extends MotionHelper {
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
         if (this.getParent() instanceof MotionLayout) {
-            Object object;
-            MotionLayout motionLayout = (MotionLayout)this.getParent();
+            Object object = (MotionLayout)this.getParent();
             this.p.clear();
             for (int i3 = 0; i3 < this.d; ++i3) {
                 int n3 = this.c[i3];
-                object = motionLayout.q(n3);
+                View view = ((ConstraintLayout)((Object)object)).q(n3);
                 if (this.t == n3) {
                     this.A = i3;
                 }
-                this.p.add(object);
+                this.p.add(view);
             }
-            this.s = motionLayout;
+            this.s = object;
             if (this.C == 2) {
-                object = motionLayout.q0(this.w);
-                if (object != null) {
+                if ((object = ((MotionLayout)object).q0(this.w)) != null) {
                     ((a.b)object).G(5);
                 }
                 if ((object = this.s.q0(this.v)) != null) {

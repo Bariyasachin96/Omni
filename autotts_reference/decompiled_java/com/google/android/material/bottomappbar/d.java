@@ -60,10 +60,10 @@ implements Cloneable {
         if (bl) {
             q3.a(f9 - f7, -f7 - f4, f9 + f7, f7 - f4, 180.0f - f5, f5 * 2.0f - 180.0f);
         } else {
-            f13 = this.d;
+            float f14 = this.d;
             f4 = f11 * 2.0f;
-            float f14 = f9 - f7;
-            q3.a(f14, -(f11 + f13), f13 + f4 + f14, f13 + f11, 180.0f - f5, (f5 * 2.0f - 180.0f) / 2.0f);
+            f13 = f9 - f7;
+            q3.a(f13, -(f11 + f14), f14 + f4 + f13, f14 + f11, 180.0f - f5, (f5 * 2.0f - 180.0f) / 2.0f);
             f7 = f9 + f7;
             f9 = this.d;
             q3.m(f7 - (f9 / 2.0f + f11), f9 + f11);

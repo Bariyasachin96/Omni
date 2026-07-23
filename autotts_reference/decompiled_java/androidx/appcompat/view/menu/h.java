@@ -5,6 +5,7 @@
  *  android.content.Context
  *  android.graphics.Point
  *  android.graphics.Rect
+ *  android.view.Display
  *  android.view.View
  *  android.view.WindowManager
  *  android.widget.PopupWindow$OnDismissListener
@@ -14,6 +15,7 @@ package androidx.appcompat.view.menu;
 import android.content.Context;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.view.Display;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.PopupWindow;
@@ -61,10 +63,10 @@ public class h {
     }
 
     public final i.d a() {
-        Object object = ((WindowManager)this.a.getSystemService("window")).getDefaultDisplay();
-        Point point = new Point();
-        object.getRealSize(point);
-        object = Math.min(point.x, point.y) >= this.a.getResources().getDimensionPixelSize(c.d.abc_cascading_menus_min_smallest_width) ? new b(this.a, this.f, this.d, this.e, this.c) : new k(this.a, this.b, this.f, this.d, this.e, this.c);
+        Display display = ((WindowManager)this.a.getSystemService("window")).getDefaultDisplay();
+        Object object = new Point();
+        display.getRealSize((Point)object);
+        object = Math.min(((Point)object).x, ((Point)object).y) >= this.a.getResources().getDimensionPixelSize(c.d.abc_cascading_menus_min_smallest_width) ? new b(this.a, this.f, this.d, this.e, this.c) : new k(this.a, this.b, this.f, this.d, this.e, this.c);
         ((i.d)object).n(this.b);
         ((i.d)object).w(this.l);
         ((i.d)object).r(this.f);

@@ -7,9 +7,10 @@
 package com.vnspeak.autotts;
 
 import android.content.Context;
-import c3.k;
+import c3.m;
 import com.vnspeak.autotts.AutoTtsService;
-import com.vnspeak.autotts.a;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class clsCLD2 {
     static {
@@ -20,7 +21,7 @@ public abstract class clsCLD2 {
         if (string != null && !string.isEmpty()) {
             for (int i3 = 0; i3 < string.length(); ++i3) {
                 char c3 = string.charAt(i3);
-                if (Character.isWhitespace(c3) || c3 >= '0' && c3 <= '9' || clsCLD2.c(c3)) continue;
+                if (Character.isWhitespace(c3) || c3 >= '0' && c3 <= '9' || clsCLD2.e(c3)) continue;
                 return string.codePointAt(i3);
             }
         }
@@ -28,86 +29,136 @@ public abstract class clsCLD2 {
     }
 
     /*
+     * Unable to fully structure code
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public static String b(String object, int n3, int n4, Context object2) {
-        Exception exception3;
-        block15: {
-            boolean bl;
-            if (object == null) return "UNKNOWN";
-            if (((String)object).isEmpty()) {
-                return "UNKNOWN";
-            }
-            int n5 = ((String)object).length();
-            int n6 = 0;
-            while (n6 < n5) {
-                int n7;
-                block13: {
-                    Exception exception22;
-                    block14: {
-                        n7 = n6 + 64;
-                        Object object3 = ((String)object).substring(n6, Math.min(n7, n5));
-                        try {
-                            Object object4 = clsCLD2.nativeGetLanguage((String)object3, n3, n4, (Context)object2);
-                            if (object4 == null || ((String)object4).equals("UNKNOWN")) break block13;
-                            if (AutoTtsService.S) {
-                                return object4;
-                            }
-                            if (k.o((String)object4).booleanValue()) {
-                                return object4;
-                            }
-                            n6 = clsCLD2.a((String)object3);
-                            if (n6 == -1 || (object4 = a.e(n6, k.f)) == null) break block13;
-                            object3 = ((a.a)object4).b();
-                            if (object3 != null && k.o((String)object3).booleanValue()) {
-                                return object3;
-                            }
-                        }
-                        catch (Exception exception22) {
-                            break block14;
-                        }
-                        for (Object object4 : ((a.a)object4).a()) {
-                            if (object4 == null || !(bl = k.o((String)object4).booleanValue())) continue;
-                            return object4;
-                        }
-                        break block13;
-                    }
-                    exception22.printStackTrace();
-                }
-                n6 = n7;
-            }
-            if (AutoTtsService.S) {
-                return "UNKNOWN";
-            }
-            n3 = clsCLD2.a((String)object);
-            if (n3 == -1) return "UNKNOWN";
-            try {
-                object2 = a.e(n3, k.f);
-                if (object2 == null) return "UNKNOWN";
-                object = ((a.a)object2).b();
-                if (object != null && k.o((String)object).booleanValue()) {
-                    return object;
-                }
-            }
-            catch (Exception exception3) {
-                break block15;
-            }
-            object = ((a.a)object2).a().iterator();
-            do {
-                if (!object.hasNext()) return "UNKNOWN";
-            } while ((object2 = (String)object.next()) == null || !(bl = k.o((String)object2).booleanValue()));
-            return object2;
+    public static String b(String var0, int var1_2, int var2_3, Context var3_4) {
+        if (var0 == null) return "UNKNOWN";
+        if (var0.isEmpty()) {
+            return "UNKNOWN";
         }
-        exception3.printStackTrace();
-        return "UNKNOWN";
+        if (var0.length() == 1 && AutoTtsService.X) {
+            return "UNKNOWN";
+        }
+        var6_5 = var0.length();
+        var4_6 = 0;
+        while (true) lbl-1000:
+        // 2 sources
+
+        {
+            if (var4_6 < var6_5) {
+                var5_7 = var4_6 + 64;
+                var9_11 = var0.substring(var4_6, Math.min(var5_7, var6_5));
+                var8_9 = clsCLD2.nativeGetLanguage((String)var9_11, var1_2, var2_3, var3_4 /* !! */ );
+                if (var8_9 == null || var8_9.equals("UNKNOWN")) break block16;
+                if (AutoTtsService.W) {
+                    return var8_9;
+                }
+                if (m.o((String)var8_9).booleanValue()) {
+                    return var8_9;
+                }
+                var4_6 = clsCLD2.a((String)var9_11);
+                if (var4_6 != -1 && (var8_9 = com.vnspeak.autotts.a.e(var4_6, m.f)) != null) {
+                    var9_11 = var8_9.b();
+                    if (var9_11 != null && m.o((String)var9_11).booleanValue()) {
+                        return var9_11;
+                    }
+                    for (Object var8_9 : var8_9.a()) {
+                        if (var8_9 == null || !(var7_8 = m.o((String)var8_9).booleanValue())) continue;
+                        return var8_9;
+                    }
+                }
+                break block16;
+            }
+            if (AutoTtsService.W) {
+                return "UNKNOWN";
+            }
+            var1_2 = clsCLD2.a(var0);
+            if (var1_2 == -1) return "UNKNOWN";
+            var0 = com.vnspeak.autotts.a.e(var1_2, m.f);
+            if (var0 == null) return "UNKNOWN";
+            var3_4 /* !! */  = var0.b();
+            if (var3_4 /* !! */  != null && m.o((String)var3_4 /* !! */ ).booleanValue()) {
+                return var3_4 /* !! */ ;
+            }
+            var0 = var0.a().iterator();
+            do {
+                if (var0.hasNext() == false) return "UNKNOWN";
+            } while ((var3_4 /* !! */  = (String)var0.next()) == null || !(var7_8 = m.o((String)var3_4 /* !! */ ).booleanValue()));
+            return var3_4 /* !! */ ;
+            break;
+        }
+        catch (Exception var0_1) {
+            return "UNKNOWN";
+        }
+        {
+            block16: {
+                catch (Exception var8_10) {}
+            }
+            var4_6 = var5_7;
+            ** while (true)
+        }
     }
 
-    public static boolean c(char c3) {
+    public static List c(String stringArray, int n3, int n4, Object object) {
+        ArrayList<a> arrayList = new ArrayList<a>();
+        int n5 = 0;
+        if (stringArray != null && !stringArray.isEmpty()) {
+            if (AutoTtsService.X && stringArray.length() == 1) {
+                arrayList.add(new a("un", clsCLD2.d((String)stringArray), (String)stringArray));
+                return arrayList;
+            }
+            stringArray = clsCLD2.nativeGetLanguages((String)stringArray, n3, n4, object);
+            n3 = n5;
+            if (stringArray != null) {
+                while ((n4 = n3 + 2) < stringArray.length) {
+                    arrayList.add(new a(stringArray[n3], "1".equals(stringArray[n3 + 1]), stringArray[n4]));
+                    n3 += 3;
+                }
+            }
+            return arrayList;
+        }
+        arrayList.add(new a("un", false, ""));
+        return arrayList;
+    }
+
+    public static boolean d(String object) {
+        return (object = Character.UnicodeScript.of(object.codePointAt(0))) == Character.UnicodeScript.LATIN || object == Character.UnicodeScript.COMMON || object == Character.UnicodeScript.INHERITED;
+        {
+        }
+    }
+
+    public static boolean e(char c3) {
         return c3 >= '!' && c3 <= '/' || c3 >= ':' && c3 <= '@' || c3 >= '[' && c3 <= '`' || c3 >= '{' && c3 <= '~';
     }
 
     private static native String nativeGetLanguage(String var0, int var1, int var2, Context var3);
+
+    public static native String[] nativeGetLanguages(String var0, int var1, int var2, Object var3);
+
+    public static class a {
+        public final String a;
+        public final boolean b;
+        public final String c;
+
+        public a(String string, boolean bl, String string2) {
+            this.a = string;
+            this.b = bl;
+            this.c = string2;
+        }
+
+        public String toString() {
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append("[");
+            stringBuilder.append(this.a);
+            String string = this.b ? "/latin" : "/non-latin";
+            stringBuilder.append(string);
+            stringBuilder.append("] ");
+            stringBuilder.append(this.c);
+            return stringBuilder.toString();
+        }
+    }
 }
 

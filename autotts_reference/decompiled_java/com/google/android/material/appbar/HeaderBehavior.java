@@ -63,10 +63,10 @@ extends ViewOffsetBehavior<V> {
                     if (var5_4 == -1) {
                         return false;
                     }
-                    var5_4 = (int)var3_3.getY(var5_4);
-                    var6_5 = this.j;
-                    this.j = var5_4;
-                    this.S(var1_1, var2_2, var6_5 - var5_4, this.O(var2_2), 0);
+                    var6_5 = (int)var3_3.getY(var5_4);
+                    var5_4 = this.j;
+                    this.j = var6_5;
+                    this.S(var1_1, var2_2, var5_4 - var6_5, this.O(var2_2), 0);
                 }
                 var6_5 = 0;
                 break block10;

@@ -118,36 +118,36 @@ extends p {
                                     if (!this.i.c) {
                                         return;
                                     }
-                                    n7 = ((f)((f)object2).l.get((int)0)).g;
-                                    int n12 = this.h.f;
-                                    int n13 = ((f)this.i.l.get((int)0)).g;
-                                    int n14 = this.i.f;
-                                    int n15 = ((f)object).g;
-                                    n4 = ((f)object).f;
-                                    n5 = ((f)d3).g;
+                                    n4 = ((f)((f)object2).l.get((int)0)).g;
+                                    n7 = this.h.f;
+                                    n5 = ((f)this.i.l.get((int)0)).g;
+                                    int n12 = this.i.f;
+                                    int n13 = ((f)object).g;
+                                    int n14 = ((f)object).f;
+                                    int n15 = ((f)d3).g;
                                     n3 = ((f)d3).f;
-                                    this.q(k, n12 + n7, n13 - n14, n4 + n15, n5 - n3, f3, n6);
+                                    this.q(k, n7 + n4, n5 - n12, n14 + n13, n15 - n3, f3, n6);
                                     this.e.d(k[0]);
                                     this.b.f.e.d(k[1]);
                                     return;
                                 }
-                                object2 = this.h;
-                                if (((f)object2).j) {
-                                    f f5 = this.i;
-                                    if (f5.j) {
+                                f f5 = this.h;
+                                if (f5.j) {
+                                    object2 = this.i;
+                                    if (((f)object2).j) {
                                         if (!((f)object).c) return;
                                         if (!((f)d3).c) {
                                             return;
                                         }
-                                        n5 = ((f)object2).g;
-                                        n11 = ((f)object2).f;
-                                        n10 = f5.g;
-                                        n7 = f5.f;
-                                        n4 = ((f)((f)object).l.get((int)0)).g;
-                                        n9 = ((f)object).f;
-                                        n8 = ((f)((f)d3).l.get((int)0)).g;
-                                        n3 = ((f)d3).f;
-                                        this.q(k, n5 + n11, n10 - n7, n9 + n4, n8 - n3, f3, n6);
+                                        n4 = f5.g;
+                                        n11 = f5.f;
+                                        n10 = ((f)object2).g;
+                                        n9 = ((f)object2).f;
+                                        n5 = ((f)((f)object).l.get((int)0)).g;
+                                        n8 = ((f)object).f;
+                                        n3 = ((f)((f)d3).l.get((int)0)).g;
+                                        n7 = ((f)d3).f;
+                                        this.q(k, n4 + n11, n10 - n9, n8 + n5, n3 - n7, f3, n6);
                                         this.e.d(k[0]);
                                         this.b.f.e.d(k[1]);
                                     }
@@ -159,15 +159,15 @@ extends p {
                                 if (!((f)d3).c) {
                                     return;
                                 }
-                                n11 = ((f)((f)object2).l.get((int)0)).g;
-                                n7 = this.h.f;
-                                n8 = ((f)this.i.l.get((int)0)).g;
-                                n3 = this.i.f;
-                                n9 = ((f)((f)object).l.get((int)0)).g;
-                                n5 = ((f)object).f;
-                                n4 = ((f)((f)d3).l.get((int)0)).g;
-                                n10 = ((f)d3).f;
-                                this.q(k, n7 + n11, n8 - n3, n5 + n9, n4 - n10, f3, n6);
+                                n4 = ((f)((f)object2).l.get((int)0)).g;
+                                n9 = this.h.f;
+                                n3 = ((f)this.i.l.get((int)0)).g;
+                                n5 = this.i.f;
+                                n7 = ((f)((f)object).l.get((int)0)).g;
+                                n8 = ((f)object).f;
+                                n10 = ((f)((f)d3).l.get((int)0)).g;
+                                n11 = ((f)d3).f;
+                                this.q(k, n9 + n4, n3 - n5, n8 + n7, n10 - n11, f3, n6);
                                 this.e.d(k[0]);
                                 this.b.f.e.d(k[1]);
                                 break block31;
@@ -238,13 +238,13 @@ extends p {
                 }
             }
         }
-        d3 = this.h;
-        if (!((f)d3).c) return;
-        object = this.i;
-        if (!((f)object).c) {
+        object = this.h;
+        if (!((f)object).c) return;
+        d3 = this.i;
+        if (!((f)d3).c) {
             return;
         }
-        if (((f)d3).j && ((f)object).j && this.e.j) {
+        if (((f)object).j && ((f)d3).j && this.e.j) {
             return;
         }
         if (!this.e.j && this.d == e.b.e) {
@@ -263,11 +263,11 @@ extends p {
             }
         }
         if (!this.e.j && this.d == e.b.e && this.a == 1 && this.h.l.size() > 0 && this.i.l.size() > 0) {
-            object = (f)this.h.l.get(0);
-            d3 = (f)this.i.l.get(0);
-            n4 = ((f)object).g;
-            n5 = this.h.f;
-            n5 = Math.min(((f)d3).g + this.i.f - (n4 + n5), this.e.m);
+            d3 = (f)this.h.l.get(0);
+            object = (f)this.i.l.get(0);
+            n5 = ((f)d3).g;
+            n4 = this.h.f;
+            n5 = Math.min(((f)object).g + this.i.f - (n5 + n4), this.e.m);
             object = this.b;
             n3 = ((e)object).A;
             n5 = n4 = Math.max(((e)object).z, n5);
@@ -279,14 +279,14 @@ extends p {
         if (!this.e.j) {
             return;
         }
-        object = (f)this.h.l.get(0);
-        d3 = (f)this.i.l.get(0);
-        n4 = ((f)object).g + this.h.f;
-        n5 = ((f)d3).g + this.i.f;
+        d3 = (f)this.h.l.get(0);
+        object = (f)this.i.l.get(0);
+        n4 = ((f)d3).g + this.h.f;
+        n5 = ((f)object).g + this.i.f;
         f3 = this.b.A();
-        if (object == d3) {
-            n4 = ((f)object).g;
-            n5 = ((f)d3).g;
+        if (d3 == object) {
+            n4 = ((f)d3).g;
+            n5 = ((f)object).g;
             f3 = 0.5f;
         }
         n3 = this.e.g;
@@ -382,23 +382,23 @@ extends p {
             }
         }
         if (this.d == e.b.e) {
-            object = this.b;
-            int n6 = ((e)object).w;
+            e e7 = this.b;
+            int n6 = e7.w;
             if (n6 != 2) {
                 if (n6 == 3) {
-                    if (((e)object).x == 3) {
+                    if (e7.x == 3) {
                         this.h.a = this;
                         this.i.a = this;
-                        n n7 = ((e)object).f;
-                        n7.h.a = this;
-                        n7.i.a = this;
+                        object = e7.f;
+                        ((p)object).h.a = this;
+                        ((p)object).i.a = this;
                         g3.a = this;
-                        if (((e)object).m0()) {
+                        if (e7.m0()) {
                             this.e.l.add(this.b.f.e);
                             this.b.f.e.k.add(this.e);
-                            n n8 = this.b.f;
-                            n8.e.a = this;
-                            this.e.l.add(n8.h);
+                            n n7 = this.b.f;
+                            n7.e.a = this;
+                            this.e.l.add(n7.h);
                             this.e.l.add(this.b.f.i);
                             this.b.f.h.k.add(this.e);
                             this.b.f.i.k.add(this.e);
@@ -409,7 +409,7 @@ extends p {
                             this.b.f.e.l.add(this.e);
                         }
                     } else {
-                        g g4 = ((e)object).f.e;
+                        g g4 = e7.f.e;
                         g3.l.add(g4);
                         g4.k.add(this.e);
                         this.b.f.h.k.add(this.e);
@@ -423,9 +423,9 @@ extends p {
                     }
                 }
             } else {
-                e e7 = ((e)object).M();
-                if (e7 != null) {
-                    g g6 = e7.f.e;
+                e e8 = e7.M();
+                if (e8 != null) {
+                    g g6 = e8.f.e;
                     this.e.l.add(g6);
                     g6.k.add(this.e);
                     g g7 = this.e;
@@ -435,12 +435,12 @@ extends p {
                 }
             }
         }
-        e e8 = this.b;
-        u.d[] dArray = e8.Y;
+        e e9 = this.b;
+        u.d[] dArray = e9.Y;
         object = dArray[0];
         u.d d6 = ((u.d)object).f;
         if (d6 != null && dArray[1].f != null) {
-            if (e8.k0()) {
+            if (e9.k0()) {
                 this.h.f = this.b.Y[0].f();
                 this.i.f = -this.b.Y[1].f();
                 return;
@@ -471,7 +471,7 @@ extends p {
             this.c(this.h, this.i, -1, this.e);
             return;
         }
-        if (e8 instanceof i || e8.M() == null) return;
+        if (e9 instanceof i || e9.M() == null) return;
         f f12 = this.b.M().e.h;
         this.b(this.h, f12, this.b.Z());
         this.c(this.i, this.h, 1, this.e);

@@ -239,13 +239,13 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         ((b)object2).P0((TimeInterpolator)object4);
         ((b)object2).K0((TimeInterpolator)object4);
         ((b)object2).m0(0x800033);
-        object4 = z1.m.TextInputLayout;
+        object2 = z1.m.TextInputLayout;
         int n5 = z1.m.TextInputLayout_counterTextAppearance;
         int n6 = z1.m.TextInputLayout_counterOverflowTextAppearance;
         int n7 = z1.m.TextInputLayout_errorTextAppearance;
         int n8 = z1.m.TextInputLayout_helperTextTextAppearance;
         int n9 = z1.m.TextInputLayout_hintTextAppearance;
-        object2 = com.google.android.material.internal.z.j(object3, (AttributeSet)object, (int[])object4, n3, n4, new int[]{n5, n6, n7, n8, n9});
+        object2 = com.google.android.material.internal.z.j(object3, (AttributeSet)object, (int[])object2, n3, n4, new int[]{n5, n6, n7, n8, n9});
         object4 = new y(this, (m0)object2);
         this.d = object4;
         this.F = ((m0)object2).a(z1.m.TextInputLayout_hintEnabled, true);
@@ -339,28 +339,28 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         }
         this.D = ((m0)object2).c(z1.m.TextInputLayout_cursorColor);
         this.E = ((m0)object2).c(z1.m.TextInputLayout_cursorErrorColor);
-        n9 = ((m0)object2).n(n7, 0);
-        object3 = ((m0)object2).p(z1.m.TextInputLayout_errorContentDescription);
+        n7 = ((m0)object2).n(n7, 0);
+        CharSequence charSequence = ((m0)object2).p(z1.m.TextInputLayout_errorContentDescription);
         n3 = ((m0)object2).k(z1.m.TextInputLayout_errorAccessibilityLiveRegion, 1);
         boolean bl = ((m0)object2).a(z1.m.TextInputLayout_errorEnabled, false);
-        n7 = ((m0)object2).n(n8, 0);
+        n8 = ((m0)object2).n(n8, 0);
         boolean bl2 = ((m0)object2).a(z1.m.TextInputLayout_helperTextEnabled, false);
         object = ((m0)object2).p(z1.m.TextInputLayout_helperText);
-        n8 = ((m0)object2).n(z1.m.TextInputLayout_placeholderTextAppearance, 0);
-        CharSequence charSequence = ((m0)object2).p(z1.m.TextInputLayout_placeholderText);
+        n9 = ((m0)object2).n(z1.m.TextInputLayout_placeholderTextAppearance, 0);
+        object3 = ((m0)object2).p(z1.m.TextInputLayout_placeholderText);
         boolean bl3 = ((m0)object2).a(z1.m.TextInputLayout_counterEnabled, false);
         this.setCounterMaxLength(((m0)object2).k(z1.m.TextInputLayout_counterMaxLength, -1));
         this.t = ((m0)object2).n(n5, 0);
         this.s = ((m0)object2).n(n6, 0);
         this.setBoxBackgroundMode(((m0)object2).k(z1.m.TextInputLayout_boxBackgroundMode, 0));
-        this.setErrorContentDescription((CharSequence)object3);
+        this.setErrorContentDescription(charSequence);
         this.setErrorAccessibilityLiveRegion(n3);
         this.setCounterOverflowTextAppearance(this.s);
-        this.setHelperTextTextAppearance(n7);
-        this.setErrorTextAppearance(n9);
+        this.setHelperTextTextAppearance(n8);
+        this.setErrorTextAppearance(n7);
         this.setCounterTextAppearance(this.t);
-        this.setPlaceholderText(charSequence);
-        this.setPlaceholderTextAppearance(n8);
+        this.setPlaceholderText((CharSequence)object3);
+        this.setPlaceholderTextAppearance(n9);
         n3 = z1.m.TextInputLayout_errorTextColor;
         if (((m0)object2).s(n3)) {
             this.setErrorTextColor(((m0)object2).c(n3));
@@ -405,12 +405,12 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         int n4 = h2.a.c((Context)object, z1.c.colorSurface, "TextInputLayout");
         object = new v2.i(i3.K());
         n3 = h2.a.j(n3, n4, 0.1f);
-        ((v2.i)object).i0(new ColorStateList(object2, new int[]{n3, 0}));
+        ((v2.i)object).i0(new ColorStateList((int[][])object2, new int[]{n3, 0}));
         ((v2.i)object).setTint(n4);
-        object2 = new ColorStateList(object2, new int[]{n3, n4});
-        v2.i i4 = new v2.i(i3.K());
-        i4.setTint(-1);
-        return new LayerDrawable(new Drawable[]{new RippleDrawable((ColorStateList)object2, (Drawable)object, (Drawable)i4), i3});
+        ColorStateList colorStateList = new ColorStateList((int[][])object2, new int[]{n3, n4});
+        object2 = new v2.i(i3.K());
+        ((v2.i)object2).setTint(-1);
+        return new LayerDrawable(new Drawable[]{new RippleDrawable(colorStateList, (Drawable)object, (Drawable)object2), i3});
     }
 
     public static void Y(ViewGroup viewGroup, boolean bl) {
@@ -719,12 +719,12 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         if (this.N != null && (i3 = this.M) != null) {
             i3.draw(canvas);
             if (this.g.isFocused()) {
-                Rect rect = this.N.getBounds();
-                i3 = this.M.getBounds();
+                i3 = this.N.getBounds();
+                Rect rect = this.M.getBounds();
                 float f3 = this.y0.H();
-                int n3 = i3.centerX();
-                rect.left = a2.a.c(n3, ((Rect)i3).left, f3);
-                rect.right = a2.a.c(n3, ((Rect)i3).right, f3);
+                int n3 = rect.centerX();
+                ((Rect)i3).left = a2.a.c(n3, rect.left, f3);
+                ((Rect)i3).right = a2.a.c(n3, rect.right, f3);
                 this.N.draw(canvas);
             }
         }
@@ -967,11 +967,11 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         this.onProvideAutofillVirtualStructure(viewStructure, n3);
         viewStructure.setChildCount(this.c.getChildCount());
         for (int i3 = 0; i3 < this.c.getChildCount(); ++i3) {
-            charSequence = this.c.getChildAt(i3);
-            editText = viewStructure.newChild(i3);
-            charSequence.dispatchProvideAutofillStructure((ViewStructure)editText, n3);
-            if (charSequence != this.g) continue;
-            editText.setHint(this.getHint());
+            editText = this.c.getChildAt(i3);
+            charSequence = viewStructure.newChild(i3);
+            editText.dispatchProvideAutofillStructure((ViewStructure)charSequence, n3);
+            if (editText != this.g) continue;
+            charSequence.setHint(this.getHint());
         }
     }
 
@@ -1332,9 +1332,9 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
             i3.setBounds(rect.left, n4 - n3, rect.right, n4);
         }
         if ((i3 = this.N) != null) {
-            n3 = rect.bottom;
-            n4 = this.V;
-            i3.setBounds(rect.left, n3 - n4, rect.right, n3);
+            n4 = rect.bottom;
+            n3 = this.V;
+            i3.setBounds(rect.left, n4 - n3, rect.right, n4);
         }
     }
 
@@ -1633,8 +1633,8 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
                 this.g0 = var1_3;
                 var5_4.setBounds(0, 0, var1_3, 1);
             }
-            if ((var5_4 = (var7_5 = this.g.getCompoundDrawablesRelative())[0]) == (var6_6 = this.f0)) ** GOTO lbl-1000
-            this.g.setCompoundDrawablesRelative(var6_6, var7_5[1], var7_5[2], var7_5[3]);
+            if ((var6_6 = (var7_5 = this.g.getCompoundDrawablesRelative())[0]) == (var5_4 = this.f0)) ** GOTO lbl-1000
+            this.g.setCompoundDrawablesRelative((Drawable)var5_4, var7_5[1], var7_5[2], var7_5[3]);
             ** GOTO lbl19
         }
         if (this.f0 != null) {

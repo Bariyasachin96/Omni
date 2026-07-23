@@ -91,19 +91,19 @@ public abstract class e {
 
     public static b e(XmlPullParser xmlPullParser, Resources resources) {
         TypedArray typedArray = resources.obtainAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), b0.c.FontFamily);
-        Object object = typedArray.getString(b0.c.FontFamily_fontProviderAuthority);
-        String string = typedArray.getString(b0.c.FontFamily_fontProviderPackage);
-        String string2 = typedArray.getString(b0.c.FontFamily_fontProviderQuery);
+        String string = typedArray.getString(b0.c.FontFamily_fontProviderAuthority);
+        String string2 = typedArray.getString(b0.c.FontFamily_fontProviderPackage);
+        Object object = typedArray.getString(b0.c.FontFamily_fontProviderQuery);
         int n3 = typedArray.getResourceId(b0.c.FontFamily_fontProviderCerts, 0);
         int n4 = typedArray.getInteger(b0.c.FontFamily_fontProviderFetchStrategy, 1);
         int n5 = typedArray.getInteger(b0.c.FontFamily_fontProviderFetchTimeout, 500);
         String string3 = typedArray.getString(b0.c.FontFamily_fontProviderSystemFontFamily);
         typedArray.recycle();
-        if (object != null && string != null && string2 != null) {
+        if (string != null && string2 != null && object != null) {
             while (xmlPullParser.next() != 3) {
                 e.g(xmlPullParser);
             }
-            return new e(new l0.e((String)object, string, string2, e.c(resources, n3)), n4, n5, string3);
+            return new e(new l0.e(string, string2, (String)object, e.c(resources, n3)), n4, n5, string3);
         }
         object = new ArrayList();
         while (xmlPullParser.next() != 3) {
@@ -120,38 +120,39 @@ public abstract class e {
         return new c(object.toArray(new d[0]));
     }
 
-    public static d f(XmlPullParser xmlPullParser, Resources resources) {
+    public static d f(XmlPullParser xmlPullParser, Resources object) {
         int n3;
-        if (!(resources = resources.obtainAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), b0.c.FontFamilyFont)).hasValue(n3 = b0.c.FontFamilyFont_fontWeight)) {
+        TypedArray typedArray = object.obtainAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), b0.c.FontFamilyFont);
+        if (!typedArray.hasValue(n3 = b0.c.FontFamilyFont_fontWeight)) {
             n3 = b0.c.FontFamilyFont_android_fontWeight;
         }
-        int n4 = resources.getInt(n3, 400);
+        int n4 = typedArray.getInt(n3, 400);
         n3 = b0.c.FontFamilyFont_fontStyle;
-        if (!resources.hasValue(n3)) {
+        if (!typedArray.hasValue(n3)) {
             n3 = b0.c.FontFamilyFont_android_fontStyle;
         }
-        boolean bl = 1 == resources.getInt(n3, 0);
+        boolean bl = 1 == typedArray.getInt(n3, 0);
         n3 = b0.c.FontFamilyFont_ttcIndex;
-        if (!resources.hasValue(n3)) {
+        if (!typedArray.hasValue(n3)) {
             n3 = b0.c.FontFamilyFont_android_ttcIndex;
         }
         int n5 = b0.c.FontFamilyFont_fontVariationSettings;
-        if (!resources.hasValue(n5)) {
+        if (!typedArray.hasValue(n5)) {
             n5 = b0.c.FontFamilyFont_android_fontVariationSettings;
         }
-        String string = resources.getString(n5);
-        n5 = resources.getInt(n3, 0);
+        String string = typedArray.getString(n5);
+        n5 = typedArray.getInt(n3, 0);
         n3 = b0.c.FontFamilyFont_font;
-        if (!resources.hasValue(n3)) {
+        if (!typedArray.hasValue(n3)) {
             n3 = b0.c.FontFamilyFont_android_font;
         }
-        int n6 = resources.getResourceId(n3, 0);
-        String string2 = resources.getString(n3);
-        resources.recycle();
+        int n6 = typedArray.getResourceId(n3, 0);
+        object = typedArray.getString(n3);
+        typedArray.recycle();
         while (xmlPullParser.next() != 3) {
             e.g(xmlPullParser);
         }
-        return new d(string2, n4, bl, string, n5, n6);
+        return new d((String)object, n4, bl, string, n5, n6);
     }
 
     public static void g(XmlPullParser xmlPullParser) {

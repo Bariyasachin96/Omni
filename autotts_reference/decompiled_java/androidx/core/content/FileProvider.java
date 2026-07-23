@@ -106,20 +106,20 @@ extends ContentProvider {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public static b g(Context context, String object, int n3) {
+    public static b g(Context object, String object2, int n3) {
         HashMap hashMap = i;
         synchronized (hashMap) {
             try {
                 b b4;
-                b b3 = b4 = (b)hashMap.get(object);
+                b b3 = b4 = (b)hashMap.get(object2);
                 if (b4 == null) {
                     try {
-                        b3 = FileProvider.j(context, (String)object, n3);
-                        hashMap.put(object, b3);
+                        b3 = FileProvider.j((Context)object, (String)object2, n3);
+                        hashMap.put(object2, b3);
                     }
                     catch (XmlPullParserException xmlPullParserException) {
-                        object = new IllegalArgumentException("Failed to parse android.support.FILE_PROVIDER_PATHS meta-data", xmlPullParserException);
-                        throw object;
+                        object2 = new IllegalArgumentException("Failed to parse android.support.FILE_PROVIDER_PATHS meta-data", xmlPullParserException);
+                        throw object2;
                     }
                     catch (IOException iOException) {
                         object = new IllegalArgumentException("Failed to parse android.support.FILE_PROVIDER_PATHS meta-data", iOException);

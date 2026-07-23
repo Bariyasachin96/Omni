@@ -68,13 +68,13 @@ public abstract class i {
         }
         if (((o)object).a(e3)) {
             if (e3 instanceof h) {
-                h h3 = (h)e3;
-                object2 = h3.w1();
+                object2 = (h)e3;
+                d d3 = ((h)object2).w1();
                 n6 = n5;
-                if (h3.x1() == 0) {
+                if (((h)object2).x1() == 0) {
                     n6 = 1;
                 }
-                ((d)object2).c(n6, arrayList, (o)object);
+                d3.c(n6, arrayList, (o)object);
             }
             if (n3 == 0) {
                 e3.S0 = ((o)object).c();

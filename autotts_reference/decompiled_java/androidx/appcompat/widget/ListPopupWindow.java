@@ -435,7 +435,6 @@ implements i.f {
         a0 a02 = this.e;
         boolean bl = true;
         if (a02 == null) {
-            a0 a03;
             a02 = this.c;
             this.C = new Runnable(this){
                 public final ListPopupWindow c;
@@ -451,10 +450,11 @@ implements i.f {
                     }
                 }
             };
-            this.e = a03 = this.s((Context)a02, this.G ^ true);
-            Object object = this.v;
-            if (object != null) {
-                a03.setSelector((Drawable)object);
+            Object object = this.s((Context)a02, this.G ^ true);
+            this.e = object;
+            Drawable drawable = this.v;
+            if (drawable != null) {
+                ((a0)((Object)object)).setSelector(drawable);
             }
             this.e.setAdapter(this.d);
             this.e.setOnItemClickListener(this.w);
@@ -481,8 +481,8 @@ implements i.f {
                 this.e.setOnItemSelectedListener((AdapterView.OnItemSelectedListener)object);
             }
             object = this.e;
-            a03 = this.r;
-            if (a03 != null) {
+            drawable = this.r;
+            if (drawable != null) {
                 a02 = new LinearLayout((Context)a02);
                 a02.setOrientation(1);
                 LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-1, 0, 1.0f);
@@ -495,22 +495,22 @@ implements i.f {
                         Log.e((String)"ListPopupWindow", (String)((StringBuilder)object).toString());
                     } else {
                         a02.addView((View)object, (ViewGroup.LayoutParams)layoutParams);
-                        a02.addView((View)a03);
+                        a02.addView((View)drawable);
                     }
                 } else {
-                    a02.addView((View)a03);
+                    a02.addView((View)drawable);
                     a02.addView((View)object, (ViewGroup.LayoutParams)layoutParams);
                 }
-                n6 = this.g;
-                if (n6 >= 0) {
-                    n5 = Integer.MIN_VALUE;
+                n5 = this.g;
+                if (n5 >= 0) {
+                    n6 = Integer.MIN_VALUE;
                 } else {
-                    n6 = 0;
                     n5 = 0;
+                    n6 = 0;
                 }
-                a03.measure(View.MeasureSpec.makeMeasureSpec((int)n6, (int)n5), 0);
-                object = (LinearLayout.LayoutParams)a03.getLayoutParams();
-                n6 = a03.getMeasuredHeight() + ((LinearLayout.LayoutParams)object).topMargin + ((LinearLayout.LayoutParams)object).bottomMargin;
+                drawable.measure(View.MeasureSpec.makeMeasureSpec((int)n5, (int)n6), 0);
+                object = (LinearLayout.LayoutParams)drawable.getLayoutParams();
+                n6 = drawable.getMeasuredHeight() + ((LinearLayout.LayoutParams)object).topMargin + ((LinearLayout.LayoutParams)object).bottomMargin;
             } else {
                 n6 = 0;
                 a02 = object;

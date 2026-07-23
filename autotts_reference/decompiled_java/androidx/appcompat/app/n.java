@@ -399,11 +399,11 @@ lbl19:
                 objectArray[1] = null;
                 return null;
             }
-            objectArray = this.s((Context)objectArray, (String)object, null);
-            view = this.a;
-            view[0] = null;
-            view[1] = null;
-            return objectArray;
+            view = this.s((Context)objectArray, (String)object, null);
+            objectArray = this.a;
+            objectArray[0] = null;
+            objectArray[1] = null;
+            return view;
         }
         catch (Throwable throwable) {}
         objectArray = this.a;

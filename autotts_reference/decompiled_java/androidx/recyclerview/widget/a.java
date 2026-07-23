@@ -479,44 +479,43 @@ implements h.a {
             int n7 = b3.a;
             if (n7 == 8) {
                 int n8;
-                int n9;
-                n6 = b3.b;
-                n7 = b3.d;
-                if (n6 < n7) {
-                    n9 = n6;
-                    n8 = n3 = n7;
+                n7 = b3.b;
+                n6 = b3.d;
+                if (n7 < n6) {
+                    n8 = n7;
+                    n3 = n6;
                 } else {
+                    n3 = n7;
                     n8 = n6;
-                    n9 = n3 = n7;
                 }
-                if (n5 >= n9 && n5 <= n8) {
-                    if (n9 == n6) {
+                if (n5 >= n8 && n5 <= n3) {
+                    if (n8 == n7) {
                         if (n4 == 1) {
-                            b3.d = n7 + 1;
+                            b3.d = n6 + 1;
                         } else if (n4 == 2) {
-                            b3.d = n7 - 1;
+                            b3.d = n6 - 1;
                         }
                         n3 = n5 + 1;
                     } else {
                         if (n4 == 1) {
-                            b3.b = n6 + 1;
+                            b3.b = n7 + 1;
                         } else if (n4 == 2) {
-                            b3.b = n6 - 1;
+                            b3.b = n7 - 1;
                         }
                         n3 = n5 - 1;
                     }
                 } else {
                     n3 = n5;
-                    if (n5 < n6) {
+                    if (n5 < n7) {
                         if (n4 == 1) {
-                            b3.b = n6 + 1;
-                            b3.d = n7 + 1;
+                            b3.b = n7 + 1;
+                            b3.d = n6 + 1;
                             n3 = n5;
                         } else {
                             n3 = n5;
                             if (n4 == 2) {
-                                b3.b = n6 - 1;
-                                b3.d = n7 - 1;
+                                b3.b = n7 - 1;
+                                b3.d = n6 - 1;
                                 n3 = n5;
                             }
                         }

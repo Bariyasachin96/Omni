@@ -27,9 +27,16 @@ import z1.m;
 public class MaterialRadioButton
 extends AppCompatRadioButton {
     public static final int i = l.Widget_MaterialComponents_CompoundButton_RadioButton;
-    public static final int[][] j = new int[][]{{16842910, 0x10100A0}, {16842910, -16842912}, {-16842910, 0x10100A0}, {-16842910, -16842912}};
+    public static final int[][] j;
     public ColorStateList g;
     public boolean h;
+
+    static {
+        int[] nArray = new int[]{16842910, -16842912};
+        int[] nArray2 = new int[]{-16842910, 0x10100A0};
+        int[] nArray3 = new int[]{-16842910, -16842912};
+        j = new int[][]{{16842910, 0x10100A0}, nArray, nArray2, nArray3};
+    }
 
     public MaterialRadioButton(Context context) {
         this(context, null);

@@ -197,14 +197,14 @@ implements v {
             this.u = n3;
         }
         this.q = ((m0)object2).f(c.j.Toolbar_maxButtonHeight, -1);
-        n4 = ((m0)object2).e(c.j.Toolbar_contentInsetStart, Integer.MIN_VALUE);
+        int n6 = ((m0)object2).e(c.j.Toolbar_contentInsetStart, Integer.MIN_VALUE);
         n3 = ((m0)object2).e(c.j.Toolbar_contentInsetEnd, Integer.MIN_VALUE);
-        int n6 = ((m0)object2).f(c.j.Toolbar_contentInsetLeft, 0);
-        n5 = ((m0)object2).f(c.j.Toolbar_contentInsetRight, 0);
+        n5 = ((m0)object2).f(c.j.Toolbar_contentInsetLeft, 0);
+        n4 = ((m0)object2).f(c.j.Toolbar_contentInsetRight, 0);
         this.i();
-        this.v.e(n6, n5);
-        if (n4 != Integer.MIN_VALUE || n3 != Integer.MIN_VALUE) {
-            this.v.g(n4, n3);
+        this.v.e(n5, n4);
+        if (n6 != Integer.MIN_VALUE || n3 != Integer.MIN_VALUE) {
+            this.v.g(n6, n3);
         }
         this.w = ((m0)object2).e(c.j.Toolbar_contentInsetStartWithNavigation, Integer.MIN_VALUE);
         this.x = ((m0)object2).e(c.j.Toolbar_contentInsetEndWithActions, Integer.MIN_VALUE);
@@ -289,10 +289,10 @@ implements v {
         int n5 = layoutParams.leftMargin - nArray[0];
         n3 += Math.max(0, n5);
         nArray[0] = Math.max(0, -n5);
-        n4 = this.s(view, n4);
-        n5 = view.getMeasuredWidth();
-        view.layout(n3, n4, n3 + n5, view.getMeasuredHeight() + n4);
-        return n3 + (n5 + layoutParams.rightMargin);
+        n5 = this.s(view, n4);
+        n4 = view.getMeasuredWidth();
+        view.layout(n3, n5, n3 + n4, view.getMeasuredHeight() + n5);
+        return n3 + (n4 + layoutParams.rightMargin);
     }
 
     public final int F(View view, int n3, int[] nArray, int n4) {
@@ -300,10 +300,10 @@ implements v {
         int n5 = layoutParams.rightMargin - nArray[1];
         n3 -= Math.max(0, n5);
         nArray[1] = Math.max(0, -n5);
-        n4 = this.s(view, n4);
-        n5 = view.getMeasuredWidth();
-        view.layout(n3 - n5, n4, n3, view.getMeasuredHeight() + n4);
-        return n3 - (n5 + layoutParams.leftMargin);
+        n5 = this.s(view, n4);
+        n4 = view.getMeasuredWidth();
+        view.layout(n3 - n4, n5, n3, view.getMeasuredHeight() + n5);
+        return n3 - (n4 + layoutParams.leftMargin);
     }
 
     public final int G(View view, int n3, int n4, int n5, int n6, int[] nArray) {
@@ -800,11 +800,11 @@ implements v {
         block44: {
             var8_6 = this.getLayoutDirection() == 1 ? 1 : 0;
             var12_7 = this.getWidth();
-            var15_8 = this.getHeight();
+            var14_8 = this.getHeight();
             var7_9 = this.getPaddingLeft();
             var11_10 = this.getPaddingRight();
             var13_11 = this.getPaddingTop();
-            var14_12 = this.getPaddingBottom();
+            var15_12 = this.getPaddingBottom();
             var9_13 = var12_7 - var11_10;
             var20_14 = this.H;
             var20_14[1] = 0;
@@ -860,48 +860,48 @@ lbl23:
         var20_14[1] = Math.max(0, var2_2 - (var9_13 - var4_4));
         var3_3 = Math.max(var5_5, var3_3);
         var4_4 = Math.min(var4_4, var9_13 - var2_2);
-        var2_2 = var3_3;
-        var5_5 = var4_4;
+        var5_5 = var3_3;
+        var2_2 = var4_4;
         if (this.M(this.k)) {
             if (var8_6 != 0) {
-                var5_5 = this.F(this.k, var4_4, var20_14, var6_15);
-                var2_2 = var3_3;
+                var2_2 = this.F(this.k, var4_4, var20_14, var6_15);
+                var5_5 = var3_3;
             } else {
-                var2_2 = this.E(this.k, var3_3, var20_14, var6_15);
-                var5_5 = var4_4;
+                var5_5 = this.E(this.k, var3_3, var20_14, var6_15);
+                var2_2 = var4_4;
             }
         }
-        var4_4 = var2_2;
-        var3_3 = var5_5;
+        var4_4 = var5_5;
+        var3_3 = var2_2;
         if (this.M((View)this.g)) {
             if (var8_6 != 0) {
-                var3_3 = this.F((View)this.g, var5_5, var20_14, var6_15);
-                var4_4 = var2_2;
+                var3_3 = this.F((View)this.g, var2_2, var20_14, var6_15);
+                var4_4 = var5_5;
             } else {
-                var4_4 = this.E((View)this.g, var2_2, var20_14, var6_15);
-                var3_3 = var5_5;
+                var4_4 = this.E((View)this.g, var5_5, var20_14, var6_15);
+                var3_3 = var2_2;
             }
         }
-        var1_1 = this.M((View)this.d);
-        var17_16 = this.M((View)this.e);
-        if (var1_1) {
+        var17_16 = this.M((View)this.d);
+        var1_1 = this.M((View)this.e);
+        if (var17_16) {
             var18_17 = (LayoutParams)this.d.getLayoutParams();
-            var5_5 = var18_17.topMargin;
-            var2_2 = this.d.getMeasuredHeight();
-            var2_2 = var18_17.bottomMargin + (var5_5 + var2_2);
+            var2_2 = var18_17.topMargin;
+            var5_5 = this.d.getMeasuredHeight();
+            var2_2 = var18_17.bottomMargin + (var2_2 + var5_5);
         } else {
             var2_2 = 0;
         }
-        if (var17_16) {
+        if (var1_1) {
             var18_17 = (LayoutParams)this.e.getLayoutParams();
             var9_13 = var2_2 + (var18_17.topMargin + this.e.getMeasuredHeight() + var18_17.bottomMargin);
         } else {
             var9_13 = var2_2;
         }
-        if (var1_1) ** GOTO lbl-1000
+        if (var17_16) ** GOTO lbl-1000
         var2_2 = var4_4;
         var5_5 = var3_3;
-        if (!var17_16) lbl-1000:
+        if (!var1_1) lbl-1000:
         // 2 sources
 
         {
@@ -913,31 +913,31 @@ lbl23:
         // 2 sources
 
         {
-            var18_17 = var1_1 != false ? this.d : this.e;
-            var19_20 /* !! */  = var17_16 != false ? this.e : this.d;
+            var18_17 = var17_16 != false ? this.d : this.e;
+            var19_20 /* !! */  = var1_1 != false ? this.e : this.d;
             var18_17 = (LayoutParams)var18_17.getLayoutParams();
             var19_20 /* !! */  = (LayoutParams)var19_20 /* !! */ .getLayoutParams();
-            var5_5 = var1_1 != false && this.d.getMeasuredWidth() > 0 || var17_16 != false && this.e.getMeasuredWidth() > 0 ? 1 : 0;
+            var5_5 = var17_16 != false && this.d.getMeasuredWidth() > 0 || var1_1 != false && this.e.getMeasuredWidth() > 0 ? 1 : 0;
             var2_2 = this.y & 112;
             if (var2_2 != 48) {
                 if (var2_2 != 80) {
-                    var10_18 = (var15_8 - var13_11 - var14_12 - var9_13) / 2;
+                    var10_18 = (var14_8 - var13_11 - var15_12 - var9_13) / 2;
                     var16_19 = var18_17.topMargin;
                     var2_2 = this.t;
                     if (var10_18 < var16_19 + var2_2) {
                         var2_2 = var16_19 + var2_2;
                     } else {
-                        var15_8 = var15_8 - var14_12 - var9_13 - var10_18 - var13_11;
+                        var15_12 = var14_8 - var15_12 - var9_13 - var10_18 - var13_11;
                         var9_13 = var18_17.bottomMargin;
-                        var14_12 = this.u;
+                        var14_8 = this.u;
                         var2_2 = var10_18;
-                        if (var15_8 < var9_13 + var14_12) {
-                            var2_2 = Math.max(0, var10_18 - (var19_20 /* !! */ .bottomMargin + var14_12 - var15_8));
+                        if (var15_12 < var9_13 + var14_8) {
+                            var2_2 = Math.max(0, var10_18 - (var19_20 /* !! */ .bottomMargin + var14_8 - var15_12));
                         }
                     }
                     var2_2 = var13_11 + var2_2;
                 } else {
-                    var2_2 = var15_8 - var14_12 - var19_20 /* !! */ .bottomMargin - this.u - var9_13;
+                    var2_2 = var14_8 - var15_12 - var19_20 /* !! */ .bottomMargin - this.u - var9_13;
                 }
             } else {
                 var2_2 = this.getPaddingTop() + var18_17.topMargin + this.t;
@@ -946,7 +946,7 @@ lbl23:
                 var8_6 = var5_5 != 0 ? this.r : 0;
                 var3_3 -= Math.max(0, var8_6 -= var20_14[1]);
                 var20_14[1] = Math.max(0, -var8_6);
-                if (var1_1) {
+                if (var17_16) {
                     var18_17 = (LayoutParams)this.d.getLayoutParams();
                     var9_13 = var3_3 - this.d.getMeasuredWidth();
                     var8_6 = this.d.getMeasuredHeight() + var2_2;
@@ -958,11 +958,11 @@ lbl23:
                     var8_6 = var2_2;
                     var2_2 = var9_13;
                 }
-                if (var17_16) {
-                    var9_13 = var8_6 + ((LayoutParams)this.e.getLayoutParams()).topMargin;
-                    var8_6 = this.e.getMeasuredWidth();
-                    var10_18 = this.e.getMeasuredHeight();
-                    this.e.layout(var3_3 - var8_6, var9_13, var3_3, var10_18 + var9_13);
+                if (var1_1) {
+                    var10_18 = var8_6 + ((LayoutParams)this.e.getLayoutParams()).topMargin;
+                    var9_13 = this.e.getMeasuredWidth();
+                    var8_6 = this.e.getMeasuredHeight();
+                    this.e.layout(var3_3 - var9_13, var10_18, var3_3, var8_6 + var10_18);
                     var8_6 = var3_3 - this.s;
                 } else {
                     var8_6 = var3_3;
@@ -977,7 +977,7 @@ lbl23:
             var8_6 = var5_5 != 0 ? this.r : 0;
             var4_4 += Math.max(0, var8_6 -= var20_14[0]);
             var20_14[0] = Math.max(0, -var8_6);
-            if (var1_1) {
+            if (var17_16) {
                 var18_17 = (LayoutParams)this.d.getLayoutParams();
                 var8_6 = this.d.getMeasuredWidth() + var4_4;
                 var9_13 = this.d.getMeasuredHeight() + var2_2;
@@ -987,11 +987,11 @@ lbl23:
             } else {
                 var8_6 = var4_4;
             }
-            if (var17_16) {
-                var10_18 = this.e.getMeasuredWidth() + var4_4;
-                var9_13 = this.e.getMeasuredHeight();
-                this.e.layout(var4_4, var2_2 += ((LayoutParams)this.e.getLayoutParams()).topMargin, var10_18, var9_13 + var2_2);
-                var9_13 = var10_18 + this.s;
+            if (var1_1) {
+                var9_13 = this.e.getMeasuredWidth() + var4_4;
+                var10_18 = this.e.getMeasuredHeight();
+                this.e.layout(var4_4, var2_2 += ((LayoutParams)this.e.getLayoutParams()).topMargin, var9_13, var10_18 + var2_2);
+                var9_13 += this.s;
             } else {
                 var9_13 = var4_4;
             }
@@ -1116,13 +1116,13 @@ lbl23:
             n17 = n6 + (this.e.getMeasuredHeight() + this.v((View)this.e));
             n12 = View.combineMeasuredStates((int)n11, (int)this.e.getMeasuredState());
         }
-        n6 = Math.max(n10, n17);
+        n7 = Math.max(n10, n17);
         n17 = this.getPaddingLeft();
         n10 = this.getPaddingRight();
-        n7 = this.getPaddingTop();
+        n6 = this.getPaddingTop();
         n11 = this.getPaddingBottom();
         n8 = View.resolveSizeAndState((int)Math.max(n8 + n5 + (n17 + n10), this.getSuggestedMinimumWidth()), (int)n3, (int)(0xFF000000 & n12));
-        n3 = View.resolveSizeAndState((int)Math.max(n6 + (n7 + n11), this.getSuggestedMinimumHeight()), (int)n4, (int)(n12 << 16));
+        n3 = View.resolveSizeAndState((int)Math.max(n7 + (n6 + n11), this.getSuggestedMinimumHeight()), (int)n4, (int)(n12 << 16));
         if (this.L()) {
             n3 = n9;
         }
@@ -1633,15 +1633,15 @@ lbl23:
         int n5 = list.size();
         int n6 = 0;
         for (int i3 = 0; i3 < n5; ++i3) {
-            View view = (View)list.get(i3);
-            object = (Object)((LayoutParams)view.getLayoutParams());
-            n3 = object.leftMargin - n3;
-            n4 = object.rightMargin - n4;
+            object = (View)list.get(i3);
+            LayoutParams layoutParams = (LayoutParams)object.getLayoutParams();
+            n3 = layoutParams.leftMargin - n3;
+            n4 = layoutParams.rightMargin - n4;
             int n7 = Math.max(0, n3);
             int n8 = Math.max(0, n4);
             n3 = Math.max(0, -n3);
             n4 = Math.max(0, -n4);
-            n6 += n7 + view.getMeasuredWidth() + n8;
+            n6 += n7 + object.getMeasuredWidth() + n8;
         }
         return n6;
     }

@@ -79,23 +79,21 @@ public class q {
         Exception exception2;
         Object object;
         block5: {
+            Object object2;
             block4: {
-                Method method;
                 try {
-                    method = (Method)m.get(string);
-                    object = method;
-                    if (method != null) break block4;
+                    object2 = object = (Method)m.get(string);
+                    if (object != null) break block4;
                 }
                 catch (Exception exception2) {}
-                method = TextView.class.getDeclaredMethod(string, null);
-                object = method;
-                if (method == null) break block4;
-                ((AccessibleObject)method).setAccessible(true);
-                m.put(string, method);
-                return method;
+                object2 = object = TextView.class.getDeclaredMethod(string, null);
+                if (object == null) break block4;
+                ((AccessibleObject)object).setAccessible(true);
+                m.put(string, object);
+                return object;
                 break block5;
             }
-            return object;
+            return object2;
         }
         object = new StringBuilder();
         ((StringBuilder)object).append("Failed to retrieve TextView#");

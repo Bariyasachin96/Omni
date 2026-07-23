@@ -956,9 +956,9 @@ public class s {
             if (!(object instanceof a)) {
                 return false;
             }
-            a a4 = (a)object;
-            object = this.a;
-            return !(object == null ? a4.a != null : !object.equals(a4.a));
+            object = (a)object;
+            Object object2 = this.a;
+            return !(object2 == null ? ((a)object).a != null : !object2.equals(((a)object).a));
         }
 
         public int hashCode() {

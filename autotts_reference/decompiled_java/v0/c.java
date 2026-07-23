@@ -231,14 +231,14 @@ public class c {
         }
         float f13 = motionEvent.getX();
         float f14 = motionEvent.getY();
-        n3 = motionEvent.getPointerId(0);
+        n6 = motionEvent.getPointerId(0);
         motionEvent = this.t((int)f13, (int)f14);
-        this.I(f13, f14, n3);
-        this.R((View)motionEvent, n3);
-        n6 = this.h[n3];
+        this.I(f13, f14, n6);
+        this.R((View)motionEvent, n6);
+        n3 = this.h[n6];
         n5 = this.q;
-        if ((n6 & n5) == 0) return;
-        this.s.h(n6 & n5, n3);
+        if ((n3 & n5) == 0) return;
+        this.s.h(n3 & n5, n6);
     }
 
     public final void G() {
@@ -353,10 +353,10 @@ public class c {
                             this.I(f3, f4, n5);
                             n4 = this.a;
                             if (n4 == 0) {
-                                n4 = this.h[n5];
-                                int n6 = this.q;
-                                if ((n4 & n6) != 0) {
-                                    this.s.h(n4 & n6, n5);
+                                int n6 = this.h[n5];
+                                n4 = this.q;
+                                if ((n6 & n4) != 0) {
+                                    this.s.h(n6 & n4, n5);
                                 }
                             } else if (n4 == 2 && (motionEvent = this.t((int)f3, (int)f4)) == this.t) {
                                 this.R((View)motionEvent, n5);
@@ -378,13 +378,13 @@ public class c {
                             if (n4 != 0) {
                                 int n9 = view.getLeft();
                                 int n10 = (int)f7;
-                                n10 = this.s.a(view, n9 + n10, n10);
-                                int n11 = view.getTop();
+                                int n11 = this.s.a(view, n9 + n10, n10);
+                                n10 = view.getTop();
                                 int n12 = (int)f8;
-                                int n13 = this.s.b(view, n11 + n12, n12);
+                                int n13 = this.s.b(view, n10 + n12, n12);
                                 n12 = this.s.d(view);
                                 int n14 = this.s.e(view);
-                                if ((n12 == 0 || n12 > 0 && n10 == n9) && (n14 == 0 || n14 > 0 && n13 == n11)) break;
+                                if ((n12 == 0 || n12 > 0 && n11 == n9) && (n14 == 0 || n14 > 0 && n13 == n10)) break;
                             }
                             this.H(f7, f8, n8);
                             if (this.a == 1 || n4 != 0 && this.R(view, n8)) break;
@@ -595,32 +595,33 @@ public class c {
     public final int l(View view, int n3, int n4, int n5, int n6) {
         float f3;
         float f4;
-        int n7 = this.h(n5, (int)this.n, (int)this.m);
-        n5 = this.h(n6, (int)this.n, (int)this.m);
-        int n8 = Math.abs(n3);
-        int n9 = Math.abs(n4);
-        int n10 = Math.abs(n7);
-        int n11 = Math.abs(n5);
-        n6 = n10 + n11;
-        int n12 = n8 + n9;
-        if (n7 != 0) {
-            f4 = n10;
-            f3 = n6;
+        n5 = this.h(n5, (int)this.n, (int)this.m);
+        n6 = this.h(n6, (int)this.n, (int)this.m);
+        int n7 = Math.abs(n3);
+        int n8 = Math.abs(n4);
+        int n9 = Math.abs(n5);
+        int n10 = Math.abs(n6);
+        int n11 = n9 + n10;
+        int n12 = n7 + n8;
+        if (n5 != 0) {
+            f4 = n9;
+            f3 = n11;
         } else {
-            f4 = n8;
+            f4 = n7;
             f3 = n12;
         }
         float f5 = f4 / f3;
-        if (n5 != 0) {
+        if (n6 != 0) {
+            f3 = n10;
             f4 = n11;
-            f3 = n6;
         } else {
-            f4 = n9;
-            f3 = n12;
+            f3 = n8;
+            f4 = n12;
         }
-        n3 = this.k(n3, n7, this.s.d(view));
-        n4 = this.k(n4, n5, this.s.e(view));
-        return (int)((float)n3 * f5 + (float)n4 * (f4 /= f3));
+        f4 = f3 / f4;
+        n3 = this.k(n3, n5, this.s.d(view));
+        n4 = this.k(n4, n6, this.s.e(view));
+        return (int)((float)n3 * f5 + (float)n4 * f4);
     }
 
     public boolean m(boolean bl) {

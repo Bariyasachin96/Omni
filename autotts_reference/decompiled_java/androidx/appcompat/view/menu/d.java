@@ -91,14 +91,14 @@ extends BaseAdapter {
         int n4 = this.c(n3).getGroupId();
         int n5 = n3 - 1;
         n5 = n5 >= 0 ? this.c(n5).getGroupId() : n4;
-        object2 = (ListMenuItemView)view;
+        object = (ListMenuItemView)view;
         boolean bl = this.c.I() && n4 != n5;
-        ((ListMenuItemView)object2).setGroupDividerEnabled(bl);
-        object = (j.a)view;
+        ((ListMenuItemView)object).setGroupDividerEnabled(bl);
+        object2 = (j.a)view;
         if (this.e) {
-            ((ListMenuItemView)object2).setForceShowIcon(true);
+            ((ListMenuItemView)object).setForceShowIcon(true);
         }
-        object.d(this.c(n3), 0);
+        object2.d(this.c(n3), 0);
         return view;
     }
 

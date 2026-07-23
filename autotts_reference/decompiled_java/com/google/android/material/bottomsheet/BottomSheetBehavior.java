@@ -308,10 +308,10 @@ implements p2.b {
         if (typedArray.hasValue(n4 = z1.m.BottomSheetBehavior_Layout_android_maxHeight)) {
             this.T0(typedArray.getDimensionPixelSize(n4, -1));
         }
-        if ((attributeSet = typedArray.peekValue(n4 = z1.m.BottomSheetBehavior_Layout_behavior_peekHeight)) != null && (n3 = attributeSet.data) == -1) {
-            this.V0(n3);
+        if ((attributeSet = typedArray.peekValue(n3 = z1.m.BottomSheetBehavior_Layout_behavior_peekHeight)) != null && (n4 = attributeSet.data) == -1) {
+            this.V0(n4);
         } else {
-            this.V0(typedArray.getDimensionPixelSize(n4, -1));
+            this.V0(typedArray.getDimensionPixelSize(n3, -1));
         }
         this.S0(typedArray.getBoolean(z1.m.BottomSheetBehavior_Layout_behavior_hideable, false));
         this.Q0(typedArray.getBoolean(z1.m.BottomSheetBehavior_Layout_gestureInsetBottomIgnored, false));
@@ -446,18 +446,18 @@ implements p2.b {
                             break block6;
                         }
                         if (this.U != 0) break block8;
-                        var5_6 = var2_2.getTop();
+                        var6_5 = var2_2.getTop();
                         if (!this.d) break block9;
-                        if (Math.abs(var5_6 - this.G) >= Math.abs(var5_6 - this.J)) ** GOTO lbl-1000
+                        if (Math.abs(var6_5 - this.G) >= Math.abs(var6_5 - this.J)) ** GOTO lbl-1000
                         break block6;
                     }
-                    var6_5 = this.H;
-                    if (var5_6 >= var6_5) break block10;
-                    if (var5_6 < Math.abs(var5_6 - this.J)) break block6;
+                    var5_6 = this.H;
+                    if (var6_5 >= var5_6) break block10;
+                    if (var6_5 < Math.abs(var6_5 - this.J)) break block6;
                     if (!this.g1()) ** GOTO lbl37
                     ** GOTO lbl-1000
                 }
-                if (Math.abs(var5_6 - var6_5) >= Math.abs(var5_6 - this.J)) ** GOTO lbl-1000
+                if (Math.abs(var6_5 - var5_6) >= Math.abs(var6_5 - this.J)) ** GOTO lbl-1000
                 ** GOTO lbl37
             }
             if (this.d) lbl-1000:
@@ -836,19 +836,19 @@ lbl37:
                 e3 = (ViewGroup.MarginLayoutParams)view.getLayoutParams();
                 bl = this.b.v;
                 int n9 = 1;
-                if (bl && (n5 = ((ViewGroup.MarginLayoutParams)e3).leftMargin) != (n4 = b3.a)) {
-                    ((ViewGroup.MarginLayoutParams)e3).leftMargin = n4;
+                if (bl && (n4 = ((ViewGroup.MarginLayoutParams)e3).leftMargin) != (n5 = b3.a)) {
+                    ((ViewGroup.MarginLayoutParams)e3).leftMargin = n5;
                     n4 = 1;
                 } else {
                     n4 = 0;
                 }
                 n5 = n4;
                 if (this.b.w) {
-                    n3 = ((ViewGroup.MarginLayoutParams)e3).rightMargin;
-                    int n10 = b3.c;
+                    int n10 = ((ViewGroup.MarginLayoutParams)e3).rightMargin;
+                    n3 = b3.c;
                     n5 = n4;
-                    if (n3 != n10) {
-                        ((ViewGroup.MarginLayoutParams)e3).rightMargin = n10;
+                    if (n10 != n3) {
+                        ((ViewGroup.MarginLayoutParams)e3).rightMargin = n3;
                         n5 = 1;
                     }
                 }
@@ -1128,27 +1128,28 @@ lbl37:
         block7: {
             int n3;
             CoordinatorLayout coordinatorLayout;
-            Object object;
+            WeakReference weakReference;
             block8: {
-                object = this.a0;
-                if (object == null || !((object = ((View)((Reference)object).get()).getParent()) instanceof CoordinatorLayout)) break block7;
-                coordinatorLayout = (CoordinatorLayout)object;
+                weakReference = this.a0;
+                if (weakReference == null || !((weakReference = ((View)weakReference.get()).getParent()) instanceof CoordinatorLayout)) break block7;
+                coordinatorLayout = (CoordinatorLayout)((Object)weakReference);
                 n3 = coordinatorLayout.getChildCount();
                 if (!bl) break block8;
                 if (this.k0 != null) break block7;
                 this.k0 = new HashMap(n3);
             }
             for (int i3 = 0; i3 < n3; ++i3) {
-                View view = coordinatorLayout.getChildAt(i3);
-                if (view == this.a0.get()) continue;
+                Map map;
+                weakReference = coordinatorLayout.getChildAt(i3);
+                if (weakReference == this.a0.get()) continue;
                 if (bl) {
-                    this.k0.put(view, view.getImportantForAccessibility());
+                    this.k0.put(weakReference, weakReference.getImportantForAccessibility());
                     if (!this.e) continue;
-                    view.setImportantForAccessibility(4);
+                    weakReference.setImportantForAccessibility(4);
                     continue;
                 }
-                if (!this.e || (object = this.k0) == null || !object.containsKey(view)) continue;
-                view.setImportantForAccessibility(((Integer)this.k0.get(view)).intValue());
+                if (!this.e || (map = this.k0) == null || !map.containsKey(weakReference)) continue;
+                weakReference.setImportantForAccessibility((Integer)this.k0.get(weakReference));
             }
             if (!bl) {
                 this.k0 = null;
@@ -1204,16 +1205,17 @@ lbl37:
     @Override
     public boolean o(CoordinatorLayout coordinatorLayout, View object, MotionEvent motionEvent) {
         if (object.isShown() && this.N) {
-            int n3 = motionEvent.getActionMasked();
-            if (n3 == 0) {
+            int n3;
+            int n4 = motionEvent.getActionMasked();
+            if (n4 == 0) {
                 this.H0();
             }
             if (this.f0 == null) {
                 this.f0 = VelocityTracker.obtain();
             }
             this.f0.addMovement(motionEvent);
-            if (n3 != 0) {
-                if (n3 == 1 || n3 == 3) {
+            if (n4 != 0) {
+                if (n4 == 1 || n4 == 3) {
                     this.j0 = false;
                     this.h0 = -1;
                     if (this.T) {
@@ -1222,10 +1224,9 @@ lbl37:
                     }
                 }
             } else {
-                int n4;
                 int n5 = (int)motionEvent.getX();
-                this.i0 = n4 = (int)motionEvent.getY();
-                if (this.Q != 2 && this.E0(coordinatorLayout, n5, n4)) {
+                this.i0 = n3 = (int)motionEvent.getY();
+                if (this.Q != 2 && this.E0(coordinatorLayout, n5, n3)) {
                     this.h0 = motionEvent.getPointerId(motionEvent.getActionIndex());
                     if (!this.D0(coordinatorLayout, n5, this.i0)) {
                         this.j0 = true;
@@ -1239,7 +1240,7 @@ lbl37:
             }
             object = this.d0;
             object = object != null ? (View)((Reference)object).get() : null;
-            return n3 == 2 && object != null && !this.T && this.Q != 1 && !coordinatorLayout.F((View)object, (int)motionEvent.getX(), (int)motionEvent.getY()) && this.S != null && (n3 = this.i0) != -1 && Math.abs((float)n3 - motionEvent.getY()) > (float)this.S.z();
+            return n4 == 2 && object != null && !this.T && this.Q != 1 && !coordinatorLayout.F((View)object, (int)motionEvent.getX(), (int)motionEvent.getY()) && this.S != null && (n3 = this.i0) != -1 && Math.abs((float)n3 - motionEvent.getY()) > (float)this.S.z();
         }
         this.T = true;
         return false;
@@ -1314,10 +1315,10 @@ lbl37:
                 this.X = n3;
             }
         }
-        n4 = this.Z;
-        n6 = this.X;
+        n6 = this.Z;
+        n4 = this.X;
         n3 = 0;
-        this.G = Math.max(0, n4 - n6);
+        this.G = Math.max(0, n6 - n4);
         this.f0();
         this.d0();
         n4 = this.Q;
@@ -1433,15 +1434,15 @@ lbl37:
                                 object = this.d0;
                                 object = object != null ? (View)((Reference)object).get() : null;
                                 if (this.C0() && view2 != object) break block5;
-                                n3 = view.getTop();
-                                n5 = n3 - n4;
+                                n5 = view.getTop();
+                                n3 = n5 - n4;
                                 if (n4 <= 0) break block6;
                                 if (!this.V && !this.O && view2 == object && view2.canScrollVertically(1)) {
                                     this.P = true;
                                     return;
                                 }
-                                if (n5 >= this.r0()) break block7;
-                                nArray[1] = n3 -= this.r0();
+                                if (n3 >= this.r0()) break block7;
+                                nArray[1] = n3 = n5 - this.r0();
                                 x0.S(view, -n3);
                                 this.b1(3);
                                 break block8;
@@ -1459,8 +1460,8 @@ lbl37:
                             return;
                         }
                         if (bl) break block8;
-                        if (n5 <= this.J || this.j0()) break block9;
-                        nArray[1] = n3 -= this.J;
+                        if (n3 <= this.J || this.j0()) break block9;
+                        nArray[1] = n3 = n5 - this.J;
                         x0.S(view, -n3);
                         this.b1(4);
                         break block8;
@@ -1611,10 +1612,10 @@ lbl37:
                         ((h)object).c(((h)object).a);
                         return;
                     }
-                    object = this.c;
-                    BottomSheetBehavior bottomSheetBehavior = ((h)object).d;
-                    if (bottomSheetBehavior.Q == 2) {
-                        bottomSheetBehavior.b1(((h)object).a);
+                    h h3 = this.c;
+                    object = h3.d;
+                    if (((BottomSheetBehavior)object).Q == 2) {
+                        ((BottomSheetBehavior)object).b1(h3.a);
                     }
                 }
             };

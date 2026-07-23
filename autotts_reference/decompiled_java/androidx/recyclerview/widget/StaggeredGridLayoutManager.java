@@ -334,7 +334,6 @@ implements RecyclerView.y.b {
 
     public final void E2(RecyclerView.v v3, f f3) {
         if (f3.a && !f3.i) {
-            int n3;
             if (f3.b == 0) {
                 if (f3.e == -1) {
                     this.F2(v3, f3.g);
@@ -344,19 +343,19 @@ implements RecyclerView.y.b {
                 return;
             }
             if (f3.e == -1) {
-                int n4 = f3.f;
-                n4 = (n4 -= this.q2(n4)) < 0 ? f3.g : f3.g - Math.min(n4, f3.b);
-                this.F2(v3, n4);
+                int n3 = f3.f;
+                n3 = (n3 -= this.q2(n3)) < 0 ? f3.g : f3.g - Math.min(n3, f3.b);
+                this.F2(v3, n3);
                 return;
             }
-            int n5 = this.r2(f3.g) - f3.g;
-            if (n5 < 0) {
-                n3 = f3.f;
+            int n4 = this.r2(f3.g) - f3.g;
+            if (n4 < 0) {
+                n4 = f3.f;
             } else {
-                n3 = f3.f;
-                n3 = Math.min(n5, f3.b) + n3;
+                int n5 = f3.f;
+                n4 = Math.min(n4, f3.b) + n5;
             }
-            this.G2(v3, n3);
+            this.G2(v3, n4);
         }
     }
 
@@ -397,14 +396,14 @@ implements RecyclerView.y.b {
         int n6 = this.k0() + this.h0();
         if (this.w == 1) {
             n4 = RecyclerView.p.s(n4, rect.height() + n6, this.f0());
-            n5 = RecyclerView.p.s(n3, this.x * this.s + n5, this.g0());
+            n6 = RecyclerView.p.s(n3, this.x * this.s + n5, this.g0());
             n3 = n4;
-            n4 = n5;
+            n4 = n6;
         } else {
             n3 = RecyclerView.p.s(n3, rect.width() + n5, this.g0());
-            n5 = RecyclerView.p.s(n4, this.x * this.s + n6, this.f0());
+            n6 = RecyclerView.p.s(n4, this.x * this.s + n6, this.f0());
             n4 = n3;
-            n3 = n5;
+            n3 = n6;
         }
         this.F1(n4, n3);
     }
@@ -471,9 +470,9 @@ implements RecyclerView.y.b {
                     LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
                     if (layoutParams.f) continue;
                     if (this.x2() && this.w == 1) {
-                        n3 = this.s;
-                        n6 = layoutParams.e.e;
-                        view.offsetLeftAndRight(-(n3 - 1 - n6) * this.x - -(n3 - 1 - n6) * n7);
+                        n6 = this.s;
+                        n3 = layoutParams.e.e;
+                        view.offsetLeftAndRight(-(n6 - 1 - n3) * this.x - -(n6 - 1 - n3) * n7);
                         continue;
                     }
                     n3 = layoutParams.e.e;
@@ -950,6 +949,7 @@ implements RecyclerView.y.b {
 
     public boolean W1() {
         if (this.O() != 0 && this.F != 0 && this.v0()) {
+            LazySpanLookup.FullSpanItem fullSpanItem;
             int n3;
             int n4;
             if (this.A) {
@@ -968,18 +968,18 @@ implements RecyclerView.y.b {
             if (!this.M) {
                 return false;
             }
-            int n5 = this.A ? -1 : 1;
             Object object = this.E;
-            if ((object = ((LazySpanLookup)object).e(n4, ++n3, n5, true)) == null) {
+            int n5 = this.A ? -1 : 1;
+            if ((fullSpanItem = ((LazySpanLookup)object).e(n4, ++n3, n5, true)) == null) {
                 this.M = false;
                 this.E.d(n3);
                 return false;
             }
-            LazySpanLookup.FullSpanItem fullSpanItem = this.E.e(n4, ((LazySpanLookup.FullSpanItem)object).c, n5 * -1, true);
-            if (fullSpanItem == null) {
-                this.E.d(((LazySpanLookup.FullSpanItem)object).c);
+            object = this.E.e(n4, fullSpanItem.c, n5 * -1, true);
+            if (object == null) {
+                this.E.d(fullSpanItem.c);
             } else {
-                this.E.d(fullSpanItem.c + 1);
+                this.E.d(((LazySpanLookup.FullSpanItem)object).c + 1);
             }
             this.y1();
             this.x1();
@@ -1528,36 +1528,37 @@ implements RecyclerView.y.b {
             n3 = 1;
         }
         int n6 = ((f)object).e;
-        object = null;
         c c3 = null;
+        object = null;
         if (n6 == 1) {
             int n7 = this.u.m();
-            n6 = Integer.MAX_VALUE;
-            object = c3;
-            for (int i3 = n5; i3 != n4; i3 += n3) {
-                c3 = this.t[i3];
-                int n8 = c3.l(n7);
-                n5 = n6;
-                if (n8 < n6) {
+            int n8 = Integer.MAX_VALUE;
+            while (n5 != n4) {
+                c3 = this.t[n5];
+                int n9 = c3.l(n7);
+                n6 = n8;
+                if (n9 < n8) {
                     object = c3;
-                    n5 = n8;
+                    n6 = n9;
                 }
-                n6 = n5;
+                n5 += n3;
+                n8 = n6;
             }
             return object;
         }
-        int n9 = this.u.i();
+        int n10 = this.u.i();
         n6 = Integer.MIN_VALUE;
+        object = c3;
         while (n5 != n4) {
             c3 = this.t[n5];
-            int n10 = c3.p(n9);
-            int n11 = n6;
-            if (n10 > n6) {
+            int n11 = c3.p(n10);
+            int n12 = n6;
+            if (n11 > n6) {
                 object = c3;
-                n11 = n10;
+                n12 = n11;
             }
             n5 += n3;
-            n6 = n11;
+            n6 = n12;
         }
         return object;
     }
@@ -1656,14 +1657,14 @@ implements RecyclerView.y.b {
                             if (layoutParams.f || (n4 = n7 + n6) == n3) break block9;
                             object = this.N(n4);
                             if (!this.A) break block10;
-                            n4 = this.u.d(view);
-                            if (n4 < (n8 = this.u.d((View)object))) break block8;
-                            if (n4 != n8) break block9;
+                            n8 = this.u.d(view);
+                            if (n8 < (n4 = this.u.d((View)object))) break block8;
+                            if (n8 != n4) break block9;
                             break block11;
                         }
-                        n4 = this.u.g(view);
-                        if (n4 > (n8 = this.u.g((View)object))) break block8;
-                        if (n4 != n8) break block9;
+                        n8 = this.u.g(view);
+                        if (n8 > (n4 = this.u.g((View)object))) break block8;
+                        if (n8 != n4) break block9;
                     }
                     object = (LayoutParams)object.getLayoutParams();
                     n4 = layoutParams.e.e - object.e.e < 0 ? 1 : 0;
@@ -2243,10 +2244,10 @@ implements RecyclerView.y.b {
 
         public void c() {
             Object object = this.a;
-            object = (View)((ArrayList)object).get(((ArrayList)object).size() - 1);
-            LayoutParams layoutParams = this.n((View)object);
-            this.c = this.f.u.d((View)object);
-            if (layoutParams.f && (object = this.f.E.f(layoutParams.a())) != null && ((LazySpanLookup.FullSpanItem)object).d == 1) {
+            View view = (View)((ArrayList)object).get(((ArrayList)object).size() - 1);
+            object = this.n(view);
+            this.c = this.f.u.d(view);
+            if (((LayoutParams)((Object)object)).f && (object = this.f.E.f(((RecyclerView.LayoutParams)((Object)object)).a())) != null && ((LazySpanLookup.FullSpanItem)object).d == 1) {
                 this.c += ((LazySpanLookup.FullSpanItem)object).o(this.e);
             }
         }

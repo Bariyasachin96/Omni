@@ -108,12 +108,12 @@ extends k {
                 }
 
                 public void onAnimationEnd(Animator object) {
-                    super.onAnimationEnd(object);
+                    super.onAnimationEnd((Animator)object);
                     this.a.a();
-                    object = this.a;
-                    n1.b b3 = object.j;
-                    if (b3 != null) {
-                        b3.b(object.a);
+                    e e3 = this.a;
+                    object = e3.j;
+                    if (object != null) {
+                        ((n1.b)object).b(e3.a);
                     }
                 }
             });
@@ -162,10 +162,10 @@ extends k {
         f3 = this.e.getInterpolation(this.b(n3, 3000, 3000));
         a4.a = 0.0f;
         objectArray = m;
-        a4.b = f3 = o2.a.f(objectArray[0], objectArray[1], f4 - f3);
-        f4 = this.i;
-        if (f4 > 0.0f) {
-            a4.b = f3 * (1.0f - f4);
+        a4.b = f4 = o2.a.f(objectArray[0], objectArray[1], f4 - f3);
+        f3 = this.i;
+        if (f3 > 0.0f) {
+            a4.b = f4 * (1.0f - f3);
         }
     }
 

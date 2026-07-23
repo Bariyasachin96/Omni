@@ -104,8 +104,8 @@ extends Transition {
             }
             y3.a.put("android:clipBounds:clip", rect2);
             if (rect2 == null) {
-                rect2 = new Rect(0, 0, view.getWidth(), view.getHeight());
-                y3.a.put("android:clipBounds:bounds", rect2);
+                rect = new Rect(0, 0, view.getWidth(), view.getHeight());
+                y3.a.put("android:clipBounds:bounds", rect);
             }
         }
     }

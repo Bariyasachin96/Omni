@@ -114,17 +114,17 @@ public class l {
 
     public final Drawable e(Drawable drawable) {
         if (drawable instanceof AnimationDrawable) {
-            drawable = (AnimationDrawable)drawable;
-            int n3 = drawable.getNumberOfFrames();
-            AnimationDrawable animationDrawable = new AnimationDrawable();
-            animationDrawable.setOneShot(drawable.isOneShot());
+            AnimationDrawable animationDrawable = (AnimationDrawable)drawable;
+            int n3 = animationDrawable.getNumberOfFrames();
+            drawable = new AnimationDrawable();
+            drawable.setOneShot(animationDrawable.isOneShot());
             for (int i3 = 0; i3 < n3; ++i3) {
-                Drawable drawable2 = this.d(drawable.getFrame(i3), true);
+                Drawable drawable2 = this.d(animationDrawable.getFrame(i3), true);
                 drawable2.setLevel(10000);
-                animationDrawable.addFrame(drawable2, drawable.getDuration(i3));
+                drawable.addFrame(drawable2, animationDrawable.getDuration(i3));
             }
-            animationDrawable.setLevel(10000);
-            return animationDrawable;
+            drawable.setLevel(10000);
+            return drawable;
         }
         return drawable;
     }

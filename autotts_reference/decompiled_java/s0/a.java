@@ -49,18 +49,18 @@ public abstract class a {
         int n4 = editorInfo.initialSelStart;
         int n5 = editorInfo.initialSelEnd;
         int n6 = n4 > n5 ? n5 - n3 : n4 - n3;
-        n5 = n4 > n5 ? n4 - n3 : (n5 -= n3);
-        n4 = charSequence.length();
-        if (n3 >= 0 && n6 >= 0 && n5 <= n4) {
+        n4 = n4 > n5 ? (n4 -= n3) : n5 - n3;
+        n5 = charSequence.length();
+        if (n3 >= 0 && n6 >= 0 && n4 <= n5) {
             if (s0.a.b(editorInfo.inputType)) {
                 s0.a.f(editorInfo, null, 0, 0);
                 return;
             }
-            if (n4 <= 2048) {
-                s0.a.f(editorInfo, charSequence, n6, n5);
+            if (n5 <= 2048) {
+                s0.a.f(editorInfo, charSequence, n6, n4);
                 return;
             }
-            s0.a.g(editorInfo, charSequence, n6, n5);
+            s0.a.g(editorInfo, charSequence, n6, n4);
             return;
         }
         s0.a.f(editorInfo, null, 0, 0);

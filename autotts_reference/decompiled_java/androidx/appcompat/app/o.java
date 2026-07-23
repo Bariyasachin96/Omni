@@ -65,10 +65,11 @@ public class o {
     }
 
     public boolean a(AttributeSet attributeSet) {
-        if (attributeSet instanceof XmlPullParser && (attributeSet = (XmlPullParser)attributeSet).getDepth() == 1) {
-            XmlPullParser xmlPullParser = o.c(this.a);
-            this.a.push(new WeakReference<AttributeSet>(attributeSet));
-            if (o.d((XmlPullParser)attributeSet, xmlPullParser)) {
+        XmlPullParser xmlPullParser;
+        if (attributeSet instanceof XmlPullParser && (xmlPullParser = (XmlPullParser)attributeSet).getDepth() == 1) {
+            attributeSet = o.c(this.a);
+            this.a.push(new WeakReference<XmlPullParser>(xmlPullParser));
+            if (o.d(xmlPullParser, (XmlPullParser)attributeSet)) {
                 return true;
             }
         }

@@ -2,28 +2,24 @@
  * Decompiled with CFR 0.152.
  * 
  * Could not load the following classes:
- *  android.widget.Button
+ *  android.view.View
+ *  android.view.View$OnClickListener
  */
 package c3;
 
-import android.widget.Button;
-import c3.r;
+import android.view.View;
+import c3.t;
 
 public final class q
-implements r.a {
-    public final r a;
-    public final r.d b;
-    public final Button c;
+implements View.OnClickListener {
+    public final t c;
 
-    public /* synthetic */ q(r r3, r.d d3, Button button) {
-        this.a = r3;
-        this.b = d3;
-        this.c = button;
+    public /* synthetic */ q(t t3) {
+        this.c = t3;
     }
 
-    @Override
-    public final void a(boolean bl) {
-        r.c(this.a, this.b, this.c, bl);
+    public final void onClick(View view) {
+        t.d(this.c, view);
     }
 }
 

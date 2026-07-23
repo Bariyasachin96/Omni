@@ -351,11 +351,11 @@ extends CompoundButton {
                             n3 = n9 + (n4 - n8);
                         }
                         n4 = (n8 = drawable.top) > (n4 = rect.top) ? n8 - n4 + n6 : n6;
-                        n9 = drawable.right;
-                        n10 = rect.right;
+                        n10 = drawable.right;
+                        n9 = rect.right;
                         n8 = n11;
-                        if (n9 > n10) {
-                            n8 = n11 - (n9 - n10);
+                        if (n10 > n9) {
+                            n8 = n11 - (n10 - n9);
                         }
                         int n12 = drawable.bottom;
                         int n13 = rect.bottom;
@@ -527,13 +527,13 @@ extends CompoundButton {
         this.c.getPadding(this.T);
         int n4 = this.G;
         int n5 = this.w;
-        n3 = this.F + n3 - n5;
-        int n6 = this.E;
+        int n6 = this.F + n3 - n5;
+        int n7 = this.E;
         Rect rect = this.T;
-        int n7 = rect.left;
-        int n8 = rect.right;
+        int n8 = rect.left;
+        n3 = rect.right;
         int n9 = this.I;
-        return f3 > (float)n3 && f3 < (float)(n6 + n3 + n7 + n8 + n5) && f4 > (float)(n4 - n5) && f4 < (float)(n9 + n5);
+        return f3 > (float)n6 && f3 < (float)(n7 + n6 + n8 + n3 + n5) && f4 > (float)(n4 - n5) && f4 < (float)(n9 + n5);
     }
 
     public final Layout i(CharSequence charSequence) {
@@ -682,9 +682,9 @@ extends CompoundButton {
                 n3 = this.getWidth();
             }
             int n9 = rect.getWidth() / 2;
-            n7 = (n4 + n6 + (n5 - n7)) / 2;
-            n5 = rect.getHeight() / 2;
-            canvas.translate((float)((n3 /= 2) - n9), (float)(n7 - n5));
+            n4 = (n4 + n6 + (n5 - n7)) / 2;
+            n7 = rect.getHeight() / 2;
+            canvas.translate((float)((n3 /= 2) - n9), (float)(n4 - n7));
             rect.draw(canvas);
         }
         canvas.restoreToCount(n8);
@@ -723,7 +723,7 @@ extends CompoundButton {
                     block7: {
                         super.onLayout(bl, n3, n4, n5, n6);
                         Drawable drawable = this.c;
-                        n4 = 0;
+                        n3 = 0;
                         if (drawable != null) {
                             drawable = this.T;
                             Drawable drawable2 = this.h;
@@ -733,19 +733,19 @@ extends CompoundButton {
                                 drawable.setEmpty();
                             }
                             drawable2 = androidx.appcompat.widget.z.d(this.c);
-                            n3 = Math.max(0, drawable2.left - drawable.left);
-                            n4 = Math.max(0, drawable2.right - drawable.right);
+                            n4 = Math.max(0, drawable2.left - drawable.left);
+                            n3 = Math.max(0, drawable2.right - drawable.right);
                         } else {
-                            n3 = 0;
+                            n4 = 0;
                         }
                         if (t0.b((View)this)) {
-                            n5 = this.getPaddingLeft() + n3;
-                            n3 = this.C + n5 - n3 - n4;
+                            n5 = this.getPaddingLeft() + n4;
+                            n3 = this.C + n5 - n4 - n3;
                             n4 = n5;
                             n5 = n3;
                         } else {
-                            n5 = this.getWidth() - this.getPaddingRight() - n4;
-                            n4 = n5 - this.C + n3 + n4;
+                            n5 = this.getWidth() - this.getPaddingRight() - n3;
+                            n4 = n5 - this.C + n4 + n3;
                         }
                         n3 = this.getGravity() & 0x70;
                         if (n3 == 16) break block6;

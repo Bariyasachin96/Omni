@@ -3,125 +3,87 @@
  */
 package c3;
 
-import c3.k;
-import c3.l;
-import java.util.ArrayList;
-import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 
-public class u
-implements Comparable {
-    public Locale c;
-    public l d;
-    public int e;
-    public ArrayList f;
+public abstract class u {
+    public static final Map a;
 
-    public u(Locale cloneable, l l3, int n3) {
-        this.c = cloneable;
-        this.d = l3;
-        this.e = n3;
-        cloneable = new ArrayList();
-        this.f = cloneable;
-        ((ArrayList)cloneable).add("*Default");
+    static {
+        HashMap<String, String> hashMap;
+        a = hashMap = new HashMap<String, String>();
+        hashMap.put("com.google.android.tts", "Google Text-to-Speech");
+        hashMap.put("com.google.android.tts.speechpack.eng", "Google TTS - English");
+        hashMap.put("com.samsung.SMT", "Samsung Text-to-Speech");
+        hashMap.put("com.samsung.android.ttssmt", "Samsung TTS");
+        hashMap.put("com.samsung.smt", "Samsung TTS Engine");
+        hashMap.put("com.huawei.hiai.speech.tts", "Huawei Text-to-Speech");
+        hashMap.put("com.huawei.tts", "Huawei TTS");
+        hashMap.put("com.xiaomi.mibrain.speech", "Xiaomi Text-to-Speech");
+        hashMap.put("com.miui.voiceassist", "Mi Voice Assistant TTS");
+        hashMap.put("com.acapelagroup.android.tts", "Acapela TTS Voices");
+        hashMap.put("com.cereproc.android.tts", "CereProc Text-to-Speech");
+        hashMap.put("com.cereproc.CerePlay", "CerePlay Text-to-Speech");
+        hashMap.put("com.ivona.tts", "IVONA Text-to-Speech");
+        hashMap.put("com.ivona.tts.hq", "IVONA Text-to-Speech HQ");
+        hashMap.put("com.ivona.tts.oem", "IVONA TTS OEM");
+        hashMap.put("es.codefactory.vocalizertts", "Vocalizer TTS");
+        hashMap.put("com.nuance.tts", "Nuance Vocalizer");
+        hashMap.put("com.nuance.vocalizer", "Nuance Vocalizer TTS");
+        hashMap.put("com.reecedunn.espeak", "eSpeak TTS");
+        hashMap.put("com.googlecode.eyesfree.espeak", "eSpeak TTS (Eyes-Free)");
+        hashMap.put("rhzmr.espeak", "eSpeak TTS");
+        hashMap.put("com.github.olga_yakovleva.rhvoice.android", "RHVoice");
+        hashMap.put("com.svox.classic", "SVOX Classic TTS");
+        hashMap.put("com.svox.pico", "Pico TTS");
+        hashMap.put("edu.cmu.cs.speech.tts.flite", "Flite TTS");
+        hashMap.put("com.hear2read.tts.kannada", "Hear2Read Kannada");
+        hashMap.put("com.hear2read.tts.telugu", "Hear2Read Telugu");
+        hashMap.put("com.hear2read.tts.punjabi", "Hear2Read Punjabi");
+        hashMap.put("com.hear2read.tts.tamil", "Hear2Read Tamil");
+        hashMap.put("com.hear2read.tts.gujarati", "Hear2Read Gujarati");
+        hashMap.put("com.hear2read.tts.marathi", "Hear2Read Marathi");
+        hashMap.put("com.hear2read.tts.malayalam", "Hear2Read Malayalam");
+        hashMap.put("com.hear2read.tts.sanskrit", "Hear2Read Sanskrit");
+        hashMap.put("com.hear2read.tts.assamese", "Hear2Read Assamese");
+        hashMap.put("com.hear2read.tts.hindi", "Hear2Read Hindi");
+        hashMap.put("ru.yandex.speechkit.tts", "Yandex SpeechKit TTS");
+        hashMap.put("bg.bultreebank.speechlab", "SpeechLab TTS");
+        hashMap.put("io.github.aholab.ahotts", "AhoTTS");
+        hashMap.put("com.k2fsa.sherpa.onnx.tts.engine", "Sherpa TTS");
+        hashMap.put("com.amazon.tts", "Amazon Text-to-Speech");
+        hashMap.put("com.lge.tts", "LG Text-to-Speech");
+        hashMap.put("com.htc.tts", "HTC Text-to-Speech");
+        hashMap.put("com.voiceforge.tts", "VoiceForge TTS");
+        hashMap.put("jp.kddilabs.n2tts", "N2 TTS");
+        hashMap.put("com.speech.tts.engine", "Speech TTS Engine");
+        hashMap.put("com.nirenr.talkman", "Jieshuo+");
     }
 
-    public void a(String string) {
-        this.f.add(string);
-    }
-
-    public int b(u u3) {
-        int n3 = this.e;
-        int n4 = u3.e;
-        if (n3 != n4) {
-            return n3 - n4;
-        }
-        return this.g().compareToIgnoreCase(u3.g());
-    }
-
-    public String c() {
-        return this.c.getDisplayLanguage();
-    }
-
-    public String d() {
-        if (!this.c.getCountry().equals("")) {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append(this.g());
-            stringBuilder.append(", ");
-            stringBuilder.append(this.c.getDisplayCountry());
-            return stringBuilder.toString();
-        }
-        return this.g();
-    }
-
-    public String e() {
-        return k.f(this.c);
-    }
-
-    public String f() {
-        if (this.d != null) {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append(this.d.b);
-            stringBuilder.append("#");
-            stringBuilder.append(this.c.toString());
-            return stringBuilder.toString();
-        }
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Disable#");
-        stringBuilder.append(this.c.toString());
-        return stringBuilder.toString();
-    }
-
-    /*
-     * Enabled force condition propagation
-     * Lifted jumps to return sites
-     */
-    public final String g() {
-        Object object = this.d;
-        if (object == null) {
-            return "*Disabled";
-        }
-        String string = ((l)object).a;
-        String[] stringArray = string.split(" ");
-        if (stringArray.length < 2) return string;
-        StringBuilder stringBuilder = new StringBuilder(stringArray[0]);
-        int n3 = stringArray.length;
-        int n4 = 1;
-        StringBuilder stringBuilder2 = new StringBuilder(stringArray[n3 - 1]);
-        n3 = stringArray.length - 2;
-        object = new StringBuilder();
-        ((StringBuilder)object).append((Object)stringBuilder);
-        ((StringBuilder)object).append(" ... ");
-        ((StringBuilder)object).append((Object)stringBuilder2);
-        object = ((StringBuilder)object).toString();
-        while (n4 < n3) {
-            if (((String)object).length() > 15) return object;
-            CharSequence charSequence = new StringBuilder();
-            ((StringBuilder)charSequence).append((Object)stringBuilder);
-            ((StringBuilder)charSequence).append(" ... ");
-            ((StringBuilder)charSequence).append((Object)stringBuilder2);
-            charSequence = ((StringBuilder)charSequence).toString();
-            if (((String)charSequence).length() > 15) {
-                if (((String)charSequence).length() >= 20) return object;
-                return charSequence;
+    public static String a(String charSequence) {
+        if (charSequence != null && !((String)charSequence).isEmpty()) {
+            String[] stringArray = ((String)charSequence).split("\\.");
+            charSequence = new StringBuilder();
+            for (int i3 = stringArray.length > 1 && ((string = stringArray[0].toLowerCase()).equals("com") || string.equals("org") || string.equals("net") || string.equals("io") || string.equals("ru") || string.equals("jp")) ? 1 : 0; i3 < stringArray.length; ++i3) {
+                String string = stringArray[i3];
+                if (string.isEmpty()) continue;
+                ((StringBuilder)charSequence).append(Character.toUpperCase(string.charAt(0)));
+                if (string.length() > 1) {
+                    ((StringBuilder)charSequence).append(string.substring(1));
+                }
+                if (i3 >= stringArray.length - 1) continue;
+                ((StringBuilder)charSequence).append(" ");
             }
-            if (stringArray[n4].length() < stringArray[n3].length()) {
-                stringBuilder.append(" ");
-                stringBuilder.append(stringArray[n4]);
-                ++n4;
-            } else {
-                object = new StringBuilder();
-                ((StringBuilder)object).append(stringArray[n3]);
-                ((StringBuilder)object).append(" ");
-                stringBuilder2.insert(0, ((StringBuilder)object).toString());
-                --n3;
-            }
-            object = charSequence;
+            return ((StringBuilder)charSequence).toString().trim();
         }
-        if (string.length() >= 15) return object;
-        return string;
+        return "Unknown";
     }
 
-    public void h(int n3) {
-        this.e = n3;
+    public static String b(String string) {
+        if (string == null) {
+            return "Unknown";
+        }
+        return a.getOrDefault(string, u.a(string));
     }
 }
 

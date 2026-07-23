@@ -311,13 +311,13 @@ implements p2.b {
         if (!this.getContext().getTheme().resolveAttribute(a.colorPrimary, object, true)) {
             return null;
         }
-        n3 = object.data;
-        int n4 = colorStateList.getDefaultColor();
-        int[] nArray = B;
-        object = A;
+        int n4 = object.data;
+        n3 = colorStateList.getDefaultColor();
+        object = B;
+        int[] nArray = A;
         int[] nArray2 = FrameLayout.EMPTY_STATE_SET;
-        int n5 = colorStateList.getColorForState(nArray, n4);
-        return new ColorStateList((int[][])new int[][]{nArray, (int[])object, nArray2}, new int[]{n5, n3, n4});
+        int n5 = colorStateList.getColorForState((int[])object, n3);
+        return new ColorStateList((int[][])new int[][]{(int[])object, nArray, nArray2}, new int[]{n5, n4, n3});
     }
 
     @Override

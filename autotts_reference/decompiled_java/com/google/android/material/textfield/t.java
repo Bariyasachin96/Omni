@@ -66,12 +66,12 @@ public abstract class t {
     }
 
     public static int[] c(TextInputLayout object, CheckableImageButton object2) {
-        int[] nArray = object.getDrawableState();
-        object = object2.getDrawableState();
-        int n3 = nArray.length;
-        object2 = Arrays.copyOf(nArray, nArray.length + ((TextInputLayout)object).length);
-        System.arraycopy(object, 0, object2, n3, ((TextInputLayout)object).length);
-        return object2;
+        object = object.getDrawableState();
+        object2 = object2.getDrawableState();
+        int n3 = ((TextInputLayout)object).length;
+        object = Arrays.copyOf((int[])object, ((TextInputLayout)object).length + ((CheckableImageButton)object2).length);
+        System.arraycopy(object2, 0, object, n3, ((CheckableImageButton)object2).length);
+        return object;
     }
 
     public static void d(TextInputLayout textInputLayout, CheckableImageButton checkableImageButton, ColorStateList colorStateList) {

@@ -48,21 +48,25 @@ public final class i {
         this.g(set);
     }
 
-    public static boolean a(Editable editable, KeyEvent jArray, boolean bl) {
+    /*
+     * WARNING - void declaration
+     */
+    public static boolean a(Editable editable, KeyEvent object2, boolean bl) {
         int n3;
-        if (i.f((KeyEvent)jArray)) {
+        if (i.f((KeyEvent)object2)) {
             return false;
         }
         int n4 = Selection.getSelectionStart((CharSequence)editable);
         if (i.e(n4, n3 = Selection.getSelectionEnd((CharSequence)editable))) {
             return false;
         }
-        jArray = (j[])editable.getSpans(n4, n3, j.class);
+        j[] jArray = (j[])editable.getSpans(n4, n3, j.class);
         if (jArray != null && jArray.length > 0) {
             for (j j3 : jArray) {
+                void var2_4;
                 int n5 = editable.getSpanStart((Object)j3);
                 int n6 = editable.getSpanEnd((Object)j3);
-                if (!(bl && n5 == n4 || !bl && n6 == n4) && (n4 <= n5 || n4 >= n6)) continue;
+                if (!(var2_4 != false && n5 == n4 || var2_4 == false && n6 == n4) && (n4 <= n5 || n4 >= n6)) continue;
                 editable.delete(n5, n6);
                 return true;
             }
@@ -73,9 +77,9 @@ public final class i {
     public static boolean b(InputConnection inputConnection, Editable editable, int n3, int n4, boolean bl) {
         block5: {
             j[] jArray;
-            int n5;
-            int n6;
             block8: {
+                int n5;
+                int n6;
                 block6: {
                     block7: {
                         if (editable == null || inputConnection == null || n3 < 0 || n4 < 0) break block5;
@@ -85,33 +89,27 @@ public final class i {
                         }
                         if (!bl) break block6;
                         n3 = androidx.emoji2.text.i$a.a((CharSequence)editable, n6, Math.max(n3, 0));
-                        n6 = androidx.emoji2.text.i$a.b((CharSequence)editable, n5, Math.max(n4, 0));
+                        n5 = androidx.emoji2.text.i$a.b((CharSequence)editable, n5, Math.max(n4, 0));
                         if (n3 == -1) break block7;
-                        n4 = n3;
-                        n3 = n6;
-                        if (n6 != -1) break block8;
+                        n4 = n5;
+                        if (n5 != -1) break block8;
                     }
                     return false;
                 }
-                n6 = Math.max(n6 - n3, 0);
-                n3 = Math.min(n5 + n4, editable.length());
-                n4 = n6;
+                n3 = Math.max(n6 - n3, 0);
+                n4 = Math.min(n5 + n4, editable.length());
             }
-            if ((jArray = (j[])editable.getSpans(n4, n3, j.class)) != null && jArray.length > 0) {
-                int n7 = jArray.length;
-                n5 = 0;
-                n6 = n4;
-                for (n4 = n5; n4 < n7; ++n4) {
-                    j j3 = jArray[n4];
-                    int n8 = editable.getSpanStart((Object)j3);
-                    n5 = editable.getSpanEnd((Object)j3);
-                    n6 = Math.min(n8, n6);
-                    n3 = Math.max(n5, n3);
+            if ((jArray = (j[])editable.getSpans(n3, n4, j.class)) != null && jArray.length > 0) {
+                for (j j3 : jArray) {
+                    int n7 = editable.getSpanStart((Object)j3);
+                    int n8 = editable.getSpanEnd((Object)j3);
+                    n3 = Math.min(n7, n3);
+                    n4 = Math.max(n8, n4);
                 }
-                n4 = Math.max(n6, 0);
-                n3 = Math.min(n3, editable.length());
+                n3 = Math.max(n3, 0);
+                n4 = Math.min(n4, editable.length());
                 inputConnection.beginBatchEdit();
-                editable.delete(n4, n3);
+                editable.delete(n3, n4);
                 inputConnection.endBatchEdit();
                 return true;
             }

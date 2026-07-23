@@ -155,9 +155,9 @@ public abstract class b {
             n3 = rect2.bottom;
             return (n6 > n3 || rect.top >= n3) && rect.top > rect2.top;
         }
-        n3 = rect.right;
-        int n7 = rect2.right;
-        return (n3 > n7 || rect.left >= n7) && rect.left > rect2.left;
+        int n7 = rect.right;
+        n3 = rect2.right;
+        return (n7 > n3 || rect.left >= n3) && rect.left > rect2.left;
     }
 
     public static boolean j(int n3, Rect rect, Rect rect2) {
@@ -299,23 +299,23 @@ public abstract class b {
                 }
                 return 1;
             }
-            n4 = rect.bottom;
-            n3 = rect2.bottom;
-            if (n4 < n3) {
+            n3 = rect.bottom;
+            n4 = rect2.bottom;
+            if (n3 < n4) {
                 return -1;
             }
-            if (n4 > n3) {
+            if (n3 > n4) {
                 return 1;
             }
-            n4 = rect.right;
-            n3 = rect2.right;
-            if (n4 < n3) {
+            n3 = rect.right;
+            n4 = rect2.right;
+            if (n3 < n4) {
                 if (this.e) {
                     return 1;
                 }
                 return -1;
             }
-            if (n4 > n3) {
+            if (n3 > n4) {
                 if (this.e) {
                     return -1;
                 }

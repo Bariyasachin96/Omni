@@ -279,9 +279,9 @@ extends Service {
          * Enabled unnecessary exception pruning
          * Enabled aggressive exception aggregation
          */
-        public boolean onStopJob(JobParameters object) {
+        public boolean onStopJob(JobParameters jobParameters) {
             boolean bl = this.a.b();
-            object = this.b;
+            Object object = this.b;
             synchronized (object) {
                 this.c = null;
                 return bl;

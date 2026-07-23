@@ -280,9 +280,9 @@ ActionMenuView.a {
 
         @Override
         public boolean c() {
-            ActionMenuItemView actionMenuItemView = this.l;
-            Object object = actionMenuItemView.m;
-            return object != null && object.a(actionMenuItemView.j) && (object = this.b()) != null && object.c();
+            Object object = this.l;
+            e.b b3 = ((ActionMenuItemView)object).m;
+            return b3 != null && b3.a(((ActionMenuItemView)object).j) && (object = this.b()) != null && object.c();
         }
     }
 

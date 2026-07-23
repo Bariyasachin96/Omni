@@ -163,8 +163,8 @@ public class a {
         int n4 = (n3 - 1) % nArray.length;
         int n5 = nArray.length;
         n3 = nArray[n4];
-        n5 = nArray[(n4 + 1) % n5];
-        a4.a = a2.c.b().a(j0.a.a(this.c - (float)(this.a - 1), 0.0f, 1.0f), n3, n5);
+        n4 = nArray[(n4 + 1) % n5];
+        a4.a = a2.c.b().a(j0.a.a(this.c - (float)(this.a - 1), 0.0f, 1.0f), n3, n4);
     }
 }
 

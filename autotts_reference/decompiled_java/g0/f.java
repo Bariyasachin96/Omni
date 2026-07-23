@@ -79,7 +79,7 @@ extends j {
             catch (ClassNotFoundException classNotFoundException) {
                 // empty catch block
             }
-            Log.e((String)"TypefaceCompatApi21Impl", (String)clazz.getClass().getName(), clazz);
+            Log.e((String)"TypefaceCompatApi21Impl", (String)method.getClass().getName(), (Throwable)((Object)method));
             method = null;
             genericDeclaration = clazz = null;
         }

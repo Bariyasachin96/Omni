@@ -1,20 +1,23 @@
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android" android:id="@7F08009F" android:layout_width="-1" android:layout_height="-1">
-  <LinearLayout android:orientation="1" android:layout_width="-1" android:layout_height="-1" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="0" app:layout_constraintTop_toTopOf="@7F08009F">
-    <RelativeLayout android:gravity="0x00800003" android:id="@7F0801D5" android:background="#FF293842" android:layout_width="-1" android:layout_height="-2">
-      <TextView android:textColor="#FFFFFFFF" android:gravity="0x00000010" android:layout_width="-2" android:layout_height="-2" android:layout_margin="5.000000dip" android:text="@7F0E0038" style="@android:01030044"/>
-    </RelativeLayout>
-    <LinearLayout android:orientation="1" android:id="@7F08012A" android:visibility="2" android:layout_width="-1" android:layout_height="-2">
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E003A" android:layout_marginStart="5.000000dip" style="@android:01030044"/>
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:id="@id/constraintLayout" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="fill_parent" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintTop_toTopOf="@id/constraintLayout"
+      xmlns:android="http://schemas.android.com/apk/res/android">
+        <RelativeLayout android:gravity="start" android:id="@id/select_languages_header" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/autotts_select_languages" style="@android:style/TextAppearance.Medium" />
+        </RelativeLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/list_inactive" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/autotts_select_languages_not_available" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/list_active" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/autotts_select_languages_descr" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:gravity="center" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                <Button android:id="@id/selecl_all_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/select_all" />
+                <Button android:id="@id/clear_all_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/clear_all" />
+                <Button android:id="@id/toggle_selected_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/show_selected" />
+            </LinearLayout>
+            <androidx.appcompat.widget.SearchView android:id="@id/search_languages" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:layout_marginBottom="5.0dip" android:queryHint="@string/search_languages_hint" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" />
+            <ListView android:id="@id/list_languages" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+        </LinearLayout>
     </LinearLayout>
-    <LinearLayout android:orientation="1" android:id="@7F080129" android:visibility="0" android:layout_width="-1" android:layout_height="-2">
-      <TextView android:gravity="0x00800003" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="10.000000dip" android:text="@7F0E0039" android:layout_marginStart="5.000000dip" style="@android:01030046"/>
-      <LinearLayout android:gravity="0x00000011" android:orientation="0" android:layout_width="-1" android:layout_height="-2">
-        <Button android:id="@7F0801D3" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0109"/>
-        <Button android:id="@7F080094" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E0057"/>
-        <Button android:id="@7F08022C" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E010D"/>
-      </LinearLayout>
-      <androidx.appcompat.widget.SearchView android:id="@7F0801CD" android:layout_width="-1" android:layout_height="-2" android:layout_marginTop="5.000000dip" android:layout_marginBottom="5.000000dip" android:queryHint="@7F0E0104" android:layout_marginStart="5.000000dip" android:layout_marginEnd="5.000000dip"/>
-      <ListView android:id="@7F08012C" android:layout_width="-1" android:layout_height="-2"/>
-    </LinearLayout>
-  </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

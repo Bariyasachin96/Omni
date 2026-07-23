@@ -11,7 +11,7 @@ package com.vnspeak.autotts;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import c3.y;
+import c3.a0;
 import java.util.Locale;
 
 public class GetSampleText
@@ -26,7 +26,7 @@ extends Activity {
     public void onCreate(Bundle object) {
         super.onCreate((Bundle)object);
         Locale locale = GetSampleText.a(this.getIntent());
-        String string = y.a(locale.getISO3Language());
+        String string = a0.a(locale.getISO3Language());
         object = string;
         if (string.isEmpty()) {
             object = new StringBuilder();

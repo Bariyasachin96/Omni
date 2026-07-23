@@ -160,13 +160,13 @@ implements List {
             return true;
         }
 
-        public final int e(Collection collection) {
-            k.e(collection, "c");
-            Iterator iterator = collection.iterator();
+        public final int e(Collection object) {
+            k.e(object, "c");
+            object = object.iterator();
             int n3 = 1;
-            while (iterator.hasNext()) {
-                collection = iterator.next();
-                int n4 = collection != null ? ((Object)collection).hashCode() : 0;
+            while (object.hasNext()) {
+                Object e3 = object.next();
+                int n4 = e3 != null ? e3.hashCode() : 0;
                 n3 = n3 * 31 + n4;
             }
             return n3;

@@ -44,21 +44,22 @@ extends r.b {
     }
 
     public final void F(i i3) {
-        int n3 = this.j;
+        int n3;
+        int n4 = this.j;
         i[] iArray = this.h;
-        if (n3 + 1 > iArray.length) {
+        if (n4 + 1 > iArray.length) {
             this.h = iArray = Arrays.copyOf(iArray, iArray.length * 2);
             this.i = Arrays.copyOf(iArray, iArray.length * 2);
         }
         iArray = this.h;
-        int n4 = this.j;
+        n4 = this.j;
         iArray[n4] = i3;
         this.j = n3 = n4 + 1;
         if (n3 > 1 && iArray[n4].e > i3.e) {
             int n5;
-            n4 = 0;
-            for (n3 = 0; n3 < (n5 = this.j); ++n3) {
-                this.i[n3] = this.h[n3];
+            n3 = 0;
+            for (n4 = 0; n4 < (n5 = this.j); ++n4) {
+                this.i[n4] = this.h[n4];
             }
             Arrays.sort(this.i, 0, n5, new Comparator(this){
                 public final h c;
@@ -70,8 +71,8 @@ extends r.b {
                     return i3.e - i4.e;
                 }
             });
-            for (n3 = n4; n3 < this.j; ++n3) {
-                this.h[n3] = this.i[n3];
+            for (n4 = n3; n4 < this.j; ++n4) {
+                this.h[n4] = this.i[n4];
             }
         }
         i3.c = true;

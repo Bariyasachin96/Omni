@@ -16,15 +16,15 @@ extends m {
         int n8 = this.F1();
         int n9 = this.G1();
         int n10 = this.D1();
-        n7 += n8;
-        n8 = n9 + n10;
+        n8 = n7 + n8;
+        n7 = n9 + n10;
         int n11 = this.W0;
         boolean bl = false;
-        n10 = n7;
-        n9 = n8;
+        n10 = n8;
+        n9 = n7;
         if (n11 > 0) {
-            n10 = n7 + this.V0[0].Y();
-            n9 = n8 + this.V0[0].z();
+            n10 = n8 + this.V0[0].Y();
+            n9 = n7 + this.V0[0].z();
         }
         n10 = Math.max(this.K(), n10);
         n9 = Math.max(this.J(), n9);

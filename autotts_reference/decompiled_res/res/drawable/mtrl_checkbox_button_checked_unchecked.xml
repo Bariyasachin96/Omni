@@ -1,5 +1,7 @@
-<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:drawable="@7F0700C8">
-  <target android:name="@7F0E00B6" android:animation="@7F07000C"/>
-  <target android:name="@7F0E00B6" android:animation="@7F07000D"/>
-  <target android:name="@7F0E00B7" android:animation="@7F07000E"/>
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/mtrl_ic_checkbox_checked"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt">
+    <target android:name="@string/mtrl_checkbox_button_path_group_name" android:animation="@drawable/$mtrl_checkbox_button_checked_unchecked__0" />
+    <target android:name="@string/mtrl_checkbox_button_path_group_name" android:animation="@drawable/$mtrl_checkbox_button_checked_unchecked__1" />
+    <target android:name="@string/mtrl_checkbox_button_path_name" android:animation="@drawable/$mtrl_checkbox_button_checked_unchecked__2" />
 </animated-vector>

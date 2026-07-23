@@ -31,13 +31,13 @@ extends e {
         }
 
         @Override
-        public Thread newThread(Runnable runnable) {
-            runnable = new Thread(runnable);
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("arch_disk_io_");
-            stringBuilder.append(this.a.getAndIncrement());
-            ((Thread)runnable).setName(stringBuilder.toString());
-            return runnable;
+        public Thread newThread(Runnable object) {
+            Thread thread = new Thread((Runnable)object);
+            object = new StringBuilder();
+            ((StringBuilder)object).append("arch_disk_io_");
+            ((StringBuilder)object).append(this.a.getAndIncrement());
+            thread.setName(((StringBuilder)object).toString());
+            return thread;
         }
     });
     public volatile Handler c;

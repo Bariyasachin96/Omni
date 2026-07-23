@@ -53,9 +53,9 @@ implements a.c {
             this.b = false;
             return object;
         }
-        object = (Map.Entry)object2.next();
-        object2 = (String)object.getKey();
-        s.a(object.getValue());
+        object2 = (Map.Entry)object2.next();
+        object = (String)object2.getKey();
+        s.a(object2.getValue());
         throw null;
     }
 

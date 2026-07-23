@@ -43,11 +43,11 @@ public class e {
             return n4;
         }
         int n5 = 0;
-        n4 = 0;
         if (f3 != -1.0f && f4 != -1.0f) {
             ArrayList arrayList = a4.b;
             int n6 = arrayList.size();
             Object object = null;
+            n4 = n5;
             while (n4 < n6) {
                 Object object2 = arrayList.get(n4);
                 n5 = n4 + 1;
@@ -63,8 +63,8 @@ public class e {
         }
         if (a4.c == n3) return n3;
         ArrayList arrayList = a4.b;
-        int n7 = arrayList.size();
-        for (n4 = n5; n4 < n7; ++n4) {
+        n5 = arrayList.size();
+        for (n4 = 0; n4 < n5; ++n4) {
             Object e3 = arrayList.get(n4);
             if (n3 != ((b)e3).e) continue;
             return n3;
@@ -78,19 +78,20 @@ public class e {
      * Enabled aggressive exception aggregation
      */
     public final void b(Context context, XmlPullParser xmlPullParser) {
-        int n3;
         TypedArray typedArray;
+        int n3;
+        Object object;
         block16: {
             XmlPullParserException xmlPullParserException2;
             block17: {
-                typedArray = context.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), y.d.StateSet);
-                int n4 = typedArray.getIndexCount();
+                object = context.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), y.d.StateSet);
+                int n4 = object.getIndexCount();
                 for (n3 = 0; n3 < n4; ++n3) {
-                    int n5 = typedArray.getIndex(n3);
+                    int n5 = object.getIndex(n3);
                     if (n5 != y.d.StateSet_defaultState) continue;
-                    this.a = typedArray.getResourceId(n5, this.a);
+                    this.a = object.getResourceId(n5, this.a);
                 }
-                typedArray.recycle();
+                object.recycle();
                 try {
                     n3 = xmlPullParser.getEventType();
                     typedArray = null;
@@ -108,7 +109,6 @@ public class e {
             return;
         }
         while (n3 != 1) {
-            Object object;
             if (n3 != 2) {
                 if (n3 != 3) {
                     object = typedArray;
@@ -233,35 +233,35 @@ public class e {
         public int e = -1;
         public boolean f = false;
 
-        public b(Context context, XmlPullParser xmlPullParser) {
-            xmlPullParser = context.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), y.d.Variant);
-            int n3 = xmlPullParser.getIndexCount();
+        public b(Context context, XmlPullParser object) {
+            TypedArray typedArray = context.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)object), y.d.Variant);
+            int n3 = typedArray.getIndexCount();
             for (int i3 = 0; i3 < n3; ++i3) {
-                int n4 = xmlPullParser.getIndex(i3);
+                int n4 = typedArray.getIndex(i3);
                 if (n4 == y.d.Variant_constraints) {
-                    this.e = xmlPullParser.getResourceId(n4, this.e);
-                    String string = context.getResources().getResourceTypeName(this.e);
+                    this.e = typedArray.getResourceId(n4, this.e);
+                    object = context.getResources().getResourceTypeName(this.e);
                     context.getResources().getResourceName(this.e);
-                    if (!"layout".equals(string)) continue;
+                    if (!"layout".equals(object)) continue;
                     this.f = true;
                     continue;
                 }
                 if (n4 == y.d.Variant_region_heightLessThan) {
-                    this.d = xmlPullParser.getDimension(n4, this.d);
+                    this.d = typedArray.getDimension(n4, this.d);
                     continue;
                 }
                 if (n4 == y.d.Variant_region_heightMoreThan) {
-                    this.b = xmlPullParser.getDimension(n4, this.b);
+                    this.b = typedArray.getDimension(n4, this.b);
                     continue;
                 }
                 if (n4 == y.d.Variant_region_widthLessThan) {
-                    this.c = xmlPullParser.getDimension(n4, this.c);
+                    this.c = typedArray.getDimension(n4, this.c);
                     continue;
                 }
                 if (n4 != y.d.Variant_region_widthMoreThan) continue;
-                this.a = xmlPullParser.getDimension(n4, this.a);
+                this.a = typedArray.getDimension(n4, this.a);
             }
-            xmlPullParser.recycle();
+            typedArray.recycle();
         }
 
         public boolean a(float f3, float f4) {

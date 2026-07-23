@@ -95,7 +95,6 @@ import com.google.android.material.internal.c0;
 import com.google.android.material.internal.z;
 import com.google.android.material.slider.e;
 import com.google.android.material.slider.f;
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.text.NumberFormat;
@@ -223,9 +222,10 @@ extends View {
     }
 
     public BaseSlider(Context object, AttributeSet attributeSet, int n3) {
-        super(y2.a.d((Context)object, attributeSet, n3, Y0), attributeSet, n3);
+        super(y2.a.d(object, attributeSet, n3, Y0), attributeSet, n3);
         Paint paint;
         Paint paint2;
+        i i3;
         this.n0 = new ArrayList();
         this.E0 = new Path();
         this.F0 = new RectF();
@@ -236,8 +236,7 @@ extends View {
         this.K0 = new RectF();
         this.L0 = new Rect();
         this.M0 = new Matrix();
-        object = new i();
-        this.N0 = object;
+        this.N0 = i3 = new i();
         this.P0 = Collections.EMPTY_LIST;
         this.R0 = 0;
         this.T0 = new com.google.android.material.slider.c(this);
@@ -248,30 +247,31 @@ extends View {
         this.c = new Paint();
         this.d = new Paint();
         this.e = paint2 = new Paint(1);
-        Paint.Style style = Paint.Style.FILL;
-        paint2.setStyle(style);
+        object = Paint.Style.FILL;
+        paint2.setStyle((Paint.Style)object);
         paint2.setXfermode((Xfermode)new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
         this.f = paint2 = new Paint(1);
-        paint2.setStyle(style);
+        paint2.setStyle((Paint.Style)object);
         this.g = paint = new Paint();
-        Paint.Style style2 = Paint.Style.STROKE;
-        paint.setStyle(style2);
+        Paint.Style style = Paint.Style.STROKE;
+        paint.setStyle(style);
         paint2 = Paint.Cap.ROUND;
         paint.setStrokeCap((Paint.Cap)paint2);
         this.h = paint = new Paint();
-        paint.setStyle(style2);
+        paint.setStyle(style);
         paint.setStrokeCap((Paint.Cap)paint2);
-        style2 = new Paint();
-        this.i = style2;
-        style2.setStyle(style);
-        style2.setStrokeCap((Paint.Cap)paint2);
+        style = new Paint();
+        this.i = style;
+        style.setStyle((Paint.Style)object);
+        style.setStrokeCap((Paint.Cap)paint2);
         this.t0(context.getResources());
         this.H0(context, attributeSet, n3);
         this.setFocusable(true);
         this.setClickable(true);
-        ((i)object).q0(2);
+        i3.q0(2);
         this.t = ViewConfiguration.get((Context)context).getScaledTouchSlop();
-        this.j = object = new c(this);
+        object = new c(this);
+        this.j = object;
         o0.x0.h0(this, (o0.a)object);
         object = (AccessibilityManager)this.getContext().getSystemService("accessibility");
         this.k = object;
@@ -347,9 +347,9 @@ extends View {
         if (f3 == 0.0f) {
             return 0.0f;
         }
-        f3 = (f3 - (float)this.G) / (float)this.v0;
-        float f4 = this.l0;
-        return f3 * (f4 - this.m0) + f4;
+        float f4 = (f3 - (float)this.G) / (float)this.v0;
+        f3 = this.l0;
+        return f4 * (f3 - this.m0) + f3;
     }
 
     public final float B0(float f3) {
@@ -454,8 +454,8 @@ lbl20:
         float f3 = n5;
         float f4 = fArray[1];
         float f5 = n3;
-        f4 = (float)n5 + fArray[0] * f5;
-        if (f4 >= (f3 += f4 * f5)) {
+        f3 = (float)n5 + fArray[0] * f5;
+        if (f3 >= (f4 = f3 + f4 * f5)) {
             this.F0.setEmpty();
             return;
         }
@@ -482,27 +482,27 @@ lbl20:
                                                 if (n5 >= this.n0.size()) {
                                                     return;
                                                 }
-                                                f5 = f4;
+                                                f5 = f3;
                                                 if (this.n0.size() <= 1) break block11;
                                                 if (n5 > 0) {
-                                                    f4 = this.m1(((Float)this.n0.get(n5 - 1)).floatValue());
+                                                    f3 = this.m1(((Float)this.n0.get(n5 - 1)).floatValue());
                                                 }
                                                 f6 = this.m1(((Float)this.n0.get(n5)).floatValue());
                                                 if (this.p0()) break block12;
-                                                f5 = f4;
-                                                f3 = f6;
+                                                f5 = f3;
+                                                f4 = f6;
                                                 if (!this.s0()) break block11;
                                             }
                                             f5 = f6;
-                                            f3 = f4;
+                                            f4 = f3;
                                         }
                                         n6 = this.getTrackCornerSize();
                                         n3 = d4.ordinal();
                                         if (n3 == 1) break block13;
                                         if (n3 == 2) break block14;
                                         if (n3 == 3) break block15;
-                                        f4 = f5;
-                                        f6 = f3;
+                                        f3 = f5;
+                                        f6 = f4;
                                         break block16;
                                     }
                                     if (this.g0()) break block17;
@@ -511,37 +511,37 @@ lbl20:
                                     break block18;
                                 }
                                 if (fArray[1] != 0.5f) break block19;
-                                f4 = f5 + (float)this.K;
-                                f6 = f3;
+                                f3 = f5 + (float)this.K;
+                                f6 = f4;
                                 break block16;
                             }
-                            f4 = f5;
-                            f6 = f3;
+                            f3 = f5;
+                            f6 = f4;
                             if (fArray[0] != 0.5f) break block16;
                             n3 = this.K;
                             break block18;
                         }
-                        f4 = f5 + (float)this.K;
-                        f6 = f3 + (float)n6;
+                        f3 = f5 + (float)this.K;
+                        f6 = f4 + (float)n6;
                         break block16;
                     }
                     f5 -= (float)n6;
                     n3 = this.K;
                 }
-                f6 = f3 - (float)n3;
-                f4 = f5;
+                f6 = f4 - (float)n3;
+                f3 = f5;
             }
-            if (f4 >= f6) {
+            if (f3 >= f6) {
                 this.F0.setEmpty();
             } else {
                 d3 = this.F0;
                 f5 = n4;
                 n3 = this.F;
-                d3.set(f4, f5 - (float)n3 / 2.0f, f6, f5 + (float)n3 / 2.0f);
+                d3.set(f3, f5 - (float)n3 / 2.0f, f6, f5 + (float)n3 / 2.0f);
                 this.a1(canvas, this.d, this.F0, n6, d4);
             }
             ++n5;
-            f3 = f6;
+            f4 = f6;
         }
     }
 
@@ -613,11 +613,11 @@ lbl20:
         n4 = this.F;
         float f4 = f3 - (float)n4 / 2.0f;
         float f5 = f3 + (float)n4 / 2.0f;
-        float f6 = this.G - this.getTrackCornerSize();
-        f3 = this.G;
+        f3 = this.G - this.getTrackCornerSize();
+        float f6 = this.G;
         float f7 = fArray[0];
         float f8 = n3;
-        this.F(f6, f3 + f7 * f8 - (float)this.K, f4, f5, canvas, this.G0, com.google.android.material.slider.BaseSlider$d.d);
+        this.F(f3, f6 + f7 * f8 - (float)this.K, f4, f5, canvas, this.G0, com.google.android.material.slider.BaseSlider$d.d);
         n4 = this.G;
         this.F((float)n4 + fArray[1] * f8 + (float)this.K, n4 + n3 + this.getTrackCornerSize(), f4, f5, canvas, this.H0, com.google.android.material.slider.BaseSlider$d.e);
     }
@@ -666,18 +666,18 @@ lbl20:
         this.q0 = typedArray.getFloat(z1.m.Slider_android_stepSize, 0.0f);
         float f3 = s2.b.e(context);
         this.A = (int)Math.ceil(typedArray.getDimension(z1.m.Slider_minTouchTargetSize, f3));
-        n3 = z1.m.Slider_trackColor;
-        boolean bl = typedArray.hasValue(n3);
-        int n4 = bl ? n3 : z1.m.Slider_trackColorInactive;
+        int n4 = z1.m.Slider_trackColor;
+        boolean bl = typedArray.hasValue(n4);
+        n3 = bl ? n4 : z1.m.Slider_trackColorInactive;
         if (!bl) {
-            n3 = z1.m.Slider_trackColorActive;
+            n4 = z1.m.Slider_trackColorActive;
         }
-        attributeSet = s2.c.a(context, typedArray, n4);
+        attributeSet = s2.c.a(context, typedArray, n3);
         if (attributeSet == null) {
             attributeSet = d.a.a(context, z1.d.material_slider_inactive_track_color);
         }
         this.setTrackInactiveTintList((ColorStateList)attributeSet);
-        attributeSet = s2.c.a(context, typedArray, n3);
+        attributeSet = s2.c.a(context, typedArray, n4);
         if (attributeSet == null) {
             attributeSet = d.a.a(context, z1.d.material_slider_active_track_color);
         }
@@ -697,18 +697,18 @@ lbl20:
         n3 = z1.m.Slider_tickVisibilityMode;
         n3 = typedArray.hasValue(n3) ? typedArray.getInt(n3, -1) : this.x(typedArray.getBoolean(z1.m.Slider_tickVisible, true));
         this.s0 = n3;
-        n4 = z1.m.Slider_tickColor;
-        bl = typedArray.hasValue(n4);
-        n3 = bl ? n4 : z1.m.Slider_tickColorInactive;
+        n3 = z1.m.Slider_tickColor;
+        bl = typedArray.hasValue(n3);
+        n4 = bl ? n3 : z1.m.Slider_tickColorInactive;
         if (!bl) {
-            n4 = z1.m.Slider_tickColorActive;
+            n3 = z1.m.Slider_tickColorActive;
         }
-        attributeSet = s2.c.a(context, typedArray, n3);
+        attributeSet = s2.c.a(context, typedArray, n4);
         if (attributeSet == null) {
             attributeSet = d.a.a(context, z1.d.material_slider_inactive_tick_marks_color);
         }
         this.setTickInactiveTintList((ColorStateList)attributeSet);
-        attributeSet = s2.c.a(context, typedArray, n4);
+        attributeSet = s2.c.a(context, typedArray, n3);
         if (attributeSet == null) {
             attributeSet = d.a.a(context, z1.d.material_slider_active_tick_marks_color);
         }
@@ -890,13 +890,13 @@ lbl20:
                     this.a = baseSlider;
                 }
 
-                public void onAnimationEnd(Animator object) {
-                    super.onAnimationEnd((Animator)object);
-                    ViewOverlay viewOverlay = this.a.V();
-                    if (viewOverlay != null) {
-                        object = this.a.n.iterator();
-                        while (object.hasNext()) {
-                            viewOverlay.remove((Drawable)((z2.a)object.next()));
+                public void onAnimationEnd(Animator animator) {
+                    super.onAnimationEnd(animator);
+                    animator = this.a.V();
+                    if (animator != null) {
+                        Iterator iterator = this.a.n.iterator();
+                        while (iterator.hasNext()) {
+                            animator.remove((Drawable)((z2.a)iterator.next()));
                         }
                     }
                 }
@@ -982,9 +982,9 @@ lbl20:
     public void S0(int n3, Rect rect) {
         int n4 = this.G + (int)(this.B0(this.getValues().get(n3).floatValue()) * (float)this.v0);
         int n5 = this.v();
-        n3 = Math.max(this.H / 2, this.A / 2);
-        int n6 = Math.max(this.I / 2, this.A / 2);
-        RectF rectF = new RectF((float)(n4 - n3), (float)(n5 - n6), (float)(n4 + n3), (float)(n5 + n6));
+        int n6 = Math.max(this.H / 2, this.A / 2);
+        n3 = Math.max(this.I / 2, this.A / 2);
+        RectF rectF = new RectF((float)(n4 - n6), (float)(n5 - n3), (float)(n4 + n6), (float)(n5 + n3));
         if (this.s0()) {
             this.M0.mapRect(rectF);
         }
@@ -1203,9 +1203,9 @@ lbl20:
             }
             f3 = 1.0f - f4;
         }
-        f4 = this.m0;
-        float f5 = this.l0;
-        return f3 * (f4 - f5) + f5;
+        float f5 = this.m0;
+        f4 = this.l0;
+        return f3 * (f5 - f4) + f4;
     }
 
     /*
@@ -2674,8 +2674,8 @@ lbl20:
             if (n3 <= n4) {
                 this.K(n3 * 2, (n4 + 1) * 2, canvas, this.h);
             }
-            if ((n3 = (n4 + 1) * 2) < (fArray = this.r0).length) {
-                this.K(n3, fArray.length, canvas, this.g);
+            if ((n4 = (n4 + 1) * 2) < (fArray = this.r0).length) {
+                this.K(n4, fArray.length, canvas, this.g);
             }
         }
     }
@@ -2692,13 +2692,14 @@ lbl20:
         int n4 = Math.max((this.F - this.w) / 2, 0);
         int n5 = Math.max(this.t0 - this.x, 0);
         int n6 = Math.max(this.u0 - this.y, 0);
-        if (this.G == (n3 = this.u + Math.max(Math.max(n3, n4), Math.max(n5, n6)))) {
+        n5 = this.u + Math.max(Math.max(n3, n4), Math.max(n5, n6));
+        if (this.G == n5) {
             return false;
         }
-        this.G = n3;
+        this.G = n5;
         if (this.isLaidOut()) {
-            n3 = this.s0() ? this.getHeight() : this.getWidth();
-            this.f1(n3);
+            n5 = this.s0() ? this.getHeight() : this.getWidth();
+            this.f1(n5);
         }
         return true;
     }
@@ -2737,29 +2738,27 @@ lbl20:
             n4 = this.getPaddingTop();
             n3 = this.getPaddingBottom();
         }
-        n3 = n4 + n3;
-        n4 = this.F;
-        int n5 = this.I;
-        n4 = Math.max(this.C, Math.max(n4 + n3, n5 + n3));
-        if (n4 != this.D) {
-            this.D = n4;
+        n4 += n3;
+        int n5 = this.F;
+        n3 = this.I;
+        n3 = Math.max(this.C, Math.max(n5 + n4, n3 + n4));
+        if (n3 != this.D) {
+            this.D = n3;
             return true;
         }
         return false;
     }
 
     public final void z() {
-        boolean bl;
         Iterator iterator;
+        boolean bl;
         if (this.n.size() > this.n0.size()) {
-            iterator = this.n.subList(this.n0.size(), this.n.size());
-            Iterator iterator2 = iterator.iterator();
-            while (iterator2.hasNext()) {
-                z2.a a4 = (z2.a)iterator2.next();
+            List list = this.n.subList(this.n0.size(), this.n.size());
+            for (z2.a a4 : list) {
                 if (!this.isAttachedToWindow()) continue;
                 this.A(a4);
             }
-            iterator.clear();
+            list.clear();
         }
         while (true) {
             int n3 = this.n.size();
@@ -2947,33 +2946,32 @@ lbl20:
                     s3.a(4096);
                 }
             }
-            Serializable serializable = NumberFormat.getNumberInstance();
-            ((NumberFormat)serializable).setMaximumFractionDigits(2);
+            Object object3 = NumberFormat.getNumberInstance();
+            ((NumberFormat)object3).setMaximumFractionDigits(2);
             double d3 = f5;
             float f7 = f6;
-            f5 = f3 = ((NumberFormat)serializable).parse(((NumberFormat)serializable).format(d3)).floatValue();
+            f5 = f3 = ((NumberFormat)object3).parse(((NumberFormat)object3).format(d3)).floatValue();
             f7 = f6;
-            f6 = ((NumberFormat)serializable).parse(((NumberFormat)serializable).format(f6)).floatValue();
+            f6 = ((NumberFormat)object3).parse(((NumberFormat)object3).format(f6)).floatValue();
             f5 = f3;
             f7 = f6;
             try {
                 float f8;
-                f7 = f8 = ((NumberFormat)serializable).parse(((NumberFormat)serializable).format(f4)).floatValue();
+                f4 = f8 = ((NumberFormat)object3).parse(((NumberFormat)object3).format(f4)).floatValue();
                 f5 = f3;
+                f7 = f6;
             }
             catch (ParseException parseException) {
                 Log.w((String)X0, (String)String.format("Error parsing value(%s), valueFrom(%s), and valueTo(%s) into a float.", object2, Float.valueOf(f5), Float.valueOf(f7)));
-                f6 = f7;
-                f7 = f4;
             }
-            s3.y0(s.g.a(1, f5, f6, f7));
+            s3.y0(s.g.a(1, f5, f7, f4));
             s3.h0(SeekBar.class.getName());
-            serializable = new StringBuilder();
+            StringBuilder stringBuilder = new StringBuilder();
             if (this.q.getContentDescription() != null) {
-                ((StringBuilder)serializable).append(this.q.getContentDescription());
-                ((StringBuilder)serializable).append(",");
+                stringBuilder.append(this.q.getContentDescription());
+                stringBuilder.append(",");
             }
-            String string = this.q.Q(f7);
+            object3 = this.q.Q(f4);
             object2 = this.q.getContext().getString(z1.k.material_slider_value);
             if (object.size() > 1) {
                 object2 = this.Y(n3);
@@ -2981,9 +2979,9 @@ lbl20:
             if (!TextUtils.isEmpty((CharSequence)(object = o0.x0.E(this.q)))) {
                 s3.G0((CharSequence)object);
             } else {
-                ((StringBuilder)serializable).append(String.format(Locale.getDefault(), "%s, %s", object2, string));
+                stringBuilder.append(String.format(Locale.getDefault(), "%s, %s", object2, object3));
             }
-            s3.l0(((StringBuilder)serializable).toString());
+            s3.l0(stringBuilder.toString());
             this.q.S0(n3, this.r);
             s3.c0(this.r);
         }

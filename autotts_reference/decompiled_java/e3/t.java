@@ -56,19 +56,19 @@ extends s {
         return null;
     }
 
-    public static final int s(Iterable object, Object object2) {
-        k.e(object, "<this>");
-        if (object instanceof List) {
-            return ((List)object).indexOf(object2);
+    public static final int s(Iterable iterable, Object object) {
+        k.e(iterable, "<this>");
+        if (iterable instanceof List) {
+            return ((List)iterable).indexOf(object);
         }
-        object = object.iterator();
+        Iterator iterator = iterable.iterator();
         int n3 = 0;
-        while (object.hasNext()) {
-            Object e3 = object.next();
+        while (iterator.hasNext()) {
+            iterable = iterator.next();
             if (n3 < 0) {
                 l.k();
             }
-            if (k.a(object2, e3)) {
+            if (k.a(object, iterable)) {
                 return n3;
             }
             ++n3;
@@ -76,21 +76,21 @@ extends s {
         return -1;
     }
 
-    public static final Appendable t(Iterable object, Appendable appendable, CharSequence charSequence, CharSequence charSequence2, CharSequence charSequence3, int n3, CharSequence charSequence4, n3.l l3) {
+    public static final Appendable t(Iterable iterable, Appendable appendable, CharSequence charSequence, CharSequence object, CharSequence charSequence2, int n3, CharSequence charSequence3, n3.l l3) {
         int n4;
-        k.e(object, "<this>");
+        k.e(iterable, "<this>");
         k.e(appendable, "buffer");
         k.e(charSequence, "separator");
-        k.e(charSequence2, "prefix");
-        k.e(charSequence3, "postfix");
-        k.e(charSequence4, "truncated");
-        appendable.append(charSequence2);
-        object = object.iterator();
+        k.e(object, "prefix");
+        k.e(charSequence2, "postfix");
+        k.e(charSequence3, "truncated");
+        appendable.append((CharSequence)object);
+        object = iterable.iterator();
         int n5 = 0;
         while (true) {
             n4 = n5++;
             if (!object.hasNext()) break;
-            charSequence2 = object.next();
+            iterable = object.next();
             if (n5 > 1) {
                 appendable.append(charSequence);
             }
@@ -98,12 +98,12 @@ extends s {
                 n4 = n5;
                 if (n5 > n3) break;
             }
-            c.a(appendable, charSequence2, l3);
+            c.a(appendable, iterable, l3);
         }
         if (n3 >= 0 && n4 > n3) {
-            appendable.append(charSequence4);
+            appendable.append(charSequence3);
         }
-        appendable.append(charSequence3);
+        appendable.append(charSequence2);
         return appendable;
     }
 

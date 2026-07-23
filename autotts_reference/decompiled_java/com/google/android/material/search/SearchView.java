@@ -4,6 +4,7 @@
  * Could not load the following classes:
  *  android.app.Activity
  *  android.content.Context
+ *  android.content.res.TypedArray
  *  android.graphics.drawable.Drawable
  *  android.os.Build$VERSION
  *  android.os.Parcel
@@ -32,6 +33,7 @@ package com.google.android.material.search;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Parcel;
@@ -129,28 +131,28 @@ p2.b {
         this(context, attributeSet, z1.c.materialSearchViewStyle);
     }
 
-    public SearchView(Context context, AttributeSet attributeSet, int n3) {
+    public SearchView(Context context, AttributeSet object, int n3) {
         int n4 = G;
-        super(y2.a.d(context, attributeSet, n3, n4), attributeSet, n3);
+        super(y2.a.d(context, object, n3, n4), object, n3);
         this.s = new p2.c((View)this);
         this.v = new LinkedHashSet();
         this.x = 16;
         this.E = b.d;
         context = this.getContext();
-        attributeSet = com.google.android.material.internal.z.i(context, attributeSet, z1.m.SearchView, n3, n4, new int[0]);
-        this.B = attributeSet.getColor(z1.m.SearchView_backgroundTint, 0);
-        n4 = attributeSet.getResourceId(z1.m.SearchView_headerLayout, -1);
-        n3 = attributeSet.getResourceId(z1.m.SearchView_android_textAppearance, -1);
-        String string = attributeSet.getString(z1.m.SearchView_android_text);
-        String string2 = attributeSet.getString(z1.m.SearchView_android_hint);
-        String string3 = attributeSet.getString(z1.m.SearchView_searchPrefixText);
-        boolean bl = attributeSet.getBoolean(z1.m.SearchView_useDrawerArrowDrawable, false);
-        this.y = attributeSet.getBoolean(z1.m.SearchView_animateNavigationIcon, true);
-        this.z = attributeSet.getBoolean(z1.m.SearchView_animateMenuItems, true);
-        boolean bl2 = attributeSet.getBoolean(z1.m.SearchView_hideNavigationIcon, false);
-        this.A = attributeSet.getBoolean(z1.m.SearchView_autoShowKeyboard, true);
-        this.t = attributeSet.getBoolean(z1.m.SearchView_backHandlingEnabled, true);
-        attributeSet.recycle();
+        TypedArray typedArray = com.google.android.material.internal.z.i(context, object, z1.m.SearchView, n3, n4, new int[0]);
+        this.B = typedArray.getColor(z1.m.SearchView_backgroundTint, 0);
+        n4 = typedArray.getResourceId(z1.m.SearchView_headerLayout, -1);
+        n3 = typedArray.getResourceId(z1.m.SearchView_android_textAppearance, -1);
+        object = typedArray.getString(z1.m.SearchView_android_text);
+        String string = typedArray.getString(z1.m.SearchView_android_hint);
+        String string2 = typedArray.getString(z1.m.SearchView_searchPrefixText);
+        boolean bl = typedArray.getBoolean(z1.m.SearchView_useDrawerArrowDrawable, false);
+        this.y = typedArray.getBoolean(z1.m.SearchView_animateNavigationIcon, true);
+        this.z = typedArray.getBoolean(z1.m.SearchView_animateMenuItems, true);
+        boolean bl2 = typedArray.getBoolean(z1.m.SearchView_hideNavigationIcon, false);
+        this.A = typedArray.getBoolean(z1.m.SearchView_autoShowKeyboard, true);
+        this.t = typedArray.getBoolean(z1.m.SearchView_backHandlingEnabled, true);
+        typedArray.recycle();
         LayoutInflater.from((Context)context).inflate(z1.i.mtrl_search_view, (ViewGroup)this);
         this.q = true;
         this.c = this.findViewById(z1.g.open_search_view_scrim);
@@ -172,8 +174,8 @@ p2.b {
         this.I();
         this.C();
         this.setUpHeaderLayout(n4);
-        this.setSearchPrefixText(string3);
-        this.G(n3, string, string2);
+        this.setSearchPrefixText(string2);
+        this.G(n3, (String)object, string);
         this.B(bl, bl2);
         this.D();
         this.E();
@@ -628,13 +630,13 @@ p2.b {
 
     public void r() {
         if (!((Object)((Object)this.E)).equals((Object)b.d) && !((Object)((Object)this.E)).equals((Object)b.c)) {
-            SearchBar searchBar = this.w;
-            if (searchBar != null && searchBar.isAttachedToWindow()) {
+            Object object = this.w;
+            if (object != null && object.isAttachedToWindow()) {
                 this.w.setPlaceholderText(this.m.getText().toString());
-                searchBar = this.w;
-                z z3 = this.r;
-                Objects.requireNonNull(z3);
-                searchBar.post(new h(z3));
+                SearchBar searchBar = this.w;
+                object = this.r;
+                Objects.requireNonNull(object);
+                searchBar.post(new h((z)object));
                 return;
             }
             this.r.Y();

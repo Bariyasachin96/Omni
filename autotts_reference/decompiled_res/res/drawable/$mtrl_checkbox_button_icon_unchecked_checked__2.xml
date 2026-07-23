@@ -1,1 +1,3 @@
-<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:interpolator="?7F03038A" android:duration="@7F09001A" android:valueFrom="0.000000" android:valueTo="1.000000" android:valueType="0" android:propertyName="trimPathEnd"/>
+<?xml version="1.0" encoding="utf-8"?>
+<objectAnimator android:interpolator="?motionEasingEmphasizedDecelerateInterpolator" android:duration="@integer/m3_sys_motion_duration_medium3" android:valueFrom="0.0" android:valueTo="1.0" android:valueType="floatType" android:propertyName="trimPathEnd"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" />

@@ -164,11 +164,11 @@ extends Transition {
                         block23: {
                             block24: {
                                 if (object2 == null || y3 == null) break block22;
-                                object = ((y)object2).a;
-                                map = y3.a;
-                                object = (ViewGroup)object.get("android:changeBounds:parent");
+                                map = ((y)object2).a;
+                                object = y3.a;
                                 map = (ViewGroup)map.get("android:changeBounds:parent");
-                                if (object == null || map == null) break block22;
+                                object = (ViewGroup)object.get("android:changeBounds:parent");
+                                if (map == null || object == null) break block22;
                                 view = y3.b;
                                 object = (Rect)((y)object2).a.get("android:changeBounds:bounds");
                                 map = (Rect)y3.a.get("android:changeBounds:bounds");

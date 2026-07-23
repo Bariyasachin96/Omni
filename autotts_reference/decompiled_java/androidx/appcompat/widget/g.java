@@ -81,11 +81,11 @@ public final class g {
             block4: {
                 try {
                     if (c != null) break block4;
-                    e0.c c3 = new g();
-                    c = c3;
-                    ((g)((Object)c3)).a = e0.g();
-                    e0 e02 = g.c.a;
-                    c3 = new e0.c(){
+                    Object object = new g();
+                    c = object;
+                    ((g)object).a = e0.g();
+                    object = g.c.a;
+                    e0.c c3 = new e0.c(){
                         public final int[] a = new int[]{e.abc_textfield_search_default_mtrl_alpha, e.abc_textfield_default_mtrl_alpha, e.abc_ab_share_pack_mtrl_alpha};
                         public final int[] b = new int[]{e.abc_ic_commit_search_api_mtrl_alpha, e.abc_seekbar_tick_mark_material, e.abc_ic_menu_share_mtrl_alpha, e.abc_ic_menu_copy_mtrl_am_alpha, e.abc_ic_menu_cut_mtrl_alpha, e.abc_ic_menu_selectall_mtrl_alpha, e.abc_ic_menu_paste_mtrl_am_alpha};
                         public final int[] c = new int[]{e.abc_textfield_activated_mtrl_alpha, e.abc_textfield_search_activated_mtrl_alpha, e.abc_cab_background_top_mtrl_alpha, e.abc_text_cursor_material, e.abc_text_select_handle_left_mtrl, e.abc_text_select_handle_middle_mtrl, e.abc_text_select_handle_right_mtrl};
@@ -242,12 +242,12 @@ lbl31:
                             if (n3 != e.abc_ratingbar_material && n3 != e.abc_ratingbar_indicator_material && n3 != e.abc_ratingbar_small_material) {
                                 return false;
                             }
-                            LayerDrawable layerDrawable = (LayerDrawable)drawable;
-                            this.m(layerDrawable.findDrawableByLayerId(0x1020000), i0.b(context, c.a.colorControlNormal), b);
-                            drawable = layerDrawable.findDrawableByLayerId(16908303);
+                            drawable = (LayerDrawable)drawable;
+                            this.m(drawable.findDrawableByLayerId(0x1020000), i0.b(context, c.a.colorControlNormal), b);
+                            Drawable drawable3 = drawable.findDrawableByLayerId(16908303);
                             n3 = c.a.colorControlActivated;
-                            this.m(drawable, i0.c(context, n3), b);
-                            this.m(layerDrawable.findDrawableByLayerId(16908301), i0.c(context, n3), b);
+                            this.m(drawable3, i0.c(context, n3), b);
+                            this.m(drawable.findDrawableByLayerId(16908301), i0.c(context, n3), b);
                             return true;
                         }
 
@@ -267,12 +267,12 @@ lbl31:
                         public final ColorStateList h(Context object, int n3) {
                             int n4 = i0.c(object, c.a.colorControlHighlight);
                             int n5 = i0.b(object, c.a.colorButtonNormal);
-                            int[] nArray = i0.b;
-                            int[] nArray2 = i0.e;
+                            object = i0.b;
+                            int[] nArray = i0.e;
                             int n6 = g0.a.g(n4, n3);
-                            object = i0.c;
+                            int[] nArray2 = i0.c;
                             n4 = g0.a.g(n4, n3);
-                            return new ColorStateList((int[][])new int[][]{nArray, nArray2, (int[])object, i0.i}, new int[]{n5, n6, n4, n3});
+                            return new ColorStateList((int[][])new int[][]{(int[])object, nArray, nArray2, i0.i}, new int[]{n5, n6, n4, n3});
                         }
 
                         public final ColorStateList i(Context context) {
@@ -326,11 +326,11 @@ lbl31:
                             if (drawable2 instanceof BitmapDrawable && drawable2.getIntrinsicWidth() == n3 && drawable2.getIntrinsicHeight() == n3) {
                                 drawable2 = (BitmapDrawable)drawable2;
                             } else {
-                                Bitmap bitmap = Bitmap.createBitmap((int)n3, (int)n3, (Bitmap.Config)Bitmap.Config.ARGB_8888);
-                                drawable = new Canvas(bitmap);
+                                drawable = Bitmap.createBitmap((int)n3, (int)n3, (Bitmap.Config)Bitmap.Config.ARGB_8888);
+                                Canvas canvas = new Canvas((Bitmap)drawable);
                                 drawable2.setBounds(0, 0, n3, n3);
-                                drawable2.draw((Canvas)drawable);
-                                drawable2 = new BitmapDrawable(bitmap);
+                                drawable2.draw(canvas);
+                                drawable2 = new BitmapDrawable((Bitmap)drawable);
                             }
                             e02 = new LayerDrawable(new Drawable[]{e02, drawable2, context});
                             e02.setId(0, 0x1020000);
@@ -348,7 +348,7 @@ lbl31:
                             drawable2.setColorFilter((ColorFilter)g.e(n3, (PorterDuff.Mode)drawable));
                         }
                     };
-                    e02.t(c3);
+                    ((e0)object).t(c3);
                 }
                 catch (Throwable throwable2) {}
             }

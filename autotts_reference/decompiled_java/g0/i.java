@@ -43,10 +43,10 @@ extends j {
      * Enabled aggressive exception aggregation
      */
     @Override
-    public Typeface a(Context object, e.c c3, Resources resources, int n3) {
-        Font.Builder builder;
+    public Typeface a(Context object, e.c object2, Resources resources, int n3) {
+        e.d d3;
         Object var7_15 = null;
-        e.d[] dArray = builder.a();
+        e.d[] dArray = ((e.c)((Object)d3)).a();
         int n4 = dArray.length;
         int n5 = 0;
         Object var1_2 = null;
@@ -56,14 +56,14 @@ extends j {
                 void var1_3;
                 if (n5 < n4) {
                     void var3_13;
-                    e.d d3 = dArray[n5];
-                    builder = new Font.Builder((Resources)var3_13, d3.b());
-                    d3 = builder.setWeight(d3.e()).setSlant(d3.f() ? 1 : 0).setTtcIndex(d3.c()).setFontVariationSettings(d3.d()).build();
+                    d3 = dArray[n5];
+                    Font.Builder builder = new Font.Builder((Resources)var3_13, d3.b());
+                    builder = builder.setWeight(d3.e()).setSlant(d3.f() ? 1 : 0).setTtcIndex(d3.c()).setFontVariationSettings(d3.d()).build();
                     if (var1_3 == null) {
-                        Font.Builder builder2 = builder = new FontFamily.Builder((Font)d3);
+                        e.d d4 = d3 = new FontFamily.Builder((Font)builder);
                         break block10;
                     } else {
-                        var1_3.addFont((Font)d3);
+                        var1_3.addFont((Font)builder);
                     }
                     break block10;
                 }
@@ -73,8 +73,8 @@ extends j {
                 try {
                     void var4_14;
                     FontFamily fontFamily = var1_3.build();
-                    builder = new Typeface.CustomFallbackBuilder(fontFamily);
-                    Typeface typeface = builder.setStyle(this.g(fontFamily, (int)var4_14).getStyle()).build();
+                    d3 = new Typeface.CustomFallbackBuilder(fontFamily);
+                    Typeface typeface = d3.setStyle(this.g(fontFamily, (int)var4_14).getStyle()).build();
                     return var1_7;
                 }
                 catch (Exception exception) {
@@ -150,9 +150,9 @@ lbl42:
                         return null;
                     }
                     try {
-                        var1_1 = var1_1.build();
-                        var2_4 = new Typeface.CustomFallbackBuilder((FontFamily)var1_1);
-                        return var2_4.setStyle(this.g((FontFamily)var1_1, var4_6).getStyle()).build();
+                        var2_4 = var1_1.build();
+                        var1_1 = new Typeface.CustomFallbackBuilder((FontFamily)var2_4);
+                        return var1_1.setStyle(this.g((FontFamily)var2_4, var4_6).getStyle()).build();
                     }
                     catch (Exception var1_2) {
                         return null;
@@ -171,9 +171,9 @@ lbl42:
             context = new Font.Builder(resources, n3);
             context = context.build();
             resources = new FontFamily.Builder((Font)context);
-            resources = resources.build();
-            string = new Typeface.CustomFallbackBuilder((FontFamily)resources);
-            context = string.setStyle(context.getStyle()).build();
+            string = resources.build();
+            resources = new Typeface.CustomFallbackBuilder((FontFamily)string);
+            context = resources.setStyle(context.getStyle()).build();
             return context;
         }
         catch (Exception exception) {
@@ -193,15 +193,18 @@ lbl42:
         FontStyle fontStyle = new FontStyle(n4, n3);
         Font font = fontFamily.getFont(0);
         n4 = i.h(fontStyle, font.getStyle());
-        for (n3 = n5; n3 < fontFamily.getSize(); ++n3) {
+        n3 = n5;
+        n5 = n4;
+        while (n3 < fontFamily.getSize()) {
             Font font2 = fontFamily.getFont(n3);
             int n6 = i.h(fontStyle, font2.getStyle());
-            n5 = n4;
-            if (n6 < n4) {
-                font = font2;
-                n5 = n6;
-            }
             n4 = n5;
+            if (n6 < n5) {
+                font = font2;
+                n4 = n6;
+            }
+            ++n3;
+            n5 = n4;
         }
         return font;
     }

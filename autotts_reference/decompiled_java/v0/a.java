@@ -419,9 +419,9 @@ extends o0.a {
                                 s4.c0(n);
                                 this.P(n3, s4);
                                 s4.k(this.e);
-                                rect = this.d;
-                                Rect rect2 = this.e;
-                                rect.offset(rect2.left, rect2.top);
+                                Rect rect2 = this.d;
+                                rect = this.e;
+                                rect2.offset(rect.left, rect.top);
                                 n3 = s4.b;
                             }
                             s4.Y();
@@ -502,11 +502,11 @@ extends o0.a {
                     case 21: 
                     case 22: {
                         if (!keyEvent.hasNoModifiers()) return false;
-                        n3 = v0.a.H(n3);
-                        int n5 = keyEvent.getRepeatCount();
+                        int n5 = v0.a.H(n3);
+                        n3 = keyEvent.getRepeatCount();
                         boolean bl = false;
-                        while (n4 < n5 + 1) {
-                            if (!this.I(n3, null)) return bl;
+                        while (n4 < n3 + 1) {
+                            if (!this.I(n5, null)) return bl;
                             ++n4;
                             bl = true;
                         }

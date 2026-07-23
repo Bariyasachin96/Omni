@@ -1,4 +1,6 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:gravity="0x00800005" android:orientation="0" android:id="@7F0800AE" android:paddingRight="@7F06035D" android:layout_width="-1" android:layout_height="@7F06035C" android:paddingEnd="@7F06035D">
-  <Button android:layout_gravity="0x00000010" android:id="@7F080086" android:layout_width="-2" android:layout_height="-2" android:text="@7F0E00C4" style="?7F03008D"/>
-  <Button android:layout_gravity="0x00000010" android:id="@7F08009D" android:layout_width="-2" android:layout_height="-2" android:minWidth="@7F06035B" android:text="@7F0E00C5" style="?7F03008F"/>
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="end" android:orientation="horizontal" android:id="@id/date_picker_actions" android:paddingRight="@dimen/mtrl_calendar_action_padding" android:layout_width="fill_parent" android:layout_height="@dimen/mtrl_calendar_action_height" android:paddingEnd="@dimen/mtrl_calendar_action_padding"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <Button android:layout_gravity="center_vertical" android:id="@id/cancel_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/mtrl_picker_cancel" style="?buttonBarNegativeButtonStyle" />
+    <Button android:layout_gravity="center_vertical" android:id="@id/confirm_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="@dimen/mtrl_calendar_action_confirm_button_min_width" android:text="@string/mtrl_picker_confirm" style="?buttonBarPositiveButtonStyle" />
 </LinearLayout>

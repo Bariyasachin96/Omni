@@ -31,8 +31,8 @@ extends o0 {
         }
         Rect rect = transition.w();
         if (y3 != null && this.e((y)object) != 0) {
-            object = y3;
             n3 = 1;
+            object = y3;
         } else {
             n3 = -1;
         }
@@ -40,18 +40,18 @@ extends o0 {
         int n5 = this.g((y)object);
         object = new int[2];
         viewGroup.getLocationOnScreen((int[])object);
-        reference var11_9 = object[0] + Math.round(viewGroup.getTranslationX());
-        reference var13_10 = object[1] + Math.round(viewGroup.getTranslationY());
-        int n6 = viewGroup.getWidth() + var11_9;
-        int n7 = viewGroup.getHeight() + var13_10;
+        reference var14_9 = object[0] + Math.round(viewGroup.getTranslationX());
+        reference var12_10 = object[1] + Math.round(viewGroup.getTranslationY());
+        int n6 = viewGroup.getWidth() + var14_9;
+        int n7 = viewGroup.getHeight() + var12_10;
         if (rect != null) {
             object3 = rect.centerX();
             object2 = rect.centerY();
         } else {
-            object3 = (var11_9 + n6) / 2;
-            object2 = (var13_10 + n7) / 2;
+            object3 = (var14_9 + n6) / 2;
+            object2 = (var12_10 + n7) / 2;
         }
-        float f3 = (float)this.h((View)viewGroup, n4, n5, (int)object3, (int)object2, (int)var11_9, (int)var13_10, n6, n7) / (float)this.i(viewGroup);
+        float f3 = (float)this.h((View)viewGroup, n4, n5, (int)object3, (int)object2, (int)var14_9, (int)var12_10, n6, n7) / (float)this.i(viewGroup);
         long l4 = l3 = transition.v();
         if (l3 < 0L) {
             l4 = 300L;

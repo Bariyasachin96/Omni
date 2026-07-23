@@ -11,7 +11,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -28,16 +27,15 @@ public final class a {
     public final a a(Class clazz, Method[] object) {
         void var2_4;
         int n3;
-        a a4;
-        Class clazz2 = clazz.getSuperclass();
+        Class<?>[] classArray = clazz.getSuperclass();
         HashMap hashMap = new HashMap();
-        if (clazz2 != null && (a4 = this.c(clazz2)) != null) {
-            hashMap.putAll(a4.b);
+        if (classArray != null && (classArray = this.c((Class)classArray)) != null) {
+            hashMap.putAll(classArray.b);
         }
-        Class<?>[] classArray = clazz.getInterfaces();
-        int n4 = classArray.length;
+        Class<?>[] classArray2 = clazz.getInterfaces();
+        int n4 = classArray2.length;
         for (n3 = 0; n3 < n4; ++n3) {
-            for (Map.Entry entry : this.c(classArray[n3]).b.entrySet()) {
+            for (Map.Entry entry : this.c(classArray2[n3]).b.entrySet()) {
                 this.e(hashMap, (b)entry.getKey(), (f.a)((Object)entry.getValue()), clazz);
             }
         }
@@ -47,30 +45,30 @@ public final class a {
         int n5 = ((void)var2_4).length;
         boolean bl = false;
         for (n4 = 0; n4 < n5; ++n4) {
-            Iterator iterator = var2_4[n4];
-            q q3 = ((Method)((Object)iterator)).getAnnotation(q.class);
+            classArray2 = var2_4[n4];
+            q q3 = classArray2.getAnnotation(q.class);
             if (q3 == null) continue;
-            Class<?>[] classArray2 = ((Method)((Object)iterator)).getParameterTypes();
-            if (classArray2.length > 0) {
-                if (!k.class.isAssignableFrom(classArray2[0])) throw new IllegalArgumentException("invalid parameter type. Must be one and instanceof LifecycleOwner");
+            classArray = classArray2.getParameterTypes();
+            if (classArray.length > 0) {
+                if (!k.class.isAssignableFrom(classArray[0])) throw new IllegalArgumentException("invalid parameter type. Must be one and instanceof LifecycleOwner");
                 n3 = 1;
             } else {
                 n3 = 0;
             }
-            f.a a5 = q3.value();
-            if (classArray2.length > 1) {
-                if (!f.a.class.isAssignableFrom(classArray2[1])) throw new IllegalArgumentException("invalid parameter type. second arg must be an event");
-                if (a5 != f.a.ON_ANY) throw new IllegalArgumentException("Second arg is supported only for ON_ANY value");
+            f.a a4 = q3.value();
+            if (classArray.length > 1) {
+                if (!f.a.class.isAssignableFrom(classArray[1])) throw new IllegalArgumentException("invalid parameter type. second arg must be an event");
+                if (a4 != f.a.ON_ANY) throw new IllegalArgumentException("Second arg is supported only for ON_ANY value");
                 n3 = 2;
             }
-            if (classArray2.length > 2) throw new IllegalArgumentException("cannot have more than 2 params");
-            this.e(hashMap, new b(n3, (Method)((Object)iterator)), a5, clazz);
+            if (classArray.length > 2) throw new IllegalArgumentException("cannot have more than 2 params");
+            this.e(hashMap, new b(n3, (Method)classArray2), a4, clazz);
             bl = true;
         }
-        a a6 = new a(hashMap);
-        this.a.put(clazz, a6);
+        a a5 = new a(hashMap);
+        this.a.put(clazz, a5);
         this.b.put(clazz, bl);
-        return a6;
+        return a5;
     }
 
     public final Method[] b(Class methodArray) {
@@ -110,17 +108,17 @@ public final class a {
     public final void e(Map object, b object2, f.a a4, Class clazz) {
         f.a a5 = (f.a)((Object)object.get(object2));
         if (a5 != null && a4 != a5) {
-            object = ((b)object2).b;
-            object2 = new StringBuilder();
-            ((StringBuilder)object2).append("Method ");
-            ((StringBuilder)object2).append(((Method)object).getName());
-            ((StringBuilder)object2).append(" in ");
-            ((StringBuilder)object2).append(clazz.getName());
-            ((StringBuilder)object2).append(" already declared with different @OnLifecycleEvent value: previous value ");
-            ((StringBuilder)object2).append((Object)a5);
-            ((StringBuilder)object2).append(", new value ");
-            ((StringBuilder)object2).append((Object)a4);
-            throw new IllegalArgumentException(((StringBuilder)object2).toString());
+            object2 = ((b)object2).b;
+            object = new StringBuilder();
+            ((StringBuilder)object).append("Method ");
+            ((StringBuilder)object).append(((Method)object2).getName());
+            ((StringBuilder)object).append(" in ");
+            ((StringBuilder)object).append(clazz.getName());
+            ((StringBuilder)object).append(" already declared with different @OnLifecycleEvent value: previous value ");
+            ((StringBuilder)object).append((Object)a5);
+            ((StringBuilder)object).append(", new value ");
+            ((StringBuilder)object).append((Object)a4);
+            throw new IllegalArgumentException(((StringBuilder)object).toString());
         }
         if (a5 == null) {
             object.put(object2, a4);

@@ -88,9 +88,9 @@ public final class a {
             colorStateList2 = this.b;
         }
         textView.setTextColor(colorStateList2);
-        colorStateList = new RippleDrawable(this.b.withAlpha(30), (Drawable)i3, (Drawable)i4);
-        colorStateList2 = this.a;
-        textView.setBackground((Drawable)new InsetDrawable((Drawable)colorStateList, colorStateList2.left, colorStateList2.top, colorStateList2.right, colorStateList2.bottom));
+        colorStateList2 = new RippleDrawable(this.b.withAlpha(30), (Drawable)i3, (Drawable)i4);
+        colorStateList = this.a;
+        textView.setBackground((Drawable)new InsetDrawable((Drawable)colorStateList2, colorStateList.left, colorStateList.top, colorStateList.right, colorStateList.bottom));
     }
 }
 

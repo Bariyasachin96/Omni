@@ -129,18 +129,18 @@ extends CustomVersionedParcelable {
 
     public InputStream d(Context object) {
         Uri uri = this.c();
-        String string = uri.getScheme();
-        if (!"content".equals(string) && !"file".equals(string)) {
+        CharSequence charSequence = uri.getScheme();
+        if (!"content".equals(charSequence) && !"file".equals(charSequence)) {
             try {
                 object = new File((String)this.b);
                 object = new FileInputStream((File)object);
                 return object;
             }
             catch (FileNotFoundException fileNotFoundException) {
-                object = new StringBuilder();
-                ((StringBuilder)object).append("Unable to load image from path: ");
-                ((StringBuilder)object).append(uri);
-                Log.w((String)"IconCompat", (String)((StringBuilder)object).toString(), (Throwable)fileNotFoundException);
+                charSequence = new StringBuilder();
+                ((StringBuilder)charSequence).append("Unable to load image from path: ");
+                ((StringBuilder)charSequence).append(uri);
+                Log.w((String)"IconCompat", (String)((StringBuilder)charSequence).toString(), (Throwable)fileNotFoundException);
             }
         } else {
             try {

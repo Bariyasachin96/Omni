@@ -42,8 +42,8 @@ public class b {
         hashMap2.put(Pair.create((Object)n3, (Object)n4), "layout_constraintLeft_toRightOf");
         hashMap2.put(Pair.create((Object)n4, (Object)n4), "layout_constraintRight_toRightOf");
         hashMap2.put(Pair.create((Object)n4, (Object)n3), "layout_constraintRight_toLeftOf");
-        n4 = 5;
-        hashMap2.put(Pair.create((Object)n4, (Object)n4), "layout_constraintBaseline_toBaselineOf");
+        n3 = 5;
+        hashMap2.put(Pair.create((Object)n3, (Object)n3), "layout_constraintBaseline_toBaselineOf");
         hashMap.put("layout_constraintBottom_toBottomOf", "layout_marginBottom");
         hashMap.put("layout_constraintBottom_toTopOf", "layout_marginBottom");
         hashMap.put("layout_constraintTop_toBottomOf", "layout_marginTop");

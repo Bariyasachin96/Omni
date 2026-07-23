@@ -137,17 +137,16 @@ implements CoordinatorLayout.b {
         Context context = this.getContext();
         this.W = new ExtendedFloatingActionButtonBehavior(context, attributeSet);
         TypedArray typedArray = com.google.android.material.internal.z.i(context, attributeSet, z1.m.ExtendedFloatingActionButton, n3, n5, new int[0]);
-        object2 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_showMotionSpec);
-        h h3 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_hideMotionSpec);
-        h h4 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_extendMotionSpec);
-        h h5 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_shrinkMotionSpec);
+        h h3 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_showMotionSpec);
+        h h4 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_hideMotionSpec);
+        h h5 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_extendMotionSpec);
+        h h6 = a2.h.c(context, typedArray, z1.m.ExtendedFloatingActionButton_shrinkMotionSpec);
         this.T = typedArray.getDimensionPixelSize(z1.m.ExtendedFloatingActionButton_collapsedSize, -1);
         this.g0 = n4 = typedArray.getInt(z1.m.ExtendedFloatingActionButton_extendStrategy, 1);
         this.U = this.getPaddingStart();
         this.V = this.getPaddingEnd();
         Object object3 = new a();
-        j j3 = new j(this, (a)object3, this.H(n4), true);
-        this.Q = j3;
+        this.Q = object2 = new j(this, (a)object3, this.H(n4), true);
         this.P = object3 = new j(this, (a)object3, new n(this){
             public final ExtendedFloatingActionButton a;
             {
@@ -179,10 +178,10 @@ implements CoordinatorLayout.b {
                 return new ViewGroup.LayoutParams(this.d(), this.a());
             }
         }, false);
-        object.h((h)object2);
-        k3.h(h3);
-        j3.h(h4);
-        object3.h(h5);
+        object.h(h3);
+        k3.h(h4);
+        object2.h(h5);
+        object3.h(h6);
         typedArray.recycle();
         this.setShapeAppearanceModel(v2.o.g(context, attributeSet, n3, n5, v2.o.m).m());
         this.L();

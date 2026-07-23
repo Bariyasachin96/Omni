@@ -96,17 +96,17 @@ public class o {
         context = context.obtainStyledAttributes(z1.m.ShapeAppearance);
         try {
             int n5 = context.getInt(z1.m.ShapeAppearance_cornerFamily, 0);
-            n3 = context.getInt(z1.m.ShapeAppearance_cornerFamilyTopLeft, n5);
-            n4 = context.getInt(z1.m.ShapeAppearance_cornerFamilyTopRight, n5);
-            int n6 = context.getInt(z1.m.ShapeAppearance_cornerFamilyBottomRight, n5);
+            n4 = context.getInt(z1.m.ShapeAppearance_cornerFamilyTopLeft, n5);
+            int n6 = context.getInt(z1.m.ShapeAppearance_cornerFamilyTopRight, n5);
+            n3 = context.getInt(z1.m.ShapeAppearance_cornerFamilyBottomRight, n5);
             n5 = context.getInt(z1.m.ShapeAppearance_cornerFamilyBottomLeft, n5);
-            Object object2 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSize, (d)object);
-            d d3 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeTopLeft, (d)object2);
-            d d4 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeTopRight, (d)object2);
-            object = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeBottomRight, (d)object2);
-            d d5 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeBottomLeft, (d)object2);
-            object2 = new b();
-            object = ((b)object2).C(n3, d3).G(n4, d4).x(n6, (d)object).t(n5, d5);
+            d d3 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSize, (d)object);
+            d d4 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeTopLeft, d3);
+            d d5 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeTopRight, d3);
+            object = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeBottomRight, d3);
+            d3 = o.m((TypedArray)context, z1.m.ShapeAppearance_cornerSizeBottomLeft, d3);
+            b b3 = new b();
+            object = b3.C(n4, d4).G(n6, d5).x(n3, (d)object).t(n5, d3);
             return object;
         }
         finally {
@@ -124,10 +124,10 @@ public class o {
 
     public static b g(Context context, AttributeSet attributeSet, int n3, int n4, d d3) {
         attributeSet = context.obtainStyledAttributes(attributeSet, z1.m.MaterialShape, n3, n4);
-        n3 = attributeSet.getResourceId(z1.m.MaterialShape_shapeAppearance, 0);
-        n4 = attributeSet.getResourceId(z1.m.MaterialShape_shapeAppearanceOverlay, 0);
+        n4 = attributeSet.getResourceId(z1.m.MaterialShape_shapeAppearance, 0);
+        n3 = attributeSet.getResourceId(z1.m.MaterialShape_shapeAppearanceOverlay, 0);
         attributeSet.recycle();
-        return o.d(context, n3, n4, d3);
+        return o.d(context, n4, n3, d3);
     }
 
     public static d m(TypedArray typedArray, int n3, d d3) {

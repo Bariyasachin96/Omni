@@ -20,24 +20,25 @@ extends a.a {
     }
 
     public static Object j(a object) {
+        int n3;
         if (object instanceof b) {
             return ((b)object).d;
         }
         IBinder iBinder = object.asBinder();
         Field[] fieldArray = iBinder.getClass().getDeclaredFields();
-        int n3 = fieldArray.length;
+        int n4 = fieldArray.length;
         object = null;
-        int n4 = 0;
-        for (int i3 = 0; i3 < n3; ++i3) {
+        int n5 = 0;
+        for (int i3 = 0; i3 < n4; ++i3) {
             Field field = fieldArray[i3];
-            int n5 = n4;
+            n3 = n5;
             if (!field.isSynthetic()) {
-                n5 = n4 + 1;
+                n3 = n5 + 1;
                 object = field;
             }
-            n4 = n5;
+            n5 = n3;
         }
-        if (n4 == 1) {
+        if (n5 == 1) {
             u1.b.c(object);
             if (!((AccessibleObject)object).isAccessible()) {
                 ((AccessibleObject)object).setAccessible(true);
@@ -54,10 +55,10 @@ extends a.a {
             }
             throw new IllegalArgumentException("IObjectWrapper declared field not private!");
         }
-        n4 = fieldArray.length;
-        object = new StringBuilder(String.valueOf(n4).length() + 53);
+        n3 = fieldArray.length;
+        object = new StringBuilder(String.valueOf(n3).length() + 53);
         ((StringBuilder)object).append("Unexpected number of IObjectWrapper declared fields: ");
-        ((StringBuilder)object).append(n4);
+        ((StringBuilder)object).append(n3);
         throw new IllegalArgumentException(((StringBuilder)object).toString());
     }
 

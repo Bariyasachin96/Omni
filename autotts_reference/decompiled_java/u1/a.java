@@ -37,12 +37,12 @@ public abstract class a {
         public a a(String string, Object object) {
             u1.b.c(string);
             int n3 = string.length();
-            object = String.valueOf(object);
-            StringBuilder stringBuilder = new StringBuilder(n3 + 1 + ((String)object).length());
-            stringBuilder.append(string);
-            stringBuilder.append("=");
-            stringBuilder.append((String)object);
-            string = stringBuilder.toString();
+            String string2 = String.valueOf(object);
+            object = new StringBuilder(n3 + 1 + string2.length());
+            ((StringBuilder)object).append(string);
+            ((StringBuilder)object).append("=");
+            ((StringBuilder)object).append(string2);
+            string = ((StringBuilder)object).toString();
             this.a.add(string);
             return this;
         }

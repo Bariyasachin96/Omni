@@ -65,19 +65,20 @@ extends View {
         this.o(attributeSet);
     }
 
-    public final void e(String string) {
-        if (string != null && string.length() != 0 && this.e != null) {
-            int n3 = this.m(string = string.trim());
+    public final void e(String charSequence) {
+        if (charSequence != null && ((String)charSequence).length() != 0 && this.e != null) {
+            String string = ((String)charSequence).trim();
+            int n3 = this.m(string);
             if (n3 != 0) {
                 this.k.put(n3, string);
                 this.f(n3);
                 return;
             }
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("Could not find id of \"");
-            stringBuilder.append(string);
-            stringBuilder.append("\"");
-            Log.w((String)"ConstraintHelper", (String)stringBuilder.toString());
+            charSequence = new StringBuilder();
+            ((StringBuilder)charSequence).append("Could not find id of \"");
+            ((StringBuilder)charSequence).append(string);
+            ((StringBuilder)charSequence).append("\"");
+            Log.w((String)"ConstraintHelper", (String)((StringBuilder)charSequence).toString());
         }
     }
 
@@ -148,23 +149,23 @@ extends View {
     public void j(ConstraintLayout constraintLayout) {
     }
 
-    public final int[] k(String object) {
-        String[] stringArray = ((String)object).split(",");
-        object = new int[stringArray.length];
+    public final int[] k(String stringArray) {
+        stringArray = stringArray.split(",");
+        int[] nArray = new int[stringArray.length];
         int n3 = 0;
         for (int i3 = 0; i3 < stringArray.length; ++i3) {
             int n4 = this.m(stringArray[i3].trim());
             int n5 = n3;
             if (n4 != 0) {
-                object[n3] = n4;
+                nArray[n3] = n4;
                 n5 = n3 + 1;
             }
             n3 = n5;
         }
         if (n3 != stringArray.length) {
-            return Arrays.copyOf((int[])object, n3);
+            return Arrays.copyOf(nArray, n3);
         }
-        return object;
+        return nArray;
     }
 
     public final int l(ConstraintLayout constraintLayout, String string) {

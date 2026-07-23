@@ -182,9 +182,9 @@ lbl34:
             return var1_1;
         }
         try {
-            var2_3 = String.format("Cannot initialize %s. Cycle detected.", new Object[]{var1_1.getName()});
-            var1_1 = new IllegalStateException((String)var2_3);
-            throw var1_1;
+            var1_1 = String.format("Cannot initialize %s. Cycle detected.", new Object[]{var1_1.getName()});
+            var2_3 = new IllegalStateException((String)var1_1);
+            throw var2_3;
         }
         catch (Throwable var1_2) {}
         l1.b.b();

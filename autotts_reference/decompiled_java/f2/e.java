@@ -38,12 +38,13 @@ public abstract class e {
                 float f3 = rectF2.left;
                 float f4 = rectF3.left;
                 if (f3 < f4 && rectF2.right > f4) {
-                    rectF.left += (f4 -= f3);
-                    rectF2.left += f4;
+                    f3 = f4 - f3;
+                    rectF.left += f3;
+                    rectF2.left += f3;
                 }
-                if ((f4 = rectF2.right) > (f3 = rectF3.right) && rectF2.left < f3) {
-                    rectF.right = Math.max(rectF.right - (f4 -= f3), rectF.left);
-                    rectF2.right = Math.max(rectF2.right - f4, rectF2.left);
+                if ((f3 = rectF2.right) > (f4 = rectF3.right) && rectF2.left < f4) {
+                    rectF.right = Math.max(rectF.right - (f3 -= f4), rectF.left);
+                    rectF2.right = Math.max(rectF2.right - f3, rectF2.left);
                 }
             }
 

@@ -243,10 +243,10 @@ extends ViewGroup {
         } else {
             Object object2;
             if (n5 != -1) {
-                object = (u.e)sparseArray.get(n5);
-                if (object != null) {
-                    object2 = d.a.d;
-                    e3.g0((d.a)((Object)object2), (u.e)object, (d.a)((Object)object2), layoutParams.leftMargin, n9);
+                object2 = (u.e)sparseArray.get(n5);
+                if (object2 != null) {
+                    object = d.a.d;
+                    e3.g0((d.a)((Object)object), (u.e)object2, (d.a)((Object)object), layoutParams.leftMargin, n9);
                 }
             } else if (n6 != -1 && (object = (u.e)sparseArray.get(n6)) != null) {
                 e3.g0(d.a.d, (u.e)object, d.a.f, layoutParams.leftMargin, n9);
@@ -256,44 +256,44 @@ extends ViewGroup {
                 if (object != null) {
                     e3.g0(d.a.f, (u.e)object, d.a.d, layoutParams.rightMargin, n10);
                 }
-            } else if (n8 != -1 && (object = (u.e)sparseArray.get(n8)) != null) {
-                object2 = d.a.f;
-                e3.g0((d.a)((Object)object2), (u.e)object, (d.a)((Object)object2), layoutParams.rightMargin, n10);
+            } else if (n8 != -1 && (object2 = (u.e)sparseArray.get(n8)) != null) {
+                object = d.a.f;
+                e3.g0((d.a)((Object)object), (u.e)object2, (d.a)((Object)object), layoutParams.rightMargin, n10);
             }
-            if ((n8 = layoutParams.i) != -1) {
-                object = (u.e)sparseArray.get(n8);
+            if ((n6 = layoutParams.i) != -1) {
+                object = (u.e)sparseArray.get(n6);
                 if (object != null) {
                     object2 = d.a.e;
                     e3.g0((d.a)((Object)object2), (u.e)object, (d.a)((Object)object2), layoutParams.topMargin, layoutParams.x);
                 }
             } else {
-                n8 = layoutParams.j;
-                if (n8 != -1 && (object = (u.e)sparseArray.get(n8)) != null) {
+                n6 = layoutParams.j;
+                if (n6 != -1 && (object = (u.e)sparseArray.get(n6)) != null) {
                     e3.g0(d.a.e, (u.e)object, d.a.g, layoutParams.topMargin, layoutParams.x);
                 }
             }
-            if ((n8 = layoutParams.k) != -1) {
-                object = (u.e)sparseArray.get(n8);
+            if ((n6 = layoutParams.k) != -1) {
+                object = (u.e)sparseArray.get(n6);
                 if (object != null) {
                     e3.g0(d.a.g, (u.e)object, d.a.e, layoutParams.bottomMargin, layoutParams.z);
                 }
             } else {
-                n8 = layoutParams.l;
-                if (n8 != -1 && (object2 = (u.e)sparseArray.get(n8)) != null) {
+                n6 = layoutParams.l;
+                if (n6 != -1 && (object2 = (u.e)sparseArray.get(n6)) != null) {
                     object = d.a.g;
                     e3.g0((d.a)((Object)object), (u.e)object2, (d.a)((Object)object), layoutParams.bottomMargin, layoutParams.z);
                 }
             }
-            if ((n8 = layoutParams.m) != -1) {
-                this.A(e3, layoutParams, sparseArray, n8, d.a.h);
+            if ((n6 = layoutParams.m) != -1) {
+                this.A(e3, layoutParams, sparseArray, n6, d.a.h);
             } else {
-                n8 = layoutParams.n;
-                if (n8 != -1) {
-                    this.A(e3, layoutParams, sparseArray, n8, d.a.e);
+                n6 = layoutParams.n;
+                if (n6 != -1) {
+                    this.A(e3, layoutParams, sparseArray, n6, d.a.e);
                 } else {
-                    n8 = layoutParams.o;
-                    if (n8 != -1) {
-                        this.A(e3, layoutParams, sparseArray, n8, d.a.g);
+                    n6 = layoutParams.o;
+                    if (n6 != -1) {
+                        this.A(e3, layoutParams, sparseArray, n6, d.a.g);
                     }
                 }
             }
@@ -304,8 +304,8 @@ extends ViewGroup {
                 e3.i1(f4);
             }
         }
-        if (bl && ((n8 = layoutParams.X) != -1 || layoutParams.Y != -1)) {
-            e3.g1(n8, layoutParams.Y);
+        if (bl && ((n6 = layoutParams.X) != -1 || layoutParams.Y != -1)) {
+            e3.g1(n6, layoutParams.Y);
         }
         if (!layoutParams.e0) {
             if (layoutParams.width == -1) {
@@ -471,14 +471,14 @@ extends ViewGroup {
             LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
             u.e e3 = layoutParams.v0;
             if (view.getVisibility() == 8 && !layoutParams.h0 && !layoutParams.i0 && !layoutParams.k0 && !bl || layoutParams.j0) continue;
-            int n7 = e3.Z();
-            int n8 = e3.a0();
-            n6 = e3.Y() + n7;
-            int n9 = e3.z() + n8;
-            view.layout(n7, n8, n6, n9);
+            n6 = e3.Z();
+            int n7 = e3.a0();
+            int n8 = e3.Y() + n6;
+            int n9 = e3.z() + n7;
+            view.layout(n6, n7, n8, n9);
             if (!(view instanceof Placeholder) || (layoutParams = ((Placeholder)view).getContent()) == null) continue;
             layoutParams.setVisibility(0);
-            layoutParams.layout(n7, n8, n6, n9);
+            layoutParams.layout(n6, n7, n8, n9);
         }
         n5 = this.d.size();
         if (n5 > 0) {
@@ -795,37 +795,34 @@ extends ViewGroup {
     }
 
     /*
-     * WARNING - void declaration
      * Enabled aggressive block sorting
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
     public final void y() {
-        androidx.constraintlayout.widget.b b3;
         int n3;
         Object object;
-        View view;
+        Object object2;
         int n4;
         boolean bl = this.isInEditMode();
         int n5 = this.getChildCount();
         for (n4 = 0; n4 < n5; ++n4) {
-            u.e e3 = this.r(this.getChildAt(n4));
-            if (e3 == null) continue;
-            e3.v0();
+            object2 = this.r(this.getChildAt(n4));
+            if (object2 == null) continue;
+            ((u.e)object2).v0();
         }
         if (bl) {
             for (n4 = 0; n4 < n5; ++n4) {
-                view = this.getChildAt(n4);
+                View view = this.getChildAt(n4);
                 try {
-                    void var5_8;
                     object = this.getResources().getResourceName(view.getId());
                     this.setDesignInformation(0, object, view.getId());
                     n3 = ((String)object).indexOf(47);
-                    String string = object;
+                    object2 = object;
                     if (n3 != -1) {
-                        String string2 = ((String)object).substring(n3 + 1);
+                        object2 = ((String)object).substring(n3 + 1);
                     }
-                    this.p(view.getId()).H0((String)var5_8);
+                    this.p(view.getId()).H0((String)object2);
                     continue;
                 }
                 catch (Resources.NotFoundException notFoundException) {}
@@ -833,13 +830,13 @@ extends ViewGroup {
         }
         if (this.n != -1) {
             for (n4 = 0; n4 < n5; ++n4) {
-                View view2 = this.getChildAt(n4);
-                if (view2.getId() != this.n || !(view2 instanceof Constraints)) continue;
-                this.l = ((Constraints)view2).getConstraintSet();
+                object2 = this.getChildAt(n4);
+                if (object2.getId() != this.n || !(object2 instanceof Constraints)) continue;
+                this.l = ((Constraints)((Object)object2)).getConstraintSet();
             }
         }
-        if ((b3 = this.l) != null) {
-            b3.k(this, true);
+        if ((object2 = this.l) != null) {
+            ((androidx.constraintlayout.widget.b)object2).k(this, true);
         }
         this.e.z1();
         n3 = this.d.size();
@@ -849,26 +846,26 @@ extends ViewGroup {
             }
         }
         for (n4 = 0; n4 < n5; ++n4) {
-            View view3 = this.getChildAt(n4);
-            if (!(view3 instanceof Placeholder)) continue;
-            ((Placeholder)view3).c(this);
+            object2 = this.getChildAt(n4);
+            if (!(object2 instanceof Placeholder)) continue;
+            ((Placeholder)((Object)object2)).c(this);
         }
         this.v.clear();
         this.v.put(0, (Object)this.e);
         this.v.put(this.getId(), (Object)this.e);
         for (n4 = 0; n4 < n5; ++n4) {
-            View view4 = this.getChildAt(n4);
-            object = this.r(view4);
-            this.v.put(view4.getId(), object);
+            object = this.getChildAt(n4);
+            object2 = this.r((View)object);
+            this.v.put(object.getId(), object2);
         }
         n4 = 0;
         while (n4 < n5) {
-            view = this.getChildAt(n4);
-            object = this.r(view);
+            object2 = this.getChildAt(n4);
+            object = this.r((View)object2);
             if (object != null) {
-                LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
+                LayoutParams layoutParams = (LayoutParams)object2.getLayoutParams();
                 this.e.a((u.e)object);
-                this.f(bl, view, (u.e)object, layoutParams, this.v);
+                this.f(bl, (View)object2, (u.e)object, layoutParams, this.v);
             }
             ++n4;
         }
@@ -881,33 +878,35 @@ extends ViewGroup {
      */
     public void z(f var1_1, int var2_2, int var3_3, int var4_4, int var5_5) {
         var9_6 /* !! */  = this.w;
-        var7_7 = var9_6 /* !! */ .e;
-        var6_8 = var9_6 /* !! */ .d;
-        var9_6 /* !! */  = e.b.c;
-        var8_9 = this.getChildCount();
+        var6_7 = var9_6 /* !! */ .e;
+        var7_8 = var9_6 /* !! */ .d;
+        var10_9 = e.b.c;
+        var8_10 = this.getChildCount();
         if (var2_2 != -2147483648) {
             if (var2_2 != 0) {
                 if (var2_2 != 0x40000000) {
-                    var10_10 /* !! */  = var9_6 /* !! */ ;
+                    var9_6 /* !! */  = var10_9;
                     while (true) {
                         var3_3 = 0;
                         break;
                     }
                 } else {
-                    var3_3 = Math.min(this.h - var6_8, var3_3);
-                    var10_10 /* !! */  = var9_6 /* !! */ ;
+                    var3_3 = Math.min(this.h - var7_8, var3_3);
+                    var9_6 /* !! */  = var10_9;
                 }
             } else {
-                var10_10 /* !! */  = var11_11 = e.b.d;
-                if (var8_9 != 0) ** continue;
+                var11_11 = e.b.d;
+                var9_6 /* !! */  = var11_11;
+                if (var8_10 != 0) ** continue;
                 var3_3 = Math.max(0, this.f);
-                var10_10 /* !! */  = var11_11;
+                var9_6 /* !! */  = var11_11;
             }
         } else {
-            var10_10 /* !! */  = var11_11 = e.b.d;
-            if (var8_9 == 0) {
+            var11_11 = e.b.d;
+            var9_6 /* !! */  = var11_11;
+            if (var8_10 == 0) {
                 var3_3 = Math.max(0, this.f);
-                var10_10 /* !! */  = var11_11;
+                var9_6 /* !! */  = var11_11;
             }
         }
         if (var4_4 != -2147483648) {
@@ -918,21 +917,19 @@ extends ViewGroup {
                         break;
                     }
                 } else {
-                    var5_5 = Math.min(this.i - var7_7, var5_5);
+                    var5_5 = Math.min(this.i - var6_7, var5_5);
                 }
             } else {
-                var11_11 = e.b.d;
-                var9_6 /* !! */  = var11_11;
-                if (var8_9 != 0) ** continue;
+                var10_9 = var11_11 = e.b.d;
+                if (var8_10 != 0) ** continue;
                 var5_5 = Math.max(0, this.g);
-                var9_6 /* !! */  = var11_11;
+                var10_9 = var11_11;
             }
         } else {
-            var11_11 = e.b.d;
-            var9_6 /* !! */  = var11_11;
-            if (var8_9 == 0) {
+            var10_9 = var11_11 = e.b.d;
+            if (var8_10 == 0) {
                 var5_5 = Math.max(0, this.g);
-                var9_6 /* !! */  = var11_11;
+                var10_9 = var11_11;
             }
         }
         if (var3_3 != var1_1.Y() || var5_5 != var1_1.z()) {
@@ -940,16 +937,16 @@ extends ViewGroup {
         }
         var1_1.r1(0);
         var1_1.s1(0);
-        var1_1.c1(this.h - var6_8);
-        var1_1.b1(this.i - var7_7);
+        var1_1.c1(this.h - var7_8);
+        var1_1.b1(this.i - var6_7);
         var1_1.f1(0);
         var1_1.e1(0);
-        var1_1.U0(var10_10 /* !! */ );
+        var1_1.U0((e.b)var9_6 /* !! */ );
         var1_1.p1(var3_3);
-        var1_1.l1((e.b)var9_6 /* !! */ );
+        var1_1.l1(var10_9);
         var1_1.Q0(var5_5);
-        var1_1.f1(this.f - var6_8);
-        var1_1.e1(this.g - var7_7);
+        var1_1.f1(this.f - var7_8);
+        var1_1.e1(this.g - var6_7);
     }
 
     public static class LayoutParams
@@ -1740,8 +1737,8 @@ extends ViewGroup {
             block44: {
                 int n6;
                 int n7;
-                int n8;
                 View view;
+                int n8;
                 int n9;
                 int n10;
                 int n11;
@@ -1777,178 +1774,178 @@ extends ViewGroup {
                                                                                         }
                                                                                         if (e3.M() == null) break block27;
                                                                                         ConstraintLayout.c(this.h);
-                                                                                        object = a4.a;
-                                                                                        object2 = a4.b;
-                                                                                        n5 = a4.c;
-                                                                                        n11 = a4.d;
-                                                                                        n10 = this.b + this.c;
-                                                                                        n9 = this.d;
+                                                                                        object2 = a4.a;
+                                                                                        object = a4.b;
+                                                                                        n11 = a4.c;
+                                                                                        n10 = a4.d;
+                                                                                        n9 = this.b + this.c;
+                                                                                        n8 = this.d;
                                                                                         view = (View)e3.u();
                                                                                         object3 = androidx.constraintlayout.widget.ConstraintLayout$a.a;
-                                                                                        n8 = object3[object.ordinal()];
-                                                                                        if (n8 == 1) break block28;
-                                                                                        if (n8 == 2) break block29;
-                                                                                        if (n8 == 3) break block30;
-                                                                                        if (n8 == 4) break block31;
-                                                                                        n9 = 0;
+                                                                                        n5 = object3[object2.ordinal()];
+                                                                                        if (n5 == 1) break block28;
+                                                                                        if (n5 == 2) break block29;
+                                                                                        if (n5 == 3) break block30;
+                                                                                        if (n5 == 4) break block31;
+                                                                                        n8 = 0;
                                                                                         break block32;
                                                                                     }
-                                                                                    n5 = ViewGroup.getChildMeasureSpec((int)this.f, (int)n9, (int)-2);
-                                                                                    n8 = e3.w == 1 ? 1 : 0;
+                                                                                    n5 = ViewGroup.getChildMeasureSpec((int)this.f, (int)n8, (int)-2);
+                                                                                    n11 = e3.w == 1 ? 1 : 0;
                                                                                     n4 = a4.j;
                                                                                     if (n4 == b.a.l) break block33;
-                                                                                    n9 = n5;
+                                                                                    n8 = n5;
                                                                                     if (n4 != b.a.m) break block32;
                                                                                 }
-                                                                                n9 = view.getMeasuredHeight() == e3.z() ? 1 : 0;
-                                                                                if (a4.j == b.a.m || n8 == 0 || n8 != 0 && n9 != 0 || view instanceof Placeholder) break block34;
-                                                                                n9 = n5;
+                                                                                n8 = view.getMeasuredHeight() == e3.z() ? 1 : 0;
+                                                                                if (a4.j == b.a.m || n11 == 0 || n11 != 0 && n8 != 0 || view instanceof Placeholder) break block34;
+                                                                                n8 = n5;
                                                                                 if (!e3.p0()) break block32;
                                                                             }
-                                                                            n9 = View.MeasureSpec.makeMeasureSpec((int)e3.Y(), (int)0x40000000);
+                                                                            n8 = View.MeasureSpec.makeMeasureSpec((int)e3.Y(), (int)0x40000000);
                                                                             break block32;
                                                                         }
-                                                                        n9 = ViewGroup.getChildMeasureSpec((int)this.f, (int)(n9 + e3.D()), (int)-1);
+                                                                        n8 = ViewGroup.getChildMeasureSpec((int)this.f, (int)(n8 + e3.D()), (int)-1);
                                                                         break block32;
                                                                     }
-                                                                    n9 = ViewGroup.getChildMeasureSpec((int)this.f, (int)n9, (int)-2);
+                                                                    n8 = ViewGroup.getChildMeasureSpec((int)this.f, (int)n8, (int)-2);
                                                                     break block32;
                                                                 }
-                                                                n9 = View.MeasureSpec.makeMeasureSpec((int)n5, (int)0x40000000);
+                                                                n8 = View.MeasureSpec.makeMeasureSpec((int)n11, (int)0x40000000);
                                                             }
-                                                            n8 = object3[object2.ordinal()];
-                                                            if (n8 == 1) break block35;
-                                                            if (n8 == 2) break block36;
-                                                            if (n8 == 3) break block37;
-                                                            if (n8 == 4) break block38;
-                                                            n8 = 0;
+                                                            n11 = object3[object.ordinal()];
+                                                            if (n11 == 1) break block35;
+                                                            if (n11 == 2) break block36;
+                                                            if (n11 == 3) break block37;
+                                                            if (n11 == 4) break block38;
+                                                            n11 = 0;
                                                             break block39;
                                                         }
-                                                        n11 = ViewGroup.getChildMeasureSpec((int)this.g, (int)n10, (int)-2);
+                                                        n10 = ViewGroup.getChildMeasureSpec((int)this.g, (int)n9, (int)-2);
                                                         n5 = e3.x == 1 ? 1 : 0;
-                                                        n10 = a4.j;
-                                                        if (n10 == b.a.l) break block40;
-                                                        n8 = n11;
-                                                        if (n10 != b.a.m) break block39;
+                                                        n9 = a4.j;
+                                                        if (n9 == b.a.l) break block40;
+                                                        n11 = n10;
+                                                        if (n9 != b.a.m) break block39;
                                                     }
-                                                    n8 = view.getMeasuredWidth() == e3.Y() ? 1 : 0;
-                                                    if (a4.j == b.a.m || n5 == 0 || n5 != 0 && n8 != 0 || view instanceof Placeholder) break block41;
-                                                    n8 = n11;
+                                                    n11 = view.getMeasuredWidth() == e3.Y() ? 1 : 0;
+                                                    if (a4.j == b.a.m || n5 == 0 || n5 != 0 && n11 != 0 || view instanceof Placeholder) break block41;
+                                                    n11 = n10;
                                                     if (!e3.q0()) break block39;
                                                 }
-                                                n8 = View.MeasureSpec.makeMeasureSpec((int)e3.z(), (int)0x40000000);
+                                                n11 = View.MeasureSpec.makeMeasureSpec((int)e3.z(), (int)0x40000000);
                                                 break block39;
                                             }
-                                            n8 = ViewGroup.getChildMeasureSpec((int)this.g, (int)(n10 + e3.W()), (int)-1);
+                                            n11 = ViewGroup.getChildMeasureSpec((int)this.g, (int)(n9 + e3.W()), (int)-1);
                                             break block39;
                                         }
-                                        n8 = ViewGroup.getChildMeasureSpec((int)this.g, (int)n10, (int)-2);
+                                        n11 = ViewGroup.getChildMeasureSpec((int)this.g, (int)n9, (int)-2);
                                         break block39;
                                     }
-                                    n8 = View.MeasureSpec.makeMeasureSpec((int)n11, (int)0x40000000);
+                                    n11 = View.MeasureSpec.makeMeasureSpec((int)n10, (int)0x40000000);
                                 }
                                 object3 = (f)e3.M();
-                                if (object3 != null && u.k.b(this.h.k, 256) && view.getMeasuredWidth() == e3.Y() && view.getMeasuredWidth() < ((u.e)object3).Y() && view.getMeasuredHeight() == e3.z() && view.getMeasuredHeight() < ((u.e)object3).z() && view.getBaseline() == e3.r() && !e3.o0() && this.d(e3.E(), n9, e3.Y()) && this.d(e3.F(), n8, e3.z())) {
+                                if (object3 != null && u.k.b(this.h.k, 256) && view.getMeasuredWidth() == e3.Y() && view.getMeasuredWidth() < ((u.e)object3).Y() && view.getMeasuredHeight() == e3.z() && view.getMeasuredHeight() < ((u.e)object3).z() && view.getBaseline() == e3.r() && !e3.o0() && this.d(e3.E(), n8, e3.Y()) && this.d(e3.F(), n11, e3.z())) {
                                     a4.e = e3.Y();
                                     a4.f = e3.z();
                                     a4.g = e3.r();
                                     return;
                                 }
                                 object3 = (Object)e.b.e;
-                                n5 = object == object3 ? 1 : 0;
-                                n11 = object2 == object3 ? 1 : 0;
+                                n5 = object2 == object3 ? 1 : 0;
+                                n10 = object == object3 ? 1 : 0;
                                 object3 = (Object)e.b.f;
-                                n3 = object2 != object3 && object2 != e.b.c ? 0 : 1;
-                                bl3 = object == object3 || object == e.b.c;
+                                n3 = object != object3 && object != e.b.c ? 0 : 1;
+                                bl3 = object2 == object3 || object2 == e.b.c;
                                 bl2 = n5 != 0 && e3.f0 > 0.0f;
-                                bl = n11 != 0 && e3.f0 > 0.0f;
+                                bl = n10 != 0 && e3.f0 > 0.0f;
                                 if (view != null) break block42;
                             }
                             return;
                         }
                         object = (LayoutParams)view.getLayoutParams();
-                        n10 = a4.j;
-                        if (n10 == b.a.l || n10 == b.a.m || n5 == 0 || e3.w != 0 || n11 == 0 || e3.x != 0) break block43;
+                        n9 = a4.j;
+                        if (n9 == b.a.l || n9 == b.a.m || n5 == 0 || e3.w != 0 || n10 == 0 || e3.x != 0) break block43;
                         n5 = 0;
-                        n4 = 0;
                         n3 = 0;
+                        n4 = 0;
                         break block44;
                     }
                     if (view instanceof VirtualLayout && e3 instanceof m) {
                         object2 = (m)e3;
-                        ((VirtualLayout)view).x((m)object2, n9, n8);
+                        ((VirtualLayout)view).x((m)object2, n8, n11);
                     } else {
-                        view.measure(n9, n8);
+                        view.measure(n8, n11);
                     }
-                    e3.a1(n9, n8);
+                    e3.a1(n8, n11);
                     n7 = view.getMeasuredWidth();
                     n6 = view.getMeasuredHeight();
                     int n12 = view.getBaseline();
                     n5 = e3.z;
-                    n11 = n5 > 0 ? Math.max(n5, n7) : n7;
-                    n10 = e3.A;
-                    n5 = n11;
-                    if (n10 > 0) {
-                        n5 = Math.min(n10, n11);
+                    n10 = n5 > 0 ? Math.max(n5, n7) : n7;
+                    n9 = e3.A;
+                    n5 = n10;
+                    if (n9 > 0) {
+                        n5 = Math.min(n9, n10);
                     }
-                    n11 = (n11 = e3.C) > 0 ? Math.max(n11, n6) : n6;
-                    n10 = e3.D;
-                    n4 = n11;
-                    if (n10 > 0) {
-                        n4 = Math.min(n10, n11);
+                    n10 = (n10 = e3.C) > 0 ? Math.max(n10, n6) : n6;
+                    n9 = e3.D;
+                    n4 = n10;
+                    if (n9 > 0) {
+                        n4 = Math.min(n9, n10);
                     }
-                    n11 = n4;
-                    n10 = n5;
+                    n10 = n4;
+                    n9 = n5;
                     if (!u.k.b(this.h.k, 1)) {
                         if (bl2 && n3 != 0) {
                             float f3 = e3.f0;
-                            n10 = (int)((float)n4 * f3 + 0.5f);
-                            n11 = n4;
+                            n9 = (int)((float)n4 * f3 + 0.5f);
+                            n10 = n4;
                         } else {
-                            n11 = n4;
-                            n10 = n5;
+                            n10 = n4;
+                            n9 = n5;
                             if (bl) {
-                                n11 = n4;
-                                n10 = n5;
+                                n10 = n4;
+                                n9 = n5;
                                 if (bl3) {
                                     float f4 = e3.f0;
-                                    n11 = (int)((float)n5 / f4 + 0.5f);
-                                    n10 = n5;
+                                    n10 = (int)((float)n5 / f4 + 0.5f);
+                                    n9 = n5;
                                 }
                             }
                         }
                     }
-                    if (n7 != n10) break block45;
-                    n5 = n11;
-                    n4 = n12;
-                    n3 = n10;
-                    if (n6 == n11) break block44;
+                    if (n7 != n9) break block45;
+                    n5 = n10;
+                    n3 = n12;
+                    n4 = n9;
+                    if (n6 == n10) break block44;
                 }
-                if (n7 != n10) {
-                    n9 = View.MeasureSpec.makeMeasureSpec((int)n10, (int)0x40000000);
+                if (n7 != n9) {
+                    n8 = View.MeasureSpec.makeMeasureSpec((int)n9, (int)0x40000000);
                 }
-                if (n6 != n11) {
-                    n8 = View.MeasureSpec.makeMeasureSpec((int)n11, (int)0x40000000);
+                if (n6 != n10) {
+                    n11 = View.MeasureSpec.makeMeasureSpec((int)n10, (int)0x40000000);
                 }
-                view.measure(n9, n8);
-                e3.a1(n9, n8);
-                n3 = view.getMeasuredWidth();
+                view.measure(n8, n11);
+                e3.a1(n8, n11);
+                n4 = view.getMeasuredWidth();
                 n5 = view.getMeasuredHeight();
-                n4 = view.getBaseline();
+                n3 = view.getBaseline();
             }
-            boolean bl = n4 != -1;
-            boolean bl4 = n3 != a4.c || n5 != a4.d;
+            boolean bl = n3 != -1;
+            boolean bl4 = n4 != a4.c || n5 != a4.d;
             a4.i = bl4;
             if (((LayoutParams)((Object)object)).g0) {
                 bl = true;
             }
-            if (bl && n4 != -1 && e3.r() != n4) {
+            if (bl && n3 != -1 && e3.r() != n3) {
                 a4.i = true;
             }
-            a4.e = n3;
+            a4.e = n4;
             a4.f = n5;
             a4.h = bl;
-            a4.g = n4;
+            a4.g = n3;
             ConstraintLayout.c(this.h);
         }
 
@@ -1965,10 +1962,10 @@ extends ViewGroup {
             if (n3 == n4) {
                 return true;
             }
-            int n6 = View.MeasureSpec.getMode((int)n3);
-            n3 = View.MeasureSpec.getMode((int)n4);
+            n3 = View.MeasureSpec.getMode((int)n3);
+            int n6 = View.MeasureSpec.getMode((int)n4);
             n4 = View.MeasureSpec.getSize((int)n4);
-            return n3 == 0x40000000 && (n6 == Integer.MIN_VALUE || n6 == 0) && n5 == n4;
+            return n6 == 0x40000000 && (n3 == Integer.MIN_VALUE || n3 == 0) && n5 == n4;
         }
     }
 }

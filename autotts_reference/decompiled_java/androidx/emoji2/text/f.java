@@ -374,16 +374,16 @@ public class f {
             editorInfo.extras.putBoolean("android.support.text.emoji.emojiCompat_replaceAll", this.a.h);
         }
 
-        public void d(n object) {
-            if (object == null) {
+        public void d(n n3) {
+            if (n3 == null) {
                 this.a.n(new IllegalArgumentException("metadataRepo cannot be null"));
                 return;
             }
-            n n3 = this.c = object;
+            n3 = this.c = n3;
             j j3 = this.a.g;
-            object = this.a.n;
+            e e3 = this.a.n;
             f f3 = this.a;
-            this.b = new androidx.emoji2.text.i(n3, j3, (e)object, f3.i, f3.j, androidx.emoji2.text.h.a());
+            this.b = new androidx.emoji2.text.i(n3, j3, e3, f3.i, f3.j, androidx.emoji2.text.h.a());
             this.a.o();
         }
     }

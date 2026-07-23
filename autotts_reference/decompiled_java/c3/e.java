@@ -1,26 +1,39 @@
 /*
  * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  android.net.Uri
  */
 package c3;
 
-import android.net.Uri;
-import androidx.activity.result.a;
-import c3.i;
+import java.util.LinkedHashSet;
 
-public final class e
-implements a {
-    public final i a;
+public class e {
+    public String a;
+    public String b;
+    public int c;
+    public int d;
+    public int e;
+    public String f;
+    public String g;
+    public String h = "*Default";
+    public boolean i = false;
+    public LinkedHashSet j = new LinkedHashSet();
 
-    public /* synthetic */ e(i i3) {
-        this.a = i3;
+    public e(String string, String string2) {
+        this.a = string;
+        this.b = string2;
+        this.e = 100;
+        this.d = 100;
+        this.c = 100;
     }
 
-    @Override
-    public final void a(Object object) {
-        i.H1(this.a, (Uri)object);
+    public e(String string, String string2, int n3, int n4, int n5, String string3, String string4, String string5) {
+        this.a = string;
+        this.b = string2;
+        this.c = n3;
+        this.d = n4;
+        this.e = n5;
+        this.f = string3;
+        this.g = string4;
+        this.h = string5;
     }
 }
 

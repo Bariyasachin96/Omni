@@ -6,6 +6,7 @@
  *  android.content.ComponentName
  *  android.content.Context
  *  android.content.pm.ActivityInfo
+ *  android.content.pm.PackageManager
  *  android.content.pm.PackageManager$NameNotFoundException
  *  android.content.res.ColorStateList
  *  android.content.res.Resources$NotFoundException
@@ -281,20 +282,21 @@ implements View.OnClickListener {
     }
 
     public final Drawable l(ComponentName componentName) {
-        ActivityInfo activityInfo;
-        Object object = this.p.getPackageManager();
+        Object object;
+        PackageManager packageManager = this.p.getPackageManager();
         try {
-            activityInfo = object.getActivityInfo(componentName, 128);
+            object = packageManager.getActivityInfo(componentName, 128);
         }
         catch (PackageManager.NameNotFoundException nameNotFoundException) {
             Log.w((String)"SuggestionsAdapter", (String)((Object)((Object)nameNotFoundException)).toString());
             return null;
         }
-        int n3 = activityInfo.getIconResource();
+        int n3 = object.getIconResource();
         if (n3 == 0) {
             return null;
         }
-        if ((object = object.getDrawable(componentName.getPackageName(), n3, activityInfo.applicationInfo)) == null) {
+        object = packageManager.getDrawable(componentName.getPackageName(), n3, ((ActivityInfo)object).applicationInfo);
+        if (object == null) {
             object = new StringBuilder();
             ((StringBuilder)object).append("Invalid icon resource ");
             ((StringBuilder)object).append(n3);
@@ -354,7 +356,7 @@ implements View.OnClickListener {
         /*
          * This method has failed to decompile.  When submitting a bug report, please provide this stack trace, and (if you hold appropriate legal rights) the relevant class file.
          * 
-         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3 : 29->83)] java.io.FileNotFoundException
+         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3 : 28->80)] java.io.FileNotFoundException
          *     at org.benf.cfr.reader.bytecode.analysis.opgraph.Op02WithProcessedDataAndRefs.insertExceptionBlocks(Op02WithProcessedDataAndRefs.java:2283)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisInner(CodeAnalyser.java:415)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisOrWrapFail(CodeAnalyser.java:278)

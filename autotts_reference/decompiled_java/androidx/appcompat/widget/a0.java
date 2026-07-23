@@ -198,14 +198,15 @@ lbl17:
                 // 1 sources
 
                 var2_2 = (int)var1_1.getX(var4_5);
-                if ((var4_5 = this.pointToPosition(var2_2, var5_6 = (int)var1_1.getY(var4_5))) != -1) break block11;
+                var5_6 = this.pointToPosition(var2_2, var4_5 = (int)var1_1.getY(var4_5));
+                if (var5_6 != -1) break block11;
                 var2_2 = 1;
                 break block10;
             }
-            var7_7 = this.getChildAt(var4_5 - this.getFirstVisiblePosition());
-            this.i(var7_7, var4_5, var2_2, var5_6);
+            var7_7 = this.getChildAt(var5_6 - this.getFirstVisiblePosition());
+            this.i(var7_7, var5_6, var2_2, var4_5);
             if (var3_3 != 1) ** GOTO lbl-1000
-            this.b(var7_7, var4_5);
+            this.b(var7_7, var5_6);
             ** while (true)
         }
         if (!var6_4 || var2_2 != 0) {
@@ -425,9 +426,9 @@ lbl17:
         static {
             try {
                 GenericDeclaration genericDeclaration = Integer.TYPE;
-                Class<Boolean> clazz = Boolean.TYPE;
-                GenericDeclaration genericDeclaration2 = Float.TYPE;
-                genericDeclaration2 = AbsListView.class.getDeclaredMethod("positionSelector", new Class[]{genericDeclaration, View.class, clazz, genericDeclaration2, genericDeclaration2});
+                GenericDeclaration genericDeclaration2 = Boolean.TYPE;
+                Class<Float> clazz = Float.TYPE;
+                genericDeclaration2 = AbsListView.class.getDeclaredMethod("positionSelector", new Class[]{genericDeclaration, View.class, genericDeclaration2, clazz, clazz});
                 a = genericDeclaration2;
                 ((AccessibleObject)((Object)genericDeclaration2)).setAccessible(true);
                 genericDeclaration2 = AdapterView.class.getDeclaredMethod("setSelectedPositionInt", new Class[]{genericDeclaration});

@@ -12,15 +12,15 @@ import n3.p;
 import o3.k;
 
 public abstract class b {
-    public static g3.a a(p p3, Object object, g3.a a4) {
+    public static g3.a a(p p3, Object object, g3.a object2) {
         k.e(p3, "<this>");
-        k.e(a4, "completion");
-        a4 = i3.f.a(a4);
+        k.e(object2, "completion");
+        g3.a a4 = i3.f.a((g3.a)object2);
         if (p3 instanceof a) {
             return ((a)((Object)p3)).g(object, a4);
         }
-        g3.c c3 = a4.b();
-        if (c3 == d.c) {
+        object2 = a4.b();
+        if (object2 == d.c) {
             return new h(a4, p3, object){
                 public int d;
                 public final p e;
@@ -50,7 +50,7 @@ public abstract class b {
                 }
             };
         }
-        return new c(a4, c3, p3, object){
+        return new c(a4, (g3.c)object2, p3, object){
             public int f;
             public final p g;
             public final Object h;

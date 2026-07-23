@@ -93,22 +93,22 @@ extends NavigationBarMenuView {
                     n4 = n6 - n9;
                     n3 = n10 == 0 ? n5 : n10;
                     int n12 = Math.min(n4 / n3, this.d0);
-                    n10 = n4 - n10 * n12;
-                    for (n5 = 0; n5 < n7; ++n5) {
-                        if (this.getChildAt(n5).getVisibility() != 8) {
-                            n4 = n5 == this.getSelectedItemPosition() ? n9 : n12;
+                    n5 = n4 - n10 * n12;
+                    for (n10 = 0; n10 < n7; ++n10) {
+                        if (this.getChildAt(n10).getVisibility() != 8) {
+                            n4 = n10 == this.getSelectedItemPosition() ? n9 : n12;
                             n3 = n4;
-                            n6 = n10;
-                            if (n10 > 0) {
+                            n6 = n5;
+                            if (n5 > 0) {
                                 n3 = n4 + 1;
-                                n6 = n10 - 1;
+                                n6 = n5 - 1;
                             }
                         } else {
                             n3 = 0;
-                            n6 = n10;
+                            n6 = n5;
                         }
                         this.i0.add(n3);
-                        n10 = n6;
+                        n5 = n6;
                     }
                 } else {
                     if (n3 != 0) {
@@ -158,8 +158,8 @@ extends NavigationBarMenuView {
             float f3 = Math.min((float)(n4 + 3) / 10.0f, 0.9f);
             float f4 = n6;
             float f5 = n4;
-            n9 = Math.round(f3 * f4 / f5);
-            n11 = Math.round(f4 / f5);
+            n11 = Math.round(f3 * f4 / f5);
+            n9 = Math.round(f4 / f5);
             n4 = 0;
             n3 = 0;
             while (n10 < n7) {
@@ -167,9 +167,9 @@ extends NavigationBarMenuView {
                 n6 = n4;
                 n5 = n3;
                 if (view.getVisibility() != 8) {
-                    view.measure(View.MeasureSpec.makeMeasureSpec((int)n11, (int)Integer.MIN_VALUE), n8);
-                    if (view.getMeasuredWidth() < n9) {
-                        view.measure(View.MeasureSpec.makeMeasureSpec((int)n9, (int)0x40000000), n8);
+                    view.measure(View.MeasureSpec.makeMeasureSpec((int)n9, (int)Integer.MIN_VALUE), n8);
+                    if (view.getMeasuredWidth() < n11) {
+                        view.measure(View.MeasureSpec.makeMeasureSpec((int)n11, (int)0x40000000), n8);
                     }
                     n6 = n4 + view.getMeasuredWidth();
                     n5 = Math.max(n3, view.getMeasuredHeight());

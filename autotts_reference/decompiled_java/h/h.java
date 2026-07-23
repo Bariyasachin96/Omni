@@ -125,20 +125,21 @@ public class h {
         int n3 = arrayList.size();
         int n4 = 0;
         while (n4 < n3) {
+            Interpolator interpolator;
             Object object = arrayList.get(n4);
             ++n4;
-            h1 h12 = (h1)object;
+            object = (h1)object;
             long l3 = this.b;
             if (l3 >= 0L) {
-                h12.e(l3);
+                ((h1)object).e(l3);
             }
-            if ((object = this.c) != null) {
-                h12.f((Interpolator)object);
+            if ((interpolator = this.c) != null) {
+                ((h1)object).f(interpolator);
             }
             if (this.d != null) {
-                h12.g(this.f);
+                ((h1)object).g(this.f);
             }
-            h12.k();
+            ((h1)object).k();
         }
         this.e = true;
     }

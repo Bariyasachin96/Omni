@@ -34,84 +34,83 @@ public final class u {
             var16_4 = k.c();
             var4_5 = var1_1.size();
             var6_6 = 0;
-            var11_7 = null;
-            var12_8 = null;
+            var12_7 = null;
+            var11_8 = null;
             if (var4_5 > 0 && ((g)var1_1.get(0)).a().size() == 3) {
                 var10_9 = ((d)((g)var1_1.get(0)).a().get(1)).m(0.5f);
                 var9_10 = (d)var10_9.a();
-                var13_11 = (d)var10_9.b();
-                var10_9 = l.i(new d[]{((g)var1_1.get(0)).a().get(0), var9_10});
-                var9_10 = l.i(new d[]{var13_11, ((g)var1_1.get(0)).a().get(2)});
+                var10_9 = (d)var10_9.b();
+                var9_10 = l.i(new d[]{((g)var1_1.get(0)).a().get(0), var9_10});
+                var10_9 = l.i(new d[]{var10_9, ((g)var1_1.get(0)).a().get(2)});
             } else {
-                var9_10 = null;
                 var10_9 = null;
+                var9_10 = null;
             }
-            var7_12 = var1_1.size();
-            if (var7_12 >= 0) {
+            var7_11 = var1_1.size();
+            if (var7_11 >= 0) {
                 var4_5 = 0;
-                var11_7 = null;
+                var12_7 = null;
                 while (true) {
-                    if (var4_5 == 0 && var9_10 != null) {
-                        var1_1 = var9_10;
+                    if (var4_5 == 0 && var10_9 != null) {
+                        var1_1 = var10_9;
                     } else if (var4_5 == this.a.size()) {
-                        if (var10_9 == null) {
-                            var1_1 = var11_7;
-                            var13_11 = var12_8;
+                        if (var9_10 == null) {
+                            var1_1 = var12_7;
+                            var13_14 = var11_8;
                             while (true) {
-                                var9_10 = var1_1;
-                                var1_1 = var13_11;
+                                var9_10 = var13_14;
                                 break block20;
                                 break;
                             }
                         }
-                        var1_1 = var10_9;
+                        var1_1 = var9_10;
                     } else {
                         var1_1 = ((g)this.a.get(var4_5)).a();
                     }
-                    var8_14 = var1_1.size();
-                    for (var5_13 = 0; var5_13 < var8_14; ++var5_13) {
-                        var15_16 = (d)var1_1.get(var5_13);
+                    var8_13 = var1_1.size();
+                    for (var5_12 = 0; var5_12 < var8_13; ++var5_12) {
+                        var15_16 = (d)var1_1.get(var5_12);
                         if (!var15_16.p()) {
-                            if (var11_7 != null) {
-                                var16_4.add(var11_7);
+                            if (var12_7 != null) {
+                                var16_4.add(var12_7);
                             }
-                            if (var12_8 == null) {
-                                var13_11 = var11_7 = var15_16;
-                                var14_15 = var11_7;
+                            if (var11_8 == null) {
+                                var13_14 = var11_8 = var15_16;
+                                var14_15 = var11_8;
                             } else {
-                                var13_11 = var15_16;
-                                var14_15 = var12_8;
+                                var13_14 = var15_16;
+                                var14_15 = var11_8;
                             }
                         } else {
-                            var14_15 = var12_8;
-                            var13_11 = var11_7;
-                            if (var11_7 != null) {
-                                var11_7.j()[6] = var15_16.d();
-                                var11_7.j()[7] = var15_16.e();
-                                var13_11 = var11_7;
-                                var14_15 = var12_8;
+                            var14_15 = var11_8;
+                            var13_14 = var12_7;
+                            if (var12_7 != null) {
+                                var12_7.j()[6] = var15_16.d();
+                                var12_7.j()[7] = var15_16.e();
+                                var13_14 = var12_7;
+                                var14_15 = var11_8;
                             }
                         }
-                        var12_8 = var14_15;
-                        var11_7 = var13_11;
+                        var11_8 = var14_15;
+                        var12_7 = var13_14;
                     }
-                    var13_11 = var12_8;
-                    var1_1 = var11_7;
-                    if (var4_5 == var7_12) ** continue;
+                    var13_14 = var11_8;
+                    var1_1 = var12_7;
+                    if (var4_5 == var7_11) ** continue;
                     ++var4_5;
                 }
             }
-            var1_1 = null;
-            var9_10 = var11_7;
+            var9_10 = null;
+            var1_1 = var12_7;
         }
-        if (var9_10 != null && var1_1 != null) {
-            var16_4.add(c1.e.a(var9_10.b(), var9_10.c(), var9_10.f(), var9_10.g(), var9_10.h(), var9_10.i(), var1_1.b(), var1_1.c()));
+        if (var1_1 != null && var9_10 != null) {
+            var16_4.add(c1.e.a(var1_1.b(), var1_1.c(), var1_1.f(), var1_1.g(), var1_1.h(), var1_1.i(), var9_10.b(), var9_10.c()));
         }
         var9_10 = k.a(var16_4);
         this.d = var9_10;
         var1_1 = var9_10.get(var9_10.size() - 1);
-        var5_13 = var9_10.size();
-        for (var4_5 = var6_6; var4_5 < var5_13; ++var4_5) {
+        var5_12 = var9_10.size();
+        for (var4_5 = var6_6; var4_5 < var5_12; ++var4_5) {
             var9_10 = (d)this.d.get(var4_5);
             var2_2 = var9_10.b();
             if (!(Math.abs(var2_2 - (var1_1 = (d)var1_1).d()) > 1.0E-4f) && !(Math.abs(var9_10.c() - var1_1.e()) > 1.0E-4f)) {
@@ -173,13 +172,13 @@ public final class u {
                 long l3 = d3.k(0.5f);
                 f4 = Math.max(f4, Math.max(f3, y.e(p.g(l3) - this.b, p.h(l3) - this.c)));
             }
-            float f5 = (float)Math.sqrt(f4);
-            f3 = this.b;
-            fArray[0] = f3 - f5;
+            f3 = (float)Math.sqrt(f4);
+            float f5 = this.b;
+            fArray[0] = f5 - f3;
             f4 = this.c;
-            fArray[1] = f4 - f5;
-            fArray[2] = f3 + f5;
-            fArray[3] = f4 + f5;
+            fArray[1] = f4 - f3;
+            fArray[2] = f5 + f3;
+            fArray[3] = f4 + f3;
             return fArray;
         }
         throw new IllegalArgumentException("Required bounds size of 4");

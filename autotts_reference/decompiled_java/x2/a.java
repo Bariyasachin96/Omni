@@ -30,12 +30,15 @@ extends com.google.android.material.tabs.a {
         tabLayout = com.google.android.material.tabs.a.a(tabLayout, view2);
         if (view.left < ((RectF)tabLayout).left) {
             f4 = a.e(f3);
-            f3 = a.f(f3);
+            float f5 = a.f(f3);
+            f3 = f4;
+            f4 = f5;
         } else {
-            f4 = a.f(f3);
-            f3 = a.e(f3);
+            float f6 = a.f(f3);
+            f4 = a.e(f3);
+            f3 = f6;
         }
-        drawable.setBounds(a2.a.c((int)view.left, (int)((RectF)tabLayout).left, f4), drawable.getBounds().top, a2.a.c((int)view.right, (int)((RectF)tabLayout).right, f3), drawable.getBounds().bottom);
+        drawable.setBounds(a2.a.c((int)view.left, (int)((RectF)tabLayout).left, f3), drawable.getBounds().top, a2.a.c((int)view.right, (int)((RectF)tabLayout).right, f4), drawable.getBounds().bottom);
     }
 }
 

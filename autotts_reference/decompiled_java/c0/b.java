@@ -67,14 +67,15 @@ extends e0.a {
             if (n4 == stringArray.length) {
                 return;
             }
-            int n6 = 0;
-            for (n4 = n5; n4 < stringArray.length; ++n4) {
-                n5 = n6;
-                if (!hashSet.contains(n4)) {
-                    stringArray2[n6] = stringArray[n4];
-                    n5 = n6 + 1;
+            n4 = 0;
+            while (n5 < stringArray.length) {
+                int n6 = n4;
+                if (!hashSet.contains(n5)) {
+                    stringArray2[n4] = stringArray[n5];
+                    n6 = n4 + 1;
                 }
-                n6 = n5;
+                ++n5;
+                n4 = n6;
             }
         }
         if (object instanceof b) {

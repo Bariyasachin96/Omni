@@ -30,18 +30,19 @@ implements i {
     }
 
     @Override
-    public void d(androidx.lifecycle.k object, f.a a4) {
-        k.e(object, "source");
-        k.e((Object)a4, "event");
-        if (a4 == f.a.ON_CREATE) {
-            object.t().c(this);
-            object = this.a.c().b("androidx.savedstate.Restarter");
-            if (object != null) {
-                if ((object = object.getStringArrayList("classes_to_restore")) != null) {
+    public void d(androidx.lifecycle.k k3, f.a object) {
+        k.e(k3, "source");
+        k.e(object, "event");
+        if (object == f.a.ON_CREATE) {
+            k3.t().c(this);
+            k3 = this.a.c().b("androidx.savedstate.Restarter");
+            if (k3 != null) {
+                object = k3.getStringArrayList("classes_to_restore");
+                if (object != null) {
                     int n3 = ((ArrayList)object).size();
                     for (int i3 = 0; i3 < n3; ++i3) {
-                        a4 = ((ArrayList)object).get(i3);
-                        this.h((String)((Object)a4));
+                        k3 = ((ArrayList)object).get(i3);
+                        this.h((String)((Object)k3));
                     }
                 }
             } else {
@@ -52,17 +53,17 @@ implements i {
         throw new AssertionError((Object)"Next event must be ON_CREATE");
     }
 
-    public final void h(String string) {
+    public final void h(String charSequence) {
         Constructor<a.a> constructor;
         Object object;
         try {
-            object = Class.forName(string, false, Recreator.class.getClassLoader()).asSubclass(a.a.class);
+            object = Class.forName((String)charSequence, false, Recreator.class.getClassLoader()).asSubclass(a.a.class);
             k.d(object, "{\n                Class.…class.java)\n            }");
         }
         catch (ClassNotFoundException classNotFoundException) {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.append("Class ");
-            stringBuilder.append(string);
+            stringBuilder.append((String)charSequence);
             stringBuilder.append(" wasn't found");
             throw new RuntimeException(stringBuilder.toString(), classNotFoundException);
         }
@@ -71,11 +72,11 @@ implements i {
             ((AccessibleObject)constructor).setAccessible(true);
         }
         catch (NoSuchMethodException noSuchMethodException) {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("Class ");
-            stringBuilder.append(((Class)object).getSimpleName());
-            stringBuilder.append(" must have default constructor in order to be automatically recreated");
-            throw new IllegalStateException(stringBuilder.toString(), noSuchMethodException);
+            charSequence = new StringBuilder();
+            ((StringBuilder)charSequence).append("Class ");
+            ((StringBuilder)charSequence).append(((Class)object).getSimpleName());
+            ((StringBuilder)charSequence).append(" must have default constructor in order to be automatically recreated");
+            throw new IllegalStateException(((StringBuilder)charSequence).toString(), noSuchMethodException);
         }
         try {
             object = constructor.newInstance(null);
@@ -87,7 +88,7 @@ implements i {
         catch (Exception exception) {
             object = new StringBuilder();
             ((StringBuilder)object).append("Failed to instantiate ");
-            ((StringBuilder)object).append(string);
+            ((StringBuilder)object).append((String)charSequence);
             throw new RuntimeException(((StringBuilder)object).toString(), exception);
         }
     }

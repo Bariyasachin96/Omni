@@ -82,13 +82,13 @@ extends View {
         }
         n4 = n5 != 0 ? this.g : this.f;
         if (n5 != 0) {
-            n3 = this.getWidth();
-            n5 = this.f;
+            n5 = this.getWidth();
+            n3 = this.f;
         } else {
-            n3 = this.getWidth();
-            n5 = this.g;
+            n5 = this.getWidth();
+            n3 = this.g;
         }
-        this.c.setBounds(n4, 0, n3 - n5, this.getBottom() - this.getTop());
+        this.c.setBounds(n4, 0, n5 - n3, this.getBottom() - this.getTop());
         this.c.draw(canvas);
     }
 

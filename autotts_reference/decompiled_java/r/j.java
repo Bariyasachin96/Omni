@@ -109,13 +109,13 @@ implements b.a {
         while (true) {
             n3 = n7;
             if (n5 >= n6) break;
-            int n8 = this.f[n4];
-            n3 = i3.e;
-            if (n8 == n3) {
+            n3 = this.f[n4];
+            int n8 = i3.e;
+            if (n3 == n8) {
                 this.g[n4] = f3;
                 return;
             }
-            if (n8 < n3) {
+            if (n3 < n8) {
                 n7 = n4;
             }
             if ((n4 = this.i[n4]) == -1) {
@@ -209,9 +209,9 @@ implements b.a {
                 return;
             }
             float[] fArray = this.g;
-            fArray[n3] = f4 = fArray[n3] + f3;
-            f3 = n;
-            if (f4 > -f3 && f4 < f3) {
+            fArray[n3] = f3 = fArray[n3] + f3;
+            f4 = n;
+            if (f3 > -f4 && f3 < f4) {
                 fArray[n3] = 0.0f;
                 this.g(i3, bl);
             }

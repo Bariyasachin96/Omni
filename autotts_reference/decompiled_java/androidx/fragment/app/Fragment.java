@@ -76,7 +76,6 @@ import c0.r;
 import j1.d;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
-import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -210,11 +209,11 @@ d {
                         }
                         return object;
                     }
-                    object2 = new StringBuilder();
-                    ((StringBuilder)object2).append("Unable to instantiate fragment ");
-                    ((StringBuilder)object2).append(string);
-                    ((StringBuilder)object2).append(": calling Fragment constructor caused an exception");
-                    throw new k(((StringBuilder)object2).toString(), invocationTargetException2);
+                    object = new StringBuilder();
+                    ((StringBuilder)object).append("Unable to instantiate fragment ");
+                    ((StringBuilder)object).append(string);
+                    ((StringBuilder)object).append(": calling Fragment constructor caused an exception");
+                    throw new k(((StringBuilder)object).toString(), invocationTargetException2);
                 }
                 object2 = new StringBuilder();
                 ((StringBuilder)object2).append("Unable to instantiate fragment ");
@@ -222,17 +221,17 @@ d {
                 ((StringBuilder)object2).append(": could not find Fragment constructor");
                 throw new k(((StringBuilder)object2).toString(), noSuchMethodException2);
             }
-            object2 = new StringBuilder();
-            ((StringBuilder)object2).append("Unable to instantiate fragment ");
-            ((StringBuilder)object2).append(string);
-            ((StringBuilder)object2).append(": make sure class name exists, is public, and has an empty constructor that is public");
-            throw new k(((StringBuilder)object2).toString(), illegalAccessException2);
+            object = new StringBuilder();
+            ((StringBuilder)object).append("Unable to instantiate fragment ");
+            ((StringBuilder)object).append(string);
+            ((StringBuilder)object).append(": make sure class name exists, is public, and has an empty constructor that is public");
+            throw new k(((StringBuilder)object).toString(), illegalAccessException2);
         }
-        object2 = new StringBuilder();
-        ((StringBuilder)object2).append("Unable to instantiate fragment ");
-        ((StringBuilder)object2).append(string);
-        ((StringBuilder)object2).append(": make sure class name exists, is public, and has an empty constructor that is public");
-        throw new k(((StringBuilder)object2).toString(), instantiationException2);
+        object = new StringBuilder();
+        ((StringBuilder)object).append("Unable to instantiate fragment ");
+        ((StringBuilder)object).append(string);
+        ((StringBuilder)object).append(": make sure class name exists, is public, and has an empty constructor that is public");
+        throw new k(((StringBuilder)object).toString(), instantiationException2);
     }
 
     public LayoutInflater A(Bundle object) {
@@ -451,11 +450,12 @@ d {
     }
 
     public void M0() {
-        Serializable serializable = this.b0;
-        int n3 = ((ArrayList)serializable).size();
+        Object object;
+        ArrayList arrayList = this.b0;
+        int n3 = arrayList.size();
         for (int i3 = 0; i3 < n3; ++i3) {
-            Object e3 = ((ArrayList)serializable).get(i3);
-            ((l)e3).a();
+            object = arrayList.get(i3);
+            ((l)object).a();
         }
         this.b0.clear();
         this.x.m(this.w, this.d(), this);
@@ -467,11 +467,11 @@ d {
             this.x.y();
             return;
         }
-        serializable = new StringBuilder();
-        ((StringBuilder)serializable).append("Fragment ");
-        ((StringBuilder)serializable).append(this);
-        ((StringBuilder)serializable).append(" did not call through to super.onAttach()");
-        throw new g0(((StringBuilder)serializable).toString());
+        object = new StringBuilder();
+        ((StringBuilder)object).append("Fragment ");
+        ((StringBuilder)object).append(this);
+        ((StringBuilder)object).append(" did not call through to super.onAttach()");
+        throw new g0(((StringBuilder)object).toString());
     }
 
     public Object N() {
@@ -1282,12 +1282,12 @@ d {
             }
 
             public ActivityResultRegistry a(Void object) {
-                Fragment fragment = this.a;
-                object = fragment.w;
-                if (object instanceof androidx.activity.result.c) {
-                    return ((androidx.activity.result.c)object).m();
+                object = this.a;
+                androidx.fragment.app.l l3 = ((Fragment)object).w;
+                if (l3 instanceof androidx.activity.result.c) {
+                    return ((androidx.activity.result.c)((Object)l3)).m();
                 }
-                return fragment.m1().m();
+                return ((Fragment)object).m1().m();
             }
         }, a5);
     }

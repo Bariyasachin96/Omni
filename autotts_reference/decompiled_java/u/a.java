@@ -244,7 +244,7 @@ extends j {
         }
         if (n7 != 0 && n4 > 0) {
             n5 = 0;
-            n4 = 0;
+            n3 = 0;
         } else {
             return false;
         }
@@ -252,9 +252,9 @@ extends j {
             e3 = this.V0[n6];
             if (this.Y0 || e3.h()) {
                 int n8;
-                n3 = n5;
-                n7 = n4;
-                if (n4 == 0) {
+                n4 = n5;
+                n7 = n3;
+                if (n3 == 0) {
                     n7 = this.X0;
                     if (n7 == 0) {
                         n5 = e3.q(d.a.d).e();
@@ -266,34 +266,34 @@ extends j {
                         n5 = e3.q(d.a.g).e();
                     }
                     n7 = 1;
-                    n3 = n5;
+                    n4 = n5;
                 }
                 if ((n8 = this.X0) == 0) {
-                    n5 = Math.min(n3, e3.q(d.a.d).e());
-                    n4 = n7;
+                    n5 = Math.min(n4, e3.q(d.a.d).e());
+                    n3 = n7;
                 } else if (n8 == 1) {
-                    n5 = Math.max(n3, e3.q(d.a.f).e());
-                    n4 = n7;
+                    n5 = Math.max(n4, e3.q(d.a.f).e());
+                    n3 = n7;
                 } else if (n8 == 2) {
-                    n5 = Math.min(n3, e3.q(d.a.e).e());
-                    n4 = n7;
+                    n5 = Math.min(n4, e3.q(d.a.e).e());
+                    n3 = n7;
                 } else {
-                    n5 = n3;
-                    n4 = n7;
+                    n5 = n4;
+                    n3 = n7;
                     if (n8 == 3) {
-                        n5 = Math.max(n3, e3.q(d.a.g).e());
-                        n4 = n7;
+                        n5 = Math.max(n4, e3.q(d.a.g).e());
+                        n3 = n7;
                     }
                 }
             }
             ++n6;
         }
-        n7 = n5 + this.Z0;
-        n5 = this.X0;
-        if (n5 != 0 && n5 != 1) {
-            this.N0(n7, n7);
+        n5 += this.Z0;
+        n7 = this.X0;
+        if (n7 != 0 && n7 != 1) {
+            this.N0(n5, n5);
         } else {
-            this.K0(n7, n7);
+            this.K0(n5, n5);
         }
         this.a1 = true;
         return true;

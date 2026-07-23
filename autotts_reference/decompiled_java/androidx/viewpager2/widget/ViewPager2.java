@@ -141,7 +141,7 @@ extends ViewGroup {
         this.l.n(this.n);
         this.o = object = new b(3);
         this.n.o((i)object);
-        object2 = new i(this){
+        object = new i(this){
             public final ViewPager2 a;
             {
                 this.a = viewPager2;
@@ -163,7 +163,7 @@ extends ViewGroup {
                 }
             }
         };
-        object = new i(this){
+        object2 = new i(this){
             public final ViewPager2 a;
             {
                 this.a = viewPager2;
@@ -177,8 +177,8 @@ extends ViewGroup {
                 }
             }
         };
-        this.o.d((i)object2);
         this.o.d((i)object);
+        this.o.d((i)object2);
         this.v.h(this.o, this.l);
         this.o.d(this.e);
         this.q = object = new d(this.i);
@@ -413,9 +413,9 @@ extends ViewGroup {
         int n9 = this.getPaddingRight();
         int n10 = this.getPaddingTop();
         int n11 = this.getPaddingBottom();
-        n8 = Math.max(n5 + (n8 + n9), this.getSuggestedMinimumWidth());
-        n6 = Math.max(n6 + (n10 + n11), this.getSuggestedMinimumHeight());
-        this.setMeasuredDimension(View.resolveSizeAndState((int)n8, (int)n3, (int)n7), View.resolveSizeAndState((int)n6, (int)n4, (int)(n7 << 16)));
+        n5 = Math.max(n5 + (n8 + n9), this.getSuggestedMinimumWidth());
+        n11 = Math.max(n6 + (n10 + n11), this.getSuggestedMinimumHeight());
+        this.setMeasuredDimension(View.resolveSizeAndState((int)n5, (int)n3, (int)n7), View.resolveSizeAndState((int)n11, (int)n4, (int)(n7 << 16)));
     }
 
     public void onRestoreInstanceState(Parcelable object) {

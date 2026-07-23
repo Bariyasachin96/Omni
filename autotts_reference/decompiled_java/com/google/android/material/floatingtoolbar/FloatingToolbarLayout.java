@@ -144,14 +144,14 @@ extends FrameLayout {
             n5 = this.h;
         }
         n5 = n8 + n5;
-        rect = (ViewGroup.MarginLayoutParams)layoutParams;
-        if (rect.bottomMargin == n5 && rect.leftMargin == n3 && rect.rightMargin == n6 && rect.topMargin == n7) {
+        layoutParams = (ViewGroup.MarginLayoutParams)layoutParams;
+        if (layoutParams.bottomMargin == n5 && layoutParams.leftMargin == n3 && layoutParams.rightMargin == n6 && layoutParams.topMargin == n7) {
             return;
         }
-        rect.bottomMargin = n5;
-        rect.leftMargin = n3;
-        rect.rightMargin = n6;
-        rect.topMargin = n7;
+        layoutParams.bottomMargin = n5;
+        layoutParams.leftMargin = n3;
+        layoutParams.rightMargin = n6;
+        layoutParams.topMargin = n7;
         this.requestLayout();
     }
 

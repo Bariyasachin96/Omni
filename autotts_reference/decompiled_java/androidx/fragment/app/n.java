@@ -24,25 +24,25 @@ public class n {
     }
 
     public void a(Fragment fragment, Bundle bundle, boolean bl) {
-        Object object2 = this.b.y0();
-        if (object2 != null) {
-            ((Fragment)object2).E().x0().a(fragment, bundle, true);
+        Fragment fragment2 = this.b.y0();
+        if (fragment2 != null) {
+            fragment2.E().x0().a(fragment, bundle, true);
         }
-        for (Object object2 : this.a) {
-            if (bl && !((a)object2).b) continue;
-            ((a)object2).a.a(this.b, fragment, bundle);
+        for (a a4 : this.a) {
+            if (bl && !a4.b) continue;
+            a4.a.a(this.b, fragment, bundle);
         }
     }
 
     public void b(Fragment fragment, boolean bl) {
         Context context = this.b.v0().q();
-        Fragment fragment2 = this.b.y0();
-        if (fragment2 != null) {
-            fragment2.E().x0().b(fragment, true);
+        Object object2 = this.b.y0();
+        if (object2 != null) {
+            ((Fragment)object2).E().x0().b(fragment, true);
         }
-        for (a a4 : this.a) {
-            if (bl && !a4.b) continue;
-            a4.a.b(this.b, fragment, context);
+        for (Object object2 : this.a) {
+            if (bl && !((a)object2).b) continue;
+            ((a)object2).a.b(this.b, fragment, context);
         }
     }
 
@@ -69,24 +69,24 @@ public class n {
     }
 
     public void e(Fragment fragment, boolean bl) {
-        Fragment fragment2 = this.b.y0();
-        if (fragment2 != null) {
-            fragment2.E().x0().e(fragment, true);
+        Object object2 = this.b.y0();
+        if (object2 != null) {
+            ((Fragment)object2).E().x0().e(fragment, true);
         }
-        for (a a4 : this.a) {
-            if (bl && !a4.b) continue;
-            a4.a.e(this.b, fragment);
+        for (Object object2 : this.a) {
+            if (bl && !((a)object2).b) continue;
+            ((a)object2).a.e(this.b, fragment);
         }
     }
 
     public void f(Fragment fragment, boolean bl) {
-        Object object2 = this.b.y0();
-        if (object2 != null) {
-            ((Fragment)object2).E().x0().f(fragment, true);
+        Fragment fragment2 = this.b.y0();
+        if (fragment2 != null) {
+            fragment2.E().x0().f(fragment, true);
         }
-        for (Object object2 : this.a) {
-            if (bl && !((a)object2).b) continue;
-            ((a)object2).a.f(this.b, fragment);
+        for (a a4 : this.a) {
+            if (bl && !a4.b) continue;
+            a4.a.f(this.b, fragment);
         }
     }
 
@@ -114,24 +114,24 @@ public class n {
     }
 
     public void i(Fragment fragment, boolean bl) {
-        Object object2 = this.b.y0();
-        if (object2 != null) {
-            ((Fragment)object2).E().x0().i(fragment, true);
+        Fragment fragment2 = this.b.y0();
+        if (fragment2 != null) {
+            fragment2.E().x0().i(fragment, true);
         }
-        for (Object object2 : this.a) {
-            if (bl && !((a)object2).b) continue;
-            ((a)object2).a.i(this.b, fragment);
+        for (a a4 : this.a) {
+            if (bl && !a4.b) continue;
+            a4.a.i(this.b, fragment);
         }
     }
 
     public void j(Fragment fragment, Bundle bundle, boolean bl) {
-        Fragment fragment2 = this.b.y0();
-        if (fragment2 != null) {
-            fragment2.E().x0().j(fragment, bundle, true);
+        Object object2 = this.b.y0();
+        if (object2 != null) {
+            ((Fragment)object2).E().x0().j(fragment, bundle, true);
         }
-        for (a a4 : this.a) {
-            if (bl && !a4.b) continue;
-            a4.a.j(this.b, fragment, bundle);
+        for (Object object2 : this.a) {
+            if (bl && !((a)object2).b) continue;
+            ((a)object2).a.j(this.b, fragment, bundle);
         }
     }
 
@@ -158,13 +158,13 @@ public class n {
     }
 
     public void m(Fragment fragment, View view, Bundle bundle, boolean bl) {
-        Object object2 = this.b.y0();
-        if (object2 != null) {
-            ((Fragment)object2).E().x0().m(fragment, view, bundle, true);
+        Fragment fragment2 = this.b.y0();
+        if (fragment2 != null) {
+            fragment2.E().x0().m(fragment, view, bundle, true);
         }
-        for (Object object2 : this.a) {
-            if (bl && !((a)object2).b) continue;
-            ((a)object2).a.m(this.b, fragment, view, bundle);
+        for (a a4 : this.a) {
+            if (bl && !a4.b) continue;
+            a4.a.m(this.b, fragment, view, bundle);
         }
     }
 

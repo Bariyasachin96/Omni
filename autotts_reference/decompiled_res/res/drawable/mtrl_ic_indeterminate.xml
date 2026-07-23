@@ -1,5 +1,7 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="32.000000dip" android:width="32.000000dip" android:viewportWidth="32.000000" android:viewportHeight="32.000000">
-  <group android:name="@7F0E00B2" android:pivotX="16.000000" android:pivotY="16.000000">
-    <path android:name="@7F0E00B4" android:fillColor="@android:0106000B" android:pathData="@7F0E00B3"/>
-  </group>
+<?xml version="1.0" encoding="utf-8"?>
+<vector android:height="32.0dip" android:width="32.0dip" android:viewportWidth="32.0" android:viewportHeight="32.0"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:name="@string/mtrl_checkbox_button_icon_path_group_name" android:pivotX="16.0" android:pivotY="16.0">
+        <path android:name="@string/mtrl_checkbox_button_icon_path_name" android:fillColor="@android:color/white" android:pathData="@string/mtrl_checkbox_button_icon_path_indeterminate" />
+    </group>
 </vector>

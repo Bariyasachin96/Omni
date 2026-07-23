@@ -92,11 +92,11 @@ public abstract class ActivityResultRegistry {
                 this.d = object.getStringArrayList("KEY_COMPONENT_ACTIVITY_LAUNCHED_KEYS");
                 this.g.putAll(object.getBundle("KEY_COMPONENT_ACTIVITY_PENDING_RESULT"));
                 for (int i3 = 0; i3 < arrayList2.size(); ++i3) {
-                    object = (String)arrayList2.get(i3);
-                    if (this.b.containsKey(object)) {
-                        Integer n3 = (Integer)this.b.remove(object);
-                        if (!this.g.containsKey((String)object)) {
-                            this.a.remove(n3);
+                    String string = (String)arrayList2.get(i3);
+                    if (this.b.containsKey(string)) {
+                        object = (Integer)this.b.remove(string);
+                        if (!this.g.containsKey(string)) {
+                            this.a.remove(object);
                         }
                     }
                     this.a((Integer)arrayList.get(i3), (String)arrayList2.get(i3));

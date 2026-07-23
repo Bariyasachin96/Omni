@@ -267,9 +267,9 @@ a0 {
             this.e.top = this.getScrollY() + n5;
             n4 = this.getChildCount();
             if (n4 > 0) {
-                View view = this.getChildAt(n4 - 1);
-                rect = (FrameLayout.LayoutParams)view.getLayoutParams();
-                n4 = view.getBottom() + rect.bottomMargin + this.getPaddingBottom();
+                rect = this.getChildAt(n4 - 1);
+                FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams)rect.getLayoutParams();
+                n4 = rect.getBottom() + layoutParams.bottomMargin + this.getPaddingBottom();
                 rect = this.e;
                 if (rect.top + n5 > n4) {
                     rect.top = n4 - n5;
@@ -302,16 +302,16 @@ a0 {
         float f6 = androidx.core.widget.f.b(this.g);
         f3 = 0.0f;
         if (f6 != 0.0f) {
-            f3 = f4 = -androidx.core.widget.f.d(this.g, -f5, f4);
+            f3 = f5 = -androidx.core.widget.f.d(this.g, -f5, f4);
             if (androidx.core.widget.f.b(this.g) == 0.0f) {
                 this.g.onRelease();
-                f3 = f4;
+                f3 = f5;
             }
         } else if (androidx.core.widget.f.b(this.h) != 0.0f) {
-            f3 = f4 = androidx.core.widget.f.d(this.h, f5, 1.0f - f4);
+            f3 = f5 = androidx.core.widget.f.d(this.h, f5, 1.0f - f4);
             if (androidx.core.widget.f.b(this.h) == 0.0f) {
                 this.h.onRelease();
-                f3 = f4;
+                f3 = f5;
             }
         }
         n3 = Math.round(f3 * (float)this.getHeight());
@@ -567,20 +567,21 @@ a0 {
         int[] nArray = this.v;
         nArray[1] = 0;
         this.o(0, n5, nArray, null, 1);
-        n4 = this.getScrollRange();
-        if ((n5 -= this.v[1]) != 0) {
+        n4 = n5 - this.v[1];
+        n5 = this.getScrollRange();
+        if (n4 != 0) {
             n3 = this.getScrollY();
-            this.J(0, n5, this.getScrollX(), n3, 0, n4, 0, 0, false);
+            this.J(0, n4, this.getScrollX(), n3, 0, n5, 0, 0, false);
             n3 = this.getScrollY() - n3;
             nArray = this.v;
             nArray[1] = 0;
-            this.p(0, n3, 0, n5 -= n3, this.u, 1, nArray);
-            n5 -= this.v[1];
+            this.p(0, n3, 0, n4 -= n3, this.u, 1, nArray);
+            n4 -= this.v[1];
         }
-        if (n5 != 0) {
+        if (n4 != 0) {
             n3 = this.getOverScrollMode();
-            if (n3 == 0 || n3 == 1 && n4 > 0) {
-                if (n5 < 0) {
+            if (n3 == 0 || n3 == 1 && n5 > 0) {
+                if (n4 < 0) {
                     if (this.g.isFinished()) {
                         this.g.onAbsorb((int)this.f.getCurrVelocity());
                     }
@@ -989,19 +990,18 @@ a0 {
                         return this.m;
                     }
                 } else {
-                    n3 = this.t;
-                    if (n3 == -1) return this.m;
-                    int n4 = object.findPointerIndex(n3);
-                    if (n4 == -1) {
+                    int n4 = this.t;
+                    if (n4 == -1) return this.m;
+                    n3 = object.findPointerIndex(n4);
+                    if (n3 == -1) {
                         object = new StringBuilder();
                         ((StringBuilder)object).append("Invalid pointerId=");
-                        ((StringBuilder)object).append(n3);
+                        ((StringBuilder)object).append(n4);
                         ((StringBuilder)object).append(" in onInterceptTouchEvent");
                         Log.e((String)"NestedScrollView", (String)((StringBuilder)object).toString());
                         return this.m;
                     } else {
-                        n3 = (int)object.getY(n4);
-                        if (Math.abs(n3 - this.i) <= this.q || (2 & this.getNestedScrollAxes()) != 0) return this.m;
+                        if (Math.abs((n3 = (int)object.getY(n3)) - this.i) <= this.q || (2 & this.getNestedScrollAxes()) != 0) return this.m;
                         this.m = true;
                         this.i = n3;
                         this.C();
@@ -1082,11 +1082,12 @@ a0 {
     public void onMeasure(int n3, int n4) {
         super.onMeasure(n3, n4);
         if (this.o && View.MeasureSpec.getMode((int)n4) != 0 && this.getChildCount() > 0) {
+            int n5;
             View view = this.getChildAt(0);
             FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams)view.getLayoutParams();
-            int n5 = view.getMeasuredHeight();
-            if (n5 < (n4 = this.getMeasuredHeight() - this.getPaddingTop() - this.getPaddingBottom() - layoutParams.topMargin - layoutParams.bottomMargin)) {
-                view.measure(ViewGroup.getChildMeasureSpec((int)n3, (int)(this.getPaddingLeft() + this.getPaddingRight() + layoutParams.leftMargin + layoutParams.rightMargin), (int)layoutParams.width), View.MeasureSpec.makeMeasureSpec((int)n4, (int)0x40000000));
+            n4 = view.getMeasuredHeight();
+            if (n4 < (n5 = this.getMeasuredHeight() - this.getPaddingTop() - this.getPaddingBottom() - layoutParams.topMargin - layoutParams.bottomMargin)) {
+                view.measure(ViewGroup.getChildMeasureSpec((int)n3, (int)(this.getPaddingLeft() + this.getPaddingRight() + layoutParams.leftMargin + layoutParams.rightMargin), (int)layoutParams.width), View.MeasureSpec.makeMeasureSpec((int)n5, (int)0x40000000));
             }
         }
     }
@@ -1662,9 +1663,9 @@ a0 {
                     return false;
                 }
             }
-            n4 = object.getPaddingBottom();
-            n3 = object.getPaddingTop();
-            n3 = Math.min(object.getScrollY() + (n5 - n4 - n3), ((NestedScrollView)object).getScrollRange());
+            n3 = object.getPaddingBottom();
+            n4 = object.getPaddingTop();
+            n3 = Math.min(object.getScrollY() + (n5 - n3 - n4), ((NestedScrollView)object).getScrollRange());
             if (n3 != object.getScrollY()) {
                 ((NestedScrollView)object).W(0, n3, true);
                 return true;

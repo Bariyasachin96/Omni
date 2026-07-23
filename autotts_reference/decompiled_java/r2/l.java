@@ -106,12 +106,12 @@ extends i {
                 }
             }
             while (n3 < this.u.b.size()) {
-                object = (j.a)this.u.b.get(n3);
-                ((j.a)object).f = this.i();
-                this.t.c(canvas, this.p, (j.a)object, this.getAlpha());
+                object2 = (j.a)this.u.b.get(n3);
+                ((j.a)object2).f = this.i();
+                this.t.c(canvas, this.p, (j.a)object2, this.getAlpha());
                 if (n3 > 0 && !bl3 && bl2) {
-                    object2 = (j.a)this.u.b.get(n3 - 1);
-                    this.t.d(canvas, this.p, ((j.a)object2).b, ((j.a)object).a, this.d.f, n5, n4);
+                    object = (j.a)this.u.b.get(n3 - 1);
+                    this.t.d(canvas, this.p, ((j.a)object).b, ((j.a)object2).a, this.d.f, n5, n4);
                 }
                 ++n3;
             }

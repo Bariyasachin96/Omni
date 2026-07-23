@@ -72,9 +72,9 @@ extends FlowLayout {
             @Override
             public void a(Set object) {
                 if (this.a.i != null) {
-                    d d3 = this.a.i;
-                    object = this.a;
-                    d3.a((ChipGroup)((Object)object), ((ChipGroup)((Object)object)).j.j(this.a));
+                    object = this.a.i;
+                    ChipGroup chipGroup = this.a;
+                    object.a(chipGroup, chipGroup.j.j(this.a));
                 }
             }
         });

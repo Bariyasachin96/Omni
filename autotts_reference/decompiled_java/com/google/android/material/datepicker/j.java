@@ -233,8 +233,8 @@ extends s {
                         this.b.setTimeInMillis((Long)d3.b);
                         int n3 = w3.B(this.a.get(1));
                         int n4 = w3.B(this.b.get(1));
-                        object2 = gridLayoutManager.H(n3);
-                        d3 = gridLayoutManager.H(n4);
+                        d3 = gridLayoutManager.H(n3);
+                        object2 = gridLayoutManager.H(n4);
                         int n5 = n3 / gridLayoutManager.X2();
                         int n6 = n4 / gridLayoutManager.X2();
                         for (n4 = n5; n4 <= n6; ++n4) {
@@ -244,8 +244,8 @@ extends s {
                             int n8 = ((j)this.c).l0.d.c();
                             int n9 = view.getBottom();
                             int n10 = ((j)this.c).l0.d.b();
-                            n3 = n4 == n5 && object2 != null ? object2.getLeft() + object2.getWidth() / 2 : 0;
-                            int n11 = n4 == n6 && d3 != null ? d3.getLeft() + d3.getWidth() / 2 : recyclerView.getWidth();
+                            n3 = n4 == n5 && d3 != null ? d3.getLeft() + d3.getWidth() / 2 : 0;
+                            int n11 = n4 == n6 && object2 != null ? object2.getLeft() + object2.getWidth() / 2 : recyclerView.getWidth();
                             canvas.drawRect((float)n3, (float)(n7 + n8), (float)n11, (float)(n9 - n10), ((j)this.c).l0.h);
                         }
                     }
@@ -420,8 +420,8 @@ extends s {
         }
         layoutInflater = layoutInflater.inflate(n4, (ViewGroup)object, false);
         layoutInflater.setMinimumHeight(com.google.android.material.datepicker.j.W1(this.n1()));
-        GridView gridView = (GridView)layoutInflater.findViewById(z1.g.mtrl_calendar_days_of_week);
-        o0.x0.h0((View)gridView, new a(this){
+        object = (GridView)layoutInflater.findViewById(z1.g.mtrl_calendar_days_of_week);
+        o0.x0.h0((View)object, new a(this){
             public final j d;
             {
                 this.d = j3;
@@ -434,10 +434,10 @@ extends s {
             }
         });
         n4 = this.h0.w();
-        object = n4 > 0 ? new i(n4) : new i();
-        gridView.setAdapter((ListAdapter)object);
-        gridView.setNumColumns(((Month)object2).f);
-        gridView.setEnabled(false);
+        i i3 = n4 > 0 ? new i(n4) : new i();
+        object.setAdapter((ListAdapter)i3);
+        object.setNumColumns(((Month)object2).f);
+        object.setEnabled(false);
         this.n0 = (RecyclerView)layoutInflater.findViewById(z1.g.mtrl_calendar_months);
         object = new t(this, this.p(), n3, false, n3){
             public final int I;
@@ -461,7 +461,7 @@ extends s {
         };
         this.n0.setLayoutManager((RecyclerView.p)object);
         this.n0.setTag(u0);
-        object2 = new q((Context)bundle, this.g0, this.h0, this.i0, new m(this){
+        object = new q((Context)bundle, this.g0, this.h0, this.i0, new m(this){
             public final j a;
             {
                 this.a = j3;
@@ -482,23 +482,22 @@ extends s {
                 }
             }
         });
-        this.n0.setAdapter((RecyclerView.h)object2);
+        this.n0.setAdapter((RecyclerView.h)object);
         n3 = bundle.getResources().getInteger(z1.h.mtrl_calendar_year_selector_span);
-        object = (RecyclerView)layoutInflater.findViewById(z1.g.mtrl_calendar_year_selector_frame);
-        this.m0 = object;
-        if (object != null) {
-            ((RecyclerView)object).setHasFixedSize(true);
+        this.m0 = object2 = (RecyclerView)layoutInflater.findViewById(z1.g.mtrl_calendar_year_selector_frame);
+        if (object2 != null) {
+            ((RecyclerView)object2).setHasFixedSize(true);
             this.m0.setLayoutManager(new GridLayoutManager((Context)bundle, n3, 1, false));
             this.m0.setAdapter(new w(this));
             this.m0.j(this.Q1());
         }
         if (layoutInflater.findViewById(z1.g.month_navigation_fragment_toggle) != null) {
-            this.P1((View)layoutInflater, (q)object2);
+            this.P1((View)layoutInflater, (q)object);
         }
         if (!com.google.android.material.datepicker.n.e2((Context)bundle)) {
             new androidx.recyclerview.widget.j().b(this.n0);
         }
-        this.n0.r1(((q)object2).C(this.j0));
+        this.n0.r1(((q)object).C(this.j0));
         this.d2();
         return layoutInflater;
     }

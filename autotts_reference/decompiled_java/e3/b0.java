@@ -7,6 +7,7 @@ import d3.d;
 import e3.a0;
 import e3.w;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,10 +36,10 @@ extends a0 {
     public static final void f(Map map, Iterable object) {
         k.e(map, "<this>");
         k.e(object, "pairs");
-        object = object.iterator();
-        while (object.hasNext()) {
-            d d3 = (d)object.next();
-            map.put(d3.a(), d3.b());
+        Iterator iterator = object.iterator();
+        while (iterator.hasNext()) {
+            object = (d)iterator.next();
+            map.put(((d)object).a(), ((d)object).b());
         }
     }
 

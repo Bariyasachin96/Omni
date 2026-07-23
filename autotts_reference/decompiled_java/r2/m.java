@@ -203,12 +203,12 @@ extends j {
         f3 = j0.a.a(f3, 0.0f, 1.0f);
         f4 = j0.a.a(f4, 0.0f, 1.0f);
         f3 = o2.a.f(1.0f - this.n, 1.0f, f3);
-        float f9 = o2.a.f(1.0f - this.n, 1.0f, f4);
-        int n6 = (int)((float)n4 * j0.a.a(f3, 0.0f, 0.01f) / 0.01f);
-        n4 = (int)((float)n5 * (1.0f - j0.a.a(f9, 0.99f, 1.0f)) / 0.01f);
-        f4 = this.f;
-        n5 = (int)(f3 * f4 + (float)n6);
-        n6 = (int)(f9 * f4 - (float)n4);
+        f4 = o2.a.f(1.0f - this.n, 1.0f, f4);
+        n4 = (int)((float)n4 * j0.a.a(f3, 0.0f, 0.01f) / 0.01f);
+        int n6 = (int)((float)n5 * (1.0f - j0.a.a(f4, 0.99f, 1.0f)) / 0.01f);
+        float f9 = this.f;
+        n5 = (int)(f3 * f9 + (float)n4);
+        n6 = (int)(f4 * f9 - (float)n6);
         f3 = this.h;
         f4 = this.i;
         if (f3 != f4) {
@@ -216,39 +216,39 @@ extends j {
             f3 = this.f;
             f4 /= f3;
             f3 = o2.a.f(this.h, this.i, j0.a.a((float)n5 / f3, 0.0f, f4) / f4);
-            f8 = this.h;
-            f7 = this.i;
-            f9 = this.f;
-            f4 = o2.a.f(f8, f7, j0.a.a((f9 - (float)n6) / f9, 0.0f, f4) / f4);
+            f9 = this.h;
+            f8 = this.i;
+            f7 = this.f;
+            f4 = o2.a.f(f9, f8, j0.a.a((f7 - (float)n6) / f7, 0.0f, f4) / f4);
         } else {
             f4 = f3;
         }
         float f10 = -this.f / 2.0f;
         n4 = ((LinearProgressIndicatorSpec)this.a).b(this.m) && bl && f5 > 0.0f ? 1 : 0;
         if (n5 <= n6) {
-            f7 = (float)n5 + f3;
-            float f11 = (float)n6 - f4;
-            f8 = f3 * 2.0f;
-            f9 = 2.0f * f4;
+            float f11 = (float)n5 + f3;
+            f8 = (float)n6 - f4;
+            f9 = f3 * 2.0f;
+            f7 = 2.0f * f4;
             paint.setColor(n3);
             paint.setAntiAlias(true);
             paint.setStrokeWidth(this.g);
             ((j.b)this.o.first).c();
             ((j.b)this.o.second).c();
-            ((j.b)this.o.first).f(f7 + f10, 0.0f);
-            ((j.b)this.o.second).f(f10 + f11, 0.0f);
-            if (n5 == 0 && f11 + f4 < f7 + f3) {
+            ((j.b)this.o.first).f(f11 + f10, 0.0f);
+            ((j.b)this.o.second).f(f10 + f8, 0.0f);
+            if (n5 == 0 && f8 + f4 < f11 + f3) {
                 Pair pair = this.o;
                 j.b b3 = (j.b)pair.first;
                 f5 = this.g;
-                this.m(canvas, paint, b3, f8, f5, f3, (j.b)pair.second, f9, f5, f4, true);
+                this.m(canvas, paint, b3, f9, f5, f3, (j.b)pair.second, f7, f5, f4, true);
                 return;
             }
-            if (f7 - f3 > f11 - f4) {
+            if (f11 - f3 > f8 - f4) {
                 Pair pair = this.o;
                 j.b b4 = (j.b)pair.second;
                 f5 = this.g;
-                this.m(canvas, paint, b4, f9, f5, f4, (j.b)pair.first, f8, f5, f3, false);
+                this.m(canvas, paint, b4, f7, f5, f4, (j.b)pair.first, f9, f5, f3, false);
                 return;
             }
             paint.setStyle(Paint.Style.STROKE);
@@ -262,19 +262,19 @@ extends j {
                 object = pair.second;
                 canvas.drawLine(f5, f6, ((j.b)object).a[0], ((j.b)object).a[1], paint);
             } else {
-                PathMeasure pathMeasure = this.d;
-                object = this.c;
+                object = this.d;
+                Path path = this.c;
                 Pair pair = this.o;
                 f10 = this.f;
-                this.j(pathMeasure, (Path)object, pair, f7 / f10, f11 / f10, f5, f6);
+                this.j((PathMeasure)object, path, pair, f11 / f10, f8 / f10, f5, f6);
                 canvas.drawPath(this.c, paint);
             }
             if (!((LinearProgressIndicatorSpec)this.a).g()) {
-                if (f7 > 0.0f && f3 > 0.0f) {
-                    this.l(canvas, paint, (j.b)this.o.first, f8, this.g, f3);
+                if (f11 > 0.0f && f3 > 0.0f) {
+                    this.l(canvas, paint, (j.b)this.o.first, f9, this.g, f3);
                 }
-                if (f11 < this.f && f4 > 0.0f) {
-                    this.l(canvas, paint, (j.b)this.o.second, f9, this.g, f4);
+                if (f8 < this.f && f4 > 0.0f) {
+                    this.l(canvas, paint, (j.b)this.o.second, f7, this.g, f4);
                 }
             }
         }

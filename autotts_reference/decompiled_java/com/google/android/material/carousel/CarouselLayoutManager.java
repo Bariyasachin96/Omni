@@ -562,14 +562,14 @@ RecyclerView.y.b {
         c.c c4 = d3.b;
         float f5 = a2.a.b(f4, c4.c, c3.a, c4.a, f3);
         float f6 = view.getHeight();
-        float f7 = view.getWidth();
-        f4 = a2.a.b(0.0f, f7 / 2.0f, 0.0f, 1.0f, f5);
+        f4 = view.getWidth();
+        float f7 = a2.a.b(0.0f, f4 / 2.0f, 0.0f, 1.0f, f5);
         f5 = a2.a.b(0.0f, f6 / 2.0f, 0.0f, 1.0f, f5);
-        c3 = this.C.e(f6, f7, f5, f4);
-        f6 = this.d2(f3, d3);
-        f3 = c3.height() / 2.0f;
+        c3 = this.C.e(f6, f4, f5, f7);
+        f3 = this.d2(f3, d3);
         f4 = c3.height() / 2.0f;
-        c4 = new RectF(f6 - c3.width() / 2.0f, f6 - f3, f6 + c3.width() / 2.0f, f4 + f6);
+        f7 = c3.height() / 2.0f;
+        c4 = new RectF(f3 - c3.width() / 2.0f, f3 - f4, f3 + c3.width() / 2.0f, f7 + f3);
         d3 = new RectF((float)this.x2(), (float)this.A2(), (float)this.y2(), (float)this.w2());
         if (this.x.e() == a.a.c) {
             this.C.a((RectF)c3, (RectF)c4, (RectF)d3);
@@ -613,9 +613,9 @@ RecyclerView.y.b {
         this.j(view, n3);
         this.E0(view, 0, 0);
         float f4 = b3.c;
-        n3 = (int)(f4 - f3);
-        int n4 = (int)(f4 + f3);
-        this.C.k(view, n3, n4);
+        int n4 = (int)(f4 - f3);
+        n3 = (int)(f4 + f3);
+        this.C.k(view, n4, n3);
         this.U2(view, b3.b, b3.d);
     }
 
@@ -1043,16 +1043,16 @@ RecyclerView.y.b {
         }
 
         @Override
-        public void i(Canvas canvas, RecyclerView recyclerView, RecyclerView.z object) {
-            super.i(canvas, recyclerView, (RecyclerView.z)object);
+        public void i(Canvas canvas, RecyclerView recyclerView, RecyclerView.z object2) {
+            super.i(canvas, recyclerView, (RecyclerView.z)object2);
             this.a.setStrokeWidth(recyclerView.getResources().getDimension(z1.e.m3_carousel_debug_keyline_width));
-            for (c.c c3 : this.b) {
-                this.a.setColor(g0.a.c(-65281, -16776961, c3.c));
+            for (Object object2 : this.b) {
+                this.a.setColor(g0.a.c(-65281, -16776961, ((c.c)object2).c));
                 if (((CarouselLayoutManager)recyclerView.getLayoutManager()).f()) {
-                    canvas.drawLine(c3.b, (float)((CarouselLayoutManager)recyclerView.getLayoutManager()).A2(), c3.b, (float)((CarouselLayoutManager)recyclerView.getLayoutManager()).w2(), this.a);
+                    canvas.drawLine(((c.c)object2).b, (float)((CarouselLayoutManager)recyclerView.getLayoutManager()).A2(), ((c.c)object2).b, (float)((CarouselLayoutManager)recyclerView.getLayoutManager()).w2(), this.a);
                     continue;
                 }
-                canvas.drawLine((float)((CarouselLayoutManager)recyclerView.getLayoutManager()).x2(), c3.b, (float)((CarouselLayoutManager)recyclerView.getLayoutManager()).y2(), c3.b, this.a);
+                canvas.drawLine((float)((CarouselLayoutManager)recyclerView.getLayoutManager()).x2(), ((c.c)object2).b, (float)((CarouselLayoutManager)recyclerView.getLayoutManager()).y2(), ((c.c)object2).b, this.a);
             }
         }
 

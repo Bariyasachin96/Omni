@@ -101,12 +101,12 @@ extends k {
                 }
 
                 public void onAnimationEnd(Animator object) {
-                    super.onAnimationEnd((Animator)object);
+                    super.onAnimationEnd(object);
                     this.a.a();
-                    o o3 = this.a;
-                    object = o3.j;
-                    if (object != null) {
-                        ((n1.b)object).b(o3.a);
+                    object = this.a;
+                    n1.b b3 = object.j;
+                    if (b3 != null) {
+                        b3.b(object.a);
                     }
                 }
             });

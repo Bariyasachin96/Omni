@@ -359,10 +359,10 @@ extends AppCompatImageButton {
             int n4 = this.getHeight();
             this.l.set(0.0f, 0.0f, (float)n3, (float)n4);
             this.j.reset();
-            Path path = this.j;
-            viewOutlineProvider = this.l;
+            viewOutlineProvider = this.j;
+            RectF rectF = this.l;
             f3 = this.i;
-            path.addRoundRect((RectF)viewOutlineProvider, f3, f3, Path.Direction.CW);
+            viewOutlineProvider.addRoundRect(rectF, f3, f3, Path.Direction.CW);
         } else {
             this.setClipToOutline(false);
         }

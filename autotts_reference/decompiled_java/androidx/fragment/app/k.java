@@ -41,18 +41,18 @@ public abstract class k {
             return object;
         }
         catch (ClassCastException classCastException) {
-            object = new StringBuilder();
-            ((StringBuilder)object).append("Unable to instantiate fragment ");
-            ((StringBuilder)object).append(string);
-            ((StringBuilder)object).append(": make sure class is a valid subclass of Fragment");
-            throw new Fragment.k(((StringBuilder)object).toString(), classCastException);
-        }
-        catch (ClassNotFoundException classNotFoundException) {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.append("Unable to instantiate fragment ");
             stringBuilder.append(string);
-            stringBuilder.append(": make sure class name exists");
-            throw new Fragment.k(stringBuilder.toString(), classNotFoundException);
+            stringBuilder.append(": make sure class is a valid subclass of Fragment");
+            throw new Fragment.k(stringBuilder.toString(), classCastException);
+        }
+        catch (ClassNotFoundException classNotFoundException) {
+            object = new StringBuilder();
+            ((StringBuilder)object).append("Unable to instantiate fragment ");
+            ((StringBuilder)object).append(string);
+            ((StringBuilder)object).append(": make sure class name exists");
+            throw new Fragment.k(((StringBuilder)object).toString(), classNotFoundException);
         }
     }
 

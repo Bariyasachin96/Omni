@@ -19,14 +19,14 @@ extends p {
     }
 
     @Override
-    public void a(d object) {
-        object = this.h;
-        if (!((f)object).c || ((f)object).j) {
+    public void a(d d3) {
+        d3 = this.h;
+        if (!((f)d3).c || ((f)d3).j) {
             return;
         }
-        f f3 = (f)((f)object).l.get(0);
-        object = (h)this.b;
-        int n3 = (int)((float)f3.g * ((h)object).A1() + 0.5f);
+        d3 = (f)((f)d3).l.get(0);
+        h h3 = (h)this.b;
+        int n3 = (int)((float)((f)d3).g * h3.A1() + 0.5f);
         this.h.d(n3);
     }
 

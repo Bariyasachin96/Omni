@@ -52,29 +52,29 @@ implements g0 {
     }
 
     @Override
-    public d a(View view, d d3) {
+    public d a(View view, d object) {
         if (Log.isLoggable((String)"ReceiveContent", (int)3)) {
-            Objects.toString(d3);
+            Objects.toString(object);
         }
-        if (d3.d() == 2) {
-            return d3;
+        if (((d)object).d() == 2) {
+            return object;
         }
-        ClipData clipData = d3.b();
-        int n3 = d3.c();
-        d3 = (TextView)view;
-        view = (Editable)d3.getText();
-        d3 = d3.getContext();
+        ClipData clipData = ((d)object).b();
+        int n3 = ((d)object).c();
+        object = (TextView)view;
+        view = (Editable)object.getText();
+        Context context = object.getContext();
         boolean bl = false;
         for (int i3 = 0; i3 < clipData.getItemCount(); ++i3) {
-            CharSequence charSequence = k.b((Context)d3, clipData.getItemAt(i3), n3);
+            object = k.b(context, clipData.getItemAt(i3), n3);
             boolean bl2 = bl;
-            if (charSequence != null) {
+            if (object != null) {
                 if (!bl) {
-                    k.c((Editable)view, charSequence);
+                    k.c((Editable)view, (CharSequence)object);
                     bl2 = true;
                 } else {
                     view.insert(Selection.getSelectionEnd((CharSequence)view), (CharSequence)"\n");
-                    view.insert(Selection.getSelectionEnd((CharSequence)view), charSequence);
+                    view.insert(Selection.getSelectionEnd((CharSequence)view), (CharSequence)object);
                     bl2 = bl;
                 }
             }

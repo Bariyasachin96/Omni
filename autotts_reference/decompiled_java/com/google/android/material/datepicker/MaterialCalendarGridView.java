@@ -143,30 +143,30 @@ extends GridView {
                 int n10;
                 int n11 = this.getNumColumns() * i3;
                 int n12 = n11 + this.getNumColumns() - 1;
-                object2 = this.c(n11);
-                int n13 = object2.getTop();
+                object = this.c(n11);
+                int n13 = object.getTop();
                 int n14 = b3.a.c();
-                int n15 = object2.getBottom();
+                int n15 = object.getBottom();
                 int n16 = b3.a.b();
                 if (!bl) {
                     n10 = n11 > n7 ? 0 : n8;
                     if (n5 > n12) {
-                        n11 = this.getWidth();
-                        n12 = n10;
-                        n10 = n11;
+                        n12 = this.getWidth();
+                        n11 = n10;
+                        n10 = n12;
                     } else {
-                        n11 = n6;
-                        n12 = n10;
-                        n10 = n11;
+                        n12 = n6;
+                        n11 = n10;
+                        n10 = n12;
                     }
                 } else {
                     n10 = n5 > n12 ? 0 : n6;
-                    n12 = n11 > n7 ? this.getWidth() : n8;
+                    n11 = n11 > n7 ? this.getWidth() : n8;
+                    n12 = n11;
                     n11 = n10;
                     n10 = n12;
-                    n12 = n11;
                 }
-                canvas.drawRect((float)n12, (float)(n13 + n14), (float)n10, (float)(n15 - n16), b3.h);
+                canvas.drawRect((float)n11, (float)(n13 + n14), (float)n10, (float)(n15 - n16), b3.h);
             }
         }
     }

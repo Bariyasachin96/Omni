@@ -52,8 +52,8 @@ implements View.OnTouchListener {
         }
         if (Build.VERSION.SDK_INT < 28) {
             view2.setAction(0);
-            n6 = this.f;
-            view2.setLocation((float)(-n6 - 1), (float)(-n6 - 1));
+            n3 = this.f;
+            view2.setLocation((float)(-n3 - 1), (float)(-n3 - 1));
         }
         view.performClick();
         return this.c.onTouchEvent((MotionEvent)view2);

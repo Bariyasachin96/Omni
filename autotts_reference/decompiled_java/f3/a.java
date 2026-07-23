@@ -230,14 +230,14 @@ Serializable {
     }
 
     public final Object o(int n3) {
-        Object[] objectArray = this.g;
-        if (objectArray != null) {
-            objectArray = objectArray.o(n3);
+        Object object = this.g;
+        if (object != null) {
+            object = ((a)object).o(n3);
             --this.e;
-            return objectArray;
+            return object;
         }
-        objectArray = this.c;
-        Object object = objectArray[n3];
+        Object[] objectArray = this.c;
+        object = objectArray[n3];
         e3.h.g(objectArray, objectArray, n3, n3 + 1, this.d + this.e);
         b.f(this.c, this.d + this.e - 1);
         --this.e;
@@ -357,10 +357,10 @@ Serializable {
         Object[] objectArray3 = this.c;
         n3 = this.d;
         e3.h.g(objectArray3, objectArray, 0, n3, n4 + n3);
-        n4 = objectArray.length;
-        n3 = this.e;
-        if (n4 > n3) {
-            objectArray[n3] = null;
+        n3 = objectArray.length;
+        n4 = this.e;
+        if (n3 > n4) {
+            objectArray[n4] = null;
         }
         return objectArray;
     }

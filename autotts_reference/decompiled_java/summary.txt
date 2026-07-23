@@ -1,4 +1,4 @@
-Summary for tools/autotts.jar
+Summary for autotts_classes.jar
 Decompiled with CFR 0.152
 
 
@@ -41,17 +41,24 @@ u()
   Exception : org.benf.cfr.reader.util.ConfusedCFRException: Statement already marked as first in another block
 
 
+androidx.appcompat.widget.ActionBarContainer
+----------------------------
+
+onLayout(boolean int int int int )
+  Unable to fully structure code
+
+
 androidx.appcompat.widget.LinearLayoutCompat
 ----------------------------
 
 e(android.graphics.Canvas )
   Unable to fully structure code
-  Could not resolve type clashes
 v(int int )
   Unable to fully structure code
   Could not resolve type clashes
 x(int int )
   Unable to fully structure code
+  Could not resolve type clashes
 
 
 androidx.appcompat.widget.ActionMenuView
@@ -104,7 +111,7 @@ androidx.appcompat.widget.h0
 ----------------------------
 
 p(android.net.Uri )
-  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3 : 29->83)] java.io.FileNotFoundException
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3 : 28->80)] java.io.FileNotFoundException
 
 
 androidx.appcompat.widget.z
@@ -121,13 +128,6 @@ androidx.constraintlayout.widget.ConstraintLayout
 z(u.f int int int int )
   Unable to fully structure code
   Could not resolve type clashes
-
-
-androidx.constraintlayout.motion.widget.MotionLayout
-----------------------------
-
-h0(boolean )
-  Unable to fully structure code
 
 
 androidx.constraintlayout.motion.widget.a
@@ -314,34 +314,34 @@ c1.u
   Unable to fully structure code
 
 
-c3.i
+c3.b0
 ----------------------------
 
-y2(android.content.Context java.lang.String )
-  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 4[TRYBLOCK] [4 : 186->336)] java.lang.Exception
-G2(android.net.Uri )
+a(java.io.File java.io.File )
   Loose catch block
 
 
-c3.k
+c3.j
+----------------------------
+
+F2(android.content.Context java.lang.String )
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 4[TRYBLOCK] [4 : 186->336)] java.lang.Exception
+N2(android.net.Uri )
+  Loose catch block
+
+
+c3.m
 ----------------------------
 
 h(android.content.Context boolean )
   Unable to fully structure code
 
 
-c3.m
+c3.o
 ----------------------------
 
-h(c3.m$a java.lang.String java.lang.String )
+h(c3.o$a java.lang.String java.lang.String )
   Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [2 : 47->59)] java.lang.Throwable
-
-
-c3.z
-----------------------------
-
-a(java.io.File java.io.File )
-  Loose catch block
 
 
 com.google.android.gms.common.internal.a
@@ -456,21 +456,23 @@ com.pairip.licensecheck.LicenseClient
 ----------------------------
 
 checkLicenseInternal(android.os.IBinder )
-  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 1[TRYBLOCK] [3 : 91->114)] java.lang.Throwable
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 1[TRYBLOCK] [3 : 106->129)] java.lang.Throwable
 processResponse(int android.os.Bundle )
   Unable to fully structure code
   Could not resolve type clashes
 reportSuccessfulLicenseCheck(android.os.IBinder )
-  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 119->156)] java.lang.Throwable
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 120->157)] java.lang.Throwable
 
 
 com.vnspeak.autotts.AutoTtsService
 ----------------------------
 
-N()
+T()
+  Loose catch block
+g0(android.speech.tts.SynthesisCallback )
   Loose catch block
 onSynthesizeText(android.speech.tts.SynthesisRequest android.speech.tts.SynthesisCallback )
-  Loose catch block
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 7[TRYBLOCK] [8 : 807->820)] java.lang.Throwable
 run()
   Unable to fully structure code
 
@@ -480,6 +482,13 @@ com.vnspeak.autotts.NewSettingsActivity
 
 D0()
   Loose catch block
+
+
+com.vnspeak.autotts.clsCLD2
+----------------------------
+
+b(java.lang.String int int android.content.Context )
+  Unable to fully structure code
 
 
 g0.d
@@ -624,14 +633,6 @@ t2(u.e[] int int int int[] )
   Could not resolve type clashes
 d(boolean int boolean )
   Unable to fully structure code
-
-
-v.b
-----------------------------
-
-b(u.f )
-  Unable to fully structure code
-  Could not resolve type clashes
 
 
 v.e

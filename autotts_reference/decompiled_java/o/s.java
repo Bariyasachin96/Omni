@@ -40,17 +40,16 @@ implements Cloneable {
     }
 
     public void a(int n3, Object object) {
-        int n4;
-        int n5 = this.f;
-        if (n5 != 0 && n3 <= this.d[n5 - 1]) {
+        int n4 = this.f;
+        if (n4 != 0 && n3 <= this.d[n4 - 1]) {
             this.g(n3, object);
             return;
         }
-        if (this.c && n5 >= this.d.length) {
+        if (this.c && n4 >= this.d.length) {
             t.a(this);
         }
         if ((n4 = this.f) >= this.d.length) {
-            n5 = a.e(n4 + 1);
+            int n5 = a.e(n4 + 1);
             Object[] objectArray = Arrays.copyOf(this.d, n5);
             k.d(objectArray, "copyOf(this, newSize)");
             this.d = objectArray;
@@ -163,29 +162,30 @@ implements Cloneable {
     }
 
     public String toString() {
+        Object object;
         if (this.h() <= 0) {
             return "{}";
         }
-        CharSequence charSequence = new StringBuilder(this.f * 28);
-        ((StringBuilder)charSequence).append('{');
+        StringBuilder stringBuilder = new StringBuilder(this.f * 28);
+        stringBuilder.append('{');
         int n3 = this.f;
         for (int i3 = 0; i3 < n3; ++i3) {
             if (i3 > 0) {
-                ((StringBuilder)charSequence).append(", ");
+                stringBuilder.append(", ");
             }
-            ((StringBuilder)charSequence).append(this.f(i3));
-            ((StringBuilder)charSequence).append('=');
-            Object object = this.i(i3);
+            stringBuilder.append(this.f(i3));
+            stringBuilder.append('=');
+            object = this.i(i3);
             if (object != this) {
-                ((StringBuilder)charSequence).append(object);
+                stringBuilder.append(object);
                 continue;
             }
-            ((StringBuilder)charSequence).append("(this Map)");
+            stringBuilder.append("(this Map)");
         }
-        ((StringBuilder)charSequence).append('}');
-        charSequence = ((StringBuilder)charSequence).toString();
-        k.d(charSequence, "buffer.toString()");
-        return charSequence;
+        stringBuilder.append('}');
+        object = stringBuilder.toString();
+        k.d(object, "buffer.toString()");
+        return object;
     }
 }
 

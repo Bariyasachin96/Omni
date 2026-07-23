@@ -230,24 +230,24 @@ implements w.b {
         ViewGroup viewGroup = null;
         weakReference = weakReference != null ? (View)weakReference.get() : null;
         if (context != null && weakReference != null) {
-            Rect rect = new Rect();
-            rect.set(this.f);
             context = new Rect();
-            weakReference.getDrawingRect((Rect)context);
+            context.set(this.f);
+            Rect rect = new Rect();
+            weakReference.getDrawingRect(rect);
             WeakReference weakReference2 = this.o;
             if (weakReference2 != null) {
                 viewGroup = (ViewGroup)weakReference2.get();
             }
             if (viewGroup != null) {
-                viewGroup.offsetDescendantRectToMyCoords((View)weakReference, (Rect)context);
+                viewGroup.offsetDescendantRectToMyCoords((View)weakReference, rect);
             }
-            this.d((Rect)context, (View)weakReference);
+            this.d(rect, (View)weakReference);
             b.g(this.f, this.h, this.i, this.l, this.m);
             float f3 = this.k;
             if (f3 != -1.0f) {
                 this.d.e0(f3);
             }
-            if (!rect.equals((Object)this.f)) {
+            if (!context.equals((Object)this.f)) {
                 this.d.setBounds(this.f);
             }
         }
@@ -341,13 +341,13 @@ implements w.b {
         int n3 = this.A();
         int n4 = this.g.f();
         this.i = n4 != 8388691 && n4 != 0x800055 ? (float)(rect.top + n3) : (float)(rect.bottom - n3);
-        n4 = this.z();
-        n3 = this.g.f();
-        if (n3 != 0x800033 && n3 != 8388691) {
-            f3 = this.g.l == 0 ? (view.getLayoutDirection() == 0 ? (float)rect.right + this.l - (float)n4 : (float)rect.left - this.l + (float)n4) : (view.getLayoutDirection() == 0 ? (float)rect.right - this.l + (this.m * 2.0f - (float)n4) : (float)rect.left + this.l - (this.m * 2.0f - (float)n4));
+        n3 = this.z();
+        n4 = this.g.f();
+        if (n4 != 0x800033 && n4 != 8388691) {
+            f3 = this.g.l == 0 ? (view.getLayoutDirection() == 0 ? (float)rect.right + this.l - (float)n3 : (float)rect.left - this.l + (float)n3) : (view.getLayoutDirection() == 0 ? (float)rect.right - this.l + (this.m * 2.0f - (float)n3) : (float)rect.left + this.l - (this.m * 2.0f - (float)n3));
             this.h = f3;
         } else {
-            f3 = this.g.l == 0 ? (view.getLayoutDirection() == 0 ? (float)rect.left + this.l - (this.m * 2.0f - (float)n4) : (float)rect.right - this.l + (this.m * 2.0f - (float)n4)) : (view.getLayoutDirection() == 0 ? (float)rect.left - this.l + (float)n4 : (float)rect.right + this.l - (float)n4);
+            f3 = this.g.l == 0 ? (view.getLayoutDirection() == 0 ? (float)rect.left + this.l - (this.m * 2.0f - (float)n3) : (float)rect.right - this.l + (this.m * 2.0f - (float)n3)) : (view.getLayoutDirection() == 0 ? (float)rect.left - this.l + (float)n3 : (float)rect.right + this.l - (float)n3);
             this.h = f3;
         }
         if (this.g.F()) {

@@ -75,25 +75,26 @@ public abstract class h {
     public static String d(Context context, ComponentName object) {
         Object object2 = context.getPackageManager();
         int n3 = Build.VERSION.SDK_INT >= 29 ? 269222528 : 787072;
-        object2 = object2.getActivityInfo((ComponentName)object, n3);
-        object = ((ActivityInfo)object2).parentActivityName;
-        if (object != null) {
-            return object;
+        object = object2.getActivityInfo((ComponentName)object, n3);
+        object2 = ((ActivityInfo)object).parentActivityName;
+        if (object2 != null) {
+            return object2;
         }
-        object = ((ActivityInfo)object2).metaData;
+        object = ((ActivityInfo)object).metaData;
         if (object == null) {
             return null;
         }
-        if ((object = object.getString("android.support.PARENT_ACTIVITY")) == null) {
+        object2 = object.getString("android.support.PARENT_ACTIVITY");
+        if (object2 == null) {
             return null;
         }
-        if (((String)object).charAt(0) == '.') {
-            object2 = new StringBuilder();
-            ((StringBuilder)object2).append(context.getPackageName());
-            ((StringBuilder)object2).append((String)object);
-            return ((StringBuilder)object2).toString();
+        if (((String)object2).charAt(0) == '.') {
+            object = new StringBuilder();
+            ((StringBuilder)object).append(context.getPackageName());
+            ((StringBuilder)object).append((String)object2);
+            return ((StringBuilder)object).toString();
         }
-        return object;
+        return object2;
     }
 
     public static void e(Activity activity, Intent intent) {

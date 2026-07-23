@@ -422,21 +422,21 @@ public class AlertController {
     }
 
     public final void u(ViewGroup viewGroup) {
-        NestedScrollView nestedScrollView;
-        this.A = nestedScrollView = (NestedScrollView)this.c.findViewById(c.f.scrollView);
-        nestedScrollView.setFocusable(false);
+        TextView textView;
+        Object object = (NestedScrollView)this.c.findViewById(c.f.scrollView);
+        this.A = object;
+        object.setFocusable(false);
         this.A.setNestedScrollingEnabled(false);
-        nestedScrollView = (TextView)viewGroup.findViewById(16908299);
-        this.F = nestedScrollView;
-        if (nestedScrollView == null) {
+        this.F = textView = (TextView)viewGroup.findViewById(16908299);
+        if (textView == null) {
             return;
         }
-        CharSequence charSequence = this.f;
-        if (charSequence != null) {
-            nestedScrollView.setText(charSequence);
+        object = this.f;
+        if (object != null) {
+            textView.setText((CharSequence)object);
             return;
         }
-        nestedScrollView.setVisibility(8);
+        textView.setVisibility(8);
         this.A.removeView((View)this.F);
         if (this.g != null) {
             viewGroup = (ViewGroup)this.A.getParent();
@@ -508,64 +508,64 @@ public class AlertController {
     public final void x() {
         View view = this.c.findViewById(c.f.parentPanel);
         int n3 = c.f.topPanel;
-        Object object = view.findViewById(n3);
+        View view2 = view.findViewById(n3);
         int n4 = c.f.contentPanel;
-        View view2 = view.findViewById(n4);
+        View view3 = view.findViewById(n4);
         int n5 = c.f.buttonPanel;
-        Object object2 = view.findViewById(n5);
+        Object object = view.findViewById(n5);
         view = (ViewGroup)view.findViewById(c.f.customPanel);
         this.v((ViewGroup)view);
-        View view3 = view.findViewById(n3);
-        View view4 = view.findViewById(n4);
-        View view5 = view.findViewById(n5);
-        object = this.h(view3, (View)object);
+        View view4 = view.findViewById(n3);
+        View view5 = view.findViewById(n4);
+        View view6 = view.findViewById(n5);
         view2 = this.h(view4, view2);
-        object2 = this.h(view5, (View)object2);
-        this.u((ViewGroup)view2);
-        this.t((ViewGroup)object2);
-        this.w((ViewGroup)object);
-        n5 = view.getVisibility();
-        n4 = 0;
-        n5 = n5 != 8 ? 1 : 0;
-        int n6 = object != null && object.getVisibility() != 8 ? 1 : 0;
-        boolean bl = object2 != null && object2.getVisibility() != 8;
-        if (!bl && view2 != null && (object2 = view2.findViewById(c.f.textSpacerNoButtons)) != null) {
-            object2.setVisibility(0);
+        view3 = this.h(view5, view3);
+        object = this.h(view6, (View)object);
+        this.u((ViewGroup)view3);
+        this.t((ViewGroup)object);
+        this.w((ViewGroup)view2);
+        n4 = view.getVisibility();
+        n3 = 0;
+        n4 = n4 != 8 ? 1 : 0;
+        int n6 = view2 != null && view2.getVisibility() != 8 ? 1 : 0;
+        boolean bl = object != null && object.getVisibility() != 8;
+        if (!bl && view3 != null && (object = view3.findViewById(c.f.textSpacerNoButtons)) != null) {
+            object.setVisibility(0);
         }
         if (n6 != 0) {
-            object2 = this.A;
-            if (object2 != null) {
-                object2.setClipToPadding(true);
+            object = this.A;
+            if (object != null) {
+                object.setClipToPadding(true);
             }
-            object = this.f == null && this.g == null ? null : object.findViewById(c.f.titleDividerNoCustom);
+            object = this.f == null && this.g == null ? null : view2.findViewById(c.f.titleDividerNoCustom);
             if (object != null) {
                 object.setVisibility(0);
             }
-        } else if (view2 != null && (object = view2.findViewById(c.f.textSpacerNoTitle)) != null) {
+        } else if (view3 != null && (object = view3.findViewById(c.f.textSpacerNoTitle)) != null) {
             object.setVisibility(0);
         }
         if ((object = this.g) instanceof RecycleListView) {
             ((RecycleListView)((Object)object)).setHasDecor(n6 != 0, bl);
         }
-        if (n5 == 0) {
+        if (n4 == 0) {
             object = this.g;
             if (object == null) {
                 object = this.A;
             }
             if (object != null) {
-                n5 = n4;
+                n4 = n3;
                 if (bl) {
-                    n5 = 2;
+                    n4 = 2;
                 }
-                this.o((ViewGroup)view2, (View)object, n6 | n5, 3);
+                this.o((ViewGroup)view3, (View)object, n6 | n4, 3);
             }
         }
-        if ((object = this.g) != null && (view2 = this.H) != null) {
-            object.setAdapter((ListAdapter)view2);
-            n5 = this.I;
-            if (n5 > -1) {
-                object.setItemChecked(n5, true);
-                object.setSelection(n5);
+        if ((view3 = this.g) != null && (object = this.H) != null) {
+            view3.setAdapter((ListAdapter)object);
+            n4 = this.I;
+            if (n4 > -1) {
+                view3.setItemChecked(n4, true);
+                view3.setSelection(n4);
             }
         }
     }
@@ -711,13 +711,13 @@ public class AlertController {
                         super(context, n3, n4, (Object[])charSequenceArray);
                     }
 
-                    public View getView(int n3, View object, ViewGroup viewGroup) {
-                        viewGroup = super.getView(n3, object, viewGroup);
+                    public View getView(int n3, View view, ViewGroup object) {
+                        view = super.getView(n3, view, object);
                         object = this.d.F;
                         if (object != null && object[n3] != false) {
                             this.c.setItemChecked(n3, true);
                         }
-                        return viewGroup;
+                        return view;
                     }
                 } : new CursorAdapter(this, this.a, this.K, false, recycleListView, alertController){
                     public final int c;

@@ -202,11 +202,11 @@ implements c {
             Paint paint = this.R;
             String string = this.q;
             paint.getTextBounds(string, 0, string.length(), this.Q);
-            n6 = this.Q.width();
+            n7 = this.Q.width();
             f3 = (float)this.Q.height() * 1.3f;
             f4 = f8 - (float)this.u - (float)this.t;
             f6 = f7 - (float)this.w - (float)this.v;
-            f5 = n6;
+            f5 = n7;
             if (f5 * f6 > f3 * f4) {
                 this.c.setTextSize(this.S * f4 / f5);
             } else {
@@ -522,9 +522,9 @@ implements c {
             if (this.P != 0) {
                 this.H = this.e(this.H, 4);
             }
-            Bitmap bitmap = this.H;
-            canvas = Shader.TileMode.REPEAT;
-            this.I = new BitmapShader(bitmap, (Shader.TileMode)canvas, (Shader.TileMode)canvas);
+            canvas = this.H;
+            Shader.TileMode tileMode = Shader.TileMode.REPEAT;
+            this.I = new BitmapShader((Bitmap)canvas, tileMode, tileMode);
         }
     }
 
@@ -590,9 +590,9 @@ implements c {
                     f4 = f3;
                 }
             } else {
-                f3 = n7;
-                float f8 = n8;
-                f4 = f3 * f5 > f8 * f4 ? (f4 /= f3) : f5 / f8;
+                float f8 = n7;
+                f3 = n8;
+                f4 = f8 * f5 > f3 * f4 ? (f4 /= f8) : f5 / f3;
             }
         }
         if (!this.g && bl) {
@@ -608,9 +608,9 @@ implements c {
         if (!this.g && f3 == 1.0f) {
             float f4 = this.t;
             float f5 = this.getHorizontalOffset();
-            f3 = this.v;
-            float f6 = this.getVerticalOffset();
-            canvas.drawText(this.q, this.C + (f4 + f5), f3 + f6, (Paint)this.c);
+            float f6 = this.v;
+            f3 = this.getVerticalOffset();
+            canvas.drawText(this.q, this.C + (f4 + f5), f6 + f3, (Paint)this.c);
             return;
         }
         if (this.r) {
@@ -674,12 +674,12 @@ implements c {
         this.v = this.getPaddingTop();
         this.w = this.getPaddingBottom();
         if (n5 == 0x40000000 && n6 == 0x40000000) {
-            n4 = n3;
-            n5 = n7;
+            n5 = n3;
+            n4 = n7;
             if (this.A != 0) {
                 this.B = true;
-                n4 = n3;
-                n5 = n7;
+                n5 = n3;
+                n4 = n7;
             }
         } else {
             int n8;
@@ -689,18 +689,18 @@ implements c {
             if (n5 != 0x40000000) {
                 n3 = (int)((float)this.s.width() + 0.99999f);
             }
-            n4 = n8 = n3 + (this.t + this.u);
-            n5 = n7;
+            n5 = n8 = n3 + (this.t + this.u);
+            n4 = n7;
             if (n6 != 0x40000000) {
                 n3 = n4 = (int)((float)this.c.getFontMetricsInt(null) + 0.99999f);
                 if (n6 == Integer.MIN_VALUE) {
                     n3 = Math.min(n7, n4);
                 }
-                n5 = this.v + this.w + n3;
-                n4 = n8;
+                n4 = this.v + this.w + n3;
+                n5 = n8;
             }
         }
-        this.setMeasuredDimension(n4, n5);
+        this.setMeasuredDimension(n5, n4);
     }
 
     /*

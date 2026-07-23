@@ -1,4 +1,6 @@
-<com.google.android.material.button.MaterialButtonToggleGroup xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:orientation="0" android:id="@7F08013A" android:visibility="2" android:layout_width="-2" android:layout_height="-2" app:checkedButton="@7F080138" app:selectionRequired="true" app:singleSelection="true">
-  <Button android:id="@7F080138" android:layout_width="0.000000dip" android:text="@7F0E00A2" android:layout_weight="1.000000" android:insetTop="4.000000dip" android:insetBottom="4.000000dip" style="?7F03032A"/>
-  <Button android:id="@7F080139" android:layout_width="0.000000dip" android:text="@7F0E00A6" android:layout_weight="1.000000" android:insetTop="4.000000dip" android:insetBottom="4.000000dip" style="?7F03032A"/>
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.button.MaterialButtonToggleGroup android:orientation="horizontal" android:id="@id/material_clock_period_toggle" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" app:checkedButton="@id/material_clock_period_am_button" app:selectionRequired="true" app:singleSelection="true"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <Button android:id="@id/material_clock_period_am_button" android:layout_width="0.0dip" android:text="@string/material_timepicker_am" android:layout_weight="1.0" android:insetTop="4.0dip" android:insetBottom="4.0dip" style="?materialButtonOutlinedStyle" />
+    <Button android:id="@id/material_clock_period_pm_button" android:layout_width="0.0dip" android:text="@string/material_timepicker_pm" android:layout_weight="1.0" android:insetTop="4.0dip" android:insetBottom="4.0dip" style="?materialButtonOutlinedStyle" />
 </com.google.android.material.button.MaterialButtonToggleGroup>

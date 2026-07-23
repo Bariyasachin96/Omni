@@ -67,17 +67,17 @@ extends ViewGroup {
             this.measureChild(view, n3, n4);
             int n13 = Math.max(n8, view.getMeasuredHeight());
             int n14 = view.getBaseline();
-            n8 = n10;
-            n5 = n11;
+            n5 = n10;
+            n8 = n11;
             if (n14 != -1) {
-                n8 = Math.max(n10, n14);
-                n5 = Math.max(n11, view.getMeasuredHeight() - n14);
+                n5 = Math.max(n10, n14);
+                n8 = Math.max(n11, view.getMeasuredHeight() - n14);
             }
             n12 = Math.max(n12, view.getMeasuredWidth());
             n6 = Math.max(n6, view.getMeasuredHeight());
             n9 = View.combineMeasuredStates((int)n9, (int)view.getMeasuredState());
-            n11 = n5;
-            n10 = n8;
+            n11 = n8;
+            n10 = n5;
             n8 = n13;
         }
         n5 = n6;

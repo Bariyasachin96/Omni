@@ -137,10 +137,10 @@ extends Drawable {
         this.g.close();
         canvas.save();
         f8 = this.a.getStrokeWidth();
-        f5 = rect.height();
-        f6 = this.e;
-        f5 = (int)(f5 - 3.0f * f8 - f6 * 2.0f) / 4 * 2;
-        canvas.translate((float)rect.centerX(), f5 + (f8 * 1.5f + f6));
+        f6 = rect.height();
+        f5 = this.e;
+        f6 = (int)(f6 - 3.0f * f8 - f5 * 2.0f) / 4 * 2;
+        canvas.translate((float)rect.centerX(), f6 + (f8 * 1.5f + f5));
         if (this.f) {
             n3 = this.i ^ n3 ? -1 : 1;
             canvas.rotate(f3 * (float)n3);

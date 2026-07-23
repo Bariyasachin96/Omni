@@ -189,11 +189,11 @@ implements d {
     public abstract boolean m();
 
     public void n(d d3, u.d object, u.d d4, int n3) {
-        f f3 = this.h((u.d)object);
-        d3 = this.h(d4);
-        if (f3.j && ((f)d3).j) {
-            int n4 = f3.g + ((u.d)object).f();
-            int n5 = ((f)d3).g - d4.f();
+        d3 = this.h((u.d)object);
+        f f3 = this.h(d4);
+        if (((f)d3).j && f3.j) {
+            int n4 = ((f)d3).g + ((u.d)object).f();
+            int n5 = f3.g - d4.f();
             int n6 = n5 - n4;
             if (!this.e.j && this.d == e.b.e) {
                 this.l(n3, n6);
@@ -207,9 +207,9 @@ implements d {
                 }
                 float f4 = n3 == 0 ? this.b.A() : this.b.T();
                 n3 = n4;
-                if (f3 == d3) {
-                    n3 = f3.g;
-                    n5 = ((f)d3).g;
+                if (d3 == f3) {
+                    n3 = ((f)d3).g;
+                    n5 = f3.g;
                     f4 = 0.5f;
                 }
                 n4 = this.e.g;

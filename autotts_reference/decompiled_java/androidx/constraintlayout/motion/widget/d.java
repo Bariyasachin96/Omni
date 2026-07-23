@@ -112,6 +112,7 @@ public class d {
     public void h(MotionEvent object) {
         int n3 = this.a.getCurrentState();
         if (n3 != -1) {
+            c c3;
             int n4;
             int n5;
             Object object2;
@@ -126,16 +127,16 @@ public class d {
                 block0: while (n6 < n8) {
                     object2 = ((ArrayList)abstractCollection).get(n6);
                     n5 = n6 + 1;
-                    c c3 = (c)object2;
+                    object2 = (c)object2;
                     int n9 = this.a.getChildCount();
                     n4 = 0;
                     while (true) {
                         n6 = n5;
                         if (n4 >= n9) continue block0;
-                        object2 = this.a.getChildAt(n4);
-                        if (c3.j((View)object2)) {
-                            object2.getId();
-                            this.c.add(object2);
+                        c3 = this.a.getChildAt(n4);
+                        if (((c)object2).j((View)c3)) {
+                            c3.getId();
+                            this.c.add(c3);
                         }
                         ++n4;
                     }
@@ -144,28 +145,28 @@ public class d {
             float f3 = object.getX();
             float f4 = object.getY();
             abstractCollection = new Rect();
-            n6 = object.getAction();
+            n4 = object.getAction();
             object = this.e;
             if (object != null && !((ArrayList)object).isEmpty()) {
-                object2 = this.e;
-                n5 = ((ArrayList)object2).size();
-                for (n4 = 0; n4 < n5; ++n4) {
-                    object = ((ArrayList)object2).get(n4);
-                    ((c.b)object).d(n6, f3, f4);
+                object = this.e;
+                n5 = ((ArrayList)object).size();
+                for (n6 = 0; n6 < n5; ++n6) {
+                    object2 = ((ArrayList)object).get(n6);
+                    ((c.b)object2).d(n4, f3, f4);
                 }
             }
-            if (n6 == 0 || n6 == 1) {
-                b b3 = this.a.o0(n3);
+            if (n4 == 0 || n4 == 1) {
+                object = this.a.o0(n3);
                 ArrayList arrayList = this.b;
                 n5 = arrayList.size();
-                for (n4 = n7; n4 < n5; ++n4) {
-                    object = (c)arrayList.get(n4);
-                    if (!((c)object).l(n6)) continue;
-                    for (c c3 : this.c) {
-                        if (!((c)object).j((View)c3)) continue;
-                        c3.getHitRect((Rect)abstractCollection);
+                for (n6 = n7; n6 < n5; ++n6) {
+                    c3 = (c)arrayList.get(n6);
+                    if (!c3.l(n4)) continue;
+                    for (View view : this.c) {
+                        if (!c3.j(view)) continue;
+                        view.getHitRect((Rect)abstractCollection);
                         if (!abstractCollection.contains((int)f3, (int)f4)) continue;
-                        ((c)object).c(this, this.a, n3, b3, new View[]{c3});
+                        c3.c(this, this.a, n3, (b)object, view);
                     }
                 }
             }
@@ -204,21 +205,21 @@ public class d {
         int n3 = this.a.getCurrentState();
         if (((c)object).e != 2) {
             if (n3 == -1) {
-                object2 = this.d;
-                object = new StringBuilder();
-                ((StringBuilder)object).append("No support for ViewTransition within transition yet. Currently: ");
-                ((StringBuilder)object).append(this.a.toString());
-                Log.w((String)object2, (String)((StringBuilder)object).toString());
+                object = this.d;
+                object2 = new StringBuilder();
+                ((StringBuilder)object2).append("No support for ViewTransition within transition yet. Currently: ");
+                ((StringBuilder)object2).append(this.a.toString());
+                Log.w((String)object, (String)((StringBuilder)object2).toString());
                 return;
             }
             b b3 = this.a.o0(n3);
             if (b3 == null) {
                 return;
             }
-            ((c)object).c(this, this.a, n3, b3, (View)object2);
+            ((c)object).c(this, this.a, n3, b3, (View[])object2);
             return;
         }
-        ((c)object).c(this, this.a, n3, null, (View)object2);
+        ((c)object).c(this, this.a, n3, null, (View[])object2);
     }
 }
 

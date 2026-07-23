@@ -130,19 +130,19 @@ View.OnKeyListener {
             return true;
         }
         if (!this.s && (view = this.o) != null) {
-            ViewTreeObserver viewTreeObserver;
             this.p = view;
             this.k.K(this);
             this.k.L(this);
             this.k.J(true);
-            view = this.p;
+            View view2 = this.p;
             boolean bl = this.r == null;
-            this.r = viewTreeObserver = view.getViewTreeObserver();
+            view = view2.getViewTreeObserver();
+            this.r = view;
             if (bl) {
-                viewTreeObserver.addOnGlobalLayoutListener(this.l);
+                view.addOnGlobalLayoutListener(this.l);
             }
-            view.addOnAttachStateChangeListener(this.m);
-            this.k.D(view);
+            view2.addOnAttachStateChangeListener(this.m);
+            this.k.D(view2);
             this.k.G(this.v);
             if (!this.t) {
                 this.u = i.d.q((ListAdapter)this.f, null, this.d, this.h);
@@ -152,16 +152,16 @@ View.OnKeyListener {
             this.k.I(2);
             this.k.H(this.p());
             this.k.e();
-            ListView listView = this.k.h();
-            listView.setOnKeyListener((View.OnKeyListener)this);
+            view = this.k.h();
+            view.setOnKeyListener((View.OnKeyListener)this);
             if (this.w && this.e.z() != null) {
-                view = (FrameLayout)LayoutInflater.from((Context)this.d).inflate(c.g.abc_popup_menu_header_item_layout, (ViewGroup)listView, false);
-                viewTreeObserver = (TextView)view.findViewById(16908310);
-                if (viewTreeObserver != null) {
-                    viewTreeObserver.setText(this.e.z());
+                view2 = (FrameLayout)LayoutInflater.from((Context)this.d).inflate(c.g.abc_popup_menu_header_item_layout, (ViewGroup)view, false);
+                TextView textView = (TextView)view2.findViewById(16908310);
+                if (textView != null) {
+                    textView.setText(this.e.z());
                 }
-                view.setEnabled(false);
-                listView.addHeaderView(view, null, false);
+                view2.setEnabled(false);
+                view.addHeaderView(view2, null, false);
             }
             this.k.p((ListAdapter)this.f);
             this.k.e();

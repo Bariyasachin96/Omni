@@ -173,9 +173,9 @@ implements CoordinatorLayout.b {
                 i3.j0(f3);
             }
         };
-        Context context2 = this.getContext();
-        Object object = com.google.android.material.internal.z.i(context2, attributeSet, z1.m.BottomAppBar, n3, n4, new int[0]);
-        context = s2.c.a(context2, object, z1.m.BottomAppBar_backgroundTint);
+        context = this.getContext();
+        Object object = com.google.android.material.internal.z.i(context, attributeSet, z1.m.BottomAppBar, n3, n4, new int[0]);
+        ColorStateList colorStateList = s2.c.a(context, object, z1.m.BottomAppBar_backgroundTint);
         int n5 = z1.m.BottomAppBar_navigationIconTint;
         if (object.hasValue(n5)) {
             this.setNavigationIconTint(object.getColor(n5, -1));
@@ -209,8 +209,8 @@ implements CoordinatorLayout.b {
             }
         }
         i3.m0(Paint.Style.FILL);
-        i3.W(context2);
-        i3.setTintList((ColorStateList)context);
+        i3.W(context);
+        i3.setTintList(colorStateList);
         this.setElevation(n5);
         this.setBackground(i3);
         com.google.android.material.internal.c0.e((View)this, attributeSet, n3, n4, new c0.d(this){
@@ -585,21 +585,21 @@ implements CoordinatorLayout.b {
 
     public final void N0(int n3) {
         if (this.c0 != n3 && this.isLaidOut()) {
-            Object object = this.a0;
-            if (object != null) {
-                object.cancel();
+            Animator animator = this.a0;
+            if (animator != null) {
+                animator.cancel();
             }
-            object = new ArrayList();
+            ArrayList arrayList = new ArrayList();
             if (this.d0 == 1) {
-                this.D0(n3, (List)object);
+                this.D0(n3, arrayList);
             } else {
-                this.C0(n3, (List)object);
+                this.C0(n3, arrayList);
             }
-            AnimatorSet animatorSet = new AnimatorSet();
-            animatorSet.playTogether((Collection)object);
-            animatorSet.setInterpolator(p2.k.g(this.getContext(), A0, a2.a.a));
-            this.a0 = animatorSet;
-            animatorSet.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this){
+            animator = new AnimatorSet();
+            animator.playTogether(arrayList);
+            animator.setInterpolator(p2.k.g(this.getContext(), A0, a2.a.a));
+            this.a0 = animator;
+            animator.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this){
                 public final BottomAppBar a;
                 {
                     this.a = bottomAppBar;

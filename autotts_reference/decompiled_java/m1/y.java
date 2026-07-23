@@ -37,20 +37,20 @@ public class y {
 
     public String toString() {
         CharSequence charSequence = new StringBuilder();
-        ((StringBuilder)charSequence).append("TransitionValues@");
-        ((StringBuilder)charSequence).append(Integer.toHexString(this.hashCode()));
-        ((StringBuilder)charSequence).append(":\n");
-        charSequence = ((StringBuilder)charSequence).toString();
+        charSequence.append("TransitionValues@");
+        charSequence.append(Integer.toHexString(this.hashCode()));
+        charSequence.append(":\n");
+        charSequence = charSequence.toString();
         Object object = new StringBuilder();
         ((StringBuilder)object).append((String)charSequence);
         ((StringBuilder)object).append("    view = ");
         ((StringBuilder)object).append(this.b);
         ((StringBuilder)object).append("\n");
-        object = ((StringBuilder)object).toString();
-        charSequence = new StringBuilder();
-        ((StringBuilder)charSequence).append((String)object);
-        ((StringBuilder)charSequence).append("    values:");
-        charSequence = ((StringBuilder)charSequence).toString();
+        charSequence = ((StringBuilder)object).toString();
+        object = new StringBuilder();
+        ((StringBuilder)object).append((String)charSequence);
+        ((StringBuilder)object).append("    values:");
+        charSequence = ((StringBuilder)object).toString();
         for (String string : this.a.keySet()) {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.append((String)charSequence);

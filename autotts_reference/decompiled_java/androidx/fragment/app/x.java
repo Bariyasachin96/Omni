@@ -77,10 +77,10 @@ public class x {
 
     public void e(String string, FileDescriptor object, PrintWriter printWriter, String[] stringArray) {
         int n3;
-        CharSequence charSequence = new StringBuilder();
-        charSequence.append(string);
-        charSequence.append("    ");
-        charSequence = charSequence.toString();
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(string);
+        stringBuilder.append("    ");
+        String string2 = stringBuilder.toString();
         if (!this.b.isEmpty()) {
             printWriter.print(string);
             printWriter.println("Active Fragments:");
@@ -89,7 +89,7 @@ public class x {
                 if (object2 != null) {
                     object2 = ((w)object2).k();
                     printWriter.println(object2);
-                    ((Fragment)object2).e((String)charSequence, (FileDescriptor)object, printWriter, stringArray);
+                    ((Fragment)object2).e(string2, (FileDescriptor)object, printWriter, stringArray);
                     continue;
                 }
                 printWriter.println("null");
@@ -264,11 +264,11 @@ public class x {
     }
 
     public void t() {
-        Object object3 = this.a;
-        int n3 = ((ArrayList)object3).size();
+        Object object = this.a;
+        int n3 = ((ArrayList)object).size();
         int n4 = 0;
         while (n4 < n3) {
-            Object object2 = ((ArrayList)object3).get(n4);
+            Object object2 = ((ArrayList)object).get(n4);
             int n5 = n4 + 1;
             object2 = (Fragment)object2;
             object2 = (w)this.b.get(((Fragment)object2).h);
@@ -277,15 +277,15 @@ public class x {
             ((w)object2).m();
             n4 = n5;
         }
-        for (Object object3 : this.b.values()) {
-            if (object3 == null) continue;
-            ((w)object3).m();
-            Fragment fragment = ((w)object3).k();
-            if (!fragment.o || fragment.Z()) continue;
-            if (fragment.p && !this.c.containsKey(fragment.h)) {
-                ((w)object3).s();
+        for (w w3 : this.b.values()) {
+            if (w3 == null) continue;
+            w3.m();
+            object = w3.k();
+            if (!((Fragment)object).o || ((Fragment)object).Z()) continue;
+            if (((Fragment)object).p && !this.c.containsKey(((Fragment)object).h)) {
+                w3.s();
             }
-            this.s((w)object3);
+            this.s(w3);
         }
     }
 

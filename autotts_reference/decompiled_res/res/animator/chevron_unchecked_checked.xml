@@ -1,3 +1,5 @@
-<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@7F070090">
-  <target android:name="rotationGroup" android:animation="@7F02001A"/>
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/ic_expand_more_22px"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <target android:name="rotationGroup" android:animation="@animator/m3_split_button_chevron_rotation" />
 </animated-vector>

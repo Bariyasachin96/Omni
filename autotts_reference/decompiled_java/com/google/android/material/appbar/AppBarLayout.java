@@ -386,19 +386,19 @@ implements CoordinatorLayout.b {
         if (var1_1 != -1) {
             return var1_1;
         }
-        var3_3 = 0;
-        for (var2_2 = this.getChildCount() - 1; var2_2 >= 0; --var2_2) {
-            var7_7 = this.getChildAt(var2_2);
-            if (var7_7.getVisibility() == 8) {
-                var1_1 = var3_3;
+        var2_3 = 0;
+        for (var3_2 = this.getChildCount() - 1; var3_2 >= 0; --var3_2) {
+            var6_6 = this.getChildAt(var3_2);
+            if (var6_6.getVisibility() == 8) {
+                var1_1 = var2_3;
             } else {
-                var6_6 = (LayoutParams)var7_7.getLayoutParams();
-                var5_5 = var7_7.getMeasuredHeight();
-                var1_1 = var6_6.a;
+                var7_7 = (LayoutParams)var6_6.getLayoutParams();
+                var5_5 = var6_6.getMeasuredHeight();
+                var1_1 = var7_7.a;
                 if ((var1_1 & 5) == 5) {
-                    var4_4 = var6_6.topMargin + var6_6.bottomMargin;
+                    var4_4 = var7_7.topMargin + var7_7.bottomMargin;
                     if ((var1_1 & 8) != 0) {
-                        var1_1 = var7_7.getMinimumHeight();
+                        var1_1 = var6_6.getMinimumHeight();
 lbl17:
                         // 2 sources
 
@@ -408,27 +408,27 @@ lbl17:
                         }
                     } else {
                         if ((var1_1 & 2) != 0) {
-                            var1_1 = var5_5 - var7_7.getMinimumHeight();
+                            var1_1 = var5_5 - var6_6.getMinimumHeight();
                             ** continue;
                         }
                         var1_1 = var4_4 + var5_5;
                     }
                     var4_4 = var1_1;
-                    if (var2_2 == 0) {
+                    if (var3_2 == 0) {
                         var4_4 = var1_1;
-                        if (var7_7.getFitsSystemWindows()) {
+                        if (var6_6.getFitsSystemWindows()) {
                             var4_4 = Math.min(var1_1, var5_5 - this.getTopInset());
                         }
                     }
-                    var1_1 = var3_3 + var4_4;
+                    var1_1 = var2_3 + var4_4;
                 } else {
-                    var1_1 = var3_3;
-                    if (var3_3 > 0) break;
+                    var1_1 = var2_3;
+                    if (var2_3 > 0) break;
                 }
             }
-            var3_3 = var1_1;
+            var2_3 = var1_1;
         }
-        this.e = var1_1 = Math.max(0, var3_3);
+        this.e = var1_1 = Math.max(0, var2_3);
         return var1_1;
     }
 
@@ -847,12 +847,13 @@ lbl17:
         if (drawable instanceof i) {
             return (i)drawable;
         }
-        if ((drawable = j2.d.g(drawable)) == null) {
+        ColorStateList colorStateList = j2.d.g(drawable);
+        if (colorStateList == null) {
             return null;
         }
-        i i3 = new i();
-        i3.i0((ColorStateList)drawable);
-        return i3;
+        drawable = new i();
+        drawable.i0(colorStateList);
+        return drawable;
     }
 
     public final Drawable v(Context context, Drawable drawable) {
@@ -1314,14 +1315,14 @@ lbl17:
         public void q0(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, View view, int n3, int n4, int[] nArray, int n5) {
             if (n4 != 0) {
                 if (n4 < 0) {
-                    n3 = -appBarLayout.getTotalScrollRange();
-                    n5 = appBarLayout.getDownNestedPreScrollRange() + n3;
+                    n5 = -appBarLayout.getTotalScrollRange();
+                    n3 = appBarLayout.getDownNestedPreScrollRange() + n5;
                 } else {
-                    n3 = -appBarLayout.getUpNestedPreScrollRange();
-                    n5 = 0;
+                    n5 = -appBarLayout.getUpNestedPreScrollRange();
+                    n3 = 0;
                 }
-                if (n3 != n5) {
-                    nArray[1] = this.S(coordinatorLayout, (View)appBarLayout, n4, n3, n5);
+                if (n5 != n3) {
+                    nArray[1] = this.S(coordinatorLayout, (View)appBarLayout, n4, n5, n3);
                 }
             }
             if (appBarLayout.r()) {
@@ -1451,12 +1452,12 @@ lbl17:
         }
 
         public final boolean z0(CoordinatorLayout object, AppBarLayout object2) {
-            object = ((CoordinatorLayout)object).w((View)object2);
-            int n3 = object.size();
+            object2 = ((CoordinatorLayout)object).w((View)object2);
+            int n3 = object2.size();
             for (int i3 = 0; i3 < n3; ++i3) {
-                object2 = ((CoordinatorLayout.e)((View)object.get(i3)).getLayoutParams()).f();
-                if (!(object2 instanceof ScrollingViewBehavior)) continue;
-                return ((ScrollingViewBehavior)object2).O() != 0;
+                object = ((CoordinatorLayout.e)((View)object2.get(i3)).getLayoutParams()).f();
+                if (!(object instanceof ScrollingViewBehavior)) continue;
+                return ((ScrollingViewBehavior)object).O() != 0;
             }
             return false;
         }
@@ -1638,8 +1639,8 @@ lbl17:
                 if (n4 != 0 && n3 + n5 <= n4) {
                     return 0.0f;
                 }
-                if ((n4 = n3 - n4) != 0) {
-                    return (float)n5 / (float)n4 + 1.0f;
+                if ((n3 -= n4) != 0) {
+                    return (float)n5 / (float)n3 + 1.0f;
                 }
             }
             return 0.0f;

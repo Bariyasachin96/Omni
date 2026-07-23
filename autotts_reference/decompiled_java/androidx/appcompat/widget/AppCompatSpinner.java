@@ -28,6 +28,7 @@
  *  android.widget.AdapterView$OnItemClickListener
  *  android.widget.ArrayAdapter
  *  android.widget.ListAdapter
+ *  android.widget.ListView
  *  android.widget.PopupWindow$OnDismissListener
  *  android.widget.Spinner
  *  android.widget.SpinnerAdapter
@@ -54,6 +55,7 @@ import android.view.ViewTreeObserver;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListAdapter;
+import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.Spinner;
 import android.widget.SpinnerAdapter;
@@ -102,69 +104,69 @@ extends Spinner {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public AppCompatSpinner(Context object, AttributeSet attributeSet, int n3, int n4, Resources.Theme object2) {
-        Object object3;
+    public AppCompatSpinner(Context context, AttributeSet objectArray, int n3, int n4, Resources.Theme objectArray2) {
+        Object object;
         int n5;
         m0 m02;
         block21: {
             block18: {
                 block20: {
-                    void var2_5;
+                    void var1_4;
                     block19: {
-                        super((Context)object, attributeSet, n3);
+                        super(context, (AttributeSet)objectArray, n3);
                         this.j = new Rect();
                         i0.a((View)this, this.getContext());
-                        m02 = m0.v((Context)object, attributeSet, c.j.Spinner, n3, 0);
+                        m02 = m0.v(context, (AttributeSet)objectArray, c.j.Spinner, n3, 0);
                         this.c = new androidx.appcompat.widget.d((View)this);
-                        this.d = object2 != null ? new h.d((Context)object, (Resources.Theme)object2) : ((n5 = m02.n(c.j.Spinner_popupTheme, 0)) != 0 ? new h.d((Context)object, n5) : object);
-                        object3 = null;
+                        this.d = objectArray2 != null ? new h.d(context, (Resources.Theme)objectArray2) : ((n5 = m02.n(c.j.Spinner_popupTheme, 0)) != 0 ? new h.d(context, n5) : context);
+                        object = null;
                         n5 = n4;
                         if (n4 != -1) break block21;
-                        object2 = object.obtainStyledAttributes(attributeSet, k, n3, 0);
+                        objectArray2 = context.obtainStyledAttributes((AttributeSet)objectArray, k, n3, 0);
                         n5 = n4;
-                        object3 = object2;
+                        object = objectArray2;
                         try {
-                            if (object2.hasValue(0)) {
-                                n5 = object2.getInt(0, 0);
-                                object3 = object2;
+                            if (objectArray2.hasValue(0)) {
+                                n5 = objectArray2.getInt(0, 0);
+                                object = objectArray2;
                             }
                             break block18;
                         }
                         catch (Throwable throwable) {
-                            object = object2;
+                            objectArray = objectArray2;
                             break block19;
                         }
                         catch (Throwable throwable) {
-                            object = object3;
+                            objectArray = object;
                         }
                         catch (Exception exception) {
-                            object2 = null;
+                            objectArray2 = null;
                             break block20;
                         }
                     }
-                    if (object != null) {
-                        object.recycle();
+                    if (objectArray != null) {
+                        objectArray.recycle();
                     }
-                    throw var2_5;
+                    throw var1_4;
                     catch (Exception exception) {}
                 }
                 n5 = n4;
-                if (object2 == null) break block21;
+                if (objectArray2 == null) break block21;
                 n5 = n4;
-                object3 = object2;
+                object = objectArray2;
             }
-            object3.recycle();
+            object.recycle();
         }
         if (n5 != 0) {
             if (n5 == 1) {
-                object3 = new f(this, this.d, attributeSet, n3);
-                object2 = m0.v(this.d, attributeSet, c.j.Spinner, n3, 0);
-                this.i = ((m0)object2).m(c.j.Spinner_android_dropDownWidth, -2);
-                ((ListPopupWindow)object3).b(((m0)object2).g(c.j.Spinner_android_popupBackground));
-                ((f)object3).i(m02.o(c.j.Spinner_android_prompt));
-                ((m0)object2).x();
-                this.h = object3;
-                this.e = new c0(this, (View)this, (f)object3){
+                objectArray2 = new f(this, this.d, (AttributeSet)objectArray, n3);
+                object = m0.v(this.d, (AttributeSet)objectArray, c.j.Spinner, n3, 0);
+                this.i = ((m0)object).m(c.j.Spinner_android_dropDownWidth, -2);
+                objectArray2.b(((m0)object).g(c.j.Spinner_android_popupBackground));
+                objectArray2.i(m02.o(c.j.Spinner_android_prompt));
+                ((m0)object).x();
+                this.h = objectArray2;
+                this.e = new c0(this, (View)this, (f)objectArray2){
                     public final f l;
                     public final AppCompatSpinner m;
                     {
@@ -188,23 +190,24 @@ extends Spinner {
                 };
             }
         } else {
-            this.h = object2 = new d(this);
-            object2.i(m02.o(c.j.Spinner_android_prompt));
+            objectArray2 = new d(this);
+            this.h = objectArray2;
+            objectArray2.i(m02.o(c.j.Spinner_android_prompt));
         }
-        object2 = m02.q(c.j.Spinner_android_entries);
-        if (object2 != null) {
-            object = new ArrayAdapter((Context)object, 17367048, (Object[])object2);
-            object.setDropDownViewResource(c.g.support_simple_spinner_dropdown_item);
-            this.setAdapter((SpinnerAdapter)object);
+        objectArray2 = m02.q(c.j.Spinner_android_entries);
+        if (objectArray2 != null) {
+            context = new ArrayAdapter(context, 17367048, objectArray2);
+            context.setDropDownViewResource(c.g.support_simple_spinner_dropdown_item);
+            this.setAdapter((SpinnerAdapter)context);
         }
         m02.x();
         this.g = true;
-        object = this.f;
-        if (object != null) {
-            this.setAdapter((SpinnerAdapter)object);
+        context = this.f;
+        if (context != null) {
+            this.setAdapter((SpinnerAdapter)context);
             this.f = null;
         }
-        this.c.e(attributeSet, n3);
+        this.c.e((AttributeSet)objectArray, n3);
     }
 
     public int a(SpinnerAdapter spinnerAdapter, Drawable drawable) {
@@ -586,12 +589,12 @@ extends Spinner {
             if (this.d == null) {
                 return;
             }
-            Object object = new a.a(this.f.getPopupContext());
-            CharSequence charSequence = this.e;
-            if (charSequence != null) {
-                ((a.a)object).h(charSequence);
+            a.a a4 = new a.a(this.f.getPopupContext());
+            Object object = this.e;
+            if (object != null) {
+                a4.h((CharSequence)object);
             }
-            this.c = object = ((a.a)object).g(this.d, this.f.getSelectedItemPosition(), this).a();
+            this.c = object = a4.g(this.d, this.f.getSelectedItemPosition(), this).a();
             object = ((androidx.appcompat.app.a)object).l();
             object.setTextDirection(n3);
             object.setTextAlignment(n4);
@@ -813,18 +816,17 @@ extends Spinner {
 
         @Override
         public void m(int n3, int n4) {
-            ViewTreeObserver viewTreeObserver;
             boolean bl = this.c();
             this.T();
             this.I(2);
             super.e();
-            Object object = this.h();
-            object.setChoiceMode(1);
-            object.setTextDirection(n3);
-            object.setTextAlignment(n4);
+            ListView listView = this.h();
+            listView.setChoiceMode(1);
+            listView.setTextDirection(n3);
+            listView.setTextAlignment(n4);
             this.Q(this.O.getSelectedItemPosition());
-            if (!bl && (viewTreeObserver = this.O.getViewTreeObserver()) != null) {
-                object = new ViewTreeObserver.OnGlobalLayoutListener(this){
+            if (!bl && (listView = this.O.getViewTreeObserver()) != null) {
+                ViewTreeObserver.OnGlobalLayoutListener onGlobalLayoutListener = new ViewTreeObserver.OnGlobalLayoutListener(this){
                     public final f c;
                     {
                         this.c = f3;
@@ -840,8 +842,8 @@ extends Spinner {
                         f.super.e();
                     }
                 };
-                viewTreeObserver.addOnGlobalLayoutListener((ViewTreeObserver.OnGlobalLayoutListener)object);
-                this.K(new PopupWindow.OnDismissListener(this, (ViewTreeObserver.OnGlobalLayoutListener)object){
+                listView.addOnGlobalLayoutListener(onGlobalLayoutListener);
+                this.K(new PopupWindow.OnDismissListener(this, onGlobalLayoutListener){
                     public final ViewTreeObserver.OnGlobalLayoutListener c;
                     public final f d;
                     {

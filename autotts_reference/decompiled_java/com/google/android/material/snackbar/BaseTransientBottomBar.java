@@ -218,8 +218,8 @@ public abstract class BaseTransientBottomBar {
         public void onMeasure(int n3, int n4) {
             int n5;
             super.onMeasure(n3, n4);
-            if (this.g > 0 && (n5 = this.getMeasuredWidth()) > (n3 = this.g)) {
-                super.onMeasure(View.MeasureSpec.makeMeasureSpec((int)n3, (int)0x40000000), n4);
+            if (this.g > 0 && (n3 = this.getMeasuredWidth()) > (n5 = this.g)) {
+                super.onMeasure(View.MeasureSpec.makeMeasureSpec((int)n5, (int)0x40000000), n4);
             }
         }
 

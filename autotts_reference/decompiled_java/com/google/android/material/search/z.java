@@ -465,13 +465,14 @@ public class z {
         }
     }
 
-    public final void f0(Toolbar viewGroup) {
-        if ((viewGroup = a0.a(viewGroup)) != null) {
-            for (int i3 = 0; i3 < viewGroup.getChildCount(); ++i3) {
-                View view = viewGroup.getChildAt(i3);
-                view.setClickable(false);
-                view.setFocusable(false);
-                view.setFocusableInTouchMode(false);
+    public final void f0(Toolbar toolbar) {
+        ActionMenuView actionMenuView = a0.a(toolbar);
+        if (actionMenuView != null) {
+            for (int i3 = 0; i3 < actionMenuView.getChildCount(); ++i3) {
+                toolbar = actionMenuView.getChildAt(i3);
+                toolbar.setClickable(false);
+                toolbar.setFocusable(false);
+                toolbar.setFocusableInTouchMode(false);
             }
         }
     }
@@ -596,16 +597,16 @@ public class z {
     }
 
     public void o0(androidx.activity.b b3) {
-        i i3;
+        SearchBar searchBar;
         block5: {
             block6: {
                 block4: {
                     if (b3.a() <= 0.0f) break block4;
-                    i3 = this.n;
-                    SearchBar searchBar = this.p;
+                    i i3 = this.n;
+                    searchBar = this.p;
                     i3.x(b3, (View)searchBar, searchBar.getCornerSize());
-                    i3 = this.o;
-                    if (i3 != null) break block5;
+                    searchBar = this.o;
+                    if (searchBar != null) break block5;
                     if (this.a.s()) {
                         this.a.p();
                     }
@@ -619,7 +620,7 @@ public class z {
             this.o.pause();
             return;
         }
-        i3.setCurrentPlayTime((long)(b3.a() * (float)this.o.getDuration()));
+        searchBar.setCurrentPlayTime((long)(b3.a() * (float)this.o.getDuration()));
     }
 
     public final void p(AnimatorSet animatorSet, ImageButton imageButton) {
@@ -678,10 +679,10 @@ public class z {
 
     public final void u(AnimatorSet animatorSet, Drawable drawable) {
         if (drawable instanceof f) {
-            f f3 = (f)drawable;
-            drawable = ValueAnimator.ofFloat((float[])new float[]{0.0f, 1.0f});
-            drawable.addUpdateListener((ValueAnimator.AnimatorUpdateListener)new u(f3));
-            animatorSet.playTogether(new Animator[]{drawable});
+            drawable = (f)drawable;
+            ValueAnimator valueAnimator = ValueAnimator.ofFloat((float[])new float[]{0.0f, 1.0f});
+            valueAnimator.addUpdateListener((ValueAnimator.AnimatorUpdateListener)new u((f)drawable));
+            animatorSet.playTogether(new Animator[]{valueAnimator});
         }
     }
 

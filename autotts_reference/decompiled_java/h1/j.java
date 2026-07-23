@@ -24,9 +24,9 @@ public abstract class j {
     public static final byte[] b = new byte[]{112, 114, 109, 0};
 
     public static void A(byte[] byArray, int n3, int n4, b b3) {
-        n3 = j.m(n3, n4, b3.g);
-        n4 = n3 / 8;
-        byArray[n4] = (byte)(1 << n3 % 8 | byArray[n4]);
+        n4 = j.m(n3, n4, b3.g);
+        n3 = n4 / 8;
+        byArray[n3] = (byte)(1 << n4 % 8 | byArray[n3]);
     }
 
     public static void B(InputStream inputStream) {

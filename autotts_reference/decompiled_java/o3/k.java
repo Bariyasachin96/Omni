@@ -44,22 +44,22 @@ public abstract class k {
     public static String f(String string) {
         int n3;
         Object object = Thread.currentThread().getStackTrace();
-        String string2 = k.class.getName();
+        Object object2 = k.class.getName();
         int n4 = 0;
         do {
             n3 = ++n4;
-        } while (!object[n4].getClassName().equals(string2));
-        while (object[n3].getClassName().equals(string2)) {
+        } while (!object[n4].getClassName().equals(object2));
+        while (object[n3].getClassName().equals(object2)) {
             ++n3;
         }
-        object = object[n3];
-        string2 = ((StackTraceElement)object).getClassName();
-        object = ((StackTraceElement)object).getMethodName();
+        object2 = object[n3];
+        object = ((StackTraceElement)object2).getClassName();
+        object2 = ((StackTraceElement)object2).getMethodName();
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("Parameter specified as non-null is null: method ");
-        stringBuilder.append(string2);
-        stringBuilder.append(".");
         stringBuilder.append((String)object);
+        stringBuilder.append(".");
+        stringBuilder.append((String)object2);
         stringBuilder.append(", parameter ");
         stringBuilder.append(string);
         return stringBuilder.toString();

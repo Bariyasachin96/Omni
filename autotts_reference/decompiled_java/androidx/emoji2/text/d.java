@@ -91,14 +91,14 @@ public abstract class d {
         }
 
         public e h(Context object) {
-            PackageManager packageManager = object.getPackageManager();
-            h.h(packageManager, "Package manager required to locate emoji font provider");
-            object = this.g(packageManager);
-            if (object == null) {
+            object = object.getPackageManager();
+            h.h(object, "Package manager required to locate emoji font provider");
+            ProviderInfo providerInfo = this.g((PackageManager)object);
+            if (providerInfo == null) {
                 return null;
             }
             try {
-                object = this.d((ProviderInfo)object, packageManager);
+                object = this.d(providerInfo, (PackageManager)object);
                 return object;
             }
             catch (PackageManager.NameNotFoundException nameNotFoundException) {

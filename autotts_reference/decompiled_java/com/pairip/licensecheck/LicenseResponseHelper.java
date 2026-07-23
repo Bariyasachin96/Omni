@@ -98,26 +98,25 @@ public class LicenseResponseHelper {
 
     public static void validateResponse(Bundle object, String string) throws LicenseCheckException {
         JSONObject jSONObject;
-        JSONObject jSONObject2;
         Object object2;
         try {
             object2 = LicenseResponseHelper.getJwsPartsForLicenseData(object);
-            jSONObject2 = LicenseResponseHelper.base64ToJson(object2[0]);
+            object = LicenseResponseHelper.base64ToJson(object2[0]);
             jSONObject = LicenseResponseHelper.base64ToJson(object2[1]);
         }
         catch (JSONException jSONException) {
             throw new LicenseCheckException("Could not decode json", jSONException);
         }
-        object = object2[2];
-        String string2 = object2[0];
-        object2 = object2[1];
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(string2);
-        stringBuilder.append(".");
-        stringBuilder.append((String)object2);
-        string2 = stringBuilder.toString();
-        if (jSONObject2.getString("alg").equals("RS256")) {
-            LicenseResponseHelper.verifySignature(string2, (String)object, SIGNATURE_ALGORITHM, LicenseResponseHelper.getPublicKey());
+        String string2 = object2[2];
+        String string3 = object2[0];
+        String string4 = object2[1];
+        object2 = new StringBuilder();
+        ((StringBuilder)object2).append(string3);
+        ((StringBuilder)object2).append(".");
+        ((StringBuilder)object2).append(string4);
+        string3 = ((StringBuilder)object2).toString();
+        if (object.getString("alg").equals("RS256")) {
+            LicenseResponseHelper.verifySignature(string3, string2, SIGNATURE_ALGORITHM, LicenseResponseHelper.getPublicKey());
             if (jSONObject.getString(PAYLOAD_PACKAGE_NAME).equals(string)) {
                 return;
             }

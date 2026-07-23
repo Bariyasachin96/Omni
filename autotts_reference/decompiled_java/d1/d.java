@@ -31,8 +31,8 @@ implements Interpolator {
         float f5 = this.b;
         f3 = (f3 - f4 * f5) / f5;
         fArray = this.a;
-        f5 = fArray[n3];
-        return f5 + f3 * (fArray[n3 + 1] - f5);
+        f4 = fArray[n3];
+        return f4 + f3 * (fArray[n3 + 1] - f4);
     }
 }
 

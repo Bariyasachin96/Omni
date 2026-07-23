@@ -136,11 +136,11 @@ extends FrameLayout {
         b3.L0(false);
         this.p = new k2.a(context);
         attributeSet = com.google.android.material.internal.z.i(context, attributeSet, z1.m.CollapsingToolbarLayout, n3, n5, new int[0]);
-        n3 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_expandedTitleGravity, 8388691);
-        n5 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_collapsedTitleGravity, 8388627);
+        n5 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_expandedTitleGravity, 8388691);
+        n3 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_collapsedTitleGravity, 8388627);
         this.s = attributeSet.getInt(z1.m.CollapsingToolbarLayout_collapsedTitleGravityMode, 1);
-        b3.z0(n3);
-        b3.m0(n5);
+        b3.z0(n5);
+        b3.m0(n3);
         this.k = n4 = attributeSet.getDimensionPixelSize(z1.m.CollapsingToolbarLayout_expandedTitleMargin, 0);
         this.j = n4;
         this.i = n4;
@@ -202,8 +202,8 @@ extends FrameLayout {
         if (attributeSet.hasValue(n6)) {
             this.setSubtitle(attributeSet.getText(n6));
         }
-        b3.z0(n3);
-        b3.m0(n5);
+        b3.z0(n5);
+        b3.m0(n3);
         b3.w0(c.i.TextAppearance_AppCompat_Headline);
         b3.j0(c.i.TextAppearance_AppCompat_Widget_ActionBar_Subtitle);
         n3 = z1.m.CollapsingToolbarLayout_expandedSubtitleTextAppearance;
@@ -666,12 +666,12 @@ extends FrameLayout {
         z1 z12 = this.G;
         int n9 = 0;
         if (z12 != null) {
-            int n10 = z12.l();
-            n8 = this.getChildCount();
-            for (n7 = 0; n7 < n8; ++n7) {
+            n8 = z12.l();
+            int n10 = this.getChildCount();
+            for (n7 = 0; n7 < n10; ++n7) {
                 z12 = this.getChildAt(n7);
-                if (z12.getFitsSystemWindows() || z12.getTop() >= n10) continue;
-                x0.S((View)z12, n10);
+                if (z12.getFitsSystemWindows() || z12.getTop() >= n8) continue;
+                x0.S((View)z12, n8);
             }
         }
         n8 = this.getChildCount();
@@ -688,6 +688,7 @@ extends FrameLayout {
     }
 
     public void onMeasure(int n3, int n4) {
+        ViewGroup viewGroup;
         this.d();
         super.onMeasure(n3, n4);
         int n5 = View.MeasureSpec.getMode((int)n4);
@@ -719,17 +720,17 @@ extends FrameLayout {
                     this.K = n5 > 1 ? Math.round(this.o.B()) * (n5 - 1) : 0;
                 }
             }
-            if ((n7 = this.M) + (n6 = this.J) + (n5 = this.K) > 0) {
-                super.onMeasure(n3, View.MeasureSpec.makeMeasureSpec((int)(n4 + n7 + n6 + n5), (int)0x40000000));
+            if ((n7 = this.M) + (n5 = this.J) + (n6 = this.K) > 0) {
+                super.onMeasure(n3, View.MeasureSpec.makeMeasureSpec((int)(n4 + n7 + n5 + n6), (int)0x40000000));
             }
         }
-        if ((z12 = this.e) != null) {
-            View view = this.f;
-            if (view != null && view != this) {
-                this.setMinimumHeight(CollapsingToolbarLayout.h(view));
+        if ((viewGroup = this.e) != null) {
+            z12 = this.f;
+            if (z12 != null && z12 != this) {
+                this.setMinimumHeight(CollapsingToolbarLayout.h((View)z12));
                 return;
             }
-            this.setMinimumHeight(CollapsingToolbarLayout.h((View)z12));
+            this.setMinimumHeight(CollapsingToolbarLayout.h((View)viewGroup));
         }
     }
 
@@ -788,13 +789,13 @@ extends FrameLayout {
         int n11 = n8 - n9;
         n4 = ((Rect)object).top + n7 + n4;
         n9 = ((Rect)object).bottom + n7 - n3;
-        n8 = (int)((float)n9 - this.o.m());
-        n7 = (int)((float)n4 + this.n.m());
+        n7 = (int)((float)n9 - this.o.m());
+        n8 = (int)((float)n4 + this.n.m());
         if (TextUtils.isEmpty((CharSequence)this.o.P())) {
             this.n.f0(n10, n4, n11, n9);
         } else {
-            this.n.f0(n10, n4, n11, n8);
-            this.o.f0(n10, n7, n11, n9);
+            this.n.f0(n10, n4, n11, n7);
+            this.o.f0(n10, n8, n11, n9);
         }
         if (this.s == 0) {
             com.google.android.material.internal.d.a((ViewGroup)this, (View)this, this.m);
@@ -811,8 +812,8 @@ extends FrameLayout {
                 this.n.h0(n3, n4, n6, n9);
                 return;
             }
-            this.n.h0(n3, n4, n6, n8);
-            this.o.h0(n3, n7, n6, n9);
+            this.n.h0(n3, n4, n6, n7);
+            this.o.h0(n3, n8, n6, n9);
         }
     }
 
@@ -1036,16 +1037,16 @@ extends FrameLayout {
             int n3 = 0;
             int n4 = 0;
             if (bl2) {
-                n3 = n4;
                 if (bl) {
-                    n3 = 255;
+                    n4 = 255;
                 }
-                this.a(n3);
+                this.a(n4);
             } else {
+                n4 = n3;
                 if (bl) {
-                    n3 = 255;
+                    n4 = 255;
                 }
-                this.setScrimAlpha(n3);
+                this.setScrimAlpha(n4);
             }
             this.w = bl;
         }
@@ -1274,15 +1275,15 @@ extends FrameLayout {
             int n7 = this.a.getChildCount();
             for (n5 = 0; n5 < n7; ++n5) {
                 View view = this.a.getChildAt(n5);
-                LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
-                object = CollapsingToolbarLayout.l(view);
-                n4 = layoutParams.a;
+                object = (LayoutParams)view.getLayoutParams();
+                com.google.android.material.appbar.c c3 = CollapsingToolbarLayout.l(view);
+                n4 = ((LayoutParams)((Object)object)).a;
                 if (n4 != 1) {
                     if (n4 != 2) continue;
-                    ((com.google.android.material.appbar.c)object).f(Math.round((float)(-n3) * layoutParams.b));
+                    c3.f(Math.round((float)(-n3) * ((LayoutParams)((Object)object)).b));
                     continue;
                 }
-                ((com.google.android.material.appbar.c)object).f(j0.a.b(-n3, 0, this.a.i(view)));
+                c3.f(j0.a.b(-n3, 0, this.a.i(view)));
             }
             this.a.v();
             object = this.a;
@@ -1290,19 +1291,19 @@ extends FrameLayout {
                 object.postInvalidateOnAnimation();
             }
             n5 = this.a.getHeight();
-            n4 = n5 - this.a.getMinimumHeight() - n6;
-            n6 = this.a.getScrimVisibleHeightTrigger();
-            n7 = this.a.D + n4;
+            n6 = n5 - this.a.getMinimumHeight() - n6;
+            n7 = this.a.getScrimVisibleHeightTrigger();
+            n4 = this.a.D + n6;
             float f3 = Math.abs(n3);
-            float f4 = n4;
+            float f4 = n6;
             f3 /= f4;
             object = this.a.n;
-            f4 = (float)(n5 - n6) / f4;
+            f4 = (float)(n5 - n7) / f4;
             ((b)object).F0(Math.min(1.0f, f4));
-            this.a.n.q0(n7);
+            this.a.n.q0(n4);
             this.a.n.D0(f3);
             this.a.o.F0(Math.min(1.0f, f4));
-            this.a.o.q0(n7);
+            this.a.o.q0(n4);
             this.a.o.D0(f3);
         }
     }

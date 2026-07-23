@@ -321,11 +321,12 @@ extends AppCompatImageView {
         if (this.h != null) {
             Drawable drawable;
             this.i = drawable = a.b(this.getContext(), n3).mutate();
-            LayerDrawable layerDrawable = this.p;
-            layerDrawable[0] = drawable;
-            layerDrawable[1] = this.h;
-            this.q = layerDrawable = new LayerDrawable(this.p);
-            super.setImageDrawable((Drawable)layerDrawable);
+            Drawable[] drawableArray = this.p;
+            drawableArray[0] = drawable;
+            drawableArray[1] = this.h;
+            drawable = new LayerDrawable(this.p);
+            this.q = drawable;
+            super.setImageDrawable(drawable);
             this.setCrossfade(this.j);
             return;
         }
@@ -378,10 +379,10 @@ extends AppCompatImageView {
             int n4 = this.getHeight();
             this.o.set(0.0f, 0.0f, (float)n3, (float)n4);
             this.m.reset();
-            viewOutlineProvider = this.m;
-            RectF rectF = this.o;
+            Path path = this.m;
+            viewOutlineProvider = this.o;
             f3 = this.l;
-            viewOutlineProvider.addRoundRect(rectF, f3, f3, Path.Direction.CW);
+            path.addRoundRect((RectF)viewOutlineProvider, f3, f3, Path.Direction.CW);
         } else {
             this.setClipToOutline(false);
         }

@@ -15,8 +15,7 @@ extends c {
         int n3 = string.indexOf(40);
         int n4 = string.indexOf(44, n3);
         this.d = Double.parseDouble(string.substring(n3 + 1, n4).trim());
-        n3 = n4 + 1;
-        this.e = Double.parseDouble(string.substring(n3, string.indexOf(44, n3)).trim());
+        this.e = Double.parseDouble(string.substring(++n4, string.indexOf(44, n4)).trim());
     }
 
     @Override

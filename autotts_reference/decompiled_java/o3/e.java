@@ -8,9 +8,9 @@ import e3.a0;
 import e3.b0;
 import e3.l;
 import e3.m;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import n3.c;
@@ -44,41 +44,41 @@ d {
     public final Class a;
 
     static {
-        Object object;
+        Serializable serializable;
         b = new a(null);
         Object object2 = l.h(n3.a.class, n3.l.class, p.class, q.class, r.class, s.class, t.class, u.class, v.class, w.class, n3.b.class, c.class, n3.d.class, n3.e.class, f.class, n3.g.class, n3.h.class, i.class, j.class, n3.k.class, n3.m.class, n.class, o.class);
         ArrayList<d3.d> object32 = new ArrayList<d3.d>(m.l((Iterable)object2, 10));
-        Iterator iterator = object2.iterator();
+        object2 = object2.iterator();
         int n3 = 0;
-        while (iterator.hasNext()) {
-            object2 = iterator.next();
+        while (object2.hasNext()) {
+            Object e3 = object2.next();
             if (n3 < 0) {
                 l.k();
             }
-            object32.add(h.a((Class)object2, n3));
+            object32.add(h.a((Class)e3, n3));
             ++n3;
         }
         c = b0.g(object32);
-        object2 = new HashMap();
-        ((HashMap)object2).put("boolean", "kotlin.Boolean");
-        ((HashMap)object2).put("char", "kotlin.Char");
-        ((HashMap)object2).put("byte", "kotlin.Byte");
-        ((HashMap)object2).put("short", "kotlin.Short");
-        ((HashMap)object2).put("int", "kotlin.Int");
-        ((HashMap)object2).put("float", "kotlin.Float");
-        ((HashMap)object2).put("long", "kotlin.Long");
-        ((HashMap)object2).put("double", "kotlin.Double");
-        d = object2;
         HashMap<String, String> hashMap = new HashMap<String, String>();
-        hashMap.put("java.lang.Boolean", "kotlin.Boolean");
-        hashMap.put("java.lang.Character", "kotlin.Char");
-        hashMap.put("java.lang.Byte", "kotlin.Byte");
-        hashMap.put("java.lang.Short", "kotlin.Short");
-        hashMap.put("java.lang.Integer", "kotlin.Int");
-        hashMap.put("java.lang.Float", "kotlin.Float");
-        hashMap.put("java.lang.Long", "kotlin.Long");
-        hashMap.put("java.lang.Double", "kotlin.Double");
-        e = hashMap;
+        hashMap.put("boolean", "kotlin.Boolean");
+        hashMap.put("char", "kotlin.Char");
+        hashMap.put("byte", "kotlin.Byte");
+        hashMap.put("short", "kotlin.Short");
+        hashMap.put("int", "kotlin.Int");
+        hashMap.put("float", "kotlin.Float");
+        hashMap.put("long", "kotlin.Long");
+        hashMap.put("double", "kotlin.Double");
+        d = hashMap;
+        object2 = new HashMap<String, String>();
+        ((HashMap)object2).put("java.lang.Boolean", "kotlin.Boolean");
+        ((HashMap)object2).put("java.lang.Character", "kotlin.Char");
+        ((HashMap)object2).put("java.lang.Byte", "kotlin.Byte");
+        ((HashMap)object2).put("java.lang.Short", "kotlin.Short");
+        ((HashMap)object2).put("java.lang.Integer", "kotlin.Int");
+        ((HashMap)object2).put("java.lang.Float", "kotlin.Float");
+        ((HashMap)object2).put("java.lang.Long", "kotlin.Long");
+        ((HashMap)object2).put("java.lang.Double", "kotlin.Double");
+        e = object2;
         HashMap<Object, Object> hashMap2 = new HashMap<Object, Object>();
         hashMap2.put("java.lang.Object", "kotlin.Any");
         hashMap2.put("java.lang.String", "kotlin.String");
@@ -99,33 +99,33 @@ d {
         hashMap2.put("java.util.Map$Entry", "kotlin.collections.Map.Entry");
         hashMap2.put("kotlin.jvm.internal.StringCompanionObject", "kotlin.String.Companion");
         hashMap2.put("kotlin.jvm.internal.EnumCompanionObject", "kotlin.Enum.Companion");
-        hashMap2.putAll((Map<Object, Object>)object2);
         hashMap2.putAll(hashMap);
-        object2 = ((HashMap)object2).values();
+        hashMap2.putAll((Map<Object, Object>)object2);
+        object2 = hashMap.values();
         k.d(object2, "primitiveFqNames.values");
         object2 = object2.iterator();
         while (object2.hasNext()) {
             String string = (String)object2.next();
-            object = new StringBuilder();
-            ((StringBuilder)object).append("kotlin.jvm.internal.");
+            serializable = new StringBuilder();
+            ((StringBuilder)serializable).append("kotlin.jvm.internal.");
             k.d(string, "kotlinName");
-            ((StringBuilder)object).append(u3.l.n(string, '.', null, 2, null));
-            ((StringBuilder)object).append("CompanionObject");
-            String string2 = ((StringBuilder)object).toString();
-            object = new StringBuilder();
-            ((StringBuilder)object).append(string);
-            ((StringBuilder)object).append(".Companion");
-            d3.d d3 = h.a(string2, ((StringBuilder)object).toString());
+            ((StringBuilder)serializable).append(u3.l.n(string, '.', null, 2, null));
+            ((StringBuilder)serializable).append("CompanionObject");
+            String string2 = ((StringBuilder)serializable).toString();
+            serializable = new StringBuilder();
+            ((StringBuilder)serializable).append(string);
+            ((StringBuilder)serializable).append(".Companion");
+            d3.d d3 = h.a(string2, ((StringBuilder)serializable).toString());
             hashMap2.put(d3.c(), d3.d());
         }
         for (Map.Entry entry : c.entrySet()) {
-            object = (Class)entry.getKey();
+            serializable = (Class)entry.getKey();
             n3 = ((Number)entry.getValue()).intValue();
-            object = ((Class)object).getName();
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("kotlin.Function");
-            stringBuilder.append(n3);
-            hashMap2.put(object, stringBuilder.toString());
+            String string = ((Class)serializable).getName();
+            serializable = new StringBuilder();
+            ((StringBuilder)serializable).append("kotlin.Function");
+            ((StringBuilder)serializable).append(n3);
+            hashMap2.put(string, ((StringBuilder)serializable).toString());
         }
         f = hashMap2;
         object2 = new LinkedHashMap(a0.a(hashMap2.size()));

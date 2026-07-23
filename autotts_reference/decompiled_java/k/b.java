@@ -89,7 +89,6 @@ implements Iterable {
     }
 
     public Object g(Object object) {
-        c c3;
         Object object2;
         if ((object = this.b(object)) == null) {
             return null;
@@ -101,16 +100,16 @@ implements Iterable {
                 ((f)object2.next()).a((c)object);
             }
         }
-        if ((c3 = ((c)object).f) != null) {
-            c3.e = ((c)object).e;
+        if ((object2 = ((c)object).f) != null) {
+            ((c)object2).e = ((c)object).e;
         } else {
             this.c = ((c)object).e;
         }
-        object2 = ((c)object).e;
-        if (object2 != null) {
-            ((c)object2).f = c3;
+        c c3 = ((c)object).e;
+        if (c3 != null) {
+            c3.f = object2;
         } else {
-            this.d = c3;
+            this.d = object2;
         }
         ((c)object).e = null;
         ((c)object).f = null;

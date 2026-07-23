@@ -335,100 +335,100 @@ lbl48:
         return object.getLayoutParams() instanceof ConstraintLayout.LayoutParams && (object = ((ConstraintLayout.LayoutParams)object.getLayoutParams()).c0) != null && ((String)object).matches(this.k);
     }
 
-    public final void k(Context context, XmlPullParser object) {
-        context = context.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)object), y.d.ViewTransition);
-        int n3 = context.getIndexCount();
+    public final void k(Context object, XmlPullParser xmlPullParser) {
+        xmlPullParser = object.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), y.d.ViewTransition);
+        int n3 = xmlPullParser.getIndexCount();
         for (int i3 = 0; i3 < n3; ++i3) {
             int n4;
-            int n5 = context.getIndex(i3);
+            int n5 = xmlPullParser.getIndex(i3);
             if (n5 == y.d.ViewTransition_android_id) {
-                this.a = context.getResourceId(n5, this.a);
+                this.a = xmlPullParser.getResourceId(n5, this.a);
                 continue;
             }
             if (n5 == y.d.ViewTransition_motionTarget) {
                 if (MotionLayout.f1) {
-                    this.j = n4 = context.getResourceId(n5, this.j);
+                    this.j = n4 = xmlPullParser.getResourceId(n5, this.j);
                     if (n4 != -1) continue;
-                    this.k = context.getString(n5);
+                    this.k = xmlPullParser.getString(n5);
                     continue;
                 }
-                if (context.peekValue((int)n5).type == 3) {
-                    this.k = context.getString(n5);
+                if (xmlPullParser.peekValue((int)n5).type == 3) {
+                    this.k = xmlPullParser.getString(n5);
                     continue;
                 }
-                this.j = context.getResourceId(n5, this.j);
+                this.j = xmlPullParser.getResourceId(n5, this.j);
                 continue;
             }
             if (n5 == y.d.ViewTransition_onStateTransition) {
-                this.b = context.getInt(n5, this.b);
+                this.b = xmlPullParser.getInt(n5, this.b);
                 continue;
             }
             if (n5 == y.d.ViewTransition_transitionDisable) {
-                this.c = context.getBoolean(n5, this.c);
+                this.c = xmlPullParser.getBoolean(n5, this.c);
                 continue;
             }
             if (n5 == y.d.ViewTransition_pathMotionArc) {
-                this.d = context.getInt(n5, this.d);
+                this.d = xmlPullParser.getInt(n5, this.d);
                 continue;
             }
             if (n5 == y.d.ViewTransition_duration) {
-                this.h = context.getInt(n5, this.h);
+                this.h = xmlPullParser.getInt(n5, this.h);
                 continue;
             }
             if (n5 == y.d.ViewTransition_upDuration) {
-                this.i = context.getInt(n5, this.i);
+                this.i = xmlPullParser.getInt(n5, this.i);
                 continue;
             }
             if (n5 == y.d.ViewTransition_viewTransitionMode) {
-                this.e = context.getInt(n5, this.e);
+                this.e = xmlPullParser.getInt(n5, this.e);
                 continue;
             }
             if (n5 == y.d.ViewTransition_motionInterpolator) {
-                n4 = context.peekValue((int)n5).type;
+                n4 = xmlPullParser.peekValue((int)n5).type;
                 if (n4 == 1) {
-                    this.n = n5 = context.getResourceId(n5, -1);
+                    this.n = n5 = xmlPullParser.getResourceId(n5, -1);
                     if (n5 == -1) continue;
                     this.l = -2;
                     continue;
                 }
                 if (n4 == 3) {
-                    object = context.getString(n5);
+                    object = xmlPullParser.getString(n5);
                     this.m = object;
                     if (object != null && ((String)object).indexOf("/") > 0) {
-                        this.n = context.getResourceId(n5, -1);
+                        this.n = xmlPullParser.getResourceId(n5, -1);
                         this.l = -2;
                         continue;
                     }
                     this.l = -1;
                     continue;
                 }
-                this.l = context.getInteger(n5, this.l);
+                this.l = xmlPullParser.getInteger(n5, this.l);
                 continue;
             }
             if (n5 == y.d.ViewTransition_setsTag) {
-                this.p = context.getResourceId(n5, this.p);
+                this.p = xmlPullParser.getResourceId(n5, this.p);
                 continue;
             }
             if (n5 == y.d.ViewTransition_clearsTag) {
-                this.q = context.getResourceId(n5, this.q);
+                this.q = xmlPullParser.getResourceId(n5, this.q);
                 continue;
             }
             if (n5 == y.d.ViewTransition_ifTagSet) {
-                this.r = context.getResourceId(n5, this.r);
+                this.r = xmlPullParser.getResourceId(n5, this.r);
                 continue;
             }
             if (n5 == y.d.ViewTransition_ifTagNotSet) {
-                this.s = context.getResourceId(n5, this.s);
+                this.s = xmlPullParser.getResourceId(n5, this.s);
                 continue;
             }
             if (n5 == y.d.ViewTransition_SharedValueId) {
-                this.u = context.getResourceId(n5, this.u);
+                this.u = xmlPullParser.getResourceId(n5, this.u);
                 continue;
             }
             if (n5 != y.d.ViewTransition_SharedValue) continue;
-            this.t = context.getInteger(n5, this.t);
+            this.t = xmlPullParser.getInteger(n5, this.t);
         }
-        context.recycle();
+        xmlPullParser.recycle();
     }
 
     public boolean l(int n3) {

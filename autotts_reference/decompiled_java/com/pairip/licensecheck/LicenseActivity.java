@@ -98,13 +98,13 @@ extends Activity {
         this.showErrorDialog();
     }
 
-    private void logAndShowErrorDialog(String string, Exception serializable) {
-        String string2 = Log.getStackTraceString((Throwable)serializable);
-        serializable = new StringBuilder();
-        ((StringBuilder)serializable).append(string);
-        ((StringBuilder)serializable).append(" ");
-        ((StringBuilder)serializable).append(string2);
-        this.logAndShowErrorDialog(((StringBuilder)serializable).toString());
+    private void logAndShowErrorDialog(String string, Exception object) {
+        object = Log.getStackTraceString((Throwable)object);
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(string);
+        stringBuilder.append(" ");
+        stringBuilder.append((String)object);
+        this.logAndShowErrorDialog(stringBuilder.toString());
     }
 
     private void showErrorDialog() {

@@ -1,4 +1,6 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@7F080187" android:layout_width="-2" android:layout_height="-2">
-  <TextView android:ellipsize="3" android:id="@7F080186" android:layout_width="-2" android:layout_height="-2" android:maxLines="1" android:importantForAccessibility="2"/>
-  <TextView android:ellipsize="3" android:id="@7F080185" android:visibility="1" android:layout_width="-2" android:layout_height="-2" android:maxLines="1" android:importantForAccessibility="2"/>
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:id="@id/open_search_bar_text_view_container" android:layout_width="wrap_content" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:ellipsize="end" android:id="@id/open_search_bar_text_view" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:importantForAccessibility="no" />
+    <TextView android:ellipsize="end" android:id="@id/open_search_bar_placeholder_text_view" android:visibility="invisible" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:importantForAccessibility="no" />
 </FrameLayout>

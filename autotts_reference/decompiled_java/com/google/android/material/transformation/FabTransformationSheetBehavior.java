@@ -50,18 +50,18 @@ extends FabTransformationBehavior {
     public final void k0(View view, boolean bl) {
         Object object = view.getParent();
         if (object instanceof CoordinatorLayout) {
-            object = (CoordinatorLayout)object;
-            int n3 = object.getChildCount();
+            CoordinatorLayout coordinatorLayout = (CoordinatorLayout)object;
+            int n3 = coordinatorLayout.getChildCount();
             if (bl) {
                 this.k = new HashMap(n3);
             }
             for (int i3 = 0; i3 < n3; ++i3) {
-                View view2 = object.getChildAt(i3);
+                View view2 = coordinatorLayout.getChildAt(i3);
                 boolean bl2 = view2.getLayoutParams() instanceof CoordinatorLayout.e && ((CoordinatorLayout.e)view2.getLayoutParams()).f() instanceof FabTransformationScrimBehavior;
                 if (view2 == view || bl2) continue;
                 if (!bl) {
-                    Map map = this.k;
-                    if (map == null || !map.containsKey(view2)) continue;
+                    object = this.k;
+                    if (object == null || !object.containsKey(view2)) continue;
                     view2.setImportantForAccessibility(((Integer)this.k.get(view2)).intValue());
                     continue;
                 }

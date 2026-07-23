@@ -4,22 +4,28 @@
  * Could not load the following classes:
  *  android.view.View
  *  android.view.View$OnClickListener
+ *  android.widget.Button
  */
 package c3;
 
 import android.view.View;
-import c3.r;
+import android.widget.Button;
+import c3.t;
 
 public final class p
 implements View.OnClickListener {
-    public final r c;
+    public final t c;
+    public final Button d;
+    public final t.d e;
 
-    public /* synthetic */ p(r r3) {
-        this.c = r3;
+    public /* synthetic */ p(t t3, Button button, t.d d3) {
+        this.c = t3;
+        this.d = button;
+        this.e = d3;
     }
 
     public final void onClick(View view) {
-        r.b(this.c, view);
+        t.a(this.c, this.d, this.e, view);
     }
 }
 

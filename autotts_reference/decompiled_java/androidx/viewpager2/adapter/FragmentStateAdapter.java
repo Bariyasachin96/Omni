@@ -8,6 +8,7 @@
  *  android.os.Parcelable
  *  android.view.View
  *  android.view.ViewGroup
+ *  android.view.ViewParent
  *  android.widget.FrameLayout
  */
 package androidx.viewpager2.adapter;
@@ -18,6 +19,7 @@ import android.os.Looper;
 import android.os.Parcelable;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.FrameLayout;
 import androidx.appcompat.app.s;
 import androidx.fragment.app.Fragment;
@@ -280,10 +282,10 @@ implements b {
             return;
         }
         if (fragment.X() && this.A(l3)) {
-            object = this.j.e(fragment);
-            Fragment.SavedState savedState = this.e.h1(fragment);
-            this.j.b((List)object);
-            this.g.h(l3, savedState);
+            List list = this.j.e(fragment);
+            object = this.e.h1(fragment);
+            this.j.b(list);
+            this.g.h(l3, object);
         }
         object = this.j.d(fragment);
         try {
@@ -384,23 +386,20 @@ implements b {
     @Override
     public final void b(Parcelable object) {
         if (this.g.f() && this.f.f()) {
-            Bundle bundle = (Bundle)object;
-            if (bundle.getClassLoader() == null) {
-                bundle.setClassLoader(this.getClass().getClassLoader());
+            if ((object = (Bundle)object).getClassLoader() == null) {
+                object.setClassLoader(this.getClass().getClassLoader());
             }
-            object = bundle.keySet().iterator();
-            while (object.hasNext()) {
+            for (Object object2 : object.keySet()) {
                 long l3;
-                Object object2 = (String)object.next();
                 if (FragmentStateAdapter.G((String)object2, "f#")) {
                     l3 = FragmentStateAdapter.N((String)object2, "f#");
-                    object2 = this.e.r0(bundle, (String)object2);
+                    object2 = this.e.r0((Bundle)object, (String)object2);
                     this.f.h(l3, object2);
                     continue;
                 }
                 if (FragmentStateAdapter.G((String)object2, "s#")) {
                     l3 = FragmentStateAdapter.N((String)object2, "s#");
-                    object2 = (Fragment.SavedState)bundle.getParcelable((String)object2);
+                    object2 = (Fragment.SavedState)object.getParcelable((String)object2);
                     if (!this.A(l3)) continue;
                     this.g.h(l3, object2);
                     continue;
@@ -471,14 +470,15 @@ implements b {
             this.e = -1L;
         }
 
-        public final ViewPager2 a(RecyclerView recyclerView) {
-            if ((recyclerView = recyclerView.getParent()) instanceof ViewPager2) {
-                return (ViewPager2)((Object)recyclerView);
+        public final ViewPager2 a(RecyclerView object) {
+            ViewParent viewParent = object.getParent();
+            if (viewParent instanceof ViewPager2) {
+                return (ViewPager2)viewParent;
             }
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("Expected ViewPager2 instance. Got: ");
-            stringBuilder.append(recyclerView);
-            throw new IllegalStateException(stringBuilder.toString());
+            object = new StringBuilder();
+            ((StringBuilder)object).append("Expected ViewPager2 instance. Got: ");
+            ((StringBuilder)object).append(viewParent);
+            throw new IllegalStateException(((StringBuilder)object).toString());
         }
 
         public void b(RecyclerView object) {
@@ -627,11 +627,11 @@ implements b {
             throw null;
         }
 
-        public List d(Fragment object) {
-            object = new ArrayList();
-            Iterator iterator = this.a.iterator();
+        public List d(Fragment iterator) {
+            ArrayList arrayList = new ArrayList();
+            iterator = this.a.iterator();
             if (!iterator.hasNext()) {
-                return object;
+                return arrayList;
             }
             s.a(iterator.next());
             throw null;

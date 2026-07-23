@@ -404,10 +404,10 @@ implements i0.a {
     }
 
     public SubMenu addSubMenu(int n3, int n4, int n5, CharSequence object) {
-        g g3 = (g)this.a(n3, n4, n5, (CharSequence)object);
-        object = new l(this.a, this, g3);
-        g3.x((l)object);
-        return object;
+        object = (g)this.a(n3, n4, n5, (CharSequence)object);
+        l l3 = new l(this.a, this, (g)object);
+        ((g)object).x(l3);
+        return l3;
     }
 
     public SubMenu addSubMenu(CharSequence charSequence) {
@@ -517,7 +517,7 @@ implements i0.a {
                 Iterator iterator = this.w.iterator();
                 bl4 = bl3;
                 while (true) {
-                    bl2 = bl4;
+                    bl3 = bl4;
                     if (!iterator.hasNext()) break;
                     WeakReference weakReference = (WeakReference)iterator.next();
                     i i3 = (i)weakReference.get();
@@ -525,14 +525,14 @@ implements i0.a {
                         this.w.remove(weakReference);
                         continue;
                     }
-                    bl4 = bl2 = i3.k(this, g3);
-                    if (bl2) break;
+                    bl4 = bl3 = i3.k(this, g3);
+                    if (bl3) break;
                 }
                 this.h0();
-                bl4 = bl2;
-                if (bl2) {
+                bl4 = bl3;
+                if (bl3) {
                     this.x = null;
-                    bl4 = bl2;
+                    bl4 = bl3;
                 }
             }
         }
@@ -664,19 +664,19 @@ implements i0.a {
         bundle.putSparseParcelableArray("android:menu:presenters", sparseArray);
     }
 
-    public final boolean l(l l3, i object2) {
+    public final boolean l(l l3, i object) {
         boolean bl = this.w.isEmpty();
         boolean bl2 = false;
         if (bl) {
             return false;
         }
-        if (object2 != null) {
-            bl2 = object2.f(l3);
+        if (object != null) {
+            bl2 = object.f(l3);
         }
-        for (Object object2 : this.w) {
-            i i3 = (i)((Reference)object2).get();
+        for (WeakReference weakReference : this.w) {
+            i i3 = (i)weakReference.get();
             if (i3 == null) {
-                this.w.remove(object2);
+                this.w.remove(weakReference);
                 continue;
             }
             if (bl2) continue;
@@ -768,10 +768,11 @@ implements i0.a {
         }
         boolean bl = this.J();
         for (int i3 = 0; i3 < n5; ++i3) {
-            g g3 = (g)arrayList.get(i3);
-            char c3 = bl ? g3.getAlphabeticShortcut() : g3.getNumericShortcut();
-            if (!(c3 == (object = (Object)keyData.meta)[0] && (n4 & 2) == 0 || c3 == object[2] && (n4 & 2) != 0) && (!bl || c3 != '\b' || n3 != 67)) continue;
-            return g3;
+            char[] cArray;
+            object = (g)arrayList.get(i3);
+            char c3 = bl ? ((g)object).getAlphabeticShortcut() : ((g)object).getNumericShortcut();
+            if (!(c3 == (cArray = keyData.meta)[0] && (n4 & 2) == 0 || c3 == cArray[2] && (n4 & 2) != 0) && (!bl || c3 != '\b' || n3 != 67)) continue;
+            return object;
         }
         return null;
     }
@@ -871,13 +872,13 @@ implements i0.a {
         Iterator iterator = this.w.iterator();
         int n3 = 0;
         while (iterator.hasNext()) {
-            WeakReference weakReference = (WeakReference)iterator.next();
-            object = (i)weakReference.get();
-            if (object == null) {
-                this.w.remove(weakReference);
+            object = (WeakReference)iterator.next();
+            i i3 = (i)((Reference)object).get();
+            if (i3 == null) {
+                this.w.remove(object);
                 continue;
             }
-            n3 |= object.i();
+            n3 |= i3.i();
         }
         if (n3 != 0) {
             this.i.clear();

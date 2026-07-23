@@ -96,9 +96,9 @@ public final class a {
             return false;
         }
         object = nArray[0];
-        object3 = object[1];
-        object2 = object[0];
-        return object2 <= 0 && nArray[n3 - 1][1] >= object3 - object2;
+        object2 = object[1];
+        object3 = object[0];
+        return object3 <= 0 && nArray[n3 - 1][1] >= object2 - object3;
         {
         }
     }

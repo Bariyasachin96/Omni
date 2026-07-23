@@ -56,6 +56,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import androidx.customview.view.AbsSavedState;
+import java.io.Serializable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.AccessibleObject;
@@ -158,11 +159,11 @@ d0 {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public static Behavior O(Context object, AttributeSet attributeSet, String hashMap) {
+    public static Behavior O(Context object, AttributeSet object2, String hashMap) {
         Exception exception2;
         CharSequence charSequence;
         block10: {
-            Object object2;
+            Object object3;
             Constructor<?> constructor;
             block9: {
                 if (TextUtils.isEmpty((CharSequence)((Object)hashMap))) {
@@ -187,30 +188,30 @@ d0 {
                     }
                 }
                 try {
-                    object2 = y;
-                    constructor = (Map)((ThreadLocal)object2).get();
+                    object3 = y;
+                    constructor = (Map)((ThreadLocal)object3).get();
                     hashMap = constructor;
                     if (constructor != null) break block9;
                     hashMap = new HashMap();
-                    ((ThreadLocal)object2).set(hashMap);
+                    ((ThreadLocal)object3).set(hashMap);
                 }
                 catch (Exception exception2) {
                     break block10;
                 }
             }
-            object2 = (Constructor)hashMap.get(charSequence);
-            constructor = object2;
-            if (object2 == null) {
+            object3 = (Constructor)hashMap.get(charSequence);
+            constructor = object3;
+            if (object3 == null) {
                 constructor = Class.forName((String)charSequence, false, object.getClassLoader()).getConstructor(x);
                 ((AccessibleObject)constructor).setAccessible(true);
                 hashMap.put(charSequence, constructor);
             }
-            return (Behavior)constructor.newInstance(object, attributeSet);
+            return (Behavior)constructor.newInstance(object, object2);
         }
-        object = new StringBuilder();
-        ((StringBuilder)object).append("Could not inflate Behavior subclass ");
-        ((StringBuilder)object).append((String)charSequence);
-        throw new RuntimeException(((StringBuilder)object).toString(), exception2);
+        object2 = new StringBuilder();
+        ((StringBuilder)object2).append("Could not inflate Behavior subclass ");
+        ((StringBuilder)object2).append((String)charSequence);
+        throw new RuntimeException(((StringBuilder)object2).toString(), exception2);
     }
 
     public static void S(Rect rect) {
@@ -295,7 +296,6 @@ d0 {
     public e C(View object) {
         e e3 = (e)object.getLayoutParams();
         if (!e3.b) {
-            Object object2;
             if (object instanceof b) {
                 if ((object = ((b)object).getBehavior()) == null) {
                     Log.e((String)"CoordinatorLayout", (String)"Attached behavior class is null");
@@ -304,24 +304,25 @@ d0 {
                 e3.b = true;
                 return e3;
             }
-            Class<?> clazz = object.getClass();
+            Serializable serializable = object.getClass();
             object = null;
-            while (clazz != null) {
-                object = object2 = clazz.getAnnotation(c.class);
-                if (object2 != null) break;
-                clazz = clazz.getSuperclass();
-                object = object2;
+            while (serializable != null) {
+                c c3 = ((Class)serializable).getAnnotation(c.class);
+                object = c3;
+                if (c3 != null) break;
+                serializable = ((Class)serializable).getSuperclass();
+                object = c3;
             }
             if (object != null) {
                 try {
                     e3.o((Behavior)object.value().getDeclaredConstructor(null).newInstance(null));
                 }
                 catch (Exception exception) {
-                    object2 = new StringBuilder();
-                    ((StringBuilder)object2).append("Default behavior class ");
-                    ((StringBuilder)object2).append(object.value().getName());
-                    ((StringBuilder)object2).append(" could not be instantiated. Did you forget a default constructor?");
-                    Log.e((String)"CoordinatorLayout", (String)((StringBuilder)object2).toString(), (Throwable)exception);
+                    serializable = new StringBuilder();
+                    ((StringBuilder)serializable).append("Default behavior class ");
+                    ((StringBuilder)serializable).append(object.value().getName());
+                    ((StringBuilder)serializable).append(" could not be instantiated. Did you forget a default constructor?");
+                    Log.e((String)"CoordinatorLayout", (String)((StringBuilder)serializable).toString(), (Throwable)exception);
                 }
             }
             e3.b = true;
@@ -445,8 +446,8 @@ d0 {
             }
             int n5 = o0.s.b(e3.h, n3);
             int n6 = 1;
-            if ((n5 & 0x30) == 48 && (n3 = rect2.top - e3.topMargin - e3.j) < (n4 = rect.top)) {
-                this.Z((View)object, n4 - n3);
+            if ((n5 & 0x30) == 48 && (n4 = rect2.top - e3.topMargin - e3.j) < (n3 = rect.top)) {
+                this.Z((View)object, n3 - n4);
                 n3 = 1;
             } else {
                 n3 = 0;
@@ -464,8 +465,8 @@ d0 {
             if (n4 == 0) {
                 this.Z((View)object, 0);
             }
-            if ((n5 & 3) == 3 && (n4 = rect2.left - e3.leftMargin - e3.i) < (n3 = rect.left)) {
-                this.Y((View)object, n3 - n4);
+            if ((n5 & 3) == 3 && (n3 = rect2.left - e3.leftMargin - e3.i) < (n4 = rect.left)) {
+                this.Y((View)object, n4 - n3);
                 n3 = 1;
             } else {
                 n3 = 0;
@@ -536,19 +537,19 @@ d0 {
         Rect rect2 = CoordinatorLayout.f();
         Rect rect3 = CoordinatorLayout.f();
         for (int i3 = 0; i3 < n5; ++i3) {
-            View view;
+            Object object;
             int n6;
-            View view2 = (View)this.c.get(i3);
-            e e3 = (e)view2.getLayoutParams();
-            if (n3 == 0 && view2.getVisibility() == 8) continue;
+            View view = (View)this.c.get(i3);
+            Object object2 = (e)view.getLayoutParams();
+            if (n3 == 0 && view.getVisibility() == 8) continue;
             for (n6 = 0; n6 < i3; ++n6) {
-                view = (View)this.c.get(n6);
-                if (e3.l != view) continue;
-                this.K(view2, n4);
+                object = (View)this.c.get(n6);
+                if (((e)((Object)object2)).l != object) continue;
+                this.K(view, n4);
             }
-            this.u(view2, true, rect2);
-            if (e3.g != 0 && !rect2.isEmpty()) {
-                int n7 = o0.s.b(e3.g, n4);
+            this.u(view, true, rect2);
+            if (((e)((Object)object2)).g != 0 && !rect2.isEmpty()) {
+                int n7 = o0.s.b(((e)((Object)object2)).g, n4);
                 n6 = n7 & 0x70;
                 if (n6 != 48) {
                     if (n6 == 80) {
@@ -566,32 +567,32 @@ d0 {
                     rect.left = Math.max(rect.left, rect2.right);
                 }
             }
-            if (e3.h != 0 && view2.getVisibility() == 0) {
-                this.J(view2, rect, n4);
+            if (((e)((Object)object2)).h != 0 && view.getVisibility() == 0) {
+                this.J(view, rect, n4);
             }
             if (n3 != 2) {
-                this.B(view2, rect3);
+                this.B(view, rect3);
                 if (rect3.equals((Object)rect2)) continue;
-                this.R(view2, rect2);
+                this.R(view, rect2);
             }
             for (n6 = i3 + 1; n6 < n5; ++n6) {
                 boolean bl;
-                view = (View)this.c.get(n6);
-                e3 = (e)view.getLayoutParams();
-                Behavior behavior = e3.f();
-                if (behavior == null || !behavior.i(this, view, view2)) continue;
-                if (n3 == 0 && e3.g()) {
-                    e3.k();
+                View view2 = (View)this.c.get(n6);
+                object = (e)view2.getLayoutParams();
+                object2 = object.f();
+                if (object2 == null || !((Behavior)object2).i(this, view2, view)) continue;
+                if (n3 == 0 && object.g()) {
+                    object.k();
                     continue;
                 }
                 if (n3 != 2) {
-                    bl = behavior.l(this, view, view2);
+                    bl = ((Behavior)object2).l(this, view2, view);
                 } else {
-                    behavior.m(this, view, view2);
+                    ((Behavior)object2).m(this, view2, view);
                     bl = true;
                 }
                 if (n3 != 1) continue;
-                e3.p(bl);
+                object.p(bl);
             }
         }
         CoordinatorLayout.S(rect);
@@ -1155,24 +1156,24 @@ d0 {
         var27_3 = this;
         var27_3.Q();
         var27_3.q();
-        var17_4 = var27_3.getPaddingLeft();
-        var19_5 = var27_3.getPaddingTop();
-        var16_6 = var27_3.getPaddingRight();
-        var20_7 = var27_3.getPaddingBottom();
+        var16_4 = var27_3.getPaddingLeft();
+        var20_5 = var27_3.getPaddingTop();
+        var17_6 = var27_3.getPaddingRight();
+        var19_7 = var27_3.getPaddingBottom();
         var9_8 = x0.y((View)var27_3);
         var7_9 = var9_8 == 1;
-        var21_10 = View.MeasureSpec.getMode((int)var1_1);
-        var22_11 = View.MeasureSpec.getSize((int)var1_1);
-        var24_12 = View.MeasureSpec.getMode((int)var2_2);
-        var23_13 = View.MeasureSpec.getSize((int)var2_2);
+        var22_10 = View.MeasureSpec.getMode((int)var1_1);
+        var24_11 = View.MeasureSpec.getSize((int)var1_1);
+        var23_12 = View.MeasureSpec.getMode((int)var2_2);
+        var21_13 = View.MeasureSpec.getSize((int)var2_2);
         var4_14 = var27_3.getSuggestedMinimumWidth();
         var12_15 = var27_3.getSuggestedMinimumHeight();
         var8_16 = var27_3.q != null && x0.v((View)var27_3) != false;
         var10_17 = var27_3.c.size();
         var3_18 = 0;
         var11_19 = 0;
-        var6_20 = var16_6;
-        var5_21 = var17_4;
+        var6_20 = var17_6;
+        var5_21 = var16_4;
         while (true) {
             block9: {
                 block8: {
@@ -1186,13 +1187,13 @@ d0 {
                 }
                 var28_28 = (e)var26_27 /* !! */ .getLayoutParams();
                 var5_21 = var28_28.e;
-                if (var5_21 < 0 || var21_10 == 0) ** GOTO lbl-1000
-                var14_23 = var27_3.A(var5_21);
-                var5_21 = o0.s.b(CoordinatorLayout.X(var28_28.c), var9_8) & 7;
-                if (var5_21 == 3 && !var7_9 || var5_21 == 5 && var7_9) {
-                    var5_21 = Math.max(0, var22_11 - var6_20 - var14_23);
-                } else if (var5_21 == 5 && !var7_9 || var5_21 == 3 && var7_9) {
-                    var5_21 = Math.max(0, var14_23 - var13_22);
+                if (var5_21 < 0 || var22_10 == 0) ** GOTO lbl-1000
+                var5_21 = var27_3.A(var5_21);
+                var14_23 = o0.s.b(CoordinatorLayout.X(var28_28.c), var9_8) & 7;
+                if (var14_23 == 3 && !var7_9 || var14_23 == 5 && var7_9) {
+                    var5_21 = Math.max(0, var24_11 - var6_20 - var5_21);
+                } else if (var14_23 == 5 && !var7_9 || var14_23 == 3 && var7_9) {
+                    var5_21 = Math.max(0, var5_21 - var13_22);
                 } else lbl-1000:
                 // 2 sources
 
@@ -1200,26 +1201,26 @@ d0 {
                     var5_21 = 0;
                 }
                 if (var8_16 && !x0.v(var26_27 /* !! */ )) {
-                    var25_26 = var27_3.q.j();
-                    var15_24 = var27_3.q.k();
-                    var18_25 = var27_3.q.l();
-                    var14_23 = var27_3.q.i();
-                    var15_24 = View.MeasureSpec.makeMeasureSpec((int)(var22_11 - (var25_26 + var15_24)), (int)var21_10);
-                    var14_23 = View.MeasureSpec.makeMeasureSpec((int)(var23_13 - (var18_25 + var14_23)), (int)var24_12);
+                    var14_23 = var27_3.q.j();
+                    var25_26 = var27_3.q.k();
+                    var15_24 = var27_3.q.l();
+                    var18_25 = var27_3.q.i();
+                    var14_23 = View.MeasureSpec.makeMeasureSpec((int)(var24_11 - (var14_23 + var25_26)), (int)var22_10);
+                    var15_24 = View.MeasureSpec.makeMeasureSpec((int)(var21_13 - (var15_24 + var18_25)), (int)var23_12);
                 } else {
-                    var15_24 = var1_1;
-                    var14_23 = var2_2;
+                    var14_23 = var1_1;
+                    var15_24 = var2_2;
                 }
                 var18_25 = var3_18;
                 var29_29 = var28_28.f();
-                if (var29_29 == null || !var29_29.q(this, (View)(var27_3 = var26_27 /* !! */ ), var15_24, var5_21, var14_23, 0)) {
-                    this.N(var26_27 /* !! */ , var15_24, var5_21, var14_23, 0);
+                if (var29_29 == null || !var29_29.q(this, (View)(var27_3 = var26_27 /* !! */ ), var14_23, var5_21, var15_24, 0)) {
+                    this.N(var26_27 /* !! */ , var14_23, var5_21, var15_24, 0);
                     var27_3 = var26_27 /* !! */ ;
                 }
                 var27_3 = var26_27 /* !! */ ;
                 var26_27 /* !! */  = this;
-                var4_14 = Math.max(var4_14, var17_4 + var16_6 + var27_3.getMeasuredWidth() + var28_28.leftMargin + var28_28.rightMargin);
-                var12_15 = Math.max(var12_15, var19_5 + var20_7 + var27_3.getMeasuredHeight() + var28_28.topMargin + var28_28.bottomMargin);
+                var4_14 = Math.max(var4_14, var16_4 + var17_6 + var27_3.getMeasuredWidth() + var28_28.leftMargin + var28_28.rightMargin);
+                var12_15 = Math.max(var12_15, var20_5 + var19_7 + var27_3.getMeasuredHeight() + var28_28.topMargin + var28_28.bottomMargin);
                 var11_19 = View.combineMeasuredStates((int)var11_19, (int)var27_3.getMeasuredState());
             }
             ++var3_18;
@@ -1537,30 +1538,30 @@ lbl15:
 
     public final void z(View view, int n3, Rect rect, Rect rect2, e e3, int n4, int n5) {
         int n6 = o0.s.b(CoordinatorLayout.V(e3.c), n3);
-        int n7 = o0.s.b(CoordinatorLayout.W(e3.d), n3);
-        int n8 = n6 & 7;
-        int n9 = n6 & 0x70;
-        n3 = n7 & 7;
-        n7 &= 0x70;
-        n3 = n3 != 1 ? (n3 != 5 ? rect.left : rect.right) : rect.left + rect.width() / 2;
-        n7 = n7 != 16 ? (n7 != 80 ? rect.top : rect.bottom) : rect.top + rect.height() / 2;
-        if (n8 != 1) {
-            n6 = n3;
-            if (n8 != 5) {
-                n6 = n3 - n4;
+        n3 = o0.s.b(CoordinatorLayout.W(e3.d), n3);
+        int n7 = n6 & 7;
+        int n8 = n6 & 0x70;
+        int n9 = n3 & 7;
+        n6 = n3 & 0x70;
+        n3 = n9 != 1 ? (n9 != 5 ? rect.left : rect.right) : rect.left + rect.width() / 2;
+        n6 = n6 != 16 ? (n6 != 80 ? rect.top : rect.bottom) : rect.top + rect.height() / 2;
+        if (n7 != 1) {
+            n9 = n3;
+            if (n7 != 5) {
+                n9 = n3 - n4;
             }
         } else {
-            n6 = n3 - n4 / 2;
+            n9 = n3 - n4 / 2;
         }
-        if (n9 != 16) {
-            n3 = n7;
-            if (n9 != 80) {
-                n3 = n7 - n5;
+        if (n8 != 16) {
+            n3 = n6;
+            if (n8 != 80) {
+                n3 = n6 - n5;
             }
         } else {
-            n3 = n7 - n5 / 2;
+            n3 = n6 - n5 / 2;
         }
-        rect2.set(n6, n3, n4 + n6, n5 + n3);
+        rect2.set(n9, n3, n4 + n9, n5 + n3);
     }
 
     public static abstract class Behavior<V extends View> {

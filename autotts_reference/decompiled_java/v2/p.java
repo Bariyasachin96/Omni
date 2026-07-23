@@ -82,11 +82,11 @@ public class p {
         Object object2 = this.h;
         float f3 = object2[0];
         Object object3 = this.i;
-        f3 = Math.max((float)Math.hypot(f3 - object3[0], object2[1] - object3[1]) - 0.001f, 0.0f);
-        float f4 = this.j(((c)object).c, n3);
+        float f4 = Math.max((float)Math.hypot(f3 - object3[0], object2[1] - object3[1]) - 0.001f, 0.0f);
+        f3 = this.j(((c)object).c, n3);
         this.g.n(0.0f, 0.0f);
         object2 = this.k(n3, ((c)object).a);
-        object2.b(f3, f4, ((c)object).e, this.g);
+        object2.b(f4, f3, ((c)object).e, this.g);
         this.j.reset();
         this.g.d(this.c[n3], this.j);
         if (this.l && (object2.a() || this.m(this.j, n3) || this.m(this.j, n4))) {
