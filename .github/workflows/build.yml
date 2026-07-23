@@ -124,8 +124,6 @@ jobs:
                   ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
               }
               sourceSets { getByName("main") { java.srcDirs("src/main/java") } }
-              buildFeatures { compose = true }
-              composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
               externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
               signingConfigs {
                   create("release") {
@@ -151,13 +149,6 @@ jobs:
           dependencies {
               implementation("androidx.core:core-ktx:1.12.0")
               implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-              implementation("androidx.activity:activity-compose:1.8.2")
-              val composeBom = enforcedPlatform("androidx.compose:compose-bom:2024.06.00")
-              implementation(composeBom)
-              implementation("androidx.compose.ui:ui")
-              implementation("androidx.compose.ui:ui-graphics")
-              implementation("androidx.compose.material3:material3")
-              implementation("androidx.compose.material:material-icons-extended")
               implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
               implementation("androidx.viewpager2:viewpager2:1.1.0")
               implementation("com.google.android.material:material:1.11.0")
@@ -228,8 +219,6 @@ jobs:
           -keep class com.tts.easyvoice.NativeEngine { native <methods>; }
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
-          -keep class androidx.compose.animation.** { *; }
-          -keep class androidx.compose.animation.core.** { *; }
           -dontwarn javax.annotation.**
           -dontwarn javax.naming.**
           -dontwarn org.checkerframework.**
@@ -3670,46 +3659,8 @@ jobs:
           "import android.os.PowerManager\n"
           "import android.provider.Settings\n"
           "import android.widget.Toast\n"
-          "import androidx.activity.ComponentActivity\n"
           "import androidx.appcompat.app.AppCompatActivity\n"
-          "import androidx.activity.compose.BackHandler\n"
-          "import androidx.activity.compose.rememberLauncherForActivityResult\n"
           "import androidx.activity.result.contract.ActivityResultContracts\n"
-          "import androidx.activity.compose.setContent\n"
-          "import androidx.compose.foundation.ExperimentalFoundationApi\n"
-          "import androidx.compose.foundation.background\n"
-          "import androidx.compose.foundation.clickable\n"
-          "import androidx.compose.foundation.combinedClickable\n"
-          "import androidx.compose.foundation.layout.*\n"
-          "import androidx.compose.foundation.lazy.LazyColumn\n"
-          "import androidx.compose.foundation.lazy.items\n"
-          "import androidx.compose.runtime.saveable.rememberSaveable\n"
-          "import androidx.compose.foundation.rememberScrollState\n"
-          "import androidx.compose.foundation.selection.toggleable\n"
-          "import androidx.compose.foundation.selection.selectable\n"
-          "import androidx.compose.foundation.selection.selectableGroup\n"
-          "import androidx.compose.ui.viewinterop.AndroidView\n"
-          "import androidx.compose.foundation.verticalScroll\n"
-          "import androidx.compose.material.icons.Icons\n"
-          "import androidx.compose.material.icons.filled.*\n"
-          "import androidx.compose.material3.*\n"
-          "import androidx.compose.runtime.*\n"
-          "import androidx.compose.ui.Alignment\n"
-          "import androidx.compose.ui.Modifier\n"
-          "import androidx.compose.ui.graphics.Color\n"
-          "import androidx.compose.ui.platform.LocalClipboardManager\n"
-          "import androidx.compose.ui.platform.LocalContext\n"
-          "import androidx.compose.ui.semantics.clearAndSetSemantics\n"
-          "import androidx.compose.ui.semantics.contentDescription\n"
-          "import androidx.compose.ui.semantics.role\n"
-          "import androidx.compose.ui.semantics.semantics\n"
-          "import androidx.compose.ui.semantics.isTraversalGroup\n"
-          "import androidx.compose.ui.semantics.liveRegion\n"
-          "import androidx.compose.ui.semantics.LiveRegionMode\n"
-          "import androidx.compose.ui.semantics.stateDescription\n"
-          "import androidx.compose.ui.semantics.Role\n"
-          "import androidx.compose.ui.text.AnnotatedString\n"
-          "import androidx.compose.ui.unit.dp\n"
           "import androidx.core.content.FileProvider\n"
           "import kotlinx.coroutines.launch\n"
           "import kotlinx.coroutines.suspendCancellableCoroutine\n"
