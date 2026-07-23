@@ -3798,6 +3798,12 @@ jobs:
           "                                    layoutParams = android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)\n"
           "                                    tabMode = com.google.android.material.tabs.TabLayout.MODE_FIXED\n"
           "                                    tabGravity = com.google.android.material.tabs.TabLayout.GRAVITY_FILL\n"
+          "                                    val taA = themedContext.obtainStyledAttributes(intArrayOf(android.R.attr.colorAccent)); val accent = taA.getColor(0, 0); taA.recycle()\n"
+          "                                    val taS = themedContext.obtainStyledAttributes(intArrayOf(android.R.attr.textColorSecondary)); val secondary = taS.getColor(0, accent); taS.recycle()\n"
+          "                                    val taB = themedContext.obtainStyledAttributes(intArrayOf(android.R.attr.colorBackground)); val bg = taB.getColor(0, 0); taB.recycle()\n"
+          "                                    setSelectedTabIndicatorColor(accent)\n"
+          "                                    setTabTextColors(secondary, accent)\n"
+          "                                    setBackgroundColor(bg)\n"
           "                                }\n"
           "                                rootColumn.addView(pageViewPager)\n"
           "                                rootColumn.addView(tabLayout)\n"
@@ -3862,7 +3868,17 @@ jobs:
 
           # OEM-native theme: Theme.DeviceDefault so the app takes the device/system
           # UI colours + styling (One UI on Samsung, etc.). Platform widgets throughout.
+          # Light theme (values/): DeviceDefault light. Dark theme is in values-night/,
+          # so the app follows the system light/dark setting on every device.
           w("app/src/main/res/values/styles.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<resources>\n"
+          "    <style name=\"AppTheme\" parent=\"@android:style/Theme.DeviceDefault.Light.NoActionBar\" />\n"
+          "    <style name=\"AppTheme.NoActionBar\" parent=\"AppTheme\" />\n"
+          "</resources>\n")
+
+          # Dark theme (values-night/): DeviceDefault dark. Applied when the system is in dark mode.
+          w("app/src/main/res/values-night/styles.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
           "    <style name=\"AppTheme\" parent=\"@android:style/Theme.DeviceDefault.NoActionBar\" />\n"
