@@ -313,6 +313,7 @@ jobs:
           #include <stdint.h>
           #include <mutex>
           #include "compact_lang_det.h"
+          #include "encodings.h"
           #include "nnet_language_identifier.h"
           JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
               return JNI_VERSION_1_6;
@@ -923,6 +924,34 @@ jobs:
               for(jsize i=0;i<(jsize)v.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(v[i].c_str()));
               return arr;
           }
+          extern "C" JNIEXPORT jobjectArray JNICALL
+          Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
+              jclass sc=env->FindClass("java/lang/String");
+              if(!jText) return env->NewObjectArray(0, sc, nullptr);
+              const char* tc=env->GetStringUTFChars(jText,nullptr); std::string text(tc?tc:""); env->ReleaseStringUTFChars(jText,tc);
+              std::vector<std::string> flat;
+              if(!text.empty()){
+                  CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+                  CLD2::ResultChunkVector chunks;
+                  CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+                  int textBytes=0; bool reliable=false;
+                  CLD2::ExtDetectLanguageSummary(text.c_str(), (int)text.size(), true, &hints, 0,
+                                                 lang3, pct3, score3, &chunks, &textBytes, &reliable);
+                  for(size_t ci=0; ci<chunks.size(); ci++){
+                      const CLD2::ResultChunk& ch = chunks[ci];
+                      if(ch.offset < 0 || ch.bytes <= 0 || (size_t)(ch.offset+ch.bytes) > text.size()) continue;
+                      std::string seg = text.substr(ch.offset, (size_t)ch.bytes);
+                      const char* code = CLD2::LanguageCode((CLD2::Language)ch.lang1);
+                      std::string lang = (code && strlen(code)>=2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0) ? normalizeLangCode(std::string(code)) : "un";
+                      flat.push_back(lang);
+                      flat.push_back(seg);
+                  }
+              }
+              if(flat.empty() && !text.empty()){ flat.push_back("un"); flat.push_back(text); }
+              jobjectArray arr=env->NewObjectArray((jsize)flat.size(), sc, nullptr);
+              for(jsize i=0;i<(jsize)flat.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(flat[i].c_str()));
+              return arr;
+          }
           """)
 
           # ── NativeEngine.kt ──────────────────────────────────────────────────
@@ -941,6 +970,7 @@ jobs:
           "    ): String\n"
           "    external fun scriptLang(cp: Int): String\n"
           "    external fun scriptLangFallbacks(primary: String): Array<String>\n"
+          "    external fun nativeGetLanguages(text: String): Array<String>\n"
           "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
           "    external fun modeLang(mode: Int, latFall: String, nonLatFall: String): String\n"
           "    external fun detectLanguageFull(text: String, latFall: String, nonLatFall: String,\n"
@@ -1142,17 +1172,17 @@ jobs:
           "        } else {\n"
           "            val legacy = prefs.getString(\"reading_mode\", \"\") ?: \"\"\n"
           "            if (legacy.isNotEmpty()) {\n"
-          "                autoMode = when (legacy) { \"none\" -> 0; \"dual\" -> 1; \"auto\" -> 2; \"google\" -> 3; \"mix\" -> 4; else -> 3 }\n"
+          "                autoMode = when (legacy) { \"none\" -> 0; \"dual\" -> 1; \"auto\" -> 2; \"google\" -> 3; \"mix\" -> 4; \"multilingual\" -> 5; else -> 3 }\n"
           "                prefs.edit().putInt(\"auto_mode\", autoMode).remove(\"reading_mode\").apply()\n"
           "            } else {\n"
           "                autoMode = 3\n"
           "            }\n"
           "        }\n"
           "        if (autoMode == 3 && !isGoogleTtsInstalled()) return \"none\"\n"
-          "        return when (autoMode) { 0 -> \"none\"; 1 -> \"dual\"; 2 -> \"auto\"; 3 -> \"google\"; 4 -> \"mix\"; else -> \"auto\" }\n"
+          "        return when (autoMode) { 0 -> \"none\"; 1 -> \"dual\"; 2 -> \"auto\"; 3 -> \"google\"; 4 -> \"mix\"; 5 -> \"multilingual\"; else -> \"auto\" }\n"
           "    }\n"
           "    fun setReadingMode(mode: String) {\n"
-          "        val autoMode = when (mode) { \"none\" -> 0; \"dual\" -> 1; \"auto\" -> 2; \"google\" -> 3; \"mix\" -> 4; else -> 2 }\n"
+          "        val autoMode = when (mode) { \"none\" -> 0; \"dual\" -> 1; \"auto\" -> 2; \"google\" -> 3; \"mix\" -> 4; \"multilingual\" -> 5; else -> 2 }\n"
           "        prefs.edit().putInt(\"auto_mode\", autoMode).remove(\"reading_mode\").apply()\n"
           "    }\n"
           "    fun isStripAudioAttr(): Boolean {\n"
@@ -2018,7 +2048,7 @@ jobs:
           "    }\n"
           "    private fun getForceEnabledLangs(mode: String, latFall: String, nonLatFall: String): Set<String> = when (mode) {\n"
           "        \"auto\", \"google\" -> setOf(latFall)\n"
-          "        \"mix\"  -> setOf(latFall, nonLatFall)\n"
+          "        \"mix\", \"multilingual\"  -> setOf(latFall, nonLatFall)\n"
           "        \"dual\" -> setOf(latFall, nonLatFall)\n"
           "        else   -> emptySet()\n"
           "    }\n"
@@ -2073,6 +2103,35 @@ jobs:
           "            val entries = isoToIso3.entries.toList()\n"
           "            NativeEngine.setIsoMap(entries.map { it.key }.toTypedArray(), entries.map { it.value }.toTypedArray())\n"
           "        } catch (_: Throwable) {}\n"
+          "    }\n"
+          "    private data class MLChunk(val lang: String, val latin: Boolean, val text: String)\n"
+          "    private fun isLatinCommonInherited(cp: Int): Boolean {\n"
+          "        val s = Character.UnicodeScript.of(cp)\n"
+          "        return s == Character.UnicodeScript.LATIN || s == Character.UnicodeScript.COMMON || s == Character.UnicodeScript.INHERITED\n"
+          "    }\n"
+          "    private fun multilingualChunks(text: String): List<MLChunk> {\n"
+          "        if (text.isEmpty()) return emptyList()\n"
+          "        if (prefs.isQuickCharacterReading() && text.length == 1) {\n"
+          "            return listOf(MLChunk(\"un\", isLatinCommonInherited(text.codePointAt(0)), text))\n"
+          "        }\n"
+          "        val flat = try { NativeEngine.nativeGetLanguages(text) } catch (_: Throwable) { emptyArray<String>() }\n"
+          "        val out = mutableListOf<MLChunk>()\n"
+          "        var i = 0\n"
+          "        while (i + 1 < flat.size) {\n"
+          "            val lang = flat[i]\n"
+          "            val seg = flat[i + 1]\n"
+          "            val probe = seg.trimStart()\n"
+          "            val cp = if (probe.isNotEmpty()) probe.codePointAt(0) else if (seg.isNotEmpty()) seg.codePointAt(0) else ' '.code\n"
+          "            out.add(MLChunk(lang, isLatinCommonInherited(cp), seg))\n"
+          "            i += 2\n"
+          "        }\n"
+          "        if (out.isEmpty()) out.add(MLChunk(\"un\", isLatinCommonInherited(text.codePointAt(0)), text))\n"
+          "        return out\n"
+          "    }\n"
+          "    private fun resolveMultilingualChunk(mc: MLChunk, latFall: String, nonLatFall: String): String {\n"
+          "        val det = mc.lang\n"
+          "        if (det != \"un\" && isKnownIso2(det) && isLangRoutable(det)) return det\n"
+          "        return if (mc.latin) latFall else nonLatFall\n"
           "    }\n"
           "    private fun isEngineAvailable(lang: String): Boolean {\n"
           "        val lookupKey = if (lang.length == 3) iso3ToIso[lang] ?: lang else lang\n"
@@ -2147,7 +2206,7 @@ jobs:
           "        buildVoiceList()\n"
           "        prefs.getLanguageList().forEach { prefs.getEngineForLanguage(it) }\n"
           "        prefs.isDedicatedEnginesEnabled()\n"
-          "        modeInt = when (prefs.getReadingMode()) { \"google\" -> 3; \"dual\" -> 1; \"mix\" -> 4; else -> 0 }\n"
+          "        modeInt = when (prefs.getReadingMode()) { \"google\" -> 3; \"dual\" -> 1; \"mix\" -> 4; \"multilingual\" -> 5; else -> 0 }\n"
           "        val eLatLang = prefs.getString(\"mixed_mode_latin_language\", \"\").ifEmpty { localeIso3() }\n"
           "        val eNonLatLang = prefs.getString(\"mixed_mode_non_latin_language\", \"\").ifEmpty { localeIso3() }\n"
           "        prefs.getString(\"auto_mode_language\", \"\")\n"
@@ -2193,7 +2252,7 @@ jobs:
           "    override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {\n"
           "        synchronized(syncLock) { isStopped = false; syncLock.notifyAll() }\n"
           "        synchronized(syncLock) { isFlushed = false; syncLock.notifyAll() }\n"
-          "        modeInt = when (prefs.getReadingMode()) { \"google\" -> 3; \"dual\" -> 1; \"mix\" -> 4; else -> 0 }\n"
+          "        modeInt = when (prefs.getReadingMode()) { \"google\" -> 3; \"dual\" -> 1; \"mix\" -> 4; \"multilingual\" -> 5; else -> 0 }\n"
           "        dualLang = prefs.getString(\"dual_mode_language\", \"\").ifEmpty { localeIso3() }\n"
           "        localeSpansFlag = prefs.isLocaleSpansEnabled(); stripAudioAttrFlag = prefs.isStripAudioAttr(); forceAccessibilityFlag = prefs.isForceAccessibilityStream()\n"
           "        numberModeInt = prefs.getNumberModeLang(); puncModeInt = prefs.getPuncModeLang(); emojiModeInt = prefs.getEmojiModeLang()\n"
@@ -2227,12 +2286,12 @@ jobs:
           "        val isStripAudioAttr      = prefs.isStripAudioAttr()\n"
           "        val useLocaleSpans    = prefs.isLocaleSpansEnabled()\n"
           "        val latFall = when (readingMode) {\n"
-          "            \"mix\"  -> normalizeLangCode(prefs.getString(\"mixed_mode_latin_language\", \"\").ifEmpty { java.util.Locale.getDefault().language })\n"
+          "            \"mix\", \"multilingual\"  -> normalizeLangCode(prefs.getString(\"mixed_mode_latin_language\", \"\").ifEmpty { java.util.Locale.getDefault().language })\n"
           "            \"dual\" -> \"en\"\n"
           "            else   -> prefs.getString(\"auto_mode_language\", \"\").ifEmpty { localeIso3() }\n"
           "        }\n"
           "        val nonLatFall = when (readingMode) {\n"
-          "            \"mix\"  -> normalizeLangCode(prefs.getString(\"mixed_mode_non_latin_language\", \"\").ifEmpty { java.util.Locale.getDefault().language })\n"
+          "            \"mix\", \"multilingual\"  -> normalizeLangCode(prefs.getString(\"mixed_mode_non_latin_language\", \"\").ifEmpty { java.util.Locale.getDefault().language })\n"
           "            \"dual\" -> prefs.getString(\"dual_mode_language\", \"\").ifEmpty { localeIso3() }\n"
           "            else   -> prefs.getString(\"auto_mode_language\", \"\").ifEmpty { localeIso3() }\n"
           "        }\n"
@@ -2367,6 +2426,34 @@ jobs:
           "                            val typeFb = normalizeLangCode(parts[0])\n"
           "                            chunks.add(TextChunk(parts[1], typeFb, mixPendingDetect = true, mixTypeFallback = typeFb))\n"
           "                        }\n"
+          "                    }\n"
+          "                }\n"
+          "            }\n"
+          "            \"multilingual\" -> {\n"
+          "                var mlHandled = false\n"
+          "                if (useLocaleSpans) {\n"
+          "                    val localeChunks = splitByLocaleSpans(rawCharSeq)\n"
+          "                    if (localeChunks.isNotEmpty() && localeChunks.any { it.lang != \"UNKNOWN\" }) {\n"
+          "                        EasyVoiceLogger.d(\"[SERVICE] multilingual mode: locale_spans path produced ${localeChunks.size} chunks\")\n"
+          "                        for (lc in localeChunks) {\n"
+          "                            if (isStopped) break\n"
+          "                            if (lc.lang != \"UNKNOWN\" && lc.lang.isNotEmpty() && isLangRoutableRaw(lc.lang)) {\n"
+          "                                chunks.add(TextChunk(lc.text, lc.lang))\n"
+          "                            } else {\n"
+          "                                for (mc in multilingualChunks(lc.text)) {\n"
+          "                                    if (mc.text.trim().isEmpty()) continue\n"
+          "                                    chunks.add(TextChunk(mc.text, resolveMultilingualChunk(mc, latFall, nonLatFall)))\n"
+          "                                }\n"
+          "                            }\n"
+          "                        }\n"
+          "                        mlHandled = true\n"
+          "                    }\n"
+          "                }\n"
+          "                if (!mlHandled) {\n"
+          "                    EasyVoiceLogger.d(\"[SERVICE] multilingual mode: processing full text directly\")\n"
+          "                    for (mc in multilingualChunks(rawText)) {\n"
+          "                        if (mc.text.trim().isEmpty()) continue\n"
+          "                        chunks.add(TextChunk(mc.text, resolveMultilingualChunk(mc, latFall, nonLatFall)))\n"
           "                    }\n"
           "                }\n"
           "            }\n"
@@ -3084,7 +3171,8 @@ jobs:
           "        Triple(\"dual\", \"Dual languages\", \"Character-by-character language recognition. Reads Latin words by English, others by user-specified language. This mode is designed for mixed-script texts combining English with a non-Latin language (e.g., English with Hindi)\"),\n"
           "        Triple(\"auto\", \"Auto language detect\", \"Whole-sentence language recognition. Reads text by most appropriated language. If language can't be detected, reads by user-preferred language. This mode is designed for single-script texts from any language.\"),\n"
           "        Triple(\"google\", \"Google TTS\", \"Same as auto mode, but only Google TTS is used.\"),\n"
-          "        Triple(\"mix\", \"Mixed mode\", \"Splits text into Latin and non-Latin segments, detects and reads each by the most appropriate language. This mode is designed for mixed-script texts combining a Latin-based language with a non-Latin language (e.g., English with Hindi, or French with Urdu).\")\n"
+          "        Triple(\"mix\", \"Mixed mode\", \"Splits text into Latin and non-Latin segments, detects and reads each by the most appropriate language. This mode is designed for mixed-script texts combining a Latin-based language with a non-Latin language (e.g., English with Hindi, or French with Urdu).\"),\n"
+          "        Triple(\"multilingual\", \"Multilingual mode (experimental)\", \"Splits text into per-language segments, detects and reads each by the most appropriate language. Because it analyzes the text in detail, this mode may be slower and is less effective for very short texts. It is designed specifically for mixed-script content combining one or more Latin-based languages with one or more non-Latin languages (e.g., English with Hindi and Urdu).\")\n"
           "    )\n"
           "    val initialMode = prefs.getReadingMode()\n"
           "    for ((mode, label, description) in modeRows) {\n"
@@ -3102,7 +3190,8 @@ jobs:
           "    val autoSection = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }\n"
           "    val dualSection = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }\n"
           "    val mixedSection = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }\n"
-          "    root.addView(autoSection); root.addView(dualSection); root.addView(mixedSection)\n"
+          "    val multilingualSection = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }\n"
+          "    root.addView(autoSection); root.addView(dualSection); root.addView(mixedSection); root.addView(multilingualSection)\n"
           "    var languageCodes: List<String> = emptyList()\n"
           "    var languageLabels: List<String> = emptyList()\n"
           "    val languageSpinners = mutableListOf<Triple<Spinner, String, String>>()\n"
@@ -3182,10 +3271,16 @@ jobs:
           "    addModeOptionSpinner(mixedSection, \"Select language for reading punctuations:\", prefs.getPuncModeLang()) { prefs.setPuncModeLang(it) }\n"
           "    mixedSection.addView(subHeader(context, \"Other options\"))\n"
           "    addCheckRow(mixedSection, context, \"Supports multilingual text with locale spans\", \"\", prefs.isLocaleSpansEnabled()) { prefs.setLocaleSpansEnabled(it) }\n"
+          "    multilingualSection.addView(sectionHeader(context, \"Mode Settings\"))\n"
+          "    addLanguageSpinner(multilingualSection, \"Preferred language for Latin text\", \"mixed_mode_latin_language\")\n"
+          "    addLanguageSpinner(multilingualSection, \"Preferred language for non-Latin text\", \"mixed_mode_non_latin_language\")\n"
+          "    multilingualSection.addView(subHeader(context, \"Other options\"))\n"
+          "    addCheckRow(multilingualSection, context, \"Supports multilingual text with locale spans\", \"\", prefs.isLocaleSpansEnabled()) { prefs.setLocaleSpansEnabled(it) }\n"
           "    fun updateModeSections(mode: String) {\n"
           "        autoSection.visibility = if (mode == \"auto\" || mode == \"google\") View.VISIBLE else View.GONE\n"
           "        dualSection.visibility = if (mode == \"dual\") View.VISIBLE else View.GONE\n"
           "        mixedSection.visibility = if (mode == \"mix\") View.VISIBLE else View.GONE\n"
+          "        multilingualSection.visibility = if (mode == \"multilingual\") View.VISIBLE else View.GONE\n"
           "    }\n"
           "    radioGroup.setOnCheckedChangeListener { _, checkedId ->\n"
           "        val mode = modeForRadioId[checkedId] ?: return@setOnCheckedChangeListener\n"
