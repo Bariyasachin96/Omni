@@ -117,8 +117,6 @@ jobs:
                   versionName = "16.0"
                   externalNativeBuild {
                       cmake {
-                          // -Os: size-optimized codegen (CLD2 is table-lookup bound — no measurable speed
-                          // cost vs -O2, smaller .so) + the existing dead-code stripping flags.
                           cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-Os", "-g0", "-fvisibility=hidden", "-ffunction-sections", "-fdata-sections")
                           arguments += listOf("-DANDROID_STL=c++_static")
                       }
@@ -161,8 +159,6 @@ jobs:
               implementation("androidx.compose.material3:material3")
               implementation("androidx.compose.material:material-icons-extended")
               implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-              // EXACT AutoTTS tab machinery: real ViewPager2 + Material TabLayout hosted in
-              // AndroidView (new_settings_activity structure).
               implementation("androidx.viewpager2:viewpager2:1.1.0")
               implementation("com.google.android.material:material:1.11.0")
           }
@@ -3992,18 +3988,10 @@ jobs:
           "    <queries>\n"
           "        <intent><action android:name=\"android.intent.action.TTS_SERVICE\" /></intent>\n"
           "    </queries>\n"
-          "    <!-- Foreground service keeps Easy Voice alive even when Android tries to kill\n"
-          "         long-running TTS services. MEDIA_PLAYBACK matches the original AutoTTS\n"
-          "         choice — it's the Play-Store-standard foreground type for TTS apps,\n"
-          "         no special-use review hassle, and integrates well with audio focus\n"
-          "         + lock-screen controls. -->\n"
           "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n"
           "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />\n"
           "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n"
-          "    <!-- WAKE_LOCK lets us survive Doze mode mid-synthesis on screen-off. -->\n"
           "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n"
-          "    <!-- Lets the user grant Easy Voice an exemption from aggressive battery\n"
-          "         optimization (the real fix for OEMs that kill background services). -->\n"
           "    <uses-permission android:name=\"android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\" />\n"
           "    <application\n"
           "        android:label=\"@string/app_name\"\n"
@@ -4021,8 +4009,6 @@ jobs:
           "                <action android:name=\"android.speech.tts.engine.CHECK_TTS_DATA\" />\n"
           "                <category android:name=\"android.intent.category.DEFAULT\" />\n"
           "            </intent-filter>\n"
-          "            <!-- AutoTTS parity: engine also handles INSTALL_TTS_DATA (voice data is built-in,\n"
-          "                 so CheckVoiceData handles it as a no-op — matches com.vnspeak.autotts manifest). -->\n"
           "            <intent-filter>\n"
           "                <action android:name=\"android.speech.tts.engine.INSTALL_TTS_DATA\" />\n"
           "                <category android:name=\"android.intent.category.DEFAULT\" />\n"
