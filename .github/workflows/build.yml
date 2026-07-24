@@ -3292,7 +3292,7 @@ jobs:
           "fun buildModesTabView(context: Context, prefs: SharedPrefsManager): View {\n"
           "    val root = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; setPadding(dpToPx(context, 16), dpToPx(context, 8), dpToPx(context, 16), dpToPx(context, 16)) }\n"
           "    val scroll = ScrollView(context).apply { addView(root) }\n"
-          "    root.addView(sectionHeader(context, \"Mode Select\"))\n"
+          "    root.addView(sectionHeader(context, \"Modes\"))\n"
           "    val googleInstalled = try { context.packageManager.getPackageInfo(\"com.google.android.tts\", 0); true } catch (_: Exception) { false }\n"
           "    val radioGroup = RadioGroup(context)\n"
           "    val modeForRadioId = LinkedHashMap<Int, String>()\n"
