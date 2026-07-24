@@ -962,7 +962,6 @@ jobs:
                       flat.push_back(seg);
                   }
               }
-              if(flat.empty() && !text.empty()){ flat.push_back("un"); flat.push_back(text); }
               jobjectArray arr=env->NewObjectArray((jsize)flat.size(), sc, nullptr);
               for(jsize i=0;i<(jsize)flat.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(flat[i].c_str()));
               return arr;
@@ -2237,12 +2236,10 @@ jobs:
           "        while (i + 1 < flat.size) {\n"
           "            val lang = flat[i]\n"
           "            val seg = flat[i + 1]\n"
-          "            val probe = seg.trimStart()\n"
-          "            val cp = if (probe.isNotEmpty()) probe.codePointAt(0) else if (seg.isNotEmpty()) seg.codePointAt(0) else ' '.code\n"
-          "            out.add(MLChunk(lang, isLatinCommonInherited(cp), seg))\n"
+          "            val latin = if (seg.isEmpty()) false else isLatinCommonInherited(seg.codePointAt(0))\n"
+          "            out.add(MLChunk(lang, latin, seg))\n"
           "            i += 2\n"
           "        }\n"
-          "        if (out.isEmpty()) out.add(MLChunk(\"un\", isLatinCommonInherited(text.codePointAt(0)), text))\n"
           "        return out\n"
           "    }\n"
           "    private fun resolveMultilingualChunk(mc: MLChunk, latFall: String, nonLatFall: String): String {\n"
@@ -3317,7 +3314,9 @@ jobs:
           "        }\n"
           "        modeForRadioId[radio.id] = mode\n"
           "        radioGroup.addView(radio)\n"
-          "        radioGroup.addView(descriptionText(context, description, 40))\n"
+          "        val desc = descriptionText(context, description, 40)\n"
+          "        radioGroup.addView(desc)\n"
+          "        if (mode == \"google\") { radio.visibility = View.GONE; desc.visibility = View.GONE }\n"
           "    }\n"
           "    root.addView(radioGroup)\n"
           "    val autoSection = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }\n"
