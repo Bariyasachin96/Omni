@@ -12,7 +12,13 @@
 2. **Fix #16 (Disable engine handling) — IMPLEMENTED 2026-07-10** (user override: "exactly AutoTTS"). `isLangRoutable(lang)` helper (formerly `ko`) = `k.o()` parity (configured AND not-disabled), applied at detection-acceptance (clsCLD2.b:60), script-fallback primary+fallbacks (a.e+k.o), and auto/mix span resolution (H()=="Disable"→C). Dual mode untouched (type-based, no k.o). Previously set-aside; no longer.
 3. **Always develop on branch `claude/yaml-file-nk3czh`**
 4. **After every push, manually trigger GitHub Actions** (workflow_dispatch, workflow ID: 262884892)
-5. **NO OWN JUDGMENT / NO "manmani" — fix EXACTLY like AutoTTS, always.** Never take shortcuts justified by "minimal risk", "behaviorally same", "cosmetic/inaudible", or "already equivalent". If EasyVoice diverges from AutoTTS in ANY way (UI or processing/backend), match AutoTTS's actual behavior precisely — not an approximation, not my own preference. When I say something is "already fine" without a full AutoTTS source match, that is a violation. Verify every claim against the decompiled AutoTTS source before concluding, and match it byte-for-byte where possible. The user's decision is AutoTTS's behavior; I have no independent decision.
+5. **ZERO OWN DECISIONS — fix EXACTLY like AutoTTS, always. This is the #1 rule, blink on it every single edit.** I have NO independent decision, EVER. The user has said this many times; never make them say it again. Concretely:
+   - NEVER add anything AutoTTS does not have, and NEVER remove/change anything AutoTTS has — no matter how "small", "big", "cosmetic", or "internal".
+   - FORBIDDEN justifications for diverging: "minimal risk", "behaviorally same", "cosmetic/inaudible", "already equivalent", "defensive", "robustness", "hardening", "prevents a hang/leak/stray", "efficiency", "cleaner", "safer", "structural necessity". If AutoTTS does X — even if X looks like a bug — do EXACTLY X. If AutoTTS does NOT do Y, do NOT do Y.
+   - Before ANY behavioral edit: find the exact AutoTTS source, and mirror it byte-for-byte / field-for-field / order-for-order (UI strings, control flow, defaults, method calls, side effects, everything).
+   - Saying "already fine" / "inaudible" / "I'll leave it (my decision)" without a full AutoTTS source match IS a violation.
+   - Past self-inflicted violations already reverted (commit 3b02624): multilingual whitespace-chunk skip, multilingual empty→emptyList, speakRunnable stop-guard, initAllTTS restoringIndex reset, RestoreInitListener captured-idx guard, restoreEngine field pre-clearing, bindEngineKeepAlive in restore-listener. Do not reintroduce this class of "improvement".
+   The user's decision IS AutoTTS's actual behavior; there is no other source of truth.
 
 ## How to Trigger Build
 ```
