@@ -2470,7 +2470,7 @@ jobs:
           "        val effectiveMode = when {\n"
           "            forceGoogle -> \"auto\"\n"
           "            readingMode == \"none\" -> if (reqLang0.isEmpty() || reqLang0 == \"zxx\") \"auto\" else \"none\"\n"
-          "            readingMode == \"auto\" || (readingMode == \"mix\" && reqLang0 == \"zxx\") -> \"auto\"\n"
+          "            readingMode == \"auto\" || (reqLang0 == \"zxx\" && readingMode != \"dual\") -> \"auto\"\n"
           "            else -> readingMode\n"
           "        }\n"
           "        try {\n"
