@@ -2781,7 +2781,7 @@ jobs:
           "        }\n"
           "        speakChunk()\n"
           "        if (prefs.isKeepAliveMode()) {\n"
-          "            if (callback?.hasStarted() == false) callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
+          "            callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)\n"
           "            val silenceBuf = ByteArray(32)\n"
           "            val maxBuf = callback?.maxBufferSize ?: silenceBuf.size\n"
           "            keepAlive@ while (!isStopped) {\n"
