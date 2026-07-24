@@ -689,7 +689,7 @@ jobs:
               if(p=="bg") return {"mk"};
               if(p=="kk") return {"ky"};
               if(p=="he") return {"yi","lad"};
-              if(p=="ar") return {"ar"};
+              if(p=="ar") return {};
               if(p=="fa") return {"ur","ps","ku","ckb","sd","az","ks","ug"};
               if(p=="ur") return {"ps","sd","pa"};
               if(p=="ku") return {"ckb"};
@@ -747,6 +747,26 @@ jobs:
               }
               return out;
           }
+          static int jStrHash(const std::string& s){ uint32_t h=0; for(unsigned char c: s) h=h*31u+(uint32_t)c; return (int)h; }
+          static uint32_t jSpread(int h){ uint32_t u=(uint32_t)h; return u ^ (u>>16); }
+          static int jTableSizeFor(int c){ if(c<=1) return 1; int n=c-1; n|=n>>1;n|=n>>2;n|=n>>4;n|=n>>8;n|=n>>16; return n+1; }
+          static std::vector<std::string> jHashSetOrder(const std::vector<std::string>& ins, int initCap){
+              int cap=0, threshold=(initCap>=0?jTableSizeFor(initCap):0), size=0;
+              std::vector<std::vector<std::string>> buckets; std::unordered_set<std::string> keys;
+              auto resize=[&](){ int nc,nt; if(cap>0){nc=cap*2;nt=threshold*2;} else if(threshold>0){nc=threshold;nt=(int)(nc*0.75);} else {nc=16;nt=12;}
+                  std::vector<std::vector<std::string>> nb(nc); for(auto&b:buckets)for(auto&k:b) nb[jSpread(jStrHash(k))&(nc-1)].push_back(k); buckets.swap(nb); cap=nc; threshold=nt; };
+              for(auto& k: ins){ if(keys.count(k)) continue; if(buckets.empty()) resize(); buckets[jSpread(jStrHash(k))&(cap-1)].push_back(k); keys.insert(k); size++; if(size>threshold) resize(); }
+              std::vector<std::string> out; for(auto&b:buckets)for(auto&k:b) out.push_back(k); return out;
+          }
+          static std::string javaFamilyFallback(const std::string& primary, const std::vector<std::string>& fallbacks, const std::unordered_set<std::string>& enabled){
+              std::vector<std::string> full; full.push_back(primary); for(auto& f: fallbacks) full.push_back(f);
+              int initCap=(int)(full.size()/0.75)+1; if(initCap<16) initCap=16;
+              std::vector<std::string> famOrder = jHashSetOrder(full, initCap);
+              std::vector<std::string> fi; for(auto& s: famOrder) if(enabled.count(s)) fi.push_back(s);
+              std::vector<std::string> r = jHashSetOrder(fi, -1);
+              for(auto& s: r) if(enabled.count(s)) return s;
+              return "";
+          }
           static std::string scriptLangFilteredC(int cp, const std::unordered_set<std::string>& enabled, std::string* lb){
               char hex[16]; snprintf(hex,sizeof(hex),"%x",cp);
               const char* pr = scriptLangC(cp);
@@ -769,11 +789,10 @@ jobs:
               else if(primary=="ja"&&((cp>=0x3040&&cp<=0x309F)||(cp>=0x1B000&&cp<=0x1B12F))) fallbacks={};
               else if(primary=="en"&&(cp>=0x10400&&cp<=0x1044F)) fallbacks={};
               else fallbacks = scriptLangFallbacksC(primary);
-              for(auto& fb: fallbacks){
-                  if(enabled.count(fb)){
-                      if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → fallback="+fb+" (k.o ok)\n";
-                      return fb;
-                  }
+              std::string fbres = javaFamilyFallback(primary, fallbacks, enabled);
+              if(!fbres.empty()){
+                  if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → fallback="+fbres+" (k.o ok, java-order)\n";
+                  return fbres;
               }
               if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → null (no enabled fallback found)\n";
               return "";
@@ -2112,6 +2131,40 @@ jobs:
           "        \"dual\" -> setOf(latFall, nonLatFall)\n"
           "        else   -> emptySet()\n"
           "    }\n"
+          "    private fun jStrHash(s: String): Int { var h = 0; for (c in s) h = h * 31 + c.code; return h }\n"
+          "    private fun jSpread(h: Int): Int = h xor (h ushr 16)\n"
+          "    private fun jTableSizeFor(c: Int): Int { if (c <= 1) return 1; var n = c - 1; n = n or (n shr 1); n = n or (n shr 2); n = n or (n shr 4); n = n or (n shr 8); n = n or (n shr 16); return n + 1 }\n"
+          "    private fun jHashSetOrder(ins: List<String>, initCap: Int): List<String> {\n"
+          "        var cap = 0; var threshold = if (initCap >= 0) jTableSizeFor(initCap) else 0; var size = 0\n"
+          "        var buckets: Array<MutableList<String>>? = null\n"
+          "        val keys = HashSet<String>()\n"
+          "        fun resize() {\n"
+          "            val nc: Int; val nt: Int\n"
+          "            if (cap > 0) { nc = cap * 2; nt = threshold * 2 } else if (threshold > 0) { nc = threshold; nt = (nc * 0.75).toInt() } else { nc = 16; nt = 12 }\n"
+          "            val nb = Array(nc) { mutableListOf<String>() }\n"
+          "            buckets?.let { for (b in it) for (k in b) nb[jSpread(jStrHash(k)) and (nc - 1)].add(k) }\n"
+          "            buckets = nb; cap = nc; threshold = nt\n"
+          "        }\n"
+          "        for (k in ins) {\n"
+          "            if (!keys.add(k)) continue\n"
+          "            if (buckets == null) resize()\n"
+          "            buckets!![jSpread(jStrHash(k)) and (cap - 1)].add(k)\n"
+          "            size++\n"
+          "            if (size > threshold) resize()\n"
+          "        }\n"
+          "        val out = mutableListOf<String>()\n"
+          "        buckets?.let { for (b in it) out.addAll(b) }\n"
+          "        return out\n"
+          "    }\n"
+          "    private fun javaFamilyFallback(primary: String, fallbacks: List<String>, enabled: Set<String>): String? {\n"
+          "        fun ok(s: String) = s in enabled && !prefs.isLanguageDisabled(s)\n"
+          "        val full = mutableListOf(primary); full.addAll(fallbacks)\n"
+          "        var initCap = (full.size / 0.75).toInt() + 1; if (initCap < 16) initCap = 16\n"
+          "        val famOrder = jHashSetOrder(full, initCap)\n"
+          "        val fi = famOrder.filter { ok(it) }\n"
+          "        val r = jHashSetOrder(fi, -1)\n"
+          "        return r.firstOrNull { ok(it) }\n"
+          "    }\n"
           "    private fun getScriptLangFiltered(cp: Int, enabled: Set<String>): String? {\n"
           "        val primary = getScriptLang(cp)\n"
           "        if (primary == null) {\n"
@@ -2135,11 +2188,10 @@ jobs:
           "            primary == \"en\" && (cp in 0x10400..0x1044F) -> emptyList()\n"
           "            else -> getScriptLangFallbacks(primary)\n"
           "        }\n"
-          "        for (fb in fallbacks) {\n"
-          "            if (fb in enabled && !prefs.isLanguageDisabled(fb)) {\n"
-          "                EasyVoiceLogger.d(\"[SCRIPT] getScriptLangFiltered cp=U+${cp.toString(16)} primary=$primary → fallback=$fb (k.o ok)\")\n"
-          "                return fb\n"
-          "            }\n"
+          "        val fbres = javaFamilyFallback(primary, fallbacks, enabled)\n"
+          "        if (fbres != null) {\n"
+          "            EasyVoiceLogger.d(\"[SCRIPT] getScriptLangFiltered cp=U+${cp.toString(16)} primary=$primary → fallback=$fbres (k.o ok, java-order)\")\n"
+          "            return fbres\n"
           "        }\n"
           "        EasyVoiceLogger.d(\"[SCRIPT] getScriptLangFiltered cp=U+${cp.toString(16)} primary=$primary → null (no enabled fallback found)\")\n"
           "        return null\n"
