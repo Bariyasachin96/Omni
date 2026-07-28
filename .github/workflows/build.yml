@@ -314,6 +314,9 @@ jobs:
           #include <mutex>
           #include "compact_lang_det.h"
           #include "encodings.h"
+          #include "getonescriptspan.h"
+          #include "langspan.h"
+          #include "generated_ulscript.h"
           #include "nnet_language_identifier.h"
           JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
               return JNI_VERSION_1_6;
@@ -944,23 +947,45 @@ jobs:
               jclass sc=env->FindClass("java/lang/String");
               if(!jText) return env->NewObjectArray(0, sc, nullptr);
               const char* tc=env->GetStringUTFChars(jText,nullptr); std::string text(tc?tc:""); env->ReleaseStringUTFChars(jText,tc);
-              std::vector<std::string> flat;
+              struct LSpan { int offset; int bytes; std::string lang; bool latin; };
+              std::vector<LSpan> spans;
+              const int kMaxSpans = 128;
               if(!text.empty()){
-                  CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
-                  CLD2::ResultChunkVector chunks;
-                  CLD2::Language lang3[3]; int pct3[3]; double score3[3];
-                  int textBytes=0; bool reliable=false;
-                  CLD2::ExtDetectLanguageSummary(text.c_str(), (int)text.size(), true, &hints, 0,
-                                                 lang3, pct3, score3, &chunks, &textBytes, &reliable);
-                  for(size_t ci=0; ci<chunks.size(); ci++){
-                      const CLD2::ResultChunk& ch = chunks[ci];
-                      if(ch.offset < 0 || ch.bytes <= 0 || (size_t)(ch.offset+ch.bytes) > text.size()) continue;
-                      std::string seg = text.substr(ch.offset, (size_t)ch.bytes);
-                      const char* code = CLD2::LanguageCode((CLD2::Language)ch.lang1);
-                      std::string lang = (code && strlen(code)>=2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0) ? normalizeLangCode(std::string(code)) : "un";
-                      flat.push_back(lang);
-                      flat.push_back(seg);
+                  CLD2::ScriptScanner ss(text.c_str(), (int)text.size(), true);
+                  CLD2::LangSpan ls;
+                  while(ss.GetOneScriptSpan(&ls)){
+                      if(ls.text_bytes <= 0) continue;
+                      int dlen = ls.text_bytes;
+                      if(dlen > 1024){
+                          dlen = 1024;
+                          while(dlen > 0 && ((unsigned char)ls.text[dlen] & 0xC0) == 0x80) dlen--;
+                      }
+                      CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+                      CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+                      int textBytes=0; bool reliable=false;
+                      CLD2::Language l = CLD2::ExtDetectLanguageSummary(ls.text, dlen, true, &hints, 0x4000,
+                                                 lang3, pct3, score3, nullptr, &textBytes, &reliable);
+                      const char* code = CLD2::LanguageCode(l);
+                      std::string lang = code ? std::string(code) : "un";
+                      bool latin = (ls.ulscript == CLD2::ULScript_Latin);
+                      if(!spans.empty() && spans.back().offset + spans.back().bytes == ls.offset
+                         && spans.back().latin == latin && spans.back().lang == lang){
+                          spans.back().bytes = (ls.offset + ls.text_bytes) - spans.back().offset;
+                      } else if((int)spans.size() < kMaxSpans){
+                          LSpan ns; ns.offset = ls.offset; ns.bytes = ls.text_bytes; ns.lang = lang; ns.latin = latin;
+                          spans.push_back(ns);
+                      } else if(!spans.empty()) {
+                          spans.back().bytes = (ls.offset + ls.text_bytes) - spans.back().offset;
+                      }
                   }
+              }
+              std::vector<std::string> flat;
+              for(size_t si=0; si<spans.size(); si++){
+                  const LSpan& s = spans[si];
+                  if(s.offset < 0 || s.bytes <= 0 || (size_t)(s.offset + s.bytes) > text.size()) continue;
+                  flat.push_back(s.lang);
+                  flat.push_back(s.latin ? "1" : "0");
+                  flat.push_back(text.substr(s.offset, (size_t)s.bytes));
               }
               jobjectArray arr=env->NewObjectArray((jsize)flat.size(), sc, nullptr);
               for(jsize i=0;i<(jsize)flat.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(flat[i].c_str()));
@@ -2233,18 +2258,15 @@ jobs:
           "        val flat = try { NativeEngine.nativeGetLanguages(text) } catch (_: Throwable) { emptyArray<String>() }\n"
           "        val out = mutableListOf<MLChunk>()\n"
           "        var i = 0\n"
-          "        while (i + 1 < flat.size) {\n"
-          "            val lang = flat[i]\n"
-          "            val seg = flat[i + 1]\n"
-          "            val latin = if (seg.isEmpty()) false else isLatinCommonInherited(seg.codePointAt(0))\n"
-          "            out.add(MLChunk(lang, latin, seg))\n"
-          "            i += 2\n"
+          "        while (i + 2 < flat.size) {\n"
+          "            out.add(MLChunk(flat[i], flat[i + 1] == \"1\", flat[i + 2]))\n"
+          "            i += 3\n"
           "        }\n"
           "        return out\n"
           "    }\n"
           "    private fun resolveMultilingualChunk(mc: MLChunk, latFall: String, nonLatFall: String): String {\n"
           "        val det = mc.lang\n"
-          "        if (det != \"un\" && isKnownIso2(det) && isLangRoutable(det)) return det\n"
+          "        if (isKnownIso2(det) && isLangRoutable(det)) return det\n"
           "        return if (mc.latin) latFall else nonLatFall\n"
           "    }\n"
           "    private fun isEngineAvailable(lang: String): Boolean {\n"
