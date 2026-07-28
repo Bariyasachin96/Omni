@@ -314,6 +314,7 @@ jobs:
           #include <mutex>
           #include "compact_lang_det.h"
           #include "encodings.h"
+          #include "compact_lang_det_impl.h"
           #include "getonescriptspan.h"
           #include "langspan.h"
           #include "generated_ulscript.h"
@@ -369,6 +370,7 @@ jobs:
               return code;
           }
           static std::string cld3DetectRaw(const std::string& u8);
+          static std::string cld2WindowDetectC(const std::string& u8, bool useCld3);
           static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, bool disableAdvancedDetection, bool useCld3) {
               std::vector<ChunkResult> chunks;
               std::string fullText = "";
@@ -380,14 +382,9 @@ jobs:
               }
               if(fullText.empty()) return chunks;
               std::string dominantLang;
-              if (useCld3) {
-                  dominantLang = cld3DetectRaw(fullText);
-              } else {
-                  bool is_rel = false;
-                  CLD2::Language cld2Lang = CLD2::DetectLanguage(fullText.c_str(), (int)fullText.size(), true, &is_rel);
-                  const char* code = CLD2::LanguageCode(cld2Lang);
-                  if (is_rel && code && strlen(code) >= 2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                      dominantLang = normalizeLangCode(std::string(code));
+              {
+                  std::string d = cld2WindowDetectC(fullText, useCld3);
+                  if (d != "UNKNOWN") dominantLang = d;
               }
               (void)disableAdvancedDetection; (void)latFall; (void)nonLatFall;
               if (dominantLang.empty()) dominantLang = "UNKNOWN";
@@ -834,13 +831,16 @@ jobs:
               return norm;
           }
           static std::string cld2WindowDetectC(const std::string& u8, bool useCld3){
-              if(useCld3) return cld3DetectRaw(u8);
-              bool is_rel=false;
-              CLD2::Language l = CLD2::DetectLanguage(u8.c_str(), (int)u8.size(), true, &is_rel);
-              const char* code = CLD2::LanguageCode(l);
-              if(is_rel && code && strlen(code)>=2 && strcmp(code,"un")!=0 && strcmp(code,"xx")!=0)
-                  return normalizeLangCode(std::string(code));
-              return "";
+              if(useCld3) { std::string c3r = cld3DetectRaw(u8); return c3r.empty() ? "UNKNOWN" : c3r; }
+              CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+              CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+              int textBytes=0; bool reliable=false;
+              CLD2::DetectLanguageSummaryV2(u8.c_str(), (int)u8.size(), true, &hints,
+                                            true, 0x4000, CLD2::UNKNOWN_LANGUAGE,
+                                            lang3, pct3, score3, nullptr, &textBytes, &reliable);
+              if(!reliable) return "UNKNOWN";
+              const char* code = CLD2::LanguageCode(lang3[0]);
+              return code ? std::string(code) : "UNKNOWN";
           }
           static std::unordered_set<std::string> jarrToSet(JNIEnv* env, jobjectArray arr){
               std::unordered_set<std::string> out;
@@ -906,7 +906,7 @@ jobs:
                   }
                   std::string det = cld2WindowDetectC(wu8, useCld3);
                   if(lb) *lb += std::string(useCld3?"[CLD3] detectWindow rawOut='":"[CLD2] cld2DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+wu8+"' → result="+(det.empty()?"null":det)+"\n";
-                  if(!det.empty()){
+                  if(!det.empty() && det!="UNKNOWN"){
                       if(disableAdv){ result=det; done=true; break; }
                       if(okIso3.count(toIso3C(det))){ result=det; done=true; break; }
                       int winCp = firstValidCpU16(chars+winStart, wend-winStart);
