@@ -561,15 +561,6 @@ jobs:
                   if (!result.empty() && result.back().lang == lang) result.back().text += seg.text;
                   else result.push_back({lang, seg.text});
               }
-              if (!result.empty()) {
-                  auto& txt = result.back().text;
-                  while (!txt.empty()) {
-                      unsigned char last = (unsigned char)txt.back();
-                      if (last == 0x20 || (last >= 0x09 && last <= 0x0D) || (last >= 0x1C && last <= 0x1F))
-                          txt.pop_back();
-                      else break;
-                  }
-              }
               return result;
           }
           extern "C" JNIEXPORT jstring JNICALL
@@ -2528,7 +2519,7 @@ jobs:
           "                                )\n"
           "                                for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                                    val parts = chunkStr.split(\"|\", limit = 2)\n"
-          "                                    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
+          "                                    if (parts.size == 2 && parts[0].isNotBlank()) {\n"
           "                                        val typeFb = normalizeLangCode(parts[0])\n"
           "                                        chunks.add(TextChunk(parts[1], typeFb, mixPendingDetect = true, mixTypeFallback = typeFb))\n"
           "                                    }\n"
@@ -2558,7 +2549,7 @@ jobs:
           "                    )\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
-          "                        if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
+          "                        if (parts.size == 2 && parts[0].isNotBlank()) {\n"
           "                            val typeFb = normalizeLangCode(parts[0])\n"
           "                            chunks.add(TextChunk(parts[1], typeFb, mixPendingDetect = true, mixTypeFallback = typeFb))\n"
           "                        }\n"
@@ -2609,7 +2600,7 @@ jobs:
           "                    )\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
-          "                        if (parts.size == 2 && parts[0].isNotBlank() && parts[1].trim().isNotEmpty()) {\n"
+          "                        if (parts.size == 2 && parts[0].isNotBlank()) {\n"
           "                            val resolved = normalizeLangCode(parts[0])\n"
           "                            chunks.add(TextChunk(parts[1], resolved, typeCode = if (resolved == normalizeLangCode(latFall)) 1 else 2))\n"
           "                        }\n"
