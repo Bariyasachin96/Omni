@@ -227,3 +227,41 @@ Everything else confirmed equal to EasyVoice:
   (both are only set by onStop at that point).
 
 No divergence left in the Mixed-mode chain.
+
+## 14. Chunk-by-chunk reading — all modes, both decompilers (2026-07-28)
+
+AutoTtsService$e.onDone advances chunks. CFR cannot decompile its inner
+Runnable, so it was read from DEX (baksmali) and cross-checked against
+the CFR-decompiled first-chunk path.
+
+onDone (e.onDone): `if (M.size() > 1) b.postDelayed(runnable, 50L)`
+else `log "No more text to read."; L(cb, 7)`.
+
+The runnable (AutoTtsService$e$a.run) — exactly three mode branches:
+
+| Mode | onDone behaviour | lang used for rate/pitch/volume | EasyVoice |
+|---|---|---|---|
+| Dual (O==1) | chunk type 1 → onLoadLanguage("eng"); type 2 → onLoadLanguage(G); any other type → no load | "eng" / G | typeCode 1 → "eng", 2 → dual_mode_language ✓ |
+| Mixed (O==4) | lang empty/"unknown" → clsCLD2.b → substring(0,2) → m.h.get → null ? type1→K/type2→L → M(lang) ""/"Disable" ? type1→K/type2→L → onLoadLanguage | the routed lang | resolveMixChunk(next) then onLoadLanguage(next.lang) ✓ |
+| None / Auto / Google / Multilingual (cond_194) | onLoadLanguage(M.get(0).b()) | chunk.lang | onLoadLanguage(next.lang) ✓ |
+
+Cross-check: the Mixed branch inside the onDone runnable emits the same
+call sequence as the CFR-decompiled first-chunk routing —
+z.b() → clsCLD2.b() → length()/substring(0,2) → Map.get → z.a()→L/K →
+"Disable" → z.a()→L/K → onLoadLanguage. Two independent tools, same
+logic, and EasyVoice runs one shared resolveMixChunk/speakChunk for both
+the first and subsequent chunks, so the two paths cannot drift.
+
+Also verified: run() starts with N++ then M.remove(0) before reading
+M.get(0); the speak block is the same as onSynthesizeText's (7 Bundle
+removes, S-gated streamType/audioAttributes, volume, listenerSet,
+T && !audioAttrSet audio attributes, QUEUE_FLUSH, utteranceId
+"<c0>_<N>"); and there is no AtomicBoolean check anywhere in run() —
+stopping works through m0() clearing M, mirrored by EasyVoice clearing
+chunkQueue in onStop.
+
+End-of-utterance: AutoTTS uses L(cb, 7) (sets p, and only calls done()
+if the callback had already started), then onSynthesizeText's tail runs
+K(cb, 13) which does start+done unconditionally. EasyVoice's queue-empty
+path does start+done directly and its tail repeats it — same observable
+outcome.
