@@ -2150,7 +2150,7 @@ jobs:
           "    }\n"
           "    private fun getForceEnabledLangs(mode: String, latFall: String, nonLatFall: String): Set<String> = when (mode) {\n"
           "        \"auto\", \"google\" -> setOf(latFall)\n"
-          "        \"mix\", \"multilingual\"  -> setOf(latFall, nonLatFall)\n"
+          "        \"mix\"  -> setOf(latFall, nonLatFall)\n"
           "        \"dual\" -> setOf(latFall, nonLatFall)\n"
           "        else   -> emptySet()\n"
           "    }\n"
