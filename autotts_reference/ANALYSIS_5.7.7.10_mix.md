@@ -171,3 +171,59 @@ zxx routing, spinner sync, and the self-added chunk filters.
 
 Note: `T`/`X`/`Y`/`a0`/`e0` were verified by purpose and interface, not
 line-by-line through their (long) loop bodies.
+
+## 13. Mix mode — byte-by-byte verification from DEX (2026-07-28)
+
+Re-verified the whole Mixed-mode chain against **baksmali output** rather
+than CFR, because CFR coalesces registers and had produced one
+misleading line. Read unfiltered, instruction by instruction.
+
+onSynthesizeText, O == 4 (AutoTtsService.smali, "Mixed mode" at 28327):
+```
+M.clear()
+spans = c3.z.g(text)
+for (i = 0; i < spans.size(); i++) {
+    if (q.get()) break                       // stop flag
+    lang = spans[i].b()
+    if (lang.equalsIgnoreCase("unknown") || lang.equals("")) {
+        M.addAll(c3.y.g(spans[i].c(), H, I, g0, b0))   // H=number, I=punc
+    } else {
+        engine = M(lang)
+        if (engine.isEmpty() || engine.equals("Disable")) lang = F
+        spans[i].e(lang); M.add(spans[i])
+    }
+}
+if (M.isEmpty()) skip
+text0 = M.get(0).c();  lang0 = M.get(0).b()
+if (lang0.isEmpty() || lang0.equals("unknown"))
+    lang0 = clsCLD2.b(text0, g0, b0, ctx)     // result lands in the SAME register
+if (lang0.length() > 2) lang0 = lang0.substring(0, 2)
+lang = m.h.get(lang0)
+if (lang == null) { t = M.get(0).a(); lang = t==1 ? K : t==2 ? L : lang }
+engine = M(lang)
+if (engine.isEmpty() || engine.equals("Disable")) {
+    t = M.get(0).a(); lang = t==1 ? K : t==2 ? L : lang
+}
+res = onLoadLanguage(lang, "", "");  if (res == -1 || res == -2) K(cb, 7)
+```
+
+Resolved ambiguity: CFR rendered the skip-detect path as
+`var1_1 = var10_15` (the request language). The DEX shows
+`clsCLD2.b(...)`'s result being written into the very register that held
+the chunk's language, i.e. the code simply keeps using the chunk's own
+language when detection is skipped. EasyVoice already does exactly that
+(`onLoadLanguage(prefs.toIso3(chunks[0].lang))`), so NOT "fixing" this
+from the CFR artifact was correct.
+
+Everything else confirmed equal to EasyVoice:
+- y.g argument order (text, H, I, g0, b0) — number before punctuation,
+  matching the jPunc/jNum positions checked in processDirect.
+- `m.h.get` membership == isKnownIso2 (both are Locale.getISOLanguages).
+- AutoTTS's two separate rejections (m.h null, then engine ""/"Disable")
+  collapse to EasyVoice's single
+  `isKnownIso2(det) && isLangRoutable(det) ? det : mixTypeFallback`,
+  with mixTypeFallback already carrying type1→K / type2→L.
+- span-loop guard `q.get()` ≡ EasyVoice's isStopped during chunk build
+  (both are only set by onStop at that point).
+
+No divergence left in the Mixed-mode chain.
