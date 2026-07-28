@@ -115,3 +115,30 @@ mixed K/L prefs; z.g LocaleSpan split → keep-routable-span or per-span chunk.
 6. **Multilingual mode (native)**: ✅ DONE (commit 011c6ca) — `nativeGetLanguages`
    multi-language chunking + type fallback + full 6th-mode UI/wiring.
 7. **Keep-alive**: skip the post-utterance wait when `keep_alive_mode` on.
+
+## 11. Mix mode A-to-Z verification (2026-07-28)
+
+Full line-by-line trace of Mixed mode (O==4) vs EasyVoice. Verified MATCH:
+
+| Step | AutoTTS (5.7.7.10) | EasyVoice |
+|---|---|---|
+| Defaults K/L/G/F | m.q(): "" → m.f(Locale.getDefault()) | same (ifEmpty → device locale) |
+| H/I/J | getInt(...,0) | same |
+| Span split | c3.z.g (Q-gated); Q off → 1 span "UNKNOWN" | splitByLocaleSpans / whole-text path |
+| Span loop guard | `!q.get()` (stop) | `if (isStopped) break` (equivalent) |
+| Span lang unknown/"" | → c3.y.g(text,H,I,g0,b0) | → processDirect("mix") |
+| Span lang known + engine usable | keep span lang | isLangRoutableRaw → keep |
+| Span lang known + engine ""/Disable | lang = F (auto_mode_language) | → autoModeC |
+| First chunk only detect | M.get(0) → clsCLD2.b | resolveMixChunk(chunks[0]) |
+| det → lang | substring(0,2) → m.h.get (iso2→iso3); null → type K/L | isLangRoutable(det) ? det : mixTypeFallback (equivalent outcome) |
+| engine ""/Disable | type fallback 1→K, 2→L, else keep | same via mixTypeFallback |
+| onLoadLanguage abort | -1/-2 → K(cb,7) | LANG_NOT_SUPPORTED/MISSING_DATA → done+return |
+| onIsLanguageAvailable | m.j(null,true).contains ? 0 : -2 (non-disabled scan list) | getLanguageList().contains && !isLanguageDisabled |
+| M(lang) | "" / "Disable" unusable | "NOT_SET" / "Disable" |
+| Bypass path | `[AutoTTS:` prefix → loadVoice | `[EasyVoice:` prefix → loadVoice |
+| p / q | p=end/unlock/stop, q=stop | isStopped / isFlushed |
+
+Divergences FOUND & FIXED this pass:
+1. `zxx` → auto for ALL non-Dual modes (AutoTtsService:1863) — EasyVoice only did it for mix. (46c397f)
+2. Speak dispatch: `if (!p && !q)` wraps listenerSet + setAudioAttributes + postDelayed (line 2268); EasyVoice posted unconditionally. Also param order strip→volume. (e16e119)
+3. e.onDone posts next chunk with `postDelayed(...,50L)` (line 2605); EasyVoice used post() with no delay. (e16e119)
