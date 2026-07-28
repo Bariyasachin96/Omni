@@ -445,7 +445,7 @@ jobs:
                       if (bufKind == 1) {
                           segs.push_back({buf, 2, ""});
                       } else {
-                          bool allWs = true, hasLetter = false, hasDigit = false;
+                          bool allWs = true, allPunct = true, allNumber = true;
                           const unsigned char* p = (const unsigned char*)buf.c_str();
                           int bufLen = (int)buf.size(), j = 0;
                           while (j < bufLen) {
@@ -457,21 +457,18 @@ jobs:
                                              cp == 0x205F || cp == 0x3000 ||
                                              cp == 0x2028 || cp == 0x2029;
                                 if (!isJWs) allWs = false; }
-                              if ((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') ||
-                                  (cp >= 0x00A1 && cp <= 0x00BF && cp != 0x00B0) ||
-                                  (cp >= 0x00C0 && cp <= 0x024F && cp != 0x00D7 && cp != 0x00F7) ||
-                                  (cp >= 0x1E00 && cp <= 0x1EFF) ||
-                                  (cp >= 0x2C60 && cp <= 0x2C7F) ||
-                                  (cp >= 0xA720 && cp <= 0xA7FF) ||
-                                  isEmoji(cp))
-                                  hasLetter = true;
-                              if ((cp >= '0' && cp <= '9') || (cp >= 0xFF10 && cp <= 0xFF19) ||
-                                  cp == 0x00B0 || cp == 0x00D7 || cp == 0x00F7 ||
-                                  (cp >= 0x20A0 && cp <= 0x20CF))
-                                  hasDigit = true;
+                              bool inPunct = (cp >= 0x21 && cp <= 0x2F) || (cp >= 0x3A && cp <= 0x40) ||
+                                             cp == 0x5B || (cp >= 0x5D && cp <= 0x60) || (cp >= 0x7B && cp <= 0x7E) ||
+                                             cp == 0x20 || (cp >= 0x09 && cp <= 0x0D) ||
+                                             (cp >= 0x2000 && cp <= 0x206F);
+                              bool inNumber = inPunct || (cp >= '0' && cp <= '9') ||
+                                              cp == 0x00B0 || cp == 0x00D7 || cp == 0x00F7 ||
+                                              (cp >= 0x20A0 && cp <= 0x20CF);
+                              if (!inPunct) allPunct = false;
+                              if (!inNumber) allNumber = false;
                               j += cpLen;
                           }
-                          segs.push_back({buf, allWs ? 0 : (hasLetter ? 1 : (hasDigit ? 3 : 4)), ""});
+                          segs.push_back({buf, allWs ? 0 : (allPunct ? 4 : (allNumber ? 3 : 1)), ""});
                       }
                       buf.clear(); bufKind = -1;
                   };
