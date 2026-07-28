@@ -4051,7 +4051,7 @@ jobs:
           "                                                            }\n"
           "                                                        },\n"
           "                                                        launchImportPicker = {\n"
-          "                                                            try { importSettingsLauncher.launch(arrayOf(\"text/xml\", \"application/xml\", \"*/*\")) } catch (e: Exception) { Toast.makeText(this@MainActivity, \"Import failed: ${e.message}\", Toast.LENGTH_SHORT).show() }\n"
+          "                                                            try { importSettingsLauncher.launch(arrayOf(\"text/xml\", \"application/xml\")) } catch (e: Exception) { Toast.makeText(this@MainActivity, \"Import failed: ${e.message}\", Toast.LENGTH_SHORT).show() }\n"
           "                                                        })\n"
           "                                                4 -> buildLicensesTabView(container.context)\n"
           "                                                else -> android.view.View(container.context)\n"
