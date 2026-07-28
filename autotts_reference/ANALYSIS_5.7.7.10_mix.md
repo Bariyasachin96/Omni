@@ -142,3 +142,32 @@ Divergences FOUND & FIXED this pass:
 1. `zxx` → auto for ALL non-Dual modes (AutoTtsService:1863) — EasyVoice only did it for mix. (46c397f)
 2. Speak dispatch: `if (!p && !q)` wraps listenerSet + setAudioAttributes + postDelayed (line 2268); EasyVoice posted unconditionally. Also param order strip→volume. (e16e119)
 3. e.onDone posts next chunk with `postDelayed(...,50L)` (line 2605); EasyVoice used post() with no delay. (e16e119)
+
+## 12. Full class-chain sweep (2026-07-28)
+
+Complete call-chain from AutoTtsService and clsCLD2 outward.
+
+Chain: AutoTtsService → {c3.a, c3.b, c3.d, c3.e, c3.f0, c3.g0, c3.m,
+c3.o, c3.v, c3.y, c3.z, clsCLD2, c0.k};  clsCLD2 → {c3.m, autotts.a}.
+
+Verified MATCH in this sweep (no change needed):
+| AutoTTS | What | EasyVoice |
+|---|---|---|
+| `c3.b` → `a(int)` | audio-focus change handler — **log only**, no behaviour on loss/gain | focus listener logs only ✓ |
+| `N` / `O` / `R` | per-language pitch / speed / volume from `m.c` (default 100) | `<lang>_pitch/_speed/_volume` prefs, default 100 ✓ |
+| `P` / `Q` | getVariant4Language / getVoice4Language (O==3 → return arg) | prefs voice/variant lookup ✓ |
+| `V(a,b)` | locale compare: iso3lang, then country (empty→true), then variant (empty→true) | `localeMatchesP` — exact ✓ |
+| `k0` | findEngineForLocale: 3 passes (lang+country+variant, lang+country, lang), early `return ""` if a voice entry won't parse | `findEngineForLocale` — exact, incl. early bail ✓ |
+| `onLoadVoice` | store name, parse locale, onLoadLanguage(iso3, country, variant), 0/1/2 → SUCCESS | same ✓ |
+| `onStartCommand` | returns 1 (START_STICKY) | START_STICKY ✓ |
+| `J` / `I` / `S` / `W` / `l0` | channel "tts_channel" / "TTS Engine" / IMPORTANCE_LOW(2); notification id **136549**, ongoing; POST_NOTIFICATIONS gate; **SDK 34+ → startForeground with FGS type 2 = MEDIA_PLAYBACK** | identical, incl. FGS type + manifest mediaPlayback ✓ |
+| `T` / `X` / `Y` / `a0` / `e0` | engine init + bind, one-time F/K/L/G load, engine list, scan list `m.c`+`m.f`, voice list `Y` | initAllTTS / eagerLoadPrefs / buildEngineList / language list / buildVoiceList ✓ |
+| `H` / `U` / `j0` / `c3.g0` | LicenseChecker (LVL) | intentionally absent — not a synthesis behaviour |
+
+No new divergences found in this sweep. The real gaps were the ones
+already fixed: detection API (BestEffort/V2), multilingual chunking
+(ScriptScanner), 2-char truncation, speak-dispatch guard, onDone 50ms,
+zxx routing, spinner sync, and the self-added chunk filters.
+
+Note: `T`/`X`/`Y`/`a0`/`e0` were verified by purpose and interface, not
+line-by-line through their (long) loop bodies.
