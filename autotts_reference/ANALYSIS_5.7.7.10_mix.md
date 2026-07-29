@@ -496,3 +496,77 @@ buttons (`marginEnd=4dip` / `marginStart=4dip`); the log buttons are `wrap_conte
 rows carry `marginTop=16dip`, `marginBottom=8dip`, `marginStart/End=5dip`.
 
 `j.O2()` has no `Build.VERSION.SDK_INT` gate and adds no intent flags.
+
+---
+
+## 18. Modes and Languages tabs — full CFR read
+
+CFR read for this pass: `c3/j.java` `onRadioButtonClicked` (217-338), `A2`, `I2`, `r2`,
+`z2`, `T2` (1046-1218), `U2` (1219-1544), `V2` (1545-1812), `X2`, `Z2`, `P1`, `I1`, `J1`,
+`K1`, `L1`, `M1`, `N1`, and the `j.z0` filter adapter (1981-2030); `c3/v.java`; resources
+`res/layout/fragment_modes.xml`, `res/layout/fragment_languages.xml`, `res/values/public.xml`,
+`res/values/strings.xml`.
+
+### `onRadioButtonClicked`
+`AutoTtsService.O` is the only thing written — nothing is persisted here; `m.v(ctx)` writes
+`auto_mode`, and it runs from `m.u(ctx)` on pause. Per case:
+
+| id | O | visible section | list rebuilt | adapter | selection |
+|---|---|---|---|---|---|
+| auto_mode_none | 0 | none | **no** | **none** | **none** |
+| auto_mode_dual | 1 | F0 | `m.h(ctx,false)` | `m.m(null)` | `m.g(G)` → s0 |
+| auto_mode_auto | 2 | E0 | `m.h(ctx,false)` | `m.m(null)` | `m.g(F)` → r0 |
+| auto_mode_google | 3 | E0 | `m.h(ctx,false)` | `m.m("com.google.android.tts")` | `m.g(F)` → r0 |
+| auto_mode_mixed | 4 | G0 | `m.h(ctx,false)` | `m.m(null)` | `m.g(K)` → x0,z0; `m.g(L)` → y0,A0 |
+| auto_mode_multilingual | 5 | H0 | `m.h(ctx,false)` | `m.m(null)` | same as 4 |
+
+None is the odd one out: it hides the four sections and returns. `m.g(iso3)` indexes into the
+unfiltered `m.c`, while the adapter is `m.m(pkg)` — the two only line up when `pkg` is null,
+which is every mode except Google.
+
+Modes 4 and 5 set adapters on all four spinners and select in all four, because the
+Multilingual pair writes the very same `K`/`L` the Mixed pair writes (`O1` ids 2131231057 →
+K, 2131231058 → L, 2131231089 → K, 2131231090 → L). Multilingual has no number and no
+punctuation spinner. `emoji_mode_language` is persisted by `m.w` but has no spinner anywhere.
+
+The Google radio and its description are `android:visibility="gone"` in
+`fragment_modes.xml`; `U2` only calls `O0.setEnabled(v.a(ctx))` and never makes them visible.
+
+### `U2` tail
+The four number/punctuation spinners share one adapter of
+`{number_mode_auto_language, number_mode_primary_language, number_mode_secondary_language}`
+= "Auto language" / "Primary language" / "Secondary language"; `t0`/`v0` take `H`, `u0`/`w0`
+take `I`, and `O1` mirrors each pair. Then the mode radio is dispatched, and only after that
+are `R0`/`S0`/`T0` (the three locale-span checkboxes over the single flag `Q`) given their
+`setChecked` and then their listeners, so the initial state never fires the mirroring.
+
+### `T2`
+`m.c` is rebuilt with `m.h(ctx,false)` and `m.y(ctx)` runs on entry. Label/code/checked lists
+come from `m.m/k/l(pkg)` where `pkg` is `com.google.android.tts` only for `O == 3`. `m.l`
+force-enables the mode's languages (no case for `O == 5`). The click handler reads the new
+state off the ListView, stores it in `o0`, and for a language in `m.n()` only re-checks the
+row — `c3.e.i` is not written. `j.I2` returns true on every path, so select-all clears
+`c3.e.i` for all of `m.c`. Clear-all disables everything, re-enables `m.n()`'s languages in
+both `m.c` and `o0`, re-checks their rows through `z0.b(originalIndex)`, and re-filters only
+when `q0` is set.
+
+### Sliders — still to port (`c3.m.y` semantics)
+`j.P1` and the six ±5 buttons only mutate the in-memory `c3.e` (`c` speed / `d` volume /
+`e` pitch), clamping at 10; `j.Z2` (Default) sets all three to 100 in memory. **Nothing there
+touches SharedPreferences.** `c3.m.y(ctx)` is the writer, and it writes `<iso>_speed`,
+`<iso>_volume`, `<iso>_pitch` **only when the value differs from 100** and `<iso>_variant`
+only when it differs from `"*Default"`, and it never removes a key. So returning a slider to
+100 — including with the Default button — leaves the old value in prefs, and the service
+keeps using the in-memory 100 until the process restarts. EasyVoice writes every change
+straight through, which is a different persisted state.
+
+### Service startup order (`onCreate`, 1555-1590)
+`m.c()` → `Y()` → `e0()` → `a0()` → `X()` → `m.p(ctx)` → `m.r(ctx)` → `U()` → `n = true` →
+`T()`. `Y()` (the engine list) therefore runs **before** `a0()` fills `m.c` and **before**
+`m.p` loads `O`. Its `defaultEngine = M(m.f(Locale.getDefault()))` consults `m.c`, which in a
+fresh process is empty, so `M` returns `""`: no engine is promoted to index 0 and none is
+skipped, and `P` ends up as `engine_0..N` verbatim (falling back to `com.google.android.tts`
+when empty and installed). Only when the settings Activity already populated `m.c` in the
+same process, or when `O == 3` short-circuits `M` to Google, does the promotion happen.
+EasyVoice's `buildEngineList()` reads the engine straight from prefs and always promotes —
+that gap is open.
