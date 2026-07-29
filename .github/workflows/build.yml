@@ -315,9 +315,6 @@ jobs:
           #include "compact_lang_det.h"
           #include "encodings.h"
           #include "compact_lang_det_impl.h"
-          #include "getonescriptspan.h"
-          #include "langspan.h"
-          #include "generated_ulscript.h"
           #include "nnet_language_identifier.h"
           JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
               return JNI_VERSION_1_6;
@@ -1050,37 +1047,99 @@ jobs:
               jclass sc=env->FindClass("java/lang/String");
               if(!jText) return env->NewObjectArray(0, sc, nullptr);
               const char* tc=env->GetStringUTFChars(jText,nullptr); std::string text(tc?tc:""); env->ReleaseStringUTFChars(jText,tc);
+              // ── exact port of getLanguageSpans (libcld2.so 0x653114) ──────────────────
+              // AutoTTS does NOT use CLD2::ScriptScanner here. It walks the UTF-8 bytes and
+              // splits on its own codepoint->script classifier; the latin flag handed back to
+              // Java is script_id == 1, not ulscript == ULScript_Latin.
               struct LSpan { int offset; int bytes; std::string lang; bool latin; };
               std::vector<LSpan> spans;
               const int kMaxSpans = 128;
-              if(!text.empty()){
-                  CLD2::ScriptScanner ss(text.c_str(), (int)text.size(), true);
-                  CLD2::LangSpan ls;
-                  while(ss.GetOneScriptSpan(&ls)){
-                      if(ls.text_bytes <= 0) continue;
-                      int dlen = ls.text_bytes;
-                      if(dlen > 1024){
-                          dlen = 1024;
-                          while(dlen > 0 && ((unsigned char)ls.text[dlen] & 0xC0) == 0x80) dlen--;
-                      }
-                      CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
-                      CLD2::Language lang3[3]; int pct3[3]; double score3[3];
-                      int textBytes=0; bool reliable=false;
-                      CLD2::Language l = CLD2::ExtDetectLanguageSummary(ls.text, dlen, true, &hints, 0x4000,
-                                                 lang3, pct3, score3, nullptr, &textBytes, &reliable);
-                      const char* code = CLD2::LanguageCode(l);
-                      std::string lang = code ? std::string(code) : "un";
-                      bool latin = (ls.ulscript == CLD2::ULScript_Latin);
-                      if(!spans.empty() && spans.back().offset + spans.back().bytes == ls.offset
-                         && spans.back().latin == latin && spans.back().lang == lang){
-                          spans.back().bytes = (ls.offset + ls.text_bytes) - spans.back().offset;
-                      } else if((int)spans.size() < kMaxSpans){
-                          LSpan ns; ns.offset = ls.offset; ns.bytes = ls.text_bytes; ns.lang = lang; ns.latin = latin;
-                          spans.push_back(ns);
-                      } else if(!spans.empty()) {
-                          spans.back().bytes = (ls.offset + ls.text_bytes) - spans.back().offset;
-                      }
+              // returns a script id, or -1 for "this codepoint does not change the script"
+              auto glsClassify = [](int cp) -> int {
+                  if (cp < 0x80) {                                   // only via overlong encodings
+                      int u = cp & 0x5F;
+                      return (u >= 0x41 && u <= 0x5A) ? -1 : 1;
                   }
+                  if (cp < 0xC0) return -1;
+                  if (cp < 0x2B0) return 1;
+                  if ((unsigned)(cp - 0x370) < 0x90)  return 7;                 // Greek
+                  if ((unsigned)(cp - 0x400) < 0x130) return 2;                 // Cyrillic
+                  if ((unsigned)(cp - 0x530) < 0x60)  return 8;                 // Armenian
+                  if ((unsigned)(cp - 0x590) < 0x70)  return 9;                 // Hebrew
+                  if ((unsigned)(cp - 0x8A0) < 0x60)  return 3;                 // Arabic Extended-A
+                  if ((cp & 0x1FFF00) == 0x600) return 3;            // Arabic
+                  if ((unsigned)(cp - 0x750) < 0x30)  return 3;                 // Arabic Supplement
+                  unsigned blk = ((unsigned)(cp - 0x900)) >> 7;
+                  if (blk <= 11) {
+                      static const int kIndic[12] = {4,6,11,12,13,14,15,16,17,18,19,20};
+                      return kIndic[blk];
+                  }
+                  if ((cp & 0x1FFF00) == 0xF00)  return 21;          // Tibetan
+                  if ((unsigned)(cp - 0x1000) < 0xA0)  return 22;          // Myanmar
+                  if ((unsigned)(cp - 0x10A0) < 0x60)  return 10;          // Georgian
+                  if ((cp & 0x1FFF00) == 0x1100) return 25;          // Hangul Jamo
+                  if ((unsigned)(cp - 0x1200) < 0x180) return 24;          // Ethiopic
+                  if ((cp & 0x1FFF80) == 0x1780) return 23;          // Khmer
+                  if ((cp & 0x1FFF00) == 0x1E00) return 1;           // Latin Extended Additional
+                  if ((cp & 0x1FFFE0) == 0x2C60) return 1;           // Latin Extended-C
+                  if ((unsigned)(cp - 0x2E80) < 0x160) return 5;           // CJK radicals / Kangxi
+                  if ((unsigned)(cp - 0x3040) < 0xC0)  return 5;           // Hiragana + Katakana
+                  if ((unsigned)(cp - 0x3130) < 0x60)  return 25;          // Hangul Compatibility Jamo
+                  if ((cp >> 4) == 0x31F)        return 5;           // Katakana Phonetic Extensions
+                  if ((((unsigned)(cp - 0x3400)) >> 10) < 0x1B) return 5;   // CJK 0x3400..0x9FFF
+                  if ((unsigned)(cp - 0xA720) < 0xE0)  return 1;           // Latin Extended-D
+                  if ((cp & 0x1FFFE0) == 0xA960) return 25;          // Hangul Jamo Extended-A
+                  if ((((unsigned)(cp - 0xAC00)) >> 10) < 0xB) return 25;   // Hangul syllables
+                  if ((unsigned)(cp - 0xF900) < 0x200) return 5;           // CJK Compatibility Ideographs
+                  if ((unsigned)(cp - 0xFB50) < 0x2B0) return 3;           // Arabic Presentation Forms-A
+                  if ((unsigned)(cp - 0xFE70) < 0x90)  return 3;           // Arabic Presentation Forms-B
+                  if ((unsigned)(cp - 0xFF66) < 0x38)  return 5;           // Halfwidth Katakana
+                  if ((((unsigned)(cp - 0x20000)) >> 5) < 0x7D1) return 5;  // CJK Ext B..
+                  return -1;
+              };
+              auto glsEmit = [&](int start, int len, int script) {
+                  if (len < 1) return;
+                  if (start < 0 || start + len > (int)text.size()) return;
+                  int dlen = len;
+                  if (dlen > 1024) {
+                      dlen = 1024;
+                      while (dlen > 0 && ((unsigned char)text[start + dlen] & 0xC0) == 0x80) dlen--;
+                  }
+                  CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+                  CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+                  int textBytes = 0; bool reliable = false;
+                  CLD2::Language l = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
+                                             lang3, pct3, score3, nullptr, &textBytes, &reliable);
+                  const char* code = CLD2::LanguageCode(l);
+                  LSpan ns;
+                  ns.offset = start; ns.bytes = len;
+                  ns.lang = code ? std::string(code) : "un";
+                  ns.latin = (script == 1);
+                  if ((int)spans.size() < kMaxSpans) spans.push_back(ns);
+              };
+              {
+                  int n = (int)text.size();
+                  int spanStart = 0, curScript = 0, i = 0;
+                  while (i < n) {
+                      signed char sb = (signed char)text[i];
+                      if (sb >= 0) {                                  // ASCII fast path
+                          int u = ((int)(unsigned char)text[i]) & 0x5F;
+                          if (u < 0x41 || u > 0x5A) { i++; continue; }  // non A-Z ASCII is skipped
+                          if (curScript >= 2) { glsEmit(spanStart, i - spanStart, curScript); spanStart = i; }
+                          curScript = 1;
+                          i++;
+                          continue;
+                      }
+                      int cpLen = 0;
+                      int cp = utf8ToCodepoint((const unsigned char*)text.data() + i, cpLen);
+                      if (cpLen <= 0 || i + cpLen > n) { cp = 0xFFFD; cpLen = 1; }
+                      int sc = glsClassify(cp);
+                      if (sc < 0) sc = curScript;
+                      else if (curScript != 0 && sc != curScript) { glsEmit(spanStart, i - spanStart, curScript); spanStart = i; }
+                      i += cpLen;
+                      curScript = sc;
+                  }
+                  glsEmit(spanStart, n - spanStart, curScript);
               }
               std::vector<std::string> flat;
               for(size_t si=0; si<spans.size(); si++){

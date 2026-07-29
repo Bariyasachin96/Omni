@@ -300,7 +300,7 @@ surrounds them.
 | id | ranges |
 |----|--------|
 | keep current | `0x80..0xBF`; `cp>>5 >= 0x7D1 + 0x20000` tail; any cp not listed |
-| 1 Latin | `0xC0..0x2AF`, `0x1E00..0x1E7F`(&0x1FFFE0==0x1E00), `0x2C60..0x2C7F`, `0xA720..0xA7FF`, ASCII A–Z |
+| 1 Latin | `0xC0..0x2AF`, `0x1E00..0x1EFF` (&0x1FFF00), `0x2C60..0x2C7F` (&0x1FFFE0), `0xA720..0xA7FF`, ASCII A–Z |
 | 2 Cyrillic | `0x400..0x52F` |
 | 3 Arabic | `0x600..0x6FF` (&0x1FFF00), `0x750..0x77F`, `0x8A0..0x8FF`, `0xFB50..0xFDFF`, `0xFE70..0xFEFF` |
 | 4 Devanagari | `0x900..0x97F` |
@@ -337,9 +337,14 @@ jump table, which is why every Indic block is exactly 128 codepoints wide.
 - writes 24-byte records; **the latin flag is `script_id == 1`**, NOT
   `ulscript == ULScript_Latin`
 
-### EasyVoice status
-`nativeGetLanguages` currently uses `CLD2::ScriptScanner` + `GetOneScriptSpan` and
-derives `latin` from `ls.ulscript == CLD2::ULScript_Latin`. The 1024-byte cap,
-BestEffort flag, `ExtDetectLanguageSummary` and `LanguageCode` already match; the
-**segmentation and the latin flag do not**. Porting the table above is the
-outstanding multilingual-mode work.
+### EasyVoice status — PORTED 2026-07-29
+`nativeGetLanguages` now walks the bytes itself with `glsClassify` + `glsEmit`,
+exactly as above; `CLD2::ScriptScanner`/`GetOneScriptSpan` are gone and the three
+headers they needed were dropped. `latin` is `script_id == 1`.
+
+**Every range comparison in the original is UNSIGNED (`b.lo`).** Writing them as
+signed `cp - 0x370 < 0x90` in C++ makes every codepoint below the range match, e.g.
+U+02B0 classified as Greek and U+A000 as Latin. The port was checked by
+transcribing the branch order at `0x653344..0x653618` a second time, independently,
+and diffing the two over the whole codespace: **1,114,112 codepoints, 0
+mismatches** (19,366 before the signedness fix).
