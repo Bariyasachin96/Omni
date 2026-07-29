@@ -3751,7 +3751,7 @@ jobs:
           "            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))\n"
           "        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }\n"
           "        val minusButton = android.widget.Button(context, null, android.R.attr.buttonStyleSmall).apply { text = \"-\"; contentDescription = \"Decrease \" + labelString.lowercase() }\n"
-          "        val seekBar = SeekBar(context).apply { max = maxValue; secondaryProgress = 0; gravity = android.view.Gravity.CENTER; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }\n"
+          "        val seekBar = SeekBar(context).apply { max = maxValue; secondaryProgress = 0; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }\n"
           "        val plusButton = android.widget.Button(context, null, android.R.attr.buttonStyleSmall).apply { text = \"+\"; contentDescription = \"Increase \" + labelString.lowercase() }\n"
           "        row.addView(minusButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = android.view.Gravity.START })\n"
           "        row.addView(seekBar, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { gravity = android.view.Gravity.CENTER })\n"
