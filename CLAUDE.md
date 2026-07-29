@@ -33,6 +33,14 @@
    - Regenerate CFR with the commands in `autotts_reference/README.md`; for stubborn methods add
      `--forcetopsortnopull false --aexagg true` before falling back to baksmali.
 
+## CLD3 (user decision, 2026-07-29)
+The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
+feature and **must NOT be removed**. The user wants CLD3 brought up to the same level of
+implementation as CLD2 — but **later**. Order of work:
+1. **NOW**: finish everything on the CLD2 path to exact AutoTTS parity.
+2. **THEN**: improve CLD3 the same way CLD2 is done.
+Do not start CLD3 work until the CLD2 side is declared complete.
+
 ## How to Trigger Build
 ```
 mcp__github__actions_run_trigger → run_workflow

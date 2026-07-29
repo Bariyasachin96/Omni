@@ -755,35 +755,148 @@ jobs:
               for(auto& s: r) if(enabled.count(s)) return s;
               return "";
           }
+          // ── exact port of com.vnspeak.autotts.a.c(int, Set) ────────────────────────────
+          // clsCLD2.b calls a.e(cp, m.f); with m.f non-empty that is a.c(cp, m.f) — a
+          // gated dispatch, NOT a.b(cp). Each script branch only fires when the enabled
+          // set intersects that script's language family; otherwise the codepoint falls
+          // through to the later branches and ends at a.u ("un").
+          // a.f(fam, enabled) + clsCLD2.b's pick collapse to: primary when it is enabled,
+          // else the first enabled member of `possible` in Java HashSet iteration order.
+          static const char* AC_LATIN[] = {"en","es","fr","de","it","pt","nl","sv","no","da","fi","pl","cs","sk","hu","ro","tr","id","ms","vi","tl","sw","hr","sr","sl","et","lv","lt","is","ga","cy","sq","mt"};
+          static const char* AC_CYR[]   = {"ru","uk","be","bg","mk","sr","bs","hr","kk","ky","tg","mn","uz","tt","ba","cv","sah","ce","av","ab"};
+          static const char* AC_ARAB[]  = {"ar","fa","ur","ps","sd","ku","ckb","az","ks","ug","ha"};
+          static const char* AC_FA[]    = {"fa","ur","ps","ku","ckb","sd","az","ks","ug"};
+          static const char* AC_UR[]    = {"ur","ps","sd","pa"};
+          static const char* AC_DEVA[]  = {"hi","mr","ne","sa","kok","mai","bh","new","awa","bho","raj","hne"};
+          static const char* AC_ETH[]   = {"am","ti","om","aa","so","sid","wal","gez"};
+          static const char* AC_CJK[]   = {"zh","ja","ko","vi"};
+          static const char* AC_DIGIT[] = {"en","es","fr","de","it","pt","ru","ja","zh","ko","ar","hi"};
+          template <size_t N>
+          static bool acAnyIn(const std::unordered_set<std::string>& enabled, const char* const (&arr)[N]){
+              for(size_t i=0;i<N;i++) if(enabled.count(arr[i])) return true;
+              return false;
+          }
+          // primary when enabled, else a.f()'s filtered HashSet order; "" when nothing survives
+          static std::string acPick(const std::string& primary, const std::vector<std::string>& rest,
+                                    const std::unordered_set<std::string>& enabled){
+              if(enabled.count(primary)) return primary;
+              return javaFamilyFallback(primary, rest, enabled);
+          }
+          template <size_t N>
+          static std::string acPickArr(const char* const (&arr)[N], const std::unordered_set<std::string>& enabled){
+              std::vector<std::string> rest; for(size_t i=1;i<N;i++) rest.push_back(arr[i]);
+              return acPick(arr[0], rest, enabled);
+          }
+          static std::string acFilteredC(int cp, const std::unordered_set<std::string>& enabled){
+              bool bl  = acAnyIn(enabled, AC_LATIN);
+              bool bl2 = acAnyIn(enabled, AC_CYR);
+              bool bl3 = acAnyIn(enabled, AC_ARAB);
+              bool bl4 = enabled.count("dv") > 0;
+              bool bl5 = acAnyIn(enabled, AC_DEVA);
+              bool bl6 = acAnyIn(enabled, AC_CJK);
+              bool bl7 = enabled.count("el") || enabled.count("grc") || enabled.count("pnt");
+              bool bl8 = enabled.count("bn") || enabled.count("as") || enabled.count("mni");
+              bool bl9 = enabled.count("th") || enabled.count("nod") || enabled.count("sou") || enabled.count("tts");
+              bool bl10 = enabled.count("ko") > 0;
+              bool bl11 = enabled.count("ja") || enabled.count("ain");
+              bool bl12 = enabled.count("he") || enabled.count("yi") || enabled.count("lad");
+              bool bl13 = enabled.count("hy") > 0;
+              bool bl14 = enabled.count("ka") || enabled.count("xmf") || enabled.count("lzz");
+              bool bl15 = acAnyIn(enabled, AC_ETH);
+              bool bl16 = enabled.count("pa") || enabled.count("gu") || enabled.count("or") || enabled.count("ta") ||
+                          enabled.count("te") || enabled.count("kn") || enabled.count("ml") || enabled.count("si") || enabled.count("tcy");
+              bool bl17 = enabled.count("lo") || enabled.count("hnx") || enabled.count("bo") || enabled.count("dz") ||
+                          enabled.count("my") || enabled.count("shn") || enabled.count("kar") || enabled.count("mnw") || enabled.count("km");
+              bool bl18 = enabled.count("mn") || enabled.count("mnc") || enabled.count("xal");
+              if(cp>=48 && cp<=57) return acPickArr(AC_DIGIT, enabled);
+              // a.t — Punctuation ("zz"): m.o("zz") is always false, so nothing is routed
+              if((cp>=32&&cp<=47)||(cp>=58&&cp<=64)||(cp>=91&&cp<=96)||(cp>=123&&cp<=126)||(cp>=8192&&cp<=8303)) return "";
+              if(bl){
+                  if(cp==192||cp==194||cp==199||cp==200||cp==201||cp==202||cp==203||cp==206||cp==207||cp==212||cp==217||
+                     cp==219||cp==224||cp==226||cp==231||cp==232||cp==233||cp==234||cp==235||cp==238||cp==239||cp==244||
+                     cp==249||cp==251||cp==338||cp==339) return acPick("fr", {"ca","oc"}, enabled);
+                  if(cp==193||cp==205||cp==209||cp==211||cp==218||cp==225||cp==237||cp==241||cp==243||cp==250)
+                      return acPick("es", {"pt","gl","ca"}, enabled);
+                  if(cp==196||cp==214||cp==220||cp==228||cp==246||cp==252||cp==223) return acPick("de", {"lb"}, enabled);
+                  if(cp==197||cp==198||cp==216||cp==229||cp==230||cp==248) return acPick("no", {"da","sv","is","fo"}, enabled);
+                  if(cp==260||cp==261||cp==262||cp==263||cp==280||cp==281||cp==321||cp==322||cp==323||cp==324||cp==346||
+                     cp==347||cp==377||cp==378||cp==379||cp==380) return acPick("pl", {}, enabled);
+                  if(cp==268||cp==269||cp==270||cp==271||cp==282||cp==283||cp==327||cp==328||cp==344||cp==345||cp==352||
+                     cp==353||cp==356||cp==357||cp==366||cp==367||cp==381||cp==382) return acPick("cs", {"sk"}, enabled);
+                  if((cp>=7840&&cp<=7929)||cp==272||cp==273||cp==416||cp==417||cp==431||cp==432) return acPick("vi", {}, enabled);
+                  if((cp>=65&&cp<=90)||(cp>=97&&cp<=122)) return acPickArr(AC_LATIN, enabled);
+                  if((cp>=192&&cp<=255)||(cp>=256&&cp<=591)) return acPickArr(AC_LATIN, enabled);
+              }
+              if(bl7 && ((cp>=880&&cp<=1023)||(cp>=7936&&cp<=8191))) return acPick("el", {"grc","pnt"}, enabled);
+              if(bl2 && ((cp>=1024&&cp<=1279)||(cp>=1280&&cp<=1327))){
+                  if(cp==1028||cp==1108||cp==1030||cp==1110||cp==1031||cp==1111||cp==1168||cp==1169) return acPick("uk", {}, enabled);
+                  if(cp==1026||cp==1106||cp==1032||cp==1112||cp==1033||cp==1113||cp==1034||cp==1114||cp==1035||cp==1115||
+                     cp==1039||cp==1119) return acPick("sr", {"bs","hr"}, enabled);
+                  if(cp==1066||cp==1098) return acPick("bg", {"mk"}, enabled);
+                  if(cp==1186||cp==1187||cp==1170||cp==1171||cp==1200||cp==1201||cp==1198||cp==1199||cp==1240||cp==1241)
+                      return acPick("kk", {"ky"}, enabled);
+                  if(cp==1025||cp==1105||cp==1069||cp==1101||cp==1067||cp==1099) return acPick("ru", {"be"}, enabled);
+                  return acPickArr(AC_CYR, enabled);
+              }
+              if(bl13 && ((cp>=1328&&cp<=1423)||(cp>=64256&&cp<=64279))) return acPick("hy", {}, enabled);
+              if(bl12 && ((cp>=1424&&cp<=1535)||(cp>=64285&&cp<=64335))) return acPick("he", {"yi","lad"}, enabled);
+              if(bl3 && ((cp>=1536&&cp<=1791)||(cp>=1872&&cp<=1919)||(cp>=2208&&cp<=2303)||(cp>=64336&&cp<=65023)||(cp>=65136&&cp<=65279))){
+                  if(cp==1657||cp==1672||cp==1681||cp==1729||cp==1746) return acPick("ur", {"pa"}, enabled);
+                  if(cp==1665||cp==1669||cp==1673||cp==1683||cp==1686||cp==1690||cp==1724||cp==1744) return acPick("ps", {}, enabled);
+                  if(cp>=1658&&cp<=1661) return acPick("sd", {}, enabled);
+                  if(cp==1742||cp==1685||cp==1717||cp==1734) return acPick("ku", {"ckb"}, enabled);
+                  if(cp==1722||cp==1726) return acPickArr(AC_UR, enabled);
+                  if(cp==1662||cp==1670||cp==1688||cp==1711) return acPickArr(AC_FA, enabled);
+                  return acPick("ar", {}, enabled);
+              }
+              if(bl4 && cp>=1920 && cp<=1983) return "dv";
+              if(bl5 && ((cp>=2304&&cp<=2431)||(cp>=43232&&cp<=43263))){
+                  if(cp!=2355) return acPickArr(AC_DEVA, enabled);
+                  return acPick("mr", {"kok"}, enabled);
+              }
+              if(bl8 && cp>=2432 && cp<=2559){
+                  if(cp==2544||cp==2545) return acPick("as", {}, enabled);
+                  return acPick("bn", {"as","mni"}, enabled);
+              }
+              if(bl16){
+                  if(cp>=2560&&cp<=2687) return acPick("pa", {}, enabled);
+                  if(cp>=2688&&cp<=2815) return acPick("gu", {}, enabled);
+                  if(cp>=2816&&cp<=2943) return acPick("or", {}, enabled);
+                  if(cp>=2944&&cp<=3071) return acPick("ta", {"kn"}, enabled);
+                  if(cp>=3072&&cp<=3199) return acPick("te", {}, enabled);
+                  if(cp>=3200&&cp<=3327) return acPick("kn", {"tcy"}, enabled);
+                  if(cp>=3328&&cp<=3455) return acPick("ml", {}, enabled);
+                  if(cp>=3456&&cp<=3583) return acPick("si", {}, enabled);
+              }
+              if(bl9 && cp>=3584 && cp<=3711) return acPick("th", {"nod","sou","tts"}, enabled);
+              if(bl17){
+                  if(cp>=3712&&cp<=3839) return acPick("lo", {"hnx"}, enabled);
+                  if(cp>=3840&&cp<=4095) return acPick("bo", {"dz"}, enabled);
+                  if((cp>=4096&&cp<=4255)||(cp>=43616&&cp<=43647)) return acPick("my", {"shn","kar","mnw"}, enabled);
+                  if((cp>=6016&&cp<=6143)||(cp>=6624&&cp<=6655)) return acPick("km", {}, enabled);
+              }
+              if(bl14 && ((cp>=4256&&cp<=4351)||(cp>=11520&&cp<=11567))) return acPick("ka", {"xmf","lzz"}, enabled);
+              if(bl10 && ((cp>=4352&&cp<=4607)||(cp>=12592&&cp<=12687)||(cp>=43360&&cp<=43391)||(cp>=44032&&cp<=55215)||(cp>=55216&&cp<=55295)))
+                  return acPick("ko", {}, enabled);
+              if(bl15 && ((cp>=4608&&cp<=4991)||(cp>=4992&&cp<=5023)||(cp>=11648&&cp<=11743))) return acPickArr(AC_ETH, enabled);
+              if(bl18 && ((cp>=6144&&cp<=6319)||(cp>=71264&&cp<=71295))) return acPick("mn", {"mnc","xal"}, enabled);
+              if(bl6 && cp>=12288 && cp<=12351) return acPickArr(AC_CJK, enabled);
+              if(bl11){
+                  if((cp>=12352&&cp<=12447)||(cp>=110592&&cp<=110847)||(cp>=110848&&cp<=110895)) return acPick("ja", {}, enabled);
+                  if((cp>=12448&&cp<=12543)||(cp>=12784&&cp<=12799)||(cp>=110896&&cp<=110959)) return acPick("ja", {"ain"}, enabled);
+              }
+              if(bl6 && ((cp>=19968&&cp<=40959)||(cp>=13312&&cp<=19903)||(cp>=131072&&cp<=173791)||(cp>=173824&&cp<=177983)||
+                         (cp>=177984&&cp<=178207)||(cp>=178208&&cp<=183983)||(cp>=183984&&cp<=191471)||
+                         (cp>=196608&&cp<=201551)||(cp>=201552&&cp<=205743)))
+                  return acPickArr(AC_CJK, enabled);
+              // a.w "emoji" / "math" are both ("zz", {"zz"}) and a.u is ("un", {"un"}) — none route
+              return "";
+          }
           static std::string scriptLangFilteredC(int cp, const std::unordered_set<std::string>& enabled, std::string* lb){
               char hex[16]; snprintf(hex,sizeof(hex),"%x",cp);
-              const char* pr = scriptLangC(cp);
-              if(lb) *lb += std::string("[SCRIPT] getScriptLang cp=U+")+hex+" → "+(pr&&*pr?pr:"null")+" (native)\n";
-              if(!pr||!*pr){ if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" → null (no primary script)\n"; return ""; }
-              std::string primary(pr);
-              if((cp>=0x10000&&cp<=0x1007F)||(cp>=0x10300&&cp<=0x1034F)||(cp>=0x10400&&cp<=0x1044F)||
-                 (cp>=0x10800&&cp<=0x1083F)||(cp>=0x10A00&&cp<=0x10A5F)||(cp>=0x12000&&cp<=0x1247F)||
-                 (cp>=0x13000&&cp<=0x1345F)){
-                  if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" → null (archaic script dropped in filtered path)\n";
-                  return "";
-              }
-              if(enabled.count(primary)){
-                  if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → "+primary+" (in enabled, k.o ok)\n";
-                  return primary;
-              }
-              std::vector<std::string> fallbacks;
-              if(primary=="ru"&&(cp==0x401||cp==0x451||cp==0x42D||cp==0x44D||cp==0x42B||cp==0x44B)) fallbacks={"be"};
-              else if(primary=="ur"&&(cp==0x0679||cp==0x0688||cp==0x0691||cp==0x06C1||cp==0x06D2)) fallbacks={"pa"};
-              else if(primary=="ja"&&((cp>=0x3040&&cp<=0x309F)||(cp>=0x1B000&&cp<=0x1B12F))) fallbacks={};
-              else if(primary=="en"&&(cp>=0x10400&&cp<=0x1044F)) fallbacks={};
-              else fallbacks = scriptLangFallbacksC(primary);
-              std::string fbres = javaFamilyFallback(primary, fallbacks, enabled);
-              if(!fbres.empty()){
-                  if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → fallback="+fbres+" (k.o ok, java-order)\n";
-                  return fbres;
-              }
-              if(lb) *lb += std::string("[SCRIPT] getScriptLangFiltered cp=U+")+hex+" primary="+primary+" → null (no enabled fallback found)\n";
-              return "";
+              std::string res = acFilteredC(cp, enabled);
+              if(lb) *lb += std::string("[SCRIPT] a.c cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n";
+              return res;
           }
           static const char* scriptLangC(int cp);
           static std::vector<std::string> scriptLangFallbacksC(const std::string& p);
