@@ -369,3 +369,56 @@ U+02B0 classified as Greek and U+A000 as Latin. The port was checked by
 transcribing the branch order at `0x653344..0x653618` a second time, independently,
 and diffing the two over the whole codespace: **1,114,112 codepoints, 0
 mismatches** (19,366 before the signedness fix).
+
+---
+
+## 16. Voices tab — the per-voice weight (`c3.w.e`) and when it reaches prefs
+
+Read in full: `c3/j.java` `O1` (723-836), `D2` (373-413), `Y2` (1854-1905), `V2`
+(1545-1812); `c3/m.java` `a` (112-129), `b` (131-157), `d` (179-229), `h` (275-388),
+`i`/`j`/`n` (390-489), `s` (549-551), `u` (568-576), `y`/`z` (622-670), `B`/`C`
+(69-83); `c3/w.java` (whole); `c3/e.java` (whole);
+`com/vnspeak/autotts/NewSettingsActivity.java` `A0`/`B0` (78-130), `onPause` (410);
+`com/vnspeak/autotts/AutoTtsService.java` `M`/`P`/`Q` (314-437), `a0` (736-813).
+
+### The chain
+1. `NewSettingsActivity.B0()` clears `m.d` and rescans. Every voice becomes one
+   `c3.w` via `m.a(ctx, voice.getLocale(), engine)`, whose weight is seeded
+   **once** from `m.s(ctx, w.f())` = `Integer.parseInt(getString(key, "1000"))`.
+   `w.f()` is `pkg + "#" + locale.toString()` (`"Disable#" + locale` when
+   `w.d == null`). `m.b()` de-dupes by (pkg, iso3-lang, iso3-country) and appends
+   the extra `Voice.getName()` to `w.f`, the variant list, which the `w`
+   constructor seeds with `"*Default"`.
+2. `j.D2(iso3)` rebuilds `m.e` for the selected language, appends the `*Disabled`
+   row, `Collections.sort(m.e)` (`w.b`: weight, then `g()` case-insensitively),
+   and then **re-numbers every entry `h(0..N-1)`**. This is in memory only.
+3. `j.O1` voice branch: `h(0)` on the picked row, `h(n4 + 1)` on every row before
+   it, rows after it untouched, `Collections.sort(m.e)`, `Y2()`. **No prefs write.**
+   Because step 2 normalised the weights, this is exactly a rotate-to-front.
+4. `c3.m.C(ctx)` is the only writer: `m.B(ctx, m.e[i], i)` puts
+   `w.f() -> String.valueOf(i)` and, for `i == 0`, `m.f(w.c) -> w.f()` — the
+   `<iso3> -> "pkg#locale"` key the service later splits into `e.f`/`e.g`. It runs
+   at the **top of `O1`'s language branch** and from `m.u(ctx)` in
+   `NewSettingsActivity.onPause`. `commit()`, not `apply()`.
+
+### Consequence that EasyVoice was missing
+Merely *visiting* a language in the Voices tab and then switching away writes that
+language's `<iso3>` engine key in AutoTTS, because `D2` normalised the weights and
+`m.C` persists `m.e[0]`. EasyVoice only ever wrote on an explicit voice pick, so a
+language the user had only looked at stayed `NOT_SET` and was not routable.
+
+### Other verified divergences fixed in the same pass
+- `D2` adds the `*Disabled` row for `O == 2` (auto, when `iso != F`) **and for
+  `O == 4 || O == 5`** (mixed *and multilingual*, when `iso != K && iso != L`).
+  EasyVoice had only auto and mixed.
+- `m.h(ctx, …)` re-enables any language in `m.n()` that is flagged
+  `<iso>_disabled` and persists with `m.z(ctx)`. `m.n()`: `O==1 -> {G, "eng"}`,
+  `O==2|3 -> {F}`, `O==4 -> {K, L}`, otherwise empty.
+- `Y2()` does nothing at all while `m.e` is empty (the variant spinner keeps its
+  old adapter) and writes `m.c[b1].h = ""` when the stored variant is empty.
+
+### Known AutoTTS defect, deliberately NOT reproduced
+`Y2()` sizes the variant array at `m.e[0].f.size()`. If `m.c[b1].h` is not in that
+list — pick a voice from engine A, then a voice from engine B that lacks A's
+variant name — the fill writes one past the end and `O1` throws outside its own
+try/catch. EasyVoice's list simply grows by one instead.
