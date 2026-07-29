@@ -19,6 +19,19 @@
    - Saying "already fine" / "inaudible" / "I'll leave it (my decision)" without a full AutoTTS source match IS a violation.
    - Past self-inflicted violations already reverted (commit 3b02624): multilingual whitespace-chunk skip, multilingual empty→emptyList, speakRunnable stop-guard, initAllTTS restoringIndex reset, RestoreInitListener captured-idx guard, restoreEngine field pre-clearing, bindEngineKeepAlive in restore-listener. Do not reintroduce this class of "improvement".
    The user's decision IS AutoTTS's actual behavior; there is no other source of truth.
+6. **CFR FIRST, SMALI ONLY AS FALLBACK (user rule, 2026-07-29).** Reading order is fixed:
+   - **Always start with the CFR `.java` files** in `autotts_reference/decompiled_java/`. Read the
+     WHOLE relevant file(s) — all methods, big ones included, unfiltered, byte-by-byte.
+   - **Fix everything that CFR alone makes clear.** CFR's accuracy is very high; do not second-guess
+     it or go hunting in smali "just to be sure". That wastes the pass and is what the user objected to.
+   - **Open smali ONLY when CFR is actually broken or unreadable** for that specific spot — e.g.
+     `** GOTO lblNNN`, `// 2 sources`, `** continue`, `ConfusedCFRException`, an obviously wrong
+     `varX = varY` alias, or a control-flow shape that cannot be understood as written.
+   - When CFR *is* clear, smali is not needed and must not be the basis of the fix.
+   - Practical note: CFR often renders as ONE expression what smali scatters across many `cond_*`
+     labels (e.g. the onSynthesizeText mode gate) — that is precisely why CFR comes first.
+   - Regenerate CFR with the commands in `autotts_reference/README.md`; for stubborn methods add
+     `--forcetopsortnopull false --aexagg true` before falling back to baksmali.
 
 ## How to Trigger Build
 ```
