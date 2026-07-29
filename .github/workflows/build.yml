@@ -343,7 +343,7 @@ jobs:
                      cp==0x1F201||cp==0x1F202||cp==0x1F21A||cp==0x1F22F||(cp>=0x1F232&&cp<=0x1F23A)||cp==0x1F250||cp==0x1F251||
                      (cp>=0x1F300&&cp<=0x1F5FF)||(cp>=0x1F600&&cp<=0x1F64F)||(cp>=0x1F680&&cp<=0x1F6FF)||(cp>=0x1F900&&cp<=0x1F9FF);
           }
-          struct ChunkResult { std::string lang; std::string text; };
+          struct ChunkResult { std::string lang; std::string text; int type; };
           static std::string normalizeLangCode(const std::string& code) {
               if (code.size() <= 2) return code;
               static const char* tbl[][2] = {
@@ -388,7 +388,7 @@ jobs:
               }
               (void)disableAdvancedDetection; (void)latFall; (void)nonLatFall;
               if (dominantLang.empty()) dominantLang = "UNKNOWN";
-              chunks.push_back({dominantLang, fullText});
+              chunks.push_back({dominantLang, fullText, 0});
               return chunks;
           }
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, bool disableAdvancedDetection, bool isDual = false) {
@@ -517,22 +517,24 @@ jobs:
                   int segType = segs[segPos].type;
                   if (segType == 1 || segType == 2) continue;
                   if (segType != 3 && segType != 4) continue;
+                  // AutoTTS y.g: d(H)/d(I) when the mode int is set, else d(y.a(...)) for the first
+                  // element and d(y.b(...)) for the rest — y.a/y.b return the first/previous type that
+                  // is neither 3 nor 4, or 0 when there is none. The TYPE is what later resolution reads.
+                  int resolvedType = 0;
                   if (segType == 4 && !puncFall.empty() && puncFall != "auto") {
-                      segs[segPos].lang = puncFall;
+                      resolvedType = (puncFall == latFall) ? 1 : 2;
                   } else if (segType == 3 && !numFall.empty() && numFall != "auto") {
-                      segs[segPos].lang = numFall;
+                      resolvedType = (numFall == latFall) ? 1 : 2;
+                  } else if (segPos == 0) {
+                      for (int fwd = segPos + 1; fwd < (int)segs.size() && resolvedType == 0; fwd++)
+                          if (segs[fwd].type != 3 && segs[fwd].type != 4) resolvedType = segs[fwd].type;
                   } else {
-                      std::string resolved;
-                      if (segPos == 0) {
-                          for (int fwd = segPos + 1; fwd < (int)segs.size() && resolved.empty(); fwd++)
-                              if (segs[fwd].type == 1 || segs[fwd].type == 2) resolved = segs[fwd].lang;
-                      } else {
-                          for (int bwd = segPos - 1; bwd >= 0 && resolved.empty(); bwd--)
-                              if (segs[bwd].type == 1 || segs[bwd].type == 2) resolved = segs[bwd].lang;
-                      }
-                      segs[segPos].lang = resolved.empty() ? neutralDefault : resolved;
+                      for (int bwd = segPos - 1; bwd >= 0 && resolvedType == 0; bwd--)
+                          if (segs[bwd].type != 3 && segs[bwd].type != 4) resolvedType = segs[bwd].type;
                   }
-                  segs[segPos].type = 1;
+                  segs[segPos].type = resolvedType;
+                  segs[segPos].lang = (resolvedType == 1) ? latFall
+                                    : (resolvedType == 2) ? nonLatFall : neutralDefault;
               }
               for (auto& seg : segs) {
                   bool wsOnly = true;
@@ -555,8 +557,8 @@ jobs:
                       continue;
                   }
                   std::string lang = seg.lang.empty() ? latFall : seg.lang;
-                  if (!result.empty() && result.back().lang == lang) result.back().text += seg.text;
-                  else result.push_back({lang, seg.text});
+                  if (!result.empty() && result.back().type == seg.type) result.back().text += seg.text;
+                  else result.push_back({lang, seg.text, seg.type});
               }
               return result;
           }
@@ -589,10 +591,10 @@ jobs:
               std::string result;
               if (mode == "mix") {
                   auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection);
-                  for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+                  for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else if (mode == "dual") {
                   auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection, true);
-                  for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+                  for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else {
                   auto chunks = buildAutoChunks(processed, latFall, nonLatFall, disableAdvancedDetection, pdUseCld3);
                   for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
@@ -1632,7 +1634,7 @@ jobs:
           "import java.nio.ByteBuffer\n"
           "import java.util.Locale\n"
           "import java.util.concurrent.ConcurrentHashMap\n"
-          "data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null, var mixPendingDetect: Boolean = false, var mixTypeFallback: String = \"\")\n"
+          "data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null, var mixPendingDetect: Boolean = false, var mixTypeFallback: String = \"\", var mixType: Int = 0)\n"
           "class EasyVoiceTtsService : TextToSpeechService() {\n"
           "    private val enginePool = ArrayList<EngineWrapper>()\n"
           "    @Volatile private var restoringIndex = -1\n"
@@ -2491,10 +2493,11 @@ jobs:
           "                            neutralDefault, disableAdvDet, prefs.isUseCld3()\n"
           "                        )\n"
           "                        for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
-          "                            val parts = chunkStr.split(\"|\", limit = 2)\n"
-          "                            if (parts.size == 2 && parts[0].isNotBlank()) {\n"
-          "                                val typeFb = normalizeLangCode(parts[0])\n"
-          "                                chunks.add(TextChunk(parts[1], typeFb, mixPendingDetect = true, mixTypeFallback = typeFb))\n"
+          "                            val parts = chunkStr.split(\"|\", limit = 3)\n"
+          "                            if (parts.size == 3) {\n"
+          "                                val zType = parts[0].toIntOrNull() ?: 0\n"
+          "                                val typeFb = normalizeLangCode(parts[1])\n"
+          "                                chunks.add(TextChunk(parts[2], typeFb, mixPendingDetect = true, mixTypeFallback = typeFb, mixType = zType))\n"
           "                            }\n"
           "                        }\n"
           "                    }\n"
@@ -2530,10 +2533,10 @@ jobs:
           "                        neutralDefault, disableAdvDet, prefs.isUseCld3()\n"
           "                    )\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
-          "                        val parts = chunkStr.split(\"|\", limit = 2)\n"
-          "                        if (parts.size == 2 && parts[0].isNotBlank()) {\n"
-          "                            val resolved = normalizeLangCode(parts[0])\n"
-          "                            chunks.add(TextChunk(parts[1], resolved, typeCode = if (resolved == normalizeLangCode(latFall)) 1 else 2))\n"
+          "                        val parts = chunkStr.split(\"|\", limit = 3)\n"
+          "                        if (parts.size == 3) {\n"
+          "                            val resolved = normalizeLangCode(parts[1])\n"
+          "                            chunks.add(TextChunk(parts[2], resolved, typeCode = parts[0].toIntOrNull() ?: 0))\n"
           "                        }\n"
           "                    }\n"
           "                }\n"
@@ -2565,14 +2568,30 @@ jobs:
           "            if (callback?.hasFinished() == false) callback?.done()\n"
           "            return\n"
           "        }\n"
-          "        fun resolveMixChunk(chunk: TextChunk) {\n"
+          "        // AutoTTS resolves a pending mix chunk in TWO stages, and the two call sites differ.\n"
+          "        //   onSynthesizeText, first chunk : m.h.get(det) null -> type 1 K, type 2 L, else the\n"
+          "        //                                   request language; then M(lang) empty/Disable ->\n"
+          "        //                                   type 1 K, type 2 L, else keep.\n"
+          "        //   e$a.run, every later chunk    : m.h.get(det) null -> type 1 K else L (no third case);\n"
+          "        //                                   then the same M(lang) stage.\n"
+          "        fun resolveMixChunk(chunk: TextChunk, first: Boolean = false) {\n"
           "            if (!chunk.mixPendingDetect) return\n"
           "            val d0 = detectLanguage(chunk.text, latFall, nonLatFall)\n"
           "            val det = if (d0.length > 2) d0.substring(0, 2) else d0\n"
-          "            chunk.lang = if (isKnownIso2(det) && isLangRoutable(det)) det else chunk.mixTypeFallback\n"
+          "            val t = chunk.mixType\n"
+          "            var l3 = if (isKnownIso2(det)) prefs.toIso3(det) else null\n"
+          "            if (l3 == null) {\n"
+          "                l3 = if (first) { if (t == 1) latFall else if (t == 2) nonLatFall else reqLang0 }\n"
+          "                     else { if (t != 1) nonLatFall else latFall }\n"
+          "            }\n"
+          "            val eng = prefs.getEngineForLanguage(l3)\n"
+          "            if (eng == \"NOT_SET\" || eng == \"Disable\") {\n"
+          "                if (t == 1) l3 = latFall else if (t == 2) l3 = nonLatFall\n"
+          "            }\n"
+          "            chunk.lang = l3\n"
           "            chunk.mixPendingDetect = false\n"
           "        }\n"
-          "        resolveMixChunk(chunks[0])\n"
+          "        resolveMixChunk(chunks[0], first = true)\n"
           "        val firstChunkForced = bypassed && (chunks[0].forcedEngine != null || chunks[0].forcedLocale != null)\n"
           "        // AutoTTS: the mode branches load with (lang, \"\", \"\"); the fall-through (none / [AutoTTS:] with no\n"
           "        // forced engine+locale) loads with the request's own language, country and variant.\n"
