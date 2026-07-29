@@ -1119,9 +1119,20 @@ jobs:
                           i++;
                           continue;
                       }
-                      int cpLen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)text.data() + i, cpLen);
-                      if (cpLen <= 0 || i + cpLen > n) { cp = 0xFFFD; cpLen = 1; }
+                      // AutoTTS validates every continuation byte and falls back to U+FFFD
+                      // consuming a single byte (0x6531e4..0x6532c0)
+                      int cp, cpLen;
+                      const unsigned char* q = (const unsigned char*)text.data() + i;
+                      int avail = n - i;
+                      if (avail >= 2 && (q[0] & 0xE0) == 0xC0 && (q[1] & 0xC0) == 0x80) {
+                          cp = ((q[0] & 0x1F) << 6) | (q[1] & 0x3F); cpLen = 2;
+                      } else if (avail >= 3 && (q[0] & 0xF0) == 0xE0 && (q[1] & 0xC0) == 0x80 && (q[2] & 0xC0) == 0x80) {
+                          cp = ((q[0] & 0x0F) << 12) | ((q[1] & 0x3F) << 6) | (q[2] & 0x3F); cpLen = 3;
+                      } else if (avail >= 4 && (q[0] & 0xF8) == 0xF0 && (q[1] & 0xC0) == 0x80 && (q[2] & 0xC0) == 0x80 && (q[3] & 0xC0) == 0x80) {
+                          cp = ((q[0] & 0x07) << 18) | ((q[1] & 0x3F) << 12) | ((q[2] & 0x3F) << 6) | (q[3] & 0x3F); cpLen = 4;
+                      } else {
+                          cp = 0xFFFD; cpLen = 1;
+                      }
                       int sc = glsClassify(cp);
                       if (sc < 0) sc = curScript;
                       else if (curScript != 0 && sc != curScript) { glsEmit(spanStart, i - spanStart, curScript); spanStart = i; }
