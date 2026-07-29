@@ -570,3 +570,39 @@ when empty and installed). Only when the settings Activity already populated `m.
 same process, or when `O == 3` short-circuits `M` to Google, does the promotion happen.
 EasyVoice's `buildEngineList()` reads the engine straight from prefs and always promotes —
 that gap is open.
+
+---
+
+## 19. AutoTtsService — the rest of the file, checked against EasyVoice
+
+Read in this pass (CFR, whole methods): the static block, `H`–`L`, `M`–`R`, `S`, `T`, `U`,
+`V`, `W`, `X`, `Y`, `a0`, `c0`, `d0`, `e0`, `f0`, `g0`, `h0`, `j0`, `k0`, `l0`,
+`onGetDefaultVoiceNameFor`, `onGetLanguage`, `onGetVoices`, `onIsLanguageAvailable`,
+`onIsValidVoiceName`, `onLoadLanguage`, `onLoadVoice`, `onStartCommand`, `onStop`,
+`onCreate`, `onDestroy`. `onSynthesizeText`, `Z`, `b0`, `i0`, `m0`–`o0` were verified in the
+earlier passes recorded in commits b2f1391, a93a452, 2c23367, f64975c, ef19087, facd5b3 and
+cf65f50 and are unchanged.
+
+Confirmed identical, no edit needed:
+- `k0(Locale)` — three passes over the `voice_N` list (lang+country+variant, then
+  lang+country, then lang), each aborting the whole search with `""` the moment an entry's
+  locale fails to parse. EasyVoice's `findEngineForLocale` is this, `?: return ""` included.
+- `onGetVoices` = `m.j(null, true)` → one `Voice(iso, Locale(iso), 400, 100, false, {})` per
+  non-disabled language.
+- `onIsLanguageAvailable` = `m.j(null,true).contains(lang) ? 0 : -2`;
+  `onIsValidVoiceName` = the same membership test but `-1` on miss.
+- `onLoadVoice` stores the name in the static `e0`, parses it with `f0`, and forwards to
+  `onLoadLanguage(iso3, iso3Country, variant)`; anything outside {0,1,2} is `-1`.
+- `onGetDefaultVoiceNameFor` returns its `lang` argument; `onStartCommand` returns 1.
+- `V(a, b)` — lang must match, then an empty country or a matching one, then an empty
+  variant or a matching one.
+- `X()` returns immediately when `F != null`, and fills `F/K/L/G` from prefs, each falling
+  back to `m.f(Locale.getDefault())` when empty, then `H`, `I`, `J`.
+- `h0()` requests audio focus with usage 11 / content type 1; `l0()` needs `S()`
+  (POST_NOTIFICATIONS on API 33+) and uses `a.a(this, 136549, I(), 2)` on API 34+,
+  `startForeground(136549, I())` below.
+- static defaults: `W = true`, `X = false` in the class initialiser, but `m.r` reads
+  `quick_character_reading` with default **true**, so a fresh install ends up with X true.
+
+The two gaps this pass found — the slider write rule and the `Y()`-before-`a0()` ordering —
+are fixed in the commit that introduces `LangStore`.
