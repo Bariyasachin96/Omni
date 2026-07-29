@@ -422,3 +422,77 @@ language the user had only looked at stayed `NOT_SET` and was not routable.
 list — pick a voice from engine A, then a voice from engine B that lacks A's
 variant name — the fill writes one past the end and `O1` throws outside its own
 try/catch. EasyVoice's list simply grows by one instead.
+
+---
+
+## 17. Advanced tab — full CFR read (fragment_advanced.xml + c3.j.R2 and its chain)
+
+CFR files read end to end for this pass: `c3/j.java` (whole file, 2031 lines — `J0`, `F0`,
+`R2`, `O2`, `P2`, `Q2`, `L2`, `E2`, `G2`, `H2`, `J2`, `M2`, `N2`, `B2`, `C2`, `F1`, `G1`,
+`H1`), `c3/t.java`, `c3/u.java`, `c3/b0.java`, `c3/o.java`; resources
+`res/layout/fragment_advanced.xml`, `res/values/public.xml`, `res/values/strings.xml`.
+
+### `R2()` binds the two detection checkboxes to ONE view
+CFR renders it plainly — no smali needed:
+
+```java
+object = (CheckBox)this.i0.findViewById(2131230916);   // disable_advanced_detect
+object.setChecked(AutoTtsService.W);
+object.setOnCheckedChangeListener(/* j$u0: W = bl */);
+CheckBox checkBox = (CheckBox)this.i0.findViewById(2131231161);  // quick_character_reading
+object.setChecked(AutoTtsService.X);                   // <- object, not checkBox
+object.setOnCheckedChangeListener(/* j$v0: X = bl */); // <- replaces the W listener
+```
+
+`checkBox` is overwritten a few lines later by the `enable_logging` box, so
+`quick_character_reading` never gets `setChecked` and never gets a listener. Net effect:
+
+- "Disable advanced language detection" shows and toggles **X** (quick character read)
+- "Quick character read" is inert and always shows the layout default (unchecked)
+- **W (`disable_advanced_detection`) cannot be changed from the UI** and keeps its stored
+  value, default `true`
+
+### `c3.o` (logger)
+`o.h(level, tag, msg)` failed in CFR (`ConfusedCFRException`) and was transcribed from
+`/tmp/dc/smali/c3/o.smali`: DEBUG/INFO produce no logcat at all, WARN → `Log.w`,
+ERROR → `Log.e`, and that happens **before** the `d` (enabled) check, so warnings and
+errors reach logcat even with logging off. Then `i()` (rotate at 2 MiB, keep `.1/.2/.3`),
+`String.format("%s [%s] %s: %s", ts, letter, tag, msg)` through a per-call
+`BufferedWriter(FileWriter(file, true))` with `write` + `newLine` + `close`; on
+`IOException`, `Log.e("TtsLogger", "Failed to write log", e)`. `o.a()` truncates with
+`FileWriter(file, false)` and shows **no** toast. `o.k(ctx)` toasts "No log file to share"
+when `o.b()` is null and otherwise puts `FLAG_ACTIVITY_NEW_TASK` on the **chooser**, not on
+the ACTION_SEND intent. `o.j(bl)` writes `logging_enabled`.
+
+### `c3.b0.d(ctx)` (export)
+Missing `shared_prefs/*.xml` → toast "Settings file not found" and return. A failed copy →
+`printStackTrace()` and return, **no toast**. Only after the copy: FileProvider authority
+`packageName + ".fileprovider"`, ACTION_SEND `text/xml` with `addFlags(1)`, chooser
+"Share Settings" with no extra flags. `res/xml/file_paths.xml` exposes exactly
+`files-path logs/` and `cache-path shared/`.
+
+### Import: `L2 → H1 → N2 → E2 → t dialog → G2 → F2 + Q2`
+`E2` never writes anything itself. `b0.b(xml)` collects the referenced engine packages; an
+empty set toasts `import_settings_error` ("Unable to load configuration. Please verify file
+settings.", LENGTH_LONG) and stops. Otherwise the `c3.t` dialog is shown with one row per
+package, named by `u.b(pkg)`. Apply → `G2(ctx, xml)` = `try { F2(ctx, xml); Q2(); } catch
+{ printStackTrace(); }` — the relaunch is **inside** the try, so a failed import does not
+restart the app. `Q2()` = launch intent + `addFlags(0x14000000)` (NEW_TASK|CLEAR_TOP),
+`startActivity`, `killProcess(myPid())`, `System.exit(0)`.
+
+`H2(ctx, pkg)` (building the dialog) uses `getPackageInfo(pkg, 0)`; `J2(pkg)` (the resume
+re-check in `B2`) uses `getPackageInfo(pkg, 1)`. Both `J0` (onViewCreated) and `F0`
+(onResume) end with `if (Z0 != null && a1 != null) B2()`; `R2()` itself runs only from `J0`.
+
+### Layout facts the port now reproduces
+Root is a plain vertical `LinearLayout` with **no padding** inside a `fillViewport`
+ScrollView. Headers are a `LinearLayout` with background `#ff293842` holding an 18sp
+`#ffffffff` TextView, `layout_margin="5dip"`, and `layout_marginTop="16dip"` on every header
+except the first. Checkboxes are `TextAppearance.Medium` with `marginTop=10dip` and
+`marginStart/End=5dip`; descriptions are `TextAppearance.Small` with `marginStart/End=5dip`
+(the first one has `marginTop=10dip` and **no** `marginEnd`). The battery button is
+`wrap_content` with `layout_gravity=center_horizontal`. Import/Export are weighted `0dip`
+buttons (`marginEnd=4dip` / `marginStart=4dip`); the log buttons are `wrap_content`. Both
+rows carry `marginTop=16dip`, `marginBottom=8dip`, `marginStart/End=5dip`.
+
+`j.O2()` has no `Build.VERSION.SDK_INT` gate and adds no intent flags.

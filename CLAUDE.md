@@ -47,6 +47,24 @@
    - Regenerate CFR with the commands in `autotts_reference/README.md`; for stubborn methods add
      `--forcetopsortnopull false --aexagg true` before falling back to baksmali.
 
+8. **HOW RULE 7 IS ACTUALLY EXECUTED (added 2026-07-29 after the user caught me skipping it).**
+   The failure mode is not disagreeing with the rule — it is starting to EDIT before the CFR
+   read is finished. So the order is mandatory and has no shortcut:
+   1. **List the chain first.** Name every CFR file and every method the feature touches
+      (the fragment method, the layout XML, the strings, every helper class it calls, and the
+      service fields it writes). Write that list down before touching an editor.
+   2. **Read all of it in CFR.** Whole methods, no filtering, including the ones that look
+      boring. Aliases like `CheckBox cb = findViewById(...)` followed by `other.setChecked(...)`
+      are exactly the bugs worth finding — CFR shows them plainly.
+   3. **Only then edit.** No file is modified until step 2 is complete for the whole chain.
+   4. **Smali is a last resort, and the reason gets recorded.** Allowed only when CFR itself
+      says it failed (`ConfusedCFRException` / "Decompilation failed") or renders something
+      unreadable. If a smali trip only confirms what CFR already showed, that is a wasted pass
+      — say so in the commit so it is not repeated.
+   Violations to date: went to smali for `c3.j.R2()` although CFR had already rendered the
+   `object` / `checkBox` alias correctly; began editing the Advanced tab before finishing the
+   CFR read of `j.E2/G2/H2/J2/M2/N2/B2/P2/Q2`, `c3.t`, `c3.u`, `c3.b0`.
+
 ## CLD3 (user decision, 2026-07-29)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. The user wants CLD3 brought up to the same level of
