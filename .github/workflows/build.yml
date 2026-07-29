@@ -880,10 +880,23 @@ jobs:
               // a.w "emoji" / "math" are both ("zz", {"zz"}) and a.u is ("un", {"un"}) — none route
               return "";
           }
-          static std::string scriptLangFilteredC(int cp, const std::unordered_set<std::string>& enabled, std::string* lb){
+          // a.e(cp, set): a NON-EMPTY set goes to a.c(cp, set); an empty one goes to a.d(cp),
+          // which is a.b(cp) behind a cache — the UNFILTERED script map. clsCLD2.b then applies
+          // m.o() to the family's primary and, failing that, to each member in turn.
+          static std::string acUnfilteredC(int cp, const std::unordered_set<std::string>& okIso3){
+              const char* pr = scriptLangC(cp);
+              if(!pr || !*pr) return "";
+              std::string primary(pr);
+              if(okIso3.count(toIso3C(primary))) return primary;
+              for(const auto& f : scriptLangFallbacksC(primary))
+                  if(okIso3.count(toIso3C(f))) return f;
+              return "";
+          }
+          static std::string scriptLangFilteredC(int cp, const std::unordered_set<std::string>& enabled,
+                                                 const std::unordered_set<std::string>& okIso3, std::string* lb){
               char hex[16]; snprintf(hex,sizeof(hex),"%x",cp);
-              std::string res = acFilteredC(cp, enabled);
-              if(lb) *lb += std::string("[SCRIPT] a.c cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n";
+              std::string res = enabled.empty() ? acUnfilteredC(cp, okIso3) : acFilteredC(cp, enabled);
+              if(lb) *lb += std::string("[SCRIPT] a.e cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n";
               return res;
           }
           static const char* scriptLangC(int cp);
@@ -1000,7 +1013,7 @@ jobs:
                       if(okIso3.count(toIso3C(det))){ result=det; done=true; break; }
                       int winCp = firstValidCpU16(chars+winStart, wend-winStart);
                       if(winCp!=-1){
-                          std::string p = scriptLangFilteredC(winCp, enabled, lb);
+                          std::string p = scriptLangFilteredC(winCp, enabled, okIso3, lb);
                           if(!p.empty()){ result=p; done=true; break; }
                       }
                   }
@@ -1009,7 +1022,7 @@ jobs:
               if(!done && !disableAdv){
                   int firstCp = firstValidCpU16(chars, textLen);
                   if(firstCp!=-1){
-                      std::string p = scriptLangFilteredC(firstCp, enabled, lb);
+                      std::string p = scriptLangFilteredC(firstCp, enabled, okIso3, lb);
                       if(!p.empty()) result=p;
                   }
               }
@@ -2321,10 +2334,14 @@ jobs:
           "        }\n"
           "        return out\n"
           "    }\n"
+          "    // AutoTtsService O==5: lang = m.h.get(det); if null -> latin ? K : L; then\n"
+          "    // if M(lang) is empty or \"Disable\" -> latin ? K : L. Two stages, both literal.\n"
           "    private fun resolveMultilingualChunk(mc: MLChunk, latFall: String, nonLatFall: String): String {\n"
           "        val det = mc.lang\n"
-          "        if (isKnownIso2(det) && isLangRoutable(det)) return det\n"
-          "        return if (mc.latin) latFall else nonLatFall\n"
+          "        var lang = if (isKnownIso2(det)) prefs.toIso3(det) else (if (mc.latin) latFall else nonLatFall)\n"
+          "        val eng = prefs.getEngineForLanguage(lang)\n"
+          "        if (eng == \"NOT_SET\" || eng == \"Disable\") lang = if (mc.latin) latFall else nonLatFall\n"
+          "        return lang\n"
           "    }\n"
           "    private fun isEngineAvailable(lang: String): Boolean {\n"
           "        val lookupKey = if (lang.length == 3) iso3ToIso[lang] ?: lang else lang\n"
@@ -2333,7 +2350,8 @@ jobs:
           "        EasyVoiceLogger.d(\"[ENGINE] isEngineAvailable lang=$lang lookupKey=$lookupKey engine=$engine → $result\")\n"
           "        return result\n"
           "    }\n"
-          "    private fun isLangRoutable(lang: String): Boolean = isEngineAvailable(lang) && !prefs.isLanguageDisabled(lang)\n"
+          "    // AutoTTS M(lang): empty or \"Disable\" means not routable — there is no second test\n"
+          "    private fun isLangRoutable(lang: String): Boolean = isEngineAvailable(lang)\n"
           "    private fun isKnownIso2(code: String): Boolean = code.length == 2 && code in java.util.Locale.getISOLanguages()\n"
           "    private fun isLangRoutableRaw(lang: String): Boolean {\n"
           "        if (lang.isEmpty() || !prefs.getLanguageList().contains(lang)) return false\n"

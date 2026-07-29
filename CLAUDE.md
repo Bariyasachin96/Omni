@@ -19,7 +19,21 @@
    - Saying "already fine" / "inaudible" / "I'll leave it (my decision)" without a full AutoTTS source match IS a violation.
    - Past self-inflicted violations already reverted (commit 3b02624): multilingual whitespace-chunk skip, multilingual empty→emptyList, speakRunnable stop-guard, initAllTTS restoringIndex reset, RestoreInitListener captured-idx guard, restoreEngine field pre-clearing, bindEngineKeepAlive in restore-listener. Do not reintroduce this class of "improvement".
    The user's decision IS AutoTTS's actual behavior; there is no other source of truth.
-6. **CFR FIRST, SMALI ONLY AS FALLBACK (user rule, 2026-07-29).** Reading order is fixed:
+6. **NO GUESSWORK, ANYWHERE (user rule, 2026-07-29). Every line must trace to AutoTTS source.**
+   - I may NEVER "infer", "assume", "reason that it is equivalent", or fill a gap from what seems
+     sensible. If I have not SEEN the exact AutoTTS code for a behaviour, I do not write that
+     behaviour — I go and find it (CFR → smali → arm64 disassembly of the `.so`).
+   - "Behaviourally equivalent", "same outcome either way", "unreachable in practice",
+     "redundant but harmless" are NOT reasons to keep my own version. Write what AutoTTS writes.
+   - This covers the WHOLE app, every mode (none/dual/auto/google/mixed/multilingual), the
+     service, the native code, the UI, the manifest and the resources — not just the parts under
+     discussion.
+   - Where I previously guessed and later verified, the verification must be recorded (commit
+     message or `autotts_reference/ANALYSIS_5.7.7.10_mix.md`) so it is never re-guessed.
+   - Known past guesses, all since replaced by verified ports: span cap (now confirmed
+     `mov w3, #0x80` = 128), the multilingual latin flag (now `script == 1`), the emitter's
+     merge/cap-stretch, `y.g`'s defType, the mix two-stage fallback, `a.c` vs `a.b` selection.
+7. **CFR FIRST, SMALI ONLY AS FALLBACK (user rule, 2026-07-29).** Reading order is fixed:
    - **Always start with the CFR `.java` files** in `autotts_reference/decompiled_java/`. Read the
      WHOLE relevant file(s) — all methods, big ones included, unfiltered, byte-by-byte.
    - **Fix everything that CFR alone makes clear.** CFR's accuracy is very high; do not second-guess
