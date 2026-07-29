@@ -265,3 +265,81 @@ if the callback had already started), then onSynthesizeText's tail runs
 K(cb, 13) which does start+done unconditionally. EasyVoice's queue-empty
 path does start+done directly and its tail repeats it — same observable
 outcome.
+
+---
+
+## 15. `getLanguageSpans` — Multilingual span segmentation (from arm64 disassembly, 2026-07-29)
+
+`clsCLD2.nativeGetLanguages` → `getLanguageSpans` at `0x653114` in
+`lib/arm64-v8a/libcld2.so` (size 0x558). **It does NOT use `CLD2::ScriptScanner` /
+`GetOneScriptSpan`.** It walks the UTF-8 bytes itself and splits on its OWN
+codepoint→script classifier, then calls the emitter at `0x65366c` per span.
+
+### Loop (registers: x21 text, w22 len, w1 spanStart, w3 curScript, w24 i, w27 sc, w28 cpLen)
+```
+if (len < 1 || !text || !out || cap < 1) return 0;
+spanStart = 0; curScript = 0; i = 0;
+while (i < len) {
+    if ((signed char)text[i] >= 0) {                 // ASCII fast path
+        if (((text[i] & 0x5F) - 0x41) > 0x19) { i++; continue; }   // NOT A-Z → skipped
+        if (curScript >= 2) { emit(spanStart, i - spanStart); spanStart = i; }
+        curScript = 1; i++; continue;                // A-Z always means Latin
+    }
+    decode UTF-8 → cp, cpLen (2/3/4); malformed → cp = 0xFFFD, cpLen = 1
+    sc = classify(cp);
+    if (curScript != 0 && sc != curScript) { emit(spanStart, i - spanStart); spanStart = i; }
+    i += cpLen; curScript = sc;
+}
+emit(spanStart, len - spanStart);
+```
+Note the ASCII branch: digits, spaces and punctuation are **skipped entirely** — they
+neither break a span nor change `curScript`, so they are absorbed into whatever span
+surrounds them.
+
+### classify(cp) → script id
+| id | ranges |
+|----|--------|
+| keep current | `0x80..0xBF`; `cp>>5 >= 0x7D1 + 0x20000` tail; any cp not listed |
+| 1 Latin | `0xC0..0x2AF`, `0x1E00..0x1E7F`(&0x1FFFE0==0x1E00), `0x2C60..0x2C7F`, `0xA720..0xA7FF`, ASCII A–Z |
+| 2 Cyrillic | `0x400..0x52F` |
+| 3 Arabic | `0x600..0x6FF` (&0x1FFF00), `0x750..0x77F`, `0x8A0..0x8FF`, `0xFB50..0xFDFF`, `0xFE70..0xFEFF` |
+| 4 Devanagari | `0x900..0x97F` |
+| 5 CJK/Kana | `0x2E80..0x2FDF`, `0x3040..0x30FF`, `0x31F0..0x31FF`, `0x3400..0x9FFF`, `0xF900..0xFAFF`, `0xFF66..0xFF9D`, `0x20000..0x2FA1F` |
+| 6 Bengali | `0x980..0x9FF` |
+| 7 Greek | `0x370..0x3FF` |
+| 8 Armenian | `0x530..0x58F` |
+| 9 Hebrew | `0x590..0x5FF` |
+| 10 Georgian | `0x10A0..0x10FF` |
+| 11 Gurmukhi | `0xA00..0xA7F` |
+| 12 Gujarati | `0xA80..0xAFF` |
+| 13 Oriya | `0xB00..0xB7F` |
+| 14 Tamil | `0xB80..0xBFF` |
+| 15 Telugu | `0xC00..0xC7F` |
+| 16 Kannada | `0xC80..0xCFF` |
+| 17 Malayalam | `0xD00..0xD7F` |
+| 18 Sinhala | `0xD80..0xDFF` |
+| 19 Thai | `0xE00..0xE7F` |
+| 20 Lao | `0xE80..0xEFF` |
+| 21 Tibetan | `0xF00..0xFFF` |
+| 22 Myanmar | `0x1000..0x109F` |
+| 23 Khmer | `0x1780..0x17FF` |
+| 24 Ethiopic | `0x1200..0x137F` |
+| 25 Hangul | `0x1100..0x11FF`, `0x3130..0x318F`, `0xA960..0xA97F`, `0xAC00..0xD7AF` |
+
+The `0x900..0xEFF` block is computed as `(cp - 0x900) >> 7` and dispatched through a
+jump table, which is why every Indic block is exactly 128 codepoints wide.
+
+### emit() at `0x65366c`
+- skips spans of length < 1
+- caps the detected slice at **1024 bytes**, backing off over UTF-8 continuation bytes
+- `CLD2::ExtDetectLanguageSummary(slice, n, true, hints, 0x4000 /* kCLDFlagBestEffort */, …)`
+- `CLD2::LanguageCode(lang)`; a `strcmp` against the unknown code follows
+- writes 24-byte records; **the latin flag is `script_id == 1`**, NOT
+  `ulscript == ULScript_Latin`
+
+### EasyVoice status
+`nativeGetLanguages` currently uses `CLD2::ScriptScanner` + `GetOneScriptSpan` and
+derives `latin` from `ls.ulscript == CLD2::ULScript_Latin`. The 1024-byte cap,
+BestEffort flag, `ExtDetectLanguageSummary` and `LanguageCode` already match; the
+**segmentation and the latin flag do not**. Porting the table above is the
+outstanding multilingual-mode work.
