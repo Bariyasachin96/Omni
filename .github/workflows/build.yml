@@ -1100,11 +1100,28 @@ jobs:
                   CLD2::Language l = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
                                              lang3, pct3, score3, nullptr, &textBytes, &reliable);
                   const char* code = CLD2::LanguageCode(l);
+                  std::string lang = code ? std::string(code) : "un";
+                  bool latin = (script == 1);
+                  // 0x653764..0x65384c: if the previous record is contiguous AND has the same latin
+                  // flag AND the same language string, MERGE into it (prev.bytes += this.bytes).
+                  if (!spans.empty()
+                      && spans.back().offset + spans.back().bytes == start
+                      && spans.back().latin == latin
+                      && spans.back().lang == lang) {
+                      spans.back().bytes += len;
+                      return;
+                  }
+                  // 0x653800: at the cap the record is not dropped — the LAST span is stretched to
+                  // cover it, so no text is ever lost.
+                  if ((int)spans.size() >= kMaxSpans) {
+                      if (!spans.empty()) spans.back().bytes = (start + len) - spans.back().offset;
+                      return;
+                  }
                   LSpan ns;
                   ns.offset = start; ns.bytes = len;
-                  ns.lang = code ? std::string(code) : "un";
-                  ns.latin = (script == 1);
-                  if ((int)spans.size() < kMaxSpans) spans.push_back(ns);
+                  ns.lang = lang;
+                  ns.latin = latin;
+                  spans.push_back(ns);
               };
               {
                   int n = (int)text.size();
