@@ -388,7 +388,7 @@ jobs:
               chunks.push_back({dominantLang, fullText, 0});
               return chunks;
           }
-          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, bool disableAdvancedDetection, bool isDual = false) {
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
               std::vector<ChunkResult> result;
               std::string fullText;
               for (auto& s : sentences) { if (!s.empty()) fullText += s + " "; }
@@ -523,9 +523,13 @@ jobs:
                   } else if (segType == 3 && !numFall.empty() && numFall != "auto") {
                       resolvedType = (numFall == latFall) ? 1 : 2;
                   } else if (segPos == 0) {
+                      // y.a(): first type that is neither 3 nor 4, else 0 — and element 0 (or a
+                      // one-element list) then falls back to defType, NOT to 0.
                       for (int fwd = segPos + 1; fwd < (int)segs.size() && resolvedType == 0; fwd++)
                           if (segs[fwd].type != 3 && segs[fwd].type != 4) resolvedType = segs[fwd].type;
+                      if (resolvedType == 0) resolvedType = neutralType;
                   } else {
+                      // y.b(): previous type that is neither 3 nor 4; its 0 is used AS IS here
                       for (int bwd = segPos - 1; bwd >= 0 && resolvedType == 0; bwd--)
                           if (segs[bwd].type != 3 && segs[bwd].type != 4) resolvedType = segs[bwd].type;
                   }
@@ -533,26 +537,10 @@ jobs:
                   segs[segPos].lang = (resolvedType == 1) ? latFall
                                     : (resolvedType == 2) ? nonLatFall : neutralDefault;
               }
+              // y.g's final loop: merge adjacent equal types, nothing else. AutoTTS has no
+              // whitespace-absorption pass here — a whitespace run that did not match pattern
+              // d is a plain type-2 segment and must stay one.
               for (auto& seg : segs) {
-                  bool wsOnly = true;
-                  {
-                      const unsigned char* bytePtr = (const unsigned char*)seg.text.c_str();
-                      int bytePos = 0, byteLen = (int)seg.text.size();
-                      while (bytePos < byteLen) {
-                          int cpLen = 0; int cp = utf8ToCodepoint(bytePtr + bytePos, cpLen);
-                          bool isJWs = (cp>=0x09&&cp<=0x0D)||(cp>=0x1C&&cp<=0x1F)||
-                                       cp==0x20||cp==0x1680||
-                                       (cp>=0x2000&&cp<=0x200A&&cp!=0x2007)||
-                                       cp==0x205F||cp==0x3000||
-                                       cp==0x2028||cp==0x2029;
-                          if (!isJWs) { wsOnly = false; break; }
-                          bytePos += cpLen;
-                      }
-                  }
-                  if (wsOnly) {
-                      if (!result.empty()) result.back().text += seg.text;
-                      continue;
-                  }
                   std::string lang = seg.lang.empty() ? latFall : seg.lang;
                   if (!result.empty() && result.back().type == seg.type) result.back().text += seg.text;
                   else result.push_back({lang, seg.text, seg.type});
@@ -564,7 +552,7 @@ jobs:
               JNIEnv* env, jobject, jobject directBuffer, jint length,
               jstring jLat, jstring jNonLat, jstring jMode,
               jstring jPunc, jstring jNum, jstring jEmoji,
-              jstring jNeutralDefault, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
+              jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
               void* buf=env->GetDirectBufferAddress(directBuffer);
@@ -577,6 +565,7 @@ jobs:
               const char* numC=env->GetStringUTFChars(jNum,nullptr); std::string numFall(numC); env->ReleaseStringUTFChars(jNum,numC);
               const char* emojiC=env->GetStringUTFChars(jEmoji,nullptr); std::string emojiFall(emojiC); env->ReleaseStringUTFChars(jEmoji,emojiC);
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
+              int neutralType = (int)jNeutralType;
               bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
               bool pdUseCld3 = (jUseCld3 == JNI_TRUE);
               std::vector<std::string> sentences;
@@ -587,10 +576,10 @@ jobs:
               for(auto& s: sentences){ processed.push_back(s); }
               std::string result;
               if (mode == "mix") {
-                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection);
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, neutralType, disableAdvancedDetection);
                   for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else if (mode == "dual") {
-                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, disableAdvancedDetection, true);
+                  auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, neutralType, disableAdvancedDetection, true);
                   for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else {
                   auto chunks = buildAutoChunks(processed, latFall, nonLatFall, disableAdvancedDetection, pdUseCld3);
@@ -1166,7 +1155,7 @@ jobs:
           "        latFall: String, nonLatFall: String,\n"
           "        mode: String,\n"
           "        puncFall: String, numFall: String, emojiFall: String,\n"
-          "        neutralDefault: String,\n"
+          "        neutralDefault: String, neutralType: Int,\n"
           "        disableAdvancedDetection: Boolean, useCld3: Boolean\n"
           "    ): String\n"
           "    external fun scriptLang(cp: Int): String\n"
@@ -2533,7 +2522,7 @@ jobs:
           "                // AutoTtsService O==4 \"Mixed mode\": M.clear(); z.g(text); per-span M()/F fallback else y.g(span)\n"
           "                val localeChunks = splitByLocaleSpans(rawCharSeq)\n"
           "                EasyVoiceLogger.d(\"[SERVICE] mix mode: z.g produced ${localeChunks.size} chunks\")\n"
-          "                val neutralDefault = if (localeIso3() == prefs.toIso3(nonLatFall)) nonLatFall else latFall\n"
+          "                val neutralType = if (localeIso3() == prefs.toIso3(nonLatFall)) 2 else 1; val neutralDefault = if (neutralType == 2) nonLatFall else latFall\n"
           "                val disableAdvDet = prefs.isDisableAdvancedDetection()\n"
           "                val autoModeC = normalizeLangCode(prefs.getString(\"auto_mode_language\", \"\").ifEmpty { localeIso3() })\n"
           "                for (lc in localeChunks) {\n"
@@ -2549,7 +2538,7 @@ jobs:
           "                            tBuf, tBytes.size,\n"
           "                            latFall, nonLatFall, \"mix\",\n"
           "                            mixPuncLang, mixNumLang, mixEmojiLang,\n"
-          "                            neutralDefault, disableAdvDet, prefs.isUseCld3()\n"
+          "                            neutralDefault, neutralType, disableAdvDet, prefs.isUseCld3()\n"
           "                        )\n"
           "                        for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                            val parts = chunkStr.split(\"|\", limit = 3)\n"
@@ -2583,13 +2572,13 @@ jobs:
           "                    val tBytes = trimmedText.toByteArray(Charsets.UTF_8)\n"
           "                    val tBuf = ByteBuffer.allocateDirect(tBytes.size)\n"
           "                    tBuf.put(tBytes); tBuf.position(0)\n"
-          "                    val neutralDefault = if (localeIso3() == prefs.toIso3(nonLatFall)) nonLatFall else latFall\n"
+          "                    val neutralType = if (localeIso3() == prefs.toIso3(nonLatFall)) 2 else 1; val neutralDefault = if (neutralType == 2) nonLatFall else latFall\n"
           "                    val disableAdvDet = prefs.isDisableAdvancedDetection()\n"
           "                    val tOut = NativeEngine.processDirect(\n"
           "                        tBuf, tBytes.size,\n"
           "                        latFall, nonLatFall, \"dual\",\n"
           "                        mixPuncLang, mixNumLang, mixEmojiLang,\n"
-          "                        neutralDefault, disableAdvDet, prefs.isUseCld3()\n"
+          "                        neutralDefault, neutralType, disableAdvDet, prefs.isUseCld3()\n"
           "                    )\n"
           "                    for (chunkStr in tOut.split(\"||\").filter { it.isNotBlank() }) {\n"
           "                        val parts = chunkStr.split(\"|\", limit = 3)\n"
