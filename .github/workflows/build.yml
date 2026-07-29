@@ -883,13 +883,110 @@ jobs:
           // a.e(cp, set): a NON-EMPTY set goes to a.c(cp, set); an empty one goes to a.d(cp),
           // which is a.b(cp) behind a cache — the UNFILTERED script map. clsCLD2.b then applies
           // m.o() to the family's primary and, failing that, to each member in turn.
+          // exact port of a.b(int) — same range dispatch as a.c but with NO gating and NO a.f
+          // filtering; it returns the family itself. a.d(cp) is this behind a cache.
+          struct AcFam { const char* primary; std::vector<std::string> members; };
+          static AcFam acFamilyC(int cp){
+              auto F=[&](const char* p, std::initializer_list<const char*> rest){
+                  AcFam f; f.primary=p; f.members.push_back(p);
+                  for(auto r: rest) f.members.push_back(r); return f; };
+              auto A=[&](const char* const* arr, size_t n){
+                  AcFam f; f.primary=arr[0];
+                  for(size_t i=0;i<n;i++) f.members.push_back(arr[i]); return f; };
+              if(cp>=48 && cp<=57) return A(AC_DIGIT, sizeof(AC_DIGIT)/sizeof(AC_DIGIT[0]));   // a.v
+              if((cp>=32&&cp<=47)||(cp>=58&&cp<=64)||(cp>=91&&cp<=96)||(cp>=123&&cp<=126)||(cp>=8192&&cp<=8303))
+                  return F("zz", {});                                                          // a.t
+              if(cp==192||cp==194||cp==199||cp==200||cp==201||cp==202||cp==203||cp==206||cp==207||cp==212||cp==217||
+                 cp==219||cp==224||cp==226||cp==231||cp==232||cp==233||cp==234||cp==235||cp==238||cp==239||cp==244||
+                 cp==249||cp==251||cp==338||cp==339) return F("fr", {"ca","oc"});
+              if(cp==193||cp==205||cp==209||cp==211||cp==218||cp==225||cp==237||cp==241||cp==243||cp==250)
+                  return F("es", {"pt","gl","ca"});
+              if(cp==196||cp==214||cp==220||cp==228||cp==246||cp==252||cp==223) return F("de", {"lb"});
+              if(cp==197||cp==198||cp==216||cp==229||cp==230||cp==248) return F("no", {"da","sv","is","fo"});
+              if(cp==260||cp==261||cp==262||cp==263||cp==280||cp==281||cp==321||cp==322||cp==323||cp==324||cp==346||
+                 cp==347||cp==377||cp==378||cp==379||cp==380) return F("pl", {});
+              if(cp==268||cp==269||cp==270||cp==271||cp==282||cp==283||cp==327||cp==328||cp==344||cp==345||cp==352||
+                 cp==353||cp==356||cp==357||cp==366||cp==367||cp==381||cp==382) return F("cs", {"sk"});
+              if((cp>=7840&&cp<=7929)||cp==272||cp==273||cp==416||cp==417||cp==431||cp==432) return F("vi", {});
+              if((cp>=65&&cp<=90)||(cp>=97&&cp<=122)) return A(AC_LATIN, sizeof(AC_LATIN)/sizeof(AC_LATIN[0]));
+              if((cp>=192&&cp<=255)||(cp>=256&&cp<=591)) return A(AC_LATIN, sizeof(AC_LATIN)/sizeof(AC_LATIN[0]));
+              if((cp>=880&&cp<=1023)||(cp>=7936&&cp<=8191)) return F("el", {"grc","pnt"});
+              if((cp>=1024&&cp<=1279)||(cp>=1280&&cp<=1327)){
+                  if(cp==1028||cp==1108||cp==1030||cp==1110||cp==1031||cp==1111||cp==1168||cp==1169) return F("uk", {});
+                  if(cp==1026||cp==1106||cp==1032||cp==1112||cp==1033||cp==1113||cp==1034||cp==1114||cp==1035||cp==1115||
+                     cp==1039||cp==1119) return F("sr", {"bs","hr"});
+                  if(cp==1066||cp==1098) return F("bg", {"mk"});
+                  if(cp==1186||cp==1187||cp==1170||cp==1171||cp==1200||cp==1201||cp==1198||cp==1199||cp==1240||cp==1241)
+                      return F("kk", {"ky"});
+                  if(cp==1025||cp==1105||cp==1069||cp==1101||cp==1067||cp==1099) return F("ru", {"be"});
+                  return A(AC_CYR, sizeof(AC_CYR)/sizeof(AC_CYR[0]));
+              }
+              if((cp>=1328&&cp<=1423)||(cp>=64256&&cp<=64279)) return F("hy", {});
+              if((cp>=1424&&cp<=1535)||(cp>=64285&&cp<=64335)) return F("he", {"yi","lad"});
+              if((cp>=1536&&cp<=1791)||(cp>=1872&&cp<=1919)||(cp>=2208&&cp<=2303)||(cp>=64336&&cp<=65023)||(cp>=65136&&cp<=65279)){
+                  if(cp==1657||cp==1672||cp==1681||cp==1729||cp==1746) return F("ur", {"pa"});
+                  if(cp==1665||cp==1669||cp==1673||cp==1683||cp==1686||cp==1690||cp==1724||cp==1744) return F("ps", {});
+                  if(cp>=1658&&cp<=1661) return F("sd", {});
+                  if(cp==1742||cp==1685||cp==1717||cp==1734) return F("ku", {"ckb"});
+                  if(cp==1722||cp==1726) return A(AC_UR, sizeof(AC_UR)/sizeof(AC_UR[0]));
+                  if(cp==1662||cp==1670||cp==1688||cp==1711) return A(AC_FA, sizeof(AC_FA)/sizeof(AC_FA[0]));
+                  return F("ar", {});
+              }
+              if(cp>=1920&&cp<=1983) return F("dv", {});
+              if((cp>=2304&&cp<=2431)||(cp>=43232&&cp<=43263)){
+                  if(cp==2355) return F("mr", {"kok"});
+                  return A(AC_DEVA, sizeof(AC_DEVA)/sizeof(AC_DEVA[0]));
+              }
+              if(cp>=2432&&cp<=2559){
+                  if(cp==2544||cp==2545) return F("as", {});
+                  return F("bn", {"as","mni"});
+              }
+              if(cp>=2560&&cp<=2687) return F("pa", {});
+              if(cp>=2688&&cp<=2815) return F("gu", {});
+              if(cp>=2816&&cp<=2943) return F("or", {});
+              if(cp>=2944&&cp<=3071) return F("ta", {"kn"});
+              if(cp>=3072&&cp<=3199) return F("te", {});
+              if(cp>=3200&&cp<=3327) return F("kn", {"tcy"});
+              if(cp>=3328&&cp<=3455) return F("ml", {});
+              if(cp>=3456&&cp<=3583) return F("si", {});
+              if(cp>=3584&&cp<=3711) return F("th", {"nod","sou","tts"});
+              if(cp>=3712&&cp<=3839) return F("lo", {"hnx"});
+              if(cp>=3840&&cp<=4095) return F("bo", {"dz"});
+              if((cp>=4096&&cp<=4255)||(cp>=43616&&cp<=43647)) return F("my", {"shn","kar","mnw"});
+              if((cp>=4256&&cp<=4351)||(cp>=11520&&cp<=11567)) return F("ka", {"xmf","lzz"});
+              if((cp>=4352&&cp<=4607)||(cp>=12592&&cp<=12687)||(cp>=43360&&cp<=43391)||(cp>=44032&&cp<=55215)||(cp>=55216&&cp<=55295))
+                  return F("ko", {});
+              if((cp>=4608&&cp<=4991)||(cp>=4992&&cp<=5023)||(cp>=11648&&cp<=11743))
+                  return A(AC_ETH, sizeof(AC_ETH)/sizeof(AC_ETH[0]));
+              if((cp>=6016&&cp<=6143)||(cp>=6624&&cp<=6655)) return F("km", {});
+              if((cp>=6144&&cp<=6319)||(cp>=71264&&cp<=71295)) return F("mn", {"mnc","xal"});
+              if(cp>=12288&&cp<=12351) return A(AC_CJK, sizeof(AC_CJK)/sizeof(AC_CJK[0]));   // cjk_p
+              if((cp>=12352&&cp<=12447)||(cp>=110592&&cp<=110847)||(cp>=110848&&cp<=110895)) return F("ja", {});
+              if((cp>=12448&&cp<=12543)||(cp>=12784&&cp<=12799)||(cp>=110896&&cp<=110959)) return F("ja", {"ain"});
+              if((cp>=19968&&cp<=40959)||(cp>=13312&&cp<=19903)||(cp>=131072&&cp<=173791)||(cp>=173824&&cp<=177983)||
+                 (cp>=177984&&cp<=178207)||(cp>=178208&&cp<=183983)||(cp>=183984&&cp<=191471)||
+                 (cp>=196608&&cp<=201551)||(cp>=201552&&cp<=205743)) return A(AC_CJK, sizeof(AC_CJK)/sizeof(AC_CJK[0]));
+              if((cp>=126976&&cp<=127023)||(cp>=127744&&cp<=129535)||(cp>=129648&&cp<=129791)||(cp>=9728&&cp<=9983)||(cp>=9984&&cp<=10175))
+                  return F("zz", {});                                                         // emoji
+              if((cp>=119808&&cp<=120831)||(cp>=8448&&cp<=8527)||(cp>=8704&&cp<=8959)) return F("zz", {});  // math
+              if(cp>=65536&&cp<=65663) return F("grc", {});
+              if(cp>=66304&&cp<=66351) return F("la", {});
+              if(cp>=66352&&cp<=66383) return F("got", {});
+              if(cp>=66560&&cp<=66639) return F("en", {});
+              if(cp>=67584&&cp<=67647) return F("grc", {});
+              if(cp>=68096&&cp<=68191) return F("sa", {});
+              if((cp>=77824&&cp<=78895)||(cp>=78896&&cp<=78943)) return F("egy", {});
+              if((cp>=73728&&cp<=74751)||(cp>=74752&&cp<=74879)) return F("akk", {});
+              return F("un", {});                                                             // a.u
+          }
+          // clsCLD2.b's pick over an UNFILTERED family: primary if m.o, else each member in the
+          // set's own iteration order.
           static std::string acUnfilteredC(int cp, const std::unordered_set<std::string>& okIso3){
-              const char* pr = scriptLangC(cp);
-              if(!pr || !*pr) return "";
-              std::string primary(pr);
-              if(okIso3.count(toIso3C(primary))) return primary;
-              for(const auto& f : scriptLangFallbacksC(primary))
-                  if(okIso3.count(toIso3C(f))) return f;
+              AcFam f = acFamilyC(cp);
+              auto mo=[&](const std::string& x){ return okIso3.count(toIso3C(x)) > 0; };
+              if(f.primary && mo(f.primary)) return f.primary;
+              int initCap=(int)(f.members.size()/0.75)+1; if(initCap<16) initCap=16;
+              for(const auto& x : jHashSetOrder(f.members, initCap)) if(mo(x)) return x;
               return "";
           }
           static std::string scriptLangFilteredC(int cp, const std::unordered_set<std::string>& enabled,
