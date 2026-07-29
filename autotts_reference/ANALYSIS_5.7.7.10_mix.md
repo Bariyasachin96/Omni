@@ -331,6 +331,27 @@ jump table, which is why every Indic block is exactly 128 codepoints wide.
 
 ### emit() at `0x65366c`
 - skips spans of length < 1
+- **scripts 7..25 never reach CLD2.** `0x6536a0` computes `script - 7`; if that is
+  `< 0x13` it indexes a jump table at `0x62f850` for a fixed language code and jumps
+  straight to the store, past `ExtDetectLanguageSummary`/`LanguageCode`. Only scripts
+  1..6 (Latin, Cyrillic, Arabic, Devanagari, CJK, Bengali) are actually detected.
+
+  | script | | code | | script | | code |
+  |---|---|---|---|---|---|---|
+  | 7 Greek | | `el` | | 17 Malayalam | | `ml` |
+  | 8 Armenian | | `hy` | | 18 Sinhala | | `si` |
+  | 9 Hebrew | | `iw` | | 19 Thai | | `th` |
+  | 10 Georgian | | `ka` | | 20 Lao | | `lo` |
+  | 11 Gurmukhi | | `pa` | | 21 Tibetan | | `bo` |
+  | 12 Gujarati | | `gu` | | 22 Myanmar | | `my` |
+  | 13 Oriya | | `or` | | 23 Khmer | | `km` |
+  | 14 Tamil | | `ta` | | 24 Ethiopic | | `am` |
+  | 15 Telugu | | `te` | | 25 Hangul | | `ko` |
+  | 16 Kannada | | `kn` | | | | |
+
+  Hebrew is `iw`, CLD2's spelling, not `he` — and `m.h` has no `iw`, so a Hebrew span
+  falls to the latin/non-latin fallback rather than routing to Hebrew.
+- the merge/cap-stretch described below
 - caps the detected slice at **1024 bytes**, backing off over UTF-8 continuation bytes
 - `CLD2::ExtDetectLanguageSummary(slice, n, true, hints, 0x4000 /* kCLDFlagBestEffort */, …)`
 - `CLD2::LanguageCode(lang)`; a `strcmp` against the unknown code follows

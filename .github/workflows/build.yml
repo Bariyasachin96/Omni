@@ -1196,21 +1196,52 @@ jobs:
                   if ((((unsigned)(cp - 0x20000)) >> 5) < 0x7D1) return 5;  // CJK Ext B..
                   return -1;
               };
+              // 0x6536a0: scripts 7..25 never reach CLD2 at all — `script - 7` indexes a jump
+              // table at 0x62f850 that yields a fixed code, and control jumps straight past
+              // ExtDetectLanguageSummary/LanguageCode to the store. Only scripts 1..6 (Latin,
+              // Cyrillic, Arabic, Devanagari, CJK, Bengali) are actually detected.
+              static const char* GLS_FIXED[19] = {
+                  "el",  // 7  Greek
+                  "hy",  // 8  Armenian
+                  "iw",  // 9  Hebrew   (CLD2 spells Hebrew "iw", not "he")
+                  "ka",  // 10 Georgian
+                  "pa",  // 11 Gurmukhi
+                  "gu",  // 12 Gujarati
+                  "or",  // 13 Oriya
+                  "ta",  // 14 Tamil
+                  "te",  // 15 Telugu
+                  "kn",  // 16 Kannada
+                  "ml",  // 17 Malayalam
+                  "si",  // 18 Sinhala
+                  "th",  // 19 Thai
+                  "lo",  // 20 Lao
+                  "bo",  // 21 Tibetan
+                  "my",  // 22 Myanmar
+                  "km",  // 23 Khmer
+                  "am",  // 24 Ethiopic
+                  "ko"   // 25 Hangul
+              };
               auto glsEmit = [&](int start, int len, int script) {
                   if (len < 1) return;
                   if (start < 0 || start + len > (int)text.size()) return;
-                  int dlen = len;
-                  if (dlen > 1024) {
-                      dlen = 1024;
-                      while (dlen > 0 && ((unsigned char)text[start + dlen] & 0xC0) == 0x80) dlen--;
+                  std::string lang;
+                  unsigned si = (unsigned)(script - 7);
+                  if (si < 19) {
+                      lang = GLS_FIXED[si];
+                  } else {
+                      int dlen = len;
+                      if (dlen > 1024) {
+                          dlen = 1024;
+                          while (dlen > 0 && ((unsigned char)text[start + dlen] & 0xC0) == 0x80) dlen--;
+                      }
+                      CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+                      CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+                      int textBytes = 0; bool reliable = false;
+                      CLD2::Language l = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
+                                                 lang3, pct3, score3, nullptr, &textBytes, &reliable);
+                      const char* code = CLD2::LanguageCode(l);
+                      lang = code ? std::string(code) : "un";
                   }
-                  CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
-                  CLD2::Language lang3[3]; int pct3[3]; double score3[3];
-                  int textBytes = 0; bool reliable = false;
-                  CLD2::Language l = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
-                                             lang3, pct3, score3, nullptr, &textBytes, &reliable);
-                  const char* code = CLD2::LanguageCode(l);
-                  std::string lang = code ? std::string(code) : "un";
                   bool latin = (script == 1);
                   // 0x653764..0x65384c: if the previous record is contiguous AND has the same latin
                   // flag AND the same language string, MERGE into it (prev.bytes += this.bytes).
