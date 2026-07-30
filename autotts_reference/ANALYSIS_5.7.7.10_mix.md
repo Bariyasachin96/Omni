@@ -62,6 +62,12 @@ for each span:
 So **number/punctuation are handled inside `c3.y.g`** now (H=number selector,
 I=punc selector) — same builder dual mode uses.
 
+> **Correction (re-read 2026-07-29).** The keep-as-is test above is written as
+> `m.o(engineFor(lang))`. The real test is **`M(lang)`** — empty or `"Disable"` → fall back
+> to `F`. `m.o` is a different predicate (membership in `m.c` plus the not-disabled flag, no
+> engine test at all) and is used by `clsCLD2.b`, not here. See §30 and §34. The code was
+> always right; this line was not.
+
 ## 5. Multilingual mode flow (O == 5) — NEW
 ```
 spans = c3.z.g(text)                        // LocaleSpan split
@@ -73,6 +79,13 @@ for each span:
         if null → type-based: chunk.type ? K (Latin) : L (non-Latin)
         M.add( new z(chunk.text, lang) )
 ```
+> **Correction (re-read 2026-07-29).** The loop above is wrong: it sends **every** span
+> through `clsCLD2.c`. `onSynthesizeText`'s O == 5 branch keeps a span **as-is** when its
+> LocaleSpan language is known *and* `M(lang)` is a real engine, and only splits the others.
+> The per-part resolution is also **two stages**, both falling back on `part.b ? K : L` —
+> once when `m.h.get` misses, and again when `M(iso3)` comes back empty or `"Disable"`.
+> §34 has the branch written out. The code matches §34, not the sketch above.
+
 Needs native `nativeGetLanguages` (CLD2 multi-language chunking).
 **IMPLEMENTED (commit 011c6ca):** `NativeEngine.nativeGetLanguages` uses CLD2
 `ExtDetectLanguageSummary` + `ResultChunkVector`; latin flag via
@@ -89,9 +102,14 @@ mixed K/L prefs; z.g LocaleSpan split → keep-routable-span or per-span chunk.
 - Default flipped false→true, so advanced detection is OFF unless the user turns it on.
 
 ## 8. Keep-alive (U, `keep_alive_mode`, default false) — NEW
-- In the synth loop: `if (!U) { o.wait() }` — when U is true the post-utterance wait
-  is skipped, keeping the engine active so the system is less likely to tear down the
-  session mid-speech. Advanced tab: "Keep-alive Mode" section + "Keep alive" checkbox.
+- Advanced tab: "Keep-alive Mode" section + "Keep alive" checkbox.
+
+> **Correction (re-read 2026-07-29).** "the post-utterance wait is skipped" is not what
+> happens. With `U` set the tail of `onSynthesizeText` runs **`g0(cb)`**, which starts the
+> callback and then loops `while (!p.get()) { o0(cb); synchronized (o) { o.wait(100) } }`,
+> writing the 32 zero bytes of `d0` in `getMaxBufferSize()` slices every 100 ms. With `U`
+> clear it is the plain `while (!p && !q) o.wait()`. So keep-alive **feeds silence**; it does
+> not skip a wait. §28 has `g0` and `o0` in full, and the port matches them.
 
 ## 9. Advanced tab UI changes (fragment_advanced.xml)
 - `synthesis_settings` → **"Advanced Synthesis Options"** (+ new description).
