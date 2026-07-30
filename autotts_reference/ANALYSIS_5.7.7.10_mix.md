@@ -675,3 +675,34 @@ A one-line bridge to `SeekBar.setStateDescription`. `P1` calls it only under
 `Build.VERSION.SDK_INT >= 30` and passes the **literal** max (500 / 100 / 200), not
 `getMax()`. The six +/-5 buttons never touch the state description — only `setProgress`
 reaching `onProgressChanged` does.
+
+---
+
+## 21. Licenses tab — fragment_license.xml + c3.j.S2()
+
+`res/layout/fragment_license.xml` is a `fillViewport` ScrollView over a vertical
+`LinearLayout` with **no padding**, holding the `#ff293842` `RelativeLayout` bar (TextView
+`TextAppearance.Medium`, white, `layout_margin="5dip"`, `@string/tab_text_5` = "Licenses")
+and `@id/licences_text` — `fill_parent`, `layout_margin="5dip"` on all four sides,
+`TextAppearance.Small`.
+
+`S2()` is three statements: `Html.fromHtml(Q(@string/autotts_license), 0)` (flag 0 is
+`FROM_HTML_MODE_LEGACY`), `setText`, `setMovementMethod(LinkMovementMethod.getInstance())`.
+
+`@string/autotts_license` is, in order: a bold copyright paragraph, one paragraph naming
+AOSP and CLD2 under Apache 2.0, then a `<ul>` of two `<li>` blocks (AOSP, then CLD2), each
+with a bold-italic title, its copyright line, the two Apache paragraphs and an `<a href>` to
+the licence. There is **no version line and no installed-engines line** anywhere in it — the
+ones EasyVoice used to print were invented and have been removed. The opening copyright
+paragraph is the single line that cannot be copied literally, since it names AutoTTS's own
+rights holder; that slot carries this app's name instead.
+
+`tab_text_1..5` are "Modes", "Languages", "Voices", "Advanced", "Licenses".
+
+### Dead helpers removed
+Every tab in `TabViews.kt` and `LanguagesVoicesViews.kt` now builds its views straight from
+the XML, so the generic `sectionHeader` / `subHeader` / `descriptionText` / `spinnerLabel` /
+`addCheckRow` / `headerText` / `bodyText` / `labelText` helpers had no callers left and are
+gone, along with `parseLocaleTag` and the `selectedEnginePkg` / `selectedLocaleTag` pair the
+Test button no longer reads (it takes the engine and the Locale off `voiceRows[0]`, which is
+`m.e[0]`). Leaving them invites a future pass to reach for a style AutoTTS does not have.
