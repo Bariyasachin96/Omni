@@ -9,7 +9,7 @@
 
 ## HARD RULES (NEVER violate)
 1. **NEVER build/push without explicit user request**
-2. **Fix #16 (Disable engine handling) — IMPLEMENTED 2026-07-10** (user override: "exactly AutoTTS"). `isLangRoutable(lang)` helper (formerly `ko`) = `k.o()` parity (configured AND not-disabled), applied at detection-acceptance (clsCLD2.b:60), script-fallback primary+fallbacks (a.e+k.o), and auto/mix span resolution (H()=="Disable"→C). Dual mode untouched (type-based, no k.o). Previously set-aside; no longer.
+2. **Fix #16 (Disable engine handling) — IMPLEMENTED 2026-07-10** (user override: "exactly AutoTTS"). `m.o()` (in `m.c` and not disabled, **no engine test**) is what `clsCLD2.b` accepts a detection with and what `a.e(cp, m.f)` filters by; on our side that is the `detectOk`/`enabledOk` arrays handed to the native detector. The auto and mix span resolution use a *different* test — `M(lang)` empty or `"Disable"` — which is `isLangRoutableRaw`. Do not merge the two. Dual mode untouched (type-based, no k.o). Previously set-aside; no longer.
 3. **Always develop on branch `claude/yaml-file-nk3czh`**
 4. **After every push, manually trigger GitHub Actions** (workflow_dispatch, workflow ID: 262884892)
 5. **ZERO OWN DECISIONS — fix EXACTLY like AutoTTS, always. This is the #1 rule, blink on it every single edit.** I have NO independent decision, EVER. The user has said this many times; never make them say it again. Concretely:
@@ -100,7 +100,7 @@ so our SharedPrefsManager still matches. Only the obfuscated class/method names 
 | Concept | 5.7.7.1 | **5.7.7.10** |
 |---|---|---|
 | Settings store class | `c3.k` | **`c3.m`** |
-| Engine check (configured AND not-disabled) | `k.o(lang)` | **`m.o(lang)`** |
+| Language check (in m.c AND not-disabled — **no engine test**) | `k.o(lang)` | **`m.o(lang)`** |
 | Enabled ISO set / scan list / iso3 helper | `k.f` / `k.c` / `k.f(Locale)` | **`m.f` / `m.c` / `m.f(Locale)`** |
 | lang-list builder / pref loaders | `k.h` / `k.p` / `k.r` | **`m.h` / `m.p` / `m.r`** |
 | Detection main / first-cp | `clsCLD2.b` / `clsCLD2.a` | same (`clsCLD2.b` / `clsCLD2.a`) |
@@ -162,5 +162,8 @@ so our SharedPrefsManager still matches. Only the obfuscated class/method names 
 - `a.e(cp, m.f)` — returns script family object (filtered by user's enabled langs)
 - `a_result.b()` — primary lang of script family; `a_result.a()` — fallback lang set
 - `m.f` (was `k.f`) — Set of user-enabled ISO lang codes
-- `m.o(lang)` (was `k.o(lang)`) — checks if engine available and not disabled
+- `m.o(lang)` (was `k.o(lang)`) — **iso2/iso3 is present in `m.c` AND `!e.i`. It does NOT look
+  at the engine at all.** `m.c` comes from `language_N`, i.e. every scanned language. The
+  engine test is a different method, `AutoTtsService.M(lang)`, and the two are used in
+  different places — see `ANALYSIS_5.7.7.10_mix.md` §30.
 - `AutoTtsService.W` (was `S`) — disable-advanced-detection flag; `AutoTtsService.X` — single-char UNKNOWN gate

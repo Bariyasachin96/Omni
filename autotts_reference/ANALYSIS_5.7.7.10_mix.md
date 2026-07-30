@@ -1134,3 +1134,65 @@ already ported. **`e`, the `UtteranceProgressListener`:**
   so chunk N+1 was prepared a frame earlier than AutoTTS prepares it.
 - **`onStart` carried a `synthStartTime` stamp** that nothing read — invented state, removed.
   AutoTTS's `onStart` is the `hasStarted` check and nothing more.
+
+---
+
+## 30. The CLD2 chain, every part of it
+
+### `clsCLD2` — five methods and one inner class, all of them
+- **`a(String)`** — the first codepoint that is not whitespace, not an ASCII digit and not
+  `e(char)` punctuation, else `-1`. It walks **`charAt`** (UTF-16 units) but returns
+  `codePointAt(i)`, so a surrogate pair answers with the whole codepoint and a lone surrogate
+  answers with itself.
+- **`e(char)`** — the four ASCII punctuation runs: `!`–`/`, `:`–`@`, `[`–`` ` ``, `{`–`~`.
+- **`b(text, g0, b0, ctx)`** — `null`/empty → `"UNKNOWN"`; `length == 1 && X` → `"UNKNOWN"`;
+  then 64-**char** windows: `nativeGetLanguage` per window, a non-`"UNKNOWN"` answer returns
+  immediately when `W`, else when `m.o(answer)`; failing that, `a(window)` → `a.e(cp, m.f)` →
+  the family's primary if `m.o`, else the first fallback that passes `m.o`. An exception in a
+  window just advances to the next. After the loop, `W` → `"UNKNOWN"`, otherwise the same
+  script-fallback over the **whole** text.
+- **`c(text, g0, b0, obj)`** — `null`/empty → one `a("un", false, "")`; `X && length == 1` →
+  one `a("un", d(text), text)`; else `nativeGetLanguages` read three at a time
+  (`lang`, `"1"`-means-latin, `text`), and a null array yields an **empty** list, not the
+  `"un"` fallback.
+- **`d(String)`** — `UnicodeScript.of(codePointAt(0))` ∈ {LATIN, COMMON, INHERITED}.
+- **inner `clsCLD2.a`** — the immutable (lang, latin, text) triple plus a `toString` of the
+  form `[xx/latin] text`. `MLChunk` is this.
+
+### `com.vnspeak.autotts.a` — every member
+Statics `a`, `b`–`k`, `l`–`v`, `w`; methods `a()`, `b(int)`, `c(int, Set)`, `d(int)`,
+`e(int, Set)`, `f(a.a, Set)`, `g(Set, Set)`; inner `a.a` (primary, possible, script).
+`e` is `set != null && !set.isEmpty() ? c(n, set) : d(n)`. **`f` and `g` are called only from
+`c`** — `g` is a set-intersection test and `f` narrows a family to the enabled languages,
+returning the family untouched when everything is enabled and the primary is in, `u` when the
+intersection is empty, and otherwise a new family whose primary is the old one if enabled or
+else the first survivor. Both are therefore covered by the `a.c` differential run:
+**208 sets × 205,232 codepoints = 42,688,256 comparisons, 0 mismatches**, with `a.b`/`a.d`
+separately at 136 × 205,232 = 24,627,840, 0 mismatches.
+
+### `m.o(lang)` — the documentation was wrong
+```java
+if (lang.length() != 3) { lang = h.get(lang); if (lang == null) return FALSE; }
+for (e entry : c) if (entry.b.compareTo(lang) == 0) return !entry.i;
+return FALSE;
+```
+It is **membership in `m.c` plus the not-disabled flag, and nothing else — there is no engine
+test in it.** `CLAUDE.md` described it as "engine available and not disabled", which would
+have led a later pass to add an engine check to the detection path.
+
+The engine test is a different method, `AutoTtsService.M(lang)` — `""` when the language is
+absent, `"Disable"` when `e.i`, else `e.f` — and the two are used in different places:
+
+| where | test |
+|---|---|
+| `clsCLD2.b` accepting a detection | `m.o` |
+| `a.e(cp, m.f)`'s primary and fallbacks | `m.o` |
+| auto path per span, `onSynthesizeText` | `M(iso3)` empty or `"Disable"` → `F` |
+| mixed path per span | `M(b)` empty or `"Disable"` → `F` |
+| `resolveMixChunk` / `resolveMultilingualChunk` | `M(lang)` |
+
+Checked on our side: `detectOk` is `scannedLangsIso3.filter { !isLanguageDisabled(it) }` —
+`m.c` membership plus the flag, exactly `m.o` — and `enabledOk` is `m.f`. Both go to the
+native detector, so the CLD2 path never consults an engine. `isLangRoutableRaw` is the
+`M()`-shaped test and is what the auto and mixed span loops call. The three call sites line
+up with AutoTTS's three. No change needed in the code; the note was the only thing wrong.
