@@ -814,3 +814,83 @@ language with no scanned voice.
 `c3.n.a()` marks a package as self when it contains `"autotts"` or `"multilingualtts"`;
 `EngineFinder.getEngines` excludes both markers. `m.B`/`m.C` use `commit()`. `m.s` defaults to
 `"1000"` and parses with no catch — EasyVoice catches instead of reproducing a crash.
+
+---
+
+## 24. The engine scan — B0 → i.onInit → y0 → j.onInit → D0 → z0
+
+Read in full: `NewSettingsActivity.java` (620 lines — `A0`, `B0`, `C0`, `D0`, `E0`, `y0`,
+`z0`, `onCreate`, `onPause`, `onDestroy`, and the two `OnInitListener` inner classes `i` and
+`j`), `c3/n.java`, `c3/w.java`, `c3/m.java` (`a`, `b`, `h`, `u`, `x`, `y`, `z`), and the
+strings `autotts_scan`, `autotts_engine_failed`, `autotts_progress`, `autotts_scan_engines`.
+
+### The state machine
+| field | role |
+|---|---|
+| `J` | Map pkg → `c3.n` of what `B0` discovered |
+| `m.b` | the engine list (static, shared) |
+| `m.d` | the voice list (static, shared) |
+| `L` | index of the engine being probed |
+| `M` | "this engine's onInit fired" |
+| `N` | Handler for the **30 s per-engine** watchdog |
+| `K` | Handler for the **180 s global** watchdog → `z0()` |
+| `O` | indices of engines that failed |
+| `F` | the probe `TextToSpeech` |
+
+1. **`B0()`** clears `m.b` and `m.d`, then `queryIntentServices` with flags 131072, 128 and 0,
+   skipping any package containing the app's own marker and anything already in `J`.
+2. **`F = new TextToSpeech(this, new i(...), OWN_PKG)`** — the own engine is probed for exactly
+   one reason: `i.onInit` calls `F.getEngines()` and **merges in every engine the three
+   queryIntentServices passes missed**, skipping what `J` already holds and anything carrying
+   the own marker. Then `F.shutdown()` and `y0()`. A failed probe instead toasts
+   `autotts_engine_failed` at LENGTH_LONG and jumps straight to `z0()` — no per-engine scan.
+3. **`y0()`** sets `L = 0`, `M = false`, arms `N` for 30 s, prints
+   `getString(autotts_scan) + " <pkg>... (3)"` into `@id/current_engine`, and builds the probe.
+4. **`j.onInit(status)`** sets `M = true`, clears `N`, and: non-zero status → `O.add(L)`;
+   otherwise reflect `mCurrentEngine` — a null field or a thrown exception both mean "take the
+   package at its word" — and if the engine answered as somebody else, `O.add(L)` instead of
+   reading voices. `A0` then makes one `c3.w` per (pkg, iso3 lang, iso3 country) and appends
+   every `Voice.getName()` to the variant list the `w` constructor seeds with `"*Default"`.
+   Finally `F.shutdown()` in a try/catch, then `D0()`.
+5. **`D0()`** — `L++`, walk past every engine `c3.n.a()` calls self, then either start it
+   (printing `"... (2)"` this time) or `K.removeCallbacksAndMessages(null)` and `z0()`.
+6. **`z0()`** dedupes `O`, sorts it descending, removes those engines from `m.b` and their `w`
+   from `m.d`, rebuilds `m.c` with `m.h(ctx, false)`, calls `m.u(ctx)` — whose `m.x` writes
+   `engine_N` from what is left of `m.b`, skipping only the app's own package — sets
+   `m.g` to a fresh own-engine `TextToSpeech` for the Test button, and swaps
+   `linlaHeaderProgress` for the pager.
+
+### CFR was wrong about `D0`'s increment — smali settled it
+CFR renders the skip loop as `while ((n3 = ++this.L) < size && m.b.get(this.L).a()) {}`, an
+empty-bodied loop with a **pre-increment inside the condition** and an unused assignment. Taken
+literally that advances twice before the first `.a()` test and silently skips an engine. The
+smali at `NewSettingsActivity->D0()` is unambiguous:
+
+```
+L = L + 1;  if (L >= size) -> done
+:loop  if (L >= size) -> after
+       if (!m.b.get(L).a()) -> after
+       L = L + 1;  goto :loop
+:after if (L >= size) -> done ; else found
+```
+
+so it is the ordinary `while (L < size && m.b.get(L).a()) L++;`. Recorded because this is the
+rule-7 fallback earning its keep — the CFR shape was unreadable in the exact way the rule
+names, and the smali trip was not wasted.
+
+### What was off in EasyVoice
+- **No own-engine probe at all**, so `TextToSpeech.getEngines()` was never consulted and any
+  engine the three `queryIntentServices` passes miss was invisible. Added, with the
+  `autotts_engine_failed` toast and the straight-to-finalize path on a failed probe.
+- **No `c3.n.a()` skip while advancing.** `getEngines` filters both markers up front, but the
+  `getEngines()` merge only filters the own marker — exactly as `i.onInit` does — so the skip
+  is the second line of defence and now exists.
+- **`engine_N` came from the engines that succeeded.** `z0` + `m.x` write what is left of
+  `m.b` after removing the failures, which is not the same list: an engine `D0` skipped for
+  being self was never scanned, never failed, and therefore still gets written. The scan now
+  tracks `m.b` and the failed set separately and writes the survivors.
+- **`@id/current_engine` was a fixed string.** It is a live per-engine readout in AutoTTS,
+  `"Scanning <pkg>... (3)"` for the first and `"... (2)"` for the rest; the scan now drives it
+  through a callback.
+- **The `onlyPkg` scoped-scan parameter had no AutoTTS counterpart** and both callers passed
+  null. Removed.
