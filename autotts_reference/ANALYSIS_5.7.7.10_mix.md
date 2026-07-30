@@ -1564,3 +1564,45 @@ already honours the flag.
   `cld2WindowDetectC`'s CLD3 branch returns `"UNKNOWN"` rather than falling through. The
   Kotlin side then does what it does for any unknown code — `resolveMultilingualChunk` falls
   back on the latin flag to `K` or `L`.
+
+---
+
+## 38. Why AutoTTS needs no restart — and the two places we still did
+
+AutoTTS's settings screen and its TTS service are one process, and the screen writes the
+**shared statics** the service reads: `AutoTtsService.O/F/G/K/L/H/I/J/Q/R/S/T/U/V/W/X` and the
+`c3.m.c` list. Nothing round-trips through SharedPreferences to take effect; the next
+`onSynthesizeText` already sees it.
+
+### What was already live on our side
+`onSynthesizeText` re-reads, per request: the foreground reconcile, `modeInt`, `dualLang`,
+`localeSpansFlag`, `stripAudioAttrFlag`, `forceAccessibilityFlag`, `numberModeInt`,
+`puncModeInt`, `emojiModeInt`, `dedicatedEnginesFlag`, `readingMode`, `latFall`, `nonLatFall`,
+`scannedLangsIso3`, `enabledLangs`, `mixNumLang`, `mixPuncLang`. `isUseCld3`,
+`isDisableAdvancedDetection`, `isQuickCharacterReading`, `isKeepAliveMode` and
+`isLoggingEnabled` are read at each use. `setShowNotification` writes the service field
+directly, which is the static-write pattern itself.
+
+`engineList`, `voiceList` and `enginePool` are built once at create — but so are AutoTTS's
+`P`, `Y` and `f` (`Y()`, `e0()`, `T()` all run only from `onCreate`), so a restart is required
+on both sides equally. Not a gap.
+
+### The two that were not live
+Moving the service onto `LangStore` (§16, §27) made `c3.m.c` the service's source for the
+engine, the locale, the variant and the disabled flag. Two UI paths were still writing only
+SharedPreferences, so the service kept the stale in-memory value until something reloaded the
+list — the same shape as the original "picked a voice for English, nothing applied" report.
+
+- **Voices tab, voice pick.** `j.O1`'s voice branch writes `m.c[b1].f = m.e[n4].d.b` and
+  `m.c[b1].g = m.e[n4].c.toString()` straight onto the shared list, and **skips the write for
+  the Disabled row** (`if (m.e[n4].d == null) continue;`). Ours only did `putString`. Both
+  writes are now mirrored, Disabled-row skip included, and `persistVoiceRows` — the `m.C`
+  port — keeps the entry in step whenever index 0 changes.
+- **Languages tab, enable/disable.** `T2`'s click handler does `m.c[j].i = !bl` *then*
+  `m.z(ctx)`; select-all and clear-all do the same across the list, and `m.l`'s force-enable
+  pass writes `e.i = false`. Ours called `prefs.setLanguageDisabled` alone. Every one of those
+  now sets `.i` on the entry as well, in the same order AutoTTS uses: memory first, then
+  persist.
+
+The Voices tab's sliders, the variant spinner and the Test button were already going through
+the entry (§16, §20, §23).
