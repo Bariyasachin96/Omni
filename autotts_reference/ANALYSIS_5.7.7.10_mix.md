@@ -1483,7 +1483,7 @@ else is outstanding; if it is not on this list, it is a literal port.
 | what | AutoTTS | was | now |
 |---|---|---|---|
 | `c3.z.g` span locale | `localeSpan.getLocale().getLanguage()`, no guard | `ls.locale?.language ?: "UNKNOWN"` | `ls.locale.language` — throws where AutoTTS throws |
-| `e.onStop(id, interrupted)` | empty body | logged the id | empty body |
+| `e.onStop(id, interrupted)` | **logs `"onStop <id>"`** and nothing else | logged the id | ~~empty body~~ — this row was WRONG; the log is back |
 | `c3.m.s` | `Integer.parseInt(getString(key, "1000"))`, no catch | caught and fell back to 1000 | no catch |
 
 The same ruling as the `Y2` variant-array overflow: a defect in AutoTTS is still AutoTTS.
