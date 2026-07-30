@@ -606,3 +606,72 @@ Confirmed identical, no edit needed:
 
 The two gaps this pass found — the slider write rule and the `Y()`-before-`a0()` ordering —
 are fixed in the commit that introduces `LangStore`.
+
+---
+
+## 20. Voices tab — fragment_voices.xml read view by view
+
+CFR/res read for this pass: `res/layout/fragment_voices.xml` in full, `c3/k.java`,
+`c3/a0.java`, plus the `c3/j.java` methods that drive the tab (`V2`, `O1`'s three spinner
+branches, `D2`, `Y2`, `W2`, `Z2`, `P1`, `I1`, `J1`, `K1`, `L1`, `M1`, `N1`) and
+`res/values/public.xml` / `strings.xml` for every id and string.
+
+### Tree, with the margins that were missing
+`@id/scroller` is `fillViewport`; `@id/VoiceSettings` inside it carries **no padding**.
+`@id/VoicesInactive` is a sibling of the ScrollView, and `V2` swaps their visibility —
+for `O == 0` the scroller goes and the inactive block appears, and `V2` **returns before**
+the reset button and the dedicated-engines checkbox are ever wired.
+
+Both blocks open with the same `#ff293842` `RelativeLayout` bar whose TextView is
+`TextAppearance.Medium`, white, `layout_margin="5dip"`. Then, inside `linear_voice`:
+
+| view | width | marginTop | marginStart | style |
+|---|---|---|---|---|
+| `text11` tip | fill_parent | 10dip | 5dip | Small |
+| `text22` "Select language" | fill_parent | 5dip | 5dip | Small |
+| `autotts_languages` | fill_parent | 2dip | **5dip** | — |
+| `text33` | fill_parent | 5dip | 5dip | Small |
+| `autotts_voices` | fill_parent | 2dip | **none** | — |
+| `text333` | fill_parent | 5dip | 5dip | Small |
+| `autotts_voice_variant` | fill_parent | 2dip | **none** | — |
+| `testbutton` | **fill_parent** | — | — | — |
+
+`@id/params` is a vertical `LinearLayout` at `marginStart="5dip"`; each slider label is
+`gravity=center`, `fill_parent`, **no style attribute** (default appearance); each row is
+`- button (wrap_content, layout_gravity=start, ?android:buttonStyleSmall)`, `SeekBar (0dip,
+weight 1, gravity center, layout_gravity center, secondaryProgress 0)`, `+ button
+(wrap_content, layout_gravity=end)`. The three SeekBars declare `android:max="19"` in the
+XML, but `V2` overrides that with `setMax(500)` speed, `setMax(100)` volume, `setMax(200)`
+pitch — the code wins, and `setAccessibilityLiveRegion(1)` is set on all three.
+
+After `params`, still inside `VoiceSettings`: `autotts_reset` (`wrap_content`,
+`layout_gravity=center`, buttonStyleSmall, text and contentDescription both "Default"), a
+`wrap_content` `TextAppearance.Medium` TextView "Experimental" at `marginStart="5dip"`, the
+`dedicatedengines` CheckBox at `fill_parent`/`marginStart="5dip"`, and a Small `fill_parent`
+description at `marginStart="5dip"` with **no** marginTop.
+
+### `Z2()` order
+`W0 = U0 = V0 = 100`, then `m.c[b1].d = V0` and the **volume** SeekBar, `m.c[b1].c = U0` and
+the **speed** SeekBar, `m.c[b1].e = W0` and the **pitch** SeekBar — volume, speed, pitch, in
+that order, each write immediately followed by its own `setProgress`. No persistence.
+
+### `W2()` (Test)
+Bails when `m.g` is null, `m.e` is empty or `m.e[0].d` is null. `pkg = m.e[0].d.b`,
+`loc = m.e[0].c` — the voice's own `Locale`, not a re-parsed tag — `variant = m.c[b1].h`
+(the in-memory language entry, so the LangStore entry now), and the sample is
+`a0.a(m.f(loc))`, keyed on the iso3 of **that** locale rather than the selected language.
+Empty sample → `"Sorry. Sample text for language " + loc.getDisplayName(new Locale("eng")) +
+" is missing."`; otherwise `"[AutoTTS:" + pkg + ":" + loc + ":" + variant + "]" + sample`.
+`speak(..., QUEUE_FLUSH, null, "AutoTTS_Test")`.
+
+### `c3.a0` sample texts — verified, not eyeballed
+`c3.a0.a` holds 184 entries. EasyVoice's `SampleTexts` was diffed against it key by key and
+value by value after unescaping both sides: **184/184 keys present on both sides, 0 value
+mismatches.** `a0.a(iso3)` returns `""` for a miss, which is the branch that produces the
+"Sorry. Sample text …" line.
+
+### `c3.k.a(SeekBar, CharSequence)`
+A one-line bridge to `SeekBar.setStateDescription`. `P1` calls it only under
+`Build.VERSION.SDK_INT >= 30` and passes the **literal** max (500 / 100 / 200), not
+`getMax()`. The six +/-5 buttons never touch the state description — only `setProgress`
+reaching `onProgressChanged` does.
