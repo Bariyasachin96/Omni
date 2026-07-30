@@ -1521,3 +1521,46 @@ The same ruling as the `Y2` variant-array overflow: a defect in AutoTTS is still
   app's own either way.
 - `LangStore.LangEntry` omits `c3.e`'s `j` (`LinkedHashSet` of providing engines) — that set
   only feeds `m.j`/`m.k`/`m.l`'s engine filter, which we take from the scan's voice list.
+
+---
+
+## 37. CLD3 brought level with CLD2
+
+The Advanced-tab "Use CLD3 (neural language detection)" row is EasyVoice-only — AutoTTS has
+no such switch. The rule for it is therefore not "match AutoTTS" but "wherever CLD2 makes a
+detection, the switch must be able to put CLD3 there instead". CLD3 itself is real: the
+workflow clones `google/cld3`, runs `protoc` over its `.proto` files, and CMake compiles the
+whole `${CLD3_DIR}` source list plus `script_span` into the single `easyvoice_core` `.so`.
+
+### Where CLD3 already reached
+`cld2WindowDetectC(u8, useCld3)` is the one detector entry point, and it has exactly two
+callers — `detectLanguageFull` (the `clsCLD2.b` port, which serves auto, mix and multilingual
+first-chunk detection through Kotlin's `detectLanguage`) and `buildAutoChunks`. Both pass the
+flag through. `cld3DetectRaw` holds one lazily built `NNetLanguageIdentifier(0, 1000)` behind
+a mutex, drops the region suffix off `zh-Hant`-style answers, runs the result through
+`normalizeLangCode`, and then through `cld3ScriptConsistent`, which rejects an answer whose
+latin-vs-non-latin side disagrees with the first real codepoint of the text.
+
+### Where it did not
+**`glsEmit`** — the multilingual span emitter inside `nativeGetLanguages`. It called
+`CLD2::ExtDetectLanguageSummary` unconditionally, and the Kotlin `external fun` did not even
+take the flag, so **Multilingual mode ignored the switch completely**. That is the whole gap.
+
+`buildMixChunks` is not a gap: it segments by script and emits no language of its own, leaving
+detection to Kotlin's `resolveMixChunk` → `detectLanguage` → `detectLanguageFull`, which
+already honours the flag.
+
+### The change
+`nativeGetLanguages` now takes `useCld3`, and `glsEmit`'s detection branch honours it:
+
+- **The scripts 7..25 fixed table is untouched.** Those 19 entries are *segmentation* — the
+  native code jumps straight past detection for them — not a detector result, so no switch
+  should reach them.
+- Only the `else` branch, the one that actually detects for scripts 1..6, chooses between
+  `cld3DetectRaw` and `ExtDetectLanguageSummary`.
+- The 1024-byte cap with its UTF-8 back-off runs first for both, so the two detectors see the
+  same slice.
+- **A CLD3 decline is not quietly handed to CLD2.** It becomes `"un"`, exactly as
+  `cld2WindowDetectC`'s CLD3 branch returns `"UNKNOWN"` rather than falling through. The
+  Kotlin side then does what it does for any unknown code — `resolveMultilingualChunk` falls
+  back on the latin flag to `K` or `L`.

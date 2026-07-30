@@ -1147,10 +1147,14 @@ jobs:
               return arr;
           }
           extern "C" JNIEXPORT jobjectArray JNICALL
-          Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
+          Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText, jboolean jUseCld3){
               jclass sc=env->FindClass("java/lang/String");
               if(!jText) return env->NewObjectArray(0, sc, nullptr);
               const char* tc=env->GetStringUTFChars(jText,nullptr); std::string text(tc?tc:""); env->ReleaseStringUTFChars(jText,tc);
+              // The Advanced-tab "Use CLD3" switch reaches the span emitter too. It only
+              // replaces the DETECTOR — the scripts 7..25 fixed table is segmentation, not
+              // detection, and stays whichever engine is selected.
+              const bool glsUseCld3 = (jUseCld3 == JNI_TRUE);
               // ── exact port of getLanguageSpans (libcld2.so 0x653114) ──────────────────
               // AutoTTS does NOT use CLD2::ScriptScanner here. It walks the UTF-8 bytes and
               // splits on its own codepoint->script classifier; the latin flag handed back to
@@ -1239,13 +1243,21 @@ jobs:
                           dlen = 1024;
                           while (dlen > 0 && ((unsigned char)text[start + dlen] & 0xC0) == 0x80) dlen--;
                       }
-                      CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
-                      CLD2::Language lang3[3]; int pct3[3]; double score3[3];
-                      int textBytes = 0; bool reliable = false;
-                      CLD2::Language l = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
-                                                 lang3, pct3, score3, nullptr, &textBytes, &reliable);
-                      const char* code = CLD2::LanguageCode(l);
-                      lang = code ? std::string(code) : "un";
+                      if (glsUseCld3) {
+                          // Same contract as cld2WindowDetectC's CLD3 branch: a decline is not
+                          // silently handed to CLD2, it becomes the unknown code, and the Kotlin
+                          // side then falls back on the latin flag to K or L.
+                          std::string c3 = cld3DetectRaw(std::string(text, start, dlen));
+                          lang = c3.empty() ? "un" : c3;
+                      } else {
+                          CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+                          CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+                          int textBytes = 0; bool reliable = false;
+                          CLD2::Language l = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
+                                                     lang3, pct3, score3, nullptr, &textBytes, &reliable);
+                          const char* code = CLD2::LanguageCode(l);
+                          lang = code ? std::string(code) : "un";
+                      }
                   }
                   bool latin = (script == 1);
                   // 0x653764..0x65384c: if the previous record is contiguous AND has the same latin
@@ -1334,7 +1346,7 @@ jobs:
           "    ): String\n"
           "    external fun scriptLang(cp: Int): String\n"
           "    external fun scriptLangFallbacks(primary: String): Array<String>\n"
-          "    external fun nativeGetLanguages(text: String): Array<String>\n"
+          "    external fun nativeGetLanguages(text: String, useCld3: Boolean): Array<String>\n"
           "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
           "    external fun modeLang(mode: Int, latFall: String, nonLatFall: String): String\n"
           "    external fun detectLanguageFull(text: String, latFall: String, nonLatFall: String,\n"
@@ -2701,7 +2713,7 @@ jobs:
           "        if (prefs.isQuickCharacterReading() && text.length == 1) {\n"
           "            return listOf(MLChunk(\"un\", isLatinCommonInherited(text.codePointAt(0)), text))\n"
           "        }\n"
-          "        val flat = try { NativeEngine.nativeGetLanguages(text) } catch (_: Throwable) { emptyArray<String>() }\n"
+          "        val flat = try { NativeEngine.nativeGetLanguages(text, prefs.isUseCld3()) } catch (_: Throwable) { emptyArray<String>() }\n"
           "        val out = mutableListOf<MLChunk>()\n"
           "        var i = 0\n"
           "        while (i + 2 < flat.size) {\n"
