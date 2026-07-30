@@ -996,3 +996,45 @@ whitespace-only test behind `y.c`'s type 0.
 ### Not ported, unchanged from §25
 `c3/g0` and the licence path — signing-certificate hash, Google LVL key, `license_status` /
 `license_text` and the `"Auto TTS (%s)"` title decoration they drive.
+
+---
+
+## 27. `AutoTtsService.Z()` — what onLoadLanguage actually is
+
+`onLoadLanguage(l, c, v)` is one line: `synchronized(this) { return Z(l, c, v); }`. `Z` reads:
+
+```java
+int res = onIsLanguageAvailable(lang, country, variant);
+String voiceLoc, enginePkg, variantOut;
+if (variant.contains("autotts.") && res == 2) {
+    voiceLoc = lang + "_" + country;  enginePkg = variant.substring(8);  variantOut = "";
+} else {
+    voiceLoc = Q(lang);  enginePkg = M(lang);
+    variantOut = variant.isEmpty() ? P(lang) : variant;
+}
+if (enginePkg.isEmpty()) { voiceLoc = Q(F); enginePkg = M(F); }
+switch (res) { case 0: …; case 1: …; case 2: …; default: return res; }
+```
+
+Three things fall out of reading it whole:
+
+1. **Google mode has no branch here.** `M(lang)` returns `"com.google.android.tts"` when
+   `O == 3`, and **`Q(lang)` and `P(lang)` both `return lang` on `O == 3`** before they touch
+   `m.c`. So in Google mode `voiceLoc` is the iso3 string, the engine is Google, and the
+   variant — when the request carries none — is **the language code**, not `""`. EasyVoice had
+   an `if (modeInt == 3)` early return that passed `v ?: ""` as the variant and skipped the
+   `this.c` bookkeeping. Removed; the three lookups now produce it.
+2. **Cases 1 and 2 of the switch are dead.** `onIsLanguageAvailable` only ever answers `0`
+   (`m.j(null,true).contains(lang)`) or `-2`, and the `"autotts."` variant path additionally
+   requires `res == 2`. Only case 0 runs. It is:
+   `loc = f0(voiceLoc)`, null → `-2`; if `m.f(loc).equals(lang)` → `b0(enginePkg, loc,
+   variantOut, R)` (and `this.c = enginePkg` when it differed); otherwise
+   `b0(k0(new Locale(lang)), new Locale(lang), variantOut, R)`.
+3. **The empty-engine fallback tests `M`'s result only.** `"Disable"` is not empty, so a
+   disabled language is carried into `b0` as the literal engine `"Disable"` rather than being
+   replaced from `F`. EasyVoice's `== "NOT_SET"` test is the same relation, since
+   `LangStore.engineFor` returns `""` where `M` does.
+
+`Q` and `P` were coming from SharedPreferences (`getLocaleForLangPkg`, `getVoiceName`); they
+are `c3.e.g` and `c3.e.h` off the in-memory list, so they now go through
+`LangStore.localeFor`/`variantFor`, which also carry the `O == 3` short-circuit.
