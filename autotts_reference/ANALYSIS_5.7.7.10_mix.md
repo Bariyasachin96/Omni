@@ -706,3 +706,56 @@ the XML, so the generic `sectionHeader` / `subHeader` / `descriptionText` / `spi
 gone, along with `parseLocaleTag` and the `selectedEnginePkg` / `selectedLocaleTag` pair the
 Test button no longer reads (it takes the engine and the Locale off `voiceRows[0]`, which is
 `m.e[0]`). Leaving them invites a future pass to reach for a style AutoTTS does not have.
+
+---
+
+## 22. The settings shell — new_settings_activity.xml + NewSettingsActivity.onCreate/E0
+
+`activity_tts_settings.xml` is a **leftover** from an older single-screen design (it still has
+`android:onClick="onRadioButtonClicked"`, `goToVoiceSettings`, `go_to_mode_settings`). The
+live layout is `new_settings_activity.xml`, which `onCreate` inflates:
+
+1. root `LinearLayout` vertical, `fitsSystemWindows="true"`
+2. `AppBarLayout` (`android:theme="@style/AppTheme.AppBarOverlay"`) wrapping a horizontal
+   `LinearLayout` at `gravity=center_vertical`, `padding=@dimen/appbar_padding` (**16dip**),
+   `minHeight="?actionBarSize"` — a 32dip × 32dip `ImageView` of `@drawable/ic_launcher` with
+   `contentDescription=@string/app_name` and `marginEnd="8dip"`, then `@id/title` at
+   `@style/TextAppearance.Widget.AppCompat.Toolbar.Title`. **The row itself has no
+   background** — the AppBarLayout supplies it.
+3. `@id/linlaHeaderProgress`, `gravity=center`, vertical, **height 0dip weight 1**: a
+   `TextAppearance.Large` TextView (`@string/autotts_progress`), a
+   `@android:style/Widget.ProgressBar.Large` ProgressBar at `marginTop="10dip"`, and
+   `@id/current_engine` at **`TextAppearance.Medium`** (`@string/autotts_scan_engines` =
+   "Scan for tts engines…"). **None of the three carries any padding.**
+4. `ViewPager2 @id/view_pager`, `visibility="gone"`, height 0dip weight 1
+5. `TabLayout @id/tabs`, `background="?colorPrimary"`, `app:tabGravity="fill"`,
+   **`app:tabIndicatorGravity="top"`**, `app:tabMode="fixed"` — last in the column, so the
+   tab row sits at the bottom and its indicator is drawn along the top edge.
+
+`onCreate` then: `setOffscreenPageLimit(4)`, `TabLayoutMediator` giving each tab its icon
+(`ic_tab_modes`, `ic_tab_languages`, `ic_tab_voices`, `ic_tab_settings`, `ic_tab_licenses`),
+its `tab_text_N`, and — at this point — the **plain** title as its content description.
+`E0(...)` immediately overwrites every one of those with
+`@string/cd_tab_title_param` = `"%1$s, tab %2$d of %3$d"`.
+
+`onPageSelected` does two things: `E0(...)` again for all tabs, then
+`findFragmentByTag("f" + position)` and, if it is a `c3.j`, calls **`F0()`** on it — which
+re-runs `U2()` for the Modes tab, `T2()` for Languages and `V2()` for Voices, and nothing for
+Advanced or Licenses. EasyVoice's `notifyItemChanged(position)` for `position <= 2` is that,
+and `onBindViewHolder`'s `if (position >= 3 && childCount > 0) return` is why 3 and 4 stay put.
+
+Then `m.q(ctx)` (F/K/L/G each falling back to `m.f(Locale.getDefault())`, plus H/I/J),
+`m.p(ctx)`, `m.r(ctx)`, the license-status line — which EasyVoice has no counterpart for and
+must not fabricate — the 180 s watchdog, `B0()` and the self-engine `TextToSpeech` that
+becomes `m.g` for the Test button.
+
+### What was off in EasyVoice
+No `AppBarLayout` and no launcher-icon `ImageView`; the title used `TextAppearance.Large` +
+hardcoded white on a `colorPrimary` row instead of the Toolbar.Title appearance on a plain
+row inside an AppBarLayout; no `minHeight=?actionBarSize`; the progress block's three
+children carried invented 32dp/10dp paddings and the third line was `Small` rather than
+`Medium`, with a default-size ProgressBar rather than `progressBarStyleLarge`; the TabLayout
+used `colorBackground` instead of `?colorPrimary` and had no `tabIndicatorGravity=top`.
+The `ImageView` resolves the icon through `applicationInfo.loadIcon(packageManager)` because
+this app ships no `ic_launcher` of its own — that reads the app's real icon rather than
+inventing artwork the original does not have.
