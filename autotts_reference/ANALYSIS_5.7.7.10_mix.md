@@ -759,3 +759,58 @@ used `colorBackground` instead of `?colorPrimary` and had no `tabIndicatorGravit
 The `ImageView` resolves the icon through `applicationInfo.loadIcon(packageManager)` because
 this app ships no `ic_launcher` of its own — that reads the app's real icon rather than
 inventing artwork the original does not have.
+
+---
+
+## 23. The three Voices-tab dropdowns, end to end
+
+Chain re-read for this pass: `c3/w.java` in full (`b`, `c`, `d`, `e`, `f`, `g`, `h`),
+`c3/n.java`, `c3/e.java`, `c3/m.java` (`a`, `b`, `d`, `g`, `h`, `i`, `j`, `k`, `l`, `m`, `s`,
+`B`, `C`, `y`, `z`), `c3/j.java` (`V2`, `O1`, `D2`, `Y2`, `W2`, `Z2`),
+`NewSettingsActivity.A0`/`B0`.
+
+### Wiring order
+`V2` attaches the listeners to all three spinners **before** it sets any adapter, then sets the
+language adapter last. That first `setAdapter` fires `O1(pos = 0)` → the language branch →
+`D2` + `Y2`, and `Y2` sets the voice and variant adapters, which fire `O1(0)` again for each.
+The voice branch returns on position 0; **the variant branch does not** — it has no guard, so
+it writes `m.c[b1].h` and calls `m.y(ctx)` on that very first pass.
+
+### Where each list comes from
+| spinner | list | filter |
+|---|---|---|
+| `autotts_languages` | `m.i()` for O 1, `m.j("com.google.android.tts", false)` for O 3, `m.j(null, false)` otherwise | `m.i` keeps `eng` + `G`; `m.j` skips `e.i` and, with a pkg, requires `e.j.contains(pkg)` |
+| `autotts_voices` | `m.e[n].d()` after `D2` + `Collections.sort` | `D2` keeps voices of the selected iso3, Google-only for O 3, and appends the `*Disabled` row for O 2 (iso != F) and O 4 or 5 (iso != K and != L) |
+| `autotts_voice_variant` | `m.e[0].f`, reordered by `Y2` | none |
+
+Both adapters are `simple_spinner_item` (17367048) with
+`setDropDownViewResource(simple_spinner_dropdown_item)` (0x1090009). The language spinner is
+never `setSelection`-ed in `V2` — it always lands on 0.
+
+### Three things that were still off, now fixed
+1. **The sort tie-break.** `w.b` is
+   `if (this.e != w3.e) return this.e - w3.e; return this.g().compareToIgnoreCase(w3.g());`
+   EasyVoice compared two `.lowercase()` strings, which is not the same relation —
+   `compareToIgnoreCase` folds each char through `toUpperCase(toLowerCase(c))`. Now a literal
+   `Comparator` with `compareTo(other, ignoreCase = true)`.
+2. **`w.g()`'s split.** Java's `name.split(" ")` drops trailing empty strings at the default
+   limit; Kotlin's keeps them, so an engine label ending in a space took a different branch.
+   Now `split(" ").dropLastWhile { it.isEmpty() }`.
+3. **`Y2` reads the variant from memory.** It is `m.c.get(b1).h`, and when that is empty `Y2`
+   writes `""` back into the same entry. EasyVoice was reading and writing
+   `<iso>_variant` in prefs instead, which is a different value the moment the two drift.
+   Now it goes through the LangStore entry, the same one `W2` reads for the Test string.
+
+### And one in the Languages tab, same defect class
+`m.m`, `m.k` and `m.l` all read `c3.e.a`, which `m.h` set from `w.c()` =
+the scanned voice `Locale`'s `getDisplayLanguage()`. The Languages tab was labelling rows from
+a hardcoded name table, which changes both the visible label and the collator order it is
+sorted by. The scan locale's display name now wins, and the table is only the fallback for a
+language with no scanned voice.
+
+### Verified equal, left alone
+`w.d()` uses `getCountry()` (not `getISO3Country()`) for its emptiness test and
+`getDisplayCountry()` for the suffix. `w.e()` is `m.f(this.c)`. `w.h(n)` is a plain setter.
+`c3.n.a()` marks a package as self when it contains `"autotts"` or `"multilingualtts"`;
+`EngineFinder.getEngines` excludes both markers. `m.B`/`m.C` use `commit()`. `m.s` defaults to
+`"1000"` and parses with no catch — EasyVoice catches instead of reproducing a crash.
