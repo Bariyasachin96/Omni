@@ -161,6 +161,13 @@ Divergences FOUND & FIXED this pass:
 2. Speak dispatch: `if (!p && !q)` wraps listenerSet + setAudioAttributes + postDelayed (line 2268); EasyVoice posted unconditionally. Also param order strip→volume. (e16e119)
 3. e.onDone posts next chunk with `postDelayed(...,50L)` (line 2605); EasyVoice used post() with no delay. (e16e119)
 
+> **Correction (re-read 2026-07-30).** Item 3 was tagged fixed but **was not in the code**.
+> The re-read on 2026-07-30 found `chunkHandler.post` with no delay still there and fixed it
+> in `47e6a71`. Items 1 and 2 were checked in the same pass and *are* applied: the mode gate
+> carries the `zxx` rule for every non-Dual mode, and `if (isStopped || isFlushed) return`
+> sits above `listenerSet`, `setAudioAttributes` and the `postDelayed`, with the bundle order
+> strip-then-volume. A "fixed" tag in this file is not evidence; the code is.
+
 ## 12. Full class-chain sweep (2026-07-28)
 
 Complete call-chain from AutoTtsService and clsCLD2 outward.
@@ -241,8 +248,10 @@ Everything else confirmed equal to EasyVoice:
   collapse to EasyVoice's single
   `isKnownIso2(det) && isLangRoutable(det) ? det : mixTypeFallback`,
   with mixTypeFallback already carrying type1→K / type2→L.
-- span-loop guard `q.get()` ≡ EasyVoice's isStopped during chunk build
-  (both are only set by onStop at that point).
+- span-loop guard `q.get()` ≡ EasyVoice's **isFlushed** during chunk build.
+  (Written as `isStopped` here originally. `q` is set only by `m0`, i.e. only by `onStop`,
+  and `isFlushed` is the field that mirrors it — `isStopped` is `p`. The three span loops
+  guard on `isFlushed`, which is right; see §34.)
 
 No divergence left in the Mixed-mode chain.
 
