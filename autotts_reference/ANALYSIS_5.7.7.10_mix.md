@@ -1038,3 +1038,50 @@ Three things fall out of reading it whole:
 `Q` and `P` were coming from SharedPreferences (`getLocaleForLangPkg`, `getVoiceName`); they
 are `c3.e.g` and `c3.e.h` off the in-memory list, so they now go through
 `LangStore.localeFor`/`variantFor`, which also carry the `O == 3` short-circuit.
+
+---
+
+## 28. `b0`, `m0`, `n0`, `o0`, `g0`, `L` — the rest of the service methods
+
+### `b0(pkg, locale, variant, dedicated)` — loadVoice
+`pkg.isEmpty() ? pkg = this.c : this.c = pkg`, normalise by stripping `-` and `_`, find the
+wrapper at state 2 with that normalised name, else `this.d = -1` and return. Then:
+`variant.isEmpty() && !wrapper.e.isEmpty()` → hand off to `c0(norm, locale)`. Otherwise read
+the engine's current `Voice` (locale `zxx` and name `""` when there is none) and return early
+when language, country — or an empty requested country — and voice name all already match.
+Then the variant lookup, then one of two writes, then `wrapper.d = locale; wrapper.e = variant`.
+
+Two things worth stating:
+- **The variant lookup goes through `m.c`.** `b0` scans the `voice_N` list for
+  `pkg#locale`, and on a hit walks **`m.c`** for the entry whose `e.f` and `e.g` are that
+  engine and that locale, taking `e.h`. EasyVoice was re-deriving it from
+  `getLanguageList()` + the `<iso>` pref + `getVoiceName`; it now reads `LangStore.c`
+  directly, which is that list.
+- **Every `i0` call inside `b0`, `c0` and `d0` passes `f.get(d).e()` — the NORMALISED
+  package.** EasyVoice was passing `wrapper.realPkg`, the raw one, while `restoreEngine`
+  matches against the normalised `enginePool[n].pkg`. For any engine whose package contains
+  `-` or `_` the restore silently found nothing. Seven call sites, all now `wrapper.pkg`.
+  The keep-alive path is the exception and stays raw: `c3.d.d()` calls `i0(this.c)` with the
+  bind package, so AutoTTS compares normalised against raw there too.
+
+### `m0(Boolean)` — stopAllTts
+`M.clear()` first. With `false`: if the current wrapper is at state 2, has `g` set and is
+speaking, `speak("", QUEUE_FLUSH, null, null)`. With `true` (what `onStop` passes): every
+wrapper at state 2 with `g` set and speaking gets `f0.m()` — the async `stop()`. Then
+`synchronized (o) { p.set(true); o.notifyAll(); }` and, in a **second** synchronized block,
+`q.set(true); o.notifyAll();`.
+
+### `n0(int)`
+Only `synchronized (o) { p.set(true); o.notifyAll(); }` — the unlock half of `L` without the
+callback bookkeeping.
+
+### `o0(SynthesisCallback)` and `g0(SynthesisCallback)` — keep-alive
+`o0` writes the 32-byte `d0` buffer in `getMaxBufferSize()` slices while `!p.get()`, treating
+`audioAvailable(...) == 0` as success and anything else as "stop, return false". `g0` is
+`cb.start(16000, 2, 1)` then `while (!p.get()) { if (!o0(cb)) return; synchronized (o) {
+o.wait(100) } }`, returning on `InterruptedException`. EasyVoice's keep-alive block is this
+loop inline, with the same 32 zero bytes, the same 100 ms wait and the same interrupt exit.
+
+### `L(cb, n)` — endSynthesis
+`synchronized (o) { p.set(true); o.notifyAll(); }`, then `done()` only when the callback has
+started and has not finished.
