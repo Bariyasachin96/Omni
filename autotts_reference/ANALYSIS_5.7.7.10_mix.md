@@ -1085,3 +1085,52 @@ loop inline, with the same 32 zero bytes, the same 100 ms wait and the same inte
 ### `L(cb, n)` — endSynthesis
 `synchronized (o) { p.set(true); o.notifyAll(); }`, then `done()` only when the callback has
 started and has not finished.
+
+---
+
+## 29. `onSynthesizeText`'s head and the four inner classes
+
+### The head, in order
+1. `if (V && !W()) l0(); else if (!V && W()) stopForeground(1);` — the foreground state is
+   reconciled on **every** request, not just at create.
+2. `synchronized (o) { p.set(false); o.notifyAll(); }` and then, in a **second** block,
+   `q.set(false); o.notifyAll();`.
+3. `cs = req.getCharSequenceText()`, `text = cs.toString()`, `lang = req.getLanguage()`,
+   `l = getSpeechRate()`, `m = getPitch()`, `j = getParams()`,
+   `k = j.getFloat("volume")` with `k = 1.0f` when it is 0, `c0 = j.getString("utteranceId")`.
+4. `text = text.trim()`; empty → `m0(FALSE)` then `K(cb, 1)` and return. Note it is
+   `m0(FALSE)`, the single-engine `speak("")` path, not the stop-everything one.
+5. The licence counter (`a0`, `H()` every 500) — not ported, §25.
+6. **Test-utterance parse.** `text.length() >= 9 && text.substring(0, 9).equals("[AutoTTS:")`
+   and `text.split("]").length == 2` → `text = parts[1]`, and
+   `parts[0].substring(1).split(":")` of length 4 gives engine, locale and variant, with
+   `lang = m.f(f0(localeStr))`. That sets the flag which makes the mode gate fall through.
+7. **The mode gate:** the span/auto path is taken when
+   `((lang.equals("zxx") && O != 1) || O == 2 || O == 3) && !isTest`.
+
+### Per-mode bodies
+- **auto / google:** `M = z.g(cs)`; per span, `"unknown"` → `clsCLD2.b(text, g0, b0, h)` and
+  truncate to 2 chars; `iso3 = m.h.get(code)` or `F`; `M(iso3)` empty or `"Disable"` → `F`;
+  `span.e(iso3)`. Then `onLoadLanguage(M[0].b(), "", "")`, `-2` → `K(cb, 2)`.
+- **dual (O == 1):** `M = y.g(text, H, I, g0, b0)`; type 1 → `onLoadLanguage("eng","","")`,
+  `-2`/`-1` → `K(cb, 4)`; type 2 → `onLoadLanguage(G,"","")`, `-2`/`-1` → `K(cb, 5)`.
+- **mixed (O == 4):** per LocaleSpan, `"unknown"` or empty → `y.g(...)` appended to `M`;
+  otherwise `M(b)` empty or `"Disable"` → `F`, then the span itself is appended.
+- Speak: `O(lang)` speed, `R(lang)` volume, `N(lang)` pitch;
+  `rate = l/100 * speed/100`, `pitch = m/100 * pitch/100`, `vol = k * volume/100` written to
+  the bundle only when non-zero, after removing language/country/voiceName/variant/pitch/rate/
+  utteranceId and, under `S`, streamType and audioAttributes.
+
+### Inner classes
+`b` is the LicenseCheckerCallback and `c`/`d` are the init and restore `OnInitListener`s,
+already ported. **`e`, the `UtteranceProgressListener`:**
+- `onStart` — `if (!cb.hasStarted()) cb.start(16000, 2, 1)`. Nothing else.
+- `onDone` — `if (M.size() > 1) handler.postDelayed(next, 50L); else L(cb, 7);`
+- `onError(id)` → `L(cb, 8)`; `onError(id, code)` → `L(cb, 9)`
+- `onStop(id, interrupted)` — **empty**
+
+### Two gaps fixed
+- **`onDone` continues through `postDelayed(…, 50L)`**, not `post`. Ours posted with no delay,
+  so chunk N+1 was prepared a frame earlier than AutoTTS prepares it.
+- **`onStart` carried a `synthStartTime` stamp** that nothing read — invented state, removed.
+  AutoTTS's `onStart` is the `hasStarted` check and nothing more.
