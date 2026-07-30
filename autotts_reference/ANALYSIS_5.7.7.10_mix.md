@@ -945,3 +945,54 @@ through the ones no earlier pass had opened:
   developer's signing hash and Play licensing key into this app, where they are meaningless.
   This is the same class as the copyright line in §21: it names AutoTTS itself, not its
   behaviour. Left out, and the title decoration with it.
+
+---
+
+## 26. Every remaining c3 file, read
+
+`c3/` is 33 files and no subdirectories. Going through the ones no pass had opened in full:
+
+### `c3/e.java` — the language entry
+`a` display name, `b` iso3, `c/d/e` speed/volume/pitch (all defaulting to 100 in the two-arg
+constructor), `f` engine, `g` locale string, `h` variant defaulting to `"*Default"`,
+`i` disabled defaulting to false, and **`j` a `LinkedHashSet`** of the engine packages that
+provide the language. `LangStore.LangEntry` mirrors every field except `j`, which only feeds
+`m.j`/`m.k`/`m.l`'s engine filter — we take that from the scan's voice list instead, which is
+the same information from the same source.
+
+### `c3/f0.java` — the engine wrapper
+`a` is the package with `-` and `_` stripped. `h()` is the retry gate,
+`k == 0 || ((nanoTime() - j) / 1e6 > 3000.0 && k < 10)`; `i()` stamps `j` and increments `k`.
+`l()`/`m()` submit shutdown/stop to a per-wrapper
+`ThreadPoolExecutor(0, 5, 60s, LinkedBlockingQueue, factory)` whose factory makes one daemon
+thread named `"TtsStop"`. `EngineWrapper` matches field for field.
+
+### `c3/d.java` — the keep-alive binder
+`c(pkg)` short-circuits when the package is unchanged and still bound, else unbinds, resolves
+`android.intent.action.TTS_SERVICE` in that package, sets the explicit component, and binds
+with flags **65** = `BIND_AUTO_CREATE | BIND_IMPORTANT`. The connection has four callbacks:
+`onServiceConnected` logs, `onServiceDisconnected` calls the service's `i0(pkg)`,
+`onBindingDied` unbinds and rebinds the same package, `onNullBinding` unbinds.
+`bindEngineKeepAlive` is this, callback for callback.
+
+### `c3/z.java` — the LocaleSpan splitter
+Two quirks are load-bearing and were already reproduced: `getSpans(0, length - 1, …)` — a span
+starting on the last character is missed — and `prevEnd = spanEnd + 1`, which drops the
+character sitting at each span's end. With `Q` off it returns the whole text as one
+`"UNKNOWN"` chunk.
+
+### `c3/p`–`c3/s`, `c3/x`
+`p`/`q`/`r`/`s` are the four dialog click/callback lambdas for `c3.t`. `x.a(String)` is the
+whitespace-only test behind `y.c`'s type 0.
+
+### Two gaps this pass found
+- **`T()` submits `m()` and `l()` as two separate `execute()` calls**, wrapped together in one
+  `try/catch (Exception)`. `initAllTTS` was submitting a single runnable that did stop and
+  shutdown in sequence. Now two, with the try around the pair.
+- **`onDestroy` calls plain `f0.l()`** for every wrapper at state 2 — one `execute` of
+  shutdown, and it is **not** inside a try. Ours had a `catch` that fell back to calling
+  `shutdown()` directly on the caller's thread, which AutoTTS never does.
+
+### Not ported, unchanged from §25
+`c3/g0` and the licence path — signing-certificate hash, Google LVL key, `license_status` /
+`license_text` and the `"Auto TTS (%s)"` title decoration they drive.
