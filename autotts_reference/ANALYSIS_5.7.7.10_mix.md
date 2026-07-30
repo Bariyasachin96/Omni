@@ -1471,3 +1471,53 @@ The two lines at the top of `y.g` — `if (g0 == -1) return empty; if (b0 == -1)
 — are the licence gate. `g0` defaults to `-1` and `b0` is `g0.b(ctx)`'s verdict, so an
 unlicensed build gets **no chunks at all** in dual and mixed mode. Same family as §25;
 recorded here so a later pass reading `y.g` does not try to port them.
+
+---
+
+## 36. Honest ledger — what is deliberately not AutoTTS, and why
+
+Everything below is a place where the code does **not** mirror AutoTTS byte for byte. Nothing
+else is outstanding; if it is not on this list, it is a literal port.
+
+### Closed in this pass — they were my judgement, and they should not have been
+| what | AutoTTS | was | now |
+|---|---|---|---|
+| `c3.z.g` span locale | `localeSpan.getLocale().getLanguage()`, no guard | `ls.locale?.language ?: "UNKNOWN"` | `ls.locale.language` — throws where AutoTTS throws |
+| `e.onStop(id, interrupted)` | empty body | logged the id | empty body |
+| `c3.m.s` | `Integer.parseInt(getString(key, "1000"))`, no catch | caught and fell back to 1000 | no catch |
+
+The same ruling as the `Y2` variant-array overflow: a defect in AutoTTS is still AutoTTS.
+
+### Standing carve-outs, agreed with the user
+- **Licence and integrity, everywhere it reaches.** `c3.g0` (signing-certificate hash),
+  `AutoTtsService.U`/`H`/`j0` and the inner `b` (Google LVL with AutoTTS's own public key),
+  `NewSettingsActivity.C0`'s `"Auto TTS (%s)"` title decoration, the `a0` counter and its
+  `H()` every 500 in `onSynthesizeText`, the `g0.c(...) % 100 == 1` text-replacement easter
+  egg, the `g0`/`b0` arguments threaded into `clsCLD2.b`/`clsCLD2.c` and the native calls,
+  **`y.g`'s two opening lines** (`g0 == -1` or `b0 == -1` → empty list, so an unlicensed build
+  gets no chunks in dual and mixed), `com.android.vending.CHECK_LICENSE`, and the
+  `com.pairip.application.Application` wrapper.
+- **The Licenses copyright paragraph.** AutoTTS opens with its own rights holder; that slot
+  carries this app's name. Copying it would be false attribution.
+- **`@drawable/ic_launcher`.** No such asset here, so the app bar reads the real icon through
+  `applicationInfo.loadIcon(packageManager)` rather than inventing artwork.
+- **The CLD3 row** in the Advanced tab — EasyVoice-only, kept by explicit instruction, and to
+  be brought up to CLD2's level after CLD2 is declared finished.
+
+### Still open, and the user should decide
+- **`SYSTEM_ALERT_WINDOW`.** Mirrored, because AutoTTS declares it. But grepping the whole
+  decompile for `TYPE_APPLICATION_OVERLAY`, `canDrawOverlays`,
+  `ACTION_MANAGE_OVERLAY_PERMISSION` and `WindowManager.LayoutParams` finds nothing — AutoTTS
+  never uses it. It is a user-visible "Display over other apps" grant on an app that draws no
+  overlays.
+- **`neutralDefault`.** A C++ parameter with no `y.g` counterpart; it only supplies a language
+  when a resolved type is neither 1 nor 2. There is nothing in AutoTTS to match it against, so
+  it has been left rather than guessed at.
+
+### EasyVoice-only, structural, not behaviour
+- `getReadingMode`'s one-time migration of the old `reading_mode` string key into `auto_mode`,
+  and `setReadingMode`'s `else -> 2` for an unknown mode name.
+- `EasyVoiceLogger` uses one fixed tag where `c3.o` takes a tag per call; the messages are this
+  app's own either way.
+- `LangStore.LangEntry` omits `c3.e`'s `j` (`LinkedHashSet` of providing engines) — that set
+  only feeds `m.j`/`m.k`/`m.l`'s engine filter, which we take from the scan's voice list.
