@@ -1279,3 +1279,49 @@ Two orderings fall out of that shape, and both are load-bearing:
 `onLoadVoice` → stores `e0` then forwards to `onLoadLanguage` (§19). `onSynthesizeText` and
 the `UtteranceProgressListener` (§29). `onStop` → `m0(TRUE)` (§28). `onStartCommand` returns
 `START_STICKY`; `onTaskRemoved` just calls through to super. `onDestroy` (§26).
+
+---
+
+## 33. Every Modes-tab dropdown and checkbox, against `O1` branch by branch
+
+| id | field | `O1` body |
+|---|---|---|
+| `auto_mode_language` r0 | `F` | `F = m.c.get(r0.getSelectedItemPosition()).b` |
+| `dual_mode_language` s0 | `G` | `G = m.c.get(s0.getSelectedItemPosition()).b` |
+| `mixed_mode_latin_language` x0 | `K` | `K = m.c.get(x0.getSelectedItemPosition()).b` |
+| `mixed_mode_non_latin_language` y0 | `L` | `L = m.c.get(y0.getSelectedItemPosition()).b` |
+| `multilingual_mode_latin_language` z0 | **`K`** | `K = m.c.get(z0.getSelectedItemPosition()).b` |
+| `multilingual_mode_non_latin_language` A0 | **`L`** | `L = m.c.get(A0.getSelectedItemPosition()).b` |
+| `number_mode_language` t0 | `H` | `H = t0.getSelectedItemPosition(); v0.setSelection(H)` |
+| `number_mode_language_mixed` v0 | `H` | `H = v0.getSelectedItemPosition(); t0.setSelection(H)` |
+| `punc_mode_language` u0 | `I` | `I = u0.getSelectedItemPosition(); w0.setSelection(I)` |
+| `punc_mode_language_mixed` w0 | `I` | `I = w0.getSelectedItemPosition(); u0.setSelection(I)` |
+
+Multilingual's pair writes the **same `K`/`L`** the mixed pair writes — there is no separate
+multilingual language setting. Number and punctuation are one `H` and one `I` each, mirrored
+across the dual and mixed copies of the spinner. None of these branches persists; `m.w(ctx)`
+writes `F/G/K/L/H/I/J` and runs from `m.u(ctx)` on pause.
+
+### The index the language spinners write
+Every language branch reads its own `getSelectedItemPosition()` and indexes **`m.c`**, the
+unfiltered list, while the adapter is `m.m(pkg)`. **`m.m` filters only on
+`e.j.contains(pkg)` — never on the disabled flag** — so with `pkg == null`, which is every
+mode but Google, the adapter is `m.c` one for one and the index is right. In Google mode
+`m.m("com.google.android.tts")` is shorter, and the position then names a *different* entry
+of `m.c`. That is AutoTTS's behaviour; we were writing the filtered list's entry, which is
+"correct" and therefore wrong. Now `allCodes[position]`.
+
+(The Voices tab is the other way round — `V2` builds `m.c` with `m.h(ctx, true)` and its
+adapter with `m.j(...)`, both of which drop disabled entries, so those line up.)
+
+### The three locale-span checkboxes
+`R0`, `S0`, `T0` are three views over the single flag `Q`. Each sets `Q = bl` and then calls
+`setChecked(Q)` on the other two **unconditionally** — `CompoundButton.setChecked` no-ops when
+the value is unchanged, so it never recurses. Ours had an `isChecked != checked` guard in
+front; removed, so the call shape matches. `U2` sets all three from `Q` *before* attaching any
+listener, which is why the initial state never fires the mirroring — our construction order
+does the same.
+
+### Dedicated engines
+`V2`: `setEnabled(O != 0 && O != 3)`, then `setChecked(R)`, then the listener `R = bl`.
+Matched.
