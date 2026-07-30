@@ -1325,3 +1325,75 @@ does the same.
 ### Dedicated engines
 `V2`: `setEnabled(O != 0 && O != 3)`, then `setChecked(R)`, then the listener `R = bl`.
 Matched.
+
+---
+
+## 34. Auto (O==2/3) and Multilingual (O==5) — settings through to segmentation
+
+### What the dropdowns write
+Auto shows section `E0`: `auto_mode_language` → `F`, and the `localespans` checkbox → `Q`.
+Multilingual shows `H0`: `multilingual_mode_latin_language` → **`K`** and
+`multilingual_mode_non_latin_language` → **`L`** — the very fields the Mixed pair writes —
+plus `localespans_multilingual` → `Q`. Multilingual has no number and no punctuation spinner,
+so `H` and `I` are untouched by it. All of this is §33; none of the branches persists, `m.w`
+does that from `m.u` on pause.
+
+### `onSynthesizeText`, O == 2 / O == 3
+```java
+M.clear(); M.addAll(z.g(cs));
+for (i = 0; i < M.size() && !q.get(); i++) {
+    b = M.get(i).b();
+    if (b.equalsIgnoreCase("unknown")) { b = clsCLD2.b(M.get(i).c(), g0, b0, h);
+                                         if (b.length() > 2) b = b.substring(0, 2); }
+    iso3 = m.h.get(b);                       if (iso3 == null)                 iso3 = F;
+    if (M(iso3).isEmpty() || M(iso3).equals("Disable"))                        iso3 = F;
+    M.get(i).e(iso3);
+}
+if (!M.isEmpty()) { text = M.get(0).c(); if (onLoadLanguage(M.get(0).b(), "", "") == -2) K(cb, 2); }
+```
+Ours: `splitByLocaleSpans` → per span, `"unknown"` → `detectLanguage` truncated to two chars →
+`isKnownIso2(detected) && (forceGoogle || isLangRoutable(detected)) ? detected : autoModeC`.
+`isKnownIso2` is `m.h.get(b) != null` (both read `Locale.getISOLanguages()`),
+`isLangRoutable` is the `M()` test, `forceGoogle` covers `M` answering Google unconditionally
+on O == 3, and the iso2 → iso3 step happens later in `speakChunk`'s `toIso3`. Matches.
+
+### `onSynthesizeText`, O == 5 — the branch that had not been written down
+```java
+M.clear(); spans = z.g(cs);
+for (i = 0; i < spans.size() && !q.get(); i++) {
+    b = spans.get(i).b();
+    if (b.equalsIgnoreCase("unknown") || b.isEmpty()
+        || (eng = M(b)).isEmpty() || eng.equals("Disable")) {
+        parts = clsCLD2.c(spans.get(i).c(), g0, b0, h);      // the native per-language split
+        for (k = 0; k < parts.size(); k++) {
+            iso3 = m.h.get(parts.get(k).a);
+            if (iso3 == null)                       iso3 = parts.get(k).b ? K : L;
+            e2 = M(iso3);
+            if (e2.isEmpty() || e2.equals("Disable")) iso3 = parts.get(k).b ? K : L;
+            M.add(new z(parts.get(k).c, iso3));
+        }
+    } else {
+        M.add(spans.get(i));
+    }
+}
+if (M.isEmpty()) { K(cb, 7); return; }
+text = M.get(0).c(); onLoadLanguage(M.get(0).b(), "", "");
+```
+Two things to note. The keep-as-is test is a **single `||` chain**, so a span that *has* a
+locale but whose language has no engine is still re-detected, not kept. And the per-part
+resolution is **two stages**, both falling back on `parts.b ? K : L` — the latin flag decides
+which of the mixed pair is used, and the second stage re-checks the engine after the first
+mapping succeeded.
+
+Ours is this span for span: `splitByLocaleSpans`, then
+`!lang.equals("unknown") && lang.isNotEmpty() && isLangRoutableRaw(lang)` → keep, else
+`multilingualChunks(lc.text)` (which is `clsCLD2.c`, `X`-gate and all, §30) with
+`resolveMultilingualChunk` doing exactly the two stages. Matches.
+
+### The loop guard
+Both loops run `while (… && !q.get())`. `q` is set only by `m0`, i.e. only by `onStop`; `p` is
+the general end-of-synthesis flag set by `L`, `n0` and `m0`. On our side that is `isFlushed`
+and `isStopped`, both cleared in two separate synchronized blocks at the top of
+`onSynthesizeText` and both set by the `m0` port and by the empty-text path — which calls
+`m0(FALSE)`, and `m0` sets both regardless of its argument. The three span loops guard on
+`isFlushed`. Matches.
