@@ -4870,8 +4870,12 @@ jobs:
           "        // contentDescription=@string/app_name and marginEnd 8dip, then the title TextView at\n"
           "        // @style/TextAppearance.Widget.AppCompat.Toolbar.Title. The row itself has no\n"
           "        // background — the AppBarLayout provides it.\n"
-          "        val appBarLayout = com.google.android.material.appbar.AppBarLayout(matCtx)\n"
-          "        val appBar = android.widget.LinearLayout(themedContext).apply {\n"
+          "        // android:theme=\"@style/AppTheme.AppBarOverlay\" on the AppBarLayout —\n"
+          "        // ThemeOverlay.AppCompat.Dark.ActionBar, layered over the base theme exactly\n"
+          "        // as the android:theme attribute does it.\n"
+          "        val appBarCtx = android.view.ContextThemeWrapper(matCtx, R.style.AppTheme_AppBarOverlay)\n"
+          "        val appBarLayout = com.google.android.material.appbar.AppBarLayout(appBarCtx)\n"
+          "        val appBar = android.widget.LinearLayout(appBarCtx).apply {\n"
           "            orientation = android.widget.LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL\n"
           "            val p = (16 * resources.displayMetrics.density).toInt(); setPadding(p, p, p, p)\n"
           "            val taAb = themedContext.obtainStyledAttributes(intArrayOf(android.R.attr.actionBarSize))\n"
@@ -4880,13 +4884,13 @@ jobs:
           "        // The XML points at @drawable/ic_launcher, i.e. the app's own launcher icon.\n"
           "        // Easy Voice declares none, so this asks the package manager for whatever icon\n"
           "        // the app actually has instead of inventing artwork the original does not ship.\n"
-          "        appBar.addView(android.widget.ImageView(themedContext).apply {\n"
+          "        appBar.addView(android.widget.ImageView(appBarCtx).apply {\n"
           "            try { setImageDrawable(applicationInfo.loadIcon(packageManager)) } catch (_: Exception) {}\n"
           "            contentDescription = getString(R.string.app_name)\n"
           "        }, android.widget.LinearLayout.LayoutParams((32 * resources.displayMetrics.density).toInt(), (32 * resources.displayMetrics.density).toInt()).apply {\n"
           "            marginEnd = (8 * resources.displayMetrics.density).toInt()\n"
           "        })\n"
-          "        appBar.addView(android.widget.TextView(themedContext).apply {\n"
+          "        appBar.addView(android.widget.TextView(appBarCtx).apply {\n"
           "            text = getString(R.string.app_name)\n"
           "            setTextAppearance(androidx.appcompat.R.style.TextAppearance_Widget_AppCompat_Toolbar_Title)\n"
           "        }, android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT))\n"
@@ -4972,14 +4976,17 @@ jobs:
           "                                    layoutParams = android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)\n"
           "                                    tabMode = com.google.android.material.tabs.TabLayout.MODE_FIXED\n"
           "                                    tabGravity = com.google.android.material.tabs.TabLayout.GRAVITY_FILL\n"
-          "                                    val taA = themedContext.obtainStyledAttributes(intArrayOf(android.R.attr.colorAccent)); val accent = taA.getColor(0, 0); taA.recycle()\n"
+          "                                    // AppTheme is Theme.AppCompat.DayNight now, so\n"
+          "                                    // colorPrimary/colorAccent are appcompat attrs —\n"
+          "                                    // the framework ones are simply unset under it.\n"
+          "                                    val taA = themedContext.obtainStyledAttributes(intArrayOf(androidx.appcompat.R.attr.colorAccent)); val accent = taA.getColor(0, 0); taA.recycle()\n"
           "                                    val taS = themedContext.obtainStyledAttributes(intArrayOf(android.R.attr.textColorSecondary)); val secondary = taS.getColor(0, accent); taS.recycle()\n"
           "                                    // new_settings_activity.xml gives @id/tabs\n"
           "                                    // android:background=\"?colorPrimary\" and\n"
           "                                    // app:tabIndicatorGravity=\"top\" — the indicator sits\n"
           "                                    // above the row because the row is at the bottom of\n"
           "                                    // the screen, under the pager.\n"
-          "                                    val taP = themedContext.obtainStyledAttributes(intArrayOf(android.R.attr.colorPrimary)); val primary = taP.getColor(0, 0); taP.recycle()\n"
+          "                                    val taP = themedContext.obtainStyledAttributes(intArrayOf(androidx.appcompat.R.attr.colorPrimary)); val primary = taP.getColor(0, 0); taP.recycle()\n"
           "                                    setSelectedTabIndicatorColor(accent)\n"
           "                                    setTabTextColors(secondary, accent)\n"
           "                                    setBackgroundColor(primary)\n"
@@ -5063,23 +5070,30 @@ jobs:
           w("app/src/main/res/drawable/ic_tab_licenses.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\" android:tint=\"?attr/colorControlNormal\">\n    <path android:fillColor=\"@android:color/white\" android:pathData=\"M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM13,17h-2v-6h2v6zM13,9h-2L11,7h2v2z\"/>\n</vector>\n")
 
-          # OEM-native theme: Theme.DeviceDefault so the app takes the device/system
-          # UI colours + styling (One UI on Samsung, etc.). Platform widgets throughout.
-          # Light theme (values/): DeviceDefault light. Dark theme is in values-night/,
-          # so the app follows the system light/dark setting on every device.
+          # Exact port of AutoTTS res/values/styles.xml + the three colours it names.
+          # Theme.AppCompat.DayNight already does light/dark, which is why AutoTTS ships no
+          # values-night AppTheme — ours is gone for the same reason.
+          w("app/src/main/res/values/colors.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<resources>\n"
+          "    <color name=\"colorPrimary\">#ff008577</color>\n"
+          "    <color name=\"colorPrimaryDark\">#ff00574b</color>\n"
+          "    <color name=\"colorAccent\">#ffd81b60</color>\n"
+          "</resources>\n")
+
           w("app/src/main/res/values/styles.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
-          "    <style name=\"AppTheme\" parent=\"@android:style/Theme.DeviceDefault.Light.NoActionBar\" />\n"
-          "    <style name=\"AppTheme.NoActionBar\" parent=\"AppTheme\" />\n"
-          "</resources>\n")
-
-          # Dark theme (values-night/): DeviceDefault dark. Applied when the system is in dark mode.
-          w("app/src/main/res/values-night/styles.xml",
-          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-          "<resources>\n"
-          "    <style name=\"AppTheme\" parent=\"@android:style/Theme.DeviceDefault.NoActionBar\" />\n"
-          "    <style name=\"AppTheme.NoActionBar\" parent=\"AppTheme\" />\n"
+          "    <style name=\"AppTheme\" parent=\"@style/Theme.AppCompat.DayNight.DarkActionBar\">\n"
+          "        <item name=\"colorAccent\">@color/colorAccent</item>\n"
+          "        <item name=\"colorPrimary\">@color/colorPrimary</item>\n"
+          "        <item name=\"colorPrimaryDark\">@color/colorPrimaryDark</item>\n"
+          "    </style>\n"
+          "    <style name=\"AppTheme.AppBarOverlay\" parent=\"@style/ThemeOverlay.AppCompat.Dark.ActionBar\" />\n"
+          "    <style name=\"AppTheme.NoActionBar\" parent=\"@style/AppTheme\">\n"
+          "        <item name=\"windowActionBar\">false</item>\n"
+          "        <item name=\"windowNoTitle\">true</item>\n"
+          "    </style>\n"
           "</resources>\n")
 
           w("app/src/main/res/values/strings.xml",

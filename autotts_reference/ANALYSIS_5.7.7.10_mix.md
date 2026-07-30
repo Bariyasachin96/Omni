@@ -894,3 +894,54 @@ names, and the smali trip was not wasted.
   through a callback.
 - **The `onlyPkg` scoped-scan parameter had no AutoTTS counterpart** and both callers passed
   null. Removed.
+
+---
+
+## 25. Internal audit — what was left, and what cannot be ported
+
+Inventory of the reference: `com/vnspeak/autotts/` is 7 classes and `c3/` is 33. Going
+through the ones no earlier pass had opened:
+
+### Ported now
+- **Theme.** `res/values/styles.xml`:
+  `AppTheme` = `Theme.AppCompat.DayNight.DarkActionBar` with `colorAccent #ffd81b60`,
+  `colorPrimary #ff008577`, `colorPrimaryDark #ff00574b`;
+  `AppTheme.AppBarOverlay` = `ThemeOverlay.AppCompat.Dark.ActionBar`;
+  `AppTheme.NoActionBar` = `AppTheme` + `windowActionBar=false` + `windowNoTitle=true`.
+  EasyVoice was on `Theme.DeviceDefault` with a `values-night` twin and **no AppBarOverlay at
+  all**, so the app bar and the tab row took whatever colours the OEM supplies instead of the
+  teal/pink pair, and the bar had no dark overlay. `DayNight` is what handles night, which is
+  why AutoTTS ships no `values-night` AppTheme and ours is gone.
+  Consequence worth naming: under `Theme.AppCompat`, `colorPrimary` and `colorAccent` are
+  **appcompat** attributes — the framework `android:colorPrimary` is simply unset — so the
+  TabLayout's colour lookups had to move to `androidx.appcompat.R.attr.*` or they would have
+  read 0. `textColorSecondary` stays a framework attr and still resolves.
+
+### Verified equal, no edit
+- `CheckVoiceData`: `m.j(null, true)` → `putStringArrayListExtra("availableVoices", …)`,
+  `setResult(1)` = `CHECK_VOICE_DATA_PASS`.
+- `GetSampleText`: `a0.a(locale.getISO3Language())` — note it uses the raw ISO3, **not**
+  `m.f`, so no cmn/lzh/gan/hak → zho folding here; empty sample falls back to the same
+  "Sorry. Sample text …" line; `setResult(0)` = `LANG_AVAILABLE`, extra `"sampleText"`.
+- `c3.l`: `f() = 5`, `T(n)` = `tab_text_{n+1}`, `B(n)` = `j.K2(n + 1)`.
+- `c3.a` / `c3.b` / `c3.c0` / `c3.d0` / `c3.e0` / `c3.f` / `c3.g` / `c3.i` / `c3.p`–`c3.s`:
+  one-line bridges to `startForeground`, the audio-focus callback, `f0`'s thread factory and
+  runnables, and the activity-result / dialog lambdas. All already inlined on our side.
+- `c3.x.a(String)`: whitespace-only over codepoints, used by **`y.c`** —
+  `x.a → 0`, `y.e → 4`, `y.d → 3`, else `1`. The C++ classifier is
+  `allWs ? 0 : (allPunct ? 4 : (allNumber ? 3 : 1))`, and `y.g` as a whole was already
+  differentially verified over ~51,000 strings. Nothing to change; recorded so the type-0
+  branch is not mistaken for the invented whitespace pass that was removed earlier.
+- `c3.c.a()`: the emoji regex appended into `y`'s pattern `d`; the C++ `isEmoji`/`latRange`
+  pair was verified over the whole codespace.
+
+### Deliberately not ported
+- **`c3.g0` and the licence path.** `g0.b(ctx)` hashes the APK's signing certificate and
+  compares it to a hardcoded Base64 prefix; `g0.a`/`g0.c`/`g0.d` are the obfuscation around
+  it. `AutoTtsService.U()` builds a Google LVL `LicenseChecker` with AutoTTS's own public key
+  and `ServerManagedPolicy`, `j0(status, text)` stores `license_status`/`license_text`, and
+  `NewSettingsActivity.C0()` reads that back to decorate the title with
+  `String.format("Auto TTS (%s)", status)`. Porting this would mean embedding another
+  developer's signing hash and Play licensing key into this app, where they are meaningless.
+  This is the same class as the copyright line in §21: it names AutoTTS itself, not its
+  behaviour. Left out, and the title decoration with it.
