@@ -1504,23 +1504,41 @@ The same ruling as the `Y2` variant-array overflow: a defect in AutoTTS is still
 - **The CLD3 row** in the Advanced tab — EasyVoice-only, kept by explicit instruction, and to
   be brought up to CLD2's level after CLD2 is declared finished.
 
-### Still open, and the user should decide
-- **`SYSTEM_ALERT_WINDOW`.** Mirrored, because AutoTTS declares it. But grepping the whole
-  decompile for `TYPE_APPLICATION_OVERLAY`, `canDrawOverlays`,
-  `ACTION_MANAGE_OVERLAY_PERMISSION` and `WindowManager.LayoutParams` finds nothing — AutoTTS
-  never uses it. It is a user-visible "Display over other apps" grant on an app that draws no
-  overlays.
-- **`neutralDefault`.** A C++ parameter with no `y.g` counterpart; it only supplies a language
-  when a resolved type is neither 1 nor 2. There is nothing in AutoTTS to match it against, so
-  it has been left rather than guessed at.
+### Closed on 2026-07-30, after the user asked for every remaining divergence
+| what | AutoTTS | was | now |
+|---|---|---|---|
+| logger tag | `c3.o.c/d/e(tag, msg)` — per call | one fixed `EASYVOICE-NATIVE` | per call; `EasyVoice` where AutoTTS passes `AutoTTS`, `TTS` passed through |
+| every service log line | 141 exact strings | `[SERVICE]`/`[ENGINE]`/`[LANG]`/`[CHUNK-n]` of our own | AutoTTS's text, in AutoTTS's places; the ones AutoTTS does not log are gone |
+| `c3.o(Context)` | writes nothing | wrote a device banner | writes nothing |
+| `f0.m()` / `f0.l()` | `Log.w("Stop failed for …", e)` | swallowed | ported, incl. reading `b` at run time |
+| `h0()` | no guard, no catch, takes the AudioManager itself | had both guards | literal |
+| `W()` / `J()` / `S()` | no version gate, no catch, no catch | all three guarded | literal |
+| `onDestroy` | stopForeground+abandon, then shutdowns, then unbinds | unbinds inside the first try, before the shutdowns | literal order |
+| `M.clear()` | unsynchronized | `synchronized(chunkQueue)` | unsynchronized |
+| `AndroidManifest` | `android:installLocation="auto"` | absent | present |
+| `getReadingMode` | `getInt("auto_mode", 3)` + the Google fallback | plus a `reading_mode` string migration of our own | literal |
+| `neutralDefault` | the mixed branch's `t != 1 ? (t != 2 ? var10_15 : L) : K` — `var10_15` is the request's own language | `if (neutralType == 2) nonLatFall else latFall`, guessed | the request language |
+| `LangEntry.j` | `c3.e.j` `LinkedHashSet` of providing engines | omitted | present, and `m.j`/`k`/`l`/`m` filter on it |
 
-### EasyVoice-only, structural, not behaviour
-- `getReadingMode`'s one-time migration of the old `reading_mode` string key into `auto_mode`,
-  and `setReadingMode`'s `else -> 2` for an unknown mode name.
-- `EasyVoiceLogger` uses one fixed tag where `c3.o` takes a tag per call; the messages are this
-  app's own either way.
-- `LangStore.LangEntry` omits `c3.e`'s `j` (`LinkedHashSet` of providing engines) — that set
-  only feeds `m.j`/`m.k`/`m.l`'s engine filter, which we take from the scan's voice list.
+### Still standing, and why they cannot be closed
+- **Licence and integrity.** Porting `c3.g0` means checking AutoTTS's *signing certificate*
+  and shipping AutoTTS's own Google LVL public key. This app is signed differently, so the
+  check would fail — and `y.g`'s first two lines return an empty chunk list when it does, i.e.
+  dual and mixed would stop speaking altogether. It is not parity, it is a self-disabling
+  build, and the key is not ours to ship. `com.pairip.application.Application` is Play's
+  anti-tamper wrapper and is applied by the store, not declared by an app.
+- **`NewSettingsActivity.C0`'s `"Auto TTS (%s)"` title and the Licenses copyright line.**
+  Both name another company as the rights holder.
+- **`@drawable/ic_launcher`.** The artwork is AutoTTS's. The manifest attribute is absent
+  rather than pointing at a copy of their asset.
+- **The CLD3 row** in the Advanced tab — EasyVoice-only, kept by explicit instruction.
+
+### Accepted, with the user's agreement
+- **`SYSTEM_ALERT_WINDOW`** is declared because AutoTTS declares it, even though grepping the
+  whole decompile for `TYPE_APPLICATION_OVERLAY`, `canDrawOverlays`,
+  `ACTION_MANAGE_OVERLAY_PERMISSION` and `WindowManager.LayoutParams` finds nothing.
+- **`setReadingMode`'s `else` branch** is unreachable — Kotlin requires a `when` expression
+  over `String` to be exhaustive. AutoTTS switches on radio-button ids and needs no default.
 
 ---
 
