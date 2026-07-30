@@ -1397,3 +1397,50 @@ and `isStopped`, both cleared in two separate synchronized blocks at the top of
 `onSynthesizeText` and both set by the `m0` port and by the empty-text path — which calls
 `m0(FALSE)`, and `m0` sets both regardless of its argument. The three span loops guard on
 `isFlushed`. Matches.
+
+---
+
+## 35. `y.g` read whole — the tail nobody had opened, and a dual-mode bug
+
+Earlier passes leaned on the differential run over `y.g` (~51,000 strings) rather than
+reading it. Lines 120–227 — the merge passes and the type-fixing — had never been opened.
+They are:
+
+```java
+if (n5 == -1) return new ArrayList();     // g0  — licence gate
+if (n6 == -1) return new ArrayList();     // b0  — licence gate
+text = text.trim(); if (text.equals("")) return new ArrayList();
+s = y.f(text.replaceAll("\\s+", " "));    // collapse whitespace, then strip bidi controls
+dev = m.f(Locale.getDefault());
+neutralType = ((O != 1) ? (O == 4 && dev.equals(L)) : dev.equals(G)) ? 2 : 1;
+// pattern d over s: gaps are type 2, matches take y.c(seg)
+// merge pass 1: adjacent equal types, ABSORBING type 0
+// size 0 -> return; size 1 -> a lone 3 takes H or neutralType, a lone 4 takes I or neutralType
+// size > 1 -> element 0's 3/4 takes H/I, or y.a(list) (first type that is not 3 or 4), or neutralType
+// from index 1 on -> each 3 takes H or y.b(list, i), each 4 takes I or y.b(list, i)
+// merge pass 2: adjacent equal types, NO type-0 absorption
+```
+
+The two merge passes differing on type-0 absorption is the load-bearing detail, and the C++
+already has it that way — pass one carries `|| segs[runEnd].type == 0`, pass two does not.
+The whitespace collapse (`\s` = `[ \t\n\x0B\f\r]`, matching the C++'s `isUniWs`), the bidi
+strip set, and their order after `trim()` all line up as well.
+
+### The bug
+`neutralType` is `dev.equals(G)` for **O == 1** and `dev.equals(L)` for **O == 4**. `G` is
+`dual_mode_language`; `L` is `mixed_mode_non_latin_language`. **Our dual arm was comparing
+against `nonLatFall`, i.e. `L`** — the mixed setting — so in Dual mode the neutral type came
+out wrong whenever the device language matched one setting but not the other. It decides what
+a lone punctuation- or number-only chunk becomes, and what `y.b` hands back to later chunks.
+Now `prefs.toIso3(dualLang)`. The mix arm was already right.
+
+`neutralDefault` is left alone: it is a C++ parameter name with no `y.g` counterpart — it only
+supplies a language when a resolved type ends up neither 1 nor 2 — so changing it would be
+guesswork, and dual's type→language mapping is done by `onSynthesizeText`'s own branch
+(`type 1 → "eng"`, `type 2 → G`) regardless.
+
+### Not ported, deliberately
+The two lines at the top of `y.g` — `if (g0 == -1) return empty; if (b0 == -1) return empty;`
+— are the licence gate. `g0` defaults to `-1` and `b0` is `g0.b(ctx)`'s verdict, so an
+unlicensed build gets **no chunks at all** in dual and mixed mode. Same family as §25;
+recorded here so a later pass reading `y.g` does not try to port them.
