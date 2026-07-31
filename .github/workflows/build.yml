@@ -371,7 +371,7 @@ jobs:
                   if (code == tbl[i][0]) return tbl[i][1];
               return code;
           }
-          static std::string cld3DetectRaw(const std::string& u8);
+          static std::string cld3DetectRaw(const std::string& u8, bool* reliableOut);
           static std::string cld2WindowDetectC(const std::string& u8, bool useCld3);
           static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, bool disableAdvancedDetection, bool useCld3) {
               std::vector<ChunkResult> chunks;
@@ -1021,21 +1021,35 @@ jobs:
               auto isLatinSide=[&](const std::string& l){ if(l=="en") return true; for(const auto& f: latinFamily) if(f==l) return true; return false; };
               return isLatinSide(winScript)==isLatinSide(detected);
           }
-          static std::string cld3DetectRaw(const std::string& u8){
+          // The reliability verdict is REPORTED, not applied, because CLD2's two call sites do not
+          // agree on it: cld2WindowDetectC returns UNKNOWN when CLD2 says unreliable, while glsEmit
+          // takes LanguageCode(l) whatever reliable says. Each CLD3 site now applies exactly the rule
+          // its CLD2 twin applies. The 1024-byte ceiling matches glsEmit's slice, so the identifier
+          // never sees less of a span than CLD2 would.
+          static std::string cld3DetectRaw(const std::string& u8, bool* reliableOut){
               static std::mutex g_cld3Mutex;
               static chrome_lang_id::NNetLanguageIdentifier* g_cld3 = nullptr;
               std::lock_guard<std::mutex> lk(g_cld3Mutex);
-              if(!g_cld3) g_cld3 = new chrome_lang_id::NNetLanguageIdentifier(0, 1000);
+              if(!g_cld3) g_cld3 = new chrome_lang_id::NNetLanguageIdentifier(0, 1024);
               const chrome_lang_id::NNetLanguageIdentifier::Result r = g_cld3->FindLanguage(u8);
-              if(!r.is_reliable || r.language == chrome_lang_id::NNetLanguageIdentifier::kUnknown) return "";
+              if(reliableOut) *reliableOut = r.is_reliable;
+              if(r.language == chrome_lang_id::NNetLanguageIdentifier::kUnknown) return "";
               std::string lang = r.language;
               size_t dash = lang.find('-'); if(dash != std::string::npos) lang = lang.substr(0, dash);
               std::string norm = normalizeLangCode(lang);
+              // CLD2 is script-aware and cannot answer with a latin language for non-latin text; CLD3
+              // can. This is the adapter that puts its answer on the same footing, not an extra filter.
               if(!cld3ScriptConsistent(norm, u8)) return "";
               return norm;
           }
           static std::string cld2WindowDetectC(const std::string& u8, bool useCld3){
-              if(useCld3) { std::string c3r = cld3DetectRaw(u8); return c3r.empty() ? "UNKNOWN" : c3r; }
+              if(useCld3) {
+                  // The CLD2 arm below returns UNKNOWN on !reliable before it ever looks at the code.
+                  bool c3ok = false;
+                  std::string c3r = cld3DetectRaw(u8, &c3ok);
+                  if(!c3ok) return "UNKNOWN";
+                  return c3r.empty() ? "UNKNOWN" : c3r;
+              }
               CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
               CLD2::Language lang3[3]; int pct3[3]; double score3[3];
               int textBytes=0; bool reliable=false;
@@ -1247,7 +1261,10 @@ jobs:
                           // Same contract as cld2WindowDetectC's CLD3 branch: a decline is not
                           // silently handed to CLD2, it becomes the unknown code, and the Kotlin
                           // side then falls back on the latin flag to K or L.
-                          std::string c3 = cld3DetectRaw(std::string(text, start, dlen));
+                          // glsEmit's CLD2 arm computes reliable and then ignores it — it takes
+                          // LanguageCode(l) either way. So does this one; only a genuine kUnknown or a
+                          // script mismatch becomes "un".
+                          std::string c3 = cld3DetectRaw(std::string(text, start, dlen), nullptr);
                           lang = c3.empty() ? "un" : c3;
                       } else {
                           CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
