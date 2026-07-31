@@ -28,6 +28,37 @@ reference was removed and fully regenerated from the new APK.
 - `com/vnspeak/autotts/NewSettingsActivity.java` — settings UI (tabs, spinners, sliders)
 - `com/vnspeak/autotts/CheckVoiceData.java`, `GetSampleText.java` — engine intents
 
+## Tools kept here (do not delete)
+
+`tools/d2j-base-cmd-2.4.37.jar` — dex2jar's `com.googlecode.dex2jar.tools.BaseCmd`
+lives in its own Maven artifact, `de.femtopedia.dex2jar:d2j-base-cmd`, which is NOT
+pulled in by `dex2jar`/`dex-tools`. Without it every `Dex2jarCmd` run dies with
+`NoClassDefFoundError: com/googlecode/dex2jar/tools/BaseCmd`. It is 14 KB, it is
+needed every time the APK is re-converted, and the scratchpad is wiped on container
+reset — so it is committed here.
+
+```bash
+# if it ever needs re-fetching (search.maven.org is blocked; repo1 is not):
+curl -O https://repo1.maven.org/maven2/de/femtopedia/dex2jar/d2j-base-cmd/2.4.37/d2j-base-cmd-2.4.37.jar
+
+# converting the APK's dex, with that jar on the classpath:
+java -cp 'd2j/*' com.googlecode.dex2jar.tools.Dex2jarCmd -f -o app.jar classes.dex
+```
+
+### Methods CFR cannot decompile
+
+Two methods fail with `ConfusedCFRException` and stay failing even with
+`--forcetopsortnopull false --aexagg true`, so they must be read from baksmali:
+
+| method | why it matters |
+|---|---|
+| `AutoTtsService$e$a.run()` | the later-chunk speak path — its logs, its endSynthesis numbers and its inline (not posted) speak all differ from the first chunk's |
+| `c3.o.h(level, tag, msg)` | the logger's write path |
+
+For `e$a.run` the readable form is baksmali output with R8's `.line` directives
+stripped (3384 lines -> 527 real instructions). `javap -c` on the dex2jar output is a
+good independent cross-check of any constant read that way.
+
 ## How this was regenerated (reproducible)
 
 Tools fetched from Maven Central (GitHub is blocked here):
