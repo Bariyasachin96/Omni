@@ -346,31 +346,6 @@ jobs:
                      (cp>=0x1F300&&cp<=0x1F5FF)||(cp>=0x1F600&&cp<=0x1F64F)||(cp>=0x1F680&&cp<=0x1F6FF)||(cp>=0x1F900&&cp<=0x1F9FF);
           }
           struct ChunkResult { std::string lang; std::string text; int type; };
-          static std::string normalizeLangCode(const std::string& code) {
-              if (code.size() <= 2) return code;
-              static const char* tbl[][2] = {
-                  {"eng","en"},
-                  {"zho","zh"},{"hin","hi"},{"ben","bn"},{"ara","ar"},{"por","pt"},
-                  {"rus","ru"},{"jpn","ja"},{"kor","ko"},{"deu","de"},{"fra","fr"},
-                  {"ita","it"},{"spa","es"},{"nld","nl"},{"tur","tr"},{"pol","pl"},
-                  {"vie","vi"},{"fas","fa"},{"tha","th"},{"ind","id"},{"msa","ms"},
-                  {"ukr","uk"},{"ces","cs"},{"ron","ro"},{"hun","hu"},{"swe","sv"},
-                  {"nor","no"},{"dan","da"},{"fin","fi"},{"ell","el"},{"bul","bg"},
-                  {"hrv","hr"},{"slk","sk"},{"slv","sl"},{"srp","sr"},{"mkd","mk"},
-                  {"lit","lt"},{"lav","lv"},{"est","et"},{"afr","af"},{"cat","ca"},
-                  {"tam","ta"},{"tel","te"},{"mal","ml"},{"kan","kn"},{"guj","gu"},
-                  {"mar","mr"},{"pan","pa"},{"urd","ur"},{"nep","ne"},{"sin","si"},
-                  {"khm","km"},{"lao","lo"},{"mya","my"},{"amh","am"},{"bod","bo"},
-                  {"ori","or"},{"kat","ka"},{"hye","hy"},{"kaz","kk"},{"mon","mn"},
-                  {"uzb","uz"},{"heb","he"},{"swa","sw"},{"zul","zu"},{"yor","yo"},
-                  {"jav","jv"},{"sun","su"},{"wel","cy"},{"gle","ga"},{"glg","gl"},
-                  {"eus","eu"},{"bos","bs"},{"mlt","mt"},{"isl","is"},{"sqi","sq"},
-                  {nullptr,nullptr}
-              };
-              for (int i = 0; tbl[i][0]; i++)
-                  if (code == tbl[i][0]) return tbl[i][1];
-              return code;
-          }
           static std::string cld3DetectRaw(const std::string& u8, bool* reliableOut);
           static std::string cld2WindowDetectC(const std::string& u8, bool useCld3);
           static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, bool disableAdvancedDetection, bool useCld3) {
@@ -1005,27 +980,13 @@ jobs:
           static std::vector<std::string> scriptLangFallbacksC(const std::string& p);
           static bool isJavaWsCp(int cp);
           static bool isLatinPunctCp(int cp);
-          static bool cld3ScriptConsistent(const std::string& detected, const std::string& u8){
-              int i=0, n=(int)u8.size();
-              std::string winScript;
-              while(i<n){
-                  int len=0; int cp=utf8ToCodepoint((const unsigned char*)u8.data()+i, len); if(len<=0) len=1;
-                  if(!isJavaWsCp(cp) && !(cp>='0'&&cp<='9') && !isLatinPunctCp(cp)){
-                      const char* sc=scriptLangC(cp);
-                      if(sc && *sc && strcmp(sc,"zz")!=0){ winScript=sc; break; }
-                  }
-                  i+=len;
-              }
-              if(winScript.empty()) return false;
-              std::vector<std::string> latinFamily = scriptLangFallbacksC("en");
-              auto isLatinSide=[&](const std::string& l){ if(l=="en") return true; for(const auto& f: latinFamily) if(f==l) return true; return false; };
-              return isLatinSide(winScript)==isLatinSide(detected);
-          }
-          // The reliability verdict is REPORTED, not applied, because CLD2's two call sites do not
-          // agree on it: cld2WindowDetectC returns UNKNOWN when CLD2 says unreliable, while glsEmit
-          // takes LanguageCode(l) whatever reliable says. Each CLD3 site now applies exactly the rule
-          // its CLD2 twin applies. The 1024-byte ceiling matches glsEmit's slice, so the identifier
-          // never sees less of a span than CLD2 would.
+          // CLD2's arm hands LanguageCode(lang3[0]) straight back and does NOTHING else to it: no code
+          // rewriting, no script cross-check, no second opinion. This does the same with CLD3's answer.
+          // Reliability is REPORTED rather than acted on, because the two CLD2 call sites disagree about
+          // it — cld2WindowDetectC returns UNKNOWN when unreliable, glsEmit ignores the verdict entirely.
+          // The 1024-byte ceiling matches glsEmit's slice so the identifier never sees less than CLD2.
+          // kUnknown is the string "und", which the callers truncate to "un" exactly as they truncate
+          // CLD2's own "un" for UNKNOWN_LANGUAGE, so that case needs no special handling either.
           static std::string cld3DetectRaw(const std::string& u8, bool* reliableOut){
               static std::mutex g_cld3Mutex;
               static chrome_lang_id::NNetLanguageIdentifier* g_cld3 = nullptr;
@@ -1033,14 +994,7 @@ jobs:
               if(!g_cld3) g_cld3 = new chrome_lang_id::NNetLanguageIdentifier(0, 1024);
               const chrome_lang_id::NNetLanguageIdentifier::Result r = g_cld3->FindLanguage(u8);
               if(reliableOut) *reliableOut = r.is_reliable;
-              if(r.language == chrome_lang_id::NNetLanguageIdentifier::kUnknown) return "";
-              std::string lang = r.language;
-              size_t dash = lang.find('-'); if(dash != std::string::npos) lang = lang.substr(0, dash);
-              std::string norm = normalizeLangCode(lang);
-              // CLD2 is script-aware and cannot answer with a latin language for non-latin text; CLD3
-              // can. This is the adapter that puts its answer on the same footing, not an extra filter.
-              if(!cld3ScriptConsistent(norm, u8)) return "";
-              return norm;
+              return r.language;
           }
           static std::string cld2WindowDetectC(const std::string& u8, bool useCld3){
               if(useCld3) {

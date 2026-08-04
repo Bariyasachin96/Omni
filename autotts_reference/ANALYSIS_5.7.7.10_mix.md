@@ -1583,6 +1583,24 @@ already honours the flag.
   Kotlin side then does what it does for any unknown code — `resolveMultilingualChunk` falls
   back on the latin flag to `K` or `L`.
 
+### 2026-08-04: the last asymmetry, closed
+CLD2's arm is four lines — call, `if (!reliable) return "UNKNOWN"`, `LanguageCode(lang3[0])`,
+return. **No post-processing whatsoever.** CLD3's arm had three extra stages the CLD2 arm has
+no counterpart for:
+
+| stage | what it did | why it is gone |
+|---|---|---|
+| strip after `-` | `hi-Latn` -> `hi` | CLD2 returns `zh-Hant` unstripped and the CALLER truncates to two chars. `und` truncates to `un`, which is CLD2's own unknown code, so even that case lines up |
+| `normalizeLangCode` | iso3 -> iso2 rewrite | CLD2's code is never rewritten |
+| `cld3ScriptConsistent` | rejected an answer whose latin/non-latin side disagreed with the text's first real codepoint | CLD2 may answer whatever it is confident about; nothing second-guesses it |
+
+Both helpers had no other caller and were deleted with the stages. What changes in practice:
+CLD3's six script-tagged codes (`bg-Latn`, `el-Latn`, `hi-Latn`, `ja-Latn`, `ru-Latn`,
+`zh-Latn`) now reach the callers intact, so romanised Hindi truncates to `hi` in the auto path
+instead of being declined, and in the multilingual path it is not an iso2 code so it falls back
+on the latin flag. CLD3 can also now answer with a latin language for non-latin text when it is
+confident, which is a freedom CLD2 always had.
+
 ---
 
 ## 38. Why AutoTTS needs no restart — and the two places we still did
