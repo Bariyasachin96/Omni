@@ -491,6 +491,15 @@ errors reach logcat even with logging off. Then `i()` (rotate at 2 MiB, keep `.1
 when `o.b()` is null and otherwise puts `FLAG_ACTIVITY_NEW_TASK` on the **chooser**, not on
 the ACTION_SEND intent. `o.j(bl)` writes `logging_enabled`.
 
+### Which methods actually hold a monitor
+Checked against the dex, not guessed. In `c3.m` only **`a`, `b` and `h`** are
+`synchronized (m.class)`; `d/g/i/j/k/l/m/n/p/q/r/u/v/w/x/y/z/A/C/D` are plain statics. In
+`AutoTtsService` only **`T` (initAllTTS), `Y` (engine list), `a0` (loadLanguages),
+`e0` (loadVoices), `i0` (restoreTts) and `onLoadLanguage`** are `synchronized (this)` —
+`M/N/O/P/Q/R` are not. In `c3.o` the dex marks **`f`, `a` and `h`** `declared-synchronized`;
+`b(ctx)` is not. `onLoadLanguage` holds the monitor across **both** of its log lines
+(its own, then `Z`'s "loadLanguage …"), because `Z` is called from inside it.
+
 ### `c3.j.F2(ctx, xml)` (import) — third CFR-failing method
 CFR gives up with `ConfusedCFRException: Back jump on a try block`, so it was transcribed
 from `/tmp/dc/smali/c3/j.smali`. The whole body is inside **one** try whose handler catches
