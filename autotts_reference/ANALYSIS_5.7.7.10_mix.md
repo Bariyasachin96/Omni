@@ -503,10 +503,20 @@ Found by grepping the whole decompile for CFR's own markers, so this list is com
 `c3.m.b`, `c3.m.h`, `clsCLD2.b`, `AutoTtsService.T`, `AutoTtsService.Y`,
 `AutoTtsService.e0`, `AutoTtsService.onSynthesizeText`.
 
-Status: `clsCLD2.b`, `m.h` and `m.n` checked and already exact. `T`, `Y`, `e0` and `m.b`
-corrected. `onSynthesizeText` — head, the two m0() inlines and the Auto/Google branch done;
-the Dual branch's shape confirmed (y.g on the TRIMMED text, type 1/2/other dispatch, the
-"language: …" line); Mixed, Multilingual, the none path and the shared tail still to walk.
+Status: **all of them are done.** `clsCLD2.b`, `m.h` and `m.n` were already exact; `T`, `Y`,
+`e0`, `m.b` and `onSynthesizeText` were corrected.
+
+**`onSynthesizeText`, what the walk changed.** The banner is the first statement, ahead of
+the foreground handling. The request is read in the dex's order. The empty-text branch is
+`log("Speak text is empty"); m0(FALSE); K(cb, 1)` and m0 emits five log lines we had none
+of. The five mode branches do NOT share one pair of lines: Auto/Google and the fall-through
+log `"load <r>"`, Dual/Mixed/Multilingual do not; Auto/Google, Dual and Mixed write
+`"Languge is not supported"` (typo), Multilingual and the fall-through write
+`"Language is not supported"`. Every branch logs its banner BEFORE its `synchronized(M)`
+block. The none path speaks the TRIMMED text. `O == 5` alone reacts to an empty `M`
+("lstLanString is empty!", K, return). In the tail, the wait loop's InterruptedException
+LEAVES the loop, and the two `mTTSIndex …` failures do a bare `K(cb, 10); return` without
+touching the stop flag. `K` never reads its int argument, so 1..13 carry nothing.
 
 **`clsCLD2.b`, confirmed line by line.** Null and empty answer "UNKNOWN"; a single char
 answers "UNKNOWN" when `X` is set. Then non-overlapping 64-char windows, stepping by a full
