@@ -491,6 +491,19 @@ errors reach logcat even with logging off. Then `i()` (rotate at 2 MiB, keep `.1
 when `o.b()` is null and otherwise puts `FLAG_ACTIVITY_NEW_TASK` on the **chooser**, not on
 the ACTION_SEND intent. `o.j(bl)` writes `logging_enabled`.
 
+### `c3.j.F2(ctx, xml)` (import) — third CFR-failing method
+CFR gives up with `ConfusedCFRException: Back jump on a try block`, so it was transcribed
+from `/tmp/dc/smali/c3/j.smali`. The whole body is inside **one** try whose handler catches
+`Throwable`, calls `printStackTrace()` and returns `false`; the success path returns `true`
+(`G2` discards the value either way). Order: `getSharedPreferences("auto_tts_settings", 0)
+.edit()` → `clear()` → `XmlPullParserFactory.newInstance().newPullParser()` →
+`setInput(new StringReader(xml))`. The loop only looks at START_TAG, requires the `name`
+attribute to be non-null, and switches on the tag name over exactly five cases —
+`float`/`boolean`/`long`/`int` read the `value` attribute, `string` uses `nextText()`.
+There is **no** `set`/`putStringSet` case, **no** per-value null guard (a missing `value`
+NPEs straight into the outer catch) and **no** inner try around `nextText()`. Ends with
+`commit()`.
+
 ### `c3.b0.d(ctx)` (export)
 Missing `shared_prefs/*.xml` → toast "Settings file not found" and return. A failed copy →
 `printStackTrace()` and return, **no toast**. Only after the copy: FileProvider authority
