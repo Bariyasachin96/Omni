@@ -491,6 +491,41 @@ errors reach logcat even with logging off. Then `i()` (rotate at 2 MiB, keep `.1
 when `o.b()` is null and otherwise puts `FLAG_ACTIVITY_NEW_TASK` on the **chooser**, not on
 the ACTION_SEND intent. `o.j(bl)` writes `logging_enabled`.
 
+### Inventory of every method CFR cannot be trusted on
+Found by grepping the whole decompile for CFR's own markers, so this list is complete for
+`c3.*` and `com.vnspeak.autotts.*`:
+
+**Hard failures** (`throw new IllegalStateException("Decompilation failed")`):
+`c3.o.h`, `c3.j.F2`, `AutoTtsService$e$a.run` — all three transcribed from baksmali.
+
+**Soft failures** (code emitted, but with `** GOTO` / `** continue` / `// 2 sources` /
+"Removed back jump from a try to a catch block"):
+`c3.m.b`, `c3.m.h`, `clsCLD2.b`, `AutoTtsService.T`, `AutoTtsService.Y`,
+`AutoTtsService.e0`, `AutoTtsService.onSynthesizeText`.
+
+Status: `clsCLD2.b`, `m.h` and `m.n` checked and already exact. `T`, `Y`, `e0` and `m.b`
+corrected. `onSynthesizeText` — head, the two m0() inlines and the Auto/Google branch done;
+the Dual branch's shape confirmed (y.g on the TRIMMED text, type 1/2/other dispatch, the
+"language: …" line); Mixed, Multilingual, the none path and the shared tail still to walk.
+
+**`clsCLD2.b`, confirmed line by line.** Null and empty answer "UNKNOWN"; a single char
+answers "UNKNOWN" when `X` is set. Then non-overlapping 64-char windows, stepping by a full
+64 even at the tail. Per window: `nativeGetLanguage`; a null or "UNKNOWN" result skips; `W`
+set returns the raw code without consulting `m.o`; otherwise `m.o(det)` returns it, and
+failing that `a.e(clsCLD2.a(WINDOW), m.f)` supplies the primary then each fallback, each
+gated on `m.o`. The whole per-window body is one try whose catch just advances to the next
+window. After the loop `W` answers "UNKNOWN"; otherwise the same script lookup runs once
+more on the FIRST codepoint of the WHOLE string, and `clsCLD2.a` skips whitespace, ASCII
+digits and `clsCLD2.e`'s four punctuation ranges (33–47, 58–64, 91–96, 123–126).
+
+**`c3.m.b`'s asymmetry.** It compares `m.f/m.e` of `m.t(stored)` against `m.f/m.e` of the
+RAW incoming locale. `m.t` rebuilds from the ISO3 pair, and `Locale.getISO3Country()` only
+resolves two-letter regions — a three-letter one throws and `m.e` answers `""`. Verified by
+running it: `en_US` gives stored `("eng","")` vs incoming `("eng","USA")` → no match, while
+a country-less locale gives `("eng","")` on both sides → match. So whether scanned voices
+merge depends entirely on what `Voice.getLocale()` hands back on the device. Ported as the
+comparison itself rather than as a key, so either case lands where AutoTTS lands.
+
 ### Which methods actually hold a monitor
 Checked against the dex, not guessed. In `c3.m` only **`a`, `b` and `h`** are
 `synchronized (m.class)`; `d/g/i/j/k/l/m/n/p/q/r/u/v/w/x/y/z/A/C/D` are plain statics. In
