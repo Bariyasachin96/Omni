@@ -348,26 +348,6 @@ jobs:
           struct ChunkResult { std::string lang; std::string text; int type; };
           static std::string cld3DetectRaw(const std::string& u8, bool* reliableOut);
           static std::string cld2WindowDetectC(const std::string& u8, bool useCld3);
-          static std::vector<ChunkResult> buildAutoChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, bool disableAdvancedDetection, bool useCld3) {
-              std::vector<ChunkResult> chunks;
-              std::string fullText = "";
-              for(auto& s: sentences) {
-                  if(!s.empty()) {
-                      if(!fullText.empty()) fullText += " ";
-                      fullText += s;
-                  }
-              }
-              if(fullText.empty()) return chunks;
-              std::string dominantLang;
-              {
-                  std::string d = cld2WindowDetectC(fullText, useCld3);
-                  if (d != "UNKNOWN") dominantLang = d;
-              }
-              (void)disableAdvancedDetection; (void)latFall; (void)nonLatFall;
-              if (dominantLang.empty()) dominantLang = "UNKNOWN";
-              chunks.push_back({dominantLang, fullText, 0});
-              return chunks;
-          }
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
               std::vector<ChunkResult> result;
               std::string fullText;
@@ -547,7 +527,7 @@ jobs:
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
               int neutralType = (int)jNeutralType;
               bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
-              bool pdUseCld3 = (jUseCld3 == JNI_TRUE);
+              (void)jUseCld3;
               std::vector<std::string> sentences;
               size_t start=0, end=rawInput.find('\0');
               while(end!=std::string::npos){ sentences.push_back(rawInput.substr(start,end-start)); start=end+1; end=rawInput.find('\0',start); }
@@ -561,9 +541,6 @@ jobs:
               } else if (mode == "dual") {
                   auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, neutralType, disableAdvancedDetection, true);
                   for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
-              } else {
-                  auto chunks = buildAutoChunks(processed, latFall, nonLatFall, disableAdvancedDetection, pdUseCld3);
-                  for(size_t i=0; i<chunks.size(); i++){ result += chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               }
               return env->NewStringUTF(result.c_str());
           }
@@ -631,39 +608,6 @@ jobs:
               if(cp>=0x12000&&cp<=0x1247F) return "akk";
               if((cp>=0x13000&&cp<=0x1342F)||(cp>=0x13430&&cp<=0x1345F)) return "egy";
               return nullptr;
-          }
-          static std::vector<std::string> scriptLangFallbacksC(const std::string& p){
-              if(p=="fr") return {"ca","oc"};
-              if(p=="es") return {"pt","gl","ca"};
-              if(p=="de") return {"lb"};
-              if(p=="no") return {"da","sv","is","fo"};
-              if(p=="cs") return {"sk"};
-              if(p=="en") return {"es","fr","de","it","pt","nl","sv","no","da","fi","pl","cs","sk","hu","ro","tr","id","ms","vi","tl","sw","hr","sr","sl","et","lv","lt","is","ga","cy","sq","mt"};
-              if(p=="el") return {"grc","pnt"};
-              if(p=="ru") return {"uk","be","bg","mk","sr","bs","hr","kk","ky","tg","mn","uz","tt","ba","cv","sah","ce","av","ab"};
-              if(p=="sr") return {"bs","hr"};
-              if(p=="bg") return {"mk"};
-              if(p=="kk") return {"ky"};
-              if(p=="he") return {"yi","lad"};
-              if(p=="ar") return {};
-              if(p=="fa") return {"ur","ps","ku","ckb","sd","az","ks","ug"};
-              if(p=="ur") return {"ps","sd","pa"};
-              if(p=="ku") return {"ckb"};
-              if(p=="hi") return {"mr","ne","sa","kok","mai","bh","new","awa","bho","raj","hne"};
-              if(p=="mr") return {"kok"};
-              if(p=="bn") return {"as","mni"};
-              if(p=="ta") return {"kn"};
-              if(p=="kn") return {"tcy"};
-              if(p=="th") return {"nod","sou","tts"};
-              if(p=="lo") return {"hnx"};
-              if(p=="bo") return {"dz"};
-              if(p=="my") return {"shn","kar","mnw"};
-              if(p=="ka") return {"xmf","lzz"};
-              if(p=="am") return {"ti","om","aa","so","sid","wal","gez"};
-              if(p=="mn") return {"mnc","xal"};
-              if(p=="ja") return {"ain"};
-              if(p=="zh") return {"ja","ko","vi"};
-              return {};
           }
           static std::unordered_map<std::string,std::string> g_iso2to3;
           static std::string toIso3C(const std::string& lang){
@@ -977,7 +921,6 @@ jobs:
               return res;
           }
           static const char* scriptLangC(int cp);
-          static std::vector<std::string> scriptLangFallbacksC(const std::string& p);
           static bool isJavaWsCp(int cp);
           static bool isLatinPunctCp(int cp);
           // CLD2's arm hands LanguageCode(lang3[0]) straight back and does NOTHING else to it: no code
@@ -1099,20 +1042,6 @@ jobs:
               env->ReleaseStringChars(jText, chars);
               std::string out = result + "\x01" + log;
               return env->NewStringUTF(out.c_str());
-          }
-          extern "C" JNIEXPORT jstring JNICALL
-          Java_com_tts_easyvoice_NativeEngine_scriptLang(JNIEnv* env, jclass, jint cp){
-              const char* r = scriptLangC((int)cp);
-              return env->NewStringUTF(r ? r : "");
-          }
-          extern "C" JNIEXPORT jobjectArray JNICALL
-          Java_com_tts_easyvoice_NativeEngine_scriptLangFallbacks(JNIEnv* env, jclass, jstring jP){
-              const char* pc=env->GetStringUTFChars(jP,nullptr); std::string p(pc); env->ReleaseStringUTFChars(jP,pc);
-              std::vector<std::string> v = scriptLangFallbacksC(p);
-              jclass sc=env->FindClass("java/lang/String");
-              jobjectArray arr=env->NewObjectArray((jsize)v.size(), sc, nullptr);
-              for(jsize i=0;i<(jsize)v.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(v[i].c_str()));
-              return arr;
           }
           extern "C" JNIEXPORT jobjectArray JNICALL
           Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText, jboolean jUseCld3){
@@ -1315,8 +1244,6 @@ jobs:
           "        neutralDefault: String, neutralType: Int,\n"
           "        disableAdvancedDetection: Boolean, useCld3: Boolean\n"
           "    ): String\n"
-          "    external fun scriptLang(cp: Int): String\n"
-          "    external fun scriptLangFallbacks(primary: String): Array<String>\n"
           "    external fun nativeGetLanguages(text: String, useCld3: Boolean): Array<String>\n"
           "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
           "    external fun modeLang(mode: Int, latFall: String, nonLatFall: String): String\n"
@@ -1757,11 +1684,6 @@ jobs:
           "        for (i3 in c.indices) if (iso3 == c[i3].b) return i3\n"
           "        return -1\n"
           "    }\n"
-          "    @JvmStatic\n"
-          "    fun entryFor(iso3: String): LangEntry? {\n"
-          "        for (e in c) if (e.b == iso3) return e\n"
-          "        return null\n"
-          "    }\n"
           "    // AutoTtsService.M(lang) — Google mode short-circuits before the list is even touched,\n"
           "    // a disabled entry answers \"Disable\", a missing one answers \"\".\n"
           "    @JvmStatic\n"
@@ -1832,18 +1754,9 @@ jobs:
           "        val iso3 = if (lang.length != 2) lang else try { java.util.Locale(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }\n"
           "        return when (iso3) { \"cmn\", \"lzh\", \"gan\", \"hak\" -> \"zho\"; else -> iso3 }\n"
           "    }\n"
-          "    fun isLanguageConfigured(lang: String): Boolean {\n"
-          "        val combined = prefs.getString(toIso3(lang), \"\") ?: \"\"\n"
-          "        return combined.split(\"#\", limit = 2).getOrElse(0) { \"\" }.isNotEmpty()\n"
-          "    }\n"
           "    fun getLocaleForLangPkg(lang: String, pkg: String): String {\n"
           "        val combined = prefs.getString(toIso3(lang), \"\") ?: \"\"\n"
           "        return combined.split(\"#\", limit = 2).getOrElse(1) { \"\" }\n"
-          "    }\n"
-          "    fun setLocaleForLangPkg(lang: String, pkg: String, tag: String) {\n"
-          "        val iso3 = toIso3(lang)\n"
-          "        prefs.edit().putString(iso3, \"$pkg#$tag\").apply()\n"
-          "        addLanguageToList(iso3)\n"
           "    }\n"
           "    fun getLanguageList(): List<String> {\n"
           "        val out = mutableListOf<String>()\n"
@@ -1871,14 +1784,6 @@ jobs:
           "        }\n"
           "        return getLanguageList().map { toIso3(it) }.toHashSet()\n"
           "    }\n"
-          "    private fun addLanguageToList(iso3: String) {\n"
-          "        val list = getLanguageList()\n"
-          "        if (list.contains(iso3)) return\n"
-          "        prefs.edit().putString(\"language_${list.size}\", iso3).apply()\n"
-          "    }\n"
-          "    fun isLanguageDisabled(lang: String): Boolean = prefs.getBoolean(\"${toIso3(lang)}_disabled\", false)\n"
-          "    fun setLanguageDisabled(lang: String, v: Boolean) = prefs.edit().putBoolean(\"${toIso3(lang)}_disabled\", v).apply()\n"
-          "    fun getVoiceName(lang: String): String = prefs.getString(\"${toIso3(lang)}_variant\", \"*Default\") ?: \"*Default\"\n"
           "    fun setVoiceName(lang: String, voiceName: String) = prefs.edit().putString(\"${toIso3(lang)}_variant\", voiceName).apply()\n"
           "    // j.O1's spinner branches assign AutoTtsService.F, G, K and L off m.c before anything\n"
           "    // is persisted; these four keys are those spinners.\n"
@@ -1892,12 +1797,9 @@ jobs:
           "        prefs.edit().putString(key, v).apply()\n"
           "    }\n"
           "    fun getString(key: String, def: String): String = prefs.getString(key, def) ?: def\n"
-          "    fun setInt(key: String, v: Int) = prefs.edit().putInt(key, v).apply()\n"
           "    fun getInt(key: String, def: Int): Int = prefs.getInt(key, def)\n"
-          "    fun setBoolean(key: String, v: Boolean) = prefs.edit().putBoolean(key, v).apply()\n"
           "    fun getBoolean(key: String, def: Boolean): Boolean = prefs.getBoolean(key, def)\n"
           "    fun getFloat(key: String, def: Float): Float = prefs.getFloat(key, def)\n"
-          "    fun setFloat(key: String, v: Float) = prefs.edit().putFloat(key, v).apply()\n"
           "    // c3.m.p(ctx): getInt(\"auto_mode\", 3), and if that is 3 while Google TTS is absent the\n"
           "    // mode becomes 0 (None). Nothing else — there is no other key and no migration.\n"
           "    fun getReadingMode(): String {\n"
@@ -1924,7 +1826,6 @@ jobs:
           "    fun getPuncModeLang(): Int = prefs.getInt(\"punc_mode_language\", 0)\n"
           "    fun setPuncModeLang(v: Int) { EasyVoiceTtsService.puncModeInt = v; prefs.edit().putInt(\"punc_mode_language\", v).apply() }\n"
           "    fun getEmojiModeLang(): Int = prefs.getInt(\"emoji_mode_language\", 0)\n"
-          "    fun setEmojiModeLang(v: Int) { EasyVoiceTtsService.emojiModeInt = v; prefs.edit().putInt(\"emoji_mode_language\", v).apply() }\n"
           "    fun getNumberModeLang(): Int = prefs.getInt(\"number_mode_language\", 0)\n"
           "    fun setNumberModeLang(v: Int) { EasyVoiceTtsService.numberModeInt = v; prefs.edit().putInt(\"number_mode_language\", v).apply() }\n"
           "    fun isShowNotification(): Boolean = prefs.getBoolean(\"show_notification\", false)\n"
@@ -1932,12 +1833,10 @@ jobs:
           "        EasyVoiceTtsService.showNotificationFlag = v\n"
           "        prefs.edit().putBoolean(\"show_notification\", v).apply()\n"
           "    }\n"
-          "    fun isDedicatedEnginesEnabled(): Boolean = prefs.getBoolean(\"dedicated_engines\", false)\n"
           "    fun setDedicatedEnginesEnabled(v: Boolean) { EasyVoiceTtsService.dedicatedEnginesFlag = v; prefs.edit().putBoolean(\"dedicated_engines\", v).apply() }\n"
           "    fun isLocaleSpansEnabled(): Boolean = prefs.getBoolean(\"locale_spans\", false)\n"
           "    fun setLocaleSpansEnabled(v: Boolean) { EasyVoiceTtsService.localeSpansFlag = v; prefs.edit().putBoolean(\"locale_spans\", v).apply() }\n"
           "    fun isDisableAdvancedDetection(): Boolean = prefs.getBoolean(\"disable_advanced_detection\", true)\n"
-          "    fun setDisableAdvancedDetection(v: Boolean) { EasyVoiceTtsService.disableAdvancedFlag = v; prefs.edit().putBoolean(\"disable_advanced_detection\", v).apply() }\n"
           "    fun isKeepAliveMode(): Boolean = prefs.getBoolean(\"keep_alive_mode\", false)\n"
           "    fun setKeepAliveMode(v: Boolean) { EasyVoiceTtsService.keepAliveFlag = v; prefs.edit().putBoolean(\"keep_alive_mode\", v).apply() }\n"
           "    fun isQuickCharacterReading(): Boolean = prefs.getBoolean(\"quick_character_reading\", true)\n"
@@ -2024,21 +1923,6 @@ jobs:
           "            val eng = v.split(\"#\")[0]\n"
           "            if (eng.isEmpty() || eng.equals(\"disable\", ignoreCase = true)) continue\n"
           "            println(\" -> \" + eng)\n"
-          "            out.add(eng)\n"
-          "        }\n"
-          "        return out\n"
-          "    }\n"
-          "    fun getReferencedEnginePackages(): Set<String> {\n"
-          "        val disabled = HashSet<String>()\n"
-          "        for ((k, v) in prefs.all) {\n"
-          "            if (v is Boolean && v == true && k.endsWith(\"_disabled\")) disabled.add(k.substring(0, k.length - 9))\n"
-          "        }\n"
-          "        val out = HashSet<String>()\n"
-          "        for ((k, v) in prefs.all) {\n"
-          "            if (v !is String || k.length != 3 || !k.all { it.isLetter() } || !v.contains(\"#\")) continue\n"
-          "            if (k in disabled) continue\n"
-          "            val eng = v.substringBefore(\"#\")\n"
-          "            if (eng.isEmpty() || eng.equals(\"disable\", ignoreCase = true)) continue\n"
           "            out.add(eng)\n"
           "        }\n"
           "        return out\n"
@@ -3581,7 +3465,6 @@ jobs:
           "        }\n"
           "        val sysRate  = reqRate\n"
           "        val sysPitch = reqPitch\n"
-          "        val totalChunks = chunks.size\n"
           "        synchronized(chunkQueue) {\n"
           "            chunkQueue.clear()\n"
           "            chunkQueue.addAll(chunks.mapIndexed { i, c -> (i + 1) to c })\n"
@@ -5775,7 +5658,6 @@ jobs:
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
           "    <string name=\"app_name\">Easy Voice</string>\n"
-          "    <string name=\"auto_reader_description\">Easy Voice Auto Reader reads focused screen elements aloud using your configured TTS engine.</string>\n"
           "</resources>\n")
 
           # ── AndroidManifest.xml ──────────────────────────────────────────────
