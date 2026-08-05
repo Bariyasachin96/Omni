@@ -324,54 +324,54 @@ jobs:
           JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
               return JNI_VERSION_1_6;
           }
-          inline int utf8ToCodepoint(const unsigned char* p, int& len) {
-              if (p[0] < 0x80)               { len=1; return p[0]; }
-              if ((p[0]&0xE0)==0xC0)         { len=2; return ((p[0]&0x1F)<<6)|(p[1]&0x3F); }
-              if ((p[0]&0xF0)==0xE0)         { len=3; return ((p[0]&0x0F)<<12)|((p[1]&0x3F)<<6)|(p[2]&0x3F); }
-              if ((p[0]&0xF8)==0xF0)         { len=4; return ((p[0]&0x07)<<18)|((p[1]&0x3F)<<12)|((p[2]&0x3F)<<6)|(p[3]&0x3F); }
-              len=1; return p[0];
+          inline int utf8ToCodepoint(const unsigned char* utf8, int& len) {
+              if (utf8[0] < 0x80)               { len=1; return utf8[0]; }
+              if ((utf8[0]&0xE0)==0xC0)         { len=2; return ((utf8[0]&0x1F)<<6)|(utf8[1]&0x3F); }
+              if ((utf8[0]&0xF0)==0xE0)         { len=3; return ((utf8[0]&0x0F)<<12)|((utf8[1]&0x3F)<<6)|(utf8[2]&0x3F); }
+              if ((utf8[0]&0xF8)==0xF0)         { len=4; return ((utf8[0]&0x07)<<18)|((utf8[1]&0x3F)<<12)|((utf8[2]&0x3F)<<6)|(utf8[3]&0x3F); }
+              len=1; return utf8[0];
           }
-          inline bool isEmoji(int cp) {
-              return cp==0x00A9||cp==0x00AE||cp==0x203C||cp==0x2049||cp==0x2122||cp==0x2139||
-                     (cp>=0x2194&&cp<=0x2199)||(cp>=0x21A9&&cp<=0x21AA)||
-                     cp==0x231A||cp==0x231B||cp==0x2328||cp==0x23CF||(cp>=0x23E9&&cp<=0x23F3)||(cp>=0x23F8&&cp<=0x23FA)||
-                     cp==0x24C2||cp==0x25AA||cp==0x25AB||cp==0x25B6||cp==0x25C0||(cp>=0x25FB&&cp<=0x25FE)||
-                     (cp>=0x2600&&cp<=0x26FF)||(cp>=0x2700&&cp<=0x27BF)||cp==0x2934||cp==0x2935||
-                     (cp>=0x2B05&&cp<=0x2B07)||cp==0x2B1B||cp==0x2B1C||cp==0x2B50||cp==0x2B55||
-                     cp==0x3030||cp==0x303D||cp==0x3297||cp==0x3299||cp==0x20E3||cp==0xFE0F||
-                     cp==0x1F004||cp==0x1F0CF||
-                     cp==0x1F170||cp==0x1F171||cp==0x1F17E||cp==0x1F17F||cp==0x1F18E||(cp>=0x1F191&&cp<=0x1F19A)||
-                     (cp>=0x1F1E6&&cp<=0x1F1FF)||
-                     cp==0x1F201||cp==0x1F202||cp==0x1F21A||cp==0x1F22F||(cp>=0x1F232&&cp<=0x1F23A)||cp==0x1F250||cp==0x1F251||
-                     (cp>=0x1F300&&cp<=0x1F5FF)||(cp>=0x1F600&&cp<=0x1F64F)||(cp>=0x1F680&&cp<=0x1F6FF)||(cp>=0x1F900&&cp<=0x1F9FF);
+          inline bool isEmoji(int codePoint) {
+              return codePoint==0x00A9||codePoint==0x00AE||codePoint==0x203C||codePoint==0x2049||codePoint==0x2122||codePoint==0x2139||
+                     (codePoint>=0x2194&&codePoint<=0x2199)||(codePoint>=0x21A9&&codePoint<=0x21AA)||
+                     codePoint==0x231A||codePoint==0x231B||codePoint==0x2328||codePoint==0x23CF||(codePoint>=0x23E9&&codePoint<=0x23F3)||(codePoint>=0x23F8&&codePoint<=0x23FA)||
+                     codePoint==0x24C2||codePoint==0x25AA||codePoint==0x25AB||codePoint==0x25B6||codePoint==0x25C0||(codePoint>=0x25FB&&codePoint<=0x25FE)||
+                     (codePoint>=0x2600&&codePoint<=0x26FF)||(codePoint>=0x2700&&codePoint<=0x27BF)||codePoint==0x2934||codePoint==0x2935||
+                     (codePoint>=0x2B05&&codePoint<=0x2B07)||codePoint==0x2B1B||codePoint==0x2B1C||codePoint==0x2B50||codePoint==0x2B55||
+                     codePoint==0x3030||codePoint==0x303D||codePoint==0x3297||codePoint==0x3299||codePoint==0x20E3||codePoint==0xFE0F||
+                     codePoint==0x1F004||codePoint==0x1F0CF||
+                     codePoint==0x1F170||codePoint==0x1F171||codePoint==0x1F17E||codePoint==0x1F17F||codePoint==0x1F18E||(codePoint>=0x1F191&&codePoint<=0x1F19A)||
+                     (codePoint>=0x1F1E6&&codePoint<=0x1F1FF)||
+                     codePoint==0x1F201||codePoint==0x1F202||codePoint==0x1F21A||codePoint==0x1F22F||(codePoint>=0x1F232&&codePoint<=0x1F23A)||codePoint==0x1F250||codePoint==0x1F251||
+                     (codePoint>=0x1F300&&codePoint<=0x1F5FF)||(codePoint>=0x1F600&&codePoint<=0x1F64F)||(codePoint>=0x1F680&&codePoint<=0x1F6FF)||(codePoint>=0x1F900&&codePoint<=0x1F9FF);
           }
           struct ChunkResult { std::string lang; std::string text; int type; };
-          static std::string cld3DetectRaw(const std::string& u8, bool* reliableOut);
-          static std::string cld2WindowDetectC(const std::string& u8, bool useCld3);
+          static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut);
+          static std::string cld2WindowDetectC(const std::string& utf8Text, bool useCld3);
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latFall, const std::string& nonLatFall, const std::string& puncFall, const std::string& numFall, const std::string& emojiFall, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
               std::vector<ChunkResult> result;
               std::string fullText;
-              for (auto& s : sentences) { if (!s.empty()) fullText += s + " "; }
+              for (auto& sentence : sentences) { if (!sentence.empty()) fullText += sentence + " "; }
               if (fullText.empty()) return result;
               {
                   {
-                      size_t tb = 0, te = fullText.size();
-                      while (tb < te && (unsigned char)fullText[tb] <= 0x20) ++tb;
-                      while (te > tb && (unsigned char)fullText[te - 1] <= 0x20) --te;
-                      if (tb == te) return result;
-                      fullText = fullText.substr(tb, te - tb);
+                      size_t textBegin = 0, textEnd = fullText.size();
+                      while (textBegin < textEnd && (unsigned char)fullText[textBegin] <= 0x20) ++textBegin;
+                      while (textEnd > textBegin && (unsigned char)fullText[textEnd - 1] <= 0x20) --textEnd;
+                      if (textBegin == textEnd) return result;
+                      fullText = fullText.substr(textBegin, textEnd - textBegin);
                   }
-                  auto isUniWs = [](int cp) -> bool {
-                      return (cp >= 0x09 && cp <= 0x0D) || cp == 0x20;
+                  auto isUniWs = [](int codePoint) -> bool {
+                      return (codePoint >= 0x09 && codePoint <= 0x0D) || codePoint == 0x20;
                   };
                   std::string collapsed; collapsed.reserve(fullText.size());
                   bool prevWs = false;
                   int cbPos = 0, cbLen = (int)fullText.size();
                   while (cbPos < cbLen) {
                       int cpLen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[cbPos], cpLen);
+                      int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[cbPos], cpLen);
                       if (cpLen <= 0) cpLen = 1;
-                      if (isUniWs(cp)) { if (!prevWs) collapsed += ' '; prevWs = true; }
+                      if (isUniWs(codePoint)) { if (!prevWs) collapsed += ' '; prevWs = true; }
                       else { collapsed.append(fullText, cbPos, (size_t)cpLen); prevWs = false; }
                       cbPos += cpLen;
                   }
@@ -383,9 +383,9 @@ jobs:
                   int bytePos = 0, byteLen = (int)fullText.size();
                   while (bytePos < byteLen) {
                       int cpLen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[bytePos], cpLen);
-                      if (cp == 0x061C || cp == 0x200E || cp == 0x200F ||
-                          (cp >= 0x202A && cp <= 0x202E)) { bytePos += cpLen; continue; }
+                      int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[bytePos], cpLen);
+                      if (codePoint == 0x061C || codePoint == 0x200E || codePoint == 0x200F ||
+                          (codePoint >= 0x202A && codePoint <= 0x202E)) { bytePos += cpLen; continue; }
                       clean += fullText.substr(bytePos, cpLen);
                       bytePos += cpLen;
                   }
@@ -403,24 +403,24 @@ jobs:
                           segs.push_back({buf, 2, ""});
                       } else {
                           bool allWs = true, allPunct = true, allNumber = true;
-                          const unsigned char* p = (const unsigned char*)buf.c_str();
+                          const unsigned char* utf8 = (const unsigned char*)buf.c_str();
                           int bufLen = (int)buf.size(), j = 0;
                           while (j < bufLen) {
                               int cpLen = 0;
-                              int cp = utf8ToCodepoint(p + j, cpLen);
-                              { bool isJWs = (cp >= 0x09 && cp <= 0x0D) || (cp >= 0x1C && cp <= 0x1F) ||
-                                             cp == 0x20 || cp == 0x1680 ||
-                                             (cp >= 0x2000 && cp <= 0x200A && cp != 0x2007) ||
-                                             cp == 0x205F || cp == 0x3000 ||
-                                             cp == 0x2028 || cp == 0x2029;
+                              int codePoint = utf8ToCodepoint(utf8 + j, cpLen);
+                              { bool isJWs = (codePoint >= 0x09 && codePoint <= 0x0D) || (codePoint >= 0x1C && codePoint <= 0x1F) ||
+                                             codePoint == 0x20 || codePoint == 0x1680 ||
+                                             (codePoint >= 0x2000 && codePoint <= 0x200A && codePoint != 0x2007) ||
+                                             codePoint == 0x205F || codePoint == 0x3000 ||
+                                             codePoint == 0x2028 || codePoint == 0x2029;
                                 if (!isJWs) allWs = false; }
-                              bool inPunct = (cp >= 0x21 && cp <= 0x2F) || (cp >= 0x3A && cp <= 0x40) ||
-                                             cp == 0x5B || (cp >= 0x5D && cp <= 0x60) || (cp >= 0x7B && cp <= 0x7E) ||
-                                             cp == 0x20 || (cp >= 0x09 && cp <= 0x0D) ||
-                                             (cp >= 0x2000 && cp <= 0x206F);
-                              bool inNumber = inPunct || (cp >= '0' && cp <= '9') ||
-                                              cp == 0x00B0 || cp == 0x00D7 || cp == 0x00F7 ||
-                                              (cp >= 0x20A0 && cp <= 0x20CF);
+                              bool inPunct = (codePoint >= 0x21 && codePoint <= 0x2F) || (codePoint >= 0x3A && codePoint <= 0x40) ||
+                                             codePoint == 0x5B || (codePoint >= 0x5D && codePoint <= 0x60) || (codePoint >= 0x7B && codePoint <= 0x7E) ||
+                                             codePoint == 0x20 || (codePoint >= 0x09 && codePoint <= 0x0D) ||
+                                             (codePoint >= 0x2000 && codePoint <= 0x206F);
+                              bool inNumber = inPunct || (codePoint >= '0' && codePoint <= '9') ||
+                                              codePoint == 0x00B0 || codePoint == 0x00D7 || codePoint == 0x00F7 ||
+                                              (codePoint >= 0x20A0 && codePoint <= 0x20CF);
                               if (!inPunct) allPunct = false;
                               if (!inNumber) allNumber = false;
                               j += cpLen;
@@ -432,14 +432,14 @@ jobs:
                   int len = (int)fullText.size(), i = 0;
                   while (i < len) {
                       int cpLen = 0;
-                      int cp = utf8ToCodepoint((const unsigned char*)&fullText[i], cpLen);
-                      bool latRange = (cp <= 0x024F) ||
-                                      (cp >= 0x1E00 && cp <= 0x1EFF) ||
-                                      (cp >= 0x2000 && cp <= 0x206F) ||
-                                      (cp >= 0x20A0 && cp <= 0x20CF) ||
-                                      (cp >= 0x2C60 && cp <= 0x2C7F) ||
-                                      (cp >= 0xA720 && cp <= 0xA7FF) ||
-                                      isEmoji(cp);
+                      int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[i], cpLen);
+                      bool latRange = (codePoint <= 0x024F) ||
+                                      (codePoint >= 0x1E00 && codePoint <= 0x1EFF) ||
+                                      (codePoint >= 0x2000 && codePoint <= 0x206F) ||
+                                      (codePoint >= 0x20A0 && codePoint <= 0x20CF) ||
+                                      (codePoint >= 0x2C60 && codePoint <= 0x2C7F) ||
+                                      (codePoint >= 0xA720 && codePoint <= 0xA7FF) ||
+                                      isEmoji(codePoint);
                       int kind = latRange ? 0 : 1;
                       if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, cpLen); bufKind = kind; }
                       else { flushBuf(); buf = fullText.substr(i, cpLen); bufKind = kind; }
@@ -533,7 +533,7 @@ jobs:
               while(end!=std::string::npos){ sentences.push_back(rawInput.substr(start,end-start)); start=end+1; end=rawInput.find('\0',start); }
               if(start<rawInput.size()) sentences.push_back(rawInput.substr(start));
               std::vector<std::string> processed; processed.reserve(sentences.size());
-              for(auto& s: sentences){ processed.push_back(s); }
+              for(auto& sentence: sentences){ processed.push_back(sentence); }
               std::string result;
               if (mode == "mix") {
                   auto chunks = buildMixChunks(processed, latFall, nonLatFall, puncFall, numFall, emojiFall, neutralDefault, neutralType, disableAdvancedDetection);
@@ -544,127 +544,127 @@ jobs:
               }
               return env->NewStringUTF(result.c_str());
           }
-          static const char* scriptLangC(int cp){
-              if(cp>=0x30&&cp<=0x39) return "en";
-              if((cp>=0x20&&cp<=0x2F)||(cp>=0x3A&&cp<=0x40)||(cp>=0x5B&&cp<=0x60)||(cp>=0x7B&&cp<=0x7E)||(cp>=0x2000&&cp<=0x206F)) return "zz";
-              if(cp==0xC0||cp==0xC2||cp==0xC7||cp==0xC8||cp==0xC9||cp==0xCA||cp==0xCB||cp==0xCE||cp==0xCF||cp==0xD4||cp==0xD9||cp==0xDB||cp==0xE0||cp==0xE2||cp==0xE7||cp==0xE8||cp==0xE9||cp==0xEA||cp==0xEB||cp==0xEE||cp==0xEF||cp==0xF4||cp==0xF9||cp==0xFB||cp==0x152||cp==0x153) return "fr";
-              if(cp==0xC1||cp==0xCD||cp==0xD1||cp==0xD3||cp==0xDA||cp==0xE1||cp==0xED||cp==0xF1||cp==0xF3||cp==0xFA) return "es";
-              if(cp==0xC4||cp==0xD6||cp==0xDC||cp==0xE4||cp==0xF6||cp==0xFC||cp==0xDF) return "de";
-              if(cp==0xC5||cp==0xC6||cp==0xD8||cp==0xE5||cp==0xE6||cp==0xF8) return "no";
-              if(cp==0x104||cp==0x105||cp==0x106||cp==0x107||cp==0x118||cp==0x119||cp==0x141||cp==0x142||cp==0x143||cp==0x144||cp==0x15A||cp==0x15B||cp==0x179||cp==0x17A||cp==0x17B||cp==0x17C) return "pl";
-              if(cp==0x10C||cp==0x10D||cp==0x10E||cp==0x10F||cp==0x11A||cp==0x11B||cp==0x147||cp==0x148||cp==0x158||cp==0x159||cp==0x160||cp==0x161||cp==0x164||cp==0x165||cp==0x16E||cp==0x16F||cp==0x17D||cp==0x17E) return "cs";
-              if((cp>=0x1EA0&&cp<=0x1EF9)||cp==0x110||cp==0x111||cp==0x1A0||cp==0x1A1||cp==0x1AF||cp==0x1B0) return "vi";
-              if((cp>=0x41&&cp<=0x5A)||(cp>=0x61&&cp<=0x7A)||(cp>=0xC0&&cp<=0xFF)||(cp>=0x100&&cp<=0x24F)) return "en";
-              if((cp>=0x370&&cp<=0x3FF)||(cp>=0x1F00&&cp<=0x1FFF)) return "el";
-              if(cp>=0x400&&cp<=0x52F){
-                  if(cp==0x404||cp==0x454||cp==0x406||cp==0x456||cp==0x407||cp==0x457||cp==0x490||cp==0x491) return "uk";
-                  if(cp==0x402||cp==0x452||cp==0x408||cp==0x458||cp==0x409||cp==0x459||cp==0x40A||cp==0x45A||cp==0x40B||cp==0x45B||cp==0x40F||cp==0x45F) return "sr";
-                  if(cp==0x42A||cp==0x44A) return "bg";
-                  if(cp==0x4A2||cp==0x4A3||cp==0x492||cp==0x493||cp==0x4B0||cp==0x4B1||cp==0x4AE||cp==0x4AF||cp==0x4D8||cp==0x4D9) return "kk";
+          static const char* scriptLangC(int codePoint){
+              if(codePoint>=0x30&&codePoint<=0x39) return "en";
+              if((codePoint>=0x20&&codePoint<=0x2F)||(codePoint>=0x3A&&codePoint<=0x40)||(codePoint>=0x5B&&codePoint<=0x60)||(codePoint>=0x7B&&codePoint<=0x7E)||(codePoint>=0x2000&&codePoint<=0x206F)) return "zz";
+              if(codePoint==0xC0||codePoint==0xC2||codePoint==0xC7||codePoint==0xC8||codePoint==0xC9||codePoint==0xCA||codePoint==0xCB||codePoint==0xCE||codePoint==0xCF||codePoint==0xD4||codePoint==0xD9||codePoint==0xDB||codePoint==0xE0||codePoint==0xE2||codePoint==0xE7||codePoint==0xE8||codePoint==0xE9||codePoint==0xEA||codePoint==0xEB||codePoint==0xEE||codePoint==0xEF||codePoint==0xF4||codePoint==0xF9||codePoint==0xFB||codePoint==0x152||codePoint==0x153) return "fr";
+              if(codePoint==0xC1||codePoint==0xCD||codePoint==0xD1||codePoint==0xD3||codePoint==0xDA||codePoint==0xE1||codePoint==0xED||codePoint==0xF1||codePoint==0xF3||codePoint==0xFA) return "es";
+              if(codePoint==0xC4||codePoint==0xD6||codePoint==0xDC||codePoint==0xE4||codePoint==0xF6||codePoint==0xFC||codePoint==0xDF) return "de";
+              if(codePoint==0xC5||codePoint==0xC6||codePoint==0xD8||codePoint==0xE5||codePoint==0xE6||codePoint==0xF8) return "no";
+              if(codePoint==0x104||codePoint==0x105||codePoint==0x106||codePoint==0x107||codePoint==0x118||codePoint==0x119||codePoint==0x141||codePoint==0x142||codePoint==0x143||codePoint==0x144||codePoint==0x15A||codePoint==0x15B||codePoint==0x179||codePoint==0x17A||codePoint==0x17B||codePoint==0x17C) return "pl";
+              if(codePoint==0x10C||codePoint==0x10D||codePoint==0x10E||codePoint==0x10F||codePoint==0x11A||codePoint==0x11B||codePoint==0x147||codePoint==0x148||codePoint==0x158||codePoint==0x159||codePoint==0x160||codePoint==0x161||codePoint==0x164||codePoint==0x165||codePoint==0x16E||codePoint==0x16F||codePoint==0x17D||codePoint==0x17E) return "cs";
+              if((codePoint>=0x1EA0&&codePoint<=0x1EF9)||codePoint==0x110||codePoint==0x111||codePoint==0x1A0||codePoint==0x1A1||codePoint==0x1AF||codePoint==0x1B0) return "vi";
+              if((codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A)||(codePoint>=0xC0&&codePoint<=0xFF)||(codePoint>=0x100&&codePoint<=0x24F)) return "en";
+              if((codePoint>=0x370&&codePoint<=0x3FF)||(codePoint>=0x1F00&&codePoint<=0x1FFF)) return "el";
+              if(codePoint>=0x400&&codePoint<=0x52F){
+                  if(codePoint==0x404||codePoint==0x454||codePoint==0x406||codePoint==0x456||codePoint==0x407||codePoint==0x457||codePoint==0x490||codePoint==0x491) return "uk";
+                  if(codePoint==0x402||codePoint==0x452||codePoint==0x408||codePoint==0x458||codePoint==0x409||codePoint==0x459||codePoint==0x40A||codePoint==0x45A||codePoint==0x40B||codePoint==0x45B||codePoint==0x40F||codePoint==0x45F) return "sr";
+                  if(codePoint==0x42A||codePoint==0x44A) return "bg";
+                  if(codePoint==0x4A2||codePoint==0x4A3||codePoint==0x492||codePoint==0x493||codePoint==0x4B0||codePoint==0x4B1||codePoint==0x4AE||codePoint==0x4AF||codePoint==0x4D8||codePoint==0x4D9) return "kk";
                   return "ru";
               }
-              if((cp>=0x530&&cp<=0x58F)||(cp>=0xFB00&&cp<=0xFB17)) return "hy";
-              if((cp>=0x590&&cp<=0x5FF)||(cp>=0xFB1D&&cp<=0xFB4F)) return "he";
-              if((cp>=0x600&&cp<=0x6FF)||(cp>=0x750&&cp<=0x77F)||(cp>=0x8A0&&cp<=0x8FF)||(cp>=0xFB50&&cp<=0xFDFF)||(cp>=0xFE70&&cp<=0xFEFF)){
-                  if(cp==0x679||cp==0x688||cp==0x691||cp==0x6C1||cp==0x6D2||cp==0x6BA||cp==0x6BE) return "ur";
-                  if(cp==0x681||cp==0x685||cp==0x689||cp==0x693||cp==0x696||cp==0x69A||cp==0x6BC||cp==0x6D0) return "ps";
-                  if(cp>=0x67A&&cp<=0x67D) return "sd";
-                  if(cp==0x6CE||cp==0x695||cp==0x6B5||cp==0x6C6) return "ku";
-                  if(cp==0x67E||cp==0x686||cp==0x698||cp==0x6AF) return "fa";
+              if((codePoint>=0x530&&codePoint<=0x58F)||(codePoint>=0xFB00&&codePoint<=0xFB17)) return "hy";
+              if((codePoint>=0x590&&codePoint<=0x5FF)||(codePoint>=0xFB1D&&codePoint<=0xFB4F)) return "he";
+              if((codePoint>=0x600&&codePoint<=0x6FF)||(codePoint>=0x750&&codePoint<=0x77F)||(codePoint>=0x8A0&&codePoint<=0x8FF)||(codePoint>=0xFB50&&codePoint<=0xFDFF)||(codePoint>=0xFE70&&codePoint<=0xFEFF)){
+                  if(codePoint==0x679||codePoint==0x688||codePoint==0x691||codePoint==0x6C1||codePoint==0x6D2||codePoint==0x6BA||codePoint==0x6BE) return "ur";
+                  if(codePoint==0x681||codePoint==0x685||codePoint==0x689||codePoint==0x693||codePoint==0x696||codePoint==0x69A||codePoint==0x6BC||codePoint==0x6D0) return "ps";
+                  if(codePoint>=0x67A&&codePoint<=0x67D) return "sd";
+                  if(codePoint==0x6CE||codePoint==0x695||codePoint==0x6B5||codePoint==0x6C6) return "ku";
+                  if(codePoint==0x67E||codePoint==0x686||codePoint==0x698||codePoint==0x6AF) return "fa";
                   return "ar";
               }
-              if(cp>=0x780&&cp<=0x7BF) return "dv";
-              if((cp>=0x900&&cp<=0x97F)||(cp>=0xA8E0&&cp<=0xA8FF)) return (cp==0x933)?"mr":"hi";
-              if(cp>=0x980&&cp<=0x9FF) return (cp==0x9F0||cp==0x9F1)?"as":"bn";
-              if(cp>=0xA00&&cp<=0xA7F) return "pa";
-              if(cp>=0xA80&&cp<=0xAFF) return "gu";
-              if(cp>=0xB00&&cp<=0xB7F) return "or";
-              if(cp>=0xB80&&cp<=0xBFF) return "ta";
-              if(cp>=0xC00&&cp<=0xC7F) return "te";
-              if(cp>=0xC80&&cp<=0xCFF) return "kn";
-              if(cp>=0xD00&&cp<=0xD7F) return "ml";
-              if(cp>=0xD80&&cp<=0xDFF) return "si";
-              if(cp>=0xE00&&cp<=0xE7F) return "th";
-              if(cp>=0xE80&&cp<=0xEFF) return "lo";
-              if(cp>=0xF00&&cp<=0xFFF) return "bo";
-              if((cp>=0x1000&&cp<=0x109F)||(cp>=0xAA60&&cp<=0xAA7F)) return "my";
-              if((cp>=0x10A0&&cp<=0x10FF)||(cp>=0x2D00&&cp<=0x2D2F)) return "ka";
-              if((cp>=0x1100&&cp<=0x11FF)||(cp>=0x3130&&cp<=0x318F)||(cp>=0xA960&&cp<=0xA97F)||(cp>=0xAC00&&cp<=0xD7AF)||(cp>=0xD7B0&&cp<=0xD7FF)) return "ko";
-              if((cp>=0x1200&&cp<=0x137F)||(cp>=0x1380&&cp<=0x139F)||(cp>=0x2D80&&cp<=0x2DDF)) return "am";
-              if((cp>=0x1780&&cp<=0x17FF)||(cp>=0x19E0&&cp<=0x19FF)) return "km";
-              if((cp>=0x1800&&cp<=0x18AF)||(cp>=0x11660&&cp<=0x1167F)) return "mn";
-              if(cp>=0x3000&&cp<=0x303F) return "zh";
-              if((cp>=0x3040&&cp<=0x309F)||(cp>=0x1B000&&cp<=0x1B12F)) return "ja";
-              if((cp>=0x30A0&&cp<=0x30FF)||(cp>=0x31F0&&cp<=0x31FF)||(cp>=0x1B130&&cp<=0x1B16F)) return "ja";
-              if((cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF)||(cp>=0x20000&&cp<=0x2A6DF)||(cp>=0x2A700&&cp<=0x2B73F)||(cp>=0x2B740&&cp<=0x2B81F)||(cp>=0x2B820&&cp<=0x2CEAF)||(cp>=0x2CEB0&&cp<=0x2EBEF)||(cp>=196608&&cp<=201551)||(cp>=201552&&cp<=205743)) return "zh";
-              if((cp>=0x1F000&&cp<=0x1F02F)||(cp>=0x1F300&&cp<=0x1F9FF)||(cp>=0x1FA70&&cp<=0x1FAFF)||(cp>=0x2600&&cp<=0x26FF)||(cp>=0x2700&&cp<=0x27BF)) return "zz";
-              if((cp>=0x1D400&&cp<=0x1D7FF)||(cp>=0x2100&&cp<=0x214F)||(cp>=0x2200&&cp<=0x22FF)) return "zz";
-              if(cp>=0x10000&&cp<=0x1007F) return "grc";
-              if(cp>=0x10300&&cp<=0x1032F) return "la";
-              if(cp>=0x10330&&cp<=0x1034F) return "got";
-              if(cp>=0x10400&&cp<=0x1044F) return "en";
-              if(cp>=0x10800&&cp<=0x1083F) return "grc";
-              if(cp>=0x10A00&&cp<=0x10A5F) return "sa";
-              if(cp>=0x12000&&cp<=0x1247F) return "akk";
-              if((cp>=0x13000&&cp<=0x1342F)||(cp>=0x13430&&cp<=0x1345F)) return "egy";
+              if(codePoint>=0x780&&codePoint<=0x7BF) return "dv";
+              if((codePoint>=0x900&&codePoint<=0x97F)||(codePoint>=0xA8E0&&codePoint<=0xA8FF)) return (codePoint==0x933)?"mr":"hi";
+              if(codePoint>=0x980&&codePoint<=0x9FF) return (codePoint==0x9F0||codePoint==0x9F1)?"as":"bn";
+              if(codePoint>=0xA00&&codePoint<=0xA7F) return "pa";
+              if(codePoint>=0xA80&&codePoint<=0xAFF) return "gu";
+              if(codePoint>=0xB00&&codePoint<=0xB7F) return "or";
+              if(codePoint>=0xB80&&codePoint<=0xBFF) return "ta";
+              if(codePoint>=0xC00&&codePoint<=0xC7F) return "te";
+              if(codePoint>=0xC80&&codePoint<=0xCFF) return "kn";
+              if(codePoint>=0xD00&&codePoint<=0xD7F) return "ml";
+              if(codePoint>=0xD80&&codePoint<=0xDFF) return "si";
+              if(codePoint>=0xE00&&codePoint<=0xE7F) return "th";
+              if(codePoint>=0xE80&&codePoint<=0xEFF) return "lo";
+              if(codePoint>=0xF00&&codePoint<=0xFFF) return "bo";
+              if((codePoint>=0x1000&&codePoint<=0x109F)||(codePoint>=0xAA60&&codePoint<=0xAA7F)) return "my";
+              if((codePoint>=0x10A0&&codePoint<=0x10FF)||(codePoint>=0x2D00&&codePoint<=0x2D2F)) return "ka";
+              if((codePoint>=0x1100&&codePoint<=0x11FF)||(codePoint>=0x3130&&codePoint<=0x318F)||(codePoint>=0xA960&&codePoint<=0xA97F)||(codePoint>=0xAC00&&codePoint<=0xD7AF)||(codePoint>=0xD7B0&&codePoint<=0xD7FF)) return "ko";
+              if((codePoint>=0x1200&&codePoint<=0x137F)||(codePoint>=0x1380&&codePoint<=0x139F)||(codePoint>=0x2D80&&codePoint<=0x2DDF)) return "am";
+              if((codePoint>=0x1780&&codePoint<=0x17FF)||(codePoint>=0x19E0&&codePoint<=0x19FF)) return "km";
+              if((codePoint>=0x1800&&codePoint<=0x18AF)||(codePoint>=0x11660&&codePoint<=0x1167F)) return "mn";
+              if(codePoint>=0x3000&&codePoint<=0x303F) return "zh";
+              if((codePoint>=0x3040&&codePoint<=0x309F)||(codePoint>=0x1B000&&codePoint<=0x1B12F)) return "ja";
+              if((codePoint>=0x30A0&&codePoint<=0x30FF)||(codePoint>=0x31F0&&codePoint<=0x31FF)||(codePoint>=0x1B130&&codePoint<=0x1B16F)) return "ja";
+              if((codePoint>=0x4E00&&codePoint<=0x9FFF)||(codePoint>=0x3400&&codePoint<=0x4DBF)||(codePoint>=0x20000&&codePoint<=0x2A6DF)||(codePoint>=0x2A700&&codePoint<=0x2B73F)||(codePoint>=0x2B740&&codePoint<=0x2B81F)||(codePoint>=0x2B820&&codePoint<=0x2CEAF)||(codePoint>=0x2CEB0&&codePoint<=0x2EBEF)||(codePoint>=196608&&codePoint<=201551)||(codePoint>=201552&&codePoint<=205743)) return "zh";
+              if((codePoint>=0x1F000&&codePoint<=0x1F02F)||(codePoint>=0x1F300&&codePoint<=0x1F9FF)||(codePoint>=0x1FA70&&codePoint<=0x1FAFF)||(codePoint>=0x2600&&codePoint<=0x26FF)||(codePoint>=0x2700&&codePoint<=0x27BF)) return "zz";
+              if((codePoint>=0x1D400&&codePoint<=0x1D7FF)||(codePoint>=0x2100&&codePoint<=0x214F)||(codePoint>=0x2200&&codePoint<=0x22FF)) return "zz";
+              if(codePoint>=0x10000&&codePoint<=0x1007F) return "grc";
+              if(codePoint>=0x10300&&codePoint<=0x1032F) return "la";
+              if(codePoint>=0x10330&&codePoint<=0x1034F) return "got";
+              if(codePoint>=0x10400&&codePoint<=0x1044F) return "en";
+              if(codePoint>=0x10800&&codePoint<=0x1083F) return "grc";
+              if(codePoint>=0x10A00&&codePoint<=0x10A5F) return "sa";
+              if(codePoint>=0x12000&&codePoint<=0x1247F) return "akk";
+              if((codePoint>=0x13000&&codePoint<=0x1342F)||(codePoint>=0x13430&&codePoint<=0x1345F)) return "egy";
               return nullptr;
           }
           static std::unordered_map<std::string,std::string> g_iso2to3;
           static std::string toIso3C(const std::string& lang){
               std::string iso3 = lang;
-              if (lang.size()==2){ auto it=g_iso2to3.find(lang); if(it!=g_iso2to3.end() && !it->second.empty()) iso3=it->second; }
+              if (lang.size()==2){ auto found=g_iso2to3.find(lang); if(found!=g_iso2to3.end() && !found->second.empty()) iso3=found->second; }
               if (iso3=="cmn"||iso3=="lzh"||iso3=="gan"||iso3=="hak") return "zho";
               return iso3;
           }
-          static bool isJavaWsCp(int cp){
-              return (cp>=0x09&&cp<=0x0D)||(cp>=0x1C&&cp<=0x1F)||cp==0x20||cp==0x1680||
-                     (cp>=0x2000&&cp<=0x200A&&cp!=0x2007)||cp==0x205F||cp==0x3000||cp==0x2028||cp==0x2029;
+          static bool isJavaWsCp(int codePoint){
+              return (codePoint>=0x09&&codePoint<=0x0D)||(codePoint>=0x1C&&codePoint<=0x1F)||codePoint==0x20||codePoint==0x1680||
+                     (codePoint>=0x2000&&codePoint<=0x200A&&codePoint!=0x2007)||codePoint==0x205F||codePoint==0x3000||codePoint==0x2028||codePoint==0x2029;
           }
-          static bool isLatinPunctCp(int cp){ return (cp>=33&&cp<=47)||(cp>=58&&cp<=64)||(cp>=91&&cp<=96)||(cp>=123&&cp<=126); }
-          static int firstValidCpU16(const jchar* s, int len){
+          static bool isLatinPunctCp(int codePoint){ return (codePoint>=33&&codePoint<=47)||(codePoint>=58&&codePoint<=64)||(codePoint>=91&&codePoint<=96)||(codePoint>=123&&codePoint<=126); }
+          static int firstValidCpU16(const jchar* units, int len){
               int j=0;
               while(j<len){
-                  jchar c=s[j];
-                  if(!isJavaWsCp((int)c) && !(c>='0'&&c<='9') && !isLatinPunctCp((int)c)){
-                      if(c>=0xD800&&c<=0xDBFF&&j+1<len&&s[j+1]>=0xDC00&&s[j+1]<=0xDFFF)
-                          return 0x10000+((((int)c)-0xD800)<<10)+(((int)s[j+1])-0xDC00);
-                      return (int)c;
+                  jchar unit=units[j];
+                  if(!isJavaWsCp((int)unit) && !(unit>='0'&&unit<='9') && !isLatinPunctCp((int)unit)){
+                      if(unit>=0xD800&&unit<=0xDBFF&&j+1<len&&units[j+1]>=0xDC00&&units[j+1]<=0xDFFF)
+                          return 0x10000+((((int)unit)-0xD800)<<10)+(((int)units[j+1])-0xDC00);
+                      return (int)unit;
                   }
                   j++;
               }
               return -1;
           }
-          static std::string utf16to8(const jchar* s, int len){
+          static std::string utf16to8(const jchar* units, int len){
               std::string out; out.reserve((size_t)len*3);
               int j=0;
               while(j<len){
-                  int cp=(int)s[j];
-                  if(cp>=0xD800&&cp<=0xDBFF&&j+1<len&&s[j+1]>=0xDC00&&s[j+1]<=0xDFFF){ cp=0x10000+((cp-0xD800)<<10)+(((int)s[j+1])-0xDC00); j+=2; } else j++;
-                  if(cp<0x80) out+=(char)cp;
-                  else if(cp<0x800){ out+=(char)(0xC0|(cp>>6)); out+=(char)(0x80|(cp&0x3F)); }
-                  else if(cp<0x10000){ out+=(char)(0xE0|(cp>>12)); out+=(char)(0x80|((cp>>6)&0x3F)); out+=(char)(0x80|(cp&0x3F)); }
-                  else { out+=(char)(0xF0|(cp>>18)); out+=(char)(0x80|((cp>>12)&0x3F)); out+=(char)(0x80|((cp>>6)&0x3F)); out+=(char)(0x80|(cp&0x3F)); }
+                  int codePoint=(int)units[j];
+                  if(codePoint>=0xD800&&codePoint<=0xDBFF&&j+1<len&&units[j+1]>=0xDC00&&units[j+1]<=0xDFFF){ codePoint=0x10000+((codePoint-0xD800)<<10)+(((int)units[j+1])-0xDC00); j+=2; } else j++;
+                  if(codePoint<0x80) out+=(char)codePoint;
+                  else if(codePoint<0x800){ out+=(char)(0xC0|(codePoint>>6)); out+=(char)(0x80|(codePoint&0x3F)); }
+                  else if(codePoint<0x10000){ out+=(char)(0xE0|(codePoint>>12)); out+=(char)(0x80|((codePoint>>6)&0x3F)); out+=(char)(0x80|(codePoint&0x3F)); }
+                  else { out+=(char)(0xF0|(codePoint>>18)); out+=(char)(0x80|((codePoint>>12)&0x3F)); out+=(char)(0x80|((codePoint>>6)&0x3F)); out+=(char)(0x80|(codePoint&0x3F)); }
               }
               return out;
           }
-          static int jStrHash(const std::string& s){ uint32_t h=0; for(unsigned char c: s) h=h*31u+(uint32_t)c; return (int)h; }
-          static uint32_t jSpread(int h){ uint32_t u=(uint32_t)h; return u ^ (u>>16); }
-          static int jTableSizeFor(int c){ if(c<=1) return 1; int n=c-1; n|=n>>1;n|=n>>2;n|=n>>4;n|=n>>8;n|=n>>16; return n+1; }
-          static std::vector<std::string> jHashSetOrder(const std::vector<std::string>& ins, int initCap){
-              int cap=0, threshold=(initCap>=0?jTableSizeFor(initCap):0), size=0;
+          static int javaStringHash(const std::string& text){ uint32_t hash=0; for(unsigned char ch: text) hash=hash*31u+(uint32_t)ch; return (int)hash; }
+          static uint32_t javaHashSpread(int hash){ uint32_t bits=(uint32_t)hash; return bits ^ (bits>>16); }
+          static int javaTableSizeFor(int wanted){ if(wanted<=1) return 1; int size=wanted-1; size|=size>>1;size|=size>>2;size|=size>>4;size|=size>>8;size|=size>>16; return size+1; }
+          static std::vector<std::string> javaHashSetOrder(const std::vector<std::string>& inserted, int initCap){
+              int cap=0, threshold=(initCap>=0?javaTableSizeFor(initCap):0), size=0;
               std::vector<std::vector<std::string>> buckets; std::unordered_set<std::string> keys;
-              auto resize=[&](){ int nc,nt; if(cap>0){nc=cap*2;nt=threshold*2;} else if(threshold>0){nc=threshold;nt=(int)(nc*0.75);} else {nc=16;nt=12;}
-                  std::vector<std::vector<std::string>> nb(nc); for(auto&b:buckets)for(auto&k:b) nb[jSpread(jStrHash(k))&(nc-1)].push_back(k); buckets.swap(nb); cap=nc; threshold=nt; };
-              for(auto& k: ins){ if(keys.count(k)) continue; if(buckets.empty()) resize(); buckets[jSpread(jStrHash(k))&(cap-1)].push_back(k); keys.insert(k); size++; if(size>threshold) resize(); }
-              std::vector<std::string> out; for(auto&b:buckets)for(auto&k:b) out.push_back(k); return out;
+              auto resize=[&](){ int newCap,newThreshold; if(cap>0){newCap=cap*2;newThreshold=threshold*2;} else if(threshold>0){newCap=threshold;newThreshold=(int)(newCap*0.75);} else {newCap=16;newThreshold=12;}
+                  std::vector<std::vector<std::string>> newBuckets(newCap); for(auto&bucket:buckets)for(auto&key:bucket) newBuckets[javaHashSpread(javaStringHash(key))&(newCap-1)].push_back(key); buckets.swap(newBuckets); cap=newCap; threshold=newThreshold; };
+              for(auto& key: inserted){ if(keys.count(key)) continue; if(buckets.empty()) resize(); buckets[javaHashSpread(javaStringHash(key))&(cap-1)].push_back(key); keys.insert(key); size++; if(size>threshold) resize(); }
+              std::vector<std::string> out; for(auto&bucket:buckets)for(auto&key:bucket) out.push_back(key); return out;
           }
           static std::string javaFamilyFallback(const std::string& primary, const std::vector<std::string>& fallbacks, const std::unordered_set<std::string>& enabled){
-              std::vector<std::string> full; full.push_back(primary); for(auto& f: fallbacks) full.push_back(f);
+              std::vector<std::string> full; full.push_back(primary); for(auto& fallback: fallbacks) full.push_back(fallback);
               int initCap=(int)(full.size()/0.75)+1; if(initCap<16) initCap=16;
-              std::vector<std::string> famOrder = jHashSetOrder(full, initCap);
-              std::vector<std::string> fi; for(auto& s: famOrder) if(enabled.count(s)) fi.push_back(s);
-              std::vector<std::string> r = jHashSetOrder(fi, -1);
-              for(auto& s: r) if(enabled.count(s)) return s;
+              std::vector<std::string> famOrder = javaHashSetOrder(full, initCap);
+              std::vector<std::string> enabledInOrder; for(auto& code2: famOrder) if(enabled.count(code2)) enabledInOrder.push_back(code2);
+              std::vector<std::string> ordered = javaHashSetOrder(enabledInOrder, -1);
+              for(auto& code2: ordered) if(enabled.count(code2)) return code2;
               return "";
           }
           // ── exact port of com.vnspeak.autotts.a.c(int, Set) ────────────────────────────
@@ -684,123 +684,123 @@ jobs:
           static const char* AC_CJK[]   = {"zh","ja","ko","vi"};
           static const char* AC_DIGIT[] = {"en","es","fr","de","it","pt","ru","ja","zh","ko","ar","hi"};
           template <size_t N>
-          static bool acAnyIn(const std::unordered_set<std::string>& enabled, const char* const (&arr)[N]){
+          static bool anyLangEnabled(const std::unordered_set<std::string>& enabled, const char* const (&arr)[N]){
               for(size_t i=0;i<N;i++) if(enabled.count(arr[i])) return true;
               return false;
           }
           // primary when enabled, else a.f()'s filtered HashSet order; "" when nothing survives
-          static std::string acPick(const std::string& primary, const std::vector<std::string>& rest,
+          static std::string pickFamilyLang(const std::string& primary, const std::vector<std::string>& rest,
                                     const std::unordered_set<std::string>& enabled){
               if(enabled.count(primary)) return primary;
               return javaFamilyFallback(primary, rest, enabled);
           }
           template <size_t N>
-          static std::string acPickArr(const char* const (&arr)[N], const std::unordered_set<std::string>& enabled){
+          static std::string pickFamilyLangArr(const char* const (&arr)[N], const std::unordered_set<std::string>& enabled){
               std::vector<std::string> rest; for(size_t i=1;i<N;i++) rest.push_back(arr[i]);
-              return acPick(arr[0], rest, enabled);
+              return pickFamilyLang(arr[0], rest, enabled);
           }
-          static std::string acFilteredC(int cp, const std::unordered_set<std::string>& enabled){
-              bool bl  = acAnyIn(enabled, AC_LATIN);
-              bool bl2 = acAnyIn(enabled, AC_CYR);
-              bool bl3 = acAnyIn(enabled, AC_ARAB);
-              bool bl4 = enabled.count("dv") > 0;
-              bool bl5 = acAnyIn(enabled, AC_DEVA);
-              bool bl6 = acAnyIn(enabled, AC_CJK);
-              bool bl7 = enabled.count("el") || enabled.count("grc") || enabled.count("pnt");
-              bool bl8 = enabled.count("bn") || enabled.count("as") || enabled.count("mni");
-              bool bl9 = enabled.count("th") || enabled.count("nod") || enabled.count("sou") || enabled.count("tts");
-              bool bl10 = enabled.count("ko") > 0;
-              bool bl11 = enabled.count("ja") || enabled.count("ain");
-              bool bl12 = enabled.count("he") || enabled.count("yi") || enabled.count("lad");
-              bool bl13 = enabled.count("hy") > 0;
-              bool bl14 = enabled.count("ka") || enabled.count("xmf") || enabled.count("lzz");
-              bool bl15 = acAnyIn(enabled, AC_ETH);
-              bool bl16 = enabled.count("pa") || enabled.count("gu") || enabled.count("or") || enabled.count("ta") ||
+          static std::string familyLangForCpFiltered(int codePoint, const std::unordered_set<std::string>& enabled){
+              bool hasLatin  = anyLangEnabled(enabled, AC_LATIN);
+              bool hasCyrillic = anyLangEnabled(enabled, AC_CYR);
+              bool hasArabic = anyLangEnabled(enabled, AC_ARAB);
+              bool hasThaana = enabled.count("dv") > 0;
+              bool hasDevanagari = anyLangEnabled(enabled, AC_DEVA);
+              bool hasCjk = anyLangEnabled(enabled, AC_CJK);
+              bool hasGreek = enabled.count("el") || enabled.count("grc") || enabled.count("pnt");
+              bool hasBengali = enabled.count("bn") || enabled.count("as") || enabled.count("mni");
+              bool hasThai = enabled.count("th") || enabled.count("nod") || enabled.count("sou") || enabled.count("tts");
+              bool hasHangul = enabled.count("ko") > 0;
+              bool hasKana = enabled.count("ja") || enabled.count("ain");
+              bool hasHebrew = enabled.count("he") || enabled.count("yi") || enabled.count("lad");
+              bool hasArmenian = enabled.count("hy") > 0;
+              bool hasGeorgian = enabled.count("ka") || enabled.count("xmf") || enabled.count("lzz");
+              bool hasEthiopic = anyLangEnabled(enabled, AC_ETH);
+              bool hasSouthIndic = enabled.count("pa") || enabled.count("gu") || enabled.count("or") || enabled.count("ta") ||
                           enabled.count("te") || enabled.count("kn") || enabled.count("ml") || enabled.count("si") || enabled.count("tcy");
-              bool bl17 = enabled.count("lo") || enabled.count("hnx") || enabled.count("bo") || enabled.count("dz") ||
+              bool hasSeAsian = enabled.count("lo") || enabled.count("hnx") || enabled.count("bo") || enabled.count("dz") ||
                           enabled.count("my") || enabled.count("shn") || enabled.count("kar") || enabled.count("mnw") || enabled.count("km");
-              bool bl18 = enabled.count("mn") || enabled.count("mnc") || enabled.count("xal");
-              if(cp>=48 && cp<=57) return acPickArr(AC_DIGIT, enabled);
+              bool hasMongolian = enabled.count("mn") || enabled.count("mnc") || enabled.count("xal");
+              if(codePoint>=48 && codePoint<=57) return pickFamilyLangArr(AC_DIGIT, enabled);
               // a.t — Punctuation ("zz"): m.o("zz") is always false, so nothing is routed
-              if((cp>=32&&cp<=47)||(cp>=58&&cp<=64)||(cp>=91&&cp<=96)||(cp>=123&&cp<=126)||(cp>=8192&&cp<=8303)) return "";
-              if(bl){
-                  if(cp==192||cp==194||cp==199||cp==200||cp==201||cp==202||cp==203||cp==206||cp==207||cp==212||cp==217||
-                     cp==219||cp==224||cp==226||cp==231||cp==232||cp==233||cp==234||cp==235||cp==238||cp==239||cp==244||
-                     cp==249||cp==251||cp==338||cp==339) return acPick("fr", {"ca","oc"}, enabled);
-                  if(cp==193||cp==205||cp==209||cp==211||cp==218||cp==225||cp==237||cp==241||cp==243||cp==250)
-                      return acPick("es", {"pt","gl","ca"}, enabled);
-                  if(cp==196||cp==214||cp==220||cp==228||cp==246||cp==252||cp==223) return acPick("de", {"lb"}, enabled);
-                  if(cp==197||cp==198||cp==216||cp==229||cp==230||cp==248) return acPick("no", {"da","sv","is","fo"}, enabled);
-                  if(cp==260||cp==261||cp==262||cp==263||cp==280||cp==281||cp==321||cp==322||cp==323||cp==324||cp==346||
-                     cp==347||cp==377||cp==378||cp==379||cp==380) return acPick("pl", {}, enabled);
-                  if(cp==268||cp==269||cp==270||cp==271||cp==282||cp==283||cp==327||cp==328||cp==344||cp==345||cp==352||
-                     cp==353||cp==356||cp==357||cp==366||cp==367||cp==381||cp==382) return acPick("cs", {"sk"}, enabled);
-                  if((cp>=7840&&cp<=7929)||cp==272||cp==273||cp==416||cp==417||cp==431||cp==432) return acPick("vi", {}, enabled);
-                  if((cp>=65&&cp<=90)||(cp>=97&&cp<=122)) return acPickArr(AC_LATIN, enabled);
-                  if((cp>=192&&cp<=255)||(cp>=256&&cp<=591)) return acPickArr(AC_LATIN, enabled);
+              if((codePoint>=32&&codePoint<=47)||(codePoint>=58&&codePoint<=64)||(codePoint>=91&&codePoint<=96)||(codePoint>=123&&codePoint<=126)||(codePoint>=8192&&codePoint<=8303)) return "";
+              if(hasLatin){
+                  if(codePoint==192||codePoint==194||codePoint==199||codePoint==200||codePoint==201||codePoint==202||codePoint==203||codePoint==206||codePoint==207||codePoint==212||codePoint==217||
+                     codePoint==219||codePoint==224||codePoint==226||codePoint==231||codePoint==232||codePoint==233||codePoint==234||codePoint==235||codePoint==238||codePoint==239||codePoint==244||
+                     codePoint==249||codePoint==251||codePoint==338||codePoint==339) return pickFamilyLang("fr", {"ca","oc"}, enabled);
+                  if(codePoint==193||codePoint==205||codePoint==209||codePoint==211||codePoint==218||codePoint==225||codePoint==237||codePoint==241||codePoint==243||codePoint==250)
+                      return pickFamilyLang("es", {"pt","gl","ca"}, enabled);
+                  if(codePoint==196||codePoint==214||codePoint==220||codePoint==228||codePoint==246||codePoint==252||codePoint==223) return pickFamilyLang("de", {"lb"}, enabled);
+                  if(codePoint==197||codePoint==198||codePoint==216||codePoint==229||codePoint==230||codePoint==248) return pickFamilyLang("no", {"da","sv","is","fo"}, enabled);
+                  if(codePoint==260||codePoint==261||codePoint==262||codePoint==263||codePoint==280||codePoint==281||codePoint==321||codePoint==322||codePoint==323||codePoint==324||codePoint==346||
+                     codePoint==347||codePoint==377||codePoint==378||codePoint==379||codePoint==380) return pickFamilyLang("pl", {}, enabled);
+                  if(codePoint==268||codePoint==269||codePoint==270||codePoint==271||codePoint==282||codePoint==283||codePoint==327||codePoint==328||codePoint==344||codePoint==345||codePoint==352||
+                     codePoint==353||codePoint==356||codePoint==357||codePoint==366||codePoint==367||codePoint==381||codePoint==382) return pickFamilyLang("cs", {"sk"}, enabled);
+                  if((codePoint>=7840&&codePoint<=7929)||codePoint==272||codePoint==273||codePoint==416||codePoint==417||codePoint==431||codePoint==432) return pickFamilyLang("vi", {}, enabled);
+                  if((codePoint>=65&&codePoint<=90)||(codePoint>=97&&codePoint<=122)) return pickFamilyLangArr(AC_LATIN, enabled);
+                  if((codePoint>=192&&codePoint<=255)||(codePoint>=256&&codePoint<=591)) return pickFamilyLangArr(AC_LATIN, enabled);
               }
-              if(bl7 && ((cp>=880&&cp<=1023)||(cp>=7936&&cp<=8191))) return acPick("el", {"grc","pnt"}, enabled);
-              if(bl2 && ((cp>=1024&&cp<=1279)||(cp>=1280&&cp<=1327))){
-                  if(cp==1028||cp==1108||cp==1030||cp==1110||cp==1031||cp==1111||cp==1168||cp==1169) return acPick("uk", {}, enabled);
-                  if(cp==1026||cp==1106||cp==1032||cp==1112||cp==1033||cp==1113||cp==1034||cp==1114||cp==1035||cp==1115||
-                     cp==1039||cp==1119) return acPick("sr", {"bs","hr"}, enabled);
-                  if(cp==1066||cp==1098) return acPick("bg", {"mk"}, enabled);
-                  if(cp==1186||cp==1187||cp==1170||cp==1171||cp==1200||cp==1201||cp==1198||cp==1199||cp==1240||cp==1241)
-                      return acPick("kk", {"ky"}, enabled);
-                  if(cp==1025||cp==1105||cp==1069||cp==1101||cp==1067||cp==1099) return acPick("ru", {"be"}, enabled);
-                  return acPickArr(AC_CYR, enabled);
+              if(hasGreek && ((codePoint>=880&&codePoint<=1023)||(codePoint>=7936&&codePoint<=8191))) return pickFamilyLang("el", {"grc","pnt"}, enabled);
+              if(hasCyrillic && ((codePoint>=1024&&codePoint<=1279)||(codePoint>=1280&&codePoint<=1327))){
+                  if(codePoint==1028||codePoint==1108||codePoint==1030||codePoint==1110||codePoint==1031||codePoint==1111||codePoint==1168||codePoint==1169) return pickFamilyLang("uk", {}, enabled);
+                  if(codePoint==1026||codePoint==1106||codePoint==1032||codePoint==1112||codePoint==1033||codePoint==1113||codePoint==1034||codePoint==1114||codePoint==1035||codePoint==1115||
+                     codePoint==1039||codePoint==1119) return pickFamilyLang("sr", {"bs","hr"}, enabled);
+                  if(codePoint==1066||codePoint==1098) return pickFamilyLang("bg", {"mk"}, enabled);
+                  if(codePoint==1186||codePoint==1187||codePoint==1170||codePoint==1171||codePoint==1200||codePoint==1201||codePoint==1198||codePoint==1199||codePoint==1240||codePoint==1241)
+                      return pickFamilyLang("kk", {"ky"}, enabled);
+                  if(codePoint==1025||codePoint==1105||codePoint==1069||codePoint==1101||codePoint==1067||codePoint==1099) return pickFamilyLang("ru", {"be"}, enabled);
+                  return pickFamilyLangArr(AC_CYR, enabled);
               }
-              if(bl13 && ((cp>=1328&&cp<=1423)||(cp>=64256&&cp<=64279))) return acPick("hy", {}, enabled);
-              if(bl12 && ((cp>=1424&&cp<=1535)||(cp>=64285&&cp<=64335))) return acPick("he", {"yi","lad"}, enabled);
-              if(bl3 && ((cp>=1536&&cp<=1791)||(cp>=1872&&cp<=1919)||(cp>=2208&&cp<=2303)||(cp>=64336&&cp<=65023)||(cp>=65136&&cp<=65279))){
-                  if(cp==1657||cp==1672||cp==1681||cp==1729||cp==1746) return acPick("ur", {"pa"}, enabled);
-                  if(cp==1665||cp==1669||cp==1673||cp==1683||cp==1686||cp==1690||cp==1724||cp==1744) return acPick("ps", {}, enabled);
-                  if(cp>=1658&&cp<=1661) return acPick("sd", {}, enabled);
-                  if(cp==1742||cp==1685||cp==1717||cp==1734) return acPick("ku", {"ckb"}, enabled);
-                  if(cp==1722||cp==1726) return acPickArr(AC_UR, enabled);
-                  if(cp==1662||cp==1670||cp==1688||cp==1711) return acPickArr(AC_FA, enabled);
-                  return acPick("ar", {}, enabled);
+              if(hasArmenian && ((codePoint>=1328&&codePoint<=1423)||(codePoint>=64256&&codePoint<=64279))) return pickFamilyLang("hy", {}, enabled);
+              if(hasHebrew && ((codePoint>=1424&&codePoint<=1535)||(codePoint>=64285&&codePoint<=64335))) return pickFamilyLang("he", {"yi","lad"}, enabled);
+              if(hasArabic && ((codePoint>=1536&&codePoint<=1791)||(codePoint>=1872&&codePoint<=1919)||(codePoint>=2208&&codePoint<=2303)||(codePoint>=64336&&codePoint<=65023)||(codePoint>=65136&&codePoint<=65279))){
+                  if(codePoint==1657||codePoint==1672||codePoint==1681||codePoint==1729||codePoint==1746) return pickFamilyLang("ur", {"pa"}, enabled);
+                  if(codePoint==1665||codePoint==1669||codePoint==1673||codePoint==1683||codePoint==1686||codePoint==1690||codePoint==1724||codePoint==1744) return pickFamilyLang("ps", {}, enabled);
+                  if(codePoint>=1658&&codePoint<=1661) return pickFamilyLang("sd", {}, enabled);
+                  if(codePoint==1742||codePoint==1685||codePoint==1717||codePoint==1734) return pickFamilyLang("ku", {"ckb"}, enabled);
+                  if(codePoint==1722||codePoint==1726) return pickFamilyLangArr(AC_UR, enabled);
+                  if(codePoint==1662||codePoint==1670||codePoint==1688||codePoint==1711) return pickFamilyLangArr(AC_FA, enabled);
+                  return pickFamilyLang("ar", {}, enabled);
               }
-              if(bl4 && cp>=1920 && cp<=1983) return "dv";
-              if(bl5 && ((cp>=2304&&cp<=2431)||(cp>=43232&&cp<=43263))){
-                  if(cp!=2355) return acPickArr(AC_DEVA, enabled);
-                  return acPick("mr", {"kok"}, enabled);
+              if(hasThaana && codePoint>=1920 && codePoint<=1983) return "dv";
+              if(hasDevanagari && ((codePoint>=2304&&codePoint<=2431)||(codePoint>=43232&&codePoint<=43263))){
+                  if(codePoint!=2355) return pickFamilyLangArr(AC_DEVA, enabled);
+                  return pickFamilyLang("mr", {"kok"}, enabled);
               }
-              if(bl8 && cp>=2432 && cp<=2559){
-                  if(cp==2544||cp==2545) return acPick("as", {}, enabled);
-                  return acPick("bn", {"as","mni"}, enabled);
+              if(hasBengali && codePoint>=2432 && codePoint<=2559){
+                  if(codePoint==2544||codePoint==2545) return pickFamilyLang("as", {}, enabled);
+                  return pickFamilyLang("bn", {"as","mni"}, enabled);
               }
-              if(bl16){
-                  if(cp>=2560&&cp<=2687) return acPick("pa", {}, enabled);
-                  if(cp>=2688&&cp<=2815) return acPick("gu", {}, enabled);
-                  if(cp>=2816&&cp<=2943) return acPick("or", {}, enabled);
-                  if(cp>=2944&&cp<=3071) return acPick("ta", {"kn"}, enabled);
-                  if(cp>=3072&&cp<=3199) return acPick("te", {}, enabled);
-                  if(cp>=3200&&cp<=3327) return acPick("kn", {"tcy"}, enabled);
-                  if(cp>=3328&&cp<=3455) return acPick("ml", {}, enabled);
-                  if(cp>=3456&&cp<=3583) return acPick("si", {}, enabled);
+              if(hasSouthIndic){
+                  if(codePoint>=2560&&codePoint<=2687) return pickFamilyLang("pa", {}, enabled);
+                  if(codePoint>=2688&&codePoint<=2815) return pickFamilyLang("gu", {}, enabled);
+                  if(codePoint>=2816&&codePoint<=2943) return pickFamilyLang("or", {}, enabled);
+                  if(codePoint>=2944&&codePoint<=3071) return pickFamilyLang("ta", {"kn"}, enabled);
+                  if(codePoint>=3072&&codePoint<=3199) return pickFamilyLang("te", {}, enabled);
+                  if(codePoint>=3200&&codePoint<=3327) return pickFamilyLang("kn", {"tcy"}, enabled);
+                  if(codePoint>=3328&&codePoint<=3455) return pickFamilyLang("ml", {}, enabled);
+                  if(codePoint>=3456&&codePoint<=3583) return pickFamilyLang("si", {}, enabled);
               }
-              if(bl9 && cp>=3584 && cp<=3711) return acPick("th", {"nod","sou","tts"}, enabled);
-              if(bl17){
-                  if(cp>=3712&&cp<=3839) return acPick("lo", {"hnx"}, enabled);
-                  if(cp>=3840&&cp<=4095) return acPick("bo", {"dz"}, enabled);
-                  if((cp>=4096&&cp<=4255)||(cp>=43616&&cp<=43647)) return acPick("my", {"shn","kar","mnw"}, enabled);
-                  if((cp>=6016&&cp<=6143)||(cp>=6624&&cp<=6655)) return acPick("km", {}, enabled);
+              if(hasThai && codePoint>=3584 && codePoint<=3711) return pickFamilyLang("th", {"nod","sou","tts"}, enabled);
+              if(hasSeAsian){
+                  if(codePoint>=3712&&codePoint<=3839) return pickFamilyLang("lo", {"hnx"}, enabled);
+                  if(codePoint>=3840&&codePoint<=4095) return pickFamilyLang("bo", {"dz"}, enabled);
+                  if((codePoint>=4096&&codePoint<=4255)||(codePoint>=43616&&codePoint<=43647)) return pickFamilyLang("my", {"shn","kar","mnw"}, enabled);
+                  if((codePoint>=6016&&codePoint<=6143)||(codePoint>=6624&&codePoint<=6655)) return pickFamilyLang("km", {}, enabled);
               }
-              if(bl14 && ((cp>=4256&&cp<=4351)||(cp>=11520&&cp<=11567))) return acPick("ka", {"xmf","lzz"}, enabled);
-              if(bl10 && ((cp>=4352&&cp<=4607)||(cp>=12592&&cp<=12687)||(cp>=43360&&cp<=43391)||(cp>=44032&&cp<=55215)||(cp>=55216&&cp<=55295)))
-                  return acPick("ko", {}, enabled);
-              if(bl15 && ((cp>=4608&&cp<=4991)||(cp>=4992&&cp<=5023)||(cp>=11648&&cp<=11743))) return acPickArr(AC_ETH, enabled);
-              if(bl18 && ((cp>=6144&&cp<=6319)||(cp>=71264&&cp<=71295))) return acPick("mn", {"mnc","xal"}, enabled);
-              if(bl6 && cp>=12288 && cp<=12351) return acPickArr(AC_CJK, enabled);
-              if(bl11){
-                  if((cp>=12352&&cp<=12447)||(cp>=110592&&cp<=110847)||(cp>=110848&&cp<=110895)) return acPick("ja", {}, enabled);
-                  if((cp>=12448&&cp<=12543)||(cp>=12784&&cp<=12799)||(cp>=110896&&cp<=110959)) return acPick("ja", {"ain"}, enabled);
+              if(hasGeorgian && ((codePoint>=4256&&codePoint<=4351)||(codePoint>=11520&&codePoint<=11567))) return pickFamilyLang("ka", {"xmf","lzz"}, enabled);
+              if(hasHangul && ((codePoint>=4352&&codePoint<=4607)||(codePoint>=12592&&codePoint<=12687)||(codePoint>=43360&&codePoint<=43391)||(codePoint>=44032&&codePoint<=55215)||(codePoint>=55216&&codePoint<=55295)))
+                  return pickFamilyLang("ko", {}, enabled);
+              if(hasEthiopic && ((codePoint>=4608&&codePoint<=4991)||(codePoint>=4992&&codePoint<=5023)||(codePoint>=11648&&codePoint<=11743))) return pickFamilyLangArr(AC_ETH, enabled);
+              if(hasMongolian && ((codePoint>=6144&&codePoint<=6319)||(codePoint>=71264&&codePoint<=71295))) return pickFamilyLang("mn", {"mnc","xal"}, enabled);
+              if(hasCjk && codePoint>=12288 && codePoint<=12351) return pickFamilyLangArr(AC_CJK, enabled);
+              if(hasKana){
+                  if((codePoint>=12352&&codePoint<=12447)||(codePoint>=110592&&codePoint<=110847)||(codePoint>=110848&&codePoint<=110895)) return pickFamilyLang("ja", {}, enabled);
+                  if((codePoint>=12448&&codePoint<=12543)||(codePoint>=12784&&codePoint<=12799)||(codePoint>=110896&&codePoint<=110959)) return pickFamilyLang("ja", {"ain"}, enabled);
               }
-              if(bl6 && ((cp>=19968&&cp<=40959)||(cp>=13312&&cp<=19903)||(cp>=131072&&cp<=173791)||(cp>=173824&&cp<=177983)||
-                         (cp>=177984&&cp<=178207)||(cp>=178208&&cp<=183983)||(cp>=183984&&cp<=191471)||
-                         (cp>=196608&&cp<=201551)||(cp>=201552&&cp<=205743)))
-                  return acPickArr(AC_CJK, enabled);
+              if(hasCjk && ((codePoint>=19968&&codePoint<=40959)||(codePoint>=13312&&codePoint<=19903)||(codePoint>=131072&&codePoint<=173791)||(codePoint>=173824&&codePoint<=177983)||
+                         (codePoint>=177984&&codePoint<=178207)||(codePoint>=178208&&codePoint<=183983)||(codePoint>=183984&&codePoint<=191471)||
+                         (codePoint>=196608&&codePoint<=201551)||(codePoint>=201552&&codePoint<=205743)))
+                  return pickFamilyLangArr(AC_CJK, enabled);
               // a.w "emoji" / "math" are both ("zz", {"zz"}) and a.u is ("un", {"un"}) — none route
               return "";
           }
@@ -810,119 +810,119 @@ jobs:
           // exact port of a.b(int) — same range dispatch as a.c but with NO gating and NO a.f
           // filtering; it returns the family itself. a.d(cp) is this behind a cache.
           struct AcFam { const char* primary; std::vector<std::string> members; };
-          static AcFam acFamilyC(int cp){
-              auto F=[&](const char* p, std::initializer_list<const char*> rest){
-                  AcFam f; f.primary=p; f.members.push_back(p);
-                  for(auto r: rest) f.members.push_back(r); return f; };
-              auto A=[&](const char* const* arr, size_t n){
-                  AcFam f; f.primary=arr[0];
-                  for(size_t i=0;i<n;i++) f.members.push_back(arr[i]); return f; };
-              if(cp>=48 && cp<=57) return A(AC_DIGIT, sizeof(AC_DIGIT)/sizeof(AC_DIGIT[0]));   // a.v
-              if((cp>=32&&cp<=47)||(cp>=58&&cp<=64)||(cp>=91&&cp<=96)||(cp>=123&&cp<=126)||(cp>=8192&&cp<=8303))
-                  return F("zz", {});                                                          // a.t
-              if(cp==192||cp==194||cp==199||cp==200||cp==201||cp==202||cp==203||cp==206||cp==207||cp==212||cp==217||
-                 cp==219||cp==224||cp==226||cp==231||cp==232||cp==233||cp==234||cp==235||cp==238||cp==239||cp==244||
-                 cp==249||cp==251||cp==338||cp==339) return F("fr", {"ca","oc"});
-              if(cp==193||cp==205||cp==209||cp==211||cp==218||cp==225||cp==237||cp==241||cp==243||cp==250)
-                  return F("es", {"pt","gl","ca"});
-              if(cp==196||cp==214||cp==220||cp==228||cp==246||cp==252||cp==223) return F("de", {"lb"});
-              if(cp==197||cp==198||cp==216||cp==229||cp==230||cp==248) return F("no", {"da","sv","is","fo"});
-              if(cp==260||cp==261||cp==262||cp==263||cp==280||cp==281||cp==321||cp==322||cp==323||cp==324||cp==346||
-                 cp==347||cp==377||cp==378||cp==379||cp==380) return F("pl", {});
-              if(cp==268||cp==269||cp==270||cp==271||cp==282||cp==283||cp==327||cp==328||cp==344||cp==345||cp==352||
-                 cp==353||cp==356||cp==357||cp==366||cp==367||cp==381||cp==382) return F("cs", {"sk"});
-              if((cp>=7840&&cp<=7929)||cp==272||cp==273||cp==416||cp==417||cp==431||cp==432) return F("vi", {});
-              if((cp>=65&&cp<=90)||(cp>=97&&cp<=122)) return A(AC_LATIN, sizeof(AC_LATIN)/sizeof(AC_LATIN[0]));
-              if((cp>=192&&cp<=255)||(cp>=256&&cp<=591)) return A(AC_LATIN, sizeof(AC_LATIN)/sizeof(AC_LATIN[0]));
-              if((cp>=880&&cp<=1023)||(cp>=7936&&cp<=8191)) return F("el", {"grc","pnt"});
-              if((cp>=1024&&cp<=1279)||(cp>=1280&&cp<=1327)){
-                  if(cp==1028||cp==1108||cp==1030||cp==1110||cp==1031||cp==1111||cp==1168||cp==1169) return F("uk", {});
-                  if(cp==1026||cp==1106||cp==1032||cp==1112||cp==1033||cp==1113||cp==1034||cp==1114||cp==1035||cp==1115||
-                     cp==1039||cp==1119) return F("sr", {"bs","hr"});
-                  if(cp==1066||cp==1098) return F("bg", {"mk"});
-                  if(cp==1186||cp==1187||cp==1170||cp==1171||cp==1200||cp==1201||cp==1198||cp==1199||cp==1240||cp==1241)
-                      return F("kk", {"ky"});
-                  if(cp==1025||cp==1105||cp==1069||cp==1101||cp==1067||cp==1099) return F("ru", {"be"});
-                  return A(AC_CYR, sizeof(AC_CYR)/sizeof(AC_CYR[0]));
+          static AcFam familyForCp(int codePoint){
+              auto fam=[&](const char* primaryCode, std::initializer_list<const char*> rest){
+                  AcFam family; family.primary=primaryCode; family.members.push_back(primaryCode);
+                  for(auto member: rest) family.members.push_back(member); return family; };
+              auto famFromArray=[&](const char* const* arr, size_t count){
+                  AcFam family; family.primary=arr[0];
+                  for(size_t i=0;i<count;i++) family.members.push_back(arr[i]); return family; };
+              if(codePoint>=48 && codePoint<=57) return famFromArray(AC_DIGIT, sizeof(AC_DIGIT)/sizeof(AC_DIGIT[0]));   // a.v
+              if((codePoint>=32&&codePoint<=47)||(codePoint>=58&&codePoint<=64)||(codePoint>=91&&codePoint<=96)||(codePoint>=123&&codePoint<=126)||(codePoint>=8192&&codePoint<=8303))
+                  return fam("zz", {});                                                          // a.t
+              if(codePoint==192||codePoint==194||codePoint==199||codePoint==200||codePoint==201||codePoint==202||codePoint==203||codePoint==206||codePoint==207||codePoint==212||codePoint==217||
+                 codePoint==219||codePoint==224||codePoint==226||codePoint==231||codePoint==232||codePoint==233||codePoint==234||codePoint==235||codePoint==238||codePoint==239||codePoint==244||
+                 codePoint==249||codePoint==251||codePoint==338||codePoint==339) return fam("fr", {"ca","oc"});
+              if(codePoint==193||codePoint==205||codePoint==209||codePoint==211||codePoint==218||codePoint==225||codePoint==237||codePoint==241||codePoint==243||codePoint==250)
+                  return fam("es", {"pt","gl","ca"});
+              if(codePoint==196||codePoint==214||codePoint==220||codePoint==228||codePoint==246||codePoint==252||codePoint==223) return fam("de", {"lb"});
+              if(codePoint==197||codePoint==198||codePoint==216||codePoint==229||codePoint==230||codePoint==248) return fam("no", {"da","sv","is","fo"});
+              if(codePoint==260||codePoint==261||codePoint==262||codePoint==263||codePoint==280||codePoint==281||codePoint==321||codePoint==322||codePoint==323||codePoint==324||codePoint==346||
+                 codePoint==347||codePoint==377||codePoint==378||codePoint==379||codePoint==380) return fam("pl", {});
+              if(codePoint==268||codePoint==269||codePoint==270||codePoint==271||codePoint==282||codePoint==283||codePoint==327||codePoint==328||codePoint==344||codePoint==345||codePoint==352||
+                 codePoint==353||codePoint==356||codePoint==357||codePoint==366||codePoint==367||codePoint==381||codePoint==382) return fam("cs", {"sk"});
+              if((codePoint>=7840&&codePoint<=7929)||codePoint==272||codePoint==273||codePoint==416||codePoint==417||codePoint==431||codePoint==432) return fam("vi", {});
+              if((codePoint>=65&&codePoint<=90)||(codePoint>=97&&codePoint<=122)) return famFromArray(AC_LATIN, sizeof(AC_LATIN)/sizeof(AC_LATIN[0]));
+              if((codePoint>=192&&codePoint<=255)||(codePoint>=256&&codePoint<=591)) return famFromArray(AC_LATIN, sizeof(AC_LATIN)/sizeof(AC_LATIN[0]));
+              if((codePoint>=880&&codePoint<=1023)||(codePoint>=7936&&codePoint<=8191)) return fam("el", {"grc","pnt"});
+              if((codePoint>=1024&&codePoint<=1279)||(codePoint>=1280&&codePoint<=1327)){
+                  if(codePoint==1028||codePoint==1108||codePoint==1030||codePoint==1110||codePoint==1031||codePoint==1111||codePoint==1168||codePoint==1169) return fam("uk", {});
+                  if(codePoint==1026||codePoint==1106||codePoint==1032||codePoint==1112||codePoint==1033||codePoint==1113||codePoint==1034||codePoint==1114||codePoint==1035||codePoint==1115||
+                     codePoint==1039||codePoint==1119) return fam("sr", {"bs","hr"});
+                  if(codePoint==1066||codePoint==1098) return fam("bg", {"mk"});
+                  if(codePoint==1186||codePoint==1187||codePoint==1170||codePoint==1171||codePoint==1200||codePoint==1201||codePoint==1198||codePoint==1199||codePoint==1240||codePoint==1241)
+                      return fam("kk", {"ky"});
+                  if(codePoint==1025||codePoint==1105||codePoint==1069||codePoint==1101||codePoint==1067||codePoint==1099) return fam("ru", {"be"});
+                  return famFromArray(AC_CYR, sizeof(AC_CYR)/sizeof(AC_CYR[0]));
               }
-              if((cp>=1328&&cp<=1423)||(cp>=64256&&cp<=64279)) return F("hy", {});
-              if((cp>=1424&&cp<=1535)||(cp>=64285&&cp<=64335)) return F("he", {"yi","lad"});
-              if((cp>=1536&&cp<=1791)||(cp>=1872&&cp<=1919)||(cp>=2208&&cp<=2303)||(cp>=64336&&cp<=65023)||(cp>=65136&&cp<=65279)){
-                  if(cp==1657||cp==1672||cp==1681||cp==1729||cp==1746) return F("ur", {"pa"});
-                  if(cp==1665||cp==1669||cp==1673||cp==1683||cp==1686||cp==1690||cp==1724||cp==1744) return F("ps", {});
-                  if(cp>=1658&&cp<=1661) return F("sd", {});
-                  if(cp==1742||cp==1685||cp==1717||cp==1734) return F("ku", {"ckb"});
-                  if(cp==1722||cp==1726) return A(AC_UR, sizeof(AC_UR)/sizeof(AC_UR[0]));
-                  if(cp==1662||cp==1670||cp==1688||cp==1711) return A(AC_FA, sizeof(AC_FA)/sizeof(AC_FA[0]));
-                  return F("ar", {});
+              if((codePoint>=1328&&codePoint<=1423)||(codePoint>=64256&&codePoint<=64279)) return fam("hy", {});
+              if((codePoint>=1424&&codePoint<=1535)||(codePoint>=64285&&codePoint<=64335)) return fam("he", {"yi","lad"});
+              if((codePoint>=1536&&codePoint<=1791)||(codePoint>=1872&&codePoint<=1919)||(codePoint>=2208&&codePoint<=2303)||(codePoint>=64336&&codePoint<=65023)||(codePoint>=65136&&codePoint<=65279)){
+                  if(codePoint==1657||codePoint==1672||codePoint==1681||codePoint==1729||codePoint==1746) return fam("ur", {"pa"});
+                  if(codePoint==1665||codePoint==1669||codePoint==1673||codePoint==1683||codePoint==1686||codePoint==1690||codePoint==1724||codePoint==1744) return fam("ps", {});
+                  if(codePoint>=1658&&codePoint<=1661) return fam("sd", {});
+                  if(codePoint==1742||codePoint==1685||codePoint==1717||codePoint==1734) return fam("ku", {"ckb"});
+                  if(codePoint==1722||codePoint==1726) return famFromArray(AC_UR, sizeof(AC_UR)/sizeof(AC_UR[0]));
+                  if(codePoint==1662||codePoint==1670||codePoint==1688||codePoint==1711) return famFromArray(AC_FA, sizeof(AC_FA)/sizeof(AC_FA[0]));
+                  return fam("ar", {});
               }
-              if(cp>=1920&&cp<=1983) return F("dv", {});
-              if((cp>=2304&&cp<=2431)||(cp>=43232&&cp<=43263)){
-                  if(cp==2355) return F("mr", {"kok"});
-                  return A(AC_DEVA, sizeof(AC_DEVA)/sizeof(AC_DEVA[0]));
+              if(codePoint>=1920&&codePoint<=1983) return fam("dv", {});
+              if((codePoint>=2304&&codePoint<=2431)||(codePoint>=43232&&codePoint<=43263)){
+                  if(codePoint==2355) return fam("mr", {"kok"});
+                  return famFromArray(AC_DEVA, sizeof(AC_DEVA)/sizeof(AC_DEVA[0]));
               }
-              if(cp>=2432&&cp<=2559){
-                  if(cp==2544||cp==2545) return F("as", {});
-                  return F("bn", {"as","mni"});
+              if(codePoint>=2432&&codePoint<=2559){
+                  if(codePoint==2544||codePoint==2545) return fam("as", {});
+                  return fam("bn", {"as","mni"});
               }
-              if(cp>=2560&&cp<=2687) return F("pa", {});
-              if(cp>=2688&&cp<=2815) return F("gu", {});
-              if(cp>=2816&&cp<=2943) return F("or", {});
-              if(cp>=2944&&cp<=3071) return F("ta", {"kn"});
-              if(cp>=3072&&cp<=3199) return F("te", {});
-              if(cp>=3200&&cp<=3327) return F("kn", {"tcy"});
-              if(cp>=3328&&cp<=3455) return F("ml", {});
-              if(cp>=3456&&cp<=3583) return F("si", {});
-              if(cp>=3584&&cp<=3711) return F("th", {"nod","sou","tts"});
-              if(cp>=3712&&cp<=3839) return F("lo", {"hnx"});
-              if(cp>=3840&&cp<=4095) return F("bo", {"dz"});
-              if((cp>=4096&&cp<=4255)||(cp>=43616&&cp<=43647)) return F("my", {"shn","kar","mnw"});
-              if((cp>=4256&&cp<=4351)||(cp>=11520&&cp<=11567)) return F("ka", {"xmf","lzz"});
-              if((cp>=4352&&cp<=4607)||(cp>=12592&&cp<=12687)||(cp>=43360&&cp<=43391)||(cp>=44032&&cp<=55215)||(cp>=55216&&cp<=55295))
-                  return F("ko", {});
-              if((cp>=4608&&cp<=4991)||(cp>=4992&&cp<=5023)||(cp>=11648&&cp<=11743))
-                  return A(AC_ETH, sizeof(AC_ETH)/sizeof(AC_ETH[0]));
-              if((cp>=6016&&cp<=6143)||(cp>=6624&&cp<=6655)) return F("km", {});
-              if((cp>=6144&&cp<=6319)||(cp>=71264&&cp<=71295)) return F("mn", {"mnc","xal"});
-              if(cp>=12288&&cp<=12351) return A(AC_CJK, sizeof(AC_CJK)/sizeof(AC_CJK[0]));   // cjk_p
-              if((cp>=12352&&cp<=12447)||(cp>=110592&&cp<=110847)||(cp>=110848&&cp<=110895)) return F("ja", {});
-              if((cp>=12448&&cp<=12543)||(cp>=12784&&cp<=12799)||(cp>=110896&&cp<=110959)) return F("ja", {"ain"});
-              if((cp>=19968&&cp<=40959)||(cp>=13312&&cp<=19903)||(cp>=131072&&cp<=173791)||(cp>=173824&&cp<=177983)||
-                 (cp>=177984&&cp<=178207)||(cp>=178208&&cp<=183983)||(cp>=183984&&cp<=191471)||
-                 (cp>=196608&&cp<=201551)||(cp>=201552&&cp<=205743)) return A(AC_CJK, sizeof(AC_CJK)/sizeof(AC_CJK[0]));
-              if((cp>=126976&&cp<=127023)||(cp>=127744&&cp<=129535)||(cp>=129648&&cp<=129791)||(cp>=9728&&cp<=9983)||(cp>=9984&&cp<=10175))
-                  return F("zz", {});                                                         // emoji
-              if((cp>=119808&&cp<=120831)||(cp>=8448&&cp<=8527)||(cp>=8704&&cp<=8959)) return F("zz", {});  // math
-              if(cp>=65536&&cp<=65663) return F("grc", {});
-              if(cp>=66304&&cp<=66351) return F("la", {});
-              if(cp>=66352&&cp<=66383) return F("got", {});
-              if(cp>=66560&&cp<=66639) return F("en", {});
-              if(cp>=67584&&cp<=67647) return F("grc", {});
-              if(cp>=68096&&cp<=68191) return F("sa", {});
-              if((cp>=77824&&cp<=78895)||(cp>=78896&&cp<=78943)) return F("egy", {});
-              if((cp>=73728&&cp<=74751)||(cp>=74752&&cp<=74879)) return F("akk", {});
-              return F("un", {});                                                             // a.u
+              if(codePoint>=2560&&codePoint<=2687) return fam("pa", {});
+              if(codePoint>=2688&&codePoint<=2815) return fam("gu", {});
+              if(codePoint>=2816&&codePoint<=2943) return fam("or", {});
+              if(codePoint>=2944&&codePoint<=3071) return fam("ta", {"kn"});
+              if(codePoint>=3072&&codePoint<=3199) return fam("te", {});
+              if(codePoint>=3200&&codePoint<=3327) return fam("kn", {"tcy"});
+              if(codePoint>=3328&&codePoint<=3455) return fam("ml", {});
+              if(codePoint>=3456&&codePoint<=3583) return fam("si", {});
+              if(codePoint>=3584&&codePoint<=3711) return fam("th", {"nod","sou","tts"});
+              if(codePoint>=3712&&codePoint<=3839) return fam("lo", {"hnx"});
+              if(codePoint>=3840&&codePoint<=4095) return fam("bo", {"dz"});
+              if((codePoint>=4096&&codePoint<=4255)||(codePoint>=43616&&codePoint<=43647)) return fam("my", {"shn","kar","mnw"});
+              if((codePoint>=4256&&codePoint<=4351)||(codePoint>=11520&&codePoint<=11567)) return fam("ka", {"xmf","lzz"});
+              if((codePoint>=4352&&codePoint<=4607)||(codePoint>=12592&&codePoint<=12687)||(codePoint>=43360&&codePoint<=43391)||(codePoint>=44032&&codePoint<=55215)||(codePoint>=55216&&codePoint<=55295))
+                  return fam("ko", {});
+              if((codePoint>=4608&&codePoint<=4991)||(codePoint>=4992&&codePoint<=5023)||(codePoint>=11648&&codePoint<=11743))
+                  return famFromArray(AC_ETH, sizeof(AC_ETH)/sizeof(AC_ETH[0]));
+              if((codePoint>=6016&&codePoint<=6143)||(codePoint>=6624&&codePoint<=6655)) return fam("km", {});
+              if((codePoint>=6144&&codePoint<=6319)||(codePoint>=71264&&codePoint<=71295)) return fam("mn", {"mnc","xal"});
+              if(codePoint>=12288&&codePoint<=12351) return famFromArray(AC_CJK, sizeof(AC_CJK)/sizeof(AC_CJK[0]));   // cjk_p
+              if((codePoint>=12352&&codePoint<=12447)||(codePoint>=110592&&codePoint<=110847)||(codePoint>=110848&&codePoint<=110895)) return fam("ja", {});
+              if((codePoint>=12448&&codePoint<=12543)||(codePoint>=12784&&codePoint<=12799)||(codePoint>=110896&&codePoint<=110959)) return fam("ja", {"ain"});
+              if((codePoint>=19968&&codePoint<=40959)||(codePoint>=13312&&codePoint<=19903)||(codePoint>=131072&&codePoint<=173791)||(codePoint>=173824&&codePoint<=177983)||
+                 (codePoint>=177984&&codePoint<=178207)||(codePoint>=178208&&codePoint<=183983)||(codePoint>=183984&&codePoint<=191471)||
+                 (codePoint>=196608&&codePoint<=201551)||(codePoint>=201552&&codePoint<=205743)) return famFromArray(AC_CJK, sizeof(AC_CJK)/sizeof(AC_CJK[0]));
+              if((codePoint>=126976&&codePoint<=127023)||(codePoint>=127744&&codePoint<=129535)||(codePoint>=129648&&codePoint<=129791)||(codePoint>=9728&&codePoint<=9983)||(codePoint>=9984&&codePoint<=10175))
+                  return fam("zz", {});                                                         // emoji
+              if((codePoint>=119808&&codePoint<=120831)||(codePoint>=8448&&codePoint<=8527)||(codePoint>=8704&&codePoint<=8959)) return fam("zz", {});  // math
+              if(codePoint>=65536&&codePoint<=65663) return fam("grc", {});
+              if(codePoint>=66304&&codePoint<=66351) return fam("la", {});
+              if(codePoint>=66352&&codePoint<=66383) return fam("got", {});
+              if(codePoint>=66560&&codePoint<=66639) return fam("en", {});
+              if(codePoint>=67584&&codePoint<=67647) return fam("grc", {});
+              if(codePoint>=68096&&codePoint<=68191) return fam("sa", {});
+              if((codePoint>=77824&&codePoint<=78895)||(codePoint>=78896&&codePoint<=78943)) return fam("egy", {});
+              if((codePoint>=73728&&codePoint<=74751)||(codePoint>=74752&&codePoint<=74879)) return fam("akk", {});
+              return fam("un", {});                                                             // a.u
           }
           // clsCLD2.b's pick over an UNFILTERED family: primary if m.o, else each member in the
           // set's own iteration order.
-          static std::string acUnfilteredC(int cp, const std::unordered_set<std::string>& okIso3){
-              AcFam f = acFamilyC(cp);
-              auto mo=[&](const std::string& x){ return okIso3.count(toIso3C(x)) > 0; };
-              if(f.primary && mo(f.primary)) return f.primary;
-              int initCap=(int)(f.members.size()/0.75)+1; if(initCap<16) initCap=16;
-              for(const auto& x : jHashSetOrder(f.members, initCap)) if(mo(x)) return x;
+          static std::string familyLangForCp(int codePoint, const std::unordered_set<std::string>& okIso3){
+              AcFam family = familyForCp(codePoint);
+              auto isRoutable=[&](const std::string& langCode){ return okIso3.count(toIso3C(langCode)) > 0; };
+              if(family.primary && isRoutable(family.primary)) return family.primary;
+              int initCap=(int)(family.members.size()/0.75)+1; if(initCap<16) initCap=16;
+              for(const auto& member : javaHashSetOrder(family.members, initCap)) if(isRoutable(member)) return member;
               return "";
           }
-          static std::string scriptLangFilteredC(int cp, const std::unordered_set<std::string>& enabled,
-                                                 const std::unordered_set<std::string>& okIso3, std::string* lb){
-              char hex[16]; snprintf(hex,sizeof(hex),"%x",cp);
-              std::string res = enabled.empty() ? acUnfilteredC(cp, okIso3) : acFilteredC(cp, enabled);
-              if(lb) *lb += std::string("[SCRIPT] a.e cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n";
+          static std::string scriptLangFilteredC(int codePoint, const std::unordered_set<std::string>& enabled,
+                                                 const std::unordered_set<std::string>& okIso3, std::string* logBuf){
+              char hex[16]; snprintf(hex,sizeof(hex),"%x",codePoint);
+              std::string res = enabled.empty() ? familyLangForCp(codePoint, okIso3) : familyLangForCpFiltered(codePoint, enabled);
+              if(logBuf) *logBuf += std::string("[SCRIPT] a.e cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n";
               return res;
           }
-          static const char* scriptLangC(int cp);
-          static bool isJavaWsCp(int cp);
-          static bool isLatinPunctCp(int cp);
+          static const char* scriptLangC(int codePoint);
+          static bool isJavaWsCp(int codePoint);
+          static bool isLatinPunctCp(int codePoint);
           // CLD2's arm hands LanguageCode(lang3[0]) straight back and does NOTHING else to it: no code
           // rewriting, no script cross-check, no second opinion. This does the same with CLD3's answer.
           // Reliability is REPORTED rather than acted on, because the two CLD2 call sites disagree about
@@ -930,29 +930,29 @@ jobs:
           // The 1024-byte ceiling matches glsEmit's slice so the identifier never sees less than CLD2.
           // kUnknown is the string "und", which the callers truncate to "un" exactly as they truncate
           // CLD2's own "un" for UNKNOWN_LANGUAGE, so that case needs no special handling either.
-          static std::string cld3DetectRaw(const std::string& u8, bool* reliableOut){
+          static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut){
               static std::mutex g_cld3Mutex;
               static chrome_lang_id::NNetLanguageIdentifier* g_cld3 = nullptr;
               std::lock_guard<std::mutex> lk(g_cld3Mutex);
               if(!g_cld3) g_cld3 = new chrome_lang_id::NNetLanguageIdentifier(0, 1024);
-              const chrome_lang_id::NNetLanguageIdentifier::Result r = g_cld3->FindLanguage(u8);
+              const chrome_lang_id::NNetLanguageIdentifier::Result r = g_cld3->FindLanguage(utf8Text);
               if(reliableOut) *reliableOut = r.is_reliable;
               return r.language;
           }
-          static std::string cld2WindowDetectC(const std::string& u8, bool useCld3){
+          static std::string cld2WindowDetectC(const std::string& utf8Text, bool useCld3){
               if(useCld3) {
                   // The CLD2 arm below returns UNKNOWN on !reliable before it ever looks at the code.
                   bool c3ok = false;
-                  std::string c3r = cld3DetectRaw(u8, &c3ok);
+                  std::string c3r = cld3DetectRaw(utf8Text, &c3ok);
                   if(!c3ok) return "UNKNOWN";
                   return c3r.empty() ? "UNKNOWN" : c3r;
               }
               CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
-              CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+              CLD2::Language lang3[3]; int percent3[3]; double score3[3];
               int textBytes=0; bool reliable=false;
-              CLD2::DetectLanguageSummaryV2(u8.c_str(), (int)u8.size(), true, &hints,
+              CLD2::DetectLanguageSummaryV2(utf8Text.c_str(), (int)utf8Text.size(), true, &hints,
                                             true, 0x4000, CLD2::UNKNOWN_LANGUAGE,
-                                            lang3, pct3, score3, nullptr, &textBytes, &reliable);
+                                            lang3, percent3, score3, nullptr, &textBytes, &reliable);
               if(!reliable) return "UNKNOWN";
               const char* code = CLD2::LanguageCode(lang3[0]);
               return code ? std::string(code) : "UNKNOWN";
@@ -960,30 +960,30 @@ jobs:
           static std::unordered_set<std::string> jarrToSet(JNIEnv* env, jobjectArray arr){
               std::unordered_set<std::string> out;
               if(!arr) return out;
-              jsize n = env->GetArrayLength(arr);
-              for(jsize i=0;i<n;i++){
-                  jstring js=(jstring)env->GetObjectArrayElement(arr,i);
-                  if(!js) continue;
-                  const char* c=env->GetStringUTFChars(js,nullptr);
-                  out.insert(std::string(c));
-                  env->ReleaseStringUTFChars(js,c);
-                  env->DeleteLocalRef(js);
+              jsize count = env->GetArrayLength(arr);
+              for(jsize i=0;i<count;i++){
+                  jstring elem=(jstring)env->GetObjectArrayElement(arr,i);
+                  if(!elem) continue;
+                  const char* chars=env->GetStringUTFChars(elem,nullptr);
+                  out.insert(std::string(chars));
+                  env->ReleaseStringUTFChars(elem,chars);
+                  env->DeleteLocalRef(elem);
               }
               return out;
           }
           extern "C" JNIEXPORT void JNICALL
           Java_com_tts_easyvoice_NativeEngine_setIsoMap(JNIEnv* env, jclass, jobjectArray jIso2, jobjectArray jIso3){
               if(!jIso2||!jIso3) return;
-              jsize n=env->GetArrayLength(jIso2); jsize m=env->GetArrayLength(jIso3);
-              if(m<n) n=m;
-              for(jsize i=0;i<n;i++){
+              jsize iso2Count=env->GetArrayLength(jIso2); jsize iso3Count=env->GetArrayLength(jIso3);
+              if(iso3Count<iso2Count) iso2Count=iso3Count;
+              for(jsize i=0;i<iso2Count;i++){
                   jstring a=(jstring)env->GetObjectArrayElement(jIso2,i);
                   jstring b=(jstring)env->GetObjectArrayElement(jIso3,i);
                   if(a&&b){
-                      const char* ca=env->GetStringUTFChars(a,nullptr);
-                      const char* cb=env->GetStringUTFChars(b,nullptr);
-                      g_iso2to3[std::string(ca)]=std::string(cb);
-                      env->ReleaseStringUTFChars(a,ca); env->ReleaseStringUTFChars(b,cb);
+                      const char* iso2Chars=env->GetStringUTFChars(a,nullptr);
+                      const char* iso3Chars=env->GetStringUTFChars(b,nullptr);
+                      g_iso2to3[std::string(iso2Chars)]=std::string(iso3Chars);
+                      env->ReleaseStringUTFChars(a,iso2Chars); env->ReleaseStringUTFChars(b,iso3Chars);
                   }
                   if(a) env->DeleteLocalRef(a); if(b) env->DeleteLocalRef(b);
               }
@@ -1008,26 +1008,26 @@ jobs:
               bool disableAdv = (jDisableAdv==JNI_TRUE);
               std::unordered_set<std::string> okIso3 = jarrToSet(env, jDetectOkIso3);
               std::unordered_set<std::string> enabled = jarrToSet(env, jEnabledLangs);
-              std::string log; std::string* lb = (jWantLog==JNI_TRUE) ? &log : nullptr;
+              std::string log; std::string* logBuf = (jWantLog==JNI_TRUE) ? &log : nullptr;
               std::string result = "UNKNOWN"; bool done=false;
               int winStart=0;
               while(winStart<textLen && !done){
                   int winEnd=winStart+64; int wend = winEnd<textLen?winEnd:textLen;
-                  std::string wu8 = utf16to8(chars+winStart, wend-winStart);
-                  if(lb){
+                  std::string windowUtf8 = utf16to8(chars+winStart, wend-winStart);
+                  if(logBuf){
                       int snipLen = (wend-winStart)<30?(wend-winStart):30;
                       char nbuf[32]; snprintf(nbuf,sizeof(nbuf),"%d",wend-winStart);
-                      *lb += std::string(useCld3?"[CLD3] cld3DetectWindow windowLen=":"[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latFall+" nonLatFall="+nonLatFall+" isDisableAdv="+(disableAdv?"true":"false")+" snip='"+utf16to8(chars+winStart,snipLen)+"'\n";
+                      *logBuf += std::string(useCld3?"[CLD3] cld3DetectWindow windowLen=":"[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latFall+" nonLatFall="+nonLatFall+" isDisableAdv="+(disableAdv?"true":"false")+" snip='"+utf16to8(chars+winStart,snipLen)+"'\n";
                   }
-                  std::string det = cld2WindowDetectC(wu8, useCld3);
-                  if(lb) *lb += std::string(useCld3?"[CLD3] cld3DetectWindow rawOut='":"[CLD2] cld2DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+wu8+"' → result="+(det.empty()?"null":det)+"\n";
+                  std::string det = cld2WindowDetectC(windowUtf8, useCld3);
+                  if(logBuf) *logBuf += std::string(useCld3?"[CLD3] cld3DetectWindow rawOut='":"[CLD2] cld2DetectWindow rawOut='")+(det.empty()?"UNKNOWN":det)+"|"+windowUtf8+"' → result="+(det.empty()?"null":det)+"\n";
                   if(!det.empty() && det!="UNKNOWN"){
                       if(disableAdv){ result=det; done=true; break; }
                       if(okIso3.count(toIso3C(det))){ result=det; done=true; break; }
                       int winCp = firstValidCpU16(chars+winStart, wend-winStart);
                       if(winCp!=-1){
-                          std::string p = scriptLangFilteredC(winCp, enabled, okIso3, lb);
-                          if(!p.empty()){ result=p; done=true; break; }
+                          std::string scriptLang = scriptLangFilteredC(winCp, enabled, okIso3, logBuf);
+                          if(!scriptLang.empty()){ result=scriptLang; done=true; break; }
                       }
                   }
                   winStart=winEnd;
@@ -1035,8 +1035,8 @@ jobs:
               if(!done && !disableAdv){
                   int firstCp = firstValidCpU16(chars, textLen);
                   if(firstCp!=-1){
-                      std::string p = scriptLangFilteredC(firstCp, enabled, okIso3, lb);
-                      if(!p.empty()) result=p;
+                      std::string scriptLang = scriptLangFilteredC(firstCp, enabled, okIso3, logBuf);
+                      if(!scriptLang.empty()) result=scriptLang;
                   }
               }
               env->ReleaseStringChars(jText, chars);
@@ -1045,9 +1045,9 @@ jobs:
           }
           extern "C" JNIEXPORT jobjectArray JNICALL
           Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText, jboolean jUseCld3){
-              jclass sc=env->FindClass("java/lang/String");
-              if(!jText) return env->NewObjectArray(0, sc, nullptr);
-              const char* tc=env->GetStringUTFChars(jText,nullptr); std::string text(tc?tc:""); env->ReleaseStringUTFChars(jText,tc);
+              jclass stringClass=env->FindClass("java/lang/String");
+              if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
+              const char* textChars=env->GetStringUTFChars(jText,nullptr); std::string text(textChars?textChars:""); env->ReleaseStringUTFChars(jText,textChars);
               // The Advanced-tab "Use CLD3" switch reaches the span emitter too. It only
               // replaces the DETECTOR — the scripts 7..25 fixed table is segmentation, not
               // detection, and stays whichever engine is selected.
@@ -1060,46 +1060,46 @@ jobs:
               std::vector<LSpan> spans;
               const int kMaxSpans = 128;
               // returns a script id, or -1 for "this codepoint does not change the script"
-              auto glsClassify = [](int cp) -> int {
-                  if (cp < 0x80) {                                   // only via overlong encodings
-                      int u = cp & 0x5F;
-                      return (u >= 0x41 && u <= 0x5A) ? -1 : 1;
+              auto glsClassify = [](int codePoint) -> int {
+                  if (codePoint < 0x80) {                                   // only via overlong encodings
+                      int folded = codePoint & 0x5F;
+                      return (folded >= 0x41 && folded <= 0x5A) ? -1 : 1;
                   }
-                  if (cp < 0xC0) return -1;
-                  if (cp < 0x2B0) return 1;
-                  if ((unsigned)(cp - 0x370) < 0x90)  return 7;                 // Greek
-                  if ((unsigned)(cp - 0x400) < 0x130) return 2;                 // Cyrillic
-                  if ((unsigned)(cp - 0x530) < 0x60)  return 8;                 // Armenian
-                  if ((unsigned)(cp - 0x590) < 0x70)  return 9;                 // Hebrew
-                  if ((unsigned)(cp - 0x8A0) < 0x60)  return 3;                 // Arabic Extended-A
-                  if ((cp & 0x1FFF00) == 0x600) return 3;            // Arabic
-                  if ((unsigned)(cp - 0x750) < 0x30)  return 3;                 // Arabic Supplement
-                  unsigned blk = ((unsigned)(cp - 0x900)) >> 7;
+                  if (codePoint < 0xC0) return -1;
+                  if (codePoint < 0x2B0) return 1;
+                  if ((unsigned)(codePoint - 0x370) < 0x90)  return 7;                 // Greek
+                  if ((unsigned)(codePoint - 0x400) < 0x130) return 2;                 // Cyrillic
+                  if ((unsigned)(codePoint - 0x530) < 0x60)  return 8;                 // Armenian
+                  if ((unsigned)(codePoint - 0x590) < 0x70)  return 9;                 // Hebrew
+                  if ((unsigned)(codePoint - 0x8A0) < 0x60)  return 3;                 // Arabic Extended-A
+                  if ((codePoint & 0x1FFF00) == 0x600) return 3;            // Arabic
+                  if ((unsigned)(codePoint - 0x750) < 0x30)  return 3;                 // Arabic Supplement
+                  unsigned blk = ((unsigned)(codePoint - 0x900)) >> 7;
                   if (blk <= 11) {
                       static const int kIndic[12] = {4,6,11,12,13,14,15,16,17,18,19,20};
                       return kIndic[blk];
                   }
-                  if ((cp & 0x1FFF00) == 0xF00)  return 21;          // Tibetan
-                  if ((unsigned)(cp - 0x1000) < 0xA0)  return 22;          // Myanmar
-                  if ((unsigned)(cp - 0x10A0) < 0x60)  return 10;          // Georgian
-                  if ((cp & 0x1FFF00) == 0x1100) return 25;          // Hangul Jamo
-                  if ((unsigned)(cp - 0x1200) < 0x180) return 24;          // Ethiopic
-                  if ((cp & 0x1FFF80) == 0x1780) return 23;          // Khmer
-                  if ((cp & 0x1FFF00) == 0x1E00) return 1;           // Latin Extended Additional
-                  if ((cp & 0x1FFFE0) == 0x2C60) return 1;           // Latin Extended-C
-                  if ((unsigned)(cp - 0x2E80) < 0x160) return 5;           // CJK radicals / Kangxi
-                  if ((unsigned)(cp - 0x3040) < 0xC0)  return 5;           // Hiragana + Katakana
-                  if ((unsigned)(cp - 0x3130) < 0x60)  return 25;          // Hangul Compatibility Jamo
-                  if ((cp >> 4) == 0x31F)        return 5;           // Katakana Phonetic Extensions
-                  if ((((unsigned)(cp - 0x3400)) >> 10) < 0x1B) return 5;   // CJK 0x3400..0x9FFF
-                  if ((unsigned)(cp - 0xA720) < 0xE0)  return 1;           // Latin Extended-D
-                  if ((cp & 0x1FFFE0) == 0xA960) return 25;          // Hangul Jamo Extended-A
-                  if ((((unsigned)(cp - 0xAC00)) >> 10) < 0xB) return 25;   // Hangul syllables
-                  if ((unsigned)(cp - 0xF900) < 0x200) return 5;           // CJK Compatibility Ideographs
-                  if ((unsigned)(cp - 0xFB50) < 0x2B0) return 3;           // Arabic Presentation Forms-A
-                  if ((unsigned)(cp - 0xFE70) < 0x90)  return 3;           // Arabic Presentation Forms-B
-                  if ((unsigned)(cp - 0xFF66) < 0x38)  return 5;           // Halfwidth Katakana
-                  if ((((unsigned)(cp - 0x20000)) >> 5) < 0x7D1) return 5;  // CJK Ext B..
+                  if ((codePoint & 0x1FFF00) == 0xF00)  return 21;          // Tibetan
+                  if ((unsigned)(codePoint - 0x1000) < 0xA0)  return 22;          // Myanmar
+                  if ((unsigned)(codePoint - 0x10A0) < 0x60)  return 10;          // Georgian
+                  if ((codePoint & 0x1FFF00) == 0x1100) return 25;          // Hangul Jamo
+                  if ((unsigned)(codePoint - 0x1200) < 0x180) return 24;          // Ethiopic
+                  if ((codePoint & 0x1FFF80) == 0x1780) return 23;          // Khmer
+                  if ((codePoint & 0x1FFF00) == 0x1E00) return 1;           // Latin Extended Additional
+                  if ((codePoint & 0x1FFFE0) == 0x2C60) return 1;           // Latin Extended-C
+                  if ((unsigned)(codePoint - 0x2E80) < 0x160) return 5;           // CJK radicals / Kangxi
+                  if ((unsigned)(codePoint - 0x3040) < 0xC0)  return 5;           // Hiragana + Katakana
+                  if ((unsigned)(codePoint - 0x3130) < 0x60)  return 25;          // Hangul Compatibility Jamo
+                  if ((codePoint >> 4) == 0x31F)        return 5;           // Katakana Phonetic Extensions
+                  if ((((unsigned)(codePoint - 0x3400)) >> 10) < 0x1B) return 5;   // CJK 0x3400..0x9FFF
+                  if ((unsigned)(codePoint - 0xA720) < 0xE0)  return 1;           // Latin Extended-D
+                  if ((codePoint & 0x1FFFE0) == 0xA960) return 25;          // Hangul Jamo Extended-A
+                  if ((((unsigned)(codePoint - 0xAC00)) >> 10) < 0xB) return 25;   // Hangul syllables
+                  if ((unsigned)(codePoint - 0xF900) < 0x200) return 5;           // CJK Compatibility Ideographs
+                  if ((unsigned)(codePoint - 0xFB50) < 0x2B0) return 3;           // Arabic Presentation Forms-A
+                  if ((unsigned)(codePoint - 0xFE70) < 0x90)  return 3;           // Arabic Presentation Forms-B
+                  if ((unsigned)(codePoint - 0xFF66) < 0x38)  return 5;           // Halfwidth Katakana
+                  if ((((unsigned)(codePoint - 0x20000)) >> 5) < 0x7D1) return 5;  // CJK Ext B..
                   return -1;
               };
               // 0x6536a0: scripts 7..25 never reach CLD2 at all — `script - 7` indexes a jump
@@ -1131,9 +1131,9 @@ jobs:
                   if (len < 1) return;
                   if (start < 0 || start + len > (int)text.size()) return;
                   std::string lang;
-                  unsigned si = (unsigned)(script - 7);
-                  if (si < 19) {
-                      lang = GLS_FIXED[si];
+                  unsigned scriptIdx = (unsigned)(script - 7);
+                  if (scriptIdx < 19) {
+                      lang = GLS_FIXED[scriptIdx];
                   } else {
                       int dlen = len;
                       if (dlen > 1024) {
@@ -1147,15 +1147,15 @@ jobs:
                           // glsEmit's CLD2 arm computes reliable and then ignores it — it takes
                           // LanguageCode(l) either way. So does this one; only a genuine kUnknown or a
                           // script mismatch becomes "un".
-                          std::string c3 = cld3DetectRaw(std::string(text, start, dlen), nullptr);
-                          lang = c3.empty() ? "un" : c3;
+                          std::string cld3Lang = cld3DetectRaw(std::string(text, start, dlen), nullptr);
+                          lang = cld3Lang.empty() ? "un" : cld3Lang;
                       } else {
                           CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
-                          CLD2::Language lang3[3]; int pct3[3]; double score3[3];
+                          CLD2::Language lang3[3]; int percent3[3]; double score3[3];
                           int textBytes = 0; bool reliable = false;
-                          CLD2::Language l = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
-                                                     lang3, pct3, score3, nullptr, &textBytes, &reliable);
-                          const char* code = CLD2::LanguageCode(l);
+                          CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(text.c_str() + start, dlen, true, &hints, 0x4000,
+                                                     lang3, percent3, score3, nullptr, &textBytes, &reliable);
+                          const char* code = CLD2::LanguageCode(cldLang);
                           lang = code ? std::string(code) : "un";
                       }
                   }
@@ -1175,20 +1175,20 @@ jobs:
                       if (!spans.empty()) spans.back().bytes = (start + len) - spans.back().offset;
                       return;
                   }
-                  LSpan ns;
-                  ns.offset = start; ns.bytes = len;
-                  ns.lang = lang;
-                  ns.latin = latin;
-                  spans.push_back(ns);
+                  LSpan newSpan;
+                  newSpan.offset = start; newSpan.bytes = len;
+                  newSpan.lang = lang;
+                  newSpan.latin = latin;
+                  spans.push_back(newSpan);
               };
               {
-                  int n = (int)text.size();
+                  int textLen = (int)text.size();
                   int spanStart = 0, curScript = 0, i = 0;
-                  while (i < n) {
-                      signed char sb = (signed char)text[i];
-                      if (sb >= 0) {                                  // ASCII fast path
-                          int u = ((int)(unsigned char)text[i]) & 0x5F;
-                          if (u < 0x41 || u > 0x5A) { i++; continue; }  // non A-Z ASCII is skipped
+                  while (i < textLen) {
+                      signed char signedByte = (signed char)text[i];
+                      if (signedByte >= 0) {                                  // ASCII fast path
+                          int folded = ((int)(unsigned char)text[i]) & 0x5F;
+                          if (folded < 0x41 || folded > 0x5A) { i++; continue; }  // non A-Z ASCII is skipped
                           if (curScript >= 2) { glsEmit(spanStart, i - spanStart, curScript); spanStart = i; }
                           curScript = 1;
                           i++;
@@ -1196,35 +1196,35 @@ jobs:
                       }
                       // AutoTTS validates every continuation byte and falls back to U+FFFD
                       // consuming a single byte (0x6531e4..0x6532c0)
-                      int cp, cpLen;
-                      const unsigned char* q = (const unsigned char*)text.data() + i;
-                      int avail = n - i;
-                      if (avail >= 2 && (q[0] & 0xE0) == 0xC0 && (q[1] & 0xC0) == 0x80) {
-                          cp = ((q[0] & 0x1F) << 6) | (q[1] & 0x3F); cpLen = 2;
-                      } else if (avail >= 3 && (q[0] & 0xF0) == 0xE0 && (q[1] & 0xC0) == 0x80 && (q[2] & 0xC0) == 0x80) {
-                          cp = ((q[0] & 0x0F) << 12) | ((q[1] & 0x3F) << 6) | (q[2] & 0x3F); cpLen = 3;
-                      } else if (avail >= 4 && (q[0] & 0xF8) == 0xF0 && (q[1] & 0xC0) == 0x80 && (q[2] & 0xC0) == 0x80 && (q[3] & 0xC0) == 0x80) {
-                          cp = ((q[0] & 0x07) << 18) | ((q[1] & 0x3F) << 12) | ((q[2] & 0x3F) << 6) | (q[3] & 0x3F); cpLen = 4;
+                      int codePoint, cpLen;
+                      const unsigned char* bytes = (const unsigned char*)text.data() + i;
+                      int avail = textLen - i;
+                      if (avail >= 2 && (bytes[0] & 0xE0) == 0xC0 && (bytes[1] & 0xC0) == 0x80) {
+                          codePoint = ((bytes[0] & 0x1F) << 6) | (bytes[1] & 0x3F); cpLen = 2;
+                      } else if (avail >= 3 && (bytes[0] & 0xF0) == 0xE0 && (bytes[1] & 0xC0) == 0x80 && (bytes[2] & 0xC0) == 0x80) {
+                          codePoint = ((bytes[0] & 0x0F) << 12) | ((bytes[1] & 0x3F) << 6) | (bytes[2] & 0x3F); cpLen = 3;
+                      } else if (avail >= 4 && (bytes[0] & 0xF8) == 0xF0 && (bytes[1] & 0xC0) == 0x80 && (bytes[2] & 0xC0) == 0x80 && (bytes[3] & 0xC0) == 0x80) {
+                          codePoint = ((bytes[0] & 0x07) << 18) | ((bytes[1] & 0x3F) << 12) | ((bytes[2] & 0x3F) << 6) | (bytes[3] & 0x3F); cpLen = 4;
                       } else {
-                          cp = 0xFFFD; cpLen = 1;
+                          codePoint = 0xFFFD; cpLen = 1;
                       }
-                      int sc = glsClassify(cp);
-                      if (sc < 0) sc = curScript;
-                      else if (curScript != 0 && sc != curScript) { glsEmit(spanStart, i - spanStart, curScript); spanStart = i; }
+                      int stringClass = glsClassify(codePoint);
+                      if (stringClass < 0) stringClass = curScript;
+                      else if (curScript != 0 && stringClass != curScript) { glsEmit(spanStart, i - spanStart, curScript); spanStart = i; }
                       i += cpLen;
-                      curScript = sc;
+                      curScript = stringClass;
                   }
-                  glsEmit(spanStart, n - spanStart, curScript);
+                  glsEmit(spanStart, textLen - spanStart, curScript);
               }
               std::vector<std::string> flat;
-              for(size_t si=0; si<spans.size(); si++){
-                  const LSpan& s = spans[si];
-                  if(s.offset < 0 || s.bytes <= 0 || (size_t)(s.offset + s.bytes) > text.size()) continue;
-                  flat.push_back(s.lang);
-                  flat.push_back(s.latin ? "1" : "0");
-                  flat.push_back(text.substr(s.offset, (size_t)s.bytes));
+              for(size_t scriptIdx=0; scriptIdx<spans.size(); scriptIdx++){
+                  const LSpan& span = spans[scriptIdx];
+                  if(span.offset < 0 || span.bytes <= 0 || (size_t)(span.offset + span.bytes) > text.size()) continue;
+                  flat.push_back(span.lang);
+                  flat.push_back(span.latin ? "1" : "0");
+                  flat.push_back(text.substr(span.offset, (size_t)span.bytes));
               }
-              jobjectArray arr=env->NewObjectArray((jsize)flat.size(), sc, nullptr);
+              jobjectArray arr=env->NewObjectArray((jsize)flat.size(), stringClass, nullptr);
               for(jsize i=0;i<(jsize)flat.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(flat[i].c_str()));
               return arr;
           }
