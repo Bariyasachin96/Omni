@@ -64,22 +64,22 @@ jobs:
           python3 << 'PYEOF'
           import os, textwrap
 
-          def w(path, content):
-              d = os.path.dirname(path)
-              if d:
-                  os.makedirs(d, exist_ok=True)
-              with open(path, 'w', encoding='utf-8') as f:
-                  f.write(content)
+          def write_source(path, content):
+              parent = os.path.dirname(path)
+              if parent:
+                  os.makedirs(parent, exist_ok=True)
+              with open(path, 'w', encoding='utf-8') as out:
+                  out.write(content)
 
           # ── gradle.properties ────────────────────────────────────────────────
-          w("gradle.properties", "android.useAndroidX=true\n"
+          write_source("gradle.properties", "android.useAndroidX=true\n"
             "android.enableJetifier=true\n"
             "org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8\n"
             "org.gradle.daemon=false\n"
             "android.enableR8.fullMode=true\n")
 
           # ── settings.gradle.kts ──────────────────────────────────────────────
-          w("settings.gradle.kts", """\
+          write_source("settings.gradle.kts", """\
           pluginManagement {
               repositories { google(); mavenCentral(); gradlePluginPortal() }
           }
@@ -92,7 +92,7 @@ jobs:
           """)
 
           # ── build.gradle.kts (root) ──────────────────────────────────────────
-          w("build.gradle.kts", """\
+          write_source("build.gradle.kts", """\
           plugins {
               id("com.android.application") version "8.2.2" apply false
               id("org.jetbrains.kotlin.android") version "1.9.22" apply false
@@ -100,7 +100,7 @@ jobs:
           """)
 
           # ── app/build.gradle.kts ─────────────────────────────────────────────
-          w("app/build.gradle.kts", """\
+          write_source("app/build.gradle.kts", """\
           plugins {
               id("com.android.application")
               id("org.jetbrains.kotlin.android")
@@ -162,7 +162,7 @@ jobs:
 
           # ── obfuscation dictionary: R8 draws renamed identifiers from here, so the
           #     decompiled output is a wall of near-identical l/I/O names (hard to read/mod).
-          w("app/proguard-dict.txt", """\
+          write_source("app/proguard-dict.txt", """\
           l
           I
           O
@@ -206,7 +206,7 @@ jobs:
           """)
 
           # ── proguard-rules.pro ───────────────────────────────────────────────
-          w("app/proguard-rules.pro", """\
+          write_source("app/proguard-rules.pro", """\
           # ── Anti-reverse-engineering hardening ──────────────────────────────
           -optimizationpasses 5
           -allowaccessmodification
@@ -232,7 +232,7 @@ jobs:
           """)
 
           # ── CMakeLists.txt ───────────────────────────────────────────────────
-          w("app/src/main/cpp/CMakeLists.txt", """\
+          write_source("app/src/main/cpp/CMakeLists.txt", """\
           cmake_minimum_required(VERSION 3.18.1)
           project("easyvoice_native")
           set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
@@ -307,7 +307,7 @@ jobs:
           """)
 
           # ── tts_engine_core.cpp ──────────────────────────────────────────────
-          w("app/src/main/cpp/tts_engine_core.cpp", r"""
+          write_source("app/src/main/cpp/tts_engine_core.cpp", r"""
           #include <jni.h>
           #include <string>
           #include <cstring>
@@ -1231,7 +1231,7 @@ jobs:
           """)
 
           # ── NativeEngine.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/tts/easyvoice/NativeEngine.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/NativeEngine.kt",
           "package com.tts.easyvoice\n"
           "import java.nio.ByteBuffer\n"
           "object NativeEngine {\n"
@@ -1252,7 +1252,7 @@ jobs:
           "}\n")
 
           # ── EasyVoiceLogger.kt ──────────────────────────────────────────────────────
-          w("app/src/main/java/com/tts/easyvoice/EasyVoiceLogger.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceLogger.kt",
           "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.util.Log\n"
@@ -1332,7 +1332,7 @@ jobs:
           "}\n")
 
           # ── LangStore.kt — c3.e + the in-memory c3.m.c the UI and service share ──
-          w("app/src/main/java/com/tts/easyvoice/LangStore.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/LangStore.kt",
           "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "// Port of c3.e and the c3.m.c list AutoTTS keeps in memory.\n"
@@ -1562,14 +1562,14 @@ jobs:
           "    @JvmStatic\n"
           "    fun loadModeLangs(ctx: Context) {\n"
           "        val sharedPrefs = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0)\n"
-          "        val dev = try {\n"
+          "        val deviceIso3 = try {\n"
           "            val index = java.util.Locale.getDefault().isO3Language\n"
           "            if (index == \"cmn\" || index == \"lzh\" || index == \"gan\" || index == \"hak\") \"zho\" else index\n"
           "        } catch (_: Exception) { \"zxx\" }\n"
-          "        EasyVoiceTtsService.autoLang = (sharedPrefs.getString(\"auto_mode_language\", \"\") ?: \"\").ifEmpty { dev }\n"
-          "        EasyVoiceTtsService.mixLatinLang = (sharedPrefs.getString(\"mixed_mode_latin_language\", \"\") ?: \"\").ifEmpty { dev }\n"
-          "        EasyVoiceTtsService.mixNonLatinLang = (sharedPrefs.getString(\"mixed_mode_non_latin_language\", \"\") ?: \"\").ifEmpty { dev }\n"
-          "        EasyVoiceTtsService.dualLang = (sharedPrefs.getString(\"dual_mode_language\", \"\") ?: \"\").ifEmpty { dev }\n"
+          "        EasyVoiceTtsService.autoLang = (sharedPrefs.getString(\"auto_mode_language\", \"\") ?: \"\").ifEmpty { deviceIso3 }\n"
+          "        EasyVoiceTtsService.mixLatinLang = (sharedPrefs.getString(\"mixed_mode_latin_language\", \"\") ?: \"\").ifEmpty { deviceIso3 }\n"
+          "        EasyVoiceTtsService.mixNonLatinLang = (sharedPrefs.getString(\"mixed_mode_non_latin_language\", \"\") ?: \"\").ifEmpty { deviceIso3 }\n"
+          "        EasyVoiceTtsService.dualLang = (sharedPrefs.getString(\"dual_mode_language\", \"\") ?: \"\").ifEmpty { deviceIso3 }\n"
           "        EasyVoiceTtsService.numberModeInt = sharedPrefs.getInt(\"number_mode_language\", 0)\n"
           "        EasyVoiceTtsService.puncModeInt = sharedPrefs.getInt(\"punc_mode_language\", 0)\n"
           "        EasyVoiceTtsService.emojiModeInt = sharedPrefs.getInt(\"emoji_mode_language\", 0)\n"
@@ -1742,7 +1742,7 @@ jobs:
           "}\n")
 
           # ── SharedPrefsManager.kt ────────────────────────────────────────────
-          w("app/src/main/java/com/tts/easyvoice/SharedPrefsManager.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/SharedPrefsManager.kt",
           "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.content.SharedPreferences\n"
@@ -1910,7 +1910,7 @@ jobs:
           "}\n")
 
           # ── EngineFinder.kt ──────────────────────────────────────────────────
-          w("app/src/main/java/com/tts/easyvoice/EngineFinder.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/EngineFinder.kt",
           "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.content.Intent\n"
@@ -2237,7 +2237,7 @@ jobs:
           # Per-sentence CLD2 detection for unknowns
           # Engine availability check with fallback to user-preferred lang
           # Responsive latch.await(5ms) loop with @Volatile flags — INSTANT STOP reaction
-          w("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
           "package com.tts.easyvoice\n"
           "import android.app.Notification\n"
           "import android.app.NotificationChannel\n"
@@ -2893,10 +2893,10 @@ jobs:
           "                // a.e(cp, m.f): m.f itself, no second test. a0() already built it from !e.i.\n"
           "                val enabledOk = enabledLangs.toTypedArray()\n"
           "                val out = NativeEngine.detectLanguageFull(text, latFall, nonLatFall, disableAdvancedFlag, detectOk, enabledOk, EasyVoiceLogger.isLoggingEnabled(), useCld3Flag)\n"
-          "                val sep = out.indexOf('\\u0001')\n"
-          "                if (sep >= 0) {\n"
-          "                    if (sep + 1 < out.length) for (line in out.substring(sep + 1).split('\\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)\n"
-          "                    return out.substring(0, sep)\n"
+          "                val markerIdx = out.indexOf('\\u0001')\n"
+          "                if (markerIdx >= 0) {\n"
+          "                    if (markerIdx + 1 < out.length) for (line in out.substring(markerIdx + 1).split('\\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)\n"
+          "                    return out.substring(0, markerIdx)\n"
           "                }\n"
           "                return out\n"
           "            } catch (_: Throwable) {  }\n"
@@ -2941,8 +2941,8 @@ jobs:
           "    // AutoTtsService O==5: lang = m.h.get(det); if null -> latin ? K : L; then\n"
           "    // if M(lang) is empty or \"Disable\" -> latin ? K : L. Two stages, both literal.\n"
           "    private fun resolveMultilingualChunk(mlChunk: MLChunk, latFall: String, nonLatFall: String): String {\n"
-          "        val det = mlChunk.lang\n"
-          "        var lang = if (isKnownIso2(det)) prefs.toIso3(det) else (if (mlChunk.latin) latFall else nonLatFall)\n"
+          "        val detected = mlChunk.lang\n"
+          "        var lang = if (isKnownIso2(detected)) prefs.toIso3(detected) else (if (mlChunk.latin) latFall else nonLatFall)\n"
           "        val eng = LangStore.engineFor(lang, modeInt)\n"
           "        if (eng.isEmpty() || eng == \"Disable\") lang = if (mlChunk.latin) latFall else nonLatFall\n"
           "        return lang\n"
@@ -3373,9 +3373,9 @@ jobs:
           "            // The first-chunk site logs the raw detection with the text it ran on, then the\n"
           "            // resolved language, then the engine M() answered with.\n"
           "            if (first) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \"language: \" + rawDetected + \" '\" + chunk.text + \"'\")\n"
-          "            val det = if (rawDetected.length > 2) rawDetected.substring(0, 2) else rawDetected\n"
+          "            val detected = if (rawDetected.length > 2) rawDetected.substring(0, 2) else rawDetected\n"
           "            val chunkType = chunk.mixType\n"
-          "            var resolvedLang = if (isKnownIso2(det)) prefs.toIso3(det) else null\n"
+          "            var resolvedLang = if (isKnownIso2(detected)) prefs.toIso3(detected) else null\n"
           "            if (resolvedLang == null) {\n"
           "                resolvedLang = if (first) { if (chunkType == 1) latFall else if (chunkType == 2) nonLatFall else reqLang0 }\n"
           "                     else { if (chunkType != 1) nonLatFall else latFall }\n"
@@ -3677,7 +3677,7 @@ jobs:
           "}\n")
 
           # ── CheckVoiceData.kt ────────────────────────────────────────────────
-          w("app/src/main/java/com/tts/easyvoice/CheckVoiceData.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/CheckVoiceData.kt",
           "package com.tts.easyvoice\n"
           "import android.app.Activity\n"
           "import android.content.Intent\n"
@@ -3696,7 +3696,7 @@ jobs:
           "}\n")
 
           # ── SampleTexts.kt ──────────────────────────────────────────────────────
-          w("app/src/main/java/com/tts/easyvoice/SampleTexts.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/SampleTexts.kt",
           "package com.tts.easyvoice\n"
           "object SampleTexts {\n"
           "    private val map = mapOf(\n"
@@ -4046,7 +4046,7 @@ jobs:
           "}\n")
 
           # ── GetSampleText.kt ─────────────────────────────────────────────────
-          w("app/src/main/java/com/tts/easyvoice/GetSampleText.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/GetSampleText.kt",
           "package com.tts.easyvoice\n"
           "import android.app.Activity\n"
           "import android.content.Intent\n"
@@ -4072,7 +4072,7 @@ jobs:
 
           # ── MainActivity.kt ──────────────────────────────────────────────────
           # ── TabViews.kt — real-View ports of AutoTTS fragment_modes/advanced/license ──
-          w("app/src/main/java/com/tts/easyvoice/TabViews.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/TabViews.kt",
           "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.content.Intent\n"
@@ -4529,7 +4529,7 @@ jobs:
           "}\n")
 
           # ── LanguagesVoicesViews.kt — real-View ports of the Languages + Voices tabs ──
-          w("app/src/main/java/com/tts/easyvoice/LanguagesVoicesViews.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/LanguagesVoicesViews.kt",
           "package com.tts.easyvoice\n"
           "import android.content.Context\n"
           "import android.speech.tts.TextToSpeech\n"
@@ -5160,7 +5160,7 @@ jobs:
           "}\n"
           )
 
-          w("app/src/main/java/com/tts/easyvoice/MainActivity.kt",
+          write_source("app/src/main/java/com/tts/easyvoice/MainActivity.kt",
           "package com.tts.easyvoice\n"
           "import android.content.Intent\n"
           "import android.net.Uri\n"
@@ -5246,16 +5246,16 @@ jobs:
           "            applyBtn = android.widget.Button(viewCtx)\n"
           "            applyBtn.text = \"Apply\"\n"
           "            applyBtn.setOnClickListener { onApply?.invoke(); dismiss() }\n"
-          "            val aLp = android.widget.LinearLayout.LayoutParams(0, -2, 1.0f)\n"
-          "            aLp.rightMargin = 8\n"
-          "            applyBtn.layoutParams = aLp\n"
+          "            val applyLp = android.widget.LinearLayout.LayoutParams(0, -2, 1.0f)\n"
+          "            applyLp.rightMargin = 8\n"
+          "            applyBtn.layoutParams = applyLp\n"
           "            btnRow.addView(applyBtn)\n"
           "            cancelBtn = android.widget.Button(viewCtx)\n"
           "            cancelBtn.text = \"Cancel\"\n"
           "            cancelBtn.setOnClickListener { onCancelled?.invoke(); dismiss() }\n"
-          "            val cLp = android.widget.LinearLayout.LayoutParams(0, -2, 1.0f)\n"
-          "            cLp.leftMargin = 8\n"
-          "            cancelBtn.layoutParams = cLp\n"
+          "            val cancelLp = android.widget.LinearLayout.LayoutParams(0, -2, 1.0f)\n"
+          "            cancelLp.leftMargin = 8\n"
+          "            cancelBtn.layoutParams = cancelLp\n"
           "            btnRow.addView(cancelBtn)\n"
           "            root.addView(btnRow)\n"
           "            return root\n"
@@ -5509,7 +5509,7 @@ jobs:
           "                                    // the default style, and setting them here is what made\n"
           "                                    // the row look different. The indicator sits above the\n"
           "                                    // row because the row is at the bottom, under the pager.\n"
-          "                                    val taP = themedContext.obtainStyledAttributes(intArrayOf(androidx.appcompat.R.attr.colorPrimary)); val primary = taP.getColor(0, 0); taP.recycle()\n"
+          "                                    val primaryAttrs = themedContext.obtainStyledAttributes(intArrayOf(androidx.appcompat.R.attr.colorPrimary)); val primary = primaryAttrs.getColor(0, 0); primaryAttrs.recycle()\n"
           "                                    setBackgroundColor(primary)\n"
           "                                    setSelectedTabIndicatorGravity(com.google.android.material.tabs.TabLayout.INDICATOR_GRAVITY_TOP)\n"
           "                                }\n"
@@ -5573,13 +5573,13 @@ jobs:
           )
 
           # ── res/xml/tts_engine.xml ───────────────────────────────────────────
-          w("app/src/main/res/xml/tts_engine.xml",
+          write_source("app/src/main/res/xml/tts_engine.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<tts-engine xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
           "    android:settingsActivity=\"com.tts.easyvoice.MainActivity\" />\n")
 
           # ── res/xml/provider_paths.xml ───────────────────────────────────────
-          w("app/src/main/res/xml/provider_paths.xml",
+          write_source("app/src/main/res/xml/provider_paths.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<paths>\n"
           "    <files-path name=\"logs\" path=\"logs/\" />\n"
@@ -5589,35 +5589,35 @@ jobs:
           # ── res/values/strings.xml ───────────────────────────────────────────
           # ── ic_tab_modes.xml — byte-for-byte AutoTTS res/drawable/ic_tab_modes.xml
           # (tint ?colorControlNormal, fill #ffffffff, the "tune" path).
-          w("app/src/main/res/drawable/ic_tab_modes.xml",
+          write_source("app/src/main/res/drawable/ic_tab_modes.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\" android:tint=\"?colorControlNormal\">\n    <path android:fillColor=\"#ffffffff\" android:pathData=\"M3,17v2h6v-2H3zM3,5v2h10V5H3zM13,21v-2h8v-2h-8v-2h-2v6H13zM7,9v2H3v2h4v2h2V9H7zM21,13v-2H11v2H21zM15,9h2V7h4V5h-4V3h-2V9z\"/>\n</vector>\n")
 
           # ── ic_tab_languages.xml — byte-for-byte AutoTTS res/drawable/ic_tab_languages.xml.
           # This is the Material "translate" glyph, NOT the globe we had here before.
-          w("app/src/main/res/drawable/ic_tab_languages.xml",
+          write_source("app/src/main/res/drawable/ic_tab_languages.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\" android:tint=\"?colorControlNormal\">\n    <path android:fillColor=\"#ffffffff\" android:pathData=\"M12.87,15.07l-2.54,-2.51 0.03,-0.03c1.74,-1.94 2.98,-4.17 3.71,-6.53L17,6L17,4h-7L10,2L8,2v2L1,4v1.99h11.17C11.5,7.92 10.44,9.75 9,11.35 8.07,10.32 7.3,9.19 6.69,8h-2c0.73,1.63 1.73,3.17 2.98,4.56l-5.09,5.02L4,19l5,-5 3.11,3.11 0.76,-2.04zM18.5,10h-2L12,22h2l1.12,-3h4.75L21,22h2l-4.5,-12zM15.88,17l1.62,-4.33L19.12,17h-3.24z\"/>\n</vector>\n")
 
           # ── ic_tab_voices.xml — byte-for-byte AutoTTS res/drawable/ic_tab_voices.xml.
           # This is the Material "mic" glyph, NOT the record_voice_over we had here before.
-          w("app/src/main/res/drawable/ic_tab_voices.xml",
+          write_source("app/src/main/res/drawable/ic_tab_voices.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\" android:tint=\"?colorControlNormal\">\n    <path android:fillColor=\"#ffffffff\" android:pathData=\"M12,14c1.66,0 2.99,-1.34 2.99,-3L15,5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6c0,1.66 1.34,3 3,3zM17.3,11c0,3 -2.54,5.1 -5.3,5.1S6.7,14 6.7,11L5,11c0,3.41 2.72,6.23 6,6.72L11,21h2v-3.28c3.28,-0.48 6,-3.3 6,-6.72h-1.7z\"/>\n</vector>\n")
 
           # ── ic_tab_advanced.xml — byte-for-byte AutoTTS res/drawable/ic_tab_settings.xml
           # (the file the Advanced tab's f3.p() points at). Note this one alone carries a
           # HARD-CODED android:tint="#ff000000" and fillColor="@android:color/white";
           # the other four use ?colorControlNormal + #ffffffff.
-          w("app/src/main/res/drawable/ic_tab_advanced.xml",
+          write_source("app/src/main/res/drawable/ic_tab_advanced.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\" android:tint=\"#ff000000\">\n    <path android:fillColor=\"@android:color/white\" android:pathData=\"M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94 0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.03,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6 3.6,1.62 3.6,3.6 -1.62,3.6 -3.6,3.6z\"/>\n</vector>\n")
 
           # ── ic_tab_licenses.xml — byte-for-byte AutoTTS res/drawable/ic_tab_licenses.xml.
           # This is the Material "description" (document) glyph, NOT the info circle we had.
-          w("app/src/main/res/drawable/ic_tab_licenses.xml",
+          write_source("app/src/main/res/drawable/ic_tab_licenses.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\" android:tint=\"?colorControlNormal\">\n    <path android:fillColor=\"#ffffffff\" android:pathData=\"M14,2H6C4.9,2 4.01,2.9 4.01,4L4,20c0,1.1 0.89,2 1.99,2H18c1.1,0 2,-0.9 2,-2V8L14,2zM16,18H8v-2h8V18zM16,14H8v-2h8V14zM13,9V3.5L18.5,9H13z\"/>\n</vector>\n")
 
           # Exact port of AutoTTS res/values/styles.xml + the three colours it names.
           # AutoTTS DOES ship a values-night AppTheme — see below; the earlier note here
           # claiming it does not was wrong.
-          w("app/src/main/res/values/colors.xml",
+          write_source("app/src/main/res/values/colors.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
           "    <color name=\"colorPrimary\">#ff008577</color>\n"
@@ -5625,7 +5625,7 @@ jobs:
           "    <color name=\"colorAccent\">#ffd81b60</color>\n"
           "</resources>\n")
 
-          w("app/src/main/res/values/styles.xml",
+          write_source("app/src/main/res/values/styles.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
           "    <style name=\"AppTheme\" parent=\"@style/Theme.AppCompat.DayNight.DarkActionBar\">\n"
@@ -5649,20 +5649,20 @@ jobs:
           # instead of #ff008577. AppTheme.NoActionBar resolves its implicit parent per
           # configuration, so it inherits this one at night exactly as it does there.
           # The other 23 styles in that file are the DayNight aliases AAPT generates itself.
-          w("app/src/main/res/values-night/styles.xml",
+          write_source("app/src/main/res/values-night/styles.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
           "    <style name=\"AppTheme\" parent=\"@style/Theme.AppCompat.DayNight.DarkActionBar\" />\n"
           "</resources>\n")
 
-          w("app/src/main/res/values/strings.xml",
+          write_source("app/src/main/res/values/strings.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
           "    <string name=\"app_name\">Easy Voice</string>\n"
           "</resources>\n")
 
           # ── AndroidManifest.xml ──────────────────────────────────────────────
-          w("app/src/main/AndroidManifest.xml",
+          write_source("app/src/main/AndroidManifest.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
           "    android:installLocation=\"auto\">\n"
