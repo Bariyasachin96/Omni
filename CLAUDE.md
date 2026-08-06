@@ -65,6 +65,13 @@
    `object` / `checkBox` alias correctly; began editing the Advanced tab before finishing the
    CFR read of `j.E2/G2/H2/J2/M2/N2/B2/P2/Q2`, `c3.t`, `c3.u`, `c3.b0`.
 
+9. **NEVER call `AskUserQuestion` (user rule, 2026-08-06).** The option cards it renders got
+   stuck in the user's chat, kept reappearing with a submit button, and blocked them from
+   typing. It is denied in `.claude/settings.json` and `~/.claude/settings.json`, but those
+   are gitignored/ephemeral, so this rule is the durable record. If something genuinely needs
+   the user's decision, ask it as one plain sentence in the reply — no tool, no cards. Same
+   for `ShowOnboardingRolePicker` and anything else that renders an interactive prompt.
+
 ## CLD3 (user decision, 2026-07-29)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. The user wants CLD3 brought up to the same level of
