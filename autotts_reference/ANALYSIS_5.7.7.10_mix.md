@@ -1709,3 +1709,54 @@ list — the same shape as the original "picked a voice for English, nothing app
 
 The Voices tab's sliders, the variant spinner and the Test button were already going through
 the entry (§16, §20, §23).
+
+## 39. `m.o` vs `M(lang)` — read again, and the alias that came out of it
+
+Re-read because the identifier audit found two of our functions doing the identical engine
+test under two different names, which reads like two different tests.
+
+`c3/m.java:491`, whole method:
+
+```java
+public static Boolean o(String object) {
+    Object object2 = object;
+    if (((String)object).length() != 3) {
+        object2 = object = (String)h.get(object);
+        if (object == null) return Boolean.FALSE;
+    }
+    for (int i3 = 0; i3 < (object = c).size(); ++i3) {
+        if (((e)object.get((int)i3)).b.compareTo((String)object2) != 0) continue;
+        return ((e)object.get((int)i3)).i ^ true;
+    }
+    return Boolean.FALSE;
+}
+```
+
+Iso2 folds to iso3 through `m.h`, then the iso3 is looked up in `m.c` and the answer is
+`!e.i` — **not disabled**. The engine field `e.f` is never touched. Every caller of `m.o`
+in the whole decompile lives in `clsCLD2.java` (lines 59, 65, 69, 83, 89), i.e. the detection
+path and nothing else. On our side that is precisely the `detectOk` array
+(`LangStore.languages.filter { !it.disabled }.map { it.iso3 }`) and the `enabledOk` array
+handed to `detectLanguageFull`. Correct as it stands, and it is not a Kotlin function.
+
+`AutoTtsService.java:314`, `M(String)`: logs `getEngine4Language`, returns
+`"com.google.android.tts"` when `O == 3`, otherwise walks `c3.m.c` under a monitor and
+returns `e.f` for the matching entry, or `""`. It returns a **String**, never a boolean.
+Callers — 583, 652, 665, 1907, 2040, 2091, 2166, 2178 — each write the usability test
+inline at the call site:
+
+```java
+if ((var1_1 = this.M(var10_15)).isEmpty() || var1_1.equals("Disable")) { ... }        // 1907, 2178
+if (var1_1.equalsIgnoreCase("unknown") || var1_1.isEmpty()
+        || (var1_1 = this.M(var1_1)).isEmpty() || var1_1.equals("Disable")) break;    // 2166
+```
+
+So AutoTTS has exactly one method here, `M` = our `LangStore.engineFor(lang, modeInt)`, and
+**no boolean helper at all**. We had two: `hasEngineForLang` (the real test) and
+`hasUsableEngine`, a one-line delegate to it. The delegate is something AutoTTS does not
+have, it had two call sites (the mix locale-span branch mirroring 2178, and the multilingual
+locale-span branch mirroring 2166), and both now call `hasEngineForLang` directly. Nothing
+else changed — same predicate, same short-circuit order, same `"Disable"` case sensitivity.
+
+Recorded so this is not re-derived: `m.o` is the detect arrays, `M(lang)` is
+`LangStore.engineFor`, and there is one helper over it, not two.
