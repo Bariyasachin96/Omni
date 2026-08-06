@@ -1889,3 +1889,63 @@ it from `lastScanEngines`. So on both sides an engine that was not in the pool w
 service was created cannot speak until the service is created again. If the symptom survives
 this commit, the next step is the device log — whether the engine is in `engineList` at
 `initAllTTS` at all.
+
+## 42. Voices and Languages tabs — every algorithm checked against the source
+
+Full audit, not a spot check. Read: `j.V2`, `j.D2`, `j.Y2`, `j.O1` (all fifteen branches),
+`j.P1`, `j.I1`–`j.N1`, `j.Z2`, `j.W2`, `j.T2`, `j.A2`, `j.I2`, `j.X2`, `j.z2`, and in `c3.m`
+the list builders `d`, `h`, `i`, `j`, `k`, `l`, `m`, `n`, `s` and the persisters `B`, `C`,
+`u`, `x`, `y`, `z`.
+
+### The five list builders, finally pinned down
+
+| AutoTTS | filters by package | skips disabled | returns | ours |
+|---|---|---|---|---|
+| `m.i()` | — | — | `"name (iso3)"` for iso3 `eng` or `G` | `dualLanguageLabels` |
+| `m.j(pkg, bl)` | yes | **yes** | labels, or iso3 when `bl` | `availableLanguagesFor` |
+| `m.k(pkg)` | yes | no | iso3 | `languageCodesFor` |
+| `m.l(pkg)` | yes | no | `!e.i`, after force-enabling the required ones | `checkedStatesFor` |
+| `m.m(pkg)` | yes | no | `"name (iso3)"` | `languageLabelsFor` |
+
+The Voices tab's language spinner uses `m.j` — the disabled-skipping one — and the Languages
+tab uses `m.m`/`m.k`/`m.l`. Ours already picked the same five in the same places.
+
+### Confirmed identical
+
+* **`V2` mode gating.** `O == 0` hides everything; `O == 1` fills `m.c` from `m.d(ctx)`;
+  `O == 2/3/4/5` from `m.h(ctx, true)`. Spinner labels: `O == 2/4/5` → `m.j(null,false)`,
+  `O == 3` → `m.j("com.google.android.tts",false)`, `O == 1` → `m.i()`. Slider maxima 500
+  speed, 100 volume, 200 pitch. Dedicated-engines box enabled when `O != 0 && O != 3`.
+  Test button starts disabled.
+* **The six ± buttons, including AutoTTS's own asymmetries.** `K1` (speed −), `I1` (pitch −)
+  and `J1` (pitch +) index `m.c.get(b1)` with **no** range guard; `L1`, `M1`, `N1` guard it.
+  `L1` alone sets the SeekBar *before* the entry; the other five set the entry first. All six
+  clamp to 10 low and to `getMax()` high, and none of them touches SharedPreferences. Ours
+  reproduces every one of those, `writeEntryUnchecked` being the unguarded three.
+* **`P1`**, `Z2` (volume, then speed, then pitch), `D2`'s tail (`Collections.sort` then
+  re-weight every row from 0), `Y2`'s variant array — including `Arrays.sort(arr, 1, n-1)`,
+  which leaves the last element unsorted, and the `"*Disabled"` first-row check.
+* **`T2`.** Hidden for `O == 0` and `O == 1`; `m.c` from `m.h(p(), false)`; `m.m`/`m.k`/`m.l`
+  by package; `m.y` immediately after, because `m.l` mutated `e.i`. Item click, select-all,
+  clear-all and the show-selected toggle all match, including that **`I2` always returns
+  true** — both of its paths do — so select-all and clear-all touch every entry in `m.c`, not
+  just the visible ones.
+* **`m.n`.** Required languages: dual → `[G, "eng"]`, auto/google → `[F]`, mix → `[K, L]`,
+  and **multilingual → empty**. `m.l`'s force-enable pass has the same four cases, with
+  nothing for mode 5. Ours matches both.
+
+### Two divergences, now fixed
+
+1. **`W2` had a guard AutoTTS does not have.** AutoTTS tests `m.g == null`, `m.e.isEmpty()`
+   and `m.e.get(0).d == null`, nothing else. Ours also required `selectedIso.isNotEmpty()`,
+   which could silence the Test button in a state AutoTTS would still speak in. Removed.
+2. **Required languages were captured once, not recomputed.** AutoTTS calls `m.n()` fresh
+   inside the item-click handler and again inside clear-all, so a language changed in the
+   Modes tab is honoured immediately. Ours closed over the list built when the tab was
+   created. Both sites now call `requiredNow()`, which reads the service statics the way
+   `m.n()` does.
+
+### Deliberately not copied
+
+`Y2` runs a loop over the variant list looking for the saved variant and then never uses the
+result — no side effect, no logging, no early exit. Left out.
