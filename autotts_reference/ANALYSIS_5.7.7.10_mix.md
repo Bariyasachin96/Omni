@@ -1760,3 +1760,68 @@ else changed — same predicate, same short-circuit order, same `"Disable"` case
 
 Recorded so this is not re-derived: `m.o` is the detect arrays, `M(lang)` is
 `LangStore.engineFor`, and there is one helper over it, not two.
+
+## 40. Every monitor in the app, swept — and the one `engineFor` was missing
+
+Swept `MONITORENTER` across every class we mirror. `clsCLD2`, `a`, `NewSettingsActivity`,
+`c3.m`, `c3.e`, `c3.o`, `c3.j`, `c3.w`, `c3.v`, `c3.z` have **none** — in `c3.m` the three
+synchronized methods (`a`, `b`, `h`) are method-level `synchronized (m.class)`, which CFR
+prints in the signature, not as a comment. Only `AutoTtsService` has synchronized *blocks*,
+ten of them, in four methods:
+
+* **`L`** (endSynthesis) — `synchronized (o) { p.set(true); o.notifyAll(); }` then the
+  hasStarted / hasFinished / done checks outside. We mirror it.
+* **`g0`** (keep-alive silence writer) — `synchronized (o) { o.wait(100L); }` with
+  `InterruptedException` → return. We mirror it.
+* **`onSynthesizeText`** — two `synchronized (o)` pairs at the head (`p.set(false)`,
+  `q.set(false)`, each with `notifyAll`), the `synchronized (o) { while (!p && !q) o.wait(); }`
+  in the tail, and **one `synchronized (AutoTtsService.M)` around each of the four mode
+  branches** (Auto/Google 1866, Dual 1959, Mixed 2019, Multilingual 2146), each inside a
+  `try { } catch (Exception)` that logs. See the note below.
+* **`M(lang)`** — the one we did not have.
+
+### `M(lang)`'s monitor, from smali
+
+CFR is wrong here, so this came from `AutoTtsService.smali`: CFR drops the `monitor-exit`
+on the not-found path and prints the `" res ''"` log *inside* the loop. The bytecode:
+
+```
+    if-ne v0, v1, :cond_0        # O == 3
+    return-object "com.google.android.tts"     <- before the monitor
+:cond_0
+    sget-object v0, Lc3/m;->c:Ljava/util/List;
+    monitor-enter v0
+    :goto_0  ... loop ...
+        " res1 Disable" logged, monitor-exit v0, return-object "Disable"
+        " res "         logged, monitor-exit v0, return-object e.f
+:cond_4
+    monitor-exit v0                            <- released BEFORE the last log
+    " res ''" logged
+    return-object ""
+```
+
+So: the `getEngine4Language` log and the `O == 3` early return are outside the monitor, the
+whole walk is inside it, the two hit paths log inside and release on the way out, and the
+miss path releases first and logs after. `LangStore.engineFor` now has exactly that shape —
+`synchronized(languages) { … }` around the loop only. Kotlin's `synchronized` is inline, so
+a `return` from inside it compiles to the same monitor-exit-then-return.
+
+The lock is the **list**, not the store. That matters: `m.h` (our `rebuildFromScan`) is
+`synchronized (m.class)` — a *different* monitor — so in AutoTTS a rebuild does not exclude
+a concurrent `M(lang)`. Ours mirrors that exactly (`@Synchronized` on the `LangStore` object
+vs `synchronized(languages)` in `engineFor`). Do not "fix" it into one lock.
+
+`N` (pitch), `O` (speed), `P` (voice locale), `Q` (variant) and `R` (volume) hold **no**
+monitor — plain linear walks over `c3.m.c` returning 100 / "" — which is what
+`pitchFor` / `speedFor` / `localeFor` / `variantFor` / `volumeFor` already do.
+
+### Still open: the chunk-list monitor in `onSynthesizeText`
+
+AutoTTS builds chunks **directly into the static list `AutoTtsService.M`** while holding
+`synchronized (M)`, once per mode branch, and `m0` (stopAllTts) calls `M.clear()` at 1442
+*without* the lock. We build into a local `chunks` list and publish it in one
+`synchronized(chunkQueue) { clear(); addAll() }` at the end. Same result when nothing races;
+different when a stop lands mid-build (AutoTTS loses the partial list, we do not). Not
+changed here — it is a restructure of the four mode branches in the largest method in the
+app, and CFR is already proven unreliable around these monitors, so it needs its own
+smali-based pass.
