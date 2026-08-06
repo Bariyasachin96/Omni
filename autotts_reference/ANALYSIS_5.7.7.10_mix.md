@@ -1945,7 +1945,63 @@ tab uses `m.m`/`m.k`/`m.l`. Ours already picked the same five in the same places
    created. Both sites now call `requiredNow()`, which reads the service statics the way
    `m.n()` does.
 
-### Deliberately not copied
+### Was left out, and should not have been — closed in §43
 
-`Y2` runs a loop over the variant list looking for the saved variant and then never uses the
-result — no side effect, no logging, no early exit. Left out.
+`Y2` runs a loop over the variant list looking for the saved variant and never uses the
+result. Skipping it was my judgement, which rule 5 does not allow. Ported in §43.
+
+## 43. Modes and Advanced tabs read whole, and the loop I had no business skipping
+
+### The skipped loop, ported
+
+`Y2`'s first branch walks the variant list comparing each entry to the saved variant and
+breaks on the match, discarding the index. I left it out in §42 because it has no observable
+effect. That is exactly the reasoning rule 5 forbids, and the rule is right — "no side
+effect" is a judgement about AutoTTS, and I do not get to make those. `refreshVariantSpinner`
+now runs the loop, in the same branch, with the same `continue`/`break` shape.
+
+### Modes tab — `j.U2` and `j.onRadioButtonClicked`, whole
+
+`U2`'s first three statements are `m.c.clear()` and `m.c.addAll(m.h(p(), false))`, before any
+view is touched. `onRadioButtonClicked` repeats that rebuild inside every branch except
+`none`. We had the per-branch rebuild but not the one at the top; `buildModesTabView` now
+opens with it.
+
+`onRadioButtonClicked` writes **only** `AutoTtsService.O`. It does not touch
+SharedPreferences — `auto_mode` reaches disk through `m.v`, inside `m.u`, on pause. Our
+`setReadingMode` was doing `putInt("auto_mode", …)` on every radio press. Removed;
+`persistMode` already writes it in the right place.
+
+Everything else matched, checked against `res/layout/fragment_modes.xml` rather than guessed
+from the code:
+
+* Section membership. `AutoModeSettings` holds `auto_mode_language` and `localespans`;
+  `DualModeSettings` holds `dual_mode_language`, `number_mode_language` and
+  `punc_mode_language`; `MixedModeSettings` holds the two mixed language spinners,
+  `number_mode_language_mixed`, `punc_mode_language_mixed` and `localespans_mixed`;
+  `MultilingualModeSettings` holds the two multilingual spinners and
+  `localespans_multilingual` — and **no** number or punctuation spinner. Ours places all
+  fourteen controls exactly there.
+* The two number spinners mirror each other through `H` and the two punctuation spinners
+  through `I`, all four sharing one three-item adapter. The multilingual language spinners
+  write `K` and `L`, the same statics as the mixed ones.
+* Visibility per mode, the `m.m` label source (not `m.j` — the Modes tab does not skip
+  disabled), `m.g` for the selection index, and the three `localespans` boxes each writing
+  `Q` and syncing the other two.
+* `auto_mode_google` carries `android:visibility="gone"` in the layout and
+  `setEnabled(v.a(n1()))` in code. We hide it and enable it on the same condition.
+
+### Advanced tab — `j.R2`, whole
+
+Matched, including the bug at its centre. `R2` assigns the `quick_character_reading` box to a
+**new** local and then calls `setChecked(AutoTtsService.X)` and attaches the `X` listener to
+the **previous** local, which still points at `disable_advanced_detect`. So in AutoTTS the
+"disable advanced language detection" box shows `X` and writes `X`, its `W` listener having
+been replaced a line earlier, and the "quick character read" box is inert with the layout's
+default of unchecked. Ours does the same: the first box reads and writes
+`quickCharacterFlag`, the second is built with `false` and an empty handler.
+
+The rest: `S`, `T`, `U`, `V` (with the notification-permission request on true), the battery
+button's `isIgnoringBatteryOptimizations` guard and both toasts, import, export, and the
+logging box reading `o.g()` with a listener that writes both the preference and the logger.
+The CLD3 row remains the one EasyVoice-only addition, by instruction.
