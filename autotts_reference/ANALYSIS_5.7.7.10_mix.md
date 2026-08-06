@@ -2213,3 +2213,71 @@ Now it behaves like its five neighbours: the row assigns `EasyVoiceTtsService.us
 at service create. `setUseCld3` had no other caller and is gone; `isUseCld3()` stays.
 Import and export need nothing — export ships the raw preference file and the importer handles
 `boolean` tags generically, so `use_cld3` already survived both.
+
+## 49. CLD3's romanisation labels — the one rule that makes the switch a real drop-in
+
+### The report
+Mixed mode, `latFall=en`, `nonLatFall=hi`, `disable_advanced_detection` on, CLD3 on. Text is
+romanised Hindi mixed with English — **all Latin letters**. It was spoken by the Hindi engine
+(Google) instead of the Latin one. From the log:
+
+```
+Mixed mode
+[CLD3] cld3DetectWindow windowLen=64 ... snip='is hisab Se Mujhe complete tex'
+[CLD3] rawOut='UNKNOWN|...'            → result=UNKNOWN
+[CLD3] rawOut='hi-Latn|sh aur jo ...'  → result=hi-Latn
+language: hi-Latn
+language: hin
+getEngine4Language hin →  res com.google.android.tts
+```
+
+### The mechanism
+The text is entirely Latin, so `buildMixChunks` correctly produced one Latin chunk, type 1.
+`disable_advanced_detection` being on, `detectLanguageFull` returns the first non-UNKNOWN
+window answer **without** the enabled-language filter — that is AutoTTS's own rule
+(`clsCLD2.b`: `if (AutoTtsService.W) return code;`). Then `resolveMixChunk` runs
+
+```kotlin
+val detected = if (rawDetected.length > 2) rawDetected.substring(0, 2) else rawDetected
+```
+
+and `hi-Latn` becomes `hi` -> `hin` -> Google, which is a real enabled engine, so the
+`"Disable"` safety net never fires.
+
+That truncation is **right** for `zh-Hant`: `Hant` is a script *variant*, the language is
+still Chinese and still written in Han, so dropping it changes nothing, and CLD2 emits
+`zh-Hant` itself. It is **wrong** for `hi-Latn`, because `-Latn` means "this language, *not*
+in its own script" — truncating deletes a negation and turns "Hindi in Latin letters" into
+"Devanagari Hindi".
+
+### The rule
+CLD2 has no romanisation labels at all. So the honest CLD2-equivalent answer for one is
+**no answer**:
+
+> A romanisation tag is not a language the rest of the app can act on. `cld3DetectRaw`
+> returns it as "no answer", exactly as CLD2 would have had nothing to say.
+
+CLD3's romanisation set is closed and known — `bg-Latn`, `el-Latn`, `hi-Latn`, `ja-Latn`,
+`ru-Latn`, `zh-Latn` (recorded in §37). `isRomanisedTag` tests for those six; on a hit
+`cld3DetectRaw` clears `reliableOut` and returns `""`.
+
+Returning `""` needs no caller change, because `""` is already each caller's own "nothing":
+`detectWindowLang` turns it into `"UNKNOWN"`, `emitScriptSpan` into `"un"`. So the window
+loop moves on, no window answers, and the first-codepoint script fallback runs — Latin family
+-> English -> the Latin engine. Which is what CLD2 does with the same text, because CLD2
+answers `en` or unreliable for romanised Hindi.
+
+`zh-Hant` is untouched: `Hant` is not a romanisation, and it keeps behaving as it does under
+CLD2.
+
+### What was deliberately *not* changed
+* **No chunk-type special-casing.** `resolveMixChunk` is not touched; the rule lives entirely
+  inside the detector, where the vocabulary mismatch is.
+* **No `min_num_bytes` tuning.** The log's fifteen short-string false positives — `ca` on
+  "Closed Recents", `fy` on "Jieshuo+,Unlocked", `sr` on "Easy Voice", `la` on "Clock" — all
+  already recover: those languages are disabled, `engineFor` answers `"Disable"`, and the
+  chunk falls back to `latinFallback`. CLD2 behaves identically on its own false positives.
+  Raising the minimum would make CLD3 *stricter* than CLD2, not equal to it.
+* **The script-consistency helper is already gone.** `cld3ScriptConsistent` and CLD3's
+  `normalizeLangCode` stage were removed on 2026-08-04 (§37); today's `cld3DetectRaw` had no
+  post-processing at all before this change.

@@ -868,12 +868,17 @@ jobs:
           static const char* scriptLangForCp(int codePoint);
           static bool isJavaWhitespace(int codePoint);
           static bool isLatinPunctuation(int codePoint);
+          static bool isRomanisedTag(const std::string& code){
+              return code=="bg-Latn" || code=="el-Latn" || code=="hi-Latn"
+                  || code=="ja-Latn" || code=="ru-Latn" || code=="zh-Latn";
+          }
           static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut){
               static std::mutex g_cld3Mutex;
               static chrome_lang_id::NNetLanguageIdentifier* g_cld3 = nullptr;
               std::lock_guard<std::mutex> cld3Lock(g_cld3Mutex);
               if(!g_cld3) g_cld3 = new chrome_lang_id::NNetLanguageIdentifier(0, 1024);
               const chrome_lang_id::NNetLanguageIdentifier::Result result = g_cld3->FindLanguage(utf8Text);
+              if(isRomanisedTag(result.language)){ if(reliableOut) *reliableOut = false; return ""; }
               if(reliableOut) *reliableOut = result.is_reliable;
               return result.language;
           }
