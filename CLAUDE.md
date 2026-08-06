@@ -72,13 +72,16 @@
    the user's decision, ask it as one plain sentence in the reply — no tool, no cards. Same
    for `ShowOnboardingRolePicker` and anything else that renders an interactive prompt.
 
-## CLD3 (user decision, 2026-07-29)
+## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
-feature and **must NOT be removed**. The user wants CLD3 brought up to the same level of
-implementation as CLD2 — but **later**. Order of work:
-1. **NOW**: finish everything on the CLD2 path to exact AutoTTS parity.
-2. **THEN**: improve CLD3 the same way CLD2 is done.
-Do not start CLD3 work until the CLD2 side is declared complete.
+feature and **must NOT be removed**. Both steps the user asked for are finished:
+1. CLD2 path taken to exact AutoTTS parity (coverage audit, `ANALYSIS` §42-§47).
+2. CLD3 brought level with CLD2 (`ANALYSIS` §37 and §48) — both detector call sites have
+   symmetric arms, and the switch now lives on the same static/persist/load path as the
+   other five Advanced flags.
+The rule for this row is not "match AutoTTS" (AutoTTS has no such switch) but **"wherever
+CLD2 makes a detection, the switch must be able to put CLD3 there instead"**. Keep that
+invariant on any future change to the detection path.
 
 ## How to Trigger Build
 ```

@@ -1657,7 +1657,7 @@ no counterpart for:
 
 | stage | what it did | why it is gone |
 |---|---|---|
-| strip after `-` | `hi-Latn` -> `hi` | CLD2 returns `zh-Hant` unstripped and the CALLER truncates to two chars. `und` truncates to `un`, which is CLD2's own unknown code, so even that case lines up |
+| strip after `-` | `hi-Latn` -> `hi` | CLD2 returns `zh-Hant` unstripped and nothing downstream strips it either — see the correction in §48 |
 | `normalizeLangCode` | iso3 -> iso2 rewrite | CLD2's code is never rewritten |
 | `cld3ScriptConsistent` | rejected an answer whose latin/non-latin side disagreed with the text's first real codepoint | CLD2 may answer whatever it is confident about; nothing second-guesses it |
 
@@ -2173,3 +2173,43 @@ list builders, §42), `n` (required), `o` (§39), `p`/`q`/`r` (loaders), `s` (st
 
 `L` is the other shape and stays distinct: notify under the monitor first, then
 `hasStarted && !hasFinished` before `done()`.
+
+## 48. CLD3 finished — the switch now lives where the other Advanced flags live
+
+CLD2 having been closed out, the CLD3 row is unblocked. Audited both detector call sites and
+the whole lifecycle of the switch.
+
+### The detection itself was already level
+`detectWindowLang` has two symmetric arms: CLD3 asks `cld3DetectRaw`, returns `"UNKNOWN"`
+when `is_reliable` is false and when the answer is empty; CLD2 calls
+`DetectLanguageSummaryV2`, returns `"UNKNOWN"` when `!reliable` and when `LanguageCode` gives
+null. `emitScriptSpan` has two arms that both share the 1024-byte cap with its UTF-8 back-off,
+both ignore reliability, and both fall to `"un"`. The fixed table for scripts 7..25 is
+segmentation, not detection, so neither arm reaches it. `buildMixChunks` emits no language of
+its own. Every JNI entry that can detect — `detectLanguageFull`, `nativeGetLanguages`,
+`processDirect` — takes the flag, and the Kotlin side passes `useCld3Flag` to all three.
+
+### Correction to §37
+§37 claimed CLD2's `zh-Hant` gets truncated to two characters by the caller. It does not.
+`toIso3` rewrites a code only when it is exactly two characters, so `zh-Hant`, `hi-Latn` and
+`und` all pass through unchanged and simply fail the `okIso3` test — which is exactly what
+AutoTTS does, because `clsCLD2.b` hands the raw code to `m.o`, and `m.o` folds through `m.h`
+only for codes that are not length 3 and finds nothing for a script-tagged one. No truncation
+anywhere, on either side. The code was right; the note was not.
+
+### The real gap: the switch's lifecycle
+The other five Advanced checkboxes assign a service static and nothing else; `m.A`
+(`persistFlags`) writes them on pause and `m.r` (`loadFlags`) reads them back. The CLD3 row
+did none of that — it called `setUseCld3`, which wrote the preference eagerly, and
+`persistFlags` and `loadFlags` did not mention `use_cld3` at all.
+
+The visible consequence: `loadFlags` is what `MainActivity.onCreate` calls, so in a process
+where the settings screen opens before the TTS service has ever started, every other flag was
+restored and `useCld3Flag` sat at its `false` default. **The checkbox showed unchecked while
+CLD3 was actually the stored choice.**
+
+Now it behaves like its five neighbours: the row assigns `EasyVoiceTtsService.useCld3Flag`,
+`persistFlags` writes `use_cld3`, `loadFlags` reads it, and `eagerLoadPrefs` already read it
+at service create. `setUseCld3` had no other caller and is gone; `isUseCld3()` stays.
+Import and export need nothing — export ships the raw preference file and the importer handles
+`boolean` tags generically, so `use_cld3` already survived both.
