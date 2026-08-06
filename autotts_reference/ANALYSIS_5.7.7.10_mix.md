@@ -2095,3 +2095,48 @@ decompile: dead code in their APK, correctly absent from ours.
    `HashMap`, so the `"- <lang> <value>"` lines come out in hash order. Ours used a
    `LinkedHashMap` and printed them in document order. The returned set was the same either
    way, the log was not. Now a `HashMap`.
+
+## 46. `NewSettingsActivity` and `c3.y` read whole
+
+### `NewSettingsActivity` — three divergences
+
+Read all ten methods. `A0` (voice merge), `B0` (engine discovery), `D0` and `y0` (the scan
+driver), `z0` (finalise), `E0` (tab descriptions), `onCreate`, `onPause`, `onDestroy`; `C0`
+is the licence carve-out.
+
+Confirmed identical first: `B0`'s three `queryIntentServices` passes with flags
+`131072`, `128`, `0` and the self-package skip; the 30 s per-engine watchdog and the
+180 s global one; the progress text, which is `String.format("%s %s... (2)", "Scanning", pkg)`
+from `autotts_scan` — ours builds the same string; the tab content description
+`"%1$s, tab %2$d of %3$d"`; `offscreenPageLimit(4)`; `z0`'s order — dedupe the failed
+indices, sort descending, drop those engines from `m.b`, drop their voices from `m.d`,
+rebuild `m.c` from `m.h(this, false)`, then `m.u(this)`, then create the Test client; and
+`onPause` = `m.u(this)` before `super`.
+
+Fixed:
+
+1. **`onDestroy` shut the Test client down.** AutoTTS's is two lines —
+   `K.removeCallbacksAndMessages(null); super.onDestroy();` — and it never shuts `m.g` down,
+   because `m.g` is a static that outlives the screen. Ours called `testTts.shutdown()`.
+2. **`newTestClient` shut the previous client down.** `z0` just overwrites `m.g`. Ours
+   did `try { testTts?.shutdown() } catch {}` first. Removed.
+3. **Nothing cleared the global scan timeout on destroy.** AutoTTS keeps two handlers —
+   `K` for the 180 s timeout, `N` for the 30 s per-engine watchdog — and `onDestroy` clears
+   only `K`. We had one handler for both, so clearing it would have killed the watchdog too.
+   `EngineFinder` now has a `globalTimeoutHandler` of its own alongside `mainHandler`, and
+   `cancelGlobalTimeout()` is what `onDestroy` calls.
+
+### `c3.y` methods `a` to `f` — no divergence
+
+`y.f` strips the bidi controls `U+061C`, `U+200E`, `U+200F` and `U+202A`–`U+202E`, and runs
+*after* `replaceAll("\\s+", " ")`; our C++ does the collapse then the same strip, in that
+order, and its whitespace set is Java's `\s` exactly (`0x09`–`0x0D`, `0x20`). `y.c` classifies
+in the order all-whitespace → 0, punctuation → 4, number → 3, else 1, which is the order our
+segment builder uses.
+
+`y.a` is only ever called for index 0, and `y.b` scans backwards from `n - 1`; ours scans
+forward from `segPos + 1` when `segPos == 0` and backwards otherwise, which is the same walk.
+The neutral fallback `n6` — 2 when the device language equals `G` in dual mode or `L` in
+mixed mode, 1 otherwise — is our `neutralType`, and `y.b` returning 0 lands on
+`neutralDefault` on both sides. The number and punctuation overrides apply at every index on
+both sides, not just at index 0.
