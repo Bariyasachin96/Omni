@@ -2051,3 +2051,47 @@ build and both weight passes, and the Modes tab's code list.
 `indexOf` and `loadLanguages` were already index loops. A sweep for `for (… in languages)`,
 `languages.filter`, `languages.map`, `currentVoiceRows.withIndex` and `currentVoiceRows.map`
 now returns nothing.
+
+## 45. Coverage audit — every AutoTTS class enumerated, and the small ones read
+
+Prompted by "is anything left?". Rather than answer from memory, every class AutoTTS ships
+was listed with its method count and each one accounted for.
+
+### Not code
+`c3.p`, `c3.q`, `c3.r`, `c3.s`, `c3.i`, `c3.f`, `c3.g`, `c3.h`, `c3.c0`, `c3.d0`, `c3.e0` are
+desugared lambda adapters — a field, a constructor and one forwarding call each. Our Kotlin
+lambdas are their equivalent. `LicensesDialogFragment` is never instantiated anywhere in the
+decompile: dead code in their APK, correctly absent from ours.
+
+### Read and confirmed identical
+* **`c3.u`** — the package → engine-name map. 46 entries on both sides, none missing, none
+  extra, no value different.
+* **`c3.t`** — the required-engines dialog. Matches down to the title's typo
+  ("Requried TTS Engines"), padding 48/48/48/24, title size 20 with 32 below, the row
+  padding 0/16/0/16, "Installed" `-11751600` and "Not installed" `-6381922`, the
+  weight-1 buttons with 8px inner margins, and the constructor's `println(name + ": " + pkg)`.
+* **`c3.f0`** — the engine wrapper. All eleven fields, the package's `-`/`_` stripping, the
+  `ThreadPoolExecutor(0, 5, 60s, LinkedBlockingQueue)` with a daemon thread named `TtsStop`,
+  the restore gate `count == 0 || (elapsed_ms > 3000.0 && count < 10)`, and both
+  `Log.w("Stop failed for …")` / `Log.w("Shutdown failed for …")`.
+* **`c3.m.g`** (index-of), **`c3.m.r`** (six flags, `disable_advanced_detection` and
+  `quick_character_reading` defaulting to true), **`c3.o.i`** (2 MiB rotation keeping
+  `.1`/`.2`/`.3`), **`c3.o.k`** (toast, chooser, `FLAG_ACTIVITY_NEW_TASK`), **`c3.c.a`**
+  (emoji regex), **`c3.x.a`** (all-whitespace test), **`c3.l`** (five-tab adapter),
+  **`c3.b0.a`** (1024-byte copy), **`c3.b0.c`** (all-letters test), **`c3.b0.d`** (export:
+  missing-file toast, `cacheDir/shared`, `text/xml`, `FLAG_GRANT_READ_URI_PERMISSION`,
+  "Share Settings" chooser).
+
+### Two divergences, fixed
+1. **`c3.d`'s per-engine monitor.** `c(pkg)` and `e()` are both `synchronized (this)` on the
+   per-engine binder object, so two threads binding the same engine serialise. Ours had no
+   lock at all — the same shape of gap as §44's iterators. `bindEngineKeepAlive` and
+   `unbindEngineKeepAlive` now take a per-package monitor from `keepAliveLocks`, which gives
+   exactly AutoTTS's guarantee without serialising different engines against each other.
+   Everything else in `c3.d` already matched: the `TTS_SERVICE` intent, `resolveService`, the
+   explicit `ComponentName`, bind flags 65 (`BIND_AUTO_CREATE | BIND_IMPORTANT`), all four
+   callbacks and their log strings, and the rebind on `onBindingDied`.
+2. **`b0.b`'s map type.** AutoTTS collects the language → `engine#locale` pairs in a plain
+   `HashMap`, so the `"- <lang> <value>"` lines come out in hash order. Ours used a
+   `LinkedHashMap` and printed them in document order. The returned set was the same either
+   way, the log was not. Now a `HashMap`.
