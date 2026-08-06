@@ -2140,3 +2140,36 @@ The neutral fallback `n6` — 2 when the device language equals `G` in dual mode
 mixed mode, 1 otherwise — is our `neutralType`, and `y.b` returning 0 lands on
 `neutralDefault` on both sides. The number and punctuation overrides apply at every index on
 both sides, not just at index 0.
+
+## 47. `c3.m` and `AutoTtsService` closed out — every method accounted for
+
+### `c3.m`, all 30
+
+`a` and `b` came from smali in an earlier pass. The rest are read: `c`/`d` (lists), `e`
+(iso3 country, `""` on null or throw), `f` (iso3 language, `cmn`/`lzh`/`gan`/`hak` folded to
+`zho`, `"zxx"` on null or throw), `g` (index-of), `h` (rebuild), `i`/`j`/`k`/`l`/`m` (the five
+list builders, §42), `n` (required), `o` (§39), `p`/`q`/`r` (loaders), `s` (stored weight),
+`t` (normalise, `f` + `e` + variant), `u` (§41), `v`/`w`/`x`/`y`/`z`/`A`/`B`/`C`/`D`
+(persisters). Nothing left, nothing divergent.
+
+### `AutoTtsService`, the five that had not been read whole
+
+* **`I()`** — `Builder(this, "tts_channel").setContentTitle(… active).setSmallIcon(17301540)
+  .setOngoing(true).build()`. Ours matches, with our own app name in the title.
+* **`l0()`** — `if (!S()) return; J(); SDK >= 34 ? ServiceCompat.startForeground(this, 136549,
+  I(), FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK) : startForeground(136549, I())`, whole thing in
+  a try whose catch logs `e.getMessage()`. Ours matches, id and type included.
+* **`f0(String)`** — split on `_`: 1 → `Locale(a)`, 2 → `Locale(a,b)`, 3 → `Locale(a,b)` when
+  the third part is empty else `Locale(a,b,c)`, anything else null, and null on throw. Ours
+  matches.
+* **`k0(Locale)`** — three passes over the voice list, each requiring `split("#")` to give 2
+  **or** 3 parts and each returning `""` outright the moment a voice name fails to parse:
+  language + country + variant, then language + country, then language. Ours matches, the
+  `2 or 3` test included.
+* **`K(cb, int)`** — `if (!hasStarted) start(16000, 2, 1); if (!hasFinished) done();`. The int
+  argument is never used. This is a real method in AutoTTS and we had its two lines copied
+  out at ten call sites; they now call one `startAndFinish(callback)`, which is `K`. Not a
+  behaviour change — it is the structure AutoTTS actually has, and ten duplicates fewer.
+
+`L` is the other shape and stays distinct: notify under the monitor first, then
+`hasStarted && !hasFinished` before `done()`.
