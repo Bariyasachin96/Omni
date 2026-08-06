@@ -1,7 +1,5 @@
 .claude/
 
-# Generated build artifacts — source of truth is .github/workflows/build.yml
-# (all Kotlin/C++/Gradle files are emitted by the CI heredoc; never commit them).
 /app/
 /build.gradle.kts
 /settings.gradle.kts

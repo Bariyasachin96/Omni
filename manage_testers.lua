@@ -115,7 +115,6 @@ local function runBg(fn)
         luajava.createProxy("java.lang.Runnable",{run=fn})):start()
 end
 
--- UI
 local root = LinearLayout(activity)
 root:setOrientation(1)
 root:setPadding(40,60,40,40)
