@@ -1825,3 +1825,67 @@ different when a stop lands mid-build (AutoTTS loses the partial list, we do not
 changed here — it is a restructure of the four mode branches in the largest method in the
 app, and CFR is already proven unreliable around these monitors, so it needs its own
 smali-based pass.
+
+## 41. The Voices tab chain read end to end — `m.e` is a static, and we had it local
+
+Read for the report "picked eloquence for English, Test said nothing, and it only took
+effect after closing and reopening the app". Chain listed first, then read whole:
+`j.O1` (both the language branch and the voice branch), `j.D2`, `j.Y2`, `c3.w` in full,
+`m.B`, `m.C`, `m.s`, `m.u`, `m.x`, `AutoTtsService.Y`, `T`, `b0`, `c0`.
+
+### `j.O1`'s voice branch, verbatim
+
+```java
+if (object.getId() == 2131230836) { if (n3 == 0) return; break block20; }
+...
+for (n4 = 0; n4 < c3.m.e.size(); ++n4) {
+    if (n4 == n3) {
+        ((w)c3.m.e.get(n4)).h(0);
+        this.K0.setEnabled(((w)c3.m.e.get(n4)).d != null);
+        if (((w)c3.m.e.get(n4)).d == null) continue;
+        ((e)c3.m.c.get(c3.j.b1)).f = ((w)c3.m.e.get(n4)).d.b;
+        ((e)c3.m.c.get(c3.j.b1)).g = ((w)c3.m.e.get(n4)).c.toString();
+        continue;
+    }
+    if (n4 >= n3) continue;
+    ((w)c3.m.e.get(n4)).h(n4 + 1);
+}
+Collections.sort(c3.m.e);
+this.Y2();
+```
+
+`w.h(int)` only assigns the weight — it writes nothing. Picked row gets 0, rows *above* it
+get index+1, rows *below* keep the weights they already had, and the sort turns that into
+move-to-front. Our reorder reaches the identical final order and weights. The memory writes
+onto the entry, the Disabled-row skip, the Test-button enable and the `Y2()` rebuild all
+matched already.
+
+### The three real differences
+
+1. **`c3.m.e` is a static field** (`public static List e;` in `c3.m`) holding the selected
+   language's voice rows. Ours was a local `voiceRows` inside `buildVoicesTabView`. Now
+   `LangStore.currentVoiceRows`, with `LangStore.currentVoiceIso` alongside it because our
+   Disabled row is a `null` and cannot carry its own locale the way `w.c` does.
+
+2. **`m.u` runs `m.C`; our `persistAll` did not.** `m.u` is `x, D, C, w, y, v, A` —
+   engines, voice list, **voice weights**, mode languages, languages, mode, flags. Ours ran
+   `x, D, w, y, v, A`. It could not run `C` because `C` iterates `m.e`, which we had made
+   local. `persistAll` now has `persistVoiceRows` in the same slot, and `m.B`'s exact body:
+   `putString(w.f(), index)`, plus `putString(m.f(w.c), w.f())` when index is 0, committing
+   per row.
+
+3. **The voice branch writes no preferences at all.** Ours committed the whole weight table
+   plus `iso -> pkg#locale` on every pick. That eager write was a workaround for (1) and (2);
+   with both fixed it is gone, and the values reach disk where AutoTTS puts them — `m.C` when
+   the language spinner moves (`O1` line 733, before `D2`), and `m.u` on pause.
+
+### What this does *not* explain, checked
+
+`Y()` (engine list) and `T()` (initAllTTS) have exactly one caller each — `onCreate`, lines
+1582 and 1590. `b0` and `c0` look the pool up by package with `state == 2` and, when it is
+missing, log `"TTS is not ready"` and set `d = -1`; neither creates an engine on demand.
+`m.x` fills `engine_N` from `c3.m.b`, every scanned engine, exactly as `persistEngines` fills
+it from `lastScanEngines`. So on both sides an engine that was not in the pool when the
+service was created cannot speak until the service is created again. If the symptom survives
+this commit, the next step is the device log — whether the engine is in `engineList` at
+`initAllTTS` at all.
