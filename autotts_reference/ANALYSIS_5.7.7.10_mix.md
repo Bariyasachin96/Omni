@@ -2005,3 +2005,49 @@ The rest: `S`, `T`, `U`, `V` (with the notification-permission request on true),
 button's `isIgnoringBatteryOptimizations` guard and both toasts, import, export, and the
 logging box reading `o.g()` with a listener that writes both the preference and the logger.
 The CLD3 row remains the one EasyVoice-only addition, by instruction.
+
+## 44. The ConcurrentModificationException — AutoTTS never uses an iterator over `c3.m.c`
+
+Crash from the device:
+
+```
+Caused by: java.util.ConcurrentModificationException
+    at java.util.ArrayList$Itr.checkForComodification(ArrayList.java:1112)
+    at java.util.ArrayList$Itr.next(ArrayList.java:1065)
+    at ah.I(SourceFile:1)
+    at com.tts.easyvoice.EasyVoiceTtsService.onIsLanguageAvailable(SourceFile:41)
+    at android.speech.tts.TextToSpeechService$1.getDefaultVoiceNameFor(...)
+```
+
+`ah.I` is `LangStore.availableLanguagesFor`, reached from `onIsLanguageAvailable` on the
+TTS framework's binder thread while the settings screen was rebuilding
+`LangStore.languages` on the main thread.
+
+This is not a threading gap to paper over — it is a straight rule-5 divergence. **Every**
+AutoTTS method that reads `c3.m.c` walks it by index, re-reading `size()` each time:
+
+```java
+for (int i3 = 0; i3 < (list = c).size(); ++i3) { ... list.get(i3) ... }
+```
+
+Checked in `m.i`, `m.j`, `m.k`, `m.l`, `m.m`, `m.o`, `m.d`, `m.h`, `m.y`, `m.z`, `m.C`, and
+in the service `M`, `N`, `O`, `P`, `Q`, `R`. Not one of them takes an iterator, so not one of
+them can throw `ConcurrentModificationException`: in the same race AutoTTS reads a shorter
+list or a stale element and carries on. `onIsLanguageAvailable` itself is
+`m.j(null, true).contains(...)`, so it inherits that.
+
+Our Kotlin used `for (entry in languages)`, `.filter {}`, `.map {}` and `.withIndex()` — all
+of which allocate an iterator. Every one of them is now an index walk that re-reads
+`languages.size` per iteration, matching the bytecode. The index is incremented immediately
+after the `get`, so `continue` behaves as it does in a C-style `for` header.
+
+Converted: `persistDisabled`, `dualLanguageLabels`, `languageLabelsFor`, `languageCodesFor`,
+`checkedStatesFor`, `availableLanguagesFor`, `persistVoiceRows`, `engineFor`, `localeFor`,
+`variantFor`, `speedFor`, `volumeFor`, `pitchFor`; in the service the two variant lookups
+inside `loadVoice`/`loadVoiceDedicated`, the `detectOk` array and `enabledLangs`; in the UI
+the Languages tab's item-click, select-all and clear-all passes, the voice-spinner label
+build and both weight passes, and the Modes tab's code list.
+
+`indexOf` and `loadLanguages` were already index loops. A sweep for `for (… in languages)`,
+`languages.filter`, `languages.map`, `currentVoiceRows.withIndex` and `currentVoiceRows.map`
+now returns nothing.
