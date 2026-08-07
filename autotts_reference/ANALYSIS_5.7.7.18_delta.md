@@ -464,3 +464,34 @@ error-7 preflight as multilingual, so both now run one shared `resolveMixChunk`.
       gate at 1208.
 
 **§10 is now closed** — all four paths ported in `0f4b165` and `e06fcd7`.
+
+---
+
+## 11. Deep re-read of mix, dual and auto (2026-08-07)
+
+Two things the mode-by-mode pass had still not caught.
+
+**`clsCLD2.c` splits; we did not.** It returns a list of (language, latin flag, text)
+triples, not one language for the chunk, and both mix and multilingual add every run as
+its own segment. Our C++ has always had the equivalent, `nativeGetLanguages`, returning
+the same flat triples — Kotlin simply never called it, so a chunk mixing two scripts got
+one voice for all of it. Fixed in `0a70de0`; found by asking why that native function had
+no callers.
+
+**The first-chunk preflight was only in dual.** AutoTTS runs `onLoadLanguage` on the first
+segment's language in mix (524-538) and multilingual (668-672) too, aborting with error 7.
+Added to both.
+
+### Known divergence, deliberately left as it is
+
+In the auto/google tail the two type fallbacks (1246-1264, 1270-1290) switch on
+`k().get(0).a()`. In auto mode the segments come from `e0.g()`'s locale spans, built with
+the `(text, language)` constructor, which sets the type to **-1** — so neither switch
+matches and AutoTTS **keeps the detected language** when its engine is missing or Disable.
+Ours resets to the auto-mode language there.
+
+Changing ours to match would leave a chunk pointing at a language with no engine, and the
+abort that saves AutoTTS from that is its `l(ctx, lang, "", "")` preflight at 1293, which
+sits in the shared tail rather than in the auto branch. Porting the fallback without that
+preflight would be strictly worse than what we have. Recorded rather than half-changed —
+the tail preflight has to land first.
