@@ -239,6 +239,8 @@ and `strings.xml` are unchanged.
 
 ### Still to port
 
-- [ ] `c3.e` in full, replacing `initIsoMaps` / `normalizeLangCode` /
-      `SharedPrefsManager.toIso3`, which are all still on the 5.7.7.10 behaviour.
+- [x] `c3.e` ported in full as `IsoCodes.kt` (tables machine-extracted). It now backs
+      `normalizeLangCode` (= `e.b`), the three detection-result sites (= `e.c`) and the
+      enabled-language set (= `e.b`, `AutoTtsService:830`). `n.e(Locale)` is unchanged
+      in 5.7.7.18, so `localeIso3` / `SharedPrefsManager.toIso3` stay as they are.
 - [x] `SYSTEM_ALERT_WINDOW` dropped from the manifest.
