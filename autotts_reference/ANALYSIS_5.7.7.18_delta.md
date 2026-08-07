@@ -189,3 +189,56 @@ recorded so they are not mistaken for verified ports: `isLetterCodepoint` stands
 for `Character.isLetter` (covers the letter blocks of every script in the keyword
 table) and `lowerCaseRoot` for `toLowerCase(Locale.ROOT)` (cases Latin incl. Latin-1,
 Greek and Cyrillic — every other script in the table is caseless).
+
+---
+
+## 8. Full sweep of everything else (audit, 2026-08-07)
+
+Every `c3.*` class was paired old→new by normalised content and diffed. Real findings:
+
+**`c3.e` — a brand-new class, and the one real gap the first pass missed.**
+In 5.7.7.10 the iso2↔iso3 maps were `c3.m.h` / `c3.m.i`, built purely from
+`Locale.getISOLanguages()` + `getISO3Language()` with a `cmn/lzh/gan/hak → zho` fix
+(`m.c`, old line 159-175). 5.7.7.18 replaces that with `c3.e`, which starts from the
+same platform data and then **overrides** it:
+
+- `e.d` — 20 iso2 → *terminological* iso3 pairs (`sq→sqi hy→hye eu→eus my→mya zh→zho
+  cs→ces nl→nld fr→fra ka→kat de→deu el→ell is→isl mk→mkd mi→mri ms→msa fa→fas
+  ro→ron sk→slk bo→bod cy→cym`). Android returns the *bibliographic* codes here
+  (alb, arm, baq, bur, chi, cze, dut, fre, geo, ger, gre, ice, mac, mao, may, per,
+  rum, slo, tib, wel), so this is a behavioural fix, not a reshuffle.
+- `e.c` — the reverse, bibliographic iso3 → iso2.
+- legacy tags: `iw`/`he`→`heb`, `in`/`id`→`ind`, `ji`/`yi`→`yid`; `heb`→`he`,
+  `ind`→`id`, `yid`→`yi`.
+- Chinese: `cmn lzh gan hak wuu hsn cjy nan mnp` → `zh` (5.7.7.10 handled only the
+  first four), plus `zho`→`zh` and `yue`→`yue`.
+- `e.f` — 10 codes with no iso2 (`fil ceb haw hmn war nso syr chr lus sco`) map to
+  themselves in both directions.
+- `e.a(tag)` strips at `-`/`_` and lowercases ROOT, so `en-US` / `zh_CN` resolve.
+- `e.b` → iso2, `e.c` → iso3; both return null when unknown and every caller falls
+  back.
+
+It is called from `c3/n.java:483` and from **five** places in `AutoTtsService`
+(830, 1972, 2306, 2479, 2685, 3084) — that is one per mode, on the detector's output,
+where 5.7.7.10 did `c3.m.h.get(...)`. So it changes routing in **every** mode.
+
+**Manifest:** `SYSTEM_ALERT_WINDOW` is gone in 5.7.7.18. It was declared and never
+used in 5.7.7.10 — the long-standing open question is now answered by AutoTTS itself.
+(`extractNativeLibs` false→true and the fused-modules meta-data moving are packaging,
+and `com.pairip.application.Application` / `@drawable/ic_launcher` stay carve-outs.)
+
+**Everything else in the sweep is noise**, confirmed by reading each diff:
+`c3.d` (keep-alive), `c3.b0→g0` (export/import, lost some `System.out.println`
+debug lines), `c3.o→p` (logger), `c3.t→u` (required-engines dialog), `c3.l→m`
+(resource ids renumbered, `K2`→`L2`), `c3.w→b0`, `c3.f0→k0`, `c3.d0→i0`,
+`c3.e0→j0`, `c3.z→e0` — all variable-slot shuffles, renames or dropped debug
+output. `c3.x`, `c3.y`, `c3.z`, `c3.a0` are new but are only API-33 `PackageInfo`
+shims and a version-code helper. `NewSettingsActivity` and the rest of `clsCLD2`
+are rename-only. `res/xml/` and every `values/` file except `ids.xml`, `public.xml`
+and `strings.xml` are unchanged.
+
+### Still to port
+
+- [ ] `c3.e` in full, replacing `initIsoMaps` / `normalizeLangCode` /
+      `SharedPrefsManager.toIso3`, which are all still on the 5.7.7.10 behaviour.
+- [x] `SYSTEM_ALERT_WINDOW` dropped from the manifest.

@@ -5412,7 +5412,6 @@ jobs:
           "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n"
           "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />\n"
           "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n"
-          "    <uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n"
           "    <application\n"
           "        android:allowBackup=\"false\"\n"
           "        android:extractNativeLibs=\"false\"\n"
