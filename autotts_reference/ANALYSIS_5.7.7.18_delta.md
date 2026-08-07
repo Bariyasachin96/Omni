@@ -334,12 +334,38 @@ In 5.7.7.10 this fallback existed only for types 1 and 2. Types **3, 4 and 5 rou
 J / L / N here is new**, and so is the `c3.e.c` conversion in this path, and so is the
 `S == 4 || S == 5` gate just above it at 1208.
 
+### 10a. Dual branch — read in full, specified
+
+New: method-relative 197-342. Old: 188-254.
+
+After `d0.t`, AutoTTS looks at the **first** segment only, and preflights the language
+that segment's type routes to. `onLoadLanguage` returning -1 or -2 aborts the whole
+synthesis with an error code:
+
+| first segment type | language preflighted | error code on failure |
+|---|---|---|
+| 1 | `"eng"` (literal) | **4** |
+| 2 | `H` (dual language) | 5 |
+| 3 | `J` (number specific) | 5 |
+| 4 | `L` (punct specific) | 5 |
+| 5 | `N` (emoji specific) | 5 |
+
+Each logs `"language: <code>"` before, and `"Languge is not supported: <code>, text: <t>"`
+(AutoTTS's own spelling) on failure. Empty chunk list falls through to the plain path.
+
+5.7.7.10 had **only rows 1 and 2** here (old 215-239, using the then-name `G` for the
+dual language). Rows 3, 4 and 5 are new.
+
+**Ours does none of this preflight** — the dual path takes the C++ chunks and appends
+them, with no `onLoadLanguage` check and no error return. So rows 1 and 2 were already
+missing from the 5.7.7.10 port, and 3-5 are new on top.
+
 ### Still to do
 
-- [ ] Read all four mode branches of `onSynthesizeText` old-vs-new line by line — dual,
-      mix, multilingual and the auto/google tail — not just locate the `d0.t` call sites.
+- [ ] Same line-by-line read for the mix branch (new 343-556), the multilingual branch
+      (new 557-...) and the auto/google tail.
+- [ ] Port the dual first-segment preflight table above.
 - [ ] Port the continuation-path type fallback (1231-1264) and the `S == 4 || S == 5`
       gate at 1208.
 
 Do **not** treat §9's "onSynthesizeText: ported" as settled until this section is closed.
-
