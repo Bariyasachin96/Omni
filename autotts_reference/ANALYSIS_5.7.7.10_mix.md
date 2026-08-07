@@ -2281,3 +2281,45 @@ CLD2.
 * **The script-consistency helper is already gone.** `cld3ScriptConsistent` and CLD3's
   `normalizeLangCode` stage were removed on 2026-08-04 (§37); today's `cld3DetectRaw` had no
   post-processing at all before this change.
+
+## 50. Names read against their bodies, not against a pattern
+
+The previous naming passes were pattern-driven — short names, cryptic names, confusable
+names. This one is different: every declaration was put next to what it actually does, and
+judged on whether the name tells the truth.
+
+### Functions renamed
+
+| was | is | why the old one lied |
+|---|---|---|
+| `advance` | `scanNextEngine` | it does not just advance an index — it skips our own engine, finalises the scan if there is nothing left, and otherwise starts the next engine |
+| `startFirst` | `scanFirstEngine` | same shape, for index 0 |
+| `eagerLoadPrefs` | `loadAllSettings` | "eager" describes nothing. It loads the engine list, the voice list, the languages, the mode languages, the mode and all seven flags |
+| `modeIntToLang` | `languageForModeOption` | it is not a generic int-to-language conversion; it answers what language a number or punctuation *mode selector* maps to |
+| `initAllTTS` | `initAllEngines` | shouty and vague; it rebuilds the engine pool |
+| `multilingualChunks` | `splitIntoMultilingualChunks` | a noun for something that splits text |
+| `buildVoiceList` | `loadVoiceList` | nothing is built — it reads `voice_N` out of preferences |
+| `writeEntry` | `writeSliderValue` | "entry" could be anything; it writes one slider's value onto the selected language |
+| `writeEntryUnchecked` | `writeSliderValueUnchecked` | same, the variant without the range guard |
+| `cached` / `setCached` | `sliderValue` / `setSliderValue` | they read and write the live slider values, not a cache |
+
+### Fields renamed
+
+`utteranceIdStr` -> `utteranceId` (the `Str` was type noise), `googleEngineIdx` ->
+`googleEngineIndex`, `reqVolume`/`reqRate`/`reqPitch`/`reqParams` ->
+`requestVolume`/`requestRate`/`requestPitch`/`requestParams`, `audioMgr` -> `audioManager`,
+`audioFocusReq` -> `audioFocusRequest`, `initIndex` -> `initializingIndex` (it is the engine
+currently being initialised, matching `initializingTts`), `lastLoadVoiceName` ->
+`lastLoadedVoiceName`, `puncModeInt` -> `punctuationModeInt`, `FG_NOTIFICATION_ID` /
+`FG_CHANNEL_ID` -> `FOREGROUND_NOTIFICATION_ID` / `FOREGROUND_CHANNEL_ID`.
+
+### One field checked and deliberately kept
+
+`initDone` is written once in `onCreate` and never read, which looks like dead code. It is
+not ours to remove: `AutoTtsService` declares `public boolean n = false;` at line 125, sets
+`this.n = true;` at line 1589 immediately before `T()`, and never reads it either. A faithful
+mirror of a field AutoTTS never reads is still a faithful mirror.
+
+Verified rename-only the usual way — replay the map over the parent commit's generated tree
+and diff: 0 mismatches. A sweep for all 24 old names returns nothing. ktcheck, ktresolve and
+kotlinc all unchanged.
