@@ -2370,3 +2370,29 @@ swipe distance to the settings drops from about eleven stops to two.
 
 `selectedMode` tracks the current choice so the button's label, the dialog title and the
 dialog's description all follow the radio. Everything below the surface is untouched.
+
+### 51b. Tested, and rebuilt three ways
+
+The user tried 51a on the device and three things were wrong.
+
+**The descriptions on the radios.** Putting each paragraph in the radio's `contentDescription`
+looked good on paper — nothing lost, screen short — but in use TalkBack reads the entire
+paragraph before you can move to the next mode, so simply walking the list became slow. The
+descriptions are gone from the radios entirely; a radio now announces just its name.
+
+**The button's place.** One button after the whole list is not where you expect it. Each mode
+now owns a button placed **immediately after its own radio**, and only the selected mode's is
+visible — the rest are `GONE`, "None" has none. So selecting Mixed mode and swiping once
+lands on "Mixed mode settings".
+
+**The dialog.** `AlertDialog` with a `setView` left the mode list visible above and below it;
+it read as unfinished rather than as a screen. The settings are now a real page: `root` holds
+`modeListPage` and `modeSettingsPage`, and the button swaps which is visible. The page carries
+a Back button, the mode name in a header bar, the mode's description, then `modeSettingsBox`.
+`scroll.scrollTo(0, 0)` on both transitions, and `performAccessibilityAction(
+ACTION_ACCESSIBILITY_FOCUS)` moves TalkBack to Back on entry and to the mode's button on
+return, so focus never lands somewhere stale.
+
+Still untouched underneath: the `m.h(p(), false)` rebuild, the `m.m` label source, `m.g` for
+the selection index, `H`/`I` mirroring, the `localespans` boxes syncing `Q`, and the
+`auto_mode_google` rule.

@@ -78,17 +78,21 @@ The user has taken the **user interface** out of the AutoTTS-parity rule: *"ab m
 AutoTTS. Only the UI may differ, and only where the user asks.
 
 Recorded so far:
-1. **Modes tab — per-mode settings button.** AutoTTS shows the active mode's settings inline,
-   below five radio buttons and their five long descriptions, so a TalkBack user has to swipe
-   past all of it to reach a spinner. Ours shows only the five radio labels and **one button
-   named after the selected mode** — "Mixed mode settings", "Dual languages settings" — which
-   opens that mode's **description and settings together** in a dialog. In "None" mode the
-   button is `GONE`, since None has no settings. The descriptions are no longer separate
-   TextViews; each one is the radio's `contentDescription`, so TalkBack still reads
-   "Mixed mode. Splits text into Latin and non-Latin segments…" when the radio is focused —
-   nothing is lost, it just stops occupying the screen. The four sections, their spinners,
-   checkboxes and every handler are unchanged; only where they are shown moved.
-   Do NOT "restore" this to AutoTTS's inline layout.
+1. **Modes tab — per-mode settings, as a page not a dialog.** AutoTTS shows the active mode's
+   settings inline, below five radio buttons and their five long descriptions, so a TalkBack
+   user swipes past all of it to reach a spinner. Ours instead:
+   - the mode list shows **only the five radio labels** — no description paragraphs and **no
+     `contentDescription` carrying them either** (the user tested that and it was worse: every
+     radio read a whole paragraph before you could move on);
+   - **the selected mode's settings button sits directly after its own radio**, and every
+     other mode's button is `GONE`. "None" has no button at all;
+   - pressing it swaps the tab to a **full settings page** — Back button, the mode's name as a
+     header, then the mode's **description**, then that mode's settings. It is NOT a dialog:
+     a dialog showed the old screen behind and above it and looked unfinished.
+   Accessibility focus is moved to Back on entry and back to the mode's button on return.
+   The four sections, their spinners, checkboxes and every handler are unchanged; only where
+   they are shown moved. Do NOT "restore" this to AutoTTS's inline layout, and do NOT put the
+   descriptions back on the radios or the settings back in a dialog.
 
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
