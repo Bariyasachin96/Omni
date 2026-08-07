@@ -323,11 +323,243 @@ jobs:
           static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut);
           static std::string currentLanguageHints();
           static std::string detectWindowLang(const std::string& utf8Text, bool useCld3);
+          static const char* const smartNumberKeywords[][20] = {
+              {"*", "otp", "pin", "sms", "imei", "cvv", "tel", "fax", "hotline", "sim", "whatsapp", "zalo", "viber", "telegram", nullptr},
+              {"en", "phone", "mobile", "cell", "call", "dial", "code", "extension", "ext", "passcode", "verification", "account", "contact", nullptr},
+              {"vi", "điện thoại", "sđt", "gọi", "di động", "mã", "liên hệ", "tổng đài", "tài khoản", "cccd", "cmnd", nullptr},
+              {"hi", "फ़ोन", "फोन", "मोबाइल", "कॉल", "कोड", "खाता", "संपर्क", "डायल", nullptr},
+              {"ur", "فون", "موبائل", "کال", "نمبر", "کوڈ", "رابطہ", "اکاؤنٹ", nullptr},
+              {"fa", "تلفن", "موبایل", "تماس", "شماره", "کد", "همراه", "حساب", nullptr},
+              {"ar", "هاتف", "جوال", "اتصل", "اتصال", "رقم", "رمز", "كود", "حساب", "موبايل", nullptr},
+              {"ru", "телефон", "моб", "мобильный", "звони", "позвони", "код", "номер", "счёт", "счет", "добавочный", nullptr},
+              {"uk", "телефон", "моб", "дзвони", "зателефонуй", "код", "номер", "рахунок", nullptr},
+              {"de", "telefon", "handy", "anruf", "anrufen", "durchwahl", "code", "konto", "mobil", "rufnummer", "vorwahl", nullptr},
+              {"fr", "téléphone", "tél", "portable", "appel", "appelez", "code", "poste", "compte", "mobile", "numéro", nullptr},
+              {"es", "teléfono", "móvil", "celular", "llama", "llamar", "código", "cuenta", "extensión", "número", nullptr},
+              {"pt", "telefone", "celular", "telemóvel", "ligar", "ligue", "código", "conta", "ramal", "número", nullptr},
+              {"it", "telefono", "cellulare", "chiama", "chiamare", "codice", "conto", "interno", "numero", nullptr},
+              {"tr", "telefon", "cep", "ara", "arayın", "kod", "dahili", "hesap", "numara", nullptr},
+              {"in", "telepon", "ponsel", "hp", "hubungi", "kode", "rekening", "nomor", "seluler", nullptr},
+              {"id", "telepon", "ponsel", "hp", "hubungi", "kode", "rekening", "nomor", "seluler", nullptr},
+              {"ms", "telefon", "bimbit", "hubungi", "kod", "akaun", "nombor", "talian", nullptr},
+              {"jv", "telpon", "telpun", "nomer", "kode", "hubungi", nullptr},
+              {"th", "โทรศัพท์", "โทร", "มือถือ", "รหัส", "เบอร์", "บัญชี", "ติดต่อ", "สายด่วน", nullptr},
+              {"pl", "telefon", "komórka", "zadzwoń", "kod", "numer", "konto", "wewnętrzny", nullptr},
+              {"ne", "फोन", "मोबाइल", "कल", "नम्बर", "कोड", "खाता", "सम्पर्क", nullptr},
+              {"af", "telefoon", "foon", "selfoon", "skakel", "kode", "rekening", "nommer", nullptr},
+              {"ja", "電話", "携帯", "コード", "番号", "内線", "口座", "連絡", "ダイヤル", nullptr},
+              {"ko", "전화", "휴대폰", "핸드폰", "코드", "번호", "내선", "계좌", "연락", "문자", nullptr},
+              {"zh", "电话", "電話", "手机", "手機", "号码", "號碼", "代码", "代碼", "验证码", "驗證碼", "分机", "分機", "账号", "帳號", "拨打", "撥打", "热线", "熱線", nullptr},
+              {"nl", "telefoon", "bel", "bellen", "code", "mobiel", "nummer", "rekening", "toestel", nullptr},
+              {"sv", "telefon", "ring", "mobil", "kod", "nummer", "konto", "anknytning", nullptr},
+              {"da", "telefon", "ring", "mobil", "kode", "nummer", "konto", nullptr},
+              {"no", "telefon", "ring", "mobil", "kode", "nummer", "konto", nullptr},
+              {"fi", "puhelin", "soita", "kännykkä", "koodi", "numero", "tili", nullptr},
+              {"cs", "telefon", "zavolej", "mobil", "kód", "číslo", "účet", "linka", nullptr},
+              {"sk", "telefón", "zavolaj", "mobil", "kód", "číslo", "účet", "linka", nullptr},
+              {"hu", "telefon", "hívj", "mobil", "kód", "szám", "számla", "mellék", nullptr},
+              {"ro", "telefon", "sună", "mobil", "cod", "număr", "cont", "interior", nullptr},
+              {"bg", "телефон", "обади", "мобилен", "код", "номер", "сметка", nullptr},
+              {"el", "τηλέφωνο", "τηλ", "κινητό", "κωδικός", "αριθμός", "λογαριασμός", nullptr},
+              {"iw", "טלפון", "נייד", "חייג", "קוד", "מספר", "חשבון", "שלוחה", nullptr},
+              {"he", "טלפון", "נייד", "חייג", "קוד", "מספר", "חשבון", "שלוחה", nullptr},
+              {"bn", "ফোন", "মোবাইল", "কল", "নম্বর", "কোড", "হিসাব", "যোগাযোগ", nullptr},
+              {"ta", "தொலைபேசி", "கைபேசி", "அழை", "எண்", "குறியீடு", "கணக்கு", nullptr},
+              {"te", "ఫోన్", "మొబైల్", "కాల్", "నంబర్", "కోడ్", "ఖాతా", nullptr},
+              {"kn", "ಫೋನ್", "ಮೊಬೈಲ್", "ಕರೆ", "ಸಂಖ್ಯೆ", "ಕೋಡ್", "ಖಾತೆ", nullptr},
+              {"ml", "ഫോൺ", "മൊബൈൽ", "വിളിക്കുക", "നമ്പർ", "കോഡ്", "അക്കൗണ്ട്", nullptr},
+              {"mr", "फोन", "मोबाईल", "कॉल", "क्रमांक", "कोड", "खाते", "संपर्क", nullptr},
+              {"gu", "ફોન", "મોબાઇલ", "કૉલ", "નંબર", "કોડ", "ખાતું", nullptr},
+              {"pa", "ਫੋਨ", "ਮੋਬਾਈਲ", "ਕਾਲ", "ਨੰਬਰ", "ਕੋਡ", "ਖਾਤਾ", nullptr},
+              {"si", "දුරකථන", "ජංගම", "අමතන්න", "අංකය", "කේතය", "ගිණුම", nullptr},
+              {"km", "ទូរស័ព្ទ", "លេខ", "កូដ", "ទំនាក់ទំនង", "គណនី", nullptr},
+              {"my", "ဖုန်း", "မိုဘိုင်း", "နံပါတ်", "ကုဒ်", "အကောင့်", "ဆက်သွယ်", nullptr},
+              {"lo", "ໂທລະສັບ", "ເບີ", "ລະຫັດ", "ບັນຊີ", "ຕິດຕໍ່", nullptr},
+              {"sw", "simu", "piga", "namba", "nambari", "msimbo", "akaunti", nullptr},
+              {"tl", "telepono", "tawag", "tumawag", "numero", nullptr},
+          };
+          static const int smartNumberKeywordRows = 53;
+          static std::mutex smartNumberMutex;
+          static std::string smartNumberCachedHints;
+          static std::vector<std::string> smartNumberActive;
+          static bool smartNumberCacheValid = false;
+          static std::vector<std::string> activeSmartNumberKeywords(){
+              std::string hints = currentLanguageHints();
+              std::lock_guard<std::mutex> lock(smartNumberMutex);
+              if(smartNumberCacheValid && smartNumberCachedHints == hints) return smartNumberActive;
+              std::unordered_set<std::string> enabled;
+              size_t from = 0;
+              while(from <= hints.size()){
+                  size_t at = hints.find(',', from);
+                  std::string one = hints.substr(from, at == std::string::npos ? std::string::npos : at - from);
+                  if(!one.empty()) enabled.insert(one);
+                  if(at == std::string::npos) break;
+                  from = at + 1;
+              }
+              std::vector<std::string> collected;
+              for(int row = 0; row < smartNumberKeywordRows; row++){
+                  std::string tag = smartNumberKeywords[row][0];
+                  if(tag != "*" && enabled.find(tag) == enabled.end()) continue;
+                  for(int col = 1; smartNumberKeywords[row][col]; col++) collected.push_back(smartNumberKeywords[row][col]);
+              }
+              smartNumberCachedHints = hints;
+              smartNumberActive = collected;
+              smartNumberCacheValid = true;
+              return collected;
+          }
+          static bool isLetterCodepoint(int codePoint){
+              return (codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A)||
+                     (codePoint>=0xC0&&codePoint<=0xD6)||(codePoint>=0xD8&&codePoint<=0xF6)||(codePoint>=0xF8&&codePoint<=0x24F)||
+                     (codePoint>=0x370&&codePoint<=0x3FF)||(codePoint>=0x400&&codePoint<=0x52F)||
+                     (codePoint>=0x531&&codePoint<=0x58F)||(codePoint>=0x5D0&&codePoint<=0x5EA)||
+                     (codePoint>=0x620&&codePoint<=0x64A)||(codePoint>=0x66E&&codePoint<=0x6D3)||
+                     (codePoint>=0x710&&codePoint<=0x74F)||(codePoint>=0x900&&codePoint<=0x97F)||
+                     (codePoint>=0x980&&codePoint<=0x9FF)||(codePoint>=0xA00&&codePoint<=0xA7F)||
+                     (codePoint>=0xA80&&codePoint<=0xAFF)||(codePoint>=0xB00&&codePoint<=0xB7F)||
+                     (codePoint>=0xB80&&codePoint<=0xBFF)||(codePoint>=0xC00&&codePoint<=0xC7F)||
+                     (codePoint>=0xC80&&codePoint<=0xCFF)||(codePoint>=0xD00&&codePoint<=0xD7F)||
+                     (codePoint>=0xD80&&codePoint<=0xDFF)||(codePoint>=0xE01&&codePoint<=0xE5B)||
+                     (codePoint>=0xE81&&codePoint<=0xEDF)||(codePoint>=0x1000&&codePoint<=0x109F)||
+                     (codePoint>=0x1780&&codePoint<=0x17D3)||(codePoint>=0x1E00&&codePoint<=0x1EFF)||
+                     (codePoint>=0x2C60&&codePoint<=0x2C7F)||(codePoint>=0x2E80&&codePoint<=0x9FFF)||
+                     (codePoint>=0xA720&&codePoint<=0xA7FF)||(codePoint>=0xAC00&&codePoint<=0xD7AF)||
+                     (codePoint>=0xF900&&codePoint<=0xFAFF);
+          }
+          static bool keywordMatchesAnywhere(const std::string& keyword){
+              int cpLen = 0;
+              int firstCp = utf8ToCodepoint((const unsigned char*)keyword.c_str(), cpLen);
+              if(firstCp>=0x0E00 && firstCp<=0x0EFF) return true;
+              if(firstCp>=0x1000 && firstCp<=0x109F) return true;
+              if(firstCp>=0x1780 && firstCp<=0x17FF) return true;
+              if(firstCp>=0x2E80 && firstCp<=0x9FFF) return true;
+              if(firstCp>=0xAC00 && firstCp<=0xD7AF) return true;
+              if(firstCp>=0xF900 && firstCp<=0xFAFF) return true;
+              return false;
+          }
+          static int codepointBefore(const std::string& text, size_t at){
+              if(at == 0) return -1;
+              size_t back = at - 1;
+              while(back > 0 && ((unsigned char)text[back] & 0xC0) == 0x80) back--;
+              int cpLen = 0;
+              return utf8ToCodepoint((const unsigned char*)text.c_str() + back, cpLen);
+          }
+          static bool contextHasKeyword(const std::string& text, const std::vector<std::string>& keywords){
+              if(text.empty()) return false;
+              for(const std::string& keyword : keywords){
+                  size_t at = text.find(keyword);
+                  while(at != std::string::npos){
+                      if(keywordMatchesAnywhere(keyword)) return true;
+                      int before = codepointBefore(text, at);
+                      bool openBefore = (before < 0) || !isLetterCodepoint(before);
+                      size_t after = at + keyword.size();
+                      bool openAfter = true;
+                      if(after < text.size()){
+                          int cpLen = 0;
+                          openAfter = !isLetterCodepoint(utf8ToCodepoint((const unsigned char*)text.c_str() + after, cpLen));
+                      }
+                      if(openBefore && openAfter) return true;
+                      at = text.find(keyword, at + 1);
+                  }
+              }
+              return false;
+          }
+          static std::string lowerCaseRoot(const std::string& text){
+              std::string out;
+              out.reserve(text.size());
+              size_t at = 0;
+              while(at < text.size()){
+                  int cpLen = 0;
+                  int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
+                  int lowered = codePoint;
+                  if(codePoint>=0x41 && codePoint<=0x5A) lowered = codePoint + 0x20;
+                  else if(codePoint>=0xC0 && codePoint<=0xDE && codePoint!=0xD7) lowered = codePoint + 0x20;
+                  else if(codePoint>=0x391 && codePoint<=0x3A9 && codePoint!=0x3A2) lowered = codePoint + 0x20;
+                  else if(codePoint>=0x410 && codePoint<=0x42F) lowered = codePoint + 0x20;
+                  else if(codePoint>=0x400 && codePoint<=0x40F) lowered = codePoint + 0x50;
+                  if(lowered < 0x80) out += (char)lowered;
+                  else if(lowered < 0x800){ out += (char)(0xC0|(lowered>>6)); out += (char)(0x80|(lowered&0x3F)); }
+                  else if(lowered < 0x10000){ out += (char)(0xE0|(lowered>>12)); out += (char)(0x80|((lowered>>6)&0x3F)); out += (char)(0x80|(lowered&0x3F)); }
+                  else { out += (char)(0xF0|(lowered>>18)); out += (char)(0x80|((lowered>>12)&0x3F)); out += (char)(0x80|((lowered>>6)&0x3F)); out += (char)(0x80|(lowered&0x3F)); }
+                  at += cpLen;
+              }
+              return out;
+          }
+          static bool hasEnoughDigits(const std::string& text){
+              int digits = 0;
+              size_t at = 0;
+              while(at < text.size()){
+                  int cpLen = 0;
+                  int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
+                  if(codePoint>='0' && codePoint<='9') digits++;
+                  else if(codePoint==',' || codePoint=='.' || codePoint=='%' || codePoint=='$') return false;
+                  else if(codePoint>=0x20A0 && codePoint<=0x20CF) return false;
+                  at += cpLen;
+              }
+              return digits >= 4;
+          }
+          static bool isPhoneShaped(const std::string& raw){
+              size_t begin = 0, finish = raw.size();
+              while(begin < finish && (unsigned char)raw[begin] <= 0x20) begin++;
+              while(finish > begin && (unsigned char)raw[finish-1] <= 0x20) finish--;
+              std::string text = raw.substr(begin, finish - begin);
+              if(text.empty()) return false;
+              int digits = 0, run = 0, longestRun = 0;
+              bool sawComma = false, sawDot = false, sawCurrency = false;
+              size_t at = 0;
+              while(at < text.size()){
+                  int cpLen = 0;
+                  int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
+                  if(codePoint>='0' && codePoint<='9'){ digits++; run++; if(run>longestRun) longestRun = run; }
+                  else if(codePoint==','){ run = 0; sawComma = true; }
+                  else if(codePoint=='.'){ run = 0; sawDot = true; }
+                  else if(codePoint=='%' || codePoint=='$' || (codePoint>=0x20A0 && codePoint<=0x20CF)){ run = 0; sawCurrency = true; }
+                  else run = 0;
+                  at += cpLen;
+              }
+              if(digits == 0) return false;
+              if(sawCurrency) return false;
+              if((text.rfind("+", 0) == 0 || text.rfind("00", 0) == 0) && digits >= 8) return true;
+              std::string body = text;
+              if(body[0] == '+' || body[0] == '-') body = body.substr(1);
+              if(!body.empty() && body[0] == '0' && digits >= 5) return true;
+              if(!sawComma && !sawDot){
+                  if(longestRun >= 7) return true;
+                  std::vector<std::string> parts;
+                  std::string current;
+                  for(char ch : body){
+                      if(ch==' ' || ch=='\t' || ch=='\n' || ch=='\r' || ch=='-'){ if(!current.empty()){ parts.push_back(current); current.clear(); } }
+                      else current += ch;
+                  }
+                  if(!current.empty()) parts.push_back(current);
+                  if((int)parts.size() >= 3 && digits >= 7){
+                      bool grouped = true;
+                      for(const std::string& part : parts){
+                          if(part.size() < 2 || part.size() > 4){ grouped = false; break; }
+                          for(char ch : part) if(ch < '0' || ch > '9'){ grouped = false; break; }
+                          if(!grouped) break;
+                      }
+                      if(grouped) return true;
+                  }
+              }
+              return false;
+          }
+          static std::string respaceDigits(const std::string& text){
+              std::string out;
+              out.reserve(text.size() * 2);
+              char previous = 0;
+              for(char ch : text){
+                  if(ch>='0' && ch<='9' && previous>='0' && previous<='9') out += ' ';
+                  out += ch;
+                  previous = ch;
+              }
+              return out;
+          }
           struct ReadingModes {
               int numberMode = 0; std::string numberSpecific;
               int punctuationMode = 0; std::string punctuationSpecific;
               int emojiMode = 0; std::string emojiSpecific;
               bool punctuationInFlow = true;
+              bool smartNumber = false;
           };
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
               std::vector<ChunkResult> result;
@@ -461,6 +693,27 @@ jobs:
               }
               if (segs.empty()) return result;
               (void)disableAdvancedDetection;
+              if (modes.smartNumber) {
+                  std::vector<std::string> keywords = activeSmartNumberKeywords();
+                  for (int segPos = 0; segPos < (int)segs.size(); segPos++) {
+                      if (segs[segPos].type != 3) continue;
+                      const std::string& numberText = segs[segPos].text;
+                      bool respace = isPhoneShaped(numberText);
+                      if (!respace && !keywords.empty() && hasEnoughDigits(numberText)) {
+                          std::string before;
+                          for (int backIdx = segPos - 1; backIdx >= 0 && (int)before.size() < 48; backIdx--)
+                              before.insert(0, segs[backIdx].text);
+                          if (before.size() > 48) before = before.substr(before.size() - 48);
+                          std::string after;
+                          for (int nextIdx = segPos + 1; nextIdx < (int)segs.size() && (int)after.size() < 24; nextIdx++)
+                              after += segs[nextIdx].text;
+                          if (after.size() > 24) after = after.substr(0, 24);
+                          respace = contextHasKeyword(lowerCaseRoot(before), keywords) ||
+                                    contextHasKeyword(lowerCaseRoot(after), keywords);
+                      }
+                      if (respace) segs[segPos].text = respaceDigits(numberText);
+                  }
+              }
               std::vector<int> originalTypes;
               originalTypes.reserve(segs.size());
               for (auto& seg : segs) originalTypes.push_back(seg.type);
@@ -515,7 +768,7 @@ jobs:
               jstring jLat, jstring jNonLat, jstring jMode,
               jint jNumberMode, jstring jNumberSpecific,
               jint jPunctuationMode, jstring jPunctuationSpecific,
-              jint jEmojiMode, jstring jEmojiSpecific, jboolean jPunctuationInFlow,
+              jint jEmojiMode, jstring jEmojiSpecific, jboolean jPunctuationInFlow, jboolean jSmartNumber,
               jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
@@ -530,6 +783,7 @@ jobs:
               modes.punctuationMode = (int)jPunctuationMode;
               modes.emojiMode = (int)jEmojiMode;
               modes.punctuationInFlow = (jPunctuationInFlow == JNI_TRUE);
+              modes.smartNumber = (jSmartNumber == JNI_TRUE);
               const char* numSpecC=env->GetStringUTFChars(jNumberSpecific,nullptr); modes.numberSpecific=numSpecC; env->ReleaseStringUTFChars(jNumberSpecific,numSpecC);
               const char* puncSpecC=env->GetStringUTFChars(jPunctuationSpecific,nullptr); modes.punctuationSpecific=puncSpecC; env->ReleaseStringUTFChars(jPunctuationSpecific,puncSpecC);
               const char* emojiSpecC=env->GetStringUTFChars(jEmojiSpecific,nullptr); modes.emojiSpecific=emojiSpecC; env->ReleaseStringUTFChars(jEmojiSpecific,emojiSpecC);
@@ -1225,7 +1479,7 @@ jobs:
           "        mode: String,\n"
           "        numberMode: Int, numberSpecific: String,\n"
           "        punctuationMode: Int, punctuationSpecific: String,\n"
-          "        emojiMode: Int, emojiSpecific: String, punctuationInFlow: Boolean,\n"
+          "        emojiMode: Int, emojiSpecific: String, punctuationInFlow: Boolean, smartNumber: Boolean,\n"
           "        neutralDefault: String, neutralType: Int,\n"
           "        disableAdvancedDetection: Boolean, useCld3: Boolean\n"
           "    ): String\n"
@@ -2993,7 +3247,7 @@ jobs:
           "                            latinFallback, nonLatinFallback, \"mix\",\n"
           "                            numberModeInt, normalizeLangCode(numberSpecificLang),\n"
           "                            punctuationModeInt, normalizeLangCode(puncSpecificLang),\n"
-          "                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag,\n"
+          "                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
           "                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                        )\n"
           "                        for (chunkStr in chunkOutput.split(\"||\").filter { it.isNotBlank() }) {\n"
@@ -3040,7 +3294,7 @@ jobs:
           "                        latinFallback, nonLatinFallback, \"dual\",\n"
           "                        numberModeInt, normalizeLangCode(numberSpecificLang),\n"
           "                        punctuationModeInt, normalizeLangCode(puncSpecificLang),\n"
-          "                        emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag,\n"
+          "                        emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
           "                        neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                    )\n"
           "                    for (chunkStr in chunkOutput.split(\"||\").filter { it.isNotBlank() }) {\n"
