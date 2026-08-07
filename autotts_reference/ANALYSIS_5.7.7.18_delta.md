@@ -495,3 +495,40 @@ abort that saves AutoTTS from that is its `l(ctx, lang, "", "")` preflight at 12
 sits in the shared tail rather than in the auto branch. Porting the fallback without that
 preflight would be strictly worse than what we have. Recorded rather than half-changed —
 the tail preflight has to land first.
+
+---
+
+## 12. Components, system-TTS wiring and libraries (2026-08-07)
+
+Checked because a file-level diff says nothing about whether our *components* are
+declared the way AutoTTS declares them.
+
+**`res/xml/tts_engine.xml`** — byte-identical between 5.7.7.10 and 5.7.7.18, and ours is
+the same declaration pointing at our own settings activity. Nothing to do.
+
+**Service declaration** — ours carries every attribute AutoTTS's does:
+`accessibilityEventTypes="typeWindowsChanged"`,
+`accessibilityFlags="flagRetrieveInteractiveWindows"`,
+`canRetrieveWindowContent="true"`, `exported="true"`,
+`foregroundServiceType="mediaPlayback"`, `label="@string/app_name"`, the
+`<intent-filter android:priority="100">` with `android.intent.action.TTS_SERVICE` and
+`category.DEFAULT`, and the `android.speech.tts` meta-data pointing at `@xml/tts_engine`.
+Same for `CheckVoiceData` and `GetSampleText` (`exported="true"`, `Theme.NoDisplay`) and
+the `FileProvider`.
+
+The one component AutoTTS has that we do not is `androidx.startup.InitializationProvider`,
+which androidx.startup contributes via profileinstaller — a library artefact, not a
+feature, and not something to mirror by hand.
+
+**Manifest deltas between the two AutoTTS builds** were only the three already recorded in
+§8: `SYSTEM_ALERT_WINDOW` dropped (done), `extractNativeLibs` false→true and the
+fused-modules meta-data moving, both packaging.
+
+**Libraries** — `androidx` is 379 files in both builds with an identical subpackage list;
+`com` went 345→346. The single added file is
+`com/google/android/gms/common/stats/DE/…/pbbjamvqysbuyaauvpaybwulpmruu.java`, an
+obfuscated Play-services stats class. No new library, no new feature surface.
+
+So the only classes that changed for real between 5.7.7.10 and 5.7.7.18 are the app's own:
+`c3` went 33→38, and those five are `c3.d0`, `c3.e`, plus the API-33 shims `c3.x`, `c3.y`,
+`c3.z` and the version helper `c3.a0` — all covered in §8 and §9.
