@@ -1,0 +1,184 @@
+# AutoTTS 5.7.7.10 → 5.7.7.18 delta (verified from the decompile, 2026-08-07)
+
+Everything here was read out of `decompiled_java/` and `decompiled_res/`. Nothing is
+inferred. Line numbers are 5.7.7.18 unless stated.
+
+The store's "What's new" is **cumulative**. Verified already present in 5.7.7.10 and
+already implemented in EasyVoice: keep-alive, quick character read, multilingual mode,
+auto recovery. Only the items below are new since 5.7.7.10.
+
+---
+
+## 1. Name map
+
+Almost every `c3.*` class shifted one letter. Full table is in `CLAUDE.md`. The ones
+that matter here:
+
+| 5.7.7.10 | 5.7.7.18 | role |
+|---|---|---|
+| `c3.m` | `c3.n` | settings store |
+| `c3.j` | `c3.k` | settings fragment (all tabs) |
+| `c3.y` (`y.g`, 227 ln) | `c3.d0` (`d0.t`, 649 ln) | number/punct/emoji segmenter |
+| `c3.z` | `c3.e0` | one segment (text + type); only `toString()` changed |
+| `c3.x` | `c3.c0` | all-whitespace test |
+| `c3.c` | `c3.c` | emoji regex — **byte-identical** |
+| `com/vnspeak/autotts/a.java` | same | script→lang map — **byte-identical** |
+
+`AutoTtsService.h0` / `m0` and `c3.l0` are the licence/signature gate. `d0.t` and
+`clsCLD2.c` take them as the last two args and return empty/UNKNOWN when either is
+`-1`. Out of scope under the existing carve-out — do not port.
+
+## 2. Settings (c3/n.java)
+
+Five new keys. `n.o` loads the three strings (empty → `n.e(Locale.getDefault())`),
+`n.q` loads the two booleans; `n.v` and `n.z` persist them.
+
+```
+number_specific_language   String   ""    -> device iso3     AutoTtsService.J
+punc_specific_language     String   ""    -> device iso3     AutoTtsService.L
+emoji_specific_language    String   ""    -> device iso3     AutoTtsService.N
+punctuation_with_sentence  Boolean  true                     AutoTtsService.c0
+smart_number_reading       Boolean  false                    AutoTtsService.d0
+```
+
+**One default changed:** `quick_character_reading` was `true` in `c3/m.java:546`,
+is `false` in `c3/n.java:546`. A sweep of every `getBoolean`/`getInt`/`getString`
+default in the store confirms this is the only changed default; the rest are additions.
+
+`n.t` persist-all order is `w, C, B, v, x, u, z` — the same seven as 5.7.7.10's
+`m.u` (`x, D, C, w, y, v, A`), renamed only. Order unchanged.
+
+## 3. Segment types and routing
+
+`d0.j(s)`: `c0.a(s)` all-whitespace → **0**; `d0.o(s)` punct → **4**;
+`d0.n(s)` number → **3**; `d0.l(s)` emoji → **5**; else → **1**.
+Emoji (5) is new; in 5.7.7.10 emoji fell inside the Latin class.
+
+Type → language, `AutoTtsService.java:2356`:
+
+```
+1 -> O (mixed latin)   3 -> J (number specific)   5 -> N (emoji specific)
+2 -> P (mixed nonlatin) 4 -> L (punct specific)
+```
+
+Mode int semantics for each of number `I` / punct `K` / emoji `M`:
+
+```
+0 Auto language      -> type = d0.k(types, i, default)  (backward scan, then forward
+                        from 0, then the locale default n6)
+1 Primary language   -> type 1
+2 Secondary language -> type 2
+3 Specific language  -> type left at 3/4/5, so the map above routes it to J/L/N
+```
+
+In the mix/multilingual per-chunk path (`AutoTtsService.java:2207-2272`) the same
+modes are read directly: `0 or 1 -> O`, `2 -> P`, `3 -> J/L/N`. Note **0 and 1 both
+go to O** there.
+
+`d0.t` is called from **four** sites (2056, 2199, 2410, and the multilingual one);
+5.7.7.10's `y.g` had two. That is the "applied to Dual, Mixed and Multilingual" line.
+
+## 4. Patterns (d0 static block)
+
+| | 5.7.7.10 `y` | 5.7.7.18 `d0` |
+|---|---|---|
+| latin block | `d` — included `c.a()` (emoji) | `d` — **same minus the emoji group** |
+| emoji | (none) | `e` = `a` = `(?:c.a()|[U+200D U+FE0F U+20E3])+` |
+| number (whole-segment test) | `b` | `b` rewritten: `[×÷°₠-⃏ -⁯\p{Punct}\p{Space}]*[0-9][…]*` |
+| number (run finder) | (none) | `f`, with `(?<![\p{L}0-9])` / `(?![\p{L}0-9])` guards |
+| punct | `c` | unchanged |
+| bidi strip | `e` | `g` |
+
+Pipeline in `d0.t`: split by `d` → between latin runs `d0.c` splits emoji (5) from the
+rest (2); inside latin runs `d0.d` splits number runs (3) and the remainder goes to
+`d0.b`, typed by `d0.j` → merge adjacent same-type-or-0 → smart number pass → type
+assignment from the modes → final merge.
+
+**Punctuation flow**, `d0.t:624`: `if (n4 != 0 && !AutoTtsService.c0)` — when the
+punct mode is not 0 *and* punctuation-in-flow is off, type-4 segments are kept out of
+the final merge, using the **original** type array, not the reassigned one.
+
+## 5. Smart number reading (AutoTtsService.d0 flag)
+
+`d0.h` is a keyword table: 52 language rows plus a `*` row that always applies
+(`otp pin sms imei cvv tel fax hotline sim whatsapp zalo viber telegram`).
+`d0.a()` builds the active set, keeping a row only if its tag is `*` or is in `n.f`
+(the user's enabled languages), and caches it in `d0.i`.
+
+For each type-3 segment (`d0.t:514-533`), respace with `d0.s` (a space between
+adjacent digits) when either:
+- `d0.r(text)` — phone-number shape: `+`/`00` prefix with ≥8 digits; leading `0` with
+  ≥5 digits; ≥7 consecutive digits; or ≥3 groups of 2-4 digits with ≥7 digits total.
+  Rejects anything containing `%`, `$` or U+20A0-U+20CF, and anything with `,`/`.`
+  unless the run is long enough.
+- or the set is non-empty **and** `d0.m(text)` (≥4 digits, only digits/`,`/`.`/`%`/`$`/
+  currency) **and** a keyword occurs in the 48 chars before (`d0.g`) or the 24 chars
+  after (`d0.f`). `d0.e` requires letter boundaries on both sides unless `d0.p` says
+  the keyword's first char is in a script without word spacing (Thai, Myanmar, Khmer,
+  CJK, Hangul, CJK-compat) — those match anywhere.
+
+## 6. CLD2 language hints
+
+`clsCLD2` is otherwise rename-only. New:
+
+```java
+public static void f(Set s) { nativeSetLanguageHints(s == null ? null : s.toArray(new String[0])); }
+private static native void nativeSetLanguageHints(String[] v);
+```
+
+Called once, `AutoTtsService.java:1659`: `clsCLD2.f(c3.n.f)` — the enabled-language
+set, right after `a0()` and before `X()`. This is the "improved language detection
+accuracy" line.
+
+## 7. UI
+
+`fragment_modes.xml` — the per-mode duplicates (`number_mode_language_mixed`,
+`localespans_mixed`, `localespans_multilingual`, …) are gone, replaced by two shared
+blocks: `@id/ReadingSettings` (6 spinners) and `@id/CommonSettings` (localespans).
+Radio order is now **None, Auto, Google, Dual, Mixed, Multilingual** (Dual moved).
+
+Visibility matrix from `k.onRadioButtonClicked` (H0 auto, I0 dual, J0 mixed,
+K0 multilingual, L0 reading, M0 common):
+
+| mode | H0 | I0 | J0 | K0 | L0 | M0 |
+|---|---|---|---|---|---|---|
+| 0 none | gone | gone | gone | gone | gone | gone |
+| 1 dual | gone | **vis** | gone | gone | **vis** | **vis** |
+| 2 auto | **vis** | gone | gone | gone | gone | **vis** |
+| 3 google | **vis** | gone | gone | gone | *(untouched)* | *(untouched)* |
+| 4 mixed | gone | gone | **vis** | gone | **vis** | **vis** |
+| 5 multilingual | gone | gone | gone | **vis** | **vis** | **vis** |
+
+Google not touching L0/M0 is AutoTTS's own quirk — the previous mode's visibility
+survives. Reproduce it.
+
+Spinner dispatch, `k.O1`: `t0`→`I`, `u0`→`K`, `v0`→`M`; each shows its specific
+spinner (`A0`/`B0`/`C0` → `J`/`L`/`N`) only when the mode == 3. Selecting punct
+mode 3 also **disables** `D0`, the punctuation-in-flow checkbox on the Advanced tab
+(`k.O1:844,848`), and `k.T2:1125` sets its initial enabled state to `K != 3`.
+
+`fragment_advanced.xml` — new **Text-to-Speech Settings** header + button +
+description at the very top (`k.O2` fires `com.android.settings.TTS_SETTINGS`, and
+Toasts "TTS settings are not available on this device." on
+`ActivityNotFoundException`), and two new rows at the end of Language Detection
+Options: `punctuation_with_sentence` and `smart_number_reading`.
+
+**AutoTTS bug, reproduce as-is:** the description TextView under
+`punctuation_with_sentence` uses `@string/quick_character_reading_description`.
+`punctuation_with_sentence_description` exists in `strings.xml` but is never used.
+
+`NewSettingsActivity` is rename-only. `AutoTtsService` keeps the same 63 methods.
+
+---
+
+## Porting status in EasyVoice
+
+- [x] §2 — the five new settings, both loaders and both persisters, plus the
+      `quick_character_reading` default flip. Commit `181ba9f`.
+- [ ] §3/§4 — segmenter: emoji as type 5, the new patterns, the mode-3 path and the
+      punctuation-flow split. **Our chunker resolves each type to a language string
+      before it reaches C++; mode 3 needs the mode ints threaded through instead, the
+      way `d0.t` takes them.**
+- [ ] §5 — smart number reading.
+- [ ] §6 — CLD2 language hints.
+- [ ] §7 — UI.
