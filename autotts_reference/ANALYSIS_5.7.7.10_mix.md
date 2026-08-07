@@ -2323,3 +2323,32 @@ mirror of a field AutoTTS never reads is still a faithful mirror.
 Verified rename-only the usual way — replay the map over the parent commit's generated tree
 and diff: 0 mismatches. A sweep for all 24 old names returns nothing. ktcheck, ktresolve and
 kotlinc all unchanged.
+
+## 51. First deliberate UI departure — the Modes tab's settings button
+
+The user has taken the **user interface** out of the parity rule. Logic, service, detection
+and storage stay exactly AutoTTS; the UI may now differ where they ask for it. This is the
+first such change and it is recorded in CLAUDE.md so it is never "corrected" back.
+
+### What was wrong for a screen-reader user
+`U2`'s layout, which we mirrored, stacks the active mode's settings *below* the whole radio
+list. In our tab that is five radio buttons each followed by a paragraph of description —
+the Multilingual one alone runs to three lines of prose. To reach the "Preferred language for
+Latin text" spinner, TalkBack has to swipe through all ten of those first, every time.
+
+### What changed
+The four mode sections now live in a `modeSettingsBox` that is not attached to the tab.
+A single **"Mode settings"** button sits directly under the radio group; pressing it shows
+that box inside an `AlertDialog` titled "Mode settings" with a Close button. The box is
+detached from any previous parent before each show, so reopening is safe.
+
+`onModeSelected` still flips exactly which of the four sections is visible, and now also does
+`modeSettingsButton.isEnabled = mode != "none"` — "None" has no settings, so the button is
+dead there rather than opening an empty dialog.
+
+### What did not change
+Every spinner, checkbox, adapter, listener and handler is untouched: the `m.h(p(), false)`
+rebuild, the `m.m` label source, `m.g` for the selection index, the number/punctuation
+mirroring through `H` and `I`, the three `localespans` boxes syncing `Q`, and the
+`auto_mode_google` visibility/enabled rule. Only the parent view the sections are added to
+moved, from `root` to `modeSettingsBox`.

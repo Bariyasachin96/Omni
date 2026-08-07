@@ -72,6 +72,19 @@
    the user's decision, ask it as one plain sentence in the reply — no tool, no cards. Same
    for `ShowOnboardingRolePicker` and anything else that renders an interactive prompt.
 
+## UI departures from AutoTTS (user decision, 2026-08-06)
+The user has taken the **user interface** out of the AutoTTS-parity rule: *"ab mere hisab se
+… sirf user interface change karna hai"*. Logic, service, detection and storage stay exactly
+AutoTTS. Only the UI may differ, and only where the user asks.
+
+Recorded so far:
+1. **Modes tab — "Mode settings" button.** AutoTTS shows the active mode's settings inline,
+   below five radio buttons and their five long descriptions, so a TalkBack user has to swipe
+   past all of it to reach a spinner. Ours puts those settings behind one **"Mode settings"**
+   button that opens them in a dialog; the button is disabled in "None" mode, which has no
+   settings. The four sections, their spinners, checkboxes and every handler are unchanged —
+   only where they are shown moved. Do NOT "restore" this to AutoTTS's inline layout.
+
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. Both steps the user asked for are finished:
