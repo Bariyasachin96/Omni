@@ -99,6 +99,17 @@ Recorded so far:
    unnecessary for this).
    The four sections, their spinners, checkboxes and every handler are unchanged; only where
    they are shown moved. Do NOT "restore" this to AutoTTS's bottom-of-page layout.
+2. **Voices tab folded into the Modes tab.** AutoTTS has five tabs; we now have four. Voices
+   is a **"Voices" collapse/expand section at the bottom of the Modes tab**, after the last
+   mode — not nested inside any mode, because voice, variant, speed, volume and pitch are
+   **per-language** settings that every mode reads (`speedFor`/`pitchFor`/`volumeFor`/
+   `variantFor`), so putting them under one mode would be a lie. `buildVoicesTabView` returns
+   its content root instead of a `ScrollView` and is embedded in the holder; the whole thing
+   is **rebuilt on each expand**, which is what keeps `LangStore.languages` correct — the
+   Modes tab rebuilds it with `onlyEnabled = false` and the Voices view with
+   `onlyEnabled = true`, so whichever section you open last must re-run its own rebuild.
+   Expanding a mode's settings calls `refreshModeLanguages(mode)` for the same reason.
+   `pageTitles`/`pageIcons` dropped to four and `ic_tab_voices.xml` is gone with them.
 
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only

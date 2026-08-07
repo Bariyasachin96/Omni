@@ -2432,3 +2432,41 @@ removed: the classpath-less kotlinc cross-check cannot resolve `View.Accessibili
 so its override signatures could not be verified here, and a wrong signature only shows up as
 a failed CI build. `setStateDescription` is the documented approach and needs no subclassing,
 so nothing is lost.
+
+## 52. Voices folded into Modes — four tabs, and the rebuild that had to follow it
+
+The user asked for the Voices tab to disappear and its contents to live under the mode list.
+Two things had to be got right.
+
+### Where it went, and where it did not
+Not inside Multilingual mode, which is what was first suggested. The Voices controls set a
+**language's** voice, variant, speed, volume and pitch, and the service reads those in every
+mode — `speedFor`, `pitchFor`, `volumeFor` at the speak call, `variantFor` in `onLoadLanguage`.
+Nesting them under one mode would say they only apply there. They are a **"Voices"
+collapse/expand section at the bottom of the Modes tab**, after the last mode, at the same
+level as the mode list.
+
+### The rebuild collision
+Both screens rebuild the shared `LangStore.languages`, differently:
+
+| screen | call |
+|---|---|
+| Modes tab | `rebuildFromScan(ctx, onlyEnabled = **false**, …)` |
+| Voices view | `rebuildFromScan(ctx, onlyEnabled = **true**, …)`, or `dualLangList` in dual mode |
+
+As separate tabs each rebuilt on open and the other was not on screen. In one screen the last
+one to run wins, and the mode spinners and the voice language spinner would silently disagree.
+So the rebuild now follows the disclosure: expanding **Voices** rebuilds the whole voices view
+(`removeAllViews` then build again, so it also re-reads every preference), and expanding a
+**mode's settings** calls `refreshModeLanguages(mode)` first, which is `applyLanguageAdapters`.
+Collapsing does neither. Whichever you open last is the one whose list is live.
+
+### Everything else that moved with it
+`buildVoicesTabView` returns its content root rather than a `ScrollView`, since it is now
+embedded inside the Modes tab's scroll — a nested `ScrollView` would have broken scrolling.
+`buildModesTabView` takes the `testTtsProvider` the Test button needs. In `MainActivity`,
+`pageTitles` and `pageIcons` drop to four, the page factory renumbers (Advanced 3→2,
+Licenses 4→3), the "already built, do not rebuild" guard moves from `position >= 3` to
+`>= 2`, the refresh-on-page-change guard from `position <= 2` to `<= 1`, and
+`offscreenPageLimit` from 4 to 3. `ic_tab_voices.xml` had no other reference and is deleted
+from the generator.
