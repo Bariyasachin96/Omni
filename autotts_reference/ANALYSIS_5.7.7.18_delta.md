@@ -400,10 +400,60 @@ table above.
 Note `d0.n`, `d0.o` and `d0.l` are whole-string matches against patterns `b`, `c` and `e`
 respectively, so the re-test has to run on the merged segment text, not per character.
 
-### Still to do
+### 10c. Multilingual branch — read in full
 
-- [ ] Same line-by-line read for the multilingual branch (new 557-...) and the
-      auto/google tail.
+New: method-relative 557-698. Same mode table as mix, three differences:
+
+1. The span-with-a-language test is one combined condition —
+   `!(lang.equalsIgnoreCase("unknown") || lang.isEmpty() || (lang = M(lang)).isEmpty()
+   || lang.equals("Disable"))` — and when it fails it **falls through to `d0.t`**.
+   Mix instead substitutes `G` and keeps the span. Multilingual has no `G` fallback.
+2. In the `clsCLD2.c` arm every returned item goes through **two** fallbacks:
+   ```
+   lang = c3.e.c(item.a)
+   if (lang == null)                       lang = item.b ? O : P     // b = latin flag
+   if (M(lang).isEmpty() || M(lang) == "Disable")  lang = item.b ? O : P
+   ```
+   The second one — no engine for the detected language — is the one we do not have.
+3. After the loop: empty `Q` logs `"lstLanString is empty!"` and aborts with
+   `K(callback, 7)`; otherwise the **first** segment's language is preflighted with
+   `onLoadLanguage`, and -1/-2 aborts with **7** (dual uses 4/5).
+
+A mode value that is not 0, 1, 2 or 3 makes the segment `continue` — dropped, not added.
+Mix reaches the same outcome by a different branch.
+
+### 10d. Auto / Google tail — read in full
+
+The chunk-speak tail carries **two** type-based fallbacks, both mapping
+`1 -> O, 2 -> P, 3 -> J, 4 -> L, 5 -> N` off `k().get(0).a()`:
+
+- **1244-1264** — after `clsCLD2.b`, `substring(0, 2)` and `c3.e.c`, when `c3.e.c`
+  returns null.
+- **1270-1290** — after that, when `AutoTtsService.r(ctx, lang)` (the engine lookup) is
+  empty or `"Disable"`.
+
+Then `AutoTtsService.l(ctx, lang, "", "")` preflights, -1/-2 aborting. In 5.7.7.10 both
+fallbacks covered only types 1 and 2, and neither went through `c3.e.c`.
+
+The gate at **1208**, `if (S == 4 || S == 5) break block30`, skips the first preflight
+for mix and multilingual — they already did their own inside their branches — and lets
+dual, auto and google run it.
+
+### The single port pass — everything it must contain
+
+1. **dual** (§10a): first-segment preflight, `1 -> "eng"` err 4, `2 -> H`, `3 -> J`,
+   `4 -> L`, `5 -> N` err 5. We have none of it.
+2. **mix** (§10b): keep `d0.t`'s type for merging, but derive the language by re-testing
+   the merged segment with `d0.n` / `d0.o` / `d0.l` and mapping the mode
+   `0|1 -> O, 2 -> P, 3 -> J|L|N`; span with a language uses `M(lang)` with a `G`
+   fallback.
+3. **multilingual** (§10c): as mix but no `G` fallback, the extra `M(lang)` engine check
+   in the `clsCLD2.c` arm, and the empty/preflight aborts with code 7.
+4. **tail** (§10d): both type fallbacks, the `c3.e.c` conversion, and the `S == 4 || S == 5`
+   gate.
+
+These four share one shape — resolve a language for a segment, check the engine, fall
+back by type — so they go in together as one change, not four patches.
 - [ ] Port the dual first-segment preflight table above.
 - [ ] Port the continuation-path type fallback (1231-1264) and the `S == 4 || S == 5`
       gate at 1208.
