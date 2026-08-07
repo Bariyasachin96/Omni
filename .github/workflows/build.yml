@@ -316,10 +316,19 @@ jobs:
                      codePoint==0x1F201||codePoint==0x1F202||codePoint==0x1F21A||codePoint==0x1F22F||(codePoint>=0x1F232&&codePoint<=0x1F23A)||codePoint==0x1F250||codePoint==0x1F251||
                      (codePoint>=0x1F300&&codePoint<=0x1F5FF)||(codePoint>=0x1F600&&codePoint<=0x1F64F)||(codePoint>=0x1F680&&codePoint<=0x1F6FF)||(codePoint>=0x1F900&&codePoint<=0x1F9FF);
           }
+          inline bool isEmojiJoiner(int codePoint) {
+              return codePoint==0x200D||codePoint==0xFE0F||codePoint==0x20E3;
+          }
           struct ChunkResult { std::string lang; std::string text; int type; };
           static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut);
           static std::string detectWindowLang(const std::string& utf8Text, bool useCld3);
-          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const std::string& punctuationFallback, const std::string& numberFallback, const std::string& emojiFallback, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
+          struct ReadingModes {
+              int numberMode = 0; std::string numberSpecific;
+              int punctuationMode = 0; std::string punctuationSpecific;
+              int emojiMode = 0; std::string emojiSpecific;
+              bool punctuationInFlow = true;
+          };
+          static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
               std::vector<ChunkResult> result;
               std::string fullText;
               for (auto& sentence : sentences) { if (!sentence.empty()) fullText += sentence + " "; }
@@ -371,7 +380,22 @@ jobs:
                   auto flushBuf = [&]() {
                       if (buf.empty()) return;
                       if (bufKind == 1) {
-                          segs.push_back({buf, 2, ""});
+                          const unsigned char* utf8 = (const unsigned char*)buf.c_str();
+                          int bufLen = (int)buf.size(), runStart = 0, j = 0;
+                          bool runIsEmoji = false;
+                          while (j < bufLen) {
+                              int cpLen = 0;
+                              int codePoint = utf8ToCodepoint(utf8 + j, cpLen);
+                              bool emojiHere = isEmoji(codePoint) || (runIsEmoji && isEmojiJoiner(codePoint));
+                              if (j == runStart) runIsEmoji = emojiHere;
+                              else if (emojiHere != runIsEmoji) {
+                                  segs.push_back({buf.substr(runStart, j - runStart), runIsEmoji ? 5 : 2, ""});
+                                  runStart = j;
+                                  runIsEmoji = emojiHere;
+                              }
+                              j += cpLen;
+                          }
+                          if (runStart < bufLen) segs.push_back({buf.substr(runStart), runIsEmoji ? 5 : 2, ""});
                       } else {
                           bool allWs = true, allPunct = true, allNumber = true;
                           const unsigned char* utf8 = (const unsigned char*)buf.c_str();
@@ -409,8 +433,7 @@ jobs:
                                       (codePoint >= 0x2000 && codePoint <= 0x206F) ||
                                       (codePoint >= 0x20A0 && codePoint <= 0x20CF) ||
                                       (codePoint >= 0x2C60 && codePoint <= 0x2C7F) ||
-                                      (codePoint >= 0xA720 && codePoint <= 0xA7FF) ||
-                                      isEmoji(codePoint);
+                                      (codePoint >= 0xA720 && codePoint <= 0xA7FF);
                       int kind = latRange ? 0 : 1;
                       if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, cpLen); bufKind = kind; }
                       else { flushBuf(); buf = fullText.substr(i, cpLen); bufKind = kind; }
@@ -436,36 +459,52 @@ jobs:
                   segs = std::move(mergedSegs);
               }
               if (segs.empty()) return result;
-              (void)emojiFallback; (void)disableAdvancedDetection;
-              for (auto& seg : segs) {
-                  if (seg.type == 1) seg.lang = latinFallback;
-                  else if (seg.type == 2) seg.lang = nonLatinFallback;
-              }
+              (void)disableAdvancedDetection;
+              std::vector<int> originalTypes;
+              originalTypes.reserve(segs.size());
+              for (auto& seg : segs) originalTypes.push_back(seg.type);
+              auto isTypedRun = [](int type) { return type != 3 && type != 4 && type != 5; };
+              auto surroundingType = [&](int segPos) {
+                  int found = 0;
+                  for (int prevIdx = segPos - 1; prevIdx >= 0 && found == 0; prevIdx--)
+                      if (isTypedRun(originalTypes[prevIdx])) found = originalTypes[prevIdx];
+                  for (int scanIdx = 0; scanIdx < (int)originalTypes.size() && found == 0; scanIdx++)
+                      if (isTypedRun(originalTypes[scanIdx])) found = originalTypes[scanIdx];
+                  return found == 0 ? neutralType : found;
+              };
               for (int segPos = 0; segPos < (int)segs.size(); segPos++) {
-                  int segType = segs[segPos].type;
-                  if (segType == 1 || segType == 2) continue;
-                  if (segType != 3 && segType != 4) continue;
-                  int resolvedType = 0;
-                  if (segType == 4 && !punctuationFallback.empty() && punctuationFallback != "auto") {
-                      resolvedType = (punctuationFallback == latinFallback) ? 1 : 2;
-                  } else if (segType == 3 && !numberFallback.empty() && numberFallback != "auto") {
-                      resolvedType = (numberFallback == latinFallback) ? 1 : 2;
-                  } else if (segPos == 0) {
-                      for (int nextSegIdx = segPos + 1; nextSegIdx < (int)segs.size() && resolvedType == 0; nextSegIdx++)
-                          if (segs[nextSegIdx].type != 3 && segs[nextSegIdx].type != 4) resolvedType = segs[nextSegIdx].type;
-                      if (resolvedType == 0) resolvedType = neutralType;
-                  } else {
-                      for (int prevSegIdx = segPos - 1; prevSegIdx >= 0 && resolvedType == 0; prevSegIdx--)
-                          if (segs[prevSegIdx].type != 3 && segs[prevSegIdx].type != 4) resolvedType = segs[prevSegIdx].type;
-                  }
-                  segs[segPos].type = resolvedType;
-                  segs[segPos].lang = (resolvedType == 1) ? latinFallback
-                                    : (resolvedType == 2) ? nonLatinFallback : neutralDefault;
+                  int segType = originalTypes[segPos];
+                  if (isTypedRun(segType)) continue;
+                  int typeMode = (segType == 3) ? modes.numberMode
+                               : (segType == 4) ? modes.punctuationMode : modes.emojiMode;
+                  if (typeMode == 3) continue;
+                  segs[segPos].type = (typeMode == 0) ? surroundingType(segPos) : typeMode;
               }
               for (auto& seg : segs) {
-                  std::string lang = seg.lang.empty() ? latinFallback : seg.lang;
-                  if (!result.empty() && result.back().type == seg.type) result.back().text += seg.text;
-                  else result.push_back({lang, seg.text, seg.type});
+                  seg.lang = (seg.type == 1) ? latinFallback
+                           : (seg.type == 2) ? nonLatinFallback
+                           : (seg.type == 3) ? modes.numberSpecific
+                           : (seg.type == 4) ? modes.punctuationSpecific
+                           : (seg.type == 5) ? modes.emojiSpecific : neutralDefault;
+              }
+              bool punctuationApart = (modes.punctuationMode != 0 && !modes.punctuationInFlow);
+              int mergePos = 0, segTotal = (int)segs.size();
+              while (mergePos < segTotal) {
+                  std::string runText = segs[mergePos].text;
+                  int runType = segs[mergePos].type;
+                  std::string runLang = segs[mergePos].lang.empty() ? latinFallback : segs[mergePos].lang;
+                  if (punctuationApart && originalTypes[mergePos] == 4) {
+                      result.push_back({runLang, runText, runType});
+                      mergePos++;
+                      continue;
+                  }
+                  mergePos++;
+                  while (mergePos < segTotal && segs[mergePos].type == runType &&
+                         !(punctuationApart && originalTypes[mergePos] == 4)) {
+                      runText += segs[mergePos].text;
+                      mergePos++;
+                  }
+                  result.push_back({runLang, runText, runType});
               }
               return result;
           }
@@ -473,7 +512,9 @@ jobs:
           Java_com_tts_easyvoice_NativeEngine_processDirect(
               JNIEnv* env, jobject, jobject directBuffer, jint length,
               jstring jLat, jstring jNonLat, jstring jMode,
-              jstring jPunc, jstring jNum, jstring jEmoji,
+              jint jNumberMode, jstring jNumberSpecific,
+              jint jPunctuationMode, jstring jPunctuationSpecific,
+              jint jEmojiMode, jstring jEmojiSpecific, jboolean jPunctuationInFlow,
               jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
@@ -483,9 +524,14 @@ jobs:
               const char* latC=env->GetStringUTFChars(jLat,nullptr); std::string latinFallback(latC); env->ReleaseStringUTFChars(jLat,latC);
               const char* nonLatC=env->GetStringUTFChars(jNonLat,nullptr); std::string nonLatinFallback(nonLatC); env->ReleaseStringUTFChars(jNonLat,nonLatC);
               const char* modeC=env->GetStringUTFChars(jMode,nullptr); std::string mode(modeC); env->ReleaseStringUTFChars(jMode,modeC);
-              const char* puncC=env->GetStringUTFChars(jPunc,nullptr); std::string punctuationFallback(puncC); env->ReleaseStringUTFChars(jPunc,puncC);
-              const char* numC=env->GetStringUTFChars(jNum,nullptr); std::string numberFallback(numC); env->ReleaseStringUTFChars(jNum,numC);
-              const char* emojiC=env->GetStringUTFChars(jEmoji,nullptr); std::string emojiFallback(emojiC); env->ReleaseStringUTFChars(jEmoji,emojiC);
+              ReadingModes modes;
+              modes.numberMode = (int)jNumberMode;
+              modes.punctuationMode = (int)jPunctuationMode;
+              modes.emojiMode = (int)jEmojiMode;
+              modes.punctuationInFlow = (jPunctuationInFlow == JNI_TRUE);
+              const char* numSpecC=env->GetStringUTFChars(jNumberSpecific,nullptr); modes.numberSpecific=numSpecC; env->ReleaseStringUTFChars(jNumberSpecific,numSpecC);
+              const char* puncSpecC=env->GetStringUTFChars(jPunctuationSpecific,nullptr); modes.punctuationSpecific=puncSpecC; env->ReleaseStringUTFChars(jPunctuationSpecific,puncSpecC);
+              const char* emojiSpecC=env->GetStringUTFChars(jEmojiSpecific,nullptr); modes.emojiSpecific=emojiSpecC; env->ReleaseStringUTFChars(jEmojiSpecific,emojiSpecC);
               const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
               int neutralType = (int)jNeutralType;
               bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
@@ -498,10 +544,10 @@ jobs:
               for(auto& sentence: sentences){ processed.push_back(sentence); }
               std::string result;
               if (mode == "mix") {
-                  auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, punctuationFallback, numberFallback, emojiFallback, neutralDefault, neutralType, disableAdvancedDetection);
+                  auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection);
                   for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               } else if (mode == "dual") {
-                  auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, punctuationFallback, numberFallback, emojiFallback, neutralDefault, neutralType, disableAdvancedDetection, true);
+                  auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection, true);
                   for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
               }
               return env->NewStringUTF(result.c_str());
@@ -931,12 +977,6 @@ jobs:
               }
           }
           extern "C" JNIEXPORT jstring JNICALL
-          Java_com_tts_easyvoice_NativeEngine_modeLang(JNIEnv* env, jclass, jint mode, jstring jLat, jstring jNonLat){
-              if(mode==1) return jLat ? (jstring)env->NewLocalRef(jLat) : env->NewStringUTF("");
-              if(mode==2) return jNonLat ? (jstring)env->NewLocalRef(jNonLat) : env->NewStringUTF("");
-              return env->NewStringUTF("auto");
-          }
-          extern "C" JNIEXPORT jstring JNICALL
           Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
               JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
               jboolean jDisableAdv, jobjectArray jDetectOkIso3, jobjectArray jEnabledLangs, jboolean jWantLog, jboolean jUseCld3)
@@ -1157,13 +1197,14 @@ jobs:
           "        buffer: ByteBuffer, length: Int,\n"
           "        latinFallback: String, nonLatinFallback: String,\n"
           "        mode: String,\n"
-          "        punctuationFallback: String, numberFallback: String, emojiFallback: String,\n"
+          "        numberMode: Int, numberSpecific: String,\n"
+          "        punctuationMode: Int, punctuationSpecific: String,\n"
+          "        emojiMode: Int, emojiSpecific: String, punctuationInFlow: Boolean,\n"
           "        neutralDefault: String, neutralType: Int,\n"
           "        disableAdvancedDetection: Boolean, useCld3: Boolean\n"
           "    ): String\n"
           "    external fun nativeGetLanguages(text: String, useCld3: Boolean): Array<String>\n"
           "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
-          "    external fun modeLang(mode: Int, latinFallback: String, nonLatinFallback: String): String\n"
           "    external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,\n"
           "        disableAdvancedDetection: Boolean, detectOkIso3: Array<String>, enabledLangs: Array<String>, wantLog: Boolean, useCld3: Boolean): String\n"
           "}\n")
@@ -2680,10 +2721,6 @@ jobs:
           "        return engine.isNotEmpty() && engine != \"Disable\"\n"
           "    }\n"
           "    private fun isKnownIso2(code: String): Boolean = code.length == 2 && code in java.util.Locale.getISOLanguages()\n"
-          "    private fun languageForModeOption(mode: Int, latinFallback: String, nonLatinFallback: String): String =\n"
-          "        try { NativeEngine.modeLang(mode, latinFallback, nonLatinFallback) } catch (_: Throwable) {\n"
-          "            when (mode) { 1 -> latinFallback; 2 -> nonLatinFallback; else -> \"auto\" }\n"
-          "        }\n"
           "    private fun buildEngineList() {\n"
           "        synchronized(this) {\n"
           "            val rebuiltEngineList = ArrayList<String>()\n"
@@ -2841,9 +2878,6 @@ jobs:
           "            if (iso2 != null) enabledSet.add(iso2)\n"
           "        }\n"
           "        enabledLangs = enabledSet\n"
-          "        val mixNumLang        = languageForModeOption(numberModeInt, latinFallback, nonLatinFallback)\n"
-          "        val mixPuncLang       = languageForModeOption(punctuationModeInt, latinFallback, nonLatinFallback)\n"
-          "        val mixEmojiLang      = \"auto\"\n"
           "        val chunks = mutableListOf<TextChunk>()\n"
           "        val trimmedText = rawText.trim()\n"
           "        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \"Speak: \" + trimmedText + \" id: \" + utteranceId)\n"
@@ -2925,7 +2959,9 @@ jobs:
           "                        val chunkOutput = NativeEngine.processDirect(\n"
           "                            textBuffer, textBytes.size,\n"
           "                            latinFallback, nonLatinFallback, \"mix\",\n"
-          "                            mixPuncLang, mixNumLang, mixEmojiLang,\n"
+          "                            numberModeInt, normalizeLangCode(numberSpecificLang),\n"
+          "                            punctuationModeInt, normalizeLangCode(puncSpecificLang),\n"
+          "                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag,\n"
           "                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                        )\n"
           "                        for (chunkStr in chunkOutput.split(\"||\").filter { it.isNotBlank() }) {\n"
@@ -2970,7 +3006,9 @@ jobs:
           "                    val chunkOutput = NativeEngine.processDirect(\n"
           "                        textBuffer, textBytes.size,\n"
           "                        latinFallback, nonLatinFallback, \"dual\",\n"
-          "                        mixPuncLang, mixNumLang, mixEmojiLang,\n"
+          "                        numberModeInt, normalizeLangCode(numberSpecificLang),\n"
+          "                        punctuationModeInt, normalizeLangCode(puncSpecificLang),\n"
+          "                        emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag,\n"
           "                        neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                    )\n"
           "                    for (chunkStr in chunkOutput.split(\"||\").filter { it.isNotBlank() }) {\n"
