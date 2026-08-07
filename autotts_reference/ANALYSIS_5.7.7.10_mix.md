@@ -2352,3 +2352,21 @@ rebuild, the `m.m` label source, `m.g` for the selection index, the number/punct
 mirroring through `H` and `I`, the three `localespans` boxes syncing `Q`, and the
 `auto_mode_google` visibility/enabled rule. Only the parent view the sections are added to
 moved, from `root` to `modeSettingsBox`.
+
+
+### 51a. Refined to a per-mode button, with the descriptions moved onto the radios
+
+The generic "Mode settings" button became a button **named after the selected mode** —
+"Mixed mode settings", "Multilingual mode (experimental) settings" — and it is `GONE`
+rather than merely disabled in "None" mode, so nothing useless is on screen. The dialog now
+carries the mode's **description above its settings**, and its title is the mode's name.
+
+The five description paragraphs are no longer separate `TextView`s in the radio group. Each
+is now the radio's `contentDescription`, formatted `"<label>. <description>"`. TalkBack
+therefore still announces the full explanation when the radio takes focus, while the visible
+list collapses to five one-line labels plus one button. For a screen-reader user this is
+strictly better: the same words are still spoken, at the moment they are relevant, and the
+swipe distance to the settings drops from about eleven stops to two.
+
+`selectedMode` tracks the current choice so the button's label, the dialog title and the
+dialog's description all follow the radio. Everything below the surface is untouched.
