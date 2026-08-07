@@ -321,6 +321,7 @@ jobs:
           }
           struct ChunkResult { std::string lang; std::string text; int type; };
           static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut);
+          static std::string currentLanguageHints();
           static std::string detectWindowLang(const std::string& utf8Text, bool useCld3);
           struct ReadingModes {
               int numberMode = 0; std::string numberSpecific;
@@ -935,7 +936,8 @@ jobs:
                   if(!cld3Reliable) return "UNKNOWN";
                   return cld3Raw.empty() ? "UNKNOWN" : cld3Raw;
               }
-              CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+              std::string hintList = currentLanguageHints();
+              CLD2::CLDHints hints = {hintList.empty()?nullptr:hintList.c_str(), nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
               CLD2::Language lang3[3]; int percent3[3]; double score3[3];
               int textBytes=0; bool reliable=false;
               CLD2::DetectLanguageSummaryV2(utf8Text.c_str(), (int)utf8Text.size(), true, &hints,
@@ -944,6 +946,29 @@ jobs:
               if(!reliable) return "UNKNOWN";
               const char* code = CLD2::LanguageCode(lang3[0]);
               return code ? std::string(code) : "UNKNOWN";
+          }
+          static std::mutex languageHintMutex;
+          static std::string languageHintList;
+          static std::string currentLanguageHints(){
+              std::lock_guard<std::mutex> lock(languageHintMutex);
+              return languageHintList;
+          }
+          extern "C" JNIEXPORT void JNICALL
+          Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv* env, jclass, jobjectArray jLangs){
+              std::string joined;
+              if(jLangs){
+                  jsize count = env->GetArrayLength(jLangs);
+                  for(jsize i=0;i<count;i++){
+                      jstring jLang = (jstring)env->GetObjectArrayElement(jLangs, i);
+                      if(!jLang) continue;
+                      const char* langC = env->GetStringUTFChars(jLang, nullptr);
+                      if(langC && *langC){ if(!joined.empty()) joined += ","; joined += langC; }
+                      if(langC) env->ReleaseStringUTFChars(jLang, langC);
+                      env->DeleteLocalRef(jLang);
+                  }
+              }
+              std::lock_guard<std::mutex> lock(languageHintMutex);
+              languageHintList = joined;
           }
           static std::unordered_set<std::string> jStringArrayToSet(JNIEnv* env, jobjectArray arr){
               std::unordered_set<std::string> out;
@@ -1114,7 +1139,8 @@ jobs:
                           std::string cld3Lang = cld3DetectRaw(std::string(text, start, detectBytes), nullptr);
                           lang = cld3Lang.empty() ? "un" : cld3Lang;
                       } else {
-                          CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+                          std::string hintList = currentLanguageHints();
+                          CLD2::CLDHints hints = {hintList.empty()?nullptr:hintList.c_str(), nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
                           CLD2::Language lang3[3]; int percent3[3]; double score3[3];
                           int textBytes = 0; bool reliable = false;
                           CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(text.c_str() + start, detectBytes, true, &hints, 0x4000,
@@ -1205,6 +1231,7 @@ jobs:
           "    ): String\n"
           "    external fun nativeGetLanguages(text: String, useCld3: Boolean): Array<String>\n"
           "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
+          "    external fun setLanguageHints(langs: Array<String>)\n"
           "    external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,\n"
           "        disableAdvancedDetection: Boolean, detectOkIso3: Array<String>, enabledLangs: Array<String>, wantLog: Boolean, useCld3: Boolean): String\n"
           "}\n")
@@ -2180,6 +2207,7 @@ jobs:
           "        requestAudioFocus()\n"
           "        initIsoMaps()\n"
           "        loadAllSettings()\n"
+          "        try { NativeEngine.setLanguageHints(refreshEnabledLangs().toTypedArray()) } catch (_: Throwable) {}\n"
           "        initDone = true\n"
           "        initAllEngines()\n"
           "    }\n"
@@ -2760,6 +2788,19 @@ jobs:
           "            }\n"
           "        }\n"
           "    }\n"
+          "    private fun refreshEnabledLangs(): HashSet<String> {\n"
+          "        val enabledSet = HashSet<String>()\n"
+          "        var enabledIdx = 0\n"
+          "        while (enabledIdx < LangStore.languages.size) {\n"
+          "            val entry = LangStore.languages[enabledIdx]\n"
+          "            enabledIdx++\n"
+          "            if (entry.disabled) continue\n"
+          "            val iso2 = iso3ToIso[entry.iso3]\n"
+          "            if (iso2 != null) enabledSet.add(iso2)\n"
+          "        }\n"
+          "        enabledLangs = enabledSet\n"
+          "        return enabledSet\n"
+          "    }\n"
           "    private fun loadAllSettings() {\n"
           "        buildEngineList()\n"
           "        loadVoiceList()\n"
@@ -2868,16 +2909,7 @@ jobs:
           "        }\n"
           "        scannedLangsIso3 = prefs.getScannedLangs()\n"
           "        initIsoMaps()\n"
-          "        val enabledSet = HashSet<String>()\n"
-          "        var enabledIdx = 0\n"
-          "        while (enabledIdx < LangStore.languages.size) {\n"
-          "            val entry = LangStore.languages[enabledIdx]\n"
-          "            enabledIdx++\n"
-          "            if (entry.disabled) continue\n"
-          "            val iso2 = iso3ToIso[entry.iso3]\n"
-          "            if (iso2 != null) enabledSet.add(iso2)\n"
-          "        }\n"
-          "        enabledLangs = enabledSet\n"
+          "        refreshEnabledLangs()\n"
           "        val chunks = mutableListOf<TextChunk>()\n"
           "        val trimmedText = rawText.trim()\n"
           "        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \"Speak: \" + trimmedText + \" id: \" + utteranceId)\n"
