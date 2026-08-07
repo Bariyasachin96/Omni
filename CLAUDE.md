@@ -110,6 +110,28 @@ Recorded so far:
    `onlyEnabled = true`, so whichever section you open last must re-run its own rebuild.
    Expanding a mode's settings calls `refreshModeLanguages(mode)` for the same reason.
    `pageTitles`/`pageIcons` dropped to four and `ic_tab_voices.xml` is gone with them.
+3. **Languages tab folded into the Modes tab, per mode.** Now three tabs: Modes, Advanced,
+   Licenses. Unlike Voices, the language list **is** per-mode (`buildLanguagesTabView` reads
+   `prefs.getReadingMode()` and builds `modeInt`/`required` from it), so it sits **inside each
+   mode**, in the order the user asked for: radio → its description → **"Languages"
+   collapse/expand** → **"<Mode> settings" collapse/expand**. Only modes that support a
+   language list get the button — auto, mix, multilingual (google is `GONE` and shares auto's
+   holder via `holderMode`); **dual has none**, which is the inline equivalent of the old tab's
+   "not available for None and Dual" message. Rebuilt on each expand, same `LangStore.languages`
+   reason as Voices. `ic_tab_languages.xml` is gone.
+   The list itself changed from `ListView` to a `LinearLayout` of `CheckBox` rows — **required**,
+   because a `ListView` cannot measure inside the Modes tab's `ScrollView`. All the underlying
+   logic is unchanged (`checkedFlags`, `visibleIdx`, `requiredNow()`, `entry.disabled`,
+   `persistDisabled`, search, select-all, clear-all, show-selected). `setRowChecked` sets
+   `suppressRowEvents` so a programmatic check does **not** re-enter the handler — that
+   reproduces `ListView.setItemChecked`, which never fired `onItemClick`.
+4. **"None" mode removed from the radio list** (user: *"None ki koi jarurat hi nahi … hata hi
+   dena hai"*). Only the UI option is gone — mode 0 still exists in the store and the service,
+   and `buildVoicesTabView`'s `readingMode == "none"` guards stay. Because
+   `getReadingMode()` returns `"none"` by default when Google TTS is absent (`auto_mode` 3 → 0),
+   `buildModesTabView` maps a stored `"none"` to `"auto"` — the same fallback
+   `getReadingMode()`/`setReadingMode()` already use for an unrecognised value — otherwise the
+   screen would open with nothing selected and no settings reachable.
 
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
