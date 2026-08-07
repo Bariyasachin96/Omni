@@ -172,14 +172,15 @@ extends m {
         if (n7 > 0) {
             eArray = new e[n15 - n7];
             n15 = n14 = n13;
-            for (n7 = n14; n7 < this.W0; ++n7) {
-                e e3 = this.V0[n7];
-                n14 = n15;
+            while (n14 < this.W0) {
+                e e3 = this.V0[n14];
+                n7 = n15;
                 if (e3.X() != 8) {
                     eArray[n15] = e3;
-                    n14 = n15 + 1;
+                    n7 = n15 + 1;
                 }
-                n15 = n14;
+                ++n14;
+                n15 = n7;
             }
         }
         this.H1 = eArray;
@@ -302,17 +303,17 @@ extends m {
     public final void o2(boolean bl) {
         if (this.G1 != null && this.F1 != null && this.E1 != null) {
             Object object;
-            e e3;
+            Object object2;
             int n3;
             int n4;
             for (n4 = 0; n4 < this.I1; ++n4) {
                 this.H1[n4].x0();
             }
-            Object object2 = this.G1;
-            int n5 = object2[0];
-            int n6 = object2[1];
+            Object object3 = this.G1;
+            int n5 = object3[0];
+            int n6 = object3[1];
             float f3 = this.q1;
-            object2 = null;
+            object3 = null;
             for (n4 = 0; n4 < n5; ++n4) {
                 if (bl) {
                     n3 = n5 - n4 - 1;
@@ -320,52 +321,53 @@ extends m {
                 } else {
                     n3 = n4;
                 }
-                e3 = this.F1[n3];
-                object = object2;
-                if (e3 != null) {
-                    if (e3.X() == 8) {
-                        object = object2;
+                object2 = this.F1[n3];
+                object = object3;
+                if (object2 != null) {
+                    if (((e)object2).X() == 8) {
+                        object = object3;
                     } else {
                         if (n4 == 0) {
-                            e3.l(e3.Q, this.Q, this.E1());
-                            e3.S0(this.k1);
-                            e3.R0(f3);
+                            ((e)object2).l(((e)object2).Q, this.Q, this.E1());
+                            ((e)object2).S0(this.k1);
+                            ((e)object2).R0(f3);
                         }
                         if (n4 == n5 - 1) {
-                            e3.l(e3.S, this.S, this.F1());
+                            ((e)object2).l(((e)object2).S, this.S, this.F1());
                         }
-                        if (n4 > 0 && object2 != null) {
-                            e3.l(e3.Q, ((e)object2).S, this.w1);
-                            ((e)object2).l(((e)object2).S, e3.Q, 0);
+                        if (n4 > 0 && object3 != null) {
+                            ((e)object2).l(((e)object2).Q, ((e)object3).S, this.w1);
+                            ((e)object3).l(((e)object3).S, ((e)object2).Q, 0);
                         }
-                        object = e3;
+                        object = object2;
                     }
                 }
-                object2 = object;
+                object3 = object;
             }
+            object = object3;
             for (n4 = 0; n4 < n6; ++n4) {
-                e3 = this.E1[n4];
-                object = object2;
-                if (e3 != null) {
-                    if (e3.X() == 8) {
-                        object = object2;
+                object2 = this.E1[n4];
+                object3 = object;
+                if (object2 != null) {
+                    if (((e)object2).X() == 8) {
+                        object3 = object;
                     } else {
                         if (n4 == 0) {
-                            e3.l(e3.R, this.R, this.G1());
-                            e3.j1(this.l1);
-                            e3.i1(this.r1);
+                            ((e)object2).l(((e)object2).R, this.R, this.G1());
+                            ((e)object2).j1(this.l1);
+                            ((e)object2).i1(this.r1);
                         }
                         if (n4 == n6 - 1) {
-                            e3.l(e3.T, this.T, this.D1());
+                            ((e)object2).l(((e)object2).T, this.T, this.D1());
                         }
-                        if (n4 > 0 && object2 != null) {
-                            e3.l(e3.R, ((e)object2).T, this.x1);
-                            ((e)object2).l(((e)object2).T, e3.R, 0);
+                        if (n4 > 0 && object != null) {
+                            ((e)object2).l(((e)object2).R, ((e)object).T, this.x1);
+                            ((e)object).l(((e)object).T, ((e)object2).R, 0);
                         }
-                        object = e3;
+                        object3 = object2;
                     }
                 }
-                object2 = object;
+                object = object3;
             }
             for (n4 = 0; n4 < n5; ++n4) {
                 for (n3 = 0; n3 < n6; ++n3) {
@@ -373,16 +375,16 @@ extends m {
                     if (this.C1 == 1) {
                         n7 = n4 * n6 + n3;
                     }
-                    if (n7 >= ((int[])(object2 = (Object)this.H1)).length || (object2 = (Object)object2[n7]) == null || ((e)object2).X() == 8) continue;
+                    if (n7 >= ((int[])(object3 = (Object)this.H1)).length || (object2 = (Object)object3[n7]) == null || ((e)object2).X() == 8) continue;
                     object = this.F1[n4];
-                    e3 = this.E1[n3];
+                    object3 = this.E1[n3];
                     if (object2 != object) {
-                        ((e)object2).l(((e)object2).Q, object.Q, 0);
-                        ((e)object2).l(((e)object2).S, object.S, 0);
+                        ((e)object2).l(((e)object2).Q, ((e)object).Q, 0);
+                        ((e)object2).l(((e)object2).S, ((e)object).S, 0);
                     }
-                    if (object2 == e3) continue;
-                    ((e)object2).l(((e)object2).R, e3.R, 0);
-                    ((e)object2).l(((e)object2).T, e3.T, 0);
+                    if (object2 == object3) continue;
+                    ((e)object2).l(((e)object2).R, ((e)object3).R, 0);
+                    ((e)object2).l(((e)object2).T, ((e)object3).T, 0);
                 }
             }
         }
@@ -506,11 +508,11 @@ extends m {
             }
             if (var6_6 != 0) break block35;
             var11_11 = var6_6;
-            var10_12 = var7_9;
+            var9_8 = var7_9;
             if (var3_3 == 1) ** GOTO lbl57
         }
         if (var7_9 == 0 && var3_3 == 0) {
-            var10_12 = var7_9;
+            var9_8 = var7_9;
             var11_11 = var6_6;
 lbl57:
             // 6 sources
@@ -518,7 +520,7 @@ lbl57:
             while (true) {
                 var12_13 = true;
                 var6_6 = var11_11;
-                var7_9 = var10_12;
+                var7_9 = var9_8;
                 break;
             }
         } else {
@@ -574,36 +576,36 @@ lbl57:
                     }
                     var8_7 = var10_12;
                 }
-                var9_8 = 0;
-                for (var10_12 = 0; var10_12 < var6_6; ++var10_12) {
-                    var13_10 /* !! */  = this.E1[var10_12];
-                    var11_11 = var9_8;
+                var10_12 = 0;
+                for (var9_8 = 0; var9_8 < var6_6; ++var9_8) {
+                    var13_10 /* !! */  = this.E1[var9_8];
+                    var11_11 = var10_12;
                     if (var13_10 /* !! */  != null) {
-                        var11_11 = var9_8;
-                        if (var10_12 > 0) {
-                            var11_11 = var9_8 + this.x1;
+                        var11_11 = var10_12;
+                        if (var9_8 > 0) {
+                            var11_11 = var10_12 + this.x1;
                         }
                         var11_11 += this.p2((e)var13_10 /* !! */ , var4_4);
                     }
-                    var9_8 = var11_11;
+                    var10_12 = var11_11;
                 }
                 var5_5[0] = var8_7;
-                var5_5[1] = var9_8;
+                var5_5[1] = var10_12;
                 if (var3_3 != 0) break block36;
                 var11_11 = var6_6;
-                var10_12 = var7_9;
+                var9_8 = var7_9;
                 if (var8_7 <= var4_4) ** GOTO lbl57
                 var11_11 = var6_6;
-                var10_12 = var7_9;
+                var9_8 = var7_9;
                 if (var7_9 <= 1) ** GOTO lbl57
                 --var7_9;
                 continue;
             }
             var11_11 = var6_6;
-            var10_12 = var7_9;
-            if (var9_8 <= var4_4) ** GOTO lbl57
+            var9_8 = var7_9;
+            if (var10_12 <= var4_4) ** GOTO lbl57
             var11_11 = var6_6;
-            var10_12 = var7_9;
+            var9_8 = var7_9;
             if (var6_6 > 1) ** break;
             ** continue;
             --var6_6;
@@ -623,27 +625,27 @@ lbl57:
             return;
         }
         var16_6.D1.clear();
-        var19_7 = var16_6.Q;
-        var17_8 = var16_6.R;
-        var20_9 = var16_6.S;
-        var18_10 = var16_6.T;
-        var17_8 = new a((g)var16_6, var3_3, (d)var19_7, (d)var17_8, (d)var20_9, (d)var18_10, var4_4);
-        var16_6.D1.add(var17_8);
+        var18_7 = var16_6.Q;
+        var20_8 = var16_6.R;
+        var19_9 = var16_6.S;
+        var17_10 = var16_6.T;
+        var17_10 = new a((g)var16_6, var3_3, (d)var18_7, (d)var20_8, (d)var19_9, (d)var17_10, var4_4);
+        var16_6.D1.add(var17_10);
         if (var3_3 == 0) {
             var6_11 = 0;
             var8_12 = 0;
             var9_13 = 0;
             while (true) {
-                var18_10 = var16_6;
+                var18_7 = var16_6;
                 var7_14 = var6_11;
                 if (var9_13 < var2_2) {
-                    var19_7 = var1_1 /* !! */ [var9_13];
-                    var11_16 = var16_6.q2((e)var19_7, var4_4);
+                    var19_9 = var1_1 /* !! */ [var9_13];
+                    var11_16 = var16_6.q2((e)var19_9, var4_4);
                     var7_14 = var6_11;
-                    if (var19_7.C() == e.b.e) {
+                    if (var19_9.C() == e.b.e) {
                         var7_14 = var6_11 + 1;
                     }
-                    var6_11 = (var8_12 == var4_4 || var16_6.w1 + var8_12 + var11_16 > var4_4) && u.g$a.a((a)var17_8) != null ? 1 : 0;
+                    var6_11 = (var8_12 == var4_4 || var16_6.w1 + var8_12 + var11_16 > var4_4) && u.g$a.a((a)var17_10) != null ? 1 : 0;
                     var10_15 = var6_11;
                     if (var6_11 == 0) {
                         var10_15 = var6_11;
@@ -659,20 +661,20 @@ lbl57:
                         }
                     }
                     if (var10_15 != 0) {
-                        var18_10 = new a((g)var16_6, var3_3, var16_6.Q, var16_6.R, var16_6.S, var16_6.T, var4_4);
-                        var18_10.i(var9_13);
-                        var16_6.D1.add(var18_10);
+                        var18_7 = new a((g)var16_6, var3_3, var16_6.Q, var16_6.R, var16_6.S, var16_6.T, var4_4);
+                        var18_7.i(var9_13);
+                        var16_6.D1.add(var18_7);
                         while (true) {
                             var8_12 = var11_16;
-                            var17_8 = var18_10;
+                            var17_10 = var18_7;
                             break;
                         }
                     } else {
-                        var18_10 = var17_8;
+                        var18_7 = var17_10;
                         if (var9_13 <= 0) ** continue;
                         var8_12 += var16_6.w1 + var11_16;
                     }
-                    var17_8.b((e)var19_7);
+                    var17_10.b((e)var19_9);
                     ++var9_13;
                     var6_11 = var7_14;
                     continue;
@@ -684,16 +686,16 @@ lbl57:
             var8_12 = 0;
             var9_13 = 0;
             while (true) {
-                var18_10 = var16_6;
+                var18_7 = var16_6;
                 var7_14 = var6_11;
                 if (var9_13 >= var2_2) break;
-                var19_7 = var1_1 /* !! */ [var9_13];
-                var11_16 = var16_6.p2((e)var19_7, var4_4);
+                var19_9 = var1_1 /* !! */ [var9_13];
+                var11_16 = var16_6.p2((e)var19_9, var4_4);
                 var7_14 = var6_11;
-                if (var19_7.V() == e.b.e) {
+                if (var19_9.V() == e.b.e) {
                     var7_14 = var6_11 + 1;
                 }
-                var6_11 = (var8_12 == var4_4 || var16_6.x1 + var8_12 + var11_16 > var4_4) && u.g$a.a((a)var17_8) != null ? 1 : 0;
+                var6_11 = (var8_12 == var4_4 || var16_6.x1 + var8_12 + var11_16 > var4_4) && u.g$a.a((a)var17_10) != null ? 1 : 0;
                 var10_15 = var6_11;
                 if (var6_11 == 0) {
                     var10_15 = var6_11;
@@ -709,38 +711,38 @@ lbl57:
                     }
                 }
                 if (var10_15 != 0) {
-                    var18_10 = new a((g)var16_6, var3_3, var16_6.Q, var16_6.R, var16_6.S, var16_6.T, var4_4);
-                    var18_10.i(var9_13);
-                    var16_6.D1.add(var18_10);
+                    var18_7 = new a((g)var16_6, var3_3, var16_6.Q, var16_6.R, var16_6.S, var16_6.T, var4_4);
+                    var18_7.i(var9_13);
+                    var16_6.D1.add(var18_7);
                     while (true) {
                         var8_12 = var11_16;
-                        var17_8 = var18_10;
+                        var17_10 = var18_7;
                         break;
                     }
                 } else {
-                    var18_10 = var17_8;
+                    var18_7 = var17_10;
                     if (var9_13 <= 0) ** continue;
                     var8_12 += var16_6.x1 + var11_16;
                 }
-                var17_8.b((e)var19_7);
+                var17_10.b((e)var19_9);
                 ++var9_13;
                 var6_11 = var7_14;
             }
         }
-        var15_18 = var18_10.D1.size();
-        var16_6 = var18_10.Q;
-        var17_8 = var18_10.R;
-        var19_7 = var18_10.S;
-        var20_9 = var18_10.T;
-        var9_13 = var18_10.E1();
-        var6_11 = var18_10.G1();
-        var10_15 = var18_10.F1();
-        var11_16 = var18_10.D1();
-        var1_1 /* !! */  = var18_10.C();
-        var2_2 = var1_1 /* !! */  != (var21_19 = e.b.d) && var18_10.V() != var21_19 ? 0 : 1;
+        var15_18 = var18_7.D1.size();
+        var16_6 = var18_7.Q;
+        var17_10 = var18_7.R;
+        var19_9 = var18_7.S;
+        var20_8 = var18_7.T;
+        var9_13 = var18_7.E1();
+        var6_11 = var18_7.G1();
+        var10_15 = var18_7.F1();
+        var11_16 = var18_7.D1();
+        var1_1 /* !! */  = var18_7.C();
+        var2_2 = var1_1 /* !! */  != (var21_19 = e.b.d) && var18_7.V() != var21_19 ? 0 : 1;
         if (var7_14 > 0 && var2_2 != 0) {
             for (var2_2 = 0; var2_2 < var15_18; ++var2_2) {
-                var1_1 /* !! */  = (a)var18_10.D1.get(var2_2);
+                var1_1 /* !! */  = (a)var18_7.D1.get(var2_2);
                 if (var3_3 == 0) {
                     var1_1 /* !! */ .g(var4_4 - var1_1 /* !! */ .f());
                     continue;
@@ -752,28 +754,28 @@ lbl57:
         var7_14 = var6_11;
         var6_11 = 0;
         for (var8_12 = 0; var8_12 < var15_18; ++var8_12) {
-            var21_19 = (a)var18_10.D1.get(var8_12);
+            var21_19 = (a)var18_7.D1.get(var8_12);
             if (var3_3 == 0) {
                 if (var8_12 < var15_18 - 1) {
-                    var1_1 /* !! */  = u.g$a.a((a)((a)var18_10.D1.get((int)(var8_12 + 1)))).R;
+                    var1_1 /* !! */  = u.g$a.a((a)((a)var18_7.D1.get((int)(var8_12 + 1)))).R;
                     var2_2 = 0;
                 } else {
-                    var1_1 /* !! */  = var18_10.T;
-                    var2_2 = var18_10.D1();
+                    var1_1 /* !! */  = var18_7.T;
+                    var2_2 = var18_7.D1();
                 }
-                var20_9 = u.g$a.a((a)var21_19).T;
-                var21_19.j(var3_3, (d)var16_6, (d)var17_8, (d)var19_7, (d)var1_1 /* !! */ , var9_13, var7_14, var10_15, var2_2, var4_4);
+                var20_8 = u.g$a.a((a)var21_19).T;
+                var21_19.j(var3_3, (d)var16_6, (d)var17_10, (d)var19_9, (d)var1_1 /* !! */ , var9_13, var7_14, var10_15, var2_2, var4_4);
                 var7_14 = Math.max(var12_17, var21_19.f());
                 var6_11 = var11_16 = var21_19.e() + var6_11;
                 if (var8_12 > 0) {
-                    var6_11 = var11_16 + var18_10.x1;
+                    var6_11 = var11_16 + var18_7.x1;
                 }
-                var17_8 = var20_9;
+                var17_10 = var20_8;
                 var13_20 = 0;
                 var11_16 = var2_2;
             } else {
                 if (var8_12 < var15_18 - 1) {
-                    var1_1 /* !! */  = u.g$a.a((a)((a)var18_10.D1.get((int)(var8_12 + 1)))).Q;
+                    var1_1 /* !! */  = u.g$a.a((a)((a)var18_7.D1.get((int)(var8_12 + 1)))).Q;
                     var2_2 = 0;
 lbl136:
                     // 2 sources
@@ -783,29 +785,29 @@ lbl136:
                         break;
                     }
                 }
-                var1_1 /* !! */  = var18_10.S;
-                var2_2 = var18_10.F1();
+                var1_1 /* !! */  = var18_7.S;
+                var2_2 = var18_7.F1();
                 ** continue;
-                var19_7 = var1_1 /* !! */ ;
+                var19_9 = var1_1 /* !! */ ;
                 var1_1 /* !! */  = u.g$a.a((a)var21_19).S;
-                var21_19.j(var3_3, (d)var16_6, (d)var17_8, (d)var19_7, (d)var20_9, var9_13, var7_14, var2_2, var11_16, var4_4);
+                var21_19.j(var3_3, (d)var16_6, (d)var17_10, (d)var19_9, (d)var20_8, var9_13, var7_14, var2_2, var11_16, var4_4);
                 var9_13 = var21_19.f() + var12_17;
                 var14_21 = Math.max(var6_11, var21_19.e());
                 var6_11 = var9_13;
                 if (var8_12 > 0) {
-                    var6_11 = var9_13 + var18_10.w1;
+                    var6_11 = var9_13 + var18_7.w1;
                 }
                 var12_17 = var6_11;
                 var9_13 = 0;
                 var16_6 = var1_1 /* !! */ ;
                 var10_15 = var2_2;
                 var13_20 = var7_14;
-                var1_1 /* !! */  = var20_9;
+                var1_1 /* !! */  = var20_8;
                 var6_11 = var14_21;
                 var7_14 = var12_17;
             }
             var12_17 = var7_14;
-            var20_9 = var1_1 /* !! */ ;
+            var20_8 = var1_1 /* !! */ ;
             var7_14 = var13_20;
         }
         var5_5[0] = var12_17;
@@ -822,12 +824,12 @@ lbl136:
             return;
         }
         var17_6.D1.clear();
-        var19_7 = var17_6.Q;
-        var20_8 = var17_6.R;
-        var21_9 = var17_6.S;
-        var18_10 = var17_6.T;
-        var18_10 = new a((g)var17_6, var3_3, (d)var19_7, (d)var20_8, (d)var21_9, (d)var18_10, var4_4);
-        var17_6.D1.add(var18_10);
+        var20_7 = var17_6.Q;
+        var21_8 = var17_6.R;
+        var18_9 = var17_6.S;
+        var19_10 = var17_6.T;
+        var18_9 = new a((g)var17_6, var3_3, (d)var20_7, (d)var21_8, (d)var18_9, (d)var19_10, var4_4);
+        var17_6.D1.add(var18_9);
         var13_11 = 1;
         if (var3_3 == 0) {
             var10_12 = 0;
@@ -835,17 +837,17 @@ lbl136:
             var8_14 = 0;
             var9_15 = 0;
             while (true) {
-                var19_7 = var17_6;
+                var19_10 = var17_6;
                 var7_16 = var6_13;
                 if (var9_15 < var2_2) {
                     ++var10_12;
-                    var20_8 = var1_1[var9_15];
-                    var12_18 = var17_6.q2((e)var20_8, var4_4);
+                    var20_7 = var1_1[var9_15];
+                    var12_18 = var17_6.q2((e)var20_7, var4_4);
                     var7_16 = var6_13;
-                    if (var20_8.C() == e.b.e) {
+                    if (var20_7.C() == e.b.e) {
                         var7_16 = var6_13 + 1;
                     }
-                    var6_13 = (var8_14 == var4_4 || var17_6.w1 + var8_14 + var12_18 > var4_4) && u.g$a.a((a)var18_10) != null ? 1 : 0;
+                    var6_13 = (var8_14 == var4_4 || var17_6.w1 + var8_14 + var12_18 > var4_4) && u.g$a.a((a)var18_9) != null ? 1 : 0;
                     var11_17 = var6_13;
                     if (var6_13 == 0) {
                         var11_17 = var6_13;
@@ -861,23 +863,23 @@ lbl136:
                         }
                     }
                     if (var11_17 != 0) {
-                        var19_7 = new a((g)var17_6, var3_3, var17_6.Q, var17_6.R, var17_6.S, var17_6.T, var4_4);
-                        var19_7.i(var9_15);
-                        var17_6.D1.add(var19_7);
+                        var19_10 = new a((g)var17_6, var3_3, var17_6.Q, var17_6.R, var17_6.S, var17_6.T, var4_4);
+                        var19_10.i(var9_15);
+                        var17_6.D1.add(var19_10);
                         var6_13 = 1;
                         while (true) {
                             var8_14 = var12_18;
-                            var18_10 = var19_7;
+                            var18_9 = var19_10;
                             break;
                         }
                     } else {
-                        var19_7 = var18_10;
+                        var19_10 = var18_9;
                         var6_13 = var10_12;
                         if (var9_15 <= 0) ** continue;
                         var8_14 += var17_6.w1 + var12_18;
                         var6_13 = var10_12;
                     }
-                    var18_10.b((e)var20_8);
+                    var18_9.b((e)var20_7);
                     ++var9_15;
                     var10_12 = var6_13;
                     var6_13 = var7_16;
@@ -891,17 +893,17 @@ lbl136:
             var8_14 = 0;
             var9_15 = 0;
             while (true) {
-                var19_7 = var17_6;
+                var19_10 = var17_6;
                 var7_16 = var6_13;
                 if (var9_15 >= var2_2) break;
                 ++var10_12;
-                var20_8 = var1_1[var9_15];
-                var12_18 = var17_6.p2((e)var20_8, var4_4);
+                var20_7 = var1_1[var9_15];
+                var12_18 = var17_6.p2((e)var20_7, var4_4);
                 var7_16 = var6_13;
-                if (var20_8.V() == e.b.e) {
+                if (var20_7.V() == e.b.e) {
                     var7_16 = var6_13 + 1;
                 }
-                var6_13 = (var8_14 == var4_4 || var17_6.x1 + var8_14 + var12_18 > var4_4) && u.g$a.a((a)var18_10) != null ? 1 : 0;
+                var6_13 = (var8_14 == var4_4 || var17_6.x1 + var8_14 + var12_18 > var4_4) && u.g$a.a((a)var18_9) != null ? 1 : 0;
                 var11_17 = var6_13;
                 if (var6_13 == 0) {
                     var11_17 = var6_13;
@@ -917,42 +919,42 @@ lbl136:
                     }
                 }
                 if (var11_17 != 0) {
-                    var19_7 = new a((g)var17_6, var3_3, var17_6.Q, var17_6.R, var17_6.S, var17_6.T, var4_4);
-                    var19_7.i(var9_15);
-                    var17_6.D1.add(var19_7);
+                    var19_10 = new a((g)var17_6, var3_3, var17_6.Q, var17_6.R, var17_6.S, var17_6.T, var4_4);
+                    var19_10.i(var9_15);
+                    var17_6.D1.add(var19_10);
                     var6_13 = 1;
                     while (true) {
                         var8_14 = var12_18;
-                        var18_10 = var19_7;
+                        var18_9 = var19_10;
                         break;
                     }
                 } else {
-                    var19_7 = var18_10;
+                    var19_10 = var18_9;
                     var6_13 = var10_12;
                     if (var9_15 <= 0) ** continue;
                     var8_14 += var17_6.x1 + var12_18;
                     var6_13 = var10_12;
                 }
-                var18_10.b((e)var20_8);
+                var18_9.b((e)var20_7);
                 ++var9_15;
                 var10_12 = var6_13;
                 var6_13 = var7_16;
             }
         }
-        var16_20 = var19_7.D1.size();
-        var18_10 = var19_7.Q;
-        var17_6 = var19_7.R;
-        var20_8 = var19_7.S;
-        var21_9 = var19_7.T;
-        var10_12 = var19_7.E1();
-        var8_14 = var19_7.G1();
-        var11_17 = var19_7.F1();
-        var12_18 = var19_7.D1();
-        var22_21 /* !! */  = var19_7.C();
-        var2_2 = var22_21 /* !! */  != (var1_1 = e.b.d) && var19_7.V() != var1_1 ? 0 : 1;
+        var16_20 = var19_10.D1.size();
+        var18_9 = var19_10.Q;
+        var17_6 = var19_10.R;
+        var20_7 = var19_10.S;
+        var21_8 = var19_10.T;
+        var10_12 = var19_10.E1();
+        var8_14 = var19_10.G1();
+        var11_17 = var19_10.F1();
+        var12_18 = var19_10.D1();
+        var22_21 /* !! */  = var19_10.C();
+        var2_2 = var22_21 /* !! */  != (var1_1 = e.b.d) && var19_10.V() != var1_1 ? 0 : 1;
         if (var7_16 > 0 && var2_2 != 0) {
             for (var2_2 = 0; var2_2 < var16_20; ++var2_2) {
-                var1_1 = (a)var19_7.D1.get(var2_2);
+                var1_1 = (a)var19_10.D1.get(var2_2);
                 if (var3_3 == 0) {
                     var1_1.g(var4_4 - var1_1.f());
                     continue;
@@ -968,28 +970,28 @@ lbl136:
         var9_15 = var13_11;
         var13_11 = var2_2;
         while (var8_14 < var16_20) {
-            var22_21 /* !! */  = (a)var19_7.D1.get(var8_14);
+            var22_21 /* !! */  = (a)var19_10.D1.get(var8_14);
             if (var3_3 == 0) {
                 if (var8_14 < var16_20 - 1) {
-                    var1_1 = u.g$a.a((a)((a)var19_7.D1.get((int)(var8_14 + 1)))).R;
+                    var1_1 = u.g$a.a((a)((a)var19_10.D1.get((int)(var8_14 + 1)))).R;
                     var2_2 = 0;
                 } else {
-                    var1_1 = var19_7.T;
-                    var2_2 = var19_7.D1();
+                    var1_1 = var19_10.T;
+                    var2_2 = var19_10.D1();
                 }
-                var21_9 = u.g$a.a((a)var22_21 /* !! */ ).T;
-                var22_21 /* !! */ .j(var3_3, (d)var18_10, (d)var17_6, (d)var20_8, (d)var1_1, var10_12, var7_16, var11_17, var2_2, var4_4);
+                var21_8 = u.g$a.a((a)var22_21 /* !! */ ).T;
+                var22_21 /* !! */ .j(var3_3, (d)var18_9, (d)var17_6, (d)var20_7, (d)var1_1, var10_12, var7_16, var11_17, var2_2, var4_4);
                 var7_16 = Math.max(var13_11, var22_21 /* !! */ .f());
                 var6_13 = var12_18 = var22_21 /* !! */ .e() + var6_13;
                 if (var8_14 > 0) {
-                    var6_13 = var12_18 + var19_7.x1;
+                    var6_13 = var12_18 + var19_10.x1;
                 }
-                var17_6 = var21_9;
+                var17_6 = var21_8;
                 var14_19 = 0;
                 var12_18 = var2_2;
             } else {
                 if (var8_14 < var16_20 - 1) {
-                    var1_1 = u.g$a.a((a)((a)var19_7.D1.get((int)(var8_14 + 1)))).Q;
+                    var1_1 = u.g$a.a((a)((a)var19_10.D1.get((int)(var8_14 + 1)))).Q;
                     var2_2 = 0;
 lbl153:
                     // 2 sources
@@ -999,30 +1001,30 @@ lbl153:
                         break;
                     }
                 }
-                var1_1 = var19_7.S;
-                var2_2 = var19_7.F1();
+                var1_1 = var19_10.S;
+                var2_2 = var19_10.F1();
                 ** continue;
-                var20_8 = var1_1;
+                var20_7 = var1_1;
                 var1_1 = u.g$a.a((a)var22_21 /* !! */ ).S;
-                var22_21 /* !! */ .j(var3_3, (d)var18_10, (d)var17_6, (d)var20_8, (d)var21_9, var10_12, var7_16, var2_2, var12_18, var4_4);
+                var22_21 /* !! */ .j(var3_3, (d)var18_9, (d)var17_6, (d)var20_7, (d)var21_8, var10_12, var7_16, var2_2, var12_18, var4_4);
                 var10_12 = var22_21 /* !! */ .f() + var13_11;
-                var15_22 = Math.max(var6_13, var22_21 /* !! */ .e());
+                var13_11 = Math.max(var6_13, var22_21 /* !! */ .e());
                 var6_13 = var10_12;
                 if (var8_14 > 0) {
-                    var6_13 = var10_12 + var19_7.w1;
+                    var6_13 = var10_12 + var19_10.w1;
                 }
-                var13_11 = var6_13;
+                var15_22 = var6_13;
                 var10_12 = 0;
-                var18_10 = var1_1;
+                var18_9 = var1_1;
                 var11_17 = var2_2;
                 var14_19 = var7_16;
-                var1_1 = var21_9;
-                var6_13 = var15_22;
-                var7_16 = var13_11;
+                var1_1 = var21_8;
+                var6_13 = var13_11;
+                var7_16 = var15_22;
             }
             ++var8_14;
             var13_11 = var7_16;
-            var21_9 = var1_1;
+            var21_8 = var1_1;
             var7_16 = var14_19;
         }
         var5_5[0] = var13_11;
@@ -1523,17 +1525,17 @@ lbl70:
                     this.m = n4;
                     continue;
                 }
-                n5 = this.r.q2(e3, this.q);
-                int n6 = this.r.p2(e3, this.q);
+                int n6 = this.r.q2(e3, this.q);
+                n5 = this.r.p2(e3, this.q);
                 n4 = this.r.x1;
                 if (e3.X() == 8) {
                     n4 = 0;
                 }
-                this.m += n6 + n4;
-                if (this.b != null && this.c >= n5) continue;
+                this.m += n5 + n4;
+                if (this.b != null && this.c >= n6) continue;
                 this.b = e3;
-                this.c = n5;
-                this.l = n5;
+                this.c = n6;
+                this.l = n6;
             }
         }
 

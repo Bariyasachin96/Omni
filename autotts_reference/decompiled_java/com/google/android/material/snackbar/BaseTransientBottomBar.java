@@ -139,23 +139,23 @@ public abstract class BaseTransientBottomBar {
 
         public SnackbarBaseLayout(Context context, AttributeSet attributeSet) {
             super(y2.a.d(context, attributeSet, 0, 0), attributeSet);
-            Context context2 = this.getContext();
-            context = context2.obtainStyledAttributes(attributeSet, z1.m.SnackbarLayout);
+            context = this.getContext();
+            TypedArray typedArray = context.obtainStyledAttributes(attributeSet, z1.m.SnackbarLayout);
             int n3 = z1.m.SnackbarLayout_elevation;
-            if (context.hasValue(n3)) {
-                this.setElevation(context.getDimensionPixelSize(n3, 0));
+            if (typedArray.hasValue(n3)) {
+                this.setElevation(typedArray.getDimensionPixelSize(n3, 0));
             }
-            this.d = context.getInt(z1.m.SnackbarLayout_animationMode, 0);
-            if (context.hasValue(z1.m.SnackbarLayout_shapeAppearance) || context.hasValue(z1.m.SnackbarLayout_shapeAppearanceOverlay)) {
-                this.c = o.e(context2, attributeSet, 0, 0).m();
+            this.d = typedArray.getInt(z1.m.SnackbarLayout_animationMode, 0);
+            if (typedArray.hasValue(z1.m.SnackbarLayout_shapeAppearance) || typedArray.hasValue(z1.m.SnackbarLayout_shapeAppearanceOverlay)) {
+                this.c = o.e(context, attributeSet, 0, 0).m();
             }
-            this.e = context.getFloat(z1.m.SnackbarLayout_backgroundOverlayColorAlpha, 1.0f);
-            this.setBackgroundTintList(s2.c.a(context2, (TypedArray)context, z1.m.SnackbarLayout_backgroundTint));
-            this.setBackgroundTintMode(c0.n(context.getInt(z1.m.SnackbarLayout_backgroundTintMode, -1), PorterDuff.Mode.SRC_IN));
-            this.f = context.getFloat(z1.m.SnackbarLayout_actionTextColorAlpha, 1.0f);
-            this.g = context.getDimensionPixelSize(z1.m.SnackbarLayout_android_maxWidth, -1);
-            this.h = context.getDimensionPixelSize(z1.m.SnackbarLayout_maxActionInlineWidth, -1);
-            context.recycle();
+            this.e = typedArray.getFloat(z1.m.SnackbarLayout_backgroundOverlayColorAlpha, 1.0f);
+            this.setBackgroundTintList(s2.c.a(context, typedArray, z1.m.SnackbarLayout_backgroundTint));
+            this.setBackgroundTintMode(c0.n(typedArray.getInt(z1.m.SnackbarLayout_backgroundTintMode, -1), PorterDuff.Mode.SRC_IN));
+            this.f = typedArray.getFloat(z1.m.SnackbarLayout_actionTextColorAlpha, 1.0f);
+            this.g = typedArray.getDimensionPixelSize(z1.m.SnackbarLayout_android_maxWidth, -1);
+            this.h = typedArray.getDimensionPixelSize(z1.m.SnackbarLayout_maxActionInlineWidth, -1);
+            typedArray.recycle();
             this.setOnTouchListener(m);
             this.setFocusable(true);
             if (this.getBackground() == null) {
@@ -218,8 +218,8 @@ public abstract class BaseTransientBottomBar {
         public void onMeasure(int n3, int n4) {
             int n5;
             super.onMeasure(n3, n4);
-            if (this.g > 0 && (n3 = this.getMeasuredWidth()) > (n5 = this.g)) {
-                super.onMeasure(View.MeasureSpec.makeMeasureSpec((int)n5, (int)0x40000000), n4);
+            if (this.g > 0 && (n5 = this.getMeasuredWidth()) > (n3 = this.g)) {
+                super.onMeasure(View.MeasureSpec.makeMeasureSpec((int)n3, (int)0x40000000), n4);
             }
         }
 

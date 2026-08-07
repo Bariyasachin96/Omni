@@ -89,9 +89,12 @@ public class r {
             if (!k.a(object, this.d[n4 << 1])) continue;
             return n4;
         }
-        for (n5 = n6 - 1; n5 >= 0 && this.c[n5] == n3; --n5) {
-            if (!k.a(object, this.d[n5 << 1])) continue;
-            return n5;
+        --n6;
+        while (n6 >= 0 && this.c[n6] == n3) {
+            if (k.a(object, this.d[n6 << 1])) {
+                return n6;
+            }
+            --n6;
         }
         return ~n4;
     }
@@ -137,9 +140,12 @@ public class r {
             if (this.d[n3 << 1] != null) continue;
             return n3;
         }
-        for (n4 = n5 - 1; n4 >= 0 && this.c[n4] == 0; --n4) {
-            if (this.d[n4 << 1] != null) continue;
-            return n4;
+        --n5;
+        while (n5 >= 0 && this.c[n5] == 0) {
+            if (this.d[n5 << 1] == null) {
+                return n5;
+            }
+            --n5;
         }
         return ~n3;
     }
@@ -161,20 +167,21 @@ public class r {
                         if (this.size() == ((r)object).size()) break block16;
                         return false;
                     }
-                    r r3 = (r)object;
+                    object = (r)object;
                     int n4 = this.e;
                     for (int i3 = 0; i3 < n4; ++i3) {
                         Object object2;
+                        Object object3;
                         block17: {
-                            Object object3 = this.f(i3);
-                            object2 = this.j(i3);
-                            object = r3.get(object3);
-                            if (object2 != null) break block17;
-                            if (object != null) return false;
-                            if (r3.containsKey(object3)) continue;
+                            Object object4 = this.f(i3);
+                            object3 = this.j(i3);
+                            object2 = ((r)object).get(object4);
+                            if (object3 != null) break block17;
+                            if (object2 != null) return false;
+                            if (((r)object).containsKey(object4)) continue;
                             return false;
                         }
-                        if (k.a(object2, object)) continue;
+                        if (k.a(object3, object2)) continue;
                         return false;
                     }
                     return true;
@@ -191,17 +198,17 @@ public class r {
             }
             for (int i4 = 0; i4 < n3; ++i4) {
                 Object v3;
-                Object object4;
+                Object object5;
                 block20: {
-                    Object object5 = this.f(i4);
-                    object4 = this.j(i4);
-                    v3 = ((Map)object).get(object5);
-                    if (object4 != null) break block20;
+                    Object object6 = this.f(i4);
+                    object5 = this.j(i4);
+                    v3 = ((Map)object).get(object6);
+                    if (object5 != null) break block20;
                     if (v3 != null) return false;
-                    if (((Map)object).containsKey(object5)) continue;
+                    if (((Map)object).containsKey(object6)) continue;
                     return false;
                 }
-                boolean bl = k.a(object4, v3);
+                boolean bl = k.a(object5, v3);
                 if (bl) continue;
                 return false;
             }
@@ -362,49 +369,49 @@ public class r {
         throw new IllegalArgumentException(stringBuilder.toString().toString());
     }
 
-    public Object put(Object object, Object object2) {
+    public Object put(Object objectArray, Object object) {
         int n3 = this.e;
-        int n4 = object != null ? object.hashCode() : 0;
-        int n5 = object != null ? this.c(object, n4) : this.e();
+        int n4 = objectArray != null ? objectArray.hashCode() : 0;
+        int n5 = objectArray != null ? this.c(objectArray, n4) : this.e();
         if (n5 >= 0) {
             n5 = (n5 << 1) + 1;
-            Object[] objectArray = this.d;
-            object = objectArray[n5];
-            objectArray[n5] = object2;
-            return object;
+            objectArray = this.d;
+            Object object2 = objectArray[n5];
+            objectArray[n5] = object;
+            return object2;
         }
         int n6 = ~n5;
-        Object[] objectArray = this.c;
-        if (n3 >= objectArray.length) {
+        Object[] objectArray2 = this.c;
+        if (n3 >= objectArray2.length) {
             n5 = 8;
             if (n3 >= 8) {
                 n5 = (n3 >> 1) + n3;
             } else if (n3 < 4) {
                 n5 = 4;
             }
-            objectArray = Arrays.copyOf(objectArray, n5);
-            k.d(objectArray, "copyOf(this, newSize)");
-            this.c = objectArray;
-            objectArray = Arrays.copyOf(this.d, n5 << 1);
-            k.d(objectArray, "copyOf(this, newSize)");
-            this.d = objectArray;
+            objectArray2 = Arrays.copyOf(objectArray2, n5);
+            k.d(objectArray2, "copyOf(this, newSize)");
+            this.c = objectArray2;
+            objectArray2 = Arrays.copyOf(this.d, n5 << 1);
+            k.d(objectArray2, "copyOf(this, newSize)");
+            this.d = objectArray2;
             if (n3 != this.e) {
                 throw new ConcurrentModificationException();
             }
         }
         if (n6 < n3) {
-            objectArray = this.c;
+            objectArray2 = this.c;
             n5 = n6 + 1;
-            h.e(objectArray, objectArray, n5, n6, n3);
-            objectArray = this.d;
-            h.g(objectArray, objectArray, n5 << 1, n6 << 1, this.e << 1);
+            h.e(objectArray2, objectArray2, n5, n6, n3);
+            objectArray2 = this.d;
+            h.g(objectArray2, objectArray2, n5 << 1, n6 << 1, this.e << 1);
         }
-        if (n3 == (n5 = this.e) && n6 < (objectArray = this.c).length) {
-            objectArray[n6] = n4;
-            objectArray = this.d;
+        if (n3 == (n5 = this.e) && n6 < (objectArray2 = this.c).length) {
+            objectArray2[n6] = n4;
+            objectArray2 = this.d;
             n4 = n6 << 1;
-            objectArray[n4] = (int)object;
-            objectArray[n4 + 1] = (int)object2;
+            objectArray2[n4] = (int)objectArray;
+            objectArray2[n4 + 1] = (int)object;
             this.e = n5 + 1;
             return null;
         }

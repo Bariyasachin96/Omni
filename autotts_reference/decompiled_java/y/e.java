@@ -43,11 +43,11 @@ public class e {
             return n4;
         }
         int n5 = 0;
+        n4 = 0;
         if (f3 != -1.0f && f4 != -1.0f) {
             ArrayList arrayList = a4.b;
             int n6 = arrayList.size();
             Object object = null;
-            n4 = n5;
             while (n4 < n6) {
                 Object object2 = arrayList.get(n4);
                 n5 = n4 + 1;
@@ -63,8 +63,8 @@ public class e {
         }
         if (a4.c == n3) return n3;
         ArrayList arrayList = a4.b;
-        n5 = arrayList.size();
-        for (n4 = 0; n4 < n5; ++n4) {
+        int n7 = arrayList.size();
+        for (n4 = n5; n4 < n7; ++n4) {
             Object e3 = arrayList.get(n4);
             if (n3 != ((b)e3).e) continue;
             return n3;
@@ -78,20 +78,19 @@ public class e {
      * Enabled aggressive exception aggregation
      */
     public final void b(Context context, XmlPullParser xmlPullParser) {
-        TypedArray typedArray;
         int n3;
-        Object object;
+        TypedArray typedArray;
         block16: {
             XmlPullParserException xmlPullParserException2;
             block17: {
-                object = context.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), y.d.StateSet);
-                int n4 = object.getIndexCount();
+                typedArray = context.obtainStyledAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), y.d.StateSet);
+                int n4 = typedArray.getIndexCount();
                 for (n3 = 0; n3 < n4; ++n3) {
-                    int n5 = object.getIndex(n3);
+                    int n5 = typedArray.getIndex(n3);
                     if (n5 != y.d.StateSet_defaultState) continue;
-                    this.a = object.getResourceId(n5, this.a);
+                    this.a = typedArray.getResourceId(n5, this.a);
                 }
-                object.recycle();
+                typedArray.recycle();
                 try {
                     n3 = xmlPullParser.getEventType();
                     typedArray = null;
@@ -109,6 +108,7 @@ public class e {
             return;
         }
         while (n3 != 1) {
+            Object object;
             if (n3 != 2) {
                 if (n3 != 3) {
                     object = typedArray;

@@ -104,49 +104,49 @@ extends FrameLayout {
      */
     public void onMeasure(int var1_1, int var2_2) {
         var11_3 = this.getContext().getResources().getDisplayMetrics();
-        var5_4 = var11_3.widthPixels;
-        var4_5 = var11_3.heightPixels;
+        var4_4 = var11_3.widthPixels;
+        var5_5 = var11_3.heightPixels;
         var8_6 = 1;
-        var4_5 = var5_4 < var4_5 ? 1 : 0;
+        var4_4 = var4_4 < var5_5 ? 1 : 0;
         var9_7 = View.MeasureSpec.getMode((int)var1_1);
         var7_8 = View.MeasureSpec.getMode((int)var2_2);
-        if (var9_7 != -2147483648 || (var10_9 = var4_5 != 0 ? this.f : this.e) == null || (var5_4 = var10_9.type) == 0) ** GOTO lbl-1000
-        if (var5_4 == 5) {
+        if (var9_7 != -2147483648 || (var10_9 = var4_4 != 0 ? this.f : this.e) == null || (var5_5 = var10_9.type) == 0) ** GOTO lbl-1000
+        if (var5_5 == 5) {
             var3_10 = var10_9.getDimension(var11_3);
 lbl11:
             // 2 sources
 
             while (true) {
-                var5_4 = (int)var3_10;
+                var5_5 = (int)var3_10;
                 break;
             }
         } else {
-            if (var5_4 == 6) {
-                var5_4 = var11_3.widthPixels;
-                var3_10 = var10_9.getFraction((float)var5_4, (float)var5_4);
+            if (var5_5 == 6) {
+                var5_5 = var11_3.widthPixels;
+                var3_10 = var10_9.getFraction((float)var5_5, (float)var5_5);
                 ** continue;
             }
-            var5_4 = 0;
+            var5_5 = 0;
         }
-        if (var5_4 > 0) {
+        if (var5_5 > 0) {
             var10_9 = this.i;
-            var6_11 = View.MeasureSpec.makeMeasureSpec((int)Math.min(var5_4 - (var10_9.left + var10_9.right), View.MeasureSpec.getSize((int)var1_1)), (int)0x40000000);
+            var6_11 = View.MeasureSpec.makeMeasureSpec((int)Math.min(var5_5 - (var10_9.left + var10_9.right), View.MeasureSpec.getSize((int)var1_1)), (int)0x40000000);
             var1_1 = 1;
         } else lbl-1000:
         // 2 sources
 
         {
-            var5_4 = 0;
+            var5_5 = 0;
             var6_11 = var1_1;
-            var1_1 = var5_4;
+            var1_1 = var5_5;
         }
-        var5_4 = var2_2;
+        var5_5 = var2_2;
         if (var7_8 == -2147483648) {
-            var10_9 = var4_5 != 0 ? this.g : this.h;
-            var5_4 = var2_2;
+            var10_9 = var4_4 != 0 ? this.g : this.h;
+            var5_5 = var2_2;
             if (var10_9 != null) {
                 var7_8 = var10_9.type;
-                var5_4 = var2_2;
+                var5_5 = var2_2;
                 if (var7_8 != 0) {
                     if (var7_8 == 5) {
                         var3_10 = var10_9.getDimension(var11_3);
@@ -159,24 +159,24 @@ lbl37:
                         }
                     } else {
                         if (var7_8 == 6) {
-                            var5_4 = var11_3.heightPixels;
-                            var3_10 = var10_9.getFraction((float)var5_4, (float)var5_4);
+                            var5_5 = var11_3.heightPixels;
+                            var3_10 = var10_9.getFraction((float)var5_5, (float)var5_5);
                             ** continue;
                         }
                         var7_8 = 0;
                     }
-                    var5_4 = var2_2;
+                    var5_5 = var2_2;
                     if (var7_8 > 0) {
                         var10_9 = this.i;
-                        var5_4 = View.MeasureSpec.makeMeasureSpec((int)Math.min(var7_8 - (var10_9.top + var10_9.bottom), View.MeasureSpec.getSize((int)var2_2)), (int)0x40000000);
+                        var5_5 = View.MeasureSpec.makeMeasureSpec((int)Math.min(var7_8 - (var10_9.top + var10_9.bottom), View.MeasureSpec.getSize((int)var2_2)), (int)0x40000000);
                     }
                 }
             }
         }
-        super.onMeasure(var6_11, var5_4);
+        super.onMeasure(var6_11, var5_5);
         var7_8 = this.getMeasuredWidth();
         var6_11 = View.MeasureSpec.makeMeasureSpec((int)var7_8, (int)0x40000000);
-        if (var1_1 != 0 || var9_7 != -2147483648 || (var10_9 = var4_5 != 0 ? this.d : this.c) == null || (var1_1 = var10_9.type) == 0) ** GOTO lbl-1000
+        if (var1_1 != 0 || var9_7 != -2147483648 || (var10_9 = var4_4 != 0 ? this.d : this.c) == null || (var1_1 = var10_9.type) == 0) ** GOTO lbl-1000
         if (var1_1 == 5) {
             var3_10 = var10_9.getDimension(var11_3);
 lbl55:
@@ -210,7 +210,7 @@ lbl55:
             var1_1 = var6_11;
         }
         if (var2_2 != 0) {
-            super.onMeasure(var1_1, var5_4);
+            super.onMeasure(var1_1, var5_5);
         }
     }
 

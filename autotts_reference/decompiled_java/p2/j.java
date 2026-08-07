@@ -145,14 +145,14 @@ extends a {
         }
         view.setPivotX(f3);
         f3 = n3 != 0 ? f7 : -f6;
-        f6 = a2.a.a(0.0f, f3, f4);
-        f5 = f6 + 1.0f;
+        f5 = a2.a.a(0.0f, f3, f4);
+        f6 = f5 + 1.0f;
         f4 = 1.0f - a2.a.a(0.0f, f8, f4);
-        if (Float.isNaN(f5)) return;
+        if (Float.isNaN(f6)) return;
         if (Float.isNaN(f4)) {
             return;
         }
-        this.b.setScaleX(f5);
+        this.b.setScaleX(f6);
         this.b.setScaleY(f4);
         view = this.b;
         if (!(view instanceof ViewGroup)) return;
@@ -163,8 +163,8 @@ extends a {
             f3 = n6;
             view.setPivotX(f3);
             view.setPivotY((float)(-view.getTop()));
-            f3 = n3 != 0 ? 1.0f - f6 : 1.0f;
-            f7 = f4 != 0.0f ? f5 / f4 * f3 : 1.0f;
+            f3 = n3 != 0 ? 1.0f - f5 : 1.0f;
+            f7 = f4 != 0.0f ? f6 / f4 * f3 : 1.0f;
             if (!Float.isNaN(f3) && !Float.isNaN(f7)) {
                 view.setScaleX(f3);
                 view.setScaleY(f7);

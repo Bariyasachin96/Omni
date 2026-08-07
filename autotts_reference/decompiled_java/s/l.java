@@ -54,11 +54,11 @@ extends c {
         ((StringBuilder)object3).append(" 0 ");
         ((StringBuilder)object3).append(((g)object).c(0.0, 0));
         ((PrintStream)object2).println(((StringBuilder)object3).toString());
-        object2 = System.out;
-        object3 = new StringBuilder();
-        ((StringBuilder)object3).append(" 1 ");
-        ((StringBuilder)object3).append(((g)object).c(1.0, 0));
-        ((PrintStream)object2).println(((StringBuilder)object3).toString());
+        object3 = System.out;
+        object2 = new StringBuilder();
+        ((StringBuilder)object2).append(" 1 ");
+        ((StringBuilder)object2).append(((g)object).c(1.0, 0));
+        ((PrintStream)object3).println(((StringBuilder)object2).toString());
         return object;
     }
 

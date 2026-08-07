@@ -8,18 +8,18 @@
 package c3;
 
 import android.view.View;
-import c3.t;
+import c3.u;
 
 public final class r
 implements View.OnClickListener {
-    public final t c;
+    public final u c;
 
-    public /* synthetic */ r(t t3) {
-        this.c = t3;
+    public /* synthetic */ r(u u3) {
+        this.c = u3;
     }
 
     public final void onClick(View view) {
-        t.b(this.c, view);
+        u.d(this.c, view);
     }
 }
 

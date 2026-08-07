@@ -73,7 +73,7 @@ extends p {
                 if (n4 != 2) {
                     if (n4 != 3) return;
                     this.h.e = f.a.i;
-                    for (n3 = n7; n3 < ((j)e3).W0; ++n3) {
+                    for (n3 = 0; n3 < ((j)e3).W0; ++n3) {
                         Object object = ((j)e3).V0[n3];
                         if (!bl && ((e)object).X() == 8) continue;
                         object = ((e)object).f.i;
@@ -85,7 +85,7 @@ extends p {
                     return;
                 }
                 this.h.e = f.a.h;
-                for (n3 = 0; n3 < ((j)e3).W0; ++n3) {
+                for (n3 = n5; n3 < ((j)e3).W0; ++n3) {
                     Object object = ((j)e3).V0[n3];
                     if (!bl && ((e)object).X() == 8) continue;
                     object = ((e)object).f.h;
@@ -97,7 +97,7 @@ extends p {
                 return;
             }
             this.h.e = f.a.g;
-            for (n3 = n5; n3 < ((j)e3).W0; ++n3) {
+            for (n3 = n6; n3 < ((j)e3).W0; ++n3) {
                 Object object = ((j)e3).V0[n3];
                 if (!bl && ((e)object).X() == 8) continue;
                 object = ((e)object).e.i;
@@ -109,7 +109,7 @@ extends p {
             return;
         }
         this.h.e = f.a.f;
-        for (n3 = n6; n3 < ((j)e3).W0; ++n3) {
+        for (n3 = n7; n3 < ((j)e3).W0; ++n3) {
             Object object = ((j)e3).V0[n3];
             if (!bl && ((e)object).X() == 8) continue;
             object = ((e)object).e.h;

@@ -74,10 +74,10 @@ extends AppCompatImageButton {
         this.o = bl;
     }
 
-    public final void c(Context layerDrawable, AttributeSet drawable) {
+    public final void c(Context layerDrawable, AttributeSet attributeSet) {
         this.setPadding(0, 0, 0, 0);
-        if (drawable != null) {
-            layerDrawable = layerDrawable.obtainStyledAttributes((AttributeSet)drawable, y.d.ImageFilterView);
+        if (attributeSet != null) {
+            layerDrawable = layerDrawable.obtainStyledAttributes(attributeSet, y.d.ImageFilterView);
             int n3 = layerDrawable.getIndexCount();
             this.p = layerDrawable.getDrawable(y.d.ImageFilterView_altSrc);
             for (int i3 = 0; i3 < n3; ++i3) {
@@ -129,9 +129,10 @@ extends AppCompatImageButton {
             layerDrawable = this.getDrawable();
             this.q = layerDrawable;
             if (this.p != null && layerDrawable != null) {
-                drawable = this.m;
-                this.q = layerDrawable = this.getDrawable().mutate();
-                drawable[0] = layerDrawable;
+                layerDrawable = this.m;
+                attributeSet = this.getDrawable().mutate();
+                this.q = attributeSet;
+                layerDrawable[0] = attributeSet;
                 this.m[1] = this.p.mutate();
                 this.n = layerDrawable = new LayerDrawable(this.m);
                 layerDrawable.getDrawable(1).setAlpha((int)(this.g * 255.0f));
@@ -141,11 +142,13 @@ extends AppCompatImageButton {
                 super.setImageDrawable((Drawable)this.n);
                 return;
             }
-            this.q = drawable = this.getDrawable();
-            if (drawable != null) {
+            attributeSet = this.getDrawable();
+            this.q = attributeSet;
+            if (attributeSet != null) {
                 layerDrawable = this.m;
-                this.q = drawable = drawable.mutate();
-                layerDrawable[0] = drawable;
+                attributeSet = attributeSet.mutate();
+                this.q = attributeSet;
+                layerDrawable[0] = attributeSet;
             }
         }
     }
@@ -169,10 +172,9 @@ extends AppCompatImageButton {
         float f9 = this.getWidth();
         float f10 = this.getHeight();
         float f11 = f7 * f10 < f8 * f9 ? f9 / f7 : f10 / f8;
-        f11 = f6 * f11;
-        matrix.postScale(f11, f11);
-        f6 = f7 * f11;
-        matrix.postTranslate((f4 * (f9 - f6) + f9 - f6) * 0.5f, (f5 * (f10 - (f11 *= f8)) + f10 - f11) * 0.5f);
+        matrix.postScale(f6 *= f11, f6);
+        f11 = f7 * f6;
+        matrix.postTranslate((f4 * (f9 - f11) + f9 - f11) * 0.5f, (f5 * (f10 - (f6 *= f8)) + f10 - f6) * 0.5f);
         matrix.postRotate(f3, f9 / 2.0f, f10 / 2.0f);
         this.setImageMatrix(matrix);
         this.setScaleType(ImageView.ScaleType.MATRIX);
@@ -238,12 +240,11 @@ extends AppCompatImageButton {
     public void setAltImageResource(int n3) {
         Drawable drawable;
         this.p = drawable = a.b(this.getContext(), n3).mutate();
-        Drawable[] drawableArray = this.m;
-        drawableArray[0] = this.q;
-        drawableArray[1] = drawable;
-        drawable = new LayerDrawable(this.m);
-        this.n = drawable;
-        super.setImageDrawable(drawable);
+        LayerDrawable layerDrawable = this.m;
+        layerDrawable[0] = this.q;
+        layerDrawable[1] = drawable;
+        this.n = layerDrawable = new LayerDrawable(this.m);
+        super.setImageDrawable((Drawable)layerDrawable);
         this.setCrossfade(this.g);
     }
 
@@ -271,19 +272,19 @@ extends AppCompatImageButton {
     }
 
     @Override
-    public void setImageDrawable(Drawable layerDrawable) {
-        if (this.p != null && layerDrawable != null) {
-            Drawable drawable;
-            this.q = drawable = layerDrawable.mutate();
-            layerDrawable = this.m;
-            layerDrawable[0] = drawable;
-            layerDrawable[1] = this.p;
-            this.n = layerDrawable = new LayerDrawable(this.m);
-            super.setImageDrawable((Drawable)layerDrawable);
+    public void setImageDrawable(Drawable drawable) {
+        if (this.p != null && drawable != null) {
+            this.q = drawable = drawable.mutate();
+            Drawable[] drawableArray = this.m;
+            drawableArray[0] = drawable;
+            drawableArray[1] = this.p;
+            drawable = new LayerDrawable(this.m);
+            this.n = drawable;
+            super.setImageDrawable(drawable);
             this.setCrossfade(this.g);
             return;
         }
-        super.setImageDrawable((Drawable)layerDrawable);
+        super.setImageDrawable(drawable);
     }
 
     public void setImagePanX(float f3) {

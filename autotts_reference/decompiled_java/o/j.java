@@ -130,8 +130,8 @@ implements Cloneable {
     }
 
     public void h(long l3, Object object) {
+        Object object2;
         int n3;
-        Object[] objectArray;
         int n4 = a.b(this.d, this.f, l3);
         if (n4 >= 0) {
             this.e[n4] = object;
@@ -149,41 +149,41 @@ implements Cloneable {
             long[] lArray = this.d;
             n4 = n5;
             if (n6 >= lArray.length) {
-                objectArray = this.e;
-                n5 = 0;
-                for (n4 = 0; n4 < n6; ++n4) {
-                    Object object2 = objectArray[n4];
-                    n3 = n5;
+                Object[] objectArray = this.e;
+                n3 = 0;
+                for (n5 = 0; n5 < n6; ++n5) {
+                    object2 = objectArray[n5];
+                    n4 = n3;
                     if (object2 != o.k.a()) {
-                        if (n4 != n5) {
-                            lArray[n5] = lArray[n4];
-                            objectArray[n5] = object2;
-                            objectArray[n4] = null;
+                        if (n5 != n3) {
+                            lArray[n3] = lArray[n5];
+                            objectArray[n3] = object2;
+                            objectArray[n5] = null;
                         }
-                        n3 = n5 + 1;
+                        n4 = n3 + 1;
                     }
-                    n5 = n3;
+                    n3 = n4;
                 }
                 this.c = false;
-                this.f = n5;
-                n4 = ~a.b(this.d, n5, l3);
+                this.f = n3;
+                n4 = ~a.b(this.d, n3, l3);
             }
         }
         if ((n5 = this.f) >= this.d.length) {
             n5 = a.f(n5 + 1);
-            objectArray = Arrays.copyOf(this.d, n5);
-            k.d(objectArray, "copyOf(this, newSize)");
-            this.d = (long[])objectArray;
-            objectArray = Arrays.copyOf(this.e, n5);
-            k.d(objectArray, "copyOf(this, newSize)");
-            this.e = objectArray;
+            object2 = Arrays.copyOf(this.d, n5);
+            k.d(object2, "copyOf(this, newSize)");
+            this.d = object2;
+            object2 = Arrays.copyOf(this.e, n5);
+            k.d(object2, "copyOf(this, newSize)");
+            this.e = object2;
         }
         if ((n3 = this.f) - n4 != 0) {
-            objectArray = this.d;
+            object2 = this.d;
             n5 = n4 + 1;
-            h.f((long[])objectArray, (long[])objectArray, n5, n4, n3);
-            objectArray = this.e;
-            h.g(objectArray, objectArray, n5, n4, this.f);
+            h.f(object2, object2, n5, n4, n3);
+            object2 = this.e;
+            h.g(object2, object2, n5, n4, this.f);
         }
         this.d[n4] = l3;
         this.e[n4] = object;

@@ -36,7 +36,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -75,9 +74,9 @@ implements ServiceConnection {
         block4: {
             try {
                 byte[] byArray = b3.a.a((String)object);
-                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-                object = new X509EncodedKeySpec(byArray);
-                object = keyFactory.generatePublic((KeySpec)object);
+                object = KeyFactory.getInstance("RSA");
+                X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(byArray);
+                object = ((KeyFactory)object).generatePublic(x509EncodedKeySpec);
                 return object;
             }
             catch (InvalidKeySpecException invalidKeySpecException) {

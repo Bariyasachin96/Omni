@@ -19,27 +19,27 @@ public class ResponseData {
     public String g;
 
     public static ResponseData a(String object) {
-        Object object2;
+        String[] stringArray;
         int n3 = object.indexOf(58);
-        Object object3 = "";
+        Object object2 = "";
         if (-1 == n3) {
-            object2 = object;
+            stringArray = object;
         } else {
-            object2 = object.substring(0, n3);
-            object = n3 >= object.length() ? object3 : object.substring(n3 + 1);
-            object3 = object;
+            stringArray = object.substring(0, n3);
+            object = n3 >= object.length() ? object2 : object.substring(n3 + 1);
+            object2 = object;
         }
-        object = TextUtils.split((String)object2, (String)Pattern.quote("|"));
-        if (((String[])object).length >= 6) {
-            object2 = new ResponseData();
-            object2.g = object3;
-            object2.a = Integer.parseInt(object[0]);
-            object2.b = Integer.parseInt(object[1]);
-            object2.c = object[2];
-            object2.d = object[3];
-            object2.e = object[4];
-            object2.f = Long.parseLong(object[5]);
-            return object2;
+        stringArray = TextUtils.split((String)stringArray, (String)Pattern.quote("|"));
+        if (stringArray.length >= 6) {
+            object = new ResponseData();
+            object.g = object2;
+            object.a = Integer.parseInt(stringArray[0]);
+            object.b = Integer.parseInt(stringArray[1]);
+            object.c = stringArray[2];
+            object.d = stringArray[3];
+            object.e = stringArray[4];
+            object.f = Long.parseLong(stringArray[5]);
+            return object;
         }
         throw new IllegalArgumentException("Wrong number of fields.");
     }

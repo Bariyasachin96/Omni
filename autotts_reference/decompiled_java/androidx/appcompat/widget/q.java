@@ -113,11 +113,11 @@ public class q {
         catch (Throwable throwable) {
             throw throwable;
         }
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Failed to invoke TextView#");
-        stringBuilder.append(string);
-        stringBuilder.append("() method");
-        Log.w((String)"ACTVAutoSizeHelper", (String)stringBuilder.toString(), (Throwable)exception);
+        object = new StringBuilder();
+        ((StringBuilder)object).append("Failed to invoke TextView#");
+        ((StringBuilder)object).append(string);
+        ((StringBuilder)object).append("() method");
+        Log.w((String)"ACTVAutoSizeHelper", (String)((StringBuilder)object).toString(), (Throwable)exception);
         return object2;
     }
 

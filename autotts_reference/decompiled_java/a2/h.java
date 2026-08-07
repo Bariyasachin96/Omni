@@ -62,25 +62,24 @@ public class h {
     public static h d(Context object, int n3) {
         Exception exception2;
         block3: {
-            Animator animator;
             try {
-                animator = AnimatorInflater.loadAnimator((Context)object, (int)n3);
-                if (animator instanceof AnimatorSet) {
-                    return h.e(((AnimatorSet)animator).getChildAnimations());
+                object = AnimatorInflater.loadAnimator((Context)object, (int)n3);
+                if (object instanceof AnimatorSet) {
+                    return h.e(((AnimatorSet)object).getChildAnimations());
                 }
             }
             catch (Exception exception2) {
                 break block3;
             }
-            if (animator == null) return null;
-            object = new ArrayList();
-            object.add(animator);
-            return h.e((List)object);
+            if (object == null) return null;
+            ArrayList<Object> arrayList = new ArrayList<Object>();
+            arrayList.add(object);
+            return h.e(arrayList);
         }
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Can't load animation resource ID #0x");
-        stringBuilder.append(Integer.toHexString(n3));
-        Log.w((String)"MotionSpec", (String)stringBuilder.toString(), (Throwable)exception2);
+        object = new StringBuilder();
+        ((StringBuilder)object).append("Can't load animation resource ID #0x");
+        ((StringBuilder)object).append(Integer.toHexString(n3));
+        Log.w((String)"MotionSpec", (String)((StringBuilder)object).toString(), (Throwable)exception2);
         return null;
     }
 

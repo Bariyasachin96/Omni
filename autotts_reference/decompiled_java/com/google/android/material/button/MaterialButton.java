@@ -610,10 +610,10 @@ r {
             return;
         }
         Drawable drawable2 = this.getCompoundDrawablesRelative();
-        drawable = drawable2[0];
-        Drawable drawable3 = drawable2[1];
+        Drawable drawable3 = drawable2[0];
+        drawable = drawable2[1];
         drawable2 = drawable2[2];
-        if (this.j() && drawable != this.k || this.i() && drawable2 != this.k || this.k() && drawable3 != this.k) {
+        if (this.j() && drawable3 != this.k || this.i() && drawable2 != this.k || this.k() && drawable != this.k) {
             this.q();
         }
     }

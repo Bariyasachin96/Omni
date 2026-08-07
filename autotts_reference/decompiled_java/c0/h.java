@@ -84,17 +84,16 @@ public abstract class h {
         if (object == null) {
             return null;
         }
-        object2 = object.getString("android.support.PARENT_ACTIVITY");
-        if (object2 == null) {
+        if ((object = object.getString("android.support.PARENT_ACTIVITY")) == null) {
             return null;
         }
-        if (((String)object2).charAt(0) == '.') {
-            object = new StringBuilder();
-            ((StringBuilder)object).append(context.getPackageName());
-            ((StringBuilder)object).append((String)object2);
-            return ((StringBuilder)object).toString();
+        if (((String)object).charAt(0) == '.') {
+            object2 = new StringBuilder();
+            ((StringBuilder)object2).append(context.getPackageName());
+            ((StringBuilder)object2).append((String)object);
+            return ((StringBuilder)object2).toString();
         }
-        return object2;
+        return object;
     }
 
     public static void e(Activity activity, Intent intent) {

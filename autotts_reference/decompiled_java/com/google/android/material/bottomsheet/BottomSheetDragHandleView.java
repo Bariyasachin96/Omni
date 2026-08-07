@@ -76,8 +76,8 @@ implements AccessibilityManager.AccessibilityStateChangeListener {
         this(context, attributeSet, z1.c.bottomSheetDragHandleStyle);
     }
 
-    public BottomSheetDragHandleView(Context context, AttributeSet object, int n3) {
-        super(y2.a.d(context, object, n3, p), (AttributeSet)object, n3);
+    public BottomSheetDragHandleView(Context object, AttributeSet attributeSet, int n3) {
+        super(y2.a.d(object, attributeSet, n3, p), attributeSet, n3);
         object = new GestureDetector.SimpleOnGestureListener(this){
             public final BottomSheetDragHandleView a;
             {
@@ -101,9 +101,9 @@ implements AccessibilityManager.AccessibilityStateChangeListener {
             }
         };
         this.o = object;
-        context = this.getContext();
-        this.h = new GestureDetector(context, (GestureDetector.OnGestureListener)object, new Handler(Looper.getMainLooper()));
-        this.f = (AccessibilityManager)context.getSystemService("accessibility");
+        attributeSet = this.getContext();
+        this.h = new GestureDetector((Context)attributeSet, (GestureDetector.OnGestureListener)object, new Handler(Looper.getMainLooper()));
+        this.f = (AccessibilityManager)attributeSet.getSystemService("accessibility");
         x0.h0((View)this, new a(this){
             public final BottomSheetDragHandleView d;
             {

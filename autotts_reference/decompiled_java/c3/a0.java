@@ -1,364 +1,60 @@
 /*
  * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  android.content.Context
+ *  android.content.pm.PackageInfo
+ *  android.content.pm.PackageManager
+ *  android.content.pm.PackageManager$NameNotFoundException
+ *  android.os.Build$VERSION
+ *  android.util.Log
  */
 package c3;
 
-import java.util.AbstractMap;
-import java.util.HashMap;
+import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.util.Log;
+import c3.x;
+import c3.y;
+import c3.z;
 
 public abstract class a0 {
-    public static final HashMap a = new HashMap(){
-        {
-            ((AbstractMap)this).put("eng", "This is a sample of text spoken in English.");
-            ((AbstractMap)this).put("spa", "Esta es una muestra de texto hablado en español.");
-            ((AbstractMap)this).put("fra", "Ceci est un échantillon de texte parlé en français.");
-            ((AbstractMap)this).put("deu", "Dies ist ein Beispieltext in deutscher Sprache.");
-            ((AbstractMap)this).put("ita", "Questo è un esempio di testo parlato in italiano.");
-            ((AbstractMap)this).put("por", "Esta é uma amostra de texto falado em português.");
-            ((AbstractMap)this).put("rus", "Это образец текста, произнесенного на русском языке.");
-            ((AbstractMap)this).put("nld", "Dit is een voorbeeld van tekst gesproken in het Nederlands.");
-            ((AbstractMap)this).put("swe", "Detta är ett textprov talat på svenska.");
-            ((AbstractMap)this).put("pol", "To jest próbka tekstu mówionego w języku polskim.");
-            ((AbstractMap)this).put("ell", "Αυτό είναι ένα δείγμα κειμένου που ομιλείται στα ελληνικά.");
-            ((AbstractMap)this).put("hin", "यह हिंदी में बोले गए पाठ का एक नमूना है।");
-            ((AbstractMap)this).put("zho", "这是用中文说的文本样本。");
-            ((AbstractMap)this).put("jpn", "これは日本語で話されたテキストのサンプルです。");
-            ((AbstractMap)this).put("kor", "이것은 한국어로 된 텍스트의 샘플입니다.");
-            ((AbstractMap)this).put("ara", "هذه عينة من نص منطوق باللغة العربية.");
-            ((AbstractMap)this).put("heb", "זוהי דוגמה לטקסט מדובר בעברית.");
-            ((AbstractMap)this).put("tur", "Bu, Türkçe konuşulmuş bir metin örneğidir.");
-            ((AbstractMap)this).put("tha", "นี่คือตัวอย่างข้อความที่พูดเป็นภาษาไทย");
-            ((AbstractMap)this).put("vie", "Đây là một đoạn văn bản mẫu được nói bằng tiếng Việt Nam.");
-            ((AbstractMap)this).put("ben", "এটি বাংলা ভাষায় কথ্য পাঠ্যের একটি নমুনা।");
-            ((AbstractMap)this).put("urd", "یہ اردو میں بولے گئے متن کا ایک نمونہ ہے۔");
-            ((AbstractMap)this).put("fas", "این یک نمونه از متن گفتاری به زبان فارسی است.");
-            ((AbstractMap)this).put("ind", "Ini adalah contoh teks yang diucapkan dalam bahasa Indonesia.");
-            ((AbstractMap)this).put("fin", "Tämä on suomeksi puhuttu tekstinäyte.");
-            ((AbstractMap)this).put("hun", "Ez egy minta a magyar nyelven beszélt szövegből.");
-            ((AbstractMap)this).put("ces", "Toto je vzorek textu mluveného v češtině.");
-            ((AbstractMap)this).put("slk", "Toto je vzorka textu hovoreného v slovenčine.");
-            ((AbstractMap)this).put("ron", "Acesta este un eșantion de text vorbit în română.");
-            ((AbstractMap)this).put("ukr", "Це зразок тексту, вимовленого українською мовою.");
-            ((AbstractMap)this).put("gle", "Seo sampla de théacs labhartha i nGaeilge.");
-            ((AbstractMap)this).put("isl", "Þetta er sýnishorn af texta talað á íslensku.");
-            ((AbstractMap)this).put("est", "See on eesti keeles räägitud teksti näidis.");
-            ((AbstractMap)this).put("lav", "Šis ir latviešu valodā runāta teksta paraugs.");
-            ((AbstractMap)this).put("lit", "Tai pavyzdys teksto, kalbamo lietuvių kalba.");
-            ((AbstractMap)this).put("hrv", "Ovo je uzorak teksta govorenog na hrvatskom jeziku.");
-            ((AbstractMap)this).put("srp", "Ово је узорак текста говореног на српском језику.");
-            ((AbstractMap)this).put("slv", "To je vzorec besedila, govorjenega v slovenščini.");
-            ((AbstractMap)this).put("bos", "Ovo je primjer teksta govorenog na bosanskom jeziku.");
-            ((AbstractMap)this).put("mkd", "Ова е примерок на текст зборуван на македонски јазик.");
-            ((AbstractMap)this).put("bul", "Това е примерен текст, изговорен на български език.");
-            ((AbstractMap)this).put("nno", "Dette er ein prøve på tekst tala på nynorsk.");
-            ((AbstractMap)this).put("nob", "Dette er en prøve på tekst talt på bokmål.");
-            ((AbstractMap)this).put("cat", "Això és un exemple de text parlat en català.");
-            ((AbstractMap)this).put("eus", "Hau euskaraz hitz egiten den testuaren adibidea da.");
-            ((AbstractMap)this).put("glg", "Este é un exemplo de texto falado en galego.");
-            ((AbstractMap)this).put("tel", "ఇది తెలుగులో మాట్లాడిన వచనానికి నమూనా.");
-            ((AbstractMap)this).put("tam", "இது தமிழில் பேசப்பட்ட உரைக்கான மாதிரி.");
-            ((AbstractMap)this).put("kan", "ಇದು ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿದ ಪಠ್ಯದ ಒಂದು ಮಾದರಿ.");
-            ((AbstractMap)this).put("pan", "ਇਹ ਪੰਜਾਬੀ ਵਿੱਚ ਬੋਲਿਆ ਗਿਆ ਪਾਠ ਦਾ ਇੱਕ ਨਮੂਨਾ ਹੈ।");
-            ((AbstractMap)this).put("nep", "यो नेपालीमा बोलिएको पाठको नमूना हो।");
-            ((AbstractMap)this).put("mal", "ഇത് മലയാളത്തിൽ സംസാരിക്കുന്ന ഒരു വാചകത്തിന്റെ മാതൃകയാണ്.");
-            ((AbstractMap)this).put("mar", "हा मराठीत बोलल्या गेलेल्या मजकुराचा नमुना आहे.");
-            ((AbstractMap)this).put("guj", "આ ગુજરાતીમાં બોલાયેલા ટેક્સ્ટનું નમૂનું છે.");
-            ((AbstractMap)this).put("sin", "මෙය සිංහල භාෂාවෙන් කථනය කළ පාඨයක ආදර්ශයකි.");
-            ((AbstractMap)this).put("ori", "ଏହା ଓଡ଼ିଆରେ କଥିତ ପାଠର ଏକ ନମୁନା।");
-            ((AbstractMap)this).put("swa", "Huu ni mfano wa maandishi yaliyozungumzwa kwa Kiswahili.");
-            ((AbstractMap)this).put("zul", "Lesi isampula sombhalo okhulunywe ngesiZulu.");
-            ((AbstractMap)this).put("amh", "ይህ በአማርኛ የተነገረ የጽሑፍ ናሙና ነው።");
-            ((AbstractMap)this).put("yor", "Eyi jẹ apẹẹrẹ ti ọrọ ti a sọ ni èdè Yorùbá.");
-            ((AbstractMap)this).put("ibo", "Nke a bụ ihe atụ nke okwu a na-asụ n'asụsụ Igbo.");
-            ((AbstractMap)this).put("hau", "Wannan misali ne na rubutun da ake magana a cikin Hausa.");
-            ((AbstractMap)this).put("xho", "Esi sisampula sombhalo othethwayo ngesiXhosa.");
-            ((AbstractMap)this).put("som", "Tani waa tusaale ahaan qoraalka lagu hadlay af Soomaali.");
-            ((AbstractMap)this).put("orm", "Kun fakkeenya barruu afaan Oromoo ta'uun dubbifamu.");
-            ((AbstractMap)this).put("msa", "Ini ialah contoh teks yang dituturkan dalam bahasa Melayu.");
-            ((AbstractMap)this).put("tgl", "Ito ay isang halimbawa ng teksto na sinasalita sa Tagalog.");
-            ((AbstractMap)this).put("mon", "Энэ бол Монгол хэлээр ярьсан текстийн жишээ юм.");
-            ((AbstractMap)this).put("khm", "នេះគឺជាគំរូនៃអត្ថបទដែលនិយាយជាភាសាខ្មែរ។");
-            ((AbstractMap)this).put("lao", "ນີ້ແມ່ນຕົວຢ່າງຂອງຂໍ້ຄວາມທີ່ເວົ້າເປັນພາສາລາວ.");
-            ((AbstractMap)this).put("mya", "ဤသည်မှာ မြန်မာဘာသာဖြင့် ပြောဆိုထားသော စာသားနမူနာတစ်ခုဖြစ်သည်။");
-            ((AbstractMap)this).put("kaz", "Бұл қазақ тілінде сөйленген мәтіннің үлгісі.");
-            ((AbstractMap)this).put("uzb", "Bu o'zbek tilida so'zlashgan matn namunasi.");
-            ((AbstractMap)this).put("kir", "Бул кыргыз тилинде сүйлөнгөн тексттин үлгүсү.");
-            ((AbstractMap)this).put("tuk", "Bu türkmen dilinde gürlenýän tekstiň mysalydyr.");
-            ((AbstractMap)this).put("mri", "He tauira tēnei o te kōrero i te reo Māori.");
-            ((AbstractMap)this).put("haw", "He laʻana kēia o ka ʻōlelo i ka ʻōlelo Hawaiʻi.");
-            ((AbstractMap)this).put("smo", "O lenei o se faʻataʻitaʻiga o le tautala i le gagana Sāmoa.");
-            ((AbstractMap)this).put("ton", "Ko e fakataʻitaʻi ʻeni ʻo e lea faka-Tonga.");
-            ((AbstractMap)this).put("alb", "Kjo është një shembull i tekstit të folur në gjuhën shqipe.");
-            ((AbstractMap)this).put("aze", "Bu, Azərbaycan dilində danışılmış mətn nümunəsidir.");
-            ((AbstractMap)this).put("kur", "Ev nimûneyek ji nivîsê ye ku bi zimanê Kurdî tê axaftin.");
-            ((AbstractMap)this).put("pas", "دا په پښتو ژبه کې د ویل شوي متن یوه نمونه ده.");
-            ((AbstractMap)this).put("sot", "Sena ke mohlala wa mongolo o buuoang ka Sesotho.");
-            ((AbstractMap)this).put("asm", "এয়া অসমীয়া ভাষাত কোৱা এটা পাঠৰ নমুনা।");
-            ((AbstractMap)this).put("sun", "Ieu mangrupikeun conto teks anu diucapkeun dina basa Sunda.");
-            ((AbstractMap)this).put("kok", "हें कोंकणीन उलयिल्ल्या पाठाचो एक नमुनो आसा।");
-            ((AbstractMap)this).put("sqi", "Kjo është një shembull i tekstit të folur në gjuhën shqipe.");
-            ((AbstractMap)this).put("mai", "ई मैथिली में बाजल गेल पाठक एक नमूना अछि।");
-            ((AbstractMap)this).put("cmn", "这是用普通话说的文本样本。");
-            ((AbstractMap)this).put("sat", "नोवा दो सान्ताड़ी ते रोड़ आकान ओलोक् रेनाक् मित् आदोर काना।");
-            ((AbstractMap)this).put("snd", "هيءَ سنڌي ۾ ڳالهائي وئي ٽيڪسٽ جو هڪ نمونو آهي.");
-            ((AbstractMap)this).put("kas", "یہ کاشُر زَبان مَنٛز وَنَل گَے ٹیکسٹُک اَکھ نَمونہ چھُ۔");
-            ((AbstractMap)this).put("mni", "মসি মৈতৈলোন্দা ঙাংখিবা ৱাহৈ পরেংগী খুদম অমনি।");
-            ((AbstractMap)this).put("san", "अयं संस्कृतभाषायां कथितस्य पाठस्य एकं उदाहरणम् अस्ति।");
-            ((AbstractMap)this).put("brx", "बे बर' राव गासैनि सोदोब फरायलाइनि मोनसे बिदिन्थि।");
-            ((AbstractMap)this).put("doi", "एह् डोगरी च बोले गेदे पाठ दा इक नमूना ऐ।");
-            ((AbstractMap)this).put("jav", "Iki conto teks sing diucapake ing basa Jawa.");
-            ((AbstractMap)this).put("jv", "Iki conto teks sing diucapake ing basa Jawa.");
-            ((AbstractMap)this).put("yue", "呢個係用粵語講嘅文字樣本。");
-            ((AbstractMap)this).put("cym", "Dyma enghraifft o destun yn cael ei siarad yn Gymraeg.");
-            ((AbstractMap)this).put("cy", "Dyma enghraifft o destun yn cael ei siarad yn Gymraeg.");
-            ((AbstractMap)this).put("dan", "Dette er en prøve af tekst talt på dansk.");
-            ((AbstractMap)this).put("da", "Dette er en prøve af tekst talt på dansk.");
-            ((AbstractMap)this).put("fil", "Ito ay isang halimbawa ng teksto na sinasalita sa Filipino.");
-            ((AbstractMap)this).put("lat", "Hoc exemplum textus lingua Latina locuti est.");
-            ((AbstractMap)this).put("la", "Hoc exemplum textus lingua Latina locuti est.");
-            ((AbstractMap)this).put("afr", "Dit is 'n voorbeeld van teks wat in Afrikaans gepraat word.");
-            ((AbstractMap)this).put("af", "Dit is 'n voorbeeld van teks wat in Afrikaans gepraat word.");
-            ((AbstractMap)this).put("hye", "Սա հայերենով խոսված տեքստի նմուշ է։");
-            ((AbstractMap)this).put("hy", "Սա հայերենով խոսված տեքստի նմուշ է։");
-            ((AbstractMap)this).put("hyw", "Այս արեւմտահայերէնով խօսուած տեքստի նմուշ է։");
-            ((AbstractMap)this).put("kat", "ეს არის ქართულად ნათქვამი ტექსტის ნიმუში.");
-            ((AbstractMap)this).put("ka", "ეს არის ქართულად ნათქვამი ტექსტის ნიმუში.");
-            ((AbstractMap)this).put("ltz", "Dëst ass e Beispill vun Text dee Lëtzebuergesch geschwat gëtt.");
-            ((AbstractMap)this).put("lb", "Dëst ass e Beispill vun Text dee Lëtzebuergesch geschwat gëtt.");
-            ((AbstractMap)this).put("mlt", "Dan huwa kampjun ta' test mitkellem bil-Malti.");
-            ((AbstractMap)this).put("mt", "Dan huwa kampjun ta' test mitkellem bil-Malti.");
-            ((AbstractMap)this).put("oci", "Aquò es un exemple de tèxte parlat en occitan.");
-            ((AbstractMap)this).put("oc", "Aquò es un exemple de tèxte parlat en occitan.");
-            ((AbstractMap)this).put("bre", "Setu ur skouer eus testenn komzet e brezhoneg.");
-            ((AbstractMap)this).put("br", "Setu ur skouer eus testenn komzet e brezhoneg.");
-            ((AbstractMap)this).put("ina", "Isto es un exemplo de texto parlate in interlingua.");
-            ((AbstractMap)this).put("ia", "Isto es un exemplo de texto parlate in interlingua.");
-            ((AbstractMap)this).put("epo", "Ĉi tio estas specimeno de teksto parolata en Esperanto.");
-            ((AbstractMap)this).put("eo", "Ĉi tio estas specimeno de teksto parolata en Esperanto.");
-            ((AbstractMap)this).put("tgk", "Ин намунаи матни бо забони тоҷикӣ гуфташуда аст.");
-            ((AbstractMap)this).put("tg", "Ин намунаи матни бо забони тоҷикӣ гуфташуда аст.");
-            ((AbstractMap)this).put("bel", "Гэта ўзор тэксту, прамоўленага на беларускай мове.");
-            ((AbstractMap)this).put("be", "Гэта ўзор тэксту, прамоўленага на беларускай мове.");
-            ((AbstractMap)this).put("gla", "Seo eisimpleir de theacsa air a bhruidhinn ann an Gàidhlig.");
-            ((AbstractMap)this).put("gd", "Seo eisimpleir de theacsa air a bhruidhinn ann an Gàidhlig.");
-            ((AbstractMap)this).put("ga", "Seo sampla de théacs labhartha i nGaeilge.");
-            ((AbstractMap)this).put("tat", "Бу татар телендә сөйләнгән текст үрнәге.");
-            ((AbstractMap)this).put("tt", "Бу татар телендә сөйләнгән текст үрнәге.");
-            ((AbstractMap)this).put("chr", "ᎯᎠ ᎤᎵᎮᎵᏍᏗ ᏗᎧᏃᎩᏍᏗ ᏣᎳᎩ ᎦᏬᏂᎯᏍᏗ ᏂᎨᏒᎾ ᎨᏒ.");
-            ((AbstractMap)this).put("yid", "דאָס איז אַ מוסטער פון טעקסט גערעדט אין ייִדיש.");
-            ((AbstractMap)this).put("yi", "דאָס איז אַ מוסטער פון טעקסט גערעדט אין ייִדיש.");
-            ((AbstractMap)this).put("fry", "Dit is in foarbyld fan tekst sprutsen yn it Frysk.");
-            ((AbstractMap)this).put("fy", "Dit is in foarbyld fan tekst sprutsen yn it Frysk.");
-            ((AbstractMap)this).put("uig", "بۇ ئۇيغۇر تىلىدا سۆزلەنگەن تېكىستنىڭ بىر ئۈلگىسى.");
-            ((AbstractMap)this).put("ug", "بۇ ئۇيغۇر تىلىدا سۆزلەنگەن تېكىستنىڭ بىر ئۈلگىسى.");
-            ((AbstractMap)this).put("sw", "Huu ni mfano wa maandishi yaliyozungumzwa kwa Kiswahili.");
-            ((AbstractMap)this).put("so", "Tani waa tusaale ahaan qoraalka lagu hadlay af Soomaali.");
-            ((AbstractMap)this).put("am", "ይህ በአማርኛ የተነገረ የጽሑፍ ናሙና ነው።");
-            ((AbstractMap)this).put("ha", "Wannan misali ne na rubutun da ake magana a cikin Hausa.");
-            ((AbstractMap)this).put("yo", "Eyi jẹ apẹẹrẹ ti ọrọ ti a sọ ni èdè Yorùbá.");
-            ((AbstractMap)this).put("zu", "Lesi isampula sombhalo okhulunywe ngesiZulu.");
-            ((AbstractMap)this).put("ig", "Nke a bụ ihe atụ nke okwu a na-asụ n'asụsụ Igbo.");
-            ((AbstractMap)this).put("om", "Kun fakkeenya barruu afaan Oromoo ta'uun dubbifamu.");
-            ((AbstractMap)this).put("lug", "Kino kye kyakulabirako ky'ebigambo ebyogeddwa mu Luganda.");
-            ((AbstractMap)this).put("lg", "Kino kye kyakulabirako ky'ebigambo ebyogeddwa mu Luganda.");
-            ((AbstractMap)this).put("wol", "Lii mooy misaal bu benn mbind bu ñuy wax ci wolof.");
-            ((AbstractMap)this).put("wo", "Lii mooy misaal bu benn mbind bu ñuy wax ci wolof.");
-            ((AbstractMap)this).put("kin", "Uru ni urugero rw'inyandiko ivugwa mu Kinyarwanda.");
-            ((AbstractMap)this).put("rw", "Uru ni urugero rw'inyandiko ivugwa mu Kinyarwanda.");
-            ((AbstractMap)this).put("sna", "Ichi chitsanzo chemutauro unotaurwa muchiShona.");
-            ((AbstractMap)this).put("sn", "Ichi chitsanzo chemutauro unotaurwa muchiShona.");
-            ((AbstractMap)this).put("lin", "Oyo ezali ndakisa ya makomi oyo elobi na lingála.");
-            ((AbstractMap)this).put("ln", "Oyo ezali ndakisa ya makomi oyo elobi na lingála.");
-            ((AbstractMap)this).put("mlg", "Ity dia ohatra amin'ny lahatsoratra miteny amin'ny teny Malagasy.");
-            ((AbstractMap)this).put("mg", "Ity dia ohatra amin'ny lahatsoratra miteny amin'ny teny Malagasy.");
-            ((AbstractMap)this).put("ewe", "Esia nye kpɔɖeŋu aɖe si wogblɔ le Eʋegbe me.");
-            ((AbstractMap)this).put("ee", "Esia nye kpɔɖeŋu aɖe si wogblɔ le Eʋegbe me.");
-            ((AbstractMap)this).put("aka", "Eyi yɛ nsɛm a wɔka no wɔ Twi kasa mu ho nhwɛso.");
-            ((AbstractMap)this).put("ak", "Eyi yɛ nsɛm a wɔka no wɔ Twi kasa mu ho nhwɛso.");
-            ((AbstractMap)this).put("nso", "Se ke mohlala wa sengwalwa seo se boletšwego ka Sepedi.");
-            ((AbstractMap)this).put("tsn", "Se ke sekao sa mokwalo o o buiwang ka Setswana.");
-            ((AbstractMap)this).put("tn", "Se ke sekao sa mokwalo o o buiwang ka Setswana.");
-            ((AbstractMap)this).put("xh", "Esi sisampula sombhalo othethwayo ngesiXhosa.");
-            ((AbstractMap)this).put("nde", "Lesi yisibonelo sombhalo okhulunywayo ngesiNdebele.");
-            ((AbstractMap)this).put("nd", "Lesi yisibonelo sombhalo okhulunywayo ngesiNdebele.");
-            ((AbstractMap)this).put("bam", "Nin ye sɛbɛnni misali ye min bɛ fɔ bamanankan na.");
-            ((AbstractMap)this).put("bm", "Nin ye sɛbɛnni misali ye min bɛ fɔ bamanankan na.");
-            ((AbstractMap)this).put("que", "Kayqa qichwa simipi rimashqa qillqap huknin rikch'aqnin.");
-            ((AbstractMap)this).put("qu", "Kayqa qichwa simipi rimashqa qillqap huknin rikch'aqnin.");
-            ((AbstractMap)this).put("grn", "Ko ha'e peteĩ techapyrã ñe'ẽ ojepurúva guaraníme.");
-            ((AbstractMap)this).put("gn", "Ko ha'e peteĩ techapyrã ñe'ẽ ojepurúva guaraníme.");
-            ((AbstractMap)this).put("aym", "Aka aymara arunxa arsuña qillqata uñacht'ayañatakiwa.");
-            ((AbstractMap)this).put("bod", "འདི་ནི་བོད་སྐད་དུ་སྨྲས་པའི་ཡི་གེའི་དཔེ་མཚོན་ཞིག་ཡིན།");
-            ((AbstractMap)this).put("bo", "འདི་ནི་བོད་སྐད་དུ་སྨྲས་པའི་ཡི་གེའི་དཔེ་མཚོན་ཞིག་ཡིན།");
-            ((AbstractMap)this).put("dzo", "འ་ནི་རྫོང་ཁ་ནང་ལབ་མི་ཡིག་ཆ་གི་དཔེ་ཨིན།");
-            ((AbstractMap)this).put("dz", "འ་ནི་རྫོང་ཁ་ནང་ལབ་མི་ཡིག་ཆ་གི་དཔེ་ཨིན།");
-            ((AbstractMap)this).put("my", "ဤသည်မှာ မြန်မာဘာသာဖြင့် ပြောဆိုထားသော စာသားနမူနာတစ်ခုဖြစ်သည်။");
-            ((AbstractMap)this).put("lo", "ນີ້ແມ່ນຕົວຢ່າງຂອງຂໍ້ຄວາມທີ່ເວົ້າເປັນພາສາລາວ.");
-            ((AbstractMap)this).put("tir", "እዚ ብትግርኛ ዝተዛረበ ጽሑፍ ኣብነት እዩ።");
-            ((AbstractMap)this).put("ti", "እዚ ብትግርኛ ዝተዛረበ ጽሑፍ ኣብነት እዩ።");
-            ((AbstractMap)this).put("bpy", "এহান বিষ্ণুপ্রিয়া মণিপুরী ঠারর কথা মাতেসি পাঠর নমুনা।");
-            ((AbstractMap)this).put("kk", "Бұл қазақ тілінде сөйленген мәтіннің үлгісі.");
-            ((AbstractMap)this).put("ky", "Бул кыргыз тилинде сүйлөнгөн тексттин үлгүсү.");
-            ((AbstractMap)this).put("tk", "Bu türkmen dilinde gürlenýän tekstiň mysalydyr.");
-            ((AbstractMap)this).put("shn", "ၼႆႉပဵၼ် တူဝ်ယၢင်ႇ လိၵ်ႈတႆး ဝႃႈ တႆးတႃႇ။");
-            ((AbstractMap)this).put("grc", "Τοῦτό ἐστι παράδειγμα τοῦ λόγου τοῦ λεγομένου ἑλληνιστί.");
-            ((AbstractMap)this).put("hat", "Sa a se yon echantiyon tèks ki pale nan kreyòl ayisyen.");
-            ((AbstractMap)this).put("ht", "Sa a se yon echantiyon tèks ki pale nan kreyòl ayisyen.");
-            ((AbstractMap)this).put("kal", "Una kalaallisut oqaasiitigut oqaluttup assersuutaavoq.");
-            ((AbstractMap)this).put("kl", "Una kalaallisut oqaasiitigut oqaluttup assersuutaavoq.");
-            ((AbstractMap)this).put("pap", "Esaki ta un ehèmpel di teksto papiá na Papiamentu.");
-            ((AbstractMap)this).put("jbo", "ti mupli lo lerpoi poi se cusku bau la lojban.");
-            ((AbstractMap)this).put("nci", "Inin se tlanauatilkayotl tlen motoa ika nauatl.");
-            ((AbstractMap)this).put("arg", "Isto ye un eixemplo de testo charrau en aragonés.");
-            ((AbstractMap)this).put("an", "Isto ye un eixemplo de testo charrau en aragonés.");
-            ((AbstractMap)this).put("quc", "We jun k'utb'al tzij pa ri ch'ab'al K'iche'.");
-            ((AbstractMap)this).put("lfn", "Esta es un esemplo de testo parlada en Lingua Franca Nova.");
-            ((AbstractMap)this).put("cor", "Hemm yw ensampel a destenn kewsys yn kernewek.");
-            ((AbstractMap)this).put("kw", "Hemm yw ensampel a destenn kewsys yn kernewek.");
-            ((AbstractMap)this).put("glv", "Shoh sampleyr jeh teks loayrit ayns Gaelg.");
-            ((AbstractMap)this).put("gv", "Shoh sampleyr jeh teks loayrit ayns Gaelg.");
-            ((AbstractMap)this).put("oss", "Ай фӕткъуы ирон ӕвзагыл дзургӕ тексты.");
-            ((AbstractMap)this).put("os", "Ай фӕткъуы ирон ӕвзагыл дзургӕ тексты.");
-            ((AbstractMap)this).put("che", "Хӏара нохчийн маттахь дийцина йозанан масал ду.");
-            ((AbstractMap)this).put("ce", "Хӏара нохчийн маттахь дийцина йозанан масал ду.");
-            ((AbstractMap)this).put("chv", "Ку чӑваш чӗлхипе калакан текстӑн тӗслӗхӗ.");
-            ((AbstractMap)this).put("cv", "Ку чӑваш чӗлхипе калакан текстӑн тӗслӗхӗ.");
-            ((AbstractMap)this).put("sme", "Dát lea ovdamearka teavsttas mii hállojuvvo davvisámegillii.");
-            ((AbstractMap)this).put("se", "Dát lea ovdamearka teavsttas mii hállojuvvo davvisámegillii.");
-            ((AbstractMap)this).put("smn", "Taat lii ovdâmerkkâ tekstâst mii sárnojuvvoo anarâškielân.");
-            ((AbstractMap)this).put("fao", "Hetta er eitt dømi um tekst tosaðan á føroyskum.");
-            ((AbstractMap)this).put("fo", "Hetta er eitt dømi um tekst tosaðan á føroyskum.");
-            ((AbstractMap)this).put("roh", "Quai è in exempel dad in text discurrì en rumantsch.");
-            ((AbstractMap)this).put("rm", "Quai è in exempel dad in text discurrì en rumantsch.");
-            ((AbstractMap)this).put("scn", "Chistu è nu esempiu di testu parratu 'n sicilianu.");
-            ((AbstractMap)this).put("sc", "Quistu est unu esèmpiu de testu faeddadu in sardu.");
-            ((AbstractMap)this).put("vec", "Questo xe un esempio de testo parlà in vèneto.");
-            ((AbstractMap)this).put("lij", "Questo o l'é un exempio de testo parlou in ligure.");
-            ((AbstractMap)this).put("lmo", "Chest l'è un esempi de test parlaa in lombard.");
-            ((AbstractMap)this).put("nds", "Dit is en Bispeel vun Text, de op Plattdüütsch snackt warrt.");
-            ((AbstractMap)this).put("wln", "Çoula est-st on egzimpe di tecse cåzé e walon.");
-            ((AbstractMap)this).put("wa", "Çoula est-st on egzimpe di tecse cåzé e walon.");
-            ((AbstractMap)this).put("gsw", "Des esch e Beispiel vun Tekscht wo uf Elsassisch gschwätzt werd.");
-            ((AbstractMap)this).put("als", "Das isch es Biispil vo Text wo uf Schwizerdütsch gredt wird.");
-            ((AbstractMap)this).put("bar", "Des is a Beispui vo am Text auf Boarisch.");
-            ((AbstractMap)this).put("hsb", "To je přikład teksta rěčaneho w hornjoserbšćinje.");
-            ((AbstractMap)this).put("dsb", "To jo pśikład teksta powědanego w dolnoserbšćinje.");
-            ((AbstractMap)this).put("szl", "To je bajszpil tekstu godanygo we ślůnskij godce.");
-            ((AbstractMap)this).put("ckb", "ئەمە نموونەیەکی دەقی قسەکراوە بە کوردی سۆرانی.");
-            ((AbstractMap)this).put("ast", "Esti ye un exemplu de testu faláu n'asturianu.");
-            ((AbstractMap)this).put("sah", "Бу саха тылынан этиллибит тиэкис холобура.");
-            ((AbstractMap)this).put("prg", "Sta ast ainā prūsiskan bilātan tekstan.");
-            ((AbstractMap)this).put("tpi", "Dispela em wanpela eksampol bilong toktok long Tok Pisin.");
-            ((AbstractMap)this).put("tok", "Dispela em wanpela eksampol bilong toktok long Tok Pisin.");
-            ((AbstractMap)this).put("lkt", "Le Lakȟótiyapi eyápi kiŋ owá waŋží hée.");
-            ((AbstractMap)this).put("mad", "Panèka conto tèks sè èlaocaghi bhâsa Madhurâ.");
-            ((AbstractMap)this).put("ace", "Nyoe nakeuh saboh conto teuks nyang geupeugo bak bahsa Acèh.");
-            ((AbstractMap)this).put("bbc", "On ma sada tuladaan ni hata na dipahata do.");
-            ((AbstractMap)this).put("bug", "Iyya'e panessaiwi ada napau ri ogi.");
-            ((AbstractMap)this).put("min", "Iko marupoan conto teks nan diucapan dalam bahaso Minangkabau.");
-            ((AbstractMap)this).put("sas", "Ne contoh teks saq bebase lek base Sasak.");
-            ((AbstractMap)this).put("eng_NGA", "This is a sample of text spoken in Nigerian English.");
-            ((AbstractMap)this).put("eng_AUS", "This is a sample of text spoken in Australian English.");
-            ((AbstractMap)this).put("eng_IND", "This is a sample of text spoken in Indian English.");
-            ((AbstractMap)this).put("eng_GBR", "This is a sample of text spoken in British English.");
-            ((AbstractMap)this).put("eng_USA", "This is a sample of text spoken in American English.");
-            ((AbstractMap)this).put("en_GB", "This is a sample of text spoken in British English.");
-            ((AbstractMap)this).put("en_US", "This is a sample of text spoken in American English.");
-            ((AbstractMap)this).put("en_AU", "This is a sample of text spoken in Australian English.");
-            ((AbstractMap)this).put("en_NG", "This is a sample of text spoken in Nigerian English.");
-            ((AbstractMap)this).put("en_IN", "This is a sample of text spoken in Indian English.");
-            ((AbstractMap)this).put("en_JM", "This is a sample of text spoken in Jamaican English.");
-            ((AbstractMap)this).put("en", "This is a sample of text spoken in English.");
-            ((AbstractMap)this).put("spa_USA", "Esta es una muestra de texto hablado en español estadounidense.");
-            ((AbstractMap)this).put("spa_ESP", "Esta es una muestra de texto hablado en español de España.");
-            ((AbstractMap)this).put("es_US", "Esta es una muestra de texto hablado en español estadounidense.");
-            ((AbstractMap)this).put("es_ES", "Esta es una muestra de texto hablado en español de España.");
-            ((AbstractMap)this).put("es_MX", "Esta es una muestra de texto hablado en español mexicano.");
-            ((AbstractMap)this).put("es", "Esta es una muestra de texto hablado en español.");
-            ((AbstractMap)this).put("fra_CAN", "Ceci est un échantillon de texte parlé en français canadien.");
-            ((AbstractMap)this).put("fra_FRA", "Ceci est un échantillon de texte parlé en français de France.");
-            ((AbstractMap)this).put("fr_CA", "Ceci est un échantillon de texte parlé en français canadien.");
-            ((AbstractMap)this).put("fr_FR", "Ceci est un échantillon de texte parlé en français de France.");
-            ((AbstractMap)this).put("fr_BE", "Ceci est un échantillon de texte parlé en français belge.");
-            ((AbstractMap)this).put("fr_CH", "Ceci est un échantillon de texte parlé en français suisse.");
-            ((AbstractMap)this).put("fr", "Ceci est un échantillon de texte parlé en français.");
-            ((AbstractMap)this).put("por_BRA", "Esta é uma amostra de texto falado em português brasileiro.");
-            ((AbstractMap)this).put("por_PRT", "Esta é uma amostra de texto falado em português de Portugal.");
-            ((AbstractMap)this).put("pt_BR", "Esta é uma amostra de texto falado em português brasileiro.");
-            ((AbstractMap)this).put("pt_PT", "Esta é uma amostra de texto falado em português de Portugal.");
-            ((AbstractMap)this).put("pt", "Esta é uma amostra de texto falado em português.");
-            ((AbstractMap)this).put("zho_CHN", "这是用中国普通话说的文本样本。");
-            ((AbstractMap)this).put("zho_TWN", "這是用台灣國語說的文本樣本。");
-            ((AbstractMap)this).put("zh_CN", "这是用中国普通话说的文本样本。");
-            ((AbstractMap)this).put("zh_TW", "這是用台灣國語說的文本樣本。");
-            ((AbstractMap)this).put("zh_HK", "呢個係用香港粵語講嘅文字樣本。");
-            ((AbstractMap)this).put("zh", "这是用中文说的文本样本。");
-            ((AbstractMap)this).put("ru", "Это образец текста, произнесенного на русском языке.");
-            ((AbstractMap)this).put("ru_LV", "Это образец текста, произнесенного на русском языке в Латвии.");
-            ((AbstractMap)this).put("de", "Dies ist ein Beispieltext in deutscher Sprache.");
-            ((AbstractMap)this).put("it", "Questo è un esempio di testo parlato in italiano.");
-            ((AbstractMap)this).put("nl", "Dit is een voorbeeld van tekst gesproken in het Nederlands.");
-            ((AbstractMap)this).put("sv", "Detta är ett textprov talat på svenska.");
-            ((AbstractMap)this).put("pl", "To jest próbka tekstu mówionego w języku polskim.");
-            ((AbstractMap)this).put("el", "Αυτό είναι ένα δείγμα κειμένου που ομιλείται στα ελληνικά.");
-            ((AbstractMap)this).put("hi", "यह हिंदी में बोले गए पाठ का एक नमूना है।");
-            ((AbstractMap)this).put("ja", "これは日本語で話されたテキストのサンプルです。");
-            ((AbstractMap)this).put("ko", "이것은 한국어로 된 텍스트의 샘플입니다.");
-            ((AbstractMap)this).put("ar", "هذه عينة من نص منطوق باللغة العربية.");
-            ((AbstractMap)this).put("he", "זוהי דוגמה לטקסט מדובר בעברית.");
-            ((AbstractMap)this).put("tr", "Bu, Türkçe konuşulmuş bir metin örneğidir.");
-            ((AbstractMap)this).put("th", "นี่คือตัวอย่างข้อความที่พูดเป็นภาษาไทย");
-            ((AbstractMap)this).put("vi", "Đây là một đoạn văn bản mẫu được nói bằng tiếng Việt Nam.");
-            ((AbstractMap)this).put("bn", "এটি বাংলা ভাষায় কথ্য পাঠ্যের একটি নমুনা।");
-            ((AbstractMap)this).put("ur", "یہ اردو میں بولے گئے متن کا ایک نمونہ ہے۔");
-            ((AbstractMap)this).put("fa", "این یک نمونه از متن گفتاری به زبان فارسی است.");
-            ((AbstractMap)this).put("id", "Ini adalah contoh teks yang diucapkan dalam bahasa Indonesia.");
-            ((AbstractMap)this).put("fi", "Tämä on suomeksi puhuttu tekstinäyte.");
-            ((AbstractMap)this).put("hu", "Ez egy minta a magyar nyelven beszélt szövegből.");
-            ((AbstractMap)this).put("cs", "Toto je vzorek textu mluveného v češtině.");
-            ((AbstractMap)this).put("sk", "Toto je vzorka textu hovoreného v slovenčine.");
-            ((AbstractMap)this).put("ro", "Acesta este un eșantion de text vorbit în română.");
-            ((AbstractMap)this).put("uk", "Це зразок тексту, вимовленого українською мовою.");
-            ((AbstractMap)this).put("is", "Þetta er sýnishorn af texta talað á íslensku.");
-            ((AbstractMap)this).put("et", "See on eesti keeles räägitud teksti näidis.");
-            ((AbstractMap)this).put("lv", "Šis ir latviešu valodā runāta teksta paraugs.");
-            ((AbstractMap)this).put("lt", "Tai pavyzdys teksto, kalbamo lietuvių kalba.");
-            ((AbstractMap)this).put("hr", "Ovo je uzorak teksta govorenog na hrvatskom jeziku.");
-            ((AbstractMap)this).put("sr", "Ово је узорак текста говореног на српском језику.");
-            ((AbstractMap)this).put("sl", "To je vzorec besedila, govorjenega v slovenščini.");
-            ((AbstractMap)this).put("bs", "Ovo je primjer teksta govorenog na bosanskom jeziku.");
-            ((AbstractMap)this).put("mk", "Ова е примерок на текст зборуван на македонски јазик.");
-            ((AbstractMap)this).put("bg", "Това е примерен текст, изговорен на български език.");
-            ((AbstractMap)this).put("no", "Dette er en prøve på tekst talt på norsk.");
-            ((AbstractMap)this).put("nb", "Dette er en prøve på tekst talt på bokmål.");
-            ((AbstractMap)this).put("nn", "Dette er ein prøve på tekst tala på nynorsk.");
-            ((AbstractMap)this).put("ca", "Això és un exemple de text parlat en català.");
-            ((AbstractMap)this).put("eu", "Hau euskaraz hitz egiten den testuaren adibidea da.");
-            ((AbstractMap)this).put("gl", "Este é un exemplo de texto falado en galego.");
-            ((AbstractMap)this).put("te", "ఇది తెలుగులో మాట్లాడిన వచనానికి నమూనా.");
-            ((AbstractMap)this).put("ta", "இது தமிழில் பேசப்பட்ட உரைக்கான மாதிரி.");
-            ((AbstractMap)this).put("kn", "ಇದು ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿದ ಪಠ್ಯದ ಒಂದು ಮಾದರಿ.");
-            ((AbstractMap)this).put("pa", "ਇਹ ਪੰਜਾਬੀ ਵਿੱਚ ਬੋਲਿਆ ਗਿਆ ਪਾਠ ਦਾ ਇੱਕ ਨਮੂਨਾ ਹੈ।");
-            ((AbstractMap)this).put("ne", "यो नेपालीमा बोलिएको पाठको नमूना हो।");
-            ((AbstractMap)this).put("ml", "ഇത് മലയാളത്തിൽ സംസാരിക്കുന്ന ഒരു വാചകത്തിന്റെ മാതൃകയാണ്.");
-            ((AbstractMap)this).put("mr", "हा मराठीत बोलल्या गेलेल्या मजकुराचा नमुना आहे.");
-            ((AbstractMap)this).put("gu", "આ ગુજરાતીમાં બોલાયેલા ટેક્સ્ટનું નમૂનું છે.");
-            ((AbstractMap)this).put("si", "මෙය සිංහල භාෂාවෙන් කථනය කළ පාඨයක ආදර්ශයකි.");
-            ((AbstractMap)this).put("or", "ଏହା ଓଡ଼ିଆରେ କଥିତ ପାଠର ଏକ ନମୁନା।");
-            ((AbstractMap)this).put("as", "এয়া অসমীয়া ভাষাত কোৱা এটা পাঠৰ নমুনা।");
-            ((AbstractMap)this).put("km", "នេះគឺជាគំរូនៃអត្ថបទដែលនិយាយជាភាសាខ្មែរ។");
-            ((AbstractMap)this).put("ms", "Ini ialah contoh teks yang dituturkan dalam bahasa Melayu.");
-            ((AbstractMap)this).put("sd", "هيءَ سنڌي ۾ ڳالهائي وئي ٽيڪسٽ جو هڪ نمونو آهي.");
+    public static PackageInfo a(Context object) {
+        PackageManager packageManager = object.getPackageManager();
+        object = object.getPackageName();
+        if (Build.VERSION.SDK_INT >= 33) {
+            return z.a(packageManager, (String)object, y.a(0L));
         }
-    };
+        return packageManager.getPackageInfo((String)object, 0);
+    }
 
-    public static String a(String string) {
-        String string2;
-        string = string2 = (String)a.get(string);
-        if (string2 == null) {
-            string = "";
+    public static long b(Context context) {
+        int n3;
+        try {
+            context = a0.a(context);
+            if (Build.VERSION.SDK_INT >= 28) {
+                return x.a((PackageInfo)context);
+            }
+            n3 = context.versionCode;
         }
-        return string;
+        catch (PackageManager.NameNotFoundException nameNotFoundException) {
+            Log.e((String)"VersionUtils", (String)"Error getting version code", (Throwable)nameNotFoundException);
+            return -1L;
+        }
+        return n3;
+    }
+
+    public static String c(Context object) {
+        try {
+            object = a0.a((Context)object).versionName;
+            return object;
+        }
+        catch (PackageManager.NameNotFoundException nameNotFoundException) {
+            Log.e((String)"VersionUtils", (String)"Error getting version name", (Throwable)nameNotFoundException);
+            return "Unknown";
+        }
     }
 }
 

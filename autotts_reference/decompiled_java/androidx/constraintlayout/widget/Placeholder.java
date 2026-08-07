@@ -69,17 +69,17 @@ extends View {
             return;
         }
         ConstraintLayout.LayoutParams layoutParams = (ConstraintLayout.LayoutParams)this.getLayoutParams();
-        object = (ConstraintLayout.LayoutParams)this.d.getLayoutParams();
-        ((ConstraintLayout.LayoutParams)((Object)object)).v0.o1(0);
-        e.b b3 = layoutParams.v0.C();
-        e.b b4 = e.b.c;
-        if (b3 != b4) {
-            layoutParams.v0.p1(((ConstraintLayout.LayoutParams)((Object)object)).v0.Y());
+        ConstraintLayout.LayoutParams layoutParams2 = (ConstraintLayout.LayoutParams)this.d.getLayoutParams();
+        layoutParams2.v0.o1(0);
+        object = layoutParams.v0.C();
+        e.b b3 = e.b.c;
+        if (object != b3) {
+            layoutParams.v0.p1(layoutParams2.v0.Y());
         }
-        if (layoutParams.v0.V() != b4) {
-            layoutParams.v0.Q0(((ConstraintLayout.LayoutParams)((Object)object)).v0.z());
+        if (layoutParams.v0.V() != b3) {
+            layoutParams.v0.Q0(layoutParams2.v0.z());
         }
-        ((ConstraintLayout.LayoutParams)((Object)object)).v0.o1(8);
+        layoutParams2.v0.o1(8);
     }
 
     public void c(ConstraintLayout constraintLayout) {

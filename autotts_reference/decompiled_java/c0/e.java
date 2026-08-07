@@ -59,15 +59,15 @@ public abstract class e {
                 var7_7 = var0.openFileInput("androidx.appcompat.app.AppCompatDelegate.application_locales_record_file");
                 var5_8 = Xml.newPullParser();
                 var5_8.setInput((InputStream)var7_7, "UTF-8");
-                var1_9 = var5_8.getDepth();
+                var2_9 = var5_8.getDepth();
                 do {
-                    var2_10 = var5_8.next();
+                    var1_10 = var5_8.next();
                     var3_11 = var4_5;
-                    if (var2_10 == 1) break block16;
-                    if (var2_10 != 3) continue;
+                    if (var1_10 == 1) break block16;
+                    if (var1_10 != 3) continue;
                     var3_11 = var4_5;
-                    if (var5_8.getDepth() <= var1_9) break block16;
-                } while (var2_10 == 3 || var2_10 == 4 || !var5_8.getName().equals("locales"));
+                    if (var5_8.getDepth() <= var2_9) break block16;
+                } while (var1_10 == 3 || var1_10 == 4 || !var5_8.getName().equals("locales"));
                 var3_11 = var5_8.getAttributeValue(null, "application_locales");
             }
             var5_8 = var3_11;

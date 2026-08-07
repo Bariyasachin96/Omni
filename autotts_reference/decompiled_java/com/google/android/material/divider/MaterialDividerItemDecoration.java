@@ -112,13 +112,12 @@ extends RecyclerView.o {
                 recyclerView.getLayoutManager().U(view, this.h);
                 int n10 = Math.round(view.getTranslationX());
                 if (bl) {
-                    n10 = this.h.left + n10;
-                    n9 = this.b + n10;
+                    n9 = this.h.left + n10;
+                    n10 = this.b + n9;
                 } else {
-                    n9 = n10 + this.h.right;
-                    n10 = n9 - this.b;
+                    n9 = (n10 += this.h.right) - this.b;
                 }
-                this.a.setBounds(n10, n4 + n6, n9, n3 - n7);
+                this.a.setBounds(n9, n4 + n6, n10, n3 - n7);
                 n10 = Math.round(view.getAlpha() * 255.0f);
                 this.a.setAlpha(n10);
                 this.a.draw(canvas);
@@ -153,8 +152,8 @@ extends RecyclerView.o {
                 int n9 = this.h.bottom + Math.round(view.getTranslationY());
                 int n10 = this.b;
                 this.a.setBounds(n4 + n6, n9 - n10, n3 - n7, n9);
-                n9 = Math.round(view.getAlpha() * 255.0f);
-                this.a.setAlpha(n9);
+                n10 = Math.round(view.getAlpha() * 255.0f);
+                this.a.setAlpha(n10);
                 this.a.draw(canvas);
             }
             ++n5;

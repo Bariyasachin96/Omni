@@ -81,38 +81,38 @@ implements Runnable {
             n6 = n3;
         }
         this.f.ensureCapacity(n6);
-        n6 = 0;
-        for (n4 = 0; n4 < n5; ++n4) {
+        n4 = 0;
+        for (n3 = 0; n3 < n5; ++n3) {
             int n7;
-            RecyclerView recyclerView = (RecyclerView)this.c.get(n4);
+            RecyclerView recyclerView = (RecyclerView)this.c.get(n3);
             if (recyclerView.getWindowVisibility() != 0) {
-                n7 = n6;
+                n7 = n4;
             } else {
                 b b3 = recyclerView.j0;
                 int n8 = Math.abs(b3.a) + Math.abs(b3.b);
-                n3 = 0;
+                n6 = 0;
                 while (true) {
-                    n7 = n6;
-                    if (n3 >= b3.d * 2) break;
-                    if (n6 >= this.f.size()) {
+                    n7 = n4;
+                    if (n6 >= b3.d * 2) break;
+                    if (n4 >= this.f.size()) {
                         object = new c();
                         this.f.add(object);
                     } else {
-                        object = (c)this.f.get(n6);
+                        object = (c)this.f.get(n4);
                     }
                     int[] nArray = b3.c;
-                    n7 = nArray[n3 + 1];
+                    n7 = nArray[n6 + 1];
                     boolean bl = n7 <= n8;
                     ((c)object).a = bl;
                     ((c)object).b = n8;
                     ((c)object).c = n7;
                     ((c)object).d = recyclerView;
-                    ((c)object).e = nArray[n3];
-                    ++n6;
-                    n3 += 2;
+                    ((c)object).e = nArray[n6];
+                    ++n4;
+                    n6 += 2;
                 }
             }
-            n6 = n7;
+            n4 = n7;
         }
         Collections.sort(this.f, h);
     }
@@ -282,16 +282,18 @@ implements Runnable {
         public void a(int n3, int n4) {
             if (n3 >= 0) {
                 if (n4 >= 0) {
+                    int[] nArray;
                     int n5 = this.d;
                     int n6 = n5 * 2;
-                    int[] nArray = this.c;
-                    if (nArray == null) {
-                        this.c = nArray = new int[4];
+                    int[] nArray2 = this.c;
+                    if (nArray2 == null) {
+                        nArray = new int[4];
+                        this.c = nArray;
                         Arrays.fill(nArray, -1);
-                    } else if (n6 >= nArray.length) {
-                        int[] nArray2 = new int[n5 * 4];
-                        this.c = nArray2;
-                        System.arraycopy(nArray, 0, nArray2, 0, nArray.length);
+                    } else if (n6 >= nArray2.length) {
+                        nArray = new int[n5 * 4];
+                        this.c = nArray;
+                        System.arraycopy(nArray2, 0, nArray, 0, nArray2.length);
                     }
                     nArray = this.c;
                     nArray[n6] = n3;

@@ -1,127 +1,29 @@
 /*
  * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  android.content.Context
+ *  android.content.pm.PackageManager
+ *  android.content.pm.PackageManager$NameNotFoundException
  */
 package c3;
 
-import c3.m;
-import c3.n;
-import java.util.ArrayList;
-import java.util.Locale;
+import android.content.Context;
+import android.content.pm.PackageManager;
 
-public class w
-implements Comparable {
-    public Locale c;
-    public n d;
-    public int e;
-    public ArrayList f;
-
-    public w(Locale cloneable, n n3, int n4) {
-        this.c = cloneable;
-        this.d = n3;
-        this.e = n4;
-        cloneable = new ArrayList();
-        this.f = cloneable;
-        ((ArrayList)cloneable).add("*Default");
+public abstract class w {
+    public static boolean a(Context context) {
+        return w.b("com.google.android.tts", context.getPackageManager());
     }
 
-    public void a(String string) {
-        this.f.add(string);
-    }
-
-    public int b(w w3) {
-        int n3 = this.e;
-        int n4 = w3.e;
-        if (n3 != n4) {
-            return n3 - n4;
+    public static boolean b(String string, PackageManager packageManager) {
+        try {
+            packageManager.getPackageInfo(string, 0);
+            return true;
         }
-        return this.g().compareToIgnoreCase(w3.g());
-    }
-
-    public String c() {
-        return this.c.getDisplayLanguage();
-    }
-
-    public String d() {
-        if (!this.c.getCountry().equals("")) {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append(this.g());
-            stringBuilder.append(", ");
-            stringBuilder.append(this.c.getDisplayCountry());
-            return stringBuilder.toString();
+        catch (PackageManager.NameNotFoundException nameNotFoundException) {
+            return false;
         }
-        return this.g();
-    }
-
-    public String e() {
-        return m.f(this.c);
-    }
-
-    public String f() {
-        if (this.d != null) {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append(this.d.b);
-            stringBuilder.append("#");
-            stringBuilder.append(this.c.toString());
-            return stringBuilder.toString();
-        }
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Disable#");
-        stringBuilder.append(this.c.toString());
-        return stringBuilder.toString();
-    }
-
-    /*
-     * Enabled force condition propagation
-     * Lifted jumps to return sites
-     */
-    public final String g() {
-        Object object = this.d;
-        if (object == null) {
-            return "*Disabled";
-        }
-        String string = ((n)object).a;
-        String[] stringArray = string.split(" ");
-        if (stringArray.length < 2) return string;
-        StringBuilder stringBuilder = new StringBuilder(stringArray[0]);
-        int n3 = stringArray.length;
-        int n4 = 1;
-        StringBuilder stringBuilder2 = new StringBuilder(stringArray[n3 - 1]);
-        n3 = stringArray.length - 2;
-        object = new StringBuilder();
-        ((StringBuilder)object).append((Object)stringBuilder);
-        ((StringBuilder)object).append(" ... ");
-        ((StringBuilder)object).append((Object)stringBuilder2);
-        object = ((StringBuilder)object).toString();
-        while (n4 < n3) {
-            if (((String)object).length() > 15) return object;
-            CharSequence charSequence = new StringBuilder();
-            ((StringBuilder)charSequence).append((Object)stringBuilder);
-            ((StringBuilder)charSequence).append(" ... ");
-            ((StringBuilder)charSequence).append((Object)stringBuilder2);
-            charSequence = ((StringBuilder)charSequence).toString();
-            if (((String)charSequence).length() > 15) {
-                if (((String)charSequence).length() >= 20) return object;
-                return charSequence;
-            }
-            if (stringArray[n4].length() < stringArray[n3].length()) {
-                stringBuilder.append(" ");
-                stringBuilder.append(stringArray[n4]);
-                ++n4;
-            } else {
-                object = new StringBuilder();
-                ((StringBuilder)object).append(stringArray[n3]);
-                ((StringBuilder)object).append(" ");
-                stringBuilder2.insert(0, ((StringBuilder)object).toString());
-                --n3;
-            }
-            object = charSequence;
-        }
-        if (string.length() >= 15) return object;
-        return string;
-    }
-
-    public void h(int n3) {
-        this.e = n3;
     }
 }
 

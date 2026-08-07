@@ -241,9 +241,9 @@ LayoutInflater.Factory2 {
         if (this.V == -100 && object3 instanceof Dialog && (object = this.X0()) != null) {
             this.V = ((AppCompatActivity)object).V().n();
         }
-        if (this.V == -100 && (object = (Integer)((o.r)(object2 = l0)).get(object3.getClass().getName())) != null) {
-            this.V = (Integer)object;
-            ((o.r)object2).remove(object3.getClass().getName());
+        if (this.V == -100 && (object2 = (Integer)((o.r)(object = l0)).get(object3.getClass().getName())) != null) {
+            this.V = (Integer)object2;
+            ((o.r)object).remove(object3.getClass().getName());
         }
         if (window != null) {
             this.S(window);
@@ -269,10 +269,10 @@ LayoutInflater.Factory2 {
                 configuration3.mnc = n4;
             }
             androidx.appcompat.app.AppCompatDelegateImpl$i.a(configuration, configuration2, configuration3);
-            n3 = configuration.touchscreen;
-            n4 = configuration2.touchscreen;
-            if (n3 != n4) {
-                configuration3.touchscreen = n4;
+            n4 = configuration.touchscreen;
+            n3 = configuration2.touchscreen;
+            if (n4 != n3) {
+                configuration3.touchscreen = n3;
             }
             if ((n3 = configuration.keyboard) != (n4 = configuration2.keyboard)) {
                 configuration3.keyboard = n4;
@@ -286,8 +286,8 @@ LayoutInflater.Factory2 {
             if ((n3 = configuration.navigationHidden) != (n4 = configuration2.navigationHidden)) {
                 configuration3.navigationHidden = n4;
             }
-            if ((n3 = configuration.orientation) != (n4 = configuration2.orientation)) {
-                configuration3.orientation = n4;
+            if ((n4 = configuration.orientation) != (n3 = configuration2.orientation)) {
+                configuration3.orientation = n3;
             }
             if (((n4 = configuration.screenLayout) & 0xF) != ((n3 = configuration2.screenLayout) & 0xF)) {
                 configuration3.screenLayout |= n3 & 0xF;
@@ -295,23 +295,23 @@ LayoutInflater.Factory2 {
             if (((n3 = configuration.screenLayout) & 0xC0) != ((n4 = configuration2.screenLayout) & 0xC0)) {
                 configuration3.screenLayout |= n4 & 0xC0;
             }
-            if (((n3 = configuration.screenLayout) & 0x30) != ((n4 = configuration2.screenLayout) & 0x30)) {
-                configuration3.screenLayout |= n4 & 0x30;
+            if (((n4 = configuration.screenLayout) & 0x30) != ((n3 = configuration2.screenLayout) & 0x30)) {
+                configuration3.screenLayout |= n3 & 0x30;
             }
-            if (((n4 = configuration.screenLayout) & 0x300) != ((n3 = configuration2.screenLayout) & 0x300)) {
-                configuration3.screenLayout |= n3 & 0x300;
+            if (((n3 = configuration.screenLayout) & 0x300) != ((n4 = configuration2.screenLayout) & 0x300)) {
+                configuration3.screenLayout |= n4 & 0x300;
             }
             androidx.appcompat.app.AppCompatDelegateImpl$j.a(configuration, configuration2, configuration3);
-            n4 = configuration.uiMode;
-            n3 = configuration2.uiMode;
-            if ((n4 & 0xF) != (n3 & 0xF)) {
-                configuration3.uiMode |= n3 & 0xF;
+            n3 = configuration.uiMode;
+            n4 = configuration2.uiMode;
+            if ((n3 & 0xF) != (n4 & 0xF)) {
+                configuration3.uiMode |= n4 & 0xF;
             }
             if (((n4 = configuration.uiMode) & 0x30) != ((n3 = configuration2.uiMode) & 0x30)) {
                 configuration3.uiMode |= n3 & 0x30;
             }
-            if ((n3 = configuration.screenWidthDp) != (n4 = configuration2.screenWidthDp)) {
-                configuration3.screenWidthDp = n4;
+            if ((n4 = configuration.screenWidthDp) != (n3 = configuration2.screenWidthDp)) {
+                configuration3.screenWidthDp = n3;
             }
             if ((n4 = configuration.screenHeightDp) != (n3 = configuration2.screenHeightDp)) {
                 configuration3.screenHeightDp = n3;
@@ -319,8 +319,8 @@ LayoutInflater.Factory2 {
             if ((n4 = configuration.smallestScreenWidthDp) != (n3 = configuration2.smallestScreenWidthDp)) {
                 configuration3.smallestScreenWidthDp = n3;
             }
-            if ((n3 = configuration.densityDpi) != (n4 = configuration2.densityDpi)) {
-                configuration3.densityDpi = n4;
+            if ((n4 = configuration.densityDpi) != (n3 = configuration2.densityDpi)) {
+                configuration3.densityDpi = n3;
             }
         }
         return configuration3;
@@ -892,17 +892,17 @@ LayoutInflater.Factory2 {
 
     public final void S(Window window) {
         if (this.n == null) {
-            Window.Callback callback = window.getCallback();
-            if (!(callback instanceof l)) {
-                callback = new l(this, callback);
-                this.o = callback;
-                window.setCallback(callback);
-                m0 m02 = androidx.appcompat.widget.m0.u(this.m, null, n0);
-                callback = m02.h(0);
-                if (callback != null) {
-                    window.setBackgroundDrawable((Drawable)callback);
+            Object object = window.getCallback();
+            if (!(object instanceof l)) {
+                object = new l(this, (Window.Callback)object);
+                this.o = object;
+                window.setCallback((Window.Callback)object);
+                object = androidx.appcompat.widget.m0.u(this.m, null, n0);
+                Drawable drawable = ((m0)object).h(0);
+                if (drawable != null) {
+                    window.setBackgroundDrawable(drawable);
                 }
-                m02.x();
+                ((m0)object).x();
                 this.n = window;
                 if (Build.VERSION.SDK_INT >= 33 && this.j0 == null) {
                     this.J(null);
@@ -986,30 +986,30 @@ LayoutInflater.Factory2 {
         throw new IllegalArgumentException("ActionMode callback can not be null.");
     }
 
-    public void V(int n3, PanelFeatureState panelFeatureState, Menu panelFeatureStateArray) {
-        PanelFeatureState panelFeatureState2 = panelFeatureState;
-        Object object = panelFeatureStateArray;
-        if (panelFeatureStateArray == null) {
-            PanelFeatureState panelFeatureState3 = panelFeatureState;
-            if (panelFeatureState == null) {
-                panelFeatureState3 = panelFeatureState;
+    public void V(int n3, PanelFeatureState panelFeatureStateArray, Menu menu) {
+        PanelFeatureState[] panelFeatureStateArray2 = panelFeatureStateArray;
+        Menu menu2 = menu;
+        if (menu == null) {
+            Object object = panelFeatureStateArray;
+            if (panelFeatureStateArray == null) {
+                object = panelFeatureStateArray;
                 if (n3 >= 0) {
-                    object = this.O;
-                    panelFeatureState3 = panelFeatureState;
-                    if (n3 < ((PanelFeatureState[])object).length) {
-                        panelFeatureState3 = object[n3];
+                    panelFeatureStateArray2 = this.O;
+                    object = panelFeatureStateArray;
+                    if (n3 < panelFeatureStateArray2.length) {
+                        object = panelFeatureStateArray2[n3];
                     }
                 }
             }
-            panelFeatureState2 = panelFeatureState3;
-            object = panelFeatureStateArray;
-            if (panelFeatureState3 != null) {
-                object = panelFeatureState3.j;
-                panelFeatureState2 = panelFeatureState3;
+            panelFeatureStateArray2 = object;
+            menu2 = menu;
+            if (object != null) {
+                menu2 = object.j;
+                panelFeatureStateArray2 = object;
             }
         }
-        if ((panelFeatureState2 == null || panelFeatureState2.o) && !this.T) {
-            this.o.d(this.n.getCallback(), n3, (Menu)object);
+        if ((panelFeatureStateArray2 == null || panelFeatureStateArray2.o) && !this.T) {
+            this.o.d(this.n.getCallback(), n3, menu2);
         }
     }
 
@@ -1020,9 +1020,8 @@ LayoutInflater.Factory2 {
      * Enabled aggressive exception aggregation
      */
     public h.b V0(b.a object) {
-        b b3;
         void var1_6;
-        b b4;
+        b b3;
         this.g0();
         Object object2 = this.w;
         if (object2 != null) {
@@ -1032,9 +1031,9 @@ LayoutInflater.Factory2 {
         if (!(object instanceof g)) {
             object2 = new g(this, (b.a)object);
         }
-        if ((b4 = this.p) != null && !this.T) {
+        if ((b3 = this.p) != null && !this.T) {
             try {
-                h.b b5 = b4.f((b.a)object2);
+                h.b b4 = b3.f((b.a)object2);
             }
             catch (AbstractMethodError abstractMethodError) {}
         }
@@ -1042,13 +1041,14 @@ LayoutInflater.Factory2 {
         if (var1_6 != null) {
             this.w = var1_6;
         } else {
+            TypedValue typedValue;
             ActionBarContextView actionBarContextView = this.x;
             boolean bl = true;
             if (actionBarContextView == null) {
                 if (this.L) {
                     void var1_11;
                     Resources.Theme theme;
-                    TypedValue typedValue = new TypedValue();
+                    typedValue = new TypedValue();
                     Resources.Theme theme2 = this.m.getTheme();
                     theme2.resolveAttribute(c.a.actionBarTheme, typedValue, true);
                     if (typedValue.resourceId != 0) {
@@ -1120,12 +1120,12 @@ LayoutInflater.Factory2 {
             if (this.x != null) {
                 this.g0();
                 this.x.k();
-                Context context = this.x.getContext();
+                typedValue = this.x.getContext();
                 ActionBarContextView actionBarContextView2 = this.x;
                 if (this.y != null) {
                     bl = false;
                 }
-                e e3 = new e(context, actionBarContextView2, (b.a)object2, bl);
+                e e3 = new e((Context)typedValue, actionBarContextView2, (b.a)object2, bl);
                 if (object2.b(e3, ((h.b)e3).e())) {
                     ((h.b)e3).k();
                     this.x.h(e3);
@@ -1170,9 +1170,9 @@ LayoutInflater.Factory2 {
                 }
             }
         }
-        object2 = this.w;
-        if (object2 != null && (b3 = this.p) != null) {
-            b3.q((h.b)object2);
+        h.b b5 = this.w;
+        if (b5 != null && (object2 = this.p) != null) {
+            object2.q(b5);
         }
         this.a1();
         return this.w;
@@ -1237,15 +1237,14 @@ LayoutInflater.Factory2 {
     }
 
     public void Z(PanelFeatureState panelFeatureState, boolean bl) {
-        ViewGroup viewGroup;
         androidx.appcompat.widget.t t3;
         if (bl && panelFeatureState.a == 0 && (t3 = this.t) != null && t3.a()) {
             this.W(panelFeatureState.j);
             return;
         }
-        t3 = (WindowManager)this.m.getSystemService("window");
-        if (t3 != null && panelFeatureState.o && (viewGroup = panelFeatureState.g) != null) {
-            t3.removeView((View)viewGroup);
+        WindowManager windowManager = (WindowManager)this.m.getSystemService("window");
+        if (windowManager != null && panelFeatureState.o && (t3 = panelFeatureState.g) != null) {
+            windowManager.removeView((View)t3);
             if (bl) {
                 this.V(panelFeatureState.a, panelFeatureState, null);
             }
@@ -1565,17 +1564,17 @@ LayoutInflater.Factory2 {
                 }
                 t0.a((View)this.D, rect2, rect3);
                 int n9 = rect2.top;
-                int n10 = rect2.left;
-                n7 = rect2.right;
+                n7 = rect2.left;
+                int n10 = rect2.right;
                 z12 = x0.D((View)this.D);
                 n8 = z12 == null ? 0 : z12.j();
                 n3 = z12 == null ? 0 : z12.k();
-                if (((ViewGroup.MarginLayoutParams)actionBarContextView).topMargin == n9 && ((ViewGroup.MarginLayoutParams)actionBarContextView).leftMargin == n10 && ((ViewGroup.MarginLayoutParams)actionBarContextView).rightMargin == n7) {
+                if (((ViewGroup.MarginLayoutParams)actionBarContextView).topMargin == n9 && ((ViewGroup.MarginLayoutParams)actionBarContextView).leftMargin == n7 && ((ViewGroup.MarginLayoutParams)actionBarContextView).rightMargin == n10) {
                     n7 = 0;
                 } else {
                     ((ViewGroup.MarginLayoutParams)actionBarContextView).topMargin = n9;
-                    ((ViewGroup.MarginLayoutParams)actionBarContextView).leftMargin = n10;
-                    ((ViewGroup.MarginLayoutParams)actionBarContextView).rightMargin = n7;
+                    ((ViewGroup.MarginLayoutParams)actionBarContextView).leftMargin = n7;
+                    ((ViewGroup.MarginLayoutParams)actionBarContextView).rightMargin = n10;
                     n7 = 1;
                 }
                 if (n9 > 0 && this.F == null) {
@@ -1695,21 +1694,22 @@ LayoutInflater.Factory2 {
     }
 
     public void f0(int n3) {
+        Object object;
         PanelFeatureState panelFeatureState = this.q0(n3, true);
         if (panelFeatureState.j != null) {
-            Bundle bundle = new Bundle();
-            panelFeatureState.j.U(bundle);
-            if (bundle.size() > 0) {
-                panelFeatureState.s = bundle;
+            object = new Bundle();
+            panelFeatureState.j.U((Bundle)object);
+            if (object.size() > 0) {
+                panelFeatureState.s = object;
             }
             panelFeatureState.j.i0();
             panelFeatureState.j.clear();
         }
         panelFeatureState.r = true;
         panelFeatureState.q = true;
-        if ((n3 == 108 || n3 == 0) && this.t != null && (panelFeatureState = this.q0(0, false)) != null) {
-            panelFeatureState.m = false;
-            this.M0(panelFeatureState, null);
+        if ((n3 == 108 || n3 == 0) && this.t != null && (object = this.q0(0, false)) != null) {
+            object.m = false;
+            this.M0((PanelFeatureState)object, null);
         }
     }
 
@@ -2381,10 +2381,10 @@ LayoutInflater.Factory2 {
                     }
                 });
             }
-            object = this.b;
-            b b3 = ((AppCompatDelegateImpl)object).p;
-            if (b3 != null) {
-                b3.v(((AppCompatDelegateImpl)object).w);
+            AppCompatDelegateImpl appCompatDelegateImpl = this.b;
+            object = appCompatDelegateImpl.p;
+            if (object != null) {
+                object.v(appCompatDelegateImpl.w);
             }
             object = this.b;
             ((AppCompatDelegateImpl)object).w = null;
@@ -2405,9 +2405,9 @@ LayoutInflater.Factory2 {
 
     public static abstract class i {
         public static void a(Configuration configuration, Configuration configuration2, Configuration configuration3) {
-            LocaleList localeList;
-            if (!(configuration = configuration.getLocales()).equals((Object)(localeList = configuration2.getLocales()))) {
-                configuration3.setLocales(localeList);
+            LocaleList localeList = configuration.getLocales();
+            if (!localeList.equals((Object)(configuration = configuration2.getLocales()))) {
+                configuration3.setLocales((LocaleList)configuration);
                 configuration3.locale = configuration2.locale;
             }
         }
@@ -2432,8 +2432,8 @@ LayoutInflater.Factory2 {
             if ((n3 & 3) != (n4 & 3)) {
                 configuration3.colorMode |= n4 & 3;
             }
-            if (((n3 = configuration.colorMode) & 0xC) != ((n4 = configuration2.colorMode) & 0xC)) {
-                configuration3.colorMode |= n4 & 0xC;
+            if (((n4 = configuration.colorMode) & 0xC) != ((n3 = configuration2.colorMode) & 0xC)) {
+                configuration3.colorMode |= n3 & 0xC;
             }
         }
     }
@@ -2519,9 +2519,9 @@ LayoutInflater.Factory2 {
         }
 
         public final ActionMode e(ActionMode.Callback object) {
-            f.a a4 = new f.a(this.g.m, (ActionMode.Callback)object);
-            if ((object = this.g.U0(a4)) != null) {
-                return a4.e((h.b)object);
+            h.b b3 = this.g.U0((b.a)(object = new f.a(this.g.m, (ActionMode.Callback)object)));
+            if (b3 != null) {
+                return ((f.a)object).e(b3);
             }
             return null;
         }

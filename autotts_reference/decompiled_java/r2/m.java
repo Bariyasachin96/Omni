@@ -143,12 +143,12 @@ extends j {
 
     @Override
     public void c(Canvas canvas, Paint paint, j.a a4, int n3) {
-        n3 = h2.a.a(a4.c, n3);
+        int n4 = h2.a.a(a4.c, n3);
         this.m = a4.h;
         float f3 = a4.a;
         float f4 = a4.b;
-        int n4 = a4.d;
-        this.k(canvas, paint, f3, f4, n3, n4, n4, a4.e, a4.f, true);
+        n3 = a4.d;
+        this.k(canvas, paint, f3, f4, n4, n3, n3, a4.e, a4.f, true);
     }
 
     @Override
@@ -204,11 +204,11 @@ extends j {
         f4 = j0.a.a(f4, 0.0f, 1.0f);
         f3 = o2.a.f(1.0f - this.n, 1.0f, f3);
         f4 = o2.a.f(1.0f - this.n, 1.0f, f4);
-        n4 = (int)((float)n4 * j0.a.a(f3, 0.0f, 0.01f) / 0.01f);
-        int n6 = (int)((float)n5 * (1.0f - j0.a.a(f4, 0.99f, 1.0f)) / 0.01f);
+        int n6 = (int)((float)n4 * j0.a.a(f3, 0.0f, 0.01f) / 0.01f);
+        n4 = (int)((float)n5 * (1.0f - j0.a.a(f4, 0.99f, 1.0f)) / 0.01f);
         float f9 = this.f;
-        n5 = (int)(f3 * f9 + (float)n4);
-        n6 = (int)(f4 * f9 - (float)n6);
+        n5 = (int)(f3 * f9 + (float)n6);
+        n6 = (int)(f4 * f9 - (float)n4);
         f3 = this.h;
         f4 = this.i;
         if (f3 != f4) {
@@ -228,8 +228,8 @@ extends j {
         if (n5 <= n6) {
             float f11 = (float)n5 + f3;
             f8 = (float)n6 - f4;
-            f9 = f3 * 2.0f;
-            f7 = 2.0f * f4;
+            f7 = f3 * 2.0f;
+            f9 = 2.0f * f4;
             paint.setColor(n3);
             paint.setAntiAlias(true);
             paint.setStrokeWidth(this.g);
@@ -241,14 +241,14 @@ extends j {
                 Pair pair = this.o;
                 j.b b3 = (j.b)pair.first;
                 f5 = this.g;
-                this.m(canvas, paint, b3, f9, f5, f3, (j.b)pair.second, f7, f5, f4, true);
+                this.m(canvas, paint, b3, f7, f5, f3, (j.b)pair.second, f9, f5, f4, true);
                 return;
             }
             if (f11 - f3 > f8 - f4) {
                 Pair pair = this.o;
                 j.b b4 = (j.b)pair.second;
                 f5 = this.g;
-                this.m(canvas, paint, b4, f7, f5, f4, (j.b)pair.first, f9, f5, f3, false);
+                this.m(canvas, paint, b4, f9, f5, f4, (j.b)pair.first, f7, f5, f3, false);
                 return;
             }
             paint.setStyle(Paint.Style.STROKE);
@@ -257,24 +257,24 @@ extends j {
             if (n4 == 0) {
                 Pair pair = this.o;
                 object = pair.first;
-                f5 = ((j.b)object).a[0];
-                f6 = ((j.b)object).a[1];
+                f6 = ((j.b)object).a[0];
+                f5 = ((j.b)object).a[1];
                 object = pair.second;
-                canvas.drawLine(f5, f6, ((j.b)object).a[0], ((j.b)object).a[1], paint);
+                canvas.drawLine(f6, f5, ((j.b)object).a[0], ((j.b)object).a[1], paint);
             } else {
-                object = this.d;
+                PathMeasure pathMeasure = this.d;
                 Path path = this.c;
-                Pair pair = this.o;
+                object = this.o;
                 f10 = this.f;
-                this.j((PathMeasure)object, path, pair, f11 / f10, f8 / f10, f5, f6);
+                this.j(pathMeasure, path, (Pair)object, f11 / f10, f8 / f10, f5, f6);
                 canvas.drawPath(this.c, paint);
             }
             if (!((LinearProgressIndicatorSpec)this.a).g()) {
                 if (f11 > 0.0f && f3 > 0.0f) {
-                    this.l(canvas, paint, (j.b)this.o.first, f9, this.g, f3);
+                    this.l(canvas, paint, (j.b)this.o.first, f7, this.g, f3);
                 }
                 if (f8 < this.f && f4 > 0.0f) {
-                    this.l(canvas, paint, (j.b)this.o.second, f7, this.g, f4);
+                    this.l(canvas, paint, (j.b)this.o.second, f9, this.g, f4);
                 }
             }
         }

@@ -218,12 +218,12 @@ AbsListView.SelectionBoundsAdjuster {
                     return;
                 }
             } else {
-                checkBox = this.g;
-                if (checkBox != null) {
-                    checkBox.setVisibility(8);
+                radioButton = this.g;
+                if (radioButton != null) {
+                    radioButton.setVisibility(8);
                 }
-                if ((checkBox = this.e) != null) {
-                    checkBox.setVisibility(8);
+                if ((radioButton = this.e) != null) {
+                    radioButton.setVisibility(8);
                 }
             }
         }

@@ -64,28 +64,28 @@ public class l {
                 }
                 ++this.i;
                 // MONITOREXIT : b3
-                object3 = this.a(object);
-                if (object3 == null) {
+                object2 = this.a(object);
+                if (object2 == null) {
                     return null;
                 }
                 b3 = this.c;
                 // MONITORENTER : b3
                 ++this.f;
-                object2 = this.b.d(object, object3);
-                if (object2 == null) break block9;
-                this.b.d(object, object2);
+                object3 = this.b.d(object, object2);
+                if (object3 == null) break block9;
+                this.b.d(object, object3);
                 break block10;
             }
-            this.d += this.e(object, object3);
+            this.d += this.e(object, object2);
             j j3 = j.a;
         }
         // MONITOREXIT : b3
-        if (object2 != null) {
-            this.b(false, object, object3, object2);
-            return object2;
+        if (object3 != null) {
+            this.b(false, object, object2, object3);
+            return object3;
         }
         this.g(this.a);
-        return object3;
+        return object2;
     }
 
     /*

@@ -15,17 +15,17 @@ import o0.c0;
 import o0.d0;
 
 public abstract class f1 {
-    public static boolean a(ViewParent viewParent, View object, float f3, float f4, boolean bl) {
+    public static boolean a(ViewParent viewParent, View view, float f3, float f4, boolean bl) {
         try {
-            bl = a.a(viewParent, (View)object, f3, f4, bl);
+            bl = a.a(viewParent, view, f3, f4, bl);
             return bl;
         }
         catch (AbstractMethodError abstractMethodError) {
-            object = new StringBuilder();
-            ((StringBuilder)object).append("ViewParent ");
-            ((StringBuilder)object).append(viewParent);
-            ((StringBuilder)object).append(" does not implement interface method onNestedFling");
-            Log.e((String)"ViewParentCompat", (String)((StringBuilder)object).toString(), (Throwable)abstractMethodError);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append("ViewParent ");
+            stringBuilder.append(viewParent);
+            stringBuilder.append(" does not implement interface method onNestedFling");
+            Log.e((String)"ViewParentCompat", (String)stringBuilder.toString(), (Throwable)abstractMethodError);
             return false;
         }
     }
@@ -91,14 +91,14 @@ public abstract class f1 {
         }
     }
 
-    public static void e(ViewParent viewParent, View view, View object, int n3, int n4) {
+    public static void e(ViewParent viewParent, View object, View view, int n3, int n4) {
         if (viewParent instanceof c0) {
-            ((c0)viewParent).b(view, (View)object, n3, n4);
+            ((c0)viewParent).b((View)object, view, n3, n4);
             return;
         }
         if (n4 == 0) {
             try {
-                a.e(viewParent, view, (View)object, n3);
+                a.e(viewParent, (View)object, view, n3);
                 return;
             }
             catch (AbstractMethodError abstractMethodError) {
@@ -131,22 +131,22 @@ public abstract class f1 {
         return false;
     }
 
-    public static void g(ViewParent viewParent, View object, int n3) {
+    public static void g(ViewParent viewParent, View view, int n3) {
         if (viewParent instanceof c0) {
-            ((c0)viewParent).g((View)object, n3);
+            ((c0)viewParent).g(view, n3);
             return;
         }
         if (n3 == 0) {
             try {
-                a.g(viewParent, (View)object);
+                a.g(viewParent, view);
                 return;
             }
             catch (AbstractMethodError abstractMethodError) {
-                object = new StringBuilder();
-                ((StringBuilder)object).append("ViewParent ");
-                ((StringBuilder)object).append(viewParent);
-                ((StringBuilder)object).append(" does not implement interface method onStopNestedScroll");
-                Log.e((String)"ViewParentCompat", (String)((StringBuilder)object).toString(), (Throwable)abstractMethodError);
+                StringBuilder stringBuilder = new StringBuilder();
+                stringBuilder.append("ViewParent ");
+                stringBuilder.append(viewParent);
+                stringBuilder.append(" does not implement interface method onStopNestedScroll");
+                Log.e((String)"ViewParentCompat", (String)stringBuilder.toString(), (Throwable)abstractMethodError);
             }
         }
     }

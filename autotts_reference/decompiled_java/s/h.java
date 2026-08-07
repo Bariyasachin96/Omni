@@ -53,8 +53,7 @@ public class h {
         objectArray = this.b;
         float f5 = objectArray[n4];
         float f6 = objectArray[n3];
-        f5 = (float)(d4 / (f5 - f6));
-        return d3 * f5 + ((double)f4 - f5 * f6);
+        return d3 * (d4 /= f5 - f6) + ((double)f4 - d4 * f6);
     }
 
     public double c(double d3) {
@@ -174,10 +173,10 @@ public class h {
             n3 = n4 - 1;
             f3 = (objectArray[n3] + objectArray[n4]) / 2.0f;
             objectArray = this.b;
-            d4 = objectArray[n4];
-            d3 = objectArray[n3];
+            d3 = objectArray[n4];
+            d4 = objectArray[n3];
             objectArray = this.c;
-            objectArray[n4] = objectArray[n3] + (d4 - d3) * (double)f3;
+            objectArray[n4] = objectArray[n3] + (d3 - d4) * (double)f3;
         }
         this.h = true;
     }

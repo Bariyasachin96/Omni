@@ -80,12 +80,12 @@ implements AdapterView.OnItemSelectedListener {
     }
 
     public void a(int n3) {
-        View view = this.e.getChildAt(n3);
+        Object object = this.e.getChildAt(n3);
         Runnable runnable = this.c;
         if (runnable != null) {
             this.removeCallbacks(runnable);
         }
-        this.c = runnable = new Runnable(this, view){
+        object = new Runnable(this, (View)object){
             public final View c;
             public final ScrollingTabContainerView d;
             {
@@ -101,7 +101,8 @@ implements AdapterView.OnItemSelectedListener {
                 this.d.c = null;
             }
         };
-        this.post(runnable);
+        this.c = object;
+        this.post((Runnable)object);
     }
 
     public final Spinner b() {
@@ -198,12 +199,12 @@ implements AdapterView.OnItemSelectedListener {
     }
 
     public void onMeasure(int n3, int n4) {
-        n4 = View.MeasureSpec.getMode((int)n3);
-        boolean bl = n4 == 0x40000000;
+        int n5 = View.MeasureSpec.getMode((int)n3);
+        boolean bl = n5 == 0x40000000;
         this.setFillViewport(bl);
-        int n5 = this.e.getChildCount();
-        if (n5 > 1 && (n4 == 0x40000000 || n4 == Integer.MIN_VALUE)) {
-            this.h = n5 > 2 ? (int)((float)View.MeasureSpec.getSize((int)n3) * 0.4f) : View.MeasureSpec.getSize((int)n3) / 2;
+        n4 = this.e.getChildCount();
+        if (n4 > 1 && (n5 == 0x40000000 || n5 == Integer.MIN_VALUE)) {
+            this.h = n4 > 2 ? (int)((float)View.MeasureSpec.getSize((int)n3) * 0.4f) : View.MeasureSpec.getSize((int)n3) / 2;
             this.h = Math.min(this.h, this.i);
         } else {
             this.h = -1;
@@ -352,8 +353,8 @@ implements AdapterView.OnItemSelectedListener {
         public void onMeasure(int n3, int n4) {
             int n5;
             super.onMeasure(n3, n4);
-            if (this.d.h > 0 && (n5 = this.getMeasuredWidth()) > (n3 = this.d.h)) {
-                super.onMeasure(View.MeasureSpec.makeMeasureSpec((int)n3, (int)0x40000000), n4);
+            if (this.d.h > 0 && (n3 = this.getMeasuredWidth()) > (n5 = this.d.h)) {
+                super.onMeasure(View.MeasureSpec.makeMeasureSpec((int)n5, (int)0x40000000), n4);
             }
         }
 

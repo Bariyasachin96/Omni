@@ -1112,16 +1112,16 @@ public abstract class FragmentManager {
         FragmentManager.c0(arrayList, arrayList2, n3, n4);
         bl = (Boolean)arrayList2.get(n4 - 1);
         for (n8 = n3; n8 < n4; ++n8) {
-            object = (a)arrayList.get(n8);
+            object2 = (a)arrayList.get(n8);
             if (bl) {
-                for (n6 = ((y)object).c.size() - 1; n6 >= 0; --n6) {
-                    object2 = ((y.a)((y)object).c.get((int)n6)).b;
-                    if (object2 == null) continue;
-                    this.v((Fragment)object2).m();
+                for (n6 = ((y)object2).c.size() - 1; n6 >= 0; --n6) {
+                    object = ((y.a)((y)object2).c.get((int)n6)).b;
+                    if (object == null) continue;
+                    this.v((Fragment)object).m();
                 }
                 continue;
             }
-            object2 = ((y)object).c;
+            object2 = ((y)object2).c;
             n7 = ((ArrayList)object2).size();
             n6 = 0;
             while (n6 < n7) {
@@ -1135,13 +1135,13 @@ public abstract class FragmentManager {
             }
         }
         this.Q0(this.u, true);
-        object2 = this.u(arrayList, n3, n4).iterator();
+        object = this.u(arrayList, n3, n4).iterator();
         while (true) {
-            if (!object2.hasNext()) break;
-            object = (e0)object2.next();
-            ((e0)object).r(bl);
-            ((e0)object).p();
-            ((e0)object).g();
+            if (!object.hasNext()) break;
+            object2 = (e0)object.next();
+            ((e0)object2).r(bl);
+            ((e0)object2).p();
+            ((e0)object2).g();
         }
         for (n8 = n3; n8 < n4; ++n8) {
             object2 = (a)arrayList.get(n8);
@@ -1190,32 +1190,32 @@ public abstract class FragmentManager {
                     ((ArrayList)object2).add((FragmentState)object4.getParcelable("state"));
                 }
                 this.c.x((ArrayList)object2);
-                object3 = (FragmentManagerState)object5.getParcelable("state");
-                if (object3 != null) break block20;
+                object2 = (FragmentManagerState)object5.getParcelable("state");
+                if (object2 != null) break block20;
             }
             return;
         }
         this.c.v();
-        object2 = object3.c;
-        int n4 = ((ArrayList)object2).size();
+        object3 = ((FragmentManagerState)object2).c;
+        int n4 = ((ArrayList)object3).size();
         int n5 = 0;
         int n6 = 0;
         while (n6 < n4) {
             Object object4;
-            object5 = ((ArrayList)object2).get(n6);
+            object5 = ((ArrayList)object3).get(n6);
             n3 = n6 + 1;
             object5 = (String)object5;
-            object4 = this.c.B((String)object5, null);
+            object5 = this.c.B((String)object5, null);
             n6 = n3;
-            if (object4 == null) continue;
-            object5 = this.P.i(((FragmentState)object4).d);
-            if (object5 != null) {
+            if (object5 == null) continue;
+            object4 = this.P.i(((FragmentState)object5).d);
+            if (object4 != null) {
                 if (FragmentManager.I0(2)) {
-                    object5.toString();
+                    object4.toString();
                 }
-                object5 = new w(this.n, this.c, (Fragment)object5, (FragmentState)object4);
+                object5 = new w(this.n, this.c, (Fragment)object4, (FragmentState)object5);
             } else {
-                object5 = new w(this.n, this.c, this.v.q().getClassLoader(), this.t0(), (FragmentState)object4);
+                object5 = new w(this.n, this.c, this.v.q().getClassLoader(), this.t0(), (FragmentState)object5);
             }
             object4 = ((w)object5).k();
             ((Fragment)object4).v = this;
@@ -1231,45 +1231,45 @@ public abstract class FragmentManager {
             if (this.c.c(((Fragment)object5).h)) continue;
             if (FragmentManager.I0(2)) {
                 object5.toString();
-                Objects.toString(object3.c);
+                Objects.toString(((FragmentManagerState)object2).c);
             }
             this.P.o((Fragment)object5);
             ((Fragment)object5).v = this;
-            object2 = new w(this.n, this.c, (Fragment)object5);
-            ((w)object2).u(1);
-            ((w)object2).m();
+            object3 = new w(this.n, this.c, (Fragment)object5);
+            ((w)object3).u(1);
+            ((w)object3).m();
             ((Fragment)object5).o = true;
-            ((w)object2).m();
+            ((w)object3).m();
         }
-        this.c.w(object3.d);
-        if (object3.e != null) {
-            this.d = new ArrayList(object3.e.length);
-            for (n6 = 0; n6 < ((Object)(object5 = object3.e)).length; ++n6) {
+        this.c.w(((FragmentManagerState)object2).d);
+        if (((FragmentManagerState)object2).e != null) {
+            this.d = new ArrayList(((FragmentManagerState)object2).e.length);
+            for (n6 = 0; n6 < ((Object)(object5 = ((FragmentManagerState)object2).e)).length; ++n6) {
                 object5 = ((BackStackRecordState)object5[n6]).p(this);
                 if (FragmentManager.I0(2)) {
                     n3 = ((a)object5).v;
                     object5.toString();
-                    object2 = new PrintWriter(new d0("FragmentManager"));
-                    ((a)object5).u("  ", (PrintWriter)object2, false);
-                    ((PrintWriter)object2).close();
+                    object3 = new PrintWriter(new d0("FragmentManager"));
+                    ((a)object5).u("  ", (PrintWriter)object3, false);
+                    ((PrintWriter)object3).close();
                 }
                 this.d.add(object5);
             }
         } else {
             this.d = null;
         }
-        this.i.set(object3.f);
-        object5 = object3.g;
+        this.i.set(((FragmentManagerState)object2).f);
+        object5 = ((FragmentManagerState)object2).g;
         if (object5 != null) {
             this.y = object5 = this.f0((String)object5);
             this.L((Fragment)object5);
         }
-        if ((object5 = object3.h) != null) {
+        if ((object5 = ((FragmentManagerState)object2).h) != null) {
             for (n6 = n5; n6 < ((ArrayList)object5).size(); ++n6) {
-                this.j.put((String)((ArrayList)object5).get(n6), (BackStackState)object3.i.get(n6));
+                this.j.put((String)((ArrayList)object5).get(n6), (BackStackState)((FragmentManagerState)object2).i.get(n6));
             }
         }
-        this.G = new ArrayDeque(object3.j);
+        this.G = new ArrayDeque(((FragmentManagerState)object2).j);
     }
 
     public Fragment f0(String string) {
@@ -1325,14 +1325,14 @@ public abstract class FragmentManager {
             FragmentManager.I0(2);
             return bundle;
         }
-        Object object22 = this.c.z();
-        Object object3 = this.d;
+        Object object2 = this.c.z();
+        Object object32 = this.d;
         int n5 = 0;
-        if (object3 != null && (n4 = ((ArrayList)object3).size()) > 0) {
+        if (object32 != null && (n4 = object32.size()) > 0) {
             object = new BackStackRecordState[n4];
             n3 = 0;
             while (true) {
-                object3 = object;
+                object32 = object;
                 if (n3 < n4) {
                     object[n3] = new BackStackRecordState((a)this.d.get(n3));
                     if (FragmentManager.I0(2)) {
@@ -1344,37 +1344,37 @@ public abstract class FragmentManager {
                 break;
             }
         } else {
-            object3 = null;
+            object32 = null;
         }
         object = new FragmentManagerState();
         ((FragmentManagerState)object).c = arrayList;
-        ((FragmentManagerState)object).d = object22;
-        ((FragmentManagerState)object).e = object3;
+        ((FragmentManagerState)object).d = object2;
+        ((FragmentManagerState)object).e = object32;
         ((FragmentManagerState)object).f = this.i.get();
-        object3 = this.y;
-        if (object3 != null) {
-            ((FragmentManagerState)object).g = ((Fragment)object3).h;
+        object32 = this.y;
+        if (object32 != null) {
+            ((FragmentManagerState)object).g = object32.h;
         }
         ((FragmentManagerState)object).h.addAll(this.j.keySet());
         ((FragmentManagerState)object).i.addAll(this.j.values());
         ((FragmentManagerState)object).j = new ArrayList(this.G);
         bundle.putParcelable("state", (Parcelable)object);
-        for (Object object22 : this.k.keySet()) {
-            object3 = new StringBuilder();
-            ((StringBuilder)object3).append("result_");
-            ((StringBuilder)object3).append((String)object22);
-            bundle.putBundle(((StringBuilder)object3).toString(), (Bundle)this.k.get(object22));
+        for (Object object32 : this.k.keySet()) {
+            object = new StringBuilder();
+            ((StringBuilder)object).append("result_");
+            ((StringBuilder)object).append((String)object32);
+            bundle.putBundle(((StringBuilder)object).toString(), (Bundle)this.k.get(object32));
         }
         n4 = arrayList2.size();
         for (n3 = n5; n3 < n4; ++n3) {
-            object3 = arrayList2.get(n3);
-            object22 = (FragmentState)object3;
-            object = new Bundle();
-            object.putParcelable("state", (Parcelable)object22);
-            object3 = new StringBuilder();
-            ((StringBuilder)object3).append("fragment_");
-            ((StringBuilder)object3).append(((FragmentState)object22).d);
-            bundle.putBundle(((StringBuilder)object3).toString(), (Bundle)object);
+            object32 = arrayList2.get(n3);
+            object = (FragmentState)object32;
+            object32 = new Bundle();
+            object32.putParcelable("state", (Parcelable)object);
+            object2 = new StringBuilder();
+            ((StringBuilder)object2).append("fragment_");
+            ((StringBuilder)object2).append(((FragmentState)object).d);
+            bundle.putBundle(((StringBuilder)object2).toString(), object32);
         }
         return bundle;
     }
@@ -1902,12 +1902,12 @@ public abstract class FragmentManager {
     }
 
     public final void s() {
-        androidx.fragment.app.l l3 = this.v;
-        boolean bl = l3 instanceof c0 ? this.c.p().n() : (l3.q() instanceof Activity ? ((Activity)this.v.q()).isChangingConfigurations() ^ true : true);
+        Object object = this.v;
+        boolean bl = object instanceof c0 ? this.c.p().n() : (((androidx.fragment.app.l)object).q() instanceof Activity ? ((Activity)this.v.q()).isChangingConfigurations() ^ true : true);
         if (bl) {
-            Iterator iterator = this.j.values().iterator();
-            while (iterator.hasNext()) {
-                for (String string : ((BackStackState)iterator.next()).c) {
+            object = this.j.values().iterator();
+            while (object.hasNext()) {
+                for (String string : ((BackStackState)object.next()).c) {
                     this.c.p().g(string);
                 }
             }

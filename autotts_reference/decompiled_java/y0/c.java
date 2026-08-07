@@ -43,8 +43,9 @@ public abstract class c {
     }
 
     public int e(int n3) {
-        int n4 = this.b.getInt(n3 += this.a);
-        return this.b.getInt(n3 + n4);
+        int n4 = n3 + this.a;
+        n3 = this.b.getInt(n4);
+        return this.b.getInt(n4 + n3);
     }
 }
 

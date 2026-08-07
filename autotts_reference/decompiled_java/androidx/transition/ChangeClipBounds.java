@@ -68,19 +68,19 @@ extends Transition {
                     if (!y3.a.containsKey("android:clipBounds:clip")) {
                         viewGroup = rect;
                     } else {
-                        Rect rect2 = (Rect)((y)object).a.get("android:clipBounds:clip");
-                        rect = (Rect)y3.a.get("android:clipBounds:clip");
-                        if (rect2 == null && rect == null) {
+                        rect = (Rect)((y)object).a.get("android:clipBounds:clip");
+                        Rect rect2 = (Rect)y3.a.get("android:clipBounds:clip");
+                        if (rect == null && rect2 == null) {
                             return null;
                         }
-                        viewGroup = rect2 == null ? (Rect)((y)object).a.get("android:clipBounds:bounds") : rect2;
-                        if (viewGroup.equals(object = rect == null ? (Rect)y3.a.get("android:clipBounds:bounds") : rect)) {
+                        viewGroup = rect == null ? (Rect)((y)object).a.get("android:clipBounds:bounds") : rect;
+                        if (viewGroup.equals(object = rect2 == null ? (Rect)y3.a.get("android:clipBounds:bounds") : rect2)) {
                             return null;
                         }
-                        y3.b.setClipBounds(rect2);
+                        y3.b.setClipBounds(rect);
                         o o3 = new o(new Rect());
                         viewGroup = ObjectAnimator.ofObject((Object)y3.b, (Property)b0.c, (TypeEvaluator)o3, (Object[])new Rect[]{viewGroup, object});
-                        object = new a(y3.b, rect2, rect);
+                        object = new a(y3.b, rect, rect2);
                         viewGroup.addListener((Animator.AnimatorListener)object);
                         this.a((Transition.g)object);
                     }
@@ -94,18 +94,16 @@ extends Transition {
         View view = y3.b;
         if (view.getVisibility() != 8) {
             Object var5_4 = null;
-            Rect rect = bl ? (Rect)view.getTag(m1.n.transition_clip) : null;
-            Rect rect2 = rect;
-            if (rect == null) {
-                rect2 = view.getClipBounds();
+            Object object = bl ? (Rect)view.getTag(m1.n.transition_clip) : null;
+            Rect rect = object;
+            if (object == null) {
+                rect = view.getClipBounds();
             }
-            if (rect2 == Q) {
-                rect2 = var5_4;
-            }
-            y3.a.put("android:clipBounds:clip", rect2);
-            if (rect2 == null) {
-                rect = new Rect(0, 0, view.getWidth(), view.getHeight());
-                y3.a.put("android:clipBounds:bounds", rect);
+            object = rect == Q ? var5_4 : rect;
+            y3.a.put("android:clipBounds:clip", object);
+            if (object == null) {
+                object = new Rect(0, 0, view.getWidth(), view.getHeight());
+                y3.a.put("android:clipBounds:bounds", object);
             }
         }
     }

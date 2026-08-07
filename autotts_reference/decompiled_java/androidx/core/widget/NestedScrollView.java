@@ -302,16 +302,16 @@ a0 {
         float f6 = androidx.core.widget.f.b(this.g);
         f3 = 0.0f;
         if (f6 != 0.0f) {
-            f3 = f5 = -androidx.core.widget.f.d(this.g, -f5, f4);
+            f3 = f4 = -androidx.core.widget.f.d(this.g, -f5, f4);
             if (androidx.core.widget.f.b(this.g) == 0.0f) {
                 this.g.onRelease();
-                f3 = f5;
+                f3 = f4;
             }
         } else if (androidx.core.widget.f.b(this.h) != 0.0f) {
-            f3 = f5 = androidx.core.widget.f.d(this.h, f5, 1.0f - f4);
+            f3 = f4 = androidx.core.widget.f.d(this.h, f5, 1.0f - f4);
             if (androidx.core.widget.f.b(this.h) == 0.0f) {
                 this.h.onRelease();
-                f3 = f5;
+                f3 = f4;
             }
         }
         n3 = Math.round(f3 * (float)this.getHeight());
@@ -567,21 +567,20 @@ a0 {
         int[] nArray = this.v;
         nArray[1] = 0;
         this.o(0, n5, nArray, null, 1);
-        n4 = n5 - this.v[1];
-        n5 = this.getScrollRange();
-        if (n4 != 0) {
+        n4 = this.getScrollRange();
+        if ((n5 -= this.v[1]) != 0) {
             n3 = this.getScrollY();
-            this.J(0, n4, this.getScrollX(), n3, 0, n5, 0, 0, false);
+            this.J(0, n5, this.getScrollX(), n3, 0, n4, 0, 0, false);
             n3 = this.getScrollY() - n3;
             nArray = this.v;
             nArray[1] = 0;
-            this.p(0, n3, 0, n4 -= n3, this.u, 1, nArray);
-            n4 -= this.v[1];
+            this.p(0, n3, 0, n5 -= n3, this.u, 1, nArray);
+            n5 -= this.v[1];
         }
-        if (n4 != 0) {
+        if (n5 != 0) {
             n3 = this.getOverScrollMode();
-            if (n3 == 0 || n3 == 1 && n5 > 0) {
-                if (n4 < 0) {
+            if (n3 == 0 || n3 == 1 && n4 > 0) {
+                if (n5 < 0) {
                     if (this.g.isFinished()) {
                         this.g.onAbsorb((int)this.f.getCurrVelocity());
                     }
@@ -733,23 +732,23 @@ a0 {
         if (!this.h.isFinished()) {
             n9 = canvas.save();
             n3 = this.getWidth();
-            n6 = this.getHeight();
-            n7 = Math.max(this.getScrollRange(), n10) + n6;
-            n5 = n11;
-            n8 = n3;
+            n7 = this.getHeight();
+            n6 = Math.max(this.getScrollRange(), n10) + n7;
+            n8 = n11;
+            n5 = n3;
             if (b.a((ViewGroup)this)) {
-                n8 = n3 - (this.getPaddingLeft() + this.getPaddingRight());
-                n5 = this.getPaddingLeft();
+                n5 = n3 - (this.getPaddingLeft() + this.getPaddingRight());
+                n8 = this.getPaddingLeft();
             }
-            n4 = n7;
-            n3 = n6;
+            n4 = n6;
+            n3 = n7;
             if (b.a((ViewGroup)this)) {
-                n3 = n6 - (this.getPaddingTop() + this.getPaddingBottom());
-                n4 = n7 - this.getPaddingBottom();
+                n3 = n7 - (this.getPaddingTop() + this.getPaddingBottom());
+                n4 = n6 - this.getPaddingBottom();
             }
-            canvas.translate((float)(n5 - n8), (float)n4);
-            canvas.rotate(180.0f, (float)n8, 0.0f);
-            this.h.setSize(n8, n3);
+            canvas.translate((float)(n8 - n5), (float)n4);
+            canvas.rotate(180.0f, (float)n5, 0.0f);
+            this.h.setSize(n5, n3);
             if (this.h.draw(canvas)) {
                 this.postInvalidateOnAnimation();
             }
@@ -790,9 +789,9 @@ a0 {
         int n3 = this.getVerticalFadingEdgeLength();
         int n4 = this.getHeight();
         int n5 = this.getPaddingBottom();
-        n5 = view.getBottom() + layoutParams.bottomMargin - this.getScrollY() - (n4 - n5);
-        if (n5 < n3) {
-            return (float)n5 / (float)n3;
+        n4 = view.getBottom() + layoutParams.bottomMargin - this.getScrollY() - (n4 - n5);
+        if (n4 < n3) {
+            return (float)n4 / (float)n3;
         }
         return 1.0f;
     }
@@ -1468,21 +1467,21 @@ a0 {
                             int n7;
                             block4: {
                                 view3 = (View)arrayList.get(i3);
-                                n7 = view3.getTop();
-                                n6 = view3.getBottom();
+                                n6 = view3.getTop();
+                                n7 = view3.getBottom();
                                 view2 = view;
                                 bl3 = bl2;
-                                if (n3 >= n6) break block3;
+                                if (n3 >= n7) break block3;
                                 view2 = view;
                                 bl3 = bl2;
-                                if (n7 >= n4) break block3;
-                                bl4 = n3 < n7 && n6 < n4;
+                                if (n6 >= n4) break block3;
+                                bl4 = n3 < n6 && n7 < n4;
                                 if (view != null) break block4;
                                 view2 = view3;
                                 bl3 = bl4;
                                 break block3;
                             }
-                            n6 = bl && n7 < view.getTop() || !bl && n6 > view.getBottom() ? 1 : 0;
+                            n6 = bl && n6 < view.getTop() || !bl && n7 > view.getBottom() ? 1 : 0;
                             if (!bl2) break block5;
                             view2 = view;
                             bl3 = bl2;
@@ -1524,9 +1523,9 @@ a0 {
         rect.top = 0;
         rect.bottom = n5;
         if (n4 != 0 && (n4 = this.getChildCount()) > 0) {
-            rect = this.getChildAt(n4 - 1);
-            FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams)rect.getLayoutParams();
-            this.e.bottom = rect.getBottom() + layoutParams.bottomMargin + this.getPaddingBottom();
+            View view = this.getChildAt(n4 - 1);
+            rect = (FrameLayout.LayoutParams)view.getLayoutParams();
+            this.e.bottom = view.getBottom() + rect.bottomMargin + this.getPaddingBottom();
             rect = this.e;
             rect.top = rect.bottom - n5;
         }
@@ -1653,9 +1652,9 @@ a0 {
                         return false;
                     }
                 } else {
-                    n4 = object.getPaddingBottom();
-                    n3 = object.getPaddingTop();
-                    n3 = Math.max(object.getScrollY() - (n5 - n4 - n3), 0);
+                    n3 = object.getPaddingBottom();
+                    n4 = object.getPaddingTop();
+                    n3 = Math.max(object.getScrollY() - (n5 - n3 - n4), 0);
                     if (n3 != object.getScrollY()) {
                         ((NestedScrollView)object).W(0, n3, true);
                         return true;

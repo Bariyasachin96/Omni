@@ -121,10 +121,10 @@ public abstract class e {
 
     public static Typeface g(String string) {
         if (string != null && !string.isEmpty()) {
-            Typeface typeface = Typeface.create((String)string, (int)0);
-            string = Typeface.create((Typeface)Typeface.DEFAULT, (int)0);
-            if (typeface != null && !typeface.equals((Object)string)) {
-                return typeface;
+            string = Typeface.create((String)string, (int)0);
+            Typeface typeface = Typeface.create((Typeface)Typeface.DEFAULT, (int)0);
+            if (string != null && !string.equals((Object)typeface)) {
+                return string;
             }
         }
         return null;

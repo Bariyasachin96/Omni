@@ -106,15 +106,15 @@ implements d.a {
     }
 
     @Override
-    public void a(d.a a4) {
-        if (a4 instanceof b) {
-            a4 = (b)a4;
+    public void a(d.a object) {
+        if (object instanceof b) {
+            b b3 = (b)object;
             this.a = null;
             this.e.clear();
-            for (int i3 = 0; i3 < ((b)a4).e.f(); ++i3) {
-                i i4 = ((b)a4).e.h(i3);
-                float f3 = ((b)a4).e.a(i3);
-                this.e.i(i4, f3, true);
+            for (int i3 = 0; i3 < b3.e.f(); ++i3) {
+                object = b3.e.h(i3);
+                float f3 = b3.e.a(i3);
+                this.e.i((i)object, f3, true);
             }
         }
     }

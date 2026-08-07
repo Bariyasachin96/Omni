@@ -33,21 +33,21 @@ public class c {
 
     static {
         u u3 = k.Q(k.E, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u4 = k.Q(k.y, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u5 = k.Q(k.r, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        m[] mArray = k.Q(k.n, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u6 = k.Q(k.t, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u7 = k.Q(k.v, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u u8 = k.Q(k.m, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
-        u[] uArray = new u[]{u3, u4, u5, mArray, u6, u7, u8};
-        d = uArray;
-        e = new m[uArray.length];
+        u[] uArray = k.Q(k.y, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        m[] mArray = k.Q(k.r, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u4 = k.Q(k.n, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u5 = k.Q(k.t, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u6 = k.Q(k.v, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        u u7 = k.Q(k.m, true, new RectF(-1.0f, -1.0f, 1.0f, 1.0f));
+        Object object = new u[]{u3, uArray, mArray, u4, u5, u6, u7};
+        d = object;
+        e = new m[((u[])object).length];
         int n3 = 0;
         while (n3 < (uArray = d).length) {
             mArray = e;
-            u3 = uArray[n3];
+            object = uArray[n3];
             int n4 = n3 + 1;
-            mArray[n3] = new m(u3, uArray[n4 % uArray.length]);
+            mArray[n3] = new m((u)object, uArray[n4 % uArray.length]);
             n3 = n4;
         }
     }
@@ -72,10 +72,10 @@ public class c {
         paint.setColor(h2.a.a(n3, n4));
         paint.setStyle(Paint.Style.FILL);
         loadingIndicatorSpec = this.a;
-        n4 = loadingIndicatorSpec.c;
-        float f4 = (float)(-n4) / 2.0f;
-        n3 = loadingIndicatorSpec.d;
-        canvas.drawRoundRect(new RectF(f4, (float)(-n3) / 2.0f, (float)n4 / 2.0f, (float)n3 / 2.0f), f3, f3, paint);
+        n3 = loadingIndicatorSpec.c;
+        float f4 = (float)(-n3) / 2.0f;
+        n4 = loadingIndicatorSpec.d;
+        canvas.drawRoundRect(new RectF(f4, (float)(-n4) / 2.0f, (float)n3 / 2.0f, (float)n4 / 2.0f), f3, f3, paint);
     }
 
     public void c(Canvas canvas, Paint paint, a a4, int n3) {

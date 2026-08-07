@@ -95,9 +95,9 @@ extends ExpandableTransformationBehavior {
         this.c0(view, view2, bl, bl2, e3, f3, f4, arrayList, arrayList2);
         this.Z(view, view2, bl, bl2, e3, arrayList, arrayList2);
         this.Y(view, view2, bl, bl2, e3, arrayList, arrayList2);
-        rectF = new AnimatorSet();
-        b.a((AnimatorSet)rectF, arrayList);
-        rectF.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, bl, view2, view){
+        e3 = new AnimatorSet();
+        b.a((AnimatorSet)e3, arrayList);
+        e3.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, bl, view2, view){
             public final boolean a;
             public final View b;
             public final View c;
@@ -127,9 +127,9 @@ extends ExpandableTransformationBehavior {
         });
         int n3 = arrayList2.size();
         for (int i3 = 0; i3 < n3; ++i3) {
-            rectF.addListener((Animator.AnimatorListener)arrayList2.get(i3));
+            e3.addListener((Animator.AnimatorListener)arrayList2.get(i3));
         }
-        return rectF;
+        return e3;
     }
 
     public final ViewGroup O(View view) {
@@ -168,9 +168,10 @@ extends ExpandableTransformationBehavior {
         float f6;
         if (f3 != 0.0f && (f6 = (f5 = f4 - 0.0f) == 0.0f ? 0 : (f5 > 0.0f ? 1 : -1)) != false) {
             if (bl && f4 < 0.0f || !bl && f6 > 0) {
-                i i4 = ((e)object).a.h("translationXCurveUpwards");
-                i3 = ((e)object).a.h("translationYCurveUpwards");
-                object = i4;
+                i3 = ((e)object).a.h("translationXCurveUpwards");
+                i i4 = ((e)object).a.h("translationYCurveUpwards");
+                object = i3;
+                i3 = i4;
             } else {
                 i3 = ((e)object).a.h("translationXCurveDownwards");
                 i i5 = ((e)object).a.h("translationYCurveDownwards");
@@ -476,18 +477,19 @@ extends ExpandableTransformationBehavior {
                 object.setTranslationX(-f3);
                 object.setTranslationY(-f4);
             }
-            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{0.0f});
-            list2 = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{0.0f});
+            list2 = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{0.0f});
+            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{0.0f});
             this.P((View)object, e3, i3, i4, -f3, -f4, 0.0f, 0.0f, rectF);
             object = list2;
         } else {
-            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{-f3});
-            object = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{-f4});
+            e3 = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_X, (float[])new float[]{-f3});
+            view = ObjectAnimator.ofFloat((Object)object, (Property)View.TRANSLATION_Y, (float[])new float[]{-f4});
+            object = e3;
         }
-        i3.a((Animator)view);
-        i4.a((Animator)object);
-        list.add(view);
+        i3.a((Animator)object);
+        i4.a((Animator)view);
         list.add(object);
+        list.add(view);
     }
 
     public final int h0(View view) {

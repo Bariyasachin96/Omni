@@ -285,26 +285,26 @@ public abstract class b {
             if (n3 > n4) {
                 return 1;
             }
-            n3 = rect.left;
-            n4 = rect2.left;
-            if (n3 < n4) {
+            n4 = rect.left;
+            n3 = rect2.left;
+            if (n4 < n3) {
                 if (this.e) {
                     return 1;
                 }
                 return -1;
             }
-            if (n3 > n4) {
+            if (n4 > n3) {
                 if (this.e) {
                     return -1;
                 }
                 return 1;
             }
-            n3 = rect.bottom;
-            n4 = rect2.bottom;
-            if (n3 < n4) {
+            n4 = rect.bottom;
+            n3 = rect2.bottom;
+            if (n4 < n3) {
                 return -1;
             }
-            if (n3 > n4) {
+            if (n4 > n3) {
                 return 1;
             }
             n3 = rect.right;

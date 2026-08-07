@@ -17,6 +17,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.WindowInsets;
 import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -221,13 +222,15 @@ public class z1 {
         static {
             try {
                 Field field;
-                a = field = View.class.getDeclaredField("mAttachInfo");
+                AnnotatedElement annotatedElement = View.class.getDeclaredField("mAttachInfo");
+                a = annotatedElement;
+                ((AccessibleObject)annotatedElement).setAccessible(true);
+                annotatedElement = Class.forName("android.view.View$AttachInfo");
+                b = field = ((Class)annotatedElement).getDeclaredField("mStableInsets");
                 ((AccessibleObject)field).setAccessible(true);
-                Class<?> clazz = Class.forName("android.view.View$AttachInfo");
-                b = field = clazz.getDeclaredField("mStableInsets");
-                ((AccessibleObject)field).setAccessible(true);
-                c = field = clazz.getDeclaredField("mContentInsets");
-                ((AccessibleObject)field).setAccessible(true);
+                annotatedElement = ((Class)annotatedElement).getDeclaredField("mContentInsets");
+                c = annotatedElement;
+                ((AccessibleObject)annotatedElement).setAccessible(true);
                 d = true;
             }
             catch (ReflectiveOperationException reflectiveOperationException) {
@@ -238,21 +241,21 @@ public class z1 {
             }
         }
 
-        public static z1 a(View view) {
+        public static z1 a(View object) {
             block5: {
-                if (d && view.isAttachedToWindow()) {
-                    Object object = view.getRootView();
-                    Object object2 = a.get(object);
-                    if (object2 == null) break block5;
-                    object = (Rect)b.get(object2);
-                    Rect rect = (Rect)c.get(object2);
-                    if (object == null || rect == null) break block5;
+                if (d && object.isAttachedToWindow()) {
+                    Object object2 = object.getRootView();
+                    Object object3 = a.get(object2);
+                    if (object3 == null) break block5;
+                    object2 = (Rect)b.get(object3);
+                    Rect rect = (Rect)c.get(object3);
+                    if (object2 == null || rect == null) break block5;
                     try {
-                        object2 = new b();
-                        object = ((b)object2).c(g0.b.c((Rect)object)).d(g0.b.c(rect)).a();
-                        ((z1)object).t((z1)object);
-                        ((z1)object).d(view.getRootView());
-                        return object;
+                        object3 = new b();
+                        object2 = ((b)object3).c(g0.b.c((Rect)object2)).d(g0.b.c(rect)).a();
+                        ((z1)object2).t((z1)object2);
+                        ((z1)object2).d(object.getRootView());
+                        return object2;
                     }
                     catch (IllegalAccessException illegalAccessException) {
                         object = new StringBuilder();

@@ -70,13 +70,13 @@ public final class a {
                 nArray2[0] = n5 - n4;
                 nArray2 = nArray[object2];
                 if (object3 != 0) {
-                    n4 = view.getRight();
-                    n5 = object.rightMargin;
+                    n5 = view.getRight();
+                    n4 = object.rightMargin;
                 } else {
-                    n4 = view.getBottom();
-                    n5 = object.bottomMargin;
+                    n5 = view.getBottom();
+                    n4 = object.bottomMargin;
                 }
-                nArray2[1] = n4 + n5;
+                nArray2[1] = n5 + n4;
                 continue;
             }
             throw new IllegalStateException("null view contained in the view hierarchy");
@@ -96,9 +96,9 @@ public final class a {
             return false;
         }
         object = nArray[0];
-        object2 = object[1];
-        object3 = object[0];
-        return object3 <= 0 && nArray[n3 - 1][1] >= object2 - object3;
+        object3 = object[1];
+        object2 = object[0];
+        return object2 <= 0 && nArray[n3 - 1][1] >= object3 - object2;
         {
         }
     }

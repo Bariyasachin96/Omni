@@ -27,7 +27,7 @@ extends DialogFragment {
     public Dialog onCreateDialog(Bundle bundle) {
         bundle = (WebView)LayoutInflater.from((Context)this.getActivity()).inflate(2131427373, null);
         bundle.loadUrl("file:///android_asset/open_source_licenses.html");
-        return new AlertDialog.Builder((Context)this.getActivity()).setTitle((CharSequence)this.getString(2131624188)).setView((View)bundle).setPositiveButton(17039370, null).create();
+        return new AlertDialog.Builder((Context)this.getActivity()).setTitle((CharSequence)this.getString(2131624192)).setView((View)bundle).setPositiveButton(17039370, null).create();
     }
 }
 

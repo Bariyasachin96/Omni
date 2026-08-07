@@ -10,6 +10,7 @@
  *  android.content.Intent
  *  android.content.ServiceConnection
  *  android.content.pm.PackageInfo
+ *  android.content.pm.PackageManager
  *  android.os.Build$VERSION
  *  android.os.Bundle
  *  android.os.Handler
@@ -31,6 +32,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -337,6 +339,7 @@ implements ServiceConnection {
                 block18: {
                     Object object;
                     block17: {
+                        PackageManager packageManager;
                         block14: {
                             block13: {
                                 try {
@@ -349,17 +352,17 @@ implements ServiceConnection {
                                     return false;
                                 }
                             }
-                            object = this.context.getPackageManager();
-                            if (object != null) break block14;
+                            packageManager = this.context.getPackageManager();
+                            if (packageManager != null) break block14;
                             Log.i((String)TAG, (String)"Local install check bypassed due to package manager not found.");
                             return false;
                         }
-                        PackageInfo packageInfo = object.getPackageInfo(packageName, 0);
-                        if (packageInfo == null) break block15;
-                        if (packageInfo.applicationInfo == null) break block15;
-                        int n3 = packageInfo.applicationInfo.flags;
+                        object = packageManager.getPackageInfo(packageName, 0);
+                        if (object == null) break block15;
+                        if (((PackageInfo)object).applicationInfo == null) break block15;
+                        int n3 = ((PackageInfo)object).applicationInfo.flags;
                         if ((n3 & 1) != 0 || (n3 & 0x80) != 0) break block16;
-                        object = object.getInstallSourceInfo(packageName);
+                        object = packageManager.getInstallSourceInfo(packageName);
                         if (object != null) break block17;
                         Log.i((String)TAG, (String)"Local install check bypassed due to install source info not found.");
                         return false;
@@ -402,9 +405,9 @@ implements ServiceConnection {
             LicenseResponseHelper.validateResponse(var2_2 /* !! */ , LicenseClient.packageName);
             Log.i((String)"LicenseClient", (String)"License check succeeded.");
             var3_4 = LicenseClient.repeatedCheckEnabled != false ? LicenseResponseHelper.getRepeatedCheckMetadata(var2_2 /* !! */ ) : null;
-            var4_5 = LicenseClient.mainThreadRunner;
-            var5_6 = new LicenseClient$$ExternalSyntheticLambda7(this, var3_4, var2_2 /* !! */ );
-            var4_5.run(var5_6);
+            var5_5 = LicenseClient.mainThreadRunner;
+            var4_6 = new LicenseClient$$ExternalSyntheticLambda7(this, var3_4, var2_2 /* !! */ );
+            var5_5.run(var4_6);
             return;
         }
         if (var1_1 != 2) ** GOTO lbl17
@@ -443,10 +446,10 @@ lbl19:
             return;
         }
         if (bl) {
-            object = String.valueOf(object);
-            StringBuilder stringBuilder = new StringBuilder("Retry limit reached for: ");
-            stringBuilder.append((String)object);
-            Log.e((String)TAG, (String)stringBuilder.toString());
+            String string = String.valueOf(object);
+            object = new StringBuilder("Retry limit reached for: ");
+            ((StringBuilder)object).append(string);
+            Log.e((String)TAG, (String)((StringBuilder)object).toString());
             return;
         }
         this.handleError((LicenseCheckException)object);
@@ -555,7 +558,7 @@ lbl19:
         /*
          * This method has failed to decompile.  When submitting a bug report, please provide this stack trace, and (if you hold appropriate legal rights) the relevant class file.
          * 
-         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 120->157)] java.lang.Throwable
+         * org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 122->159)] java.lang.Throwable
          *     at org.benf.cfr.reader.bytecode.analysis.opgraph.Op02WithProcessedDataAndRefs.insertExceptionBlocks(Op02WithProcessedDataAndRefs.java:2283)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisInner(CodeAnalyser.java:415)
          *     at org.benf.cfr.reader.bytecode.CodeAnalyser.getAnalysisOrWrapFail(CodeAnalyser.java:278)

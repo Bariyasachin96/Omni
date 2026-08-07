@@ -25,12 +25,12 @@ extends BroadcastReceiver {
 
     public void onReceive(Context context, Intent object) {
         if (object != null) {
-            String string = object.getAction();
-            if ("androidx.profileinstaller.action.INSTALL_PROFILE".equals(string)) {
+            Object object2 = object.getAction();
+            if ("androidx.profileinstaller.action.INSTALL_PROFILE".equals(object2)) {
                 c.j(context, new e(), new a(this), true);
                 return;
             }
-            if ("androidx.profileinstaller.action.SKIP_FILE".equals(string)) {
+            if ("androidx.profileinstaller.action.SKIP_FILE".equals(object2)) {
                 if ((object = object.getExtras()) != null) {
                     if ("WRITE_SKIP_FILE".equals(object = object.getString("EXTRA_SKIP_FILE_OPERATION"))) {
                         c.k(context, new e(), new a(this));
@@ -42,18 +42,18 @@ extends BroadcastReceiver {
                     }
                 }
             } else {
-                if ("androidx.profileinstaller.action.SAVE_PROFILE".equals(string)) {
+                if ("androidx.profileinstaller.action.SAVE_PROFILE".equals(object2)) {
                     ProfileInstallReceiver.a(new a(this));
                     return;
                 }
-                if ("androidx.profileinstaller.action.BENCHMARK_OPERATION".equals(string) && (object = object.getExtras()) != null) {
-                    string = object.getString("EXTRA_BENCHMARK_OPERATION");
-                    object = new a(this);
-                    if ("DROP_SHADER_CACHE".equals(string)) {
-                        androidx.profileinstaller.a.b(context, (a)object);
+                if ("androidx.profileinstaller.action.BENCHMARK_OPERATION".equals(object2) && (object = object.getExtras()) != null) {
+                    object = object.getString("EXTRA_BENCHMARK_OPERATION");
+                    object2 = new a(this);
+                    if ("DROP_SHADER_CACHE".equals(object)) {
+                        androidx.profileinstaller.a.b(context, (a)object2);
                         return;
                     }
-                    ((a)object).b(16, null);
+                    ((a)object2).b(16, null);
                 }
             }
         }

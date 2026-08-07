@@ -38,10 +38,10 @@ implements TextWatcher {
     public static void b(EditText editText, int n3) {
         if (n3 == 1 && editText != null && editText.isAttachedToWindow()) {
             editText = editText.getEditableText();
-            n3 = Selection.getSelectionStart((CharSequence)editText);
-            int n4 = Selection.getSelectionEnd((CharSequence)editText);
+            int n4 = Selection.getSelectionStart((CharSequence)editText);
+            n3 = Selection.getSelectionEnd((CharSequence)editText);
             androidx.emoji2.text.f.c().p((CharSequence)editText);
-            z0.d.b((Spannable)editText, n3, n4);
+            z0.d.b((Spannable)editText, n4, n3);
         }
     }
 

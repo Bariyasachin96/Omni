@@ -128,19 +128,19 @@ extends FrameLayout {
         this.J = 0;
         this.K = 0;
         this.M = 0;
-        context = this.getContext();
+        Context context2 = this.getContext();
         this.E = this.getResources().getConfiguration().orientation;
         this.n = b3 = new b((View)this);
-        TimeInterpolator timeInterpolator = a2.a.e;
-        b3.P0(timeInterpolator);
+        context = a2.a.e;
+        b3.P0((TimeInterpolator)context);
         b3.L0(false);
-        this.p = new k2.a(context);
-        attributeSet = com.google.android.material.internal.z.i(context, attributeSet, z1.m.CollapsingToolbarLayout, n3, n5, new int[0]);
-        n5 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_expandedTitleGravity, 8388691);
-        n3 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_collapsedTitleGravity, 8388627);
+        this.p = new k2.a(context2);
+        attributeSet = com.google.android.material.internal.z.i(context2, attributeSet, z1.m.CollapsingToolbarLayout, n3, n5, new int[0]);
+        n3 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_expandedTitleGravity, 8388691);
+        n5 = attributeSet.getInt(z1.m.CollapsingToolbarLayout_collapsedTitleGravity, 8388627);
         this.s = attributeSet.getInt(z1.m.CollapsingToolbarLayout_collapsedTitleGravityMode, 1);
-        b3.z0(n5);
-        b3.m0(n3);
+        b3.z0(n3);
+        b3.m0(n5);
         this.k = n4 = attributeSet.getDimensionPixelSize(z1.m.CollapsingToolbarLayout_expandedTitleMargin, 0);
         this.j = n4;
         this.i = n4;
@@ -176,10 +176,10 @@ extends FrameLayout {
             this.setTitleEllipsize(this.b(attributeSet.getInt(n4, -1)));
         }
         if (attributeSet.hasValue(n4 = z1.m.CollapsingToolbarLayout_expandedTitleTextColor)) {
-            b3.y0(s2.c.a(context, (TypedArray)attributeSet, n4));
+            b3.y0(s2.c.a(context2, (TypedArray)attributeSet, n4));
         }
         if (attributeSet.hasValue(n4 = z1.m.CollapsingToolbarLayout_collapsedTitleTextColor)) {
-            b3.l0(s2.c.a(context, (TypedArray)attributeSet, n4));
+            b3.l0(s2.c.a(context2, (TypedArray)attributeSet, n4));
         }
         this.B = attributeSet.getDimensionPixelSize(z1.m.CollapsingToolbarLayout_scrimVisibleHeightTrigger, -1);
         n4 = z1.m.CollapsingToolbarLayout_titleMaxLines;
@@ -193,17 +193,17 @@ extends FrameLayout {
         }
         n4 = z1.m.CollapsingToolbarLayout_titlePositionInterpolator;
         if (attributeSet.hasValue(n4)) {
-            b3.K0((TimeInterpolator)AnimationUtils.loadInterpolator((Context)context, (int)attributeSet.getResourceId(n4, 0)));
+            b3.K0((TimeInterpolator)AnimationUtils.loadInterpolator((Context)context2, (int)attributeSet.getResourceId(n4, 0)));
         }
         this.o = b3 = new b((View)this);
-        b3.P0(timeInterpolator);
+        b3.P0((TimeInterpolator)context);
         b3.L0(false);
         int n6 = z1.m.CollapsingToolbarLayout_subtitle;
         if (attributeSet.hasValue(n6)) {
             this.setSubtitle(attributeSet.getText(n6));
         }
-        b3.z0(n5);
-        b3.m0(n3);
+        b3.z0(n3);
+        b3.m0(n5);
         b3.w0(c.i.TextAppearance_AppCompat_Headline);
         b3.j0(c.i.TextAppearance_AppCompat_Widget_ActionBar_Subtitle);
         n3 = z1.m.CollapsingToolbarLayout_expandedSubtitleTextAppearance;
@@ -214,21 +214,21 @@ extends FrameLayout {
             b3.j0(attributeSet.getResourceId(n3, 0));
         }
         if (attributeSet.hasValue(n3 = z1.m.CollapsingToolbarLayout_expandedSubtitleTextColor)) {
-            b3.y0(s2.c.a(context, (TypedArray)attributeSet, n3));
+            b3.y0(s2.c.a(context2, (TypedArray)attributeSet, n3));
         }
         if (attributeSet.hasValue(n3 = z1.m.CollapsingToolbarLayout_collapsedSubtitleTextColor)) {
-            b3.l0(s2.c.a(context, (TypedArray)attributeSet, n3));
+            b3.l0(s2.c.a(context2, (TypedArray)attributeSet, n3));
         }
         if (attributeSet.hasValue(n3 = z1.m.CollapsingToolbarLayout_subtitleMaxLines)) {
             b3.v0(attributeSet.getInt(n3, 1));
         }
         if (attributeSet.hasValue(n4)) {
-            b3.K0((TimeInterpolator)AnimationUtils.loadInterpolator((Context)context, (int)attributeSet.getResourceId(n4, 0)));
+            b3.K0((TimeInterpolator)AnimationUtils.loadInterpolator((Context)context2, (int)attributeSet.getResourceId(n4, 0)));
         }
         this.y = attributeSet.getInt(z1.m.CollapsingToolbarLayout_scrimAnimationDuration, 600);
         n3 = z1.c.motionEasingStandardInterpolator;
-        this.z = p2.k.g(context, n3, a2.a.c);
-        this.A = p2.k.g(context, n3, a2.a.d);
+        this.z = p2.k.g(context2, n3, a2.a.c);
+        this.A = p2.k.g(context2, n3, a2.a.d);
         this.setContentScrim(attributeSet.getDrawable(z1.m.CollapsingToolbarLayout_contentScrim));
         this.setStatusBarScrim(attributeSet.getDrawable(z1.m.CollapsingToolbarLayout_statusBarScrim));
         this.setTitleCollapseMode(attributeSet.getInt(z1.m.CollapsingToolbarLayout_titleCollapseMode, 0));
@@ -688,7 +688,6 @@ extends FrameLayout {
     }
 
     public void onMeasure(int n3, int n4) {
-        ViewGroup viewGroup;
         this.d();
         super.onMeasure(n3, n4);
         int n5 = View.MeasureSpec.getMode((int)n4);
@@ -720,17 +719,17 @@ extends FrameLayout {
                     this.K = n5 > 1 ? Math.round(this.o.B()) * (n5 - 1) : 0;
                 }
             }
-            if ((n7 = this.M) + (n5 = this.J) + (n6 = this.K) > 0) {
-                super.onMeasure(n3, View.MeasureSpec.makeMeasureSpec((int)(n4 + n7 + n5 + n6), (int)0x40000000));
+            if ((n5 = this.M) + (n7 = this.J) + (n6 = this.K) > 0) {
+                super.onMeasure(n3, View.MeasureSpec.makeMeasureSpec((int)(n4 + n5 + n7 + n6), (int)0x40000000));
             }
         }
-        if ((viewGroup = this.e) != null) {
-            z12 = this.f;
-            if (z12 != null && z12 != this) {
-                this.setMinimumHeight(CollapsingToolbarLayout.h((View)z12));
+        if ((z12 = this.e) != null) {
+            View view = this.f;
+            if (view != null && view != this) {
+                this.setMinimumHeight(CollapsingToolbarLayout.h(view));
                 return;
             }
-            this.setMinimumHeight(CollapsingToolbarLayout.h((View)viewGroup));
+            this.setMinimumHeight(CollapsingToolbarLayout.h((View)z12));
         }
     }
 
@@ -789,13 +788,13 @@ extends FrameLayout {
         int n11 = n8 - n9;
         n4 = ((Rect)object).top + n7 + n4;
         n9 = ((Rect)object).bottom + n7 - n3;
-        n7 = (int)((float)n9 - this.o.m());
-        n8 = (int)((float)n4 + this.n.m());
+        n8 = (int)((float)n9 - this.o.m());
+        n7 = (int)((float)n4 + this.n.m());
         if (TextUtils.isEmpty((CharSequence)this.o.P())) {
             this.n.f0(n10, n4, n11, n9);
         } else {
-            this.n.f0(n10, n4, n11, n7);
-            this.o.f0(n10, n8, n11, n9);
+            this.n.f0(n10, n4, n11, n8);
+            this.o.f0(n10, n7, n11, n9);
         }
         if (this.s == 0) {
             com.google.android.material.internal.d.a((ViewGroup)this, (View)this, this.m);
@@ -812,8 +811,8 @@ extends FrameLayout {
                 this.n.h0(n3, n4, n6, n9);
                 return;
             }
-            this.n.h0(n3, n4, n6, n7);
-            this.o.h0(n3, n8, n6, n9);
+            this.n.h0(n3, n4, n6, n8);
+            this.o.h0(n3, n7, n6, n9);
         }
     }
 
@@ -1037,16 +1036,16 @@ extends FrameLayout {
             int n3 = 0;
             int n4 = 0;
             if (bl2) {
+                n3 = n4;
                 if (bl) {
-                    n4 = 255;
+                    n3 = 255;
                 }
-                this.a(n4);
+                this.a(n3);
             } else {
-                n4 = n3;
                 if (bl) {
-                    n4 = 255;
+                    n3 = 255;
                 }
-                this.setScrimAlpha(n4);
+                this.setScrimAlpha(n3);
             }
             this.w = bl;
         }
@@ -1274,16 +1273,16 @@ extends FrameLayout {
             int n6 = object != null ? ((z1)object).l() : 0;
             int n7 = this.a.getChildCount();
             for (n5 = 0; n5 < n7; ++n5) {
-                View view = this.a.getChildAt(n5);
-                object = (LayoutParams)view.getLayoutParams();
-                com.google.android.material.appbar.c c3 = CollapsingToolbarLayout.l(view);
-                n4 = ((LayoutParams)((Object)object)).a;
+                object = this.a.getChildAt(n5);
+                LayoutParams layoutParams = (LayoutParams)object.getLayoutParams();
+                com.google.android.material.appbar.c c3 = CollapsingToolbarLayout.l((View)object);
+                n4 = layoutParams.a;
                 if (n4 != 1) {
                     if (n4 != 2) continue;
-                    c3.f(Math.round((float)(-n3) * ((LayoutParams)((Object)object)).b));
+                    c3.f(Math.round((float)(-n3) * layoutParams.b));
                     continue;
                 }
-                c3.f(j0.a.b(-n3, 0, this.a.i(view)));
+                c3.f(j0.a.b(-n3, 0, this.a.i((View)object)));
             }
             this.a.v();
             object = this.a;
@@ -1291,19 +1290,19 @@ extends FrameLayout {
                 object.postInvalidateOnAnimation();
             }
             n5 = this.a.getHeight();
-            n6 = n5 - this.a.getMinimumHeight() - n6;
+            n4 = n5 - this.a.getMinimumHeight() - n6;
             n7 = this.a.getScrimVisibleHeightTrigger();
-            n4 = this.a.D + n6;
+            n6 = this.a.D + n4;
             float f3 = Math.abs(n3);
-            float f4 = n6;
+            float f4 = n4;
             f3 /= f4;
             object = this.a.n;
             f4 = (float)(n5 - n7) / f4;
             ((b)object).F0(Math.min(1.0f, f4));
-            this.a.n.q0(n4);
+            this.a.n.q0(n6);
             this.a.n.D0(f3);
             this.a.o.F0(Math.min(1.0f, f4));
-            this.a.o.q0(n4);
+            this.a.o.q0(n6);
             this.a.o.D0(f3);
         }
     }

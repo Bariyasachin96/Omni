@@ -109,11 +109,11 @@ public class d {
         this.f.add(b3);
     }
 
-    public void h(MotionEvent object) {
+    public void h(MotionEvent object3) {
         int n3 = this.a.getCurrentState();
         if (n3 != -1) {
-            c c3;
             int n4;
+            c c3;
             int n5;
             Object object2;
             int n6;
@@ -127,46 +127,46 @@ public class d {
                 block0: while (n6 < n8) {
                     object2 = ((ArrayList)abstractCollection).get(n6);
                     n5 = n6 + 1;
-                    object2 = (c)object2;
+                    c3 = (c)object2;
                     int n9 = this.a.getChildCount();
                     n4 = 0;
                     while (true) {
                         n6 = n5;
                         if (n4 >= n9) continue block0;
-                        c3 = this.a.getChildAt(n4);
-                        if (((c)object2).j((View)c3)) {
-                            c3.getId();
-                            this.c.add(c3);
+                        object2 = this.a.getChildAt(n4);
+                        if (c3.j((View)object2)) {
+                            object2.getId();
+                            this.c.add(object2);
                         }
                         ++n4;
                     }
                 }
             }
-            float f3 = object.getX();
-            float f4 = object.getY();
+            float f3 = object3.getX();
+            float f4 = object3.getY();
             abstractCollection = new Rect();
-            n4 = object.getAction();
-            object = this.e;
-            if (object != null && !((ArrayList)object).isEmpty()) {
-                object = this.e;
-                n5 = ((ArrayList)object).size();
-                for (n6 = 0; n6 < n5; ++n6) {
-                    object2 = ((ArrayList)object).get(n6);
-                    ((c.b)object2).d(n4, f3, f4);
+            n6 = object3.getAction();
+            object3 = this.e;
+            if (object3 != null && !object3.isEmpty()) {
+                object2 = this.e;
+                n5 = ((ArrayList)object2).size();
+                for (n4 = 0; n4 < n5; ++n4) {
+                    object3 = ((ArrayList)object2).get(n4);
+                    ((c.b)object3).d(n6, f3, f4);
                 }
             }
-            if (n4 == 0 || n4 == 1) {
-                object = this.a.o0(n3);
-                ArrayList arrayList = this.b;
-                n5 = arrayList.size();
-                for (n6 = n7; n6 < n5; ++n6) {
-                    c3 = (c)arrayList.get(n6);
-                    if (!c3.l(n4)) continue;
-                    for (View view : this.c) {
-                        if (!c3.j(view)) continue;
-                        view.getHitRect((Rect)abstractCollection);
+            if (n6 == 0 || n6 == 1) {
+                b b3 = this.a.o0(n3);
+                object2 = this.b;
+                n5 = ((ArrayList)object2).size();
+                for (n4 = n7; n4 < n5; ++n4) {
+                    c3 = (c)((ArrayList)object2).get(n4);
+                    if (!c3.l(n6)) continue;
+                    for (Object object3 : this.c) {
+                        if (!c3.j((View)object3)) continue;
+                        object3.getHitRect((Rect)abstractCollection);
                         if (!abstractCollection.contains((int)f3, (int)f4)) continue;
-                        c3.c(this, this.a, n3, (b)object, view);
+                        c3.c(this, this.a, n3, b3, new View[]{object3});
                     }
                 }
             }

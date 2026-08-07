@@ -131,11 +131,11 @@ implements u {
                 this.c = new i.a(q02.a.getContext(), 0, 16908332, 0, 0, q02.i);
             }
 
-            public void onClick(View object) {
-                object = this.d;
-                Window.Callback callback = object.l;
-                if (callback != null && object.m) {
-                    callback.onMenuItemSelected(0, (MenuItem)this.c);
+            public void onClick(View view) {
+                q0 q02 = this.d;
+                view = q02.l;
+                if (view != null && q02.m) {
+                    view.onMenuItemSelected(0, (MenuItem)this.c);
                 }
             }
         });

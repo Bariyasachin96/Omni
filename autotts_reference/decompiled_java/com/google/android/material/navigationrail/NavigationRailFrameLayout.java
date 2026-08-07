@@ -37,37 +37,37 @@ extends FrameLayout {
     }
 
     public void onMeasure(int n3, int n4) {
-        FrameLayout.LayoutParams layoutParams;
+        View view;
         super.onMeasure(n3, n4);
         int n5 = this.getChildCount();
         int n6 = 0;
-        View view = this.getChildAt(0);
+        View view2 = this.getChildAt(0);
         int n7 = View.MeasureSpec.getSize((int)n4);
         int n8 = n4;
         if (n5 > 1) {
             view = this.getChildAt(0);
             this.measureChild(view, n3, n4);
-            layoutParams = (FrameLayout.LayoutParams)view.getLayoutParams();
+            view2 = (FrameLayout.LayoutParams)view.getLayoutParams();
             n6 = view.getMeasuredHeight();
-            n8 = layoutParams.bottomMargin;
-            n5 = layoutParams.topMargin + (n6 + n8);
+            n8 = view2.bottomMargin;
+            n5 = view2.topMargin + (n6 + n8);
             int n9 = this.c;
-            layoutParams = this.getChildAt(1);
+            view = this.getChildAt(1);
             n6 = n5;
-            view = layoutParams;
+            view2 = view;
             n8 = n4;
             if (!this.d) {
                 n8 = View.MeasureSpec.makeMeasureSpec((int)(n7 - n5 - n9), (int)Integer.MIN_VALUE);
-                view = layoutParams;
+                view2 = view;
                 n6 = n5;
             }
         }
-        layoutParams = (FrameLayout.LayoutParams)view.getLayoutParams();
-        this.measureChild(view, n3, n8);
-        n4 = view.getMeasuredHeight();
-        n8 = layoutParams.bottomMargin;
-        n3 = layoutParams.topMargin;
-        n3 = Math.max(n7, this.c + n6 + (n4 + n8 + n3));
+        view = (FrameLayout.LayoutParams)view2.getLayoutParams();
+        this.measureChild(view2, n3, n8);
+        n3 = view2.getMeasuredHeight();
+        n8 = view.bottomMargin;
+        n4 = view.topMargin;
+        n3 = Math.max(n7, this.c + n6 + (n3 + n8 + n4));
         this.setMeasuredDimension(this.getMeasuredWidth(), n3);
     }
 

@@ -253,9 +253,9 @@ w.b {
             rectF.right = f3 = (float)rect.right - f3;
             rectF.left = f3 - f4;
         }
-        f4 = this.r1();
-        rectF.top = f3 = rect.exactCenterY() - f4 / 2.0f;
-        rectF.bottom = f3 + f4;
+        f3 = this.r1();
+        rectF.top = f4 = rect.exactCenterY() - f3 / 2.0f;
+        rectF.bottom = f4 + f3;
     }
 
     public final ColorFilter D1() {
@@ -432,12 +432,12 @@ w.b {
             float f3 = this.k0 + this.E0() + this.n0;
             if (h0.a.f(this) == 0) {
                 pointF.x = (float)rect.left + f3;
-                align2 = align;
             } else {
                 pointF.x = (float)rect.right - f3;
-                align2 = Paint.Align.RIGHT;
+                align = Paint.Align.RIGHT;
             }
             pointF.y = (float)rect.centerY() - this.K0();
+            align2 = align;
         }
         return align2;
     }
@@ -724,8 +724,8 @@ w.b {
             float f3 = rect.left;
             float f4 = this.Q;
             rectF.set(f3 + f4 / 2.0f, (float)rect.top + f4 / 2.0f, (float)rect.right - f4 / 2.0f, (float)rect.bottom - f4 / 2.0f);
-            f3 = this.O - this.Q / 2.0f;
-            canvas.drawRoundRect(this.w0, f3, f3, this.t0);
+            f4 = this.O - this.Q / 2.0f;
+            canvas.drawRoundRect(this.w0, f4, f4, this.t0);
         }
     }
 
@@ -862,23 +862,23 @@ w.b {
             int n3 = Math.round(this.z0.h(this.z1().toString()));
             int n4 = Math.round(this.w0.width());
             int n5 = 0;
-            n3 = n3 > n4 ? 1 : 0;
-            if (n3 != 0) {
+            n4 = n3 > n4 ? 1 : 0;
+            if (n4 != 0) {
                 n5 = canvas.save();
                 canvas.clipRect(this.w0);
             }
             object2 = this.S;
             object = object2;
-            if (n3 != 0) {
+            if (n4 != 0) {
                 object = object2;
                 if (this.R0 != null) {
                     object = TextUtils.ellipsize((CharSequence)object2, (TextPaint)this.z0.g(), (float)this.w0.width(), (TextUtils.TruncateAt)this.R0);
                 }
             }
-            n4 = object.length();
+            n3 = object.length();
             object2 = this.x0;
-            canvas.drawText((CharSequence)object, 0, n4, object2.x, object2.y, (Paint)this.z0.g());
-            if (n3 != 0) {
+            canvas.drawText((CharSequence)object, 0, n3, object2.x, object2.y, (Paint)this.z0.g());
+            if (n4 != 0) {
                 canvas.restoreToCount(n5);
             }
         }

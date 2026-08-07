@@ -159,8 +159,8 @@ extends Drawable {
         if (bl) {
             this.b.setColor(n3);
         }
-        if ((object = (Object)this.j) != null && (colorStateList = this.k) != null) {
-            this.i = this.a((ColorStateList)object, (PorterDuff.Mode)colorStateList);
+        if ((colorStateList = this.j) != null && (object = (Object)this.k) != null) {
+            this.i = this.a(colorStateList, (PorterDuff.Mode)object);
             return true;
         }
         return bl;

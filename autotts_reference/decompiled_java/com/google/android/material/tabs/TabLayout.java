@@ -147,8 +147,9 @@ extends HorizontalScrollView {
     public TabLayout(Context context, AttributeSet attributeSet, int n3) {
         e e3;
         block13: {
-            int n4 = a0;
-            super(y2.a.d(context, attributeSet, n3, n4), attributeSet, n3);
+            int n4;
+            int n5 = a0;
+            super(y2.a.d(context, attributeSet, n3, n5), attributeSet, n3);
             this.c = -1;
             this.d = new ArrayList();
             this.m = -1;
@@ -162,15 +163,15 @@ extends HorizontalScrollView {
             this.f = e3 = new e(this, context);
             super.addView((View)e3, 0, (ViewGroup.LayoutParams)new FrameLayout.LayoutParams(-2, -1));
             Object object = z1.m.TabLayout;
-            int n5 = z1.m.TabLayout_tabTextAppearance;
-            attributeSet = com.google.android.material.internal.z.i(context, attributeSet, object, n3, n4, new int[]{n5});
-            ColorStateList colorStateList = j2.d.g(this.getBackground());
-            if (colorStateList != null) {
-                object = new v2.i();
-                object.i0(colorStateList);
-                object.W(context);
-                object.h0(this.getElevation());
-                this.setBackground((Drawable)object);
+            int n6 = z1.m.TabLayout_tabTextAppearance;
+            attributeSet = com.google.android.material.internal.z.i(context, attributeSet, object, n3, n5, new int[]{n6});
+            object = j2.d.g(this.getBackground());
+            if (object != null) {
+                v2.i i3 = new v2.i();
+                i3.i0((ColorStateList)object);
+                i3.W(context);
+                i3.h0(this.getElevation());
+                this.setBackground(i3);
             }
             this.setSelectedTabIndicator(s2.c.e(context, (TypedArray)attributeSet, z1.m.TabLayout_tabIndicator));
             this.setSelectedTabIndicatorColor(attributeSet.getColor(z1.m.TabLayout_tabIndicatorColor, 0));
@@ -187,33 +188,33 @@ extends HorizontalScrollView {
             this.i = attributeSet.getDimensionPixelSize(z1.m.TabLayout_tabPaddingEnd, this.i);
             this.j = attributeSet.getDimensionPixelSize(z1.m.TabLayout_tabPaddingBottom, this.j);
             this.k = com.google.android.material.internal.z.g(context) ? z1.c.textAppearanceTitleSmall : z1.c.textAppearanceButton;
-            this.l = n4 = attributeSet.getResourceId(n5, z1.l.TextAppearance_Design_Tab);
+            this.l = n4 = attributeSet.getResourceId(n6, z1.l.TextAppearance_Design_Tab);
             object = c.j.TextAppearance;
             e3 = context.obtainStyledAttributes(n4, object);
-            n5 = c.j.TextAppearance_android_textSize;
-            this.t = e3.getDimensionPixelSize(n5, 0);
-            n3 = c.j.TextAppearance_android_textColor;
-            this.n = s2.c.a(context, (TypedArray)e3, n3);
-            int n6 = z1.m.TabLayout_tabSelectedTextAppearance;
-            if (attributeSet.hasValue(n6)) {
-                this.m = attributeSet.getResourceId(n6, n4);
+            n3 = c.j.TextAppearance_android_textSize;
+            this.t = e3.getDimensionPixelSize(n3, 0);
+            n6 = c.j.TextAppearance_android_textColor;
+            this.n = s2.c.a(context, (TypedArray)e3, n6);
+            n5 = z1.m.TabLayout_tabSelectedTextAppearance;
+            if (attributeSet.hasValue(n5)) {
+                this.m = attributeSet.getResourceId(n5, n4);
             }
-            if ((n4 = this.m) != -1) {
+            if ((n5 = this.m) != -1) {
                 Throwable throwable2;
                 block12: {
                     block11: {
-                        e3 = context.obtainStyledAttributes(n4, object);
+                        e3 = context.obtainStyledAttributes(n5, object);
                         try {
-                            this.u = e3.getDimensionPixelSize(n5, (int)this.t);
-                            object = s2.c.a(context, (TypedArray)e3, n3);
+                            this.u = e3.getDimensionPixelSize(n3, (int)this.t);
+                            object = s2.c.a(context, (TypedArray)e3, n6);
                             if (object == null) break block11;
                         }
                         catch (Throwable throwable2) {
                             break block12;
                         }
-                        n5 = this.n.getDefaultColor();
+                        n6 = this.n.getDefaultColor();
                         n3 = object.getDefaultColor();
-                        this.n = TabLayout.t(n5, object.getColorForState(new int[]{0x10100A1}, n3));
+                        this.n = TabLayout.t(n6, object.getColorForState(new int[]{0x10100A1}, n3));
                     }
                     e3.recycle();
                     break block13;
@@ -1240,10 +1241,9 @@ extends HorizontalScrollView {
                     n7 = n3;
                     n8 = n5;
                     if (view2.getVisibility() == 0) {
-                        n3 = n5 != 0 ? Math.min(n3, view2.getLeft()) : view2.getLeft();
+                        n7 = n5 != 0 ? Math.min(n3, view2.getLeft()) : view2.getLeft();
                         n5 = n5 != 0 ? Math.max(n4, view2.getRight()) : view2.getRight();
                         n8 = 1;
-                        n7 = n3;
                         n6 = n5;
                     }
                 }
@@ -1308,14 +1308,14 @@ extends HorizontalScrollView {
                 return;
             }
             if (this.e != null && (f3 = this.c) != null && f3.f() != null) {
-                f3 = this.f;
-                ImageView imageView = this.e;
-                if (f3 != imageView) {
+                View view = this.f;
+                f3 = this.e;
+                if (view != f3) {
                     this.m();
                     this.l((View)this.e);
                     return;
                 }
-                this.o((View)imageView);
+                this.o((View)f3);
                 return;
             }
             if (this.d != null && (f3 = this.c) != null && f3.h() == 1) {
@@ -1381,7 +1381,7 @@ extends HorizontalScrollView {
                         f4 = this.m.u;
                     }
                 }
-                n7 = this.l;
+                n8 = this.l;
                 ImageView imageView = this.e;
                 if (imageView != null && imageView.getVisibility() == 0) {
                     n3 = 1;
@@ -1389,22 +1389,22 @@ extends HorizontalScrollView {
                 } else {
                     imageView = this.d;
                     f3 = f4;
-                    n3 = n7;
+                    n3 = n8;
                     if (imageView != null) {
                         f3 = f4;
-                        n3 = n7;
+                        n3 = n8;
                         if (imageView.getLineCount() > 1) {
                             f3 = this.m.v;
-                            n3 = n7;
+                            n3 = n8;
                         }
                     }
                 }
                 f4 = this.d.getTextSize();
-                n6 = this.d.getLineCount();
-                n7 = this.d.getMaxLines();
-                n8 = f3 == f4 ? 0 : (f3 > f4 ? 1 : -1);
-                if (n8 != 0 || n7 >= 0 && n3 != n7) {
-                    if (this.m.F == 1 && n8 > 0 && n6 == 1 && ((imageView = this.d.getLayout()) == null || this.e((Layout)imageView, 0, f3) > (float)(this.getMeasuredWidth() - this.getPaddingLeft() - this.getPaddingRight()))) {
+                n8 = this.d.getLineCount();
+                n6 = this.d.getMaxLines();
+                n7 = f3 == f4 ? 0 : (f3 > f4 ? 1 : -1);
+                if (n7 != 0 || n6 >= 0 && n3 != n6) {
+                    if (this.m.F == 1 && n7 > 0 && n8 == 1 && ((imageView = this.d.getLayout()) == null || this.e((Layout)imageView, 0, f3) > (float)(this.getMeasuredWidth() - this.getPaddingLeft() - this.getPaddingRight()))) {
                         return;
                     }
                     this.d.setTextSize(0, f3);
@@ -1808,14 +1808,14 @@ extends HorizontalScrollView {
             if (tabLayout.c == n3) {
                 return;
             }
-            View view = this.getChildAt(tabLayout.getSelectedTabPosition());
-            tabLayout = this.getChildAt(n3);
-            if (tabLayout == null) {
+            tabLayout = this.getChildAt(tabLayout.getSelectedTabPosition());
+            View view = this.getChildAt(n3);
+            if (view == null) {
                 this.g();
                 return;
             }
             this.e.c = n3;
-            tabLayout = new ValueAnimator.AnimatorUpdateListener(this, view, (View)tabLayout){
+            tabLayout = new ValueAnimator.AnimatorUpdateListener(this, (View)tabLayout, view){
                 public final View a;
                 public final View b;
                 public final e c;
@@ -1864,13 +1864,13 @@ extends HorizontalScrollView {
                     int n8 = this.getChildCount();
                     int n9 = 0;
                     int n10 = 0;
-                    for (n7 = 0; n7 < n8; ++n7) {
-                        tabLayout = this.getChildAt(n7);
-                        n5 = n10;
+                    for (n5 = 0; n5 < n8; ++n5) {
+                        tabLayout = this.getChildAt(n5);
+                        n7 = n10;
                         if (tabLayout.getVisibility() == 0) {
-                            n5 = Math.max(n10, tabLayout.getMeasuredWidth());
+                            n7 = Math.max(n10, tabLayout.getMeasuredWidth());
                         }
-                        n10 = n5;
+                        n10 = n7;
                     }
                     if (n10 > 0) {
                         n5 = (int)c0.g(this.getContext(), 16);

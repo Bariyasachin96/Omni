@@ -225,14 +225,14 @@ extends f {
         if (k3 != null) {
             while (!this.i()) {
                 this.h = false;
-                Object object = this.d;
+                f.b b3 = this.d;
                 Map.Entry entry = this.c.a();
                 o3.k.b(entry);
-                if (((Enum)object).compareTo(((b)entry.getValue()).b()) < 0) {
+                if (b3.compareTo(((b)entry.getValue()).b()) < 0) {
                     this.d(k3);
                 }
-                object = this.c.d();
-                if (this.h || object == null || this.d.compareTo(((b)object.getValue()).b()) <= 0) continue;
+                entry = this.c.d();
+                if (this.h || entry == null || this.d.compareTo(((b)entry.getValue()).b()) <= 0) continue;
                 this.g(k3);
             }
             this.h = false;

@@ -390,12 +390,11 @@ implements Cloneable {
 
     public final void R(a a4, a a5) {
         for (int i3 = a4.size() - 1; i3 >= 0; --i3) {
-            y y3;
             Object object = (View)a4.f(i3);
-            if (object == null || !this.O((View)object) || (y3 = (y)a5.remove(object)) == null || !this.O(y3.b)) continue;
-            object = (y)a4.h(i3);
-            this.v.add(object);
-            this.w.add(y3);
+            if (object == null || !this.O((View)object) || (object = (y)a5.remove(object)) == null || !this.O(object.b)) continue;
+            y y3 = (y)a4.h(i3);
+            this.v.add(y3);
+            this.w.add(object);
         }
     }
 
@@ -481,16 +480,16 @@ implements Cloneable {
         this.V(this, h3, bl);
     }
 
-    public void Y(View animatorArray) {
+    public void Y(View view) {
         if (!this.D) {
             int n3 = this.z.size();
-            animatorArray = this.z.toArray(this.A);
+            Animator[] animatorArray = this.z.toArray(this.A);
             this.A = L;
             --n3;
             while (n3 >= 0) {
-                Animator animator = animatorArray[n3];
+                view = animatorArray[n3];
                 animatorArray[n3] = null;
-                animator.pause();
+                view.pause();
                 --n3;
             }
             this.A = animatorArray;
@@ -588,17 +587,17 @@ implements Cloneable {
         }
     }
 
-    public void c0(View view) {
+    public void c0(View animatorArray) {
         if (this.C) {
             if (!this.D) {
                 int n3 = this.z.size();
-                Animator[] animatorArray = this.z.toArray(this.A);
+                animatorArray = this.z.toArray(this.A);
                 this.A = L;
                 --n3;
                 while (n3 >= 0) {
-                    view = animatorArray[n3];
+                    Animator animator = animatorArray[n3];
                     animatorArray[n3] = null;
-                    view.resume();
+                    animator.resume();
                     --n3;
                 }
                 this.A = animatorArray;
@@ -716,11 +715,12 @@ implements Cloneable {
             Object object = this.k;
             if (!(object != null && ((ArrayList)object).contains(n3) || (object = this.l) != null && ((ArrayList)object).contains(view))) {
                 int n4;
+                int n5;
                 object = this.m;
-                int n5 = 0;
+                int n6 = 0;
                 if (object != null) {
-                    int n6 = ((ArrayList)object).size();
-                    for (n4 = 0; n4 < n6; ++n4) {
+                    n5 = ((ArrayList)object).size();
+                    for (n4 = 0; n4 < n5; ++n4) {
                         if (!((Class)this.m.get(n4)).isInstance(view)) {
                             continue;
                         }
@@ -745,8 +745,8 @@ implements Cloneable {
                     if (!(!(view instanceof ViewGroup) || (object = this.o) != null && ((ArrayList)object).contains(n3) || (object = this.p) != null && ((ArrayList)object).contains(view))) {
                         object = this.q;
                         if (object != null) {
-                            n3 = ((ArrayList)object).size();
-                            for (n4 = 0; n4 < n3; ++n4) {
+                            n5 = ((ArrayList)object).size();
+                            for (n4 = 0; n4 < n5; ++n4) {
                                 if (!((Class)this.q.get(n4)).isInstance(view)) {
                                     continue;
                                 }
@@ -754,7 +754,7 @@ implements Cloneable {
                             }
                         } else {
                             view = (ViewGroup)view;
-                            for (n4 = n5; n4 < view.getChildCount(); ++n4) {
+                            for (n4 = n6; n4 < view.getChildCount(); ++n4) {
                                 this.i(view.getChildAt(n4), bl);
                             }
                         }
@@ -807,46 +807,46 @@ implements Cloneable {
     }
 
     public void l(ViewGroup object, boolean bl) {
+        y y3;
         Object object2;
-        Object object3;
         this.m(bl);
         int n3 = this.g.size();
         int n4 = 0;
-        if (n3 <= 0 && this.h.size() <= 0 || (object3 = this.i) != null && !((ArrayList)object3).isEmpty() || (object3 = this.j) != null && !((ArrayList)object3).isEmpty()) {
+        if (n3 <= 0 && this.h.size() <= 0 || (object2 = this.i) != null && !((ArrayList)object2).isEmpty() || (object2 = this.j) != null && !((ArrayList)object2).isEmpty()) {
             this.i((View)object, bl);
         } else {
             for (n3 = 0; n3 < this.g.size(); ++n3) {
                 object2 = object.findViewById(((Integer)this.g.get(n3)).intValue());
                 if (object2 == null) continue;
-                object3 = new y((View)object2);
+                y3 = new y((View)object2);
                 if (bl) {
-                    this.k((y)object3);
+                    this.k(y3);
                 } else {
-                    this.h((y)object3);
+                    this.h(y3);
                 }
-                ((y)object3).c.add(this);
-                this.j((y)object3);
+                y3.c.add(this);
+                this.j(y3);
                 if (bl) {
-                    Transition.d(this.r, object2, (y)object3);
+                    Transition.d(this.r, (View)object2, y3);
                     continue;
                 }
-                Transition.d(this.s, object2, (y)object3);
+                Transition.d(this.s, (View)object2, y3);
             }
             for (n3 = 0; n3 < this.h.size(); ++n3) {
-                object3 = (View)this.h.get(n3);
-                object = new y((View)object3);
+                object = (View)this.h.get(n3);
+                object2 = new y((View)object);
                 if (bl) {
-                    this.k((y)object);
+                    this.k((y)object2);
                 } else {
-                    this.h((y)object);
+                    this.h((y)object2);
                 }
-                ((y)object).c.add(this);
-                this.j((y)object);
+                ((y)object2).c.add(this);
+                this.j((y)object2);
                 if (bl) {
-                    Transition.d(this.r, (View)object3, (y)object);
+                    Transition.d(this.r, (View)object, (y)object2);
                     continue;
                 }
-                Transition.d(this.s, (View)object3, (y)object);
+                Transition.d(this.s, (View)object, (y)object2);
             }
         }
         if (!bl && (object = this.J) != null) {
@@ -855,15 +855,15 @@ implements Cloneable {
             int n6 = 0;
             while (true) {
                 if (n6 >= n5) break;
-                object3 = (String)this.J.f(n6);
-                ((ArrayList)object).add((View)this.r.d.remove(object3));
+                object2 = (String)this.J.f(n6);
+                ((ArrayList)object).add((View)this.r.d.remove(object2));
                 ++n6;
             }
             for (n3 = n4; n3 < n5; ++n3) {
-                object3 = (View)((ArrayList)object).get(n3);
-                if (object3 == null) continue;
+                y3 = (View)((ArrayList)object).get(n3);
+                if (y3 == null) continue;
                 object2 = (String)this.J.j(n3);
-                this.r.d.put(object2, object3);
+                this.r.d.put(object2, y3);
             }
         }
     }
@@ -965,64 +965,64 @@ implements Cloneable {
      * WARNING - void declaration
      * Enabled aggressive block sorting
      */
-    public void p(ViewGroup object, z object2, z z3, ArrayList arrayList, ArrayList arrayList2) {
-        void var4_16;
+    public void p(ViewGroup object, z view, z z3, ArrayList arrayList, ArrayList arrayList2) {
+        void var4_6;
         a a4 = Transition.E();
         SparseIntArray sparseIntArray = new SparseIntArray();
-        int n3 = var4_16.size();
+        int n3 = var4_6.size();
         this.D().getClass();
         long l3 = Long.MAX_VALUE;
         int n4 = 0;
         while (true) {
             long l4;
             block17: {
-                void var16_37;
-                Object object3;
+                void var19_30;
+                Object object2;
                 y y3;
                 y y4;
+                y y5;
                 block19: {
-                    void var16_34;
-                    void var2_10;
+                    void var16_24;
                     block11: {
                         int n5;
-                        y y5;
+                        int n6;
+                        y y6;
                         block18: {
                             block12: {
-                                Animator animator;
                                 block14: {
                                     block15: {
                                         block16: {
                                             block13: {
-                                                void var3_15;
-                                                void var5_17;
+                                                void var3_5;
+                                                void var5_7;
                                                 if (n4 >= n3) break block12;
-                                                y y6 = (y)var4_16.get(n4);
-                                                y y7 = (y)var5_17.get(n4);
-                                                y4 = y6;
-                                                if (y6 != null) {
-                                                    y4 = y6;
-                                                    if (!y6.c.contains(this)) {
+                                                y y7 = (y)var4_6.get(n4);
+                                                y5 = (y)var5_7.get(n4);
+                                                y4 = y7;
+                                                if (y7 != null) {
+                                                    y4 = y7;
+                                                    if (!y7.c.contains(this)) {
                                                         y4 = null;
                                                     }
                                                 }
-                                                y3 = y7;
-                                                if (y7 != null) {
-                                                    y3 = y7;
-                                                    if (!y7.c.contains(this)) {
+                                                y3 = y5;
+                                                if (y5 != null) {
+                                                    y3 = y5;
+                                                    if (!y5.c.contains(this)) {
                                                         y3 = null;
                                                     }
                                                 }
-                                                if (y4 == null && y3 == null || y4 != null && y3 != null && !this.M(y4, y3) || (animator = this.o((ViewGroup)object, y4, y3)) == null) break block13;
+                                                if (y4 == null && y3 == null || y4 != null && y3 != null && !this.M(y4, y3) || (y5 = this.o((ViewGroup)object, y4, y3)) == null) break block13;
                                                 if (y3 == null) break block14;
-                                                object3 = y3.b;
+                                                object2 = y3.b;
                                                 String[] stringArray = this.K();
                                                 if (stringArray == null || stringArray.length <= 0) break block15;
-                                                y5 = new y((View)object3);
-                                                y y8 = (y)var3_15.a.get(object3);
+                                                y6 = new y((View)object2);
+                                                y y8 = (y)var3_5.a.get(object2);
                                                 if (y8 == null) break block16;
-                                                for (n5 = 0; n5 < stringArray.length; ++n5) {
-                                                    Map map = y5.a;
-                                                    String string = stringArray[n5];
+                                                for (n6 = 0; n6 < stringArray.length; ++n6) {
+                                                    Map map = y6.a;
+                                                    String string = stringArray[n6];
                                                     map.put(string, y8.a.get(string));
                                                 }
                                                 break block16;
@@ -1033,13 +1033,13 @@ implements Cloneable {
                                         n5 = a4.size();
                                         break block18;
                                     }
-                                    Object var16_33 = null;
+                                    Object var16_23 = null;
                                     break block11;
                                 }
-                                View view = y4.b;
-                                object3 = null;
-                                Animator animator2 = animator;
-                                View view2 = object3;
+                                View view2 = y4.b;
+                                object2 = null;
+                                y y9 = y5;
+                                y5 = object2;
                                 break block19;
                             }
                             if (sparseIntArray.size() != 0) {
@@ -1053,33 +1053,31 @@ implements Cloneable {
                             }
                             return;
                         }
-                        for (int i3 = 0; i3 < n5; ++i3) {
-                            d d4 = (d)a4.get((Animator)a4.f(i3));
-                            if (d4.c == null || d4.a != object3 || !d4.b.equals(this.A()) || !d4.c.equals(y5)) continue;
-                            Object var2_9 = null;
-                            y y9 = y5;
+                        for (n6 = 0; n6 < n5; ++n6) {
+                            d d4 = (d)a4.get((Animator)a4.f(n6));
+                            if (d4.c == null || d4.a != object2 || !d4.b.equals(this.A()) || !d4.c.equals(y6)) continue;
+                            y5 = null;
+                            y y10 = y6;
                             break block11;
                         }
-                        y y10 = y5;
+                        y y11 = y6;
                     }
-                    void var19_43 = var2_10;
-                    void var2_11 = var16_34;
-                    void var16_35 = var19_43;
-                    Object object4 = object3;
+                    y y12 = y5;
+                    y5 = var16_24;
+                    View view3 = object2;
                 }
                 l4 = l3;
-                if (var16_37 != null) {
-                    void var2_13;
-                    void var19_40;
-                    object3 = this.H;
+                if (var19_30 != null) {
+                    void var16_27;
+                    object2 = this.H;
                     l4 = l3;
-                    if (object3 != null) {
-                        l4 = ((x)object3).c((ViewGroup)object, this, y4, y3);
+                    if (object2 != null) {
+                        l4 = ((x)object2).c((ViewGroup)object, this, y4, y3);
                         sparseIntArray.put(this.G.size(), (int)l4);
                         l4 = Math.min(l4, l3);
                     }
-                    a4.put((Object)var16_37, new d((View)var19_40, this.A(), this, object.getWindowId(), (y)var2_13, (Animator)var16_37));
-                    this.G.add(var16_37);
+                    a4.put((Object)var19_30, new d((View)var16_27, this.A(), this, object.getWindowId(), y5, (Animator)var19_30));
+                    this.G.add(var19_30);
                 }
             }
             ++n4;

@@ -245,42 +245,42 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         int n7 = z1.m.TextInputLayout_errorTextAppearance;
         int n8 = z1.m.TextInputLayout_helperTextTextAppearance;
         int n9 = z1.m.TextInputLayout_hintTextAppearance;
-        object2 = com.google.android.material.internal.z.j(object3, (AttributeSet)object, (int[])object2, n3, n4, new int[]{n5, n6, n7, n8, n9});
-        object4 = new y(this, (m0)object2);
-        this.d = object4;
-        this.F = ((m0)object2).a(z1.m.TextInputLayout_hintEnabled, true);
-        this.setHint(((m0)object2).p(z1.m.TextInputLayout_android_hint));
-        this.A0 = ((m0)object2).a(z1.m.TextInputLayout_hintAnimationEnabled, true);
-        this.z0 = ((m0)object2).a(z1.m.TextInputLayout_expandedHintEnabled, true);
+        object4 = com.google.android.material.internal.z.j(object3, (AttributeSet)object, (int[])object2, n3, n4, new int[]{n5, n6, n7, n8, n9});
+        object2 = new y(this, (m0)object4);
+        this.d = object2;
+        this.F = ((m0)object4).a(z1.m.TextInputLayout_hintEnabled, true);
+        this.setHint(((m0)object4).p(z1.m.TextInputLayout_android_hint));
+        this.A0 = ((m0)object4).a(z1.m.TextInputLayout_hintAnimationEnabled, true);
+        this.z0 = ((m0)object4).a(z1.m.TextInputLayout_expandedHintEnabled, true);
         int n10 = z1.m.TextInputLayout_android_minEms;
-        if (((m0)object2).s(n10)) {
-            this.setMinEms(((m0)object2).k(n10, -1));
+        if (((m0)object4).s(n10)) {
+            this.setMinEms(((m0)object4).k(n10, -1));
         } else {
             n10 = z1.m.TextInputLayout_android_minWidth;
-            if (((m0)object2).s(n10)) {
-                this.setMinWidth(((m0)object2).f(n10, -1));
+            if (((m0)object4).s(n10)) {
+                this.setMinWidth(((m0)object4).f(n10, -1));
             }
         }
         n10 = z1.m.TextInputLayout_android_maxEms;
-        if (((m0)object2).s(n10)) {
-            this.setMaxEms(((m0)object2).k(n10, -1));
+        if (((m0)object4).s(n10)) {
+            this.setMaxEms(((m0)object4).k(n10, -1));
         } else {
             n10 = z1.m.TextInputLayout_android_maxWidth;
-            if (((m0)object2).s(n10)) {
-                this.setMaxWidth(((m0)object2).f(n10, -1));
+            if (((m0)object4).s(n10)) {
+                this.setMaxWidth(((m0)object4).f(n10, -1));
             }
         }
         this.O = v2.o.e(object3, (AttributeSet)object, n3, n4).m();
         this.Q = object3.getResources().getDimensionPixelOffset(z1.e.mtrl_textinput_box_label_cutout_padding);
-        this.S = ((m0)object2).e(z1.m.TextInputLayout_boxCollapsedPaddingTop, 0);
+        this.S = ((m0)object4).e(z1.m.TextInputLayout_boxCollapsedPaddingTop, 0);
         this.f = this.getResources().getDimensionPixelSize(z1.e.m3_multiline_hint_filled_text_extra_space);
-        this.U = ((m0)object2).f(z1.m.TextInputLayout_boxStrokeWidth, object3.getResources().getDimensionPixelSize(z1.e.mtrl_textinput_box_stroke_width_default));
-        this.V = ((m0)object2).f(z1.m.TextInputLayout_boxStrokeWidthFocused, object3.getResources().getDimensionPixelSize(z1.e.mtrl_textinput_box_stroke_width_focused));
+        this.U = ((m0)object4).f(z1.m.TextInputLayout_boxStrokeWidth, object3.getResources().getDimensionPixelSize(z1.e.mtrl_textinput_box_stroke_width_default));
+        this.V = ((m0)object4).f(z1.m.TextInputLayout_boxStrokeWidthFocused, object3.getResources().getDimensionPixelSize(z1.e.mtrl_textinput_box_stroke_width_focused));
         this.T = this.U;
-        float f3 = ((m0)object2).d(z1.m.TextInputLayout_boxCornerRadiusTopStart, -1.0f);
-        float f4 = ((m0)object2).d(z1.m.TextInputLayout_boxCornerRadiusTopEnd, -1.0f);
-        float f5 = ((m0)object2).d(z1.m.TextInputLayout_boxCornerRadiusBottomEnd, -1.0f);
-        float f6 = ((m0)object2).d(z1.m.TextInputLayout_boxCornerRadiusBottomStart, -1.0f);
+        float f3 = ((m0)object4).d(z1.m.TextInputLayout_boxCornerRadiusTopStart, -1.0f);
+        float f4 = ((m0)object4).d(z1.m.TextInputLayout_boxCornerRadiusTopEnd, -1.0f);
+        float f5 = ((m0)object4).d(z1.m.TextInputLayout_boxCornerRadiusBottomEnd, -1.0f);
+        float f6 = ((m0)object4).d(z1.m.TextInputLayout_boxCornerRadiusBottomStart, -1.0f);
         object = this.O.w();
         if (f3 >= 0.0f) {
             ((o.b)object).E(f3);
@@ -295,7 +295,7 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
             ((o.b)object).v(f6);
         }
         this.O = ((o.b)object).m();
-        object = s2.c.b(object3, (m0)object2, z1.m.TextInputLayout_boxBackgroundColor);
+        object = s2.c.b(object3, (m0)object4, z1.m.TextInputLayout_boxBackgroundColor);
         if (object != null) {
             this.r0 = n3 = object.getDefaultColor();
             this.a0 = n3;
@@ -317,77 +317,77 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
             this.u0 = 0;
         }
         n3 = z1.m.TextInputLayout_android_textColorHint;
-        if (((m0)object2).s(n3)) {
-            object = ((m0)object2).c(n3);
+        if (((m0)object4).s(n3)) {
+            object = ((m0)object4).c(n3);
             this.m0 = object;
             this.l0 = object;
         }
         n3 = z1.m.TextInputLayout_boxStrokeColor;
-        object = s2.c.b(object3, (m0)object2, n3);
-        this.p0 = ((m0)object2).b(n3, 0);
+        object = s2.c.b(object3, (m0)object4, n3);
+        this.p0 = ((m0)object4).b(n3, 0);
         this.n0 = e0.a.b(object3, z1.d.mtrl_textinput_default_box_stroke_color);
         this.v0 = e0.a.b(object3, z1.d.mtrl_textinput_disabled_color);
         this.o0 = e0.a.b(object3, z1.d.mtrl_textinput_hovered_box_stroke_color);
         if (object != null) {
             this.setBoxStrokeColorStateList((ColorStateList)object);
         }
-        if (((m0)object2).s(n3 = z1.m.TextInputLayout_boxStrokeErrorColor)) {
-            this.setBoxStrokeErrorColor(s2.c.b(object3, (m0)object2, n3));
+        if (((m0)object4).s(n3 = z1.m.TextInputLayout_boxStrokeErrorColor)) {
+            this.setBoxStrokeErrorColor(s2.c.b(object3, (m0)object4, n3));
         }
-        if (((m0)object2).n(n9, -1) != -1) {
-            this.setHintTextAppearance(((m0)object2).n(n9, 0));
+        if (((m0)object4).n(n9, -1) != -1) {
+            this.setHintTextAppearance(((m0)object4).n(n9, 0));
         }
-        this.D = ((m0)object2).c(z1.m.TextInputLayout_cursorColor);
-        this.E = ((m0)object2).c(z1.m.TextInputLayout_cursorErrorColor);
-        n7 = ((m0)object2).n(n7, 0);
-        CharSequence charSequence = ((m0)object2).p(z1.m.TextInputLayout_errorContentDescription);
-        n3 = ((m0)object2).k(z1.m.TextInputLayout_errorAccessibilityLiveRegion, 1);
-        boolean bl = ((m0)object2).a(z1.m.TextInputLayout_errorEnabled, false);
-        n8 = ((m0)object2).n(n8, 0);
-        boolean bl2 = ((m0)object2).a(z1.m.TextInputLayout_helperTextEnabled, false);
-        object = ((m0)object2).p(z1.m.TextInputLayout_helperText);
-        n9 = ((m0)object2).n(z1.m.TextInputLayout_placeholderTextAppearance, 0);
-        object3 = ((m0)object2).p(z1.m.TextInputLayout_placeholderText);
-        boolean bl3 = ((m0)object2).a(z1.m.TextInputLayout_counterEnabled, false);
-        this.setCounterMaxLength(((m0)object2).k(z1.m.TextInputLayout_counterMaxLength, -1));
-        this.t = ((m0)object2).n(n5, 0);
-        this.s = ((m0)object2).n(n6, 0);
-        this.setBoxBackgroundMode(((m0)object2).k(z1.m.TextInputLayout_boxBackgroundMode, 0));
-        this.setErrorContentDescription(charSequence);
+        this.D = ((m0)object4).c(z1.m.TextInputLayout_cursorColor);
+        this.E = ((m0)object4).c(z1.m.TextInputLayout_cursorErrorColor);
+        n9 = ((m0)object4).n(n7, 0);
+        object3 = ((m0)object4).p(z1.m.TextInputLayout_errorContentDescription);
+        n3 = ((m0)object4).k(z1.m.TextInputLayout_errorAccessibilityLiveRegion, 1);
+        boolean bl = ((m0)object4).a(z1.m.TextInputLayout_errorEnabled, false);
+        n8 = ((m0)object4).n(n8, 0);
+        boolean bl2 = ((m0)object4).a(z1.m.TextInputLayout_helperTextEnabled, false);
+        object = ((m0)object4).p(z1.m.TextInputLayout_helperText);
+        n7 = ((m0)object4).n(z1.m.TextInputLayout_placeholderTextAppearance, 0);
+        CharSequence charSequence = ((m0)object4).p(z1.m.TextInputLayout_placeholderText);
+        boolean bl3 = ((m0)object4).a(z1.m.TextInputLayout_counterEnabled, false);
+        this.setCounterMaxLength(((m0)object4).k(z1.m.TextInputLayout_counterMaxLength, -1));
+        this.t = ((m0)object4).n(n5, 0);
+        this.s = ((m0)object4).n(n6, 0);
+        this.setBoxBackgroundMode(((m0)object4).k(z1.m.TextInputLayout_boxBackgroundMode, 0));
+        this.setErrorContentDescription((CharSequence)object3);
         this.setErrorAccessibilityLiveRegion(n3);
         this.setCounterOverflowTextAppearance(this.s);
         this.setHelperTextTextAppearance(n8);
-        this.setErrorTextAppearance(n7);
+        this.setErrorTextAppearance(n9);
         this.setCounterTextAppearance(this.t);
-        this.setPlaceholderText((CharSequence)object3);
-        this.setPlaceholderTextAppearance(n9);
+        this.setPlaceholderText(charSequence);
+        this.setPlaceholderTextAppearance(n7);
         n3 = z1.m.TextInputLayout_errorTextColor;
-        if (((m0)object2).s(n3)) {
-            this.setErrorTextColor(((m0)object2).c(n3));
+        if (((m0)object4).s(n3)) {
+            this.setErrorTextColor(((m0)object4).c(n3));
         }
-        if (((m0)object2).s(n3 = z1.m.TextInputLayout_helperTextTextColor)) {
-            this.setHelperTextColor(((m0)object2).c(n3));
+        if (((m0)object4).s(n3 = z1.m.TextInputLayout_helperTextTextColor)) {
+            this.setHelperTextColor(((m0)object4).c(n3));
         }
-        if (((m0)object2).s(n3 = z1.m.TextInputLayout_hintTextColor)) {
-            this.setHintTextColor(((m0)object2).c(n3));
+        if (((m0)object4).s(n3 = z1.m.TextInputLayout_hintTextColor)) {
+            this.setHintTextColor(((m0)object4).c(n3));
         }
-        if (((m0)object2).s(n3 = z1.m.TextInputLayout_counterTextColor)) {
-            this.setCounterTextColor(((m0)object2).c(n3));
+        if (((m0)object4).s(n3 = z1.m.TextInputLayout_counterTextColor)) {
+            this.setCounterTextColor(((m0)object4).c(n3));
         }
-        if (((m0)object2).s(n3 = z1.m.TextInputLayout_counterOverflowTextColor)) {
-            this.setCounterOverflowTextColor(((m0)object2).c(n3));
+        if (((m0)object4).s(n3 = z1.m.TextInputLayout_counterOverflowTextColor)) {
+            this.setCounterOverflowTextColor(((m0)object4).c(n3));
         }
-        if (((m0)object2).s(n3 = z1.m.TextInputLayout_placeholderTextColor)) {
-            this.setPlaceholderTextColor(((m0)object2).c(n3));
+        if (((m0)object4).s(n3 = z1.m.TextInputLayout_placeholderTextColor)) {
+            this.setPlaceholderTextColor(((m0)object4).c(n3));
         }
-        object3 = new r(this, (m0)object2);
+        object3 = new r(this, (m0)object4);
         this.e = object3;
-        boolean bl4 = ((m0)object2).a(z1.m.TextInputLayout_android_enabled, true);
-        this.setHintMaxLines(((m0)object2).k(z1.m.TextInputLayout_hintMaxLines, 1));
-        ((m0)object2).x();
+        boolean bl4 = ((m0)object4).a(z1.m.TextInputLayout_android_enabled, true);
+        this.setHintMaxLines(((m0)object4).k(z1.m.TextInputLayout_hintMaxLines, 1));
+        ((m0)object4).x();
         this.setImportantForAccessibility(2);
         this.setImportantForAutofill(1);
-        context.addView((View)object4);
+        context.addView((View)object2);
         context.addView((View)object3);
         this.addView((View)context);
         this.setEnabled(bl4);
@@ -405,12 +405,12 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         int n4 = h2.a.c((Context)object, z1.c.colorSurface, "TextInputLayout");
         object = new v2.i(i3.K());
         n3 = h2.a.j(n3, n4, 0.1f);
-        ((v2.i)object).i0(new ColorStateList((int[][])object2, new int[]{n3, 0}));
+        ((v2.i)object).i0(new ColorStateList(object2, new int[]{n3, 0}));
         ((v2.i)object).setTint(n4);
-        ColorStateList colorStateList = new ColorStateList((int[][])object2, new int[]{n3, n4});
-        object2 = new v2.i(i3.K());
-        ((v2.i)object2).setTint(-1);
-        return new LayerDrawable(new Drawable[]{new RippleDrawable(colorStateList, (Drawable)object, (Drawable)object2), i3});
+        object2 = new ColorStateList(object2, new int[]{n3, n4});
+        v2.i i4 = new v2.i(i3.K());
+        i4.setTint(-1);
+        return new LayerDrawable(new Drawable[]{new RippleDrawable((ColorStateList)object2, (Drawable)object, (Drawable)i4), i3});
     }
 
     public static void Y(ViewGroup viewGroup, boolean bl) {
@@ -529,8 +529,8 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
                     }
                     if ((n4 = this.d.getLineCount()) != (n3 = this.c)) {
                         int n5;
-                        if (n4 < n3 && (n5 = this.d.getMinimumHeight()) != (n3 = this.e.w0)) {
-                            this.d.setMinimumHeight(n3);
+                        if (n4 < n3 && (n3 = this.d.getMinimumHeight()) != (n5 = this.e.w0)) {
+                            this.d.setMinimumHeight(n5);
                         }
                         this.c = n4;
                     }
@@ -719,12 +719,12 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
         if (this.N != null && (i3 = this.M) != null) {
             i3.draw(canvas);
             if (this.g.isFocused()) {
-                i3 = this.N.getBounds();
-                Rect rect = this.M.getBounds();
+                Rect rect = this.N.getBounds();
+                i3 = this.M.getBounds();
                 float f3 = this.y0.H();
-                int n3 = rect.centerX();
-                ((Rect)i3).left = a2.a.c(n3, rect.left, f3);
-                ((Rect)i3).right = a2.a.c(n3, rect.right, f3);
+                int n3 = i3.centerX();
+                rect.left = a2.a.c(n3, ((Rect)i3).left, f3);
+                rect.right = a2.a.c(n3, ((Rect)i3).right, f3);
                 this.N.draw(canvas);
             }
         }
@@ -1332,9 +1332,9 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
             i3.setBounds(rect.left, n4 - n3, rect.right, n4);
         }
         if ((i3 = this.N) != null) {
-            n4 = rect.bottom;
-            n3 = this.V;
-            i3.setBounds(rect.left, n4 - n3, rect.right, n4);
+            n3 = rect.bottom;
+            n4 = this.V;
+            i3.setBounds(rect.left, n3 - n4, rect.right, n3);
         }
     }
 
@@ -1441,13 +1441,13 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
 
     public final void n() {
         int n3;
+        o o3;
         Object object = this.I;
         if (object == null) {
             return;
         }
-        o o3 = ((v2.i)object).K();
-        if (o3 != (object = this.O)) {
-            this.I.setShapeAppearanceModel((o)object);
+        if ((object = ((v2.i)object).K()) != (o3 = this.O)) {
+            this.I.setShapeAppearanceModel(o3);
         }
         if (this.x()) {
             this.I.s0(this.T, this.W);
@@ -1591,10 +1591,10 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
             float f5 = this.O.j().a(this.d0);
             float f6 = this.O.l().a(this.d0);
             v2.e e3 = this.O.q();
-            v2.e e4 = this.O.s();
-            v2.e e5 = this.O.i();
-            Object object = this.O.k();
-            object = v2.o.a().D(e4).H(e3).u((v2.e)object).y(e5).E(f4).I(f3).v(f6).z(f5).m();
+            Object object = this.O.s();
+            v2.e e4 = this.O.i();
+            v2.e e5 = this.O.k();
+            object = v2.o.a().D((v2.e)object).H(e3).u(e5).y(e4).E(f4).I(f3).v(f6).z(f5).m();
             this.P = bl;
             this.setShapeAppearanceModel((o)object);
         }
@@ -1618,6 +1618,7 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
 
     /*
      * Unable to fully structure code
+     * Could not resolve type clashes
      */
     public boolean p0() {
         block12: {
@@ -1629,17 +1630,17 @@ implements ViewTreeObserver.OnGlobalLayoutListener {
             if (!var3_1) break block12;
             var1_3 = this.d.getMeasuredWidth() - this.g.getPaddingLeft();
             if (this.f0 == null || this.g0 != var1_3) {
-                this.f0 = var5_4 = new ColorDrawable();
+                this.f0 = var5_4 /* !! */  = new ColorDrawable();
                 this.g0 = var1_3;
-                var5_4.setBounds(0, 0, var1_3, 1);
+                var5_4 /* !! */ .setBounds(0, 0, var1_3, 1);
             }
-            if ((var6_6 = (var7_5 = this.g.getCompoundDrawablesRelative())[0]) == (var5_4 = this.f0)) ** GOTO lbl-1000
-            this.g.setCompoundDrawablesRelative((Drawable)var5_4, var7_5[1], var7_5[2], var7_5[3]);
+            if ((var7_5 = (var5_4 /* !! */  = this.g.getCompoundDrawablesRelative())[0]) == (var6_6 = this.f0)) ** GOTO lbl-1000
+            this.g.setCompoundDrawablesRelative(var6_6, var5_4 /* !! */ [1], var5_4 /* !! */ [2], var5_4 /* !! */ [3]);
             ** GOTO lbl19
         }
         if (this.f0 != null) {
-            var5_4 = this.g.getCompoundDrawablesRelative();
-            this.g.setCompoundDrawablesRelative(null, var5_4[1], var5_4[2], var5_4[3]);
+            var5_4 /* !! */  = this.g.getCompoundDrawablesRelative();
+            this.g.setCompoundDrawablesRelative(null, var5_4 /* !! */ [1], var5_4 /* !! */ [2], var5_4 /* !! */ [3]);
             this.f0 = null;
 lbl19:
             // 2 sources
@@ -1653,17 +1654,17 @@ lbl19:
         }
         if (this.e0()) {
             var2_7 = this.e.z().getMeasuredWidth() - this.g.getPaddingRight();
-            var5_4 = this.e.k();
+            var5_4 /* !! */  = this.e.k();
             var1_3 = var2_7;
-            if (var5_4 != null) {
-                var1_3 = var2_7 + var5_4.getMeasuredWidth() + ((ViewGroup.MarginLayoutParams)var5_4.getLayoutParams()).getMarginStart();
+            if (var5_4 /* !! */  != null) {
+                var1_3 = var2_7 + var5_4 /* !! */ .getMeasuredWidth() + ((ViewGroup.MarginLayoutParams)var5_4 /* !! */ .getLayoutParams()).getMarginStart();
             }
-            var5_4 = this.g.getCompoundDrawablesRelative();
+            var5_4 /* !! */  = this.g.getCompoundDrawablesRelative();
             var6_6 = this.i0;
             if (var6_6 != null && this.j0 != var1_3) {
                 this.j0 = var1_3;
                 var6_6.setBounds(0, 0, var1_3, 1);
-                this.g.setCompoundDrawablesRelative(var5_4[0], var5_4[1], this.i0, var5_4[3]);
+                this.g.setCompoundDrawablesRelative(var5_4 /* !! */ [0], var5_4 /* !! */ [1], this.i0, var5_4 /* !! */ [3]);
                 return true;
             }
             if (var6_6 == null) {
@@ -1671,15 +1672,15 @@ lbl19:
                 this.j0 = var1_3;
                 var6_6.setBounds(0, 0, var1_3, 1);
             }
-            if ((var7_5 = var5_4[2]) != (var6_6 = this.i0)) {
+            if ((var7_5 = var5_4 /* !! */ [2]) != (var6_6 = this.i0)) {
                 this.k0 = var7_5;
-                this.g.setCompoundDrawablesRelative(var5_4[0], var5_4[1], var6_6, var5_4[3]);
+                this.g.setCompoundDrawablesRelative(var5_4 /* !! */ [0], var5_4 /* !! */ [1], var6_6, var5_4 /* !! */ [3]);
                 return true;
             }
         } else if (this.i0 != null) {
-            var5_4 = this.g.getCompoundDrawablesRelative();
-            if (var5_4[2] == this.i0) {
-                this.g.setCompoundDrawablesRelative(var5_4[0], var5_4[1], this.k0, var5_4[3]);
+            var5_4 /* !! */  = this.g.getCompoundDrawablesRelative();
+            if (var5_4 /* !! */ [2] == this.i0) {
+                this.g.setCompoundDrawablesRelative(var5_4 /* !! */ [0], var5_4 /* !! */ [1], this.k0, var5_4 /* !! */ [3]);
                 var3_1 = var4_2;
             }
             this.i0 = null;

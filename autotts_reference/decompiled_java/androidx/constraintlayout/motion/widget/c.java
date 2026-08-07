@@ -121,17 +121,17 @@ public class c {
                     }
                     break block17;
                 }
-                var5_7 = var2_4.getName();
-                switch (var5_7.hashCode()) {
+                var4_6 = var2_4.getName();
+                switch (var4_6.hashCode()) {
                     default: {
                         ** GOTO lbl-1000
                     }
                     case 1791837707: {
-                        if (!var5_7.equals("CustomAttribute")) ** GOTO lbl-1000
+                        if (!var4_6.equals("CustomAttribute")) ** GOTO lbl-1000
                         ** GOTO lbl48
                     }
                     case 366511058: {
-                        if (!var5_7.equals("CustomMethod")) ** GOTO lbl-1000
+                        if (!var4_6.equals("CustomMethod")) ** GOTO lbl-1000
 lbl48:
                         // 2 sources
 
@@ -139,28 +139,28 @@ lbl48:
                         break block17;
                     }
                     case 61998586: {
-                        if (!var5_7.equals("ViewTransition")) ** GOTO lbl-1000
+                        if (!var4_6.equals("ViewTransition")) ** GOTO lbl-1000
                         this.k(var1_1, var2_4);
                         break block17;
                     }
                     case -1239391468: {
-                        if (!var5_7.equals("KeyFrameSet")) ** GOTO lbl-1000
+                        if (!var4_6.equals("KeyFrameSet")) ** GOTO lbl-1000
                         this.f = var4_6 = new g(var1_1, var2_4);
                         break block17;
                     }
                     case -1962203927: 
                 }
-                if (var5_7.equals("ConstraintOverride")) {
+                if (var4_6.equals("ConstraintOverride")) {
                     this.g = androidx.constraintlayout.widget.b.m(var1_1, var2_4);
                 } else lbl-1000:
                 // 6 sources
 
                 {
-                    var4_6 = new StringBuilder();
-                    var4_6.append(x.a.a());
-                    var4_6.append(" unknown tag ");
-                    var4_6.append(var5_7);
-                    Log.e((String)"ViewTransition", (String)var4_6.toString());
+                    var5_7 = new StringBuilder();
+                    var5_7.append(x.a.a());
+                    var5_7.append(" unknown tag ");
+                    var5_7.append((String)var4_6);
+                    Log.e((String)"ViewTransition", (String)var5_7.toString());
                     var4_6 = new StringBuilder();
                     var4_6.append(".xml:");
                     var4_6.append(var2_4.getLineNumber());
@@ -215,28 +215,28 @@ lbl48:
             for (n5 = 0; n5 < ((int[])object3).length; ++n5) {
                 n4 = object3[n5];
                 if (n4 == n3) continue;
-                object = motionLayout.o0(n4);
+                object2 = motionLayout.o0(n4);
                 int n7 = viewArray.length;
                 for (n4 = 0; n4 < n7; ++n4) {
-                    b.a a4 = ((androidx.constraintlayout.widget.b)object).v(viewArray[n4].getId());
-                    object2 = this.g;
-                    if (object2 == null) continue;
-                    ((b.a)object2).d(a4);
+                    b.a a4 = ((androidx.constraintlayout.widget.b)object2).v(viewArray[n4].getId());
+                    object = this.g;
+                    if (object == null) continue;
+                    ((b.a)object).d(a4);
                     a4.g.putAll(this.g.g);
                 }
             }
         }
-        object2 = new androidx.constraintlayout.widget.b();
-        ((androidx.constraintlayout.widget.b)object2).p(b3);
+        object = new androidx.constraintlayout.widget.b();
+        ((androidx.constraintlayout.widget.b)object).p(b3);
         n4 = viewArray.length;
         for (n5 = 0; n5 < n4; ++n5) {
-            object3 = ((androidx.constraintlayout.widget.b)object2).v(viewArray[n5].getId());
-            object = this.g;
-            if (object == null) continue;
-            ((b.a)object).d((b.a)object3);
-            object3.g.putAll(this.g.g);
+            object2 = ((androidx.constraintlayout.widget.b)object).v(viewArray[n5].getId());
+            object3 = this.g;
+            if (object3 == null) continue;
+            ((b.a)object3).d((b.a)object2);
+            ((b.a)object2).g.putAll(this.g.g);
         }
-        motionLayout.J0(n3, (androidx.constraintlayout.widget.b)object2);
+        motionLayout.J0(n3, (androidx.constraintlayout.widget.b)object);
         n5 = y.c.view_transition;
         motionLayout.J0(n5, b3);
         motionLayout.setState(n5, -1, -1);

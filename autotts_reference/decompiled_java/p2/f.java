@@ -114,12 +114,12 @@ extends a {
                 this.b.setScaleY(f5);
                 View view = this.b;
                 if (view instanceof ViewGroup) {
-                    view = (ViewGroup)view;
-                    for (int i3 = 0; i3 < view.getChildCount(); ++i3) {
-                        View view2 = view.getChildAt(i3);
-                        view2.setPivotY((float)(-view2.getTop()));
+                    ViewGroup viewGroup = (ViewGroup)view;
+                    for (int i3 = 0; i3 < viewGroup.getChildCount(); ++i3) {
+                        view = viewGroup.getChildAt(i3);
+                        view.setPivotY((float)(-view.getTop()));
                         f3 = f5 != 0.0f ? f4 / f5 : 1.0f;
-                        view2.setScaleY(f3);
+                        view.setScaleY(f3);
                     }
                 }
             }

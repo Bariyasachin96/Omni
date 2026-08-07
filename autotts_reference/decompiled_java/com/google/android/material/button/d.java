@@ -245,11 +245,11 @@ public class d {
         float f3 = this.k;
         int n3 = this.q ? h2.a.d((View)this.a, z1.c.colorSurface) : 0;
         ((i)object).s0(f3, n3);
-        object2 = new i(this.b);
-        this.p = object2;
-        w w3 = this.c;
-        if (w3 != null) {
-            ((i)object2).r0(w3);
+        i i4 = new i(this.b);
+        this.p = i4;
+        object2 = this.c;
+        if (object2 != null) {
+            i4.r0((w)object2);
         }
         if ((object2 = this.d) != null) {
             ((i)this.p).g0((l)object2);

@@ -43,15 +43,16 @@ public class x {
         this.f(f.a.ON_START);
     }
 
-    public final void f(f.a a4) {
-        a a5 = this.c;
-        if (a5 != null) {
-            a5.run();
+    public final void f(f.a object) {
+        a a4 = this.c;
+        if (a4 != null) {
+            a4.run();
         }
-        this.c = a5 = new a(this.a, a4);
+        object = new a(this.a, (f.a)((Object)object));
+        this.c = object;
         a4 = this.b;
-        o3.k.b(a5);
-        a4.postAtFrontOfQueue(a5);
+        o3.k.b(object);
+        a4.postAtFrontOfQueue((Runnable)object);
     }
 
     public static final class a

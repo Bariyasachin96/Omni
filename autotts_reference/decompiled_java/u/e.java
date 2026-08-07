@@ -289,39 +289,39 @@ public class e {
                     if (var1_1 == null || var1_1.length() == 0) break block8;
                     var9_3 = var1_1.length();
                     var10_4 = var1_1.indexOf(44);
-                    var7_5 = 0;
-                    var6_6 = 0;
-                    var8_7 = -1;
-                    var5_8 = var7_5;
-                    var4_9 = var8_7;
+                    var6_5 = 0;
+                    var8_6 = 0;
+                    var7_7 = -1;
+                    var5_8 = var6_5;
+                    var4_9 = var7_7;
                     if (var10_4 > 0) {
-                        var5_8 = var7_5;
-                        var4_9 = var8_7;
+                        var5_8 = var6_5;
+                        var4_9 = var7_7;
                         if (var10_4 < var9_3 - 1) {
                             var11_10 = var1_1.substring(0, var10_4);
-                            var4_9 = var11_10.equalsIgnoreCase("W") != false ? var6_6 : (var11_10.equalsIgnoreCase("H") != false ? 1 : -1);
+                            var4_9 = var11_10.equalsIgnoreCase("W") != false ? var8_6 : (var11_10.equalsIgnoreCase("H") != false ? 1 : -1);
                             var5_8 = var10_4 + 1;
                         }
                     }
-                    if ((var6_6 = var1_1.indexOf(58)) < 0 || var6_6 >= var9_3 - 1) break block9;
-                    var11_10 = var1_1.substring(var5_8, var6_6);
-                    var1_1 = var1_1.substring(var6_6 + 1);
+                    if ((var6_5 = var1_1.indexOf(58)) < 0 || var6_5 >= var9_3 - 1) break block9;
+                    var11_10 = var1_1.substring(var5_8, var6_5);
+                    var1_1 = var1_1.substring(var6_5 + 1);
                     if (var11_10.length() <= 0 || var1_1.length() <= 0) break block10;
-                    var2_11 = Float.parseFloat(var11_10);
-                    var3_12 = Float.parseFloat(var1_1);
-                    if (!(var2_11 > 0.0f) || !(var3_12 > 0.0f)) break block10;
+                    var3_11 = Float.parseFloat(var11_10);
+                    var2_12 = Float.parseFloat(var1_1);
+                    if (!(var3_11 > 0.0f) || !(var2_12 > 0.0f)) break block10;
                     if (var4_9 != 1) ** GOTO lbl28
-                    var2_11 = Math.abs(var3_12 / var2_11);
+                    var2_12 = Math.abs(var2_12 / var3_11);
                     ** GOTO lbl40
 lbl28:
                     // 1 sources
 
-                    var2_11 = Math.abs(var2_11 / var3_12);
+                    var2_12 = Math.abs(var3_11 / var2_12);
                     ** GOTO lbl40
                 }
                 if ((var1_1 = var1_1.substring(var5_8)).length() <= 0) break block10;
                 try {
-                    var2_11 = Float.parseFloat(var1_1);
+                    var2_12 = Float.parseFloat(var1_1);
                     ** GOTO lbl40
                 }
                 catch (NumberFormatException var1_2) {
@@ -329,12 +329,12 @@ lbl28:
                 }
             }
             while (true) {
-                var2_11 = 0.0f;
+                var2_12 = 0.0f;
 lbl40:
                 // 4 sources
 
-                if (var2_11 > 0.0f) {
-                    this.f0 = var2_11;
+                if (var2_12 > 0.0f) {
+                    this.f0 = var2_12;
                     this.g0 = var4_9;
                 }
                 return;
@@ -851,11 +851,11 @@ lbl40:
                                         block58: {
                                             block59: {
                                                 block57: {
-                                                    var31_3 = var1_1.q(this.Q);
+                                                    var32_3 = var1_1.q(this.Q);
                                                     var26_4 = var1_1.q(this.S);
-                                                    var33_5 = var1_1.q(this.R);
-                                                    var32_6 = var1_1.q(this.T);
-                                                    var34_7 /* !! */  = var1_1.q(this.U);
+                                                    var31_5 = var1_1.q(this.R);
+                                                    var33_6 = var1_1.q(this.T);
+                                                    var34_7 = var1_1.q(this.U);
                                                     var27_8 /* !! */  = this.c0;
                                                     if (var27_8 /* !! */  == null) break block57;
                                                     var14_9 = var27_8 /* !! */  != null && var27_8 /* !! */ .b0[0] == u.e$b.d;
@@ -880,7 +880,7 @@ lbl40:
                                     var15_12 = this.p;
                                     if (var15_12 || this.q) {
                                         if (var15_12) {
-                                            var1_1.f(var31_3, this.h0);
+                                            var1_1.f(var32_3, this.h0);
                                             var1_1.f((i)var26_4, this.h0 + this.d0);
                                             if (var14_9 && (var27_8 /* !! */  = this.c0) != null) {
                                                 if (this.k) {
@@ -893,10 +893,10 @@ lbl40:
                                             }
                                         }
                                         if (this.q) {
-                                            var1_1.f(var33_5, this.i0);
-                                            var1_1.f(var32_6, this.i0 + this.e0);
+                                            var1_1.f(var31_5, this.i0);
+                                            var1_1.f(var33_6, this.i0 + this.e0);
                                             if (this.U.m()) {
-                                                var1_1.f(var34_7 /* !! */ , this.i0 + this.n0);
+                                                var1_1.f((i)var34_7, this.i0 + this.n0);
                                             }
                                             if (var13_10 && (var27_8 /* !! */  = this.c0) != null) {
                                                 if (this.k) {
@@ -904,7 +904,7 @@ lbl40:
                                                     var27_8 /* !! */ .J1(this.R);
                                                     var27_8 /* !! */ .I1(this.T);
                                                 } else {
-                                                    var1_1.h(var1_1.q(var27_8 /* !! */ .T), var32_6, 0, 5);
+                                                    var1_1.h(var1_1.q(var27_8 /* !! */ .T), var33_6, 0, 5);
                                                 }
                                             }
                                         }
@@ -915,20 +915,20 @@ lbl40:
                                         }
                                     }
                                     var15_12 = r.d.s;
-                                    if (var2_2 && (var27_8 /* !! */  = this.e) != null && (var28_13 /* !! */  = this.f) != null) {
-                                        var29_14 = var27_8 /* !! */ .h;
-                                        if (var29_14.j && var27_8 /* !! */ .i.j && var28_13 /* !! */ .h.j && var28_13 /* !! */ .i.j) {
-                                            var1_1.f(var31_3, var29_14.g);
+                                    if (var2_2 && (var27_8 /* !! */  = this.e) != null && (var29_13 = this.f) != null) {
+                                        var28_14 /* !! */  = var27_8 /* !! */ .h;
+                                        if (var28_14 /* !! */ .j && var27_8 /* !! */ .i.j && var29_13.h.j && var29_13.i.j) {
+                                            var1_1.f(var32_3, var28_14 /* !! */ .g);
                                             var1_1.f((i)var26_4, this.e.i.g);
-                                            var1_1.f(var33_5, this.f.h.g);
-                                            var1_1.f(var32_6, this.f.i.g);
-                                            var1_1.f(var34_7 /* !! */ , this.f.k.g);
+                                            var1_1.f(var31_5, this.f.h.g);
+                                            var1_1.f(var33_6, this.f.i.g);
+                                            var1_1.f((i)var34_7, this.f.k.g);
                                             if (this.c0 != null) {
                                                 if (var14_9 && this.g[0] && !this.k0()) {
                                                     var1_1.h(var1_1.q(this.c0.S), (i)var26_4, 0, 8);
                                                 }
                                                 if (var13_10 && this.g[1] && !this.m0()) {
-                                                    var1_1.h(var1_1.q(this.c0.T), var32_6, 0, 8);
+                                                    var1_1.h(var1_1.q(this.c0.T), var33_6, 0, 8);
                                                 }
                                             }
                                             this.p = false;
@@ -953,33 +953,34 @@ lbl40:
                                             var1_1.h(var1_1.q(this.c0.S), (i)var26_4, 0, 1);
                                         }
                                         if (!var16_15 && var13_10 && this.u0 != 8 && this.R.f == null && this.T.f == null && this.U == null) {
-                                            var1_1.h(var1_1.q(this.c0.T), var32_6, 0, 1);
+                                            var1_1.h(var1_1.q(this.c0.T), var33_6, 0, 1);
                                         }
-                                        var17_16 = var15_12;
+                                        var17_16 = var16_15;
+                                        var16_15 = var15_12;
                                     } else {
-                                        var17_16 = false;
                                         var16_15 = false;
+                                        var17_16 = false;
                                     }
                                     var10_17 = this.d0;
-                                    var8_18 = this.o0;
-                                    if (var10_17 >= var8_18) {
-                                        var8_18 = var10_17;
+                                    var7_18 = this.o0;
+                                    if (var10_17 >= var7_18) {
+                                        var7_18 = var10_17;
                                     }
                                     var9_19 = this.e0;
                                     var4_11 = this.p0;
                                     if (var9_19 >= var4_11) {
                                         var4_11 = var9_19;
                                     }
-                                    var28_13 /* !! */  = this.b0;
-                                    var27_8 /* !! */  = var28_13 /* !! */ [0];
+                                    var28_14 /* !! */  = this.b0;
+                                    var27_8 /* !! */  = var28_14 /* !! */ [0];
                                     var35_20 = u.e$b.e;
                                     var15_12 = var27_8 /* !! */  != var35_20;
-                                    var28_13 /* !! */  = var28_13 /* !! */ [1];
-                                    var18_21 = var28_13 /* !! */  != var35_20;
+                                    var28_14 /* !! */  = var28_14 /* !! */ [1];
+                                    var18_21 = var28_14 /* !! */  != var35_20;
                                     this.H = var11_22 = this.g0;
                                     this.I = var3_23 = this.f0;
                                     var6_24 = this.w;
-                                    var7_25 = this.x;
+                                    var8_25 = this.x;
                                     if (!(var3_23 > 0.0f)) break block61;
                                     var12_26 = this.u0;
                                     var5_27 = var4_11;
@@ -987,25 +988,28 @@ lbl40:
                                     if (var27_8 /* !! */  == var35_20 && var6_24 == 0) {
                                         var6_24 = 3;
                                     }
-                                    var4_11 = var28_13 /* !! */  == var35_20 && var7_25 == 0 ? 3 : var7_25;
-                                    if (var27_8 /* !! */  != var35_20 || var28_13 /* !! */  != var35_20 || var6_24 != 3 || var4_11 != 3) break block62;
+                                    var4_11 = var28_14 /* !! */  == var35_20 && var8_25 == 0 ? 3 : var8_25;
+                                    if (var27_8 /* !! */  != var35_20 || var28_14 /* !! */  != var35_20 || var6_24 != 3 || var4_11 != 3) break block62;
                                     this.t1(var14_9, var13_10, var15_12, var18_21);
                                     var9_19 = var5_27;
                                     break block63;
                                 }
                                 if (var27_8 /* !! */  != var35_20 || var6_24 != 3) break block64;
                                 this.H = 0;
-                                var8_18 = (int)((float)var9_19 * var3_23);
-                                if (var28_13 /* !! */  != var35_20) {
-                                    var6_24 = 4;
-                                    var7_25 = var4_11;
-                                    var4_11 = var8_18;
-lbl128:
+                                var7_18 = (int)((float)var9_19 * var3_23);
+                                if (var28_14 /* !! */  != var35_20) {
+                                    var8_25 = 4;
+                                    var6_24 = var4_11;
+                                    var4_11 = var5_27;
+                                    var5_27 = var6_24;
+                                    var6_24 = var8_25;
+lbl131:
                                     // 3 sources
 
                                     while (true) {
                                         var15_12 = false;
-lbl130:
+                                        var8_25 = var5_27;
+lbl134:
                                         // 3 sources
 
                                         while (true) {
@@ -1016,64 +1020,60 @@ lbl130:
                                     }
                                 }
                                 var15_12 = true;
-                                var7_25 = var4_11;
-                                var4_11 = var8_18;
-                                ** GOTO lbl130
+                                var8_25 = var4_11;
+                                var4_11 = var5_27;
+                                ** GOTO lbl134
                             }
                             var9_19 = var5_27;
-                            if (var28_13 /* !! */  != var35_20) break block63;
+                            if (var28_14 /* !! */  != var35_20) break block63;
                             var9_19 = var5_27;
                             if (var4_11 != 3) break block63;
                             this.H = 1;
                             if (var11_22 == -1) {
                                 this.I = 1.0f / var3_23;
                             }
-                            var9_19 = var5_27 = (int)(this.I * (float)var10_17);
+                            var9_19 = var8_25 = (int)(this.I * (float)var10_17);
                             if (var27_8 /* !! */  == var35_20) break block63;
-                            var7_25 = 4;
-                            var4_11 = var8_18;
-                            ** GOTO lbl128
+                            var5_27 = 4;
+                            var4_11 = var8_25;
+                            ** GOTO lbl131
                         }
                         var15_12 = true;
-                        var7_25 = var4_11;
-                        var4_11 = var8_18;
-                        var5_27 = var9_19;
+                        var8_25 = var4_11;
+                        var4_11 = var9_19;
                         ** while (true)
                     }
-                    var5_27 = var4_11;
-                    var4_11 = var8_18;
+                    var5_27 = var8_25;
                     ** while (true)
                     var27_8 /* !! */  = var26_4;
-                    var28_13 /* !! */  = (b[])this.y;
-                    var28_13 /* !! */ [0] = (b)var6_24;
-                    var28_13 /* !! */ [1] = (b)var7_25;
+                    var28_14 /* !! */  = (b[])this.y;
+                    var28_14 /* !! */ [0] = (b)var6_24;
+                    var28_14 /* !! */ [1] = (b)var8_25;
                     this.h = var15_12;
-                    var19_28 = var15_12 && ((var8_18 = this.H) == 0 || var8_18 == -1);
-                    var18_21 = var15_12 != false && ((var8_18 = this.H) == 1 || var8_18 == -1);
-                    var28_13 /* !! */  = this.b0[0];
+                    var19_28 = var15_12 && ((var5_27 = this.H) == 0 || var5_27 == -1);
+                    var18_21 = var15_12 != false && ((var5_27 = this.H) == 1 || var5_27 == -1);
+                    var28_14 /* !! */  = this.b0[0];
                     var36_29 = u.e$b.d;
-                    var20_30 = var28_13 /* !! */  == var36_29 && this instanceof f != false;
-                    if (var20_30) {
-                        var4_11 = 0;
-                    }
+                    var20_30 = var28_14 /* !! */  == var36_29 && this instanceof f != false;
+                    var5_27 = var20_30 != false ? 0 : var7_18;
                     var22_31 = this.X.o() ^ true;
-                    var28_13 /* !! */  = (b[])this.a0;
-                    var24_32 = var28_13 /* !! */ [0];
-                    var23_33 = var28_13 /* !! */ [1];
-                    var8_18 = this.t;
+                    var28_14 /* !! */  = (b[])this.a0;
+                    var25_32 = var28_14 /* !! */ [0];
+                    var23_33 = var28_14 /* !! */ [1];
+                    var7_18 = this.t;
                     var30_34 = null;
-                    if (var8_18 == 2 || this.p) ** GOTO lbl186
-                    if (!var2_2 || (var29_14 = this.e) == null) ** GOTO lbl-1000
-                    var28_13 /* !! */  = var29_14.h;
-                    if (var28_13 /* !! */ .j && var29_14.i.j) {
+                    if (var7_18 == 2 || this.p) ** GOTO lbl187
+                    if (!var2_2 || (var28_14 /* !! */  = this.e) == null) ** GOTO lbl-1000
+                    var29_13 = var28_14 /* !! */ .h;
+                    if (var29_13.j && var28_14 /* !! */ .i.j) {
                         if (var2_2) {
-                            var1_1.f(var31_3, var28_13 /* !! */ .g);
+                            var1_1.f(var32_3, var29_13.g);
                             var1_1.f((i)var27_8 /* !! */ , this.e.i.g);
                             if (this.c0 != null && var14_9 && this.g[0] && !this.k0()) {
                                 var1_1.h(var1_1.q(this.c0.S), (i)var27_8 /* !! */ , 0, 8);
                             }
                         }
-lbl186:
+lbl187:
                         // 6 sources
 
                         var27_8 /* !! */  = var26_4;
@@ -1081,90 +1081,91 @@ lbl186:
                     // 2 sources
 
                     {
-                        var28_13 /* !! */  = (var28_13 /* !! */  = this.c0) != null ? var1_1.q(var28_13 /* !! */ .S) : null;
-                        var29_14 = this.c0;
-                        var29_14 = var29_14 != null ? var1_1.q(var29_14.Q) : null;
-                        var25_35 = this.g[0];
+                        var28_14 /* !! */  = (var28_14 /* !! */  = this.c0) != null ? var1_1.q(var28_14 /* !! */ .S) : null;
+                        var29_13 = this.c0;
+                        var29_13 = var29_13 != null ? var1_1.q(var29_13.Q) : null;
+                        var24_35 = this.g[0];
                         var37_36 = this.b0;
                         var38_37 = var37_36[0];
-                        var39_38 = this.Q;
-                        var27_8 /* !! */  = this.S;
+                        var27_8 /* !! */  = this.Q;
+                        var39_38 = this.S;
                         var10_17 = this.h0;
                         var9_19 = this.o0;
-                        var8_18 = this.J[0];
+                        var7_18 = this.J[0];
                         var3_23 = this.q0;
                         var21_39 = var37_36[1] == var35_20;
-                        this.i(var1_1, true, var14_9, var13_10, var25_35, (i)var29_14, (i)var28_13 /* !! */ , var38_37, var20_30, var39_38, (d)var27_8 /* !! */ , var10_17, var4_11, var9_19, var8_18, var3_23, var19_28, var21_39, var17_16, var16_15, (boolean)var24_32, var6_24, var7_25, this.z, this.A, this.B, var22_31);
+                        this.i(var1_1, true, var14_9, var13_10, var24_35, (i)var29_13, (i)var28_14 /* !! */ , var38_37, var20_30, (d)var27_8 /* !! */ , var39_38, var10_17, var5_27, var9_19, var7_18, var3_23, var19_28, var21_39, var16_15, var17_16, (boolean)var25_32, var6_24, var8_25, this.z, this.A, this.B, var22_31);
                     }
-                    var28_13 /* !! */  = var26_4;
-                    if (!var2_2 || (var26_4 = this.f) == null) ** GOTO lbl-1000
-                    var27_8 /* !! */  = var26_4.h;
-                    if (var27_8 /* !! */ .j && var26_4.i.j) {
-                        var1_1.f(var33_5, var27_8 /* !! */ .g);
-                        var4_11 = this.f.i.g;
-                        var1_1.f(var32_6, var4_11);
-                        var1_1.f(var34_7 /* !! */ , this.f.k.g);
+                    var28_14 /* !! */  = var26_4;
+                    if (!var2_2 || (var27_8 /* !! */  = this.f) == null) ** GOTO lbl-1000
+                    var26_4 = var27_8 /* !! */ .h;
+                    if (var26_4.j && var27_8 /* !! */ .i.j) {
+                        var1_1.f(var31_5, var26_4.g);
+                        var5_27 = this.f.i.g;
+                        var1_1.f(var33_6, var5_27);
+                        var1_1.f((i)var34_7, this.f.k.g);
                         var26_4 = this.c0;
-                        if (var26_4 != null && !var16_15 && var13_10 && this.g[1]) {
-                            var1_1.h(var1_1.q(var26_4.T), var32_6, 0, 8);
+                        if (var26_4 != null && !var17_16 && var13_10 && this.g[1]) {
+                            var1_1.h(var1_1.q(var26_4.T), var33_6, 0, 8);
                         }
-                        var4_11 = 0;
+                        var5_27 = 0;
                     } else lbl-1000:
                     // 2 sources
 
                     {
-                        var4_11 = 1;
+                        var5_27 = 1;
                     }
                     if (this.u == 2) {
+                        var5_27 = 0;
+                    }
+                    if (var5_27 == 0 || this.q) break block65;
+                    var2_2 = this.b0[1] == var36_29 && this instanceof f != false;
+                    if (var2_2) {
                         var4_11 = 0;
                     }
-                    if (var4_11 == 0 || this.q) break block65;
-                    var2_2 = this.b0[1] == var36_29 && this instanceof f != false;
-                    var4_11 = var2_2 != false ? 0 : var5_27;
-                    var26_4 = this.c0;
-                    var26_4 = var26_4 != null ? var1_1.q(var26_4.T) : null;
-                    var29_14 = this.c0;
+                    var26_4 = (var26_4 = this.c0) != null ? var1_1.q(var26_4.T) : null;
+                    var29_13 = this.c0;
                     var27_8 /* !! */  = var30_34;
-                    if (var29_14 != null) {
-                        var27_8 /* !! */  = var1_1.q(var29_14.R);
+                    if (var29_13 != null) {
+                        var27_8 /* !! */  = var1_1.q(var29_13.R);
                     }
                     if (this.n0 > 0) break block66;
                     var19_28 = var22_31;
                     if (this.u0 != 8) break block67;
                 }
-                var29_14 = this.U;
-                if (var29_14.f != null) {
-                    var1_1.e(var34_7 /* !! */ , var33_5, this.r(), 8);
-                    var1_1.e(var34_7 /* !! */ , var1_1.q(this.U.f), this.U.f(), 8);
+                var29_13 = this.U;
+                if (var29_13.f != null) {
+                    var1_1.e((i)var34_7, var31_5, this.r(), 8);
+                    var1_1.e((i)var34_7, var1_1.q(this.U.f), this.U.f(), 8);
                     if (var13_10) {
                         var1_1.h((i)var26_4, var1_1.q(this.T), 0, 5);
                     }
                     var19_28 = false;
                 } else if (this.u0 == 8) {
-                    var1_1.e(var34_7 /* !! */ , var33_5, var29_14.f(), 8);
+                    var1_1.e((i)var34_7, var31_5, var29_13.f(), 8);
                     var19_28 = var22_31;
                 } else {
-                    var1_1.e(var34_7 /* !! */ , var33_5, this.r(), 8);
+                    var1_1.e((i)var34_7, var31_5, this.r(), 8);
                     var19_28 = var22_31;
                 }
             }
             var21_39 = this.g[1];
-            var36_29 = this.b0;
-            var34_7 /* !! */  = var36_29[1];
+            var34_7 = this.b0;
+            var36_29 = var34_7[1];
             var30_34 = this.R;
-            var29_14 = this.T;
+            var29_13 = this.T;
             var5_27 = this.i0;
-            var8_18 = this.p0;
+            var7_18 = this.p0;
             var9_19 = this.J[1];
             var3_23 = this.r0;
-            var20_30 = var36_29[0] == var35_20;
-            this.i(var1_1, false, var13_10, var14_9, var21_39, (i)var27_8 /* !! */ , (i)var26_4, (b)var34_7 /* !! */ , var2_2, var30_34, (d)var29_14, var5_27, var4_11, var8_18, var9_19, var3_23, var18_21, var20_30, var16_15, var17_16, (boolean)var23_33, var7_25, var6_24, this.C, this.D, this.E, var19_28);
+            var20_30 = var34_7[0] == var35_20;
+            this.i(var1_1, false, var13_10, var14_9, var21_39, (i)var27_8 /* !! */ , (i)var26_4, var36_29, var2_2, var30_34, (d)var29_13, var5_27, var4_11, var7_18, var9_19, var3_23, var18_21, var20_30, var17_16, var16_15, (boolean)var23_33, var8_25, var6_24, this.C, this.D, this.E, var19_28);
         }
         if (var15_12) {
             if (this.H == 1) {
-                var1_1.k(var32_6, var33_5, (i)var28_13 /* !! */ , var31_3, this.I, 8);
+                var1_1.k(var33_6, var31_5, (i)var28_14 /* !! */ , var32_3, this.I, 8);
             } else {
-                var1_1.k((i)var28_13 /* !! */ , var31_3, var32_6, var33_5, this.I, 8);
+                var1_1.k((i)var28_14 /* !! */ , var32_3, var33_6, var31_5, this.I, 8);
             }
         }
         if (this.X.o()) {
@@ -1188,13 +1189,13 @@ lbl186:
     }
 
     public final boolean h0(int n3) {
-        d[] dArray = this.Y;
-        d d3 = dArray[n3 *= 2];
+        Object object = this.Y;
+        d d3 = object[n3 *= 2];
         d d4 = d3.f;
         if (d4 != null && d4.f != d3) {
-            d3 = dArray[n3 + 1];
-            d4 = d3.f;
-            if (d4 != null && d4.f == d3) {
+            object = object[n3 + 1];
+            d3 = object.f;
+            if (d3 != null && d3.f == object) {
                 return true;
             }
         }
@@ -1218,59 +1219,59 @@ lbl186:
         b b3;
         i i5;
         b[] bArray2;
-        block84: {
+        block83: {
             e e3;
             i i6;
             i i7;
-            block86: {
-                block83: {
-                    block82: {
+            block85: {
+                block82: {
+                    block81: {
                         i i8;
                         int n14;
                         void var14_35;
                         int n15;
                         int n16;
                         i i9;
-                        block104: {
+                        block103: {
                             i i10;
-                            block107: {
-                                block108: {
+                            block106: {
+                                block107: {
                                     void var20_41;
                                     e e4;
                                     e e5;
                                     e e6;
                                     int n17;
                                     void var17_38;
-                                    block105: {
+                                    block104: {
                                         int n18;
-                                        block106: {
+                                        block105: {
                                             void var21_42;
                                             void var16_37;
                                             int n19;
                                             int n20;
                                             int n21;
                                             int n22;
-                                            block103: {
-                                                block88: {
-                                                    block90: {
-                                                        block94: {
-                                                            block95: {
-                                                                block100: {
-                                                                    block101: {
-                                                                        block98: {
+                                            block102: {
+                                                block87: {
+                                                    block89: {
+                                                        block93: {
+                                                            block94: {
+                                                                block99: {
+                                                                    block100: {
+                                                                        block97: {
                                                                             boolean bl12;
-                                                                            block102: {
-                                                                                block99: {
-                                                                                    block97: {
-                                                                                        block96: {
-                                                                                            block93: {
-                                                                                                block92: {
-                                                                                                    block91: {
-                                                                                                        block89: {
+                                                                            block101: {
+                                                                                block98: {
+                                                                                    block96: {
+                                                                                        block95: {
+                                                                                            block92: {
+                                                                                                block91: {
+                                                                                                    block90: {
+                                                                                                        block88: {
                                                                                                             boolean bl13;
                                                                                                             int n23;
-                                                                                                            block87: {
-                                                                                                                block85: {
+                                                                                                            block86: {
+                                                                                                                block84: {
                                                                                                                     void var19_40;
                                                                                                                     void var27_48;
                                                                                                                     void var8_21;
@@ -1291,28 +1292,26 @@ lbl186:
                                                                                                                     n22 = var8_21.ordinal();
                                                                                                                     n21 = n22 != 0 && n22 != 1 && n22 == 2 && n15 != 4 ? 1 : 0;
                                                                                                                     int n24 = this.l;
-                                                                                                                    n16 = n21;
-                                                                                                                    n22 = n12;
+                                                                                                                    n22 = n21;
+                                                                                                                    n16 = n12;
                                                                                                                     if (n24 != -1) {
-                                                                                                                        n16 = n21;
-                                                                                                                        n22 = n12;
+                                                                                                                        n22 = n21;
+                                                                                                                        n16 = n12;
                                                                                                                         if (bl) {
                                                                                                                             this.l = -1;
-                                                                                                                            n22 = n24;
-                                                                                                                            n16 = 0;
+                                                                                                                            n16 = n24;
+                                                                                                                            n22 = 0;
                                                                                                                         }
                                                                                                                     }
                                                                                                                     if ((n12 = this.m) != -1 && !bl) {
                                                                                                                         this.m = -1;
-                                                                                                                        n16 = 0;
+                                                                                                                        n22 = 0;
                                                                                                                     } else {
-                                                                                                                        n12 = n22;
+                                                                                                                        n12 = n16;
                                                                                                                     }
                                                                                                                     if (this.u0 == 8) {
                                                                                                                         n12 = 0;
                                                                                                                         n22 = 0;
-                                                                                                                    } else {
-                                                                                                                        n22 = n16;
                                                                                                                     }
                                                                                                                     if (var27_48 != false) {
                                                                                                                         if (n23 == 0 && !bl13 && !bl14) {
@@ -1408,15 +1407,15 @@ lbl186:
                                                                                                                         }
                                                                                                                     }
                                                                                                                     i4 = i7;
-                                                                                                                    if (var27_48 == false || var19_40 != false) break block84;
-                                                                                                                    if (n23 == 0 && !bl13 && !bl14) break block82;
-                                                                                                                    if (n23 == 0 || bl13) break block85;
+                                                                                                                    if (var27_48 == false || var19_40 != false) break block83;
+                                                                                                                    if (n23 == 0 && !bl13 && !bl14) break block81;
+                                                                                                                    if (n23 == 0 || bl13) break block84;
                                                                                                                     e e7 = bArray2.f.d;
                                                                                                                     n11 = bl2 && e7 instanceof u.a ? 8 : 5;
                                                                                                                     i i15 = i6;
-                                                                                                                    break block86;
+                                                                                                                    break block85;
                                                                                                                 }
-                                                                                                                if (n23 != 0 || !bl13) break block87;
+                                                                                                                if (n23 != 0 || !bl13) break block86;
                                                                                                                 ((r.d)object).e(i4, i6, -((d)((Object)b3)).f(), 8);
                                                                                                                 if (bl2) {
                                                                                                                     e e8;
@@ -1424,24 +1423,24 @@ lbl186:
                                                                                                                         f f5 = (f)e8;
                                                                                                                         if (bl) {
                                                                                                                             f5.E1((d)bArray2);
-                                                                                                                            break block82;
+                                                                                                                            break block81;
                                                                                                                         } else {
                                                                                                                             f5.J1((d)bArray2);
                                                                                                                         }
-                                                                                                                        break block82;
+                                                                                                                        break block81;
                                                                                                                     } else {
                                                                                                                         ((r.d)object).h(i5, (i)object2, 0, 5);
                                                                                                                     }
                                                                                                                 }
-                                                                                                                break block82;
+                                                                                                                break block81;
                                                                                                             }
-                                                                                                            if (n23 == 0 || !bl13) break block82;
+                                                                                                            if (n23 == 0 || !bl13) break block81;
                                                                                                             e6 = bArray2.f.d;
                                                                                                             e5 = ((d)((Object)b3)).f.d;
                                                                                                             e4 = this.M();
                                                                                                             n18 = 6;
-                                                                                                            if (n16 == 0) break block88;
-                                                                                                            if (n15 != 0) break block89;
+                                                                                                            if (n16 == 0) break block87;
+                                                                                                            if (n15 != 0) break block88;
                                                                                                             if (n11 == 0 && n14 == 0) {
                                                                                                                 if (i9.i && i6.i) {
                                                                                                                     ((r.d)object).e(i5, i9, bArray2.f(), 8);
@@ -1449,51 +1448,50 @@ lbl186:
                                                                                                                     return;
                                                                                                                 }
                                                                                                                 n11 = 8;
-                                                                                                                n12 = 8;
-                                                                                                                n17 = 0;
-                                                                                                                n19 = 1;
+                                                                                                                n19 = 8;
+                                                                                                                n12 = 0;
+                                                                                                                n17 = 1;
                                                                                                                 n22 = 0;
                                                                                                             } else {
                                                                                                                 n11 = 5;
-                                                                                                                n12 = 5;
-                                                                                                                n17 = 1;
-                                                                                                                n19 = 0;
+                                                                                                                n19 = 5;
+                                                                                                                n12 = 1;
+                                                                                                                n17 = 0;
                                                                                                                 n22 = 1;
                                                                                                             }
-                                                                                                            if (e6 instanceof u.a || e5 instanceof u.a) {
-                                                                                                                n12 = 4;
-                                                                                                            }
-                                                                                                            n21 = 6;
-                                                                                                            n20 = n19;
-                                                                                                            n19 = n17;
+                                                                                                            n21 = !(e6 instanceof u.a) && !(e5 instanceof u.a) ? n19 : 4;
+                                                                                                            n13 = 6;
+                                                                                                            n20 = n17;
+                                                                                                            n19 = n12;
                                                                                                             n17 = n11;
-                                                                                                            n11 = n21;
-                                                                                                            break block90;
+                                                                                                            n12 = n21;
+                                                                                                            n11 = n13;
+                                                                                                            break block89;
                                                                                                         }
-                                                                                                        if (n15 != 2) break block91;
+                                                                                                        if (n15 != 2) break block90;
                                                                                                         n12 = !(e6 instanceof u.a) && !(e5 instanceof u.a) ? 5 : 4;
                                                                                                         n17 = 5;
-                                                                                                        break block92;
+                                                                                                        break block91;
                                                                                                     }
-                                                                                                    if (n15 != 1) break block93;
+                                                                                                    if (n15 != 1) break block92;
                                                                                                     n12 = 4;
                                                                                                     n17 = 8;
                                                                                                 }
                                                                                                 n22 = 1;
                                                                                                 n19 = 1;
-                                                                                                break block94;
+                                                                                                break block93;
                                                                                             }
-                                                                                            if (n15 != 3) break block95;
-                                                                                            if (this.H != -1) break block96;
+                                                                                            if (n15 != 3) break block94;
+                                                                                            if (this.H != -1) break block95;
                                                                                             n11 = var20_41 != false ? (bl2 ? 5 : 4) : 8;
                                                                                             n12 = 5;
                                                                                             n17 = 8;
                                                                                             n22 = 1;
                                                                                             n19 = 1;
                                                                                             n20 = 1;
-                                                                                            break block90;
+                                                                                            break block89;
                                                                                         }
-                                                                                        if (var17_38 == false) break block97;
+                                                                                        if (var17_38 == false) break block96;
                                                                                         if (n19 != 2 && n19 != 1) {
                                                                                             n12 = 8;
                                                                                             n11 = 5;
@@ -1504,16 +1502,16 @@ lbl186:
                                                                                         bl12 = true;
                                                                                         n17 = n12;
                                                                                         n12 = n11;
-                                                                                        break block98;
+                                                                                        break block97;
                                                                                     }
-                                                                                    if (n11 <= 0) break block99;
+                                                                                    if (n11 <= 0) break block98;
                                                                                     n12 = 5;
-                                                                                    break block100;
+                                                                                    break block99;
                                                                                 }
-                                                                                if (n11 != 0 || n14 != 0) break block101;
-                                                                                if (var20_41 != false) break block102;
+                                                                                if (n11 != 0 || n14 != 0) break block100;
+                                                                                if (var20_41 != false) break block101;
                                                                                 n12 = 8;
-                                                                                break block100;
+                                                                                break block99;
                                                                             }
                                                                             n11 = e6 != e4 && e5 != e4 ? 4 : 5;
                                                                             bl12 = true;
@@ -1524,7 +1522,7 @@ lbl186:
                                                                         n19 = 1;
                                                                         n22 = 1;
                                                                         n11 = 6;
-                                                                        break block90;
+                                                                        break block89;
                                                                     }
                                                                     n12 = 4;
                                                                 }
@@ -1533,7 +1531,7 @@ lbl186:
                                                                 n22 = 1;
                                                                 n11 = 6;
                                                                 n17 = 5;
-                                                                break block90;
+                                                                break block89;
                                                             }
                                                             n12 = 4;
                                                             n17 = 5;
@@ -1545,7 +1543,7 @@ lbl186:
                                                     }
                                                     n21 = n11;
                                                     n13 = n19;
-                                                    break block103;
+                                                    break block102;
                                                 }
                                                 if (i9.i && i6.i) {
                                                     ((r.d)object).c(i5, i9, bArray2.f(), (float)var16_37, i6, i4, ((d)((Object)b3)).f(), 8);
@@ -1573,12 +1571,14 @@ lbl186:
                                             if (n13 != 0) {
                                                 void var18_39;
                                                 if (n16 == 0 && var18_39 == false && var20_41 == false && i9 == object2 && i6 == var7_20) {
-                                                    n21 = 8;
+                                                    n22 = 8;
                                                     bl2 = false;
                                                     n17 = 8;
                                                     n11 = 0;
+                                                } else {
+                                                    n22 = n21;
                                                 }
-                                                ((r.d)object).c(i5, i9, bArray2.f(), (float)var16_37, i6, i4, ((d)((Object)b3)).f(), n21);
+                                                ((r.d)object).c(i5, i9, bArray2.f(), (float)var16_37, i6, i4, ((d)((Object)b3)).f(), n22);
                                             }
                                             i8 = i7;
                                             n21 = 1;
@@ -1604,12 +1604,12 @@ lbl186:
                                                 n22 = n11;
                                                 n11 = n12;
                                             }
-                                            if (n22 == 0) break block104;
+                                            if (n22 == 0) break block103;
                                             n12 = n11;
-                                            if (n20 == 0) break block105;
-                                            if (var20_41 == false) break block106;
+                                            if (n20 == 0) break block104;
+                                            if (var20_41 == false) break block105;
                                             n12 = n11;
-                                            if (!bl3) break block105;
+                                            if (!bl3) break block104;
                                         }
                                         n12 = n18;
                                         if (e6 != e4) {
@@ -1627,14 +1627,14 @@ lbl186:
                                         n12 = Math.max(n12, n11);
                                     }
                                     n11 = n12;
-                                    if (!bl2) break block107;
+                                    if (!bl2) break block106;
                                     n11 = n12 = Math.min(n17, n12);
-                                    if (var17_38 == false) break block107;
+                                    if (var17_38 == false) break block106;
                                     n11 = n12;
-                                    if (var20_41 != false) break block107;
-                                    if (e6 == e4) break block108;
+                                    if (var20_41 != false) break block106;
+                                    if (e6 == e4) break block107;
                                     n11 = n12;
-                                    if (e5 != e4) break block107;
+                                    if (e5 != e4) break block106;
                                 }
                                 n11 = 4;
                             }
@@ -1650,12 +1650,12 @@ lbl186:
                         if (bl2 && n16 != 0 && var14_35 == false && n14 == 0) {
                             if (n16 != 0 && n15 == 3) {
                                 ((r.d)object).h(i8, i5, 0, 8);
-                                break block83;
+                                break block82;
                             } else {
                                 ((r.d)object).h(i8, i5, 0, 5);
                             }
                         }
-                        break block83;
+                        break block82;
                     }
                     i i16 = i6;
                 }
@@ -1683,18 +1683,18 @@ lbl186:
         if (!bl2) return;
         if (!bl4) return;
         ((r.d)object).h(i5, (i)object2, 0, 8);
-        n11 = !bl && this.U.f != null ? 0 : 1;
-        n12 = n11;
+        n12 = !bl && this.U.f != null ? 0 : 1;
+        n11 = n12;
         if (!bl) {
             d d3 = this.U.f;
-            n12 = n11;
+            n11 = n12;
             if (d3 != null) {
                 b b4;
                 e e9 = d3.d;
-                n12 = e9.f0 != 0.0f && (b3 = (bArray2 = e9.b0)[0]) == (b4 = u.e$b.e) && bArray2[1] == b4 ? 1 : 0;
+                n11 = e9.f0 != 0.0f && (b4 = (bArray2 = e9.b0)[0]) == (b3 = u.e$b.e) && bArray2[1] == b3 ? 1 : 0;
             }
         }
-        if (n12 == 0) return;
+        if (n11 == 0) return;
         ((r.d)object).h((i)var7_20, i4, 0, 8);
     }
 
@@ -1784,11 +1784,11 @@ lbl186:
         d.a a13 = d.a.j;
         if (object == a13 && (var3_17 == (object4 = d.a.d) || var3_17 == d.a.f)) {
             d d8 = this.q((d.a)((Object)object4));
-            d3 = ((e)((Object)d3)).q((d.a)var3_17);
-            d d9 = this.q(d.a.f);
-            d8.a(d3, 0);
-            d9.a(d3, 0);
-            this.q(a13).a(d3, 0);
+            d d9 = ((e)((Object)d3)).q((d.a)var3_17);
+            d3 = this.q(d.a.f);
+            d8.a(d9, 0);
+            d3.a(d9, 0);
+            this.q(a13).a(d9, 0);
             return;
         }
         d.a a14 = d.a.k;
@@ -2011,10 +2011,10 @@ lbl186:
         object2 = ((e)object).O0;
         objectArray[0] = object2[0];
         objectArray[1] = object2[1];
-        object2 = this.P0;
-        objectArray = ((e)object).P0;
-        object2[0] = (int)objectArray[0];
-        object2[1] = (int)objectArray[1];
+        objectArray = this.P0;
+        object2 = ((e)object).P0;
+        objectArray[0] = object2[0];
+        objectArray[1] = object2[1];
         object2 = ((e)object).Q0;
         object2 = object2 == null ? null : (Object)((e)hashMap.get(object2));
         this.Q0 = object2;
@@ -2395,24 +2395,24 @@ lbl186:
         block12: {
             block11: {
                 v.d d3;
-                n6 = ((r.d)object).y(this.Q);
-                n5 = ((r.d)object).y(this.R);
-                int n7 = ((r.d)object).y(this.S);
-                int n8 = ((r.d)object).y(this.T);
-                n4 = n6;
-                n3 = n7;
+                int n7 = ((r.d)object).y(this.Q);
+                int n8 = ((r.d)object).y(this.R);
+                n6 = ((r.d)object).y(this.S);
+                n5 = ((r.d)object).y(this.T);
+                n4 = n7;
+                n3 = n6;
                 if (bl) {
                     d3 = this.e;
-                    n4 = n6;
-                    n3 = n7;
+                    n4 = n7;
+                    n3 = n6;
                     if (d3 != null) {
                         object = d3.h;
-                        n4 = n6;
-                        n3 = n7;
+                        n4 = n7;
+                        n3 = n6;
                         if (((v.f)object).j) {
                             d3 = d3.i;
-                            n4 = n6;
-                            n3 = n7;
+                            n4 = n7;
+                            n3 = n6;
                             if (((v.f)d3).j) {
                                 n4 = ((v.f)object).g;
                                 n3 = ((v.f)d3).g;
@@ -2420,20 +2420,20 @@ lbl186:
                         }
                     }
                 }
-                n6 = n5;
-                n7 = n8;
+                n6 = n8;
+                n7 = n5;
                 if (bl) {
                     d3 = this.f;
-                    n6 = n5;
-                    n7 = n8;
+                    n6 = n8;
+                    n7 = n5;
                     if (d3 != null) {
                         object = d3.h;
-                        n6 = n5;
-                        n7 = n8;
+                        n6 = n8;
+                        n7 = n5;
                         if (((v.f)object).j) {
                             d3 = d3.i;
-                            n6 = n5;
-                            n7 = n8;
+                            n6 = n8;
+                            n7 = n5;
                             if (((v.f)d3).j) {
                                 n6 = ((v.f)object).g;
                                 n7 = ((v.f)d3).g;

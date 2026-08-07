@@ -102,19 +102,18 @@ public abstract class p {
         return this.e == 0;
     }
 
-    public boolean equals(Object objectArray) {
-        if (objectArray == this) {
+    public boolean equals(Object object) {
+        if (object == this) {
             return true;
         }
-        if (!(objectArray instanceof p)) {
+        if (!(object instanceof p)) {
             return false;
         }
-        p p3 = (p)objectArray;
-        if (p3.d() != this.d()) {
+        if (((p)(object = (p)object)).d() != this.d()) {
             return false;
         }
-        Object[] objectArray2 = this.b;
-        objectArray = this.c;
+        Object[] objectArray = this.b;
+        Object[] objectArray2 = this.c;
         long[] lArray = this.a;
         int n3 = lArray.length - 2;
         if (n3 >= 0) {
@@ -126,9 +125,9 @@ public abstract class p {
                     for (int i3 = 0; i3 < n5; ++i3) {
                         if ((0xFFL & l3) < 128L) {
                             int n6 = (n4 << 3) + i3;
-                            Object object = objectArray2[n6];
                             Object object2 = objectArray[n6];
-                            if (object2 == null ? p3.b(object) != null || !p3.a(object) : !k.a(object2, p3.b(object))) {
+                            Object object3 = objectArray2[n6];
+                            if (object3 == null ? ((p)object).b(object2) != null || !((p)object).a(object2) : !k.a(object3, ((p)object).b(object2))) {
                                 return false;
                             }
                         }

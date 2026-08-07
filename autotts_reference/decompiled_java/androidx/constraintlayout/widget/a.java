@@ -71,20 +71,20 @@ public class a {
             String string;
             block9: {
                 IllegalAccessException illegalAccessException2;
+                Object object2;
                 block8: {
                     InvocationTargetException invocationTargetException2;
                     block7: {
-                        Object object2;
                         if (!iterator.hasNext()) {
                             return hashMap2;
                         }
                         string = (String)iterator.next();
-                        object = (a)hashMap.get(string);
+                        object2 = (a)hashMap.get(string);
                         try {
                             if (string.equals("BackgroundColor")) {
                                 int n3 = ((ColorDrawable)view.getBackground()).getColor();
-                                object2 = new a((a)object, n3);
-                                hashMap2.put(string, object2);
+                                object = new a((a)object2, n3);
+                                hashMap2.put(string, object);
                                 continue;
                             }
                         }
@@ -97,28 +97,28 @@ public class a {
                         catch (NoSuchMethodException noSuchMethodException2) {
                             break block9;
                         }
-                        object2 = new StringBuilder();
-                        ((StringBuilder)object2).append("getMap");
-                        ((StringBuilder)object2).append(string);
-                        Object object3 = clazz.getMethod(((StringBuilder)object2).toString(), null).invoke((Object)view, null);
-                        object2 = new a((a)object, object3);
-                        hashMap2.put(string, object2);
+                        object = new StringBuilder();
+                        ((StringBuilder)object).append("getMap");
+                        ((StringBuilder)object).append(string);
+                        Object object3 = clazz.getMethod(((StringBuilder)object).toString(), null).invoke((Object)view, null);
+                        object = new a((a)object2, object3);
+                        hashMap2.put(string, object);
                         continue;
                     }
-                    object = new StringBuilder();
-                    ((StringBuilder)object).append(" Custom Attribute \"");
-                    ((StringBuilder)object).append(string);
-                    ((StringBuilder)object).append("\" not found on ");
-                    ((StringBuilder)object).append(clazz.getName());
-                    Log.e((String)"TransitionLayout", (String)((StringBuilder)object).toString(), (Throwable)invocationTargetException2);
+                    object2 = new StringBuilder();
+                    ((StringBuilder)object2).append(" Custom Attribute \"");
+                    ((StringBuilder)object2).append(string);
+                    ((StringBuilder)object2).append("\" not found on ");
+                    ((StringBuilder)object2).append(clazz.getName());
+                    Log.e((String)"TransitionLayout", (String)((StringBuilder)object2).toString(), (Throwable)invocationTargetException2);
                     continue;
                 }
-                object = new StringBuilder();
-                ((StringBuilder)object).append(" Custom Attribute \"");
-                ((StringBuilder)object).append(string);
-                ((StringBuilder)object).append("\" not found on ");
-                ((StringBuilder)object).append(clazz.getName());
-                Log.e((String)"TransitionLayout", (String)((StringBuilder)object).toString(), (Throwable)illegalAccessException2);
+                object2 = new StringBuilder();
+                ((StringBuilder)object2).append(" Custom Attribute \"");
+                ((StringBuilder)object2).append(string);
+                ((StringBuilder)object2).append("\" not found on ");
+                ((StringBuilder)object2).append(clazz.getName());
+                Log.e((String)"TransitionLayout", (String)((StringBuilder)object2).toString(), (Throwable)illegalAccessException2);
                 continue;
             }
             object = new StringBuilder();
@@ -271,13 +271,14 @@ public class a {
             CharSequence charSequence2;
             block20: {
                 IllegalAccessException illegalAccessException2;
+                Object object;
                 block19: {
                     InvocationTargetException invocationTargetException2;
                     if (!iterator.hasNext()) {
                         return;
                     }
                     charSequence2 = (String)iterator.next();
-                    Object object = (a)hashMap.get(charSequence2);
+                    object = (a)hashMap.get(charSequence2);
                     if (!((a)object).a) {
                         charSequence = new StringBuilder();
                         ((StringBuilder)charSequence).append("set");
@@ -287,15 +288,15 @@ public class a {
                         charSequence = charSequence2;
                     }
                     int n3 = ((a)object).c.ordinal();
-                    ColorDrawable colorDrawable = Float.TYPE;
-                    GenericDeclaration genericDeclaration = Integer.TYPE;
+                    GenericDeclaration genericDeclaration = Float.TYPE;
+                    ColorDrawable colorDrawable = Integer.TYPE;
                     switch (n3) {
                         default: {
                             continue block15;
                         }
                         case 7: {
                             try {
-                                clazz.getMethod((String)charSequence, new Class[]{genericDeclaration}).invoke((Object)view, ((a)object).d);
+                                clazz.getMethod((String)charSequence, new Class[]{colorDrawable}).invoke((Object)view, ((a)object).d);
                                 continue block15;
                             }
                             catch (InvocationTargetException invocationTargetException2) {
@@ -309,7 +310,7 @@ public class a {
                             }
                         }
                         case 6: {
-                            clazz.getMethod((String)charSequence, new Class[]{colorDrawable}).invoke((Object)view, Float.valueOf(((a)object).e));
+                            clazz.getMethod((String)charSequence, new Class[]{genericDeclaration}).invoke((Object)view, Float.valueOf(((a)object).e));
                             continue block15;
                         }
                         case 5: {
@@ -328,32 +329,32 @@ public class a {
                             continue block15;
                         }
                         case 2: {
-                            clazz.getMethod((String)charSequence, new Class[]{genericDeclaration}).invoke((Object)view, ((a)object).h);
+                            clazz.getMethod((String)charSequence, new Class[]{colorDrawable}).invoke((Object)view, ((a)object).h);
                             continue block15;
                         }
                         case 1: {
-                            clazz.getMethod((String)charSequence, new Class[]{colorDrawable}).invoke((Object)view, Float.valueOf(((a)object).e));
+                            clazz.getMethod((String)charSequence, new Class[]{genericDeclaration}).invoke((Object)view, Float.valueOf(((a)object).e));
                             continue block15;
                         }
                         case 0: {
-                            clazz.getMethod((String)charSequence, new Class[]{genericDeclaration}).invoke((Object)view, ((a)object).d);
+                            clazz.getMethod((String)charSequence, new Class[]{colorDrawable}).invoke((Object)view, ((a)object).d);
                             continue block15;
                         }
                     }
-                    object = new StringBuilder();
-                    ((StringBuilder)object).append(" Custom Attribute \"");
-                    ((StringBuilder)object).append((String)charSequence2);
-                    ((StringBuilder)object).append("\" not found on ");
-                    ((StringBuilder)object).append(clazz.getName());
-                    Log.e((String)"TransitionLayout", (String)((StringBuilder)object).toString(), (Throwable)invocationTargetException2);
+                    charSequence = new StringBuilder();
+                    ((StringBuilder)charSequence).append(" Custom Attribute \"");
+                    ((StringBuilder)charSequence).append((String)charSequence2);
+                    ((StringBuilder)charSequence).append("\" not found on ");
+                    ((StringBuilder)charSequence).append(clazz.getName());
+                    Log.e((String)"TransitionLayout", (String)((StringBuilder)charSequence).toString(), (Throwable)invocationTargetException2);
                     continue;
                 }
-                charSequence = new StringBuilder();
-                ((StringBuilder)charSequence).append(" Custom Attribute \"");
-                ((StringBuilder)charSequence).append((String)charSequence2);
-                ((StringBuilder)charSequence).append("\" not found on ");
-                ((StringBuilder)charSequence).append(clazz.getName());
-                Log.e((String)"TransitionLayout", (String)((StringBuilder)charSequence).toString(), (Throwable)illegalAccessException2);
+                object = new StringBuilder();
+                ((StringBuilder)object).append(" Custom Attribute \"");
+                ((StringBuilder)object).append((String)charSequence2);
+                ((StringBuilder)object).append("\" not found on ");
+                ((StringBuilder)object).append(clazz.getName());
+                Log.e((String)"TransitionLayout", (String)((StringBuilder)object).toString(), (Throwable)illegalAccessException2);
                 continue;
             }
             charSequence2 = new StringBuilder();
@@ -372,21 +373,21 @@ public class a {
     public void a(View object) {
         NoSuchMethodException noSuchMethodException2;
         CharSequence charSequence;
-        CharSequence charSequence2;
         Class<?> clazz;
         block17: {
             IllegalAccessException illegalAccessException2;
+            String string;
             block16: {
                 InvocationTargetException invocationTargetException2;
                 clazz = object.getClass();
-                charSequence2 = this.b;
+                string = this.b;
                 if (!this.a) {
                     charSequence = new StringBuilder();
                     ((StringBuilder)charSequence).append("set");
-                    ((StringBuilder)charSequence).append((String)charSequence2);
+                    ((StringBuilder)charSequence).append(string);
                     charSequence = ((StringBuilder)charSequence).toString();
                 } else {
-                    charSequence = charSequence2;
+                    charSequence = string;
                 }
                 int n3 = this.c.ordinal();
                 GenericDeclaration genericDeclaration = Integer.TYPE;
@@ -439,27 +440,27 @@ public class a {
                         return;
                     }
                 }
-                object = new StringBuilder();
-                ((StringBuilder)object).append(" Custom Attribute \"");
-                ((StringBuilder)object).append((String)charSequence2);
-                ((StringBuilder)object).append("\" not found on ");
-                ((StringBuilder)object).append(clazz.getName());
-                Log.e((String)"TransitionLayout", (String)((StringBuilder)object).toString(), (Throwable)invocationTargetException2);
+                charSequence = new StringBuilder();
+                ((StringBuilder)charSequence).append(" Custom Attribute \"");
+                ((StringBuilder)charSequence).append(string);
+                ((StringBuilder)charSequence).append("\" not found on ");
+                ((StringBuilder)charSequence).append(clazz.getName());
+                Log.e((String)"TransitionLayout", (String)((StringBuilder)charSequence).toString(), (Throwable)invocationTargetException2);
                 return;
             }
             charSequence = new StringBuilder();
             ((StringBuilder)charSequence).append(" Custom Attribute \"");
-            ((StringBuilder)charSequence).append((String)charSequence2);
+            ((StringBuilder)charSequence).append(string);
             ((StringBuilder)charSequence).append("\" not found on ");
             ((StringBuilder)charSequence).append(clazz.getName());
             Log.e((String)"TransitionLayout", (String)((StringBuilder)charSequence).toString(), (Throwable)illegalAccessException2);
             return;
         }
-        charSequence2 = new StringBuilder();
-        ((StringBuilder)charSequence2).append(clazz.getName());
-        ((StringBuilder)charSequence2).append(" must have a method ");
-        ((StringBuilder)charSequence2).append((String)charSequence);
-        Log.e((String)"TransitionLayout", (String)((StringBuilder)charSequence2).toString(), (Throwable)noSuchMethodException2);
+        object = new StringBuilder();
+        ((StringBuilder)object).append(clazz.getName());
+        ((StringBuilder)object).append(" must have a method ");
+        ((StringBuilder)object).append((String)charSequence);
+        Log.e((String)"TransitionLayout", (String)((StringBuilder)object).toString(), (Throwable)noSuchMethodException2);
     }
 
     public String c() {

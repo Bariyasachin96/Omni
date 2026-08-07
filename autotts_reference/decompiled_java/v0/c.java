@@ -325,69 +325,68 @@ public class c {
         block17: {
             int n3;
             int n4;
-            int n5;
             block14: {
                 block15: {
                     block16: {
-                        n5 = motionEvent.getActionMasked();
-                        n4 = motionEvent.getActionIndex();
-                        if (n5 == 0) {
+                        n4 = motionEvent.getActionMasked();
+                        n3 = motionEvent.getActionIndex();
+                        if (n4 == 0) {
                             this.a();
                         }
                         if (this.l == null) {
                             this.l = VelocityTracker.obtain();
                         }
                         this.l.addMovement(motionEvent);
-                        if (n5 == 0) break block14;
-                        if (n5 == 1) break block15;
-                        if (n5 == 2) break block16;
-                        if (n5 == 3) break block15;
-                        if (n5 != 5) {
-                            if (n5 == 6) {
-                                this.j(motionEvent.getPointerId(n4));
+                        if (n4 == 0) break block14;
+                        if (n4 == 1) break block15;
+                        if (n4 == 2) break block16;
+                        if (n4 == 3) break block15;
+                        if (n4 != 5) {
+                            if (n4 == 6) {
+                                this.j(motionEvent.getPointerId(n3));
                             }
                         } else {
-                            n5 = motionEvent.getPointerId(n4);
-                            float f3 = motionEvent.getX(n4);
-                            float f4 = motionEvent.getY(n4);
-                            this.I(f3, f4, n5);
-                            n4 = this.a;
-                            if (n4 == 0) {
-                                int n6 = this.h[n5];
-                                n4 = this.q;
-                                if ((n6 & n4) != 0) {
-                                    this.s.h(n6 & n4, n5);
+                            n4 = motionEvent.getPointerId(n3);
+                            float f3 = motionEvent.getX(n3);
+                            float f4 = motionEvent.getY(n3);
+                            this.I(f3, f4, n4);
+                            n3 = this.a;
+                            if (n3 == 0) {
+                                n3 = this.h[n4];
+                                int n5 = this.q;
+                                if ((n3 & n5) != 0) {
+                                    this.s.h(n3 & n5, n4);
                                 }
-                            } else if (n4 == 2 && (motionEvent = this.t((int)f3, (int)f4)) == this.t) {
-                                this.R((View)motionEvent, n5);
+                            } else if (n3 == 2 && (motionEvent = this.t((int)f3, (int)f4)) == this.t) {
+                                this.R((View)motionEvent, n4);
                             }
                         }
                         break block17;
                     }
                     if (this.d != null && this.e != null) {
-                        int n7 = motionEvent.getPointerCount();
-                        for (n5 = 0; n5 < n7; ++n5) {
-                            int n8 = motionEvent.getPointerId(n5);
-                            if (!this.D(n8)) continue;
-                            float f5 = motionEvent.getX(n5);
-                            float f6 = motionEvent.getY(n5);
-                            float f7 = f5 - this.d[n8];
-                            float f8 = f6 - this.e[n8];
+                        int n6 = motionEvent.getPointerCount();
+                        for (n4 = 0; n4 < n6; ++n4) {
+                            int n7 = motionEvent.getPointerId(n4);
+                            if (!this.D(n7)) continue;
+                            float f5 = motionEvent.getX(n4);
+                            float f6 = motionEvent.getY(n4);
+                            float f7 = f5 - this.d[n7];
+                            float f8 = f6 - this.e[n7];
                             View view = this.t((int)f5, (int)f6);
-                            n4 = view != null && this.f(view, f7, f8) ? 1 : 0;
-                            if (n4 != 0) {
-                                int n9 = view.getLeft();
-                                int n10 = (int)f7;
-                                int n11 = this.s.a(view, n9 + n10, n10);
-                                n10 = view.getTop();
-                                int n12 = (int)f8;
-                                int n13 = this.s.b(view, n10 + n12, n12);
-                                n12 = this.s.d(view);
-                                int n14 = this.s.e(view);
-                                if ((n12 == 0 || n12 > 0 && n11 == n9) && (n14 == 0 || n14 > 0 && n13 == n10)) break;
+                            n3 = view != null && this.f(view, f7, f8) ? 1 : 0;
+                            if (n3 != 0) {
+                                int n8 = view.getLeft();
+                                int n9 = (int)f7;
+                                int n10 = this.s.a(view, n8 + n9, n9);
+                                n9 = view.getTop();
+                                int n11 = (int)f8;
+                                int n12 = this.s.b(view, n9 + n11, n11);
+                                n11 = this.s.d(view);
+                                int n13 = this.s.e(view);
+                                if ((n11 == 0 || n11 > 0 && n10 == n8) && (n13 == 0 || n13 > 0 && n12 == n9)) break;
                             }
-                            this.H(f7, f8, n8);
-                            if (this.a == 1 || n4 != 0 && this.R(view, n8)) break;
+                            this.H(f7, f8, n7);
+                            if (this.a == 1 || n3 != 0 && this.R(view, n7)) break;
                         }
                         this.J(motionEvent);
                     }
@@ -398,14 +397,14 @@ public class c {
             }
             float f9 = motionEvent.getX();
             float f10 = motionEvent.getY();
-            n4 = motionEvent.getPointerId(0);
-            this.I(f9, f10, n4);
+            int n14 = motionEvent.getPointerId(0);
+            this.I(f9, f10, n14);
             motionEvent = this.t((int)f9, (int)f10);
             if (motionEvent == this.t && this.a == 2) {
-                this.R((View)motionEvent, n4);
+                this.R((View)motionEvent, n14);
             }
-            if (((n5 = this.h[n4]) & (n3 = this.q)) != 0) {
-                this.s.h(n5 & n3, n4);
+            if (((n3 = this.h[n14]) & (n4 = this.q)) != 0) {
+                this.s.h(n3 & n4, n14);
             }
         }
         return this.a == 1;
@@ -612,16 +611,15 @@ public class c {
         }
         float f5 = f4 / f3;
         if (n6 != 0) {
-            f3 = n10;
-            f4 = n11;
+            f4 = n10;
+            f3 = n11;
         } else {
-            f3 = n8;
-            f4 = n12;
+            f4 = n8;
+            f3 = n12;
         }
-        f4 = f3 / f4;
         n3 = this.k(n3, n5, this.s.d(view));
         n4 = this.k(n4, n6, this.s.e(view));
-        return (int)((float)n3 * f5 + (float)n4 * f4);
+        return (int)((float)n3 * f5 + (float)n4 * (f4 /= f3));
     }
 
     public boolean m(boolean bl) {

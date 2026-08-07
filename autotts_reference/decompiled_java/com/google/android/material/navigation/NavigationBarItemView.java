@@ -126,17 +126,17 @@ implements g {
     public NavigationBarItemView(Context context) {
         super(context);
         TextView textView;
-        TextView textView2;
         BaselineLayout baselineLayout;
+        LinearLayout linearLayout;
         LayoutInflater.from((Context)context).inflate(this.getItemLayoutResId(), (ViewGroup)this, true);
         this.r = (LinearLayout)this.findViewById(z1.g.navigation_bar_item_content_container);
-        context = (LinearLayout)this.findViewById(z1.g.navigation_bar_item_inner_content_container);
-        this.s = context;
+        this.s = linearLayout = (LinearLayout)this.findViewById(z1.g.navigation_bar_item_inner_content_container);
         this.t = this.findViewById(z1.g.navigation_bar_item_active_indicator_view);
         this.u = (FrameLayout)this.findViewById(z1.g.navigation_bar_item_icon_container);
         this.v = (ImageView)this.findViewById(z1.g.navigation_bar_item_icon_view);
         this.w = baselineLayout = (BaselineLayout)this.findViewById(z1.g.navigation_bar_item_labels_group);
-        this.x = textView2 = (TextView)this.findViewById(z1.g.navigation_bar_item_small_label_view);
+        context = (TextView)this.findViewById(z1.g.navigation_bar_item_small_label_view);
+        this.x = context;
         this.y = textView = (TextView)this.findViewById(z1.g.navigation_bar_item_large_label_view);
         this.j();
         this.C = baselineLayout;
@@ -145,14 +145,14 @@ implements g {
         this.g = baselineLayout.getPaddingBottom();
         this.h = 0;
         this.i = 0;
-        textView2.setImportantForAccessibility(2);
+        context.setImportantForAccessibility(2);
         textView.setImportantForAccessibility(2);
         this.A.setImportantForAccessibility(2);
         this.B.setImportantForAccessibility(2);
         this.setFocusable(true);
         this.f();
         this.V = this.getResources().getDimensionPixelSize(z1.e.m3_navigation_item_expanded_active_indicator_height_default);
-        context.addOnLayoutChangeListener((View.OnLayoutChangeListener)new com.google.android.material.navigation.d(this));
+        linearLayout.addOnLayoutChangeListener((View.OnLayoutChangeListener)new com.google.android.material.navigation.d(this));
     }
 
     public static void G(View view, int n3) {
@@ -343,12 +343,12 @@ implements g {
             n3 = n9;
         } else {
             int n11 = 0;
-            n5 = n7 = (n9 = (n6 = 0));
+            n10 = n7 = (n9 = (n5 = 0));
             n4 = 8;
-            n10 = n5;
-            n3 = n5;
+            n6 = n10;
+            n3 = n10;
             n8 = n9;
-            n5 = n6;
+            n10 = n6;
             n6 = n11;
         }
         this.w.setVisibility(n10);
@@ -549,31 +549,31 @@ implements g {
     public final void n() {
         Drawable drawable = this.e;
         ColorStateList colorStateList = this.d;
-        Drawable drawable2 = null;
+        RippleDrawable rippleDrawable = null;
         boolean bl = true;
-        Drawable drawable3 = drawable;
-        Drawable drawable4 = drawable2;
+        Drawable drawable2 = drawable;
+        RippleDrawable rippleDrawable2 = rippleDrawable;
         boolean bl2 = bl;
         if (colorStateList != null) {
-            drawable4 = this.getActiveIndicatorDrawable();
-            if (this.R && this.getActiveIndicatorDrawable() != null && drawable4 != null) {
-                drawable4 = new RippleDrawable(t2.a.d(this.d), null, drawable4);
+            drawable2 = this.getActiveIndicatorDrawable();
+            if (this.R && this.getActiveIndicatorDrawable() != null && drawable2 != null) {
+                rippleDrawable2 = new RippleDrawable(t2.a.d(this.d), null, drawable2);
                 bl2 = false;
-                drawable3 = drawable;
+                drawable2 = drawable;
             } else {
-                drawable3 = drawable;
-                drawable4 = drawable2;
+                drawable2 = drawable;
+                rippleDrawable2 = rippleDrawable;
                 bl2 = bl;
                 if (drawable == null) {
-                    drawable3 = NavigationBarItemView.h(this.d);
+                    drawable2 = NavigationBarItemView.h(this.d);
                     bl2 = bl;
-                    drawable4 = drawable2;
+                    rippleDrawable2 = rippleDrawable;
                 }
             }
         }
         this.u.setPadding(0, 0, 0, 0);
-        this.u.setForeground(drawable4);
-        this.setBackground(drawable3);
+        this.u.setForeground(rippleDrawable2);
+        this.setBackground(drawable2);
         this.setDefaultFocusHighlightEnabled(bl2);
     }
 
@@ -778,14 +778,14 @@ implements g {
         TextView textView = this.y;
         TextView textView2 = this.x;
         float f4 = this.j;
-        float f5 = this.k;
-        f3 = this.l;
+        f3 = this.k;
+        float f5 = this.l;
         if (this.d0 == 1) {
             textView = this.B;
             textView2 = this.A;
             f4 = this.m;
-            f5 = this.n;
-            f3 = this.o;
+            f3 = this.n;
+            f5 = this.o;
         }
         if ((n3 = this.p) != -1) {
             if (n3 != 0) {
@@ -794,25 +794,25 @@ implements g {
                         this.s();
                     }
                 } else if (bl) {
-                    this.r((View)textView, (View)textView2, f5, f4);
+                    this.r((View)textView, (View)textView2, f3, f4);
                 } else {
-                    this.r((View)textView2, (View)textView, f3, 0.0f);
+                    this.r((View)textView2, (View)textView, f5, 0.0f);
                 }
             } else if (bl) {
-                this.r((View)textView, (View)textView2, f5, 0.0f);
+                this.r((View)textView, (View)textView2, f3, 0.0f);
             } else {
                 this.s();
             }
         } else if (this.q) {
             if (bl) {
-                this.r((View)textView, (View)textView2, f5, 0.0f);
+                this.r((View)textView, (View)textView2, f3, 0.0f);
             } else {
                 this.s();
             }
         } else if (bl) {
-            this.r((View)textView, (View)textView2, f5, f4);
+            this.r((View)textView, (View)textView2, f3, f4);
         } else {
-            this.r((View)textView2, (View)textView, f3, 0.0f);
+            this.r((View)textView2, (View)textView, f5, 0.0f);
         }
         this.refreshDrawableState();
         this.setSelected(bl);

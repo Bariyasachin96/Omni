@@ -77,9 +77,9 @@ public final class i {
     public static boolean b(InputConnection inputConnection, Editable editable, int n3, int n4, boolean bl) {
         block5: {
             j[] jArray;
+            int n5;
+            int n6;
             block8: {
-                int n5;
-                int n6;
                 block6: {
                     block7: {
                         if (editable == null || inputConnection == null || n3 < 0 || n4 < 0) break block5;
@@ -100,13 +100,17 @@ public final class i {
                 n4 = Math.min(n5 + n4, editable.length());
             }
             if ((jArray = (j[])editable.getSpans(n3, n4, j.class)) != null && jArray.length > 0) {
-                for (j j3 : jArray) {
-                    int n7 = editable.getSpanStart((Object)j3);
-                    int n8 = editable.getSpanEnd((Object)j3);
-                    n3 = Math.min(n7, n3);
-                    n4 = Math.max(n8, n4);
+                int n7 = jArray.length;
+                n6 = 0;
+                n5 = n3;
+                for (n3 = n6; n3 < n7; ++n3) {
+                    j j3 = jArray[n3];
+                    int n8 = editable.getSpanStart((Object)j3);
+                    n6 = editable.getSpanEnd((Object)j3);
+                    n5 = Math.min(n8, n5);
+                    n4 = Math.max(n6, n4);
                 }
-                n3 = Math.max(n3, 0);
+                n3 = Math.max(n5, 0);
                 n4 = Math.min(n4, editable.length());
                 inputConnection.beginBatchEdit();
                 editable.delete(n3, n4);
@@ -148,9 +152,9 @@ public final class i {
             object = object.iterator();
             while (object.hasNext()) {
                 Object object2 = (int[])object.next();
-                String string = new String((int[])object2, 0, ((int[])object2).length);
-                object2 = new d(string);
-                this.i(string, 0, string.length(), 1, true, (c)object2);
+                object2 = new String((int[])object2, 0, ((int[])object2).length);
+                d d3 = new d((String)object2);
+                this.i((CharSequence)object2, 0, ((String)object2).length(), 1, true, d3);
             }
         }
     }
@@ -215,13 +219,13 @@ public final class i {
                                     if (n8 >= n9) break;
                                     object2 = jArray[n8];
                                     {
-                                        n7 = ((r)object).getSpanStart(object2);
-                                        n6 = ((r)object).getSpanEnd(object2);
-                                        if (n7 != n4) {
+                                        n6 = ((r)object).getSpanStart(object2);
+                                        n7 = ((r)object).getSpanEnd(object2);
+                                        if (n6 != n4) {
                                             ((r)object).removeSpan(object2);
                                         }
-                                        n3 = Math.min(n7, n3);
-                                        n4 = Math.max(n6, n4);
+                                        n3 = Math.min(n6, n3);
+                                        n4 = Math.max(n7, n4);
                                         ++n8;
                                         continue;
                                     }

@@ -8,7 +8,6 @@
  *  android.content.res.TypedArray
  *  android.database.Observable
  *  android.graphics.Canvas
- *  android.graphics.Matrix
  *  android.graphics.PointF
  *  android.graphics.Rect
  *  android.graphics.RectF
@@ -47,7 +46,6 @@ import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.database.Observable;
 import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -238,8 +236,8 @@ implements o0.a0 {
         this.e0 = Float.MIN_VALUE;
         this.f0 = Float.MIN_VALUE;
         this.h0 = new c0(this);
-        e.b b3 = K0 ? new e.b() : null;
-        this.j0 = b3;
+        Object object = K0 ? new e.b() : null;
+        this.j0 = object;
         this.k0 = new z();
         this.n0 = false;
         this.o0 = false;
@@ -306,12 +304,12 @@ implements o0.a0 {
         };
         this.setScrollContainer(true);
         this.setFocusableInTouchMode(true);
-        b3 = ViewConfiguration.get((Context)context);
-        this.a0 = b3.getScaledTouchSlop();
-        this.e0 = b1.e((ViewConfiguration)b3, context);
-        this.f0 = b1.h((ViewConfiguration)b3, context);
-        this.c0 = b3.getScaledMinimumFlingVelocity();
-        this.d0 = b3.getScaledMaximumFlingVelocity();
+        object = ViewConfiguration.get((Context)context);
+        this.a0 = object.getScaledTouchSlop();
+        this.e0 = b1.e((ViewConfiguration)object, context);
+        this.f0 = b1.h((ViewConfiguration)object, context);
+        this.c0 = object.getScaledMinimumFlingVelocity();
+        this.d0 = object.getScaledMaximumFlingVelocity();
         this.c = context.getResources().getDisplayMetrics().density * 160.0f * 386.0878f * 0.84f;
         boolean bl = this.getOverScrollMode() == 2;
         this.setWillNotDraw(bl);
@@ -324,25 +322,25 @@ implements o0.a0 {
         }
         this.E = (AccessibilityManager)this.getContext().getSystemService("accessibility");
         this.setAccessibilityDelegateCompat(new androidx.recyclerview.widget.k(this));
-        Object object = i1.c.RecyclerView;
-        b3 = context.obtainStyledAttributes(attributeSet, object, n3, 0);
-        o0.x0.f0((View)this, context, object, attributeSet, (TypedArray)b3, n3, 0);
-        object = b3.getString(i1.c.RecyclerView_layoutManager);
-        if (b3.getInt(i1.c.RecyclerView_android_descendantFocusability, -1) == -1) {
+        Object object2 = i1.c.RecyclerView;
+        object = context.obtainStyledAttributes(attributeSet, object2, n3, 0);
+        o0.x0.f0((View)this, context, object2, attributeSet, (TypedArray)object, n3, 0);
+        object2 = object.getString(i1.c.RecyclerView_layoutManager);
+        if (object.getInt(i1.c.RecyclerView_android_descendantFocusability, -1) == -1) {
             this.setDescendantFocusability(262144);
         }
-        this.j = b3.getBoolean(i1.c.RecyclerView_android_clipToPadding, true);
-        this.w = bl = b3.getBoolean(i1.c.RecyclerView_fastScrollEnabled, false);
+        this.j = object.getBoolean(i1.c.RecyclerView_android_clipToPadding, true);
+        this.w = bl = object.getBoolean(i1.c.RecyclerView_fastScrollEnabled, false);
         if (bl) {
-            this.y0((StateListDrawable)b3.getDrawable(i1.c.RecyclerView_fastScrollVerticalThumbDrawable), b3.getDrawable(i1.c.RecyclerView_fastScrollVerticalTrackDrawable), (StateListDrawable)b3.getDrawable(i1.c.RecyclerView_fastScrollHorizontalThumbDrawable), b3.getDrawable(i1.c.RecyclerView_fastScrollHorizontalTrackDrawable));
+            this.y0((StateListDrawable)object.getDrawable(i1.c.RecyclerView_fastScrollVerticalThumbDrawable), object.getDrawable(i1.c.RecyclerView_fastScrollVerticalTrackDrawable), (StateListDrawable)object.getDrawable(i1.c.RecyclerView_fastScrollHorizontalThumbDrawable), object.getDrawable(i1.c.RecyclerView_fastScrollHorizontalTrackDrawable));
         }
-        b3.recycle();
-        this.B(context, (String)object, attributeSet, n3, 0);
+        object.recycle();
+        this.B(context, (String)object2, attributeSet, n3, 0);
         object = F0;
-        b3 = context.obtainStyledAttributes(attributeSet, object, n3, 0);
-        o0.x0.f0((View)this, context, object, attributeSet, (TypedArray)b3, n3, 0);
-        bl = b3.getBoolean(0, true);
-        b3.recycle();
+        object2 = context.obtainStyledAttributes(attributeSet, (int[])object, n3, 0);
+        o0.x0.f0((View)this, context, (int[])object, attributeSet, (TypedArray)object2, n3, 0);
+        bl = object2.getBoolean(0, true);
+        object2.recycle();
         this.setNestedScrollingEnabled(bl);
         u0.a.d((View)this, true);
     }
@@ -387,19 +385,19 @@ implements o0.a0 {
         return bl;
     }
 
-    public static RecyclerView b0(View object) {
-        if (!(object instanceof ViewGroup)) {
+    public static RecyclerView b0(View view) {
+        if (!(view instanceof ViewGroup)) {
             return null;
         }
-        if (object instanceof RecyclerView) {
-            return (RecyclerView)object;
+        if (view instanceof RecyclerView) {
+            return (RecyclerView)view;
         }
-        ViewGroup viewGroup = (ViewGroup)object;
-        int n3 = viewGroup.getChildCount();
+        view = (ViewGroup)view;
+        int n3 = view.getChildCount();
         for (int i3 = 0; i3 < n3; ++i3) {
-            object = RecyclerView.b0(viewGroup.getChildAt(i3));
-            if (object == null) continue;
-            return object;
+            RecyclerView recyclerView = RecyclerView.b0(view.getChildAt(i3));
+            if (recyclerView == null) continue;
+            return recyclerView;
         }
         return null;
     }
@@ -575,12 +573,12 @@ implements o0.a0 {
                 }
                 catch (NoSuchMethodException noSuchMethodException2) {
                     noSuchMethodException2.initCause(noSuchMethodException);
-                    object2 = new StringBuilder();
-                    ((StringBuilder)object2).append(attributeSet.getPositionDescription());
-                    ((StringBuilder)object2).append(": Error creating LayoutManager ");
-                    ((StringBuilder)object2).append(string);
-                    IllegalStateException illegalStateException = new IllegalStateException(((StringBuilder)object2).toString(), noSuchMethodException2);
-                    throw illegalStateException;
+                    StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append(attributeSet.getPositionDescription());
+                    stringBuilder.append(": Error creating LayoutManager ");
+                    stringBuilder.append(string);
+                    object2 = new IllegalStateException(stringBuilder.toString(), noSuchMethodException2);
+                    throw object2;
                 }
             }
             ((AccessibleObject)object2).setAccessible(true);
@@ -588,11 +586,11 @@ implements o0.a0 {
             return;
         }
         catch (ClassCastException classCastException) {}
-        object2 = new StringBuilder();
-        ((StringBuilder)object2).append(attributeSet.getPositionDescription());
-        ((StringBuilder)object2).append(": Class is not a LayoutManager ");
-        ((StringBuilder)object2).append(string);
-        throw new IllegalStateException(((StringBuilder)object2).toString(), classCastException);
+        object = new StringBuilder();
+        ((StringBuilder)object).append(attributeSet.getPositionDescription());
+        ((StringBuilder)object).append(": Class is not a LayoutManager ");
+        ((StringBuilder)object).append(string);
+        throw new IllegalStateException(((StringBuilder)object).toString(), classCastException);
         catch (IllegalAccessException illegalAccessException) {}
         object = new StringBuilder();
         ((StringBuilder)object).append(attributeSet.getPositionDescription());
@@ -600,23 +598,23 @@ implements o0.a0 {
         ((StringBuilder)object).append(string);
         throw new IllegalStateException(((StringBuilder)object).toString(), illegalAccessException);
         catch (InstantiationException instantiationException) {}
-        object = new StringBuilder();
-        ((StringBuilder)object).append(attributeSet.getPositionDescription());
-        ((StringBuilder)object).append(": Could not instantiate the LayoutManager: ");
-        ((StringBuilder)object).append(string);
-        throw new IllegalStateException(((StringBuilder)object).toString(), instantiationException);
-        catch (InvocationTargetException invocationTargetException) {}
         object2 = new StringBuilder();
         ((StringBuilder)object2).append(attributeSet.getPositionDescription());
         ((StringBuilder)object2).append(": Could not instantiate the LayoutManager: ");
         ((StringBuilder)object2).append(string);
-        throw new IllegalStateException(((StringBuilder)object2).toString(), invocationTargetException);
-        catch (ClassNotFoundException classNotFoundException) {}
+        throw new IllegalStateException(((StringBuilder)object2).toString(), instantiationException);
+        catch (InvocationTargetException invocationTargetException) {}
         object = new StringBuilder();
         ((StringBuilder)object).append(attributeSet.getPositionDescription());
-        ((StringBuilder)object).append(": Unable to find LayoutManager ");
+        ((StringBuilder)object).append(": Could not instantiate the LayoutManager: ");
         ((StringBuilder)object).append(string);
-        throw new IllegalStateException(((StringBuilder)object).toString(), classNotFoundException);
+        throw new IllegalStateException(((StringBuilder)object).toString(), invocationTargetException);
+        catch (ClassNotFoundException classNotFoundException) {}
+        object2 = new StringBuilder();
+        ((StringBuilder)object2).append(attributeSet.getPositionDescription());
+        ((StringBuilder)object2).append(": Unable to find LayoutManager ");
+        ((StringBuilder)object2).append(string);
+        throw new IllegalStateException(((StringBuilder)object2).toString(), classNotFoundException);
     }
 
     public boolean B0() {
@@ -638,7 +636,6 @@ implements o0.a0 {
     public final boolean C0(View object, View view, int n3) {
         if (view != null && view != this && view != object) {
             int n4;
-            int n5;
             if (this.X(view) == null) {
                 return false;
             }
@@ -652,23 +649,23 @@ implements o0.a0 {
             this.m.set(0, 0, view.getWidth(), view.getHeight());
             this.offsetDescendantRectToMyCoords((View)object, this.l);
             this.offsetDescendantRectToMyCoords(view, this.m);
-            int n6 = this.p.d0();
-            int n7 = -1;
-            int n8 = n6 == 1 ? -1 : 1;
-            object = this.l;
+            int n5 = this.p.d0();
+            int n6 = -1;
+            int n7 = n5 == 1 ? -1 : 1;
+            view = this.l;
+            int n8 = view.left;
+            object = this.m;
             int n9 = ((Rect)object).left;
-            view = this.m;
-            n6 = view.left;
-            n6 = (n9 < n6 || ((Rect)object).right <= n6) && ((Rect)object).right < view.right ? 1 : (((n5 = ((Rect)object).right) > (n4 = view.right) || n9 >= n4) && n9 > n6 ? -1 : 0);
-            n9 = ((Rect)object).top;
-            n5 = view.top;
-            if ((n9 < n5 || ((Rect)object).bottom <= n5) && ((Rect)object).bottom < view.bottom) {
-                n7 = 1;
+            n5 = (n8 < n9 || view.right <= n9) && view.right < ((Rect)object).right ? 1 : (((n5 = view.right) > (n4 = ((Rect)object).right) || n8 >= n4) && n8 > n9 ? -1 : 0);
+            n9 = view.top;
+            int n10 = ((Rect)object).top;
+            if ((n9 < n10 || view.bottom <= n10) && view.bottom < ((Rect)object).bottom) {
+                n6 = 1;
             } else {
-                n4 = ((Rect)object).bottom;
-                int n10 = view.bottom;
-                if (n4 <= n10 && n9 < n10 || n9 <= n5) {
-                    n7 = 0;
+                n4 = view.bottom;
+                n8 = ((Rect)object).bottom;
+                if (n4 <= n8 && n9 < n8 || n9 <= n10) {
+                    n6 = 0;
                 }
             }
             if (n3 != 1) {
@@ -677,7 +674,7 @@ implements o0.a0 {
                         if (n3 != 33) {
                             if (n3 != 66) {
                                 if (n3 == 130) {
-                                    return n7 > 0;
+                                    return n6 > 0;
                                 }
                                 object = new StringBuilder();
                                 ((StringBuilder)object).append("Invalid direction: ");
@@ -685,17 +682,17 @@ implements o0.a0 {
                                 ((StringBuilder)object).append(this.V());
                                 throw new IllegalArgumentException(((StringBuilder)object).toString());
                             }
-                            return n6 > 0;
+                            return n5 > 0;
                         }
-                        return n7 < 0;
+                        return n6 < 0;
                     }
-                    return n6 < 0;
+                    return n5 < 0;
                 }
-                return n7 > 0 || n7 == 0 && n6 * n8 > 0;
+                return n6 > 0 || n6 == 0 && n5 * n7 > 0;
                 {
                 }
             }
-            return n7 < 0 || n7 == 0 && n6 * n8 < 0;
+            return n6 < 0 || n6 == 0 && n5 * n7 < 0;
             {
             }
         }
@@ -771,11 +768,11 @@ implements o0.a0 {
     }
 
     public void F(View view) {
-        Object object = RecyclerView.m0(view);
+        d0 d02 = RecyclerView.m0(view);
         this.N0(view);
-        h h3 = this.o;
-        if (h3 != null && object != null) {
-            h3.u((d0)object);
+        Object object = this.o;
+        if (object != null && d02 != null) {
+            ((h)object).u(d02);
         }
         if ((object = this.F) != null) {
             for (int i3 = object.size() - 1; i3 >= 0; --i3) {
@@ -811,8 +808,8 @@ implements o0.a0 {
     }
 
     public final void G0(int n3, int n4, MotionEvent object, int n5) {
-        p p3 = this.p;
-        if (p3 == null) {
+        Object object2 = this.p;
+        if (object2 == null) {
             Log.e((String)"RecyclerView", (String)"Cannot scroll without a LayoutManager set. Call setLayoutManager with a non-null argument.");
             return;
         }
@@ -823,7 +820,7 @@ implements o0.a0 {
         int n6 = 0;
         nArray[0] = 0;
         nArray[1] = 0;
-        int n7 = p3.p();
+        int n7 = ((p)object2).p();
         boolean bl = this.p.q();
         int n8 = bl ? n7 | 2 : n7;
         float f3 = object == null ? (float)this.getHeight() / 2.0f : object.getY();
@@ -836,9 +833,9 @@ implements o0.a0 {
         n4 = n9;
         n3 = n10;
         if (this.L(n8, n11, this.w0, this.u0, n5)) {
-            nArray = this.w0;
-            n4 = n9 - nArray[0];
-            n3 = n10 - nArray[1];
+            object2 = this.w0;
+            n4 = n9 - object2[0];
+            n3 = n10 - object2[1];
         }
         n9 = n7 != 0 ? n4 : 0;
         n10 = n6;
@@ -1039,29 +1036,29 @@ implements o0.a0 {
         ((z)object).e = 1;
         if (((z)object).k) {
             for (int i3 = this.h.g() - 1; i3 >= 0; --i3) {
-                object = RecyclerView.m0(this.h.f(i3));
-                if (((d0)object).J()) continue;
-                long l3 = this.i0((d0)object);
-                m.b b3 = this.P.s(this.k0, (d0)object);
-                d0 d02 = this.i.g(l3);
-                if (d02 != null && !d02.J()) {
-                    boolean bl = this.i.h(d02);
-                    boolean bl2 = this.i.h((d0)object);
-                    if (bl && d02 == object) {
-                        this.i.d((d0)object, b3);
+                d0 d02 = RecyclerView.m0(this.h.f(i3));
+                if (d02.J()) continue;
+                long l3 = this.i0(d02);
+                m.b b3 = this.P.s(this.k0, d02);
+                d0 d03 = this.i.g(l3);
+                if (d03 != null && !d03.J()) {
+                    boolean bl = this.i.h(d03);
+                    boolean bl2 = this.i.h(d02);
+                    if (bl && d03 == d02) {
+                        this.i.d(d02, b3);
                         continue;
                     }
-                    m.b b4 = this.i.n(d02);
-                    this.i.d((d0)object, b3);
-                    b3 = this.i.m((d0)object);
-                    if (b4 == null) {
-                        this.s0(l3, (d0)object, d02);
+                    object = this.i.n(d03);
+                    this.i.d(d02, b3);
+                    b3 = this.i.m(d02);
+                    if (object == null) {
+                        this.s0(l3, d02, d03);
                         continue;
                     }
-                    this.p(d02, (d0)object, b4, b3, bl, bl2);
+                    this.p(d03, d02, (m.b)object, b3, bl, bl2);
                     continue;
                 }
-                this.i.d((d0)object, b3);
+                this.i.d(d02, b3);
             }
             this.i.o(this.C0);
         }
@@ -1948,31 +1945,31 @@ lbl6:
      */
     public d0 f0(int var1_1, boolean var2_2) {
         var4_3 = this.h.j();
-        var6_4 = null;
+        var5_4 = null;
         for (var3_5 = 0; var3_5 < var4_3; ++var3_5) {
             block5: {
                 block6: {
                     var7_7 = RecyclerView.m0(this.h.i(var3_5));
-                    var5_6 = var6_4;
+                    var6_6 = var5_4;
                     if (var7_7 == null) break block5;
-                    var5_6 = var6_4;
+                    var6_6 = var5_4;
                     if (var7_7.v()) break block5;
                     if (!var2_2) break block6;
                     if (var7_7.c == var1_1) ** GOTO lbl-1000
-                    var5_6 = var6_4;
+                    var6_6 = var5_4;
                     break block5;
                 }
                 if (var7_7.m() != var1_1) {
-                    var5_6 = var6_4;
+                    var6_6 = var5_4;
                 } else if (this.h.n(var7_7.a)) {
-                    var5_6 = var7_7;
+                    var6_6 = var7_7;
                 } else {
                     return var7_7;
                 }
             }
-            var6_4 = var5_6;
+            var5_4 = var6_6;
         }
-        return var6_4;
+        return var5_4;
     }
 
     public boolean f1(View view) {
@@ -2435,30 +2432,30 @@ lbl6:
     }
 
     public final void k1(View view, View view2) {
-        Rect rect;
+        p p3;
         Object object = view2 != null ? view2 : view;
         this.l.set(0, 0, object.getWidth(), object.getHeight());
         object = object.getLayoutParams();
         if (object instanceof LayoutParams) {
             object = (LayoutParams)((Object)object);
-            if (!((LayoutParams)((Object)object)).c) {
-                rect = ((LayoutParams)((Object)object)).b;
-                object = this.l;
-                ((Rect)object).left -= rect.left;
-                ((Rect)object).right += rect.right;
-                ((Rect)object).top -= rect.top;
-                ((Rect)object).bottom += rect.bottom;
+            if (!object.c) {
+                object = object.b;
+                p3 = this.l;
+                ((Rect)p3).left -= object.left;
+                ((Rect)p3).right += object.right;
+                ((Rect)p3).top -= object.top;
+                ((Rect)p3).bottom += object.bottom;
             }
         }
         if (view2 != null) {
             this.offsetDescendantRectToMyCoords(view2, this.l);
             this.offsetRectIntoDescendantCoords(view, this.l);
         }
-        object = this.p;
-        rect = this.l;
+        p3 = this.p;
+        object = this.l;
         boolean bl = this.x;
         boolean bl2 = view2 == null;
-        ((p)object).w1(this, view, rect, bl ^ true, bl2);
+        p3.w1(this, view, (Rect)object, bl ^ true, bl2);
     }
 
     public void l(q q3) {
@@ -3019,11 +3016,11 @@ lbl13:
                                     var15_7 = this.w0;
                                     var5_5 = var7_10 - var15_7[0];
                                     var4_6 = var6_12 - var15_7[1];
-                                    var15_7 = this.v0;
-                                    var6_12 = var15_7[0];
-                                    var16_14 = this.u0;
-                                    var15_7[0] = var6_12 + var16_14[0];
-                                    var15_7[1] = var15_7[1] + var16_14[1];
+                                    var16_14 = this.v0;
+                                    var6_12 = var16_14[0];
+                                    var15_7 = this.u0;
+                                    var16_14[0] = var6_12 + var15_7[0];
+                                    var16_14[1] = var16_14[1] + var15_7[1];
                                     this.getParent().requestDisallowInterceptTouchEvent(true);
                                 }
                                 var15_7 = this.u0;
@@ -3138,22 +3135,22 @@ lbl13:
         nArray[1] = 0;
         this.M(n10, n9, n8, n7, this.u0, n5, nArray);
         nArray = this.w0;
-        int n11 = nArray[0];
-        n6 = nArray[1];
-        n5 = n11 == 0 && n6 == 0 ? 0 : 1;
+        n6 = nArray[0];
+        int n11 = nArray[1];
+        n5 = n6 == 0 && n11 == 0 ? 0 : 1;
         int n12 = this.V;
         nArray = this.u0;
         int n13 = nArray[0];
         this.V = n12 - n13;
-        int n14 = this.W;
-        n12 = nArray[1];
-        this.W = n14 - n12;
+        n12 = this.W;
+        int n14 = nArray[1];
+        this.W = n12 - n14;
         nArray = this.v0;
         nArray[0] = nArray[0] + n13;
-        nArray[1] = nArray[1] + n12;
+        nArray[1] = nArray[1] + n14;
         if (this.getOverScrollMode() != 2) {
             if (motionEvent != null && !o0.z.a(motionEvent, 8194)) {
-                this.Y0(motionEvent.getX(), n8 - n11, motionEvent.getY(), n7 - n6);
+                this.Y0(motionEvent.getX(), n8 - n6, motionEvent.getY(), n7 - n11);
             }
             this.w(n3, n4);
         }
@@ -4261,18 +4258,18 @@ lbl13:
                 int n8 = this.d;
                 this.c = n5;
                 this.d = n6;
-                n5 = this.i.x(n5 - n7);
-                n7 = this.i.z(n6 - n8);
+                n7 = this.i.x(n5 - n7);
+                n5 = this.i.z(n6 - n8);
                 Object object2 = this.i;
                 Object object3 = ((RecyclerView)object2).w0;
                 object3[0] = 0;
                 object3[1] = 0;
-                n6 = n5;
-                n8 = n7;
-                if (((RecyclerView)object2).L(n5, n7, (int[])object3, null, 1)) {
+                n6 = n7;
+                n8 = n5;
+                if (((RecyclerView)object2).L(n7, n5, (int[])object3, null, 1)) {
                     object3 = this.i.w0;
-                    n6 = n5 - object3[0];
-                    n8 = n7 - object3[1];
+                    n6 = n7 - object3[0];
+                    n8 = n5 - object3[1];
                 }
                 if (this.i.getOverScrollMode() != 2) {
                     this.i.w(n6, n8);
@@ -4287,8 +4284,8 @@ lbl13:
                     object3 = ((RecyclerView)object2).w0;
                     n4 = object3[0];
                     n3 = object3[1];
-                    n7 = n6 - n4;
-                    n5 = n8 - n3;
+                    n5 = n6 - n4;
+                    n7 = n8 - n3;
                     object3 = ((RecyclerView)object2).p.g;
                     if (object3 != null && !((y)object3).g() && ((y)object3).h()) {
                         n8 = this.i.k0.b();
@@ -4301,39 +4298,39 @@ lbl13:
                             ((y)object3).j(n4, n3);
                         }
                     }
-                    n6 = n3;
-                    n8 = n4;
+                    n8 = n3;
+                    n6 = n4;
                 } else {
                     n3 = 0;
                     n4 = 0;
-                    n7 = n6;
-                    n5 = n8;
-                    n8 = n3;
-                    n6 = n4;
+                    n5 = n6;
+                    n7 = n8;
+                    n6 = n3;
+                    n8 = n4;
                 }
                 if (!this.i.r.isEmpty()) {
                     this.i.invalidate();
                 }
-                object2 = this.i;
-                object3 = ((RecyclerView)object2).w0;
-                object3[0] = 0;
-                object3[1] = 0;
-                ((RecyclerView)object2).M(n8, n6, n7, n5, null, 1, (int[])object3);
-                object2 = this.i;
-                object3 = ((RecyclerView)object2).w0;
-                n3 = n7 - object3[0];
-                n4 = n5 - object3[1];
-                if (n8 != 0 || n6 != 0) {
-                    ((RecyclerView)object2).O(n8, n6);
+                object3 = this.i;
+                object2 = ((RecyclerView)object3).w0;
+                object2[0] = false;
+                object2[1] = false;
+                ((RecyclerView)object3).M(n6, n8, n5, n7, null, 1, (int[])object2);
+                object3 = this.i;
+                object2 = ((RecyclerView)object3).w0;
+                n3 = n5 - object2[0];
+                n4 = n7 - object2[1];
+                if (n6 != 0 || n8 != 0) {
+                    ((RecyclerView)object3).O(n6, n8);
                 }
                 if (!this.i.awakenScrollBars()) {
                     this.i.invalidate();
                 }
-                n5 = object.getCurrX() == object.getFinalX() ? 1 : 0;
-                n7 = object.getCurrY() == object.getFinalY() ? 1 : 0;
-                n5 = !object.isFinished() && (n5 == 0 && n3 == 0 || n7 == 0 && n4 == 0) ? 0 : 1;
+                n7 = object.getCurrX() == object.getFinalX() ? 1 : 0;
+                n5 = object.getCurrY() == object.getFinalY() ? 1 : 0;
+                n7 = !object.isFinished() && (n7 == 0 && n3 == 0 || n5 == 0 && n4 == 0) ? 0 : 1;
                 object3 = this.i.p.g;
-                if (!(object3 != null && ((y)object3).g() || n5 == 0)) {
+                if (!(object3 != null && ((y)object3).g() || n7 == 0)) {
                     if (this.i.getOverScrollMode() != 2) {
                         n6 = (int)object.getCurrVelocity();
                         n8 = n3 < 0 ? -n6 : (n3 > 0 ? n6 : 0);
@@ -4349,10 +4346,10 @@ lbl13:
                     }
                 } else {
                     this.d();
-                    object = this.i;
-                    object3 = ((RecyclerView)object).i0;
-                    if (object3 != null) {
-                        ((e)object3).f((RecyclerView)object, n8, n6);
+                    object3 = this.i;
+                    object = ((RecyclerView)object3).i0;
+                    if (object != null) {
+                        ((e)object).f((RecyclerView)object3, n6, n8);
                     }
                 }
             }
@@ -4946,9 +4943,9 @@ lbl13:
                 return 4;
             }
             if ((n3 & 4) == 0) {
-                int n5 = d02.n();
-                n3 = d02.j();
-                if (n5 != -1 && n3 != -1 && n5 != n3) {
+                n3 = d02.n();
+                int n5 = d02.j();
+                if (n3 != -1 && n5 != -1 && n3 != n5) {
                     return n4 | 0x800;
                 }
             }
@@ -5628,12 +5625,12 @@ lbl13:
             int n14 = n10 - n4;
             n4 = Math.min(0, n14);
             n5 = n11 + n9 - (n5 - n6);
-            n6 = Math.max(0, n5);
+            n9 = Math.max(0, n5);
             n8 = Math.max(0, n12 + n10 - (n7 - n8));
             if (this.d0() == 1) {
-                n3 = n6 != 0 ? n6 : Math.max(n3, n5);
+                n3 = n9 != 0 ? n9 : Math.max(n3, n5);
             } else if (n3 == 0) {
-                n3 = Math.min(n13, n6);
+                n3 = Math.min(n13, n9);
             }
             if (n4 == 0) {
                 n4 = Math.min(n14, n8);
@@ -5854,7 +5851,7 @@ lbl13:
          * Enabled aggressive block sorting
          */
         public final void k(View view, int n3, boolean bl) {
-            LayoutParams layoutParams;
+            Object object;
             d0 d02;
             block13: {
                 block12: {
@@ -5864,7 +5861,7 @@ lbl13:
                     } else {
                         this.b.i.b(d02);
                     }
-                    layoutParams = (LayoutParams)view.getLayoutParams();
+                    object = (LayoutParams)view.getLayoutParams();
                     if (d02.L() || d02.w()) break block12;
                     if (view.getParent() == this.b) {
                         int n4 = this.a.m(view);
@@ -5873,11 +5870,11 @@ lbl13:
                             n5 = this.a.g();
                         }
                         if (n4 == -1) {
-                            StringBuilder stringBuilder = new StringBuilder();
-                            stringBuilder.append("Added View has RecyclerView as parent but view is not a real child. Unfiltered index:");
-                            stringBuilder.append(this.b.indexOfChild(view));
-                            stringBuilder.append(this.b.V());
-                            throw new IllegalStateException(stringBuilder.toString());
+                            object = new StringBuilder();
+                            ((StringBuilder)object).append("Added View has RecyclerView as parent but view is not a real child. Unfiltered index:");
+                            ((StringBuilder)object).append(this.b.indexOfChild(view));
+                            ((StringBuilder)object).append(this.b.V());
+                            throw new IllegalStateException(((StringBuilder)object).toString());
                         }
                         if (n4 != n5) {
                             this.b.p.F0(n4, n5);
@@ -5885,7 +5882,7 @@ lbl13:
                         break block13;
                     } else {
                         this.a.a(view, n3, false);
-                        layoutParams.c = true;
+                        ((LayoutParams)((Object)object)).c = true;
                         y y3 = this.g;
                         if (y3 != null && y3.h()) {
                             this.g.k(view);
@@ -5900,12 +5897,12 @@ lbl13:
                 }
                 this.a.c(view, n3, view.getLayoutParams(), false);
             }
-            if (layoutParams.d) {
+            if (((LayoutParams)((Object)object)).d) {
                 if (E0) {
-                    Objects.toString(layoutParams.a);
+                    Objects.toString(((LayoutParams)((Object)object)).a);
                 }
                 d02.a.invalidate();
-                layoutParams.d = false;
+                ((LayoutParams)((Object)object)).d = false;
             }
         }
 
@@ -5941,14 +5938,14 @@ lbl13:
                 if (this.b == null) {
                     return false;
                 }
-                var7_5 = this.b0();
-                var8_6 = this.s0();
+                var8_5 = this.b0();
+                var7_6 = this.s0();
                 var1_1 = new Rect();
-                var5_7 = var7_5;
-                var6_8 = var8_6;
+                var5_7 = var8_5;
+                var6_8 = var7_6;
                 if (this.b.getMatrix().isIdentity()) {
-                    var5_7 = var7_5;
-                    var6_8 = var8_6;
+                    var5_7 = var8_5;
+                    var6_8 = var7_6;
                     if (this.b.getGlobalVisibleRect((Rect)var1_1)) {
                         var5_7 = var1_1.height();
                         var6_8 = var1_1.width();
@@ -6088,7 +6085,6 @@ lbl31:
         }
 
         public void r0(View view, boolean bl, Rect rect) {
-            Matrix matrix;
             Rect rect2;
             if (bl) {
                 rect2 = ((LayoutParams)view.getLayoutParams()).b;
@@ -6096,11 +6092,11 @@ lbl31:
             } else {
                 rect.set(0, 0, view.getWidth(), view.getHeight());
             }
-            if (this.b != null && (matrix = view.getMatrix()) != null && !matrix.isIdentity()) {
-                rect2 = this.b.n;
-                rect2.set(rect);
-                matrix.mapRect((RectF)rect2);
-                rect.set((int)Math.floor(rect2.left), (int)Math.floor(rect2.top), (int)Math.ceil(rect2.right), (int)Math.ceil(rect2.bottom));
+            if (this.b != null && (rect2 = view.getMatrix()) != null && !rect2.isIdentity()) {
+                RectF rectF = this.b.n;
+                rectF.set(rect);
+                rect2.mapRect(rectF);
+                rect.set((int)Math.floor(rectF.left), (int)Math.floor(rectF.top), (int)Math.ceil(rectF.right), (int)Math.ceil(rectF.bottom));
             }
             rect.offset(view.getLeft(), view.getTop());
         }
@@ -6657,9 +6653,9 @@ lbl31:
                         block30: {
                             block29: {
                                 if (var1_1 < 0 || var1_1 >= this.h.k0.b()) break block28;
-                                var10_4 = this.h.k0.e();
-                                var9_5 = true;
-                                if (!var10_4) break block29;
+                                var14_4 = this.h.k0.e();
+                                var13_5 = true;
+                                if (!var14_4) break block29;
                                 var15_7 = var16_6 = this.h(var1_1);
                                 if (var16_6 == null) break block30;
                                 var6_9 = 1;
@@ -6725,8 +6721,8 @@ lbl31:
                             var16_6 = var17_13;
                             var7_11 = var6_9;
                             if (var17_13 == null) {
-                                var11_14 = this.h.getNanoTime();
-                                if (var3_3 != 0x7FFFFFFFFFFFFFFFL && !this.g.n(var8_12, var11_14, var3_3)) {
+                                var9_14 = this.h.getNanoTime();
+                                if (var3_3 != 0x7FFFFFFFFFFFFFFFL && !this.g.n(var8_12, var9_14, var3_3)) {
                                     return null;
                                 }
                                 var15_7 = this.h;
@@ -6734,8 +6730,8 @@ lbl31:
                                 if (RecyclerView.K0 && (var15_7 = RecyclerView.b0(var16_6.a)) != null) {
                                     var16_6.b = new WeakReference<Object>(var15_7);
                                 }
-                                var13_15 = this.h.getNanoTime();
-                                this.g.g(var8_12, var13_15 - var11_14);
+                                var11_15 = this.h.getNanoTime();
+                                this.g.g(var8_12, var11_15 - var9_14);
                                 var2_2 = RecyclerView.D0;
                                 var7_11 = var6_9;
                             }
@@ -6790,7 +6786,7 @@ lbl31:
                     var15_7 = (LayoutParams)var15_7;
                 }
                 var15_7.a = var16_6;
-                var2_2 = var7_11 != 0 && var2_2 != false ? var9_5 : false;
+                var2_2 = var7_11 != 0 && var2_2 != false ? var13_5 : false;
                 var15_7.d = var2_2;
                 return var16_6;
             }

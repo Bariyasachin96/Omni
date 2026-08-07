@@ -597,16 +597,16 @@ public class z {
     }
 
     public void o0(androidx.activity.b b3) {
-        SearchBar searchBar;
+        i i3;
         block5: {
             block6: {
                 block4: {
                     if (b3.a() <= 0.0f) break block4;
-                    i i3 = this.n;
-                    searchBar = this.p;
+                    i3 = this.n;
+                    SearchBar searchBar = this.p;
                     i3.x(b3, (View)searchBar, searchBar.getCornerSize());
-                    searchBar = this.o;
-                    if (searchBar != null) break block5;
+                    i3 = this.o;
+                    if (i3 != null) break block5;
                     if (this.a.s()) {
                         this.a.p();
                     }
@@ -620,7 +620,7 @@ public class z {
             this.o.pause();
             return;
         }
-        searchBar.setCurrentPlayTime((long)(b3.a() * (float)this.o.getDuration()));
+        i3.setCurrentPlayTime((long)(b3.a() * (float)this.o.getDuration()));
     }
 
     public final void p(AnimatorSet animatorSet, ImageButton imageButton) {

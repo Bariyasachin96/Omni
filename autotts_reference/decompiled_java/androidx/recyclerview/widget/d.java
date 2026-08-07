@@ -287,40 +287,41 @@ implements RecyclerView.s {
     public final void m(Canvas canvas) {
         int n3 = this.r;
         int n4 = this.i;
-        int n5 = this.o;
-        int n6 = this.n;
-        this.g.setBounds(0, 0, n6, n4);
+        int n5 = n3 - n4;
+        int n6 = this.o;
+        n3 = this.n;
+        this.g.setBounds(0, 0, n3, n4);
         this.h.setBounds(0, 0, this.q, this.j);
-        canvas.translate(0.0f, (float)(n3 -= n4));
+        canvas.translate(0.0f, (float)n5);
         this.h.draw(canvas);
-        canvas.translate((float)(n5 -= n6 / 2), 0.0f);
+        canvas.translate((float)(n6 -= n3 / 2), 0.0f);
         this.g.draw(canvas);
-        canvas.translate((float)(-n5), (float)(-n3));
+        canvas.translate((float)(-n6), (float)(-n5));
     }
 
     public final void n(Canvas canvas) {
         int n3 = this.q;
         int n4 = this.e;
-        int n5 = n3 - n4;
-        int n6 = this.l;
-        n3 = this.k;
-        n6 -= n3 / 2;
-        this.c.setBounds(0, 0, n4, n3);
+        n3 -= n4;
+        int n5 = this.l;
+        int n6 = this.k;
+        n5 -= n6 / 2;
+        this.c.setBounds(0, 0, n4, n6);
         this.d.setBounds(0, 0, this.f, this.r);
         if (this.s()) {
             this.d.draw(canvas);
-            canvas.translate((float)this.e, (float)n6);
+            canvas.translate((float)this.e, (float)n5);
             canvas.scale(-1.0f, 1.0f);
             this.c.draw(canvas);
             canvas.scale(-1.0f, 1.0f);
-            canvas.translate((float)(-this.e), (float)(-n6));
+            canvas.translate((float)(-this.e), (float)(-n5));
             return;
         }
-        canvas.translate((float)n5, 0.0f);
+        canvas.translate((float)n3, 0.0f);
         this.d.draw(canvas);
-        canvas.translate(0.0f, (float)n6);
+        canvas.translate(0.0f, (float)n5);
         this.c.draw(canvas);
-        canvas.translate((float)(-n5), (float)(-n6));
+        canvas.translate((float)(-n3), (float)(-n5));
     }
 
     public final int[] o() {

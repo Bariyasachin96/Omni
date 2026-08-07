@@ -219,10 +219,11 @@ public abstract class x0 {
     public static void Q(View view, int n3) {
         int n4;
         boolean bl;
+        AccessibilityManager accessibilityManager;
         block10: {
             block9: {
-                Object object = (AccessibilityManager)view.getContext().getSystemService("accessibility");
-                if (!object.isEnabled()) break block9;
+                accessibilityManager = (AccessibilityManager)view.getContext().getSystemService("accessibility");
+                if (!accessibilityManager.isEnabled()) break block9;
                 bl = x0.n(view) != null && view.isShown() && view.getWindowVisibility() == 0;
                 int n5 = view.getAccessibilityLiveRegion();
                 n4 = 32;
@@ -235,36 +236,36 @@ public abstract class x0 {
                     accessibilityEvent.setSource(view);
                     view.onPopulateAccessibilityEvent(accessibilityEvent);
                     accessibilityEvent.getText().add(x0.n(view));
-                    object.sendAccessibilityEvent(accessibilityEvent);
+                    accessibilityManager.sendAccessibilityEvent(accessibilityEvent);
                     return;
                 }
                 if (view.getParent() != null) {
-                    ViewParent viewParent = view.getParent();
+                    accessibilityManager = view.getParent();
                     try {
-                        viewParent.notifySubtreeAccessibilityStateChanged(view, view, n3);
+                        accessibilityManager.notifySubtreeAccessibilityStateChanged(view, view, n3);
                         return;
                     }
                     catch (AbstractMethodError abstractMethodError) {
-                        object = new StringBuilder();
-                        ((StringBuilder)object).append(view.getParent().getClass().getSimpleName());
-                        ((StringBuilder)object).append(" does not fully implement ViewParent");
-                        Log.e((String)"ViewCompat", (String)((StringBuilder)object).toString(), (Throwable)abstractMethodError);
+                        StringBuilder stringBuilder = new StringBuilder();
+                        stringBuilder.append(view.getParent().getClass().getSimpleName());
+                        stringBuilder.append(" does not fully implement ViewParent");
+                        Log.e((String)"ViewCompat", (String)stringBuilder.toString(), (Throwable)abstractMethodError);
                     }
                 }
             }
             return;
         }
-        AccessibilityEvent accessibilityEvent = AccessibilityEvent.obtain();
+        accessibilityManager = AccessibilityEvent.obtain();
         if (!bl) {
             n4 = 2048;
         }
-        accessibilityEvent.setEventType(n4);
-        accessibilityEvent.setContentChangeTypes(n3);
+        accessibilityManager.setEventType(n4);
+        accessibilityManager.setContentChangeTypes(n3);
         if (bl) {
-            accessibilityEvent.getText().add(x0.n(view));
+            accessibilityManager.getText().add(x0.n(view));
             x0.p0(view);
         }
-        view.sendAccessibilityEventUnchecked(accessibilityEvent);
+        view.sendAccessibilityEventUnchecked((AccessibilityEvent)accessibilityManager);
     }
 
     public static void R(View view, int n3) {

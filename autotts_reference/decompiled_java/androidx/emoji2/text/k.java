@@ -136,17 +136,18 @@ extends f.c {
          * Lifted jumps to return sites
          */
         public void c() {
+            f.i i3;
             Throwable throwable2;
             Object object;
-            Object object2;
             block28: {
                 int n3;
+                Object object2;
                 block26: {
                     block27: {
-                        object2 = this.d;
-                        // MONITORENTER : object2
+                        object = this.d;
+                        // MONITORENTER : object
                         if (this.h == null) {
-                            // MONITOREXIT : object2
+                            // MONITOREXIT : object
                             return;
                         }
                         try {
@@ -164,20 +165,20 @@ extends f.c {
                         object = this.c.a(this.a, (g.b)object2);
                         object2 = g0.k.e(this.a, null, ((g.b)object2).d());
                         if (object2 == null || object == null) break block27;
-                        n n4 = n.b((Typeface)object, (ByteBuffer)object2);
+                        object2 = n.b((Typeface)object, (ByteBuffer)object2);
                         k0.e.b();
-                        object2 = this.d;
-                        // MONITORENTER : object2
-                        object = this.h;
-                        if (object != null) {
-                            ((f.i)object).b(n4);
+                        object = this.d;
+                        // MONITORENTER : object
+                        i3 = this.h;
+                        if (i3 != null) {
+                            i3.b((n)object2);
                         }
                         this.b();
                         return;
                     }
                     try {
-                        object2 = new RuntimeException("Unable to open file.");
-                        throw object2;
+                        object = new RuntimeException("Unable to open file.");
+                        throw object;
                     }
                     catch (Throwable throwable3) {}
                     k0.e.b();
@@ -191,11 +192,11 @@ extends f.c {
                 object2 = new RuntimeException(((StringBuilder)object).toString());
                 throw object2;
             }
-            object2 = this.d;
-            // MONITORENTER : object2
-            object = this.h;
-            if (object != null) {
-                ((f.i)object).a(throwable2);
+            object = this.d;
+            // MONITORENTER : object
+            i3 = this.h;
+            if (i3 != null) {
+                i3.a(throwable2);
             }
             this.b();
         }
@@ -234,23 +235,24 @@ extends f.c {
         }
 
         public final g.b e() {
-            g.b[] bArray;
+            g.a a4;
             block3: {
                 try {
-                    bArray = this.c.b(this.a, this.b);
-                    if (bArray.c() != 0) break block3;
+                    a4 = this.c.b(this.a, this.b);
+                    if (a4.c() != 0) break block3;
                 }
                 catch (PackageManager.NameNotFoundException nameNotFoundException) {
                     throw new RuntimeException("provider not found", nameNotFoundException);
                 }
-                if ((bArray = bArray.b()) != null && bArray.length != 0) {
+                g.b[] bArray = a4.b();
+                if (bArray != null && bArray.length != 0) {
                     return bArray[0];
                 }
                 throw new RuntimeException("fetchFonts failed (empty result)");
             }
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.append("fetchFonts failed (");
-            stringBuilder.append(bArray.c());
+            stringBuilder.append(a4.c());
             stringBuilder.append(")");
             throw new RuntimeException(stringBuilder.toString());
         }

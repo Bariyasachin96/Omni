@@ -189,10 +189,11 @@ public class d {
                         if (!(f9 <= 1.0f)) break block25;
                         f7 = p.h(this.k(f9));
                         f9 = f7 < f6 ? f7 : f6;
-                        f5 = f9;
-                        f6 = f13;
+                        f6 = f9;
+                        f5 = f13;
                         if (!(f7 > f13)) break block26;
-                        f6 = f7;
+                        f6 = f9;
+                        f9 = f7;
                         break block27;
                     }
                     f12 = f5 * f5 - f10 * f9 * f7;
@@ -231,22 +232,22 @@ public class d {
                     if (!(f6 <= 1.0f)) break block25;
                     f7 = p.h(this.k(f6));
                     f13 = f7 < f5 ? f7 : f5;
-                    f5 = f13;
-                    f6 = f9;
+                    f6 = f13;
+                    f5 = f9;
                     if (!(f7 > f9)) break block26;
-                    f6 = f7;
-                    f9 = f13;
+                    f9 = f7;
+                    f6 = f13;
                 }
                 f5 = f9;
                 break block26;
             }
-            f5 = f8;
-            f6 = f7;
+            f6 = f8;
+            f5 = f7;
         }
         fArray[0] = f4;
-        fArray[1] = f5;
+        fArray[1] = f6;
         fArray[2] = f3;
-        fArray[3] = f6;
+        fArray[3] = f5;
     }
 
     public final float b() {
@@ -307,10 +308,10 @@ public class d {
         float f8 = (float)3 * f3;
         float f9 = f8 * f4 * f4;
         float f10 = this.h();
-        f4 = f8 * f3 * f4;
-        f8 = this.d();
+        f8 = f8 * f3 * f4;
+        f4 = this.d();
         f3 = f3 * f3 * f3;
-        return o.e.b(f5 * f6 + f7 * f9 + f10 * f4 + f8 * f3, this.c() * f6 + this.g() * f9 + this.i() * f4 + this.e() * f3);
+        return o.e.b(f5 * f6 + f7 * f9 + f10 * f8 + f4 * f3, this.c() * f6 + this.g() * f9 + this.i() * f8 + this.e() * f3);
     }
 
     public final d l() {
@@ -395,11 +396,11 @@ public class d {
             if (f3 > 0.999f) {
                 return this.b(f5, f6, f7, f8);
             }
-            f10 = y.d(f9, f10) * 4.0f / 3.0f;
-            float f11 = 2;
-            f4 = 1.0f;
-            f9 = f4 - f3;
-            f4 = f10 * ((float)Math.sqrt(f11 * f9) - (float)Math.sqrt(f4 - f3 * f3)) / f9;
+            float f11 = y.d(f9, f10) * 4.0f / 3.0f;
+            f4 = 2;
+            f10 = 1.0f;
+            f9 = f10 - f3;
+            f4 = f11 * ((float)Math.sqrt(f4 * f9) - (float)Math.sqrt(f10 - f3 * f3)) / f9;
             f3 = bl ? 1.0f : -1.0f;
             f3 = f4 * f3;
             return e.a(f5, f6, f5 + p.g(l5) * f3, f6 + p.h(l5) * f3, f7 - p.g(l6) * f3, f8 - p.h(l6) * f3, f7, f8);

@@ -5,11 +5,11 @@ package v;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import u.d;
 import u.e;
 import u.h;
 import v.b;
 import v.c;
-import v.d;
 import v.f;
 import v.g;
 import v.j;
@@ -61,17 +61,17 @@ public class e {
                         this.a((f)object22, n3, 2, f3, arrayList, (m)object);
                     }
                 }
-                for (Object object3 : p3.h.l) {
-                    if (object3 == f3) {
+                for (Object object22 : p3.h.l) {
+                    if (object22 == f3) {
                         ((m)object).b = true;
                     }
-                    this.a((f)object3, n3, 0, f3, arrayList, (m)object);
+                    this.a((f)object22, n3, 0, f3, arrayList, (m)object);
                 }
-                for (Object object3 : p3.i.l) {
-                    if (object3 == f3) {
+                for (Object object22 : p3.i.l) {
+                    if (object22 == f3) {
                         ((m)object).b = true;
                     }
-                    this.a((f)object3, n3, 1, f3, arrayList, (m)object);
+                    this.a((f)object22, n3, 1, f3, arrayList, (m)object);
                 }
                 if (n3 == 1 && p3 instanceof n) {
                     object22 = ((n)p3).k.l.iterator();
@@ -97,7 +97,7 @@ public class e {
             block39: {
                 void var11_52;
                 void var10_38;
-                u.d[] dArray;
+                d[] dArray;
                 void var9_18;
                 int n7;
                 u.e e3;
@@ -222,7 +222,7 @@ public class e {
                                                 e3.a = true;
                                                 break block39;
                                             }
-                                            u.d[] dArray2 = e3.Y;
+                                            d[] dArray2 = e3.Y;
                                             if (dArray2[n4].f != null && dArray2[1].f != null) break block37;
                                             this.l(e3, b4, 0, (e.b)var9_18, 0);
                                             e3.e.e.d(e3.Y());
@@ -235,14 +235,14 @@ public class e {
                                         if (var10_33 == b4) {
                                             this.l(e3, b4, 0, b4, 0);
                                         }
-                                        n5 = e3.Y();
+                                        n7 = e3.Y();
                                         f4 = f5 = e3.f0;
                                         if (e3.y() == -1) {
                                             f4 = 1.0f / f5;
                                         }
-                                        n7 = (int)((float)n5 * f4 + 0.5f);
+                                        n5 = (int)((float)n7 * f4 + 0.5f);
                                         e.b b18 = e.b.c;
-                                        this.l(e3, b18, n5, b18, n7);
+                                        this.l(e3, b18, n7, b18, n5);
                                         e3.e.e.d(e3.Y());
                                         e3.f.e.d(e3.z());
                                         e3.a = true;
@@ -434,8 +434,8 @@ public class e {
             }
             this.a.r1(0);
             this.a.s1(0);
-            object = this.a.w(0);
-            object2 = this.a.w(1);
+            object2 = this.a.w(0);
+            object = this.a.w(1);
             if (this.b) {
                 this.c();
             }
@@ -445,7 +445,7 @@ public class e {
             this.a.f.h.d(n5);
             this.m();
             Object object4 = e.b.d;
-            if (object == object4 || object2 == object4) {
+            if (object2 == object4 || object == object4) {
                 block19: {
                     bl2 = bl;
                     if (bl) {
@@ -461,14 +461,14 @@ public class e {
                         bl2 = false;
                     }
                 }
-                if (bl2 && object == e.b.d) {
+                if (bl2 && object2 == e.b.d) {
                     this.a.U0(e.b.c);
                     object4 = this.a;
                     ((u.e)object4).p1(this.e((u.f)object4, 0));
                     object4 = this.a;
                     ((u.e)object4).e.e.d(((u.e)object4).Y());
                 }
-                if (bl2 && object2 == e.b.d) {
+                if (bl2 && object == e.b.d) {
                     this.a.l1(e.b.c);
                     object4 = this.a;
                     ((u.e)object4).Q0(this.e((u.f)object4, 1));
@@ -532,8 +532,8 @@ public class e {
             }
             bl = true;
         }
-        this.a.U0((e.b)((Object)object));
-        this.a.l1((e.b)((Object)object2));
+        this.a.U0((e.b)((Object)object2));
+        this.a.l1((e.b)((Object)object));
         return bl;
     }
 
@@ -588,19 +588,19 @@ public class e {
                 block21: {
                     var10_3 /* !! */  = this.a;
                     var9_4 = false;
-                    var11_5 = var10_3 /* !! */ .w(0);
-                    var10_3 /* !! */  = this.a.w(1);
+                    var10_3 /* !! */  = var10_3 /* !! */ .w(0);
+                    var11_5 = this.a.w(1);
                     var6_6 = this.a.Z();
                     var5_7 = this.a.a0();
-                    if (var1_1 && (var11_5 == (var12_8 /* !! */  = e.b.d) || var10_3 /* !! */  == var12_8 /* !! */ )) {
+                    if (var1_1 && (var10_3 /* !! */  == (var12_8 = e.b.d) || var11_5 == var12_8)) {
                         block18: {
-                            var12_8 /* !! */  = this.e;
-                            var7_9 = var12_8 /* !! */ .size();
+                            var12_8 = this.e;
+                            var7_9 = var12_8.size();
                             var3_10 = 0;
                             while (true) {
                                 var8_12 = var1_1;
                                 if (var3_10 >= var7_9) break block18;
-                                var13_13 /* !! */  = var12_8 /* !! */ .get(var3_10);
+                                var13_13 /* !! */  = var12_8.get(var3_10);
                                 var4_11 = var3_10 + 1;
                                 var13_13 /* !! */  = (p)var13_13 /* !! */ ;
                                 var3_10 = var4_11;
@@ -611,26 +611,26 @@ public class e {
                             var8_12 = false;
                         }
                         if (var2_2 == 0) {
-                            if (var8_12 && var11_5 == e.b.d) {
+                            if (var8_12 && var10_3 /* !! */  == e.b.d) {
                                 this.a.U0(e.b.c);
-                                var12_8 /* !! */  = this.a;
-                                var12_8 /* !! */ .p1(this.e((u.f)var12_8 /* !! */ , 0));
-                                var12_8 /* !! */  = this.a;
-                                var12_8 /* !! */ .e.e.d(var12_8 /* !! */ .Y());
+                                var12_8 = this.a;
+                                var12_8.p1(this.e((u.f)var12_8, 0));
+                                var12_8 = this.a;
+                                var12_8.e.e.d(var12_8.Y());
                             }
-                        } else if (var8_12 && var10_3 /* !! */  == e.b.d) {
+                        } else if (var8_12 && var11_5 == e.b.d) {
                             this.a.l1(e.b.c);
-                            var12_8 /* !! */  = this.a;
-                            var12_8 /* !! */ .Q0(this.e((u.f)var12_8 /* !! */ , 1));
-                            var12_8 /* !! */  = this.a;
-                            var12_8 /* !! */ .f.e.d(var12_8 /* !! */ .z());
+                            var12_8 = this.a;
+                            var12_8.Q0(this.e((u.f)var12_8, 1));
+                            var12_8 = this.a;
+                            var12_8.f.e.d(var12_8.z());
                         }
                     }
                     if (var2_2 != 0) break block21;
-                    var12_8 /* !! */  = this.a;
-                    var13_13 /* !! */  = var12_8 /* !! */ .b0[0];
+                    var12_8 = this.a;
+                    var13_13 /* !! */  = var12_8.b0[0];
                     if (var13_13 /* !! */  == e.b.c || var13_13 /* !! */  == e.b.f) {
-                        var3_10 = var12_8 /* !! */ .Y() + var6_6;
+                        var3_10 = var12_8.Y() + var6_6;
                         this.a.e.i.d(var3_10);
                         this.a.e.e.d(var3_10 - var6_6);
 lbl45:
@@ -644,34 +644,34 @@ lbl45:
                     }
                     ** GOTO lbl-1000
                 }
-                var13_13 /* !! */  = this.a;
-                var12_8 /* !! */  = var13_13 /* !! */ .b0[1];
-                if (var12_8 /* !! */  != e.b.c && var12_8 /* !! */  != e.b.f) lbl-1000:
+                var12_8 = this.a;
+                var13_13 /* !! */  = var12_8.b0[1];
+                if (var13_13 /* !! */  != e.b.c && var13_13 /* !! */  != e.b.f) lbl-1000:
                 // 2 sources
 
                 {
                     var3_10 = 0;
                 } else {
-                    var3_10 = var13_13 /* !! */ .z() + var5_7;
+                    var3_10 = var12_8.z() + var5_7;
                     this.a.f.i.d(var3_10);
                     this.a.f.e.d(var3_10 - var5_7);
                     ** continue;
                 }
             }
             this.m();
-            var12_8 /* !! */  = this.e;
-            var5_7 = var12_8 /* !! */ .size();
+            var12_8 = this.e;
+            var5_7 = var12_8.size();
             for (var4_11 = 0; var4_11 < var5_7; ++var4_11) {
-                var13_13 /* !! */  = var12_8 /* !! */ .get(var4_11);
+                var13_13 /* !! */  = var12_8.get(var4_11);
                 var13_13 /* !! */  = (p)var13_13 /* !! */ ;
                 if (var13_13 /* !! */ .f != var2_2 || var13_13 /* !! */ .b == this.a && !var13_13 /* !! */ .g) continue;
                 var13_13 /* !! */ .e();
             }
-            var12_8 /* !! */  = this.e;
-            var6_6 = var12_8 /* !! */ .size();
+            var12_8 = this.e;
+            var6_6 = var12_8.size();
             var4_11 = 0;
             while (var4_11 < var6_6) {
-                var13_13 /* !! */  = var12_8 /* !! */ .get(var4_11);
+                var13_13 /* !! */  = var12_8.get(var4_11);
                 var5_7 = var4_11 + 1;
                 var13_13 /* !! */  = (p)var13_13 /* !! */ ;
                 if (var13_13 /* !! */ .f != var2_2) {
@@ -697,32 +697,32 @@ lbl45:
             }
             var1_1 = true;
         }
-        this.a.U0(var11_5);
-        this.a.l1((e.b)var10_3 /* !! */ );
+        this.a.U0((e.b)var10_3 /* !! */ );
+        this.a.l1(var11_5);
         return var1_1;
     }
 
-    public final void i(p d32, int n3, ArrayList arrayList) {
-        for (Object object : d32.h.k) {
-            if (object instanceof f) {
-                this.a((f)object, n3, 0, d32.i, arrayList, null);
+    public final void i(p object, int n3, ArrayList arrayList) {
+        for (Object object2 : ((p)object).h.k) {
+            if (object2 instanceof f) {
+                this.a((f)object2, n3, 0, ((p)object).i, arrayList, null);
                 continue;
             }
-            if (!(object instanceof p)) continue;
-            this.a(((p)object).h, n3, 0, d32.i, arrayList, null);
+            if (!(object2 instanceof p)) continue;
+            this.a(((p)object2).h, n3, 0, ((p)object).i, arrayList, null);
         }
-        for (Object object : d32.i.k) {
-            if (object instanceof f) {
-                this.a((f)object, n3, 1, d32.h, arrayList, null);
+        for (Object object3 : ((p)object).i.k) {
+            if (object3 instanceof f) {
+                this.a((f)object3, n3, 1, ((p)object).h, arrayList, null);
                 continue;
             }
-            if (!(object instanceof p)) continue;
-            this.a(((p)object).i, n3, 1, d32.h, arrayList, null);
+            if (!(object3 instanceof p)) continue;
+            this.a(((p)object3).i, n3, 1, ((p)object).h, arrayList, null);
         }
         if (n3 == 1) {
-            for (d d32 : ((n)d32).k.k) {
-                if (!(d32 instanceof f)) continue;
-                this.a((f)d32, n3, 2, null, arrayList, null);
+            for (Object object3 : ((n)object).k.k) {
+                if (!(object3 instanceof f)) continue;
+                this.a((f)object3, n3, 2, null, arrayList, null);
             }
         }
     }
@@ -768,16 +768,16 @@ lbl45:
             e.b b5 = e.b.d;
             n4 = b3 != b5 && (b3 != e.b.e || n4 != 1) ? 0 : 1;
             n6 = b4 != b5 && (b4 != e.b.e || n6 != 1) ? 0 : 1;
-            object2 = ((u.e)object).e.e;
-            boolean bl = ((f)object2).j;
-            g g3 = ((u.e)object).f.e;
-            boolean bl2 = g3.j;
+            g g3 = ((u.e)object).e.e;
+            boolean bl = g3.j;
+            object2 = ((u.e)object).f.e;
+            boolean bl2 = ((f)object2).j;
             if (bl && bl2) {
                 b3 = e.b.c;
-                this.l((u.e)object, b3, ((f)object2).g, b3, g3.g);
+                this.l((u.e)object, b3, g3.g, b3, ((f)object2).g);
                 ((u.e)object).a = true;
             } else if (bl && n6 != 0) {
-                this.l((u.e)object, e.b.c, ((f)object2).g, b5, g3.g);
+                this.l((u.e)object, e.b.c, g3.g, b5, ((f)object2).g);
                 if (b4 == e.b.e) {
                     ((u.e)object).f.e.m = ((u.e)object).z();
                 } else {
@@ -785,7 +785,7 @@ lbl45:
                     ((u.e)object).a = true;
                 }
             } else if (bl2 && n4 != 0) {
-                this.l((u.e)object, b5, ((f)object2).g, e.b.c, g3.g);
+                this.l((u.e)object, b5, g3.g, e.b.c, ((f)object2).g);
                 if (b3 == e.b.e) {
                     ((u.e)object).e.e.m = ((u.e)object).Y();
                 } else {

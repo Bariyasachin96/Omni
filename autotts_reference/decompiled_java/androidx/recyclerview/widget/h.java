@@ -112,15 +112,15 @@ public class h {
                 return;
             }
         }
-        n7 = b3.b;
-        n5 = b4.b;
+        n5 = b3.b;
+        n7 = b4.b;
         a.b b5 = null;
-        if (n7 <= n5) {
-            b4.b = n5 + 1;
+        if (n5 <= n7) {
+            b4.b = n7 + 1;
         } else {
             n8 = b4.d;
-            if (n7 < n5 + n8) {
-                b5 = this.a.b(2, n7 + 1, n5 + n8 - n7, null);
+            if (n5 < n7 + n8) {
+                b5 = this.a.b(2, n5 + 1, n7 + n8 - n5, null);
                 b4.d = b3.b - b4.b;
             }
         }
@@ -178,16 +178,16 @@ public class h {
      */
     public void f(List var1_1, int var2_2, a.b var3_3, int var4_4, a.b var5_5) {
         block9: {
-            var6_6 = var3_3.d;
+            var8_6 = var3_3.d;
             var7_7 = var5_5.b;
             var10_8 = null;
-            if (var6_6 >= var7_7) break block9;
+            if (var8_6 >= var7_7) break block9;
             var5_5.b = var7_7 - 1;
             ** GOTO lbl-1000
         }
-        var8_9 = var5_5.d;
-        if (var6_6 < var7_7 + var8_9) {
-            var5_5.d = var8_9 - 1;
+        var6_9 = var5_5.d;
+        if (var8_6 < var7_7 + var6_9) {
+            var5_5.d = var6_9 - 1;
             var9_10 = this.a.b(4, var3_3.b, 1, var5_5.c);
         } else lbl-1000:
         // 2 sources
@@ -195,15 +195,15 @@ public class h {
         {
             var9_10 = null;
         }
-        var6_6 = var3_3.b;
+        var6_9 = var3_3.b;
         var7_7 = var5_5.b;
-        if (var6_6 <= var7_7) {
+        if (var6_9 <= var7_7) {
             var5_5.b = var7_7 + 1;
         } else {
-            var8_9 = var5_5.d;
-            if (var6_6 < var7_7 + var8_9) {
-                var7_7 = var7_7 + var8_9 - var6_6;
-                var10_8 = this.a.b(4, var6_6 + 1, var7_7, var5_5.c);
+            var8_6 = var5_5.d;
+            if (var6_9 < var7_7 + var8_6) {
+                var7_7 = var7_7 + var8_6 - var6_9;
+                var10_8 = this.a.b(4, var6_9 + 1, var7_7, var5_5.c);
                 var5_5.d -= var7_7;
             }
         }

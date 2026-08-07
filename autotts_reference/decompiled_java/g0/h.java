@@ -38,9 +38,9 @@ extends g {
 
     @Override
     public Method s(Class genericDeclaration) {
-        genericDeclaration = Array.newInstance(genericDeclaration, 1).getClass();
-        Class<Integer> clazz = Integer.TYPE;
-        genericDeclaration = Typeface.class.getDeclaredMethod("createFromFamiliesWithDefault", new Class[]{genericDeclaration, String.class, clazz, clazz});
+        Class<?> clazz = Array.newInstance(genericDeclaration, 1).getClass();
+        genericDeclaration = Integer.TYPE;
+        genericDeclaration = Typeface.class.getDeclaredMethod("createFromFamiliesWithDefault", new Class[]{clazz, String.class, genericDeclaration, genericDeclaration});
         ((AccessibleObject)((Object)genericDeclaration)).setAccessible(true);
         return genericDeclaration;
     }

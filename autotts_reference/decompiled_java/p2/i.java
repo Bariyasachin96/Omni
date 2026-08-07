@@ -82,18 +82,18 @@ extends a {
             object = new int[2];
             this.b.getLocationOnScreen((int[])object);
             DisplayMetrics displayMetrics = object[0];
-            Object object2 = object[1];
+            DisplayMetrics displayMetrics2 = object[1];
             int n5 = this.b.getWidth();
             int n6 = this.b.getHeight();
-            int n7 = displayMetrics == false && object2 == false ? this.q(windowInsets, 0) : 0;
+            int n7 = displayMetrics == false && displayMetrics2 == false ? this.q(windowInsets, 0) : 0;
             int n8 = n5 + displayMetrics;
-            n5 = n8 >= n3 && object2 == false ? this.q(windowInsets, 1) : 0;
-            n3 = n8 >= n3 && object2 + n6 >= n4 ? this.q(windowInsets, 2) : 0;
-            object2 = displayMetrics == false && object2 + n6 >= n4 ? (Object)this.q(windowInsets, 3) : (Object)false;
+            n5 = n8 >= n3 && displayMetrics2 == false ? this.q(windowInsets, 1) : 0;
+            n3 = n8 >= n3 && displayMetrics2 + n6 >= n4 ? this.q(windowInsets, 2) : 0;
+            n6 = displayMetrics == false && displayMetrics2 + n6 >= n4 ? this.q(windowInsets, 3) : 0;
             float f3 = n7;
             float f4 = n5;
             float f5 = n3;
-            float f6 = (float)object2;
+            float f6 = n6;
             return new float[]{f3, f3, f4, f4, f5, f5, f6, f6};
         }
         return new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
@@ -103,13 +103,13 @@ extends a {
         if (super.b() == null) {
             return;
         }
-        view = this.l(view);
-        View view2 = this.b;
-        if (view2 instanceof ClippableRoundedCornerLayout) {
-            view.playTogether(new Animator[]{this.k((ClippableRoundedCornerLayout)view2)});
+        AnimatorSet animatorSet = this.l(view);
+        view = this.b;
+        if (view instanceof ClippableRoundedCornerLayout) {
+            animatorSet.playTogether(new Animator[]{this.k((ClippableRoundedCornerLayout)view)});
         }
-        view.setDuration((long)this.e);
-        view.start();
+        animatorSet.setDuration((long)this.e);
+        animatorSet.start();
         this.t();
     }
 
@@ -193,25 +193,27 @@ extends a {
     }
 
     public void w(float f3, boolean bl, float f4, float f5) {
-        f3 = this.a(f3);
-        float f6 = this.b.getWidth();
-        float f7 = this.b.getHeight();
-        if (!(f6 <= 0.0f) && !(f7 <= 0.0f)) {
-            float f8 = a2.a.a(1.0f, 0.9f, f3);
-            f6 = a2.a.a(0.0f, Math.max(0.0f, (f6 - 0.9f * f6) / 2.0f - this.g), f3);
+        float f6 = this.a(f3);
+        float f7 = this.b.getWidth();
+        float f8 = this.b.getHeight();
+        if (!(f7 <= 0.0f) && !(f8 <= 0.0f)) {
+            f3 = a2.a.a(1.0f, 0.9f, f6);
+            f7 = a2.a.a(0.0f, Math.max(0.0f, (f7 - 0.9f * f7) / 2.0f - this.g), f6);
             int n3 = bl ? 1 : -1;
-            float f9 = Math.min(Math.max(0.0f, (f7 - f8 * f7) / 2.0f - this.g), this.h);
-            f7 = Math.abs(f4 -= this.i) / f7;
-            f4 = Math.signum(f4);
-            f4 = a2.a.a(0.0f, f9, f7) * f4;
-            if (!(Float.isNaN(f8) || Float.isNaN(f6 *= (float)n3) || Float.isNaN(f4))) {
-                this.b.setScaleX(f8);
-                this.b.setScaleY(f8);
-                this.b.setTranslationX(f6);
+            f7 *= (float)n3;
+            float f9 = Math.min(Math.max(0.0f, (f8 - f3 * f8) / 2.0f - this.g), this.h);
+            float f10 = f4 - this.i;
+            f4 = Math.abs(f10) / f8;
+            f8 = Math.signum(f10);
+            f4 = a2.a.a(0.0f, f9, f4) * f8;
+            if (!(Float.isNaN(f3) || Float.isNaN(f7) || Float.isNaN(f4))) {
+                this.b.setScaleX(f3);
+                this.b.setScaleY(f3);
+                this.b.setTranslationX(f7);
                 this.b.setTranslationY(f4);
                 View view = this.b;
                 if (view instanceof ClippableRoundedCornerLayout) {
-                    ((ClippableRoundedCornerLayout)view).e(p2.i.r(this.n(), f5, f3));
+                    ((ClippableRoundedCornerLayout)view).e(p2.i.r(this.n(), f5, f6));
                 }
             }
         }

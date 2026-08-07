@@ -60,10 +60,12 @@ public class b0 {
                 if (nArray2 != null) {
                     this.c.getLocationInWindow(nArray2);
                     n7 = nArray2[0];
-                    n6 = nArray2[1];
+                    int n8 = nArray2[1];
+                    n6 = n7;
+                    n7 = n8;
                 } else {
-                    n7 = 0;
                     n6 = 0;
+                    n7 = 0;
                 }
                 int[] nArray3 = nArray;
                 if (nArray == null) {
@@ -74,8 +76,8 @@ public class b0 {
                 f1.c(viewParent, this.c, n3, n4, nArray3, n5);
                 if (nArray2 != null) {
                     this.c.getLocationInWindow(nArray2);
-                    nArray2[0] = nArray2[0] - n7;
-                    nArray2[1] = nArray2[1] - n6;
+                    nArray2[0] = nArray2[0] - n6;
+                    nArray2[1] = nArray2[1] - n7;
                 }
                 return nArray3[0] != 0 || nArray3[1] != 0;
                 {

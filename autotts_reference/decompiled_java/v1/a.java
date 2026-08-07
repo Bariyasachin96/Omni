@@ -29,57 +29,57 @@ public abstract class a {
     }
 
     public static int[] b(Parcel parcel, int n3) {
-        n3 = a.p(parcel, n3);
-        int n4 = parcel.dataPosition();
-        if (n3 == 0) {
+        int n4 = a.p(parcel, n3);
+        n3 = parcel.dataPosition();
+        if (n4 == 0) {
             return null;
         }
         int[] nArray = parcel.createIntArray();
-        parcel.setDataPosition(n4 + n3);
+        parcel.setDataPosition(n3 + n4);
         return nArray;
     }
 
     public static Parcelable c(Parcel parcel, int n3, Parcelable.Creator creator) {
-        int n4 = a.p(parcel, n3);
-        n3 = parcel.dataPosition();
-        if (n4 == 0) {
+        n3 = a.p(parcel, n3);
+        int n4 = parcel.dataPosition();
+        if (n3 == 0) {
             return null;
         }
         creator = (Parcelable)creator.createFromParcel(parcel);
-        parcel.setDataPosition(n3 + n4);
+        parcel.setDataPosition(n4 + n3);
         return creator;
     }
 
     public static String d(Parcel parcel, int n3) {
-        n3 = a.p(parcel, n3);
-        int n4 = parcel.dataPosition();
-        if (n3 == 0) {
-            return null;
-        }
-        String string = parcel.readString();
-        parcel.setDataPosition(n4 + n3);
-        return string;
-    }
-
-    public static ArrayList e(Parcel parcel, int n3) {
-        n3 = a.p(parcel, n3);
-        int n4 = parcel.dataPosition();
-        if (n3 == 0) {
-            return null;
-        }
-        ArrayList arrayList = parcel.createStringArrayList();
-        parcel.setDataPosition(n4 + n3);
-        return arrayList;
-    }
-
-    public static Object[] f(Parcel parcel, int n3, Parcelable.Creator objectArray) {
         int n4 = a.p(parcel, n3);
         n3 = parcel.dataPosition();
         if (n4 == 0) {
             return null;
         }
-        objectArray = parcel.createTypedArray((Parcelable.Creator)objectArray);
+        String string = parcel.readString();
         parcel.setDataPosition(n3 + n4);
+        return string;
+    }
+
+    public static ArrayList e(Parcel parcel, int n3) {
+        int n4 = a.p(parcel, n3);
+        n3 = parcel.dataPosition();
+        if (n4 == 0) {
+            return null;
+        }
+        ArrayList arrayList = parcel.createStringArrayList();
+        parcel.setDataPosition(n3 + n4);
+        return arrayList;
+    }
+
+    public static Object[] f(Parcel parcel, int n3, Parcelable.Creator objectArray) {
+        n3 = a.p(parcel, n3);
+        int n4 = parcel.dataPosition();
+        if (n3 == 0) {
+            return null;
+        }
+        objectArray = parcel.createTypedArray((Parcelable.Creator)objectArray);
+        parcel.setDataPosition(n4 + n3);
         return objectArray;
     }
 
@@ -112,13 +112,13 @@ public abstract class a {
     }
 
     public static IBinder l(Parcel parcel, int n3) {
-        int n4 = a.p(parcel, n3);
-        n3 = parcel.dataPosition();
-        if (n4 == 0) {
+        n3 = a.p(parcel, n3);
+        int n4 = parcel.dataPosition();
+        if (n3 == 0) {
             return null;
         }
         IBinder iBinder = parcel.readStrongBinder();
-        parcel.setDataPosition(n3 + n4);
+        parcel.setDataPosition(n4 + n3);
         return iBinder;
     }
 
@@ -159,15 +159,15 @@ public abstract class a {
         int n5 = a.h(n3);
         int n6 = parcel.dataPosition();
         if (n5 == 20293) {
-            n3 = n4 + n6;
-            if (n3 >= n6 && n3 <= parcel.dataSize()) {
-                return n3;
+            n5 = n4 + n6;
+            if (n5 >= n6 && n5 <= parcel.dataSize()) {
+                return n5;
             }
-            StringBuilder stringBuilder = new StringBuilder(String.valueOf(n6).length() + 32 + String.valueOf(n3).length());
+            StringBuilder stringBuilder = new StringBuilder(String.valueOf(n6).length() + 32 + String.valueOf(n5).length());
             stringBuilder.append("Size read is invalid start=");
             stringBuilder.append(n6);
             stringBuilder.append(" end=");
-            stringBuilder.append(n3);
+            stringBuilder.append(n5);
             throw new a(stringBuilder.toString(), parcel);
         }
         throw new a("Expected object header. Got 0x".concat(String.valueOf(Integer.toHexString(n3))), parcel);

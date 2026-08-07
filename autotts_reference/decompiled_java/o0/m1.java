@@ -349,8 +349,8 @@ public final class m1 {
                     this.b = z12;
                     return c.m(view, windowInsets);
                 }
-                b b3 = c.n(view);
-                if (b3 != null && Objects.equals(b3.a, windowInsets)) {
+                Object object = c.n(view);
+                if (object != null && Objects.equals(((b)object).a, windowInsets)) {
                     return c.m(view, windowInsets);
                 }
                 int n3 = c.e(z12, this.b);
@@ -358,12 +358,12 @@ public final class m1 {
                     return c.m(view, windowInsets);
                 }
                 z1 z13 = this.b;
-                m1 m12 = new m1(n3, c.g(n3, z12, z13), 160L);
-                m12.e(0.0f);
-                b3 = ValueAnimator.ofFloat((float[])new float[]{0.0f, 1.0f}).setDuration(m12.a());
+                object = new m1(n3, c.g(n3, z12, z13), 160L);
+                ((m1)object).e(0.0f);
+                ValueAnimator valueAnimator = ValueAnimator.ofFloat((float[])new float[]{0.0f, 1.0f}).setDuration(((m1)object).a());
                 o0.m1$a a4 = c.f(z12, z13, n3);
-                c.j(view, m12, windowInsets, false);
-                b3.addUpdateListener(new ValueAnimator.AnimatorUpdateListener(this, m12, z12, z13, n3, view){
+                c.j(view, (m1)object, windowInsets, false);
+                valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener(this, (m1)object, z12, z13, n3, view){
                     public final m1 a;
                     public final z1 b;
                     public final z1 c;
@@ -386,7 +386,7 @@ public final class m1 {
                         c.k(this.e, (z1)object, list);
                     }
                 });
-                b3.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, m12, view){
+                valueAnimator.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, (m1)object, view){
                     public final m1 a;
                     public final View b;
                     public final a c;
@@ -401,7 +401,7 @@ public final class m1 {
                         c.i(this.b, this.a);
                     }
                 });
-                i0.a(view, new Runnable(this, view, m12, a4, (ValueAnimator)b3){
+                i0.a(view, new Runnable(this, view, (m1)object, a4, valueAnimator){
                     public final View c;
                     public final m1 d;
                     public final o0.m1$a e;
@@ -510,18 +510,19 @@ public final class m1 {
             }
 
             public WindowInsets onProgress(WindowInsets windowInsets, List list) {
-                WindowInsetsAnimation windowInsetsAnimation = this.c;
-                if (windowInsetsAnimation == null) {
-                    this.c = windowInsetsAnimation = new ArrayList(list.size());
-                    this.b = Collections.unmodifiableList(windowInsetsAnimation);
+                ArrayList arrayList = this.c;
+                if (arrayList == null) {
+                    arrayList = new ArrayList(list.size());
+                    this.c = arrayList;
+                    this.b = Collections.unmodifiableList(arrayList);
                 } else {
-                    windowInsetsAnimation.clear();
+                    arrayList.clear();
                 }
                 for (int i3 = list.size() - 1; i3 >= 0; --i3) {
-                    windowInsetsAnimation = x1.a(list.get(i3));
-                    m1 m12 = this.a(windowInsetsAnimation);
-                    m12.e(y1.a(windowInsetsAnimation));
-                    this.c.add(m12);
+                    WindowInsetsAnimation windowInsetsAnimation = x1.a(list.get(i3));
+                    arrayList = this.a(windowInsetsAnimation);
+                    ((m1)((Object)arrayList)).e(y1.a(windowInsetsAnimation));
+                    this.c.add(arrayList);
                 }
                 return this.a.d(z1.w(windowInsets), this.b).v();
             }

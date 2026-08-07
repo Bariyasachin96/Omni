@@ -455,43 +455,43 @@ extends MenuInflater {
         }
 
         public void g(AttributeSet object) {
-            String string;
-            object = m0.u(this.F.c, (AttributeSet)object, c.j.MenuItem);
-            this.i = ((m0)object).n(c.j.MenuItem_android_id, 0);
-            this.j = ((m0)object).k(c.j.MenuItem_android_menuCategory, this.c) & 0xFFFF0000 | ((m0)object).k(c.j.MenuItem_android_orderInCategory, this.d) & 0xFFFF;
-            this.k = ((m0)object).p(c.j.MenuItem_android_title);
-            this.l = ((m0)object).p(c.j.MenuItem_android_titleCondensed);
-            this.m = ((m0)object).n(c.j.MenuItem_android_icon, 0);
-            this.n = this.c(((m0)object).o(c.j.MenuItem_android_alphabeticShortcut));
-            this.o = ((m0)object).k(c.j.MenuItem_alphabeticModifiers, 4096);
-            this.p = this.c(((m0)object).o(c.j.MenuItem_android_numericShortcut));
-            this.q = ((m0)object).k(c.j.MenuItem_numericModifiers, 4096);
+            m0 m02 = m0.u(this.F.c, object, c.j.MenuItem);
+            this.i = m02.n(c.j.MenuItem_android_id, 0);
+            this.j = m02.k(c.j.MenuItem_android_menuCategory, this.c) & 0xFFFF0000 | m02.k(c.j.MenuItem_android_orderInCategory, this.d) & 0xFFFF;
+            this.k = m02.p(c.j.MenuItem_android_title);
+            this.l = m02.p(c.j.MenuItem_android_titleCondensed);
+            this.m = m02.n(c.j.MenuItem_android_icon, 0);
+            this.n = this.c(m02.o(c.j.MenuItem_android_alphabeticShortcut));
+            this.o = m02.k(c.j.MenuItem_alphabeticModifiers, 4096);
+            this.p = this.c(m02.o(c.j.MenuItem_android_numericShortcut));
+            this.q = m02.k(c.j.MenuItem_numericModifiers, 4096);
             int n3 = c.j.MenuItem_android_checkable;
-            this.r = ((m0)object).s(n3) ? (int)(((m0)object).a(n3, false) ? 1 : 0) : this.e;
-            this.s = ((m0)object).a(c.j.MenuItem_android_checked, false);
-            this.t = ((m0)object).a(c.j.MenuItem_android_visible, this.f);
-            this.u = ((m0)object).a(c.j.MenuItem_android_enabled, this.g);
-            this.v = ((m0)object).k(c.j.MenuItem_showAsAction, -1);
-            this.z = ((m0)object).o(c.j.MenuItem_android_onClick);
-            this.w = ((m0)object).n(c.j.MenuItem_actionLayout, 0);
-            this.x = ((m0)object).o(c.j.MenuItem_actionViewClass);
-            this.y = string = ((m0)object).o(c.j.MenuItem_actionProviderClass);
-            n3 = string != null ? 1 : 0;
+            this.r = m02.s(n3) ? (int)(m02.a(n3, false) ? 1 : 0) : this.e;
+            this.s = m02.a(c.j.MenuItem_android_checked, false);
+            this.t = m02.a(c.j.MenuItem_android_visible, this.f);
+            this.u = m02.a(c.j.MenuItem_android_enabled, this.g);
+            this.v = m02.k(c.j.MenuItem_showAsAction, -1);
+            this.z = m02.o(c.j.MenuItem_android_onClick);
+            this.w = m02.n(c.j.MenuItem_actionLayout, 0);
+            this.x = m02.o(c.j.MenuItem_actionViewClass);
+            object = m02.o(c.j.MenuItem_actionProviderClass);
+            this.y = object;
+            n3 = object != null ? 1 : 0;
             if (n3 != 0 && this.w == 0 && this.x == null) {
-                this.A = (o0.b)this.e(string, f, this.F.b);
+                this.A = (o0.b)this.e((String)object, f, this.F.b);
             } else {
                 if (n3 != 0) {
                     Log.w((String)"SupportMenuInflater", (String)"Ignoring attribute 'actionProviderClass'. Action view already specified.");
                 }
                 this.A = null;
             }
-            this.B = ((m0)object).p(c.j.MenuItem_contentDescription);
-            this.C = ((m0)object).p(c.j.MenuItem_tooltipText);
+            this.B = m02.p(c.j.MenuItem_contentDescription);
+            this.C = m02.p(c.j.MenuItem_tooltipText);
             n3 = c.j.MenuItem_iconTintMode;
-            this.E = ((m0)object).s(n3) ? androidx.appcompat.widget.z.e(((m0)object).k(n3, -1), this.E) : null;
+            this.E = m02.s(n3) ? androidx.appcompat.widget.z.e(m02.k(n3, -1), this.E) : null;
             n3 = c.j.MenuItem_iconTint;
-            this.D = ((m0)object).s(n3) ? ((m0)object).c(n3) : null;
-            ((m0)object).x();
+            this.D = m02.s(n3) ? m02.c(n3) : null;
+            m02.x();
             this.h = false;
         }
 

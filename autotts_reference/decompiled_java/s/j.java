@@ -48,13 +48,13 @@ public abstract class j {
         }
         s.j$a.a(this.b, this.c, 0, n4 - 1);
         int n5 = 1;
-        for (int i3 = 1; i3 < this.d; ++i3) {
+        for (n4 = 1; n4 < this.d; ++n4) {
             objectArray = this.b;
-            n4 = n5;
-            if (objectArray[i3 - 1] != objectArray[i3]) {
-                n4 = n5 + 1;
+            int n6 = n5;
+            if (objectArray[n4 - 1] != objectArray[n4]) {
+                n6 = n5 + 1;
             }
-            n5 = n4;
+            n5 = n6;
         }
         objectArray = new double[n5];
         double[][] dArray = new double[n5][1];

@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item type="id" name="AutoModeSettings" />
+    <item type="id" name="CommonSettings" />
     <item type="id" name="DualModeSettings" />
     <item type="id" name="MixedModeSettings" />
     <item type="id" name="ModeSettings" />
     <item type="id" name="MultilingualModeSettings" />
+    <item type="id" name="ReadingSettings" />
     <item type="id" name="SettingsContainer" />
     <item type="id" name="VoiceSettings" />
     <item type="id" name="VoicesInactive" />
@@ -112,6 +114,8 @@
     <item type="id" name="dual_mode_language" />
     <item type="id" name="edit_query" />
     <item type="id" name="edit_text_id" />
+    <item type="id" name="emoji_mode_language" />
+    <item type="id" name="emoji_specific_language" />
     <item type="id" name="enable_logging" />
     <item type="id" name="expand_activities_button" />
     <item type="id" name="expanded_menu" />
@@ -147,8 +151,6 @@
     <item type="id" name="list_item" />
     <item type="id" name="list_languages" />
     <item type="id" name="localespans" />
-    <item type="id" name="localespans_mixed" />
-    <item type="id" name="localespans_multilingual" />
     <item type="id" name="m3_side_sheet" />
     <item type="id" name="masked" />
     <item type="id" name="material_clock_display" />
@@ -221,7 +223,7 @@
     <item type="id" name="notification_main_column" />
     <item type="id" name="notification_main_column_container" />
     <item type="id" name="number_mode_language" />
-    <item type="id" name="number_mode_language_mixed" />
+    <item type="id" name="number_specific_language" />
     <item type="id" name="off" />
     <item type="id" name="on" />
     <item type="id" name="open_search_bar_placeholder_text_view" />
@@ -251,7 +253,8 @@
     <item type="id" name="progress_circular" />
     <item type="id" name="progress_horizontal" />
     <item type="id" name="punc_mode_language" />
-    <item type="id" name="punc_mode_language_mixed" />
+    <item type="id" name="punc_specific_language" />
+    <item type="id" name="punctuation_with_sentence" />
     <item type="id" name="quick_character_reading" />
     <item type="id" name="radio" />
     <item type="id" name="remove_audio_attributes" />
@@ -285,6 +288,7 @@
     <item type="id" name="share_logs" />
     <item type="id" name="shortcut" />
     <item type="id" name="show_notification" />
+    <item type="id" name="smart_number_reading" />
     <item type="id" name="snackbar_action" />
     <item type="id" name="snackbar_text" />
     <item type="id" name="spacer" />
@@ -340,6 +344,7 @@
     <item type="id" name="transition_position" />
     <item type="id" name="transition_scene_layoutid_cache" />
     <item type="id" name="transition_transform" />
+    <item type="id" name="tts_settings" />
     <item type="id" name="up" />
     <item type="id" name="view_offset_helper" />
     <item type="id" name="view_pager" />

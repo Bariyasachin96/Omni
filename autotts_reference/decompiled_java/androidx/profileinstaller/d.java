@@ -19,6 +19,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.Objects;
 
 public abstract class d {
@@ -85,9 +86,13 @@ public abstract class d {
         }
 
         public static b a(File object) {
-            try (DataInputStream dataInputStream = new DataInputStream(new FileInputStream((File)object));){
-                object = new b(dataInputStream.readInt(), dataInputStream.readInt(), dataInputStream.readLong(), dataInputStream.readLong());
-                return object;
+            object = new DataInputStream(new FileInputStream((File)object));
+            try {
+                b b3 = new b(((DataInputStream)object).readInt(), ((DataInputStream)object).readInt(), ((DataInputStream)object).readLong(), ((DataInputStream)object).readLong());
+                return b3;
+            }
+            finally {
+                ((InputStream)object).close();
             }
         }
 

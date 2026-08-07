@@ -4,7 +4,6 @@
  * Could not load the following classes:
  *  android.content.Context
  *  android.content.res.TypedArray
- *  android.content.res.XmlResourceParser
  *  android.graphics.RectF
  *  android.util.AttributeSet
  *  android.util.Log
@@ -29,7 +28,6 @@ package androidx.constraintlayout.motion.widget;
 
 import android.content.Context;
 import android.content.res.TypedArray;
-import android.content.res.XmlResourceParser;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -212,161 +210,161 @@ public class a {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public final void K(Context var1_1, int var2_4) {
+    public final void K(Context var1_1, int var2_3) {
         block35: {
             block36: {
-                var6_5 = var1_1.getResources().getXml(var2_4);
+                var6_4 = var1_1.getResources().getXml(var2_3);
                 try {
-                    var3_6 = var6_5.getEventType();
-                    var4_7 = null;
+                    var3_5 = var6_4.getEventType();
+                    var4_6 = null;
                     break block35;
                 }
-                catch (IOException var1_2) {
+                catch (IOException var4_7) {
                 }
-                catch (XmlPullParserException var1_3) {
+                catch (XmlPullParserException var1_2) {
                     break block36;
                 }
-                var4_8 = new StringBuilder();
-                var4_8.append("Error parsing resource: ");
-                var4_8.append(var2_4);
-                Log.e((String)"MotionScene", (String)var4_8.toString(), (Throwable)var1_2);
+                var1_1 = new StringBuilder();
+                var1_1.append("Error parsing resource: ");
+                var1_1.append(var2_3);
+                Log.e((String)"MotionScene", (String)var1_1.toString(), (Throwable)var4_7);
                 return;
             }
-            var4_9 = new StringBuilder();
-            var4_9.append("Error parsing resource: ");
-            var4_9.append(var2_4);
-            Log.e((String)"MotionScene", (String)var4_9.toString(), (Throwable)var1_3);
+            var4_8 = new StringBuilder();
+            var4_8.append("Error parsing resource: ");
+            var4_8.append(var2_3);
+            Log.e((String)"MotionScene", (String)var4_8.toString(), (Throwable)var1_2);
             return;
         }
-        while (var3_6 != 1) {
+        while (var3_5 != 1) {
             block38: {
                 block37: {
-                    if (var3_6 == 2) break block37;
-                    var5_10 = var4_7;
+                    if (var3_5 == 2) break block37;
+                    var5_9 = var4_6;
                     break block38;
                 }
-                var7_11 = var6_5.getName();
-                switch (var7_11.hashCode()) {
+                var7_10 = var6_4.getName();
+                switch (var7_10.hashCode()) {
                     default: {
-                        var5_10 = var4_7;
+                        var5_9 = var4_6;
                         break block38;
                     }
                     case 1942574248: {
-                        var5_10 = var4_7;
-                        if (!var7_11.equals("include")) break block38;
+                        var5_9 = var4_6;
+                        if (!var7_10.equals("include")) break block38;
                         ** GOTO lbl114
                     }
                     case 1382829617: {
-                        var5_10 = var4_7;
-                        if (var7_11.equals("StateSet")) {
-                            this.b = var5_10 = new e(var1_1, (XmlPullParser)var6_5);
-                            var5_10 = var4_7;
+                        var5_9 = var4_6;
+                        if (var7_10.equals("StateSet")) {
+                            this.b = var5_9 = new e((Context)var1_1, (XmlPullParser)var6_4);
+                            var5_9 = var4_6;
                         }
                         break block38;
                     }
                     case 793277014: {
-                        var5_10 = var4_7;
-                        if (var7_11.equals("MotionScene")) {
-                            this.O(var1_1, (XmlPullParser)var6_5);
-                            var5_10 = var4_7;
+                        var5_9 = var4_6;
+                        if (var7_10.equals("MotionScene")) {
+                            this.O((Context)var1_1, (XmlPullParser)var6_4);
+                            var5_9 = var4_6;
                         }
                         break block38;
                     }
                     case 327855227: {
-                        var5_10 = var4_7;
-                        if (var7_11.equals("OnSwipe")) {
-                            if (var4_7 == null) {
-                                var1_1.getResources().getResourceEntryName(var2_4);
-                                var6_5.getLineNumber();
+                        var5_9 = var4_6;
+                        if (var7_10.equals("OnSwipe")) {
+                            if (var4_6 == null) {
+                                var1_1.getResources().getResourceEntryName(var2_3);
+                                var6_4.getLineNumber();
                             }
-                            var5_10 = var4_7;
-                            if (var4_7 != null) {
-                                var5_10 = new androidx.constraintlayout.motion.widget.b(var1_1, this.a, (XmlPullParser)var6_5);
-                                androidx.constraintlayout.motion.widget.a$b.n((b)var4_7, (androidx.constraintlayout.motion.widget.b)var5_10);
-                                var5_10 = var4_7;
+                            var5_9 = var4_6;
+                            if (var4_6 != null) {
+                                var5_9 = new androidx.constraintlayout.motion.widget.b((Context)var1_1, this.a, (XmlPullParser)var6_4);
+                                androidx.constraintlayout.motion.widget.a$b.n((b)var4_6, (androidx.constraintlayout.motion.widget.b)var5_9);
+                                var5_9 = var4_6;
                             }
                         }
                         break block38;
                     }
                     case 312750793: {
-                        var5_10 = var4_7;
-                        if (!var7_11.equals("OnClick")) break block38;
-                        var5_10 = var4_7;
-                        if (var4_7 != null) {
-                            var5_10 = var4_7;
+                        var5_9 = var4_6;
+                        if (!var7_10.equals("OnClick")) break block38;
+                        var5_9 = var4_6;
+                        if (var4_6 != null) {
+                            var5_9 = var4_6;
                             if (!this.a.isInEditMode()) {
-                                var4_7.u(var1_1, (XmlPullParser)var6_5);
-                                var5_10 = var4_7;
+                                var4_6.u((Context)var1_1, (XmlPullParser)var6_4);
+                                var5_9 = var4_6;
                             }
                         }
                         break block38;
                     }
                     case 269306229: {
-                        var5_10 = var4_7;
-                        if (var7_11.equals("Transition")) {
-                            var5_10 = this.e;
-                            var4_7 = new b(this, var1_1, (XmlPullParser)var6_5);
-                            var5_10.add(var4_7);
-                            if (this.c == null && !androidx.constraintlayout.motion.widget.a$b.e((b)var4_7)) {
-                                this.c = var4_7;
-                                if (androidx.constraintlayout.motion.widget.a$b.l((b)var4_7) != null) {
+                        var5_9 = var4_6;
+                        if (var7_10.equals("Transition")) {
+                            var5_9 = this.e;
+                            var4_6 = new b(this, (Context)var1_1, (XmlPullParser)var6_4);
+                            var5_9.add(var4_6);
+                            if (this.c == null && !androidx.constraintlayout.motion.widget.a$b.e((b)var4_6)) {
+                                this.c = var4_6;
+                                if (androidx.constraintlayout.motion.widget.a$b.l((b)var4_6) != null) {
                                     androidx.constraintlayout.motion.widget.a$b.l(this.c).x(this.q);
                                 }
                             }
-                            var5_10 = var4_7;
-                            if (androidx.constraintlayout.motion.widget.a$b.e((b)var4_7)) {
-                                if (androidx.constraintlayout.motion.widget.a$b.a((b)var4_7) == -1) {
-                                    this.f = var4_7;
+                            var5_9 = var4_6;
+                            if (androidx.constraintlayout.motion.widget.a$b.e((b)var4_6)) {
+                                if (androidx.constraintlayout.motion.widget.a$b.a((b)var4_6) == -1) {
+                                    this.f = var4_6;
                                 } else {
-                                    this.g.add(var4_7);
+                                    this.g.add(var4_6);
                                 }
-                                this.e.remove(var4_7);
-                                var5_10 = var4_7;
+                                this.e.remove(var4_6);
+                                var5_9 = var4_6;
                             }
                         }
                         break block38;
                     }
                     case 61998586: {
-                        var5_10 = var4_7;
-                        if (var7_11.equals("ViewTransition")) {
-                            var5_10 = new c(var1_1, (XmlPullParser)var6_5);
-                            this.r.a((c)var5_10);
-                            var5_10 = var4_7;
+                        var5_9 = var4_6;
+                        if (var7_10.equals("ViewTransition")) {
+                            var5_9 = new c((Context)var1_1, (XmlPullParser)var6_4);
+                            this.r.a((c)var5_9);
+                            var5_9 = var4_6;
                         }
                         break block38;
                     }
                     case -687739768: {
-                        var5_10 = var4_7;
-                        if (!var7_11.equals("Include")) break block38;
+                        var5_9 = var4_6;
+                        if (!var7_10.equals("Include")) break block38;
 lbl114:
                         // 2 sources
 
-                        this.N(var1_1, (XmlPullParser)var6_5);
-                        var5_10 = var4_7;
+                        this.N((Context)var1_1, (XmlPullParser)var6_4);
+                        var5_9 = var4_6;
                         break block38;
                     }
                     case -1239391468: {
-                        var5_10 = var4_7;
-                        if (var7_11.equals("KeyFrameSet")) {
-                            var7_11 = new g(var1_1, (XmlPullParser)var6_5);
-                            var5_10 = var4_7;
-                            if (var4_7 != null) {
-                                androidx.constraintlayout.motion.widget.a$b.f((b)var4_7).add(var7_11);
-                                var5_10 = var4_7;
+                        var5_9 = var4_6;
+                        if (var7_10.equals("KeyFrameSet")) {
+                            var7_10 = new g((Context)var1_1, (XmlPullParser)var6_4);
+                            var5_9 = var4_6;
+                            if (var4_6 != null) {
+                                androidx.constraintlayout.motion.widget.a$b.f((b)var4_6).add(var7_10);
+                                var5_9 = var4_6;
                             }
                         }
                         break block38;
                     }
                     case -1349929691: 
                 }
-                var5_10 = var4_7;
-                if (var7_11.equals("ConstraintSet")) {
-                    this.L(var1_1, (XmlPullParser)var6_5);
-                    var5_10 = var4_7;
+                var5_9 = var4_6;
+                if (var7_10.equals("ConstraintSet")) {
+                    this.L((Context)var1_1, (XmlPullParser)var6_4);
+                    var5_9 = var4_6;
                 }
             }
-            var3_6 = var6_5.next();
-            var4_7 = var5_10;
+            var3_5 = var6_4.next();
+            var4_6 = var5_9;
         }
     }
 
@@ -552,15 +550,15 @@ lbl114:
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public final int M(Context context, int n3) {
+    public final int M(Context object, int n3) {
         int n4;
-        XmlResourceParser xmlResourceParser;
+        Object object2;
         block5: {
             XmlPullParserException xmlPullParserException2;
             block6: {
-                xmlResourceParser = context.getResources().getXml(n3);
+                object2 = object.getResources().getXml(n3);
                 try {
-                    n4 = xmlResourceParser.getEventType();
+                    n4 = object2.getEventType();
                     break block5;
                 }
                 catch (IOException iOException) {
@@ -568,24 +566,24 @@ lbl114:
                 catch (XmlPullParserException xmlPullParserException2) {
                     break block6;
                 }
-                StringBuilder stringBuilder = new StringBuilder();
-                stringBuilder.append("Error parsing resource: ");
-                stringBuilder.append(n3);
-                Log.e((String)"MotionScene", (String)stringBuilder.toString(), (Throwable)iOException);
+                object = new StringBuilder();
+                ((StringBuilder)object).append("Error parsing resource: ");
+                ((StringBuilder)object).append(n3);
+                Log.e((String)"MotionScene", (String)((StringBuilder)object).toString(), (Throwable)iOException);
                 return -1;
             }
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("Error parsing resource: ");
-            stringBuilder.append(n3);
-            Log.e((String)"MotionScene", (String)stringBuilder.toString(), (Throwable)xmlPullParserException2);
+            object2 = new StringBuilder();
+            ((StringBuilder)object2).append("Error parsing resource: ");
+            ((StringBuilder)object2).append(n3);
+            Log.e((String)"MotionScene", (String)((StringBuilder)object2).toString(), (Throwable)xmlPullParserException2);
             return -1;
         }
         while (n4 != 1) {
-            String string = xmlResourceParser.getName();
+            String string = object2.getName();
             if (2 == n4 && "ConstraintSet".equals(string)) {
-                return this.L(context, (XmlPullParser)xmlResourceParser);
+                return this.L((Context)object, (XmlPullParser)object2);
             }
-            n4 = xmlResourceParser.next();
+            n4 = object2.next();
         }
         return -1;
     }
@@ -707,20 +705,20 @@ lbl114:
         b3.c = b3.b;
         if ((n3 = this.j.get(n3)) > 0) {
             this.S(n3, (MotionLayout)object);
-            androidx.constraintlayout.widget.b b4 = (androidx.constraintlayout.widget.b)this.h.get(n3);
-            if (b4 == null) {
+            object = (androidx.constraintlayout.widget.b)this.h.get(n3);
+            if (object == null) {
                 object = new StringBuilder();
                 ((StringBuilder)object).append("ERROR! invalid deriveConstraintsFrom: @id/");
                 ((StringBuilder)object).append(x.a.c(this.a.getContext(), n3));
                 Log.e((String)"MotionScene", (String)((StringBuilder)object).toString());
                 return;
             }
-            object = new StringBuilder();
-            ((StringBuilder)object).append(b3.c);
-            ((StringBuilder)object).append("/");
-            ((StringBuilder)object).append(b4.c);
-            b3.c = ((StringBuilder)object).toString();
-            b3.L(b4);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append(b3.c);
+            stringBuilder.append("/");
+            stringBuilder.append(((androidx.constraintlayout.widget.b)object).c);
+            b3.c = stringBuilder.toString();
+            b3.L((androidx.constraintlayout.widget.b)object);
         } else {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.append(b3.c);
@@ -854,16 +852,15 @@ lbl114:
     }
 
     public boolean b0() {
-        b b3;
-        ArrayList arrayList = this.e;
-        int n3 = arrayList.size();
+        Object object = this.e;
+        int n3 = ((ArrayList)object).size();
         for (int i3 = 0; i3 < n3; ++i3) {
-            b3 = arrayList.get(i3);
-            if (b3.l == null) continue;
+            Object e3 = ((ArrayList)object).get(i3);
+            if (((b)e3).l == null) continue;
             return true;
         }
-        b3 = this.c;
-        return b3 != null && b3.l != null;
+        object = this.c;
+        return object != null && ((b)object).l != null;
     }
 
     public void c0(int n3, View ... viewArray) {
@@ -871,17 +868,17 @@ lbl114:
     }
 
     public void f(MotionLayout motionLayout, int n3) {
-        Object e3;
+        ArrayList arrayList;
         int n4;
         int n5;
         Object object;
         int n6;
         Object object2;
-        ArrayList arrayList = this.e;
-        int n7 = arrayList.size();
+        ArrayList arrayList2 = this.e;
+        int n7 = arrayList2.size();
         int n8 = 0;
         block0: while (n8 < n7) {
-            object2 = arrayList.get(n8);
+            object2 = arrayList2.get(n8);
             n6 = n8 + 1;
             object2 = (b)object2;
             n8 = n6;
@@ -897,64 +894,64 @@ lbl114:
                 ((b.a)object2).c(motionLayout);
             }
         }
-        arrayList = this.g;
-        n7 = arrayList.size();
-        n4 = 0;
-        block2: while (n4 < n7) {
-            object2 = arrayList.get(n4);
-            n6 = n4 + 1;
+        arrayList2 = this.g;
+        n7 = arrayList2.size();
+        n8 = 0;
+        block2: while (n8 < n7) {
+            object2 = arrayList2.get(n8);
+            n6 = n8 + 1;
             object2 = (b)object2;
-            n4 = n6;
+            n8 = n6;
             if (((b)object2).m.size() <= 0) continue;
             object = ((b)object2).m;
             n5 = ((ArrayList)object).size();
-            n8 = 0;
+            n4 = 0;
             while (true) {
-                n4 = n6;
-                if (n8 >= n5) continue block2;
-                object2 = ((ArrayList)object).get(n8);
-                ++n8;
+                n8 = n6;
+                if (n4 >= n5) continue block2;
+                object2 = ((ArrayList)object).get(n4);
+                ++n4;
                 ((b.a)object2).c(motionLayout);
             }
         }
-        arrayList = this.e;
-        n7 = arrayList.size();
+        arrayList2 = this.e;
+        n7 = arrayList2.size();
         n4 = 0;
         block4: while (n4 < n7) {
-            object2 = arrayList.get(n4);
+            object2 = arrayList2.get(n4);
             n6 = n4 + 1;
-            object2 = (b)object2;
+            object = (b)object2;
             n4 = n6;
-            if (((b)object2).m.size() <= 0) continue;
-            object = ((b)object2).m;
-            n5 = ((ArrayList)object).size();
+            if (((b)object).m.size() <= 0) continue;
+            arrayList = ((b)object).m;
+            n5 = arrayList.size();
             n8 = 0;
             while (true) {
                 n4 = n6;
                 if (n8 >= n5) continue block4;
-                e3 = ((ArrayList)object).get(n8);
+                object2 = arrayList.get(n8);
                 ++n8;
-                ((b.a)e3).a(motionLayout, n3, (b)object2);
+                ((b.a)object2).a(motionLayout, n3, (b)object);
             }
         }
-        arrayList = this.g;
-        n7 = arrayList.size();
-        n8 = 0;
-        block6: while (n8 < n7) {
-            object2 = arrayList.get(n8);
-            n6 = n8 + 1;
+        arrayList2 = this.g;
+        n7 = arrayList2.size();
+        n4 = 0;
+        block6: while (n4 < n7) {
+            object2 = arrayList2.get(n4);
+            n6 = n4 + 1;
             object = (b)object2;
-            n8 = n6;
+            n4 = n6;
             if (((b)object).m.size() <= 0) continue;
             object2 = ((b)object).m;
             n5 = ((ArrayList)object2).size();
-            n4 = 0;
+            n8 = 0;
             while (true) {
-                n8 = n6;
-                if (n4 >= n5) continue block6;
-                e3 = ((ArrayList)object2).get(n4);
-                ++n4;
-                ((b.a)e3).a(motionLayout, n3, (b)object);
+                n4 = n6;
+                if (n8 >= n5) continue block6;
+                arrayList = ((ArrayList)object2).get(n8);
+                ++n8;
+                ((b.a)((Object)arrayList)).a(motionLayout, n3, (b)object);
             }
         }
     }
@@ -1052,9 +1049,9 @@ lbl114:
             if (((b)b3).l.l) {
                 f7 = f6;
                 if (motionEvent != null) {
-                    f6 = motionEvent.getX() - ((b)b3).l.i;
-                    f7 = motionEvent.getY() - ((b)b3).l.j;
-                    f7 = (float)(Math.atan2(f4 + f7, f3 + f6) - Math.atan2(f6, f7)) * 10.0f;
+                    f7 = motionEvent.getX() - ((b)b3).l.i;
+                    f6 = motionEvent.getY() - ((b)b3).l.j;
+                    f7 = (float)(Math.atan2(f4 + f6, f3 + f7) - Math.atan2(f7, f6)) * 10.0f;
                 }
             }
             if (!((f7 *= (f6 = b3.c == n3 ? -1.0f : 1.1f)) > f5)) continue;
@@ -1195,25 +1192,24 @@ lbl114:
     public void t(m m3) {
         block3: {
             int n3;
-            int n4;
             Object object;
             block2: {
                 object = this.c;
-                n4 = 0;
+                int n4 = 0;
                 if (object != null) break block2;
                 object = this.f;
                 if (object == null) break block3;
                 object = ((b)object).k;
-                int n5 = ((ArrayList)object).size();
-                for (n3 = n4; n3 < n5; ++n3) {
+                n4 = ((ArrayList)object).size();
+                for (n3 = 0; n3 < n4; ++n3) {
                     Object e3 = ((ArrayList)object).get(n3);
                     ((g)e3).b(m3);
                 }
                 break block3;
             }
             ArrayList arrayList = ((b)object).k;
-            n4 = arrayList.size();
-            for (n3 = 0; n3 < n4; ++n3) {
+            int n5 = arrayList.size();
+            for (n3 = n4; n3 < n5; ++n3) {
                 object = arrayList.get(n3);
                 ((g)object).b(m3);
             }
@@ -1391,11 +1387,10 @@ lbl114:
         public final void v(androidx.constraintlayout.motion.widget.a a4, Context context, TypedArray typedArray) {
             int n3 = typedArray.getIndexCount();
             for (int i3 = 0; i3 < n3; ++i3) {
-                int n4;
                 Object object;
-                int n5 = typedArray.getIndex(i3);
-                if (n5 == y.d.Transition_constraintSetEnd) {
-                    this.c = typedArray.getResourceId(n5, -1);
+                int n4 = typedArray.getIndex(i3);
+                if (n4 == y.d.Transition_constraintSetEnd) {
+                    this.c = typedArray.getResourceId(n4, -1);
                     object = context.getResources().getResourceTypeName(this.c);
                     if ("layout".equals(object)) {
                         object = new androidx.constraintlayout.widget.b();
@@ -1407,8 +1402,8 @@ lbl114:
                     this.c = a4.M(context, this.c);
                     continue;
                 }
-                if (n5 == y.d.Transition_constraintSetStart) {
-                    this.d = typedArray.getResourceId(n5, this.d);
+                if (n4 == y.d.Transition_constraintSetStart) {
+                    this.d = typedArray.getResourceId(n4, this.d);
                     object = context.getResources().getResourceTypeName(this.d);
                     if ("layout".equals(object)) {
                         object = new androidx.constraintlayout.widget.b();
@@ -1420,60 +1415,60 @@ lbl114:
                     this.d = a4.M(context, this.d);
                     continue;
                 }
-                if (n5 == y.d.Transition_motionInterpolator) {
-                    n4 = typedArray.peekValue((int)n5).type;
-                    if (n4 == 1) {
-                        this.g = n4 = typedArray.getResourceId(n5, -1);
+                if (n4 == y.d.Transition_motionInterpolator) {
+                    int n5 = typedArray.peekValue((int)n4).type;
+                    if (n5 == 1) {
+                        this.g = n4 = typedArray.getResourceId(n4, -1);
                         if (n4 == -1) continue;
                         this.e = -2;
                         continue;
                     }
-                    if (n4 == 3) {
-                        this.f = object = typedArray.getString(n5);
+                    if (n5 == 3) {
+                        this.f = object = typedArray.getString(n4);
                         if (object == null) continue;
                         if (((String)object).indexOf("/") > 0) {
-                            this.g = typedArray.getResourceId(n5, -1);
+                            this.g = typedArray.getResourceId(n4, -1);
                             this.e = -2;
                             continue;
                         }
                         this.e = -1;
                         continue;
                     }
-                    this.e = typedArray.getInteger(n5, this.e);
+                    this.e = typedArray.getInteger(n4, this.e);
                     continue;
                 }
-                if (n5 == y.d.Transition_duration) {
-                    this.h = n4 = typedArray.getInt(n5, this.h);
+                if (n4 == y.d.Transition_duration) {
+                    this.h = n4 = typedArray.getInt(n4, this.h);
                     if (n4 >= 8) continue;
                     this.h = 8;
                     continue;
                 }
-                if (n5 == y.d.Transition_staggered) {
-                    this.i = typedArray.getFloat(n5, this.i);
+                if (n4 == y.d.Transition_staggered) {
+                    this.i = typedArray.getFloat(n4, this.i);
                     continue;
                 }
-                if (n5 == y.d.Transition_autoTransition) {
-                    this.n = typedArray.getInteger(n5, this.n);
+                if (n4 == y.d.Transition_autoTransition) {
+                    this.n = typedArray.getInteger(n4, this.n);
                     continue;
                 }
-                if (n5 == y.d.Transition_android_id) {
-                    this.a = typedArray.getResourceId(n5, this.a);
+                if (n4 == y.d.Transition_android_id) {
+                    this.a = typedArray.getResourceId(n4, this.a);
                     continue;
                 }
-                if (n5 == y.d.Transition_transitionDisable) {
-                    this.o = typedArray.getBoolean(n5, this.o);
+                if (n4 == y.d.Transition_transitionDisable) {
+                    this.o = typedArray.getBoolean(n4, this.o);
                     continue;
                 }
-                if (n5 == y.d.Transition_pathMotionArc) {
-                    this.p = typedArray.getInteger(n5, -1);
+                if (n4 == y.d.Transition_pathMotionArc) {
+                    this.p = typedArray.getInteger(n4, -1);
                     continue;
                 }
-                if (n5 == y.d.Transition_layoutDuringTransition) {
-                    this.q = typedArray.getInteger(n5, 0);
+                if (n4 == y.d.Transition_layoutDuringTransition) {
+                    this.q = typedArray.getInteger(n4, 0);
                     continue;
                 }
-                if (n5 != y.d.Transition_transitionFlags) continue;
-                this.r = typedArray.getInteger(n5, 0);
+                if (n4 != y.d.Transition_transitionFlags) continue;
+                this.r = typedArray.getInteger(n4, 0);
             }
             if (this.d == -1) {
                 this.b = true;
@@ -1608,41 +1603,41 @@ lbl114:
                             var1_1.C0();
                             return;
                         }
-                        var7_5 = androidx.constraintlayout.motion.widget.a$b.s((b)this.c).c;
+                        var8_6 = androidx.constraintlayout.motion.widget.a$b.s((b)this.c).c;
                         var2_3 = this.e;
-                        var6_6 = false;
-                        var3_7 = (var2_3 & 1) != 0 || (var2_3 & 256) != 0;
+                        var6_7 = false;
+                        var3_8 = (var2_3 & 1) != 0 || (var2_3 & 256) != 0;
                         var2_3 = (var2_3 & 16) == 0 && (var2_3 & 4096) == 0 ? 0 : 1;
-                        var4_8 = var2_3;
-                        if (!var3_7) ** GOTO lbl37
-                        var4_8 = var2_3;
+                        var4_9 = var2_3;
+                        if (!var3_8) ** GOTO lbl37
+                        var4_9 = var2_3;
                         if (var2_3 == 0) ** GOTO lbl37
-                        var8_9 = androidx.constraintlayout.motion.widget.a$b.s((b)this.c).c;
+                        var7_5 = androidx.constraintlayout.motion.widget.a$b.s((b)this.c).c;
                         var9_10 = this.c;
-                        if (var8_9 != var9_10) {
+                        if (var7_5 != var9_10) {
                             var1_1.setTransition(var9_10);
                         }
-                        var4_8 = var2_3;
-                        var5_11 = var6_6;
+                        var4_9 = var2_3;
+                        var5_11 = var6_7;
                         if (var1_1.getCurrentState() == var1_1.getEndState()) break block14;
                         if (var1_1.getProgress() > 0.5f) {
-                            var4_8 = var2_3;
-                            var5_11 = var6_6;
+                            var4_9 = var2_3;
+                            var5_11 = var6_7;
                         } else {
-                            var4_8 = 0;
+                            var4_9 = 0;
 lbl37:
                             // 3 sources
 
-                            var5_11 = var3_7;
+                            var5_11 = var3_8;
                         }
                     }
-                    if (this.b(var7_5, (MotionLayout)var1_1)) {
+                    if (this.b(var8_6, (MotionLayout)var1_1)) {
                         if (var5_11 && (this.e & 1) != 0) {
                             var1_1.setTransition(this.c);
                             var1_1.C0();
                             return;
                         }
-                        if (var4_8 != 0 && (this.e & 16) != 0) {
+                        if (var4_9 != 0 && (this.e & 16) != 0) {
                             var1_1.setTransition(this.c);
                             var1_1.E0();
                             return;
@@ -1652,7 +1647,7 @@ lbl37:
                             var1_1.setProgress(1.0f);
                             return;
                         }
-                        if (var4_8 != 0 && (this.e & 4096) != 0) {
+                        if (var4_9 != 0 && (this.e & 4096) != 0) {
                             var1_1.setTransition(this.c);
                             var1_1.setProgress(0.0f);
                         }

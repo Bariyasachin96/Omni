@@ -105,6 +105,8 @@ all"</string>
     <string name="emoji_mode_language">Select language for reading emojis:</string>
     <string name="emoji_mode_primary_language">Primary language</string>
     <string name="emoji_mode_secondary_language">Secondary language</string>
+    <string name="emoji_mode_specific_language">Specific language</string>
+    <string name="emoji_specific_language">Specific language for reading emojis</string>
     <string name="error_icon_content_description">Error</string>
     <string name="experimental">Experimental</string>
     <string name="export_settings">Export</string>
@@ -224,6 +226,8 @@ all"</string>
     <string name="number_mode_language">Select language for reading numbers:</string>
     <string name="number_mode_primary_language">Primary language</string>
     <string name="number_mode_secondary_language">Secondary language</string>
+    <string name="number_mode_specific_language">Specific language</string>
+    <string name="number_specific_language">Specific language for reading numbers</string>
     <string name="open_source_licenses">Open Source Licenses</string>
     <string name="password_toggle_content_description">Show password</string>
     <string name="path_password_eye">M12,4.5C7,4.5 2.73,7.61 1,12c1.73,4.39 6,7.5 11,7.5s9.27,-3.11 11,-7.5c-1.73,-4.39 -6,-7.5 -11,-7.5zM12,17c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5zM12,9c-1.66,0 -3,1.34 -3,3s1.34,3 3,3 3,-1.34 3,-3 -1.34,-3 -3,-3z</string>
@@ -232,6 +236,10 @@ all"</string>
     <string name="path_password_strike_through">M3.27,4.27 L19.74,20.74</string>
     <string name="persistence_settings">Persistence Options</string>
     <string name="punc_mode_language">Select language for reading punctuations:</string>
+    <string name="punc_mode_specific_language">Specific language</string>
+    <string name="punc_specific_language">Specific language for reading punctuations</string>
+    <string name="punctuation_with_sentence">Read punctuation in flow with text</string>
+    <string name="punctuation_with_sentence_description">When checked, punctuation is read as part of the sentence. If unchecked, punctuation is read separately.</string>
     <string name="quick_character_reading">Quick character read</string>
     <string name="quick_character_reading_description">Reads a single character based on the preferred language in the mode settings.</string>
     <string name="remove_audio_attributes">Remove audio attributes from synthesis request.</string>
@@ -251,6 +259,8 @@ all"</string>
 selected"</string>
     <string name="side_sheet_accessibility_pane_title">Side Sheet</string>
     <string name="side_sheet_behavior">com.google.android.material.sidesheet.SideSheetBehavior</string>
+    <string name="smart_number_reading">Smart number reading</string>
+    <string name="smart_number_reading_description">Reads phone numbers and codes digit by digit.</string>
     <string name="support_localespans">Supports multilingual text with locale spans</string>
     <string name="synthesis_settings">Advanced Synthesis Options</string>
     <string name="synthesis_settings_description">On certain devices (such as Oppo, OnePlus, and Realme), the accessibility audio stream is strictly restricted to designated accessibility apps. Enabling below options allows Auto TTS to function correctly.</string>
@@ -259,6 +269,9 @@ selected"</string>
     <string name="tab_text_3">Voices</string>
     <string name="tab_text_4">Advanced</string>
     <string name="tab_text_5">Licenses</string>
+    <string name="text_to_speech_settings">Text-to-Speech Settings</string>
+    <string name="tts_settings">TTS Settings</string>
+    <string name="tts_settings_description">Open the system Text-to-Speech (TTS) settings screen</string>
     <string name="voice_settings_header">Voices</string>
     <string name="voice_test">Test</string>
 </resources>

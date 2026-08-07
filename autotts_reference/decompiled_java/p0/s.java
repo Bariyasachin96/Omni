@@ -438,15 +438,15 @@ public class s {
         if (!(object instanceof s)) {
             return false;
         }
-        s s3 = (s)object;
-        object = this.a;
-        if (object == null ? s3.a != null : !object.equals((Object)s3.a)) {
+        object = (s)object;
+        AccessibilityNodeInfo accessibilityNodeInfo = this.a;
+        if (accessibilityNodeInfo == null ? ((s)object).a != null : !accessibilityNodeInfo.equals((Object)((s)object).a)) {
             return false;
         }
-        if (this.c != s3.c) {
+        if (this.c != ((s)object).c) {
             return false;
         }
-        return this.b == s3.b;
+        return this.b == ((s)object).b;
     }
 
     public final List f(String string) {

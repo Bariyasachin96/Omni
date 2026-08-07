@@ -97,14 +97,14 @@ extends MockView {
                     float f4 = fArray[i4];
                     this.o.r0(this, f4, f3, this.p, this.r);
                     this.q.mapVectors(this.p);
-                    f4 = (float)n3 * f4;
-                    float f5 = (float)n4 * f3;
+                    float f5 = (float)n3 * f4;
+                    f4 = (float)n4 * f3;
                     float[] fArray3 = this.p;
                     float f6 = fArray3[0];
                     float f7 = this.t;
                     float f8 = fArray3[1];
                     this.q.mapVectors(fArray3);
-                    canvas.drawLine(f4, f5, f4 - f6 * f7, f5 - f8 * f7, this.n);
+                    canvas.drawLine(f5, f4, f5 - f6 * f7, f4 - f8 * f7, this.n);
                 }
             }
         }

@@ -66,20 +66,20 @@ extends n {
             a4.j = n4;
             e.b b4 = a4.a;
             e.b b5 = e.b.e;
-            n3 = b4 == b5 ? 1 : 0;
-            n4 = a4.b == b5 ? 1 : 0;
-            boolean bl = n3 != 0 && e3.f0 > 0.0f;
-            boolean bl2 = n4 != 0 && e3.f0 > 0.0f;
-            int n5 = n3;
-            if (n3 != 0) {
-                n5 = n3;
+            n4 = b4 == b5 ? 1 : 0;
+            n3 = a4.b == b5 ? 1 : 0;
+            boolean bl = n4 != 0 && e3.f0 > 0.0f;
+            boolean bl2 = n3 != 0 && e3.f0 > 0.0f;
+            int n5 = n4;
+            if (n4 != 0) {
+                n5 = n4;
                 if (e3.c0(0)) {
-                    n5 = n3;
+                    n5 = n4;
                     if (e3.w == 0) {
-                        n5 = n3;
+                        n5 = n4;
                         if (!bl) {
                             a4.a = e.b.d;
-                            if (n4 != 0 && e3.x == 0) {
+                            if (n3 != 0 && e3.x == 0) {
                                 a4.a = e.b.c;
                             }
                             n5 = 0;
@@ -87,19 +87,19 @@ extends n {
                     }
                 }
             }
-            n3 = n4;
-            if (n4 != 0) {
-                n3 = n4;
+            n4 = n3;
+            if (n3 != 0) {
+                n4 = n3;
                 if (e3.c0(1)) {
-                    n3 = n4;
+                    n4 = n3;
                     if (e3.x == 0) {
-                        n3 = n4;
+                        n4 = n3;
                         if (!bl2) {
                             a4.b = e.b.d;
                             if (n5 != 0 && e3.w == 0) {
                                 a4.b = e.b.c;
                             }
-                            n3 = 0;
+                            n4 = 0;
                         }
                     }
                 }
@@ -110,22 +110,22 @@ extends n {
             }
             if (e3.q0()) {
                 a4.b = e.b.c;
-                n3 = 0;
+                n4 = 0;
             }
             if (bl) {
                 if (e3.y[0] == 4) {
                     a4.a = e.b.c;
-                } else if (n3 == 0) {
-                    b5 = a4.b;
-                    b4 = e.b.c;
-                    if (b5 == b4) {
+                } else if (n4 == 0) {
+                    b4 = a4.b;
+                    b5 = e.b.c;
+                    if (b4 == b5) {
                         n3 = a4.d;
                     } else {
                         a4.a = e.b.d;
                         b3.b(e3, a4);
                         n3 = a4.f;
                     }
-                    a4.a = b4;
+                    a4.a = b5;
                     a4.c = (int)(e3.x() * (float)n3);
                 }
             }
@@ -203,12 +203,12 @@ extends n {
         }
         while (this.y1.size() > 0) {
             n3 = this.y1.size();
-            object2 = this.y1.iterator();
-            while (object2.hasNext()) {
-                object = (m)((e)object2.next());
-                if (!((m)object).A1(this.y1)) continue;
-                ((e)object).g(d3, bl);
-                this.y1.remove(object);
+            object = this.y1.iterator();
+            while (object.hasNext()) {
+                object2 = (m)((e)object.next());
+                if (!((m)object2).A1(this.y1)) continue;
+                ((e)object2).g(d3, bl);
+                this.y1.remove(object2);
                 break;
             }
             if (n3 != this.y1.size()) continue;
@@ -239,20 +239,20 @@ extends n {
                 if (object instanceof f) {
                     Object object3 = ((e)object).b0;
                     object2 = object3[0];
-                    object3 = object3[1];
-                    e.b b3 = e.b.d;
-                    if (object2 == b3) {
+                    e.b b3 = object3[1];
+                    object3 = e.b.d;
+                    if (object2 == object3) {
                         ((e)object).U0(e.b.c);
                     }
-                    if (object3 == b3) {
+                    if (b3 == object3) {
                         ((e)object).l1(e.b.c);
                     }
                     ((e)object).g(d3, bl);
-                    if (object2 == b3) {
+                    if (object2 == object3) {
                         ((e)object).U0((e.b)((Object)object2));
                     }
-                    if (object3 != b3) continue;
-                    ((e)object).l1((e.b)((Object)object3));
+                    if (b3 != object3) continue;
+                    ((e)object).l1(b3);
                     continue;
                 }
                 u.k.a(this, d3, (e)object);
@@ -505,10 +505,10 @@ extends n {
             for (var1_12 = 0; var1_12 < var13_2; ++var1_12) {
                 var15_5 /* !! */  = (e)this.V0.get(var1_12);
                 if (!var15_5 /* !! */ .o0() || var15_5 /* !! */  instanceof h || var15_5 /* !! */  instanceof a || var15_5 /* !! */  instanceof m || var15_5 /* !! */ .n0()) continue;
-                var20_15 = var15_5 /* !! */ .w(0);
-                var19_14 /* !! */  = var15_5 /* !! */ .w(1);
+                var19_14 /* !! */  = var15_5 /* !! */ .w(0);
+                var20_15 = var15_5 /* !! */ .w(1);
                 var18_13 /* !! */  = e.b.e;
-                if (var20_15 == var18_13 /* !! */  && var15_5 /* !! */ .w != 1 && var19_14 /* !! */  == var18_13 /* !! */  && var15_5 /* !! */ .x != 1) continue;
+                if (var19_14 /* !! */  == var18_13 /* !! */  && var15_5 /* !! */ .w != 1 && var20_15 == var18_13 /* !! */  && var15_5 /* !! */ .x != 1) continue;
                 var18_13 /* !! */  = new b.a();
                 u.f.Y1(0, (e)var15_5 /* !! */ , this.Z0, (b.a)var18_13 /* !! */ , b.a.k);
             }
@@ -535,13 +535,13 @@ extends n {
                     var2_3 = this.z();
                 }
             }
-            var9_17 = var1_12;
+            var10_17 = var1_12;
             var1_12 = 1;
-            var10_18 = var2_3;
+            var9_18 = var2_3;
         } else {
             var1_12 = 0;
-            var10_18 = var3_4;
-            var9_17 = var2_3;
+            var9_18 = var3_4;
+            var10_17 = var2_3;
         }
         var2_3 = !this.Z1(64) && !this.Z1(128) ? 0 : 1;
         var15_5 /* !! */  = this.b1;
@@ -616,9 +616,9 @@ extends n {
                             var5_1 = var8_23;
                             if (var15_5 /* !! */ .get() == null) break block46;
                             var5_1 = var8_23;
-                            var15_5 /* !! */  = (d)this.u1.get();
+                            var19_14 /* !! */  = (d)this.u1.get();
                             var5_1 = var8_23;
-                            var19_14 /* !! */  = this.b1;
+                            var15_5 /* !! */  = this.b1;
                         }
                         catch (Exception var15_6) {
                             var1_12 = var5_1;
@@ -631,7 +631,7 @@ lbl118:
                             break block45;
                         }
                         try {
-                            this.G1((d)var15_5 /* !! */ , var19_14 /* !! */ .q(this.R));
+                            this.G1((d)var19_14 /* !! */ , var15_5 /* !! */ .q(this.R));
                             this.u1 = null;
                         }
                         catch (Exception var15_8) {
@@ -665,11 +665,11 @@ lbl118:
                     break block47;
                 }
                 var15_5 /* !! */ .printStackTrace();
-                var20_15 = System.out;
-                var19_14 /* !! */  = new StringBuilder();
-                var19_14 /* !! */ .append("EXCEPTION : ");
-                var19_14 /* !! */ .append(var15_5 /* !! */ );
-                var20_15.println(var19_14 /* !! */ .toString());
+                var19_14 /* !! */  = System.out;
+                var20_15 = new StringBuilder();
+                var20_15.append("EXCEPTION : ");
+                var20_15.append(var15_5 /* !! */ );
+                var19_14 /* !! */ .println(var20_15.toString());
                 var1_12 = var4_16;
             }
             if (var2_3 != 0) {
@@ -733,26 +733,26 @@ lbl118:
             var4_16 = var2_3;
             var6_21 = var3_4;
             if (var2_3 != 0) ** GOTO lbl-1000
-            var19_14 /* !! */  = this.b0[var1_12];
-            var15_5 /* !! */  = e.b.d;
-            if (var19_14 /* !! */  == var15_5 /* !! */  && var9_17 > 0 && this.Y() > var9_17) {
+            var15_5 /* !! */  = this.b0[var1_12];
+            var19_14 /* !! */  = e.b.d;
+            if (var15_5 /* !! */  == var19_14 /* !! */  && var10_17 > 0 && this.Y() > var10_17) {
                 this.r1 = true;
                 this.b0[var1_12] = e.b.c;
-                this.p1(var9_17);
+                this.p1(var10_17);
                 var3_4 = var2_3 = 1;
             }
             var4_16 = var2_3;
             var6_21 = var3_4;
-            if (this.b0[1] != var15_5 /* !! */ ) ** GOTO lbl-1000
+            if (this.b0[1] != var19_14 /* !! */ ) ** GOTO lbl-1000
             var4_16 = var2_3;
             var6_21 = var3_4;
-            if (var10_18 <= 0) ** GOTO lbl-1000
+            if (var9_18 <= 0) ** GOTO lbl-1000
             var4_16 = var2_3;
             var6_21 = var3_4;
-            if (this.z() > var10_18) {
+            if (this.z() > var9_18) {
                 this.s1 = true;
                 this.b0[1] = e.b.c;
-                this.Q0(var10_18);
+                this.Q0(var9_18);
                 var3_4 = 1;
                 var6_21 = 1;
             } else lbl-1000:

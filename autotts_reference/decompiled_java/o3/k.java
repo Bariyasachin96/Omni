@@ -54,15 +54,15 @@ public abstract class k {
         }
         object2 = object[n3];
         object = ((StackTraceElement)object2).getClassName();
-        object2 = ((StackTraceElement)object2).getMethodName();
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Parameter specified as non-null is null: method ");
-        stringBuilder.append((String)object);
-        stringBuilder.append(".");
-        stringBuilder.append((String)object2);
-        stringBuilder.append(", parameter ");
-        stringBuilder.append(string);
-        return stringBuilder.toString();
+        String string2 = ((StackTraceElement)object2).getMethodName();
+        object2 = new StringBuilder();
+        ((StringBuilder)object2).append("Parameter specified as non-null is null: method ");
+        ((StringBuilder)object2).append((String)object);
+        ((StringBuilder)object2).append(".");
+        ((StringBuilder)object2).append(string2);
+        ((StringBuilder)object2).append(", parameter ");
+        ((StringBuilder)object2).append(string);
+        return ((StringBuilder)object2).toString();
     }
 
     public static Throwable g(Throwable throwable) {

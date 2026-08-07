@@ -108,9 +108,10 @@ extends View {
     public final void c(float f3, float f4) {
         int n3 = this.getWidth();
         int n4 = 2;
-        int n5 = n3 / 2;
-        n3 = this.getHeight() / 2;
-        if (!((f4 = o2.a.b(n5, n3, f3, f4)) <= (float)(n3 = this.h(2)) + (f3 = c0.g(this.getContext(), 12)))) {
+        n3 /= 2;
+        int n5 = this.getHeight() / 2;
+        f4 = o2.a.b(n3, n5, f3, f4);
+        if (!(f4 <= (float)(n3 = this.h(2)) + (f3 = c0.g(this.getContext(), 12)))) {
             n4 = 1;
         }
         this.v = n4;
@@ -130,10 +131,10 @@ extends View {
         double d3 = Math.sin(this.t);
         double d4 = Math.cos(this.t);
         double d5 = n5 - this.m;
-        f5 = n4 + (int)(d4 * d5);
-        f7 = n3 + (int)(d5 * d3);
+        f7 = n4 + (int)(d4 * d5);
+        f5 = n3 + (int)(d5 * d3);
         this.o.setStrokeWidth((float)this.q);
-        canvas.drawLine(f3, f6, f5, f7, this.o);
+        canvas.drawLine(f3, f6, f7, f5, this.o);
         canvas.drawCircle(f3, f6, this.n, this.o);
     }
 
@@ -194,10 +195,10 @@ extends View {
 
     public final boolean k(float f3, float f4, boolean bl, boolean bl2, boolean bl3) {
         int n3 = this.f(f3, f4);
-        f4 = this.g();
-        f3 = n3;
+        f3 = this.g();
+        f4 = n3;
         boolean bl4 = false;
-        n3 = f4 != f3 ? 1 : 0;
+        n3 = f3 != f4 ? 1 : 0;
         if (bl2 && n3 != 0) {
             return true;
         }
@@ -211,7 +212,7 @@ extends View {
                 bl = true;
             }
         }
-        this.o(f3, bl);
+        this.o(f4, bl);
         return true;
     }
 
@@ -313,8 +314,8 @@ extends View {
         f4 += (float)Math.cos(this.t) * f5;
         f5 = (float)n3 + f5 * (float)Math.sin(this.t);
         Object object = this.p;
-        n4 = this.m;
-        object.set(f4 - (float)n4, f5 - (float)n4, f4 + (float)n4, f5 + (float)n4);
+        n5 = this.m;
+        object.set(f4 - (float)n5, f5 - (float)n5, f4 + (float)n5, f5 + (float)n5);
         object = this.l.iterator();
         while (object.hasNext()) {
             ((b)object.next()).a(f3, bl);

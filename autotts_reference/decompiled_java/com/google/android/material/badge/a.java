@@ -230,24 +230,24 @@ implements w.b {
         ViewGroup viewGroup = null;
         weakReference = weakReference != null ? (View)weakReference.get() : null;
         if (context != null && weakReference != null) {
-            context = new Rect();
-            context.set(this.f);
             Rect rect = new Rect();
-            weakReference.getDrawingRect(rect);
+            rect.set(this.f);
+            context = new Rect();
+            weakReference.getDrawingRect((Rect)context);
             WeakReference weakReference2 = this.o;
             if (weakReference2 != null) {
                 viewGroup = (ViewGroup)weakReference2.get();
             }
             if (viewGroup != null) {
-                viewGroup.offsetDescendantRectToMyCoords((View)weakReference, rect);
+                viewGroup.offsetDescendantRectToMyCoords((View)weakReference, (Rect)context);
             }
-            this.d(rect, (View)weakReference);
+            this.d((Rect)context, (View)weakReference);
             b.g(this.f, this.h, this.i, this.l, this.m);
             float f3 = this.k;
             if (f3 != -1.0f) {
                 this.d.e0(f3);
             }
-            if (!context.equals((Object)this.f)) {
+            if (!rect.equals((Object)this.f)) {
                 this.d.setBounds(this.f);
             }
         }

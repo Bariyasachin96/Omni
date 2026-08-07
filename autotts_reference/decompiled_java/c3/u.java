@@ -1,89 +1,241 @@
 /*
  * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  android.app.Dialog
+ *  android.content.Context
+ *  android.os.Bundle
+ *  android.view.View
+ *  android.view.View$OnClickListener
+ *  android.view.ViewGroup$LayoutParams
+ *  android.widget.Button
+ *  android.widget.LinearLayout
+ *  android.widget.LinearLayout$LayoutParams
+ *  android.widget.TextView
  */
 package c3;
 
-import java.util.HashMap;
-import java.util.Map;
+import android.app.Dialog;
+import android.content.Context;
+import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import c3.q;
+import c3.r;
+import c3.s;
+import c3.t;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 
-public abstract class u {
-    public static final Map a;
+public class u
+extends Dialog {
+    public List c;
+    public c d;
+    public b e;
+    public LinearLayout f;
+    public Button g;
+    public Button h;
 
-    static {
-        HashMap<String, String> hashMap;
-        a = hashMap = new HashMap<String, String>();
-        hashMap.put("com.google.android.tts", "Google Text-to-Speech");
-        hashMap.put("com.google.android.tts.speechpack.eng", "Google TTS - English");
-        hashMap.put("com.samsung.SMT", "Samsung Text-to-Speech");
-        hashMap.put("com.samsung.android.ttssmt", "Samsung TTS");
-        hashMap.put("com.samsung.smt", "Samsung TTS Engine");
-        hashMap.put("com.huawei.hiai.speech.tts", "Huawei Text-to-Speech");
-        hashMap.put("com.huawei.tts", "Huawei TTS");
-        hashMap.put("com.xiaomi.mibrain.speech", "Xiaomi Text-to-Speech");
-        hashMap.put("com.miui.voiceassist", "Mi Voice Assistant TTS");
-        hashMap.put("com.acapelagroup.android.tts", "Acapela TTS Voices");
-        hashMap.put("com.cereproc.android.tts", "CereProc Text-to-Speech");
-        hashMap.put("com.cereproc.CerePlay", "CerePlay Text-to-Speech");
-        hashMap.put("com.ivona.tts", "IVONA Text-to-Speech");
-        hashMap.put("com.ivona.tts.hq", "IVONA Text-to-Speech HQ");
-        hashMap.put("com.ivona.tts.oem", "IVONA TTS OEM");
-        hashMap.put("es.codefactory.vocalizertts", "Vocalizer TTS");
-        hashMap.put("com.nuance.tts", "Nuance Vocalizer");
-        hashMap.put("com.nuance.vocalizer", "Nuance Vocalizer TTS");
-        hashMap.put("com.reecedunn.espeak", "eSpeak TTS");
-        hashMap.put("com.googlecode.eyesfree.espeak", "eSpeak TTS (Eyes-Free)");
-        hashMap.put("rhzmr.espeak", "eSpeak TTS");
-        hashMap.put("com.github.olga_yakovleva.rhvoice.android", "RHVoice");
-        hashMap.put("com.svox.classic", "SVOX Classic TTS");
-        hashMap.put("com.svox.pico", "Pico TTS");
-        hashMap.put("edu.cmu.cs.speech.tts.flite", "Flite TTS");
-        hashMap.put("com.hear2read.tts.kannada", "Hear2Read Kannada");
-        hashMap.put("com.hear2read.tts.telugu", "Hear2Read Telugu");
-        hashMap.put("com.hear2read.tts.punjabi", "Hear2Read Punjabi");
-        hashMap.put("com.hear2read.tts.tamil", "Hear2Read Tamil");
-        hashMap.put("com.hear2read.tts.gujarati", "Hear2Read Gujarati");
-        hashMap.put("com.hear2read.tts.marathi", "Hear2Read Marathi");
-        hashMap.put("com.hear2read.tts.malayalam", "Hear2Read Malayalam");
-        hashMap.put("com.hear2read.tts.sanskrit", "Hear2Read Sanskrit");
-        hashMap.put("com.hear2read.tts.assamese", "Hear2Read Assamese");
-        hashMap.put("com.hear2read.tts.hindi", "Hear2Read Hindi");
-        hashMap.put("ru.yandex.speechkit.tts", "Yandex SpeechKit TTS");
-        hashMap.put("bg.bultreebank.speechlab", "SpeechLab TTS");
-        hashMap.put("io.github.aholab.ahotts", "AhoTTS");
-        hashMap.put("com.k2fsa.sherpa.onnx.tts.engine", "Sherpa TTS");
-        hashMap.put("com.amazon.tts", "Amazon Text-to-Speech");
-        hashMap.put("com.lge.tts", "LG Text-to-Speech");
-        hashMap.put("com.htc.tts", "HTC Text-to-Speech");
-        hashMap.put("com.voiceforge.tts", "VoiceForge TTS");
-        hashMap.put("jp.kddilabs.n2tts", "N2 TTS");
-        hashMap.put("com.speech.tts.engine", "Speech TTS Engine");
-        hashMap.put("com.nirenr.talkman", "Jieshuo+");
+    public u(Context object, List list, c c3) {
+        super((Context)object);
+        for (int i3 = 0; i3 < list.size(); ++i3) {
+            object = System.out;
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append(((d)list.get(i3)).a());
+            stringBuilder.append(": ");
+            stringBuilder.append(((d)list.get(i3)).b());
+            ((PrintStream)object).println(stringBuilder.toString());
+        }
+        this.c = new ArrayList(list);
+        this.d = c3;
     }
 
-    public static String a(String charSequence) {
-        if (charSequence != null && !((String)charSequence).isEmpty()) {
-            String[] stringArray = ((String)charSequence).split("\\.");
-            charSequence = new StringBuilder();
-            for (int i3 = stringArray.length > 1 && ((string = stringArray[0].toLowerCase()).equals("com") || string.equals("org") || string.equals("net") || string.equals("io") || string.equals("ru") || string.equals("jp")) ? 1 : 0; i3 < stringArray.length; ++i3) {
-                String string = stringArray[i3];
-                if (string.isEmpty()) continue;
-                ((StringBuilder)charSequence).append(Character.toUpperCase(string.charAt(0)));
-                if (string.length() > 1) {
-                    ((StringBuilder)charSequence).append(string.substring(1));
-                }
-                if (i3 >= stringArray.length - 1) continue;
-                ((StringBuilder)charSequence).append(" ");
+    public static /* synthetic */ void a(u u3, Button button, d d3, View object) {
+        ((Object)((Object)u3)).getClass();
+        button.setEnabled(false);
+        button.setText((CharSequence)"Installing...");
+        object = u3.d;
+        if (object != null) {
+            object.a(d3, new t(u3, d3, button));
+        }
+    }
+
+    public static /* synthetic */ void b(u u3, View object) {
+        object = u3.e;
+        if (object != null) {
+            object.onCancel();
+        }
+        u3.dismiss();
+    }
+
+    public static /* synthetic */ void c(u u3, d d3, Button button, boolean bl) {
+        ((Object)((Object)u3)).getClass();
+        if (bl) {
+            d3.d(true);
+            u3.f();
+            u3.h();
+            return;
+        }
+        button.setEnabled(true);
+        button.setText((CharSequence)"Install");
+    }
+
+    public static /* synthetic */ void d(u u3, View object) {
+        object = u3.e;
+        if (object != null) {
+            object.a();
+        }
+        u3.dismiss();
+    }
+
+    public final View e() {
+        Context context = this.getContext();
+        LinearLayout linearLayout = new LinearLayout(context);
+        linearLayout.setOrientation(1);
+        linearLayout.setPadding(48, 48, 48, 24);
+        linearLayout.setLayoutParams(new ViewGroup.LayoutParams(-1, -2));
+        TextView textView = new TextView(context);
+        textView.setText((CharSequence)"Requried TTS Engines");
+        textView.setTextSize(20.0f);
+        textView.setPadding(0, 0, 0, 32);
+        linearLayout.addView((View)textView);
+        textView = new LinearLayout(context);
+        this.f = textView;
+        textView.setOrientation(1);
+        linearLayout.addView((View)this.f);
+        textView = new LinearLayout(context);
+        textView.setOrientation(0);
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-1, -2);
+        layoutParams.topMargin = 32;
+        textView.setLayoutParams((ViewGroup.LayoutParams)layoutParams);
+        layoutParams = new Button(context);
+        this.g = layoutParams;
+        layoutParams.setText((CharSequence)"Apply");
+        this.g.setOnClickListener((View.OnClickListener)new r(this));
+        layoutParams = new LinearLayout.LayoutParams(0, -2, 1.0f);
+        layoutParams.rightMargin = 8;
+        this.g.setLayoutParams((ViewGroup.LayoutParams)layoutParams);
+        textView.addView((View)this.g);
+        context = new Button(context);
+        this.h = context;
+        context.setText((CharSequence)"Cancel");
+        this.h.setOnClickListener((View.OnClickListener)new s(this));
+        context = new LinearLayout.LayoutParams(0, -2, 1.0f);
+        context.leftMargin = 8;
+        this.h.setLayoutParams((ViewGroup.LayoutParams)context);
+        textView.addView((View)this.h);
+        linearLayout.addView((View)textView);
+        return linearLayout;
+    }
+
+    public final void f() {
+        this.f.removeAllViews();
+        Context context = this.getContext();
+        for (d d3 : this.c) {
+            LinearLayout linearLayout = new LinearLayout(context);
+            linearLayout.setOrientation(0);
+            linearLayout.setPadding(0, 16, 0, 16);
+            linearLayout.setLayoutParams((ViewGroup.LayoutParams)new LinearLayout.LayoutParams(-1, -2));
+            TextView textView = new TextView(context);
+            textView.setText((CharSequence)d3.a());
+            textView.setTextSize(16.0f);
+            textView.setLayoutParams((ViewGroup.LayoutParams)new LinearLayout.LayoutParams(0, -2, 1.0f));
+            linearLayout.addView((View)textView);
+            if (d3.c()) {
+                d3 = new TextView(context);
+                d3.setText("Installed");
+                d3.setTextColor(-11751600);
+                linearLayout.addView((View)d3);
+            } else {
+                textView = new TextView(context);
+                textView.setText((CharSequence)"Not installed");
+                textView.setTextColor(-6381922);
+                textView.setPadding(0, 0, 16, 0);
+                linearLayout.addView((View)textView);
+                textView = new Button(context);
+                textView.setText((CharSequence)"Install");
+                textView.setOnClickListener((View.OnClickListener)new q(this, (Button)textView, d3));
+                linearLayout.addView((View)textView);
             }
-            return ((StringBuilder)charSequence).toString().trim();
+            this.f.addView((View)linearLayout);
         }
-        return "Unknown";
     }
 
-    public static String b(String string) {
-        if (string == null) {
-            return "Unknown";
+    public void g(b b3) {
+        this.e = b3;
+    }
+
+    public final void h() {
+        boolean bl;
+        Button button;
+        block1: {
+            button = this.c.iterator();
+            while (button.hasNext()) {
+                if (((d)button.next()).c()) continue;
+                bl = false;
+                break block1;
+            }
+            bl = true;
         }
-        return a.getOrDefault(string, u.a(string));
+        this.g.setEnabled(bl);
+        button = this.g;
+        float f3 = bl ? 1.0f : 0.5f;
+        button.setAlpha(f3);
+    }
+
+    public void onCreate(Bundle bundle) {
+        super.onCreate(bundle);
+        this.requestWindowFeature(1);
+        this.setContentView(this.e());
+        this.setCancelable(false);
+        this.f();
+        this.h();
+    }
+
+    public static interface a {
+        public void a(boolean var1);
+    }
+
+    public static interface b {
+        public void a();
+
+        public void onCancel();
+    }
+
+    public static interface c {
+        public void a(d var1, a var2);
+    }
+
+    public static class d {
+        public String a;
+        public String b;
+        public boolean c;
+
+        public d(String string, String string2, boolean bl) {
+            this.a = string;
+            this.b = string2;
+            this.c = bl;
+        }
+
+        public String a() {
+            return this.a;
+        }
+
+        public String b() {
+            return this.b;
+        }
+
+        public boolean c() {
+            return this.c;
+        }
+
+        public void d(boolean bl) {
+            this.c = bl;
+        }
     }
 }
 

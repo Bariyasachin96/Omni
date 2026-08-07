@@ -99,10 +99,10 @@ implements b.a {
     }
 
     public boolean E() {
-        j j3;
-        Object object = this.C;
-        if (object != null && (j3 = this.k) != null) {
-            ((View)j3).removeCallbacks((Runnable)object);
+        Object object;
+        c c3 = this.C;
+        if (c3 != null && (object = this.k) != null) {
+            ((View)object).removeCallbacks((Runnable)c3);
             this.C = null;
             return true;
         }
@@ -273,30 +273,30 @@ implements b.a {
 
     @Override
     public void g(boolean bl) {
-        o0.b b3;
         int n3;
         int n4;
+        Object object;
         super.g(bl);
         ((View)this.k).requestLayout();
-        Object object = this.e;
+        Object object2 = this.e;
         int n5 = 0;
-        if (object != null) {
-            object = ((androidx.appcompat.view.menu.e)object).u();
+        if (object2 != null) {
+            object = ((androidx.appcompat.view.menu.e)object2).u();
             n4 = ((ArrayList)object).size();
             for (n3 = 0; n3 < n4; ++n3) {
-                b3 = ((g)((ArrayList)object).get(n3)).a();
-                if (b3 == null) continue;
-                b3.h(this);
+                object2 = ((g)((ArrayList)object).get(n3)).a();
+                if (object2 == null) continue;
+                ((o0.b)object2).h(this);
             }
         }
-        object = (object = this.e) != null ? ((androidx.appcompat.view.menu.e)object).B() : null;
+        object2 = (object2 = this.e) != null ? ((androidx.appcompat.view.menu.e)object2).B() : null;
         n3 = n5;
         if (this.p) {
             n3 = n5;
-            if (object != null) {
-                n4 = ((ArrayList)object).size();
+            if (object2 != null) {
+                n4 = ((ArrayList)object2).size();
                 if (n4 == 1) {
-                    n3 = ((g)((ArrayList)object).get(0)).isActionViewExpanded() ^ 1;
+                    n3 = ((g)((ArrayList)object2).get(0)).isActionViewExpanded() ^ 1;
                 } else {
                     n3 = n5;
                     if (n4 > 0) {
@@ -309,16 +309,16 @@ implements b.a {
             if (this.m == null) {
                 this.m = new d(this, this.c);
             }
-            if ((object = (ViewGroup)this.m.getParent()) != this.k) {
-                if (object != null) {
-                    object.removeView((View)this.m);
+            if ((object2 = (ViewGroup)this.m.getParent()) != this.k) {
+                if (object2 != null) {
+                    object2.removeView((View)this.m);
                 }
-                object = (ActionMenuView)this.k;
-                object.addView((View)this.m, (ViewGroup.LayoutParams)((ActionMenuView)object).D());
+                object2 = (ActionMenuView)this.k;
+                object2.addView((View)this.m, (ViewGroup.LayoutParams)((ActionMenuView)object2).D());
             }
         } else {
-            object = this.m;
-            if (object != null && (b3 = object.getParent()) == (object = this.k)) {
+            object2 = this.m;
+            if (object2 != null && (object2 = object2.getParent()) == (object = this.k)) {
                 ((ViewGroup)object).removeView((View)this.m);
             }
         }
@@ -400,7 +400,7 @@ implements b.a {
             }
             n4 = n8 - 1;
         }
-        n6 = n4 - n5;
+        n4 -= n5;
         SparseBooleanArray sparseBooleanArray = this.z;
         sparseBooleanArray.clear();
         if (this.v) {
@@ -413,7 +413,7 @@ implements b.a {
         }
         int n14 = 0;
         n8 = 0;
-        n7 = n10;
+        n11 = n10;
         n10 = n12;
         n12 = n13;
         while (n14 < n10) {
@@ -426,11 +426,11 @@ implements b.a {
                 } else {
                     object2.measure(n9, n9);
                 }
-                n11 = object2.getMeasuredWidth();
-                n7 -= n11;
-                n4 = n8;
+                n13 = object2.getMeasuredWidth();
+                n7 = n11 - n13;
+                n6 = n8;
                 if (n8 == 0) {
-                    n4 = n11;
+                    n6 = n13;
                 }
                 if ((n8 = g3.getGroupId()) != 0) {
                     sparseBooleanArray.put(n8, true);
@@ -440,18 +440,18 @@ implements b.a {
             } else if (g3.n()) {
                 n13 = g3.getGroupId();
                 boolean bl = sparseBooleanArray.get(n13);
-                int n15 = !(n6 <= 0 && !bl || n7 <= 0 || this.v && n5 <= 0) ? 1 : 0;
+                int n15 = !(n4 <= 0 && !bl || n11 <= 0 || this.v && n5 <= 0) ? 1 : 0;
                 int n16 = n15;
                 int n17 = n15;
-                n11 = n7;
+                n7 = n11;
                 n12 = n5;
-                n4 = n8;
+                n6 = n8;
                 if (n15 != 0) {
                     object2 = this.q(g3, null, viewGroup);
                     if (this.v) {
-                        n4 = ActionMenuView.J((View)object2, n3, n5, n9, 0);
-                        n5 = n12 = n5 - n4;
-                        if (n4 == 0) {
+                        n6 = ActionMenuView.J((View)object2, n3, n5, n9, 0);
+                        n5 = n12 = n5 - n6;
+                        if (n6 == 0) {
                             n16 = 0;
                             n5 = n12;
                         }
@@ -459,37 +459,37 @@ implements b.a {
                         object2.measure(n9, n9);
                     }
                     n12 = object2.getMeasuredWidth();
-                    n11 = n7 - n12;
-                    n4 = n8;
+                    n7 = n11 - n12;
+                    n6 = n8;
                     if (n8 == 0) {
-                        n4 = n12;
+                        n6 = n12;
                     }
-                    n8 = (this.v ? n11 >= 0 : n11 + n4 > 0) ? 1 : 0;
+                    n8 = (this.v ? n7 >= 0 : n7 + n6 > 0) ? 1 : 0;
                     n17 = n16 & n8;
                     n12 = n5;
                 }
                 if (n17 != 0 && n13 != 0) {
                     sparseBooleanArray.put(n13, true);
-                    n8 = n6;
+                    n8 = n4;
                 } else {
-                    n8 = n6;
+                    n8 = n4;
                     if (bl) {
                         sparseBooleanArray.put(n13, false);
                         n5 = 0;
                         while (true) {
-                            n8 = n6;
+                            n8 = n4;
                             if (n5 >= n14) break;
                             object2 = (g)((ArrayList)object).get(n5);
-                            n8 = n6;
+                            n8 = n4;
                             if (((g)object2).getGroupId() == n13) {
-                                n8 = n6;
+                                n8 = n4;
                                 if (((g)object2).l()) {
-                                    n8 = n6 + 1;
+                                    n8 = n4 + 1;
                                 }
                                 ((g)object2).u(false);
                             }
                             ++n5;
-                            n6 = n8;
+                            n4 = n8;
                         }
                     }
                 }
@@ -499,17 +499,18 @@ implements b.a {
                 }
                 g3.u(n17 != 0);
                 n8 = 0;
-                n6 = n5;
-                n7 = n11;
+                n4 = n5;
                 n5 = n12;
             } else {
                 g3.u(n12 != 0);
-                n4 = n8;
+                n6 = n8;
+                n7 = n11;
                 n8 = n12;
             }
             ++n14;
             n12 = n8;
-            n8 = n4;
+            n11 = n7;
+            n8 = n6;
         }
         return true;
     }
@@ -731,14 +732,14 @@ implements b.a {
             Drawable drawable2 = this.getBackground();
             if (drawable != null && drawable2 != null) {
                 int n7 = this.getWidth();
-                n5 = this.getHeight();
-                n3 = Math.max(n7, n5) / 2;
+                n6 = this.getHeight();
+                n3 = Math.max(n7, n6) / 2;
                 int n8 = this.getPaddingLeft();
                 int n9 = this.getPaddingRight();
-                n4 = this.getPaddingTop();
-                n6 = this.getPaddingBottom();
+                n5 = this.getPaddingTop();
+                n4 = this.getPaddingBottom();
                 n7 = (n7 + (n8 - n9)) / 2;
-                n4 = (n5 + (n4 - n6)) / 2;
+                n4 = (n6 + (n5 - n4)) / 2;
                 h0.a.l(drawable2, n7 - n3, n4 - n3, n7 + n3, n4 + n3);
             }
             return bl;

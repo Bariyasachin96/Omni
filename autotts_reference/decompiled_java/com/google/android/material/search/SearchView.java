@@ -141,8 +141,8 @@ p2.b {
         context = this.getContext();
         TypedArray typedArray = com.google.android.material.internal.z.i(context, object, z1.m.SearchView, n3, n4, new int[0]);
         this.B = typedArray.getColor(z1.m.SearchView_backgroundTint, 0);
-        n4 = typedArray.getResourceId(z1.m.SearchView_headerLayout, -1);
-        n3 = typedArray.getResourceId(z1.m.SearchView_android_textAppearance, -1);
+        n3 = typedArray.getResourceId(z1.m.SearchView_headerLayout, -1);
+        n4 = typedArray.getResourceId(z1.m.SearchView_android_textAppearance, -1);
         object = typedArray.getString(z1.m.SearchView_android_text);
         String string = typedArray.getString(z1.m.SearchView_android_hint);
         String string2 = typedArray.getString(z1.m.SearchView_searchPrefixText);
@@ -173,9 +173,9 @@ p2.b {
         this.u = new a(context);
         this.I();
         this.C();
-        this.setUpHeaderLayout(n4);
+        this.setUpHeaderLayout(n3);
         this.setSearchPrefixText(string2);
-        this.G(n3, (String)object, string);
+        this.G(n4, (String)object, string);
         this.B(bl, bl2);
         this.D();
         this.E();

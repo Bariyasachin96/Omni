@@ -479,17 +479,18 @@ implements h.a {
             int n7 = b3.a;
             if (n7 == 8) {
                 int n8;
+                int n9;
                 n7 = b3.b;
                 n6 = b3.d;
                 if (n7 < n6) {
-                    n8 = n7;
-                    n3 = n6;
+                    n9 = n7;
+                    n8 = n3 = n6;
                 } else {
-                    n3 = n7;
-                    n8 = n6;
+                    n8 = n7;
+                    n9 = n3 = n6;
                 }
-                if (n5 >= n8 && n5 <= n3) {
-                    if (n8 == n7) {
+                if (n5 >= n9 && n5 <= n8) {
+                    if (n9 == n7) {
                         if (n4 == 1) {
                             b3.d = n6 + 1;
                         } else if (n4 == 2) {
@@ -616,22 +617,22 @@ implements h.a {
             if (!(object instanceof b)) {
                 return false;
             }
-            b b3 = (b)object;
+            object = (b)object;
             int n3 = this.a;
-            if (n3 != b3.a) {
+            if (n3 != ((b)object).a) {
                 return false;
             }
-            if (n3 == 8 && Math.abs(this.d - this.b) == 1 && this.d == b3.b && this.b == b3.d) {
+            if (n3 == 8 && Math.abs(this.d - this.b) == 1 && this.d == ((b)object).b && this.b == ((b)object).d) {
                 return true;
             }
-            if (this.d != b3.d) {
+            if (this.d != ((b)object).d) {
                 return false;
             }
-            if (this.b != b3.b) {
+            if (this.b != ((b)object).b) {
                 return false;
             }
-            object = this.c;
-            return !(object != null ? !object.equals(b3.c) : b3.c != null);
+            Object object2 = this.c;
+            return !(object2 != null ? !object2.equals(((b)object).c) : ((b)object).c != null);
         }
 
         public int hashCode() {

@@ -81,11 +81,11 @@ public class w {
         if (FragmentManager.I0(3)) {
             Objects.toString(this.c);
         }
+        Object object = this.c;
+        ((Fragment)object).L0(((Fragment)object).d);
+        object = this.a;
         Fragment fragment = this.c;
-        fragment.L0(fragment.d);
-        n n3 = this.a;
-        fragment = this.c;
-        n3.a(fragment, fragment.d, false);
+        ((n)object).a(fragment, fragment.d, false);
     }
 
     public void b() {
@@ -174,9 +174,9 @@ public class w {
         if (!this.c.n) {
             n4 = Math.min(n3, 1);
         }
-        Fragment fragment = this.c;
-        object = fragment.J;
-        object = object != null ? e0.n((ViewGroup)object, fragment.E()).l(this) : null;
+        object = this.c;
+        ViewGroup viewGroup = object.J;
+        object = viewGroup != null ? e0.n(viewGroup, object.E()).l(this) : null;
         if (object == e0.e.b.d) {
             n5 = Math.min(n4, 6);
         } else if (object == e0.e.b.e) {
@@ -322,9 +322,9 @@ public class w {
                 });
             }
             this.c.i1();
-            object2 = this.a;
-            object = this.c;
-            ((n)object2).m((Fragment)object, ((Fragment)object).K, ((Fragment)object).d, false);
+            object = this.a;
+            object2 = this.c;
+            ((n)object).m((Fragment)object2, ((Fragment)object2).K, ((Fragment)object2).d, false);
             n3 = this.c.K.getVisibility();
             float f3 = this.c.K.getAlpha();
             this.c.z1(f3);
@@ -518,13 +518,13 @@ public class w {
             if (((Fragment)object).k != null) {
                 ((Fragment)object).l = ((Fragment)object).d.getInt("android:target_req_state", 0);
             }
-            object = this.c;
-            object2 = ((Fragment)object).g;
-            if (object2 != null) {
-                ((Fragment)object).M = (Boolean)object2;
+            object2 = this.c;
+            object = object2.g;
+            if (object != null) {
+                object2.M = (Boolean)object;
                 this.c.g = null;
             } else {
-                ((Fragment)object).M = ((Fragment)object).d.getBoolean("android:user_visible_hint", true);
+                object2.M = object2.d.getBoolean("android:user_visible_hint", true);
             }
             object = this.c;
             if (!((Fragment)object).M) {

@@ -57,7 +57,7 @@ public class g {
      * Enabled aggressive exception aggregation
      */
     public g(Context object, XmlPullParser object2) {
-        k k3;
+        d d3;
         int n3;
         block23: {
             XmlPullParserException xmlPullParserException2;
@@ -65,7 +65,7 @@ public class g {
                 this.a = new HashMap();
                 try {
                     n3 = object2.getEventType();
-                    k3 = null;
+                    d3 = null;
                     break block23;
                 }
                 catch (IOException iOException) {
@@ -80,7 +80,7 @@ public class g {
             return;
         }
         while (n3 != 1) {
-            d d3;
+            d d4;
             block25: {
                 Object object3;
                 block29: {
@@ -89,10 +89,10 @@ public class g {
                             block26: {
                                 if (n3 == 2) break block26;
                                 if (n3 != 3) {
-                                    d3 = k3;
+                                    d4 = d3;
                                     break block25;
                                 } else {
-                                    d3 = k3;
+                                    d4 = d3;
                                     if ("KeyFrameSet".equals(object2.getName())) {
                                         return;
                                     }
@@ -140,41 +140,42 @@ public class g {
                             }
                             d3.e((Context)object, Xml.asAttributeSet((XmlPullParser)object2));
                             this.c(d3);
+                            d4 = d3;
                             break block25;
                         }
-                        ((StringBuilder)object2).append("Key ");
-                        ((StringBuilder)object2).append((String)object3);
-                        ((StringBuilder)object2).append(" not found");
-                        super(((StringBuilder)object2).toString());
-                        throw object;
+                        ((StringBuilder)object).append("Key ");
+                        ((StringBuilder)object).append((String)object3);
+                        ((StringBuilder)object).append(" not found");
+                        super(((StringBuilder)object).toString());
+                        throw object2;
                     }
                     if (!((String)object3).equalsIgnoreCase("CustomAttribute")) break block29;
-                    d3 = k3;
-                    if (k3 != null) {
-                        object3 = k3.e;
-                        d3 = k3;
+                    d4 = d3;
+                    if (d3 != null) {
+                        object3 = d3.e;
+                        d4 = d3;
                         if (object3 != null) {
-                            androidx.constraintlayout.widget.a.i(object, (XmlPullParser)object2, (HashMap)object3);
-                            d3 = k3;
+                            androidx.constraintlayout.widget.a.i((Context)object, object2, (HashMap)object3);
+                            d4 = d3;
                         }
                     }
                     break block25;
                 }
-                d3 = k3;
+                d4 = d3;
                 if (((String)object3).equalsIgnoreCase("CustomMethod")) {
-                    d3 = k3;
-                    if (k3 != null) {
-                        object3 = k3.e;
-                        d3 = k3;
+                    d4 = d3;
+                    if (d3 != null) {
+                        object3 = d3.e;
+                        d4 = d3;
                         if (object3 != null) {
-                            androidx.constraintlayout.widget.a.i(object, (XmlPullParser)object2, (HashMap)object3);
-                            d3 = k3;
+                            androidx.constraintlayout.widget.a.i((Context)object, object2, (HashMap)object3);
+                            d4 = d3;
                         }
                     }
                 }
             }
             n3 = object2.next();
-            k3 = d3;
+            d3 = d4;
         }
     }
 

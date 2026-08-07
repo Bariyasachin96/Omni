@@ -92,18 +92,18 @@ extends e3.b {
                 }
                 n4 = -1;
             }
-            object2 = ((b)this.e.get(n4)).a(f3);
-            object = (b)((d3.d)object2).a();
-            object2 = (b)((d3.d)object2).b();
+            object = ((b)this.e.get(n4)).a(f3);
+            object2 = (b)((d3.d)object).a();
+            object = (b)((d3.d)object).b();
             r.a();
-            object2 = e3.l.i(((b)object2).b());
+            object = e3.l.i(((b)object).b());
             int n6 = this.e.size();
             for (n3 = 1; n3 < n6; ++n3) {
                 list = this.e;
-                object2.add(((b)list.get((n3 + n4) % list.size())).b());
+                object.add(((b)list.get((n3 + n4) % list.size())).b());
             }
-            object2.add(((b)object).b());
-            object = new m(this.e.size() + 2);
+            object.add(((b)object2).b());
+            object2 = new m(this.e.size() + 2);
             n6 = this.e.size();
             for (n3 = 0; n3 < n6 + 2; ++n3) {
                 if (n3 == 0) {
@@ -114,7 +114,7 @@ extends e3.b {
                     int n7 = this.e.size();
                     f4 = y.j(((b)this.e.get((n4 + n3 - 1) % n7)).c() - f3, 1.0f);
                 }
-                ((m)object).h(f4);
+                ((m)object2).h(f4);
             }
             list = e3.k.c();
             n3 = this.f.size();
@@ -122,7 +122,7 @@ extends e3.b {
                 list.add(new s(y.j(((s)this.f.get(n4)).b() - f3, 1.0f), ((s)this.f.get(n4)).a()));
             }
             list = e3.k.a(list);
-            return new k(this.d, list, (List)object2, (f)object);
+            return new k(this.d, list, (List)object, (f)object2);
         }
         throw new IllegalArgumentException("Cutting point is expected to be between 0 and 1");
     }
@@ -175,11 +175,11 @@ extends e3.b {
                 for (n4 = 0; n4 < n3; ++n4) {
                     Object object3 = arrayList.get(n4);
                     object3 = (d)object3;
-                    float f4 = ((Number)object).floatValue();
-                    f3 = l3.a((d)object3);
-                    if (f3 >= 0.0f) {
+                    f3 = ((Number)object).floatValue();
+                    float f4 = l3.a((d)object3);
+                    if (f4 >= 0.0f) {
                         object = j.a;
-                        object = Float.valueOf(f4 + f3);
+                        object = Float.valueOf(f3 + f4);
                         ((ArrayList)object2).add(object);
                         continue;
                     }

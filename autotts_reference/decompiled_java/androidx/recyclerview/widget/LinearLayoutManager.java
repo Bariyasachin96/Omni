@@ -315,35 +315,35 @@ implements RecyclerView.y.b {
         object = this.t;
         n3 = bl2 ? n8 : n7;
         ((c)object).h = n3;
-        if (!bl2) {
-            n7 = n8;
+        if (bl2) {
+            n8 = n7;
         }
-        ((c)object).i = n7;
+        ((c)object).i = n8;
         if (bl2) {
             ((c)object).h = n3 + this.u.j();
             object = this.m2();
-            object2 = this.t;
+            c c3 = this.t;
             n3 = n6;
             if (this.x) {
                 n3 = -1;
             }
-            object2.e = n3;
+            c3.e = n3;
             n3 = this.l0((View)object);
-            c c3 = this.t;
-            object2.d = n3 + c3.e;
-            c3.b = this.u.d((View)object);
+            object2 = this.t;
+            c3.d = n3 + object2.e;
+            object2.b = this.u.d((View)object);
             n3 = this.u.d((View)object) - this.u.i();
         } else {
             object = this.n2();
             object2 = this.t;
             object2.h += this.u.m();
-            object2 = this.t;
-            n3 = this.x ? n5 : -1;
-            object2.e = n3;
-            n3 = this.l0((View)object);
             c c4 = this.t;
-            object2.d = n3 + c4.e;
-            c4.b = this.u.g((View)object);
+            n3 = this.x ? n5 : -1;
+            c4.e = n3;
+            n3 = this.l0((View)object);
+            object2 = this.t;
+            c4.d = n3 + object2.e;
+            object2.b = this.u.g((View)object);
             n3 = -this.u.g((View)object) + this.u.m();
         }
         object = this.t;
@@ -447,15 +447,17 @@ implements RecyclerView.y.b {
 
     public void Q1(RecyclerView.z z3, int[] nArray) {
         int n3;
-        int n4 = this.o2(z3);
+        int n4;
+        int n5 = this.o2(z3);
         if (this.t.f == -1) {
-            n3 = 0;
-        } else {
-            n3 = n4;
             n4 = 0;
+            n3 = n5;
+        } else {
+            n3 = 0;
+            n4 = n5;
         }
-        nArray[0] = n4;
-        nArray[1] = n3;
+        nArray[0] = n3;
+        nArray[1] = n4;
     }
 
     public void R1(RecyclerView.z z3, c c3, RecyclerView.p.c c4) {
@@ -656,13 +658,14 @@ implements RecyclerView.y.b {
                     n8 = n7;
                     if (object != null) {
                         if (this.x) {
-                            n5 = this.u.i() - this.u.d((View)object);
-                            n8 = this.B;
-                        } else {
-                            n8 = this.u.g((View)object) - this.u.m();
+                            n8 = this.u.i() - this.u.d((View)object);
                             n5 = this.B;
+                        } else {
+                            n5 = this.u.g((View)object) - this.u.m();
+                            n8 = this.B;
                         }
-                        if ((n5 -= n8) > 0) {
+                        n5 = n8 - n5;
+                        if (n5 > 0) {
                             n5 = n6 + n5;
                             n8 = n7;
                         } else {
@@ -752,16 +755,15 @@ implements RecyclerView.y.b {
             if (this.x ^ this.y) {
                 n6 = this.k2(n5, v3, z3, true);
                 n4 = n8 + n6;
-                n8 = n5 + n6;
-                n5 = this.l2(n4, v3, z3, false);
+                n5 += n6;
+                n8 = this.l2(n4, v3, z3, false);
             } else {
                 n6 = this.l2(n8, v3, z3, true);
                 n4 = n8 + n6;
-                n8 = n5 + n6;
-                n5 = this.k2(n8, v3, z3, false);
+                n8 = this.k2(n5 += n6, v3, z3, false);
             }
-            n4 += n5;
-            n6 = n8 + n5;
+            n4 += n8;
+            n6 = n5 + n8;
         }
         this.t2(v3, z3, n4, n6);
         if (!z3.e()) {
@@ -1078,42 +1080,43 @@ implements RecyclerView.y.b {
         return this.z;
     }
 
-    public void s2(RecyclerView.v v3, RecyclerView.z object, c c3, b b3) {
+    public void s2(RecyclerView.v object, RecyclerView.z z3, c c3, b b3) {
         int n3;
         int n4;
         int n5;
         int n6;
-        if ((v3 = c3.d(v3)) == null) {
+        z3 = c3.d((RecyclerView.v)object);
+        if (z3 == null) {
             b3.b = true;
             return;
         }
-        object = (RecyclerView.LayoutParams)v3.getLayoutParams();
+        object = (RecyclerView.LayoutParams)z3.getLayoutParams();
         if (c3.l == null) {
             boolean bl = this.x;
             boolean bl2 = c3.f == -1;
             if (bl == bl2) {
-                this.i((View)v3);
+                this.i((View)z3);
             } else {
-                this.j((View)v3, 0);
+                this.j((View)z3, 0);
             }
         } else {
             boolean bl = this.x;
             boolean bl3 = c3.f == -1;
             if (bl == bl3) {
-                this.g((View)v3);
+                this.g((View)z3);
             } else {
-                this.h((View)v3, 0);
+                this.h((View)z3, 0);
             }
         }
-        this.E0((View)v3, 0, 0);
-        b3.a = this.u.e((View)v3);
+        this.E0((View)z3, 0, 0);
+        b3.a = this.u.e((View)z3);
         if (this.s == 1) {
             if (this.q2()) {
                 n6 = this.s0() - this.j0();
-                n5 = n6 - this.u.f((View)v3);
+                n5 = n6 - this.u.f((View)z3);
             } else {
                 n5 = this.i0();
-                n6 = this.u.f((View)v3) + n5;
+                n6 = this.u.f((View)z3) + n5;
             }
             if (c3.f == -1) {
                 n4 = c3.b;
@@ -1124,7 +1127,7 @@ implements RecyclerView.y.b {
             }
         } else {
             n3 = this.k0();
-            n4 = this.u.f((View)v3) + n3;
+            n4 = this.u.f((View)z3) + n3;
             if (c3.f == -1) {
                 n6 = c3.b;
                 n5 = n6 - b3.a;
@@ -1133,11 +1136,11 @@ implements RecyclerView.y.b {
                 n6 = b3.a + n5;
             }
         }
-        this.D0((View)v3, n5, n3, n6, n4);
+        this.D0((View)z3, n5, n3, n6, n4);
         if (((RecyclerView.LayoutParams)((Object)object)).c() || ((RecyclerView.LayoutParams)((Object)object)).b()) {
             b3.c = true;
         }
-        b3.d = v3.hasFocusable();
+        b3.d = z3.hasFocusable();
     }
 
     @Override
@@ -1155,22 +1158,23 @@ implements RecyclerView.y.b {
 
     public final void t2(RecyclerView.v v3, RecyclerView.z z3, int n3, int n4) {
         if (z3.g() && this.O() != 0 && !z3.e() && this.P1()) {
+            Object object;
             int n5;
-            Object object = v3.k();
-            int n6 = object.size();
+            List list = v3.k();
+            int n6 = list.size();
             int n7 = this.l0(this.N(0));
             int n8 = n5 = 0;
             for (int i3 = 0; i3 < n6; ++i3) {
-                RecyclerView.d0 d02 = (RecyclerView.d0)object.get(i3);
-                if (d02.v()) continue;
-                boolean bl = d02.m() < n7;
+                object = (RecyclerView.d0)list.get(i3);
+                if (((RecyclerView.d0)object).v()) continue;
+                boolean bl = ((RecyclerView.d0)object).m() < n7;
                 if (bl != this.x) {
-                    n5 += this.u.e(d02.a);
+                    n5 += this.u.e(((RecyclerView.d0)object).a);
                     continue;
                 }
-                n8 += this.u.e(d02.a);
+                n8 += this.u.e(((RecyclerView.d0)object).a);
             }
-            this.t.l = object;
+            this.t.l = list;
             if (n5 > 0) {
                 this.L2(this.l0(this.n2()), n3);
                 object = this.t;
@@ -1433,9 +1437,9 @@ implements RecyclerView.y.b {
                 this.c = this.a.i() - n3;
                 if (n3 > 0) {
                     int n5 = this.a.e(view);
-                    int n6 = this.c;
-                    n4 = this.a.m();
-                    if ((n4 = n6 - n5 - (n4 + Math.min(this.a.g(view) - n4, 0))) < 0) {
+                    n4 = this.c;
+                    int n6 = this.a.m();
+                    if ((n4 = n4 - n5 - (n6 + Math.min(this.a.g(view) - n6, 0))) < 0) {
                         this.c += Math.min(n3, -n4);
                         return;
                     }

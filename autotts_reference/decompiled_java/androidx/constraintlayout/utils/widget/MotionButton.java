@@ -114,10 +114,10 @@ extends AppCompatButton {
             int n4 = this.getHeight();
             this.j.set(0.0f, 0.0f, (float)n3, (float)n4);
             this.h.reset();
-            Path path = this.h;
-            viewOutlineProvider = this.j;
+            viewOutlineProvider = this.h;
+            RectF rectF = this.j;
             f3 = this.g;
-            path.addRoundRect((RectF)viewOutlineProvider, f3, f3, Path.Direction.CW);
+            viewOutlineProvider.addRoundRect(rectF, f3, f3, Path.Direction.CW);
         } else {
             this.setClipToOutline(false);
         }

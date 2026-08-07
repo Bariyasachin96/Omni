@@ -88,11 +88,11 @@ extends Transition {
         float f6 = imageView.getHeight();
         float f7 = n3;
         f5 = Math.max(f5, f6 / f7);
-        n3 = Math.round((f3 - f4 * f5) / 2.0f);
-        int n4 = Math.round((f6 - f7 * f5) / 2.0f);
+        int n4 = Math.round((f3 - f4 * f5) / 2.0f);
+        n3 = Math.round((f6 - f7 * f5) / 2.0f);
         imageView = new Matrix();
         imageView.postScale(f5, f5);
-        imageView.postTranslate((float)n3, (float)n4);
+        imageView.postTranslate((float)n4, (float)n3);
         return imageView;
     }
 
@@ -156,9 +156,9 @@ extends Transition {
                         }
                         y4 = (ImageView)y4.b;
                         object = y4.getDrawable();
-                        int n4 = object.getIntrinsicWidth();
-                        n3 = object.getIntrinsicHeight();
-                        if (n4 > 0 && n3 > 0) {
+                        n3 = object.getIntrinsicWidth();
+                        int n4 = object.getIntrinsicHeight();
+                        if (n3 > 0 && n4 > 0) {
                             object = y3;
                             if (y3 == null) {
                                 object = m1.k.a;

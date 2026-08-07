@@ -46,19 +46,19 @@ public abstract class g {
         int n3 = Float.hashCode(f3) * -862048943;
         int n4 = n3 ^ n3 << 16;
         int n5 = this.c;
-        n3 = n4 >>> 7 & n5;
-        int n6 = 0;
+        int n6 = n4 >>> 7 & n5;
+        n3 = 0;
         while (true) {
             block5: {
                 block4: {
                     long[] lArray = this.a;
-                    int n7 = n3 >> 3;
-                    int n8 = (n3 & 7) << 3;
+                    int n7 = n6 >> 3;
+                    int n8 = (n6 & 7) << 3;
                     long l3 = lArray[n7];
                     long l4 = lArray[n7 + 1] << 64 - n8 & -((long)n8) >> 63 | l3 >>> n8;
                     l3 = (long)(n4 & 0x7F) * 0x101010101010101L ^ l4;
                     for (l3 = (l3 ^ 0xFFFFFFFFFFFFFFFFL) & l3 - 0x101010101010101L & 0x8080808080808080L; l3 != 0L; l3 &= l3 - 1L) {
-                        n8 = (Long.numberOfTrailingZeros(l3) >> 3) + n3 & n5;
+                        n8 = (Long.numberOfTrailingZeros(l3) >> 3) + n6 & n5;
                         if (this.b[n8] != f3) continue;
                         n3 = n8;
                         break block4;
@@ -68,7 +68,7 @@ public abstract class g {
                 }
                 return n3 >= 0;
             }
-            n3 = n3 + (n6 += 8) & n5;
+            n6 = n6 + (n3 += 8) & n5;
         }
     }
 
@@ -85,20 +85,20 @@ public abstract class g {
             k.e(charSequence3, "truncated");
             stringBuilder = new StringBuilder();
             stringBuilder.append((CharSequence)object);
-            object = this.b;
-            long[] lArray = this.a;
-            int n4 = lArray.length - 2;
+            float[] fArray = this.b;
+            object = this.a;
+            int n4 = ((Object)object).length - 2;
             if (n4 >= 0) {
                 int n5 = 0;
                 int n6 = 0;
                 while (true) {
-                    long l3;
-                    if ((((l3 = lArray[n5]) ^ 0xFFFFFFFFFFFFFFFFL) << 7 & l3 & 0x8080808080808080L) != -9187201950435737472L) {
+                    reference var13_15;
+                    if ((((var13_15 = object[n5]) ^ 0xFFFFFFFFFFFFFFFFL) << 7 & var13_15 & 0x8080808080808080L) != -9187201950435737472L) {
                         int n7 = 8;
                         int n8 = 8 - (~(n5 - n4) >>> 31);
                         for (int i3 = 0; i3 < n8; ++i3) {
-                            if ((l3 & 0xFFL) < 128L) {
-                                Object object2 = object[(n5 << 3) + i3];
+                            if ((var13_15 & 0xFFL) < 128L) {
+                                float f3 = fArray[(n5 << 3) + i3];
                                 if (n6 == n3) {
                                     stringBuilder.append(charSequence3);
                                     break block7;
@@ -106,10 +106,10 @@ public abstract class g {
                                 if (n6 != 0) {
                                     stringBuilder.append(charSequence);
                                 }
-                                stringBuilder.append((float)object2);
+                                stringBuilder.append(f3);
                                 ++n6;
                             }
-                            l3 >>= n7;
+                            var13_15 >>= n7;
                         }
                         if (n8 != n7) break;
                     }
@@ -135,20 +135,20 @@ public abstract class g {
         if (g3.d != this.d) {
             return false;
         }
-        float[] fArray = this.b;
-        object = this.a;
-        int n3 = ((Object)object).length - 2;
+        object = this.b;
+        long[] lArray = this.a;
+        int n3 = lArray.length - 2;
         if (n3 >= 0) {
             int n4 = 0;
             while (true) {
-                reference var6_8;
-                if ((((var6_8 = object[n4]) ^ 0xFFFFFFFFFFFFFFFFL) << 7 & var6_8 & 0x8080808080808080L) != -9187201950435737472L) {
+                long l3;
+                if ((((l3 = lArray[n4]) ^ 0xFFFFFFFFFFFFFFFFL) << 7 & l3 & 0x8080808080808080L) != -9187201950435737472L) {
                     int n5 = 8 - (~(n4 - n3) >>> 31);
                     for (int i3 = 0; i3 < n5; ++i3) {
-                        if ((0xFFL & var6_8) < 128L && !g3.a(fArray[(n4 << 3) + i3])) {
+                        if ((0xFFL & l3) < 128L && !g3.a((float)object[(n4 << 3) + i3])) {
                             return false;
                         }
-                        var6_8 >>= 8;
+                        l3 >>= 8;
                     }
                     if (n5 != 8) break;
                 }

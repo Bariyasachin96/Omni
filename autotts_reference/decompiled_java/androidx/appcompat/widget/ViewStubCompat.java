@@ -54,21 +54,21 @@ extends View {
                 if (viewParent == null) {
                     viewParent = LayoutInflater.from((Context)this.getContext());
                 }
-                View view = viewParent.inflate(this.c, viewGroup, false);
+                viewParent = viewParent.inflate(this.c, viewGroup, false);
                 int n3 = this.d;
                 if (n3 != -1) {
-                    view.setId(n3);
+                    viewParent.setId(n3);
                 }
                 n3 = viewGroup.indexOfChild((View)this);
                 viewGroup.removeViewInLayout((View)this);
-                viewParent = this.getLayoutParams();
-                if (viewParent != null) {
-                    viewGroup.addView(view, n3, (ViewGroup.LayoutParams)viewParent);
+                ViewGroup.LayoutParams layoutParams = this.getLayoutParams();
+                if (layoutParams != null) {
+                    viewGroup.addView((View)viewParent, n3, layoutParams);
                 } else {
-                    viewGroup.addView(view, n3);
+                    viewGroup.addView((View)viewParent, n3);
                 }
-                this.e = new WeakReference<View>(view);
-                return view;
+                this.e = new WeakReference<ViewParent>(viewParent);
+                return viewParent;
             }
             throw new IllegalArgumentException("ViewStub must have a valid layoutResource");
         }

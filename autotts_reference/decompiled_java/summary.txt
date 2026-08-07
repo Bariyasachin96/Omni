@@ -1,4 +1,4 @@
-Summary for autotts_classes.jar
+Summary for autotts.jar
 Decompiled with CFR 0.152
 
 
@@ -41,18 +41,12 @@ u()
   Exception : org.benf.cfr.reader.util.ConfusedCFRException: Statement already marked as first in another block
 
 
-androidx.appcompat.widget.ActionBarContainer
-----------------------------
-
-onLayout(boolean int int int int )
-  Unable to fully structure code
-
-
 androidx.appcompat.widget.LinearLayoutCompat
 ----------------------------
 
 e(android.graphics.Canvas )
   Unable to fully structure code
+  Could not resolve type clashes
 v(int int )
   Unable to fully structure code
   Could not resolve type clashes
@@ -111,7 +105,7 @@ androidx.appcompat.widget.h0
 ----------------------------
 
 p(android.net.Uri )
-  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3 : 28->80)] java.io.FileNotFoundException
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [3 : 29->81)] java.io.FileNotFoundException
 
 
 androidx.appcompat.widget.z
@@ -307,40 +301,40 @@ b(android.content.Context )
   Unable to fully structure code
 
 
-c1.u
+c3.e
 ----------------------------
 
-<init>(java.util.List float float )
-  Unable to fully structure code
+<clinit>()
+  Loose catch block
 
 
-c3.b0
+c3.g0
 ----------------------------
 
 a(java.io.File java.io.File )
   Loose catch block
 
 
-c3.j
+c3.k
 ----------------------------
 
-F2(android.content.Context java.lang.String )
+G2(android.content.Context java.lang.String )
   Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 4[TRYBLOCK] [4 : 186->336)] java.lang.Exception
-N2(android.net.Uri )
+P2(android.net.Uri )
   Loose catch block
 
 
-c3.m
+c3.n
 ----------------------------
 
-h(android.content.Context boolean )
-  Unable to fully structure code
+g(android.content.Context boolean )
+  Loose catch block
 
 
-c3.o
+c3.p
 ----------------------------
 
-h(c3.o$a java.lang.String java.lang.String )
+h(c3.p$a java.lang.String java.lang.String )
   Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 2[TRYBLOCK] [2 : 47->59)] java.lang.Throwable
 
 
@@ -434,6 +428,7 @@ com.google.android.material.textfield.TextInputLayout
 
 p0()
   Unable to fully structure code
+  Could not resolve type clashes
 
 
 com.google.android.play.core.common.PlayCoreDialogWrapperActivity
@@ -461,7 +456,7 @@ processResponse(int android.os.Bundle )
   Unable to fully structure code
   Could not resolve type clashes
 reportSuccessfulLicenseCheck(android.os.IBinder )
-  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 120->157)] java.lang.Throwable
+  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 3[TRYBLOCK] [9 : 122->159)] java.lang.Throwable
 
 
 com.vnspeak.autotts.AutoTtsService
@@ -472,7 +467,7 @@ T()
 g0(android.speech.tts.SynthesisCallback )
   Loose catch block
 onSynthesizeText(android.speech.tts.SynthesisRequest android.speech.tts.SynthesisCallback )
-  Exception : org.benf.cfr.reader.util.ConfusedCFRException: Back jump on a try block [egrp 7[TRYBLOCK] [8 : 807->820)] java.lang.Throwable
+  Unable to fully structure code
 run()
   Unable to fully structure code
 

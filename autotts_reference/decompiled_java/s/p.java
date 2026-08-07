@@ -20,19 +20,19 @@ public class p {
         f3 = (f3 - 0.5f) * 2.0f;
         float f7 = (f4 - 0.5f) * 2.0f;
         float f8 = this.c;
-        f4 = this.d;
-        float f9 = this.a;
-        float f10 = this.b;
-        float f11 = (float)Math.toRadians(this.f);
-        float f12 = (float)Math.toRadians(this.e);
+        float f9 = this.d;
+        float f10 = this.a;
+        float f11 = this.b;
+        float f12 = (float)Math.toRadians(this.f);
+        f4 = (float)Math.toRadians(this.e);
         double d3 = (float)(-n3) * f3;
-        double d4 = f11;
+        double d4 = f12;
         double d5 = Math.sin(d4);
         double d6 = (float)n4 * f7;
         float f13 = (float)(d3 * d5 - Math.cos(d4) * d6);
-        f11 = (float)((double)((float)n3 * f3) * Math.cos(d4) - d6 * Math.sin(d4));
-        fArray[0] = f5 + f8 + f9 * f3 + f13 * f12;
-        fArray[1] = f6 + f4 + f10 * f7 + f12 * f11;
+        f12 = (float)((double)((float)n3 * f3) * Math.cos(d4) - d6 * Math.sin(d4));
+        fArray[0] = f5 + f8 + f10 * f3 + f13 * f4;
+        fArray[1] = f6 + f9 + f11 * f7 + f4 * f12;
     }
 
     public void b() {

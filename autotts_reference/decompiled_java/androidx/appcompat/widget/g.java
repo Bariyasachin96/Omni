@@ -267,12 +267,12 @@ lbl31:
                         public final ColorStateList h(Context object, int n3) {
                             int n4 = i0.c(object, c.a.colorControlHighlight);
                             int n5 = i0.b(object, c.a.colorButtonNormal);
-                            object = i0.b;
-                            int[] nArray = i0.e;
+                            int[] nArray = i0.b;
+                            object = i0.e;
                             int n6 = g0.a.g(n4, n3);
                             int[] nArray2 = i0.c;
                             n4 = g0.a.g(n4, n3);
-                            return new ColorStateList((int[][])new int[][]{(int[])object, nArray, nArray2, i0.i}, new int[]{n5, n6, n4, n3});
+                            return new ColorStateList((int[][])new int[][]{nArray, (int[])object, nArray2, i0.i}, new int[]{n5, n6, n4, n3});
                         }
 
                         public final ColorStateList i(Context context) {
@@ -312,27 +312,27 @@ lbl31:
                             Drawable drawable = e02.i(context, e.abc_star_black_48dp);
                             Drawable drawable2 = e02.i(context, e.abc_star_half_black_48dp);
                             if (drawable instanceof BitmapDrawable && drawable.getIntrinsicWidth() == n3 && drawable.getIntrinsicHeight() == n3) {
-                                e02 = (BitmapDrawable)drawable;
-                                context = new BitmapDrawable(e02.getBitmap());
+                                context = (BitmapDrawable)drawable;
+                                e02 = new BitmapDrawable(context.getBitmap());
                             } else {
-                                context = Bitmap.createBitmap((int)n3, (int)n3, (Bitmap.Config)Bitmap.Config.ARGB_8888);
-                                e02 = new Canvas((Bitmap)context);
+                                e02 = Bitmap.createBitmap((int)n3, (int)n3, (Bitmap.Config)Bitmap.Config.ARGB_8888);
+                                context = new Canvas((Bitmap)e02);
                                 drawable.setBounds(0, 0, n3, n3);
-                                drawable.draw((Canvas)e02);
-                                e02 = new BitmapDrawable((Bitmap)context);
-                                context = new BitmapDrawable((Bitmap)context);
+                                drawable.draw((Canvas)context);
+                                context = new BitmapDrawable((Bitmap)e02);
+                                e02 = new BitmapDrawable((Bitmap)e02);
                             }
-                            context.setTileModeX(Shader.TileMode.REPEAT);
+                            e02.setTileModeX(Shader.TileMode.REPEAT);
                             if (drawable2 instanceof BitmapDrawable && drawable2.getIntrinsicWidth() == n3 && drawable2.getIntrinsicHeight() == n3) {
                                 drawable2 = (BitmapDrawable)drawable2;
                             } else {
-                                drawable = Bitmap.createBitmap((int)n3, (int)n3, (Bitmap.Config)Bitmap.Config.ARGB_8888);
-                                Canvas canvas = new Canvas((Bitmap)drawable);
+                                Bitmap bitmap = Bitmap.createBitmap((int)n3, (int)n3, (Bitmap.Config)Bitmap.Config.ARGB_8888);
+                                drawable = new Canvas(bitmap);
                                 drawable2.setBounds(0, 0, n3, n3);
-                                drawable2.draw(canvas);
-                                drawable2 = new BitmapDrawable((Bitmap)drawable);
+                                drawable2.draw((Canvas)drawable);
+                                drawable2 = new BitmapDrawable(bitmap);
                             }
-                            e02 = new LayerDrawable(new Drawable[]{e02, drawable2, context});
+                            e02 = new LayerDrawable(new Drawable[]{context, drawable2, e02});
                             e02.setId(0, 0x1020000);
                             e02.setId(1, 16908303);
                             e02.setId(2, 16908301);

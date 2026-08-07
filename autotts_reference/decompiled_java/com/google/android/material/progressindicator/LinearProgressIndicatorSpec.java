@@ -42,10 +42,10 @@ extends b {
     public LinearProgressIndicatorSpec(Context context, AttributeSet attributeSet, int n3, int n4) {
         super(context, attributeSet, n3, n4);
         int[] nArray = z1.m.LinearProgressIndicator;
-        n3 = z1.c.linearProgressIndicatorStyle;
-        n4 = LinearProgressIndicator.s;
+        n4 = z1.c.linearProgressIndicatorStyle;
+        n3 = LinearProgressIndicator.s;
         boolean bl = false;
-        attributeSet = z.i(context, attributeSet, nArray, n3, n4, new int[0]);
+        attributeSet = z.i(context, attributeSet, nArray, n4, n3, new int[0]);
         this.o = attributeSet.getInt(z1.m.LinearProgressIndicator_indeterminateAnimationType, 1);
         this.p = attributeSet.getInt(z1.m.LinearProgressIndicator_indicatorDirectionLinear, 0);
         this.r = Math.min(attributeSet.getDimensionPixelSize(z1.m.LinearProgressIndicator_trackStopIndicatorSize, 0), this.a);

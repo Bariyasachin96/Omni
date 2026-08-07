@@ -25,16 +25,15 @@ public abstract class f {
         if (!iterator.hasNext()) {
             return a;
         }
-        objectArray = new Object[n3];
+        Object[] objectArray2 = new Object[n3];
         n3 = 0;
         while (true) {
-            Object[] objectArray2;
             int n4 = n3 + 1;
-            objectArray[n3] = iterator.next();
-            if (n4 >= objectArray.length) {
+            objectArray2[n3] = iterator.next();
+            if (n4 >= objectArray2.length) {
                 int n5;
                 if (!iterator.hasNext()) {
-                    return objectArray;
+                    return objectArray2;
                 }
                 n3 = n5 = n4 * 3 + 1 >>> 1;
                 if (n5 <= n4) {
@@ -43,18 +42,18 @@ public abstract class f {
                         throw new OutOfMemoryError();
                     }
                 }
-                objectArray2 = Arrays.copyOf(objectArray, n3);
-                k.d(objectArray2, "copyOf(result, newSize)");
+                objectArray = Arrays.copyOf(objectArray2, n3);
+                k.d(objectArray, "copyOf(result, newSize)");
             } else {
-                objectArray2 = objectArray;
+                objectArray = objectArray2;
                 if (!iterator.hasNext()) {
-                    objectArray = Arrays.copyOf(objectArray, n4);
+                    objectArray = Arrays.copyOf(objectArray2, n4);
                     k.d(objectArray, "copyOf(result, size)");
                     return objectArray;
                 }
             }
             n3 = n4;
-            objectArray = objectArray2;
+            objectArray2 = objectArray;
         }
     }
 

@@ -308,10 +308,10 @@ implements p2.b {
         if (typedArray.hasValue(n4 = z1.m.BottomSheetBehavior_Layout_android_maxHeight)) {
             this.T0(typedArray.getDimensionPixelSize(n4, -1));
         }
-        if ((attributeSet = typedArray.peekValue(n3 = z1.m.BottomSheetBehavior_Layout_behavior_peekHeight)) != null && (n4 = attributeSet.data) == -1) {
-            this.V0(n4);
+        if ((attributeSet = typedArray.peekValue(n4 = z1.m.BottomSheetBehavior_Layout_behavior_peekHeight)) != null && (n3 = attributeSet.data) == -1) {
+            this.V0(n3);
         } else {
-            this.V0(typedArray.getDimensionPixelSize(n3, -1));
+            this.V0(typedArray.getDimensionPixelSize(n4, -1));
         }
         this.S0(typedArray.getBoolean(z1.m.BottomSheetBehavior_Layout_behavior_hideable, false));
         this.Q0(typedArray.getBoolean(z1.m.BottomSheetBehavior_Layout_gestureInsetBottomIgnored, false));
@@ -427,10 +427,10 @@ implements p2.b {
                     block9: {
                         block7: {
                             block5: {
-                                var6_5 = var2_2.getTop();
-                                var5_6 = this.r0();
+                                var5_5 = var2_2.getTop();
+                                var6_6 = this.r0();
                                 var4_4 = 3;
-                                if (var6_5 == var5_6) {
+                                if (var5_5 == var6_6) {
                                     this.b1(3);
                                     return;
                                 }
@@ -446,18 +446,18 @@ implements p2.b {
                             break block6;
                         }
                         if (this.U != 0) break block8;
-                        var6_5 = var2_2.getTop();
+                        var6_6 = var2_2.getTop();
                         if (!this.d) break block9;
-                        if (Math.abs(var6_5 - this.G) >= Math.abs(var6_5 - this.J)) ** GOTO lbl-1000
+                        if (Math.abs(var6_6 - this.G) >= Math.abs(var6_6 - this.J)) ** GOTO lbl-1000
                         break block6;
                     }
-                    var5_6 = this.H;
-                    if (var6_5 >= var5_6) break block10;
-                    if (var6_5 < Math.abs(var6_5 - this.J)) break block6;
+                    var5_5 = this.H;
+                    if (var6_6 >= var5_5) break block10;
+                    if (var6_6 < Math.abs(var6_6 - this.J)) break block6;
                     if (!this.g1()) ** GOTO lbl37
                     ** GOTO lbl-1000
                 }
-                if (Math.abs(var6_5 - var5_6) >= Math.abs(var6_5 - this.J)) ** GOTO lbl-1000
+                if (Math.abs(var6_6 - var5_5) >= Math.abs(var6_6 - this.J)) ** GOTO lbl-1000
                 ** GOTO lbl37
             }
             if (this.d) lbl-1000:
@@ -852,8 +852,8 @@ lbl37:
                         n5 = 1;
                     }
                 }
-                if (this.b.x && (n4 = ((ViewGroup.MarginLayoutParams)e3).topMargin) != (n3 = b3.b)) {
-                    ((ViewGroup.MarginLayoutParams)e3).topMargin = n3;
+                if (this.b.x && (n3 = ((ViewGroup.MarginLayoutParams)e3).topMargin) != (n4 = b3.b)) {
+                    ((ViewGroup.MarginLayoutParams)e3).topMargin = n4;
                     n5 = n9;
                 }
                 if (n5 != 0) {
@@ -1128,28 +1128,27 @@ lbl37:
         block7: {
             int n3;
             CoordinatorLayout coordinatorLayout;
-            WeakReference weakReference;
+            Object object;
             block8: {
-                weakReference = this.a0;
-                if (weakReference == null || !((weakReference = ((View)weakReference.get()).getParent()) instanceof CoordinatorLayout)) break block7;
-                coordinatorLayout = (CoordinatorLayout)((Object)weakReference);
+                object = this.a0;
+                if (object == null || !((object = ((View)((Reference)object).get()).getParent()) instanceof CoordinatorLayout)) break block7;
+                coordinatorLayout = (CoordinatorLayout)object;
                 n3 = coordinatorLayout.getChildCount();
                 if (!bl) break block8;
                 if (this.k0 != null) break block7;
                 this.k0 = new HashMap(n3);
             }
             for (int i3 = 0; i3 < n3; ++i3) {
-                Map map;
-                weakReference = coordinatorLayout.getChildAt(i3);
-                if (weakReference == this.a0.get()) continue;
+                View view = coordinatorLayout.getChildAt(i3);
+                if (view == this.a0.get()) continue;
                 if (bl) {
-                    this.k0.put(weakReference, weakReference.getImportantForAccessibility());
+                    this.k0.put(view, view.getImportantForAccessibility());
                     if (!this.e) continue;
-                    weakReference.setImportantForAccessibility(4);
+                    view.setImportantForAccessibility(4);
                     continue;
                 }
-                if (!this.e || (map = this.k0) == null || !map.containsKey(weakReference)) continue;
-                weakReference.setImportantForAccessibility((Integer)this.k0.get(weakReference));
+                if (!this.e || (object = this.k0) == null || !object.containsKey(view)) continue;
+                view.setImportantForAccessibility(((Integer)this.k0.get(view)).intValue());
             }
             if (!bl) {
                 this.k0 = null;
@@ -1350,12 +1349,12 @@ lbl37:
             return view;
         }
         if (view instanceof ViewGroup) {
-            ViewGroup viewGroup = (ViewGroup)view;
-            int n3 = viewGroup.getChildCount();
+            view = (ViewGroup)view;
+            int n3 = view.getChildCount();
             for (int i3 = 0; i3 < n3; ++i3) {
-                view = this.p0(viewGroup.getChildAt(i3));
-                if (view == null) continue;
-                return view;
+                View view2 = this.p0(view.getChildAt(i3));
+                if (view2 == null) continue;
+                return view2;
             }
         }
         return null;
@@ -1612,10 +1611,10 @@ lbl37:
                         ((h)object).c(((h)object).a);
                         return;
                     }
-                    h h3 = this.c;
-                    object = h3.d;
-                    if (((BottomSheetBehavior)object).Q == 2) {
-                        ((BottomSheetBehavior)object).b1(h3.a);
+                    object = this.c;
+                    BottomSheetBehavior bottomSheetBehavior = ((h)object).d;
+                    if (bottomSheetBehavior.Q == 2) {
+                        bottomSheetBehavior.b1(((h)object).a);
                     }
                 }
             };

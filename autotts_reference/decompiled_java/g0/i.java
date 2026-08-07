@@ -72,9 +72,9 @@ extends j {
                 }
                 try {
                     void var4_14;
-                    FontFamily fontFamily = var1_3.build();
-                    d3 = new Typeface.CustomFallbackBuilder(fontFamily);
-                    Typeface typeface = d3.setStyle(this.g(fontFamily, (int)var4_14).getStyle()).build();
+                    d3 = var1_3.build();
+                    Typeface.CustomFallbackBuilder customFallbackBuilder = new Typeface.CustomFallbackBuilder((FontFamily)d3);
+                    Typeface typeface = customFallbackBuilder.setStyle(this.g((FontFamily)d3, (int)var4_14).getStyle()).build();
                     return var1_7;
                 }
                 catch (Exception exception) {
@@ -150,9 +150,9 @@ lbl42:
                         return null;
                     }
                     try {
-                        var2_4 = var1_1.build();
-                        var1_1 = new Typeface.CustomFallbackBuilder((FontFamily)var2_4);
-                        return var1_1.setStyle(this.g((FontFamily)var2_4, var4_6).getStyle()).build();
+                        var1_1 = var1_1.build();
+                        var2_4 = new Typeface.CustomFallbackBuilder((FontFamily)var1_1);
+                        return var2_4.setStyle(this.g((FontFamily)var1_1, var4_6).getStyle()).build();
                     }
                     catch (Exception var1_2) {
                         return null;
@@ -171,9 +171,9 @@ lbl42:
             context = new Font.Builder(resources, n3);
             context = context.build();
             resources = new FontFamily.Builder((Font)context);
-            string = resources.build();
-            resources = new Typeface.CustomFallbackBuilder((FontFamily)string);
-            context = resources.setStyle(context.getStyle()).build();
+            resources = resources.build();
+            string = new Typeface.CustomFallbackBuilder((FontFamily)resources);
+            context = string.setStyle(context.getStyle()).build();
             return context;
         }
         catch (Exception exception) {
@@ -193,18 +193,15 @@ lbl42:
         FontStyle fontStyle = new FontStyle(n4, n3);
         Font font = fontFamily.getFont(0);
         n4 = i.h(fontStyle, font.getStyle());
-        n3 = n5;
-        n5 = n4;
-        while (n3 < fontFamily.getSize()) {
+        for (n3 = n5; n3 < fontFamily.getSize(); ++n3) {
             Font font2 = fontFamily.getFont(n3);
             int n6 = i.h(fontStyle, font2.getStyle());
-            n4 = n5;
-            if (n6 < n5) {
-                font = font2;
-                n4 = n6;
-            }
-            ++n3;
             n5 = n4;
+            if (n6 < n4) {
+                font = font2;
+                n5 = n6;
+            }
+            n4 = n5;
         }
         return font;
     }

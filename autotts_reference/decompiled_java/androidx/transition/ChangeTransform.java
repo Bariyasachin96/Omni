@@ -95,11 +95,11 @@ extends Transition {
             f3 = f3 != null && !f3.isIdentity() ? new Matrix((Matrix)f3) : null;
             y3.a.put("android:changeTransform:matrix", f3);
             if (this.Q) {
-                Matrix matrix = new Matrix();
-                f3 = (ViewGroup)view.getParent();
-                b0.h((View)f3, matrix);
-                matrix.preTranslate((float)(-f3.getScrollX()), (float)(-f3.getScrollY()));
-                y3.a.put("android:changeTransform:parentMatrix", matrix);
+                f3 = new Matrix();
+                ViewGroup viewGroup = (ViewGroup)view.getParent();
+                b0.h((View)viewGroup, (Matrix)f3);
+                f3.preTranslate(-viewGroup.getScrollX(), -viewGroup.getScrollY());
+                y3.a.put("android:changeTransform:parentMatrix", f3);
                 y3.a.put("android:changeTransform:intermediateMatrix", view.getTag(m1.n.transition_transform));
                 y3.a.put("android:changeTransform:intermediateParentMatrix", view.getTag(m1.n.parent_matrix));
             }
@@ -214,11 +214,11 @@ extends Transition {
         object3 = new e((View)y3, (float[])object4);
         PropertyValuesHolder propertyValuesHolder = PropertyValuesHolder.ofObject((Property)T, (TypeEvaluator)new m1.c(new float[9]), (Object[])new float[][]{object4, fArray});
         object4 = this.B().a(object4[2], object4[5], fArray[2], fArray[5]);
-        object4 = ObjectAnimator.ofPropertyValuesHolder((Object)object3, (PropertyValuesHolder[])new PropertyValuesHolder[]{propertyValuesHolder, m1.m.a(U, (Path)object4)});
+        propertyValuesHolder = ObjectAnimator.ofPropertyValuesHolder((Object)object3, (PropertyValuesHolder[])new PropertyValuesHolder[]{propertyValuesHolder, m1.m.a(U, (Path)object4)});
         object = new d((View)y3, (f)object2, (e)object3, (Matrix)object, bl, this.P);
-        object4.addListener((Animator.AnimatorListener)object);
-        object4.addPauseListener((Animator.AnimatorPauseListener)object);
-        return object4;
+        propertyValuesHolder.addListener((Animator.AnimatorListener)object);
+        propertyValuesHolder.addPauseListener((Animator.AnimatorPauseListener)object);
+        return propertyValuesHolder;
     }
 
     public final boolean r0(ViewGroup object, ViewGroup viewGroup) {

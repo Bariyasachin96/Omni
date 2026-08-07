@@ -101,10 +101,10 @@ Set {
             }
         }
         if (n7 < n5) {
-            objectArray = this.c();
             nArray = this.c();
+            objectArray = this.c();
             n4 = n7 + 1;
-            h.e(objectArray, nArray, n4, n7, n5);
+            h.e(nArray, objectArray, n4, n7, n5);
             h.g(this.b(), this.b(), n4, n7, n5);
         }
         if (n5 == this.e() && n7 < this.c().length) {
@@ -343,27 +343,27 @@ Set {
     }
 
     public String toString() {
+        Object object;
         if (this.isEmpty()) {
             return "{}";
         }
-        CharSequence charSequence = new StringBuilder(this.e() * 14);
-        ((StringBuilder)charSequence).append('{');
+        StringBuilder stringBuilder = new StringBuilder(this.e() * 14);
+        stringBuilder.append('{');
         int n3 = this.e();
         for (int i3 = 0; i3 < n3; ++i3) {
-            Object object;
             if (i3 > 0) {
-                ((StringBuilder)charSequence).append(", ");
+                stringBuilder.append(", ");
             }
             if ((object = this.j(i3)) != this) {
-                ((StringBuilder)charSequence).append(object);
+                stringBuilder.append(object);
                 continue;
             }
-            ((StringBuilder)charSequence).append("(this Set)");
+            stringBuilder.append("(this Set)");
         }
-        ((StringBuilder)charSequence).append('}');
-        charSequence = ((StringBuilder)charSequence).toString();
-        k.d(charSequence, "StringBuilder(capacity).…builderAction).toString()");
-        return charSequence;
+        stringBuilder.append('}');
+        object = stringBuilder.toString();
+        k.d(object, "StringBuilder(capacity).…builderAction).toString()");
+        return object;
     }
 
     public final class a

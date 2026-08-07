@@ -91,19 +91,19 @@ public abstract class e {
 
     public static b e(XmlPullParser xmlPullParser, Resources resources) {
         TypedArray typedArray = resources.obtainAttributes(Xml.asAttributeSet((XmlPullParser)xmlPullParser), b0.c.FontFamily);
-        String string = typedArray.getString(b0.c.FontFamily_fontProviderAuthority);
-        String string2 = typedArray.getString(b0.c.FontFamily_fontProviderPackage);
-        Object object = typedArray.getString(b0.c.FontFamily_fontProviderQuery);
+        Object object = typedArray.getString(b0.c.FontFamily_fontProviderAuthority);
+        String string = typedArray.getString(b0.c.FontFamily_fontProviderPackage);
+        String string2 = typedArray.getString(b0.c.FontFamily_fontProviderQuery);
         int n3 = typedArray.getResourceId(b0.c.FontFamily_fontProviderCerts, 0);
         int n4 = typedArray.getInteger(b0.c.FontFamily_fontProviderFetchStrategy, 1);
         int n5 = typedArray.getInteger(b0.c.FontFamily_fontProviderFetchTimeout, 500);
         String string3 = typedArray.getString(b0.c.FontFamily_fontProviderSystemFontFamily);
         typedArray.recycle();
-        if (string != null && string2 != null && object != null) {
+        if (object != null && string != null && string2 != null) {
             while (xmlPullParser.next() != 3) {
                 e.g(xmlPullParser);
             }
-            return new e(new l0.e(string, string2, (String)object, e.c(resources, n3)), n4, n5, string3);
+            return new e(new l0.e((String)object, string, string2, e.c(resources, n3)), n4, n5, string3);
         }
         object = new ArrayList();
         while (xmlPullParser.next() != 3) {

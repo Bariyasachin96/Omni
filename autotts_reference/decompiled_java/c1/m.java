@@ -34,26 +34,26 @@ public final class m {
     public final List a(float f3) {
         List list = e3.k.c();
         int n3 = this.c.size();
-        d d3 = null;
         Object object = null;
+        Object object2 = null;
         for (int i3 = 0; i3 < n3; ++i3) {
-            Object object2 = new float[8];
+            Object object3 = new float[8];
             for (int i4 = 0; i4 < 8; ++i4) {
-                object2[i4] = y.i(((d)((d3.d)this.c.get(i3)).c()).j()[i4], ((d)((d3.d)this.c.get(i3)).d()).j()[i4], f3);
+                object3[i4] = y.i(((d)((d3.d)this.c.get(i3)).c()).j()[i4], ((d)((d3.d)this.c.get(i3)).d()).j()[i4], f3);
             }
-            d d4 = new d((float[])object2);
-            object2 = object;
-            if (object == null) {
-                object2 = d4;
+            object3 = new d((float[])object3);
+            Object object4 = object2;
+            if (object2 == null) {
+                object4 = object3;
             }
-            if (d3 != null) {
-                list.add(d3);
+            if (object != null) {
+                list.add(object);
             }
-            d3 = d4;
-            object = object2;
+            object = object3;
+            object2 = object4;
         }
-        if (d3 != null && object != null) {
-            list.add(e.a(d3.b(), d3.c(), d3.f(), d3.g(), d3.h(), d3.i(), ((d)object).b(), ((d)object).c()));
+        if (object != null && object2 != null) {
+            list.add(e.a(((d)object).b(), ((d)object).c(), ((d)object).f(), ((d)object).g(), ((d)object).h(), ((d)object).i(), ((d)object2).b(), ((d)object2).c()));
         }
         return e3.k.a(list);
     }

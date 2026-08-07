@@ -328,18 +328,18 @@ extends LinearLayout {
     public void k(MaterialButton materialButton, int n3) {
         int n4 = this.indexOfChild((View)materialButton);
         if (n4 >= 0) {
-            materialButton = this.i(n4);
-            MaterialButton materialButton2 = this.g(n4);
-            if (materialButton != null || materialButton2 != null) {
-                if (materialButton == null) {
-                    materialButton2.setDisplayedWidthDecrease(n3);
-                }
+            MaterialButton materialButton2 = this.i(n4);
+            materialButton = this.g(n4);
+            if (materialButton2 != null || materialButton != null) {
                 if (materialButton2 == null) {
                     materialButton.setDisplayedWidthDecrease(n3);
                 }
-                if (materialButton != null && materialButton2 != null) {
-                    materialButton.setDisplayedWidthDecrease(n3 / 2);
-                    materialButton2.setDisplayedWidthDecrease((n3 + 1) / 2);
+                if (materialButton == null) {
+                    materialButton2.setDisplayedWidthDecrease(n3);
+                }
+                if (materialButton2 != null && materialButton != null) {
+                    materialButton2.setDisplayedWidthDecrease(n3 / 2);
+                    materialButton.setDisplayedWidthDecrease((n3 + 1) / 2);
                 }
             }
         }

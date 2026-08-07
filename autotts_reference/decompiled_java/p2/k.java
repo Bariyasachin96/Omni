@@ -36,23 +36,22 @@ public abstract class k {
         return string.substring(string2.length() + 1, string.length() - 1);
     }
 
-    public static TimeInterpolator c(String charSequence) {
-        if (k.e((String)charSequence, "cubic-bezier")) {
-            String[] stringArray = k.b((String)charSequence, "cubic-bezier").split(",");
-            if (stringArray.length == 4) {
+    public static TimeInterpolator c(String stringArray) {
+        if (k.e((String)stringArray, "cubic-bezier")) {
+            if ((stringArray = k.b((String)stringArray, "cubic-bezier").split(",")).length == 4) {
                 return new PathInterpolator(k.a(stringArray, 0), k.a(stringArray, 1), k.a(stringArray, 2), k.a(stringArray, 3));
             }
-            charSequence = new StringBuilder();
-            ((StringBuilder)charSequence).append("Motion easing theme attribute must have 4 control points if using bezier curve format; instead got: ");
-            ((StringBuilder)charSequence).append(stringArray.length);
-            throw new IllegalArgumentException(((StringBuilder)charSequence).toString());
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append("Motion easing theme attribute must have 4 control points if using bezier curve format; instead got: ");
+            stringBuilder.append(stringArray.length);
+            throw new IllegalArgumentException(stringBuilder.toString());
         }
-        if (k.e((String)charSequence, "path")) {
-            return new PathInterpolator(d.e(k.b((String)charSequence, "path")));
+        if (k.e((String)stringArray, "path")) {
+            return new PathInterpolator(d.e(k.b((String)stringArray, "path")));
         }
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("Invalid motion easing type: ");
-        stringBuilder.append((String)charSequence);
+        stringBuilder.append((String)stringArray);
         throw new IllegalArgumentException(stringBuilder.toString());
     }
 

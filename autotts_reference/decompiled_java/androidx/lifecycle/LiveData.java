@@ -131,24 +131,24 @@ public abstract class LiveData {
             return;
         }
         this.h = true;
-        c c4 = c3;
         do {
+            c c4;
             block5: {
                 this.i = false;
-                if (c4 != null) {
-                    this.c(c4);
-                    c3 = null;
+                if (c3 != null) {
+                    this.c(c3);
+                    c4 = null;
                 } else {
                     b.d d3 = this.b.c();
                     do {
-                        c3 = c4;
+                        c4 = c3;
                         if (!d3.hasNext()) break block5;
                         this.c((c)((Map.Entry)d3.next()).getValue());
                     } while (!this.i);
-                    c3 = c4;
+                    c4 = c3;
                 }
             }
-            c4 = c3;
+            c3 = c4;
         } while (this.i);
         this.h = false;
     }

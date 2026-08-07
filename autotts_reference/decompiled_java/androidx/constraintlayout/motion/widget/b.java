@@ -70,8 +70,7 @@ public class b {
 
     static {
         float[] fArray = new float[]{1.0f, 0.5f};
-        float[] fArray2 = new float[]{0.5f, 1.0f};
-        G = new float[][]{{0.5f, 0.0f}, {0.0f, 0.5f}, fArray, fArray2, {0.5f, 0.5f}, {0.0f, 0.5f}, {1.0f, 0.5f}};
+        G = new float[][]{{0.5f, 0.0f}, {0.0f, 0.5f}, fArray, {0.5f, 1.0f}, {0.5f, 0.5f}, {0.0f, 0.5f}, {1.0f, 0.5f}};
         H = new float[][]{{0.0f, -1.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {1.0f, 0.0f}, {-1.0f, 0.0f}, {1.0f, 0.0f}};
     }
 
@@ -394,8 +393,8 @@ public class b {
                         }
                         this.o = false;
                         f3.e(1000);
-                        float f11 = f3.c();
-                        f4 = f3.b();
+                        f4 = f3.c();
+                        float f11 = f3.b();
                         float f12 = this.t.getProgress();
                         n3 = this.d;
                         if (n3 != -1) {
@@ -408,9 +407,9 @@ public class b {
                         }
                         float f13 = this.m;
                         object = this.p;
-                        f5 = (float)object[0];
-                        MotionEvent motionEvent = object[1];
-                        f11 = f13 != 0.0f ? (f11 /= f5) : f4 / motionEvent;
+                        MotionEvent motionEvent = object[0];
+                        f5 = (float)object[1];
+                        f11 = f13 != 0.0f ? f4 / motionEvent : (f11 /= f5);
                         f4 = !Float.isNaN(f11) ? f11 / 3.0f + f12 : f12;
                         if (f4 == 0.0f || f4 == 1.0f || (n3 = this.c) == 3) break block26;
                         f5 = (double)f4 < 0.5 ? 0.0f : 1.0f;
@@ -488,11 +487,11 @@ public class b {
                         if (n4 != -1) {
                             object5 = this.t.findViewById(n4);
                             this.t.getLocationOnScreen(this.q);
-                            f10 = this.q[0];
-                            f9 = (float)(object5.getLeft() + object5.getRight()) / 2.0f;
+                            f9 = this.q[0];
+                            f11 = (float)(object5.getLeft() + object5.getRight()) / 2.0f;
                             f8 = this.q[1];
                             f8 = (float)(object5.getTop() + object5.getBottom()) / 2.0f + f8;
-                            f9 = f10 + f9;
+                            f9 += f11;
                         } else {
                             n4 = this.d;
                             f9 = f10;
@@ -513,31 +512,31 @@ public class b {
                         float f12 = object.getRawX();
                         float f13 = object.getRawY();
                         double d3 = Math.atan2(object.getRawY() - f8, object.getRawX() - f9);
-                        f11 = (float)((d3 - Math.atan2(this.s - f8, this.r - f9)) * 180.0 / Math.PI);
-                        if (f11 > 330.0f) {
-                            f10 = f11 - 360.0f;
+                        f10 = (float)((d3 - Math.atan2(this.s - f8, this.r - f9)) * 180.0 / Math.PI);
+                        if (f10 > 330.0f) {
+                            f11 = f10 - 360.0f;
                         } else {
-                            f10 = f11;
-                            if (f11 < -330.0f) {
-                                f10 = f11 + 360.0f;
+                            f11 = f10;
+                            if (f10 < -330.0f) {
+                                f11 = f10 + 360.0f;
                             }
                         }
-                        if (!((double)Math.abs(f10) > 0.01)) {
+                        if (!((double)Math.abs(f11) > 0.01)) {
                             if (!this.o) return;
                         }
-                        f11 = this.t.getProgress();
+                        f10 = this.t.getProgress();
                         if (!this.o) {
                             this.o = true;
-                            this.t.setProgress(f11);
+                            this.t.setProgress(f10);
                         }
                         if ((n4 = this.d) != -1) {
-                            this.t.n0(n4, f11, this.h, this.g, this.p);
+                            this.t.n0(n4, f10, this.h, this.g, this.p);
                             object5 = this.p;
                             object5[1] = (View)((float)Math.toDegrees((double)object5[1]));
                         } else {
                             this.p[1] = 360.0f;
                         }
-                        f10 = Math.max(Math.min(f11 + f10 * this.x / this.p[1], 1.0f), 0.0f);
+                        f10 = Math.max(Math.min(f10 + f11 * this.x / this.p[1], 1.0f), 0.0f);
                         f11 = this.t.getProgress();
                         if (f10 != f11) {
                             float f14 = f11 - 0.0f;
@@ -551,11 +550,11 @@ public class b {
                             }
                             this.t.setProgress(f10);
                             object4.e(1000);
-                            f10 = object4.c();
+                            f11 = object4.c();
                             double d4 = object4.b();
-                            double d5 = f10;
-                            f8 = (float)(Math.hypot(d4, d5) * Math.sin(Math.atan2(d4, d5) - d3) / Math.hypot(f12 - f9, f13 - f8));
-                            this.t.E = (float)Math.toDegrees(f8);
+                            double d5 = f11;
+                            f9 = (float)(Math.hypot(d4, d5) * Math.sin(Math.atan2(d4, d5) - d3) / Math.hypot(f12 - f9, f13 - f8));
+                            this.t.E = (float)Math.toDegrees(f9);
                         } else {
                             this.t.E = 0.0f;
                         }
@@ -606,27 +605,27 @@ public class b {
         f3 = (float)(Math.toDegrees(Math.atan2(f6 + f3, f7 + f4)) - d6) * 62.5f;
         f4 = !Float.isNaN(f3) ? f3 * 3.0f * this.x / this.p[1] + f5 : f5;
         if (f4 != 0.0f && f4 != 1.0f && (n4 = this.c) != 3) {
-            f7 = f3 * this.x / this.p[1];
+            f6 = f3 * this.x / this.p[1];
             f3 = (double)f4 < 0.5 ? 0.0f : 1.0f;
-            f4 = f7;
+            f4 = f6;
             if (n4 == 6) {
-                f4 = f7;
-                if (f5 + f7 < 0.0f) {
-                    f4 = Math.abs(f7);
+                f4 = f6;
+                if (f5 + f6 < 0.0f) {
+                    f4 = Math.abs(f6);
                 }
                 f3 = 1.0f;
             }
-            f6 = f4;
-            f7 = f3;
+            f7 = f4;
+            f6 = f3;
             if (this.c == 7) {
                 f3 = f4;
                 if (f5 + f4 > 1.0f) {
                     f3 = -Math.abs(f4);
                 }
-                f7 = 0.0f;
-                f6 = f3;
+                f6 = 0.0f;
+                f7 = f3;
             }
-            this.t.B0(this.c, f7, f6 * 3.0f);
+            this.t.B0(this.c, f6, f7 * 3.0f);
             if (!(0.0f >= f5)) {
                 if (!(1.0f <= f5)) return;
             }

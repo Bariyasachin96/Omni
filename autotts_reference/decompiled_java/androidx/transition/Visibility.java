@@ -270,12 +270,12 @@ lbl38:
         if (var8_9 != null) {
             if (var3_3 == 0) {
                 var9_7 /* !! */  = (View)((int[])var2_2.a.get("android:visibility:screenLocation"));
-                var7_12 = var9_7 /* !! */ [0];
-                var5_5 /* !! */  = (int)var9_7 /* !! */ [1];
+                var5_5 /* !! */  = (int)var9_7 /* !! */ [0];
+                var7_12 = var9_7 /* !! */ [1];
                 var9_7 /* !! */  = (View)new int[2];
                 var1_1 /* !! */ .getLocationOnScreen((int[])var9_7 /* !! */ );
-                var8_9.offsetLeftAndRight((int)(var7_12 - var9_7 /* !! */ [0] - var8_9.getLeft()));
-                var8_9.offsetTopAndBottom(var5_5 /* !! */  - var9_7 /* !! */ [1] - var8_9.getTop());
+                var8_9.offsetLeftAndRight(var5_5 /* !! */  - var9_7 /* !! */ [0] - var8_9.getLeft());
+                var8_9.offsetTopAndBottom((int)(var7_12 - var9_7 /* !! */ [1] - var8_9.getTop()));
                 var1_1 /* !! */ .getOverlay().add(var8_9);
             }
             var2_2 = this.t0(var1_1 /* !! */ , var8_9, (y)var2_2, var4_4);

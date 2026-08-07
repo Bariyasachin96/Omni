@@ -51,7 +51,6 @@ import c.a;
 import c.i;
 import com.google.android.material.internal.z;
 import com.google.android.material.textfield.TextInputLayout;
-import java.util.Iterator;
 import s2.c;
 import z1.e;
 import z1.m;
@@ -75,24 +74,24 @@ extends AppCompatAutoCompleteTextView {
         this(context, attributeSet, a.autoCompleteTextViewStyle);
     }
 
-    public MaterialAutoCompleteTextView(Context context, AttributeSet object, int n3) {
-        super(y2.a.d(context, (AttributeSet)object, n3, 0), (AttributeSet)object, n3);
-        Context context2 = this.getContext();
-        context = z.i(context2, (AttributeSet)object, z1.m.MaterialAutoCompleteTextView, n3, c.i.Widget_AppCompat_AutoCompleteTextView, new int[0]);
+    public MaterialAutoCompleteTextView(Context object, AttributeSet attributeSet, int n3) {
+        super(y2.a.d((Context)object, attributeSet, n3, 0), attributeSet, n3);
+        object = this.getContext();
+        attributeSet = z.i((Context)object, attributeSet, z1.m.MaterialAutoCompleteTextView, n3, c.i.Widget_AppCompat_AutoCompleteTextView, new int[0]);
         n3 = z1.m.MaterialAutoCompleteTextView_android_inputType;
-        if (context.hasValue(n3) && context.getInt(n3, 0) == 0) {
+        if (attributeSet.hasValue(n3) && attributeSet.getInt(n3, 0) == 0) {
             this.setKeyListener(null);
         }
-        this.j = context.getResourceId(z1.m.MaterialAutoCompleteTextView_simpleItemLayout, z1.i.mtrl_auto_complete_simple_item);
-        this.k = context.getDimensionPixelOffset(z1.m.MaterialAutoCompleteTextView_android_popupElevation, z1.e.mtrl_exposed_dropdown_menu_popup_elevation);
+        this.j = attributeSet.getResourceId(z1.m.MaterialAutoCompleteTextView_simpleItemLayout, z1.i.mtrl_auto_complete_simple_item);
+        this.k = attributeSet.getDimensionPixelOffset(z1.m.MaterialAutoCompleteTextView_android_popupElevation, z1.e.mtrl_exposed_dropdown_menu_popup_elevation);
         n3 = z1.m.MaterialAutoCompleteTextView_dropDownBackgroundTint;
-        if (context.hasValue(n3)) {
-            this.l = ColorStateList.valueOf((int)context.getColor(n3, 0));
+        if (attributeSet.hasValue(n3)) {
+            this.l = ColorStateList.valueOf((int)attributeSet.getColor(n3, 0));
         }
-        this.m = context.getColor(z1.m.MaterialAutoCompleteTextView_simpleItemSelectedColor, 0);
-        this.n = s2.c.a(context2, (TypedArray)context, z1.m.MaterialAutoCompleteTextView_simpleItemSelectedRippleColor);
-        this.h = (AccessibilityManager)context2.getSystemService("accessibility");
-        object = new ListPopupWindow(context2);
+        this.m = attributeSet.getColor(z1.m.MaterialAutoCompleteTextView_simpleItemSelectedColor, 0);
+        this.n = s2.c.a((Context)object, (TypedArray)attributeSet, z1.m.MaterialAutoCompleteTextView_simpleItemSelectedRippleColor);
+        this.h = (AccessibilityManager)object.getSystemService("accessibility");
+        object = new ListPopupWindow((Context)object);
         this.g = object;
         ((ListPopupWindow)object).J(true);
         ((ListPopupWindow)object).D((View)this);
@@ -129,10 +128,10 @@ extends AppCompatAutoCompleteTextView {
             }
         });
         n3 = z1.m.MaterialAutoCompleteTextView_simpleItems;
-        if (context.hasValue(n3)) {
-            this.setSimpleItems(context.getResourceId(n3, 0));
+        if (attributeSet.hasValue(n3)) {
+            this.setSimpleItems(attributeSet.getResourceId(n3, 0));
         }
-        context.recycle();
+        attributeSet.recycle();
     }
 
     public void dismissDropDown() {
@@ -184,10 +183,10 @@ extends AppCompatAutoCompleteTextView {
     public final boolean h() {
         Object object = this.h;
         if (object != null && object.isEnabled() && (object = this.h.getEnabledAccessibilityServiceList(16)) != null) {
-            Iterator iterator = object.iterator();
-            while (iterator.hasNext()) {
-                object = (AccessibilityServiceInfo)iterator.next();
-                if (object.getSettingsActivityName() == null || !object.getSettingsActivityName().contains("SwitchAccess")) continue;
+            object = object.iterator();
+            while (object.hasNext()) {
+                AccessibilityServiceInfo accessibilityServiceInfo = (AccessibilityServiceInfo)object.next();
+                if (accessibilityServiceInfo.getSettingsActivityName() == null || !accessibilityServiceInfo.getSettingsActivityName().contains("SwitchAccess")) continue;
                 return true;
             }
         }
@@ -355,9 +354,9 @@ extends AppCompatAutoCompleteTextView {
                 int n3 = this.e.n.getColorForState(nArray2, 0);
                 int n4 = this.e.n.getColorForState(nArray, 0);
                 n3 = h2.a.i(this.e.m, n3);
-                int n5 = h2.a.i(this.e.m, n4);
-                n4 = this.e.m;
-                return new ColorStateList((int[][])new int[][]{nArray2, nArray, new int[0]}, new int[]{n3, n5, n4});
+                n4 = h2.a.i(this.e.m, n4);
+                int n5 = this.e.m;
+                return new ColorStateList((int[][])new int[][]{nArray2, nArray, new int[0]}, new int[]{n3, n4, n5});
             }
             return null;
         }

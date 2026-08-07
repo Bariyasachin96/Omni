@@ -381,16 +381,16 @@ extends m {
             return;
         }
         for (n4 = this.m.size() - 1; n4 >= 0; --n4) {
-            object = (ArrayList)this.m.get(n4);
-            for (n3 = ((ArrayList)object).size() - 1; n3 >= 0; --n3) {
-                object2 = (j)((ArrayList)object).get(n3);
-                View view = ((j)object2).a.a;
-                view.setTranslationY(0.0f);
-                view.setTranslationX(0.0f);
-                this.E(((j)object2).a);
-                ((ArrayList)object).remove(n3);
-                if (!((ArrayList)object).isEmpty()) continue;
-                this.m.remove(object);
+            object2 = (ArrayList)this.m.get(n4);
+            for (n3 = ((ArrayList)object2).size() - 1; n3 >= 0; --n3) {
+                j j3 = (j)((ArrayList)object2).get(n3);
+                object = j3.a.a;
+                object.setTranslationY(0.0f);
+                object.setTranslationX(0.0f);
+                this.E(j3.a);
+                ((ArrayList)object2).remove(n3);
+                if (!((ArrayList)object2).isEmpty()) continue;
+                this.m.remove(object2);
             }
         }
         for (n4 = this.l.size() - 1; n4 >= 0; --n4) {
@@ -442,11 +442,11 @@ extends m {
             }
             this.h.clear();
             if (!bl2) {
-                object2 = new ArrayList();
-                ((ArrayList)object2).addAll(this.j);
-                this.m.add(object2);
+                object = new ArrayList();
+                ((ArrayList)object).addAll(this.j);
+                this.m.add(object);
                 this.j.clear();
-                object = new Runnable(this, (ArrayList)object2){
+                object2 = new Runnable(this, (ArrayList)object){
                     public final ArrayList c;
                     public final c d;
                     {
@@ -468,17 +468,17 @@ extends m {
                     }
                 };
                 if (!bl) {
-                    x0.a0(((j)((ArrayList)object2).get((int)0)).a.a, (Runnable)object, this.o());
+                    x0.a0(((j)((ArrayList)object).get((int)0)).a.a, (Runnable)object2, this.o());
                 } else {
-                    object.run();
+                    object2.run();
                 }
             }
             if (!bl3) {
-                object2 = new ArrayList();
-                ((ArrayList)object2).addAll(this.k);
-                this.n.add(object2);
+                object = new ArrayList();
+                ((ArrayList)object).addAll(this.k);
+                this.n.add(object);
                 this.k.clear();
-                object = new Runnable(this, (ArrayList)object2){
+                object2 = new Runnable(this, (ArrayList)object){
                     public final ArrayList c;
                     public final c d;
                     {
@@ -500,9 +500,9 @@ extends m {
                     }
                 };
                 if (!bl) {
-                    x0.a0(((i)((ArrayList)object2).get((int)0)).a.a, (Runnable)object, this.o());
+                    x0.a0(((i)((ArrayList)object).get((int)0)).a.a, (Runnable)object2, this.o());
                 } else {
-                    object.run();
+                    object2.run();
                 }
             }
             if (!bl4) {
@@ -582,20 +582,21 @@ extends m {
     @Override
     public boolean y(RecyclerView.d0 d02, int n3, int n4, int n5, int n6) {
         View view = d02.a;
+        int n7 = n4 + (int)d02.a.getTranslationY();
         this.Z(d02);
-        int n7 = n5 - (n3 += (int)view.getTranslationX());
-        int n8 = n6 - (n4 += (int)d02.a.getTranslationY());
-        if (n7 == 0 && n8 == 0) {
+        int n8 = n5 - (n3 += (int)view.getTranslationX());
+        n4 = n6 - n7;
+        if (n8 == 0 && n4 == 0) {
             this.E(d02);
             return false;
         }
-        if (n7 != 0) {
-            view.setTranslationX((float)(-n7));
-        }
         if (n8 != 0) {
-            view.setTranslationY((float)(-n8));
+            view.setTranslationX((float)(-n8));
         }
-        this.j.add(new j(d02, n3, n4, n5, n6));
+        if (n4 != 0) {
+            view.setTranslationY((float)(-n4));
+        }
+        this.j.add(new j(d02, n3, n7, n5, n6));
         return true;
     }
 

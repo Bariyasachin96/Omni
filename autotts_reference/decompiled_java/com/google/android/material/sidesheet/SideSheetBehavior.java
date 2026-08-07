@@ -441,12 +441,13 @@ implements p2.b {
     public final void N0() {
         WeakReference weakReference = this.t;
         if (weakReference != null && weakReference.get() != null) {
+            ViewGroup.MarginLayoutParams marginLayoutParams;
             View view = (View)this.t.get();
-            View view2 = this.f0();
-            if (view2 != null && (weakReference = (ViewGroup.MarginLayoutParams)view2.getLayoutParams()) != null) {
+            weakReference = this.f0();
+            if (weakReference != null && (marginLayoutParams = (ViewGroup.MarginLayoutParams)weakReference.getLayoutParams()) != null) {
                 int n3 = (int)((float)this.p * view.getScaleX() + (float)this.s);
-                this.c.o((ViewGroup.MarginLayoutParams)weakReference, n3);
-                view2.requestLayout();
+                this.c.o(marginLayoutParams, n3);
+                weakReference.requestLayout();
             }
         }
     }

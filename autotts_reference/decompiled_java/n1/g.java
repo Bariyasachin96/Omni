@@ -370,20 +370,20 @@ extends n1.f {
     }
 
     public void inflate(Resources resources, XmlPullParser xmlPullParser, AttributeSet attributeSet, Resources.Theme theme) {
-        Drawable drawable = this.c;
-        if (drawable != null) {
-            h0.a.g(drawable, resources, xmlPullParser, attributeSet, theme);
+        Object object = this.c;
+        if (object != null) {
+            h0.a.g(object, resources, xmlPullParser, attributeSet, theme);
             return;
         }
-        h h3 = this.d;
-        h3.b = new g();
-        drawable = f0.k.k(resources, theme, attributeSet, n1.a.a);
-        this.h((TypedArray)drawable, xmlPullParser, theme);
-        drawable.recycle();
-        h3.a = this.getChangingConfigurations();
-        h3.k = true;
+        object = this.d;
+        object.b = new g();
+        TypedArray typedArray = f0.k.k(resources, theme, attributeSet, n1.a.a);
+        this.h(typedArray, xmlPullParser, theme);
+        typedArray.recycle();
+        object.a = this.getChangingConfigurations();
+        object.k = true;
         this.d(resources, xmlPullParser, attributeSet, theme);
-        this.e = this.i(this.e, h3.c, h3.d);
+        this.e = this.i(this.e, object.c, object.d);
     }
 
     public void invalidateSelf() {
@@ -435,21 +435,20 @@ extends n1.f {
 
     public boolean onStateChange(int[] nArray) {
         boolean bl;
-        PorterDuff.Mode mode;
-        Object object = this.c;
-        if (object != null) {
-            return object.setState(nArray);
+        Drawable drawable = this.c;
+        if (drawable != null) {
+            return drawable.setState(nArray);
         }
-        object = this.d;
-        ColorStateList colorStateList = ((h)((Object)object)).c;
-        if (colorStateList != null && (mode = ((h)((Object)object)).d) != null) {
-            this.e = this.i(this.e, colorStateList, mode);
+        h h3 = this.d;
+        ColorStateList colorStateList = h3.c;
+        if (colorStateList != null && (drawable = h3.d) != null) {
+            this.e = this.i(this.e, colorStateList, (PorterDuff.Mode)drawable);
             this.invalidateSelf();
             bl = true;
         } else {
             bl = false;
         }
-        if (((h)((Object)object)).g() && ((h)((Object)object)).h(nArray)) {
+        if (h3.g() && h3.h(nArray)) {
             this.invalidateSelf();
             return true;
         }
@@ -1099,17 +1098,17 @@ extends n1.f {
             object = ((d)object).a;
             this.c.set((Matrix)object);
             this.c.postScale(f4, f5);
-            f5 = this.e((Matrix)object);
-            if (f5 != 0.0f) {
+            f4 = this.e((Matrix)object);
+            if (f4 != 0.0f) {
                 Paint.Join join;
                 f3.d(this.a);
-                Path path = this.a;
+                Object object2 = this.a;
                 this.b.reset();
                 if (f3.c()) {
                     colorFilter = this.b;
                     object = f3.c == 0 ? Path.FillType.WINDING : Path.FillType.EVEN_ODD;
                     colorFilter.setFillType((Path.FillType)object);
-                    this.b.addPath(path, this.c);
+                    this.b.addPath((Path)object2, this.c);
                     canvas.clipPath(this.b);
                     return;
                 }
@@ -1122,72 +1121,72 @@ extends n1.f {
                         this.f = new PathMeasure();
                     }
                     this.f.setPath(this.a, false);
-                    f4 = this.f.getLength();
-                    f7 = (f7 + f8) % 1.0f * f4;
-                    f8 = (f9 + f8) % 1.0f * f4;
-                    path.reset();
-                    if (f7 > f8) {
-                        this.f.getSegment(f7, f4, path, true);
-                        this.f.getSegment(0.0f, f8, path, true);
+                    f5 = this.f.getLength();
+                    f7 = (f7 + f8) % 1.0f * f5;
+                    f9 = (f9 + f8) % 1.0f * f5;
+                    object2.reset();
+                    if (f7 > f9) {
+                        this.f.getSegment(f7, f5, (Path)object2, true);
+                        this.f.getSegment(0.0f, f9, (Path)object2, true);
                     } else {
-                        this.f.getSegment(f7, f8, path, true);
+                        this.f.getSegment(f7, f9, (Path)object2, true);
                     }
-                    path.rLineTo(0.0f, 0.0f);
+                    object2.rLineTo(0.0f, 0.0f);
                 }
-                this.b.addPath(path, this.c);
+                this.b.addPath((Path)object2, this.c);
                 if (((c)f3).h.l()) {
                     object = ((c)f3).h;
                     if (this.e == null) {
-                        path = new Paint(1);
-                        this.e = path;
-                        path.setStyle(Paint.Style.FILL);
+                        object2 = new Paint(1);
+                        this.e = object2;
+                        object2.setStyle(Paint.Style.FILL);
                     }
-                    path = this.e;
+                    object2 = this.e;
                     if (((f0.d)object).h()) {
                         object = ((f0.d)object).f();
                         object.setLocalMatrix(this.c);
-                        path.setShader((Shader)object);
-                        path.setAlpha(Math.round(((c)f3).j * 255.0f));
+                        object2.setShader((Shader)object);
+                        object2.setAlpha(Math.round(((c)f3).j * 255.0f));
                     } else {
-                        path.setShader(null);
-                        path.setAlpha(255);
-                        path.setColor(n1.g.a(((f0.d)object).e(), ((c)f3).j));
+                        object2.setShader(null);
+                        object2.setAlpha(255);
+                        object2.setColor(n1.g.a(((f0.d)object).e(), ((c)f3).j));
                     }
-                    path.setColorFilter(colorFilter);
+                    object2.setColorFilter(colorFilter);
                     join = this.b;
                     object = f3.c == 0 ? Path.FillType.WINDING : Path.FillType.EVEN_ODD;
                     join.setFillType((Path.FillType)object);
-                    canvas.drawPath(this.b, (Paint)path);
+                    canvas.drawPath(this.b, (Paint)object2);
                 }
                 if (((c)f3).f.l()) {
-                    object = ((c)f3).f;
+                    object2 = ((c)f3).f;
                     if (this.d == null) {
-                        path = new Paint(1);
-                        this.d = path;
-                        path.setStyle(Paint.Style.STROKE);
+                        object = new Paint(1);
+                        this.d = object;
+                        object.setStyle(Paint.Style.STROKE);
                     }
-                    path = this.d;
+                    object = this.d;
                     join = ((c)f3).o;
                     if (join != null) {
-                        path.setStrokeJoin(join);
+                        object.setStrokeJoin(join);
                     }
                     if ((join = ((c)f3).n) != null) {
-                        path.setStrokeCap((Paint.Cap)join);
+                        object.setStrokeCap((Paint.Cap)join);
                     }
-                    path.setStrokeMiter(((c)f3).p);
-                    if (((f0.d)object).h()) {
-                        object = ((f0.d)object).f();
-                        object.setLocalMatrix(this.c);
-                        path.setShader((Shader)object);
-                        path.setAlpha(Math.round(((c)f3).i * 255.0f));
+                    object.setStrokeMiter(((c)f3).p);
+                    if (((f0.d)object2).h()) {
+                        object2 = ((f0.d)object2).f();
+                        object2.setLocalMatrix(this.c);
+                        object.setShader((Shader)object2);
+                        object.setAlpha(Math.round(((c)f3).i * 255.0f));
                     } else {
-                        path.setShader(null);
-                        path.setAlpha(255);
-                        path.setColor(n1.g.a(((f0.d)object).e(), ((c)f3).i));
+                        object.setShader(null);
+                        object.setAlpha(255);
+                        object.setColor(n1.g.a(((f0.d)object2).e(), ((c)f3).i));
                     }
-                    path.setColorFilter(colorFilter);
-                    path.setStrokeWidth(((c)f3).g * (f6 * f5));
-                    canvas.drawPath(this.b, (Paint)path);
+                    object.setColorFilter(colorFilter);
+                    object.setStrokeWidth(((c)f3).g * (f6 * f4));
+                    canvas.drawPath(this.b, (Paint)object);
                 }
             }
         }
@@ -1203,9 +1202,9 @@ extends n1.f {
             float f3 = (float)Math.hypot(fArray[0], fArray[1]);
             float f4 = (float)Math.hypot(fArray[2], fArray[3]);
             float f5 = n1.g$g.a(fArray[0], fArray[1], fArray[2], fArray[3]);
-            f3 = Math.max(f3, f4);
-            if (f3 > 0.0f) {
-                return Math.abs(f5) / f3;
+            f4 = Math.max(f3, f4);
+            if (f4 > 0.0f) {
+                return Math.abs(f5) / f4;
             }
             return 0.0f;
         }

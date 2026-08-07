@@ -164,22 +164,22 @@ extends Transition {
                         block23: {
                             block24: {
                                 if (object2 == null || y3 == null) break block22;
-                                map = ((y)object2).a;
-                                object = y3.a;
-                                map = (ViewGroup)map.get("android:changeBounds:parent");
+                                object = ((y)object2).a;
+                                map = y3.a;
                                 object = (ViewGroup)object.get("android:changeBounds:parent");
-                                if (map == null || object == null) break block22;
+                                map = (ViewGroup)map.get("android:changeBounds:parent");
+                                if (object == null || map == null) break block22;
                                 view = y3.b;
-                                object = (Rect)((y)object2).a.get("android:changeBounds:bounds");
-                                map = (Rect)y3.a.get("android:changeBounds:bounds");
-                                n15 = ((Rect)object).left;
-                                n14 = ((Rect)map).left;
-                                n13 = ((Rect)object).top;
-                                n12 = ((Rect)map).top;
-                                n11 = ((Rect)object).right;
-                                n10 = ((Rect)map).right;
-                                n9 = ((Rect)object).bottom;
-                                n8 = ((Rect)map).bottom;
+                                map = (Rect)((y)object2).a.get("android:changeBounds:bounds");
+                                object = (Rect)y3.a.get("android:changeBounds:bounds");
+                                n15 = ((Rect)map).left;
+                                n14 = ((Rect)object).left;
+                                n13 = ((Rect)map).top;
+                                n12 = ((Rect)object).top;
+                                n11 = ((Rect)map).right;
+                                n10 = ((Rect)object).right;
+                                n9 = ((Rect)map).bottom;
+                                n8 = ((Rect)object).bottom;
                                 n7 = n11 - n15;
                                 n6 = n9 - n13;
                                 n5 = n10 - n14;

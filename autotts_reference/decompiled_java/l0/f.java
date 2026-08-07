@@ -108,7 +108,7 @@ public abstract class f {
             ((a)object3).b(new e((Typeface)object4));
             return object4;
         }
-        object4 = new n0.a((a)object3){
+        n0.a a4 = new n0.a((a)object3){
             public final a a;
             {
                 this.a = a4;
@@ -124,16 +124,16 @@ public abstract class f {
         };
         object3 = c;
         // MONITORENTER : object3
-        r r3 = d;
-        ArrayList<Typeface> arrayList = (ArrayList<Typeface>)r3.get(string);
+        object4 = d;
+        ArrayList<b> arrayList = (ArrayList<b>)((r)object4).get(string);
         if (arrayList != null) {
-            arrayList.add((Typeface)object4);
+            arrayList.add(a4);
             // MONITOREXIT : object3
             return null;
         }
-        arrayList = new ArrayList<Typeface>();
-        arrayList.add((Typeface)object4);
-        r3.put(string, arrayList);
+        arrayList = new ArrayList<b>();
+        arrayList.add(a4);
+        ((r)object4).put(string, arrayList);
         // MONITOREXIT : object3
         object2 = new Callable(string, (Context)object, (l0.e)object2, n3){
             public final String a;

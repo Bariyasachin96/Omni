@@ -421,15 +421,15 @@ extends ViewGroup {
                         var6_2 = FocusFinder.getInstance().findNextFocus((ViewGroup)this, (View)var5_3, var1_1);
                         if (var6_2 == null || var6_2 == var5_3) break block11;
                         if (var1_1 != 17) break block12;
-                        var2_5 = this.l((Rect)this.f, (View)var6_2).left;
-                        var3_7 = this.l((Rect)this.f, (View)var5_3).left;
-                        var4_9 = var5_3 != null && var2_5 >= var3_7 ? this.u() : var6_2.requestFocus();
+                        var3_5 = this.l((Rect)this.f, (View)var6_2).left;
+                        var2_7 = this.l((Rect)this.f, (View)var5_3).left;
+                        var4_9 = var5_3 != null && var3_5 >= var2_7 ? this.u() : var6_2.requestFocus();
                         break block13;
                     }
                     if (var1_1 != 66) ** GOTO lbl-1000
-                    var2_6 = this.l((Rect)this.f, (View)var6_2).left;
-                    var3_8 = this.l((Rect)this.f, (View)var5_3).left;
-                    var4_9 = var5_3 != null && var2_6 <= var3_8 ? this.v() : var6_2.requestFocus();
+                    var2_8 = this.l((Rect)this.f, (View)var6_2).left;
+                    var3_6 = this.l((Rect)this.f, (View)var5_3).left;
+                    var4_9 = var5_3 != null && var2_8 <= var3_6 ? this.v() : var6_2.requestFocus();
                     break block13;
                 }
                 if (var1_1 != 17 && var1_1 != 1) {
@@ -535,27 +535,27 @@ lbl-1000:
             int n4;
             int n5;
             if (!this.O.isFinished()) {
-                n3 = canvas.save();
-                n5 = this.getHeight() - this.getPaddingTop() - this.getPaddingBottom();
-                n4 = this.getWidth();
+                n5 = canvas.save();
+                n4 = this.getHeight() - this.getPaddingTop() - this.getPaddingBottom();
+                n3 = this.getWidth();
                 canvas.rotate(270.0f);
-                canvas.translate((float)(-n5 + this.getPaddingTop()), this.q * (float)n4);
-                this.O.setSize(n5, n4);
+                canvas.translate((float)(-n4 + this.getPaddingTop()), this.q * (float)n3);
+                this.O.setSize(n4, n3);
                 bl2 = this.O.draw(canvas);
-                canvas.restoreToCount(n3);
+                canvas.restoreToCount(n5);
             }
             bl = bl2;
             if (!this.P.isFinished()) {
-                n5 = canvas.save();
-                int n6 = this.getWidth();
-                n4 = this.getHeight();
+                int n6 = canvas.save();
+                n4 = this.getWidth();
+                n5 = this.getHeight();
                 int n7 = this.getPaddingTop();
                 n3 = this.getPaddingBottom();
                 canvas.rotate(90.0f);
-                canvas.translate((float)(-this.getPaddingTop()), -(this.r + 1.0f) * (float)n6);
-                this.P.setSize(n4 - n7 - n3, n6);
+                canvas.translate((float)(-this.getPaddingTop()), -(this.r + 1.0f) * (float)n4);
+                this.P.setSize(n5 - n7 - n3, n4);
                 bl = bl2 | this.P.draw(canvas);
-                canvas.restoreToCount(n5);
+                canvas.restoreToCount(n6);
             }
         }
         if (bl) {
@@ -578,13 +578,13 @@ lbl-1000:
             this.setScrollingCacheEnabled(false);
             if (!this.k.isFinished()) {
                 this.k.abortAnimation();
-                int n4 = this.getScrollX();
-                n3 = this.getScrollY();
+                n3 = this.getScrollX();
+                int n4 = this.getScrollY();
                 int n5 = this.k.getCurrX();
                 int n6 = this.k.getCurrY();
-                if (n4 != n5 || n3 != n6) {
+                if (n3 != n5 || n4 != n6) {
                     this.scrollTo(n5, n6);
-                    if (n5 != n4) {
+                    if (n5 != n3) {
                         this.w(n5);
                     }
                 }
@@ -853,25 +853,25 @@ lbl-1000:
                         float f6 = motionEvent.getY(n3);
                         float f7 = Math.abs(f6 - this.G);
                         float f8 = f4 - 0.0f;
-                        float f9 = f8 == 0.0f ? 0 : (f8 > 0.0f ? 1 : -1);
-                        if (f9 != false && !this.r(this.D, f4) && this.d((View)this, false, (int)f4, (int)f3, (int)f6)) {
+                        n3 = f8 == 0.0f ? 0 : (f8 > 0.0f ? 1 : -1);
+                        if (n3 != 0 && !this.r(this.D, f4) && this.d((View)this, false, (int)f4, (int)f3, (int)f6)) {
                             this.D = f3;
                             this.E = f6;
                             this.z = true;
                             return false;
                         }
-                        n3 = this.C;
-                        if (f5 > (float)n3 && f5 * 0.5f > f7) {
+                        int n4 = this.C;
+                        if (f5 > (float)n4 && f5 * 0.5f > f7) {
                             this.y = true;
                             this.D(true);
                             this.setScrollState(1);
-                            f4 = this.F;
-                            f5 = this.C;
-                            f4 = f9 > 0 ? (f4 += f5) : (f4 -= f5);
-                            this.D = f4;
+                            f5 = this.F;
+                            f4 = this.C;
+                            f5 = n3 > 0 ? (f5 += f4) : (f5 -= f4);
+                            this.D = f5;
                             this.E = f6;
                             this.setScrollingCacheEnabled(true);
-                        } else if (f7 > (float)n3) {
+                        } else if (f7 > (float)n4) {
                             this.z = true;
                         }
                         if (this.y && this.x(f3)) {
@@ -880,11 +880,11 @@ lbl-1000:
                     }
                 }
             } else {
-                float f10;
-                this.F = f10 = motionEvent.getX();
-                this.D = f10;
-                this.G = f10 = motionEvent.getY();
-                this.E = f10;
+                float f9;
+                this.F = f9 = motionEvent.getX();
+                this.D = f9;
+                this.G = f9 = motionEvent.getY();
+                this.E = f9;
                 this.H = motionEvent.getPointerId(0);
                 this.z = false;
                 this.l = true;
@@ -915,7 +915,6 @@ lbl-1000:
      * Enabled aggressive block sorting
      */
     public void onLayout(boolean bl, int n3, int n4, int n5, int n6) {
-        LayoutParams layoutParams;
         int n7;
         int n8;
         int n9 = this.getChildCount();
@@ -948,7 +947,7 @@ lbl-1000:
                                             n14 = n5;
                                             n7 = n13;
                                             if (view.getVisibility() == 8) break block9;
-                                            layoutParams = (LayoutParams)view.getLayoutParams();
+                                            LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
                                             n17 = n4;
                                             n16 = n3;
                                             n15 = n6;
@@ -1017,7 +1016,7 @@ lbl-1000:
             f f3;
             View view = this.getChildAt(n7);
             if (view.getVisibility() == 8) continue;
-            layoutParams = (LayoutParams)view.getLayoutParams();
+            LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
             if (layoutParams.a || (f3 = this.m(view)) == null) continue;
             float f4 = n10 - n4 - n6;
             n8 = (int)(f3.e * f4) + n4;
@@ -1042,7 +1041,6 @@ lbl-1000:
     public void onMeasure(int n3, int n4) {
         LayoutParams layoutParams;
         int n5;
-        View view;
         int n6 = 0;
         this.setMeasuredDimension(View.getDefaultSize((int)0, (int)n3), View.getDefaultSize((int)0, (int)n4));
         n3 = this.getMeasuredWidth();
@@ -1055,7 +1053,7 @@ lbl-1000:
             int n9 = 1;
             int n10 = 0x40000000;
             if (n8 >= n7) break;
-            view = this.getChildAt(n8);
+            View view = this.getChildAt(n8);
             n5 = n3;
             int n11 = n4;
             if (view.getVisibility() != 8) {
@@ -1084,11 +1082,11 @@ lbl-1000:
                         n9 = layoutParams.width;
                         if (n9 != -2) {
                             n11 = n9 != -1 ? n9 : n3;
-                            n12 = 0x40000000;
-                            n9 = n11;
-                        } else {
-                            n9 = n3;
+                            n9 = 0x40000000;
                             n12 = n11;
+                        } else {
+                            n12 = n3;
+                            n9 = n11;
                         }
                         n11 = layoutParams.height;
                         if (n11 != -2) {
@@ -1098,7 +1096,7 @@ lbl-1000:
                             n10 = n5;
                             n5 = n11;
                         }
-                        view.measure(View.MeasureSpec.makeMeasureSpec((int)n9, (int)n12), View.MeasureSpec.makeMeasureSpec((int)n5, (int)n10));
+                        view.measure(View.MeasureSpec.makeMeasureSpec((int)n12, (int)n9), View.MeasureSpec.makeMeasureSpec((int)n5, (int)n10));
                         if (bl) {
                             n11 = n4 - view.getMeasuredHeight();
                             n5 = n3;
@@ -1125,9 +1123,10 @@ lbl-1000:
         n5 = this.getChildCount();
         n4 = n6;
         while (n4 < n5) {
-            view = this.getChildAt(n4);
-            if (!(view.getVisibility() == 8 || (layoutParams = (LayoutParams)view.getLayoutParams()) != null && layoutParams.a)) {
-                view.measure(View.MeasureSpec.makeMeasureSpec((int)((int)((float)n3 * layoutParams.c)), (int)0x40000000), this.t);
+            LayoutParams layoutParams2;
+            layoutParams = this.getChildAt(n4);
+            if (!(layoutParams.getVisibility() == 8 || (layoutParams2 = (LayoutParams)layoutParams.getLayoutParams()) != null && layoutParams2.a)) {
+                layoutParams.measure(View.MeasureSpec.makeMeasureSpec((int)((int)((float)n3 * layoutParams2.c)), (int)0x40000000), this.t);
             }
             ++n4;
         }

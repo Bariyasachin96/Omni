@@ -379,8 +379,8 @@ implements d0 {
         this.y0();
         this.Z0.a();
         this.f0();
-        n7 = this.getWidth();
-        n4 = this.getHeight();
+        n4 = this.getWidth();
+        n7 = this.getHeight();
         if (this.u0 != null) {
             for (n3 = 0; n3 < n6; ++n3) {
                 object2 = (m)this.L.get(this.getChildAt(n3));
@@ -396,32 +396,32 @@ implements d0 {
             for (n3 = 0; n3 < n6; ++n3) {
                 object2 = (m)this.L.get(this.getChildAt(n3));
                 if (object2 == null) continue;
-                ((m)object2).I(n7, n4, this.N, this.getNanoTime());
+                ((m)object2).I(n4, n7, this.N, this.getNanoTime());
             }
         } else {
             for (n3 = 0; n3 < n6; ++n3) {
                 object2 = (m)this.L.get(this.getChildAt(n3));
                 if (object2 == null) continue;
                 this.B.t((m)object2);
-                ((m)object2).I(n7, n4, this.N, this.getNanoTime());
+                ((m)object2).I(n4, n7, this.N, this.getNanoTime());
             }
         }
         if ((f3 = this.B.E()) != 0.0f) {
             float f4;
             float f5 = Float.MAX_VALUE;
             float f6 = -3.4028235E38f;
-            n3 = 0;
+            n4 = 0;
             while (true) {
-                if (n3 >= n6) break;
-                object2 = (m)this.L.get(this.getChildAt(n3));
+                if (n4 >= n6) break;
+                object2 = (m)this.L.get(this.getChildAt(n4));
                 f4 = ((m)object2).n();
                 f4 = ((m)object2).o() + f4;
                 f5 = Math.min(f5, f4);
                 f6 = Math.max(f6, f4);
-                ++n3;
+                ++n4;
             }
-            for (n4 = n5; n4 < n6; ++n4) {
-                object2 = (m)this.L.get(this.getChildAt(n4));
+            for (n3 = n5; n3 < n6; ++n3) {
+                object2 = (m)this.L.get(this.getChildAt(n3));
                 f4 = ((m)object2).n();
                 float f7 = ((m)object2).o();
                 ((m)object2).o = 1.0f / (1.0f - f3);
@@ -534,8 +534,8 @@ implements d0 {
         int n3 = a4.F();
         a4 = this.B;
         this.d0(n3, a4.l(a4.F()));
-        SparseIntArray sparseIntArray = new SparseIntArray();
         a4 = new SparseIntArray();
+        SparseIntArray sparseIntArray = new SparseIntArray();
         ArrayList arrayList = this.B.o();
         int n4 = arrayList.size();
         n3 = 0;
@@ -550,7 +550,7 @@ implements d0 {
             int n6 = ((a.b)object2).y();
             object = x.a.c(this.getContext(), n3);
             object2 = x.a.c(this.getContext(), n6);
-            if (sparseIntArray.get(n3) == n6) {
+            if (a4.get(n3) == n6) {
                 stringBuilder = new StringBuilder();
                 stringBuilder.append("CHECK: two transitions with the same start and end ");
                 stringBuilder.append((String)object);
@@ -558,7 +558,7 @@ implements d0 {
                 stringBuilder.append((String)object2);
                 Log.e((String)"MotionLayout", (String)stringBuilder.toString());
             }
-            if (a4.get(n6) == n3) {
+            if (sparseIntArray.get(n6) == n3) {
                 stringBuilder = new StringBuilder();
                 stringBuilder.append("CHECK: you can't have reverse transitions");
                 stringBuilder.append((String)object);
@@ -566,8 +566,8 @@ implements d0 {
                 stringBuilder.append((String)object2);
                 Log.e((String)"MotionLayout", (String)stringBuilder.toString());
             }
-            sparseIntArray.put(n3, n6);
-            a4.put(n6, n3);
+            a4.put(n3, n6);
+            sparseIntArray.put(n6, n3);
             if (this.B.l(n3) == null) {
                 object2 = new StringBuilder();
                 ((StringBuilder)object2).append(" no such constraintSetStart ");
@@ -585,42 +585,42 @@ implements d0 {
     }
 
     public final void d0(int n3, androidx.constraintlayout.widget.b b3) {
+        CharSequence charSequence;
         Object object;
-        Object object2;
         String string = x.a.c(this.getContext(), n3);
         int n4 = this.getChildCount();
         int n5 = 0;
         for (n3 = 0; n3 < n4; ++n3) {
-            object2 = this.getChildAt(n3);
-            int n6 = object2.getId();
+            object = this.getChildAt(n3);
+            int n6 = object.getId();
             if (n6 == -1) {
-                object = new StringBuilder();
-                ((StringBuilder)object).append("CHECK: ");
-                ((StringBuilder)object).append(string);
-                ((StringBuilder)object).append(" ALL VIEWS SHOULD HAVE ID's ");
-                ((StringBuilder)object).append(object2.getClass().getName());
-                ((StringBuilder)object).append(" does not!");
-                Log.w((String)"MotionLayout", (String)((StringBuilder)object).toString());
+                charSequence = new StringBuilder();
+                ((StringBuilder)charSequence).append("CHECK: ");
+                ((StringBuilder)charSequence).append(string);
+                ((StringBuilder)charSequence).append(" ALL VIEWS SHOULD HAVE ID's ");
+                ((StringBuilder)charSequence).append(object.getClass().getName());
+                ((StringBuilder)charSequence).append(" does not!");
+                Log.w((String)"MotionLayout", (String)((StringBuilder)charSequence).toString());
             }
             if (b3.v(n6) != null) continue;
-            object = new StringBuilder();
-            ((StringBuilder)object).append("CHECK: ");
-            ((StringBuilder)object).append(string);
-            ((StringBuilder)object).append(" NO CONSTRAINTS for ");
-            ((StringBuilder)object).append(x.a.d((View)object2));
-            Log.w((String)"MotionLayout", (String)((StringBuilder)object).toString());
+            charSequence = new StringBuilder();
+            ((StringBuilder)charSequence).append("CHECK: ");
+            ((StringBuilder)charSequence).append(string);
+            ((StringBuilder)charSequence).append(" NO CONSTRAINTS for ");
+            ((StringBuilder)charSequence).append(x.a.d((View)object));
+            Log.w((String)"MotionLayout", (String)((StringBuilder)charSequence).toString());
         }
         object = b3.x();
         for (n3 = n5; n3 < ((int[])object).length; ++n3) {
             StringBuilder stringBuilder;
             n5 = object[n3];
-            object2 = x.a.c(this.getContext(), n5);
-            if (this.findViewById((int)object[n3]) == null) {
+            charSequence = x.a.c(this.getContext(), n5);
+            if (this.findViewById(object[n3]) == null) {
                 stringBuilder = new StringBuilder();
                 stringBuilder.append("CHECK: ");
                 stringBuilder.append(string);
                 stringBuilder.append(" NO View matches id ");
-                stringBuilder.append((String)object2);
+                stringBuilder.append((String)charSequence);
                 Log.w((String)"MotionLayout", (String)stringBuilder.toString());
             }
             if (b3.w(n5) == -1) {
@@ -628,7 +628,7 @@ implements d0 {
                 stringBuilder.append("CHECK: ");
                 stringBuilder.append(string);
                 stringBuilder.append("(");
-                stringBuilder.append((String)object2);
+                stringBuilder.append((String)charSequence);
                 stringBuilder.append(") no LAYOUT_HEIGHT");
                 Log.w((String)"MotionLayout", (String)stringBuilder.toString());
             }
@@ -637,7 +637,7 @@ implements d0 {
             stringBuilder.append("CHECK: ");
             stringBuilder.append(string);
             stringBuilder.append("(");
-            stringBuilder.append((String)object2);
+            stringBuilder.append((String)charSequence);
             stringBuilder.append(") no LAYOUT_HEIGHT");
             Log.w((String)"MotionLayout", (String)stringBuilder.toString());
         }
@@ -697,9 +697,9 @@ implements d0 {
                 stringBuilder.append((String)object2);
                 object2 = stringBuilder.toString();
                 object.setColor(-16777216);
-                canvas.drawText((String)object2, 11.0f, (float)(this.getHeight() - 29), object);
+                canvas.drawText((String)object2, 11.0f, (float)(this.getHeight() - 29), (Paint)object);
                 object.setColor(-7864184);
-                canvas.drawText((String)object2, 10.0f, (float)(this.getHeight() - 30), object);
+                canvas.drawText((String)object2, 10.0f, (float)(this.getHeight() - 30), (Paint)object);
             }
             if (this.b0 > 1) {
                 if (this.c0 == null) {
@@ -707,11 +707,11 @@ implements d0 {
                 }
                 this.c0.a(canvas, this.L, this.B.p(), this.b0);
             }
-            if ((object2 = this.u0) != null) {
-                n4 = ((ArrayList)object2).size();
+            if ((object = this.u0) != null) {
+                n4 = ((ArrayList)object).size();
                 for (n3 = n5; n3 < n4; ++n3) {
-                    object = ((ArrayList)object2).get(n3);
-                    ((MotionHelper)object).B(canvas);
+                    object2 = ((ArrayList)object).get(n3);
+                    ((MotionHelper)object2).B(canvas);
                 }
             }
         }
@@ -869,14 +869,14 @@ implements d0 {
                     return;
                 }
             }
-            f4 = this.O;
+            f5 = this.O;
             long l3 = this.getNanoTime();
-            this.n0 = f3 = (float)n3;
-            this.o0 = f5 = (float)n4;
+            this.n0 = f4 = (float)n3;
+            this.o0 = f3 = (float)n4;
             this.q0 = (float)((double)(l3 - this.p0) * 1.0E-9);
             this.p0 = l3;
-            a4.P(f3, f5);
-            if (f4 != this.O) {
+            a4.P(f4, f3);
+            if (f5 != this.O) {
                 nArray[0] = n3;
                 nArray[1] = n4;
             }
@@ -958,9 +958,9 @@ implements d0 {
                                                             if (interpolator == null || n4 != 0) break block52;
                                                             if (!this.d0) break block53;
                                                             f4 = interpolator.getInterpolation((float)(l3 - this.M) * 1.0E-9f);
-                                                            interpolator = this.C;
-                                                            object = this.e0;
-                                                            n4 = interpolator == object ? (((w.b)object).c() ? 2 : 1) : 0;
+                                                            object = this.C;
+                                                            interpolator = this.e0;
+                                                            n4 = object == interpolator ? (interpolator.c() ? 2 : 1) : 0;
                                                             this.P = f4;
                                                             this.Q = l3;
                                                             interpolator = this.C;
@@ -1063,12 +1063,12 @@ implements d0 {
                             }
                             n3 = n4;
                             if ((double)f5 >= 1.0) {
-                                int n9 = this.G;
-                                n8 = this.H;
+                                n8 = this.G;
+                                int n9 = this.H;
                                 n3 = n4;
-                                if (n9 != n8) {
-                                    this.G = n8;
-                                    this.B.l(n8).g(this);
+                                if (n8 != n9) {
+                                    this.G = n9;
+                                    this.B.l(n9).g(this);
                                     this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.f);
                                     n3 = 1;
                                 }
@@ -1322,14 +1322,14 @@ implements d0 {
             this.V0 = object.getRotation();
         }
         if ((object = this.B) != null && (n3 = this.G) != -1) {
-            androidx.constraintlayout.widget.b b3 = object.l(n3);
+            androidx.constraintlayout.widget.b b3 = ((a)object).l(n3);
             this.B.T(this);
-            ArrayList arrayList = this.u0;
-            if (arrayList != null) {
-                int n4 = arrayList.size();
+            object = this.u0;
+            if (object != null) {
+                int n4 = ((ArrayList)object).size();
                 for (n3 = 0; n3 < n4; ++n3) {
-                    object = arrayList.get(n3);
-                    ((MotionHelper)object).A(this);
+                    Object e3 = ((ArrayList)object).get(n3);
+                    ((MotionHelper)e3).A(this);
                 }
             }
             if (b3 != null) {
@@ -1354,11 +1354,11 @@ implements d0 {
                 });
                 return;
             }
-            object.a();
+            ((h)object).a();
             return;
         }
         object = this.B;
-        if (object != null && (object = object.c) != null && object.x() == 4) {
+        if (object != null && (object = ((a)object).c) != null && ((a.b)object).x() == 4) {
             this.C0();
             this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.d);
             this.setState(androidx.constraintlayout.motion.widget.MotionLayout$j.e);
@@ -1368,16 +1368,16 @@ implements d0 {
     public boolean onInterceptTouchEvent(MotionEvent motionEvent) {
         Object object = this.B;
         if (object != null && this.K) {
-            b b3;
             object = ((a)object).r;
             if (object != null) {
                 ((androidx.constraintlayout.motion.widget.d)object).h(motionEvent);
             }
-            if ((object = this.B.c) != null && ((a.b)object).C() && (b3 = ((a.b)object).B()) != null) {
-                if (motionEvent.getAction() == 0 && (object = b3.p(this, new RectF())) != null && !object.contains(motionEvent.getX(), motionEvent.getY())) {
+            if ((object = this.B.c) != null && ((a.b)object).C() && (object = ((a.b)object).B()) != null) {
+                RectF rectF;
+                if (motionEvent.getAction() == 0 && (rectF = ((b)object).p(this, new RectF())) != null && !rectF.contains(motionEvent.getX(), motionEvent.getY())) {
                     return false;
                 }
-                int n3 = b3.q();
+                int n3 = ((b)object).q();
                 if (n3 != -1) {
                     object = this.c1;
                     if (object == null || object.getId() != n3) {
@@ -1474,12 +1474,12 @@ implements d0 {
             n3 = 1;
         }
         if (this.C0 || n3 != 0) {
-            n5 = this.getPaddingTop();
-            n4 = this.getPaddingBottom();
-            n3 = this.getPaddingLeft();
-            n6 = this.getPaddingRight();
-            n3 = this.e.Y() + (n3 + n6);
-            n4 = this.e.z() + (n5 + n4);
+            n4 = this.getPaddingTop();
+            n5 = this.getPaddingBottom();
+            n6 = this.getPaddingLeft();
+            n3 = this.getPaddingRight();
+            n3 = this.e.Y() + (n6 + n3);
+            n4 = this.e.z() + (n4 + n5);
             n5 = this.H0;
             if (n5 == Integer.MIN_VALUE || n5 == 0) {
                 n3 = this.D0;
@@ -2144,11 +2144,11 @@ implements d0 {
                 }
             }
             for (n4 = 0; n4 < n5; ++n4) {
-                object = this.getChildAt(n4);
-                object3 = (m)this.L.get(object);
-                if (object2.get(object.getId()) || object3 == null) continue;
-                this.B.t((m)object3);
-                ((m)object3).I(n9, n10, this.N, this.getNanoTime());
+                object3 = this.getChildAt(n4);
+                object = (m)this.L.get(object3);
+                if (object2.get(object3.getId()) || object == null) continue;
+                this.B.t((m)object);
+                ((m)object).I(n9, n10, this.N, this.getNanoTime());
             }
             float f3 = this.B.E();
             if (f3 != 0.0f) {
@@ -2188,18 +2188,18 @@ implements d0 {
                         }
                         break block19;
                     }
-                    float f9 = ((m)object2).n();
-                    f4 = ((m)object2).o();
-                    f4 = n4 != 0 ? (f4 -= f9) : (f4 += f9);
+                    f4 = ((m)object2).n();
+                    float f9 = ((m)object2).o();
+                    f4 = n4 != 0 ? f9 - f4 : f9 + f4;
                     f8 = Math.min(f8, f4);
                     f3 = Math.max(f3, f4);
                     ++n11;
                 }
                 for (n3 = n7; n3 < n5; ++n3) {
                     object2 = (m)this.L.get(this.getChildAt(n3));
-                    f6 = ((m)object2).n();
-                    f4 = ((m)object2).o();
-                    f4 = n4 != 0 ? (f4 -= f6) : (f4 += f6);
+                    f4 = ((m)object2).n();
+                    f6 = ((m)object2).o();
+                    f4 = n4 != 0 ? f6 - f4 : f6 + f4;
                     ((m)object2).o = 1.0f / (1.0f - f5);
                     ((m)object2).n = f5 - (f4 - f8) * f5 / (f3 - f8);
                 }
@@ -2245,9 +2245,9 @@ implements d0 {
                     f4 = f5 / f6;
                 }
                 this.d.E = f5 - f6 * f4;
-                f3 = f5 * f4 - f6 * f4 * f4 / 2.0f;
-                f4 = this.b;
-                return f3 + f4;
+                f4 = f5 * f4 - f6 * f4 * f4 / 2.0f;
+                f3 = this.b;
+                return f4 + f3;
             }
             float f7 = -f5;
             float f8 = this.c;
@@ -2256,9 +2256,9 @@ implements d0 {
                 f4 = -f5 / f8;
             }
             this.d.E = f8 * f4 + f5;
-            f3 = f5 * f4 + f8 * f4 * f4 / 2.0f;
-            f4 = this.b;
-            return f3 + f4;
+            f4 = f5 * f4 + f8 * f4 * f4 / 2.0f;
+            f3 = this.b;
+            return f4 + f3;
         }
     }
 
@@ -2358,19 +2358,19 @@ implements d0 {
                     if (n6 == 0) continue;
                     this.q = ((m)object2).c(this.c, this.b);
                     if (n6 < 1) continue;
-                    int n7 = n3 / 16;
+                    n5 = n3 / 16;
                     object = this.a;
-                    if (object == null || ((Object)object).length != n7 * 2) {
-                        this.a = new float[n7 * 2];
+                    if (object == null || ((Object)object).length != n5 * 2) {
+                        this.a = new float[n5 * 2];
                         this.d = new Path();
                     }
-                    n5 = this.t;
-                    canvas.translate((float)n5, (float)n5);
+                    int n7 = this.t;
+                    canvas.translate((float)n7, (float)n7);
                     this.e.setColor(0x77000000);
                     this.i.setColor(0x77000000);
                     this.f.setColor(0x77000000);
                     this.g.setColor(0x77000000);
-                    ((m)object2).d(this.a, n7);
+                    ((m)object2).d(this.a, n5);
                     this.b(canvas, n6, this.q, (m)object2);
                     this.e.setColor(-21965);
                     this.f.setColor(-2067046);
@@ -2471,19 +2471,19 @@ implements d0 {
             float f7 = object[((float[])object).length - 2];
             float f8 = object[((float[])object).length - 1];
             float f9 = (float)Math.hypot(f5 - f7, f6 - f8);
-            float f10 = ((f3 - f5) * (f7 -= f5) + (f4 - f6) * (f8 -= f6)) / (f9 * f9);
-            f8 = f6 + f10 * f8;
+            float f10 = f8 - f6;
+            f8 = ((f3 - f5) * (f7 -= f5) + (f4 - f6) * f10) / (f9 * f9);
             object = new Path();
             object.moveTo(f3, f4);
-            object.lineTo(f5 += f7 * f10, f8);
-            f6 = (float)Math.hypot(f5 - f3, f8 - f4);
+            object.lineTo(f5 += f7 * f8, f6 += f8 * f10);
+            f7 = (float)Math.hypot(f5 - f3, f6 - f4);
             CharSequence charSequence = new StringBuilder();
             charSequence.append("");
-            charSequence.append((float)((int)(f6 * 100.0f / f9)) / 100.0f);
+            charSequence.append((float)((int)(f7 * 100.0f / f9)) / 100.0f);
             charSequence = charSequence.toString();
             this.l((String)charSequence, this.h);
-            canvas.drawTextOnPath((String)charSequence, (Path)object, f6 / 2.0f - (float)(this.r.width() / 2), -20.0f, this.h);
-            canvas.drawLine(f3, f4, f5, f8, this.g);
+            canvas.drawTextOnPath((String)charSequence, (Path)object, f7 / 2.0f - (float)(this.r.width() / 2), -20.0f, this.h);
+            canvas.drawLine(f3, f4, f5, f6, this.g);
         }
 
         public final void i(Canvas canvas, float f3, float f4, int n3, int n4) {
@@ -2507,18 +2507,18 @@ implements d0 {
             this.d.reset();
             for (int i3 = 0; i3 <= 50; ++i3) {
                 m3.e((float)i3 / (float)50, this.j, 0);
-                Object object = this.d;
-                Object object2 = this.j;
-                object.moveTo(object2[0], object2[1]);
-                object2 = this.d;
-                object = this.j;
-                object2.lineTo((float)object[2], (float)object[3]);
-                object2 = this.d;
-                object = this.j;
-                object2.lineTo((float)object[4], (float)object[5]);
-                object2 = this.d;
-                object = this.j;
-                object2.lineTo((float)object[6], (float)object[7]);
+                Path path = this.d;
+                float[] fArray = this.j;
+                path.moveTo(fArray[0], fArray[1]);
+                path = this.d;
+                fArray = this.j;
+                path.lineTo(fArray[2], fArray[3]);
+                path = this.d;
+                fArray = this.j;
+                path.lineTo(fArray[4], fArray[5]);
+                path = this.d;
+                fArray = this.j;
+                path.lineTo(fArray[6], fArray[7]);
                 this.d.close();
             }
             this.e.setColor(0x44000000);
@@ -2607,8 +2607,8 @@ implements d0 {
 
         public void a() {
             int n3;
-            m m3;
             Object object;
+            Object object2;
             int n4;
             int n5 = this.g.getChildCount();
             this.g.L.clear();
@@ -2616,49 +2616,49 @@ implements d0 {
             int[] nArray = new int[n5];
             int n6 = 0;
             for (n4 = 0; n4 < n5; ++n4) {
-                object = this.g.getChildAt(n4);
-                m3 = new m((View)object);
-                nArray[n4] = n3 = object.getId();
-                sparseArray.put(n3, (Object)m3);
-                this.g.L.put(object, m3);
+                object2 = this.g.getChildAt(n4);
+                object = new m((View)object2);
+                nArray[n4] = n3 = object2.getId();
+                sparseArray.put(n3, object);
+                this.g.L.put(object2, object);
             }
             n3 = 0;
             while (true) {
                 if (n3 >= n5) break;
-                m3 = this.g.getChildAt(n3);
-                object = (m)this.g.L.get(m3);
+                object2 = this.g.getChildAt(n3);
+                object = (m)this.g.L.get(object2);
                 if (object != null) {
-                    Object object2;
+                    Object object3;
                     if (this.c != null) {
-                        object2 = this.d(this.a, (View)m3);
-                        if (object2 != null) {
-                            ((m)object).F(this.g.A0((u.e)object2), this.c, this.g.getWidth(), this.g.getHeight());
+                        object3 = this.d(this.a, (View)object2);
+                        if (object3 != null) {
+                            ((m)object).F(this.g.A0((u.e)object3), this.c, this.g.getWidth(), this.g.getHeight());
                         } else if (this.g.b0 != 0) {
-                            object2 = new StringBuilder();
-                            ((StringBuilder)object2).append(x.a.b());
-                            ((StringBuilder)object2).append("no widget for  ");
-                            ((StringBuilder)object2).append(x.a.d((View)m3));
-                            ((StringBuilder)object2).append(" (");
-                            ((StringBuilder)object2).append(m3.getClass().getName());
-                            ((StringBuilder)object2).append(")");
-                            Log.e((String)"MotionLayout", (String)((StringBuilder)object2).toString());
+                            object3 = new StringBuilder();
+                            ((StringBuilder)object3).append(x.a.b());
+                            ((StringBuilder)object3).append("no widget for  ");
+                            ((StringBuilder)object3).append(x.a.d((View)object2));
+                            ((StringBuilder)object3).append(" (");
+                            ((StringBuilder)object3).append(object2.getClass().getName());
+                            ((StringBuilder)object3).append(")");
+                            Log.e((String)"MotionLayout", (String)((StringBuilder)object3).toString());
                         }
                     } else if (this.g.Q0) {
-                        androidx.appcompat.app.s.a(this.g.S0.get(m3));
-                        object2 = this.g;
-                        ((m)object).G(null, (View)m3, ((MotionLayout)object2).R0, ((MotionLayout)object2).T0, this.g.U0);
+                        androidx.appcompat.app.s.a(this.g.S0.get(object2));
+                        object3 = this.g;
+                        ((m)object).G(null, (View)object2, ((MotionLayout)object3).R0, ((MotionLayout)object3).T0, this.g.U0);
                     }
                     if (this.d != null) {
-                        object2 = this.d(this.b, (View)m3);
-                        if (object2 != null) {
-                            ((m)object).C(this.g.A0((u.e)object2), this.d, this.g.getWidth(), this.g.getHeight());
+                        object3 = this.d(this.b, (View)object2);
+                        if (object3 != null) {
+                            ((m)object).C(this.g.A0((u.e)object3), this.d, this.g.getWidth(), this.g.getHeight());
                         } else if (this.g.b0 != 0) {
                             object = new StringBuilder();
                             ((StringBuilder)object).append(x.a.b());
                             ((StringBuilder)object).append("no widget for  ");
-                            ((StringBuilder)object).append(x.a.d((View)m3));
+                            ((StringBuilder)object).append(x.a.d((View)object2));
                             ((StringBuilder)object).append(" (");
-                            ((StringBuilder)object).append(m3.getClass().getName());
+                            ((StringBuilder)object).append(object2.getClass().getName());
                             ((StringBuilder)object).append(")");
                             Log.e((String)"MotionLayout", (String)((StringBuilder)object).toString());
                         }
@@ -2667,55 +2667,56 @@ implements d0 {
                 ++n3;
             }
             for (n4 = n6; n4 < n5; ++n4) {
-                m3 = (m)sparseArray.get(nArray[n4]);
-                n3 = m3.h();
+                object2 = (m)sparseArray.get(nArray[n4]);
+                n3 = ((m)object2).h();
                 if (n3 == -1) continue;
-                m3.J((m)sparseArray.get(n3));
+                ((m)object2).J((m)sparseArray.get(n3));
             }
         }
 
         public final void b(int n3, int n4) {
             int n5;
             Object object;
+            Object object2;
             int n6 = this.g.getOptimizationLevel();
-            Object object2 = this.g;
-            if (((MotionLayout)object2).G == ((MotionLayout)object2).getStartState()) {
-                object2 = this.g;
-                Object object3 = this.b;
-                Object object4 = this.d;
-                int n7 = object4 != null && ((androidx.constraintlayout.widget.b)object4).e != 0 ? n4 : n3;
-                int n8 = object4 != null && ((androidx.constraintlayout.widget.b)object4).e != 0 ? n3 : n4;
-                ((MotionLayout)object2).x((u.f)object3, n6, n7, n8);
-                object3 = this.c;
-                if (object3 != null) {
-                    object2 = this.g;
-                    object4 = this.a;
-                    n8 = ((androidx.constraintlayout.widget.b)object3).e;
+            Object object3 = this.g;
+            if (((MotionLayout)object3).G == ((MotionLayout)object3).getStartState()) {
+                MotionLayout motionLayout = this.g;
+                object3 = this.b;
+                androidx.constraintlayout.widget.b b3 = this.d;
+                int n7 = b3 != null && b3.e != 0 ? n4 : n3;
+                int n8 = b3 != null && b3.e != 0 ? n3 : n4;
+                motionLayout.x((u.f)object3, n6, n7, n8);
+                b3 = this.c;
+                if (b3 != null) {
+                    motionLayout = this.g;
+                    object3 = this.a;
+                    n8 = b3.e;
                     n7 = n8 == 0 ? n3 : n4;
                     if (n8 == 0) {
                         n3 = n4;
                     }
-                    ((MotionLayout)object2).x((u.f)object4, n6, n7, n3);
+                    motionLayout.x((u.f)object3, n6, n7, n3);
                 }
                 return;
             }
-            Object object5 = this.c;
-            if (object5 != null) {
+            object3 = this.c;
+            if (object3 != null) {
                 object2 = this.g;
                 object = this.a;
-                int n9 = ((androidx.constraintlayout.widget.b)object5).e;
+                int n9 = ((androidx.constraintlayout.widget.b)object3).e;
                 n5 = n9 == 0 ? n3 : n4;
                 n9 = n9 == 0 ? n4 : n3;
                 ((MotionLayout)object2).x((u.f)object, n6, n5, n9);
             }
-            object5 = this.g;
+            object3 = this.g;
             object2 = this.b;
             object = this.d;
             n5 = object != null && ((androidx.constraintlayout.widget.b)object).e != 0 ? n4 : n3;
             if (object == null || ((androidx.constraintlayout.widget.b)object).e == 0) {
                 n3 = n4;
             }
-            ((MotionLayout)object5).x((u.f)object2, n6, n5, n3);
+            ((MotionLayout)object3).x((u.f)object2, n6, n5, n3);
         }
 
         public void c(u.f e3, u.f f3) {
@@ -2756,9 +2757,9 @@ implements d0 {
             return null;
         }
 
-        public void e(u.f object, androidx.constraintlayout.widget.b object2, androidx.constraintlayout.widget.b object3) {
-            this.c = object2;
-            this.d = object3;
+        public void e(u.f f3, androidx.constraintlayout.widget.b object, androidx.constraintlayout.widget.b object2) {
+            this.c = object;
+            this.d = object2;
             this.a = new u.f();
             this.b = new u.f();
             this.a.b2(this.g.e.O1());
@@ -2768,32 +2769,32 @@ implements d0 {
             this.c(this.g.e, this.a);
             this.c(this.g.e, this.b);
             if ((double)this.g.P > 0.5) {
-                if (object2 != null) {
-                    this.j(this.a, (androidx.constraintlayout.widget.b)object2);
+                if (object != null) {
+                    this.j(this.a, (androidx.constraintlayout.widget.b)object);
                 }
-                this.j(this.b, (androidx.constraintlayout.widget.b)object3);
+                this.j(this.b, (androidx.constraintlayout.widget.b)object2);
             } else {
-                this.j(this.b, (androidx.constraintlayout.widget.b)object3);
-                if (object2 != null) {
-                    this.j(this.a, (androidx.constraintlayout.widget.b)object2);
+                this.j(this.b, (androidx.constraintlayout.widget.b)object2);
+                if (object != null) {
+                    this.j(this.a, (androidx.constraintlayout.widget.b)object);
                 }
             }
             this.a.e2(this.g.t());
             this.a.g2();
             this.b.e2(this.g.t());
             this.b.g2();
-            object = this.g.getLayoutParams();
-            if (object != null) {
-                if (((ViewGroup.LayoutParams)object).width == -2) {
-                    object3 = this.a;
-                    object2 = e.b.d;
-                    ((u.e)object3).U0((e.b)((Object)object2));
-                    this.b.U0((e.b)((Object)object2));
-                }
-                if (((ViewGroup.LayoutParams)object).height == -2) {
+            f3 = this.g.getLayoutParams();
+            if (f3 != null) {
+                if (((ViewGroup.LayoutParams)f3).width == -2) {
                     object2 = this.a;
                     object = e.b.d;
-                    ((u.e)object2).l1((e.b)((Object)object));
+                    ((u.e)object2).U0((e.b)((Object)object));
+                    this.b.U0((e.b)((Object)object));
+                }
+                if (((ViewGroup.LayoutParams)f3).height == -2) {
+                    f3 = this.a;
+                    object = e.b.d;
+                    f3.l1((e.b)((Object)object));
                     this.b.l1((e.b)((Object)object));
                 }
             }
@@ -2886,27 +2887,27 @@ implements d0 {
                 ((u.e)object2).E0(true);
                 sparseArray.put(((View)((u.e)object2).u()).getId(), object2);
             }
-            object2 = f3.w1();
-            n5 = ((ArrayList)object2).size();
+            object3 = f3.w1();
+            n5 = ((ArrayList)object3).size();
             for (n3 = 0; n3 < n5; ++n3) {
-                u.e e3 = (u.e)((ArrayList)object2).get(n3);
-                object3 = (View)e3.u();
-                ((androidx.constraintlayout.widget.b)object).l(object3.getId(), (ConstraintLayout.LayoutParams)((Object)object4));
-                e3.p1(((androidx.constraintlayout.widget.b)object).B(object3.getId()));
-                e3.Q0(((androidx.constraintlayout.widget.b)object).w(object3.getId()));
-                if (object3 instanceof ConstraintHelper) {
-                    ((androidx.constraintlayout.widget.b)object).j((ConstraintHelper)((Object)object3), e3, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
-                    if (object3 instanceof Barrier) {
-                        ((Barrier)((Object)object3)).w();
+                object2 = (u.e)((ArrayList)object3).get(n3);
+                View view = (View)((u.e)object2).u();
+                ((androidx.constraintlayout.widget.b)object).l(view.getId(), (ConstraintLayout.LayoutParams)((Object)object4));
+                ((u.e)object2).p1(((androidx.constraintlayout.widget.b)object).B(view.getId()));
+                ((u.e)object2).Q0(((androidx.constraintlayout.widget.b)object).w(view.getId()));
+                if (view instanceof ConstraintHelper) {
+                    ((androidx.constraintlayout.widget.b)object).j((ConstraintHelper)view, (u.e)object2, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
+                    if (view instanceof Barrier) {
+                        ((Barrier)view).w();
                     }
                 }
                 ((ConstraintLayout.LayoutParams)((Object)object4)).resolveLayoutDirection(this.g.getLayoutDirection());
-                this.g.f(false, (View)object3, e3, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
-                if (((androidx.constraintlayout.widget.b)object).A(object3.getId()) == 1) {
-                    e3.o1(object3.getVisibility());
+                this.g.f(false, view, (u.e)object2, (ConstraintLayout.LayoutParams)((Object)object4), sparseArray);
+                if (((androidx.constraintlayout.widget.b)object).A(view.getId()) == 1) {
+                    ((u.e)object2).o1(view.getVisibility());
                     continue;
                 }
-                e3.o1(((androidx.constraintlayout.widget.b)object).z(object3.getId()));
+                ((u.e)object2).o1(((androidx.constraintlayout.widget.b)object).z(view.getId()));
             }
             object = f3.w1();
             n5 = ((ArrayList)object).size();

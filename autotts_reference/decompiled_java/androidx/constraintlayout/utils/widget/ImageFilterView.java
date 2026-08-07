@@ -176,10 +176,9 @@ extends AppCompatImageView {
         float f9 = this.getWidth();
         float f10 = this.getHeight();
         float f11 = f7 * f10 < f8 * f9 ? f9 / f7 : f10 / f8;
-        f11 = f6 * f11;
-        matrix.postScale(f11, f11);
-        f6 = f7 * f11;
-        matrix.postTranslate((f4 * (f9 - f6) + f9 - f6) * 0.5f, (f5 * (f10 - (f11 *= f8)) + f10 - f11) * 0.5f);
+        matrix.postScale(f6 *= f11, f6);
+        f11 = f7 * f6;
+        matrix.postTranslate((f4 * (f9 - f11) + f9 - f11) * 0.5f, (f5 * (f10 - (f6 *= f8)) + f10 - f6) * 0.5f);
         matrix.postRotate(f3, f9 / 2.0f, f10 / 2.0f);
         this.setImageMatrix(matrix);
         this.setScaleType(ImageView.ScaleType.MATRIX);
@@ -291,19 +290,19 @@ extends AppCompatImageView {
     }
 
     @Override
-    public void setImageDrawable(Drawable layerDrawable) {
-        if (this.h != null && layerDrawable != null) {
-            Drawable drawable;
-            this.i = drawable = layerDrawable.mutate();
-            layerDrawable = this.p;
-            layerDrawable[0] = drawable;
-            layerDrawable[1] = this.h;
-            this.q = layerDrawable = new LayerDrawable(this.p);
-            super.setImageDrawable((Drawable)layerDrawable);
+    public void setImageDrawable(Drawable drawable) {
+        if (this.h != null && drawable != null) {
+            this.i = drawable = drawable.mutate();
+            Drawable[] drawableArray = this.p;
+            drawableArray[0] = drawable;
+            drawableArray[1] = this.h;
+            drawable = new LayerDrawable(this.p);
+            this.q = drawable;
+            super.setImageDrawable(drawable);
             this.setCrossfade(this.j);
             return;
         }
-        super.setImageDrawable((Drawable)layerDrawable);
+        super.setImageDrawable(drawable);
     }
 
     public void setImagePanX(float f3) {

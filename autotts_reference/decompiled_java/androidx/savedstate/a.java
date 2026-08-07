@@ -127,16 +127,16 @@ public final class a {
         k.e(object, "clazz");
         if (this.f) {
             block4: {
-                Object object2 = this.e;
-                Recreator.b b3 = object2;
-                if (object2 == null) {
-                    b3 = new Recreator.b(this);
+                Recreator.b b3 = this.e;
+                Object object2 = b3;
+                if (b3 == null) {
+                    object2 = new Recreator.b(this);
                 }
-                this.e = b3;
+                this.e = object2;
                 try {
                     ((Class)object).getDeclaredConstructor(null);
-                    b3 = this.e;
-                    if (b3 == null) break block4;
+                    object2 = this.e;
+                    if (object2 == null) break block4;
                     object = ((Class)object).getName();
                 }
                 catch (NoSuchMethodException noSuchMethodException) {
@@ -147,7 +147,7 @@ public final class a {
                     throw new IllegalArgumentException(((StringBuilder)object2).toString(), noSuchMethodException);
                 }
                 k.d(object, "clazz.name");
-                b3.b((String)object);
+                ((Recreator.b)object2).b((String)object);
             }
             return;
         }

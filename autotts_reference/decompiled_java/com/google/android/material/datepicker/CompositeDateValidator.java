@@ -11,7 +11,6 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import com.google.android.material.datepicker.CalendarConstraints;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import n0.h;
 
@@ -46,10 +45,10 @@ implements CalendarConstraints.DateValidator {
 
             @Override
             public boolean a(List object, long l3) {
-                Iterator iterator = object.iterator();
-                while (iterator.hasNext()) {
-                    object = (CalendarConstraints.DateValidator)iterator.next();
-                    if (object == null || object.g(l3)) continue;
+                object = object.iterator();
+                while (object.hasNext()) {
+                    CalendarConstraints.DateValidator dateValidator = (CalendarConstraints.DateValidator)object.next();
+                    if (dateValidator == null || dateValidator.g(l3)) continue;
                     return false;
                 }
                 return true;

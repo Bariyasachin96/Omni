@@ -180,15 +180,15 @@ j {
      * Could not resolve type clashes
      */
     public final void K(int var1_1, int var2_2) {
-        block36: {
+        block35: {
             var20_3 = View.MeasureSpec.getMode((int)var2_2);
             var6_4 = View.MeasureSpec.getSize((int)var1_1);
             var5_5 = View.MeasureSpec.getSize((int)var2_2);
-            var1_1 = this.getPaddingLeft();
-            var7_6 = this.getPaddingRight();
+            var7_6 = this.getPaddingLeft();
+            var1_1 = this.getPaddingRight();
             var18_7 = this.getPaddingTop() + this.getPaddingBottom();
             var22_8 = ViewGroup.getChildMeasureSpec((int)var2_2, (int)var18_7, (int)-2);
-            var21_9 = var6_4 - (var1_1 + var7_6);
+            var21_9 = var6_4 - (var7_6 + var1_1);
             var8_10 = var21_9 / (var1_1 = this.A);
             if (var8_10 == 0) {
                 this.setMeasuredDimension(var21_9, 0);
@@ -204,38 +204,38 @@ j {
             var2_2 = var13_13;
             var1_1 = var8_10;
             while (var9_14 < var23_12) {
-                var33_25 /* !! */  = this.getChildAt(var9_14);
-                if (var33_25 /* !! */ .getVisibility() == 8) {
+                var34_26 /* !! */  = this.getChildAt(var9_14);
+                if (var34_26 /* !! */ .getVisibility() == 8) {
                     var13_13 = var7_6;
                     var27_24 = var25_15;
                 } else {
-                    var24_23 = var33_25 /* !! */  instanceof ActionMenuItemView;
+                    var24_23 = var34_26 /* !! */  instanceof ActionMenuItemView;
                     var14_18 = var12_17 + 1;
                     if (var24_23) {
                         var8_10 = this.B;
-                        var33_25 /* !! */ .setPadding(var8_10, 0, var8_10, 0);
+                        var34_26 /* !! */ .setPadding(var8_10, 0, var8_10, 0);
                     }
-                    var34_26 = (LayoutParams)var33_25 /* !! */ .getLayoutParams();
-                    var34_26.f = false;
-                    var34_26.c = 0;
-                    var34_26.b = 0;
-                    var34_26.d = false;
-                    var34_26.leftMargin = 0;
-                    var34_26.rightMargin = 0;
-                    var24_23 = var24_23 != false && ((ActionMenuItemView)var33_25 /* !! */ ).s() != false;
-                    var34_26.e = var24_23;
-                    var8_10 = var34_26.a != false ? 1 : var1_1;
-                    var19_22 = ActionMenuView.J(var33_25 /* !! */ , var10_11, var8_10, var22_8, var18_7);
+                    var33_25 = (LayoutParams)var34_26 /* !! */ .getLayoutParams();
+                    var33_25.f = false;
+                    var33_25.c = 0;
+                    var33_25.b = 0;
+                    var33_25.d = false;
+                    var33_25.leftMargin = 0;
+                    var33_25.rightMargin = 0;
+                    var24_23 = var24_23 != false && ((ActionMenuItemView)var34_26 /* !! */ ).s() != false;
+                    var33_25.e = var24_23;
+                    var8_10 = var33_25.a != false ? 1 : var1_1;
+                    var19_22 = ActionMenuView.J(var34_26 /* !! */ , var10_11, var8_10, var22_8, var18_7);
                     var15_19 = Math.max(var11_16, var19_22);
                     var8_10 = var6_4;
-                    if (var34_26.d) {
+                    if (var33_25.d) {
                         var8_10 = var6_4 + 1;
                     }
-                    if (var34_26.a) {
+                    if (var33_25.a) {
                         var7_6 = 1;
                     }
                     var16_20 = var1_1 - var19_22;
-                    var17_21 = Math.max(var2_2, var33_25 /* !! */ .getMeasuredHeight());
+                    var17_21 = Math.max(var2_2, var34_26 /* !! */ .getMeasuredHeight());
                     var1_1 = var16_20;
                     var2_2 = var17_21;
                     var13_13 = var7_6;
@@ -267,13 +267,13 @@ j {
                 var29_27 = 0L;
                 var18_7 = 0;
                 for (var16_20 = 0; var16_20 < var23_12; ++var16_20) {
-                    var33_25 /* !! */  = (LayoutParams)this.getChildAt(var16_20).getLayoutParams();
-                    if (!var33_25 /* !! */ .d) {
+                    var33_25 = (LayoutParams)this.getChildAt(var16_20).getLayoutParams();
+                    if (!var33_25.d) {
                         var9_14 = var18_7;
                         var17_21 = var15_19;
                         var27_24 = var29_27;
                     } else {
-                        var19_22 = var33_25 /* !! */ .b;
+                        var19_22 = var33_25.b;
                         if (var19_22 < var15_19) {
                             var27_24 = 1L << var16_20;
                             var17_21 = var19_22;
@@ -296,29 +296,29 @@ j {
                 var25_15 |= var29_27;
                 if (var18_7 > var14_18) break;
                 for (var1_1 = 0; var1_1 < var23_12; ++var1_1) {
-                    var33_25 /* !! */  = this.getChildAt(var1_1);
-                    var34_26 = (LayoutParams)var33_25 /* !! */ .getLayoutParams();
+                    var34_26 /* !! */  = this.getChildAt(var1_1);
+                    var33_25 = (LayoutParams)var34_26 /* !! */ .getLayoutParams();
                     var31_28 = 1 << var1_1;
                     if ((var29_27 & var31_28) == 0L) {
                         var27_24 = var25_15;
-                        if (var34_26.b == var15_19 + 1) {
+                        if (var33_25.b == var15_19 + 1) {
                             var27_24 = var25_15 | var31_28;
                         }
                         var25_15 = var27_24;
                         continue;
                     }
-                    if (var8_10 != 0 && var34_26.e && var14_18 == 1) {
+                    if (var8_10 != 0 && var33_25.e && var14_18 == 1) {
                         var9_14 = this.B;
-                        var33_25 /* !! */ .setPadding(var9_14 + var10_11, 0, var9_14, 0);
+                        var34_26 /* !! */ .setPadding(var9_14 + var10_11, 0, var9_14, 0);
                     }
-                    ++var34_26.b;
-                    var34_26.f = true;
+                    ++var33_25.b;
+                    var33_25.f = true;
                     --var14_18;
                 }
                 var1_1 = 1;
             }
             var6_4 = var7_6 == 0 && var12_17 == 1 ? 1 : 0;
-            if (var14_18 <= 0 || var25_15 == 0L || var14_18 >= var12_17 - 1 && var6_4 == 0 && var11_16 <= 1) break block36;
+            if (var14_18 <= 0 || var25_15 == 0L || var14_18 >= var12_17 - 1 && var6_4 == 0 && var11_16 <= 1) break block35;
             var4_29 = Long.bitCount(var25_15);
             if (var6_4 == 0) {
                 if ((var25_15 & 1L) != 0L) {
@@ -341,31 +341,31 @@ j {
             var7_6 = var4_29 > 0.0f ? (int)((float)(var14_18 * var10_11) / var4_29) : 0;
             for (var8_10 = 0; var8_10 < var23_12; ++var8_10) {
                 if ((var25_15 & (long)(1 << var8_10)) == 0L) ** GOTO lbl152
-                var33_25 /* !! */  = this.getChildAt(var8_10);
-                var34_26 = (LayoutParams)var33_25 /* !! */ .getLayoutParams();
-                if (var33_25 /* !! */  instanceof ActionMenuItemView) {
-                    var34_26.c = var7_6;
-                    var34_26.f = true;
-                    if (var8_10 == 0 && !var34_26.e) {
-                        var34_26.leftMargin = -var7_6 / 2;
+                var33_25 = this.getChildAt(var8_10);
+                var34_26 /* !! */  = (LayoutParams)var33_25.getLayoutParams();
+                if (var33_25 instanceof ActionMenuItemView) {
+                    var34_26 /* !! */ .c = var7_6;
+                    var34_26 /* !! */ .f = true;
+                    if (var8_10 == 0 && !var34_26 /* !! */ .e) {
+                        var34_26 /* !! */ .leftMargin = -var7_6 / 2;
                     }
                     var1_1 = 1;
 lbl152:
                     // 2 sources
 
                     var6_4 = var1_1;
-                } else if (var34_26.a) {
-                    var34_26.c = var7_6;
-                    var34_26.f = true;
-                    var34_26.rightMargin = -var7_6 / 2;
+                } else if (var34_26 /* !! */ .a) {
+                    var34_26 /* !! */ .c = var7_6;
+                    var34_26 /* !! */ .f = true;
+                    var34_26 /* !! */ .rightMargin = -var7_6 / 2;
                     var6_4 = 1;
                 } else {
                     if (var8_10 != 0) {
-                        var34_26.leftMargin = var7_6 / 2;
+                        var34_26 /* !! */ .leftMargin = var7_6 / 2;
                     }
                     var6_4 = var1_1;
                     if (var8_10 != var23_12 - 1) {
-                        var34_26.rightMargin = var7_6 / 2;
+                        var34_26 /* !! */ .rightMargin = var7_6 / 2;
                         var6_4 = var1_1;
                     }
                 }
@@ -374,16 +374,14 @@ lbl152:
         }
         if (var1_1 != 0) {
             for (var1_1 = 0; var1_1 < var23_12; ++var1_1) {
-                var33_25 /* !! */  = this.getChildAt(var1_1);
-                var34_26 = (LayoutParams)var33_25 /* !! */ .getLayoutParams();
-                if (!var34_26.f) continue;
-                var33_25 /* !! */ .measure(View.MeasureSpec.makeMeasureSpec((int)(var34_26.b * var10_11 + var34_26.c), (int)0x40000000), var22_8);
+                var34_26 /* !! */  = this.getChildAt(var1_1);
+                var33_25 = (LayoutParams)var34_26 /* !! */ .getLayoutParams();
+                if (!var33_25.f) continue;
+                var34_26 /* !! */ .measure(View.MeasureSpec.makeMeasureSpec((int)(var33_25.b * var10_11 + var33_25.c), (int)0x40000000), var22_8);
             }
         }
-        if (var20_3 == 0x40000000) {
-            var2_2 = var5_5;
-        }
-        this.setMeasuredDimension(var21_9, var2_2);
+        var1_1 = var20_3 != 0x40000000 ? var2_2 : var5_5;
+        this.setMeasuredDimension(var21_9, var1_1);
     }
 
     public e L() {
@@ -420,14 +418,15 @@ lbl152:
             Object object2 = new e((Context)object);
             this.r = object2;
             ((e)object2).W(new c(this));
-            this.v = object2 = new ActionMenuPresenter((Context)object);
-            ((ActionMenuPresenter)object2).M(true);
-            object = this.v;
-            object2 = this.w;
-            if (object2 == null) {
-                object2 = new b();
+            object = new ActionMenuPresenter((Context)object);
+            this.v = object;
+            ((ActionMenuPresenter)object).M(true);
+            object2 = this.v;
+            object = this.w;
+            if (object == null) {
+                object = new b();
             }
-            ((androidx.appcompat.view.menu.a)object).m((i.a)object2);
+            ((androidx.appcompat.view.menu.a)object2).m((i.a)object);
             this.r.c(this.v, this.s);
             this.v.K(this);
         }
@@ -481,14 +480,14 @@ lbl152:
         n3 = n12 - this.getPaddingRight() - this.getPaddingLeft();
         bl = t0.b((View)this);
         n6 = 0;
-        n4 = 0;
-        for (n5 = 0; n5 < n9; ++n5) {
-            object2 = this.getChildAt(n5);
+        n5 = 0;
+        for (n4 = 0; n4 < n9; ++n4) {
+            object2 = this.getChildAt(n4);
             if (object2.getVisibility() == 8) continue;
             object = (LayoutParams)object2.getLayoutParams();
             if (object.a) {
                 n6 = n8 = object2.getMeasuredWidth();
-                if (this.E(n5)) {
+                if (this.E(n4)) {
                     n6 = n8 + n11;
                 }
                 int n13 = object2.getMeasuredHeight();
@@ -506,8 +505,8 @@ lbl152:
                 continue;
             }
             n3 -= object2.getMeasuredWidth() + object.leftMargin + object.rightMargin;
-            this.E(n5);
-            ++n4;
+            this.E(n4);
+            ++n5;
         }
         if (n9 == 1 && n6 == 0) {
             object = this.getChildAt(0);
@@ -518,30 +517,11 @@ lbl152:
             object.layout(n5, n6, n3 + n5, n4 + n6);
             return;
         }
-        n3 = (n4 -= n6 ^ 1) > 0 ? (n3 /= n4) : 0;
+        n4 = n5 - (n6 ^ 1);
+        n3 = n4 > 0 ? (n3 /= n4) : 0;
         n6 = Math.max(0, n3);
         if (bl) {
-            n5 = this.getWidth() - this.getPaddingRight();
-            for (n3 = 0; n3 < n9; ++n3) {
-                object = this.getChildAt(n3);
-                object2 = (LayoutParams)object.getLayoutParams();
-                n4 = n5;
-                if (object.getVisibility() != 8) {
-                    if (object2.a) {
-                        n4 = n5;
-                    } else {
-                        n7 = n5 - object2.rightMargin;
-                        n5 = object.getMeasuredWidth();
-                        n8 = object.getMeasuredHeight();
-                        n4 = n10 - n8 / 2;
-                        object.layout(n7 - n5, n4, n7, n8 + n4);
-                        n4 = n7 - (n5 + object2.leftMargin + n6);
-                    }
-                }
-                n5 = n4;
-            }
-        } else {
-            n4 = this.getPaddingLeft();
+            n4 = this.getWidth() - this.getPaddingRight();
             for (n3 = 0; n3 < n9; ++n3) {
                 object = this.getChildAt(n3);
                 object2 = (LayoutParams)object.getLayoutParams();
@@ -550,15 +530,34 @@ lbl152:
                     if (object2.a) {
                         n5 = n4;
                     } else {
-                        n7 = n4 + object2.leftMargin;
-                        n8 = object.getMeasuredWidth();
+                        n8 = n4 - object2.rightMargin;
+                        n7 = object.getMeasuredWidth();
                         n4 = object.getMeasuredHeight();
                         n5 = n10 - n4 / 2;
-                        object.layout(n7, n5, n7 + n8, n4 + n5);
-                        n5 = n7 + (n8 + object2.rightMargin + n6);
+                        object.layout(n8 - n7, n5, n8, n4 + n5);
+                        n5 = n8 - (n7 + object2.leftMargin + n6);
                     }
                 }
                 n4 = n5;
+            }
+        } else {
+            n5 = this.getPaddingLeft();
+            for (n3 = 0; n3 < n9; ++n3) {
+                object2 = this.getChildAt(n3);
+                object = (LayoutParams)object2.getLayoutParams();
+                n4 = n5;
+                if (object2.getVisibility() != 8) {
+                    if (object.a) {
+                        n4 = n5;
+                    } else {
+                        n7 = object2.getMeasuredWidth();
+                        n4 = object2.getMeasuredHeight();
+                        n8 = n10 - n4 / 2;
+                        object2.layout(n5 += object.leftMargin, n8, n5 + n7, n4 + n8);
+                        n4 = n5 + (n7 + object.rightMargin + n6);
+                    }
+                }
+                n5 = n4;
             }
         }
     }

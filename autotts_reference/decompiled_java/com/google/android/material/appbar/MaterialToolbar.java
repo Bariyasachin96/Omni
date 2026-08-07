@@ -4,7 +4,6 @@
  * Could not load the following classes:
  *  android.content.Context
  *  android.content.res.ColorStateList
- *  android.content.res.TypedArray
  *  android.graphics.drawable.Drawable
  *  android.util.AttributeSet
  *  android.util.Pair
@@ -18,7 +17,6 @@ package com.google.android.material.appbar;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
-import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Pair;
@@ -53,25 +51,26 @@ extends Toolbar {
         this(context, attributeSet, a.toolbarStyle);
     }
 
-    public MaterialToolbar(Context context, AttributeSet scaleTypeArray, int n3) {
+    public MaterialToolbar(Context context, AttributeSet attributeSet, int n3) {
+        ImageView.ScaleType[] scaleTypeArray;
         int n4 = d0;
-        super(y2.a.d(context, (AttributeSet)scaleTypeArray, n3, n4), (AttributeSet)scaleTypeArray, n3);
+        super(y2.a.d(context, attributeSet, n3, n4), attributeSet, n3);
         context = this.getContext();
-        TypedArray typedArray = com.google.android.material.internal.z.i(context, (AttributeSet)scaleTypeArray, z1.m.MaterialToolbar, n3, n4, new int[0]);
+        attributeSet = com.google.android.material.internal.z.i(context, attributeSet, z1.m.MaterialToolbar, n3, n4, new int[0]);
         n3 = z1.m.MaterialToolbar_navigationIconTint;
-        if (typedArray.hasValue(n3)) {
-            this.setNavigationIconTint(typedArray.getColor(n3, -1));
+        if (attributeSet.hasValue(n3)) {
+            this.setNavigationIconTint(attributeSet.getColor(n3, -1));
         }
-        this.W = typedArray.getBoolean(z1.m.MaterialToolbar_titleCentered, false);
-        this.a0 = typedArray.getBoolean(z1.m.MaterialToolbar_subtitleCentered, false);
-        n3 = typedArray.getInt(z1.m.MaterialToolbar_logoScaleType, -1);
+        this.W = attributeSet.getBoolean(z1.m.MaterialToolbar_titleCentered, false);
+        this.a0 = attributeSet.getBoolean(z1.m.MaterialToolbar_subtitleCentered, false);
+        n3 = attributeSet.getInt(z1.m.MaterialToolbar_logoScaleType, -1);
         if (n3 >= 0 && n3 < (scaleTypeArray = e0).length) {
             this.b0 = scaleTypeArray[n3];
         }
-        if (typedArray.hasValue(n3 = z1.m.MaterialToolbar_logoAdjustViewBounds)) {
-            this.c0 = typedArray.getBoolean(n3, false);
+        if (attributeSet.hasValue(n3 = z1.m.MaterialToolbar_logoAdjustViewBounds)) {
+            this.c0 = attributeSet.getBoolean(n3, false);
         }
-        typedArray.recycle();
+        attributeSet.recycle();
         this.Q(context);
     }
 

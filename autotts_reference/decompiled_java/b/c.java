@@ -65,14 +65,15 @@ extends b.a {
             return b0.d();
         }
         Object[] objectArray = object.getStringArrayExtra("androidx.activity.result.contract.extra.PERMISSIONS");
-        if ((object = (Object)object.getIntArrayExtra("androidx.activity.result.contract.extra.PERMISSION_GRANT_RESULTS")) != null && objectArray != null) {
-            ArrayList<Boolean> arrayList = new ArrayList<Boolean>(((Intent)object).length);
-            int n4 = ((Intent)object).length;
+        int[] nArray = object.getIntArrayExtra("androidx.activity.result.contract.extra.PERMISSION_GRANT_RESULTS");
+        if (nArray != null && objectArray != null) {
+            object = new ArrayList(nArray.length);
+            int n4 = nArray.length;
             for (n3 = 0; n3 < n4; ++n3) {
-                boolean bl = object[n3] == false;
-                arrayList.add(bl);
+                boolean bl = nArray[n3] == 0;
+                object.add(bl);
             }
-            return b0.g(t.x(i.p(objectArray), arrayList));
+            return b0.g(t.x(i.p(objectArray), (Iterable)object));
         }
         return b0.d();
     }

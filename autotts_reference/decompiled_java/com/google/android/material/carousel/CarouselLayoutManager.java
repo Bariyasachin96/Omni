@@ -367,12 +367,12 @@ RecyclerView.y.b {
         }
     }
 
-    public final b J2(RecyclerView.v object, float f3, int n3) {
-        View view = ((RecyclerView.v)object).o(n3);
-        this.E0(view, 0, 0);
+    public final b J2(RecyclerView.v v3, float f3, int n3) {
+        v3 = v3.o(n3);
+        this.E0((View)v3, 0, 0);
         f3 = this.Y1(f3, this.z.g() / 2.0f);
-        object = CarouselLayoutManager.E2(this.z.h(), f3, false);
-        return new b(view, f3, this.d2(f3, (d)object), (d)object);
+        d d3 = CarouselLayoutManager.E2(this.z.h(), f3, false);
+        return new b((View)v3, f3, this.d2(f3, d3), d3);
     }
 
     @Override
@@ -561,20 +561,20 @@ RecyclerView.y.b {
         float f4 = c3.c;
         c.c c4 = d3.b;
         float f5 = a2.a.b(f4, c4.c, c3.a, c4.a, f3);
-        float f6 = view.getHeight();
-        f4 = view.getWidth();
-        float f7 = a2.a.b(0.0f, f4 / 2.0f, 0.0f, 1.0f, f5);
-        f5 = a2.a.b(0.0f, f6 / 2.0f, 0.0f, 1.0f, f5);
-        c3 = this.C.e(f6, f4, f5, f7);
-        f3 = this.d2(f3, d3);
+        f4 = view.getHeight();
+        float f6 = view.getWidth();
+        float f7 = a2.a.b(0.0f, f6 / 2.0f, 0.0f, 1.0f, f5);
+        f5 = a2.a.b(0.0f, f4 / 2.0f, 0.0f, 1.0f, f5);
+        c3 = this.C.e(f4, f6, f5, f7);
+        f6 = this.d2(f3, d3);
         f4 = c3.height() / 2.0f;
-        f7 = c3.height() / 2.0f;
-        c4 = new RectF(f3 - c3.width() / 2.0f, f3 - f4, f3 + c3.width() / 2.0f, f7 + f3);
-        d3 = new RectF((float)this.x2(), (float)this.A2(), (float)this.y2(), (float)this.w2());
+        f3 = c3.height() / 2.0f;
+        d3 = new RectF(f6 - c3.width() / 2.0f, f6 - f4, f6 + c3.width() / 2.0f, f3 + f6);
+        c4 = new RectF((float)this.x2(), (float)this.A2(), (float)this.y2(), (float)this.w2());
         if (this.x.e() == a.a.c) {
-            this.C.a((RectF)c3, (RectF)c4, (RectF)d3);
+            this.C.a((RectF)c3, (RectF)d3, (RectF)c4);
         }
-        this.C.l((RectF)c3, (RectF)c4, (RectF)d3);
+        this.C.l((RectF)c3, (RectF)d3, (RectF)c4);
         ((f)view).setMaskRectF((RectF)c3);
     }
 

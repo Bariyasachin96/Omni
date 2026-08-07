@@ -233,10 +233,10 @@ extends b0 {
     @Override
     public void p(Object object, View view) {
         if (view != null) {
-            Transition transition = (Transition)object;
-            object = new Rect();
-            this.h(view, (Rect)object);
-            transition.g0(new Transition.f(this, (Rect)object){
+            object = (Transition)object;
+            Rect rect = new Rect();
+            this.h(view, rect);
+            ((Transition)object).g0(new Transition.f(this, rect){
                 public final Rect a;
                 public final a b;
                 {

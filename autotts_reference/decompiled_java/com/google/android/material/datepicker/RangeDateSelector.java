@@ -112,18 +112,18 @@ implements DateSelector<d> {
     @Override
     public String d(Context context) {
         context = context.getResources();
-        Object object = this.f;
-        if (object == null && this.g == null) {
+        Long l3 = this.f;
+        if (l3 == null && this.g == null) {
             return context.getString(k.mtrl_picker_range_header_unselected);
         }
-        Long l3 = this.g;
-        if (l3 == null) {
-            return context.getString(k.mtrl_picker_range_header_only_start_selected, new Object[]{com.google.android.material.datepicker.h.c((Long)object)});
-        }
+        Object object = this.g;
         if (object == null) {
-            return context.getString(k.mtrl_picker_range_header_only_end_selected, new Object[]{com.google.android.material.datepicker.h.c(l3)});
+            return context.getString(k.mtrl_picker_range_header_only_start_selected, new Object[]{com.google.android.material.datepicker.h.c(l3)});
         }
-        object = com.google.android.material.datepicker.h.a((Long)object, l3);
+        if (l3 == null) {
+            return context.getString(k.mtrl_picker_range_header_only_end_selected, new Object[]{com.google.android.material.datepicker.h.c((Long)object)});
+        }
+        object = com.google.android.material.datepicker.h.a(l3, (Long)object);
         return context.getString(k.mtrl_picker_range_header_selected, new Object[]{((d)object).a, ((d)object).b});
     }
 

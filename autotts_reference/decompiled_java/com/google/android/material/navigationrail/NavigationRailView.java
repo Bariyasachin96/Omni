@@ -4,6 +4,7 @@
  * Could not load the following classes:
  *  android.animation.TimeInterpolator
  *  android.content.Context
+ *  android.content.res.Resources
  *  android.util.AttributeSet
  *  android.view.LayoutInflater
  *  android.view.MotionEvent
@@ -20,6 +21,7 @@ package com.google.android.material.navigationrail;
 import a2.a;
 import android.animation.TimeInterpolator;
 import android.content.Context;
+import android.content.res.Resources;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -83,49 +85,49 @@ extends NavigationBarView {
         this(context, attributeSet, n3, z1.l.Widget_MaterialComponents_NavigationRailView);
     }
 
-    public NavigationRailView(Context context, AttributeSet attributeSet, int n3, int n4) {
-        super(context, attributeSet, n3, n4);
+    public NavigationRailView(Context context, AttributeSet object, int n3, int n4) {
+        super(context, (AttributeSet)object, n3, n4);
         context = this.getContext();
         this.y = this.getContext().getResources().getDimensionPixelSize(z1.e.m3_navigation_rail_expanded_item_spacing);
         this.x = 8388627;
         this.w = 1;
-        m0 m02 = com.google.android.material.internal.z.j(context, attributeSet, z1.m.NavigationRailView, n3, n4, new int[0]);
+        object = com.google.android.material.internal.z.j(context, (AttributeSet)object, z1.m.NavigationRailView, n3, n4, new int[0]);
         n3 = z1.m.NavigationRailView_contentMarginTop;
-        attributeSet = this.getResources();
+        Resources resources = this.getResources();
         n4 = z1.e.mtrl_navigation_rail_margin;
-        this.g = m02.f(n3, attributeSet.getDimensionPixelSize(n4));
-        this.h = m02.f(z1.m.NavigationRailView_headerMarginBottom, this.getResources().getDimensionPixelSize(n4));
-        this.k = m02.a(z1.m.NavigationRailView_scrollingEnabled, false);
-        this.setSubmenuDividersEnabled(m02.a(z1.m.NavigationRailView_submenuDividersEnabled, false));
+        this.g = ((m0)object).f(n3, resources.getDimensionPixelSize(n4));
+        this.h = ((m0)object).f(z1.m.NavigationRailView_headerMarginBottom, this.getResources().getDimensionPixelSize(n4));
+        this.k = ((m0)object).a(z1.m.NavigationRailView_scrollingEnabled, false);
+        this.setSubmenuDividersEnabled(((m0)object).a(z1.m.NavigationRailView_submenuDividersEnabled, false));
         this.k();
-        n3 = m02.n(z1.m.NavigationRailView_headerLayout, 0);
+        n3 = ((m0)object).n(z1.m.NavigationRailView_headerLayout, 0);
         if (n3 != 0) {
             this.l(n3);
         }
-        this.setMenuGravity(m02.k(z1.m.NavigationRailView_menuGravity, 49));
+        this.setMenuGravity(((m0)object).k(z1.m.NavigationRailView_menuGravity, 49));
         n4 = z1.m.NavigationRailView_itemMinHeight;
-        n3 = m02.f(n4, -1);
-        n4 = m02.f(n4, -1);
+        n3 = ((m0)object).f(n4, -1);
+        n4 = ((m0)object).f(n4, -1);
         int n5 = z1.m.NavigationRailView_collapsedItemMinHeight;
-        if (m02.s(n5)) {
-            n3 = m02.f(n5, -1);
+        if (((m0)object).s(n5)) {
+            n3 = ((m0)object).f(n5, -1);
         }
-        if (m02.s(n5 = z1.m.NavigationRailView_expandedItemMinHeight)) {
-            n4 = m02.f(n5, -1);
+        if (((m0)object).s(n5 = z1.m.NavigationRailView_expandedItemMinHeight)) {
+            n4 = ((m0)object).f(n5, -1);
         }
         this.setCollapsedItemMinimumHeight(n3);
         this.setExpandedItemMinimumHeight(n4);
-        this.i = m02.f(z1.m.NavigationRailView_expandedMinWidth, context.getResources().getDimensionPixelSize(z1.e.m3_navigation_rail_min_expanded_width));
-        this.j = m02.f(z1.m.NavigationRailView_expandedMaxWidth, context.getResources().getDimensionPixelSize(z1.e.m3_navigation_rail_max_expanded_width));
+        this.i = ((m0)object).f(z1.m.NavigationRailView_expandedMinWidth, context.getResources().getDimensionPixelSize(z1.e.m3_navigation_rail_min_expanded_width));
+        this.j = ((m0)object).f(z1.m.NavigationRailView_expandedMaxWidth, context.getResources().getDimensionPixelSize(z1.e.m3_navigation_rail_max_expanded_width));
         n3 = z1.m.NavigationRailView_paddingTopSystemWindowInsets;
-        if (m02.s(n3)) {
-            this.n = m02.a(n3, false);
+        if (((m0)object).s(n3)) {
+            this.n = ((m0)object).a(n3, false);
         }
-        if (m02.s(n3 = z1.m.NavigationRailView_paddingBottomSystemWindowInsets)) {
-            this.o = m02.a(n3, false);
+        if (((m0)object).s(n3 = z1.m.NavigationRailView_paddingBottomSystemWindowInsets)) {
+            this.o = ((m0)object).a(n3, false);
         }
-        if (m02.s(n3 = z1.m.NavigationRailView_paddingStartSystemWindowInsets)) {
-            this.p = m02.a(n3, false);
+        if (((m0)object).s(n3 = z1.m.NavigationRailView_paddingStartSystemWindowInsets)) {
+            this.p = ((m0)object).a(n3, false);
         }
         n4 = this.getResources().getDimensionPixelOffset(z1.e.m3_navigation_rail_item_padding_top_with_large_font);
         n3 = this.getResources().getDimensionPixelOffset(z1.e.m3_navigation_rail_item_padding_bottom_with_large_font);
@@ -134,9 +136,9 @@ extends NavigationBarView {
         f3 = a.c(this.getItemPaddingBottom(), n3, f3);
         this.setItemPaddingTop(Math.round(f4));
         this.setItemPaddingBottom(Math.round(f3));
-        this.setCollapsedItemSpacing(m02.f(z1.m.NavigationRailView_itemSpacing, 0));
-        this.setExpanded(m02.a(z1.m.NavigationRailView_expanded, false));
-        m02.x();
+        this.setCollapsedItemSpacing(((m0)object).f(z1.m.NavigationRailView_itemSpacing, 0));
+        this.setExpanded(((m0)object).a(z1.m.NavigationRailView_expanded, false));
+        ((m0)object).x();
         this.n();
     }
 
@@ -283,11 +285,11 @@ extends NavigationBarView {
             this.addView((View)this.z);
             return;
         }
-        navigationRailFrameLayout = new ScrollView(this.getContext());
-        navigationRailFrameLayout.setVerticalScrollBarEnabled(false);
-        navigationRailFrameLayout.addView((View)this.z);
-        navigationRailFrameLayout.setLayoutParams((ViewGroup.LayoutParams)new FrameLayout.LayoutParams(-1, -1));
-        this.addView((View)navigationRailFrameLayout);
+        view = new ScrollView(this.getContext());
+        view.setVerticalScrollBarEnabled(false);
+        view.addView((View)this.z);
+        view.setLayoutParams((ViewGroup.LayoutParams)new FrameLayout.LayoutParams(-1, -1));
+        this.addView(view);
     }
 
     public void l(int n3) {
@@ -436,7 +438,7 @@ extends NavigationBarView {
     }
 
     public final void t() {
-        Object object;
+        TransitionSet transitionSet;
         if (!this.isLaidOut()) {
             return;
         }
@@ -447,38 +449,38 @@ extends NavigationBarView {
         Transition transition4 = new Fade().f0(100L);
         int n3 = this.getNavigationRailMenuView().getChildCount();
         for (int i3 = 0; i3 < n3; ++i3) {
-            View view = this.getNavigationRailMenuView().getChildAt(i3);
-            if (view instanceof NavigationBarItemView) {
-                object = (NavigationBarItemView)view;
-                transition.r((View)((NavigationBarItemView)object).getLabelGroup(), true);
-                transition.r((View)((NavigationBarItemView)object).getExpandedLabelGroup(), true);
+            transitionSet = this.getNavigationRailMenuView().getChildAt(i3);
+            if (transitionSet instanceof NavigationBarItemView) {
+                NavigationBarItemView navigationBarItemView = (NavigationBarItemView)((Object)transitionSet);
+                transition.r((View)navigationBarItemView.getLabelGroup(), true);
+                transition.r((View)navigationBarItemView.getExpandedLabelGroup(), true);
                 if (this.q) {
-                    transition3.b((View)((NavigationBarItemView)object).getExpandedLabelGroup());
-                    transition2.b((View)((NavigationBarItemView)object).getLabelGroup());
+                    transition3.b((View)navigationBarItemView.getExpandedLabelGroup());
+                    transition2.b((View)navigationBarItemView.getLabelGroup());
                 } else {
-                    transition3.b((View)((NavigationBarItemView)object).getLabelGroup());
-                    transition2.b((View)((NavigationBarItemView)object).getExpandedLabelGroup());
+                    transition3.b((View)navigationBarItemView.getLabelGroup());
+                    transition2.b((View)navigationBarItemView.getExpandedLabelGroup());
                 }
-                b3.b((View)((NavigationBarItemView)object).getExpandedLabelGroup());
+                b3.b((View)navigationBarItemView.getExpandedLabelGroup());
             }
-            transition4.b(view);
+            transition4.b((View)transitionSet);
         }
-        object = new TransitionSet();
-        ((TransitionSet)object).y0(0);
-        ((TransitionSet)object).q0(transition).q0(transition2).q0(b3);
+        transitionSet = new TransitionSet();
+        transitionSet.y0(0);
+        transitionSet.q0(transition).q0(transition2).q0(b3);
         if (!this.q) {
-            ((TransitionSet)object).q0(transition4);
+            transitionSet.q0(transition4);
         }
-        transition2 = new TransitionSet();
-        ((TransitionSet)transition2).y0(0);
-        ((TransitionSet)transition2).q0(transition3);
+        transition = new TransitionSet();
+        ((TransitionSet)transition).y0(0);
+        ((TransitionSet)transition).q0(transition3);
         if (this.q) {
-            ((TransitionSet)transition2).q0(transition4);
+            ((TransitionSet)transition).q0(transition4);
         }
-        transition3 = new TransitionSet();
-        ((TransitionSet)transition3).y0(1);
-        ((TransitionSet)transition3).q0(transition2).q0((Transition)object);
-        androidx.transition.c.a((ViewGroup)this.getParent(), transition3);
+        transition4 = new TransitionSet();
+        ((TransitionSet)transition4).y0(1);
+        ((TransitionSet)transition4).q0(transition).q0(transitionSet);
+        androidx.transition.c.a((ViewGroup)this.getParent(), transition4);
     }
 }
 

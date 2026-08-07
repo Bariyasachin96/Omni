@@ -72,13 +72,13 @@ public class a {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public void g(PublicKey object, int n3, String string, String string2) {
+    public void g(PublicKey object, int n3, String object2, String string) {
         if (n3 != 0 && n3 != 1 && n3 != 2) {
-            string = null;
             object = null;
+            object2 = null;
         } else {
             try {
-                if (TextUtils.isEmpty((CharSequence)string)) {
+                if (TextUtils.isEmpty((CharSequence)object2)) {
                     Log.e((String)"LicenseValidator", (String)"Signature verification failed: signedData is empty. (Device not signed-in to any Google accounts?)");
                     this.e();
                     return;
@@ -92,35 +92,35 @@ public class a {
             }
             Signature signature = Signature.getInstance("SHA1withRSA");
             signature.initVerify((PublicKey)object);
-            signature.update(string.getBytes());
-            if (!signature.verify(b3.a.a(string2))) {
+            signature.update(((String)object2).getBytes());
+            if (!signature.verify(b3.a.a(string))) {
                 Log.e((String)"LicenseValidator", (String)"Signature verification failed.");
                 this.e();
                 return;
             }
-            object = ResponseData.a(string);
-            if (((ResponseData)object).a != n3) {
+            object2 = ResponseData.a((String)object2);
+            if (((ResponseData)object2).a != n3) {
                 Log.e((String)"LicenseValidator", (String)"Response codes don't match.");
                 this.e();
                 return;
             }
-            if (((ResponseData)object).b != this.c) {
+            if (((ResponseData)object2).b != this.c) {
                 Log.e((String)"LicenseValidator", (String)"Nonce doesn't match.");
                 this.e();
                 return;
             }
-            if (!((ResponseData)object).c.equals(this.d)) {
+            if (!((ResponseData)object2).c.equals(this.d)) {
                 Log.e((String)"LicenseValidator", (String)"Package name doesn't match.");
                 this.e();
                 return;
             }
-            if (!((ResponseData)object).d.equals(this.e)) {
+            if (!((ResponseData)object2).d.equals(this.e)) {
                 Log.e((String)"LicenseValidator", (String)"Version codes don't match.");
                 this.e();
                 return;
             }
-            string = ((ResponseData)object).e;
-            if (TextUtils.isEmpty((CharSequence)string)) {
+            object = ((ResponseData)object2).e;
+            if (TextUtils.isEmpty((CharSequence)object)) {
                 Log.e((String)"LicenseValidator", (String)"User identifier is empty.");
                 this.e();
                 return;
@@ -128,7 +128,7 @@ public class a {
         }
         if (n3 != 0) {
             if (n3 == 1) {
-                this.f(561, (ResponseData)object);
+                this.f(561, (ResponseData)object2);
                 return;
             }
             if (n3 != 2) {
@@ -138,12 +138,12 @@ public class a {
                 }
                 if (n3 == 4) {
                     Log.w((String)"LicenseValidator", (String)"An error has occurred on the licensing server.");
-                    this.f(291, (ResponseData)object);
+                    this.f(291, (ResponseData)object2);
                     return;
                 }
                 if (n3 == 5) {
                     Log.w((String)"LicenseValidator", (String)"Licensing server is refusing to talk to this device, over quota.");
-                    this.f(291, (ResponseData)object);
+                    this.f(291, (ResponseData)object2);
                     return;
                 }
                 switch (n3) {
@@ -163,11 +163,11 @@ public class a {
                     case 257: 
                 }
                 Log.w((String)"LicenseValidator", (String)"Error contacting licensing server.");
-                this.f(291, (ResponseData)object);
+                this.f(291, (ResponseData)object2);
                 return;
             }
         }
-        this.f(this.f.a(string), (ResponseData)object);
+        this.f(this.f.a((String)object), (ResponseData)object2);
         return;
         catch (IllegalArgumentException illegalArgumentException) {
             Log.e((String)"LicenseValidator", (String)"Could not parse response.");

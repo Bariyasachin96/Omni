@@ -101,17 +101,17 @@ public abstract class b {
                         ClassLoader classLoader = object.getClass().getClassLoader();
                         ClassLoader classLoader3 = a.class.getClassLoader();
                         if (!k.a(classLoader, classLoader3)) {
-                            object = new StringBuilder();
-                            ((StringBuilder)object).append("Instance class was loaded from a different classloader: ");
-                            ((StringBuilder)object).append(classLoader);
-                            ((StringBuilder)object).append(", base type classloader: ");
-                            ((StringBuilder)object).append(classLoader3);
-                            ClassNotFoundException classNotFoundException4 = new ClassNotFoundException(((StringBuilder)object).toString(), classCastException4);
-                            throw classNotFoundException4;
+                            StringBuilder stringBuilder = new StringBuilder();
+                            stringBuilder.append("Instance class was loaded from a different classloader: ");
+                            stringBuilder.append(classLoader);
+                            stringBuilder.append(", base type classloader: ");
+                            stringBuilder.append(classLoader3);
+                            object = new Object(stringBuilder.toString(), classCastException4);
+                            throw object;
                         }
                         throw classCastException4;
                     }
-                    catch (ClassNotFoundException classNotFoundException5) {
+                    catch (ClassNotFoundException classNotFoundException4) {
                         try {
                             ClassCastException classCastException5;
                             Object object;
@@ -131,19 +131,19 @@ public abstract class b {
                                 throw nullPointerException;
                             }
                             ClassLoader classLoader = object.getClass().getClassLoader();
-                            object = a.class.getClassLoader();
-                            if (!k.a(classLoader, object)) {
+                            ClassLoader classLoader4 = a.class.getClassLoader();
+                            if (!k.a(classLoader, classLoader4)) {
                                 StringBuilder stringBuilder = new StringBuilder();
                                 stringBuilder.append("Instance class was loaded from a different classloader: ");
                                 stringBuilder.append(classLoader);
                                 stringBuilder.append(", base type classloader: ");
-                                stringBuilder.append(object);
-                                ClassNotFoundException classNotFoundException6 = new ClassNotFoundException(stringBuilder.toString(), classCastException5);
-                                throw classNotFoundException6;
+                                stringBuilder.append(classLoader4);
+                                object = new Object(stringBuilder.toString(), classCastException5);
+                                throw object;
                             }
                             throw classCastException5;
                         }
-                        catch (ClassNotFoundException classNotFoundException7) {
+                        catch (ClassNotFoundException classNotFoundException5) {
                             a4 = new a();
                         }
                     }

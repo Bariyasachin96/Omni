@@ -98,14 +98,14 @@ extends p {
                                     f4 = 0.0f;
                                     for (n11 = 0; n11 < n9; ++n11) {
                                         block91: {
-                                            p p3;
                                             block93: {
                                                 block95: {
+                                                    g g3;
                                                     block94: {
                                                         block92: {
                                                             block90: {
-                                                                p3 = (p)this.k.get(n11);
-                                                                if (p3.b.X() != 8) break block90;
+                                                                object = (p)this.k.get(n11);
+                                                                if (((p)object).b.X() != 8) break block90;
                                                                 n13 = n8;
                                                                 break block91;
                                                             }
@@ -114,18 +114,18 @@ extends p {
                                                             if (n11 > 0) {
                                                                 n7 = n3;
                                                                 if (n11 >= n6) {
-                                                                    n7 = n3 + p3.h.f;
+                                                                    n7 = n3 + ((p)object).h.f;
                                                                 }
                                                             }
-                                                            object = p3.e;
-                                                            n10 = ((f)object).g;
-                                                            n3 = p3.d != e.b.e ? 1 : 0;
+                                                            g3 = ((p)object).e;
+                                                            n10 = g3.g;
+                                                            n3 = ((p)object).d != e.b.e ? 1 : 0;
                                                             if (n3 == 0) break block92;
                                                             n13 = this.f;
-                                                            if (n13 == 0 && !p3.b.e.e.j) {
+                                                            if (n13 == 0 && !((p)object).b.e.e.j) {
                                                                 return;
                                                             }
-                                                            if (n13 == 1 && !p3.b.f.e.j) {
+                                                            if (n13 == 1 && !((p)object).b.f.e.j) {
                                                                 return;
                                                             }
                                                             n13 = n3;
@@ -133,15 +133,15 @@ extends p {
                                                             n3 = n8;
                                                             break block93;
                                                         }
-                                                        if (p3.a != 1 || n12 != 0) break block94;
-                                                        n3 = ((g)object).m;
+                                                        if (((p)object).a != 1 || n12 != 0) break block94;
+                                                        n3 = g3.m;
                                                         ++n8;
                                                         break block95;
                                                     }
                                                     n13 = n3;
                                                     n15 = n10;
                                                     n3 = n8;
-                                                    if (!((f)object).j) break block93;
+                                                    if (!g3.j) break block93;
                                                     n3 = n10;
                                                 }
                                                 n13 = 1;
@@ -149,7 +149,7 @@ extends p {
                                                 n3 = n8;
                                             }
                                             if (n13 == 0) {
-                                                f3 = p3.b.N0[this.f];
+                                                f3 = ((p)object).b.N0[this.f];
                                                 n10 = n7;
                                                 n8 = ++n3;
                                                 f5 = f4;
@@ -173,7 +173,7 @@ extends p {
                                                 n7 = n16;
                                                 f4 = f5;
                                                 if (n11 < n4) {
-                                                    n3 = n10 + -p3.i.f;
+                                                    n3 = n10 + -((p)object).i.f;
                                                     f4 = f5;
                                                     n7 = n16;
                                                     n13 = n8;
@@ -210,21 +210,21 @@ extends p {
                                 for (n16 = 0; n16 < n9; ++n16) {
                                     int n17;
                                     e e3;
-                                    p p4 = (p)this.k.get(n16);
-                                    if (p4.b.X() == 8 || p4.d != e.b.e) continue;
-                                    object = p4.e;
-                                    if (((f)object).j) continue;
-                                    n8 = f5 > 0.0f ? (int)(p4.b.N0[this.f] * f3 / f5 + f4) : n12;
+                                    object = (p)this.k.get(n16);
+                                    if (((p)object).b.X() == 8 || ((p)object).d != e.b.e) continue;
+                                    g g4 = ((p)object).e;
+                                    if (g4.j) continue;
+                                    n8 = f5 > 0.0f ? (int)(((p)object).b.N0[this.f] * f3 / f5 + f4) : n12;
                                     if (this.f == 0) {
-                                        e3 = p4.b;
+                                        e3 = ((p)object).b;
                                         n17 = e3.A;
                                         n13 = e3.z;
                                     } else {
-                                        e3 = p4.b;
+                                        e3 = ((p)object).b;
                                         n17 = e3.D;
                                         n13 = e3.C;
                                     }
-                                    int n18 = p4.a == 1 ? Math.min(n8, ((g)object).m) : n8;
+                                    int n18 = ((p)object).a == 1 ? Math.min(n8, g4.m) : n8;
                                     n13 = n18 = Math.max(n13, n18);
                                     if (n17 > 0) {
                                         n13 = Math.min(n17, n18);
@@ -233,7 +233,7 @@ extends p {
                                         ++n10;
                                         n8 = n13;
                                     }
-                                    p4.e.d(n8);
+                                    ((p)object).e.d(n8);
                                 }
                                 n12 = n3;
                                 n3 = n7;
@@ -347,12 +347,12 @@ extends p {
                         } else {
                             ((p)object).h.d(n3);
                         }
-                        g g3 = ((p)object).e;
-                        n8 = n12 = g3.g;
+                        g g5 = ((p)object).e;
+                        n8 = n12 = g5.g;
                         if (((p)object).d == e.b.e) {
                             n8 = n12;
                             if (((p)object).a == 1) {
-                                n8 = g3.m;
+                                n8 = g5.m;
                             }
                         }
                         n3 = bl ? (n3 -= n8) : (n3 += n8);
@@ -378,43 +378,43 @@ extends p {
             n7 = n11;
             while (n7 < n9) {
                 n3 = bl ? n9 - (n7 + 1) : n7;
-                p p5 = (p)this.k.get(n3);
-                if (p5.b.X() == 8) {
-                    p5.h.d(n8);
-                    p5.i.d(n8);
+                object = (p)this.k.get(n3);
+                if (((p)object).b.X() == 8) {
+                    ((p)object).h.d(n8);
+                    ((p)object).i.d(n8);
                 } else {
                     n3 = bl ? n8 - n10 : n8 + n10;
                     n8 = n3;
                     if (n7 > 0) {
                         n8 = n3;
                         if (n7 >= n6) {
-                            n8 = bl ? n3 - p5.h.f : n3 + p5.h.f;
+                            n8 = bl ? n3 - ((p)object).h.f : n3 + ((p)object).h.f;
                         }
                     }
                     if (bl) {
-                        p5.i.d(n8);
+                        ((p)object).i.d(n8);
                     } else {
-                        p5.h.d(n8);
+                        ((p)object).h.d(n8);
                     }
-                    object = p5.e;
-                    n3 = n12 = ((f)object).g;
-                    if (p5.d == e.b.e) {
+                    g g6 = ((p)object).e;
+                    n3 = n12 = g6.g;
+                    if (((p)object).d == e.b.e) {
                         n3 = n12;
-                        if (p5.a == 1) {
-                            n3 = Math.min(n12, ((g)object).m);
+                        if (((p)object).a == 1) {
+                            n3 = Math.min(n12, g6.m);
                         }
                     }
                     n3 = bl ? n8 - n3 : n8 + n3;
                     if (bl) {
-                        p5.h.d(n3);
+                        ((p)object).h.d(n3);
                     } else {
-                        p5.i.d(n3);
+                        ((p)object).i.d(n3);
                     }
                     n8 = n3;
                     if (n7 < n5) {
                         n8 = n3;
                         if (n7 < n4) {
-                            n8 = bl ? n3 - -p5.i.f : n3 + -p5.i.f;
+                            n8 = bl ? n3 - -((p)object).i.f : n3 + -((p)object).i.f;
                         }
                     }
                 }
@@ -424,39 +424,39 @@ extends p {
         }
         while (n7 < n9) {
             n3 = bl ? n9 - (n7 + 1) : n7;
-            p p6 = (p)this.k.get(n3);
-            if (p6.b.X() == 8) {
-                p6.h.d(n8);
-                p6.i.d(n8);
+            p p3 = (p)this.k.get(n3);
+            if (p3.b.X() == 8) {
+                p3.h.d(n8);
+                p3.i.d(n8);
             } else {
                 n3 = n8;
                 if (n7 > 0) {
                     n3 = n8;
                     if (n7 >= n6) {
-                        n3 = bl ? n8 - p6.h.f : n8 + p6.h.f;
+                        n3 = bl ? n8 - p3.h.f : n8 + p3.h.f;
                     }
                 }
                 if (bl) {
-                    p6.i.d(n3);
+                    p3.i.d(n3);
                 } else {
-                    p6.h.d(n3);
+                    p3.h.d(n3);
                 }
-                object = p6.e;
+                object = p3.e;
                 n8 = ((f)object).g;
-                if (p6.d == e.b.e && p6.a == 1) {
+                if (p3.d == e.b.e && p3.a == 1) {
                     n8 = ((g)object).m;
                 }
                 n3 = bl ? (n3 -= n8) : (n3 += n8);
                 if (bl) {
-                    p6.h.d(n3);
+                    p3.h.d(n3);
                 } else {
-                    p6.i.d(n3);
+                    p3.i.d(n3);
                 }
                 n8 = n3;
                 if (n7 < n5) {
                     n8 = n3;
                     if (n7 < n4) {
-                        n8 = bl ? n3 - -p6.i.f : n3 + -p6.i.f;
+                        n8 = bl ? n3 - -p3.i.f : n3 + -p3.i.f;
                     }
                 }
             }
@@ -478,49 +478,49 @@ extends p {
         if (n3 < 1) {
             return;
         }
-        object2 = ((p)this.k.get((int)0)).b;
-        object = ((p)this.k.get((int)(n3 - 1))).b;
+        object = ((p)this.k.get((int)0)).b;
+        object2 = ((p)this.k.get((int)(n3 - 1))).b;
         if (this.f == 0) {
-            Object object3 = ((e)object2).Q;
-            object = ((e)object).S;
-            object2 = this.i((u.d)object3, 0);
+            Object object3 = ((e)object).Q;
+            object2 = ((e)object2).S;
+            object = this.i((u.d)object3, 0);
             n3 = ((u.d)object3).f();
             object3 = this.r();
             if (object3 != null) {
                 n3 = ((e)object3).Q.f();
             }
-            if (object2 != null) {
-                this.b(this.h, (f)object2, n3);
-            }
-            object2 = this.i((u.d)object, 0);
-            n3 = ((u.d)object).f();
-            object = this.s();
             if (object != null) {
-                n3 = ((e)object).S.f();
+                this.b(this.h, (f)object, n3);
             }
+            object = this.i((u.d)object2, 0);
+            n3 = ((u.d)object2).f();
+            object2 = this.s();
             if (object2 != null) {
-                this.b(this.i, (f)object2, -n3);
+                n3 = ((e)object2).S.f();
+            }
+            if (object != null) {
+                this.b(this.i, (f)object, -n3);
             }
         } else {
-            object2 = ((e)object2).R;
-            object = ((e)object).T;
-            f f3 = this.i((u.d)object2, 1);
-            n3 = ((u.d)object2).f();
-            object2 = this.r();
-            if (object2 != null) {
-                n3 = ((e)object2).R.f();
+            object = ((e)object).R;
+            object2 = ((e)object2).T;
+            f f3 = this.i((u.d)object, 1);
+            n3 = ((u.d)object).f();
+            object = this.r();
+            if (object != null) {
+                n3 = ((e)object).R.f();
             }
             if (f3 != null) {
                 this.b(this.h, f3, n3);
             }
-            object2 = this.i((u.d)object, 1);
-            n3 = ((u.d)object).f();
-            object = this.s();
-            if (object != null) {
-                n3 = ((e)object).T.f();
-            }
+            object = this.i((u.d)object2, 1);
+            n3 = ((u.d)object2).f();
+            object2 = this.s();
             if (object2 != null) {
-                this.b(this.i, (f)object2, -n3);
+                n3 = ((e)object2).T.f();
+            }
+            if (object != null) {
+                this.b(this.i, (f)object, -n3);
             }
         }
         this.h.a = this;

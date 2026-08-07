@@ -10,18 +10,10 @@ import android.graphics.Color;
 import g0.a;
 
 public abstract class b {
-    public static final float[][] a;
-    public static final float[][] b;
-    public static final float[] c;
-    public static final float[][] d;
-
-    static {
-        float[] fArray = new float[]{-0.002079f, 0.048952f, 0.953127f};
-        a = new float[][]{{0.401288f, 0.650173f, -0.051461f}, {-0.250268f, 1.204414f, 0.045854f}, fArray};
-        b = new float[][]{{1.8620678f, -1.0112547f, 0.14918678f}, {0.38752654f, 0.62144744f, -0.00897398f}, {-0.0158415f, -0.03412294f, 1.0499644f}};
-        c = new float[]{95.047f, 100.0f, 108.883f};
-        d = new float[][]{{0.41233894f, 0.35762063f, 0.18051042f}, {0.2126f, 0.7152f, 0.0722f}, {0.01932141f, 0.11916382f, 0.9503448f}};
-    }
+    public static final float[][] a = new float[][]{{0.401288f, 0.650173f, -0.051461f}, {-0.250268f, 1.204414f, 0.045854f}, {-0.002079f, 0.048952f, 0.953127f}};
+    public static final float[][] b = new float[][]{{1.8620678f, -1.0112547f, 0.14918678f}, {0.38752654f, 0.62144744f, -0.00897398f}, {-0.0158415f, -0.03412294f, 1.0499644f}};
+    public static final float[] c = new float[]{95.047f, 100.0f, 108.883f};
+    public static final float[][] d = new float[][]{{0.41233894f, 0.35762063f, 0.18051042f}, {0.2126f, 0.7152f, 0.0722f}, {0.01932141f, 0.11916382f, 0.9503448f}};
 
     public static int a(float f3) {
         if (f3 < 1.0f) {

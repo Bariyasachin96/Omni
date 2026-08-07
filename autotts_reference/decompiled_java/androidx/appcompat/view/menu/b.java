@@ -440,17 +440,16 @@ PopupWindow.OnDismissListener {
 
     @Override
     public boolean f(l l3) {
-        for (Object object : this.k) {
-            if (l3 != ((d)object).b) continue;
-            ((d)object).a().requestFocus();
+        for (d d3 : this.k) {
+            if (l3 != d3.b) continue;
+            d3.a().requestFocus();
             return true;
         }
         if (l3.hasVisibleItems()) {
-            Object object;
             this.n(l3);
-            object = this.z;
-            if (object != null) {
-                object.b(l3);
+            i.a a4 = this.z;
+            if (a4 != null) {
+                a4.b(l3);
             }
             return true;
         }

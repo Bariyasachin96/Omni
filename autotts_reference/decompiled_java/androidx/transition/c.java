@@ -95,16 +95,16 @@ public abstract class c {
                 return true;
             }
             o.a a4 = androidx.transition.c.b();
-            Object object2 = (ViewGroup)a4.get(this.d);
+            ViewGroup viewGroup = (ViewGroup)a4.get(this.d);
             ArrayList arrayList = null;
-            if (object2 == null) {
+            if (viewGroup == null) {
                 object = new ArrayList();
                 a4.put(this.d, object);
             } else {
-                object = object2;
-                if (((ArrayList)object2).size() > 0) {
-                    arrayList = new ArrayList(object2);
-                    object = object2;
+                object = viewGroup;
+                if (viewGroup.size() > 0) {
+                    arrayList = new ArrayList(viewGroup);
+                    object = viewGroup;
                 }
             }
             object.add(this.c);
@@ -122,9 +122,9 @@ public abstract class c {
                     transition.a0(this);
                 }
             });
-            object2 = this.c;
-            object = this.d;
-            ((Transition)object2).l((ViewGroup)object, false);
+            object = this.c;
+            viewGroup = this.d;
+            object.l(viewGroup, false);
             if (arrayList != null) {
                 int n3 = arrayList.size();
                 for (int i3 = 0; i3 < n3; ++i3) {
@@ -142,12 +142,12 @@ public abstract class c {
         public void onViewDetachedFromWindow(View object) {
             this.a();
             c.remove(this.d);
-            object = (ArrayList)androidx.transition.c.b().get(this.d);
-            if (object != null && ((ArrayList)object).size() > 0) {
-                int n3 = ((ArrayList)object).size();
+            ArrayList arrayList = (ArrayList)androidx.transition.c.b().get(this.d);
+            if (arrayList != null && arrayList.size() > 0) {
+                int n3 = arrayList.size();
                 for (int i3 = 0; i3 < n3; ++i3) {
-                    Object e3 = ((ArrayList)object).get(i3);
-                    ((Transition)e3).c0((View)this.d);
+                    object = arrayList.get(i3);
+                    ((Transition)object).c0((View)this.d);
                 }
             }
             this.c.m(true);

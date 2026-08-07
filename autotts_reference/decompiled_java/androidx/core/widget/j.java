@@ -324,12 +324,12 @@ public abstract class j {
             return textView.setClassName(resolveInfo.packageName, resolveInfo.name);
         }
 
-        public final List c(Context context, PackageManager object) {
-            ArrayList<ResolveInfo> arrayList = new ArrayList<ResolveInfo>();
+        public final List c(Context context, PackageManager packageManager2) {
+            ArrayList<PackageManager> arrayList = new ArrayList<PackageManager>();
             if (context instanceof Activity) {
-                for (ResolveInfo resolveInfo : object.queryIntentActivities(this.a(), 0)) {
-                    if (!this.f(resolveInfo, context)) continue;
-                    arrayList.add(resolveInfo);
+                for (PackageManager packageManager2 : packageManager2.queryIntentActivities(this.a(), 0)) {
+                    if (!this.f((ResolveInfo)packageManager2, context)) continue;
+                    arrayList.add(packageManager2);
                 }
             }
             return arrayList;

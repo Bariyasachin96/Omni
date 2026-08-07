@@ -232,8 +232,8 @@ extends o {
             float f4;
             this.a.e(f3, this.o);
             float[] fArray = this.o;
-            float f5 = fArray[fArray.length - 2];
-            f3 = fArray[fArray.length - 1];
+            f3 = fArray[fArray.length - 2];
+            float f5 = fArray[fArray.length - 1];
             long l4 = this.i;
             if (Float.isNaN(this.j)) {
                 this.j = f4 = ((s.d)object).a(view, this.l, 0);
@@ -241,19 +241,19 @@ extends o {
                     this.j = 0.0f;
                 }
             }
-            this.j = f4 = (float)(((double)this.j + (double)(l3 - l4) * 1.0E-9 * (double)f5) % 1.0);
+            this.j = f4 = (float)(((double)this.j + (double)(l3 - l4) * 1.0E-9 * (double)f3) % 1.0);
             this.i = l3;
-            f4 = this.a(f4);
+            float f6 = this.a(f4);
             this.h = false;
             for (int i3 = 0; i3 < ((Object)(object = (Object)this.g)).length; ++i3) {
                 boolean bl = this.h;
-                float f6 = this.o[i3];
-                boolean bl2 = (double)f6 != 0.0;
+                f4 = this.o[i3];
+                boolean bl2 = (double)f4 != 0.0;
                 this.h = bl | bl2;
-                object[i3] = f6 * f4 + f3;
+                object[i3] = f4 * f6 + f5;
             }
             w.a.b((androidx.constraintlayout.widget.a)this.m.valueAt(0), view, this.g);
-            if (f5 != 0.0f) {
+            if (f3 != 0.0f) {
                 this.h = true;
             }
             return this.h;

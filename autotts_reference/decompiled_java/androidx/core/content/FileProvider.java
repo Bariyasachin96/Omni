@@ -106,20 +106,20 @@ extends ContentProvider {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public static b g(Context object, String object2, int n3) {
+    public static b g(Context object, String string, int n3) {
         HashMap hashMap = i;
         synchronized (hashMap) {
             try {
                 b b4;
-                b b3 = b4 = (b)hashMap.get(object2);
+                b b3 = b4 = (b)hashMap.get(string);
                 if (b4 == null) {
                     try {
-                        b3 = FileProvider.j((Context)object, (String)object2, n3);
-                        hashMap.put(object2, b3);
+                        b3 = FileProvider.j((Context)object, string, n3);
+                        hashMap.put(string, b3);
                     }
                     catch (XmlPullParserException xmlPullParserException) {
-                        object2 = new IllegalArgumentException("Failed to parse android.support.FILE_PROVIDER_PATHS meta-data", xmlPullParserException);
-                        throw object2;
+                        object = new IllegalArgumentException("Failed to parse android.support.FILE_PROVIDER_PATHS meta-data", xmlPullParserException);
+                        throw object;
                     }
                     catch (IOException iOException) {
                         object = new IllegalArgumentException("Failed to parse android.support.FILE_PROVIDER_PATHS meta-data", iOException);
@@ -457,12 +457,13 @@ extends ContentProvider {
             throw new IllegalArgumentException("Name must not be empty");
         }
 
-        public final boolean d(String string, String string2) {
-            if (!(string = FileProvider.k(string)).equals(string2 = FileProvider.k(string2))) {
-                StringBuilder stringBuilder = new StringBuilder();
-                stringBuilder.append(string2);
-                stringBuilder.append('/');
-                if (!string.startsWith(stringBuilder.toString())) {
+        public final boolean d(String string, String charSequence) {
+            String string2;
+            if (!(string = FileProvider.k(string)).equals(string2 = FileProvider.k((String)charSequence))) {
+                charSequence = new StringBuilder();
+                ((StringBuilder)charSequence).append(string2);
+                ((StringBuilder)charSequence).append('/');
+                if (!string.startsWith(((StringBuilder)charSequence).toString())) {
                     return false;
                 }
             }

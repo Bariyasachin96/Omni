@@ -77,13 +77,13 @@ extends AbstractSafeParcelable {
     }
 
     public final void writeToParcel(Parcel parcel, int n3) {
-        int n4 = this.c;
-        n3 = b.a(parcel);
-        b.g(parcel, 1, n4);
+        n3 = this.c;
+        int n4 = b.a(parcel);
+        b.g(parcel, 1, n3);
         b.g(parcel, 2, this.d);
         b.g(parcel, 3, this.e);
         b.c(parcel, 4, this.f);
-        b.b(parcel, n3);
+        b.b(parcel, n4);
     }
 
     public static final class a {

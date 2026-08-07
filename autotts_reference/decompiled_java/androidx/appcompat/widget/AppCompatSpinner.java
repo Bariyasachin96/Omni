@@ -104,69 +104,69 @@ extends Spinner {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public AppCompatSpinner(Context context, AttributeSet objectArray, int n3, int n4, Resources.Theme objectArray2) {
-        Object object;
+    public AppCompatSpinner(Context object, AttributeSet attributeSet, int n3, int n4, Resources.Theme object2) {
+        Object object3;
         int n5;
         m0 m02;
         block21: {
             block18: {
                 block20: {
-                    void var1_4;
+                    void var2_5;
                     block19: {
-                        super(context, (AttributeSet)objectArray, n3);
+                        super((Context)object, attributeSet, n3);
                         this.j = new Rect();
                         i0.a((View)this, this.getContext());
-                        m02 = m0.v(context, (AttributeSet)objectArray, c.j.Spinner, n3, 0);
+                        m02 = m0.v((Context)object, attributeSet, c.j.Spinner, n3, 0);
                         this.c = new androidx.appcompat.widget.d((View)this);
-                        this.d = objectArray2 != null ? new h.d(context, (Resources.Theme)objectArray2) : ((n5 = m02.n(c.j.Spinner_popupTheme, 0)) != 0 ? new h.d(context, n5) : context);
-                        object = null;
+                        this.d = object2 != null ? new h.d((Context)object, (Resources.Theme)object2) : ((n5 = m02.n(c.j.Spinner_popupTheme, 0)) != 0 ? new h.d((Context)object, n5) : object);
+                        object3 = null;
                         n5 = n4;
                         if (n4 != -1) break block21;
-                        objectArray2 = context.obtainStyledAttributes((AttributeSet)objectArray, k, n3, 0);
+                        object2 = object.obtainStyledAttributes(attributeSet, k, n3, 0);
                         n5 = n4;
-                        object = objectArray2;
+                        object3 = object2;
                         try {
-                            if (objectArray2.hasValue(0)) {
-                                n5 = objectArray2.getInt(0, 0);
-                                object = objectArray2;
+                            if (object2.hasValue(0)) {
+                                n5 = object2.getInt(0, 0);
+                                object3 = object2;
                             }
                             break block18;
                         }
                         catch (Throwable throwable) {
-                            objectArray = objectArray2;
+                            object = object2;
                             break block19;
                         }
                         catch (Throwable throwable) {
-                            objectArray = object;
+                            object = object3;
                         }
                         catch (Exception exception) {
-                            objectArray2 = null;
+                            object2 = null;
                             break block20;
                         }
                     }
-                    if (objectArray != null) {
-                        objectArray.recycle();
+                    if (object != null) {
+                        object.recycle();
                     }
-                    throw var1_4;
+                    throw var2_5;
                     catch (Exception exception) {}
                 }
                 n5 = n4;
-                if (objectArray2 == null) break block21;
+                if (object2 == null) break block21;
                 n5 = n4;
-                object = objectArray2;
+                object3 = object2;
             }
-            object.recycle();
+            object3.recycle();
         }
         if (n5 != 0) {
             if (n5 == 1) {
-                objectArray2 = new f(this, this.d, (AttributeSet)objectArray, n3);
-                object = m0.v(this.d, (AttributeSet)objectArray, c.j.Spinner, n3, 0);
-                this.i = ((m0)object).m(c.j.Spinner_android_dropDownWidth, -2);
-                objectArray2.b(((m0)object).g(c.j.Spinner_android_popupBackground));
-                objectArray2.i(m02.o(c.j.Spinner_android_prompt));
-                ((m0)object).x();
-                this.h = objectArray2;
-                this.e = new c0(this, (View)this, (f)objectArray2){
+                object3 = new f(this, this.d, attributeSet, n3);
+                object2 = m0.v(this.d, attributeSet, c.j.Spinner, n3, 0);
+                this.i = ((m0)object2).m(c.j.Spinner_android_dropDownWidth, -2);
+                ((ListPopupWindow)object3).b(((m0)object2).g(c.j.Spinner_android_popupBackground));
+                ((f)object3).i(m02.o(c.j.Spinner_android_prompt));
+                ((m0)object2).x();
+                this.h = object3;
+                this.e = new c0(this, (View)this, (f)object3){
                     public final f l;
                     public final AppCompatSpinner m;
                     {
@@ -190,24 +190,23 @@ extends Spinner {
                 };
             }
         } else {
-            objectArray2 = new d(this);
-            this.h = objectArray2;
-            objectArray2.i(m02.o(c.j.Spinner_android_prompt));
+            this.h = object2 = new d(this);
+            object2.i(m02.o(c.j.Spinner_android_prompt));
         }
-        objectArray2 = m02.q(c.j.Spinner_android_entries);
-        if (objectArray2 != null) {
-            context = new ArrayAdapter(context, 17367048, objectArray2);
-            context.setDropDownViewResource(c.g.support_simple_spinner_dropdown_item);
-            this.setAdapter((SpinnerAdapter)context);
+        object2 = m02.q(c.j.Spinner_android_entries);
+        if (object2 != null) {
+            object = new ArrayAdapter((Context)object, 17367048, (Object[])object2);
+            object.setDropDownViewResource(c.g.support_simple_spinner_dropdown_item);
+            this.setAdapter((SpinnerAdapter)object);
         }
         m02.x();
         this.g = true;
-        context = this.f;
-        if (context != null) {
-            this.setAdapter((SpinnerAdapter)context);
+        object = this.f;
+        if (object != null) {
+            this.setAdapter((SpinnerAdapter)object);
             this.f = null;
         }
-        this.c.e((AttributeSet)objectArray, n3);
+        this.c.e(attributeSet, n3);
     }
 
     public int a(SpinnerAdapter spinnerAdapter, Drawable drawable) {
@@ -589,12 +588,12 @@ extends Spinner {
             if (this.d == null) {
                 return;
             }
-            a.a a4 = new a.a(this.f.getPopupContext());
-            Object object = this.e;
-            if (object != null) {
-                a4.h((CharSequence)object);
+            Object object = new a.a(this.f.getPopupContext());
+            CharSequence charSequence = this.e;
+            if (charSequence != null) {
+                ((a.a)object).h(charSequence);
             }
-            this.c = object = a4.g(this.d, this.f.getSelectedItemPosition(), this).a();
+            this.c = object = ((a.a)object).g(this.d, this.f.getSelectedItemPosition(), this).a();
             object = ((androidx.appcompat.app.a)object).l();
             object.setTextDirection(n3);
             object.setTextAlignment(n4);

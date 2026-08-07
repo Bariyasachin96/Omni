@@ -36,9 +36,9 @@ extends s {
             public void getOutline(View object, Outline outline) {
                 object = this.a;
                 if (object.c != null && !object.d.isEmpty()) {
-                    object = this.a;
-                    RectF rectF = object.d;
-                    outline.setRoundRect((int)rectF.left, (int)rectF.top, (int)rectF.right, (int)rectF.bottom, ((t)object).g);
+                    t t3 = this.a;
+                    object = t3.d;
+                    outline.setRoundRect((int)object.left, (int)object.top, (int)object.right, (int)object.bottom, t3.g);
                 }
             }
         });

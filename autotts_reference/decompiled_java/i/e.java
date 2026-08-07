@@ -54,14 +54,14 @@ implements Menu {
 
     public int addIntentOptions(int n3, int n4, int n5, ComponentName componentName, Intent[] intentArray, Intent intent, int n6, MenuItem[] menuItemArray) {
         MenuItem[] menuItemArray2 = menuItemArray != null ? new MenuItem[menuItemArray.length] : null;
-        n5 = this.d.addIntentOptions(n3, n4, n5, componentName, intentArray, intent, n6, menuItemArray2);
+        n4 = this.d.addIntentOptions(n3, n4, n5, componentName, intentArray, intent, n6, menuItemArray2);
         if (menuItemArray2 != null) {
-            n4 = menuItemArray2.length;
-            for (n3 = 0; n3 < n4; ++n3) {
+            n5 = menuItemArray2.length;
+            for (n3 = 0; n3 < n5; ++n3) {
                 menuItemArray[n3] = this.c(menuItemArray2[n3]);
             }
         }
-        return n5;
+        return n4;
     }
 
     public SubMenu addSubMenu(int n3) {

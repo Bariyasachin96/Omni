@@ -71,10 +71,10 @@ extends RecyclerView.t {
                     }
                     object = this.g;
                     if (((a)object).c != 0) break block14;
-                    n4 = this.h;
-                    int n5 = ((a)object).a;
-                    if (n4 != n5) {
-                        this.d(n5);
+                    int n5 = this.h;
+                    n4 = ((a)object).a;
+                    if (n5 != n4) {
+                        this.d(n4);
                     }
                 }
                 this.e(0);

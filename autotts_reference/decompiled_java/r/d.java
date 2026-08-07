@@ -187,18 +187,18 @@ public class d {
 
     public void E() {
         Object object;
+        c c3;
         int n3 = 0;
         while (true) {
-            object = this.o;
-            i[] iArray = ((c)object).d;
-            if (n3 >= iArray.length) break;
-            object = iArray[n3];
-            if (object != null) {
+            c3 = this.o;
+            object = c3.d;
+            if (n3 >= ((i[])object).length) break;
+            if ((object = object[n3]) != null) {
                 ((i)object).e();
             }
             ++n3;
         }
-        ((c)object).c.c(this.p, this.q);
+        c3.c.c(this.p, this.q);
         this.q = 0;
         Arrays.fill(this.o.d, null);
         object = this.d;
@@ -247,27 +247,27 @@ public class d {
     }
 
     public void b(u.e object, u.e object2, float f3, int n3) {
-        Object object3 = d.a.d;
-        i i3 = this.q(((u.e)object).q((d.a)((Object)object3)));
-        Object object4 = d.a.e;
-        i i4 = this.q(((u.e)object).q((d.a)((Object)object4)));
-        Object object5 = d.a.f;
-        i i5 = this.q(((u.e)object).q((d.a)((Object)object5)));
-        Object object6 = d.a.g;
-        object = this.q(((u.e)object).q((d.a)((Object)object6)));
+        d.a a4 = d.a.d;
+        i i3 = this.q(((u.e)object).q(a4));
+        Object object3 = d.a.e;
+        i i4 = this.q(((u.e)object).q((d.a)((Object)object3)));
+        Object object4 = d.a.f;
+        i i5 = this.q(((u.e)object).q((d.a)((Object)object4)));
+        Object object5 = d.a.g;
+        i i6 = this.q(((u.e)object).q((d.a)((Object)object5)));
+        object = this.q(((u.e)object2).q(a4));
         object3 = this.q(((u.e)object2).q((d.a)((Object)object3)));
         object4 = this.q(((u.e)object2).q((d.a)((Object)object4)));
-        object5 = this.q(((u.e)object2).q((d.a)((Object)object5)));
-        object6 = this.q(((u.e)object2).q((d.a)((Object)object6)));
-        object2 = this.r();
+        object2 = this.q(((u.e)object2).q((d.a)((Object)object5)));
+        object5 = this.r();
         double d3 = f3;
         double d4 = Math.sin(d3);
         double d5 = n3;
-        ((r.b)object2).q(i4, (i)object, (i)object4, (i)object6, (float)(d4 * d5));
+        ((r.b)object5).q(i4, i6, (i)object3, (i)object2, (float)(d4 * d5));
+        this.d((r.b)object5);
+        object2 = this.r();
+        ((r.b)object2).q(i3, i5, (i)object, (i)object4, (float)(Math.cos(d3) * d5));
         this.d((r.b)object2);
-        object = this.r();
-        ((r.b)object).q(i3, i5, (i)object3, (i)object5, (float)(Math.cos(d3) * d5));
-        this.d((r.b)object);
     }
 
     public void c(i i3, i i4, int n3, float f3, i i5, i i6, int n4, int n5) {
@@ -592,17 +592,17 @@ public class d {
         return i3;
     }
 
-    public final int u(a a4) {
+    public final int u(a object) {
         for (int i3 = 0; i3 < this.m; ++i3) {
-            a4 = this.h[i3];
-            if (((r.b)a4).a.l == i.a.c) continue;
-            float f3 = ((r.b)a4).b;
+            object = this.h[i3];
+            if (((r.b)object).a.l == i.a.c) continue;
+            float f3 = ((r.b)object).b;
             float f4 = 0.0f;
             if (!(f3 < 0.0f)) continue;
             boolean bl = false;
             i3 = 0;
             while (!bl) {
-                i i4;
+                Object object2;
                 int n3 = i3 + 1;
                 f3 = Float.MAX_VALUE;
                 int n4 = 0;
@@ -625,8 +625,8 @@ public class d {
                                         n11 = this.m;
                                         n9 = 1;
                                         if (n4 >= n11) break;
-                                        a4 = this.h[n4];
-                                        if (((r.b)a4).a.l != i.a.c) break block16;
+                                        object = this.h[n4];
+                                        if (((r.b)object).a.l != i.a.c) break block16;
                                         f6 = f4;
                                         f5 = f3;
                                         n8 = i3;
@@ -634,7 +634,7 @@ public class d {
                                         n11 = n6;
                                         break block17;
                                     }
-                                    if (!((r.b)a4).f) break block18;
+                                    if (!((r.b)object).f) break block18;
                                     f6 = f4;
                                     f5 = f3;
                                     n8 = i3;
@@ -647,9 +647,9 @@ public class d {
                                 n8 = i3;
                                 n7 = n5;
                                 n11 = n6;
-                                if (!(((r.b)a4).b < f4)) break block17;
+                                if (!(((r.b)object).b < f4)) break block17;
                                 if (!v) break block19;
-                                int n12 = ((r.b)a4).e.f();
+                                int n12 = ((r.b)object).e.f();
                                 n9 = 0;
                                 while (true) {
                                     block21: {
@@ -660,13 +660,13 @@ public class d {
                                             n7 = n5;
                                             n11 = n6;
                                             if (n9 >= n12) break;
-                                            i4 = ((r.b)a4).e.h(n9);
-                                            f6 = ((r.b)a4).e.c(i4);
+                                            object2 = ((r.b)object).e.h(n9);
+                                            f6 = ((r.b)object).e.c((i)object2);
                                             if (!(f6 <= f4)) break block20;
                                             f5 = f3;
-                                            n7 = i3;
+                                            n8 = i3;
                                             n10 = n5;
-                                            n8 = n6;
+                                            n7 = n6;
                                             break block21;
                                         }
                                         n7 = 0;
@@ -676,16 +676,16 @@ public class d {
                                             block23: {
                                                 block22: {
                                                     f5 = f3;
-                                                    n7 = n11;
+                                                    n8 = n11;
                                                     n10 = n5;
-                                                    n8 = n6;
+                                                    n7 = n6;
                                                     if (i3 >= 9) break;
-                                                    f5 = i4.j[i3] / f6;
+                                                    f5 = ((i)object2).j[i3] / f6;
                                                     if (f5 < f3 && i3 == n6) break block22;
                                                     n7 = n6;
                                                     if (i3 <= n6) break block23;
                                                 }
-                                                n5 = i4.e;
+                                                n5 = ((i)object2).e;
                                                 n7 = i3;
                                                 n11 = n4;
                                                 f3 = f5;
@@ -696,13 +696,14 @@ public class d {
                                     }
                                     ++n9;
                                     f3 = f5;
-                                    i3 = n7;
+                                    i3 = n8;
                                     n5 = n10;
-                                    n6 = n8;
+                                    n6 = n7;
                                 }
                             }
                             f4 = f6;
-                            n9 = n11;
+                            n9 = n8;
+                            n8 = n11;
                             break block24;
                         }
                         f6 = f4;
@@ -711,18 +712,18 @@ public class d {
                             block26: {
                                 block25: {
                                     f5 = f3;
-                                    n8 = i3;
+                                    n9 = i3;
                                     n7 = n5;
-                                    n9 = n6;
+                                    n8 = n6;
                                     f4 = f6;
                                     if (n11 >= this.l) break;
-                                    i4 = this.o.d[n11];
-                                    f5 = ((r.b)a4).e.c(i4);
+                                    object2 = this.o.d[n11];
+                                    f5 = ((r.b)object).e.c((i)object2);
                                     if (!(f5 <= f6)) break block25;
                                     f4 = f3;
-                                    n9 = i3;
-                                    n8 = n5;
-                                    n10 = n6;
+                                    n10 = i3;
+                                    n9 = n5;
+                                    n8 = n6;
                                     break block26;
                                 }
                                 n8 = 0;
@@ -732,11 +733,11 @@ public class d {
                                     block28: {
                                         block27: {
                                             f4 = f3;
-                                            n9 = n7;
-                                            n8 = n5;
-                                            n10 = n6;
+                                            n10 = n7;
+                                            n9 = n5;
+                                            n8 = n6;
                                             if (i3 >= 9) break;
-                                            f4 = i4.j[i3] / f5;
+                                            f4 = ((i)object2).j[i3] / f5;
                                             if (f4 < f3 && i3 == n6) break block27;
                                             n8 = n6;
                                             if (i3 <= n6) break block28;
@@ -752,24 +753,24 @@ public class d {
                             }
                             ++n11;
                             f3 = f4;
-                            i3 = n9;
-                            n5 = n8;
-                            n6 = n10;
+                            i3 = n10;
+                            n5 = n9;
+                            n6 = n8;
                         }
                     }
                     ++n4;
                     f3 = f5;
-                    i3 = n8;
+                    i3 = n9;
                     n5 = n7;
-                    n6 = n9;
+                    n6 = n8;
                 }
                 if (i3 != -1) {
-                    a4 = this.h[i3];
-                    ((r.b)a4).a.f = -1;
-                    ((r.b)a4).x(this.o.d[n5]);
-                    i4 = ((r.b)a4).a;
-                    i4.f = i3;
-                    i4.h(this, (r.b)a4);
+                    object2 = this.h[i3];
+                    ((r.b)object2).a.f = -1;
+                    ((r.b)object2).x(this.o.d[n5]);
+                    object = ((r.b)object2).a;
+                    ((i)object).f = i3;
+                    ((i)object).h(this, (r.b)object2);
                 } else {
                     bl = true;
                 }

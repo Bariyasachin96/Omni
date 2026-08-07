@@ -50,11 +50,11 @@ implements ReflectedParcelable {
     }
 
     public void writeToParcel(Parcel parcel, int n3) {
-        int n4 = this.c;
-        n3 = b.a(parcel);
-        b.g(parcel, 1, n4);
+        n3 = this.c;
+        int n4 = b.a(parcel);
+        b.g(parcel, 1, n3);
         b.l(parcel, 2, this.o(), false);
-        b.b(parcel, n3);
+        b.b(parcel, n4);
     }
 }
 

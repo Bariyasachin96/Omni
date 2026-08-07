@@ -45,10 +45,10 @@ public abstract class v {
     }
 
     public static Calendar e(Calendar calendar) {
-        calendar = v.n(calendar);
-        Calendar calendar2 = v.m();
-        calendar2.set(calendar.get(1), calendar.get(2), calendar.get(5));
-        return calendar2;
+        Calendar calendar2 = v.n(calendar);
+        calendar = v.m();
+        calendar.set(calendar2.get(1), calendar2.get(2), calendar2.get(5));
+        return calendar;
     }
 
     public static SimpleDateFormat f() {

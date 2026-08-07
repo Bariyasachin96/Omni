@@ -654,11 +654,11 @@ implements r {
         }
         boolean bl = this.w0(nArray);
         boolean bl2 = this.A0();
-        bl = bl || bl2;
-        if (bl) {
+        bl2 = bl || bl2;
+        if (bl2) {
             this.invalidateSelf();
         }
-        return bl;
+        return bl2;
     }
 
     public final PorterDuffColorFilter p(ColorStateList colorStateList, PorterDuff.Mode mode, Paint paint, boolean bl) {
@@ -819,8 +819,8 @@ implements r {
         } else {
             bl = false;
         }
-        if (this.d.f != null && (n4 = this.r.getColor()) != (n3 = this.d.f.getColorForState(nArray, n4))) {
-            this.r.setColor(n3);
+        if (this.d.f != null && (n3 = this.r.getColor()) != (n4 = this.d.f.getColorForState(nArray, n3))) {
+            this.r.setColor(n4);
             return true;
         }
         return bl;

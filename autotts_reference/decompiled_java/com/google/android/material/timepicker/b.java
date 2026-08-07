@@ -27,9 +27,9 @@ implements InputFilter {
             try {
                 StringBuilder stringBuilder = new StringBuilder((CharSequence)spanned);
                 stringBuilder.replace(n5, n6, charSequence.subSequence(n3, n4).toString());
-                n4 = Integer.parseInt(stringBuilder.toString());
-                n3 = this.a;
-                if (n4 > n3) break block3;
+                n3 = Integer.parseInt(stringBuilder.toString());
+                n4 = this.a;
+                if (n3 > n4) break block3;
                 return null;
             }
             catch (NumberFormatException numberFormatException) {

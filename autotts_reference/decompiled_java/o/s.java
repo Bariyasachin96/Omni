@@ -105,45 +105,44 @@ implements Cloneable {
     }
 
     public void g(int n3, Object object) {
-        int n4;
         Object[] objectArray;
-        int n5 = a.a(this.d, this.f, n3);
-        if (n5 >= 0) {
+        int n4 = a.a(this.d, this.f, n3);
+        if (n4 >= 0) {
+            this.e[n4] = object;
+            return;
+        }
+        int n5 = ~n4;
+        if (n5 < this.f && this.e[n5] == t.b()) {
+            this.d[n5] = n3;
             this.e[n5] = object;
             return;
         }
-        int n6 = ~n5;
-        if (n6 < this.f && this.e[n6] == t.b()) {
-            this.d[n6] = n3;
-            this.e[n6] = object;
-            return;
-        }
-        n5 = n6;
+        n4 = n5;
         if (this.c) {
-            n5 = n6;
+            n4 = n5;
             if (this.f >= this.d.length) {
                 t.a(this);
-                n5 = ~a.a(this.d, this.f, n3);
+                n4 = ~a.a(this.d, this.f, n3);
             }
         }
-        if ((n6 = this.f) >= this.d.length) {
-            n6 = a.e(n6 + 1);
-            objectArray = Arrays.copyOf(this.d, n6);
+        if ((n5 = this.f) >= this.d.length) {
+            n5 = a.e(n5 + 1);
+            objectArray = Arrays.copyOf(this.d, n5);
             k.d(objectArray, "copyOf(this, newSize)");
             this.d = objectArray;
-            objectArray = Arrays.copyOf(this.e, n6);
+            objectArray = Arrays.copyOf(this.e, n5);
             k.d(objectArray, "copyOf(this, newSize)");
             this.e = objectArray;
         }
-        if ((n4 = this.f) - n5 != 0) {
+        if ((n5 = this.f) - n4 != 0) {
             objectArray = this.d;
-            n6 = n5 + 1;
-            h.e(objectArray, objectArray, n6, n5, n4);
+            int n6 = n4 + 1;
+            h.e(objectArray, objectArray, n6, n4, n5);
             objectArray = this.e;
-            h.g(objectArray, objectArray, n6, n5, this.f);
+            h.g(objectArray, objectArray, n6, n4, this.f);
         }
-        this.d[n5] = n3;
-        this.e[n5] = object;
+        this.d[n4] = n3;
+        this.e[n4] = object;
         ++this.f;
     }
 
@@ -162,30 +161,29 @@ implements Cloneable {
     }
 
     public String toString() {
-        Object object;
         if (this.h() <= 0) {
             return "{}";
         }
-        StringBuilder stringBuilder = new StringBuilder(this.f * 28);
-        stringBuilder.append('{');
+        CharSequence charSequence = new StringBuilder(this.f * 28);
+        ((StringBuilder)charSequence).append('{');
         int n3 = this.f;
         for (int i3 = 0; i3 < n3; ++i3) {
             if (i3 > 0) {
-                stringBuilder.append(", ");
+                ((StringBuilder)charSequence).append(", ");
             }
-            stringBuilder.append(this.f(i3));
-            stringBuilder.append('=');
-            object = this.i(i3);
+            ((StringBuilder)charSequence).append(this.f(i3));
+            ((StringBuilder)charSequence).append('=');
+            Object object = this.i(i3);
             if (object != this) {
-                stringBuilder.append(object);
+                ((StringBuilder)charSequence).append(object);
                 continue;
             }
-            stringBuilder.append("(this Map)");
+            ((StringBuilder)charSequence).append("(this Map)");
         }
-        stringBuilder.append('}');
-        object = stringBuilder.toString();
-        k.d(object, "buffer.toString()");
-        return object;
+        ((StringBuilder)charSequence).append('}');
+        charSequence = ((StringBuilder)charSequence).toString();
+        k.d(charSequence, "buffer.toString()");
+        return charSequence;
     }
 }
 

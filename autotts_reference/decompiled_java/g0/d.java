@@ -150,7 +150,7 @@ lbl17:
         int n3;
         int n4;
         int n5;
-        a a4;
+        Object object;
         float[] fArray;
         block7: {
             if (string.charAt(0) == 'z') return new float[0];
@@ -159,7 +159,7 @@ lbl17:
             }
             try {
                 fArray = new float[string.length()];
-                a4 = new a();
+                object = new a();
                 n5 = string.length();
                 n4 = 1;
                 n3 = 0;
@@ -173,14 +173,14 @@ lbl17:
             throw new RuntimeException(stringBuilder.toString(), numberFormatException);
         }
         while (n4 < n5) {
-            d.g(string, n4, a4);
-            int n6 = a4.a;
+            d.g(string, n4, (a)object);
+            int n6 = ((a)object).a;
             int n7 = n3;
             if (n4 < n6) {
                 fArray[n3] = Float.parseFloat(string.substring(n4, n6));
                 n7 = n3 + 1;
             }
-            if (a4.b) {
+            if (((a)object).b) {
                 n4 = n6;
                 n3 = n7;
                 continue;
@@ -430,21 +430,22 @@ lbl17:
                                                                                                                                     f3 = 0.0f;
                                                                                                                                     f4 = 0.0f;
                                                                                                                                 } else {
-                                                                                                                                    f9 = f5 - f3;
-                                                                                                                                    f3 = f6 - f4;
-                                                                                                                                    f4 = f9;
+                                                                                                                                    f3 = f5 - f3;
+                                                                                                                                    f9 = f6 - f4;
+                                                                                                                                    f4 = f3;
+                                                                                                                                    f3 = f9;
                                                                                                                                 }
-                                                                                                                                f9 = fArray2[n7];
-                                                                                                                                n11 = n7 + 1;
-                                                                                                                                f10 = fArray2[n11];
-                                                                                                                                n10 = n7 + 2;
-                                                                                                                                f11 = fArray2[n10];
-                                                                                                                                n6 = n7 + 3;
-                                                                                                                                path.rCubicTo(f3, f4, f9, f10, f11, fArray2[n6]);
+                                                                                                                                f11 = fArray2[n7];
+                                                                                                                                n10 = n7 + 1;
+                                                                                                                                f9 = fArray2[n10];
+                                                                                                                                n6 = n7 + 2;
+                                                                                                                                f10 = fArray2[n6];
+                                                                                                                                n11 = n7 + 3;
+                                                                                                                                path.rCubicTo(f3, f4, f11, f9, f10, fArray2[n11]);
                                                                                                                                 f3 = fArray2[n7] + f6;
-                                                                                                                                f4 = fArray2[n11] + f5;
-                                                                                                                                f6 += fArray2[n10];
-                                                                                                                                f9 = fArray2[n6];
+                                                                                                                                f4 = fArray2[n10] + f5;
+                                                                                                                                f6 += fArray2[n6];
+                                                                                                                                f9 = fArray2[n11];
                                                                                                                                 break block43;
                                                                                                                             }
                                                                                                                             f9 = fArray2[n7];
@@ -491,17 +492,17 @@ lbl17:
                                                                                                 f9 = f6 * 2.0f - f4;
                                                                                                 f10 = f5 * 2.0f - f3;
                                                                                             }
-                                                                                            f4 = fArray2[n7];
+                                                                                            f6 = fArray2[n7];
                                                                                             n6 = n7 + 1;
-                                                                                            f5 = fArray2[n6];
-                                                                                            n11 = n7 + 2;
-                                                                                            f6 = fArray2[n11];
-                                                                                            n10 = n7 + 3;
-                                                                                            path.cubicTo(f9, f10, f4, f5, f6, fArray2[n10]);
+                                                                                            f4 = fArray2[n6];
+                                                                                            n10 = n7 + 2;
+                                                                                            f5 = fArray2[n10];
+                                                                                            n11 = n7 + 3;
+                                                                                            path.cubicTo(f9, f10, f6, f4, f5, fArray2[n11]);
                                                                                             f3 = fArray2[n7];
                                                                                             f4 = fArray2[n6];
-                                                                                            f6 = fArray2[n11];
-                                                                                            f5 = fArray2[n10];
+                                                                                            f6 = fArray2[n10];
+                                                                                            f5 = fArray2[n11];
                                                                                             break block51;
                                                                                         }
                                                                                         f9 = fArray2[n7];
@@ -535,13 +536,13 @@ lbl17:
                                                                 f5 += f9;
                                                                 break block42;
                                                             }
-                                                            f3 = fArray2[n7];
+                                                            f4 = fArray2[n7];
                                                             n10 = n7 + 1;
                                                             f9 = fArray2[n10];
                                                             n11 = n7 + 2;
-                                                            f4 = fArray2[n11];
+                                                            f3 = fArray2[n11];
                                                             n6 = n7 + 3;
-                                                            path.rQuadTo(f3, f9, f4, fArray2[n6]);
+                                                            path.rQuadTo(f4, f9, f3, fArray2[n6]);
                                                             f3 = fArray2[n7] + f6;
                                                             f4 = fArray2[n10] + f5;
                                                             f6 += fArray2[n11];
@@ -558,20 +559,20 @@ lbl17:
                                                     f6 += fArray2[n7];
                                                     break block42;
                                                 }
-                                                f4 = fArray2[n7];
+                                                f9 = fArray2[n7];
                                                 f3 = fArray2[n7 + 1];
-                                                n11 = n7 + 2;
-                                                f11 = fArray2[n11];
-                                                n6 = n7 + 3;
-                                                f9 = fArray2[n6];
-                                                n12 = n7 + 4;
-                                                f10 = fArray2[n12];
-                                                n10 = n7 + 5;
-                                                path.rCubicTo(f4, f3, f11, f9, f10, fArray2[n10]);
-                                                f4 = fArray2[n11];
-                                                f3 = fArray2[n6];
-                                                f10 = f6 + fArray2[n12];
-                                                f9 = f5 + fArray2[n10];
+                                                n6 = n7 + 2;
+                                                f10 = fArray2[n6];
+                                                n12 = n7 + 3;
+                                                f4 = fArray2[n12];
+                                                n10 = n7 + 4;
+                                                f11 = fArray2[n10];
+                                                n11 = n7 + 5;
+                                                path.rCubicTo(f9, f3, f10, f4, f11, fArray2[n11]);
+                                                f4 = fArray2[n6];
+                                                f3 = fArray2[n12];
+                                                f10 = f6 + fArray2[n10];
+                                                f9 = f5 + fArray2[n11];
                                                 f4 += f6;
                                                 f3 += f5;
                                                 f6 = f10;
@@ -579,15 +580,15 @@ lbl17:
                                                 break block42;
                                             }
                                             n12 = n7 + 5;
-                                            f10 = fArray2[n12];
+                                            f4 = fArray2[n12];
                                             n10 = n7 + 6;
-                                            f9 = fArray2[n10];
-                                            f11 = fArray2[n7];
-                                            f4 = fArray2[n7 + 1];
+                                            f10 = fArray2[n10];
+                                            f9 = fArray2[n7];
+                                            f11 = fArray2[n7 + 1];
                                             f3 = fArray2[n7 + 2];
                                             n11 = fArray2[n7 + 3] != 0.0f ? n3 : n4;
                                             n6 = fArray2[n7 + 4] != 0.0f ? n3 : n4;
-                                            g0.d$b.g(path, f6, f5, f10 + f6, f9 + f5, f11, f4, f3, n11 != 0, n6 != 0);
+                                            g0.d$b.g(path, f6, f5, f4 + f6, f10 + f5, f9, f11, f3, n11 != 0, n6 != 0);
                                             f4 = f6 += fArray2[n12];
                                             f3 = f5 += fArray2[n10];
                                             break block42;
@@ -596,55 +597,55 @@ lbl17:
                                         f5 = fArray2[n7];
                                         break block42;
                                     }
-                                    f5 = fArray2[n7];
+                                    f4 = fArray2[n7];
                                     n11 = n7 + 1;
                                     f6 = fArray2[n11];
-                                    n6 = n7 + 2;
-                                    f4 = fArray2[n6];
-                                    n10 = n7 + 3;
-                                    path.quadTo(f5, f6, f4, fArray2[n10]);
+                                    n10 = n7 + 2;
+                                    f5 = fArray2[n10];
+                                    n6 = n7 + 3;
+                                    path.quadTo(f4, f6, f5, fArray2[n6]);
                                     f3 = fArray2[n7];
                                     f4 = fArray2[n11];
-                                    f6 = fArray2[n6];
-                                    f5 = fArray2[n10];
+                                    f6 = fArray2[n10];
+                                    f5 = fArray2[n6];
                                 }
-                                f9 = f4;
-                                f4 = f3;
-                                f3 = f9;
+                                f9 = f3;
+                                f3 = f4;
+                                f4 = f9;
                                 break block42;
                             }
                             path.lineTo(fArray2[n7], f5);
                             f6 = fArray2[n7];
                             break block42;
                         }
-                        f9 = fArray2[n7];
-                        f6 = fArray2[n7 + 1];
-                        n11 = n7 + 2;
-                        f3 = fArray2[n11];
-                        n12 = n7 + 3;
-                        f4 = fArray2[n12];
-                        n10 = n7 + 4;
-                        f5 = fArray2[n10];
+                        f3 = fArray2[n7];
+                        f9 = fArray2[n7 + 1];
+                        n10 = n7 + 2;
+                        f4 = fArray2[n10];
+                        n11 = n7 + 3;
+                        f5 = fArray2[n11];
+                        n12 = n7 + 4;
+                        f6 = fArray2[n12];
                         n6 = n7 + 5;
-                        path.cubicTo(f9, f6, f3, f4, f5, fArray2[n6]);
-                        f6 = fArray2[n10];
+                        path.cubicTo(f3, f9, f4, f5, f6, fArray2[n6]);
+                        f6 = fArray2[n12];
                         f5 = fArray2[n6];
-                        f4 = fArray2[n11];
-                        f3 = fArray2[n12];
+                        f4 = fArray2[n10];
+                        f3 = fArray2[n11];
                         break block42;
                     }
-                    n10 = n7 + 5;
-                    f4 = fArray2[n10];
-                    n12 = n7 + 6;
-                    f3 = fArray2[n12];
-                    f11 = fArray2[n7];
-                    f10 = fArray2[n7 + 1];
-                    f9 = fArray2[n7 + 2];
+                    n12 = n7 + 5;
+                    f10 = fArray2[n12];
+                    n10 = n7 + 6;
+                    f11 = fArray2[n10];
+                    f9 = fArray2[n7];
+                    f3 = fArray2[n7 + 1];
+                    f4 = fArray2[n7 + 2];
                     n11 = fArray2[n7 + 3] != 0.0f ? n3 : n4;
                     n6 = fArray2[n7 + 4] != 0.0f ? n3 : n4;
-                    g0.d$b.g(path, f6, f5, f4, f3, f11, f10, f9, n11 != 0, n6 != 0);
-                    f4 = fArray2[n10];
-                    f3 = fArray2[n12];
+                    g0.d$b.g(path, f6, f5, f10, f11, f9, f3, f4, n11 != 0, n6 != 0);
+                    f4 = fArray2[n12];
+                    f3 = fArray2[n10];
                     f6 = f4;
                     f5 = f3;
                 }
@@ -656,41 +657,41 @@ lbl17:
         public static void f(Path path, double d3, double d4, double d5, double d6, double d7, double d8, double d9, double d10, double d11) {
             int n3 = (int)Math.ceil(Math.abs(d11 * 4.0 / Math.PI));
             double d12 = Math.cos(d9);
-            d9 = Math.sin(d9);
-            double d13 = Math.cos(d10);
+            double d13 = Math.sin(d9);
+            d9 = Math.cos(d10);
             double d14 = Math.sin(d10);
             double d15 = -d5;
             double d16 = d15 * d12;
-            double d17 = d6 * d9;
-            double d18 = d6 * d12;
-            double d19 = d11 / (double)n3;
-            double d20 = d14 * (d15 *= d9) + d13 * d18;
-            d11 = d16 * d14 - d17 * d13;
-            d6 = d8;
-            d8 = d20;
-            d20 = d10;
-            d10 = d6;
-            d6 = d15;
-            d15 = d7;
-            d7 = d19;
+            double d17 = d6 * d13;
+            double d18 = d15 * d13;
+            double d19 = d6 * d12;
+            double d20 = d11 / (double)n3;
+            d15 = d14 * d18 + d9 * d19;
+            d11 = d16 * d14 - d17 * d9;
+            d14 = d10;
+            d9 = d8;
+            d6 = d18;
+            d10 = d7;
+            d7 = d20;
+            d8 = d13;
             for (int i3 = 0; i3 < n3; ++i3) {
-                d13 = d20 + d7;
-                double d21 = Math.sin(d13);
-                double d22 = Math.cos(d13);
+                d18 = d14 + d7;
+                double d21 = Math.sin(d18);
+                double d22 = Math.cos(d18);
                 double d23 = d3 + d5 * d12 * d22 - d17 * d21;
-                d14 = d4 + d5 * d9 * d22 + d18 * d21;
-                d19 = d16 * d21 - d17 * d22;
-                d21 = d21 * d6 + d22 * d18;
-                d20 = d13 - d20;
-                d22 = Math.tan(d20 / 2.0);
-                d20 = Math.sin(d20) * (Math.sqrt(d22 * 3.0 * d22 + 4.0) - 1.0) / 3.0;
+                d20 = d4 + d5 * d8 * d22 + d19 * d21;
+                d13 = d16 * d21 - d17 * d22;
+                d22 = d21 * d6 + d22 * d19;
+                d14 = d18 - d14;
+                d21 = Math.tan(d14 / 2.0);
+                d14 = Math.sin(d14) * (Math.sqrt(d21 * 3.0 * d21 + 4.0) - 1.0) / 3.0;
                 path.rLineTo(0.0f, 0.0f);
-                path.cubicTo((float)(d15 + d11 * d20), (float)(d10 + d8 * d20), (float)(d23 - d20 * d19), (float)(d14 - d20 * d21), (float)d23, (float)d14);
-                d15 = d23;
-                d20 = d13;
-                d8 = d21;
-                d10 = d14;
-                d11 = d19;
+                path.cubicTo((float)(d10 + d11 * d14), (float)(d9 + d15 * d14), (float)(d23 - d14 * d13), (float)(d20 - d14 * d22), (float)d23, (float)d20);
+                d10 = d23;
+                d14 = d18;
+                d15 = d22;
+                d9 = d20;
+                d11 = d13;
             }
         }
 
@@ -728,9 +729,9 @@ lbl17:
                 g0.d$b.g(path, f3, f4, f5, f6, f7 * f10, f10 * f8, f9, bl, bl2);
                 return;
             }
-            d18 = Math.sqrt(d19);
-            d16 *= d18;
-            d17 = d18 * d17;
+            d19 = Math.sqrt(d19);
+            d16 *= d19;
+            d17 = d19 * d17;
             if (bl == bl2) {
                 d13 -= d17;
                 d10 += d16;
@@ -738,16 +739,16 @@ lbl17:
                 d13 += d17;
                 d10 -= d16;
             }
-            d12 = Math.atan2(d12 - d10, d9 - d13);
-            d14 = Math.atan2(d15 - d10, d14 - d13) - d12;
-            double d20 = d14 - 0.0;
+            d17 = Math.atan2(d12 - d10, d9 - d13);
+            d12 = Math.atan2(d15 - d10, d14 - d13) - d17;
+            double d20 = d12 - 0.0;
             double d21 = d20 == 0.0 ? 0 : (d20 > 0.0 ? 1 : -1);
             bl = d21 >= 0;
-            d9 = d14;
+            d9 = d12;
             if (bl2 != bl) {
-                d9 = d21 > 0 ? d14 - Math.PI * 2 : d14 + Math.PI * 2;
+                d9 = d21 > 0 ? d12 - Math.PI * 2 : d12 + Math.PI * 2;
             }
-            g0.d$b.f(path, (d13 *= d8) * d4 - (d10 *= d11) * d5, d13 * d5 + d10 * d4, d8, d11, d6, d7, d3, d12, d9);
+            g0.d$b.f(path, (d13 *= d8) * d4 - (d10 *= d11) * d5, d13 * d5 + d10 * d4, d8, d11, d6, d7, d3, d17, d9);
         }
 
         public static void h(b[] bArray, Path path) {

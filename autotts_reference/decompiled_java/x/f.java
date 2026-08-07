@@ -154,16 +154,15 @@ extends d {
 
     public void Y(HashMap hashMap) {
         for (Object object : hashMap.keySet()) {
-            Object object2;
             if (((String)object).startsWith("CUSTOM")) {
-                object2 = ((String)object).substring(7);
+                Object object2 = ((String)object).substring(7);
                 if ((object2 = (androidx.constraintlayout.widget.a)this.e.get(object2)) == null || ((androidx.constraintlayout.widget.a)object2).d() != a.a.d || (object = (c)hashMap.get(object)) == null) continue;
                 ((e)object).e(this.a, this.i, this.j, this.o, this.k, this.l, this.m, ((androidx.constraintlayout.widget.a)object2).e(), object2);
                 continue;
             }
             float f3 = this.Z((String)object);
-            if (Float.isNaN(f3) || (object2 = (c)hashMap.get(object)) == null) continue;
-            ((e)object2).d(this.a, this.i, this.j, this.o, this.k, this.l, this.m, f3);
+            if (Float.isNaN(f3) || (object = (c)hashMap.get(object)) == null) continue;
+            ((e)object).d(this.a, this.i, this.j, this.o, this.k, this.l, this.m, f3);
         }
     }
 
@@ -296,94 +295,94 @@ extends d {
 
     @Override
     public void a(HashMap hashMap) {
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("add ");
-        stringBuilder.append(hashMap.size());
-        stringBuilder.append(" values");
-        x.a.g("KeyCycle", stringBuilder.toString(), 2);
-        block32: for (String string : hashMap.keySet()) {
-            j j3 = (j)hashMap.get(string);
+        CharSequence charSequence2 = new StringBuilder();
+        ((StringBuilder)charSequence2).append("add ");
+        ((StringBuilder)charSequence2).append(hashMap.size());
+        ((StringBuilder)charSequence2).append(" values");
+        x.a.g("KeyCycle", ((StringBuilder)charSequence2).toString(), 2);
+        block32: for (CharSequence charSequence2 : hashMap.keySet()) {
+            j j3 = (j)hashMap.get(charSequence2);
             if (j3 == null) continue;
-            string.getClass();
-            int n3 = string.hashCode();
+            charSequence2.getClass();
+            int n3 = ((String)charSequence2).hashCode();
             int n4 = -1;
             switch (n3) {
                 default: {
                     break;
                 }
                 case 1530034690: {
-                    if (!string.equals("wavePhase")) break;
+                    if (!((String)charSequence2).equals("wavePhase")) break;
                     n4 = 13;
                     break;
                 }
                 case 156108012: {
-                    if (!string.equals("waveOffset")) break;
+                    if (!((String)charSequence2).equals("waveOffset")) break;
                     n4 = 12;
                     break;
                 }
                 case 92909918: {
-                    if (!string.equals("alpha")) break;
+                    if (!((String)charSequence2).equals("alpha")) break;
                     n4 = 11;
                     break;
                 }
                 case 37232917: {
-                    if (!string.equals("transitionPathRotate")) break;
+                    if (!((String)charSequence2).equals("transitionPathRotate")) break;
                     n4 = 10;
                     break;
                 }
                 case -4379043: {
-                    if (!string.equals("elevation")) break;
+                    if (!((String)charSequence2).equals("elevation")) break;
                     n4 = 9;
                     break;
                 }
                 case -40300674: {
-                    if (!string.equals("rotation")) break;
+                    if (!((String)charSequence2).equals("rotation")) break;
                     n4 = 8;
                     break;
                 }
                 case -908189617: {
-                    if (!string.equals("scaleY")) break;
+                    if (!((String)charSequence2).equals("scaleY")) break;
                     n4 = 7;
                     break;
                 }
                 case -908189618: {
-                    if (!string.equals("scaleX")) break;
+                    if (!((String)charSequence2).equals("scaleX")) break;
                     n4 = 6;
                     break;
                 }
                 case -1001078227: {
-                    if (!string.equals("progress")) break;
+                    if (!((String)charSequence2).equals("progress")) break;
                     n4 = 5;
                     break;
                 }
                 case -1225497655: {
-                    if (!string.equals("translationZ")) break;
+                    if (!((String)charSequence2).equals("translationZ")) break;
                     n4 = 4;
                     break;
                 }
                 case -1225497656: {
-                    if (!string.equals("translationY")) break;
+                    if (!((String)charSequence2).equals("translationY")) break;
                     n4 = 3;
                     break;
                 }
                 case -1225497657: {
-                    if (!string.equals("translationX")) break;
+                    if (!((String)charSequence2).equals("translationX")) break;
                     n4 = 2;
                     break;
                 }
                 case -1249320805: {
-                    if (!string.equals("rotationY")) break;
+                    if (!((String)charSequence2).equals("rotationY")) break;
                     n4 = 1;
                     break;
                 }
                 case -1249320806: {
-                    if (!string.equals("rotationX")) break;
+                    if (!((String)charSequence2).equals("rotationX")) break;
                     n4 = 0;
                 }
             }
             switch (n4) {
                 default: {
-                    string.startsWith("CUSTOM");
+                    ((String)charSequence2).startsWith("CUSTOM");
                     continue block32;
                 }
                 case 13: {

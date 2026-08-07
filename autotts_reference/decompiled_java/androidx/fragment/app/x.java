@@ -19,7 +19,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
@@ -77,10 +76,10 @@ public class x {
 
     public void e(String string, FileDescriptor object, PrintWriter printWriter, String[] stringArray) {
         int n3;
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(string);
-        stringBuilder.append("    ");
-        String string2 = stringBuilder.toString();
+        CharSequence charSequence = new StringBuilder();
+        charSequence.append(string);
+        charSequence.append("    ");
+        charSequence = charSequence.toString();
         if (!this.b.isEmpty()) {
             printWriter.print(string);
             printWriter.println("Active Fragments:");
@@ -89,7 +88,7 @@ public class x {
                 if (object2 != null) {
                     object2 = ((w)object2).k();
                     printWriter.println(object2);
-                    ((Fragment)object2).e(string2, (FileDescriptor)object, printWriter, stringArray);
+                    ((Fragment)object2).e((String)charSequence, (FileDescriptor)object, printWriter, stringArray);
                     continue;
                 }
                 printWriter.println("null");
@@ -277,15 +276,15 @@ public class x {
             ((w)object2).m();
             n4 = n5;
         }
-        for (w w3 : this.b.values()) {
-            if (w3 == null) continue;
-            w3.m();
-            object = w3.k();
+        for (Object object2 : this.b.values()) {
+            if (object2 == null) continue;
+            ((w)object2).m();
+            object = ((w)object2).k();
             if (!((Fragment)object).o || ((Fragment)object).Z()) continue;
             if (((Fragment)object).p && !this.c.containsKey(((Fragment)object).h)) {
-                w3.s();
+                ((w)object2).s();
             }
-            this.s(w3);
+            this.s((w)object2);
         }
     }
 
@@ -309,15 +308,15 @@ public class x {
     public void w(List object) {
         this.a.clear();
         if (object != null) {
-            Iterator iterator = object.iterator();
-            while (iterator.hasNext()) {
-                object = (String)iterator.next();
-                Object object2 = this.f((String)object);
-                if (object2 != null) {
+            Object object2 = object.iterator();
+            while (object2.hasNext()) {
+                object = (String)object2.next();
+                Fragment fragment = this.f((String)object);
+                if (fragment != null) {
                     if (FragmentManager.I0(2)) {
-                        object2.toString();
+                        ((Object)fragment).toString();
                     }
-                    this.a((Fragment)object2);
+                    this.a(fragment);
                     continue;
                 }
                 object2 = new StringBuilder();

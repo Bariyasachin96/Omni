@@ -31,12 +31,12 @@ public abstract class b0 {
             for (int i3 = n3; i3 < list.size(); ++i3) {
                 view = (View)list.get(i3);
                 if (!(view instanceof ViewGroup)) continue;
-                view = (ViewGroup)view;
-                int n4 = view.getChildCount();
+                ViewGroup viewGroup = (ViewGroup)view;
+                int n4 = viewGroup.getChildCount();
                 for (int i4 = 0; i4 < n4; ++i4) {
-                    View view2 = view.getChildAt(i4);
-                    if (b0.g(list, view2, n3) || x0.F(view2) == null) continue;
-                    list.add(view2);
+                    view = viewGroup.getChildAt(i4);
+                    if (b0.g(list, view, n3) || x0.F(view) == null) continue;
+                    list.add(view);
                 }
             }
         }

@@ -135,10 +135,9 @@ implements View.OnTouchListener {
         block4: {
             block3: {
                 block2: {
-                    f5 = a.e(f3 * f4, 0.0f, f5);
-                    f3 = this.g(f6, f5);
-                    f3 = this.g(f4 - f6, f5) - f3;
-                    if (!(f3 < 0.0f)) break block2;
+                    f3 = a.e(f3 * f4, 0.0f, f5);
+                    f5 = this.g(f6, f3);
+                    if (!((f3 = this.g(f4 - f6, f3) - f5) < 0.0f)) break block2;
                     f3 = -this.d.getInterpolation(-f3);
                     break block3;
                 }

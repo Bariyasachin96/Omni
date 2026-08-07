@@ -202,15 +202,15 @@ implements c {
             Paint paint = this.R;
             String string = this.q;
             paint.getTextBounds(string, 0, string.length(), this.Q);
-            n7 = this.Q.width();
+            n5 = this.Q.width();
             f3 = (float)this.Q.height() * 1.3f;
             f4 = f8 - (float)this.u - (float)this.t;
-            f6 = f7 - (float)this.w - (float)this.v;
-            f5 = n7;
-            if (f5 * f6 > f3 * f4) {
-                this.c.setTextSize(this.S * f4 / f5);
+            f5 = f7 - (float)this.w - (float)this.v;
+            f6 = n5;
+            if (f6 * f5 > f3 * f4) {
+                this.c.setTextSize(this.S * f4 / f6);
             } else {
-                this.c.setTextSize(this.S * f6 / f3);
+                this.c.setTextSize(this.S * f5 / f3);
             }
             if (this.g || !Float.isNaN(this.m)) {
                 f3 = Float.isNaN(this.m) ? 1.0f : this.l / this.m;
@@ -522,9 +522,9 @@ implements c {
             if (this.P != 0) {
                 this.H = this.e(this.H, 4);
             }
-            canvas = this.H;
-            Shader.TileMode tileMode = Shader.TileMode.REPEAT;
-            this.I = new BitmapShader((Bitmap)canvas, tileMode, tileMode);
+            Bitmap bitmap = this.H;
+            canvas = Shader.TileMode.REPEAT;
+            this.I = new BitmapShader(bitmap, (Shader.TileMode)canvas, (Shader.TileMode)canvas);
         }
     }
 
@@ -607,10 +607,10 @@ implements c {
         super.onDraw(canvas);
         if (!this.g && f3 == 1.0f) {
             float f4 = this.t;
-            float f5 = this.getHorizontalOffset();
-            float f6 = this.v;
-            f3 = this.getVerticalOffset();
-            canvas.drawText(this.q, this.C + (f4 + f5), f6 + f3, (Paint)this.c);
+            f3 = this.getHorizontalOffset();
+            float f5 = this.v;
+            float f6 = this.getVerticalOffset();
+            canvas.drawText(this.q, this.C + (f4 + f3), f5 + f6, (Paint)this.c);
             return;
         }
         if (this.r) {

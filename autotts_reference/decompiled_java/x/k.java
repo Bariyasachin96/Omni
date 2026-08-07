@@ -123,9 +123,9 @@ extends d {
         if (!bl) {
             string = ((String)object).substring(1).toLowerCase(Locale.ROOT);
         }
-        for (String string2 : this.e.keySet()) {
-            Object object2 = string2.toLowerCase(Locale.ROOT);
-            if (!bl && !((String)object2).matches(string) || (object2 = (androidx.constraintlayout.widget.a)this.e.get(string2)) == null) continue;
+        for (Object object2 : this.e.keySet()) {
+            String string2 = ((String)object2).toLowerCase(Locale.ROOT);
+            if (!bl && !string2.matches(string) || (object2 = (androidx.constraintlayout.widget.a)this.e.get(object2)) == null) continue;
             ((androidx.constraintlayout.widget.a)object2).a(view);
         }
     }
@@ -431,13 +431,14 @@ extends d {
                         continue block15;
                     }
                     case 8: {
-                        k3.a = n4 = typedArray.getInteger(n4, k3.a);
-                        x.k.m(k3, ((float)n4 + 0.5f) / 100.0f);
+                        int n5;
+                        k3.a = n5 = typedArray.getInteger(n4, k3.a);
+                        x.k.m(k3, ((float)n5 + 0.5f) / 100.0f);
                         continue block15;
                     }
                     case 7: {
+                        int n5;
                         if (MotionLayout.f1) {
-                            int n5;
                             k3.b = n5 = typedArray.getResourceId(n4, k3.b);
                             if (n5 != -1) continue block15;
                             k3.c = typedArray.getString(n4);

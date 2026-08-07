@@ -121,7 +121,7 @@ extends CoordinatorLayout.Behavior<V> {
             int n4 = view.getWidth();
             if (this.n(view, f3)) {
                 int n5;
-                n3 = !(f3 < 0.0f) && (n3 = view.getLeft()) >= (n5 = this.a) ? n5 + n4 : this.a - n4;
+                n3 = !(f3 < 0.0f) && (n5 = view.getLeft()) >= (n3 = this.a) ? (n3 += n4) : this.a - n4;
                 bl = true;
             } else {
                 n3 = this.a;
@@ -168,9 +168,9 @@ extends CoordinatorLayout.Behavior<V> {
                 return false;
             }
             int n4 = view.getLeft();
-            f5 = this.a;
-            int n5 = Math.round((float)view.getWidth() * this.c.i);
-            return Math.abs(n4 - f5) >= n5;
+            int n5 = this.a;
+            f5 = Math.round((float)view.getWidth() * this.c.i);
+            return Math.abs(n4 - n5) >= f5;
         }
     };
 

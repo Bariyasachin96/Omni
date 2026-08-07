@@ -315,12 +315,10 @@ implements i.f {
                     n3 = n5;
                 }
                 popupWindow = this.H;
-                if (this.p || this.o) {
-                    bl4 = false;
-                }
-                popupWindow.setOutsideTouchable(bl4);
-                PopupWindow popupWindow2 = this.H;
-                popupWindow = this.t();
+                bl3 = !this.p && !this.o ? bl4 : false;
+                popupWindow.setOutsideTouchable(bl3);
+                popupWindow = this.H;
+                View view = this.t();
                 int n6 = this.h;
                 n5 = this.i;
                 if (n4 < 0) {
@@ -329,7 +327,7 @@ implements i.f {
                 if (n3 < 0) {
                     n3 = -1;
                 }
-                popupWindow2.update((View)popupWindow, n6, n5, n4, n3);
+                popupWindow.update(view, n6, n5, n4, n3);
                 return;
             }
         } else {
@@ -353,8 +351,10 @@ implements i.f {
             this.H.setHeight(n3);
             this.O(true);
             Object object = this.H;
-            bl4 = !this.p && !this.o ? bl3 : false;
-            object.setOutsideTouchable(bl4);
+            if (this.p || this.o) {
+                bl3 = false;
+            }
+            object.setOutsideTouchable(bl3);
             this.H.setTouchInterceptor((View.OnTouchListener)this.z);
             if (this.m) {
                 androidx.core.widget.i.a(this.H, this.l);

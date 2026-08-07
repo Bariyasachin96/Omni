@@ -130,15 +130,15 @@ implements DateSelector<Long> {
     public View n(LayoutInflater object, ViewGroup object2, Bundle bundle, CalendarConstraints calendarConstraints, r r3) {
         int n3 = z1.i.mtrl_picker_text_input_date;
         boolean bl = false;
-        View view = object.inflate(n3, object2, false);
-        TextInputLayout textInputLayout = (TextInputLayout)view.findViewById(g.mtrl_picker_text_input_date);
-        bundle = textInputLayout.getEditText();
-        object = a.f(view.getContext(), z1.c.colorOnSurfaceVariant);
+        bundle = object.inflate(n3, object2, false);
+        TextInputLayout textInputLayout = (TextInputLayout)bundle.findViewById(g.mtrl_picker_text_input_date);
+        EditText editText = textInputLayout.getEditText();
+        object = a.f(bundle.getContext(), z1.c.colorOnSurfaceVariant);
         if (object != null) {
-            bundle.setHintTextColor(((Integer)object).intValue());
+            editText.setHintTextColor(((Integer)object).intValue());
         }
         if (i.b()) {
-            bundle.setInputType(17);
+            editText.setInputType(17);
         }
         if ((object = this.e) != null) {
             bl = true;
@@ -146,13 +146,13 @@ implements DateSelector<Long> {
         if (!bl) {
             object = v.f();
         }
-        object2 = bl ? ((SimpleDateFormat)object).toPattern() : v.g(view.getResources(), (SimpleDateFormat)object);
+        object2 = bl ? ((SimpleDateFormat)object).toPattern() : v.g(bundle.getResources(), (SimpleDateFormat)object);
         textInputLayout.setPlaceholderText((CharSequence)object2);
         Long l3 = this.d;
         if (l3 != null) {
-            bundle.setText((CharSequence)((Format)object).format(l3));
+            editText.setText((CharSequence)((Format)object).format(l3));
         }
-        bundle.addTextChangedListener((TextWatcher)new e(this, (String)object2, (DateFormat)object, textInputLayout, calendarConstraints, r3, textInputLayout){
+        editText.addTextChangedListener((TextWatcher)new e(this, (String)object2, (DateFormat)object, textInputLayout, calendarConstraints, r3, textInputLayout){
             public final r k;
             public final TextInputLayout l;
             public final SingleDateSelector m;
@@ -180,10 +180,10 @@ implements DateSelector<Long> {
                 this.k.b(this.m.s());
             }
         });
-        if (!DateSelector.l(view.getContext())) {
-            DateSelector.m(new EditText[]{bundle});
+        if (!DateSelector.l(bundle.getContext())) {
+            DateSelector.m(editText);
         }
-        return view;
+        return bundle;
     }
 
     public final void r() {

@@ -24,9 +24,9 @@ public abstract class j {
     public static final byte[] b = new byte[]{112, 114, 109, 0};
 
     public static void A(byte[] byArray, int n3, int n4, b b3) {
-        n4 = j.m(n3, n4, b3.g);
-        n3 = n4 / 8;
-        byArray[n3] = (byte)(1 << n4 % 8 | byArray[n3]);
+        n3 = j.m(n3, n4, b3.g);
+        n4 = n3 / 8;
+        byArray[n4] = (byte)(1 << n3 % 8 | byArray[n4]);
     }
 
     public static void B(InputStream inputStream) {
@@ -387,20 +387,20 @@ public abstract class j {
                 break;
             }
             try {
-                object2 = byteArrayOutputStream.toByteArray();
-                if (n3 != ((Object)object2).length) break block8;
-                object = new l(d.f, n3, (byte[])object2, true);
+                object = byteArrayOutputStream.toByteArray();
+                if (n3 != ((b[])object).length) break block8;
+                object = new l(d.f, n3, (byte[])object, true);
             }
             catch (Throwable throwable2) {}
             byteArrayOutputStream.close();
             return object;
         }
-        object = new StringBuilder();
-        ((StringBuilder)object).append("Expected size ");
-        ((StringBuilder)object).append(n3);
-        ((StringBuilder)object).append(", does not match actual size ");
-        ((StringBuilder)object).append(((Object)object2).length);
-        throw c.c(((StringBuilder)object).toString());
+        object2 = new StringBuilder();
+        ((StringBuilder)object2).append("Expected size ");
+        ((StringBuilder)object2).append(n3);
+        ((StringBuilder)object2).append(", does not match actual size ");
+        ((StringBuilder)object2).append(((b[])object).length);
+        throw c.c(((StringBuilder)object2).toString());
         try {
             byteArrayOutputStream.close();
             throw throwable2;

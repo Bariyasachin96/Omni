@@ -98,14 +98,14 @@ public abstract class a {
         }
         byte by2 = byArray[n3 + 3];
         if (by2 == 61) {
-            by2 = byArray3[byArray[n3]];
-            n3 = byArray3[byArray[n3 + 1]] << 24 >>> 12 | by2 << 24 >>> 6 | byArray3[by] << 24 >>> 18;
+            byte by3 = byArray3[byArray[n3]];
+            n3 = byArray3[byArray[n3 + 1]] << 24 >>> 12 | by3 << 24 >>> 6 | byArray3[by] << 24 >>> 18;
             byArray2[n4] = (byte)(n3 >>> 16);
             byArray2[n4 + 1] = (byte)(n3 >>> 8);
             return 2;
         }
-        byte by3 = byArray3[byArray[n3]];
-        n3 = byArray3[byArray[n3 + 1]] << 24 >>> 12 | by3 << 24 >>> 6 | byArray3[by] << 24 >>> 18 | byArray3[by2] << 24 >>> 24;
+        byte by4 = byArray3[byArray[n3]];
+        n3 = byArray3[byArray[n3 + 1]] << 24 >>> 12 | by4 << 24 >>> 6 | byArray3[by] << 24 >>> 18 | byArray3[by2] << 24 >>> 24;
         byArray2[n4] = (byte)(n3 >> 16);
         byArray2[n4 + 1] = (byte)(n3 >> 8);
         byArray2[n4 + 2] = (byte)n3;

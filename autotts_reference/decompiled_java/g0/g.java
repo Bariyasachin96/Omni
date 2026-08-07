@@ -24,7 +24,6 @@ import g0.f;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -44,19 +43,19 @@ extends f {
         Object object;
         Object object2;
         Object object3;
-        Executable executable;
-        Object object4;
+        Method method;
+        Method method2;
         Constructor constructor;
-        Object object5;
+        Class clazz;
         block3: {
             try {
-                object5 = this.t();
-                constructor = this.u((Class)object5);
-                object4 = this.q((Class)object5);
-                executable = this.r((Class)object5);
-                object3 = this.v((Class)object5);
-                object2 = this.p((Class)object5);
-                object = this.s((Class)object5);
+                clazz = this.t();
+                constructor = this.u(clazz);
+                method2 = this.q(clazz);
+                method = this.r(clazz);
+                object3 = this.v(clazz);
+                object2 = this.p(clazz);
+                object = this.s(clazz);
                 break block3;
             }
             catch (NoSuchMethodException noSuchMethodException) {
@@ -64,26 +63,19 @@ extends f {
             catch (ClassNotFoundException classNotFoundException) {
                 // empty catch block
             }
-            object5 = new StringBuilder();
-            ((StringBuilder)object5).append("Unable to collect necessary methods for class ");
-            ((StringBuilder)object5).append(constructor.getClass().getName());
-            Log.e((String)"TypefaceCompatApi26Impl", (String)((StringBuilder)object5).toString(), (Throwable)((Object)constructor));
-            Object var9_10 = null;
-            Object var10_11 = null;
-            Object var8_12 = null;
-            constructor = var8_12;
-            object = object4 = (object5 = constructor);
-            object2 = object4;
-            object3 = object5;
-            executable = constructor;
-            object4 = var8_12;
-            constructor = var10_11;
-            object5 = var9_10;
+            object3 = new StringBuilder();
+            ((StringBuilder)object3).append("Unable to collect necessary methods for class ");
+            ((StringBuilder)object3).append(method.getClass().getName());
+            Log.e((String)"TypefaceCompatApi26Impl", (String)((StringBuilder)object3).toString(), (Throwable)((Object)method));
+            clazz = null;
+            constructor = null;
+            method = method2 = null;
+            object = object2 = (object3 = method);
         }
-        this.g = object5;
+        this.g = clazz;
         this.h = constructor;
-        this.i = object4;
-        this.j = executable;
+        this.i = method2;
+        this.j = method;
         this.k = object3;
         this.l = object2;
         this.m = object;

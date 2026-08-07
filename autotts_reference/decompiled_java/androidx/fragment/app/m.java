@@ -53,7 +53,7 @@ implements LayoutInflater.Factory2 {
                             return null;
                         }
                         object5 = object4.getAttributeValue(null, "class");
-                        TypedArray typedArray = object3.obtainStyledAttributes(object4, a1.c.Fragment);
+                        TypedArray typedArray = object3.obtainStyledAttributes((AttributeSet)object4, a1.c.Fragment);
                         string2 = object5;
                         if (object5 == null) {
                             string2 = typedArray.getString(a1.c.Fragment_android_name);
@@ -99,13 +99,13 @@ implements LayoutInflater.Factory2 {
                         ((Fragment)object2).w = ((FragmentManager)object3).v0();
                         ((Fragment)object2).w0(this.c.v0().q(), (AttributeSet)object4, ((Fragment)object2).d);
                         object5 = this.c.j((Fragment)object2);
-                        object4 = object2;
-                        object3 = object5;
+                        object3 = object2;
+                        object4 = object5;
                         if (FragmentManager.I0(2)) {
                             object2.toString();
                             Integer.toHexString(n4);
-                            object4 = object2;
-                            object3 = object5;
+                            object3 = object2;
+                            object4 = object5;
                         }
                         break block20;
                     }
@@ -116,29 +116,29 @@ implements LayoutInflater.Factory2 {
                     ((Fragment)object2).w = ((FragmentManager)object3).v0();
                     ((Fragment)object2).w0(this.c.v0().q(), (AttributeSet)object4, ((Fragment)object2).d);
                     object5 = this.c.v((Fragment)object2);
-                    object4 = object2;
-                    object3 = object5;
+                    object3 = object2;
+                    object4 = object5;
                     if (FragmentManager.I0(2)) {
                         object2.toString();
                         Integer.toHexString(n4);
-                        object3 = object5;
-                        object4 = object2;
+                        object4 = object5;
+                        object3 = object2;
                     }
                 }
                 object = (ViewGroup)object;
-                b1.c.g((Fragment)object4, (ViewGroup)object);
-                object4.J = object;
-                ((w)object3).m();
-                ((w)object3).j();
-                object = object4.K;
+                b1.c.g((Fragment)object3, (ViewGroup)object);
+                ((Fragment)object3).J = object;
+                ((w)object4).m();
+                ((w)object4).j();
+                object = ((Fragment)object3).K;
                 if (object != null) {
                     if (n4 != 0) {
                         object.setId(n4);
                     }
-                    if (object4.K.getTag() == null) {
-                        object4.K.setTag((Object)string);
+                    if (((Fragment)object3).K.getTag() == null) {
+                        ((Fragment)object3).K.setTag((Object)string);
                     }
-                    object4.K.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener(this, (w)object3){
+                    ((Fragment)object3).K.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener(this, (w)object4){
                         public final w c;
                         public final m d;
                         {
@@ -155,7 +155,7 @@ implements LayoutInflater.Factory2 {
                         public void onViewDetachedFromWindow(View view) {
                         }
                     });
-                    return object4.K;
+                    return ((Fragment)object3).K;
                 }
                 object = new StringBuilder();
                 ((StringBuilder)object).append("Fragment ");

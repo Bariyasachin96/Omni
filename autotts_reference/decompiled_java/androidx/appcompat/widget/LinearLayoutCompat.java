@@ -107,6 +107,7 @@ extends ViewGroup {
 
     /*
      * Unable to fully structure code
+     * Could not resolve type clashes
      */
     public void e(Canvas var1_1) {
         block6: {
@@ -114,15 +115,15 @@ extends ViewGroup {
                 var4_2 = this.getVirtualChildCount();
                 var5_3 = t0.b((View)this);
                 for (var2_4 = 0; var2_4 < var4_2; ++var2_4) {
-                    var6_6 = this.q(var2_4);
-                    if (var6_6 == null || var6_6.getVisibility() == 8 || !this.r(var2_4)) continue;
-                    var7_7 = (LayoutParams)var6_6.getLayoutParams();
-                    var3_5 = var5_3 != false ? var6_6.getRight() + var7_7.rightMargin : var6_6.getLeft() - var7_7.leftMargin - this.n;
+                    var6_6 /* !! */  = this.q(var2_4);
+                    if (var6_6 /* !! */  == null || var6_6 /* !! */ .getVisibility() == 8 || !this.r(var2_4)) continue;
+                    var7_7 /* !! */  = (LayoutParams)var6_6 /* !! */ .getLayoutParams();
+                    var3_5 = var5_3 != false ? var6_6 /* !! */ .getRight() + var7_7 /* !! */ .rightMargin : var6_6 /* !! */ .getLeft() - var7_7 /* !! */ .leftMargin - this.n;
                     this.h(var1_1, var3_5);
                 }
                 if (!this.r(var4_2)) break block6;
-                var6_6 = this.q(var4_2 - 1);
-                if (var6_6 != null) ** GOTO lbl21
+                var7_7 /* !! */  = this.q(var4_2 - 1);
+                if (var7_7 /* !! */  != null) ** GOTO lbl21
                 if (var5_3) {
                     var2_4 = this.getPaddingLeft();
                 } else {
@@ -139,13 +140,13 @@ lbl18:
 lbl21:
                     // 1 sources
 
-                    var7_7 = (LayoutParams)var6_6.getLayoutParams();
+                    var6_6 /* !! */  = (LayoutParams)var7_7 /* !! */ .getLayoutParams();
                     if (var5_3) {
-                        var3_5 = var6_6.getLeft() - var7_7.leftMargin;
+                        var3_5 = var7_7 /* !! */ .getLeft() - var6_6 /* !! */ .leftMargin;
                         var2_4 = this.n;
                         ** continue;
                     }
-                    var2_4 = var6_6.getRight() + var7_7.rightMargin;
+                    var2_4 = var7_7 /* !! */ .getRight() + var6_6 /* !! */ .rightMargin;
                 }
             }
             this.h(var1_1, var2_4);
@@ -195,15 +196,15 @@ lbl21:
                 }
                 throw new RuntimeException("mBaselineAlignedChildIndex of LinearLayout points to a View that doesn't know how to get its baseline.");
             }
-            n3 = n4 = this.e;
+            n4 = n3 = this.e;
             if (this.f == 1) {
                 int n6 = this.g & 0x70;
-                n3 = n4;
+                n4 = n3;
                 if (n6 != 48) {
-                    n3 = n6 != 16 ? (n6 != 80 ? n4 : this.getBottom() - this.getTop() - this.getPaddingBottom() - this.h) : n4 + (this.getBottom() - this.getTop() - this.getPaddingTop() - this.getPaddingBottom() - this.h) / 2;
+                    n4 = n6 != 16 ? (n6 != 80 ? n3 : this.getBottom() - this.getTop() - this.getPaddingBottom() - this.h) : n3 + (this.getBottom() - this.getTop() - this.getPaddingTop() - this.getPaddingBottom() - this.h) / 2;
                 }
             }
-            return n3 + ((LayoutParams)view.getLayoutParams()).topMargin + n5;
+            return n4 + ((LayoutParams)view.getLayoutParams()).topMargin + n5;
         }
         throw new RuntimeException("mBaselineAlignedChildIndex of LinearLayout set to an index that is out of bounds.");
     }
@@ -453,10 +454,10 @@ lbl21:
                     }
                     n6 = layoutParams.leftMargin + n6;
                     this.y(view, this.o(view) + n6, n3, n20, n19);
-                    n18 = layoutParams.rightMargin;
-                    n17 = this.p(view);
+                    n17 = layoutParams.rightMargin;
+                    n18 = this.p(view);
                     n3 = this.n(view, n21) + n4;
-                    n6 += n18 + n20 + n17;
+                    n6 += n17 + n20 + n18;
                     break block8;
                 }
                 n3 = n4;
@@ -521,9 +522,10 @@ lbl21:
     }
 
     public void setHorizontalGravity(int n3) {
-        int n4 = this.g;
-        if ((0x800007 & n4) != (n3 &= 0x800007)) {
-            this.g = n3 | 0xFF7FFFF8 & n4;
+        n3 = this.g;
+        int n4 = n3 & 0x800007;
+        if ((0x800007 & n3) != n4) {
+            this.g = n4 | 0xFF7FFFF8 & n3;
             this.requestLayout();
         }
     }
@@ -652,16 +654,16 @@ lbl21:
                 this.k = new int[4];
                 this.l = new int[4];
             }
-            var27_6 /* !! */  = this.k;
-            var28_7 = this.l;
-            var27_6 /* !! */ [3] = -1;
-            var27_6 /* !! */ [2] = -1;
-            var27_6 /* !! */ [1] = -1;
-            var27_6 /* !! */ [0] = -1;
-            var28_7[3] = -1;
-            var28_7[2] = -1;
-            var28_7[1] = -1;
-            var28_7[0] = -1;
+            var28_6 = this.k;
+            var27_7 /* !! */  = this.l;
+            var28_6[3] = -1;
+            var28_6[2] = -1;
+            var28_6[1] = -1;
+            var28_6[0] = -1;
+            var27_7 /* !! */ [3] = -1;
+            var27_7 /* !! */ [2] = -1;
+            var27_7 /* !! */ [1] = -1;
+            var27_7 /* !! */ [0] = -1;
             var25_8 = this.c;
             var24_9 = this.j;
             var17_10 = var18_4 == 0x40000000;
@@ -751,8 +753,8 @@ lbl29:
                         var9_15 = this.g;
                     }
                     var9_15 = ((var9_15 & 112) >> 4 & -2) >> 1;
-                    var27_6 /* !! */ [var9_15] = Math.max(var27_6 /* !! */ [var9_15], var23_27);
-                    var28_7[var9_15] = Math.max(var28_7[var9_15], var19_24 - var23_27);
+                    var28_6[var9_15] = Math.max(var28_6[var9_15], var23_27);
+                    var27_7 /* !! */ [var9_15] = Math.max(var27_7 /* !! */ [var9_15], var19_24 - var23_27);
                 }
                 var9_15 = Math.max(var5_12, var19_24);
                 var5_12 = var7_17 != 0 && var30_30.height == -1 ? 1 : 0;
@@ -779,7 +781,7 @@ lbl29:
             if (this.h > 0 && this.r(var16_3)) {
                 this.h += this.n;
             }
-            var6_11 = (var6_11 = var27_6 /* !! */ [1]) == -1 && var27_6 /* !! */ [0] == -1 && var27_6 /* !! */ [2] == -1 && var27_6 /* !! */ [3] == -1 ? var5_12 : Math.max(var5_12, Math.max(var27_6 /* !! */ [3], Math.max(var27_6 /* !! */ [0], Math.max(var6_11, var27_6 /* !! */ [2]))) + Math.max(var28_7[3], Math.max(var28_7[0], Math.max(var28_7[1], var28_7[2]))));
+            var6_11 = (var6_11 = var28_6[1]) == -1 && var28_6[0] == -1 && var28_6[2] == -1 && var28_6[3] == -1 ? var5_12 : Math.max(var5_12, Math.max(var28_6[3], Math.max(var28_6[0], Math.max(var6_11, var28_6[2]))) + Math.max(var27_7 /* !! */ [3], Math.max(var27_7 /* !! */ [0], Math.max(var27_7 /* !! */ [1], var27_7 /* !! */ [2]))));
             if (!var24_9) break block57;
             if (var18_4 == -2147483648) ** GOTO lbl-1000
             var4_21 = var3_18;
@@ -800,18 +802,18 @@ lbl29:
                     var4_21 = var3_18;
                     var14_22 = var6_11;
                     if (var5_12 >= var16_3) ** continue;
-                    var30_30 = this.q(var5_12);
-                    if (var30_30 == null) {
+                    var29_29 /* !! */  = this.q(var5_12);
+                    if (var29_29 /* !! */  == null) {
                         this.h += this.w(var5_12);
-                    } else if (var30_30.getVisibility() == 8) {
-                        var5_12 += this.n((View)var30_30, var5_12);
+                    } else if (var29_29 /* !! */ .getVisibility() == 8) {
+                        var5_12 += this.n(var29_29 /* !! */ , var5_12);
                     } else {
-                        var29_29 /* !! */  = (LayoutParams)var30_30.getLayoutParams();
+                        var30_30 = (LayoutParams)var29_29 /* !! */ .getLayoutParams();
                         if (var17_10) {
-                            this.h += var29_29 /* !! */ .leftMargin + var13_13 + var29_29 /* !! */ .rightMargin + this.p((View)var30_30);
+                            this.h += var30_30.leftMargin + var13_13 + var30_30.rightMargin + this.p(var29_29 /* !! */ );
                         } else {
                             var14_22 = this.h;
-                            this.h = Math.max(var14_22, var14_22 + var13_13 + var29_29 /* !! */ .leftMargin + var29_29 /* !! */ .rightMargin + this.p((View)var30_30));
+                            this.h = Math.max(var14_22, var14_22 + var13_13 + var30_30.leftMargin + var30_30.rightMargin + this.p(var29_29 /* !! */ ));
                         }
                     }
                     ++var5_12;
@@ -826,9 +828,9 @@ lbl29:
             var12_20 = Math.max(var8_19, var12_20);
             if (var24_9 && var18_4 != 0x40000000) {
                 for (var8_19 = 0; var8_19 < var16_3; ++var8_19) {
-                    var27_6 /* !! */  = (int[])this.q(var8_19);
-                    if (var27_6 /* !! */  == null || var27_6 /* !! */ .getVisibility() == 8 || !(((LayoutParams)var27_6 /* !! */ .getLayoutParams()).weight > 0.0f)) continue;
-                    var27_6 /* !! */ .measure(View.MeasureSpec.makeMeasureSpec((int)var13_13, (int)0x40000000), View.MeasureSpec.makeMeasureSpec((int)var27_6 /* !! */ .getMeasuredHeight(), (int)0x40000000));
+                    var27_7 /* !! */  = (int[])this.q(var8_19);
+                    if (var27_7 /* !! */  == null || var27_7 /* !! */ .getVisibility() == 8 || !(((LayoutParams)var27_7 /* !! */ .getLayoutParams()).weight > 0.0f)) continue;
+                    var27_7 /* !! */ .measure(View.MeasureSpec.makeMeasureSpec((int)var13_13, (int)0x40000000), View.MeasureSpec.makeMeasureSpec((int)var27_7 /* !! */ .getMeasuredHeight(), (int)0x40000000));
                 }
             }
             var10_14 = var6_11;
@@ -839,14 +841,14 @@ lbl29:
             if (var4_21 > 0.0f) {
                 var3_18 = var4_21;
             }
-            var27_6 /* !! */ [3] = -1;
-            var27_6 /* !! */ [2] = -1;
-            var27_6 /* !! */ [1] = -1;
-            var27_6 /* !! */ [0] = -1;
-            var28_7[3] = -1;
-            var28_7[2] = -1;
-            var28_7[1] = -1;
-            var28_7[0] = -1;
+            var28_6[3] = -1;
+            var28_6[2] = -1;
+            var28_6[1] = -1;
+            var28_6[0] = -1;
+            var27_7 /* !! */ [3] = -1;
+            var27_7 /* !! */ [2] = -1;
+            var27_7 /* !! */ [1] = -1;
+            var27_7 /* !! */ [0] = -1;
             this.h = 0;
             var5_12 = var9_15;
             var9_15 = -1;
@@ -900,8 +902,8 @@ lbl29:
                             var8_19 = this.g;
                         }
                         var8_19 = ((var8_19 & 112) >> 4 & -2) >> 1;
-                        var27_6 /* !! */ [var8_19] = Math.max(var27_6 /* !! */ [var8_19], var19_24);
-                        var28_7[var8_19] = Math.max(var28_7[var8_19], var15_23 - var19_24);
+                        var28_6[var8_19] = Math.max(var28_6[var8_19], var19_24);
+                        var27_7 /* !! */ [var8_19] = Math.max(var27_7 /* !! */ [var8_19], var15_23 - var19_24);
                     }
                     var8_19 = var9_15;
                     var9_15 = var14_22;
@@ -911,18 +913,18 @@ lbl29:
             }
             var10_14 = var6_11;
             this.h += this.getPaddingLeft() + this.getPaddingRight();
-            var6_11 = var27_6 /* !! */ [1];
-            var6_11 = var6_11 == -1 && var27_6 /* !! */ [0] == -1 && var27_6 /* !! */ [2] == -1 && var27_6 /* !! */ [3] == -1 ? var9_15 : Math.max(var9_15, Math.max(var27_6 /* !! */ [3], Math.max(var27_6 /* !! */ [0], Math.max(var6_11, var27_6 /* !! */ [2]))) + Math.max(var28_7[3], Math.max(var28_7[0], Math.max(var28_7[1], var28_7[2]))));
+            var6_11 = var28_6[1];
+            var6_11 = var6_11 == -1 && var28_6[0] == -1 && var28_6[2] == -1 && var28_6[3] == -1 ? var9_15 : Math.max(var9_15, Math.max(var28_6[3], Math.max(var28_6[0], Math.max(var6_11, var28_6[2]))) + Math.max(var27_7 /* !! */ [3], Math.max(var27_7 /* !! */ [0], Math.max(var27_7 /* !! */ [1], var27_7 /* !! */ [2]))));
             var12_20 = var6_11;
             var9_15 = var5_12;
             var6_11 = var8_19;
             var5_12 = var12_20;
             var8_19 = var9_15;
         }
-        if (var7_17 != 0 || var22_5 == 0x40000000) {
-            var6_11 = var5_12;
+        if (var7_17 == 0 && var22_5 != 0x40000000) {
+            var5_12 = var6_11;
         }
-        this.setMeasuredDimension(var10_14 | var8_19 & -16777216, View.resolveSizeAndState((int)Math.max(var6_11 + (this.getPaddingTop() + this.getPaddingBottom()), this.getSuggestedMinimumHeight()), (int)var2_2, (int)(var8_19 << 16)));
+        this.setMeasuredDimension(var10_14 | var8_19 & -16777216, View.resolveSizeAndState((int)Math.max(var5_12 + (this.getPaddingTop() + this.getPaddingBottom()), this.getSuggestedMinimumHeight()), (int)var2_2, (int)(var8_19 << 16)));
         if (var11_16 != 0) {
             this.i(var16_3, var1_1);
         }
@@ -949,8 +951,8 @@ lbl29:
                 var3_16 = 0.0f;
                 var7_17 = 1;
                 for (var13_8 = 0; var13_8 < var15_3; ++var13_8) {
-                    var25_25 /* !! */  = this.q(var13_8);
-                    if (var25_25 /* !! */  == null) {
+                    var24_24 /* !! */  = this.q(var13_8);
+                    if (var24_24 /* !! */  == null) {
                         this.h += this.w(var13_8);
 lbl14:
                         // 2 sources
@@ -965,37 +967,37 @@ lbl14:
                             break;
                         }
                     } else {
-                        if (var25_25 /* !! */ .getVisibility() == 8) {
-                            var13_8 += this.n(var25_25 /* !! */ , var13_8);
+                        if (var24_24 /* !! */ .getVisibility() == 8) {
+                            var13_8 += this.n(var24_24 /* !! */ , var13_8);
                             ** continue;
                         }
                         if (this.r(var13_8)) {
                             this.h += this.o;
                         }
-                        var24_24 = (LayoutParams)var25_25 /* !! */ .getLayoutParams();
-                        var4_18 = var24_24.weight;
+                        var25_25 = (LayoutParams)var24_24 /* !! */ .getLayoutParams();
+                        var4_18 = var25_25.weight;
                         var3_16 += var4_18;
-                        if (var12_5 == 0x40000000 && var24_24.height == 0 && var4_18 > 0.0f) {
+                        if (var12_5 == 0x40000000 && var25_25.height == 0 && var4_18 > 0.0f) {
                             var14_14 = this.h;
-                            this.h = Math.max(var14_14, var24_24.topMargin + var14_14 + var24_24.bottomMargin);
+                            this.h = Math.max(var14_14, var25_25.topMargin + var14_14 + var25_25.bottomMargin);
                             var14_14 = 1;
                             var16_19 = var5_12;
                         } else {
-                            if (var24_24.height == 0 && var4_18 > 0.0f) {
-                                var24_24.height = -2;
+                            if (var25_25.height == 0 && var4_18 > 0.0f) {
+                                var25_25.height = -2;
                                 var16_19 = 0;
                             } else {
                                 var16_19 = -2147483648;
                             }
                             var17_20 = var3_16 == 0.0f ? this.h : 0;
                             var18_21 = var5_12;
-                            this.u(var25_25 /* !! */ , var13_8, var1_1, 0, var2_2, var17_20);
+                            this.u(var24_24 /* !! */ , var13_8, var1_1, 0, var2_2, var17_20);
                             if (var16_19 != -2147483648) {
-                                var24_24.height = var16_19;
+                                var25_25.height = var16_19;
                             }
-                            var17_20 = var25_25 /* !! */ .getMeasuredHeight();
+                            var17_20 = var24_24 /* !! */ .getMeasuredHeight();
                             var16_19 = this.h;
-                            this.h = Math.max(var16_19, var16_19 + var17_20 + var24_24.topMargin + var24_24.bottomMargin + this.p(var25_25 /* !! */ ));
+                            this.h = Math.max(var16_19, var16_19 + var17_20 + var25_25.topMargin + var25_25.bottomMargin + this.p(var24_24 /* !! */ ));
                             if (var23_7) {
                                 var8_10 = Math.max(var17_20, var8_10);
                             }
@@ -1003,33 +1005,33 @@ lbl14:
                         if (var22_6 >= 0 && var22_6 == var13_8 + 1) {
                             this.e = this.h;
                         }
-                        if (var13_8 < var22_6 && var24_24.weight > 0.0f) {
+                        if (var13_8 < var22_6 && var25_25.weight > 0.0f) {
                             throw new RuntimeException("A child of LinearLayout with index less than mBaselineAlignedChildIndex has weight > 0, which won't work.  Either remove the weight, or don't set mBaselineAlignedChildIndex.");
                         }
-                        if (var21_4 != 0x40000000 && var24_24.width == -1) {
+                        if (var21_4 != 0x40000000 && var25_25.width == -1) {
                             var16_19 = 1;
                             var11_15 = 1;
                         } else {
                             var16_19 = 0;
                         }
-                        var18_21 = var24_24.leftMargin + var24_24.rightMargin;
-                        var17_20 = var25_25 /* !! */ .getMeasuredWidth() + var18_21;
-                        var19_22 = Math.max(var10_11, var17_20);
-                        var20_23 = View.combineMeasuredStates((int)var5_12, (int)var25_25 /* !! */ .getMeasuredState());
-                        var5_12 = var7_17 != 0 && var24_24.width == -1 ? 1 : 0;
-                        if (var24_24.weight > 0.0f) {
+                        var17_20 = var25_25.leftMargin + var25_25.rightMargin;
+                        var18_21 = var24_24 /* !! */ .getMeasuredWidth() + var17_20;
+                        var19_22 = Math.max(var10_11, var18_21);
+                        var20_23 = View.combineMeasuredStates((int)var5_12, (int)var24_24 /* !! */ .getMeasuredState());
+                        var5_12 = var7_17 != 0 && var25_25.width == -1 ? 1 : 0;
+                        if (var25_25.weight > 0.0f) {
                             if (var16_19 == 0) {
-                                var18_21 = var17_20;
+                                var17_20 = var18_21;
                             }
-                            var7_17 = Math.max(var9_9, var18_21);
+                            var7_17 = Math.max(var9_9, var17_20);
                         } else {
-                            if (var16_19 != 0) {
+                            if (var16_19 == 0) {
                                 var17_20 = var18_21;
                             }
                             var6_13 = Math.max(var6_13, var17_20);
                             var7_17 = var9_9;
                         }
-                        var13_8 += this.n(var25_25 /* !! */ , var13_8);
+                        var13_8 += this.n(var24_24 /* !! */ , var13_8);
                         var10_11 = var8_10;
                         var17_20 = var20_23;
                         var16_19 = var5_12;
@@ -1050,18 +1052,18 @@ lbl14:
                 if (var23_7 && (var13_8 == -2147483648 || var13_8 == 0)) {
                     this.h = 0;
                     for (var12_5 = 0; var12_5 < var15_3; ++var12_5) {
-                        var24_24 = this.q(var12_5);
-                        if (var24_24 == null) {
+                        var25_25 = this.q(var12_5);
+                        if (var25_25 == null) {
                             this.h += this.w(var12_5);
                             continue;
                         }
-                        if (var24_24.getVisibility() == 8) {
-                            var12_5 += this.n((View)var24_24, var12_5);
+                        if (var25_25.getVisibility() == 8) {
+                            var12_5 += this.n((View)var25_25, var12_5);
                             continue;
                         }
-                        var25_25 /* !! */  = (LayoutParams)var24_24.getLayoutParams();
+                        var24_24 /* !! */  = (LayoutParams)var25_25.getLayoutParams();
                         var16_19 = this.h;
-                        this.h = Math.max(var16_19, var16_19 + var8_10 + var25_25 /* !! */ .topMargin + var25_25 /* !! */ .bottomMargin + this.p((View)var24_24));
+                        this.h = Math.max(var16_19, var16_19 + var8_10 + var24_24 /* !! */ .topMargin + var24_24 /* !! */ .bottomMargin + this.p((View)var25_25));
                     }
                 }
                 this.h = var12_5 = this.h + (this.getPaddingTop() + this.getPaddingBottom());
@@ -1085,9 +1087,9 @@ lbl14:
                         var6_13 = var10_11;
                         var12_5 = var7_17;
                         if (var13_8 < var15_3) {
-                            var24_24 = this.q(var13_8);
-                            if (var24_24 != null && var24_24.getVisibility() != 8 && ((LayoutParams)var24_24.getLayoutParams()).weight > 0.0f) {
-                                var24_24.measure(View.MeasureSpec.makeMeasureSpec((int)var24_24.getMeasuredWidth(), (int)0x40000000), View.MeasureSpec.makeMeasureSpec((int)var8_10, (int)0x40000000));
+                            var24_24 /* !! */  = this.q(var13_8);
+                            if (var24_24 /* !! */  != null && var24_24 /* !! */ .getVisibility() != 8 && ((LayoutParams)var24_24 /* !! */ .getLayoutParams()).weight > 0.0f) {
+                                var24_24 /* !! */ .measure(View.MeasureSpec.makeMeasureSpec((int)var24_24 /* !! */ .getMeasuredWidth(), (int)0x40000000), View.MeasureSpec.makeMeasureSpec((int)var8_10, (int)0x40000000));
                             }
                             ++var13_8;
                             continue;
@@ -1114,50 +1116,50 @@ lbl-1000:
             var8_10 = var10_11;
             var10_11 = var9_9;
             for (var12_5 = 0; var12_5 < var15_3; ++var12_5) {
-                var24_24 = this.q(var12_5);
-                if (var24_24.getVisibility() == 8) {
+                var24_24 /* !! */  = this.q(var12_5);
+                if (var24_24 /* !! */ .getVisibility() == 8) {
                     var9_9 = var5_12;
                 } else {
-                    var25_25 /* !! */  = (LayoutParams)var24_24.getLayoutParams();
-                    var4_18 = var25_25 /* !! */ .weight;
+                    var25_25 = (LayoutParams)var24_24 /* !! */ .getLayoutParams();
+                    var4_18 = var25_25.weight;
                     if (var4_18 > 0.0f) {
                         var9_9 = (int)((float)var10_11 * var4_18 / var3_16);
                         var3_16 -= var4_18;
                         var10_11 -= var9_9;
-                        var16_19 = ViewGroup.getChildMeasureSpec((int)var1_1, (int)(this.getPaddingLeft() + this.getPaddingRight() + var25_25 /* !! */ .leftMargin + var25_25 /* !! */ .rightMargin), (int)var25_25 /* !! */ .width);
-                        if (var25_25 /* !! */ .height == 0 && var13_8 == 0x40000000) {
+                        var16_19 = ViewGroup.getChildMeasureSpec((int)var1_1, (int)(this.getPaddingLeft() + this.getPaddingRight() + var25_25.leftMargin + var25_25.rightMargin), (int)var25_25.width);
+                        if (var25_25.height == 0 && var13_8 == 0x40000000) {
                             if (var9_9 <= 0) {
                                 var9_9 = 0;
                             }
-                            var24_24.measure(var16_19, View.MeasureSpec.makeMeasureSpec((int)var9_9, (int)0x40000000));
+                            var24_24 /* !! */ .measure(var16_19, View.MeasureSpec.makeMeasureSpec((int)var9_9, (int)0x40000000));
                         } else {
-                            var9_9 = var14_14 = var24_24.getMeasuredHeight() + var9_9;
+                            var9_9 = var14_14 = var24_24 /* !! */ .getMeasuredHeight() + var9_9;
                             if (var14_14 < 0) {
                                 var9_9 = 0;
                             }
-                            var24_24.measure(var16_19, View.MeasureSpec.makeMeasureSpec((int)var9_9, (int)0x40000000));
+                            var24_24 /* !! */ .measure(var16_19, View.MeasureSpec.makeMeasureSpec((int)var9_9, (int)0x40000000));
                         }
-                        var9_9 = View.combineMeasuredStates((int)var5_12, (int)(var24_24.getMeasuredState() & -256));
+                        var9_9 = View.combineMeasuredStates((int)var5_12, (int)(var24_24 /* !! */ .getMeasuredState() & -256));
                         var5_12 = var10_11;
                     } else {
                         var9_9 = var5_12;
                         var5_12 = var10_11;
                     }
-                    var14_14 = var25_25 /* !! */ .leftMargin + var25_25 /* !! */ .rightMargin;
-                    var16_19 = var24_24.getMeasuredWidth() + var14_14;
+                    var14_14 = var25_25.leftMargin + var25_25.rightMargin;
+                    var16_19 = var24_24 /* !! */ .getMeasuredWidth() + var14_14;
                     var10_11 = Math.max(var8_10, var16_19);
                     if (var21_4 != 0x40000000) {
                         var8_10 = var16_19;
-                        if (var25_25 /* !! */ .width == -1) {
+                        if (var25_25.width == -1) {
                             var8_10 = var14_14;
                         }
                     } else {
                         var8_10 = var16_19;
                     }
                     var8_10 = Math.max(var6_13, var8_10);
-                    var6_13 = var7_17 != 0 && var25_25 /* !! */ .width == -1 ? 1 : 0;
+                    var6_13 = var7_17 != 0 && var25_25.width == -1 ? 1 : 0;
                     var7_17 = this.h;
-                    this.h = Math.max(var7_17, var7_17 + var24_24.getMeasuredHeight() + var25_25 /* !! */ .topMargin + var25_25 /* !! */ .bottomMargin + this.p((View)var24_24));
+                    this.h = Math.max(var7_17, var7_17 + var24_24 /* !! */ .getMeasuredHeight() + var25_25.topMargin + var25_25.bottomMargin + this.p(var24_24 /* !! */ ));
                     var7_17 = var6_13;
                     var6_13 = var8_10;
                     var8_10 = var10_11;

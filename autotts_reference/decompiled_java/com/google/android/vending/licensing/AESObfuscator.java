@@ -27,12 +27,12 @@ implements Obfuscator {
 
     public AESObfuscator(byte[] object, String object2, String object3) {
         try {
-            SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBEWITHSHAAND256BITAES-CBC-BC");
-            Object object4 = new StringBuilder();
-            ((StringBuilder)object4).append((String)object2);
-            ((StringBuilder)object4).append((String)object3);
-            PBEKeySpec pBEKeySpec = new PBEKeySpec(((StringBuilder)object4).toString().toCharArray(), (byte[])object, 1024, 256);
-            object2 = secretKeyFactory.generateSecret(pBEKeySpec);
+            Object object4 = SecretKeyFactory.getInstance("PBEWITHSHAAND256BITAES-CBC-BC");
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append((String)object2);
+            stringBuilder.append((String)object3);
+            PBEKeySpec pBEKeySpec = new PBEKeySpec(stringBuilder.toString().toCharArray(), (byte[])object, 1024, 256);
+            object2 = ((SecretKeyFactory)object4).generateSecret(pBEKeySpec);
             object = new SecretKeySpec;
             super(object2.getEncoded(), "AES");
             this.a = object3 = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -88,17 +88,17 @@ implements Obfuscator {
             block8: {
                 BadPaddingException badPaddingException2;
                 block7: {
-                    CharSequence charSequence;
+                    StringBuilder stringBuilder;
                     if (string == null) {
                         return null;
                     }
                     try {
-                        charSequence = new String(this.b.doFinal(b3.a.a(string)), "UTF-8");
-                        StringBuilder stringBuilder = new StringBuilder();
+                        String string2 = new String(this.b.doFinal(b3.a.a(string)), "UTF-8");
+                        stringBuilder = new StringBuilder();
                         stringBuilder.append("com.google.android.vending.licensing.AESObfuscator-1|");
                         stringBuilder.append((String)object);
-                        if (((String)charSequence).indexOf(stringBuilder.toString()) == 0) {
-                            return ((String)charSequence).substring(53 + ((String)object).length(), ((String)charSequence).length());
+                        if (string2.indexOf(stringBuilder.toString()) == 0) {
+                            return string2.substring(53 + ((String)object).length(), string2.length());
                         }
                     }
                     catch (UnsupportedEncodingException unsupportedEncodingException) {
@@ -113,10 +113,10 @@ implements Obfuscator {
                     catch (b b32) {
                         break block9;
                     }
-                    charSequence = new StringBuilder();
-                    ((StringBuilder)charSequence).append("Header not found (invalid data or key):");
-                    ((StringBuilder)charSequence).append(string);
-                    object = new ValidationException(((StringBuilder)charSequence).toString());
+                    stringBuilder = new StringBuilder();
+                    stringBuilder.append("Header not found (invalid data or key):");
+                    stringBuilder.append(string);
+                    object = new ValidationException(stringBuilder.toString());
                     throw object;
                 }
                 StringBuilder stringBuilder = new StringBuilder();

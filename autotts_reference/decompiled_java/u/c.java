@@ -80,16 +80,16 @@ public class c {
                 }
                 this.d = object;
                 object3 = ((e)object).b0;
-                n4 = this.p;
-                if (object3[n4] == object4) {
-                    n5 = ((e)object).y[n4];
-                    if (n5 == 0 || n5 == 3 || n5 == 2) {
+                n5 = this.p;
+                if (object3[n5] == object4) {
+                    n4 = ((e)object).y[n5];
+                    if (n4 == 0 || n4 == 3 || n4 == 2) {
                         ++this.j;
-                        float f3 = ((e)object).N0[n4];
+                        float f3 = ((e)object).N0[n5];
                         if (f3 > 0.0f) {
                             this.k += f3;
                         }
-                        if (u.c.c((e)object, n4)) {
+                        if (u.c.c((e)object, n5)) {
                             if (f3 < 0.0f) {
                                 this.r = true;
                             } else {

@@ -5,6 +5,7 @@
  *  android.content.Context
  *  android.content.res.ColorStateList
  *  android.content.res.Resources$Theme
+ *  android.content.res.XmlResourceParser
  *  android.graphics.ColorFilter
  *  android.graphics.PorterDuff$Mode
  *  android.graphics.PorterDuffColorFilter
@@ -23,6 +24,7 @@ package androidx.appcompat.widget;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
+import android.content.res.XmlResourceParser;
 import android.graphics.ColorFilter;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
@@ -384,12 +386,12 @@ public final class e0 {
                                 object2 = drawable;
                                 try {
                                     int n4;
-                                    charSequence = object3.getXml(n3);
+                                    XmlResourceParser xmlResourceParser = object3.getXml(n3);
                                     object2 = drawable;
-                                    AttributeSet attributeSet = Xml.asAttributeSet((XmlPullParser)charSequence);
+                                    charSequence = Xml.asAttributeSet((XmlPullParser)xmlResourceParser);
                                     do {
                                         object2 = drawable;
-                                    } while ((n4 = charSequence.next()) != 2 && n4 != 1);
+                                    } while ((n4 = xmlResourceParser.next()) != 2 && n4 != 1);
                                     if (n4 != 2) {
                                         object2 = drawable;
                                         object2 = drawable;
@@ -398,7 +400,7 @@ public final class e0 {
                                         throw object;
                                     }
                                     object2 = drawable;
-                                    object3 = charSequence.getName();
+                                    object3 = xmlResourceParser.getName();
                                     object2 = drawable;
                                     this.c.a(n3, object3);
                                     object2 = drawable;
@@ -406,7 +408,7 @@ public final class e0 {
                                     object3 = drawable;
                                     if (b3 == null) break block13;
                                     object2 = drawable;
-                                    object3 = b3.a((Context)object, (XmlPullParser)charSequence, attributeSet, object.getTheme());
+                                    object3 = b3.a((Context)object, (XmlPullParser)xmlResourceParser, (AttributeSet)charSequence, object.getTheme());
                                 }
                                 catch (Exception exception2) {
                                     break block14;

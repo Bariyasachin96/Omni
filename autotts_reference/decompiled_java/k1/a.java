@@ -137,7 +137,7 @@ public final class a {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public final Object d(Class var1_1, Set var2_3) {
+    public final Object d(Class var1_1, Set var2_4) {
         block7: {
             block10: {
                 block9: {
@@ -147,32 +147,32 @@ public final class a {
 lbl4:
                         // 2 sources
 
-                        if (var2_3.contains(var1_1)) break block7;
+                        if (var2_4.contains(var1_1)) break block7;
                         if (this.a.containsKey(var1_1)) ** GOTO lbl34
-                        var2_3.add(var1_1);
+                        var2_4.add(var1_1);
                         try {
                             var3_5 = (b)var1_1.getDeclaredConstructor(null).newInstance(null);
                             var4_6 = var3_5.a();
                             if (var4_6.isEmpty()) break block8;
-                            var5_7 = var4_6.iterator();
-                            while (var5_7.hasNext()) {
-                                var4_6 = (Class)var5_7.next();
-                                if (this.a.containsKey(var4_6)) continue;
-                                this.d((Class)var4_6, (Set)var2_3);
+                            var4_6 = var4_6.iterator();
+                            while (var4_6.hasNext()) {
+                                var5_7 = (Class)var4_6.next();
+                                if (this.a.containsKey(var5_7)) continue;
+                                this.d(var5_7, (Set)var2_4);
                             }
                         }
-                        catch (Throwable var2_4) {
+                        catch (Throwable var1_3) {
                             break block9;
                         }
                     }
                     var3_5 = var3_5.b(this.c);
-                    var2_3.remove(var1_1);
+                    var2_4.remove(var1_1);
                     this.a.put(var1_1, var3_5);
                     var1_1 = var3_5;
                     break block10;
                 }
-                var1_1 = new d(var2_4);
-                throw var1_1;
+                var2_4 = new d(var1_3);
+                throw var2_4;
 lbl34:
                 // 1 sources
 
@@ -182,9 +182,9 @@ lbl34:
             return var1_1;
         }
         try {
-            var1_1 = String.format("Cannot initialize %s. Cycle detected.", new Object[]{var1_1.getName()});
-            var2_3 = new IllegalStateException((String)var1_1);
-            throw var2_3;
+            var2_4 = String.format("Cannot initialize %s. Cycle detected.", new Object[]{var1_1.getName()});
+            var1_1 = new IllegalStateException((String)var2_4);
+            throw var1_1;
         }
         catch (Throwable var1_2) {}
         l1.b.b();

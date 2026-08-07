@@ -32,10 +32,9 @@ extends AppCompatRadioButton {
     public boolean h;
 
     static {
-        int[] nArray = new int[]{16842910, -16842912};
-        int[] nArray2 = new int[]{-16842910, 0x10100A0};
-        int[] nArray3 = new int[]{-16842910, -16842912};
-        j = new int[][]{{16842910, 0x10100A0}, nArray, nArray2, nArray3};
+        int[] nArray = new int[]{16842910, 0x10100A0};
+        int[] nArray2 = new int[]{-16842910, -16842912};
+        j = new int[][]{nArray, {16842910, -16842912}, {-16842910, 0x10100A0}, nArray2};
     }
 
     public MaterialRadioButton(Context context) {

@@ -3,14 +3,16 @@
  */
 package c3;
 
-import c3.f0;
-import java.util.concurrent.ThreadFactory;
-
-public final class c0
-implements ThreadFactory {
-    @Override
-    public final Thread newThread(Runnable runnable) {
-        return f0.a(runnable);
+public abstract class c0 {
+    public static /* synthetic */ boolean a(String string) {
+        int n3;
+        int n4 = string.length();
+        for (int i3 = 0; i3 < n4; i3 += Character.charCount(n3)) {
+            n3 = string.codePointAt(i3);
+            if (Character.isWhitespace(n3)) continue;
+            return false;
+        }
+        return true;
     }
 }
 

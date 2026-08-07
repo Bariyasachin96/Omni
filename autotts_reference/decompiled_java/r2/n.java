@@ -94,10 +94,10 @@ extends k {
         j.a a5 = (j.a)this.b.get(1);
         a5.a = f3 = this.d.getInterpolation(f4);
         a4.b = f3;
-        a5 = (j.a)this.b.get(1);
-        a4 = (j.a)this.b.get(2);
-        a4.a = f4 = this.d.getInterpolation(f4 + 0.49925038f);
-        a5.b = f4;
+        a4 = (j.a)this.b.get(1);
+        a5 = (j.a)this.b.get(2);
+        a5.a = f3 = this.d.getInterpolation(f4 + 0.49925038f);
+        a4.b = f3;
         ((j.a)this.b.get((int)2)).b = 1.0f;
     }
 

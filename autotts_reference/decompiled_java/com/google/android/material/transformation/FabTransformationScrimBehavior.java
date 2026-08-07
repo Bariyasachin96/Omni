@@ -51,12 +51,12 @@ extends ExpandableTransformationBehavior {
     }
 
     @Override
-    public AnimatorSet N(View object, View view, boolean bl, boolean bl2) {
-        object = new ArrayList();
-        this.O(view, bl, bl2, (List)object, new ArrayList());
-        AnimatorSet animatorSet = new AnimatorSet();
-        b.a(animatorSet, (List)object);
-        animatorSet.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, bl, view){
+    public AnimatorSet N(View view, View view2, boolean bl, boolean bl2) {
+        ArrayList arrayList = new ArrayList();
+        this.O(view2, bl, bl2, arrayList, new ArrayList());
+        view = new AnimatorSet();
+        b.a((AnimatorSet)view, arrayList);
+        view.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this, bl, view2){
             public final boolean a;
             public final View b;
             public final FabTransformationScrimBehavior c;
@@ -78,7 +78,7 @@ extends ExpandableTransformationBehavior {
                 }
             }
         });
-        return animatorSet;
+        return view;
     }
 
     public final void O(View view, boolean bl, boolean bl2, List list, List object) {

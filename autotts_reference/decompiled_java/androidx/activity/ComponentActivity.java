@@ -170,14 +170,14 @@ n {
                         int n5;
                         IntentSenderRequest intentSenderRequest = (IntentSenderRequest)stringArray2.getParcelableExtra("androidx.activity.result.contract.extra.INTENT_SENDER_REQUEST");
                         try {
-                            stringArray2 = intentSenderRequest.r();
-                            a4 = intentSenderRequest.o();
+                            a4 = intentSenderRequest.r();
+                            stringArray2 = intentSenderRequest.o();
                             n5 = intentSenderRequest.p();
                             n4 = intentSenderRequest.q();
                         }
                         catch (IntentSender.SendIntentException sendIntentException) {}
                         try {
-                            c0.b.o((Activity)object, (IntentSender)stringArray2, n3, (Intent)a4, n5, n4, 0, (Bundle)stringArray);
+                            c0.b.o((Activity)object, (IntentSender)a4, n3, (Intent)stringArray2, n5, n4, 0, (Bundle)stringArray);
                             break block11;
                         }
                         catch (IntentSender.SendIntentException sendIntentException) {}

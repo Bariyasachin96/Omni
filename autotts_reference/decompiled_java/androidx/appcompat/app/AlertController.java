@@ -506,30 +506,30 @@ public class AlertController {
     }
 
     public final void x() {
-        View view = this.c.findViewById(c.f.parentPanel);
+        Object object = this.c.findViewById(c.f.parentPanel);
         int n3 = c.f.topPanel;
-        View view2 = view.findViewById(n3);
+        View view = object.findViewById(n3);
         int n4 = c.f.contentPanel;
-        View view3 = view.findViewById(n4);
+        View view2 = object.findViewById(n4);
         int n5 = c.f.buttonPanel;
-        Object object = view.findViewById(n5);
-        view = (ViewGroup)view.findViewById(c.f.customPanel);
-        this.v((ViewGroup)view);
-        View view4 = view.findViewById(n3);
-        View view5 = view.findViewById(n4);
-        View view6 = view.findViewById(n5);
-        view2 = this.h(view4, view2);
-        view3 = this.h(view5, view3);
-        object = this.h(view6, (View)object);
-        this.u((ViewGroup)view3);
-        this.t((ViewGroup)object);
-        this.w((ViewGroup)view2);
-        n4 = view.getVisibility();
+        View view3 = object.findViewById(n5);
+        object = (ViewGroup)object.findViewById(c.f.customPanel);
+        this.v((ViewGroup)object);
+        View view4 = object.findViewById(n3);
+        View view5 = object.findViewById(n4);
+        View view6 = object.findViewById(n5);
+        view = this.h(view4, view);
+        view2 = this.h(view5, view2);
+        view3 = this.h(view6, view3);
+        this.u((ViewGroup)view2);
+        this.t((ViewGroup)view3);
+        this.w((ViewGroup)view);
+        n5 = object.getVisibility();
         n3 = 0;
-        n4 = n4 != 8 ? 1 : 0;
-        int n6 = view2 != null && view2.getVisibility() != 8 ? 1 : 0;
-        boolean bl = object != null && object.getVisibility() != 8;
-        if (!bl && view3 != null && (object = view3.findViewById(c.f.textSpacerNoButtons)) != null) {
+        n5 = n5 != 8 ? 1 : 0;
+        int n6 = view != null && view.getVisibility() != 8 ? 1 : 0;
+        boolean bl = view3 != null && view3.getVisibility() != 8;
+        if (!bl && view2 != null && (object = view2.findViewById(c.f.textSpacerNoButtons)) != null) {
             object.setVisibility(0);
         }
         if (n6 != 0) {
@@ -537,35 +537,35 @@ public class AlertController {
             if (object != null) {
                 object.setClipToPadding(true);
             }
-            object = this.f == null && this.g == null ? null : view2.findViewById(c.f.titleDividerNoCustom);
+            object = this.f == null && this.g == null ? null : view.findViewById(c.f.titleDividerNoCustom);
             if (object != null) {
                 object.setVisibility(0);
             }
-        } else if (view3 != null && (object = view3.findViewById(c.f.textSpacerNoTitle)) != null) {
+        } else if (view2 != null && (object = view2.findViewById(c.f.textSpacerNoTitle)) != null) {
             object.setVisibility(0);
         }
         if ((object = this.g) instanceof RecycleListView) {
             ((RecycleListView)((Object)object)).setHasDecor(n6 != 0, bl);
         }
-        if (n4 == 0) {
+        if (n5 == 0) {
             object = this.g;
             if (object == null) {
                 object = this.A;
             }
             if (object != null) {
-                n4 = n3;
+                n5 = n3;
                 if (bl) {
-                    n4 = 2;
+                    n5 = 2;
                 }
-                this.o((ViewGroup)view3, (View)object, n6 | n4, 3);
+                this.o((ViewGroup)view2, (View)object, n6 | n5, 3);
             }
         }
-        if ((view3 = this.g) != null && (object = this.H) != null) {
-            view3.setAdapter((ListAdapter)object);
-            n4 = this.I;
-            if (n4 > -1) {
-                view3.setItemChecked(n4, true);
-                view3.setSelection(n4);
+        if ((object = this.g) != null && (view2 = this.H) != null) {
+            object.setAdapter((ListAdapter)view2);
+            n5 = this.I;
+            if (n5 > -1) {
+                object.setItemChecked(n5, true);
+                object.setSelection(n5);
             }
         }
     }

@@ -54,11 +54,11 @@ extends VirtualLayout {
     @Override
     public void x(m m3, int n3, int n4) {
         int n5 = View.MeasureSpec.getMode((int)n3);
-        n3 = View.MeasureSpec.getSize((int)n3);
-        int n6 = View.MeasureSpec.getMode((int)n4);
+        int n6 = View.MeasureSpec.getSize((int)n3);
+        n3 = View.MeasureSpec.getMode((int)n4);
         n4 = View.MeasureSpec.getSize((int)n4);
         if (m3 != null) {
-            m3.H1(n5, n3, n6, n4);
+            m3.H1(n5, n6, n3, n4);
             this.setMeasuredDimension(m3.C1(), m3.B1());
             return;
         }

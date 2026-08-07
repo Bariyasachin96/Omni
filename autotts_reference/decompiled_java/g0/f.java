@@ -56,22 +56,22 @@ extends j {
     }
 
     public static void i() {
-        Method method;
         GenericDeclaration genericDeclaration;
-        Class<?> clazz;
         Constructor<?> constructor;
+        Class<?> clazz;
+        Method method;
         block4: {
             if (f) {
                 return;
             }
             f = true;
-            constructor = null;
+            method = null;
             try {
+                Method method2;
                 clazz = Class.forName("android.graphics.FontFamily");
-                Constructor<?> constructor2 = clazz.getConstructor(null);
+                constructor = clazz.getConstructor(null);
                 genericDeclaration = clazz.getMethod("addFontWeightStyle", String.class, Integer.TYPE, Boolean.TYPE);
-                method = Typeface.class.getMethod("createFromFamiliesWithDefault", Array.newInstance(clazz, 1).getClass());
-                constructor = constructor2;
+                method = method2 = Typeface.class.getMethod("createFromFamiliesWithDefault", Array.newInstance(clazz, 1).getClass());
                 break block4;
             }
             catch (NoSuchMethodException noSuchMethodException) {
@@ -79,9 +79,11 @@ extends j {
             catch (ClassNotFoundException classNotFoundException) {
                 // empty catch block
             }
-            Log.e((String)"TypefaceCompatApi21Impl", (String)method.getClass().getName(), (Throwable)((Object)method));
-            method = null;
+            Log.e((String)"TypefaceCompatApi21Impl", (String)constructor.getClass().getName(), constructor);
+            Method method3 = null;
             genericDeclaration = clazz = null;
+            constructor = method;
+            method = method3;
         }
         c = constructor;
         b = clazz;

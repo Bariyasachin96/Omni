@@ -132,16 +132,16 @@ extends LinearLayoutCompat {
                 n8 = View.combineMeasuredStates((int)n12, (int)view4.getMeasuredState());
             }
         }
-        n6 = 0;
+        n14 = 0;
         for (n12 = 0; n12 < n10; ++n12) {
             view = this.getChildAt(n12);
-            n14 = n6;
-            if (view.getVisibility() != 8) {
-                n14 = Math.max(n6, view.getMeasuredWidth());
-            }
             n6 = n14;
+            if (view.getVisibility() != 8) {
+                n6 = Math.max(n14, view.getMeasuredWidth());
+            }
+            n14 = n6;
         }
-        this.setMeasuredDimension(View.resolveSizeAndState((int)(n6 + (this.getPaddingLeft() + this.getPaddingRight())), (int)n3, (int)n8), View.resolveSizeAndState((int)n9, (int)n4, (int)0));
+        this.setMeasuredDimension(View.resolveSizeAndState((int)(n14 + (this.getPaddingLeft() + this.getPaddingRight())), (int)n3, (int)n8), View.resolveSizeAndState((int)n9, (int)n4, (int)0));
         if (n13 != 0x40000000) {
             this.j(n10, n4);
         }
@@ -171,11 +171,11 @@ extends LinearLayoutCompat {
         int n8 = n5 - n3;
         int n9 = this.getPaddingRight();
         int n10 = this.getPaddingRight();
-        n5 = this.getMeasuredHeight();
+        n3 = this.getMeasuredHeight();
         int n11 = this.getChildCount();
         int n12 = this.getGravity();
-        n3 = n12 & 0x70;
-        n3 = n3 != 16 ? (n3 != 80 ? this.getPaddingTop() : this.getPaddingTop() + n6 - n4 - n5) : this.getPaddingTop() + (n6 - n4 - n5) / 2;
+        n5 = n12 & 0x70;
+        n3 = n5 != 16 ? (n5 != 80 ? this.getPaddingTop() : this.getPaddingTop() + n6 - n4 - n3) : this.getPaddingTop() + (n6 - n4 - n3) / 2;
         Drawable drawable = this.getDividerDrawable();
         n5 = 0;
         n4 = drawable == null ? 0 : drawable.getIntrinsicHeight();

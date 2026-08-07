@@ -18,6 +18,7 @@ import com.google.android.material.datepicker.h;
 import com.google.android.material.datepicker.v;
 import com.google.android.material.internal.y;
 import com.google.android.material.textfield.TextInputLayout;
+import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.util.Date;
@@ -53,18 +54,18 @@ extends y {
 
     public static /* synthetic */ void b(e e3, String string) {
         TextInputLayout textInputLayout = e3.c;
-        Object object = e3.e;
-        Object object2 = textInputLayout.getContext();
-        String string2 = object2.getString(k.mtrl_picker_invalid_format);
-        string = String.format(object2.getString(k.mtrl_picker_invalid_format_use), e3.g(string));
-        object = String.format(object2.getString(k.mtrl_picker_invalid_format_example), e3.g(((DateFormat)object).format(new Date(v.k().getTimeInMillis()))));
-        object2 = new StringBuilder();
-        ((StringBuilder)object2).append(string2);
-        ((StringBuilder)object2).append("\n");
-        ((StringBuilder)object2).append(string);
-        ((StringBuilder)object2).append("\n");
-        ((StringBuilder)object2).append((String)object);
-        textInputLayout.setError(((StringBuilder)object2).toString());
+        Serializable serializable = e3.e;
+        Object object = textInputLayout.getContext();
+        String string2 = object.getString(k.mtrl_picker_invalid_format);
+        string = String.format(object.getString(k.mtrl_picker_invalid_format_use), e3.g(string));
+        object = String.format(object.getString(k.mtrl_picker_invalid_format_example), e3.g(((DateFormat)serializable).format(new Date(v.k().getTimeInMillis()))));
+        serializable = new StringBuilder();
+        ((StringBuilder)serializable).append(string2);
+        ((StringBuilder)serializable).append("\n");
+        ((StringBuilder)serializable).append(string);
+        ((StringBuilder)serializable).append("\n");
+        ((StringBuilder)serializable).append((String)object);
+        textInputLayout.setError(((StringBuilder)serializable).toString());
         e3.d();
     }
 

@@ -113,13 +113,13 @@ implements b.a {
             int n5;
             int n6 = -1;
             for (n5 = 0; n3 != -1 && n5 < this.a; ++n5) {
-                n4 = this.f[n3];
-                int n7 = ((i)object).e;
-                if (n4 == n7) {
+                int n7 = this.f[n3];
+                n4 = ((i)object).e;
+                if (n7 == n4) {
                     this.h[n3] = f3;
                     return;
                 }
-                if (n4 < n7) {
+                if (n7 < n4) {
                     n6 = n3;
                 }
                 n3 = this.g[n3];
@@ -192,11 +192,11 @@ implements b.a {
     public float e(b object, boolean bl) {
         float f3 = this.c(((b)object).a);
         this.g(((b)object).a, bl);
-        object = ((b)object).e;
-        int n3 = object.f();
+        b.a a4 = ((b)object).e;
+        int n3 = a4.f();
         for (int i3 = 0; i3 < n3; ++i3) {
-            i i4 = object.h(i3);
-            this.i(i4, object.c(i4) * f3, bl);
+            object = a4.h(i3);
+            this.i((i)object, a4.c((i)object) * f3, bl);
         }
         return f3;
     }
@@ -406,24 +406,24 @@ implements b.a {
 
     public String toString() {
         int n3 = this.i;
-        CharSequence charSequence = "";
+        String string = "";
         for (int i3 = 0; n3 != -1 && i3 < this.a; ++i3) {
-            CharSequence charSequence2 = new StringBuilder();
-            charSequence2.append((String)charSequence);
-            charSequence2.append(" -> ");
-            charSequence2 = charSequence2.toString();
-            charSequence = new StringBuilder();
-            ((StringBuilder)charSequence).append((String)charSequence2);
-            ((StringBuilder)charSequence).append(this.h[n3]);
-            ((StringBuilder)charSequence).append(" : ");
-            charSequence2 = ((StringBuilder)charSequence).toString();
-            charSequence = new StringBuilder();
-            ((StringBuilder)charSequence).append((String)charSequence2);
-            ((StringBuilder)charSequence).append(this.c.d[this.f[n3]]);
-            charSequence = ((StringBuilder)charSequence).toString();
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append(string);
+            stringBuilder.append(" -> ");
+            string = stringBuilder.toString();
+            stringBuilder = new StringBuilder();
+            stringBuilder.append(string);
+            stringBuilder.append(this.h[n3]);
+            stringBuilder.append(" : ");
+            string = stringBuilder.toString();
+            stringBuilder = new StringBuilder();
+            stringBuilder.append(string);
+            stringBuilder.append(this.c.d[this.f[n3]]);
+            string = stringBuilder.toString();
             n3 = this.g[n3];
         }
-        return charSequence;
+        return string;
     }
 }
 

@@ -308,16 +308,16 @@ extends a {
                 }
                 if (this.g <= 0) {
                     n6 = this.getChildCount();
-                    n5 = 0;
+                    n4 = 0;
                     for (n3 = n12; n3 < n6; ++n3) {
                         n11 = this.getChildAt(n3).getMeasuredHeight() + n9;
-                        n4 = n5;
-                        if (n11 > n5) {
-                            n4 = n11;
-                        }
                         n5 = n4;
+                        if (n11 > n4) {
+                            n5 = n11;
+                        }
+                        n4 = n5;
                     }
-                    this.setMeasuredDimension(n8, n5);
+                    this.setMeasuredDimension(n8, n4);
                     return;
                 }
                 this.setMeasuredDimension(n8, n5);

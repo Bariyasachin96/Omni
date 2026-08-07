@@ -27,15 +27,15 @@ public final class a {
     public final a a(Class clazz, Method[] object) {
         void var2_4;
         int n3;
-        Class<?>[] classArray = clazz.getSuperclass();
+        Object object2 = clazz.getSuperclass();
         HashMap hashMap = new HashMap();
-        if (classArray != null && (classArray = this.c((Class)classArray)) != null) {
-            hashMap.putAll(classArray.b);
+        if (object2 != null && (object2 = this.c((Class)object2)) != null) {
+            hashMap.putAll(((a)object2).b);
         }
-        Class<?>[] classArray2 = clazz.getInterfaces();
-        int n4 = classArray2.length;
+        object2 = clazz.getInterfaces();
+        int n4 = ((Class<?>[])object2).length;
         for (n3 = 0; n3 < n4; ++n3) {
-            for (Map.Entry entry : this.c(classArray2[n3]).b.entrySet()) {
+            for (Map.Entry entry : this.c(object2[n3]).b.entrySet()) {
                 this.e(hashMap, (b)entry.getKey(), (f.a)((Object)entry.getValue()), clazz);
             }
         }
@@ -45,10 +45,10 @@ public final class a {
         int n5 = ((void)var2_4).length;
         boolean bl = false;
         for (n4 = 0; n4 < n5; ++n4) {
-            classArray2 = var2_4[n4];
-            q q3 = classArray2.getAnnotation(q.class);
+            object2 = var2_4[n4];
+            q q3 = ((Method)object2).getAnnotation(q.class);
             if (q3 == null) continue;
-            classArray = classArray2.getParameterTypes();
+            Class<?>[] classArray = ((Method)object2).getParameterTypes();
             if (classArray.length > 0) {
                 if (!k.class.isAssignableFrom(classArray[0])) throw new IllegalArgumentException("invalid parameter type. Must be one and instanceof LifecycleOwner");
                 n3 = 1;
@@ -62,7 +62,7 @@ public final class a {
                 n3 = 2;
             }
             if (classArray.length > 2) throw new IllegalArgumentException("cannot have more than 2 params");
-            this.e(hashMap, new b(n3, (Method)classArray2), a4, clazz);
+            this.e(hashMap, new b(n3, (Method)object2), a4, clazz);
             bl = true;
         }
         a a5 = new a(hashMap);
@@ -108,17 +108,17 @@ public final class a {
     public final void e(Map object, b object2, f.a a4, Class clazz) {
         f.a a5 = (f.a)((Object)object.get(object2));
         if (a5 != null && a4 != a5) {
-            object2 = ((b)object2).b;
-            object = new StringBuilder();
-            ((StringBuilder)object).append("Method ");
-            ((StringBuilder)object).append(((Method)object2).getName());
-            ((StringBuilder)object).append(" in ");
-            ((StringBuilder)object).append(clazz.getName());
-            ((StringBuilder)object).append(" already declared with different @OnLifecycleEvent value: previous value ");
-            ((StringBuilder)object).append((Object)a5);
-            ((StringBuilder)object).append(", new value ");
-            ((StringBuilder)object).append((Object)a4);
-            throw new IllegalArgumentException(((StringBuilder)object).toString());
+            object = ((b)object2).b;
+            object2 = new StringBuilder();
+            ((StringBuilder)object2).append("Method ");
+            ((StringBuilder)object2).append(((Method)object).getName());
+            ((StringBuilder)object2).append(" in ");
+            ((StringBuilder)object2).append(clazz.getName());
+            ((StringBuilder)object2).append(" already declared with different @OnLifecycleEvent value: previous value ");
+            ((StringBuilder)object2).append((Object)a5);
+            ((StringBuilder)object2).append(", new value ");
+            ((StringBuilder)object2).append((Object)a4);
+            throw new IllegalArgumentException(((StringBuilder)object2).toString());
         }
         if (a5 == null) {
             object.put(object2, a4);

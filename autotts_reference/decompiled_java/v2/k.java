@@ -519,12 +519,12 @@ public abstract class k {
         public final void f(float f3, float f4) {
             this.a.offset(-f3, -f4);
             PointF pointF = this.a;
-            f3 = (float)Math.atan2(pointF.y, pointF.x);
+            f4 = (float)Math.atan2(pointF.y, pointF.x);
             pointF = this.a;
-            f4 = (float)Math.hypot(pointF.x, pointF.y);
+            f3 = (float)Math.hypot(pointF.x, pointF.y);
             pointF = this.a;
-            pointF.x = f3;
-            pointF.y = f4;
+            pointF.x = f4;
+            pointF.y = f3;
         }
     }
 }

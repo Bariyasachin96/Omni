@@ -205,19 +205,19 @@ extends ViewGroup {
                     g3.recycle();
                 }
             }
-            attributeSet = context.obtainStyledAttributes(attributeSet, w0.c.DrawerLayout, n3, 0);
+            context = context.obtainStyledAttributes(attributeSet, w0.c.DrawerLayout, n3, 0);
             try {
                 n3 = w0.c.DrawerLayout_elevation;
-                this.d = attributeSet.hasValue(n3) ? attributeSet.getDimension(n3, 0.0f) : this.getResources().getDimension(b.def_drawer_elevation);
+                this.d = context.hasValue(n3) ? context.getDimension(n3, 0.0f) : this.getResources().getDimension(b.def_drawer_elevation);
             }
             catch (Throwable throwable2) {
                 break block7;
             }
-            attributeSet.recycle();
+            context.recycle();
             this.J = new ArrayList();
             return;
         }
-        attributeSet.recycle();
+        context.recycle();
         throw throwable2;
     }
 
@@ -567,45 +567,45 @@ extends ViewGroup {
             n7 = 0;
             for (n8 = 0; n8 < n9; ++n8) {
                 View view2 = this.getChildAt(n8);
-                int n10 = n5;
-                n3 = n7;
+                n3 = n5;
+                int n10 = n7;
                 if (view2 != view) {
-                    n10 = n5;
-                    n3 = n7;
+                    n3 = n5;
+                    n10 = n7;
                     if (view2.getVisibility() == 0) {
-                        n10 = n5;
-                        n3 = n7;
+                        n3 = n5;
+                        n10 = n7;
                         if (DrawerLayout.v(view2)) {
-                            n10 = n5;
-                            n3 = n7;
+                            n3 = n5;
+                            n10 = n7;
                             if (this.B(view2)) {
                                 int n11;
                                 if (view2.getHeight() < n4) {
-                                    n10 = n5;
-                                    n3 = n7;
+                                    n3 = n5;
+                                    n10 = n7;
                                 } else if (this.c(view2, 3)) {
                                     n11 = view2.getRight();
-                                    n10 = n5;
-                                    n3 = n7;
+                                    n3 = n5;
+                                    n10 = n7;
                                     if (n11 > n7) {
-                                        n3 = n11;
-                                        n10 = n5;
+                                        n10 = n11;
+                                        n3 = n5;
                                     }
                                 } else {
                                     n11 = view2.getLeft();
-                                    n10 = n5;
-                                    n3 = n7;
+                                    n3 = n5;
+                                    n10 = n7;
                                     if (n11 < n5) {
-                                        n10 = n11;
-                                        n3 = n7;
+                                        n3 = n11;
+                                        n10 = n7;
                                     }
                                 }
                             }
                         }
                     }
                 }
-                n5 = n10;
-                n7 = n3;
+                n5 = n3;
+                n7 = n10;
             }
             canvas.clipRect(n7, 0, n5, this.getHeight());
             n8 = n5;
@@ -621,22 +621,22 @@ extends ViewGroup {
             return bl2;
         }
         if (this.z != null && this.c(view, 3)) {
-            n5 = this.z.getIntrinsicWidth();
+            n7 = this.z.getIntrinsicWidth();
             n8 = view.getRight();
-            n7 = this.i.x();
-            f3 = Math.max(0.0f, Math.min((float)n8 / (float)n7, 1.0f));
-            this.z.setBounds(n8, view.getTop(), n5 + n8, view.getBottom());
+            n5 = this.i.x();
+            f3 = Math.max(0.0f, Math.min((float)n8 / (float)n5, 1.0f));
+            this.z.setBounds(n8, view.getTop(), n7 + n8, view.getBottom());
             this.z.setAlpha((int)(f3 * 255.0f));
             this.z.draw(canvas);
             return bl2;
         }
         if (this.A != null && this.c(view, 5)) {
-            n5 = this.A.getIntrinsicWidth();
-            n8 = view.getLeft();
-            n3 = this.getWidth();
-            n7 = this.j.x();
-            f3 = Math.max(0.0f, Math.min((float)(n3 - n8) / (float)n7, 1.0f));
-            this.A.setBounds(n8 - n5, view.getTop(), n8, view.getBottom());
+            n7 = this.A.getIntrinsicWidth();
+            n3 = view.getLeft();
+            n8 = this.getWidth();
+            n5 = this.j.x();
+            f3 = Math.max(0.0f, Math.min((float)(n8 - n3) / (float)n5, 1.0f));
+            this.A.setBounds(n3 - n7, view.getTop(), n3, view.getBottom());
             this.A.setAlpha((int)(f3 * 255.0f));
             this.A.draw(canvas);
         }
@@ -1136,27 +1136,26 @@ extends ViewGroup {
     }
 
     public void onRestoreInstanceState(Parcelable parcelable) {
-        View view;
         if (!(parcelable instanceof SavedState)) {
             super.onRestoreInstanceState(parcelable);
             return;
         }
-        parcelable = (SavedState)parcelable;
-        super.onRestoreInstanceState(parcelable.o());
-        int n3 = parcelable.e;
-        if (n3 != 0 && (view = this.l(n3)) != null) {
-            this.G(view);
+        SavedState savedState = (SavedState)parcelable;
+        super.onRestoreInstanceState(savedState.o());
+        int n3 = savedState.e;
+        if (n3 != 0 && (parcelable = this.l(n3)) != null) {
+            this.G((View)parcelable);
         }
-        if ((n3 = parcelable.f) != 3) {
+        if ((n3 = savedState.f) != 3) {
             this.setDrawerLockMode(n3, 3);
         }
-        if ((n3 = parcelable.g) != 3) {
+        if ((n3 = savedState.g) != 3) {
             this.setDrawerLockMode(n3, 5);
         }
-        if ((n3 = parcelable.h) != 3) {
+        if ((n3 = savedState.h) != 3) {
             this.setDrawerLockMode(n3, 0x800003);
         }
-        if ((n3 = parcelable.i) != 3) {
+        if ((n3 = savedState.i) != 3) {
             this.setDrawerLockMode(n3, 0x800005);
         }
     }

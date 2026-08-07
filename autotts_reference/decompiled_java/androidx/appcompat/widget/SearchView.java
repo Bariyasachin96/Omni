@@ -210,7 +210,7 @@ implements c {
         ImageView imageView2;
         ImageView imageView3;
         ImageView imageView4;
-        View view;
+        ImageView imageView5;
         AdapterView.OnItemSelectedListener onItemSelectedListener;
         AdapterView.OnItemClickListener onItemClickListener;
         TextView.OnEditorActionListener onEditorActionListener;
@@ -325,30 +325,30 @@ implements c {
         this.r = object;
         ((SearchAutoComplete)((Object)object)).setSearchView(this);
         this.s = this.findViewById(c.f.search_edit_frame);
-        this.t = view = this.findViewById(c.f.search_plate);
-        attributeSet = this.findViewById(c.f.submit_area);
-        this.u = attributeSet;
-        this.v = imageView4 = (ImageView)this.findViewById(c.f.search_button);
-        this.w = imageView3 = (ImageView)this.findViewById(c.f.search_go_btn);
-        object2 = (ImageView)this.findViewById(c.f.search_close_btn);
-        this.x = (ImageView)object2;
+        attributeSet = this.findViewById(c.f.search_plate);
+        this.t = attributeSet;
+        object2 = this.findViewById(c.f.submit_area);
+        this.u = (View)object2;
+        this.v = imageView5 = (ImageView)this.findViewById(c.f.search_button);
+        this.w = imageView4 = (ImageView)this.findViewById(c.f.search_go_btn);
+        this.x = imageView3 = (ImageView)this.findViewById(c.f.search_close_btn);
         this.y = imageView2 = (ImageView)this.findViewById(c.f.search_voice_btn);
         this.F = imageView = (ImageView)this.findViewById(c.f.search_mag_icon);
-        x0.k0(view, m02.g(c.j.SearchView_queryBackground));
-        x0.k0((View)attributeSet, m02.g(c.j.SearchView_submitBackground));
+        x0.k0((View)attributeSet, m02.g(c.j.SearchView_queryBackground));
+        x0.k0((View)object2, m02.g(c.j.SearchView_submitBackground));
         n3 = c.j.SearchView_searchIcon;
-        imageView4.setImageDrawable(m02.g(n3));
-        imageView3.setImageDrawable(m02.g(c.j.SearchView_goIcon));
-        object2.setImageDrawable(m02.g(c.j.SearchView_closeIcon));
+        imageView5.setImageDrawable(m02.g(n3));
+        imageView4.setImageDrawable(m02.g(c.j.SearchView_goIcon));
+        imageView3.setImageDrawable(m02.g(c.j.SearchView_closeIcon));
         imageView2.setImageDrawable(m02.g(c.j.SearchView_voiceIcon));
         imageView.setImageDrawable(m02.g(n3));
         this.G = m02.g(c.j.SearchView_searchHintIcon);
-        r0.a((View)imageView4, this.getResources().getString(c.h.abc_searchview_description_search));
+        r0.a((View)imageView5, this.getResources().getString(c.h.abc_searchview_description_search));
         this.H = m02.n(c.j.SearchView_suggestionRowLayout, c.g.abc_search_dropdown_item_icons_2line);
         this.I = m02.n(c.j.SearchView_commitIcon, 0);
-        imageView4.setOnClickListener(onClickListener);
-        object2.setOnClickListener(onClickListener);
+        imageView5.setOnClickListener(onClickListener);
         imageView3.setOnClickListener(onClickListener);
+        imageView4.setOnClickListener(onClickListener);
         imageView2.setOnClickListener(onClickListener);
         object.setOnClickListener(onClickListener);
         object.addTextChangedListener(this.p0);
@@ -362,11 +362,11 @@ implements c {
                 this.c = searchView;
             }
 
-            public void onFocusChange(View view, boolean bl) {
-                SearchView searchView = this.c;
-                view = searchView.N;
-                if (view != null) {
-                    view.onFocusChange((View)searchView, bl);
+            public void onFocusChange(View object, boolean bl) {
+                object = this.c;
+                View.OnFocusChangeListener onFocusChangeListener = object.N;
+                if (onFocusChangeListener != null) {
+                    onFocusChangeListener.onFocusChange(object, bl);
                 }
             }
         });
@@ -570,8 +570,9 @@ implements c {
         int[] nArray = this.D;
         int n3 = nArray[1];
         int[] nArray2 = this.E;
-        int n4 = nArray[0] - nArray2[0];
-        rect.set(n4, n3 -= nArray2[1], view.getWidth() + n4, view.getHeight() + n3);
+        int n4 = n3 - nArray2[1];
+        n3 = nArray[0] - nArray2[0];
+        rect.set(n3, n4, view.getWidth() + n3, view.getHeight() + n4);
     }
 
     public final CharSequence H(CharSequence charSequence) {
@@ -967,9 +968,9 @@ implements c {
         super.onLayout(bl, n3, n4, n5, n6);
         if (bl) {
             this.G((View)this.r, this.B);
-            Object object = this.C;
-            Rect rect = this.B;
-            object.set(rect.left, 0, rect.right, n6 - n4);
+            Rect rect = this.C;
+            Object object = this.B;
+            rect.set(object.left, 0, object.right, n6 - n4);
             object = this.A;
             if (object == null) {
                 object = new p(this.C, this.B, (View)this.r);
@@ -1174,10 +1175,10 @@ implements c {
             this.r.getDropDownBackground().getPadding(rect);
             int n5 = bl ? -rect.left : n3 - (rect.left + n4);
             this.r.setDropDownHorizontalOffset(n5);
-            int n6 = this.z.getWidth();
-            int n7 = rect.left;
-            n5 = rect.right;
-            this.r.setDropDownWidth(n6 + n7 + n5 + n4 - n3);
+            n5 = this.z.getWidth();
+            int n6 = rect.left;
+            int n7 = rect.right;
+            this.r.setDropDownWidth(n5 + n6 + n7 + n4 - n3);
         }
     }
 

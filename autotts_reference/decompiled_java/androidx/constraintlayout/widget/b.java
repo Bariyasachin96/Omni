@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import u.j;
@@ -1944,25 +1945,25 @@ lbl63:
                 this.h.put(object, new a());
             }
             if ((object = (a)this.h.get(object)) == null) continue;
-            Object object22 = ((a)object).e;
-            if (!((b)object22).b) {
-                ((b)object22).a(a4.e);
+            Iterator iterator = ((a)object).e;
+            if (!((b)((Object)iterator)).b) {
+                ((b)((Object)iterator)).a(a4.e);
             }
-            object22 = ((a)object).c;
-            if (!((d)object22).a) {
-                ((d)object22).a(a4.c);
+            iterator = ((a)object).c;
+            if (!((d)((Object)iterator)).a) {
+                ((d)((Object)iterator)).a(a4.c);
             }
-            object22 = ((a)object).f;
-            if (!((e)object22).a) {
-                ((e)object22).a(a4.f);
+            iterator = ((a)object).f;
+            if (!((e)((Object)iterator)).a) {
+                ((e)((Object)iterator)).a(a4.f);
             }
-            object22 = ((a)object).d;
-            if (!((c)object22).a) {
-                ((c)object22).a(a4.d);
+            iterator = ((a)object).d;
+            if (!((c)((Object)iterator)).a) {
+                ((c)((Object)iterator)).a(a4.d);
             }
-            for (Object object22 : a4.g.keySet()) {
-                if (((a)object).g.containsKey(object22)) continue;
-                ((a)object).g.put(object22, (androidx.constraintlayout.widget.a)a4.g.get(object22));
+            for (String string : a4.g.keySet()) {
+                if (((a)object).g.containsKey(string)) continue;
+                ((a)object).g.put(string, (androidx.constraintlayout.widget.a)a4.g.get(string));
             }
         }
     }
@@ -2003,23 +2004,23 @@ lbl63:
         }
     }
 
-    public void h(b object) {
-        for (a a4 : ((b)object).h.values()) {
-            Object object2;
-            if (a4.h == null) continue;
-            if (a4.b == null) {
-                object2 = this.v(a4.a);
-                a4.h.e((a)object2);
+    public void h(b object2) {
+        for (Object object2 : ((b)object2).h.values()) {
+            a a4;
+            if (((a)object2).h == null) continue;
+            if (((a)object2).b == null) {
+                a4 = this.v(((a)object2).a);
+                ((a)object2).h.e(a4);
                 continue;
             }
-            object2 = this.h.keySet().iterator();
-            while (object2.hasNext()) {
-                a a5 = this.v((Integer)object2.next());
-                Object object3 = a5.e.m0;
-                if (object3 == null || !a4.b.matches((String)object3)) continue;
-                a4.h.e(a5);
-                object3 = (HashMap)a4.g.clone();
-                a5.g.putAll(object3);
+            Iterator iterator = this.h.keySet().iterator();
+            while (iterator.hasNext()) {
+                a4 = this.v((Integer)iterator.next());
+                Object object3 = a4.e.m0;
+                if (object3 == null || !((a)object2).b.matches((String)object3)) continue;
+                ((a)object2).h.e(a4);
+                object3 = (HashMap)((a)object2).g.clone();
+                a4.g.putAll(object3);
             }
         }
     }
@@ -2046,20 +2047,20 @@ lbl63:
         Object object2;
         Object object3;
         Object object4;
-        View view;
+        Object object5;
         int n3;
         int n4 = constraintLayout.getChildCount();
-        Object object5 = new HashSet(this.h.keySet());
+        Object object6 = new HashSet(this.h.keySet());
         int n5 = 0;
         for (n3 = 0; n3 < n4; ++n3) {
             block22: {
                 block21: {
-                    view = constraintLayout.getChildAt(n3);
-                    int n6 = view.getId();
+                    object5 = constraintLayout.getChildAt(n3);
+                    int n6 = object5.getId();
                     if (!this.h.containsKey(n6)) {
                         object4 = new StringBuilder();
                         ((StringBuilder)object4).append("id unknown ");
-                        ((StringBuilder)object4).append(x.a.d(view));
+                        ((StringBuilder)object4).append(x.a.d((View)object5));
                         Log.w((String)"ConstraintSet", (String)((StringBuilder)object4).toString());
                         continue;
                     }
@@ -2067,12 +2068,12 @@ lbl63:
                         throw new RuntimeException("All children of ConstraintLayout must have ids to use ConstraintSet");
                     }
                     if (n6 == -1 || !this.h.containsKey(n6)) continue;
-                    ((HashSet)object5).remove(n6);
+                    ((HashSet)object6).remove(n6);
                     object4 = (a)this.h.get(n6);
                     if (object4 == null) continue;
-                    if (view instanceof Barrier) {
+                    if (object5 instanceof Barrier) {
                         ((a)object4).e.j0 = 1;
-                        object3 = (Barrier)view;
+                        object3 = (Barrier)((Object)object5);
                         object3.setId(n6);
                         ((Barrier)((Object)object3)).setType(((a)object4).e.h0);
                         ((Barrier)((Object)object3)).setMargin(((a)object4).e.i0);
@@ -2089,57 +2090,57 @@ lbl63:
                             }
                         }
                     }
-                    object3 = (ConstraintLayout.LayoutParams)view.getLayoutParams();
+                    object3 = (ConstraintLayout.LayoutParams)object5.getLayoutParams();
                     ((ConstraintLayout.LayoutParams)((Object)object3)).c();
                     ((a)object4).e((ConstraintLayout.LayoutParams)((Object)object3));
                     if (bl) {
-                        androidx.constraintlayout.widget.a.j(view, ((a)object4).g);
+                        androidx.constraintlayout.widget.a.j((View)object5, ((a)object4).g);
                     }
-                    view.setLayoutParams((ViewGroup.LayoutParams)object3);
+                    object5.setLayoutParams((ViewGroup.LayoutParams)object3);
                     object3 = ((a)object4).c;
                     if (((d)object3).c == 0) {
-                        view.setVisibility(((d)object3).b);
+                        object5.setVisibility(((d)object3).b);
                     }
-                    view.setAlpha(((a)object4).c.d);
-                    view.setRotation(((a)object4).f.b);
-                    view.setRotationX(((a)object4).f.c);
-                    view.setRotationY(((a)object4).f.d);
-                    view.setScaleX(((a)object4).f.e);
-                    view.setScaleY(((a)object4).f.f);
+                    object5.setAlpha(((a)object4).c.d);
+                    object5.setRotation(((a)object4).f.b);
+                    object5.setRotationX(((a)object4).f.c);
+                    object5.setRotationY(((a)object4).f.d);
+                    object5.setScaleX(((a)object4).f.e);
+                    object5.setScaleY(((a)object4).f.f);
                     object3 = ((a)object4).f;
                     if (((e)object3).i == -1) break block21;
-                    object3 = ((View)view.getParent()).findViewById(((a)object4).f.i);
+                    object3 = ((View)object5.getParent()).findViewById(((a)object4).f.i);
                     if (object3 != null) {
                         float f3 = (float)(object3.getTop() + object3.getBottom()) / 2.0f;
                         float f4 = (float)(object3.getLeft() + object3.getRight()) / 2.0f;
-                        if (view.getRight() - view.getLeft() > 0 && view.getBottom() - view.getTop() > 0) {
-                            float f5 = view.getLeft();
-                            float f6 = view.getTop();
-                            view.setPivotX(f4 - f5);
-                            view.setPivotY(f3 - f6);
+                        if (object5.getRight() - object5.getLeft() > 0 && object5.getBottom() - object5.getTop() > 0) {
+                            float f5 = object5.getLeft();
+                            float f6 = object5.getTop();
+                            object5.setPivotX(f4 - f5);
+                            object5.setPivotY(f3 - f6);
                         }
                     }
                     break block22;
                 }
                 if (!Float.isNaN(((e)object3).g)) {
-                    view.setPivotX(((a)object4).f.g);
+                    object5.setPivotX(((a)object4).f.g);
                 }
                 if (!Float.isNaN(((a)object4).f.h)) {
-                    view.setPivotY(((a)object4).f.h);
+                    object5.setPivotY(((a)object4).f.h);
                 }
             }
-            view.setTranslationX(((a)object4).f.j);
-            view.setTranslationY(((a)object4).f.k);
-            view.setTranslationZ(((a)object4).f.l);
+            object5.setTranslationX(((a)object4).f.j);
+            object5.setTranslationY(((a)object4).f.k);
+            object5.setTranslationZ(((a)object4).f.l);
             object4 = ((a)object4).f;
             if (!((e)object4).m) continue;
-            view.setElevation(((e)object4).n);
+            object5.setElevation(((e)object4).n);
         }
-        view = ((HashSet)object5).iterator();
+        object6 = ((HashSet)object6).iterator();
         while (true) {
             n3 = n5;
-            if (!view.hasNext()) break;
-            object4 = (Integer)view.next();
+            if (!object6.hasNext()) break;
+            object4 = (Integer)object6.next();
             object5 = (a)this.h.get(object4);
             if (object5 == null) continue;
             if (((a)object5).e.j0 == 1) {
@@ -2284,16 +2285,16 @@ lbl63:
         int n4 = 0;
         while (n3 < stringArray.length) {
             int n5;
-            String string = stringArray[n3].trim();
+            Object object3 = stringArray[n3].trim();
             try {
-                n5 = y.c.class.getField(string).getInt(null);
+                n5 = y.c.class.getField((String)object3).getInt(null);
             }
             catch (Exception exception) {
                 n5 = 0;
             }
             int n6 = n5;
             if (n5 == 0) {
-                n6 = context.getResources().getIdentifier(string, "id", context.getPackageName());
+                n6 = context.getResources().getIdentifier((String)object3, "id", context.getPackageName());
             }
             n5 = n6;
             if (n6 == 0) {
@@ -2301,7 +2302,7 @@ lbl63:
                 if (object.isInEditMode()) {
                     n5 = n6;
                     if (object.getParent() instanceof ConstraintLayout) {
-                        Object object3 = ((ConstraintLayout)object.getParent()).o(0, string);
+                        object3 = ((ConstraintLayout)object.getParent()).o(0, object3);
                         n5 = n6;
                         if (object3 != null) {
                             n5 = n6;
@@ -2351,14 +2352,14 @@ lbl63:
     }
 
     public int[] x() {
-        Integer[] integerArray = this.h.keySet();
-        integerArray = integerArray.toArray(new Integer[0]);
+        Object object = this.h.keySet();
+        Integer[] integerArray = object.toArray(new Integer[0]);
         int n3 = integerArray.length;
-        int[] nArray = new int[n3];
+        object = new int[n3];
         for (int i3 = 0; i3 < n3; ++i3) {
-            nArray[i3] = integerArray[i3];
+            object[i3] = integerArray[i3];
         }
-        return nArray;
+        return object;
     }
 
     public a y(int n3) {

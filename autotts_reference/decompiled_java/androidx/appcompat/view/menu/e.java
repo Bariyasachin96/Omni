@@ -404,10 +404,10 @@ implements i0.a {
     }
 
     public SubMenu addSubMenu(int n3, int n4, int n5, CharSequence object) {
-        object = (g)this.a(n3, n4, n5, (CharSequence)object);
-        l l3 = new l(this.a, this, (g)object);
-        ((g)object).x(l3);
-        return l3;
+        g g3 = (g)this.a(n3, n4, n5, (CharSequence)object);
+        object = new l(this.a, this, g3);
+        g3.x((l)object);
+        return object;
     }
 
     public SubMenu addSubMenu(CharSequence charSequence) {
@@ -630,9 +630,8 @@ implements i0.a {
         return this.r(n3, keyEvent) != null;
     }
 
-    public final void j(Bundle object) {
-        SparseArray sparseArray = object.getSparseParcelableArray("android:menu:presenters");
-        if (sparseArray != null && !this.w.isEmpty()) {
+    public final void j(Bundle bundle) {
+        if ((bundle = bundle.getSparseParcelableArray("android:menu:presenters")) != null && !this.w.isEmpty()) {
             for (WeakReference weakReference : this.w) {
                 i i3 = (i)weakReference.get();
                 if (i3 == null) {
@@ -640,7 +639,7 @@ implements i0.a {
                     continue;
                 }
                 int n3 = i3.getId();
-                if (n3 <= 0 || (weakReference = (Parcelable)sparseArray.get(n3)) == null) continue;
+                if (n3 <= 0 || (weakReference = (Parcelable)bundle.get(n3)) == null) continue;
                 i3.d((Parcelable)weakReference);
             }
         }
@@ -768,11 +767,10 @@ implements i0.a {
         }
         boolean bl = this.J();
         for (int i3 = 0; i3 < n5; ++i3) {
-            char[] cArray;
-            object = (g)arrayList.get(i3);
-            char c3 = bl ? ((g)object).getAlphabeticShortcut() : ((g)object).getNumericShortcut();
-            if (!(c3 == (cArray = keyData.meta)[0] && (n4 & 2) == 0 || c3 == cArray[2] && (n4 & 2) != 0) && (!bl || c3 != '\b' || n3 != 67)) continue;
-            return object;
+            g g3 = (g)arrayList.get(i3);
+            char c3 = bl ? g3.getAlphabeticShortcut() : g3.getNumericShortcut();
+            if (!(c3 == (object = (Object)keyData.meta)[0] && (n4 & 2) == 0 || c3 == object[2] && (n4 & 2) != 0) && (!bl || c3 != '\b' || n3 != 67)) continue;
+            return g3;
         }
         return null;
     }

@@ -5,6 +5,7 @@ package r;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import r.b;
 import r.c;
 import r.d;
 import r.i;
@@ -29,14 +30,14 @@ extends r.b {
         if (i3 == null) {
             return;
         }
-        object = b3.e;
-        int n3 = object.f();
+        b.a a4 = b3.e;
+        int n3 = a4.f();
         for (int i4 = 0; i4 < n3; ++i4) {
-            i i5 = object.h(i4);
-            float f3 = object.a(i4);
-            this.k.b(i5);
+            object = a4.h(i4);
+            float f3 = a4.a(i4);
+            this.k.b((i)object);
             if (this.k.a(i3, f3)) {
-                this.F(i5);
+                this.F((i)object);
             }
             this.b += b3.b * f3;
         }
@@ -44,22 +45,21 @@ extends r.b {
     }
 
     public final void F(i i3) {
-        int n3;
-        int n4 = this.j;
+        int n3 = this.j;
         i[] iArray = this.h;
-        if (n4 + 1 > iArray.length) {
+        if (n3 + 1 > iArray.length) {
             this.h = iArray = Arrays.copyOf(iArray, iArray.length * 2);
             this.i = Arrays.copyOf(iArray, iArray.length * 2);
         }
         iArray = this.h;
-        n4 = this.j;
+        int n4 = this.j;
         iArray[n4] = i3;
         this.j = n3 = n4 + 1;
         if (n3 > 1 && iArray[n4].e > i3.e) {
             int n5;
-            n3 = 0;
-            for (n4 = 0; n4 < (n5 = this.j); ++n4) {
-                this.i[n4] = this.h[n4];
+            n4 = 0;
+            for (n3 = 0; n3 < (n5 = this.j); ++n3) {
+                this.i[n3] = this.h[n3];
             }
             Arrays.sort(this.i, 0, n5, new Comparator(this){
                 public final h c;
@@ -71,8 +71,8 @@ extends r.b {
                     return i3.e - i4.e;
                 }
             });
-            for (n4 = n3; n4 < this.j; ++n4) {
-                this.h[n4] = this.i[n4];
+            for (n3 = n4; n3 < this.j; ++n3) {
+                this.h[n3] = this.i[n3];
             }
         }
         i3.c = true;

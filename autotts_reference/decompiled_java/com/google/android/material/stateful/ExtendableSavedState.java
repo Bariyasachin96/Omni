@@ -34,12 +34,12 @@ extends AbsSavedState {
     };
     public final r e;
 
-    public ExtendableSavedState(Parcel parcel, ClassLoader stringArray) {
-        super(parcel, (ClassLoader)stringArray);
+    public ExtendableSavedState(Parcel parcel, ClassLoader objectArray) {
+        super(parcel, (ClassLoader)objectArray);
         int n3 = parcel.readInt();
-        stringArray = new String[n3];
+        String[] stringArray = new String[n3];
         parcel.readStringArray(stringArray);
-        Object[] objectArray = new Bundle[n3];
+        objectArray = new Bundle[n3];
         parcel.readTypedArray(objectArray, Bundle.CREATOR);
         this.e = new r(n3);
         for (int i3 = 0; i3 < n3; ++i3) {

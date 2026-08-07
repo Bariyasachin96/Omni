@@ -56,26 +56,26 @@ public class l {
 
     public l(k k3) {
         int n3;
+        Object object;
         this.c = k3;
-        Object object = k3.a;
-        this.a = object;
-        Object object2 = c0.l$e.a((Context)object, k3.J);
-        this.b = object2;
+        Object object2 = k3.a;
+        this.a = object2;
+        this.b = object = c0.l$e.a((Context)object2, k3.J);
         Notification notification = k3.Q;
-        Object object3 = object2.setWhen(notification.when).setSmallIcon(notification.icon, notification.iconLevel).setContent(notification.contentView).setTicker(notification.tickerText, k3.i).setVibrate(notification.vibrate).setLights(notification.ledARGB, notification.ledOnMS, notification.ledOffMS);
+        Object object3 = object.setWhen(notification.when).setSmallIcon(notification.icon, notification.iconLevel).setContent(notification.contentView).setTicker(notification.tickerText, k3.i).setVibrate(notification.vibrate).setLights(notification.ledARGB, notification.ledOnMS, notification.ledOffMS);
         boolean bl = (notification.flags & 2) != 0;
         object3 = object3.setOngoing(bl);
         bl = (notification.flags & 8) != 0;
         object3 = object3.setOnlyAlertOnce(bl);
         bl = (notification.flags & 0x10) != 0;
-        Notification.Builder builder = object3.setAutoCancel(bl).setDefaults(notification.defaults).setContentTitle(k3.e).setContentText(k3.f).setContentInfo(k3.k).setContentIntent(k3.g).setDeleteIntent(notification.deleteIntent);
-        object3 = k3.h;
+        object3 = object3.setAutoCancel(bl).setDefaults(notification.defaults).setContentTitle(k3.e).setContentText(k3.f).setContentInfo(k3.k).setContentIntent(k3.g).setDeleteIntent(notification.deleteIntent);
+        PendingIntent pendingIntent = k3.h;
         bl = (notification.flags & 0x80) != 0;
-        builder.setFullScreenIntent((PendingIntent)object3, bl).setNumber(k3.l).setProgress(k3.s, k3.t, k3.u);
+        object3.setFullScreenIntent(pendingIntent, bl).setNumber(k3.l).setProgress(k3.s, k3.t, k3.u);
         object3 = k3.j;
-        object = object3 == null ? null : ((IconCompat)object3).g((Context)object);
-        c0.l$c.b((Notification.Builder)object2, (Icon)object);
-        object2.setSubText(k3.p).setUsesChronometer(k3.o).setPriority(k3.m);
+        object2 = object3 == null ? null : ((IconCompat)object3).g((Context)object2);
+        c0.l$c.b(object, (Icon)object2);
+        object.setSubText(k3.p).setUsesChronometer(k3.o).setPriority(k3.m);
         object2 = k3.b;
         int n4 = ((ArrayList)object2).size();
         for (n3 = 0; n3 < n4; ++n3) {
@@ -83,9 +83,9 @@ public class l {
             s.a(object);
             this.a(null);
         }
-        object = k3.C;
-        if (object != null) {
-            this.g.putAll((Bundle)object);
+        object2 = k3.C;
+        if (object2 != null) {
+            this.g.putAll((Bundle)object2);
         }
         n3 = Build.VERSION.SDK_INT;
         this.d = k3.G;
@@ -101,9 +101,9 @@ public class l {
         c0.l$b.f(this.b, k3.E);
         c0.l$b.d(this.b, k3.F);
         c0.l$b.e(this.b, notification.sound, notification.audioAttributes);
-        object = n3 < 28 ? l.d(l.e(k3.c), k3.T) : k3.T;
-        if (object != null && !object.isEmpty()) {
-            object2 = object.iterator();
+        object2 = n3 < 28 ? l.d(l.e(k3.c), k3.T) : k3.T;
+        if (object2 != null && !object2.isEmpty()) {
+            object2 = object2.iterator();
             while (object2.hasNext()) {
                 object = (String)object2.next();
                 c0.l$b.a(this.b, (String)object);
@@ -111,38 +111,39 @@ public class l {
         }
         this.i = k3.I;
         if (k3.d.size() > 0) {
-            object = object2 = k3.b().getBundle("android.car.EXTENSIONS");
-            if (object2 == null) {
-                object = new Bundle();
+            object = k3.b().getBundle("android.car.EXTENSIONS");
+            object2 = object;
+            if (object == null) {
+                object2 = new Bundle();
             }
-            object2 = new Bundle((Bundle)object);
-            builder = new Bundle();
+            pendingIntent = new Bundle((Bundle)object2);
+            object3 = new Bundle();
             for (n3 = 0; n3 < k3.d.size(); ++n3) {
-                object3 = Integer.toString(n3);
+                object = Integer.toString(n3);
                 s.a(k3.d.get(n3));
-                builder.putBundle((String)object3, m.a(null));
+                object3.putBundle((String)object, m.a(null));
             }
-            object.putBundle("invisible_actions", (Bundle)builder);
-            object2.putBundle("invisible_actions", (Bundle)builder);
-            k3.b().putBundle("android.car.EXTENSIONS", (Bundle)object);
-            this.g.putBundle("android.car.EXTENSIONS", (Bundle)object2);
+            object2.putBundle("invisible_actions", (Bundle)object3);
+            pendingIntent.putBundle("invisible_actions", (Bundle)object3);
+            k3.b().putBundle("android.car.EXTENSIONS", (Bundle)object2);
+            this.g.putBundle("android.car.EXTENSIONS", (Bundle)pendingIntent);
         }
         n3 = Build.VERSION.SDK_INT;
-        object = k3.S;
-        if (object != null) {
-            c0.l$c.c(this.b, object);
+        object2 = k3.S;
+        if (object2 != null) {
+            c0.l$c.c(this.b, object2);
         }
         this.b.setExtras(k3.C);
         c0.l$d.e(this.b, k3.r);
-        object = k3.G;
-        if (object != null) {
-            c0.l$d.c(this.b, (RemoteViews)object);
+        object2 = k3.G;
+        if (object2 != null) {
+            c0.l$d.c(this.b, (RemoteViews)object2);
         }
-        if ((object = k3.H) != null) {
-            c0.l$d.b(this.b, (RemoteViews)object);
+        if ((object2 = k3.H) != null) {
+            c0.l$d.b(this.b, (RemoteViews)object2);
         }
-        if ((object = k3.I) != null) {
-            c0.l$d.d(this.b, (RemoteViews)object);
+        if ((object2 = k3.I) != null) {
+            c0.l$d.d(this.b, (RemoteViews)object2);
         }
         c0.l$e.b(this.b, k3.K);
         c0.l$e.e(this.b, k3.q);
@@ -155,8 +156,8 @@ public class l {
         if (!TextUtils.isEmpty((CharSequence)k3.J)) {
             this.b.setSound(null).setDefaults(0).setLights(0, 0, 0).setVibrate(null);
         }
-        if (n3 >= 28 && (object = k3.c.iterator()).hasNext()) {
-            s.a(object.next());
+        if (n3 >= 28 && (object2 = k3.c.iterator()).hasNext()) {
+            s.a(object2.next());
             throw null;
         }
         if (n3 >= 29) {

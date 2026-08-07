@@ -47,18 +47,18 @@ implements m {
                 float f4 = this.h;
                 double d9 = f4;
                 float f5 = this.i;
-                d8 = (d8 * (d7 - d5) - d9 * d3) / (double)f5;
-                d8 = (double)f4 + d8 * d6 / 2.0;
-                d7 = (-((double)f3 + d6 * d8 / 2.0 - d5) * d4 - d8 * d3) / (double)f5 * d6;
-                d8 = f4;
-                d5 = d7 / 2.0;
-                this.h = f5 = f4 + (float)d7;
-                this.g = f3 += (float)((d8 + d5) * d6);
+                d9 = (d8 * (d7 - d5) - d9 * d3) / (double)f5;
+                d9 = (double)f4 + d9 * d6 / 2.0;
+                d9 = (-((double)f3 + d6 * d9 / 2.0 - d5) * d4 - d9 * d3) / (double)f5 * d6;
+                d5 = f4;
+                d8 = d9 / 2.0;
+                this.h = f4 += (float)d9;
+                this.g = f3 += (float)((d5 + d8) * d6);
                 int n4 = this.k;
                 if (n4 <= 0) continue;
                 if (f3 < 0.0f && (n4 & 1) == 1) {
                     this.g = -f3;
-                    this.h = -f5;
+                    this.h = -f4;
                 }
                 if (!((f3 = this.g) > 1.0f) || (n4 & 2) != 2) continue;
                 this.g = 2.0f - f3;

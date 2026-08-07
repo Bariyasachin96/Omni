@@ -21,100 +21,103 @@ public final class u {
     public final float c;
     public final List d;
 
-    /*
-     * Unable to fully structure code
-     */
-    public u(List var1_1, float var2_2, float var3_3) {
+    public u(List object, float f3, float f4) {
+        int n3;
+        d d3;
+        Object object2;
+        int n4;
+        List list;
         block20: {
-            o3.k.e(var1_1, "features");
-            super();
-            this.a = var1_1;
-            this.b = var2_2;
-            this.c = var3_3;
-            var16_4 = k.c();
-            var4_5 = var1_1.size();
-            var6_6 = 0;
-            var12_7 = null;
-            var11_8 = null;
-            if (var4_5 > 0 && ((g)var1_1.get(0)).a().size() == 3) {
-                var10_9 = ((d)((g)var1_1.get(0)).a().get(1)).m(0.5f);
-                var9_10 = (d)var10_9.a();
-                var10_9 = (d)var10_9.b();
-                var9_10 = l.i(new d[]{((g)var1_1.get(0)).a().get(0), var9_10});
-                var10_9 = l.i(new d[]{var10_9, ((g)var1_1.get(0)).a().get(2)});
+            Object object3;
+            o3.k.e(object, "features");
+            this.a = object;
+            this.b = f3;
+            this.c = f4;
+            list = k.c();
+            n4 = object.size();
+            int n5 = 0;
+            d d4 = null;
+            d d5 = null;
+            if (n4 > 0 && ((g)object.get(0)).a().size() == 3) {
+                object3 = ((d)((g)object.get(0)).a().get(1)).m(0.5f);
+                object2 = (d)((d3.d)object3).a();
+                d3 = (d)((d3.d)object3).b();
+                object3 = l.i(((g)object.get(0)).a().get(0), object2);
+                object2 = l.i(d3, ((g)object.get(0)).a().get(2));
             } else {
-                var10_9 = null;
-                var9_10 = null;
+                object2 = null;
+                object3 = null;
             }
-            var7_11 = var1_1.size();
-            if (var7_11 >= 0) {
-                var4_5 = 0;
-                var12_7 = null;
+            int n6 = object.size();
+            if (n6 >= 0) {
+                n4 = 0;
+                d4 = null;
                 while (true) {
-                    if (var4_5 == 0 && var10_9 != null) {
-                        var1_1 = var10_9;
-                    } else if (var4_5 == this.a.size()) {
-                        if (var9_10 == null) {
-                            var1_1 = var12_7;
-                            var13_14 = var11_8;
-                            while (true) {
-                                var9_10 = var13_14;
-                                break block20;
-                                break;
-                            }
+                    if (n4 == 0 && object2 != null) {
+                        object = object2;
+                    } else if (n4 == this.a.size()) {
+                        if (object3 == null) {
+                            object = d4;
+                            d3 = d5;
+                            break block20;
                         }
-                        var1_1 = var9_10;
+                        object = object3;
                     } else {
-                        var1_1 = ((g)this.a.get(var4_5)).a();
+                        object = ((g)this.a.get(n4)).a();
                     }
-                    var8_13 = var1_1.size();
-                    for (var5_12 = 0; var5_12 < var8_13; ++var5_12) {
-                        var15_16 = (d)var1_1.get(var5_12);
-                        if (!var15_16.p()) {
-                            if (var12_7 != null) {
-                                var16_4.add(var12_7);
+                    int n7 = object.size();
+                    for (n3 = 0; n3 < n7; ++n3) {
+                        d d6;
+                        d d7 = (d)object.get(n3);
+                        if (!d7.p()) {
+                            if (d4 != null) {
+                                list.add(d4);
                             }
-                            if (var11_8 == null) {
-                                var13_14 = var11_8 = var15_16;
-                                var14_15 = var11_8;
+                            if (d5 == null) {
+                                d3 = d4 = d7;
+                                d6 = d4;
                             } else {
-                                var13_14 = var15_16;
-                                var14_15 = var11_8;
+                                d3 = d7;
+                                d6 = d5;
                             }
                         } else {
-                            var14_15 = var11_8;
-                            var13_14 = var12_7;
-                            if (var12_7 != null) {
-                                var12_7.j()[6] = var15_16.d();
-                                var12_7.j()[7] = var15_16.e();
-                                var13_14 = var12_7;
-                                var14_15 = var11_8;
+                            d6 = d5;
+                            d3 = d4;
+                            if (d4 != null) {
+                                d4.j()[6] = d7.d();
+                                d4.j()[7] = d7.e();
+                                d3 = d4;
+                                d6 = d5;
                             }
                         }
-                        var11_8 = var14_15;
-                        var12_7 = var13_14;
+                        d5 = d6;
+                        d4 = d3;
                     }
-                    var13_14 = var11_8;
-                    var1_1 = var12_7;
-                    if (var4_5 == var7_11) ** continue;
-                    ++var4_5;
+                    d3 = d5;
+                    object = d4;
+                    if (n4 != n6) {
+                        ++n4;
+                        continue;
+                    }
+                    break block20;
+                    break;
                 }
             }
-            var9_10 = null;
-            var1_1 = var12_7;
+            d3 = null;
+            object = d4;
         }
-        if (var1_1 != null && var9_10 != null) {
-            var16_4.add(c1.e.a(var1_1.b(), var1_1.c(), var1_1.f(), var1_1.g(), var1_1.h(), var1_1.i(), var9_10.b(), var9_10.c()));
+        if (object != null && d3 != null) {
+            list.add(c1.e.a(((d)object).b(), ((d)object).c(), ((d)object).f(), ((d)object).g(), ((d)object).h(), ((d)object).i(), d3.b(), d3.c()));
         }
-        var9_10 = k.a(var16_4);
-        this.d = var9_10;
-        var1_1 = var9_10.get(var9_10.size() - 1);
-        var5_12 = var9_10.size();
-        for (var4_5 = var6_6; var4_5 < var5_12; ++var4_5) {
-            var9_10 = (d)this.d.get(var4_5);
-            var2_2 = var9_10.b();
-            if (!(Math.abs(var2_2 - (var1_1 = (d)var1_1).d()) > 1.0E-4f) && !(Math.abs(var9_10.c() - var1_1.e()) > 1.0E-4f)) {
-                var1_1 = var9_10;
+        object2 = k.a(list);
+        this.d = object2;
+        object = object2.get(object2.size() - 1);
+        n3 = object2.size();
+        for (n4 = n5; n4 < n3; ++n4) {
+            object2 = (d)this.d.get(n4);
+            f3 = ((d)object2).b();
+            if (!(Math.abs(f3 - ((d)(object = (d)object)).d()) > 1.0E-4f) && !(Math.abs(((d)object2).c() - ((d)object).e()) > 1.0E-4f)) {
+                object = object2;
                 continue;
             }
             throw new IllegalArgumentException("RoundedPolygon must be contiguous, with the anchor points of all curves matching the anchor points of the preceding and succeeding cubics");

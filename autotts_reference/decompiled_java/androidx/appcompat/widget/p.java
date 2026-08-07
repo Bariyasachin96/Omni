@@ -67,11 +67,11 @@ public class p {
         this.i = new q(textView);
     }
 
-    public static k0 d(Context object, g g3, int n3) {
-        if ((g3 = g3.f((Context)object, n3)) != null) {
+    public static k0 d(Context context, g object, int n3) {
+        if ((context = ((g)object).f(context, n3)) != null) {
             object = new k0();
-            object.d = true;
-            object.a = g3;
+            ((k0)object).d = true;
+            ((k0)object).a = context;
             return object;
         }
         return null;
@@ -268,9 +268,9 @@ public class p {
         Context context = this.a.getContext();
         g g3 = androidx.appcompat.widget.g.b();
         Object object2 = c.j.AppCompatTextHelper;
-        Object object3 = m0.v(context, object, object2, n3, 0);
+        Object object3 = m0.v(context, object, (int[])object2, n3, 0);
         Object object4 = this.a;
-        x0.f0((View)object4, object4.getContext(), object2, object, ((m0)object3).r(), n3, 0);
+        x0.f0((View)object4, object4.getContext(), (int[])object2, object, ((m0)object3).r(), n3, 0);
         int n5 = ((m0)object3).n(c.j.AppCompatTextHelper_android_textAppearance, -1);
         int n6 = c.j.AppCompatTextHelper_android_drawableLeft;
         if (((m0)object3).s(n6)) {
@@ -296,8 +296,8 @@ public class p {
         n6 = 1;
         if (n5 != -1) {
             object4 = m0.t(context, n5, c.j.TextAppearance);
-            if (!bl2 && object4.s(n5 = c.j.TextAppearance_textAllCaps)) {
-                bl = object4.a(n5, false);
+            if (!bl2 && ((m0)object4).s(n5 = c.j.TextAppearance_textAllCaps)) {
+                bl = ((m0)object4).a(n5, false);
                 n5 = 1;
             } else {
                 bl = false;
@@ -305,72 +305,72 @@ public class p {
             }
             this.C(context, (m0)object4);
             n4 = c.j.TextAppearance_textLocale;
-            object2 = object4.s(n4) ? (Object)object4.o(n4) : null;
+            object3 = ((m0)object4).s(n4) ? ((m0)object4).o(n4) : null;
             n4 = c.j.TextAppearance_fontVariationSettings;
-            object3 = object4.s(n4) ? object4.o(n4) : null;
-            object4.x();
-            object4 = object2;
-            object2 = object3;
+            object2 = ((m0)object4).s(n4) ? ((m0)object4).o(n4) : null;
+            ((m0)object4).x();
+            object4 = object3;
+            object3 = object2;
         } else {
             bl = false;
             n5 = 0;
             object4 = null;
-            object2 = null;
+            object3 = null;
         }
-        object3 = m0.v(context, object, c.j.TextAppearance, n3, 0);
-        if (!bl2 && ((m0)object3).s(n4 = c.j.TextAppearance_textAllCaps)) {
-            bl = ((m0)object3).a(n4, false);
+        object2 = m0.v(context, object, c.j.TextAppearance, n3, 0);
+        if (!bl2 && ((m0)object2).s(n4 = c.j.TextAppearance_textAllCaps)) {
+            bl = ((m0)object2).a(n4, false);
             n5 = n6;
         }
         n6 = Build.VERSION.SDK_INT;
         n4 = c.j.TextAppearance_textLocale;
-        if (((m0)object3).s(n4)) {
-            object4 = ((m0)object3).o(n4);
+        if (((m0)object2).s(n4)) {
+            object4 = ((m0)object2).o(n4);
         }
-        if (((m0)object3).s(n4 = c.j.TextAppearance_fontVariationSettings)) {
-            object2 = ((m0)object3).o(n4);
+        if (((m0)object2).s(n4 = c.j.TextAppearance_fontVariationSettings)) {
+            object3 = ((m0)object2).o(n4);
         }
-        if (n6 >= 28 && ((m0)object3).s(n6 = c.j.TextAppearance_android_textSize) && ((m0)object3).f(n6, -1) == 0) {
+        if (n6 >= 28 && ((m0)object2).s(n6 = c.j.TextAppearance_android_textSize) && ((m0)object2).f(n6, -1) == 0) {
             this.a.setTextSize(0, 0.0f);
         }
-        this.C(context, (m0)object3);
-        ((m0)object3).x();
+        this.C(context, (m0)object2);
+        ((m0)object2).x();
         if (!bl2 && n5 != 0) {
             this.s(bl);
         }
-        if ((object3 = this.l) != null) {
+        if ((object2 = this.l) != null) {
             if (this.k == -1) {
-                this.a.setTypeface((Typeface)object3, this.j);
+                this.a.setTypeface((Typeface)object2, this.j);
             } else {
-                this.a.setTypeface((Typeface)object3);
+                this.a.setTypeface((Typeface)object2);
             }
         }
-        if (object2 != null) {
-            androidx.appcompat.widget.p$d.d(this.a, (String)object2);
+        if (object3 != null) {
+            androidx.appcompat.widget.p$d.d(this.a, (String)object3);
         }
         if (object4 != null) {
             androidx.appcompat.widget.p$c.b(this.a, androidx.appcompat.widget.p$c.a((String)object4));
         }
         this.i.o((AttributeSet)object, n3);
-        if (t0.c && this.i.j() != 0 && ((int[])(object2 = this.i.i())).length > 0) {
+        if (t0.c && this.i.j() != 0 && ((Object)(object3 = (Object)this.i.i())).length > 0) {
             if ((float)androidx.appcompat.widget.p$d.a(this.a) != -1.0f) {
                 androidx.appcompat.widget.p$d.b(this.a, this.i.g(), this.i.f(), this.i.h(), 0);
             } else {
-                androidx.appcompat.widget.p$d.c(this.a, object2, 0);
+                androidx.appcompat.widget.p$d.c(this.a, (int[])object3, 0);
             }
         }
         object = (n3 = (m02 = m0.u(context, object, c.j.AppCompatTextView)).n(c.j.AppCompatTextView_drawableLeftCompat, -1)) != -1 ? g3.c(context, n3) : null;
         n3 = m02.n(c.j.AppCompatTextView_drawableTopCompat, -1);
-        object2 = n3 != -1 ? (Object)g3.c(context, n3) : null;
+        object3 = n3 != -1 ? g3.c(context, n3) : null;
         n3 = m02.n(c.j.AppCompatTextView_drawableRightCompat, -1);
         object4 = n3 != -1 ? g3.c(context, n3) : null;
         n3 = m02.n(c.j.AppCompatTextView_drawableBottomCompat, -1);
-        object3 = n3 != -1 ? g3.c(context, n3) : null;
+        object2 = n3 != -1 ? g3.c(context, n3) : null;
         n3 = m02.n(c.j.AppCompatTextView_drawableStartCompat, -1);
         Drawable drawable = n3 != -1 ? g3.c(context, n3) : null;
         n3 = m02.n(c.j.AppCompatTextView_drawableEndCompat, -1);
         g3 = n3 != -1 ? g3.c(context, n3) : null;
-        this.y((Drawable)object, (Drawable)object2, (Drawable)object4, (Drawable)object3, drawable, (Drawable)g3);
+        this.y((Drawable)object, (Drawable)object3, (Drawable)object4, (Drawable)object2, drawable, (Drawable)g3);
         n3 = c.j.AppCompatTextView_drawableTint;
         if (m02.s(n3)) {
             object = m02.c(n3);
@@ -380,8 +380,8 @@ public class p {
             object = z.e(m02.k(n3, -1), null);
             androidx.core.widget.j.g(this.a, (PorterDuff.Mode)object);
         }
-        n5 = m02.f(c.j.AppCompatTextView_firstBaselineToTopHeight, -1);
-        n6 = m02.f(c.j.AppCompatTextView_lastBaselineToBottomHeight, -1);
+        n6 = m02.f(c.j.AppCompatTextView_firstBaselineToTopHeight, -1);
+        n5 = m02.f(c.j.AppCompatTextView_lastBaselineToBottomHeight, -1);
         n3 = c.j.AppCompatTextView_lineHeight;
         if (m02.s(n3)) {
             object = m02.w(n3);
@@ -397,11 +397,11 @@ public class p {
             f3 = -1.0f;
         }
         m02.x();
-        if (n5 != -1) {
-            androidx.core.widget.j.h(this.a, n5);
-        }
         if (n6 != -1) {
-            androidx.core.widget.j.i(this.a, n6);
+            androidx.core.widget.j.h(this.a, n6);
+        }
+        if (n5 != -1) {
+            androidx.core.widget.j.i(this.a, n5);
         }
         if (f3 != -1.0f) {
             if (n3 == -1) {
@@ -515,38 +515,38 @@ public class p {
         this.z();
     }
 
-    public final void y(Drawable drawable, Drawable drawable2, Drawable drawable3, Drawable drawable4, Drawable drawable5, Drawable drawable6) {
-        if (drawable5 == null && drawable6 == null) {
+    public final void y(Drawable drawable, Drawable drawable2, Drawable drawable3, Drawable drawable4, Drawable drawable5, Drawable drawableArray) {
+        if (drawable5 == null && drawableArray == null) {
             if (drawable == null && drawable2 == null && drawable3 == null && drawable4 == null) {
                 return;
             }
-            drawable5 = this.a.getCompoundDrawablesRelative();
-            drawable6 = drawable5[0];
-            if (drawable6 == null && drawable5[2] == null) {
-                drawable6 = this.a.getCompoundDrawables();
+            drawableArray = this.a.getCompoundDrawablesRelative();
+            drawable5 = drawableArray[0];
+            if (drawable5 == null && drawableArray[2] == null) {
+                drawableArray = this.a.getCompoundDrawables();
                 drawable5 = this.a;
                 if (drawable == null) {
-                    drawable = drawable6[0];
+                    drawable = drawableArray[0];
                 }
                 if (drawable2 == null) {
-                    drawable2 = drawable6[1];
+                    drawable2 = drawableArray[1];
                 }
                 if (drawable3 == null) {
-                    drawable3 = drawable6[2];
+                    drawable3 = drawableArray[2];
                 }
                 if (drawable4 == null) {
-                    drawable4 = drawable6[3];
+                    drawable4 = drawableArray[3];
                 }
                 drawable5.setCompoundDrawablesWithIntrinsicBounds(drawable, drawable2, drawable3, drawable4);
                 return;
             }
             if (drawable2 == null) {
-                drawable2 = drawable5[1];
+                drawable2 = drawableArray[1];
             }
             if (drawable4 == null) {
-                drawable4 = drawable5[3];
+                drawable4 = drawableArray[3];
             }
-            this.a.setCompoundDrawablesRelativeWithIntrinsicBounds(drawable6, drawable2, drawable5[2], drawable4);
+            this.a.setCompoundDrawablesRelativeWithIntrinsicBounds(drawable5, drawable2, drawableArray[2], drawable4);
             return;
         }
         drawable = this.a.getCompoundDrawablesRelative();
@@ -556,14 +556,14 @@ public class p {
         if (drawable2 == null) {
             drawable2 = drawable[1];
         }
-        if (drawable6 == null) {
-            drawable6 = drawable[2];
+        if (drawableArray == null) {
+            drawableArray = drawable[2];
         }
         drawable3 = this.a;
         if (drawable4 == null) {
             drawable4 = drawable[3];
         }
-        drawable3.setCompoundDrawablesRelativeWithIntrinsicBounds(drawable5, drawable2, drawable6, drawable4);
+        drawable3.setCompoundDrawablesRelativeWithIntrinsicBounds(drawable5, drawable2, (Drawable)drawableArray, drawable4);
     }
 
     public final void z() {

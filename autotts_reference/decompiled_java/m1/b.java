@@ -31,8 +31,8 @@ extends o0 {
             return 0L;
         }
         if (y3 != null && this.e((y)object) != 0) {
-            object = y3;
             n5 = 1;
+            object = y3;
         } else {
             n5 = -1;
         }

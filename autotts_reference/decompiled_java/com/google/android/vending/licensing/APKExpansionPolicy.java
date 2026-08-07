@@ -48,40 +48,40 @@ implements Policy {
     }
 
     @Override
-    public void b(int n3, ResponseData object2) {
+    public void b(int n3, ResponseData object) {
         if (n3 != 291) {
             this.j(0L);
         } else {
             this.j(this.d + 1L);
         }
-        Map map = this.c((ResponseData)object2);
+        Map map = this.c((ResponseData)object);
         if (n3 == 256) {
             this.f = n3;
             this.h(null);
             this.l(Long.toString(System.currentTimeMillis() + 60000L));
-            for (Object object2 : map.keySet()) {
-                if (((String)object2).equals("VT")) {
-                    this.l((String)map.get(object2));
+            for (String string : map.keySet()) {
+                if (string.equals("VT")) {
+                    this.l((String)map.get(string));
                     continue;
                 }
-                if (((String)object2).equals("GT")) {
-                    this.k((String)map.get(object2));
+                if (string.equals("GT")) {
+                    this.k((String)map.get(string));
                     continue;
                 }
-                if (((String)object2).equals("GR")) {
-                    this.i((String)map.get(object2));
+                if (string.equals("GR")) {
+                    this.i((String)map.get(string));
                     continue;
                 }
-                if (((String)object2).startsWith("FILE_URL")) {
-                    this.f(Integer.parseInt(((String)object2).substring(8)) - 1, (String)map.get(object2));
+                if (string.startsWith("FILE_URL")) {
+                    this.f(Integer.parseInt(string.substring(8)) - 1, (String)map.get(string));
                     continue;
                 }
-                if (((String)object2).startsWith("FILE_NAME")) {
-                    this.d(Integer.parseInt(((String)object2).substring(9)) - 1, (String)map.get(object2));
+                if (string.startsWith("FILE_NAME")) {
+                    this.d(Integer.parseInt(string.substring(9)) - 1, (String)map.get(string));
                     continue;
                 }
-                if (!((String)object2).startsWith("FILE_SIZE")) continue;
-                this.e(Integer.parseInt(((String)object2).substring(9)) - 1, Long.parseLong((String)map.get(object2)));
+                if (!string.startsWith("FILE_SIZE")) continue;
+                this.e(Integer.parseInt(string.substring(9)) - 1, Long.parseLong((String)map.get(string)));
             }
         } else if (n3 == 561) {
             this.l("0");

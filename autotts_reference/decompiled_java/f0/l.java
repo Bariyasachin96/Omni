@@ -39,9 +39,9 @@ public final class l {
         float f8 = fArray[1];
         float f9 = fArray2[1];
         float f10 = fArray[2];
-        f7 = f7 * f6 + f9 * f8 + fArray2[2] * f10;
+        f9 = f7 * f6 + f9 * f8 + fArray2[2] * f10;
         fArray2 = object[1];
-        f9 = fArray2[0] * f6 + fArray2[1] * f8 + fArray2[2] * f10;
+        f7 = fArray2[0] * f6 + fArray2[1] * f8 + fArray2[2] * f10;
         object = object[2];
         f6 = f6 * object[0] + f8 * object[1] + f10 * object[2];
         f10 = f5 / 10.0f + 0.8f;
@@ -53,33 +53,33 @@ public final class l {
         } else if (d3 < 0.0) {
             f5 = 0.0f;
         }
-        float f11 = 100.0f / f7;
-        float f12 = 100.0f / f9;
+        float f11 = 100.0f / f9;
+        float f12 = 100.0f / f7;
         float f13 = 100.0f / f6;
         object = new float[3];
         object[0] = (float[])(f11 * f5 + 1.0f - f5);
         object[1] = (float[])(f12 * f5 + 1.0f - f5);
         object[2] = (float[])(f13 * f5 + 1.0f - f5);
         f5 = 1.0f / (5.0f * f3 + 1.0f);
-        f12 = f5 * f5 * f5 * f5;
-        f5 = 1.0f - f12;
-        f3 = f12 * f3 + 0.1f * f5 * f5 * (float)Math.cbrt((double)f3 * 5.0);
-        f12 = f0.b.h(f4) / fArray[1];
-        d3 = f12;
+        f11 = f5 * f5 * f5 * f5;
+        f5 = 1.0f - f11;
+        f3 = f11 * f3 + 0.1f * f5 * f5 * (float)Math.cbrt((double)f3 * 5.0);
+        f5 = f0.b.h(f4) / fArray[1];
+        d3 = f5;
         f4 = (float)Math.sqrt(d3);
-        f5 = 0.725f / (float)Math.pow(d3, 0.2);
-        f7 = (float)Math.pow((double)(object[0] * f3 * f7) / 100.0, 0.42);
-        f9 = (float)Math.pow((double)(object[1] * f3 * f9) / 100.0, 0.42);
+        f11 = 0.725f / (float)Math.pow(d3, 0.2);
+        f9 = (float)Math.pow((double)(object[0] * f3 * f9) / 100.0, 0.42);
+        f7 = (float)Math.pow((double)(object[1] * f3 * f7) / 100.0, 0.42);
         f6 = (float)Math.pow((double)(object[2] * f3 * f6) / 100.0, 0.42);
-        fArray = new float[]{f7, f9, f6};
-        f9 = fArray[0];
-        f9 = f9 * 400.0f / (f9 + 27.13f);
-        f7 = fArray[1];
+        fArray = new float[]{f9, f7, f6};
+        f7 = fArray[0];
         f7 = f7 * 400.0f / (f7 + 27.13f);
+        f9 = fArray[1];
+        f9 = f9 * 400.0f / (f9 + 27.13f);
         f6 = fArray[2];
         f6 = 400.0f * f6 / (f6 + 27.13f);
-        fArray = new float[]{f9, f7, f6};
-        return new l(f12, (fArray[0] * 2.0f + fArray[1] + fArray[2] * 0.05f) * f5, f5, f5, f8, f10, (float[])object, f3, (float)Math.pow(f3, 0.25), f4 + 1.48f);
+        fArray = new float[]{f7, f9, f6};
+        return new l(f5, (fArray[0] * 2.0f + fArray[1] + fArray[2] * 0.05f) * f11, f11, f11, f8, f10, (float[])object, f3, (float)Math.pow(f3, 0.25), f4 + 1.48f);
     }
 
     public float a() {

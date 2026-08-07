@@ -101,9 +101,9 @@ extends FrameLayout {
                 this.c.draw(canvas);
             }
             if (this.i) {
-                rect = this.e;
-                rect2 = this.d;
-                rect.set(n3 - rect2.right, rect2.top, n3, n4 - rect2.bottom);
+                rect2 = this.e;
+                rect = this.d;
+                rect2.set(n3 - rect.right, rect.top, n3, n4 - rect.bottom);
                 this.c.setBounds(this.e);
                 this.c.draw(canvas);
             }

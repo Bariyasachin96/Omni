@@ -22,6 +22,7 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -62,10 +63,10 @@ public class LicenseResponseHelper {
 
     private static PublicKey getPublicKey() throws LicenseCheckException {
         try {
-            Object object = Base64.decode((String)LicenseClient.getLicensePubKey(), (int)0);
+            byte[] byArray = Base64.decode((String)LicenseClient.getLicensePubKey(), (int)0);
             KeyFactory keyFactory = KeyFactory.getInstance(KEY_FACTORY_ALGORITHM);
-            X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec((byte[])object);
-            object = keyFactory.generatePublic(x509EncodedKeySpec);
+            Object object = new X509EncodedKeySpec(byArray);
+            object = keyFactory.generatePublic((KeySpec)object);
             return object;
         }
         catch (InvalidKeySpecException invalidKeySpecException) {
@@ -98,25 +99,26 @@ public class LicenseResponseHelper {
 
     public static void validateResponse(Bundle object, String string) throws LicenseCheckException {
         JSONObject jSONObject;
+        JSONObject jSONObject2;
         Object object2;
         try {
             object2 = LicenseResponseHelper.getJwsPartsForLicenseData(object);
-            object = LicenseResponseHelper.base64ToJson(object2[0]);
+            jSONObject2 = LicenseResponseHelper.base64ToJson(object2[0]);
             jSONObject = LicenseResponseHelper.base64ToJson(object2[1]);
         }
         catch (JSONException jSONException) {
             throw new LicenseCheckException("Could not decode json", jSONException);
         }
-        String string2 = object2[2];
-        String string3 = object2[0];
-        String string4 = object2[1];
-        object2 = new StringBuilder();
-        ((StringBuilder)object2).append(string3);
-        ((StringBuilder)object2).append(".");
-        ((StringBuilder)object2).append(string4);
-        string3 = ((StringBuilder)object2).toString();
-        if (object.getString("alg").equals("RS256")) {
-            LicenseResponseHelper.verifySignature(string3, string2, SIGNATURE_ALGORITHM, LicenseResponseHelper.getPublicKey());
+        object = object2[2];
+        String string2 = object2[0];
+        object2 = object2[1];
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(string2);
+        stringBuilder.append(".");
+        stringBuilder.append((String)object2);
+        string2 = stringBuilder.toString();
+        if (jSONObject2.getString("alg").equals("RS256")) {
+            LicenseResponseHelper.verifySignature(string2, (String)object, SIGNATURE_ALGORITHM, LicenseResponseHelper.getPublicKey());
             if (jSONObject.getString(PAYLOAD_PACKAGE_NAME).equals(string)) {
                 return;
             }

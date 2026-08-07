@@ -148,10 +148,10 @@ extends CustomVersionedParcelable {
                 return object;
             }
             catch (Exception exception) {
-                object = new StringBuilder();
-                ((StringBuilder)object).append("Unable to load image from URI: ");
-                ((StringBuilder)object).append(uri);
-                Log.w((String)"IconCompat", (String)((StringBuilder)object).toString(), (Throwable)exception);
+                charSequence = new StringBuilder();
+                ((StringBuilder)charSequence).append("Unable to load image from URI: ");
+                ((StringBuilder)charSequence).append(uri);
+                Log.w((String)"IconCompat", (String)((StringBuilder)charSequence).toString(), (Throwable)exception);
             }
         }
         return null;

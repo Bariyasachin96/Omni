@@ -95,6 +95,7 @@ import com.google.android.material.internal.c0;
 import com.google.android.material.internal.z;
 import com.google.android.material.slider.e;
 import com.google.android.material.slider.f;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.text.NumberFormat;
@@ -242,34 +243,34 @@ extends View {
         this.T0 = new com.google.android.material.slider.c(this);
         this.U0 = new com.google.android.material.slider.d(this);
         this.V0 = new e(this);
-        Context context = this.getContext();
+        object = this.getContext();
         this.W0 = this.isShown();
         this.c = new Paint();
         this.d = new Paint();
         this.e = paint2 = new Paint(1);
-        object = Paint.Style.FILL;
-        paint2.setStyle((Paint.Style)object);
+        Paint.Style style = Paint.Style.FILL;
+        paint2.setStyle(style);
         paint2.setXfermode((Xfermode)new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
         this.f = paint2 = new Paint(1);
-        paint2.setStyle((Paint.Style)object);
+        paint2.setStyle(style);
         this.g = paint = new Paint();
-        Paint.Style style = Paint.Style.STROKE;
-        paint.setStyle(style);
+        Paint.Style style2 = Paint.Style.STROKE;
+        paint.setStyle(style2);
         paint2 = Paint.Cap.ROUND;
         paint.setStrokeCap((Paint.Cap)paint2);
         this.h = paint = new Paint();
-        paint.setStyle(style);
+        paint.setStyle(style2);
         paint.setStrokeCap((Paint.Cap)paint2);
-        style = new Paint();
-        this.i = style;
-        style.setStyle((Paint.Style)object);
-        style.setStrokeCap((Paint.Cap)paint2);
-        this.t0(context.getResources());
-        this.H0(context, attributeSet, n3);
+        style2 = new Paint();
+        this.i = style2;
+        style2.setStyle(style);
+        style2.setStrokeCap((Paint.Cap)paint2);
+        this.t0(object.getResources());
+        this.H0((Context)object, attributeSet, n3);
         this.setFocusable(true);
         this.setClickable(true);
         i3.q0(2);
-        this.t = ViewConfiguration.get((Context)context).getScaledTouchSlop();
+        this.t = ViewConfiguration.get((Context)object).getScaledTouchSlop();
         object = new c(this);
         this.j = object;
         o0.x0.h0(this, (o0.a)object);
@@ -454,8 +455,8 @@ lbl20:
         float f3 = n5;
         float f4 = fArray[1];
         float f5 = n3;
-        f3 = (float)n5 + fArray[0] * f5;
-        if (f3 >= (f4 = f3 + f4 * f5)) {
+        f4 = (float)n5 + fArray[0] * f5;
+        if (f4 >= (f3 += f4 * f5)) {
             this.F0.setEmpty();
             return;
         }
@@ -482,27 +483,27 @@ lbl20:
                                                 if (n5 >= this.n0.size()) {
                                                     return;
                                                 }
-                                                f5 = f3;
+                                                f5 = f4;
                                                 if (this.n0.size() <= 1) break block11;
                                                 if (n5 > 0) {
-                                                    f3 = this.m1(((Float)this.n0.get(n5 - 1)).floatValue());
+                                                    f4 = this.m1(((Float)this.n0.get(n5 - 1)).floatValue());
                                                 }
                                                 f6 = this.m1(((Float)this.n0.get(n5)).floatValue());
                                                 if (this.p0()) break block12;
-                                                f5 = f3;
-                                                f4 = f6;
+                                                f5 = f4;
+                                                f3 = f6;
                                                 if (!this.s0()) break block11;
                                             }
                                             f5 = f6;
-                                            f4 = f3;
+                                            f3 = f4;
                                         }
                                         n6 = this.getTrackCornerSize();
                                         n3 = d4.ordinal();
                                         if (n3 == 1) break block13;
                                         if (n3 == 2) break block14;
                                         if (n3 == 3) break block15;
-                                        f3 = f5;
-                                        f6 = f4;
+                                        f4 = f5;
+                                        f6 = f3;
                                         break block16;
                                     }
                                     if (this.g0()) break block17;
@@ -511,37 +512,37 @@ lbl20:
                                     break block18;
                                 }
                                 if (fArray[1] != 0.5f) break block19;
-                                f3 = f5 + (float)this.K;
-                                f6 = f4;
+                                f4 = f5 + (float)this.K;
+                                f6 = f3;
                                 break block16;
                             }
-                            f3 = f5;
-                            f6 = f4;
+                            f4 = f5;
+                            f6 = f3;
                             if (fArray[0] != 0.5f) break block16;
                             n3 = this.K;
                             break block18;
                         }
-                        f3 = f5 + (float)this.K;
-                        f6 = f4 + (float)n6;
+                        f4 = f5 + (float)this.K;
+                        f6 = f3 + (float)n6;
                         break block16;
                     }
                     f5 -= (float)n6;
                     n3 = this.K;
                 }
-                f6 = f4 - (float)n3;
-                f3 = f5;
+                f6 = f3 - (float)n3;
+                f4 = f5;
             }
-            if (f3 >= f6) {
+            if (f4 >= f6) {
                 this.F0.setEmpty();
             } else {
                 d3 = this.F0;
                 f5 = n4;
                 n3 = this.F;
-                d3.set(f3, f5 - (float)n3 / 2.0f, f6, f5 + (float)n3 / 2.0f);
+                d3.set(f4, f5 - (float)n3 / 2.0f, f6, f5 + (float)n3 / 2.0f);
                 this.a1(canvas, this.d, this.F0, n6, d4);
             }
             ++n5;
-            f4 = f6;
+            f3 = f6;
         }
     }
 
@@ -666,18 +667,18 @@ lbl20:
         this.q0 = typedArray.getFloat(z1.m.Slider_android_stepSize, 0.0f);
         float f3 = s2.b.e(context);
         this.A = (int)Math.ceil(typedArray.getDimension(z1.m.Slider_minTouchTargetSize, f3));
-        int n4 = z1.m.Slider_trackColor;
-        boolean bl = typedArray.hasValue(n4);
-        n3 = bl ? n4 : z1.m.Slider_trackColorInactive;
+        n3 = z1.m.Slider_trackColor;
+        boolean bl = typedArray.hasValue(n3);
+        int n4 = bl ? n3 : z1.m.Slider_trackColorInactive;
         if (!bl) {
-            n4 = z1.m.Slider_trackColorActive;
+            n3 = z1.m.Slider_trackColorActive;
         }
-        attributeSet = s2.c.a(context, typedArray, n3);
+        attributeSet = s2.c.a(context, typedArray, n4);
         if (attributeSet == null) {
             attributeSet = d.a.a(context, z1.d.material_slider_inactive_track_color);
         }
         this.setTrackInactiveTintList((ColorStateList)attributeSet);
-        attributeSet = s2.c.a(context, typedArray, n4);
+        attributeSet = s2.c.a(context, typedArray, n3);
         if (attributeSet == null) {
             attributeSet = d.a.a(context, z1.d.material_slider_active_track_color);
         }
@@ -724,12 +725,12 @@ lbl20:
         this.setTrackIconInactiveEnd(s2.c.e(context, typedArray, z1.m.Slider_trackIconInactiveEnd));
         this.setTrackIconInactiveColor(s2.c.a(context, typedArray, z1.m.Slider_trackIconInactiveColor));
         this.setTrackIconSize(typedArray.getDimensionPixelSize(z1.m.Slider_trackIconSize, 0));
-        n4 = typedArray.getDimensionPixelSize(z1.m.Slider_thumbRadius, 0);
-        n3 = z1.m.Slider_thumbWidth;
-        n3 = typedArray.getDimensionPixelSize(n3, n4 *= 2);
-        n4 = typedArray.getDimensionPixelSize(z1.m.Slider_thumbHeight, n4);
-        this.setThumbWidth(n3);
-        this.setThumbHeight(n4);
+        n3 = typedArray.getDimensionPixelSize(z1.m.Slider_thumbRadius, 0);
+        n4 = z1.m.Slider_thumbWidth;
+        n4 = typedArray.getDimensionPixelSize(n4, n3 *= 2);
+        n3 = typedArray.getDimensionPixelSize(z1.m.Slider_thumbHeight, n3);
+        this.setThumbWidth(n4);
+        this.setThumbHeight(n3);
         this.setHaloRadius(typedArray.getDimensionPixelSize(z1.m.Slider_haloRadius, 0));
         this.setThumbElevation(typedArray.getDimension(z1.m.Slider_thumbElevation, 0.0f));
         this.setTrackHeight(typedArray.getDimensionPixelSize(z1.m.Slider_trackHeight, 0));
@@ -980,11 +981,11 @@ lbl20:
     }
 
     public void S0(int n3, Rect rect) {
-        int n4 = this.G + (int)(this.B0(this.getValues().get(n3).floatValue()) * (float)this.v0);
-        int n5 = this.v();
-        int n6 = Math.max(this.H / 2, this.A / 2);
-        n3 = Math.max(this.I / 2, this.A / 2);
-        RectF rectF = new RectF((float)(n4 - n6), (float)(n5 - n3), (float)(n4 + n6), (float)(n5 + n3));
+        n3 = this.G + (int)(this.B0(this.getValues().get(n3).floatValue()) * (float)this.v0);
+        int n4 = this.v();
+        int n5 = Math.max(this.H / 2, this.A / 2);
+        int n6 = Math.max(this.I / 2, this.A / 2);
+        RectF rectF = new RectF((float)(n3 - n5), (float)(n4 - n6), (float)(n3 + n5), (float)(n4 + n6));
         if (this.s0()) {
             this.M0.mapRect(rectF);
         }
@@ -1203,9 +1204,9 @@ lbl20:
             }
             f3 = 1.0f - f4;
         }
-        float f5 = this.m0;
-        f4 = this.l0;
-        return f3 * (f5 - f4) + f4;
+        f4 = this.m0;
+        float f5 = this.l0;
+        return f3 * (f4 - f5) + f5;
     }
 
     /*
@@ -2616,11 +2617,11 @@ lbl20:
                 this.M0.mapPoints(fArray);
             }
             if (Build.VERSION.SDK_INT < 28) {
-                f6 = fArray[0];
+                f4 = fArray[0];
                 n3 = this.J;
-                f5 = n3;
-                f3 = fArray[1];
-                canvas.clipRect(f6 - f5, f3 - (float)n3, f6 + (float)n3, f3 + (float)n3, Region.Op.UNION);
+                f3 = n3;
+                f6 = fArray[1];
+                canvas.clipRect(f4 - f3, f6 - (float)n3, f4 + (float)n3, f6 + (float)n3, Region.Op.UNION);
             }
             canvas.drawCircle(fArray[0], fArray[1], (float)this.J, this.f);
         }
@@ -2674,8 +2675,8 @@ lbl20:
             if (n3 <= n4) {
                 this.K(n3 * 2, (n4 + 1) * 2, canvas, this.h);
             }
-            if ((n4 = (n4 + 1) * 2) < (fArray = this.r0).length) {
-                this.K(n4, fArray.length, canvas, this.g);
+            if ((n3 = (n4 + 1) * 2) < (fArray = this.r0).length) {
+                this.K(n3, fArray.length, canvas, this.g);
             }
         }
     }
@@ -2692,14 +2693,13 @@ lbl20:
         int n4 = Math.max((this.F - this.w) / 2, 0);
         int n5 = Math.max(this.t0 - this.x, 0);
         int n6 = Math.max(this.u0 - this.y, 0);
-        n5 = this.u + Math.max(Math.max(n3, n4), Math.max(n5, n6));
-        if (this.G == n5) {
+        if (this.G == (n4 = this.u + Math.max(Math.max(n3, n4), Math.max(n5, n6)))) {
             return false;
         }
-        this.G = n5;
+        this.G = n4;
         if (this.isLaidOut()) {
-            n5 = this.s0() ? this.getHeight() : this.getWidth();
-            this.f1(n5);
+            n4 = this.s0() ? this.getHeight() : this.getWidth();
+            this.f1(n4);
         }
         return true;
     }
@@ -2738,10 +2738,10 @@ lbl20:
             n4 = this.getPaddingTop();
             n3 = this.getPaddingBottom();
         }
-        n4 += n3;
-        int n5 = this.F;
+        int n5 = n4 + n3;
+        n4 = this.F;
         n3 = this.I;
-        n3 = Math.max(this.C, Math.max(n5 + n4, n3 + n4));
+        n3 = Math.max(this.C, Math.max(n4 + n5, n3 + n5));
         if (n3 != this.D) {
             this.D = n3;
             return true;
@@ -2946,18 +2946,18 @@ lbl20:
                     s3.a(4096);
                 }
             }
-            Object object3 = NumberFormat.getNumberInstance();
-            ((NumberFormat)object3).setMaximumFractionDigits(2);
+            Serializable serializable = NumberFormat.getNumberInstance();
+            ((NumberFormat)serializable).setMaximumFractionDigits(2);
             double d3 = f5;
             float f7 = f6;
-            f5 = f3 = ((NumberFormat)object3).parse(((NumberFormat)object3).format(d3)).floatValue();
+            f5 = f3 = ((NumberFormat)serializable).parse(((NumberFormat)serializable).format(d3)).floatValue();
             f7 = f6;
-            f6 = ((NumberFormat)object3).parse(((NumberFormat)object3).format(f6)).floatValue();
+            f6 = ((NumberFormat)serializable).parse(((NumberFormat)serializable).format(f6)).floatValue();
             f5 = f3;
             f7 = f6;
             try {
                 float f8;
-                f4 = f8 = ((NumberFormat)object3).parse(((NumberFormat)object3).format(f4)).floatValue();
+                f4 = f8 = ((NumberFormat)serializable).parse(((NumberFormat)serializable).format(f4)).floatValue();
                 f5 = f3;
                 f7 = f6;
             }
@@ -2966,12 +2966,12 @@ lbl20:
             }
             s3.y0(s.g.a(1, f5, f7, f4));
             s3.h0(SeekBar.class.getName());
-            StringBuilder stringBuilder = new StringBuilder();
+            serializable = new StringBuilder();
             if (this.q.getContentDescription() != null) {
-                stringBuilder.append(this.q.getContentDescription());
-                stringBuilder.append(",");
+                ((StringBuilder)serializable).append(this.q.getContentDescription());
+                ((StringBuilder)serializable).append(",");
             }
-            object3 = this.q.Q(f4);
+            String string = this.q.Q(f4);
             object2 = this.q.getContext().getString(z1.k.material_slider_value);
             if (object.size() > 1) {
                 object2 = this.Y(n3);
@@ -2979,9 +2979,9 @@ lbl20:
             if (!TextUtils.isEmpty((CharSequence)(object = o0.x0.E(this.q)))) {
                 s3.G0((CharSequence)object);
             } else {
-                stringBuilder.append(String.format(Locale.getDefault(), "%s, %s", object2, object3));
+                ((StringBuilder)serializable).append(String.format(Locale.getDefault(), "%s, %s", object2, string));
             }
-            s3.l0(stringBuilder.toString());
+            s3.l0(((StringBuilder)serializable).toString());
             this.q.S0(n3, this.r);
             s3.c0(this.r);
         }

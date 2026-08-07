@@ -41,88 +41,88 @@ public class a {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public final void a(Context var1_1, int var2_3) {
+    public final void a(Context var1_1, int var2_4) {
         block15: {
             block16: {
-                var6_4 = var1_1.getResources().getXml(var2_3);
+                var6_5 = var1_1.getResources().getXml(var2_4);
                 try {
-                    var3_5 = var6_4.getEventType();
-                    var4_6 = null;
+                    var3_6 = var6_5.getEventType();
+                    var4_7 = null;
                     break block15;
                 }
                 catch (IOException var1_2) {
                 }
-                catch (XmlPullParserException var4_7) {
+                catch (XmlPullParserException var1_3) {
                     break block16;
                 }
                 var4_8 = new StringBuilder();
                 var4_8.append("Error parsing resource: ");
-                var4_8.append(var2_3);
+                var4_8.append(var2_4);
                 Log.e((String)"ConstraintLayoutStates", (String)var4_8.toString(), (Throwable)var1_2);
                 return;
             }
-            var1_1 = new StringBuilder();
-            var1_1.append("Error parsing resource: ");
-            var1_1.append(var2_3);
-            Log.e((String)"ConstraintLayoutStates", (String)var1_1.toString(), (Throwable)var4_7);
+            var4_9 = new StringBuilder();
+            var4_9.append("Error parsing resource: ");
+            var4_9.append(var2_4);
+            Log.e((String)"ConstraintLayoutStates", (String)var4_9.toString(), (Throwable)var1_3);
             return;
         }
-        while (var3_5 != 1) {
+        while (var3_6 != 1) {
             block18: {
                 block17: {
-                    if (var3_5 == 2) break block17;
-                    var5_9 = var4_6;
+                    if (var3_6 == 2) break block17;
+                    var5_10 = var4_7;
                     break block18;
                 }
-                var7_10 = var6_4.getName();
-                switch (var7_10.hashCode()) {
+                var7_11 = var6_5.getName();
+                switch (var7_11.hashCode()) {
                     default: {
-                        var5_9 = var4_6;
+                        var5_10 = var4_7;
                         break block18;
                     }
                     case 1901439077: {
-                        var5_9 = var4_6;
-                        if (var7_10.equals("Variant")) {
-                            var7_10 = new b((Context)var1_1, (XmlPullParser)var6_4);
-                            var5_9 = var4_6;
-                            if (var4_6 != null) {
-                                var4_6.a((b)var7_10);
-                                var5_9 = var4_6;
+                        var5_10 = var4_7;
+                        if (var7_11.equals("Variant")) {
+                            var7_11 = new b(var1_1, (XmlPullParser)var6_5);
+                            var5_10 = var4_7;
+                            if (var4_7 != null) {
+                                var4_7.a((b)var7_11);
+                                var5_10 = var4_7;
                             }
                         }
                         break block18;
                     }
                     case 1657696882: {
-                        var5_9 = "layoutDescription";
+                        var5_10 = "layoutDescription";
                         ** GOTO lbl53
                     }
                     case 1382829617: {
-                        var5_9 = "StateSet";
+                        var5_10 = "StateSet";
 lbl53:
                         // 2 sources
 
-                        var7_10.equals(var5_9);
-                        var5_9 = var4_6;
+                        var7_11.equals(var5_10);
+                        var5_10 = var4_7;
                         break block18;
                     }
                     case 80204913: {
-                        var5_9 = var4_6;
-                        if (var7_10.equals("State")) {
-                            var5_9 = new a((Context)var1_1, (XmlPullParser)var6_4);
-                            this.e.put(var5_9.a, var5_9);
+                        var5_10 = var4_7;
+                        if (var7_11.equals("State")) {
+                            var5_10 = new a(var1_1, (XmlPullParser)var6_5);
+                            this.e.put(var5_10.a, var5_10);
                         }
                         break block18;
                     }
                     case -1349929691: 
                 }
-                var5_9 = var4_6;
-                if (var7_10.equals("ConstraintSet")) {
-                    this.b((Context)var1_1, (XmlPullParser)var6_4);
-                    var5_9 = var4_6;
+                var5_10 = var4_7;
+                if (var7_11.equals("ConstraintSet")) {
+                    this.b(var1_1, (XmlPullParser)var6_5);
+                    var5_10 = var4_7;
                 }
             }
-            var3_5 = var6_4.next();
-            var4_6 = var5_9;
+            var3_6 = var6_5.next();
+            var4_7 = var5_10;
         }
     }
 
@@ -167,16 +167,16 @@ lbl53:
                     if (n4 != n3) break block6;
                     a a4 = n3 == -1 ? (a)this.e.valueAt(0) : (a)this.e.get(n4);
                     n3 = this.d;
-                    if (n3 != -1 && ((b)a4.b.get(n3)).a(f3, f4) || this.d == (n4 = a4.b(f3, f4))) break block7;
-                    b3 = n4 == -1 ? this.b : ((b)a4.b.get((int)n4)).f;
-                    if (n4 != -1) {
-                        n3 = ((b)a4.b.get((int)n4)).e;
+                    if (n3 != -1 && ((b)a4.b.get(n3)).a(f3, f4) || this.d == (n3 = a4.b(f3, f4))) break block7;
+                    b3 = n3 == -1 ? this.b : ((b)a4.b.get((int)n3)).f;
+                    if (n3 != -1) {
+                        n4 = ((b)a4.b.get((int)n3)).e;
                     }
                     if (b3 != null) break block8;
                 }
                 return;
             }
-            this.d = n4;
+            this.d = n3;
             b3.i(this.a);
             return;
         }

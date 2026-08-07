@@ -426,9 +426,9 @@ lbl17:
         static {
             try {
                 GenericDeclaration genericDeclaration = Integer.TYPE;
-                GenericDeclaration genericDeclaration2 = Boolean.TYPE;
-                Class<Float> clazz = Float.TYPE;
-                genericDeclaration2 = AbsListView.class.getDeclaredMethod("positionSelector", new Class[]{genericDeclaration, View.class, genericDeclaration2, clazz, clazz});
+                Class<Boolean> clazz = Boolean.TYPE;
+                GenericDeclaration genericDeclaration2 = Float.TYPE;
+                genericDeclaration2 = AbsListView.class.getDeclaredMethod("positionSelector", new Class[]{genericDeclaration, View.class, clazz, genericDeclaration2, genericDeclaration2});
                 a = genericDeclaration2;
                 ((AccessibleObject)((Object)genericDeclaration2)).setAccessible(true);
                 genericDeclaration2 = AdapterView.class.getDeclaredMethod("setSelectedPositionInt", new Class[]{genericDeclaration});

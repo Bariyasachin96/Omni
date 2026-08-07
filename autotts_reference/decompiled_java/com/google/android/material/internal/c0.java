@@ -47,8 +47,7 @@ public abstract class c0 {
         int n5 = nArray[0];
         int n6 = nArray[1];
         n5 = n3 - n5;
-        n6 = n4 - n6;
-        return new Rect(n5, n6, view2.getWidth() + n5, view2.getHeight() + n6);
+        return new Rect(n5, n4 -= n6, view2.getWidth() + n5, view2.getHeight() + n4);
     }
 
     public static Rect c(View view) {

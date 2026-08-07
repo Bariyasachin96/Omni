@@ -288,12 +288,12 @@ extends View {
     }
 
     public void p(b.a a4, j j3, ConstraintLayout.LayoutParams object, SparseArray sparseArray) {
-        b.b b3 = a4.e;
-        object = b3.k0;
-        if (object != null) {
-            this.setReferencedIds((int[])object);
+        object = a4.e;
+        int[] nArray = ((b.b)object).k0;
+        if (nArray != null) {
+            this.setReferencedIds(nArray);
         } else {
-            object = b3.l0;
+            object = ((b.b)object).l0;
             if (object != null) {
                 if (((String)object).length() > 0) {
                     object = a4.e;

@@ -38,13 +38,12 @@ public abstract class e {
                 float f3 = rectF2.left;
                 float f4 = rectF3.left;
                 if (f3 < f4 && rectF2.right > f4) {
-                    f3 = f4 - f3;
-                    rectF.left += f3;
-                    rectF2.left += f3;
+                    rectF.left += (f4 -= f3);
+                    rectF2.left += f4;
                 }
-                if ((f3 = rectF2.right) > (f4 = rectF3.right) && rectF2.left < f4) {
-                    rectF.right = Math.max(rectF.right - (f3 -= f4), rectF.left);
-                    rectF2.right = Math.max(rectF2.right - f3, rectF2.left);
+                if ((f4 = rectF2.right) > (f3 = rectF3.right) && rectF2.left < f3) {
+                    rectF.right = Math.max(rectF.right - (f4 -= f3), rectF.left);
+                    rectF2.right = Math.max(rectF2.right - f4, rectF2.left);
                 }
             }
 
@@ -136,13 +135,14 @@ public abstract class e {
                 float f3 = rectF2.top;
                 float f4 = rectF3.top;
                 if (f3 < f4 && rectF2.bottom > f4) {
-                    rectF.top += (f4 -= f3);
-                    rectF3.top += f4;
+                    f3 = f4 - f3;
+                    rectF.top += f3;
+                    rectF3.top += f3;
                 }
-                if ((f3 = rectF2.bottom) > (f4 = rectF3.bottom) && rectF2.top < f4) {
-                    f4 = f3 - f4;
-                    rectF.bottom = Math.max(rectF.bottom - f4, rectF.top);
-                    rectF2.bottom = Math.max(rectF2.bottom - f4, rectF2.top);
+                if ((f4 = rectF2.bottom) > (f3 = rectF3.bottom) && rectF2.top < f3) {
+                    f3 = f4 - f3;
+                    rectF.bottom = Math.max(rectF.bottom - f3, rectF.top);
+                    rectF2.bottom = Math.max(rectF2.bottom - f3, rectF2.top);
                 }
             }
 

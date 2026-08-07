@@ -224,28 +224,28 @@ extends s {
             @Override
             public void g(Canvas canvas, RecyclerView recyclerView, RecyclerView.z object) {
                 if (recyclerView.getAdapter() instanceof w && recyclerView.getLayoutManager() instanceof GridLayoutManager) {
-                    w w3 = (w)recyclerView.getAdapter();
+                    object = (w)recyclerView.getAdapter();
                     GridLayoutManager gridLayoutManager = (GridLayoutManager)recyclerView.getLayoutManager();
                     for (d d3 : this.c.g0.f()) {
                         Object object2 = d3.a;
                         if (object2 == null || d3.b == null) continue;
                         this.a.setTimeInMillis((Long)object2);
                         this.b.setTimeInMillis((Long)d3.b);
-                        int n3 = w3.B(this.a.get(1));
-                        int n4 = w3.B(this.b.get(1));
+                        int n3 = ((w)object).B(this.a.get(1));
+                        int n4 = ((w)object).B(this.b.get(1));
                         d3 = gridLayoutManager.H(n3);
-                        object2 = gridLayoutManager.H(n4);
+                        View view = gridLayoutManager.H(n4);
                         int n5 = n3 / gridLayoutManager.X2();
                         int n6 = n4 / gridLayoutManager.X2();
                         for (n4 = n5; n4 <= n6; ++n4) {
-                            View view = gridLayoutManager.H(gridLayoutManager.X2() * n4);
-                            if (view == null) continue;
-                            int n7 = view.getTop();
+                            object2 = gridLayoutManager.H(gridLayoutManager.X2() * n4);
+                            if (object2 == null) continue;
+                            int n7 = object2.getTop();
                             int n8 = ((j)this.c).l0.d.c();
-                            int n9 = view.getBottom();
+                            int n9 = object2.getBottom();
                             int n10 = ((j)this.c).l0.d.b();
                             n3 = n4 == n5 && d3 != null ? d3.getLeft() + d3.getWidth() / 2 : 0;
-                            int n11 = n4 == n6 && object2 != null ? object2.getLeft() + object2.getWidth() / 2 : recyclerView.getWidth();
+                            int n11 = n4 == n6 && view != null ? view.getLeft() + view.getWidth() / 2 : recyclerView.getWidth();
                             canvas.drawRect((float)n3, (float)(n7 + n8), (float)n11, (float)(n9 - n10), ((j)this.c).l0.h);
                         }
                     }

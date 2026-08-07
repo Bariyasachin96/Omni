@@ -89,29 +89,29 @@ extends Visibility {
     }
 
     @Override
-    public Animator t0(ViewGroup object, View view, y y3, y y4) {
+    public Animator t0(ViewGroup object, View view, y y3, y object2) {
         float f3;
         float f4;
         if (y3 == null) {
             return null;
         }
-        y4 = (Rect)y3.a.get("android:explode:screenBounds");
-        int n3 = ((Rect)y4).left;
-        int n4 = ((Rect)y4).top;
+        Rect rect = (Rect)y3.a.get("android:explode:screenBounds");
+        int n3 = rect.left;
+        int n4 = rect.top;
         float f5 = view.getTranslationX();
         float f6 = view.getTranslationY();
-        int[] nArray = (int[])y3.b.getTag(m1.n.transition_position);
-        if (nArray != null) {
-            int n5 = nArray[0];
-            f4 = (float)(n5 - ((Rect)y4).left) + f5;
-            int n6 = nArray[1];
-            f3 = (float)(n6 - ((Rect)y4).top) + f6;
-            y4.offsetTo(n5, n6);
+        object2 = (int[])y3.b.getTag(m1.n.transition_position);
+        if (object2 != null) {
+            Object object3 = object2[0];
+            f4 = (float)(object3 - rect.left) + f5;
+            Object object4 = object2[1];
+            f3 = (float)(object4 - rect.top) + f6;
+            rect.offsetTo((int)object3, (int)object4);
         } else {
             f4 = f5;
             f3 = f6;
         }
-        this.y0((View)object, (Rect)y4, this.R);
+        this.y0((View)object, rect, this.R);
         object = this.R;
         return androidx.transition.e.a(view, y3, n3, n4, f5, f6, f4 + (float)object[0], f3 + (float)object[1], T, this);
     }
@@ -145,12 +145,12 @@ extends Visibility {
                 f6 = (float)(Math.random() * 2.0) - 1.0f;
             }
         }
-        f3 = Explode.w0(f5, f6);
-        f5 /= f3;
-        f6 /= f3;
-        f3 = Explode.x0(view, n4 - n5, n3 - n6);
-        nArray[0] = Math.round(f5 * f3);
-        nArray[1] = Math.round(f3 * f6);
+        f4 = Explode.w0(f5, f6);
+        f5 /= f4;
+        f4 = f6 / f4;
+        f6 = Explode.x0(view, n4 - n5, n3 - n6);
+        nArray[0] = Math.round(f5 * f6);
+        nArray[1] = Math.round(f6 * f4);
     }
 }
 

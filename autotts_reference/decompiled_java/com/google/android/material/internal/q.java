@@ -57,13 +57,13 @@ implements androidx.appcompat.view.menu.i {
         }
 
         public void onClick(View object) {
-            object = (NavigationMenuItemView)object;
-            q q3 = this.c;
+            Object object2 = (NavigationMenuItemView)object;
+            object = this.c;
             boolean bl = true;
-            q3.Y(true);
-            object = ((NavigationMenuItemView)object).getItemData();
-            q3 = this.c;
-            boolean bl2 = q3.f.P((MenuItem)object, q3, 0);
+            ((q)object).Y(true);
+            object = ((NavigationMenuItemView)object2).getItemData();
+            object2 = this.c;
+            boolean bl2 = ((q)object2).f.P((MenuItem)object, (androidx.appcompat.view.menu.i)object2, 0);
             if (object != null && ((androidx.appcompat.view.menu.g)object).isCheckable() && bl2) {
                 this.c.h.O((androidx.appcompat.view.menu.g)object);
             } else {
@@ -527,15 +527,15 @@ implements androidx.appcompat.view.menu.i {
                     ((RecyclerView.d0)object).a.setPaddingRelative(this.g.v, f3.b(), this.g.w, f3.a());
                     return;
                 }
-                object = (TextView)((RecyclerView.d0)object).a;
-                object.setText(((g)this.d.get(n3)).a().getTitle());
-                androidx.core.widget.j.m((TextView)object, this.g.j);
-                object.setPaddingRelative(this.g.x, object.getPaddingTop(), this.g.y, object.getPaddingBottom());
-                ColorStateList colorStateList = this.g.k;
-                if (colorStateList != null) {
-                    object.setTextColor(colorStateList);
+                TextView textView = (TextView)((RecyclerView.d0)object).a;
+                textView.setText(((g)this.d.get(n3)).a().getTitle());
+                androidx.core.widget.j.m(textView, this.g.j);
+                textView.setPaddingRelative(this.g.x, textView.getPaddingTop(), this.g.y, textView.getPaddingBottom());
+                object = this.g.k;
+                if (object != null) {
+                    textView.setTextColor((ColorStateList)object);
                 }
-                this.N((View)object, n3, true);
+                this.N((View)textView, n3, true);
                 return;
             }
             NavigationMenuItemView navigationMenuItemView = (NavigationMenuItemView)((RecyclerView.d0)object).a;
@@ -554,9 +554,9 @@ implements androidx.appcompat.view.menu.i {
             object = (g)this.d.get(n3);
             navigationMenuItemView.setNeedsEmptyIcon(((g)object).b);
             q q3 = this.g;
-            n4 = q3.r;
-            int n5 = q3.s;
-            navigationMenuItemView.setPadding(n4, n5, n4, n5);
+            int n5 = q3.r;
+            n4 = q3.s;
+            navigationMenuItemView.setPadding(n5, n4, n5, n4);
             navigationMenuItemView.setIconPadding(this.g.t);
             q3 = this.g;
             if (q3.z) {
@@ -607,15 +607,15 @@ implements androidx.appcompat.view.menu.i {
                 int n9;
                 int n10;
                 Object object;
-                Object object2 = (androidx.appcompat.view.menu.g)this.g.f.G().get(i3);
-                if (((androidx.appcompat.view.menu.g)object2).isChecked()) {
-                    this.O((androidx.appcompat.view.menu.g)object2);
+                androidx.appcompat.view.menu.g g3 = (androidx.appcompat.view.menu.g)this.g.f.G().get(i3);
+                if (g3.isChecked()) {
+                    this.O(g3);
                 }
-                if (((androidx.appcompat.view.menu.g)object2).isCheckable()) {
-                    ((androidx.appcompat.view.menu.g)object2).t(false);
+                if (g3.isCheckable()) {
+                    g3.t(false);
                 }
-                if (((androidx.appcompat.view.menu.g)object2).hasSubMenu()) {
-                    object = ((androidx.appcompat.view.menu.g)object2).getSubMenu();
+                if (g3.hasSubMenu()) {
+                    object = g3.getSubMenu();
                     n10 = n5;
                     n9 = n3;
                     n8 = n6;
@@ -623,28 +623,28 @@ implements androidx.appcompat.view.menu.i {
                         if (i3 != 0) {
                             this.d.add(new f(this.g.D, 0));
                         }
-                        this.d.add(new g((androidx.appcompat.view.menu.g)object2));
+                        this.d.add(new g(g3));
                         int n11 = this.d.size();
                         n10 = object.size();
                         n7 = 0;
                         for (n9 = 0; n9 < n10; ++n9) {
-                            object2 = (androidx.appcompat.view.menu.g)object.getItem(n9);
+                            g3 = (androidx.appcompat.view.menu.g)object.getItem(n9);
                             n8 = n7;
-                            if (((androidx.appcompat.view.menu.g)object2).isVisible()) {
+                            if (g3.isVisible()) {
                                 n8 = n7;
                                 if (n7 == 0) {
                                     n8 = n7;
-                                    if (((androidx.appcompat.view.menu.g)object2).getIcon() != null) {
+                                    if (g3.getIcon() != null) {
                                         n8 = 1;
                                     }
                                 }
-                                if (((androidx.appcompat.view.menu.g)object2).isCheckable()) {
-                                    ((androidx.appcompat.view.menu.g)object2).t(false);
+                                if (g3.isCheckable()) {
+                                    g3.t(false);
                                 }
-                                if (((androidx.appcompat.view.menu.g)object2).isChecked()) {
-                                    this.O((androidx.appcompat.view.menu.g)object2);
+                                if (g3.isChecked()) {
+                                    this.O(g3);
                                 }
-                                this.d.add(new g((androidx.appcompat.view.menu.g)object2));
+                                this.d.add(new g(g3));
                             }
                             n7 = n8;
                         }
@@ -659,10 +659,10 @@ implements androidx.appcompat.view.menu.i {
                         }
                     }
                 } else {
-                    n10 = ((androidx.appcompat.view.menu.g)object2).getGroupId();
+                    n10 = g3.getGroupId();
                     if (n10 != n5) {
                         n3 = this.d.size();
-                        n6 = ((androidx.appcompat.view.menu.g)object2).getIcon() != null ? 1 : 0;
+                        n6 = g3.getIcon() != null ? 1 : 0;
                         n7 = n6;
                         n8 = n3;
                         if (i3 != 0) {
@@ -678,16 +678,16 @@ implements androidx.appcompat.view.menu.i {
                         if (n3 == 0) {
                             n7 = n3;
                             n8 = n6;
-                            if (((androidx.appcompat.view.menu.g)object2).getIcon() != null) {
+                            if (g3.getIcon() != null) {
                                 this.E(n6, this.d.size());
                                 n7 = 1;
                                 n8 = n6;
                             }
                         }
                     }
-                    object2 = new g((androidx.appcompat.view.menu.g)object2);
-                    ((g)object2).b = n7;
-                    this.d.add(object2);
+                    object = new g(g3);
+                    ((g)object).b = n7;
+                    this.d.add(object);
                     n9 = n7;
                 }
                 n5 = n10;

@@ -64,38 +64,38 @@ extends PathMotion {
             f8 = Math.abs(f9 / (f8 * 2.0f));
             if (bl) {
                 f8 += f6;
-                f9 = f5;
+                f7 = f5;
             } else {
                 f8 += f4;
-                f9 = f3;
+                f7 = f3;
             }
-            f7 = this.e;
+            f9 = this.e;
         } else {
-            f9 /= f7 * 2.0f;
+            f7 = f9 / (f7 * 2.0f);
             if (bl) {
                 f8 = f4;
-                f9 += f3;
+                f7 += f3;
             } else {
-                f9 = f5 - f9;
+                f7 = f5 - f7;
                 f8 = f6;
             }
-            f7 = this.d;
+            f9 = this.d;
         }
-        f7 = f12 * f7 * f7;
-        float f13 = f10 - f9;
+        f9 = f12 * f9 * f9;
+        float f13 = f10 - f7;
         float f14 = f11 - f8;
         f13 = f13 * f13 + f14 * f14;
         f14 = this.f;
         f12 = f12 * f14 * f14;
-        if (!(f13 < f7)) {
-            f7 = f13 > f12 ? f12 : 0.0f;
+        if (!(f13 < f9)) {
+            f9 = f13 > f12 ? f12 : 0.0f;
         }
         f14 = f8;
-        f12 = f9;
-        if (f7 != 0.0f) {
-            f7 = (float)Math.sqrt(f7 / f13);
-            f12 = (f9 - f10) * f7 + f10;
-            f14 = f11 + f7 * (f8 - f11);
+        f12 = f7;
+        if (f9 != 0.0f) {
+            f9 = (float)Math.sqrt(f9 / f13);
+            f12 = (f7 - f10) * f9 + f10;
+            f14 = f11 + f9 * (f8 - f11);
         }
         path.cubicTo((f3 + f12) / 2.0f, (f4 + f14) / 2.0f, (f12 + f5) / 2.0f, (f14 + f6) / 2.0f, f5, f6);
         return path;

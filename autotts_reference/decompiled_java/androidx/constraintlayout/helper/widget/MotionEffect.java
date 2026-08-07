@@ -86,13 +86,13 @@ extends MotionHelper {
                 if (n5 != y.d.MotionEffect_motionEffect_viewTransition) continue;
                 this.v = context.getResourceId(n5, this.v);
             }
-            n3 = this.q;
-            n4 = this.r;
-            if (n3 == n4) {
-                if (n3 > 0) {
-                    this.q = n3 - 1;
+            n4 = this.q;
+            n3 = this.r;
+            if (n4 == n3) {
+                if (n4 > 0) {
+                    this.q = n4 - 1;
                 } else {
-                    this.r = n4 + 1;
+                    this.r = n3 + 1;
                 }
             }
             context.recycle();
@@ -190,17 +190,17 @@ extends MotionHelper {
         for (n3 = 0; n3 < viewArray.length; ++n3) {
             object2 = (m)hashMap.get(viewArray[n3]);
             if (object2 == null) continue;
-            f3 = ((m)object2).n() - ((m)object2).t();
-            f4 = ((m)object2).o() - ((m)object2).u();
+            f4 = ((m)object2).n() - ((m)object2).t();
+            f3 = ((m)object2).o() - ((m)object2).u();
             if (n4 == 0) {
-                if (f4 > 0.0f && (!this.u || f3 == 0.0f)) {
+                if (f3 > 0.0f && (!this.u || f4 == 0.0f)) {
                     continue;
                 }
             } else if (n4 == 1) {
-                if (f4 < 0.0f && (!this.u || f3 == 0.0f)) {
+                if (f3 < 0.0f && (!this.u || f4 == 0.0f)) {
                     continue;
                 }
-            } else if (n4 != 2 ? n4 == 3 && f3 > 0.0f && (!this.u || f4 == 0.0f) : f3 < 0.0f && (!this.u || f4 == 0.0f)) continue;
+            } else if (n4 != 2 ? n4 == 3 && f4 > 0.0f && (!this.u || f3 == 0.0f) : f4 < 0.0f && (!this.u || f3 == 0.0f)) continue;
             if ((object = (Object)this.v) == -1) {
                 ((m)object2).a(e5);
                 ((m)object2).a(e6);

@@ -17,8 +17,8 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ResolveInfo;
 import android.os.IBinder;
-import c3.m;
-import c3.o;
+import c3.n;
+import c3.p;
 import com.vnspeak.autotts.AutoTtsService;
 
 public class d {
@@ -77,35 +77,35 @@ public class d {
                         }
 
                         public void onBindingDied(ComponentName object) {
-                            o o3 = m.a;
+                            p p3 = n.a;
                             StringBuilder stringBuilder = new StringBuilder();
                             stringBuilder.append("Binding died: ");
                             stringBuilder.append(object.flattenToShortString());
-                            o3.c("AutoTTS", stringBuilder.toString());
+                            p3.c("AutoTTS", stringBuilder.toString());
                             object = this.a.c;
                             this.a.e();
                             this.a.c((String)object);
                         }
 
                         public void onNullBinding(ComponentName componentName) {
-                            m.a.c("AutoTTS", "Service returned null binding");
+                            n.a.c("AutoTTS", "Service returned null binding");
                             this.a.e();
                         }
 
                         public void onServiceConnected(ComponentName componentName, IBinder object) {
-                            o o3 = m.a;
+                            p p3 = n.a;
                             object = new StringBuilder();
                             ((StringBuilder)object).append("Keep-alive bound to ");
                             ((StringBuilder)object).append(componentName.flattenToShortString());
-                            o3.c("AutoTTS", ((StringBuilder)object).toString());
+                            p3.c("AutoTTS", ((StringBuilder)object).toString());
                         }
 
                         public void onServiceDisconnected(ComponentName componentName) {
-                            o o3 = m.a;
+                            p p3 = n.a;
                             StringBuilder stringBuilder = new StringBuilder();
                             stringBuilder.append("Engine process died: ");
                             stringBuilder.append(componentName.flattenToShortString());
-                            o3.c("AutoTTS", stringBuilder.toString());
+                            p3.c("AutoTTS", stringBuilder.toString());
                             this.a.d();
                         }
                     };
@@ -118,35 +118,35 @@ public class d {
                             return bl2;
                         }
                         bl = bl2;
-                        object = m.a;
+                        object2 = n.a;
                         bl = bl2;
                         bl = bl2;
-                        object2 = new StringBuilder();
+                        object = new StringBuilder();
                         bl = bl2;
-                        ((StringBuilder)object2).append("bindService failed for ");
+                        ((StringBuilder)object).append("bindService failed for ");
                         bl = bl2;
-                        ((StringBuilder)object2).append(string);
+                        ((StringBuilder)object).append(string);
                         bl = bl2;
-                        ((o)object).c("AutoTTS", ((StringBuilder)object2).toString());
+                        ((p)object2).c("AutoTTS", ((StringBuilder)object).toString());
                         bl = bl2;
                         this.b = null;
                         return bl2;
                     }
                     catch (Exception exception) {
-                        o o3 = m.a;
-                        object2 = new StringBuilder();
-                        ((StringBuilder)object2).append("bindService failed for ");
-                        ((StringBuilder)object2).append(string);
-                        o3.c("AutoTTS", ((StringBuilder)object2).toString());
+                        object2 = n.a;
+                        StringBuilder stringBuilder = new StringBuilder();
+                        stringBuilder.append("bindService failed for ");
+                        stringBuilder.append(string);
+                        ((p)object2).c("AutoTTS", stringBuilder.toString());
                         this.b = null;
                     }
                     return bl;
                 }
-                o o4 = m.a;
+                p p3 = n.a;
                 object = new StringBuilder();
                 ((StringBuilder)object).append("No TTS service found in ");
                 ((StringBuilder)object).append(string);
-                o4.c("AutoTTS", ((StringBuilder)object).toString());
+                p3.c("AutoTTS", ((StringBuilder)object).toString());
                 return false;
             }
             throw throwable2;

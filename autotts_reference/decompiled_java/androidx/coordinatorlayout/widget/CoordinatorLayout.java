@@ -159,11 +159,11 @@ d0 {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public static Behavior O(Context object, AttributeSet object2, String hashMap) {
+    public static Behavior O(Context object, AttributeSet attributeSet, String hashMap) {
         Exception exception2;
         CharSequence charSequence;
         block10: {
-            Object object3;
+            Object object2;
             Constructor<?> constructor;
             block9: {
                 if (TextUtils.isEmpty((CharSequence)((Object)hashMap))) {
@@ -188,30 +188,30 @@ d0 {
                     }
                 }
                 try {
-                    object3 = y;
-                    constructor = (Map)((ThreadLocal)object3).get();
+                    object2 = y;
+                    constructor = (Map)((ThreadLocal)object2).get();
                     hashMap = constructor;
                     if (constructor != null) break block9;
                     hashMap = new HashMap();
-                    ((ThreadLocal)object3).set(hashMap);
+                    ((ThreadLocal)object2).set(hashMap);
                 }
                 catch (Exception exception2) {
                     break block10;
                 }
             }
-            object3 = (Constructor)hashMap.get(charSequence);
-            constructor = object3;
-            if (object3 == null) {
+            object2 = (Constructor)hashMap.get(charSequence);
+            constructor = object2;
+            if (object2 == null) {
                 constructor = Class.forName((String)charSequence, false, object.getClassLoader()).getConstructor(x);
                 ((AccessibleObject)constructor).setAccessible(true);
                 hashMap.put(charSequence, constructor);
             }
-            return (Behavior)constructor.newInstance(object, object2);
+            return (Behavior)constructor.newInstance(object, attributeSet);
         }
-        object2 = new StringBuilder();
-        ((StringBuilder)object2).append("Could not inflate Behavior subclass ");
-        ((StringBuilder)object2).append((String)charSequence);
-        throw new RuntimeException(((StringBuilder)object2).toString(), exception2);
+        object = new StringBuilder();
+        ((StringBuilder)object).append("Could not inflate Behavior subclass ");
+        ((StringBuilder)object).append((String)charSequence);
+        throw new RuntimeException(((StringBuilder)object).toString(), exception2);
     }
 
     public static void S(Rect rect) {
@@ -512,13 +512,13 @@ d0 {
                 n3 = 1;
             }
             this.n(e3, rect, n5, n4);
-            n6 = rect.left - rect2.left;
-            n4 = rect.top - rect2.top;
-            if (n6 != 0) {
-                x0.R(view, n6);
-            }
+            n4 = rect.left - rect2.left;
+            n6 = rect.top - rect2.top;
             if (n4 != 0) {
-                x0.S(view, n4);
+                x0.R(view, n4);
+            }
+            if (n6 != 0) {
+                x0.S(view, n6);
             }
             if (n3 != 0 && (behavior = e3.f()) != null) {
                 behavior.l(this, view, e3.k);
@@ -549,17 +549,16 @@ d0 {
             }
             this.u(view, true, rect2);
             if (((e)((Object)object2)).g != 0 && !rect2.isEmpty()) {
-                int n7 = o0.s.b(((e)((Object)object2)).g, n4);
-                n6 = n7 & 0x70;
-                if (n6 != 48) {
-                    if (n6 == 80) {
+                n6 = o0.s.b(((e)((Object)object2)).g, n4);
+                int n7 = n6 & 0x70;
+                if (n7 != 48) {
+                    if (n7 == 80) {
                         rect.bottom = Math.max(rect.bottom, this.getHeight() - rect2.top);
                     }
                 } else {
                     rect.top = Math.max(rect.top, rect2.bottom);
                 }
-                n6 = n7 & 7;
-                if (n6 != 3) {
+                if ((n6 &= 7) != 3) {
                     if (n6 == 5) {
                         rect.right = Math.max(rect.right, this.getWidth() - rect2.left);
                     }
@@ -1162,9 +1161,9 @@ d0 {
         var19_7 = var27_3.getPaddingBottom();
         var9_8 = x0.y((View)var27_3);
         var7_9 = var9_8 == 1;
-        var22_10 = View.MeasureSpec.getMode((int)var1_1);
+        var23_10 = View.MeasureSpec.getMode((int)var1_1);
         var24_11 = View.MeasureSpec.getSize((int)var1_1);
-        var23_12 = View.MeasureSpec.getMode((int)var2_2);
+        var22_12 = View.MeasureSpec.getMode((int)var2_2);
         var21_13 = View.MeasureSpec.getSize((int)var2_2);
         var4_14 = var27_3.getSuggestedMinimumWidth();
         var12_15 = var27_3.getSuggestedMinimumHeight();
@@ -1187,7 +1186,7 @@ d0 {
                 }
                 var28_28 = (e)var26_27 /* !! */ .getLayoutParams();
                 var5_21 = var28_28.e;
-                if (var5_21 < 0 || var22_10 == 0) ** GOTO lbl-1000
+                if (var5_21 < 0 || var23_10 == 0) ** GOTO lbl-1000
                 var5_21 = var27_3.A(var5_21);
                 var14_23 = o0.s.b(CoordinatorLayout.X(var28_28.c), var9_8) & 7;
                 if (var14_23 == 3 && !var7_9 || var14_23 == 5 && var7_9) {
@@ -1201,12 +1200,12 @@ d0 {
                     var5_21 = 0;
                 }
                 if (var8_16 && !x0.v(var26_27 /* !! */ )) {
-                    var14_23 = var27_3.q.j();
-                    var25_26 = var27_3.q.k();
+                    var25_26 = var27_3.q.j();
+                    var14_23 = var27_3.q.k();
                     var15_24 = var27_3.q.l();
                     var18_25 = var27_3.q.i();
-                    var14_23 = View.MeasureSpec.makeMeasureSpec((int)(var24_11 - (var14_23 + var25_26)), (int)var22_10);
-                    var15_24 = View.MeasureSpec.makeMeasureSpec((int)(var21_13 - (var15_24 + var18_25)), (int)var23_12);
+                    var14_23 = View.MeasureSpec.makeMeasureSpec((int)(var24_11 - (var25_26 + var14_23)), (int)var23_10);
+                    var15_24 = View.MeasureSpec.makeMeasureSpec((int)(var21_13 - (var15_24 + var18_25)), (int)var22_12);
                 } else {
                     var14_23 = var1_1;
                     var15_24 = var2_2;
@@ -1279,11 +1278,12 @@ d0 {
         SparseArray sparseArray = parcelable.e;
         int n3 = this.getChildCount();
         for (int i3 = 0; i3 < n3; ++i3) {
-            View view = this.getChildAt(i3);
-            int n4 = view.getId();
-            Behavior behavior = this.C(view).f();
-            if (n4 == -1 || behavior == null || (parcelable = (Parcelable)sparseArray.get(n4)) == null) continue;
-            behavior.B(this, view, parcelable);
+            Parcelable parcelable2;
+            parcelable = this.getChildAt(i3);
+            int n4 = parcelable.getId();
+            Behavior behavior = this.C((View)parcelable).f();
+            if (n4 == -1 || behavior == null || (parcelable2 = (Parcelable)sparseArray.get(n4)) == null) continue;
+            behavior.B(this, (View)parcelable, parcelable2);
         }
     }
 

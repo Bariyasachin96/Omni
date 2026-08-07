@@ -88,11 +88,11 @@ extends ViewGroup {
         attributeSet.recycle();
         this.p = this.e.getTextColors().getDefaultColor();
         this.setNonPrimaryAlpha(0.6f);
-        textView = this.d;
-        attributeSet = TextUtils.TruncateAt.END;
-        textView.setEllipsize((TextUtils.TruncateAt)attributeSet);
-        this.e.setEllipsize((TextUtils.TruncateAt)attributeSet);
-        this.f.setEllipsize((TextUtils.TruncateAt)attributeSet);
+        attributeSet = this.d;
+        textView = TextUtils.TruncateAt.END;
+        attributeSet.setEllipsize((TextUtils.TruncateAt)textView);
+        this.e.setEllipsize((TextUtils.TruncateAt)textView);
+        this.f.setEllipsize((TextUtils.TruncateAt)textView);
         if (n4 != 0) {
             attributeSet = context.obtainStyledAttributes(n4, r);
             bl = attributeSet.getBoolean(0, false);
@@ -173,20 +173,20 @@ extends ViewGroup {
                         n12 = this.d.getMeasuredWidth();
                         n11 = this.e.getMeasuredWidth();
                         n10 = this.f.getMeasuredWidth();
-                        n14 = n11 / 2;
-                        n9 = this.getWidth();
+                        n9 = n11 / 2;
+                        n8 = this.getWidth();
                         n3 = this.getHeight();
-                        n8 = this.getPaddingLeft();
-                        n7 = this.getPaddingRight();
-                        n6 = this.getPaddingTop();
+                        n7 = this.getPaddingLeft();
+                        n6 = this.getPaddingRight();
+                        n5 = this.getPaddingTop();
                         n16 = this.getPaddingBottom();
-                        n5 = n7 + n14;
+                        n14 = n6 + n9;
                         float f5 = f4 = 0.5f + f3;
                         if (f4 > 1.0f) {
                             f5 = f4 - 1.0f;
                         }
-                        n4 = n9 - n5 - (int)((float)(n9 - (n8 + n14) - n5) * f5) - n14;
-                        n5 = n11 + n4;
+                        n9 = n8 - n14 - (int)((float)(n8 - (n7 + n9) - n14) * f5) - n9;
+                        n4 = n11 + n9;
                         n13 = this.d.getBaseline();
                         n11 = this.e.getBaseline();
                         n14 = this.f.getBaseline();
@@ -194,37 +194,37 @@ extends ViewGroup {
                         n13 = n15 - n13;
                         n11 = n15 - n11;
                         n14 = n15 - n14;
-                        n15 = this.d.getMeasuredHeight();
-                        int n17 = this.e.getMeasuredHeight();
+                        int n17 = this.d.getMeasuredHeight();
+                        n15 = this.e.getMeasuredHeight();
                         int n18 = this.f.getMeasuredHeight();
-                        n15 = Math.max(Math.max(n15 + n13, n17 + n11), n18 + n14);
+                        n15 = Math.max(Math.max(n17 + n13, n15 + n11), n18 + n14);
                         n18 = this.j & 0x70;
                         if (n18 == 16) break block4;
                         if (n18 == 80) break block5;
-                        n3 = n13 + n6;
-                        n11 += n6;
-                        n6 += n14;
+                        n3 = n13 + n5;
+                        n11 += n5;
+                        n5 += n14;
                         break block6;
                     }
                     n3 = n3 - n16 - n15;
                     break block7;
                 }
-                n3 = (n3 - n6 - n16 - n15) / 2;
+                n3 = (n3 - n5 - n16 - n15) / 2;
             }
-            n6 = n13 + n3;
+            n5 = n13 + n3;
             n11 += n3;
             n14 = n3 + n14;
-            n3 = n6;
-            n6 = n14;
+            n3 = n5;
+            n5 = n14;
         }
         TextView textView = this.e;
-        textView.layout(n4, n11, n5, textView.getMeasuredHeight() + n11);
-        n11 = Math.min(n8, n4 - this.i - n12);
+        textView.layout(n9, n11, n4, textView.getMeasuredHeight() + n11);
+        n11 = Math.min(n7, n9 - this.i - n12);
         textView = this.d;
         textView.layout(n11, n3, n11 + n12, textView.getMeasuredHeight() + n3);
-        n3 = Math.max(n9 - n7 - n10, n5 + this.i);
+        n3 = Math.max(n8 - n6 - n10, n4 + this.i);
         textView = this.f;
-        textView.layout(n3, n6, n3 + n10, textView.getMeasuredHeight() + n6);
+        textView.layout(n3, n5, n3 + n10, textView.getMeasuredHeight() + n5);
         this.h = f3;
         this.l = false;
     }

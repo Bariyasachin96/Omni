@@ -115,11 +115,11 @@ a {
                 this.e = null;
             }
             this.c = 5;
-            object = this.f;
-            k.b(object);
+            a a4 = this.f;
+            k.b(a4);
             this.f = null;
-            e.a a4 = d3.e.c;
-            object.d(d3.e.a(j.a));
+            object = d3.e.c;
+            a4.d(d3.e.a(j.a));
         }
     }
 

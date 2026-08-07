@@ -30,15 +30,15 @@ extends k {
         a a4 = !bl2 ? new c(e.a(n3, 0), e.b(n4, charSequence.length())) : e.d(e.b(n3, l.e(charSequence)), e.a(n4, 0));
         if (charSequence instanceof String && charSequence2 instanceof String) {
             n3 = a4.a();
-            int n5 = a4.b();
-            n4 = a4.c();
-            if (n4 > 0 && n3 <= n5 || n4 < 0 && n5 <= n3) {
+            n4 = a4.b();
+            int n5 = a4.c();
+            if (n5 > 0 && n3 <= n4 || n5 < 0 && n4 <= n3) {
                 while (true) {
                     if (k.b((String)charSequence2, 0, (String)charSequence, n3, charSequence2.length(), bl)) {
                         return n3;
                     }
-                    if (n3 != n5) {
-                        n3 += n4;
+                    if (n3 != n4) {
+                        n3 += n5;
                         continue;
                     }
                     break;
@@ -46,15 +46,15 @@ extends k {
             }
         } else {
             n3 = a4.a();
-            int n6 = a4.b();
-            n4 = a4.c();
-            if (n4 > 0 && n3 <= n6 || n4 < 0 && n6 <= n3) {
+            n4 = a4.b();
+            int n6 = a4.c();
+            if (n6 > 0 && n3 <= n4 || n6 < 0 && n4 <= n3) {
                 while (true) {
                     if (bl2 = l.l(charSequence2, 0, charSequence, n3, charSequence2.length(), bl)) {
                         return n3;
                     }
-                    if (n3 == n6) break;
-                    n3 += n4;
+                    if (n3 == n4) break;
+                    n3 += n6;
                 }
             }
         }

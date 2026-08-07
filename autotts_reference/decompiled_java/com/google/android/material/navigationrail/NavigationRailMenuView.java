@@ -52,31 +52,32 @@ extends NavigationBarMenuView {
 
     public void onLayout(boolean bl, int n3, int n4, int n5, int n6) {
         int n7;
+        int n8;
         View view;
-        int n8 = this.getChildCount();
-        int n9 = n6 = 0;
-        for (n4 = 0; n4 < n8; ++n4) {
-            view = this.getChildAt(n4);
-            int n10 = n9;
-            n7 = n6;
-            if (view.getVisibility() != 8) {
-                n10 = n9 + view.getMeasuredHeight();
-                n7 = n6 + 1;
-            }
-            n9 = n10;
-            n6 = n7;
-        }
-        n4 = n6 <= 1 ? 0 : Math.max(0, Math.min((this.getMeasuredHeight() - n9) / (n6 - 1), this.e0));
-        n7 = 0;
-        for (n6 = 0; n6 < n8; ++n6) {
+        int n9 = this.getChildCount();
+        int n10 = n4 = 0;
+        for (n6 = 0; n6 < n9; ++n6) {
             view = this.getChildAt(n6);
-            n9 = n7;
+            n8 = n10;
+            n7 = n4;
             if (view.getVisibility() != 8) {
-                n9 = view.getMeasuredHeight();
-                view.layout(0, n7, n5 - n3, n9 + n7);
-                n9 = n7 + (n9 + n4);
+                n8 = n10 + view.getMeasuredHeight();
+                n7 = n4 + 1;
             }
-            n7 = n9;
+            n10 = n8;
+            n4 = n7;
+        }
+        n4 = n4 <= 1 ? 0 : Math.max(0, Math.min((this.getMeasuredHeight() - n10) / (n4 - 1), this.e0));
+        n7 = 0;
+        for (n6 = 0; n6 < n9; ++n6) {
+            view = this.getChildAt(n6);
+            n8 = n7;
+            if (view.getVisibility() != 8) {
+                n8 = view.getMeasuredHeight();
+                view.layout(0, n7, n5 - n3, n8 + n7);
+                n8 = n7 + (n8 + n4);
+            }
+            n7 = n8;
         }
     }
 
@@ -147,24 +148,24 @@ extends NavigationBarMenuView {
         }
         n7 = Math.max(n11, 0);
         n5 = view == null ? this.r(n3, n7, n5) : View.MeasureSpec.makeMeasureSpec((int)view.getMeasuredHeight(), (int)0);
-        n10 = 0;
+        n6 = 0;
         for (n7 = 0; n7 < n9; ++n7) {
             view2 = this.getChildAt(n7);
-            n11 = n10;
+            n11 = n6;
             if (view2.getVisibility() == 0) {
-                n11 = n10 + 1;
+                n11 = n6 + 1;
             }
-            n6 = n4;
+            n10 = n4;
             if (view2 instanceof NavigationBarItemView) {
-                n6 = n4;
+                n10 = n4;
                 if (view2 != view) {
-                    n6 = n4 + this.s(view2, n3, n5);
+                    n10 = n4 + this.s(view2, n3, n5);
                 }
             }
-            n10 = n11;
-            n4 = n6;
+            n6 = n11;
+            n4 = n10;
         }
-        return n4 + Math.max(0, n10 - 1) * this.e0;
+        return n4 + Math.max(0, n6 - 1) * this.e0;
     }
 
     public final int u(int n3, int n4, int n5) {
@@ -173,11 +174,15 @@ extends NavigationBarMenuView {
         if (view != null) {
             n6 = this.s(view, n3, this.r(n3, n4, n5));
             n4 -= n6;
-            --n5;
+            int n7 = n5 - 1;
+            n5 = n6;
+            n6 = n7;
         } else {
-            n6 = 0;
+            int n8 = 0;
+            n6 = n5;
+            n5 = n8;
         }
-        return n6 + this.t(n3, n4, n5, view);
+        return n5 + this.t(n3, n4, n6, view);
     }
 }
 

@@ -126,68 +126,55 @@ extends FrameLayout {
         }
     }
 
-    /*
-     * Unable to fully structure code
-     */
-    public void onLayout(boolean var1_1, int var2_2, int var3_3, int var4_4, int var5_5) {
-        block8: {
-            block9: {
-                block10: {
-                    super.onLayout(var1_1, var2_2, var3_3, var4_4, var5_5);
-                    var10_6 = this.d;
-                    var5_5 = 1;
-                    var3_3 = 0;
-                    var6_7 = 0;
-                    var1_1 = var10_6 != null && var10_6.getVisibility() != 8;
-                    if (var10_6 != null && var10_6.getVisibility() != 8) {
-                        var8_8 = this.getMeasuredHeight();
-                        var11_9 = (FrameLayout.LayoutParams)var10_6.getLayoutParams();
-                        var7_10 = var10_6.getMeasuredHeight();
-                        var9_11 = var11_9.bottomMargin;
-                        var10_6.layout(var2_2, var8_8 - var7_10 - var9_11, var4_4, var8_8 - var9_11);
-                    }
-                    if (!this.j) break block9;
-                    var10_6 = this.i;
-                    var3_3 = var6_7;
-                    if (var10_6 == null) break block10;
-                    var10_6.setBounds(0, 0, this.getMeasuredWidth(), this.getMeasuredHeight());
-                    var2_2 = var5_5;
-                    break block8;
-                }
-lbl21:
-                // 3 sources
-
-                while (true) {
-                    var2_2 = var3_3;
-                    break block8;
-                    break;
-                }
+    public void onLayout(boolean bl, int n3, int n4, int n5, int n6) {
+        FrameLayout.LayoutParams layoutParams;
+        super.onLayout(bl, n3, n4, n5, n6);
+        View view = this.d;
+        n6 = 1;
+        int n7 = 0;
+        n4 = 0;
+        bl = view != null && view.getVisibility() != 8;
+        if (view != null && view.getVisibility() != 8) {
+            int n8 = this.getMeasuredHeight();
+            layoutParams = (FrameLayout.LayoutParams)view.getLayoutParams();
+            int n9 = view.getMeasuredHeight();
+            int n10 = layoutParams.bottomMargin;
+            view.layout(n3, n8 - n9 - n10, n5, n8 - n10);
+        }
+        if (this.j) {
+            view = this.i;
+            n3 = n4;
+            if (view != null) {
+                view.setBounds(0, 0, this.getMeasuredWidth(), this.getMeasuredHeight());
+                n3 = n6;
             }
-            var2_2 = var3_3;
+        } else {
+            n4 = n7;
             if (this.g != null) {
                 if (this.e.getVisibility() == 0) {
                     this.g.setBounds(this.e.getLeft(), this.e.getTop(), this.e.getRight(), this.e.getBottom());
                 } else {
-                    var11_9 = this.f;
-                    if (var11_9 != null && var11_9.getVisibility() == 0) {
+                    layoutParams = this.f;
+                    if (layoutParams != null && layoutParams.getVisibility() == 0) {
                         this.g.setBounds(this.f.getLeft(), this.f.getTop(), this.f.getRight(), this.f.getBottom());
                     } else {
                         this.g.setBounds(0, 0, 0, 0);
                     }
                 }
-                var2_2 = 1;
+                n4 = 1;
             }
-            this.k = var1_1;
-            var3_3 = var2_2;
-            if (!var1_1) ** GOTO lbl21
-            var11_9 = this.h;
-            var3_3 = var2_2;
-            if (var11_9 != null) ** break;
-            ** while (true)
-            var11_9.setBounds(var10_6.getLeft(), var10_6.getTop(), var10_6.getRight(), var10_6.getBottom());
-            var2_2 = var5_5;
+            this.k = bl;
+            n3 = n4;
+            if (bl) {
+                layoutParams = this.h;
+                n3 = n4;
+                if (layoutParams != null) {
+                    layoutParams.setBounds(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+                    n3 = n6;
+                }
+            }
         }
-        if (var2_2 != 0) {
+        if (n3 != 0) {
             this.invalidate();
         }
     }

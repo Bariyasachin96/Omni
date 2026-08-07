@@ -29,14 +29,14 @@ extends a.a {
         int n4 = fieldArray.length;
         object = null;
         int n5 = 0;
-        for (int i3 = 0; i3 < n4; ++i3) {
-            Field field = fieldArray[i3];
-            n3 = n5;
+        for (n3 = 0; n3 < n4; ++n3) {
+            Field field = fieldArray[n3];
+            int n6 = n5;
             if (!field.isSynthetic()) {
-                n3 = n5 + 1;
+                n6 = n5 + 1;
                 object = field;
             }
-            n5 = n3;
+            n5 = n6;
         }
         if (n5 == 1) {
             u1.b.c(object);

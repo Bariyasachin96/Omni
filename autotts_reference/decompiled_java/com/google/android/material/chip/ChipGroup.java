@@ -48,12 +48,12 @@ extends FlowLayout {
     }
 
     public ChipGroup(Context object, AttributeSet attributeSet, int n3) {
-        com.google.android.material.internal.a a4;
+        e e3;
         int n4 = m;
-        super(y2.a.d(object, attributeSet, n3, n4), attributeSet, n3);
-        this.j = a4 = new com.google.android.material.internal.a();
-        object = new e(this, null);
-        this.l = object;
+        super(y2.a.d((Context)object, attributeSet, n3, n4), attributeSet, n3);
+        object = new com.google.android.material.internal.a();
+        this.j = object;
+        this.l = e3 = new e(this, null);
         attributeSet = z.i(this.getContext(), attributeSet, z1.m.ChipGroup, n3, n4, new int[0]);
         n3 = attributeSet.getDimensionPixelOffset(z1.m.ChipGroup_chipSpacing, 0);
         this.setChipSpacingHorizontal(attributeSet.getDimensionPixelOffset(z1.m.ChipGroup_chipSpacingHorizontal, n3));
@@ -63,7 +63,7 @@ extends FlowLayout {
         this.setSelectionRequired(attributeSet.getBoolean(z1.m.ChipGroup_selectionRequired, false));
         this.k = attributeSet.getResourceId(z1.m.ChipGroup_checkedChip, -1);
         attributeSet.recycle();
-        a4.o(new a.b(this){
+        ((com.google.android.material.internal.a)object).o(new a.b(this){
             public final ChipGroup a;
             {
                 this.a = chipGroup;
@@ -78,7 +78,7 @@ extends FlowLayout {
                 }
             }
         });
-        super.setOnHierarchyChangeListener((ViewGroup.OnHierarchyChangeListener)object);
+        super.setOnHierarchyChangeListener((ViewGroup.OnHierarchyChangeListener)e3);
         this.setImportantForAccessibility(1);
     }
 

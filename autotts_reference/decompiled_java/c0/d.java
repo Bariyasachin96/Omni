@@ -138,22 +138,22 @@ public abstract class d {
         }
     }
 
-    public static boolean h(Object runnable, int n3, Activity object) {
+    public static boolean h(Object runnable, int n3, Activity activity) {
         Throwable throwable2;
         block5: {
             block4: {
-                Object object2;
+                Object object;
                 try {
-                    object2 = c.get(object);
-                    if (object2 != runnable) break block4;
+                    object = c.get(activity);
+                    if (object != runnable) break block4;
                 }
                 catch (Throwable throwable2) {
                     break block5;
                 }
-                if (object.hashCode() == n3) {
-                    object = b.get(object);
-                    Handler handler = g;
-                    runnable = new Runnable(object, object2){
+                if (activity.hashCode() == n3) {
+                    Object object2 = b.get(activity);
+                    activity = g;
+                    runnable = new Runnable(object2, object){
                         public final Object c;
                         public final Object d;
                         {
@@ -196,7 +196,7 @@ public abstract class d {
                             if (runtimeException2.getMessage().startsWith("Unable to stop")) throw runtimeException2;
                         }
                     };
-                    handler.postAtFrontOfQueue(runnable);
+                    activity.postAtFrontOfQueue(runnable);
                     return true;
                 }
             }
@@ -226,19 +226,19 @@ public abstract class d {
                     return false;
                 }
                 try {
-                    var4_2 = c0.d.c.get(var0 /* !! */ );
-                    if (var4_2 == null) {
+                    var5_2 = c0.d.c.get(var0 /* !! */ );
+                    if (var5_2 == null) {
                         return false;
                     }
-                    var5_4 = c0.d.b.get(var0 /* !! */ );
-                    if (var5_4 == null) {
+                    var4_3 = c0.d.b.get(var0 /* !! */ );
+                    if (var4_3 == null) {
                         return false;
                     }
-                    var2_5 = var0 /* !! */ .getApplication();
-                    var1_6 = new d(var0 /* !! */ );
-                    var2_5.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks)var1_6);
-                    var3_7 = c0.d.g;
-                    var6_8 = new Runnable(var1_6, var4_2){
+                    var1_4 = var0 /* !! */ .getApplication();
+                    var2_5 = new d(var0 /* !! */ );
+                    var1_4.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks)var2_5);
+                    var3_6 = c0.d.g;
+                    var6_8 = new Runnable(var2_5, var5_2){
                         public final d c;
                         public final Object d;
                         {
@@ -251,7 +251,7 @@ public abstract class d {
                             this.c.a = this.d;
                         }
                     };
-                    var3_7.post(var6_8);
+                    var3_6.post(var6_8);
                 }
                 catch (Throwable var0_1) {
                     return false;
@@ -260,16 +260,16 @@ public abstract class d {
                     if (!c0.d.g()) break block10;
                     var6_8 = c0.d.f;
                     var0 /* !! */  = Boolean.FALSE;
-                    var6_8.invoke(var5_4, new Object[]{var4_2, null, null, 0, var0 /* !! */ , null, null, var0 /* !! */ , var0 /* !! */ });
+                    var6_8.invoke(var4_3, new Object[]{var5_2, null, null, 0, var0 /* !! */ , null, null, var0 /* !! */ , var0 /* !! */ });
                     break block11;
                 }
-                catch (Throwable var4_3) {
+                catch (Throwable var3_7) {
                     ** GOTO lbl41
                 }
             }
             var0 /* !! */ .recreate();
         }
-        var0 /* !! */  = new Runnable(var2_5, var1_6){
+        var0 /* !! */  = new Runnable(var1_4, var2_5){
             public final Application c;
             public final d d;
             {
@@ -282,15 +282,15 @@ public abstract class d {
                 this.c.unregisterActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks)this.d);
             }
         };
-        var3_7.post((Runnable)var0 /* !! */ );
+        var3_6.post((Runnable)var0 /* !! */ );
         return true;
 lbl41:
         // 1 sources
 
-        var3_7 = c0.d.g;
-        var0 /* !! */  = new /* invalid duplicate definition of identical inner class */;
-        var3_7.post((Runnable)var0 /* !! */ );
-        throw var4_3;
+        var0 /* !! */  = c0.d.g;
+        var4_3 = new /* invalid duplicate definition of identical inner class */;
+        var0 /* !! */ .post(var4_3);
+        throw var3_7;
     }
 
     public static final class d

@@ -69,14 +69,14 @@ implements Iterable {
             return false;
         }
         object = this.iterator();
-        Iterator iterator = ((b)object2).iterator();
-        while (object.hasNext() && iterator.hasNext()) {
-            object2 = (Map.Entry)object.next();
-            Object e3 = iterator.next();
-            if ((object2 != null || e3 == null) && (object2 == null || object2.equals(e3))) continue;
+        object2 = ((b)object2).iterator();
+        while (object.hasNext() && object2.hasNext()) {
+            Map.Entry entry = (Map.Entry)object.next();
+            Object e3 = object2.next();
+            if ((entry != null || e3 == null) && (entry == null || entry.equals(e3))) continue;
             return false;
         }
-        return !object.hasNext() && !iterator.hasNext();
+        return !object.hasNext() && !object2.hasNext();
     }
 
     public Object f(Object object, Object object2) {
@@ -89,6 +89,7 @@ implements Iterable {
     }
 
     public Object g(Object object) {
+        c c3;
         Object object2;
         if ((object = this.b(object)) == null) {
             return null;
@@ -100,16 +101,16 @@ implements Iterable {
                 ((f)object2.next()).a((c)object);
             }
         }
-        if ((object2 = ((c)object).f) != null) {
-            ((c)object2).e = ((c)object).e;
+        if ((c3 = ((c)object).f) != null) {
+            c3.e = ((c)object).e;
         } else {
             this.c = ((c)object).e;
         }
-        c c3 = ((c)object).e;
-        if (c3 != null) {
-            c3.f = object2;
+        object2 = ((c)object).e;
+        if (object2 != null) {
+            ((c)object2).f = c3;
         } else {
-            this.d = object2;
+            this.d = c3;
         }
         ((c)object).e = null;
         ((c)object).f = null;

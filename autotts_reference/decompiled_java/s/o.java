@@ -73,8 +73,8 @@ public abstract class o {
     }
 
     public void e(int n3) {
-        int n4;
         Object[] objectArray;
+        int n4;
         int n5 = this.e;
         if (n5 == 0) {
             PrintStream printStream = System.err;
@@ -86,12 +86,12 @@ public abstract class o {
         }
         s.o$a.a(this.c, this.d, 0, n5 - 1);
         n5 = 0;
-        for (int i3 = 1; i3 < (objectArray = this.c).length; ++i3) {
-            n4 = n5;
-            if (objectArray[i3] != objectArray[i3 - 1]) {
-                n4 = n5 + 1;
+        for (n4 = 1; n4 < (objectArray = this.c).length; ++n4) {
+            int n6 = n5;
+            if (objectArray[n4] != objectArray[n4 - 1]) {
+                n6 = n5 + 1;
             }
-            n5 = n4;
+            n5 = n6;
         }
         n4 = n5;
         if (n5 == 0) {

@@ -11,7 +11,6 @@
  *  android.content.res.ColorStateList
  *  android.content.res.Resources
  *  android.content.res.Resources$Theme
- *  android.content.res.TypedArray
  *  android.graphics.Canvas
  *  android.graphics.ColorFilter
  *  android.graphics.PorterDuff$Mode
@@ -33,7 +32,6 @@ import android.animation.ArgbEvaluator;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
-import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.PorterDuff;
@@ -293,36 +291,36 @@ implements Animatable {
         while (n3 != 1 && (xmlPullParser.getDepth() >= n4 + 1 || n3 != 3)) {
             if (n3 == 2) {
                 Object object2;
-                TypedArray typedArray;
+                g g3;
                 object = xmlPullParser.getName();
                 if ("animated-vector".equals(object)) {
-                    typedArray = k.k(resources, theme, attributeSet, a.e);
-                    n3 = typedArray.getResourceId(0, 0);
+                    object = k.k(resources, theme, attributeSet, a.e);
+                    n3 = object.getResourceId(0, 0);
                     if (n3 != 0) {
-                        object2 = n1.g.b(resources, n3, theme);
-                        ((g)((Object)object2)).g(false);
-                        object2.setCallback(this.j);
-                        object = this.d.b;
-                        if (object != null) {
-                            object.setCallback(null);
+                        g3 = n1.g.b(resources, n3, theme);
+                        g3.g(false);
+                        g3.setCallback(this.j);
+                        object2 = this.d.b;
+                        if (object2 != null) {
+                            object2.setCallback(null);
                         }
-                        this.d.b = object2;
+                        this.d.b = g3;
                     }
-                    typedArray.recycle();
+                    object.recycle();
                 } else if ("target".equals(object)) {
-                    typedArray = resources.obtainAttributes(attributeSet, a.f);
-                    object2 = typedArray.getString(0);
-                    n3 = typedArray.getResourceId(1, 0);
+                    object = resources.obtainAttributes(attributeSet, a.f);
+                    object2 = object.getString(0);
+                    n3 = object.getResourceId(1, 0);
                     if (n3 != 0) {
-                        object = this.e;
-                        if (object != null) {
-                            this.e((String)object2, n1.e.a((Context)object, n3));
+                        g3 = this.e;
+                        if (g3 != null) {
+                            this.e((String)object2, n1.e.a((Context)g3, n3));
                         } else {
-                            typedArray.recycle();
+                            object.recycle();
                             throw new IllegalStateException("Context can't be null when inflating animators");
                         }
                     }
-                    typedArray.recycle();
+                    object.recycle();
                 }
             }
             n3 = xmlPullParser.next();

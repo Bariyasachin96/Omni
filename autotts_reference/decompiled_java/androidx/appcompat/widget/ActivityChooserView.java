@@ -243,11 +243,11 @@ extends ViewGroup {
             this.i.setVisibility(8);
         } else {
             this.i.setVisibility(0);
-            Object object = this.c.c();
-            PackageManager packageManager = this.getContext().getPackageManager();
-            this.j.setImageDrawable(object.loadIcon(packageManager));
+            ResolveInfo resolveInfo = this.c.c();
+            Object object = this.getContext().getPackageManager();
+            this.j.setImageDrawable(resolveInfo.loadIcon(object));
             if (this.t != 0) {
-                object = object.loadLabel(packageManager);
+                object = resolveInfo.loadLabel(object);
                 object = this.getContext().getString(this.t, new Object[]{object});
                 this.i.setContentDescription((CharSequence)object);
             }
@@ -448,10 +448,10 @@ extends ViewGroup {
                 view2 = LayoutInflater.from((Context)this.g.getContext()).inflate(c.g.abc_activity_chooser_view_list_item, viewGroup, false);
             }
             view = this.g.getContext().getPackageManager();
-            viewGroup = (ImageView)view2.findViewById(c.f.icon);
-            ResolveInfo resolveInfo = (ResolveInfo)this.getItem(n3);
-            viewGroup.setImageDrawable(resolveInfo.loadIcon((PackageManager)view));
-            ((TextView)view2.findViewById(c.f.title)).setText(resolveInfo.loadLabel((PackageManager)view));
+            ImageView imageView = (ImageView)view2.findViewById(c.f.icon);
+            viewGroup = (ResolveInfo)this.getItem(n3);
+            imageView.setImageDrawable(viewGroup.loadIcon((PackageManager)view));
+            ((TextView)view2.findViewById(c.f.title)).setText(viewGroup.loadLabel((PackageManager)view));
             if (this.d && n3 == 0 && this.e) {
                 view2.setActivated(true);
                 return view2;

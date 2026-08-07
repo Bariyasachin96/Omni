@@ -12,7 +12,6 @@ import u.h;
 import u.i;
 import u.k;
 import u.m;
-import v.p;
 
 public class b {
     public final ArrayList a = new ArrayList();
@@ -33,14 +32,14 @@ public class b {
         a4.j = n3;
         e.b b3 = a4.a;
         e.b b4 = e.b.e;
-        n3 = b3 == b4 ? 1 : 0;
-        boolean bl = a4.b == b4;
-        n3 = n3 != 0 && e3.f0 > 0.0f ? 1 : 0;
+        boolean bl = b3 == b4;
+        n3 = a4.b == b4 ? 1 : 0;
         bl = bl && e3.f0 > 0.0f;
-        if (n3 != 0 && e3.y[0] == 4) {
+        n3 = n3 != 0 && e3.f0 > 0.0f ? 1 : 0;
+        if (bl && e3.y[0] == 4) {
             a4.a = e.b.c;
         }
-        if (bl && e3.y[1] == 4) {
+        if (n3 != 0 && e3.y[1] == 4) {
             a4.b = e.b.c;
         }
         object.b(e3, a4);
@@ -67,12 +66,12 @@ public class b {
                     Object object;
                     Object object2;
                     e3 = (e)f3.V0.get(i3);
-                    if (e3 instanceof h || e3 instanceof u.a || e3.n0() || bl && (object2 = e3.e) != null && (object = e3.f) != null && object2.e.j && ((p)object).e.j) continue;
-                    object = e3.w(0);
+                    if (e3 instanceof h || e3 instanceof u.a || e3.n0() || bl && (object2 = e3.e) != null && (object = e3.f) != null && object2.e.j && object.e.j) continue;
+                    e.b b4 = e3.w(0);
                     bl4 = true;
-                    object2 = e3.w(1);
-                    e.b b4 = e.b.e;
-                    bl3 = object == b4 && e3.w != 1 && object2 == b4 && e3.x != 1;
+                    object = e3.w(1);
+                    object2 = e.b.e;
+                    bl3 = b4 == object2 && e3.w != 1 && object == object2 && e3.x != 1;
                     bl2 = bl3;
                     if (bl3) break block13;
                     bl2 = bl3;
@@ -80,11 +79,11 @@ public class b {
                     bl2 = bl3;
                     if (e3 instanceof m) break block13;
                     bl2 = bl3;
-                    if (object == b4) {
+                    if (b4 == object2) {
                         bl2 = bl3;
                         if (e3.w == 0) {
                             bl2 = bl3;
-                            if (object2 != b4) {
+                            if (object != object2) {
                                 bl2 = bl3;
                                 if (!e3.k0()) {
                                     bl2 = true;
@@ -93,11 +92,11 @@ public class b {
                         }
                     }
                     bl3 = bl2;
-                    if (object2 == b4) {
+                    if (object == object2) {
                         bl3 = bl2;
                         if (e3.x == 0) {
                             bl3 = bl2;
-                            if (object != b4) {
+                            if (b4 != object2) {
                                 bl3 = bl2;
                                 if (!e3.k0()) {
                                     bl3 = true;
@@ -105,9 +104,9 @@ public class b {
                             }
                         }
                     }
-                    if (object == b4) break block14;
+                    if (b4 == object2) break block14;
                     bl2 = bl3;
-                    if (object2 != b4) break block13;
+                    if (object != object2) break block13;
                 }
                 bl2 = bl3;
                 if (e3.f0 > 0.0f) {
@@ -141,7 +140,6 @@ public class b {
     public long d(f f3, int n3, int n4, int n5, int n6, int n7, int n8, int n9, int n10, int n11) {
         void var21_21;
         int n12;
-        Object object;
         e.b b3;
         b b4 = f3.O1();
         int n13 = f3.V0.size();
@@ -153,12 +151,13 @@ public class b {
         if (n3 != 0) {
             n4 = 0;
             while (true) {
+                e.b b5;
                 n5 = n3;
                 if (n4 >= n13) break;
                 e e3 = (e)f3.V0.get(n4);
                 b3 = e3.C();
-                n5 = b3 == (object = e.b.e) ? 1 : 0;
-                n10 = e3.V() == object ? 1 : 0;
+                n5 = b3 == (b5 = e.b.e) ? 1 : 0;
+                n10 = e3.V() == b5 ? 1 : 0;
                 n5 = n5 != 0 && n10 != 0 && e3.x() > 0.0f ? 1 : 0;
                 if (e3.k0() && n5 != 0 || e3.m0() && n5 != 0 || e3 instanceof m || e3.k0() || e3.m0()) {
                     n5 = 0;
@@ -171,7 +170,7 @@ public class b {
             boolean bl2 = d.s;
         }
         if ((n12 = n5 & (n3 = n6 == 0x40000000 && n8 == 0x40000000 || bl ? 1 : 0)) != 0) {
-            void var20_30;
+            void var20_35;
             n3 = Math.min(f3.I(), n7);
             n4 = Math.min(f3.H(), n9);
             if (n6 == 0x40000000 && f3.Y() != n3) {
@@ -199,9 +198,9 @@ public class b {
                     ++n3;
                 }
             }
-            void var21_15 = var20_30;
+            void var21_15 = var20_35;
             n4 = n3;
-            if (var20_30 != false) {
+            if (var20_35 != false) {
                 void var21_18;
                 if (n6 == 0x40000000) {
                     boolean bl7 = true;
@@ -210,7 +209,7 @@ public class b {
                 }
                 boolean bl9 = n8 == 0x40000000;
                 f3.u1((boolean)var21_18, bl9);
-                void var21_19 = var20_30;
+                void var21_19 = var20_35;
                 n4 = n3;
             }
         } else {
@@ -230,29 +229,29 @@ public class b {
             if (n8 > 0) {
                 int n16;
                 int n17;
-                b3 = f3.C();
-                n9 = b3 == (object = e.b.d) ? 1 : 0;
-                n10 = f3.V() == object ? 1 : 0;
+                e.b b6 = f3.C();
+                n9 = b6 == (b3 = e.b.d) ? 1 : 0;
+                n10 = f3.V() == b3 ? 1 : 0;
                 n4 = Math.max(f3.Y(), this.c.K());
                 n3 = Math.max(f3.z(), this.c.J());
                 n5 = 0;
                 for (n7 = 0; n7 < n8; ++n7) {
-                    object = (e)this.a.get(n7);
-                    if (!(object instanceof m)) {
+                    e e4 = (e)this.a.get(n7);
+                    if (!(e4 instanceof m)) {
                         n6 = n5;
                     } else {
-                        n17 = ((e)object).Y();
-                        n16 = ((e)object).z();
-                        int n18 = this.a(b4, (e)object, v.b$a.l);
-                        n6 = ((e)object).Y();
-                        n13 = ((e)object).z();
-                        if (n6 != n17) {
-                            ((e)object).p1(n6);
+                        n6 = e4.Y();
+                        n17 = e4.z();
+                        int n18 = this.a(b4, e4, v.b$a.l);
+                        n16 = e4.Y();
+                        n13 = e4.z();
+                        if (n16 != n6) {
+                            e4.p1(n16);
                             n5 = n4;
                             if (n9 != 0) {
                                 n5 = n4;
-                                if (((e)object).O() > n4) {
-                                    n5 = Math.max(n4, ((e)object).O() + ((e)object).q(d.a.f).f());
+                                if (e4.O() > n4) {
+                                    n5 = Math.max(n4, e4.O() + e4.q(d.a.f).f());
                                 }
                             }
                             n6 = 1;
@@ -261,18 +260,18 @@ public class b {
                             n6 = n18 | n5;
                         }
                         n5 = n3;
-                        if (n13 != n16) {
-                            ((e)object).Q0(n13);
+                        if (n13 != n17) {
+                            e4.Q0(n13);
                             n5 = n3;
                             if (n10 != 0) {
                                 n5 = n3;
-                                if (((e)object).t() > n3) {
-                                    n5 = Math.max(n3, ((e)object).t() + ((e)object).q(d.a.g).f());
+                                if (e4.t() > n3) {
+                                    n5 = Math.max(n3, e4.t() + e4.q(d.a.g).f());
                                 }
                             }
                             n6 = 1;
                         }
-                        n6 |= ((m)object).K1();
+                        n6 |= ((m)e4).K1();
                         n3 = n5;
                     }
                     n5 = n6;
@@ -284,55 +283,55 @@ public class b {
                 n12 = n13;
                 while (n12 < 2) {
                     for (n13 = 0; n13 < n6; ++n13) {
-                        object = (e)this.a.get(n13);
-                        if (object instanceof i && !(object instanceof m) || object instanceof h || ((e)object).X() == 8 || n5 != 0 && ((e)object).e.e.j && ((e)object).f.e.j || object instanceof m) {
-                            n16 = n4;
+                        e e5 = (e)this.a.get(n13);
+                        if (e5 instanceof i && !(e5 instanceof m) || e5 instanceof h || e5.X() == 8 || n5 != 0 && e5.e.e.j && e5.f.e.j || e5 instanceof m) {
+                            n17 = n4;
                             n8 = n7;
                         } else {
-                            int n19 = ((e)object).Y();
-                            n17 = ((e)object).z();
-                            n16 = ((e)object).r();
+                            int n19 = e5.Y();
+                            n16 = e5.z();
+                            n17 = e5.r();
                             n8 = v.b$a.l;
                             if (n12 == 1) {
                                 n8 = v.b$a.m;
                             }
-                            n8 = this.a(b4, (e)object, n8) | n7;
-                            int n20 = ((e)object).Y();
-                            int n21 = ((e)object).z();
+                            n8 = this.a(b4, e5, n8) | n7;
+                            int n20 = e5.Y();
+                            int n21 = e5.z();
                             n7 = n4;
                             if (n20 != n19) {
-                                ((e)object).p1(n20);
+                                e5.p1(n20);
                                 n7 = n4;
                                 if (n9 != 0) {
                                     n7 = n4;
-                                    if (((e)object).O() > n4) {
-                                        n7 = Math.max(n4, ((e)object).O() + ((e)object).q(d.a.f).f());
+                                    if (e5.O() > n4) {
+                                        n7 = Math.max(n4, e5.O() + e5.q(d.a.f).f());
                                     }
                                 }
                                 n8 = 1;
                             }
                             n4 = n3;
-                            if (n21 != n17) {
-                                ((e)object).Q0(n21);
+                            if (n21 != n16) {
+                                e5.Q0(n21);
                                 n4 = n3;
                                 if (n10 != 0) {
                                     n4 = n3;
-                                    if (((e)object).t() > n3) {
-                                        n4 = Math.max(n3, ((e)object).t() + ((e)object).q(d.a.g).f());
+                                    if (e5.t() > n3) {
+                                        n4 = Math.max(n3, e5.t() + e5.q(d.a.g).f());
                                     }
                                 }
                                 n8 = 1;
                             }
-                            if (((e)object).b0() && n16 != ((e)object).r()) {
+                            if (e5.b0() && n17 != e5.r()) {
                                 n8 = 1;
-                                n16 = n7;
+                                n17 = n7;
                                 n3 = n4;
                             } else {
                                 n3 = n4;
-                                n16 = n7;
+                                n17 = n7;
                             }
                         }
-                        n4 = n16;
+                        n4 = n17;
                         n7 = n8;
                     }
                     if (n7 == 0) break;

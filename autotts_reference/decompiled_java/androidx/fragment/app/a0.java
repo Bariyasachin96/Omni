@@ -228,10 +228,10 @@ extends b0 {
     @Override
     public void p(Object object, View view) {
         if (view != null) {
-            Transition transition = (Transition)object;
-            object = new Rect();
-            this.h(view, (Rect)object);
-            transition.setEpicenterCallback(new Transition.EpicenterCallback(this, (Rect)object){
+            object = (Transition)object;
+            Rect rect = new Rect();
+            this.h(view, rect);
+            object.setEpicenterCallback(new Transition.EpicenterCallback(this, rect){
                 public final Rect a;
                 public final a0 b;
                 {
@@ -276,16 +276,16 @@ extends b0 {
 
     @Override
     public void s(Object object, View view, ArrayList arrayList) {
-        object = (TransitionSet)object;
-        List list = object.getTargets();
-        list.clear();
+        TransitionSet transitionSet = (TransitionSet)object;
+        object = transitionSet.getTargets();
+        object.clear();
         int n3 = arrayList.size();
         for (int i3 = 0; i3 < n3; ++i3) {
-            b0.d(list, (View)arrayList.get(i3));
+            b0.d((List)object, (View)arrayList.get(i3));
         }
-        list.add(view);
+        object.add(view);
         arrayList.add(view);
-        this.b(object, arrayList);
+        this.b(transitionSet, arrayList);
     }
 
     @Override
@@ -309,27 +309,27 @@ extends b0 {
 
     public void w(Object object, ArrayList arrayList, ArrayList arrayList2) {
         block4: {
+            List list;
             int n3;
             int n4;
-            Transition transition;
             block3: {
-                transition = (Transition)object;
-                boolean bl = transition instanceof TransitionSet;
+                object = (Transition)object;
+                boolean bl = object instanceof TransitionSet;
                 if (!bl) break block3;
-                object = (TransitionSet)transition;
+                object = (TransitionSet)object;
                 n4 = object.getTransitionCount();
                 for (n3 = 0; n3 < n4; ++n3) {
                     this.w(object.getTransitionAt(n3), arrayList, arrayList2);
                 }
                 break block4;
             }
-            if (a0.v(transition) || (object = transition.getTargets()) == null || object.size() != arrayList.size() || !object.containsAll(arrayList)) break block4;
+            if (a0.v((Transition)object) || (list = object.getTargets()) == null || list.size() != arrayList.size() || !list.containsAll(arrayList)) break block4;
             n3 = arrayList2 == null ? 0 : arrayList2.size();
             for (n4 = 0; n4 < n3; ++n4) {
-                transition.addTarget((View)arrayList2.get(n4));
+                object.addTarget((View)arrayList2.get(n4));
             }
             for (n3 = arrayList.size() - 1; n3 >= 0; --n3) {
-                transition.removeTarget((View)arrayList.get(n3));
+                object.removeTarget((View)arrayList.get(n3));
             }
         }
     }

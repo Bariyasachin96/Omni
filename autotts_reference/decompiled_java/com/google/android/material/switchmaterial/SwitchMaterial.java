@@ -25,11 +25,18 @@ import z1.m;
 public class SwitchMaterial
 extends SwitchCompat {
     public static final int d0 = z1.l.Widget_MaterialComponents_CompoundButton_Switch;
-    public static final int[][] e0 = new int[][]{{16842910, 0x10100A0}, {16842910, -16842912}, {-16842910, 0x10100A0}, {-16842910, -16842912}};
+    public static final int[][] e0;
     public final k2.a W;
     public ColorStateList a0;
     public ColorStateList b0;
     public boolean c0;
+
+    static {
+        int[] nArray = new int[]{16842910, -16842912};
+        int[] nArray2 = new int[]{-16842910, 0x10100A0};
+        int[] nArray3 = new int[]{-16842910, -16842912};
+        e0 = new int[][]{{16842910, 0x10100A0}, nArray, nArray2, nArray3};
+    }
 
     public SwitchMaterial(Context context) {
         this(context, null);

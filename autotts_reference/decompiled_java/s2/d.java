@@ -4,6 +4,7 @@
  * Could not load the following classes:
  *  android.content.Context
  *  android.content.res.ColorStateList
+ *  android.content.res.Resources
  *  android.content.res.Resources$NotFoundException
  *  android.content.res.TypedArray
  *  android.graphics.Typeface
@@ -89,19 +90,19 @@ public class d {
      * Enabled unnecessary exception pruning
      * Enabled aggressive exception aggregation
      */
-    public static String m(Context context, int n3) {
-        context = context.getResources();
+    public static String m(Context object, int n3) {
+        Resources resources = object.getResources();
         if (n3 == 0) return null;
-        if (!context.getResourceTypeName(n3).equals("font")) {
+        if (!resources.getResourceTypeName(n3).equals("font")) {
             return null;
         }
         try {
-            Object object = context.getXml(n3);
+            object = resources.getXml(n3);
             while (object.getEventType() != 1) {
                 if (object.getEventType() == 2 && object.getName().equals("font-family")) {
-                    context = context.obtainAttributes(Xml.asAttributeSet((XmlPullParser)object), b0.c.FontFamily);
-                    object = context.getString(b0.c.FontFamily_fontProviderSystemFontFamily);
-                    context.recycle();
+                    resources = resources.obtainAttributes(Xml.asAttributeSet((XmlPullParser)object), b0.c.FontFamily);
+                    object = resources.getString(b0.c.FontFamily_fontProviderSystemFontFamily);
+                    resources.recycle();
                     return object;
                 }
                 object.next();

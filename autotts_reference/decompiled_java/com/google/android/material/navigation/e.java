@@ -36,16 +36,16 @@ extends androidx.appcompat.view.menu.e {
             this.h0();
             return charSequence;
         }
-        String string = this.B.getSimpleName();
-        charSequence = new StringBuilder();
-        ((StringBuilder)charSequence).append("Maximum number of items supported by ");
-        ((StringBuilder)charSequence).append(string);
-        ((StringBuilder)charSequence).append(" is ");
-        ((StringBuilder)charSequence).append(this.C);
-        ((StringBuilder)charSequence).append(". Limit can be checked with ");
-        ((StringBuilder)charSequence).append(string);
-        ((StringBuilder)charSequence).append("#getMaxItemCount()");
-        throw new IllegalArgumentException(((StringBuilder)charSequence).toString());
+        charSequence = this.B.getSimpleName();
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("Maximum number of items supported by ");
+        stringBuilder.append((String)charSequence);
+        stringBuilder.append(" is ");
+        stringBuilder.append(this.C);
+        stringBuilder.append(". Limit can be checked with ");
+        stringBuilder.append((String)charSequence);
+        stringBuilder.append("#getMaxItemCount()");
+        throw new IllegalArgumentException(stringBuilder.toString());
     }
 
     @Override

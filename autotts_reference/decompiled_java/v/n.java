@@ -126,15 +126,15 @@ extends p {
         if (!this.e.j && this.d == e.b.e && this.a == 1 && this.h.l.size() > 0 && this.i.l.size() > 0) {
             f5 = (f)this.h.l.get(0);
             object = (f)this.i.l.get(0);
-            n3 = f5.g;
-            n4 = this.h.f;
-            n3 = ((f)object).g + this.i.f - (n3 + n4);
+            n4 = f5.g;
+            n3 = this.h.f;
+            n4 = ((f)object).g + this.i.f - (n4 + n3);
             object = this.e;
-            n4 = ((g)object).m;
-            if (n3 < n4) {
-                ((g)object).d(n3);
-            } else {
+            n3 = ((g)object).m;
+            if (n4 < n3) {
                 ((g)object).d(n4);
+            } else {
+                ((g)object).d(n3);
             }
         }
         if (!this.e.j) {
@@ -333,9 +333,9 @@ extends p {
                 }
             }
         } else {
-            d6 = dArray[3];
-            if (d6.f != null) {
-                f f12 = this.h(d6);
+            d7 = dArray[3];
+            if (d7.f != null) {
+                f f12 = this.h(d7);
                 if (f12 != null) {
                     this.b(this.i, f12, -this.b.Y[3].f());
                     this.c(this.h, this.i, -1, this.e);

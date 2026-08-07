@@ -14,9 +14,9 @@ public abstract class y {
     public static final float c = (float)Math.PI * 2;
 
     public static final float a(float f3, float f4) {
-        f4 = (float)Math.atan2(f4, f3);
-        f3 = c;
-        return (f4 + f3) % f3;
+        f3 = (float)Math.atan2(f4, f3);
+        f4 = c;
+        return (f3 + f4) % f4;
     }
 
     public static final long b(float f3) {
@@ -46,9 +46,9 @@ public abstract class y {
             float f6 = 2;
             float f7 = 3;
             float f8 = (f6 * f3 + f4) / f7;
-            f7 = (f6 * f4 + f3) / f7;
-            if (i3.a(f8) < i3.a(f7)) {
-                f4 = f7;
+            f6 = (f6 * f4 + f3) / f7;
+            if (i3.a(f8) < i3.a(f6)) {
+                f4 = f6;
                 continue;
             }
             f3 = f8;

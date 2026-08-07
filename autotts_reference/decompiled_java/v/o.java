@@ -140,15 +140,15 @@ public class o {
             this.e.add(a4);
         }
         if (n3 == 0) {
-            n3 = d3.y(f3.Q);
-            n4 = d3.y(f3.S);
+            n4 = d3.y(f3.Q);
+            n3 = d3.y(f3.S);
             d3.E();
-            return n4 - n3;
+            return n3 - n4;
         }
-        n3 = d3.y(f3.R);
-        n4 = d3.y(f3.T);
+        n4 = d3.y(f3.R);
+        n3 = d3.y(f3.T);
         d3.E();
-        return n4 - n3;
+        return n3 - n4;
     }
 
     public String toString() {
@@ -162,12 +162,12 @@ public class o {
         int n3 = ((ArrayList)serializable).size();
         for (int i3 = 0; i3 < n3; ++i3) {
             Object object = ((ArrayList)serializable).get(i3);
-            e e3 = (e)object;
-            object = new StringBuilder();
-            ((StringBuilder)object).append((String)charSequence);
-            ((StringBuilder)object).append(" ");
-            ((StringBuilder)object).append(e3.v());
-            charSequence = ((StringBuilder)object).toString();
+            object = (e)object;
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append((String)charSequence);
+            stringBuilder.append(" ");
+            stringBuilder.append(((e)object).v());
+            charSequence = stringBuilder.toString();
         }
         serializable = new StringBuilder();
         ((StringBuilder)serializable).append((String)charSequence);

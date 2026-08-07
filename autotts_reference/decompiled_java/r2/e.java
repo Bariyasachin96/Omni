@@ -108,12 +108,12 @@ extends k {
                 }
 
                 public void onAnimationEnd(Animator object) {
-                    super.onAnimationEnd((Animator)object);
+                    super.onAnimationEnd(object);
                     this.a.a();
-                    e e3 = this.a;
-                    object = e3.j;
-                    if (object != null) {
-                        ((n1.b)object).b(e3.a);
+                    object = this.a;
+                    n1.b b3 = object.j;
+                    if (b3 != null) {
+                        b3.b(object.a);
                     }
                 }
             });
@@ -127,10 +127,10 @@ extends k {
             if (!(f3 >= 0.0f) || !(f3 <= 1.0f)) continue;
             n3 = this.g;
             nArray = this.f.e;
-            i3 = (i3 + n3) % nArray.length;
-            int n4 = nArray.length;
-            n3 = nArray[i3];
-            i3 = nArray[(i3 + 1) % n4];
+            int n4 = (i3 + n3) % nArray.length;
+            i3 = nArray.length;
+            n3 = nArray[n4];
+            i3 = nArray[(n4 + 1) % i3];
             f3 = this.e.getInterpolation(f3);
             ((j.a)this.b.get((int)0)).c = a2.c.b().a(f3, n3, i3);
             return;
@@ -158,11 +158,11 @@ extends k {
             f4 += this.e.getInterpolation(this.b(n3, n5, 500)) * 90.0f;
         }
         a4.g = f3 * 1080.0f + f4;
-        f4 = this.e.getInterpolation(this.b(n3, 0, 3000));
-        f3 = this.e.getInterpolation(this.b(n3, 3000, 3000));
+        f3 = this.e.getInterpolation(this.b(n3, 0, 3000));
+        f4 = this.e.getInterpolation(this.b(n3, 3000, 3000));
         a4.a = 0.0f;
         objectArray = m;
-        a4.b = f4 = o2.a.f(objectArray[0], objectArray[1], f4 - f3);
+        a4.b = f4 = o2.a.f(objectArray[0], objectArray[1], f3 - f4);
         f3 = this.i;
         if (f3 > 0.0f) {
             a4.b = f4 * (1.0f - f3);

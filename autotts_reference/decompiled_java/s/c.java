@@ -13,62 +13,62 @@ public class c {
     public static String[] c = new String[]{"standard", "accelerate", "decelerate", "linear"};
     public String a = "identity";
 
-    public static c c(String object) {
-        if (object == null) {
+    public static c c(String charSequence) {
+        if (charSequence == null) {
             return null;
         }
-        if (((String)object).startsWith("cubic")) {
-            return new a((String)object);
+        if (((String)charSequence).startsWith("cubic")) {
+            return new a((String)charSequence);
         }
-        if (((String)object).startsWith("spline")) {
-            return new l((String)object);
+        if (((String)charSequence).startsWith("spline")) {
+            return new l((String)charSequence);
         }
-        if (((String)object).startsWith("Schlick")) {
-            return new i((String)object);
+        if (((String)charSequence).startsWith("Schlick")) {
+            return new i((String)charSequence);
         }
-        int n3 = ((String)object).hashCode();
+        int n3 = ((String)charSequence).hashCode();
         int n4 = -1;
         switch (n3) {
             default: {
                 break;
             }
             case 1312628413: {
-                if (!((String)object).equals("standard")) break;
+                if (!((String)charSequence).equals("standard")) break;
                 n4 = 5;
                 break;
             }
             case -749065269: {
-                if (!((String)object).equals("overshoot")) break;
+                if (!((String)charSequence).equals("overshoot")) break;
                 n4 = 4;
                 break;
             }
             case -1102672091: {
-                if (!((String)object).equals("linear")) break;
+                if (!((String)charSequence).equals("linear")) break;
                 n4 = 3;
                 break;
             }
             case -1197605014: {
-                if (!((String)object).equals("anticipate")) break;
+                if (!((String)charSequence).equals("anticipate")) break;
                 n4 = 2;
                 break;
             }
             case -1263948740: {
-                if (!((String)object).equals("decelerate")) break;
+                if (!((String)charSequence).equals("decelerate")) break;
                 n4 = 1;
                 break;
             }
             case -1354466595: {
-                if (!((String)object).equals("accelerate")) break;
+                if (!((String)charSequence).equals("accelerate")) break;
                 n4 = 0;
             }
         }
         switch (n4) {
             default: {
-                object = System.err;
-                StringBuilder stringBuilder = new StringBuilder();
-                stringBuilder.append("transitionEasing syntax error syntax:transitionEasing=\"cubic(1.0,0.5,0.0,0.6)\" or ");
-                stringBuilder.append(Arrays.toString(c));
-                ((PrintStream)object).println(stringBuilder.toString());
+                PrintStream printStream = System.err;
+                charSequence = new StringBuilder();
+                ((StringBuilder)charSequence).append("transitionEasing syntax error syntax:transitionEasing=\"cubic(1.0,0.5,0.0,0.6)\" or ");
+                ((StringBuilder)charSequence).append(Arrays.toString(c));
+                printStream.println(((StringBuilder)charSequence).toString());
                 return b;
             }
             case 5: {
@@ -117,11 +117,9 @@ public class c {
             int n3 = string.indexOf(40);
             int n4 = string.indexOf(44, n3);
             this.d = Double.parseDouble(string.substring(n3 + 1, n4).trim());
-            n3 = n4 + 1;
-            n4 = string.indexOf(44, n3);
-            this.e = Double.parseDouble(string.substring(n3, n4).trim());
-            n3 = n4 + 1;
-            n4 = string.indexOf(44, n3);
+            n3 = string.indexOf(44, ++n4);
+            this.e = Double.parseDouble(string.substring(n4, n3).trim());
+            n4 = string.indexOf(44, ++n3);
             this.f = Double.parseDouble(string.substring(n3, n4).trim());
             this.g = Double.parseDouble(string.substring(++n4, string.indexOf(41, n4)).trim());
         }
@@ -168,10 +166,10 @@ public class c {
             }
             d4 = d6 - d5;
             d3 = this.d(d4);
-            d5 = d6 + d5;
-            d6 = this.d(d5);
+            d6 += d5;
+            d5 = this.d(d6);
             d4 = this.e(d4);
-            return (this.e(d5) - d4) / (d6 - d3);
+            return (this.e(d6) - d4) / (d5 - d3);
         }
 
         public final double d(double d3) {

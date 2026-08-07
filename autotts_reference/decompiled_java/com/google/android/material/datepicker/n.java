@@ -226,19 +226,19 @@ extends c {
 
     @Override
     public final Dialog L1(Bundle bundle) {
-        Dialog dialog = new Dialog(this.n1(), this.c2(this.n1()));
-        bundle = dialog.getContext();
-        this.G0 = com.google.android.material.datepicker.n.e2((Context)bundle);
+        bundle = new Dialog(this.n1(), this.c2(this.n1()));
+        Context context = bundle.getContext();
+        this.G0 = com.google.android.material.datepicker.n.e2(context);
         int n3 = z1.c.materialCalendarStyle;
         int n4 = z1.l.Widget_MaterialComponents_MaterialCalendar;
-        this.T0 = new i((Context)bundle, null, n3, n4);
-        TypedArray typedArray = bundle.obtainStyledAttributes(null, z1.m.MaterialCalendar, n3, n4);
+        this.T0 = new i(context, null, n3, n4);
+        TypedArray typedArray = context.obtainStyledAttributes(null, z1.m.MaterialCalendar, n3, n4);
         n3 = typedArray.getColor(z1.m.MaterialCalendar_backgroundTint, 0);
         typedArray.recycle();
-        this.T0.W((Context)bundle);
+        this.T0.W(context);
         this.T0.i0(ColorStateList.valueOf((int)n3));
-        this.T0.h0(dialog.getWindow().getDecorView().getElevation());
-        return dialog;
+        this.T0.h0(bundle.getWindow().getDecorView().getElevation());
+        return bundle;
     }
 
     public final void V1(Window window) {

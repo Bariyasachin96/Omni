@@ -79,25 +79,25 @@ public class p {
         this.i[0] = this.a[n4].k();
         this.i[1] = this.a[n4].l();
         this.b[n4].mapPoints(this.i);
-        Object object2 = this.h;
-        float f3 = object2[0];
-        Object object3 = this.i;
-        float f4 = Math.max((float)Math.hypot(f3 - object3[0], object2[1] - object3[1]) - 0.001f, 0.0f);
+        float[] fArray = this.h;
+        float f3 = fArray[0];
+        Object object2 = this.i;
+        float f4 = Math.max((float)Math.hypot(f3 - object2[0], fArray[1] - object2[1]) - 0.001f, 0.0f);
         f3 = this.j(((c)object).c, n3);
         this.g.n(0.0f, 0.0f);
         object2 = this.k(n3, ((c)object).a);
-        object2.b(f4, f3, ((c)object).e, this.g);
+        ((g)object2).b(f4, f3, ((c)object).e, this.g);
         this.j.reset();
         this.g.d(this.c[n3], this.j);
-        if (this.l && (object2.a() || this.m(this.j, n3) || this.m(this.j, n4))) {
+        if (this.l && (((g)object2).a() || this.m(this.j, n3) || this.m(this.j, n4))) {
             object2 = this.j;
             object2.op((Path)object2, this.f, Path.Op.DIFFERENCE);
             this.h[0] = this.g.k();
             this.h[1] = this.g.l();
             this.c[n3].mapPoints(this.h);
-            object3 = this.e;
-            object2 = this.h;
-            object3.moveTo(object2[0], object2[1]);
+            object2 = this.e;
+            fArray = this.h;
+            object2.moveTo(fArray[0], fArray[1]);
             this.g.d(this.c[n3], this.e);
         } else {
             this.g.d(this.c[n3], ((c)object).b);

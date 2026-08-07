@@ -62,11 +62,11 @@ public final class BadgeState {
         n4 = m.Badge_badgeWidth;
         n3 = z1.e.m3_badge_size;
         this.e = typedArray.getDimension(n4, resources.getDimension(n3));
-        n4 = m.Badge_badgeWithTextWidth;
-        n5 = z1.e.m3_badge_with_text_size;
-        this.g = typedArray.getDimension(n4, resources.getDimension(n5));
+        n5 = m.Badge_badgeWithTextWidth;
+        n4 = z1.e.m3_badge_with_text_size;
+        this.g = typedArray.getDimension(n5, resources.getDimension(n4));
         this.f = typedArray.getDimension(m.Badge_badgeHeight, resources.getDimension(n3));
-        this.h = typedArray.getDimension(m.Badge_badgeWithTextHeight, resources.getDimension(n5));
+        this.h = typedArray.getDimension(m.Badge_badgeWithTextHeight, resources.getDimension(n4));
         n3 = m.Badge_offsetAlignmentMode;
         boolean bl = true;
         this.k = typedArray.getInt(n3, 1);

@@ -3,111 +3,185 @@
  * 
  * Could not load the following classes:
  *  android.content.Context
- *  android.content.pm.Signature
- *  android.os.Build
- *  android.util.Base64
+ *  android.content.Intent
+ *  android.os.Parcelable
+ *  android.widget.Toast
+ *  org.xmlpull.v1.XmlPullParserFactory
  */
 package c3;
 
 import android.content.Context;
-import android.content.pm.Signature;
-import android.os.Build;
-import android.util.Base64;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import android.content.Intent;
+import android.os.Parcelable;
+import android.widget.Toast;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.xmlpull.v1.XmlPullParserFactory;
 
 public abstract class g0 {
-    public static String a(String object) {
-        object = MessageDigest.getInstance("MD5").digest(((String)object).getBytes());
-        StringBuffer stringBuffer = new StringBuffer();
-        int n3 = 0;
-        while (true) {
-            if (n3 >= ((Object)object).length) break;
-            stringBuffer.append(Integer.toHexString(object[n3] & 0xFF | 0x100).substring(1, 3));
-            ++n3;
-            continue;
-            break;
+    /*
+     * Loose catch block
+     * Enabled aggressive block sorting
+     * Enabled unnecessary exception pruning
+     * Enabled aggressive exception aggregation
+     */
+    public static void a(File object, File object2) {
+        Throwable throwable3222222;
+        Throwable throwable22222222;
+        FileOutputStream fileOutputStream;
+        block11: {
+            object = new FileInputStream((File)object);
+            fileOutputStream = new FileOutputStream((File)object2);
+            try {
+                int n3;
+                object2 = new byte[1024];
+                while ((n3 = ((InputStream)object).read((byte[])object2)) > 0) {
+                    ((OutputStream)fileOutputStream).write((byte[])object2, 0, n3);
+                }
+            }
+            catch (Throwable throwable22222222) {
+                break block11;
+            }
+            ((OutputStream)fileOutputStream).close();
+            {
+                catch (Throwable throwable3222222) {}
+            }
+            ((InputStream)object).close();
+            return;
         }
         try {
-            object = stringBuffer.toString();
-            return object;
+            ((OutputStream)fileOutputStream).close();
+            throw throwable22222222;
         }
-        catch (NoSuchAlgorithmException noSuchAlgorithmException) {
-            return null;
+        catch (Throwable throwable4) {
+            throwable22222222.addSuppressed(throwable4);
+            throw throwable22222222;
         }
+        try {
+            ((InputStream)object).close();
+            throw throwable3222222;
+        }
+        catch (Throwable throwable5) {
+            throwable3222222.addSuppressed(throwable5);
+        }
+        throw throwable3222222;
     }
 
-    public static int b(Context object) {
-        block4: {
-            g0.a("XWfn7mKmfs1mS9OHpaqUOxoHMoo=");
-            object = object.getPackageManager().getPackageInfo((String)object.getPackageName(), (int)64).signatures;
-            if (((Signature[])object).length <= 0) break block4;
-            Signature signature = object[0];
-            try {
-                signature.toByteArray();
-                object = MessageDigest.getInstance("SHA");
-                ((MessageDigest)object).update(signature.toByteArray());
-                boolean bl = "XWfn7mKmfs1mS9OHpaqUOxoHMoo=".equals(Base64.encodeToString((byte[])((MessageDigest)object).digest(), (int)0).substring(0, 28));
-                if (bl) {
-                    return 0;
+    /*
+     * Enabled aggressive block sorting
+     * Enabled unnecessary exception pruning
+     * Enabled aggressive exception aggregation
+     */
+    public static Set b(String object) {
+        Object object2;
+        Object object3;
+        HashSet<String> hashSet;
+        Object object4;
+        block12: {
+            int n3;
+            block11: {
+                System.out.println("getActiveEnginePackages");
+                object4 = new HashMap();
+                hashSet = new HashSet<String>();
+                try {
+                    object3 = XmlPullParserFactory.newInstance().newPullParser();
+                    object2 = new StringReader((String)object);
+                    object3.setInput((Reader)object2);
+                    n3 = object3.getEventType();
+                    break block11;
                 }
-                return -1;
-            }
-            catch (Exception exception) {
+                catch (Exception exception) {}
                 exception.printStackTrace();
+                break block12;
+            }
+            while (n3 != 1) {
+                if (n3 == 2) {
+                    object2 = object3.getName();
+                    object = object3.getAttributeValue(null, "name");
+                    if (object != null) {
+                        if (((String)object2).equals("boolean") && ((String)object).endsWith("_disabled")) {
+                            if ("true".equals(object3.getAttributeValue(null, "value"))) {
+                                hashSet.add(((String)object).substring(0, ((String)object).length() - 9));
+                            }
+                        } else if (((String)object2).equals("string") && ((String)object).length() == 3 && g0.c((String)object) && (object2 = object3.nextText()) != null && ((String)object2).contains("#")) {
+                            object4.put(object, object2);
+                        }
+                    }
+                }
+                n3 = object3.next();
             }
         }
-        return -1;
+        object = new HashSet();
+        object4 = object4.entrySet().iterator();
+        while (object4.hasNext()) {
+            object2 = (Map.Entry)object4.next();
+            object3 = (String)object2.getKey();
+            String string = (String)object2.getValue();
+            Appendable appendable = System.out;
+            object2 = new StringBuilder();
+            ((StringBuilder)object2).append("- ");
+            ((StringBuilder)object2).append((String)object3);
+            ((StringBuilder)object2).append(" ");
+            ((StringBuilder)object2).append(string);
+            ((PrintStream)appendable).println(((StringBuilder)object2).toString());
+            if (hashSet.contains(object3) || ((String)(object2 = string.split("#")[0])).isEmpty() || ((String)object2).equalsIgnoreCase("disable")) continue;
+            object3 = System.out;
+            appendable = new StringBuilder();
+            ((StringBuilder)appendable).append(" -> ");
+            ((StringBuilder)appendable).append((String)object2);
+            ((PrintStream)object3).println(((StringBuilder)appendable).toString());
+            object.add(object2);
+        }
+        return object;
     }
 
-    public static int c(int n3, int n4, int n5, int n6) {
-        int n7 = n3;
-        if (n3 < -49) {
-            n7 = n3 + n4 + n6;
-        }
-        int n8 = n7;
-        if (n7 > 51) {
-            n8 = n7 + n4 + n5;
-        }
-        n3 = n4;
-        if (n4 < -51) {
-            n3 = n4 + n8 + n6;
-        }
-        n4 = n3;
-        if (n3 > 49) {
-            n4 = n3 + n8 + n5;
-        }
-        if (n8 == n5) {
-            return 1;
-        }
-        if (n4 == n6) {
-            return 101;
-        }
-        if (n8 == n6) {
-            return 2;
-        }
-        if (n4 == n5) {
-            return 102;
-        }
-        return 1002;
-    }
-
-    public static boolean d() {
-        String string;
-        return Build.BRAND.contains("generic") && Build.DEVICE.contains("generic") || (string = Build.FINGERPRINT).contains("generic") || string.contains("unknown") || (string = Build.HARDWARE).contains("goldfish") || string.contains("ranchu") || (string = Build.MODEL).contains("google_sdk") || string.contains("Emulator") || string.contains("Android SDK built for x86") || Build.MANUFACTURER.contains("Genymotion") || (string = Build.PRODUCT).contains("sdk_google") || string.contains("google_sdk") || string.contains("sdk") || string.contains("sdk_x86") || string.contains("vbox86p") || string.contains("emulator") || string.contains("simulator");
-        {
-        }
-    }
-
-    public static String e(String object) {
+    public static boolean c(String object) {
         object = ((String)object).toCharArray();
-        int n3 = ((Object)object).length - 1;
-        for (int i3 = 0; n3 > i3; --n3, ++i3) {
-            Object object2 = object[i3];
-            object[i3] = object[n3];
-            object[n3] = object2;
+        int n3 = ((Object)object).length;
+        for (int i3 = 0; i3 < n3; ++i3) {
+            if (Character.isLetter((char)object[i3])) continue;
+            return false;
         }
-        return new String((char[])object);
+        return true;
+    }
+
+    public static void d(Context context) {
+        Comparable<File> comparable = new File(context.getApplicationInfo().dataDir, "shared_prefs/auto_tts_settings.xml");
+        if (!((File)comparable).exists()) {
+            Toast.makeText((Context)context, (CharSequence)"Settings file not found", (int)0).show();
+            return;
+        }
+        File file = new File(context.getCacheDir(), "shared");
+        file.mkdirs();
+        file = new File(file, "auto_tts_settings.xml");
+        try {
+            g0.a((File)comparable, file);
+            comparable = new StringBuilder();
+            ((StringBuilder)comparable).append(context.getPackageName());
+        }
+        catch (IOException iOException) {
+            iOException.printStackTrace();
+            return;
+        }
+        ((StringBuilder)comparable).append(".fileprovider");
+        comparable = FileProvider.h(context, ((StringBuilder)comparable).toString(), file);
+        file = new Intent("android.intent.action.SEND");
+        file.setType("text/xml");
+        file.putExtra("android.intent.extra.STREAM", (Parcelable)comparable);
+        file.addFlags(1);
+        context.startActivity(Intent.createChooser((Intent)file, (CharSequence)"Share Settings"));
     }
 }
 

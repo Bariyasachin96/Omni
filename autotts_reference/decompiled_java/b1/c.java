@@ -80,11 +80,11 @@ public final class c {
         k.e(fragment, "fragment");
         k.e(object, "container");
         h h3 = new h(fragment, (ViewGroup)object);
-        object = a;
-        ((c)object).e(h3);
-        c c3 = ((c)object).b(fragment);
-        if (c3.a().contains((Object)b1.c$a.j) && ((c)object).k(c3, fragment.getClass(), h3.getClass())) {
-            ((c)object).c(c3, h3);
+        c c3 = a;
+        c3.e(h3);
+        object = c3.b(fragment);
+        if (((c)object).a().contains((Object)b1.c$a.j) && c3.k((c)object, fragment.getClass(), h3.getClass())) {
+            c3.c((c)object, h3);
         }
     }
 

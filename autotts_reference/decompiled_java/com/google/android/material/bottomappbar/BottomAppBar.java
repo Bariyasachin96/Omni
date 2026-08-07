@@ -59,7 +59,6 @@ import com.google.android.material.internal.c0;
 import com.google.android.material.internal.z;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import o0.z1;
 import v2.g;
@@ -116,11 +115,11 @@ implements CoordinatorLayout.b {
         this(context, attributeSet, z1.c.bottomAppBarStyle);
     }
 
-    public BottomAppBar(Context context, AttributeSet attributeSet, int n3) {
-        i i3;
+    public BottomAppBar(Context object, AttributeSet attributeSet, int n3) {
         int n4 = y0;
-        super(y2.a.d(context, attributeSet, n3, n4), attributeSet, n3);
-        this.W = i3 = new i();
+        super(y2.a.d((Context)object, attributeSet, n3, n4), attributeSet, n3);
+        object = new i();
+        this.W = object;
         this.n0 = 0;
         this.p0 = 0;
         this.q0 = false;
@@ -173,46 +172,46 @@ implements CoordinatorLayout.b {
                 i3.j0(f3);
             }
         };
-        context = this.getContext();
-        Object object = com.google.android.material.internal.z.i(context, attributeSet, z1.m.BottomAppBar, n3, n4, new int[0]);
-        ColorStateList colorStateList = s2.c.a(context, object, z1.m.BottomAppBar_backgroundTint);
+        Context context = this.getContext();
+        Object object2 = com.google.android.material.internal.z.i(context, attributeSet, z1.m.BottomAppBar, n3, n4, new int[0]);
+        ColorStateList colorStateList = s2.c.a(context, object2, z1.m.BottomAppBar_backgroundTint);
         int n5 = z1.m.BottomAppBar_navigationIconTint;
-        if (object.hasValue(n5)) {
-            this.setNavigationIconTint(object.getColor(n5, -1));
+        if (object2.hasValue(n5)) {
+            this.setNavigationIconTint(object2.getColor(n5, -1));
         }
-        n5 = object.getDimensionPixelSize(z1.m.BottomAppBar_elevation, 0);
-        float f3 = object.getDimensionPixelOffset(z1.m.BottomAppBar_fabCradleMargin, 0);
-        float f4 = object.getDimensionPixelOffset(z1.m.BottomAppBar_fabCradleRoundedCornerRadius, 0);
-        float f5 = object.getDimensionPixelOffset(z1.m.BottomAppBar_fabCradleVerticalOffset, 0);
-        this.c0 = object.getInt(z1.m.BottomAppBar_fabAlignmentMode, 0);
-        this.d0 = object.getInt(z1.m.BottomAppBar_fabAnimationMode, 0);
-        this.e0 = object.getInt(z1.m.BottomAppBar_fabAnchorMode, 1);
-        this.i0 = object.getBoolean(z1.m.BottomAppBar_removeEmbeddedFabElevation, true);
-        this.h0 = object.getInt(z1.m.BottomAppBar_menuAlignmentMode, 0);
-        this.j0 = object.getBoolean(z1.m.BottomAppBar_hideOnScroll, false);
-        this.k0 = object.getBoolean(z1.m.BottomAppBar_paddingBottomSystemWindowInsets, false);
-        this.l0 = object.getBoolean(z1.m.BottomAppBar_paddingLeftSystemWindowInsets, false);
-        this.m0 = object.getBoolean(z1.m.BottomAppBar_paddingRightSystemWindowInsets, false);
-        this.g0 = object.getDimensionPixelOffset(z1.m.BottomAppBar_fabAlignmentModeEndMargin, -1);
-        boolean bl = object.getBoolean(z1.m.BottomAppBar_addElevationShadow, true);
-        object.recycle();
+        n5 = object2.getDimensionPixelSize(z1.m.BottomAppBar_elevation, 0);
+        float f3 = object2.getDimensionPixelOffset(z1.m.BottomAppBar_fabCradleMargin, 0);
+        float f4 = object2.getDimensionPixelOffset(z1.m.BottomAppBar_fabCradleRoundedCornerRadius, 0);
+        float f5 = object2.getDimensionPixelOffset(z1.m.BottomAppBar_fabCradleVerticalOffset, 0);
+        this.c0 = object2.getInt(z1.m.BottomAppBar_fabAlignmentMode, 0);
+        this.d0 = object2.getInt(z1.m.BottomAppBar_fabAnimationMode, 0);
+        this.e0 = object2.getInt(z1.m.BottomAppBar_fabAnchorMode, 1);
+        this.i0 = object2.getBoolean(z1.m.BottomAppBar_removeEmbeddedFabElevation, true);
+        this.h0 = object2.getInt(z1.m.BottomAppBar_menuAlignmentMode, 0);
+        this.j0 = object2.getBoolean(z1.m.BottomAppBar_hideOnScroll, false);
+        this.k0 = object2.getBoolean(z1.m.BottomAppBar_paddingBottomSystemWindowInsets, false);
+        this.l0 = object2.getBoolean(z1.m.BottomAppBar_paddingLeftSystemWindowInsets, false);
+        this.m0 = object2.getBoolean(z1.m.BottomAppBar_paddingRightSystemWindowInsets, false);
+        this.g0 = object2.getDimensionPixelOffset(z1.m.BottomAppBar_fabAlignmentModeEndMargin, -1);
+        boolean bl = object2.getBoolean(z1.m.BottomAppBar_addElevationShadow, true);
+        object2.recycle();
         this.f0 = this.getResources().getDimensionPixelOffset(z1.e.mtrl_bottomappbar_fabOffsetEndMode);
-        object = new d(f3, f4, f5);
-        i3.setShapeAppearanceModel(v2.o.a().B((g)object).m());
+        object2 = new d(f3, f4, f5);
+        ((i)object).setShapeAppearanceModel(v2.o.a().B((g)object2).m());
         if (bl) {
-            i3.q0(2);
+            ((i)object).q0(2);
         } else {
-            i3.q0(1);
+            ((i)object).q0(1);
             if (Build.VERSION.SDK_INT >= 28) {
                 a.a(this, 0);
                 b.a(this, 0);
             }
         }
-        i3.m0(Paint.Style.FILL);
-        i3.W(context);
-        i3.setTintList(colorStateList);
+        ((i)object).m0(Paint.Style.FILL);
+        ((i)object).W(context);
+        ((i)object).setTintList(colorStateList);
         this.setElevation(n5);
-        this.setBackground(i3);
+        this.setBackground((Drawable)object);
         com.google.android.material.internal.c0.e((View)this, attributeSet, n3, n4, new c0.d(this){
             public final BottomAppBar a;
             {
@@ -551,20 +550,20 @@ implements CoordinatorLayout.b {
             this.P0(this.p0);
             return;
         }
-        Object object = this.b0;
-        if (object != null) {
-            object.cancel();
+        Animator animator = this.b0;
+        if (animator != null) {
+            animator.cancel();
         }
-        object = new ArrayList();
+        ArrayList arrayList = new ArrayList();
         if (!this.L0()) {
             n3 = 0;
             bl = false;
         }
-        this.E0(n3, bl, (List)object);
-        AnimatorSet animatorSet = new AnimatorSet();
-        animatorSet.playTogether((Collection)object);
-        this.b0 = animatorSet;
-        animatorSet.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this){
+        this.E0(n3, bl, arrayList);
+        animator = new AnimatorSet();
+        animator.playTogether(arrayList);
+        this.b0 = animator;
+        animator.addListener((Animator.AnimatorListener)new AnimatorListenerAdapter(this){
             public final BottomAppBar a;
             {
                 this.a = bottomAppBar;

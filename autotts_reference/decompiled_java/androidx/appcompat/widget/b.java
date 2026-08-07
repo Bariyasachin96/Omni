@@ -36,10 +36,10 @@ extends Drawable {
             if (actionBarContainer != null) {
                 actionBarContainer.draw(canvas);
             }
-            ActionBarContainer actionBarContainer2 = this.a;
-            actionBarContainer = actionBarContainer2.h;
-            if (actionBarContainer != null && actionBarContainer2.k) {
-                actionBarContainer.draw(canvas);
+            actionBarContainer = this.a;
+            Drawable drawable = actionBarContainer.h;
+            if (drawable != null && actionBarContainer.k) {
+                drawable.draw(canvas);
             }
         }
     }

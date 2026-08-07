@@ -376,28 +376,28 @@ extends LinearLayout {
         this.j(n4);
         boolean bl = n3 != 0;
         this.a0(bl);
-        s s3 = this.m();
-        this.R(this.t(s3));
-        this.P(s3.c());
-        this.O(s3.l());
-        if (s3.i(this.c.getBoxBackgroundMode())) {
-            this.s0(s3);
-            this.V(s3.f());
+        Object object = this.m();
+        this.R(this.t((s)object));
+        this.P(((s)object).c());
+        this.O(((s)object).l());
+        if (((s)object).i(this.c.getBoxBackgroundMode())) {
+            this.s0((s)object);
+            this.V(((s)object).f());
             EditText editText = this.u;
             if (editText != null) {
-                s3.n(editText);
-                this.h0(s3);
+                ((s)object).n(editText);
+                this.h0((s)object);
             }
             com.google.android.material.textfield.t.a(this.c, this.i, this.m, this.n);
             this.L(true);
             return;
         }
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("The current box background mode ");
-        stringBuilder.append(this.c.getBoxBackgroundMode());
-        stringBuilder.append(" is not supported by the end icon mode ");
-        stringBuilder.append(n3);
-        throw new IllegalStateException(stringBuilder.toString());
+        object = new StringBuilder();
+        ((StringBuilder)object).append("The current box background mode ");
+        ((StringBuilder)object).append(this.c.getBoxBackgroundMode());
+        ((StringBuilder)object).append(" is not supported by the end icon mode ");
+        ((StringBuilder)object).append(n3);
+        throw new IllegalStateException(((StringBuilder)object).toString());
     }
 
     public void V(View.OnClickListener onClickListener) {

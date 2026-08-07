@@ -21,20 +21,20 @@ public abstract class h {
     public static final List a(List list, List list2) {
         o3.k.e(list, "f1");
         o3.k.e(list2, "f2");
-        y y3 = l.f(list2).iterator();
-        if (y3.hasNext()) {
+        Iterator iterator = l.f(list2).iterator();
+        if (iterator.hasNext()) {
             float f3;
             float f4;
             int n3;
             int n4;
             float f5;
-            Iterator iterator = y3;
-            int n5 = ((y)iterator).nextInt();
-            if (y3.hasNext()) {
+            Object object = (y)iterator;
+            int n5 = ((y)object).nextInt();
+            if (iterator.hasNext()) {
                 f5 = h.b(((s)list.get(0)).a(), ((s)list2.get(n5)).a());
                 n4 = n5;
                 do {
-                    n3 = ((y)iterator).nextInt();
+                    n3 = ((y)object).nextInt();
                     f4 = h.b(((s)list.get(0)).a(), ((s)list2.get(n3)).a());
                     n5 = n4;
                     f3 = f5;
@@ -44,11 +44,11 @@ public abstract class h {
                     }
                     n4 = n5;
                     f5 = f3;
-                } while (y3.hasNext());
+                } while (iterator.hasNext());
             }
             int n6 = list.size();
             int n7 = list2.size();
-            List list3 = l.i(list2.get(n5));
+            object = l.i(list2.get(n5));
             n4 = n5;
             for (n3 = 1; n3 < n6; ++n3) {
                 int n8 = n5 - (n6 - n3);
@@ -57,30 +57,30 @@ public abstract class h {
                 }
                 iterator = new c(n4 + 1, n8).iterator();
                 if (iterator.hasNext()) {
-                    y3 = (y)iterator;
+                    y y3 = (y)iterator;
                     n4 = y3.nextInt();
                     if (iterator.hasNext()) {
-                        f3 = h.b(((s)list.get(n3)).a(), ((s)list2.get(n4 % n7)).a());
+                        f5 = h.b(((s)list.get(n3)).a(), ((s)list2.get(n4 % n7)).a());
                         n8 = n4;
                         do {
                             int n9 = y3.nextInt();
                             f4 = h.b(((s)list.get(n3)).a(), ((s)list2.get(n9 % n7)).a());
                             n4 = n8;
-                            f5 = f3;
-                            if (Float.compare(f3, f4) > 0) {
+                            f3 = f5;
+                            if (Float.compare(f5, f4) > 0) {
                                 n4 = n9;
-                                f5 = f4;
+                                f3 = f4;
                             }
                             n8 = n4;
-                            f3 = f5;
+                            f5 = f3;
                         } while (iterator.hasNext());
                     }
-                    list3.add(list2.get(n4 % n7));
+                    object.add(list2.get(n4 % n7));
                     continue;
                 }
                 throw new NoSuchElementException();
             }
-            return list3;
+            return object;
         }
         throw new NoSuchElementException();
     }
@@ -95,8 +95,7 @@ public abstract class h {
         float f4 = (((d)t.p(g3.a())).c() + ((d)t.w(g3.a())).e()) / 2.0f;
         float f5 = (((d)t.p(g4.a())).b() + ((d)t.w(g4.a())).d()) / 2.0f;
         float f6 = (((d)t.p(g4.a())).c() + ((d)t.w(g4.a())).e()) / 2.0f;
-        f5 = f3 - f5;
-        return f5 * f5 + (f4 -= f6) * f4;
+        return (f3 -= f5) * f3 + (f4 -= f6) * f4;
     }
 
     public static final f c(List object, List list) {

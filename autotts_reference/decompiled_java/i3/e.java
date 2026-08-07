@@ -59,15 +59,15 @@ public abstract class e {
         e.a(1, d3.v());
         int n3 = e.c((a)object);
         n3 = n3 < 0 ? -1 : d3.l()[n3];
-        String string = g.a.b((a)object);
-        if (string == null) {
+        object = g.a.b((a)object);
+        if (object == null) {
             object = d3.c();
         } else {
-            object = new StringBuilder();
-            ((StringBuilder)object).append(string);
-            ((StringBuilder)object).append('/');
-            ((StringBuilder)object).append(d3.c());
-            object = ((StringBuilder)object).toString();
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append((String)object);
+            stringBuilder.append('/');
+            stringBuilder.append(d3.c());
+            object = stringBuilder.toString();
         }
         return new StackTraceElement((String)object, d3.m(), d3.f(), n3);
     }

@@ -29,22 +29,21 @@ public final class t {
 
     public t(long l3, long l4, long l5, c c3) {
         float f3;
-        float f4;
         this.a = l3;
         this.b = l4;
         this.c = l5;
         this.d = c3;
         this.e = l3 = p.e(p.j(l3, l4));
         this.f = l4 = p.e(p.j(l5, l4));
-        float f5 = c3 != null ? c3.a() : 0.0f;
-        this.g = f5;
-        float f6 = c3 != null ? c3.b() : 0.0f;
-        this.h = f6;
-        this.i = f4 = p.d(l3, l4);
-        f6 = 1.0f;
-        this.j = f3 = (float)Math.sqrt(f6 - y.n(f4));
-        f5 = (double)f3 > 0.001 ? f5 * (f4 + f6) / f3 : 0.0f;
-        this.k = f5;
+        float f4 = c3 != null ? c3.a() : 0.0f;
+        this.g = f4;
+        float f5 = c3 != null ? c3.b() : 0.0f;
+        this.h = f5;
+        this.i = f5 = p.d(l3, l4);
+        float f6 = 1.0f;
+        this.j = f3 = (float)Math.sqrt(f6 - y.n(f5));
+        f4 = (double)f3 > 0.001 ? f4 * (f5 + f6) / f3 : 0.0f;
+        this.k = f4;
         this.l = o.e.b(0.0f, 0.0f);
     }
 
@@ -84,16 +83,16 @@ public final class t {
         float f5 = Math.min(f3, f4);
         float f6 = this.k;
         if (!(f6 < 1.0E-4f || f5 < 1.0E-4f || this.g < 1.0E-4f)) {
-            f6 = Math.min(f5, f6);
+            f5 = Math.min(f5, f6);
             f3 = this.a(f3);
-            f4 = this.a(f4);
-            f5 = this.g * f6 / this.k;
-            float f7 = (float)Math.sqrt(y.n(f5) + y.n(f6));
-            this.l = p.k(this.b, p.l(p.e(p.b(p.k(this.e, this.f), 2.0f)), f7));
-            long l4 = p.k(this.b, p.l(this.e, f6));
-            long l5 = p.k(this.b, p.l(this.f, f6));
-            d d3 = this.b(f6, f3, this.b, this.a, l4, l5, this.l, f5);
-            d d4 = this.b(f6, f4, this.b, this.c, l5, l4, this.l, f5).l();
+            float f7 = this.a(f4);
+            f6 = this.g * f5 / this.k;
+            f4 = (float)Math.sqrt(y.n(f6) + y.n(f5));
+            this.l = p.k(this.b, p.l(p.e(p.b(p.k(this.e, this.f), 2.0f)), f4));
+            long l4 = p.k(this.b, p.l(this.e, f5));
+            long l5 = p.k(this.b, p.l(this.f, f5));
+            d d3 = this.b(f5, f3, this.b, this.a, l4, l5, this.l, f6);
+            d d4 = this.b(f5, f7, this.b, this.c, l5, l4, this.l, f6).l();
             return e3.l.h(d3, c1.d.b.a(p.g(this.l), p.h(this.l), d3.d(), d3.e(), d4.b(), d4.c()), d4);
         }
         this.l = l3 = this.b;

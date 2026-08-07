@@ -109,13 +109,13 @@ implements b.a {
         while (true) {
             n3 = n7;
             if (n5 >= n6) break;
-            n3 = this.f[n4];
-            int n8 = i3.e;
-            if (n3 == n8) {
+            int n8 = this.f[n4];
+            n3 = i3.e;
+            if (n8 == n3) {
                 this.g[n4] = f3;
                 return;
             }
-            if (n3 < n8) {
+            if (n8 < n3) {
                 n7 = n4;
             }
             if ((n4 = this.i[n4]) == -1) {
@@ -337,23 +337,23 @@ implements b.a {
     }
 
     public final void r(i object) {
-        object = this.d;
+        int[] nArray = this.d;
         int n3 = ((i)object).e;
         int n4 = n3 % this.c;
-        Object object2 = object[n4];
+        Object object2 = nArray[n4];
         if (object2 != -1) {
-            Object object3 = object2;
+            int n5 = object2;
             if (this.f[object2] == n3) {
-                int[] nArray = this.e;
-                object[n4] = nArray[object2];
-                nArray[object2] = -1;
+                object = this.e;
+                nArray[n4] = (int)object[object2];
+                object[object2] = -1;
                 return;
             }
-            while ((object2 = (object = (Object)this.e)[object3]) != -1 && this.f[object2] != n3) {
-                object3 = object2;
+            while ((object2 = (Object)(object = (Object)this.e)[n5]) != -1 && this.f[object2] != n3) {
+                n5 = object2;
             }
             if (object2 != -1 && this.f[object2] == n3) {
-                object[object3] = object[object2];
+                object[n5] = object[object2];
                 object[object2] = -1;
             }
         }

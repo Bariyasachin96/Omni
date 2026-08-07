@@ -62,10 +62,9 @@ extends PathMotion {
 
     @Override
     public Path a(float f3, float f4, float f5, float f6) {
-        float f7 = f6 - f4;
-        f6 = PatternPathMotion.b(f5 -= f3, f7);
-        double d3 = Math.atan2(f7, f5);
-        this.c.setScale(f6, f6);
+        float f7 = PatternPathMotion.b(f5 -= f3, f6 -= f4);
+        double d3 = Math.atan2(f6, f5);
+        this.c.setScale(f7, f7);
         this.c.postRotate((float)Math.toDegrees(d3));
         this.c.postTranslate(f3, f4);
         Path path = new Path();
@@ -78,20 +77,19 @@ extends PathMotion {
         float f3 = pathMeasure.getLength();
         float[] fArray = new float[2];
         pathMeasure.getPosTan(f3, fArray, null);
-        float f4 = fArray[0];
-        f3 = fArray[1];
+        f3 = fArray[0];
+        float f4 = fArray[1];
         pathMeasure.getPosTan(0.0f, fArray, null);
         float f5 = fArray[0];
         float f6 = fArray[1];
-        if (f5 == f4 && f6 == f3) {
+        if (f5 == f3 && f6 == f4) {
             throw new IllegalArgumentException("pattern must not end at the starting point");
         }
         this.c.setTranslate(-f5, -f6);
-        f5 = f4 - f5;
-        f3 -= f6;
-        f6 = 1.0f / PatternPathMotion.b(f5, f3);
+        f4 -= f6;
+        f6 = 1.0f / PatternPathMotion.b(f3 -= f5, f4);
         this.c.postScale(f6, f6);
-        double d3 = Math.atan2(f3, f5);
+        double d3 = Math.atan2(f4, f3);
         this.c.postRotate((float)Math.toDegrees(-d3));
         path.transform(this.c, this.b);
         this.a = path;

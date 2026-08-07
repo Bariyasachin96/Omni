@@ -48,19 +48,20 @@ implements m {
         if (n3 == 1) {
             return this.g;
         }
-        float f6 = this.e;
-        if ((f3 -= f4) < f6) {
-            f4 = this.g;
-            float f7 = this.b;
-            return f4 + f7 * f3 + (this.c - f7) * f3 * f3 / (f6 * 2.0f);
+        float f6 = f3 - f4;
+        float f7 = this.e;
+        if (f6 < f7) {
+            f3 = this.g;
+            f4 = this.b;
+            return f3 + f4 * f6 + (this.c - f4) * f6 * f6 / (f7 * 2.0f);
         }
         if (n3 == 2) {
             return this.h;
         }
-        if ((f3 -= f6) <= (f6 = this.f)) {
+        if ((f7 = f6 - f7) <= (f6 = this.f)) {
             f4 = this.h;
-            float f8 = this.c;
-            return f4 + f8 * f3 - f8 * f3 * f3 / (f6 * 2.0f);
+            f3 = this.c;
+            return f4 + f3 * f7 - f3 * f7 * f7 / (f6 * 2.0f);
         }
         this.p = true;
         return this.i;
@@ -91,18 +92,18 @@ implements m {
         if (n3 == 1) {
             return 0.0f;
         }
-        float f6 = f3 - f4;
-        if (f6 < (f3 = this.e)) {
-            f4 = this.b;
-            return f4 + (this.c - f4) * f6 / f3;
+        float f6 = this.e;
+        if ((f4 = f3 - f4) < f6) {
+            f3 = this.b;
+            return f3 + (this.c - f3) * f4 / f6;
         }
         if (n3 == 2) {
             return 0.0f;
         }
-        f4 = this.f;
-        if ((f3 = f6 - f3) < f4) {
-            f6 = this.c;
-            return f6 - f3 * f6 / f4;
+        f3 = this.f;
+        if ((f6 = f4 - f6) < f3) {
+            f4 = this.c;
+            return f4 - f6 * f4 / f3;
         }
         return 0.0f;
     }
@@ -170,17 +171,17 @@ implements m {
             return;
         }
         f3 = (float)Math.sqrt(f5 * f4 + f8 * f8 / 2.0f);
-        this.d = f9 = (f3 - f8) / f5;
-        this.e = f7 = f3 / f5;
+        this.d = f7 = (f3 - f8) / f5;
+        this.e = f9 = f3 / f5;
         if (f3 < f6) {
             this.k = "accelerate decelerate";
             this.j = 2;
             this.a = f8;
             this.b = f3;
             this.c = 0.0f;
-            this.d = f9;
-            this.e = f7;
-            this.g = (f8 + f3) * f9 / 2.0f;
+            this.d = f7;
+            this.e = f9;
+            this.g = (f8 + f3) * f7 / 2.0f;
             this.h = f4;
             return;
         }

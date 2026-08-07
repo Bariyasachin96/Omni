@@ -396,14 +396,14 @@ implements RecyclerView.y.b {
         int n6 = this.k0() + this.h0();
         if (this.w == 1) {
             n4 = RecyclerView.p.s(n4, rect.height() + n6, this.f0());
-            n6 = RecyclerView.p.s(n3, this.x * this.s + n5, this.g0());
+            n5 = RecyclerView.p.s(n3, this.x * this.s + n5, this.g0());
             n3 = n4;
-            n4 = n6;
+            n4 = n5;
         } else {
             n3 = RecyclerView.p.s(n3, rect.width() + n5, this.g0());
-            n6 = RecyclerView.p.s(n4, this.x * this.s + n6, this.f0());
+            n5 = RecyclerView.p.s(n4, this.x * this.s + n6, this.f0());
             n4 = n3;
-            n3 = n6;
+            n3 = n5;
         }
         this.F1(n4, n3);
     }
@@ -443,17 +443,17 @@ implements RecyclerView.y.b {
     public final void H2() {
         if (this.v.k() != 0x40000000) {
             int n3;
-            View view;
+            Object object;
             int n4;
             int n5 = this.O();
             int n6 = 0;
             float f3 = 0.0f;
             for (n4 = 0; n4 < n5; ++n4) {
-                view = this.N(n4);
-                float f4 = this.v.e(view);
+                object = this.N(n4);
+                float f4 = this.v.e((View)object);
                 if (f4 < f3) continue;
                 float f5 = f4;
-                if (((LayoutParams)view.getLayoutParams()).e()) {
+                if (((LayoutParams)object.getLayoutParams()).e()) {
                     f5 = f4 * 1.0f / (float)this.s;
                 }
                 f3 = Math.max(f3, f5);
@@ -466,16 +466,16 @@ implements RecyclerView.y.b {
             this.T2(n4);
             if (this.x != n7) {
                 for (n4 = n6; n4 < n5; ++n4) {
-                    view = this.N(n4);
-                    LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
-                    if (layoutParams.f) continue;
+                    View view = this.N(n4);
+                    object = (LayoutParams)view.getLayoutParams();
+                    if (object.f) continue;
                     if (this.x2() && this.w == 1) {
-                        n6 = this.s;
-                        n3 = layoutParams.e.e;
-                        view.offsetLeftAndRight(-(n6 - 1 - n3) * this.x - -(n6 - 1 - n3) * n7);
+                        n3 = this.s;
+                        n6 = object.e.e;
+                        view.offsetLeftAndRight(-(n3 - 1 - n6) * this.x - -(n3 - 1 - n6) * n7);
                         continue;
                     }
-                    n3 = layoutParams.e.e;
+                    n3 = object.e.e;
                     n6 = this.x * n3;
                     n3 *= n7;
                     if (this.w == 1) {
@@ -1074,6 +1074,9 @@ implements RecyclerView.y.b {
         this.v = androidx.recyclerview.widget.i.b(this, 1 - this.w);
     }
 
+    /*
+     * Enabled aggressive block sorting
+     */
     public final int f2(RecyclerView.v v3, f f3, RecyclerView.z z3) {
         StaggeredGridLayoutManager staggeredGridLayoutManager = this;
         staggeredGridLayoutManager.B.set(0, staggeredGridLayoutManager.s, true);
@@ -1085,49 +1088,56 @@ implements RecyclerView.y.b {
             LazySpanLookup.FullSpanItem fullSpanItem;
             int n6;
             int n7;
-            int n8;
             c c3;
-            View view = f3.b(v3);
-            LayoutParams layoutParams = (LayoutParams)view.getLayoutParams();
-            int n9 = layoutParams.a();
-            n5 = staggeredGridLayoutManager.E.g(n9);
-            int n10 = n5 == -1 ? 1 : 0;
-            if (n10 != 0) {
-                c3 = layoutParams.f ? staggeredGridLayoutManager.t[0] : staggeredGridLayoutManager.t2(f3);
-                staggeredGridLayoutManager.E.n(n9, c3);
-            } else {
-                c3 = staggeredGridLayoutManager.t[n5];
-            }
-            layoutParams.e = c3;
-            if (f3.e == 1) {
-                staggeredGridLayoutManager.i(view);
-            } else {
-                staggeredGridLayoutManager.j(view, 0);
-            }
-            staggeredGridLayoutManager.z2(view, layoutParams, false);
-            if (f3.e == 1) {
-                n5 = layoutParams.f ? staggeredGridLayoutManager.p2(n4) : c3.l(n4);
-                n8 = staggeredGridLayoutManager.u.e(view) + n5;
-                n7 = n5;
-                n6 = n8;
-                if (n10 != 0) {
-                    n7 = n5;
-                    n6 = n8;
-                    if (layoutParams.f) {
-                        fullSpanItem = staggeredGridLayoutManager.c2(n5);
-                        fullSpanItem.d = -1;
-                        fullSpanItem.c = n9;
-                        staggeredGridLayoutManager.E.a(fullSpanItem);
-                        n7 = n5;
-                        n6 = n8;
+            int n8;
+            int n9;
+            LayoutParams layoutParams;
+            View view;
+            block28: {
+                int n10;
+                block27: {
+                    view = f3.b(v3);
+                    layoutParams = (LayoutParams)view.getLayoutParams();
+                    n9 = layoutParams.a();
+                    n5 = staggeredGridLayoutManager.E.g(n9);
+                    n8 = n5 == -1 ? 1 : 0;
+                    if (n8 != 0) {
+                        c3 = layoutParams.f ? staggeredGridLayoutManager.t[0] : staggeredGridLayoutManager.t2(f3);
+                        staggeredGridLayoutManager.E.n(n9, c3);
+                    } else {
+                        c3 = staggeredGridLayoutManager.t[n5];
                     }
+                    layoutParams.e = c3;
+                    if (f3.e == 1) {
+                        staggeredGridLayoutManager.i(view);
+                    } else {
+                        staggeredGridLayoutManager.j(view, 0);
+                    }
+                    staggeredGridLayoutManager.z2(view, layoutParams, false);
+                    if (f3.e != 1) break block27;
+                    n5 = layoutParams.f ? staggeredGridLayoutManager.p2(n4) : c3.l(n4);
+                    n10 = staggeredGridLayoutManager.u.e(view) + n5;
+                    n7 = n5;
+                    n6 = n10;
+                    if (n8 != 0) {
+                        n7 = n5;
+                        n6 = n10;
+                        if (layoutParams.f) {
+                            fullSpanItem = staggeredGridLayoutManager.c2(n5);
+                            fullSpanItem.d = -1;
+                            fullSpanItem.c = n9;
+                            staggeredGridLayoutManager.E.a(fullSpanItem);
+                            n7 = n5;
+                            n6 = n10;
+                        }
+                    }
+                    break block28;
                 }
-            } else {
                 n5 = layoutParams.f ? staggeredGridLayoutManager.s2(n4) : c3.p(n4);
-                n7 = n8 = n5 - staggeredGridLayoutManager.u.e(view);
+                n7 = n10 = n5 - staggeredGridLayoutManager.u.e(view);
                 n6 = n5;
-                if (n10 != 0) {
-                    n7 = n8;
+                if (n8 != 0) {
+                    n7 = n10;
                     n6 = n5;
                     if (layoutParams.f) {
                         fullSpanItem = staggeredGridLayoutManager.d2(n5);
@@ -1135,12 +1145,12 @@ implements RecyclerView.y.b {
                         fullSpanItem.c = n9;
                         staggeredGridLayoutManager.E.a(fullSpanItem);
                         n6 = n5;
-                        n7 = n8;
+                        n7 = n10;
                     }
                 }
             }
             if (layoutParams.f && f3.d == -1) {
-                if (n10 != 0) {
+                if (n8 != 0) {
                     staggeredGridLayoutManager.M = true;
                 } else {
                     boolean bl = f3.e == 1 ? staggeredGridLayoutManager.S1() : staggeredGridLayoutManager.T1();
@@ -1156,18 +1166,17 @@ implements RecyclerView.y.b {
             staggeredGridLayoutManager.U1(view, layoutParams, f3);
             if (staggeredGridLayoutManager.x2() && staggeredGridLayoutManager.w == 1) {
                 n5 = layoutParams.f ? staggeredGridLayoutManager.v.i() : staggeredGridLayoutManager.v.i() - (staggeredGridLayoutManager.s - 1 - c3.e) * staggeredGridLayoutManager.x;
-                n10 = n5 - staggeredGridLayoutManager.v.e(view);
-                n8 = n5;
+                n8 = n5 - staggeredGridLayoutManager.v.e(view);
             } else {
                 n5 = layoutParams.f ? staggeredGridLayoutManager.v.m() : c3.e * staggeredGridLayoutManager.x + staggeredGridLayoutManager.v.m();
-                n8 = staggeredGridLayoutManager.v.e(view) + n5;
-                n10 = n5;
+                n8 = n5;
+                n5 = staggeredGridLayoutManager.v.e(view) + n8;
             }
             if (staggeredGridLayoutManager.w == 1) {
-                staggeredGridLayoutManager.D0(view, n10, n7, n8, n6);
+                staggeredGridLayoutManager.D0(view, n8, n7, n5, n6);
                 staggeredGridLayoutManager = this;
             } else {
-                staggeredGridLayoutManager.D0(view, n7, n10, n6, n8);
+                staggeredGridLayoutManager.D0(view, n7, n8, n6, n5);
             }
             if (layoutParams.f) {
                 staggeredGridLayoutManager.O2(staggeredGridLayoutManager.y.e, n3);
@@ -1549,16 +1558,15 @@ implements RecyclerView.y.b {
         int n10 = this.u.i();
         n6 = Integer.MIN_VALUE;
         object = c3;
-        while (n5 != n4) {
-            c3 = this.t[n5];
+        for (int i3 = n5; i3 != n4; i3 += n3) {
+            c3 = this.t[i3];
             int n11 = c3.p(n10);
-            int n12 = n6;
+            n5 = n6;
             if (n11 > n6) {
                 object = c3;
-                n12 = n11;
+                n5 = n11;
             }
-            n5 += n3;
-            n6 = n12;
+            n6 = n5;
         }
         return object;
     }
@@ -1657,9 +1665,9 @@ implements RecyclerView.y.b {
                             if (layoutParams.f || (n4 = n7 + n6) == n3) break block9;
                             object = this.N(n4);
                             if (!this.A) break block10;
-                            n8 = this.u.d(view);
-                            if (n8 < (n4 = this.u.d((View)object))) break block8;
-                            if (n8 != n4) break block9;
+                            n4 = this.u.d(view);
+                            if (n4 < (n8 = this.u.d((View)object))) break block8;
+                            if (n4 != n8) break block9;
                             break block11;
                         }
                         n8 = this.u.g(view);
@@ -2253,10 +2261,10 @@ implements RecyclerView.y.b {
         }
 
         public void d() {
-            Object object = (View)this.a.get(0);
-            LayoutParams layoutParams = this.n((View)object);
-            this.b = this.f.u.g((View)object);
-            if (layoutParams.f && (object = this.f.E.f(layoutParams.a())) != null && ((LazySpanLookup.FullSpanItem)object).d == -1) {
+            View view = (View)this.a.get(0);
+            Object object = this.n(view);
+            this.b = this.f.u.g(view);
+            if (((LayoutParams)((Object)object)).f && (object = this.f.E.f(((RecyclerView.LayoutParams)((Object)object)).a())) != null && ((LazySpanLookup.FullSpanItem)object).d == -1) {
                 this.b -= ((LazySpanLookup.FullSpanItem)object).o(this.e);
             }
         }
@@ -2350,26 +2358,26 @@ implements RecyclerView.y.b {
             View view2 = null;
             if (n4 == -1) {
                 int n5 = this.a.size();
-                view = view2;
                 for (n4 = 0; n4 < n5; ++n4) {
-                    view2 = (View)this.a.get(n4);
+                    view = (View)this.a.get(n4);
                     StaggeredGridLayoutManager staggeredGridLayoutManager = this.f;
-                    if (staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view2) <= n3) break;
+                    if (staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view) <= n3) break;
                     staggeredGridLayoutManager = this.f;
-                    if (!staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view2) >= n3 || !view2.hasFocusable()) break;
-                    view = view2;
+                    if (!staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view) >= n3 || !view.hasFocusable()) break;
+                    view2 = view;
                 }
-                return view;
+                return view2;
             }
+            view2 = view;
             for (n4 = this.a.size() - 1; n4 >= 0; --n4) {
-                view2 = (View)this.a.get(n4);
+                view = (View)this.a.get(n4);
                 StaggeredGridLayoutManager staggeredGridLayoutManager = this.f;
-                if (staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view2) >= n3) break;
+                if (staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view) >= n3) break;
                 staggeredGridLayoutManager = this.f;
-                if (!staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view2) <= n3 || !view2.hasFocusable()) break;
-                view = view2;
+                if (!staggeredGridLayoutManager.z && staggeredGridLayoutManager.l0(view) <= n3 || !view.hasFocusable()) break;
+                view2 = view;
             }
-            return view;
+            return view2;
         }
 
         public LayoutParams n(View view) {

@@ -65,14 +65,14 @@ lbl28:
                 var12_11 = 1;
                 ** continue;
             }
-            var4_7 = var2_2[var14_6];
+            var6_8 = var2_2[var14_6];
             var13_5 = var14_6 + 1;
-            var8_9 = var2_2[var13_5];
+            var10_10 = var2_2[var13_5];
             var19_15 = var3_3[var14_6];
-            var6_8 = var19_15[0];
-            var10_10 = var19_15[1];
+            var4_7 = var19_15[0];
+            var8_9 = var19_15[1];
             var19_15 = var3_3[var13_5];
-            var18_14[var14_6] = new a(var12_11, var4_7, var8_9, var6_8, var10_10, var19_15[0], var19_15[1]);
+            var18_14[var14_6] = new a(var12_11, var6_8, var10_10, var4_7, var8_9, var19_15[0], var19_15[1]);
             var14_6 = var13_5;
             var16_4 = var15_12;
             var13_5 = var12_11;
@@ -91,45 +91,45 @@ lbl28:
         boolean bl = this.c;
         int n5 = 0;
         if (bl) {
-            object = this.b;
-            a a4 = object[0];
-            double d5 = a4.c;
+            a[] aArray = this.b;
+            object = aArray[0];
+            double d5 = ((a)object).c;
             if (d3 < d5) {
                 double d6;
                 double d7 = d3 - d5;
-                if (a4.r) {
+                if (((a)object).r) {
                     double d8;
                     if (n3 == 0) {
-                        d8 = a4.f(d5);
+                        d8 = ((a)object).f(d5);
                         d3 = this.b[0].d(d5);
                         return d8 + d7 * d3;
                     }
-                    d8 = a4.g(d5);
+                    d8 = ((a)object).g(d5);
                     d3 = this.b[0].e(d5);
                     return d8 + d7 * d3;
                 }
-                a4.k(d5);
+                ((a)object).k(d5);
                 if (n3 == 0) {
-                    d3 = this.b[0].h();
-                    d6 = this.b[0].b();
-                    return d3 + d7 * d6;
+                    d6 = this.b[0].h();
+                    d3 = this.b[0].b();
+                    return d6 + d7 * d3;
                 }
-                d3 = this.b[0].i();
-                d6 = this.b[0].c();
-                return d3 + d7 * d6;
+                d6 = this.b[0].i();
+                d3 = this.b[0].c();
+                return d6 + d7 * d3;
             }
             n4 = n5;
             d4 = d3;
-            if (d3 > object[((a[])object).length - 1].d) {
+            if (d3 > aArray[aArray.length - 1].d) {
                 double d9;
-                d5 = object[((a[])object).length - 1].d;
-                n4 = ((Object)object).length - 1;
+                d5 = aArray[aArray.length - 1].d;
+                n4 = aArray.length - 1;
                 if (n3 == 0) {
-                    d9 = ((a)object[n4]).f(d5);
+                    d9 = aArray[n4].f(d5);
                     d4 = this.b[n4].d(d5);
                     return d9 + (d3 - d5) * d4;
                 }
-                d9 = ((a)object[n4]).g(d5);
+                d9 = aArray[n4].g(d5);
                 d4 = this.b[n4].e(d5);
                 return d9 + (d3 - d5) * d4;
             }
@@ -142,7 +142,7 @@ lbl28:
                 n4 = n5;
                 d4 = d3;
                 if (d3 > object[((a[])object).length - 1].d) {
-                    d4 = object[((a[])object).length - 1].d;
+                    d4 = ((a)object[((Object)object).length - 1]).d;
                     n4 = n5;
                 }
             }
@@ -169,35 +169,35 @@ lbl28:
         double d5;
         Object object;
         if (this.c) {
-            object = this.b;
-            a a4 = object[0];
-            d5 = a4.c;
+            a[] aArray = this.b;
+            object = aArray[0];
+            d5 = ((a)object).c;
             if (d3 < d5) {
                 d3 -= d5;
-                if (a4.r) {
-                    dArray[0] = a4.f(d5) + this.b[0].d(d5) * d3;
+                if (((a)object).r) {
+                    dArray[0] = ((a)object).f(d5) + this.b[0].d(d5) * d3;
                     dArray[1] = this.b[0].g(d5) + d3 * this.b[0].e(d5);
                     return;
                 }
-                a4.k(d5);
+                ((a)object).k(d5);
                 dArray[0] = this.b[0].h() + this.b[0].b() * d3;
                 dArray[1] = this.b[0].i() + d3 * this.b[0].c();
                 return;
             }
             d4 = d3;
-            if (d3 > object[((a[])object).length - 1].d) {
-                d4 = object[((a[])object).length - 1].d;
-                d5 = d3 - d4;
-                int n3 = ((a[])object).length - 1;
-                object = object[n3];
+            if (d3 > aArray[aArray.length - 1].d) {
+                d5 = aArray[aArray.length - 1].d;
+                d4 = d3 - d5;
+                int n3 = aArray.length - 1;
+                object = aArray[n3];
                 if (((a)object).r) {
-                    dArray[0] = ((a)object).f(d4) + this.b[n3].d(d4) * d5;
-                    dArray[1] = this.b[n3].g(d4) + d5 * this.b[n3].e(d4);
+                    dArray[0] = ((a)object).f(d5) + this.b[n3].d(d5) * d4;
+                    dArray[1] = this.b[n3].g(d5) + d4 * this.b[n3].e(d5);
                     return;
                 }
                 ((a)object).k(d3);
-                dArray[0] = this.b[n3].h() + this.b[n3].b() * d5;
-                dArray[1] = this.b[n3].i() + d5 * this.b[n3].c();
+                dArray[0] = this.b[n3].h() + this.b[n3].b() * d4;
+                dArray[1] = this.b[n3].i() + d4 * this.b[n3].c();
                 return;
             }
         } else {
@@ -209,10 +209,10 @@ lbl28:
             }
             d4 = d5;
             if (d5 > object[((a[])object).length - 1].d) {
-                d4 = object[((a[])object).length - 1].d;
+                d4 = ((a)object[((Object)object).length - 1]).d;
             }
         }
-        for (int i3 = 0; i3 < ((a[])(object = this.b)).length; ++i3) {
+        for (int i3 = 0; i3 < ((Object)(object = this.b)).length; ++i3) {
             object = object[i3];
             if (!(d4 <= ((a)object).d)) continue;
             if (((a)object).r) {
@@ -249,13 +249,13 @@ lbl28:
             }
             d4 = d3;
             if (d3 > object[((a[])object).length - 1].d) {
-                d4 = object[((a[])object).length - 1].d;
-                double d5 = d3 - d4;
+                double d5 = object[((a[])object).length - 1].d;
+                d4 = d3 - d5;
                 int n3 = ((Object)object).length - 1;
                 object = object[n3];
                 if (((a)object).r) {
-                    fArray[0] = (float)(((a)object).f(d4) + this.b[n3].d(d4) * d5);
-                    fArray[1] = (float)(this.b[n3].g(d4) + d5 * this.b[n3].e(d4));
+                    fArray[0] = (float)(((a)object).f(d5) + this.b[n3].d(d5) * d4);
+                    fArray[1] = (float)(this.b[n3].g(d5) + d4 * this.b[n3].e(d5));
                     return;
                 }
                 ((a)object).k(d3);
@@ -444,15 +444,15 @@ lbl28:
             for (n3 = 0; n3 < (dArray = s).length; ++n3) {
                 double d10 = Math.toRadians((double)n3 * 90.0 / (double)(dArray.length - 1));
                 double d11 = Math.sin(d10);
-                double d12 = Math.cos(d10);
-                d10 = d11 * (d5 - d3);
-                d12 *= d4 - d6;
+                d10 = Math.cos(d10);
+                double d12 = d11 * (d5 - d3);
+                d10 *= d4 - d6;
                 d11 = d7;
                 if (n3 > 0) {
-                    s.a$a.s[n3] = d11 = d7 + Math.hypot(d10 - d8, d12 - d9);
+                    s.a$a.s[n3] = d11 = d7 + Math.hypot(d12 - d8, d10 - d9);
                 }
-                d8 = d10;
-                d9 = d12;
+                d8 = d12;
+                d9 = d10;
                 d7 = d11;
             }
             this.b = d7;
@@ -460,8 +460,8 @@ lbl28:
                 dArray[n3] = dArray[n3] / d7;
             }
             for (n3 = 0; n3 < (dArray = this.a).length; ++n3) {
-                d5 = (double)n3 / (double)(dArray.length - 1);
-                int n4 = Arrays.binarySearch(s, d5);
+                d4 = (double)n3 / (double)(dArray.length - 1);
+                int n4 = Arrays.binarySearch(s, d4);
                 if (n4 >= 0) {
                     this.a[n3] = (double)n4 / (double)(s.length - 1);
                     continue;
@@ -470,12 +470,12 @@ lbl28:
                     this.a[n3] = 0.0;
                     continue;
                 }
-                n4 = -n4;
-                int n5 = n4 - 2;
-                d4 = n5;
+                int n5 = -n4;
+                n4 = n5 - 2;
+                d3 = n4;
                 dArray = s;
-                d3 = dArray[n5];
-                this.a[n3] = d3 = (d4 + (d5 - d3) / (dArray[n4 - 1] - d3)) / (double)(dArray.length - 1);
+                d5 = dArray[n4];
+                this.a[n3] = d3 = (d3 + (d4 - d5) / (dArray[n5 - 1] - d5)) / (double)(dArray.length - 1);
             }
         }
 
@@ -483,22 +483,22 @@ lbl28:
             double d3 = this.j * this.p;
             double d4 = -this.k;
             double d5 = this.o;
-            d4 = this.n / Math.hypot(d3, d4 * d5);
+            d5 = this.n / Math.hypot(d3, d4 * d5);
             if (this.q) {
-                return -d3 * d4;
+                return -d3 * d5;
             }
-            return d3 * d4;
+            return d3 * d5;
         }
 
         public double c() {
             double d3 = this.j;
             double d4 = this.p;
             double d5 = -this.k * this.o;
-            d4 = this.n / Math.hypot(d3 * d4, d5);
+            d3 = this.n / Math.hypot(d3 * d4, d5);
             if (this.q) {
-                return -d5 * d4;
+                return -d5 * d3;
             }
-            return d5 * d4;
+            return d5 * d3;
         }
 
         public double d(double d3) {
