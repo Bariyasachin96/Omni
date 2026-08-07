@@ -2396,3 +2396,39 @@ return, so focus never lands somewhere stale.
 Still untouched underneath: the `m.h(p(), false)` rebuild, the `m.m` label source, `m.g` for
 the selection index, `H`/`I` mirroring, the `localespans` boxes syncing `Q`, and the
 `auto_mode_google` rule.
+
+### 51c. Settled: collapse/expand in place, descriptions left alone
+
+The page version of 51b was also rejected. The user's decision, after testing all of it:
+the descriptions belong exactly where AutoTTS puts them — visible, after each radio, as their
+own `TextView`s — and the settings should **collapse and expand in place** rather than take
+you anywhere.
+
+So the mode list is back to AutoTTS's shape, and the only addition is a disclosure control:
+
+```
+○ Mixed mode
+  Splits text into Latin and non-Latin segments, detects and reads each by …
+  [ Mixed mode settings ]        <- only the selected mode has one
+      Mode Settings              <- expands here, in place
+      Preferred language for Latin text     [v]
+      …
+○ Multilingual mode (experimental)
+  Splits text into per-language segments, …
+```
+
+Each mode owns a `toggle` button and a `holder` container, both added to the radio group
+immediately after that mode's description. `modeExpanded` holds the state per mode;
+`applyExpandState` flips the holder's visibility and writes the state description. Selecting a
+different mode hides the old toggle and collapses it, so only one disclosure is ever live.
+
+On accessibility, `ViewCompat.setStateDescription(toggle, "Expanded" / "Collapsed")` is what
+Android's own guidance prescribes for a disclosure control — name from the button text, role
+from Button, state from stateDescription, which is WCAG 4.1.2's name/role/state. Each toggle
+also calls `announceForAccessibility` so the change is spoken at the moment it happens.
+
+An `AccessibilityDelegate` adding `ACTION_EXPAND`/`ACTION_COLLAPSE` was written and then
+removed: the classpath-less kotlinc cross-check cannot resolve `View.AccessibilityDelegate`,
+so its override signatures could not be verified here, and a wrong signature only shows up as
+a failed CI build. `setStateDescription` is the documented approach and needs no subclassing,
+so nothing is lost.

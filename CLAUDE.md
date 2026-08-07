@@ -78,21 +78,27 @@ The user has taken the **user interface** out of the AutoTTS-parity rule: *"ab m
 AutoTTS. Only the UI may differ, and only where the user asks.
 
 Recorded so far:
-1. **Modes tab — per-mode settings, as a page not a dialog.** AutoTTS shows the active mode's
-   settings inline, below five radio buttons and their five long descriptions, so a TalkBack
-   user swipes past all of it to reach a spinner. Ours instead:
-   - the mode list shows **only the five radio labels** — no description paragraphs and **no
-     `contentDescription` carrying them either** (the user tested that and it was worse: every
-     radio read a whole paragraph before you could move on);
-   - **the selected mode's settings button sits directly after its own radio**, and every
-     other mode's button is `GONE`. "None" has no button at all;
-   - pressing it swaps the tab to a **full settings page** — Back button, the mode's name as a
-     header, then the mode's **description**, then that mode's settings. It is NOT a dialog:
-     a dialog showed the old screen behind and above it and looked unfinished.
-   Accessibility focus is moved to Back on entry and back to the mode's button on return.
+1. **Modes tab — per-mode collapse/expand settings.** AutoTTS shows the active mode's settings
+   inline at the bottom, below all five radios and their descriptions, so a TalkBack user
+   swipes past everything to reach a spinner. Ours keeps the list exactly as AutoTTS has it —
+   **each radio followed by its own description paragraph, as separate `TextView`s** — and adds
+   a **collapse/expand disclosure** for the settings:
+   - the **selected** mode's `"<Mode> settings"` button sits directly after that mode's own
+     description; every other mode's button is `GONE`, and "None" has none;
+   - pressing it expands that mode's settings **in place**, directly beneath the button. No
+     dialog, no second screen, no navigation.
+   - state is exposed with `ViewCompat.setStateDescription(toggle, "Expanded"/"Collapsed")` —
+     the approach Android's accessibility docs prescribe for disclosure controls — plus an
+     `announceForAccessibility` on each toggle. Name comes from the button text, role from
+     Button, state from stateDescription: WCAG 4.1.2 satisfied.
+   - switching modes collapses the mode you left.
+   Three things were tried and **rejected by the user after testing — do not reintroduce**:
+   descriptions folded into the radio's `contentDescription` (TalkBack then reads a whole
+   paragraph before you can move on), the settings in an `AlertDialog` (the list showed
+   through above and below it), and the settings as a separate full page (navigating away is
+   unnecessary for this).
    The four sections, their spinners, checkboxes and every handler are unchanged; only where
-   they are shown moved. Do NOT "restore" this to AutoTTS's inline layout, and do NOT put the
-   descriptions back on the radios or the settings back in a dialog.
+   they are shown moved. Do NOT "restore" this to AutoTTS's bottom-of-page layout.
 
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
