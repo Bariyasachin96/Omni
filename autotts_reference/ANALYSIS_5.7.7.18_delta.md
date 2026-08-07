@@ -244,3 +244,54 @@ and `strings.xml` are unchanged.
       enabled-language set (= `e.b`, `AutoTtsService:830`). `n.e(Locale)` is unchanged
       in 5.7.7.18, so `localeIso3` / `SharedPrefsManager.toIso3` stay as they are.
 - [x] `SYSTEM_ALERT_WINDOW` dropped from the manifest.
+
+---
+
+## 9. Class-by-class sweep of the app code (audit round 2, 2026-08-07)
+
+Round 1 (§8) paired whole `c3.*` files. This round goes method by method, matching each
+old method to its most similar new one by normalised content rather than by name — the
+obfuscated method letters shifted too, so name-keyed diffs are worthless here.
+
+### AutoTtsService — 85 old "methods" vs 65 new
+
+The count gap is not code going missing: CFR inlined the anonymous listener classes in
+5.7.7.10 and split them into their own files in 5.7.7.18 (`c3.i0`, `c3.j0`, …), so the
+old file carried extra tiny `a`/`b`/`c`/`d`/`e`/`onDone`/`onError`/`onInit`/`onStart`/
+`onStop`/`onTaskRemoved` bodies that are now elsewhere.
+
+Real differences, everything else being CFR rendering:
+
+| method | what changed | ours |
+|---|---|---|
+| `onSynthesizeText` | the whole `d0.t` / type-5 / specific-language rework | ported |
+| `onCreate` | adds `clsCLD2.f(n.f)`, and logs version name + code via the new `c3.a0` | hints ported; the version log is a log line |
+| `M` (engine lookup) | the log line is now also skipped for disabled entries — `!(f.isEmpty() \|\| f.equalsIgnoreCase("disable") \|\| i)` instead of `!f.isEmpty() && !f.equalsIgnoreCase("disable")`. **Return values are identical.** | no action |
+| `g0` (silence loop) | `return` became `break` on `InterruptedException`, and the `o0` check moved into the loop condition. Nothing follows the loop, so behaviour is identical | no action |
+
+Read and confirmed as rendering-only: `f0`, `P`, `L`, `T`, `Y`, `e0`, `h0`, `i0`, `d0`,
+`onLoadLanguage`, `b0`, `c0`, `k0`, `m0`, `n0`, `o0`, `l0`, `q`, `o`, `B`, `H`, `U`, `X`,
+`onDestroy`, `onGetLanguage`, `onIsValidVoiceName`, `onLoadVoice`, `onIsLanguageAvailable`,
+`onGetDefaultVoiceNameFor`.
+
+### Settings fragment `c3.j` → `c3.k` (49 → 53 methods)
+
+Changed: `onRadioButtonClicked`, `O1` (spinner dispatch) and `R2`→`T2` (Advanced tab) —
+all three read in full in §7 and ported.
+
+New: `O2` (TTS settings intent, ported) and **`B2`/`C2`/`D2`**, guarded accessors for the
+selected language's volume/speed/pitch that return **100** when the selected index is out
+of range. Ours read `LangStore.languages[selectedLangIndex]` unguarded, so this is now
+mirrored as `storedSliderValue`.
+
+`Z2`→`b3` and `F0` gained a null-guard and constant resets; `I1`–`N1` are a family of
+near-identical small methods the matcher paired badly, all rendering-only on inspection.
+
+### The rest of the app package
+
+`CheckVoiceData`, `GetSampleText`, `LicensesDialogFragment` — obfuscated-import renames
+and one resource-id renumber. `a.java` byte-identical. `clsCLD2` — only the hint hook
+(§6). `NewSettingsActivity` — rename-only.
+
+**Nothing else in the app code changed between 5.7.7.10 and 5.7.7.18.**
+
