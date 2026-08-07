@@ -360,10 +360,50 @@ dual language). Rows 3, 4 and 5 are new.
 them, with no `onLoadLanguage` check and no error return. So rows 1 and 2 were already
 missing from the 5.7.7.10 port, and 3-5 are new on top.
 
+### 10b. Mix branch — read in full, and it contradicts how we resolve the language
+
+New: method-relative 343-556.
+
+Per LocaleSpan chunk:
+
+1. If the span carries a language that is neither empty nor `"unknown"`: `M(lang)`; if
+   that is empty or `"Disable"`, use `G` (the auto-mode language). Set it on the segment,
+   append, next chunk.
+2. Otherwise `d0.t(text, I, K, M, …)`, and then **for each sub-segment the service
+   re-tests the text itself** and picks the language straight from the mode:
+
+   ```
+   if (d0.n(text))       // number
+       I == 0 || I == 1 -> O      I == 2 -> P      I == 3 -> J
+   else if (d0.o(text))  // punctuation
+       K == 0 || K == 1 -> O      K == 2 -> P      K == 3 -> L
+   else if (d0.l(text))  // emoji
+       M == 0 || M == 1 -> O      M == 2 -> P      M == 3 -> N
+   else
+       clsCLD2.c(text, …)         // the mix-chunk detection list
+   ```
+
+**This is the gap.** `d0.t` has already assigned a type to every segment, and for mode 0
+that assignment is `d0.k`'s neighbour scan (back, then forward from 0, then the locale
+default). The mix path **ignores that for language purposes** and maps mode 0 straight to
+`O`. `d0.t`'s types still matter — they decide where segments merge — but they are not
+what selects the voice here.
+
+Our C++ returns one `(type, lang, text)` triple and the Kotlin mix path uses `lang`, so
+we currently speak a mode-0 number segment in whatever `d0.k` derived from its
+neighbours, where AutoTTS speaks it in `O`. Same for punctuation and emoji.
+
+The fix is a split, not a tweak: keep `d0.t`'s type for merging, and derive the language
+in the service by re-testing the segment with `d0.n` / `d0.o` / `d0.l` and applying the
+table above.
+
+Note `d0.n`, `d0.o` and `d0.l` are whole-string matches against patterns `b`, `c` and `e`
+respectively, so the re-test has to run on the merged segment text, not per character.
+
 ### Still to do
 
-- [ ] Same line-by-line read for the mix branch (new 343-556), the multilingual branch
-      (new 557-...) and the auto/google tail.
+- [ ] Same line-by-line read for the multilingual branch (new 557-...) and the
+      auto/google tail.
 - [ ] Port the dual first-segment preflight table above.
 - [ ] Port the continuation-path type fallback (1231-1264) and the `S == 4 || S == 5`
       gate at 1208.
