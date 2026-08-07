@@ -174,11 +174,18 @@ Options: `punctuation_with_sentence` and `smart_number_reading`.
 ## Porting status in EasyVoice
 
 - [x] §2 — the five new settings, both loaders and both persisters, plus the
-      `quick_character_reading` default flip. Commit `181ba9f`.
-- [ ] §3/§4 — segmenter: emoji as type 5, the new patterns, the mode-3 path and the
-      punctuation-flow split. **Our chunker resolves each type to a language string
-      before it reaches C++; mode 3 needs the mode ints threaded through instead, the
-      way `d0.t` takes them.**
-- [ ] §5 — smart number reading.
-- [ ] §6 — CLD2 language hints.
-- [ ] §7 — UI.
+      `quick_character_reading` default flip. `181ba9f`
+- [x] §3/§4 — emoji as segment type 5, the mode ints threaded to C++ the way `d0.t`
+      takes them, `d0.k`'s type assignment, and the punctuation-in-flow split.
+      `39bb512`
+- [x] §6 — CLD2 language hints. `04a51f3`
+- [x] §7 — UI: the TTS Settings button, the two new Advanced rows, the shared reading
+      settings with the fourth "Specific language" option, and the cross-tab
+      enable/disable. `0df94d0`
+- [x] §5 — smart number reading. `27a9c68`
+
+Two spots where a Java library call had to be written out instead of transcribed,
+recorded so they are not mistaken for verified ports: `isLetterCodepoint` stands in
+for `Character.isLetter` (covers the letter blocks of every script in the keyword
+table) and `lowerCaseRoot` for `toLowerCase(Locale.ROOT)` (cases Latin incl. Latin-1,
+Greek and Cyrillic — every other script in the table is caseless).
