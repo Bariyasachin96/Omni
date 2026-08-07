@@ -295,3 +295,51 @@ and one resource-id renumber. `a.java` byte-identical. `clsCLD2` — only the hi
 
 **Nothing else in the app code changed between 5.7.7.10 and 5.7.7.18.**
 
+---
+
+## 10. onSynthesizeText, per-mode — OPEN, work in progress
+
+§9 treated `onSynthesizeText` as "the d0.t rework, ported". That was too coarse. Read
+properly it is **607 lines → 1390**, and every mode branch roughly doubled:
+
+| branch | 5.7.7.10 | 5.7.7.18 |
+|---|---|---|
+| gate `S == 1` (dual) | line 188, ~67 lines | line 197, ~146 lines |
+| gate `S == 4` (mix) | line 255, ~127 lines | line 343, ~214 lines |
+| gate `S == 5` (multilingual) | line 382, ~225 lines | line 557, ~... |
+| gate `S == 4 \|\| S == 5` | **absent** | **line 1208 — new** |
+
+(line numbers are relative to the start of the method)
+
+### What is confirmed missing on our side
+
+The **continuation / later-chunk path** in the tail of the method now carries the same
+type→language routing that §3 documented for the segmenter, and we have only ported it
+in the mix path. At method-relative 1231-1264:
+
+```
+lang = clsCLD2.b(text, ...)                  // detect
+if (lang.length() > 2) lang = lang[0..2]
+lang = c3.e.c(lang)                          // NEW in 5.7.7.18
+if (lang == null) {                          // fall back BY SEGMENT TYPE
+    switch (AutoTtsService.k().get(0).a()) {
+        case 1 -> O        case 4 -> L
+        case 2 -> P        case 5 -> N
+        case 3 -> J
+    }
+}
+```
+
+In 5.7.7.10 this fallback existed only for types 1 and 2. Types **3, 4 and 5 routing to
+J / L / N here is new**, and so is the `c3.e.c` conversion in this path, and so is the
+`S == 4 || S == 5` gate just above it at 1208.
+
+### Still to do
+
+- [ ] Read all four mode branches of `onSynthesizeText` old-vs-new line by line — dual,
+      mix, multilingual and the auto/google tail — not just locate the `d0.t` call sites.
+- [ ] Port the continuation-path type fallback (1231-1264) and the `S == 4 || S == 5`
+      gate at 1208.
+
+Do **not** treat §9's "onSynthesizeText: ported" as settled until this section is closed.
+
