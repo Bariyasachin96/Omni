@@ -3627,6 +3627,7 @@ jobs:
           "import android.os.Build\n"
           "import android.os.PowerManager\n"
           "import android.provider.Settings\n"
+          "import android.speech.tts.TextToSpeech\n"
           "import android.view.View\n"
           "import android.view.ViewGroup\n"
           "import android.widget.AdapterView\n"
