@@ -453,9 +453,14 @@ dual, auto and google run it.
    gate.
 
 These four share one shape — resolve a language for a segment, check the engine, fall
-back by type — so they go in together as one change, not four patches.
+back by type — so they went in together as one change, not four patches.
+
+**Done:** `0f4b165` (dual preflight, mix/multilingual mode table, multilingual's second
+fallback) and `e06fcd7` (multilingual onto the shared chunker, tail fallbacks extended
+to types 3/4/5). The mix tail turned out to carry the same double fallback and the same
+error-7 preflight as multilingual, so both now run one shared `resolveMixChunk`.
 - [ ] Port the dual first-segment preflight table above.
 - [ ] Port the continuation-path type fallback (1231-1264) and the `S == 4 || S == 5`
       gate at 1208.
 
-Do **not** treat §9's "onSynthesizeText: ported" as settled until this section is closed.
+**§10 is now closed** — all four paths ported in `0f4b165` and `e06fcd7`.

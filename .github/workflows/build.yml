@@ -1294,10 +1294,21 @@ jobs:
                   if(jIso2Element) env->DeleteLocalRef(jIso2Element); if(jIso3Element) env->DeleteLocalRef(jIso3Element);
               }
           }
+          static std::mutex detectSetMutex;
+          static std::unordered_set<std::string> detectOkIso3Set;
+          static std::unordered_set<std::string> enabledLangSet;
+          extern "C" JNIEXPORT void JNICALL
+          Java_com_tts_easyvoice_NativeEngine_setDetectSets(JNIEnv* env, jclass, jobjectArray jDetectOk, jobjectArray jEnabled){
+              std::unordered_set<std::string> ok = jStringArrayToSet(env, jDetectOk);
+              std::unordered_set<std::string> enabled = jStringArrayToSet(env, jEnabled);
+              std::lock_guard<std::mutex> lock(detectSetMutex);
+              detectOkIso3Set = std::move(ok);
+              enabledLangSet = std::move(enabled);
+          }
           extern "C" JNIEXPORT jstring JNICALL
           Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
               JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
-              jboolean jDisableAdv, jobjectArray jDetectOkIso3, jobjectArray jEnabledLangs, jboolean jWantLog, jboolean jUseCld3)
+              jboolean jDisableAdv, jboolean jWantLog, jboolean jUseCld3)
           {
               bool useCld3 = (jUseCld3==JNI_TRUE);
               if(!jText) return env->NewStringUTF("UNKNOWN\x01");
@@ -1306,8 +1317,8 @@ jobs:
               const char* latC = jLat?env->GetStringUTFChars(jLat,nullptr):nullptr; std::string latinFallback(latC?latC:""); if(latC) env->ReleaseStringUTFChars(jLat,latC);
               const char* nlC = jNonLat?env->GetStringUTFChars(jNonLat,nullptr):nullptr; std::string nonLatinFallback(nlC?nlC:""); if(nlC) env->ReleaseStringUTFChars(jNonLat,nlC);
               bool disableAdvanced = (jDisableAdv==JNI_TRUE);
-              std::unordered_set<std::string> okIso3 = jStringArrayToSet(env, jDetectOkIso3);
-              std::unordered_set<std::string> enabled = jStringArrayToSet(env, jEnabledLangs);
+              std::unordered_set<std::string> okIso3, enabled;
+              { std::lock_guard<std::mutex> lock(detectSetMutex); okIso3 = detectOkIso3Set; enabled = enabledLangSet; }
               std::string log; std::string* logBuf = (jWantLog==JNI_TRUE) ? &log : nullptr;
               std::string result = "UNKNOWN"; bool done=false;
               int winStart=0;
@@ -1599,8 +1610,9 @@ jobs:
           "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
           "    external fun setLanguageHints(langs: Array<String>)\n"
           "    external fun segmentKind(text: String): Int\n"
+          "    external fun setDetectSets(detectOkIso3: Array<String>, enabledLangs: Array<String>)\n"
           "    external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,\n"
-          "        disableAdvancedDetection: Boolean, detectOkIso3: Array<String>, enabledLangs: Array<String>, wantLog: Boolean, useCld3: Boolean): String\n"
+          "        disableAdvancedDetection: Boolean, wantLog: Boolean, useCld3: Boolean): String\n"
           "}\n")
 
           write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceLogger.kt",
@@ -3050,16 +3062,7 @@ jobs:
           "        run {\n"
           "            try {\n"
           "                initIsoMaps()\n"
-          "                val detectOkList = ArrayList<String>()\n"
-          "                var detectIdx = 0\n"
-          "                while (detectIdx < LangStore.languages.size) {\n"
-          "                    val entry = LangStore.languages[detectIdx]\n"
-          "                    detectIdx++\n"
-          "                    if (!entry.disabled) detectOkList.add(entry.iso3)\n"
-          "                }\n"
-          "                val detectOk = detectOkList.toTypedArray()\n"
-          "                val enabledOk = enabledLangs.toTypedArray()\n"
-          "                val out = NativeEngine.detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, detectOk, enabledOk, EasyVoiceLogger.isLoggingEnabled(), useCld3Flag)\n"
+          "                val out = NativeEngine.detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled(), useCld3Flag)\n"
           "                val markerIdx = out.indexOf('\\u0001')\n"
           "                if (markerIdx >= 0) {\n"
           "                    if (markerIdx + 1 < out.length) for (line in out.substring(markerIdx + 1).split('\\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)\n"
@@ -3132,6 +3135,14 @@ jobs:
           "            if (iso2 != null) enabledSet.add(iso2)\n"
           "        }\n"
           "        enabledLangs = enabledSet\n"
+          "        val detectOkList = ArrayList<String>()\n"
+          "        var detectIdx = 0\n"
+          "        while (detectIdx < LangStore.languages.size) {\n"
+          "            val entry = LangStore.languages[detectIdx]\n"
+          "            detectIdx++\n"
+          "            if (!entry.disabled) detectOkList.add(entry.iso3)\n"
+          "        }\n"
+          "        try { NativeEngine.setDetectSets(detectOkList.toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}\n"
           "        return enabledSet\n"
           "    }\n"
           "    private fun languageForSegmentKind(kind: Int, latinFallback: String, nonLatinFallback: String): String? {\n"
