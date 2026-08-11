@@ -916,3 +916,37 @@ keep-alive binder (§18), the engine scan (§19), the Voices tab (§20), the Lan
 (§21) and export/import plus the logger (§22) have now each been read against the
 5.7.7.18 decompile. Across all of it exactly one divergence was found and fixed — the
 null-or-empty package guard in `restoreEngine` that `i0` does not have (§17).
+
+## 23. Correction — §19-§22 were overclaimed (2026-08-07)
+
+Sections 19 to 22 each ended with "no divergence" or "the area is verified". That was
+too strong. Important methods were read and the **area** was then declared done, which is
+the same mistake §9 made with `onSynthesizeText` — and that one hid the largest defect in
+the project.
+
+What those sections actually cover, and what they do not:
+
+**§19 engine scan.** Read: `B0`, `D0`, `z0`, the voice-collecting `onInit` (553-614),
+`A0`, `c3.o`. **Not read:** `y0()` (412-420), the other `onInit` (505-538), `C0()`
+(131-140), `E0()` (275-289), and the six `run` bodies at 185-208, 209-274, 392-400,
+422-435, 436-443 and 481-491.
+
+**§20 Voices tab.** Read: `E2`, `a3`, `b3`, `b0`'s `compareTo`/`d()`/`f()`, `N2`.
+**Not read at the time:** the slider handlers. `P1` has since been read and matches —
+clamp to 10, push the bar to 10 as well, then write behind the index bounds check, with
+ids mapping to pitch, speed and volume. **Still not read:** the `+`/`-` button handlers
+`I1`-`N1`, `M2`, `Q2`.
+
+**§21 Languages tab.** Read: the row click, select-all, clear-all, `J2`, the search
+listener, `x2`, `Z2`, `y2`, `c1.c()`. **Not read:** `c1.a()`, the adapter's actual filter
+implementation — which is where the visible list is built — and `z2()`.
+
+**§22 logger.** Read: `i()` rotation and the structure. **Not read:** `h()`, the write
+path itself, which `autotts_reference/README.md` specifically flags as a method CFR
+struggles with, plus `b(ctx)` and `f(ctx)`.
+
+**§18 keep-alive.** Read: `c()`, `d()`, `e()` and the four callbacks. **Not checked:**
+where `e()` is driven from on service destroy.
+
+None of this means those areas are wrong. It means they are **sampled, not swept**, and
+the sections must be read that way until the listed methods are actually opened.
