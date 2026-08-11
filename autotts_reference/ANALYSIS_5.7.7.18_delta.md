@@ -711,3 +711,31 @@ One divergence found and removed: `restoreEngine` began with
 practice - every call site passes a wrapper's package - but it also skipped the
 "restoreTts" log and the in-progress check that AutoTTS performs first. The parameter is
 now non-null and the guard is gone.
+
+## 18. Keep-alive binder c3.d (2026-08-07)
+
+`c3/d.java` (184 lines) against `bindEngineKeepAlive` / `unbindEngineKeepAlive` /
+`unbindAllEngineKeepAlive`. Equal on every point:
+
+- `c(pkg)` is `synchronized(this)`; already bound to that package with a live
+  connection returns true without rebinding
+- `android.intent.action.TTS_SERVICE` intent with the package set, `resolveService`,
+  and a log-and-false when there is no `serviceInfo`
+- the component is set from the resolved `serviceInfo`
+- `bindService(intent, conn, 65)` — 65 is `BIND_AUTO_CREATE | BIND_IMPORTANT`, which is
+  exactly the pair we pass
+- success records the package; failure and exception both log and drop the connection
+- `e()` is `synchronized`, unbinds inside a catch, then clears both fields
+- `d()` calls `i0(pkg)`, the engine restore
+
+Connection callbacks: `onServiceConnected` logs only; `onServiceDisconnected` calls
+`d()`, i.e. restore; `onBindingDied` saves the package, unbinds, then rebinds it;
+`onNullBinding` unbinds. Ours matches all four.
+
+**Structural note.** `c3.d` holds **one** connection and **one** package per instance,
+and `T()` creates a fresh instance per engine and appends it to the binder list. Ours
+keeps a single map of package to connection instead. Same result — one live binding per
+engine — because each `c3.d` is only ever handed one package, so its "different package,
+unbind the old one first" branch is unreachable in AutoTTS's own usage.
+
+No divergence.
