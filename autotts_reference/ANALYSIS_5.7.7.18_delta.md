@@ -686,3 +686,28 @@ relies on `n.e(null)` returning "zxx"; same outcome.
 - not found → "TTS is not ready" and index `-1`
 
 No divergence in either. With `b0` in §15, all three voice loaders are verified.
+
+## 17. initAllEngines and restoreEngine (2026-08-07)
+
+**`T()` (505-538) vs `initAllEngines`.** Equal: the `synchronized(this)`, the
+"initAllTTS" log, the loop calling `m()` then `l()` on every wrapper inside a
+per-iteration try/catch, `clear()` and the index reset, then - only when the engine list
+is non-empty - one wrapper for entry `i`, its `c3.d` keep-alive binder added to the
+binder list, and one `TextToSpeech` stored in the static initialising reference. Only
+the first engine is created here; the rest are chained from the init listener.
+
+**`i0()` (1371-1429) vs `restoreEngine`.** Equal: `synchronized(this)`, the early return
+when a restore is already in progress, the pool search by package with
+`equalsIgnoreCase`, "restore package name is not found", the applicability gate, the
+counter bump, the index assignment, `m()`/`l()` inside try/catch, and the new
+`TextToSpeech` with the restore listener.
+
+The gate is `k0.h()`: true when the restore count is 0, otherwise
+`(nanoTime - lastRestore) / 1e6 > 3000 && count < 10`. `k0.i()` stamps the time and
+increments. Ours reproduces both exactly.
+
+One divergence found and removed: `restoreEngine` began with
+`if (pkg == null || pkg.isEmpty()) return`, which `i0` does not have. Unreachable in
+practice - every call site passes a wrapper's package - but it also skipped the
+"restoreTts" log and the in-progress check that AutoTTS performs first. The parameter is
+now non-null and the guard is gone.
