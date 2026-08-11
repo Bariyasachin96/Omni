@@ -557,6 +557,7 @@ jobs:
               }
               return out;
           }
+          static int emojiRunLengthAt(const std::string& text, int offset);
           static int wholeSegmentKind(const std::string& text){
               bool allNumber = true, allPunct = true, allEmoji = true, sawDigit = false, sawAny = false;
               bool emojiRun = false;
@@ -578,8 +579,11 @@ jobs:
                   if(codePoint >= '0' && codePoint <= '9') sawDigit = true;
                   else if(!(asciiPunct || generalPunct || javaSpace || currencyish)) allNumber = false;
                   if(!(asciiPunct || generalPunct || javaSpace)) allPunct = false;
-                  bool emojiHere = isEmoji(codePoint) || (emojiRun && isEmojiJoiner(codePoint));
-                  if(!emojiHere) allEmoji = false; else emojiRun = true;
+                  if(allEmoji){
+                      int emojiLen = emojiRunLengthAt(text, at);
+                      if(emojiLen <= 0) allEmoji = false;
+                      else { emojiRun = true; if(emojiLen > cpLen){ at += emojiLen; continue; } }
+                  }
                   at += cpLen;
               }
               if(!sawAny) return 0;
@@ -618,6 +622,24 @@ jobs:
                      codePoint == 0x205F || codePoint == 0x3000 || codePoint == 0x2028 || codePoint == 0x2029;
           }
           static bool cpIsEmojiRunChar(int codePoint){ return isEmoji(codePoint) || codePoint == 0x200D; }
+          static int emojiRunLengthAt(const std::string& text, int offset){
+              int len = (int)text.size();
+              if(offset >= len) return 0;
+              int cpLen = 0;
+              int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + offset, cpLen);
+              if(codePoint == 0x23 || codePoint == 0x2A || (codePoint >= 0x30 && codePoint <= 0x39)){
+                  int at = offset + cpLen;
+                  if(at < len){
+                      int nextLen = 0;
+                      int nextCp = utf8ToCodepoint((const unsigned char*)text.c_str() + at, nextLen);
+                      if(nextCp == 0xFE0F){ at += nextLen; if(at >= len) return 0; nextCp = utf8ToCodepoint((const unsigned char*)text.c_str() + at, nextLen); }
+                      if(nextCp == 0x20E3) return at + nextLen - offset;
+                  }
+                  return 0;
+              }
+              if(cpIsEmojiRunChar(codePoint)) return cpLen;
+              return 0;
+          }
           static bool cpIsLetterOrDigitForNumberEdge(int codePoint){
               return (codePoint >= '0' && codePoint <= '9') || isLetterCodepoint(codePoint);
           }
@@ -631,6 +653,42 @@ jobs:
               int cpLen = 0;
               return codepointAtOffset(text, back, cpLen);
           }
+          static int utf16LengthOf(const std::string& text){
+              int units = 0, at = 0, len = (int)text.size();
+              while(at < len){
+                  int cpLen = 0;
+                  int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
+                  units += (codePoint >= 0x10000) ? 2 : 1;
+                  at += cpLen;
+              }
+              return units;
+          }
+          static std::string lastUtf16Units(const std::string& text, int want){
+              int at = (int)text.size(), units = 0;
+              while(at > 0 && units < want){
+                  int back = at - 1;
+                  while(back > 0 && ((unsigned char)text[back] & 0xC0) == 0x80) back--;
+                  int cpLen = 0;
+                  int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + back, cpLen);
+                  int cost = (codePoint >= 0x10000) ? 2 : 1;
+                  if(units + cost > want) break;
+                  units += cost;
+                  at = back;
+              }
+              return text.substr(at);
+          }
+          static std::string firstUtf16Units(const std::string& text, int want){
+              int at = 0, units = 0, len = (int)text.size();
+              while(at < len && units < want){
+                  int cpLen = 0;
+                  int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
+                  int cost = (codePoint >= 0x10000) ? 2 : 1;
+                  if(units + cost > want) break;
+                  units += cost;
+                  at += cpLen;
+              }
+              return text.substr(0, at);
+          }
           static int segmentTypeOf(const std::string& text){
               bool allSpace = true, allPunct = true, allNumber = true, allEmoji = true, sawDigit = false, sawAny = false;
               int at = 0, len = (int)text.size();
@@ -642,7 +700,11 @@ jobs:
                   if(!cpIsPunctRun(codePoint)) allPunct = false;
                   if(codePoint >= '0' && codePoint <= '9') sawDigit = true;
                   else if(!(cpIsNumericCore(codePoint) || cpIsGeneralPunct(codePoint) || cpIsAsciiPunct(codePoint) || cpIsPosixSpace(codePoint))) allNumber = false;
-                  if(!cpIsEmojiRunChar(codePoint)) allEmoji = false;
+                  if(allEmoji){
+                      int emojiLen = emojiRunLengthAt(text, at);
+                      if(emojiLen <= 0) allEmoji = false;
+                      else if(emojiLen > cpLen){ at += emojiLen; continue; }
+                  }
                   at += cpLen;
               }
               if(!sawAny) return 1;
@@ -729,13 +791,12 @@ jobs:
               int at = 0, len = (int)text.size(), prev = 0;
               while(at < len){
                   int cpLen = 0;
-                  int codePoint = codepointAtOffset(text, at, cpLen);
-                  if(!cpIsEmojiRunChar(codePoint)){ at += cpLen; continue; }
+                  int startLen = emojiRunLengthAt(text, at);
+                  if(startLen <= 0){ codepointAtOffset(text, at, cpLen); at += cpLen; continue; }
                   int runStart = at;
                   while(at < len){
-                      int nextLen = 0;
-                      int nextCp = codepointAtOffset(text, at, nextLen);
-                      if(!cpIsEmojiRunChar(nextCp)) break;
+                      int nextLen = emojiRunLengthAt(text, at);
+                      if(nextLen <= 0) break;
                       at += nextLen;
                   }
                   if(runStart != prev) out.push_back({text.substr(prev, runStart - prev), 2, ""});
@@ -765,7 +826,8 @@ jobs:
                       fullText = fullText.substr(textBegin, textEnd - textBegin);
                   }
                   auto isUnicodeWs = [](int codePoint) -> bool {
-                      return (codePoint >= 0x09 && codePoint <= 0x0D) || codePoint == 0x20;
+                      return (codePoint >= 0x09 && codePoint <= 0x0D) || codePoint == 0x20 ||
+                             codePoint == 0x00A0 || codePoint == 0x2007 || codePoint == 0x202F || codePoint == 0xFEFF;
                   };
                   std::string collapsed; collapsed.reserve(fullText.size());
                   bool prevWs = false;
@@ -849,13 +911,13 @@ jobs:
                       bool respace = isPhoneShaped(numberText);
                       if (!respace && !keywords.empty() && hasEnoughDigits(numberText)) {
                           std::string before;
-                          for (int backIdx = segPos - 1; backIdx >= 0 && (int)before.size() < 48; backIdx--)
+                          for (int backIdx = segPos - 1; backIdx >= 0 && utf16LengthOf(before) < 48; backIdx--)
                               before.insert(0, segs[backIdx].text);
-                          if (before.size() > 48) before = before.substr(before.size() - 48);
+                          if (utf16LengthOf(before) > 48) before = lastUtf16Units(before, 48);
                           std::string after;
-                          for (int nextIdx = segPos + 1; nextIdx < (int)segs.size() && (int)after.size() < 24; nextIdx++)
+                          for (int nextIdx = segPos + 1; nextIdx < (int)segs.size() && utf16LengthOf(after) < 24; nextIdx++)
                               after += segs[nextIdx].text;
-                          if (after.size() > 24) after = after.substr(0, 24);
+                          if (utf16LengthOf(after) > 24) after = firstUtf16Units(after, 24);
                           respace = contextHasKeyword(lowerCaseRoot(before), keywords) ||
                                     contextHasKeyword(lowerCaseRoot(after), keywords);
                       }
