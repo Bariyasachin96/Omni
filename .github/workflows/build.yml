@@ -1010,10 +1010,10 @@ jobs:
               std::string result;
               if (mode == "mix") {
                   auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection);
-                  for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + std::to_string(chunks[i].kind) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+                  for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + chunks[i].text; if(i+1 < chunks.size()) result += "\x1E"; }
               } else if (mode == "dual") {
                   auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection, true);
-                  for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "|" + std::to_string(chunks[i].kind) + "|" + chunks[i].lang + "|" + chunks[i].text; if(i+1 < chunks.size()) result += "||"; }
+                  for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + chunks[i].text; if(i+1 < chunks.size()) result += "\x1E"; }
               }
               return env->NewStringUTF(result.c_str());
           }
@@ -3563,8 +3563,8 @@ jobs:
           "                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
           "                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                        )\n"
-          "                        for (chunkStr in chunkOutput.split(\"||\").filter { it.isNotBlank() }) {\n"
-          "                            val parts = chunkStr.split(\"|\", limit = 4)\n"
+          "                        for (chunkStr in chunkOutput.split('\\u001E').filter { it.isNotBlank() }) {\n"
+          "                            val parts = chunkStr.split('\\u001F', limit = 4)\n"
           "                            if (parts.size == 4) {\n"
           "                                val spanMixType = parts[0].toIntOrNull() ?: 0\n"
           "                                val segmentKind = parts[1].toIntOrNull() ?: 0\n"
@@ -3611,8 +3611,8 @@ jobs:
           "                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
           "                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                        )\n"
-          "                        for (chunkStr in chunkOutput.split(\"||\").filter { it.isNotBlank() }) {\n"
-          "                            val parts = chunkStr.split(\"|\", limit = 4)\n"
+          "                        for (chunkStr in chunkOutput.split('\\u001E').filter { it.isNotBlank() }) {\n"
+          "                            val parts = chunkStr.split('\\u001F', limit = 4)\n"
           "                            if (parts.size != 4) continue\n"
           "                            val spanMixType = parts[0].toIntOrNull() ?: 0\n"
           "                            val segmentKind = parts[1].toIntOrNull() ?: 0\n"
@@ -3658,8 +3658,8 @@ jobs:
           "                        emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
           "                        neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                    )\n"
-          "                    for (chunkStr in chunkOutput.split(\"||\").filter { it.isNotBlank() }) {\n"
-          "                        val parts = chunkStr.split(\"|\", limit = 4)\n"
+          "                    for (chunkStr in chunkOutput.split('\\u001E').filter { it.isNotBlank() }) {\n"
+          "                        val parts = chunkStr.split('\\u001F', limit = 4)\n"
           "                        if (parts.size == 4) {\n"
           "                            val resolved = normalizeLangCode(parts[2])\n"
           "                            chunks.add(TextChunk(parts[3], resolved, typeCode = parts[0].toIntOrNull() ?: 0))\n"
