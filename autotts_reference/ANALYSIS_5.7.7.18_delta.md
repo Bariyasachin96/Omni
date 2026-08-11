@@ -655,3 +655,34 @@ artefacts of filtering logger lines out of the listing — the engine search loo
 "Do nothing!" return and the `setVoice` result check were all present, hidden inside or
 next to lines containing a log call. Read the raw text before believing a gap in this
 file.
+
+## 16. c0 and d0, read line by line (2026-08-07)
+
+**`c0()` (1043-1076) vs `loadVoiceOriginal`.** Equal throughout: the remembered-package
+fallback and the `-`/`_` strip, the engine search on package and state 2, the early
+return when the wrapper's stored locale already matches on iso3 language and on country
+or the request has none — two conditions, not the three `b0` uses — then `setLanguage`
+with `>= 0` setting the flag, the locale and an empty voice name, `i0` on failure, and
+index `-1` when no engine is found. Ours guards the stored locale for null where AutoTTS
+relies on `n.e(null)` returning "zxx"; same outcome.
+
+**`d0()` (1078-1259) vs `loadVoiceDedicated`.** Equal throughout:
+
+- the previous index is saved before the new one is assigned
+- `!bl || !wrapper.f` gates the body — ours writes the negation, `dedicated &&
+  localeSet` returns early
+- the "*0 Do nothing" check runs only when the index did not change and a voice exists,
+  and requires the locale to match **and** the name to equal the variant, or the variant
+  to be `*Default` or empty
+- the voice-list scan matches on package **only** — no locale field check, unlike `b0` —
+  and the inner store scan skips unless the package matches, the locale matches through
+  `f0`, and the stored variant is non-empty
+- `(*Default or empty) && locale differs` → `setLanguage`, and on success the voice name
+  is set to **the requested locale's variant**, not to the variant argument
+- then a second do-nothing check, then the voices list with `setVoice`, which on success
+  stores **the voice's own locale**
+- then a final `setLanguage` when the locale still differs
+- every `setLanguage`/`setVoice` is tested `>= 0` with `i0`/`restoreEngine` on failure
+- not found → "TTS is not ready" and index `-1`
+
+No divergence in either. With `b0` in §15, all three voice loaders are verified.
