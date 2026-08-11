@@ -1140,8 +1140,12 @@ jobs:
           }
           static std::unordered_map<std::string,std::string> g_iso2to3;
           static std::string toIso3(const std::string& lang){
-              std::string iso3 = lang;
-              if (lang.size()==2){ auto found=g_iso2to3.find(lang); if(found!=g_iso2to3.end() && !found->second.empty()) iso3=found->second; }
+              std::string normalised = lang;
+              size_t cut = normalised.find_first_of("-_");
+              if (cut != std::string::npos) normalised = normalised.substr(0, cut);
+              for (char& ch : normalised) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+              std::string iso3 = normalised;
+              if (normalised.size()==2){ auto found=g_iso2to3.find(normalised); if(found!=g_iso2to3.end() && !found->second.empty()) iso3=found->second; }
               if (iso3=="cmn"||iso3=="lzh"||iso3=="gan"||iso3=="hak") return "zho";
               return iso3;
           }
@@ -1934,9 +1938,16 @@ jobs:
           "        languages.clear()\n"
           "        val sharedPrefs = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0)\n"
           "        var index = 0\n"
-          "        while (true) {\n"
+          "        var emptyRun = 0\n"
+          "        while (index < 64) {\n"
           "            val iso = sharedPrefs.getString(\"language_$index\", \"\") ?: \"\"\n"
-          "            if (iso.isEmpty()) return\n"
+          "            if (iso.isEmpty()) {\n"
+          "                emptyRun++\n"
+          "                index++\n"
+          "                if (emptyRun < 8) continue\n"
+          "                if (languages.isEmpty()) continue\n"
+          "                return\n"
+          "            }\n"
           "            val speed = sharedPrefs.getInt(iso + \"_speed\", 100)\n"
           "            val pitch = sharedPrefs.getInt(iso + \"_pitch\", 100)\n"
           "            val volume = sharedPrefs.getInt(iso + \"_volume\", 100)\n"
@@ -3864,7 +3875,9 @@ jobs:
           "                        val loadRes = onLoadLanguage(prefs.toIso3(next.lang), \"\", \"\")\n"
           "                        if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {\n"
           "                            EasyVoiceLogger.error(EasyVoiceLogger.TAG, \"Language \" + next.lang + \" is not supported.\\n Text: \" + next.text)\n"
-          "                            startAndFinish(callback)\n"
+          "                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \"endSynthesis #4\")\n"
+          "                            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }\n"
+          "                            if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()\n"
           "                        } else {\n"
           "                            speakChunk(false)\n"
           "                        }\n"
