@@ -755,12 +755,36 @@ increment the index, run a skip loop, and when the index passes the end they can
 pending callbacks and call the finalise step; otherwise they take the package at that
 index and post the engine init. That much matches.
 
-**Not yet resolved:** `D0`'s skip loop is `while (++L < list.size() && ((o)list.get(L)).a())`
-— it skips entries for which `c3.o.a()` is true. Ours skips entries whose package is our
-own. Since discovery already filters the own package on both sides, `o.a()` must mean
-something else — most likely "already scanned / has data". **Until `c3.o.a()` is read,
-do not assume these two skip loops are equivalent.**
+**Resolved.** `c3/o.java` is eleven lines: two string fields and
+`a() { return b.contains("autotts") || b.contains("multilingualtts"); }`, where `b` is the
+package. So `D0` skips the app's own two engines. Ours is
+`isSelfEngine(pkg) = pkg.contains("easyvoice") || pkg.contains("multilingualtts")` — the
+same test with our package substituted and the sibling engine kept. **Equivalent, no
+divergence.** Note discovery filters only `"autotts"`, so a `multilingualtts` package does
+enter the list and is skipped here instead — a genuine two-stage filter, and ours has both
+stages.
 
-Also still unread in this area: `z0()` (444-479, the finalise step), `y0()` (412-420),
-and the two `onInit` bodies at 505-538 and 553-617 that drive the per-engine voice
-collection.
+**`z0()` (444-479) vs `finalizeScan` — verified equal.** Cancel the pending callbacks;
+the failed-index list is deduplicated and sorted **descending** before anything is removed,
+which is what keeps the indices valid; each failed index below the list size has its
+package collected and its entry removed from the engine list; voices whose engine is in
+that removed set are dropped; the language list is rebuilt with `onlyEnabled = false`;
+everything is persisted; and a `TextToSpeech` on the app's own package with a null
+listener is created — ours does that as `newTestClient()` from the scan callback, at the
+same point, after the rebuild and persist and before the UI update.
+
+**`onInit` (553-614) vs our per-engine init — verified equal, including the part that
+matters most.** Mark init fired, cancel the watchdog, and on a non-success status add the
+index to the failed list. On success it reads the private `mCurrentEngine` field out of
+the `TextToSpeech` by reflection to find which engine actually bound — Android can quietly
+fall back to the default one — using the expected package when the field is null and when
+the reflection throws. **If the actual engine differs from the expected one the index is
+marked failed and its voices are not collected.** Ours does exactly this, same fallbacks
+included. Then `getVoices()`, collection, `shutdown()` in a try/catch, and on to the next
+engine.
+
+**`A0()` (76-86) vs `addVoiceToMatchingEntry`.** Per voice: skip an empty name, then try
+to attach to an existing entry and skip if that succeeded; otherwise create the entry and
+attach. Same shape both sides.
+
+The engine scan area is verified.
