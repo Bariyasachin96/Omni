@@ -590,3 +590,39 @@ mode3 all         "abc 123 !!! ok"     -> 'abc ' | '123'(number lang) | ' !!! '(
 
 **Lesson for the next pass:** wiring audits confirm that a flag reaches its call site.
 They cannot tell you the call site never fires. Test the behaviour, do not just trace it.
+
+---
+
+## 14. What is left, stated precisely (2026-08-07)
+
+All 19 audit findings are fixed. Two questions must not be confused:
+
+**(a) Did we miss anything 5.7.7.18 changed?** No, and this is now evidenced rather
+than asserted:
+
+- §9 matched every method of every app class old-to-new by normalised content and found
+  exactly four real differences in `AutoTtsService` — `onSynthesizeText`, `onCreate`,
+  `M`'s log condition and `g0`'s return-vs-break — plus the new `c3.d0` and `c3.e`.
+- §12 confirmed the manifest components, `res/xml/tts_engine.xml`, every resource
+  directory and the library set are unchanged.
+- The voice-loading path, which is what actually produces sound, was re-checked here
+  line by line: `b0()` (156 lines, the main loader) and `c0()` (34 lines) have **zero**
+  structural differences between the two versions, and `d0()` (182 lines) has 30 diff
+  lines that are all CFR rendering logger StringBuilder chains as casts.
+
+**(b) Is our original 5.7.7.10 port of the unchanged areas faithful?** Unknown for
+several of them. These were ported in earlier sessions and have never had the depth of
+audit that modes, the segmenter and settings just received:
+
+- engine and voice loading (`b0`/`c0`/`d0`, `c3.k0`, `c3.d` keep-alive) vs `loadVoice`,
+  `loadVoiceOriginal`, `loadVoiceDedicated`, `initAllEngines`, `restoreEngine`
+- the engine scan (`NewSettingsActivity.B0/D0/y0/z0`) vs `EngineFinder`
+- export/import (`c3.g0`) vs `SharedPrefsManager`
+- the Voices tab internals (`k.E2/N2/a3/b3`) and the Languages tab internals
+  (`k.W2/X2`)
+- the logger, `CheckVoiceData`, `GetSampleText`
+
+Every deep audit so far has found real defects, including three that were ours rather
+than version drift, so the prior on these is not "clean". They are simply a different
+piece of work from the 5.7.7.18 update, and should be labelled as such rather than
+folded into it.
