@@ -739,3 +739,28 @@ engine — because each `c3.d` is only ever handed one package, so its "differen
 unbind the old one first" branch is unreachable in AutoTTS's own usage.
 
 No divergence.
+
+## 19. Engine scan — discovery verified, driver PARTIAL (2026-08-07)
+
+**`B0()` (87-129) vs `EngineFinder`'s discovery — verified equal.** Both clear the two
+store lists, then run **three** `queryIntentServices` calls over an
+`android.intent.action.TTS_SERVICE` intent with flags **131072, 128 and 0** in that
+order, iterate all three result lists, skip a null `serviceInfo`, skip the app's own
+package (`contains("autotts")` there, `contains("easyvoice")` here) and anything already
+seen, and record label plus package into both the map and the list. The whole thing sits
+in one try/catch logging "Error in service discovery". No divergence.
+
+**`D0()` (141-184) vs `scanNextEngine` — shape verified, one predicate OPEN.** Both
+increment the index, run a skip loop, and when the index passes the end they cancel the
+pending callbacks and call the finalise step; otherwise they take the package at that
+index and post the engine init. That much matches.
+
+**Not yet resolved:** `D0`'s skip loop is `while (++L < list.size() && ((o)list.get(L)).a())`
+— it skips entries for which `c3.o.a()` is true. Ours skips entries whose package is our
+own. Since discovery already filters the own package on both sides, `o.a()` must mean
+something else — most likely "already scanned / has data". **Until `c3.o.a()` is read,
+do not assume these two skip loops are equivalent.**
+
+Also still unread in this area: `z0()` (444-479, the finalise step), `y0()` (412-420),
+and the two `onInit` bodies at 505-538 and 553-617 that drive the per-engine voice
+collection.
