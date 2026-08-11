@@ -482,21 +482,30 @@ no callers.
 segment's language in mix (524-538) and multilingual (668-672) too, aborting with error 7.
 Added to both.
 
-### Known divergence, deliberately left as it is
+### §11 correction — the auto tail is NOT a divergence
 
-In the auto/google tail the two type fallbacks (1246-1264, 1270-1290) switch on
-`k().get(0).a()`. In auto mode the segments come from `e0.g()`'s locale spans, built with
-the `(text, language)` constructor, which sets the type to **-1** — so neither switch
-matches and AutoTTS **keeps the detected language** when its engine is missing or Disable.
-Ours resets to the auto-mode language there.
+An independent read (a separate agent, resolving every CFR labelled-block target by
+brace-matching rather than by eye) settled this, and it corrects what §11 first recorded.
 
-Changing ours to match would leave a chunk pointing at a language with no engine, and the
-abort that saves AutoTTS from that is its `l(ctx, lang, "", "")` preflight at 1293, which
-sits in the shared tail rather than in the auto branch. Porting the fallback without that
-preflight would be strictly worse than what we have. Recorded rather than half-changed —
-the tail preflight has to land first.
+The gate at chunk-runnable line 3048 is reached only after `if (var3_2 != 1) break
+block27`, so:
 
----
+- **before** the gate (block27) is **dual only** — it switches on `k().get(0).a()`,
+  the segment TYPE: 1→"eng", 2→H, 3→J, 4→L, 5→N, each with its own preflight
+- **after** the gate is auto, google and none — `l(ctx, k().get(0).b(), "", "")` and
+  nothing else: no CLD2, no type switch, no engine test
+- mix and multilingual jump over both
+
+So auto/google never reach the two type fallbacks at all, and in every mode the
+segments there were rebuilt with the `e0(String,String)` constructor, whose type is
+**-1** — those two fallbacks are dead code in AutoTTS itself.
+
+Auto/google handle a missing or "Disable" engine **once, up front**, in
+`onSynthesizeText` 1972-1979: `e.c(detected)`, null → **G**; then `M(lang)` empty or
+"Disable" → **G**. Not the detected language, not O/P/J/L/N — **G**, the auto-mode
+language. `EasyVoiceTtsService.kt:1049-1052` does exactly that. **Match, no divergence.**
+§11's "deliberately left as it is" entry was based on my own misreading of which modes
+reach that region; there was nothing to port.
 
 ## 12. Components, system-TTS wiring and libraries (2026-08-07)
 
