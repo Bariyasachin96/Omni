@@ -788,3 +788,48 @@ to attach to an existing entry and skip if that succeeded; otherwise create the 
 attach. Same shape both sides.
 
 The engine scan area is verified.
+
+## 20. Voices tab logic (2026-08-07)
+
+Logic only — the layout is ours under the UI carve-out and was not touched.
+
+**`E2()` (438-478) vs `loadVoiceRows`.** Rows are collected from the scanned voice list
+for the selected language, filtered by mode: 1, 2, 4 and 5 take everything, 3 takes only
+`com.google.android.tts`, and mode 0 takes nothing. Then the "*Disabled" row is appended
+— for mode 2 when the language is not `G`, and for modes 4 and 5 when it is neither `O`
+nor `P` — with its weight read from prefs, default 1000. Finally the list is sorted and
+every row's weight is rewritten to its new position. Ours matches all of it.
+
+Mode 0 is the one case ours does not reproduce, and it is unreachable: our Voices view
+returns early for `"none"`, and the None radio is gone.
+
+**`b0.b()` (compareTo).** `if (this.e != other.e) return this.e - other.e;` then
+`this.g().compareToIgnoreCase(other.g())` — weight first, then the abbreviated engine
+name, case-insensitive. Our comparator is the same, with `tieBreakLabel` returning
+`"*Disabled"` for the null row, which is what `g()` yields there.
+
+**`b0.d()`** is `g() + ", " + locale.getDisplayCountry()` when the country is non-empty,
+otherwise `g()` — our `rowLabel`. **`b0.f()`** is `pkg + "#" + locale` or
+`"Disable#" + locale`, and the Disable row is built with `new Locale(iso, "", "")` whose
+`toString()` is just the iso — our `voiceKey` produces the same string.
+
+**`a3()` (2034-2085) vs `rebuildVoiceSpinner` + `refreshVariantSpinner`.** The voice
+spinner takes `d()` for every row. The variant spinner is built only when the first row
+is not "*Disabled" — ours tests the row for null, which is the same row — and otherwise
+its adapter is set to null. The saved variant goes to slot 0 and the rest follow in
+order, and when there is no saved variant the store entry is cleared to `""` first.
+Ours reproduces this **including two quirks**: the scan loop whose result is never used,
+and `Arrays.sort(array, 1, n - 1)`, which leaves the last element unsorted.
+
+**`b3()` (2087-2104) vs the Default button.** Volume, then speed, then pitch, each set to
+100 on the selected entry behind a bounds check, each followed by its slider. Same order,
+same guard.
+
+`_variant` reads with default `"*Default"` on both sides (`n.java:168`, `n.java:290`).
+
+**`N2()` (738-768)** is the Play Store opener from the required-engines flow, not the
+Voices tab: `market://` first, `https://play.google.com/...` on `ActivityNotFoundException`,
+and on a second failure a "Cannot open Play Store" toast plus the install callback with
+false. Our `MainActivity.openPlayStoreFor` matches.
+
+No divergence.
