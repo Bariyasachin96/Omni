@@ -626,3 +626,32 @@ Every deep audit so far has found real defects, including three that were ours r
 than version drift, so the prior on these is not "clean". They are simply a different
 piece of work from the 5.7.7.18 update, and should be labelled as such rather than
 folded into it.
+
+## 15. Voice loading, read line by line (2026-08-07)
+
+`b0()` (AutoTtsService 886-1041) against our `loadVoice`. Verified equal, point by point:
+
+- dedicated bypass when the flag is set and the mode is not 3
+- empty package falls back to the remembered one, otherwise it is remembered; `-` and
+  `_` stripped
+- engine search over the pool for package match **and state 2**, `-1` when not found
+- empty variant with a voice already set hands off to `c0` / `loadVoiceOriginal`
+- current voice read, and the "Do nothing!" early return when iso3 language matches,
+  country matches or the requested country is empty, and the name equals the variant
+- the voice list is searched for `pkg#locale`, then the store for the same pair, to
+  override the variant
+- `*Default` → `setLanguage` only when the locales do not already match
+- otherwise the engine's voice list is searched by name and `setVoice` is called;
+  when the list is null it falls back to `setLanguage` under the same locale check
+- **every** `setLanguage`/`setVoice` return is tested `>= 0`, setting the wrapper flag,
+  and calls `i0` / `restoreEngine` otherwise
+- the wrapper's locale and voice name are written from `n3`, not from the current index
+- not-found path logs "TTS is not ready" and sets the index to -1
+
+No divergence. Recorded so this method is not re-read from scratch.
+
+**Method note.** Three suspected gaps were raised during this read and all three were
+artefacts of filtering logger lines out of the listing — the engine search loop, the
+"Do nothing!" return and the `setVoice` result check were all present, hidden inside or
+next to lines containing a log call. Read the raw text before believing a gap in this
+file.
