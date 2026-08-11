@@ -876,3 +876,43 @@ and the checked states, then restores each visible row's checked state from `o0[
 **`Z2()`** swaps the toggle button's label on `q0`. All three match ours.
 
 No divergence.
+
+## 22. Export/import and the logger (2026-08-07) — sweep complete
+
+**`c3/g0.java` vs `SharedPrefsManager` + the Advanced tab's Export button.**
+
+- `a(src, dst)` copies with a **1024-byte** buffer; ours is `copyTo(out, 1024)`.
+- `b(xml)` pulls two things out of the settings XML: `<boolean name="X_disabled"
+  value="true">` into a disabled set with the 9-character suffix stripped, and
+  `<string name="XXX">` where the name is exactly three characters and all letters
+  (`c()`) into a code-to-value map. Then per entry: skip when the code is disabled, when
+  `value.split("#")[0]` is empty, or when it equals "disable" case-insensitively;
+  otherwise the engine package joins the result. Ours matches, including the
+  `println` tracing.
+  Ours additionally requires the value to contain `"#"` before it enters the map. That
+  cannot change the outcome: every three-letter key is a per-language engine entry whose
+  value is `pkg#locale`, and an empty value is dropped by the empty check on both sides.
+- `c(s)` is "every character is a letter"; ours is `name.all { it.isLetter() }`.
+- `d(ctx)` exports: the prefs file must exist or a **"Settings file not found"** toast,
+  then copy into `cacheDir/shared/`, a `FileProvider` URI, `ACTION_SEND` with type
+  **`text/xml`**, `EXTRA_STREAM`, flag 1 (`FLAG_GRANT_READ_URI_PERMISSION`), and a
+  chooser titled **"Share Settings"**. Ours does all of it, split across
+  `settingsXmlFile`, `exportSettingsFile` and the button.
+
+**`c3/p.java` vs `EasyVoiceLogger`.** `i()` rotates when the file exists and its length is
+at least **0x200000** — 2 MiB, which is our `MAX_LOG_BYTES` — by deleting `.3`, then
+renaming `.2` to `.3` and `.1` to `.2` in a `for (i = 2; i >= 1; i--)` loop, then the
+current file to `.1`. Ours is the same, `for (idx in 2 downTo 1)`. `b(ctx)` only offers
+the share when the file exists **and** its length is non-zero — our `shareFileOrNull`.
+`a()` clears, `c`/`d`/`e` are debug, error and error-with-throwable, `g()` is the enabled
+flag. All match.
+
+No divergence in either.
+
+---
+
+**Sweep complete.** Voice loaders (§15, §16), engine init and restore (§17), the
+keep-alive binder (§18), the engine scan (§19), the Voices tab (§20), the Languages tab
+(§21) and export/import plus the logger (§22) have now each been read against the
+5.7.7.18 decompile. Across all of it exactly one divergence was found and fixed — the
+null-or-empty package guard in `restoreEngine` that `i0` does not have (§17).
