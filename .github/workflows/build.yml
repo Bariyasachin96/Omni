@@ -596,6 +596,154 @@ jobs:
               if(textC) env->ReleaseStringUTFChars(jText, textC);
               return (jint)wholeSegmentKind(text);
           }
+          static bool cpIsNumericCore(int codePoint){
+              return (codePoint >= '0' && codePoint <= '9') || codePoint == 0x00B0 || codePoint == 0x00D7 ||
+                     codePoint == 0x00F7 || (codePoint >= 0x20A0 && codePoint <= 0x20CF);
+          }
+          static bool cpIsAsciiPunct(int codePoint){
+              return (codePoint >= 0x21 && codePoint <= 0x2F) || (codePoint >= 0x3A && codePoint <= 0x40) ||
+                     codePoint == 0x5B || (codePoint >= 0x5D && codePoint <= 0x60) || (codePoint >= 0x7B && codePoint <= 0x7E);
+          }
+          static bool cpIsGeneralPunct(int codePoint){ return codePoint >= 0x2000 && codePoint <= 0x206F; }
+          static bool cpIsPosixSpace(int codePoint){
+              return codePoint == 0x20 || (codePoint >= 0x09 && codePoint <= 0x0D);
+          }
+          static bool cpIsPunctRun(int codePoint){
+              return cpIsGeneralPunct(codePoint) || cpIsAsciiPunct(codePoint) || cpIsPosixSpace(codePoint);
+          }
+          static bool cpIsJavaSpace(int codePoint){
+              return (codePoint >= 0x09 && codePoint <= 0x0D) || (codePoint >= 0x1C && codePoint <= 0x1F) ||
+                     codePoint == 0x20 || codePoint == 0x1680 ||
+                     (codePoint >= 0x2000 && codePoint <= 0x200A && codePoint != 0x2007) ||
+                     codePoint == 0x205F || codePoint == 0x3000 || codePoint == 0x2028 || codePoint == 0x2029;
+          }
+          static bool cpIsEmojiRunChar(int codePoint){ return isEmoji(codePoint) || codePoint == 0x200D; }
+          static bool cpIsLetterOrDigitForNumberEdge(int codePoint){
+              return (codePoint >= '0' && codePoint <= '9') || isLetterCodepoint(codePoint);
+          }
+          static int codepointAtOffset(const std::string& text, int offset, int& cpLen){
+              return utf8ToCodepoint((const unsigned char*)text.c_str() + offset, cpLen);
+          }
+          static int codepointBeforeOffset(const std::string& text, int offset){
+              if(offset <= 0) return -1;
+              int back = offset - 1;
+              while(back > 0 && ((unsigned char)text[back] & 0xC0) == 0x80) back--;
+              int cpLen = 0;
+              return codepointAtOffset(text, back, cpLen);
+          }
+          static int segmentTypeOf(const std::string& text){
+              bool allSpace = true, allPunct = true, allNumber = true, allEmoji = true, sawDigit = false, sawAny = false;
+              int at = 0, len = (int)text.size();
+              while(at < len){
+                  int cpLen = 0;
+                  int codePoint = codepointAtOffset(text, at, cpLen);
+                  sawAny = true;
+                  if(!cpIsJavaSpace(codePoint)) allSpace = false;
+                  if(!cpIsPunctRun(codePoint)) allPunct = false;
+                  if(codePoint >= '0' && codePoint <= '9') sawDigit = true;
+                  else if(!(cpIsNumericCore(codePoint) || cpIsGeneralPunct(codePoint) || cpIsAsciiPunct(codePoint) || cpIsPosixSpace(codePoint))) allNumber = false;
+                  if(!cpIsEmojiRunChar(codePoint)) allEmoji = false;
+                  at += cpLen;
+              }
+              if(!sawAny) return 1;
+              if(allSpace) return 0;
+              if(allPunct) return 4;
+              if(allNumber && sawDigit) return 3;
+              if(allEmoji) return 5;
+              return 1;
+          }
+          struct TextSegment { std::string text; int type; std::string lang; };
+          static void splitByPunct(const std::string& text, std::vector<TextSegment>& out){
+              int at = 0, len = (int)text.size(), prev = 0;
+              while(at < len){
+                  int cpLen = 0;
+                  int codePoint = codepointAtOffset(text, at, cpLen);
+                  if(!cpIsPunctRun(codePoint)){ at += cpLen; continue; }
+                  int runStart = at;
+                  while(at < len){
+                      int nextLen = 0;
+                      int nextCp = codepointAtOffset(text, at, nextLen);
+                      if(!cpIsPunctRun(nextCp)) break;
+                      at += nextLen;
+                  }
+                  if(runStart != prev){
+                      std::string piece = text.substr(prev, runStart - prev);
+                      out.push_back({piece, segmentTypeOf(piece), ""});
+                  }
+                  std::string run = text.substr(runStart, at - runStart);
+                  out.push_back({run, segmentTypeOf(run), ""});
+                  prev = at;
+              }
+              if(prev < len){
+                  std::string piece = text.substr(prev);
+                  out.push_back({piece, segmentTypeOf(piece), ""});
+              }
+          }
+          static bool matchNumberRun(const std::string& text, int start, int& matchEnd){
+              int len = (int)text.size();
+              int before = codepointBeforeOffset(text, start);
+              if(before >= 0 && cpIsLetterOrDigitForNumberEdge(before)) return false;
+              int at = start, cpLen = 0;
+              int codePoint = codepointAtOffset(text, at, cpLen);
+              if(codePoint == '+' || codePoint == '-'){
+                  at += cpLen;
+                  if(at >= len) return false;
+                  codePoint = codepointAtOffset(text, at, cpLen);
+              }
+              if(!cpIsNumericCore(codePoint)) return false;
+              at += cpLen;
+              int coreEnd = at, bestEnd = -1, scan = at;
+              while(scan < len){
+                  int scanLen = 0;
+                  int scanCp = codepointAtOffset(text, scan, scanLen);
+                  if(!(cpIsNumericCore(scanCp) || cpIsPosixSpace(scanCp) || cpIsAsciiPunct(scanCp))) break;
+                  scan += scanLen;
+                  if(cpIsNumericCore(scanCp)) bestEnd = scan;
+              }
+              int end = bestEnd > 0 ? bestEnd : coreEnd;
+              if(end < len){
+                  int afterLen = 0;
+                  int afterCp = codepointAtOffset(text, end, afterLen);
+                  if(cpIsLetterOrDigitForNumberEdge(afterCp)) return false;
+              }
+              matchEnd = end;
+              return true;
+          }
+          static void splitByNumber(const std::string& text, std::vector<TextSegment>& out){
+              int at = 0, len = (int)text.size(), prev = 0;
+              while(at < len){
+                  int matchEnd = 0;
+                  if(matchNumberRun(text, at, matchEnd)){
+                      if(at != prev) splitByPunct(text.substr(prev, at - prev), out);
+                      out.push_back({text.substr(at, matchEnd - at), 3, ""});
+                      prev = at = matchEnd;
+                      continue;
+                  }
+                  int cpLen = 0;
+                  codepointAtOffset(text, at, cpLen);
+                  at += cpLen;
+              }
+              if(prev < len) splitByPunct(text.substr(prev), out);
+          }
+          static void splitByEmoji(const std::string& text, std::vector<TextSegment>& out){
+              int at = 0, len = (int)text.size(), prev = 0;
+              while(at < len){
+                  int cpLen = 0;
+                  int codePoint = codepointAtOffset(text, at, cpLen);
+                  if(!cpIsEmojiRunChar(codePoint)){ at += cpLen; continue; }
+                  int runStart = at;
+                  while(at < len){
+                      int nextLen = 0;
+                      int nextCp = codepointAtOffset(text, at, nextLen);
+                      if(!cpIsEmojiRunChar(nextCp)) break;
+                      at += nextLen;
+                  }
+                  if(runStart != prev) out.push_back({text.substr(prev, runStart - prev), 2, ""});
+                  out.push_back({text.substr(runStart, at - runStart), 5, ""});
+                  prev = at;
+              }
+              if(prev < len) out.push_back({text.substr(prev), 2, ""});
+          }
           struct ReadingModes {
               int numberMode = 0; std::string numberSpecific;
               int punctuationMode = 0; std::string punctuationSpecific;
@@ -647,56 +795,14 @@ jobs:
                   fullText = clean;
               }
               if (fullText.empty()) return result;
-              struct TextSegment { std::string text; int type; std::string lang; };
               std::vector<TextSegment> segs;
               {
                   std::string buf;
                   int bufKind = -1;
                   auto flushBuf = [&]() {
                       if (buf.empty()) return;
-                      if (bufKind == 1) {
-                          const unsigned char* utf8 = (const unsigned char*)buf.c_str();
-                          int bufLen = (int)buf.size(), runStart = 0, j = 0;
-                          bool runIsEmoji = false;
-                          while (j < bufLen) {
-                              int cpLen = 0;
-                              int codePoint = utf8ToCodepoint(utf8 + j, cpLen);
-                              bool emojiHere = isEmoji(codePoint) || (runIsEmoji && isEmojiJoiner(codePoint));
-                              if (j == runStart) runIsEmoji = emojiHere;
-                              else if (emojiHere != runIsEmoji) {
-                                  segs.push_back({buf.substr(runStart, j - runStart), runIsEmoji ? 5 : 2, ""});
-                                  runStart = j;
-                                  runIsEmoji = emojiHere;
-                              }
-                              j += cpLen;
-                          }
-                          if (runStart < bufLen) segs.push_back({buf.substr(runStart), runIsEmoji ? 5 : 2, ""});
-                      } else {
-                          bool allWs = true, allPunct = true, allNumber = true;
-                          const unsigned char* utf8 = (const unsigned char*)buf.c_str();
-                          int bufLen = (int)buf.size(), j = 0;
-                          while (j < bufLen) {
-                              int cpLen = 0;
-                              int codePoint = utf8ToCodepoint(utf8 + j, cpLen);
-                              { bool isJavaWs = (codePoint >= 0x09 && codePoint <= 0x0D) || (codePoint >= 0x1C && codePoint <= 0x1F) ||
-                                             codePoint == 0x20 || codePoint == 0x1680 ||
-                                             (codePoint >= 0x2000 && codePoint <= 0x200A && codePoint != 0x2007) ||
-                                             codePoint == 0x205F || codePoint == 0x3000 ||
-                                             codePoint == 0x2028 || codePoint == 0x2029;
-                                if (!isJavaWs) allWs = false; }
-                              bool inPunct = (codePoint >= 0x21 && codePoint <= 0x2F) || (codePoint >= 0x3A && codePoint <= 0x40) ||
-                                             codePoint == 0x5B || (codePoint >= 0x5D && codePoint <= 0x60) || (codePoint >= 0x7B && codePoint <= 0x7E) ||
-                                             codePoint == 0x20 || (codePoint >= 0x09 && codePoint <= 0x0D) ||
-                                             (codePoint >= 0x2000 && codePoint <= 0x206F);
-                              bool inNumber = inPunct || (codePoint >= '0' && codePoint <= '9') ||
-                                              codePoint == 0x00B0 || codePoint == 0x00D7 || codePoint == 0x00F7 ||
-                                              (codePoint >= 0x20A0 && codePoint <= 0x20CF);
-                              if (!inPunct) allPunct = false;
-                              if (!inNumber) allNumber = false;
-                              j += cpLen;
-                          }
-                          segs.push_back({buf, allWs ? 0 : (allPunct ? 4 : (allNumber ? 3 : 1)), ""});
-                      }
+                      if (bufKind == 1) splitByEmoji(buf, segs);
+                      else splitByNumber(buf, segs);
                       buf.clear(); bufKind = -1;
                   };
                   int len = (int)fullText.size(), i = 0;

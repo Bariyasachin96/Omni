@@ -532,3 +532,52 @@ obfuscated Play-services stats class. No new library, no new feature surface.
 So the only classes that changed for real between 5.7.7.10 and 5.7.7.18 are the app's own:
 `c3` went 33→38, and those five are `c3.d0`, `c3.e`, plus the API-33 shims `c3.x`, `c3.y`,
 `c3.z` and the version helper `c3.a0` — all covered in §8 and §9.
+
+---
+
+## 13. The segmenter never actually split (2026-08-07) — the big one
+
+Everything in §3-§5 was wired end to end: the flags reached the C++, the JNI parameter
+order matched, the mode tables were right. And all three new features still did nothing,
+because the thing they operate on was never produced.
+
+Found by compiling `buildMixChunks` standalone against the header stubs and running it on
+sample text. Before the fix, every input came back as **one type-1 segment**:
+
+```
+"Call me at 9876543210 today"  ->  [t1]'Call me at 9876543210 today'
+"hello, world!"                ->  [t1]'hello, world!'
+"abc 123 !!! ok"               ->  [t1]'abc 123 !!! ok'
+```
+
+`d0.t`'s pipeline is: pattern `d` finds the Latin runs; between them `d0.c` splits emoji
+out; **inside** them `d0.d` splits standalone number runs (pattern `f`) and hands the rest
+to `d0.b`, which splits on punctuation runs (pattern `c`) and types every piece with
+`d0.j`. We had only the outer Latin/non-Latin split, with one whole-buffer type test —
+the 5.7.7.10 shape. **`d0.b` and `d0.d` were never written.**
+
+So there were no type-3 segments for smart number reading to respace, no type-4 segments
+for punctuation-in-flow to hold apart, and no type-3/4/5 segments for the specific
+languages to route. Three of the nine What's New lines were dead on arrival.
+
+Now implemented as `splitByNumber` (`d0.d`), `splitByPunct` (`d0.b`) and `splitByEmoji`
+(`d0.c`), with `segmentTypeOf` for `d0.j`. `matchNumberRun` implements pattern `f`
+including its possessive optional group — the group takes the longest span ending in a
+numeric character, and if the trailing `(?![\p{L}0-9])` then fails there is no
+backtracking to a shorter span, the match simply fails at that position.
+
+Verified empirically after the fix:
+
+```
+smart number ON   "Call me at 9876543210 today" -> '9 8 7 6 5 4 3 2 1 0'   (phone shape)
+smart number ON   "your otp is 4821 ok"         -> '4 8 2 1'               (keyword in window)
+smart number ON   "I have 1234 rupees"          -> unchanged               (no shape, no keyword)
+smart number ON   "it costs $1234 now"          -> unchanged               (d0.m rejects $)
+punct mode1 flow off  "hello, world!"  -> 'hello' | ', ' | 'world' | '!'
+punct mode0 flow off  "hello, world!"  -> unchanged  (AutoTTS gates on mode != 0)
+emoji mode3       "hello :) world"     -> latin | emoji(specific) | latin
+mode3 all         "abc 123 !!! ok"     -> 'abc ' | '123'(number lang) | ' !!! '(punct lang) | 'ok'
+```
+
+**Lesson for the next pass:** wiring audits confirm that a flag reaches its call site.
+They cannot tell you the call site never fires. Test the behaviour, do not just trace it.
