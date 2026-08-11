@@ -833,3 +833,46 @@ and on a second failure a "Cannot open Play Store" toast plus the install callba
 false. Our `MainActivity.openPlayStoreFor` matches.
 
 No divergence.
+
+## 21. Languages tab logic (2026-08-07)
+
+Logic only; the list is a `LinearLayout` of `CheckBox` rows here rather than a `ListView`
+(UI departure 3) and that was not revisited.
+
+**Row click (1281-1316).** Read the new checked state, map the visible position to the
+original index with `m0.c(pos)` — our `visibleIdx[position]` — write `o0[orig]`, then for
+each code of that row: if it is in `n.m()` (the required list) force the row back on and
+move to the next code; otherwise find the store entry by case-insensitive code, set
+`entry.i = !checked` and persist. Ours matches, including persisting inside the loop.
+
+`y2(i)` returns a **one-element** list holding `n.c.get(i).b`, so the "for each code"
+loop is over a single code — ours uses that code directly. Equivalent.
+
+**Select all (1326-1339)** checks every visible row, writes `o0[orig] = true`, then walks
+the whole store clearing `disabled`, then persists.
+
+**Clear all (1347-1381)** unchecks every visible row, writes false, sets `disabled` on the
+whole store, then re-clears `disabled` for everything in `n.m()`, then walks all codes and
+for each required one sets its flag and re-checks its row through `m0.b(orig)`, persists,
+and refilters when "show selected" is on. Ours matches step for step.
+
+**`J2()` — read it before "fixing" anything here.** Both branches return `true`:
+
+```java
+public final boolean J2(String s) {
+    if (m0 == null) return true;
+    for (i...) { if (item == null || !item.toLowerCase().contains(s.toLowerCase())) continue; return true; }
+    return true;   // no match — still true
+}
+```
+
+So `if (!J2(entry.b)) continue;` in select-all and clear-all **never skips**, and both
+buttons apply to every language rather than only the filtered ones. Ours has no filter
+there, which is the same behaviour. Do not add one.
+
+**Search** — `onQueryTextChange` calls the filter and returns true, `onQueryTextSubmit`
+returns false. **`x2()`** rebuilds the visible list from the query, the show-selected flag
+and the checked states, then restores each visible row's checked state from `o0[orig]`.
+**`Z2()`** swaps the toggle button's label on `q0`. All three match ours.
+
+No divergence.
