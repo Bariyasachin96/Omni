@@ -4538,7 +4538,7 @@ jobs:
           "            view.minimumHeight = touchTargetPx(view.context)\n"
           "        }\n"
           "        is Spinner -> {\n"
-          "            view.popupBackground = ColorDrawable(AppPalette.surface)\n"
+          "            view.setPopupBackgroundDrawable(ColorDrawable(AppPalette.surface))\n"
           "            view.minimumHeight = touchTargetPx(view.context)\n"
           "        }\n"
           "        is SearchView -> styleSearchView(view)\n"
