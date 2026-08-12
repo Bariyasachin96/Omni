@@ -142,10 +142,13 @@ Recorded so far:
    - The first tab is titled **"Main Settings Tab"**; the section header inside it still says
      "Modes", because that header labels the radio group, not the tab.
    - **Languages and Voices sit in one row** at the bottom of that tab, Languages first, each
-     at half width. Languages is **not a disclosure** — pressing it builds the full list and
-     leaves it open, with no Collapsed/Expanded state and no toggle-off; switching mode
-     clears it. Voices keeps its collapse/expand behaviour and its state description. The
-     per-mode Languages buttons, holders and `applyLanguagesExpandState` are gone.
+     at half width. Languages **opens its own screen** — `LanguagesActivity`, a plain
+     `ComponentActivity` that puts `buildLanguagesTabView` in a `ScrollView`, declared with
+     `android:label="Languages"` so TalkBack announces it on entry, and closed by the system
+     back gesture. This replaced an inline disclosure the user rejected on 2026-08-12: they
+     want the whole separate screen AutoTTS's Languages tab gave. Voices keeps its
+     collapse/expand behaviour and its state description. The per-mode Languages buttons,
+     holders and `applyLanguagesExpandState` are gone.
    - **Every checkbox is a `MaterialSwitch`** (`EvSwitch` typealias, `evSwitch(context)`
      factory in `Theming.kt`): the nine Advanced rows, "Use locale spans", "Use dedicated
      engines" and the language-list rows. They are still `CompoundButton`s, so
