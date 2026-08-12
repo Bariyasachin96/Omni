@@ -201,6 +201,32 @@ Recorded so far:
      Inline, the existing `if (isStopped || isFlushed) return` sits immediately before
      `speak()`, so the stray-utterance window closes on its own.
 
+8. **Setup wizard (user request, 2026-08-12).** `SetupWizardActivity` — a plain
+   `ComponentActivity`, two steps, one heading + a scrolling body + a Back/Next row.
+   - Step 1 lists **every mode** as a radio (Google TTS skipped when
+     `com.google.android.tts` is absent), each followed by its description — the same
+     strings the Main Settings tab uses, because `modeRowSpecs` was lifted to a **top-level
+     `val` in `TabViews.kt`** and both read it. Exclusivity is manual (a `suppress` flag +
+     a loop clearing the others), as the rows are not in a `RadioGroup`.
+   - Next → step 2 calls `prefs.setReadingMode(chosenMode)` and shows **that mode's own
+     settings**, by reusing `buildModesTabView` through a new
+     `settingsOnlyForMode: String? = null` parameter. When it is non-null the function skips
+     the "Modes" header, the radio rows, the descriptions and the Languages/Voices row, then
+     does `onModeSelected(settingsOnlyForMode)`, hides that mode's toggle button and force-
+     expands its section. Nothing is duplicated — the wizard runs the already-verified
+     settings code.
+   - Next reads "Finish" on step 2; it writes the mode, `prefs.setSetupDone(true)`,
+     `LangStore.persistAll` and finishes. Back on step 2 returns to step 1; on step 1 it
+     closes the wizard.
+   - Accessibility: the heading is a real heading (`ViewCompat.setAccessibilityHeading`) and
+     each step change calls `announceForAccessibility` on it, so TalkBack states which of the
+     two steps you are on.
+   - First run only: `MainActivity` launches it from the `EngineFinder.scanLanguages`
+     completion callback when `!prefs.isSetupDone()` — after the scan, so the mode settings
+     have languages to show. The flag is `setup_done` in `SharedPrefsManager`.
+   - Re-runnable: the Advanced tab's **first** section is now "Setup", with a
+     "Setup wizard" button that starts the activity again.
+
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. Both steps the user asked for are finished:
