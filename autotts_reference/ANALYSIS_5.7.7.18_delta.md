@@ -1087,3 +1087,123 @@ licence checker (carve-out), then `super`. Ours is the same, with
 
 §19-§22 are now swept, not sampled. The remaining open item is unchanged: the launcher
 icon artwork.
+
+## 25. The four modes, re-read end to end from smali (2026-08-12)
+
+`onSynthesizeText` is 890 CFR lines wrapped in 41 nested labelled blocks, and the mix and
+multilingual branches share loop tails that CFR renders as `break block145` / `break
+block146` jumping **into the other branch's loop increment**. That is unreadable as
+written, so this pass was done from `smali18/smali/com/vnspeak/autotts/AutoTtsService.smali`
+(apktool 2.9.3 on the 5.7.7.18 APK), 1926 instructions, plus `AutoTtsService$a`,
+`AutoTtsService$e` and `AutoTtsService$e$a`. Reason recorded per rule 7.
+
+### The mode gate
+
+```
+lang = request.getLanguage()                      // reassigned to iso3(forcedLocale) by the [AutoTTS:] prefix
+if (((lang.equals("zxx") && S != 1) || S == 2 || S == 3) && !fixed)  -> auto / google
+else if (S == 1 && !fixed)                                          -> dual
+else if (S == 4 && !fixed)                                          -> mix
+else if (S == 5 && !fixed)                                          -> multilingual
+else                                                                -> none / fixed
+```
+
+Ours computes exactly this as `effectiveMode`, in the same order.
+
+### Auto / Google
+
+Per `e0.g` span: if `.b()` is `"unknown"` → `clsCLD2.b`, log `Cld2: <lang> '<text>'`, cut to
+2 chars. Then **`c3.e.c(lang)` is applied whether or not the span was detected** — a raw
+LocaleSpan language goes through it too — null → `G`. Then `M(lang)`; empty or `"Disable"`
+→ `G`. `.e(lang)` writes it back. After the loop, `onLoadLanguage(Q[0].b())`, log
+`load <r>`, and on -1/-2 the **misspelled** `"Languge is not supported: "` + `K(cb,2)`.
+
+### Dual
+
+`Q.addAll(d0.t(text, I, K, M))`, then a single switch on **`Q[0].a()`** — the segment type,
+which is real here because `d0.t` builds `e0(text,int)`:
+`1 -> "eng"` (log `language: eng`, `K(cb,4)` on failure), `2 -> H`, `3 -> J`, `4 -> L`,
+`5 -> N` (all `K(cb,5)`), and **type 0 loads nothing at all**. Q empty → the whole text is
+spoken unchanged.
+
+### Mix
+
+`Q.clear()`, then per span:
+
+- `.b()` known and non-empty → `M(lang)`; empty or `"Disable"` → **`lang = G`**; `.e(lang)`;
+  `Q.add(span)`.
+- otherwise → `d0.t(spanText, I, K, M)` and per segment, **on the segment text, in this
+  order**: `d0.n` (number) → `I`, `d0.o` (punctuation) → `K`, `d0.l` (emoji) → `M`, with
+  `0` and `1` both giving `O`, `2` giving `P`, `3` giving the specific language, and
+  **anything else dropping the segment**; else `clsCLD2.c(segText)` and per run
+  `c3.e.c(run.a)` ?: `run.b ? O : P`, then `M(...)` empty/Disable → `run.b ? O : P`.
+
+Tail: `Q[0].b()` is re-detected only when empty or `"unknown"`, then `M(lang)` is logged,
+then a type fallback — **both are dead**, because every `e0` in mix is built with the
+`(String,String)` constructor and so carries type **-1**. Then
+`onLoadLanguage`, misspelled message, `K(cb,7)`. Q empty → no check at all.
+
+### Multilingual
+
+Same span loop with two deliberate differences: a span whose `M(lang)` is empty or
+`"Disable"` **falls through to the segmenter** instead of being rewritten to `G`, and the
+span's language is never written back. Number segments additionally
+`System.out.print("- " + text)`. Tail: Q empty → `"lstLanString is empty!"` + `K(cb,7)`;
+otherwise `onLoadLanguage(Q[0].b())` with the **correctly spelled** `"Language is not
+supported: "`, and no re-detection, no `M()` re-check and no type fallback.
+
+### The per-chunk advance — `AutoTtsService$e` and `$e$a`
+
+`onDone` posts `$e$a` after **50 ms** only while `Q.size() > 1`; otherwise
+`"No more text to read."` + `L(cb,7)`. `$e$a` increments the chunk counter, removes
+`Q[0]`, and resolves the next language **by mode**:
+
+| mode | language | failure |
+|---|---|---|
+| dual | `Q[0].a()`: 1→`"eng"`, 2→`H`, 3→`J`, 4→`L`, 5→`N`, **other → no load, language stays `"eng"`** | `L(cb,2)` for type 1, `L(cb,3)` for 2-5 |
+| mix / multilingual | `Q[0].b()` (re-detect and type fallback are dead), after a logged `M(lang)` | **`K(cb,14)`** — start+done, **no unlock and no `endSynthesis` line** |
+| none / auto / google | `Q[0].b()` | `L(cb,4)` |
+
+then `O`/`R`/`N` for speed/volume/pitch on that language, the same bundle strip, `speak 2: `
+and `speak(text, QUEUE_FLUSH, bundle, id)`; a non-zero result is `"Speaking failed!!!"` +
+`L(cb,5)`, and the whole body is wrapped in one catch → `"onDone Error: "` + `L(cb,6)`.
+The first chunk (`$a`) is the same but sets the counter to 1, logs `Current engine: `, the
+id and `speak 1: `, and on failure uses `K(cb,12)` **then** `n0(12)`
+(`"unlockSynthesis #12"` + unlock) — and its catch is `"onSynthesis Error: "` + `K(cb,14)`
++ `n0(14)`. `K` ignores its int entirely; only `L` and `n0` log one.
+
+### What was wrong on our side, and is now fixed
+
+1. **The first-chunk preflight ran twice** in dual, mix and multilingual — once inside the
+   mode branch and again in a shared block afterwards. `onLoadLanguage` switches the engine,
+   so this was a duplicated engine switch and a duplicated log on every utterance. There is
+   now exactly one call per mode, inside the branch, as in AutoTTS; the shared block only
+   covers the none / fixed-prefix path.
+2. **Multilingual reported the failure with the misspelled message.** AutoTTS spells it
+   correctly there and misspells it in auto, dual and mix. Both now match.
+3. **Mix did not log `language: ` and `engine: `** before the load. Added.
+4. **Dual preflighted type 0** (a whitespace-only first segment) and mapped it to the
+   neutral default; AutoTTS loads nothing and keeps `"eng"`. Fixed in the preflight and in
+   `effectiveLang`.
+5. **The per-chunk advance was mode-blind**: one `onLoadLanguage(next.lang)` with
+   `endSynthesis #4` for every mode. It is now the table above, including the fact that a
+   mix/multilingual failure calls `K` and therefore **does not release
+   `onSynthesizeText`** — AutoTTS's actual behaviour, kept deliberately under rule 5.
+6. **A speak failure on a later chunk used `K` + unlock instead of `L`**, and the catch
+   used the first-chunk message and code. Both now branch on `first`, and the per-chunk
+   advance is wrapped in the single catch AutoTTS has.
+7. **`M`'s trace line dropped the disabled test.** AutoTTS logs `- <iso> <engine>` only when
+   the engine is non-empty, not `"disable"` **and the entry is not disabled**.
+
+### Checked and equal, no change needed
+
+`e0.g` including `prevEnd = end + 1` and `getSpans(0, len-1)`; the `d0` patterns read as raw
+constants from smali (` -⁯`, the ASCII set without a backslash in pattern `c`,
+with one in `b`); `wholeSegmentKind` vs `d0.n`/`d0.o`/`d0.l` and their order, and
+`segmentTypeOf` vs `d0.j`'s different order (punctuation before number); `clsCLD2.c` and its
+empty-text, single-character and null-array paths; `M` vs `engineFor` including the `S == 3`
+short-circuit; `N`/`O`/`R` as pitch/speed/volume; the `q.get()` break placement in all three
+span loops; `K` vs `L` vs `n0`; the common tail's bundle strip, `X`/`W` flags, 50 ms post
+and `wait()` loop. Mix mode never keeps a two-letter LocaleSpan language (`M` cannot match
+one, so it becomes `G`), and multilingual's "span has an engine" arm is unreachable for the
+same reason — on both sides.
