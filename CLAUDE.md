@@ -138,6 +138,24 @@ Recorded so far:
    `getReadingMode()`/`setReadingMode()` already use for an unrecognised value — otherwise the
    screen would open with nothing selected and no settings reachable.
 
+7. **Tab title, list buttons and switches (user request, 2026-08-12).**
+   - The first tab is titled **"Main Settings Tab"**; the section header inside it still says
+     "Modes", because that header labels the radio group, not the tab.
+   - **Languages and Voices sit in one row** at the bottom of that tab, Languages first, each
+     at half width. Languages is **not a disclosure** — pressing it builds the full list and
+     leaves it open, with no Collapsed/Expanded state and no toggle-off; switching mode
+     clears it. Voices keeps its collapse/expand behaviour and its state description. The
+     per-mode Languages buttons, holders and `applyLanguagesExpandState` are gone.
+   - **Every checkbox is a `MaterialSwitch`** (`EvSwitch` typealias, `evSwitch(context)`
+     factory in `Theming.kt`): the nine Advanced rows, "Use locale spans", "Use dedicated
+     engines" and the language-list rows. They are still `CompoundButton`s, so
+     `setRowChecked`, `suppressRowEvents` and every existing handler are unchanged.
+     `applyAccessibleTheme` gained an `EvSwitch` branch that tints thumb, track and track
+     decoration instead of the button drawable — checked thumb `#00325A` on a `#82C7FF`
+     track (7.2:1), unchecked `#4FD8EB` thumb and outline on `#2A2D31` (8.1:1 thumb,
+     11.0:1 outline on the page) so an off switch is still clearly visible.
+   - The CLD3 row's description now leads on performance.
+
 5. **Material 3 accessible dark theme (user request, 2026-08-12).** `AppTheme` now extends
    `Theme.Material3.Dark.NoActionBar` with a fixed dark palette — there is no `values-night`
    override any more, because the theme is dark in both modes by design. The palette lives in
