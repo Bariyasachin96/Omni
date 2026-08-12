@@ -5967,7 +5967,7 @@ jobs:
           "                                            if (position >= 1 && container.childCount > 0) return\n"
           "                                            container.removeAllViews()\n"
           "                                            val tabPageView: android.view.View = when (position) {\n"
-          "                                                0 -> buildModesTabView(container.context, prefs) { testTts }\n"
+          "                                                0 -> buildModesTabView(container.context, prefs, { testTts })\n"
           "                                                1 -> buildAdvancedTabView(container.context, prefs,\n"
           "                                                        requestNotificationPermission = {\n"
           "                                                            if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {\n"

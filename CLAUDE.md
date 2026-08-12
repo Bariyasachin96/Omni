@@ -227,6 +227,29 @@ Recorded so far:
    - Re-runnable: the Advanced tab's **first** section is now "Setup", with a
      "Setup wizard" button that starts the activity again.
 
+## Local validation before every push (upgraded 2026-08-12 after a CI compile failure)
+Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → generate into a tree →
+`ktcheck.py` / `ktresolve.py` / `ktimports.py` → `g++ -fsyntax-only` for the C++.
+**Then the Kotlin type-check, which is the step that was toothless and must not be skipped:**
+- kotlinc **with a real `android.jar` on the classpath**, and the errors **diffed against the
+  same run on the last commit that built green**. Script: `scratchpad/ktcompile.sh <good-ref>`.
+- Without `android.jar` every `android.*` type is unresolved, so kotlinc silently type-checks
+  **nothing** at call sites. That is exactly how `MainActivity`'s
+  `buildModesTabView(container.context, prefs) { testTts }` reached CI: adding a trailing
+  `settingsOnlyForMode: String?` parameter made Kotlin bind that **trailing lambda** to the new
+  last parameter instead of `testTtsProvider`. Negative-tested both ways — invisible without the
+  jar, caught immediately with it.
+- `android.jar` comes from **Maven Central** (`com/google/android/android/4.1.1.4`); it is API 15.
+  **Google Maven is blocked by the proxy**, so androidx/material are unavailable. The resulting
+  noise is constant and cancels out in the baseline diff. Two known-noise signatures, both
+  already present for known-good files, so do not chase them:
+  - a `ComponentActivity` subclass → `unresolved reference: androidx/ComponentActivity`, then
+    `finish`/`resources`/`packageManager`/`setContentView`/`onCreate`/`onPause` unresolved and
+    `type mismatch: inferred type is <Activity> but Context was expected`;
+  - `setTextAppearance(int)` is API 23 → `no value passed for parameter 'p1'` +
+    `type mismatch: inferred type is Int but Context! was expected`.
+- Judge the run by the **NEW error texts** the diff prints, not by the total count.
+
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. Both steps the user asked for are finished:
