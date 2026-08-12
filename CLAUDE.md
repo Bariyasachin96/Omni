@@ -202,7 +202,19 @@ Recorded so far:
      `speak()`, so the stray-utterance window closes on its own.
 
 8. **Setup wizard (user request, 2026-08-12).** `SetupWizardActivity` — a plain
-   `ComponentActivity`, two steps, one heading + a scrolling body + a Back/Next row.
+   `ComponentActivity`, **three steps** (mode → settings → languages), one heading + a
+   scrolling body + a Back/Next row.
+   - **The languages step is skipped for Dual**, so Dual is a two-step wizard (user request,
+     2026-08-12: *"dual board select karega to … vah language wala step nahin aaega"*). This
+     mirrors `buildLanguagesTabView`, which answers "Language selection is not available for
+     \"None\" and \"Dual languages\" modes." — so `stepIds()` returns
+     `["mode","settings"]` for `dual`/`none` and `["mode","settings","languages"]` otherwise.
+     The heading counts accordingly ("step 2 of 2" vs "step 2 of 3") and Next reads "Finish"
+     only on the real last step; changing the radio on step 1 re-labels Next immediately.
+   - Step 3 embeds `buildLanguagesTabView(this, prefs)` — the same function
+     `LanguagesActivity` uses, nothing duplicated. It reads `prefs.getReadingMode()`, which
+     is why `setReadingMode(chosenMode)` is written when **leaving step 1**, before either
+     later step is built.
    - Step 1 lists **every mode** as a radio (Google TTS skipped when
      `com.google.android.tts` is absent), each followed by its description — the same
      strings the Main Settings tab uses, because `modeRowSpecs` was lifted to a **top-level
