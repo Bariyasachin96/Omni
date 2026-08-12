@@ -1477,3 +1477,57 @@ compatibility test. `n.e`/`n.d` the iso3 helpers, `n.s` locale normalisation, `n
 weight parse with its `"1000"` default, `n.f` and `n.n`. `n.p` is what our `loadModeLangs`
 mirrors — all ten keys — and `X()`, AutoTTS's lazier `G != null` variant that loads only
 seven, is not on our path.
+
+## 30. String-level sweep: what AutoTTS says that we never did (2026-08-12)
+
+Rather than re-read methods, this pass extracted every string literal of four characters or
+more from the fourteen app classes — `AutoTtsService`, `clsCLD2`, `NewSettingsActivity`,
+`CheckVoiceData`, `GetSampleText`, `c3.n`, `c3.k`, `c3.p`, `c3.g0`, `c3.u`, `c3.d`, `c3.o`,
+`c3.b0`, `c3.k0` — 697 of them, normalised the app name, and looked for ones with no
+counterpart on our side. Most of what came back was CFR source noise; four were real, and
+all four sit in `a0()`, the service's language loader:
+
+```
+loadLanguages
+ - <iso> <engine> <locale> <variant>
+prefs readable (<n> keys) but no languages parsed
+no languages loaded - keeping previous state
+Enabled languages 2 letters: <set>
+```
+
+The last two are not log lines, they are **guards**. `a0()` parses into a temporary list and
+only commits at the end:
+
+```java
+if (parsed.isEmpty() && keyCount > 0) { logE("prefs readable (…) but no languages parsed"); return; }
+if (parsed.isEmpty())                 { logE("no languages loaded - keeping previous state"); return; }
+n.c.clear(); n.c.addAll(parsed);
+```
+
+Our `LangStore.loadLanguages` cleared `languages` **first** and parsed into it, so a read
+that produced nothing left the store empty instead of leaving the previous list alone. After
+that `M`, `Q` and `P` find nothing, every language falls back, and the app cannot speak
+properly until something triggers a rescan. Now fixed: parse into `parsed`, both guards,
+commit only on success. The loop's eight-empty-slot exit also had to become `break` rather
+than `return`, or the commit would be skipped — which is exactly what AutoTTS does.
+
+`Enabled languages 2 letters:` is `a0()` filling `n.f` inside the same loop, from entries that
+are not disabled and whose engine is neither empty nor `"disable"`, mapped through
+`c3.e.b`. Ours builds the identical set in `refreshEnabledLangs()` — same three conditions,
+same `IsoCodes.toIso2` mapping — and `onCreate` calls it before the first use, so the
+content and timing match; only the placement differs.
+
+`this.v = true` on the success path is written once and never read anywhere in the app, so
+there is nothing to mirror.
+
+### Also checked in this pass, all equal
+
+`S()` the notification-permission test; `l0()` — permission check, then channel, then
+`startForeground` with `FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK` on API 34+, the whole thing
+in a try that logs `getMessage()` at ERROR, and **nothing at all** when the permission is
+missing; `g0()`/`o0()` the keep-alive silence loop, including the 32-byte buffer, the
+`min(maxBufferSize, remaining)` chunking, the `!= SUCCESS` bail and the `wait(100)` with its
+interrupt break; `m0(Boolean)` both arms — the `speak("", QUEUE_FLUSH, null, null)` path with
+its debug-level "Speaking failed for" and the stop path with its error-level "Stop failed
+for" and two-space separator, then `p` and `q` set true in two separate synchronized blocks;
+`onTaskRemoved` as a bare super call.
