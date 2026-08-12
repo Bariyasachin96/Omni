@@ -1266,3 +1266,75 @@ two unknown sentinels — CLD2's `"un"` and CLD3's `"und"` — both fail `IsoCod
    The lookup now compares `baseLanguageTag(candidate.language)` — cut at the first `-`/`_`,
    lowercased, the same normalisation `IsoCodes.normalizeTag` applies downstream. The value
    returned is still the full tag, which is what CLD2 would have handed back.
+
+## 27. The rest of the app — manifest, TTS-framework entry points, small classes (2026-08-12)
+
+Everything outside `onSynthesizeText` that the system, the TTS framework or another app can
+reach, read against 5.7.7.18.
+
+### Manifest and the engine declaration
+
+`res/xml/tts_engine.xml` is a bare `<tts-engine android:settingsActivity="…">`; ours points
+at `MainActivity` where theirs points at `NewSettingsActivity`. The `<queries>` block (four
+TTS intents), all five `uses-permission` entries we share, the service block down to
+`accessibilityEventTypes`, `accessibilityFlags`, `canRetrieveWindowContent`,
+`foregroundServiceType`, the `priority="100"` intent filter and the `android.speech.tts`
+meta-data, both `Theme.NoDisplay` activities, the launcher activity with
+`AppTheme.NoActionBar`, and the `FileProvider` with the same two paths (`files-path
+logs/`, `cache-path shared/`) all match.
+
+What AutoTTS has and we do not is licence and Play packaging only — `CHECK_LICENSE`,
+`com.pairip.application.Application`, `LicenseActivity`,
+`PlayCoreDialogWrapperActivity`, the `com.google.android.gms.version` meta-data and the
+stamp/splits/derived-apk meta-data — plus entries the AndroidX manifest merger adds by
+itself (`CoreComponentFactory`, the `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` pair,
+`InitializationProvider`, `ProfileInstallReceiver`). Those are carve-outs or generated.
+
+**One genuine difference, now matched:** AutoTTS ships
+`android:extractNativeLibs="true"`; we had `false`. Set to `true`, with
+`packaging { jniLibs { useLegacyPackaging = true } }` in `build.gradle.kts` so AGP 8
+actually honours the attribute rather than overwriting it.
+
+### The TTS framework entry points
+
+`CheckVoiceData` — `n.i(null, true)` into `availableVoices`, `setResult(1)`, `finish()`;
+ours is `LangStore.availableLanguagesFor(null, true)` with `CHECK_VOICE_DATA_PASS`, and
+`availableLanguagesFor` matches `n.i` including the `pkg != null && !enginePkgs.contains(pkg)
+|| disabled` skip and the `"Name (iso3)"` shape of the non-iso3 branch.
+
+`GetSampleText` — locale from the `"language"` extra else the default, `f0.a(getISO3Language())`,
+and on a miss `"Sorry. Sample text for language " + locale.getDisplayName(new Locale("eng"))
++ " is missing."`. **Ours read `Locale("enginePkg")`** — a stale global rename had eaten the
+`"eng"` literal, so the display name came back in whatever locale that garbage resolved to.
+Fixed. The Voices-tab Test button (`c3.k.Y2`) builds the same string and already had it
+right.
+
+`f0` itself: 340 entries, key for key and value for value identical to `SampleTexts` — the
+iso3 keys plus the iso2 and locale-qualified ones (`en_US`, `eng_USA`, `fra_CAN`, `zho_TWN`,
+`ru_LV`, …). Only `getISO3Language()` ever reaches it from either call site, so the
+non-iso3 keys are unreachable in AutoTTS too; they are present on both sides regardless.
+
+The service overrides all match: `onGetLanguage`, `onGetDefaultVoiceNameFor` (returns the
+language it was handed), `onGetVoices` (`Voice(name, Locale(name), 400, 100, false,
+HashSet())`), `onIsLanguageAvailable` (`0` / `-2`), `onIsValidVoiceName` (`0` / `-1`),
+`onLoadVoice` (records the name, parses the locale, delegates to `onLoadLanguage`, accepts
+0/1/2), `onStartCommand` returning `START_STICKY`, and `onStop` → `m0(TRUE)`. The
+write-only `k0` static is mirrored by `lastLoadedVoiceName`.
+
+### The small classes
+
+`c3.f` (language row) is field for field our `LangEntry`. `c3.k0` (engine wrapper) matches
+`EngineWrapper` down to the `ThreadPoolExecutor(0, 5, 60s, LinkedBlockingQueue)` with a
+daemon `"TtsStop"` thread factory, so `stop()` and `shutdown()` are asynchronous on both
+sides, and the retry gate `k == 0 || ((nanoTime - j)/1e6 > 3000 && k < 10)` is reproduced
+exactly in `restoreEngine`. `c3.b0.g()`'s ellipsis abbreviation, including the `> 15`,
+`>= 20` and trailing `>= 15` quirks, is our `abbreviateEngineName`. `c3.v`'s package →
+friendly-name map is 46 entries on both sides, identical. `c3.u`, the required-engines
+dialog, matches down to the misspelled `"Requried TTS Engines"` title, the 48/48/48/24 and
+0/16/0/16 paddings, the `-11751600` / `-6381922` colours, the 0.5f disabled alpha,
+`setCancelable(false)` and the Install → "Installing…" → Installed state machine.
+`c3.w` (is a package installed), `c3.a0` (version name and code), `c3.c` (the emoji
+alternation), `c3.c0` (all-whitespace), `c3.o` (engine info) and the `b`/`g`/`h`/`i`/`j`/
+`h0`/`i0`/`j0`/`l`/`q`/`r`/`s`/`t` lambda shims carry no behaviour of their own beyond what
+is already ported. `c3.m` is the five-tab pager adapter — ours has three tabs under the UI
+carve-out.

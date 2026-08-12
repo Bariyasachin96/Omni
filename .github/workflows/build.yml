@@ -135,7 +135,10 @@ jobs:
               }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
-              packaging { resources { excludes.add("**/libc++_shared.so") } }
+              packaging {
+                  resources { excludes.add("**/libc++_shared.so") }
+                  jniLibs { useLegacyPackaging = true }
+              }
           }
           dependencies {
               implementation("androidx.core:core-ktx:1.12.0")
@@ -4446,7 +4449,7 @@ jobs:
           "        val langExtra = intent?.getStringExtra(\"language\")\n"
           "        val locale = if (langExtra != null) Locale(langExtra) else Locale.getDefault()\n"
           "        val sample = SampleTexts.get(locale.isO3Language)\n"
-          "        val text = if (sample.isEmpty()) \"Sorry. Sample text for language ${locale.getDisplayName(Locale(\"enginePkg\"))} is missing.\" else sample\n"
+          "        val text = if (sample.isEmpty()) \"Sorry. Sample text for language ${locale.getDisplayName(Locale(\"eng\"))} is missing.\" else sample\n"
           "        val data = Intent()\n"
           "        data.putExtra(\"sampleText\", text)\n"
           "        setResult(TextToSpeech.LANG_AVAILABLE, data)\n"
@@ -5960,7 +5963,7 @@ jobs:
           "    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n"
           "    <application\n"
           "        android:allowBackup=\"false\"\n"
-          "        android:extractNativeLibs=\"false\"\n"
+          "        android:extractNativeLibs=\"true\"\n"
           "        android:icon=\"@mipmap/ic_launcher\"\n"
           "        android:roundIcon=\"@mipmap/ic_launcher_round\"\n"
           "        android:label=\"@string/app_name\">\n"
