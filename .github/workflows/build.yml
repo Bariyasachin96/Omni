@@ -1439,6 +1439,12 @@ jobs:
           static const char* scriptLangForCp(int codePoint);
           static bool isJavaWhitespace(int codePoint);
           static bool isLatinPunctuation(int codePoint);
+          static std::string baseLanguageTag(const std::string& code){
+              size_t cut = code.find_first_of("-_");
+              std::string base = (cut == std::string::npos) ? code : code.substr(0, cut);
+              for(char& ch : base) if(ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+              return base;
+          }
           static bool isRomanisedTag(const std::string& code){
               return code=="bg-Latn" || code=="el-Latn" || code=="hi-Latn"
                   || code=="ja-Latn" || code=="ru-Latn" || code=="zh-Latn";
@@ -1449,14 +1455,23 @@ jobs:
               std::lock_guard<std::mutex> cld3Lock(cld3Mutex);
               if(!cld3Identifier) cld3Identifier = new chrome_lang_id::NNetLanguageIdentifier(0, 1024);
               std::unordered_set<std::string> hinted;
-              { std::lock_guard<std::mutex> lock(detectSetMutex); hinted = enabledLangSet; }
+              {
+                  const std::string hintList = currentLanguageHints();
+                  size_t hintStart = 0;
+                  while(hintStart < hintList.size()){
+                      size_t hintEnd = hintList.find(',', hintStart);
+                      if(hintEnd == std::string::npos) hintEnd = hintList.size();
+                      if(hintEnd > hintStart) hinted.insert(hintList.substr(hintStart, hintEnd - hintStart));
+                      hintStart = hintEnd + 1;
+                  }
+              }
               if(!hinted.empty()){
                   const std::vector<chrome_lang_id::NNetLanguageIdentifier::Result> ranked =
                       cld3Identifier->FindTopNMostFreqLangs(utf8Text, 3);
                   for(const auto& candidate : ranked){
                       if(!candidate.is_reliable) continue;
                       if(isRomanisedTag(candidate.language)) continue;
-                      if(hinted.find(candidate.language) == hinted.end()) continue;
+                      if(hinted.find(baseLanguageTag(candidate.language)) == hinted.end()) continue;
                       if(reliableOut) *reliableOut = true;
                       return candidate.language;
                   }

@@ -1207,3 +1207,62 @@ span loops; `K` vs `L` vs `n0`; the common tail's bundle strip, `X`/`W` flags, 5
 and `wait()` loop. Mix mode never keeps a two-letter LocaleSpan language (`M` cannot match
 one, so it becomes `G`), and multilingual's "span has an engine" arm is unreachable for the
 same reason — on both sides.
+
+## 26. CLD2 / CLD3 parity audit (2026-08-12)
+
+The rule for this row is not AutoTTS parity — AutoTTS has no CLD3 — but the invariant in
+`CLAUDE.md`: **wherever CLD2 makes a detection, the switch must be able to put CLD3 there
+instead, working the same way.** This is the audit of that.
+
+### Every detection site
+
+`grep -n 'CLD2::\|cld3DetectRaw\|detectWindowLang'` over `tts_engine_core.cpp` gives
+exactly **two** places a detector is invoked, and both have both arms:
+
+| # | C++ | AutoTTS equivalent | Reached from | CLD2 arm | CLD3 arm |
+|---|---|---|---|---|---|
+| 1 | `detectWindowLang()` in `detectLanguageFull` | `clsCLD2.b` → `nativeGetLanguage` | auto / google, per 64-UTF-16-unit window | `DetectLanguageSummaryV2` | `cld3DetectRaw` |
+| 2 | `emitScriptSpan()` in `nativeGetLanguages` | `clsCLD2.c` → `nativeGetLanguages` | mix and multilingual, per script span | `ExtDetectLanguageSummary` | `cld3DetectRaw` |
+
+Nothing else detects. `processDirect` / `buildMixChunks` only segments — its `useCld3` and
+`disableAdvancedDetection` parameters are inert, kept so the JNI signature carries the
+intent; `segmentKind` is pure text classification; and the two post-detection stages,
+`n.n()` (`detectOkIso3Set`) and `a.e(cp, m.f)` (`scriptLangForCpFiltered`), are
+detector-independent and shared by both arms.
+
+On the Kotlin side there are likewise only two entry points — `detectLanguage()` into site 1
+and `detectLanguageRuns()` into site 2 — and both pass `useCld3Flag`. The empty-text guard
+and the `quickCharacterFlag` single-character guard sit in Kotlin, ahead of either arm, so
+they apply to both. `use_cld3` loads, persists and reloads on exactly the same path as the
+other five Advanced flags.
+
+### Already symmetric, verified line by line
+
+Site 1 gates on reliability in both arms (unreliable → `"UNKNOWN"`, which is what
+`clsCLD2.b` tests for); site 2 gates on reliability in neither, so both return a best guess;
+the 1024-byte cap with the UTF-8 boundary back-up in site 2 and the 64-unit windowing with
+`winStart = winStart + 64` in site 1 are shared code ahead of the branch;
+`disableAdvancedFlag`'s short-circuit and the `n.n` → `a.e` fallback chain run after the
+branch, identically; the log lines differ only in their `[CLD2]` / `[CLD3]` prefix; and the
+two unknown sentinels — CLD2's `"un"` and CLD3's `"und"` — both fail `IsoCodes.toIso3` and
+`toIso3` in C++, so both fall through to the script fallback rather than being spoken.
+
+### Two asymmetries found and fixed
+
+1. **The hint snapshot was not the same one.** AutoTTS calls `clsCLD2.f(c3.n.f)` **once**,
+   in `AutoTtsService.onCreate` (`AutoTtsService.java:1659`), so CLD2's hint list is frozen
+   at service start — and our `setLanguageHints` call sits in `onCreate` too, matching it.
+   CLD3's bias, however, read `enabledLangSet`, which `refreshEnabledLangs()` rewrites on
+   **every** `onSynthesizeText`. Flipping the switch therefore changed more than the
+   detector: CLD3 saw a live language set where CLD2 saw a frozen one. `cld3DetectRaw` now
+   parses the same frozen `languageHintList` the CLD2 arm hands to `CLD2::CLDHints`, so both
+   detectors read one snapshot taken at the same moment. `enabledLangSet` stays live where
+   it belongs — the `a.e(cp, m.f)` script-family filter, which AutoTTS also evaluates at
+   detection time.
+
+2. **The hint match was tag-sensitive.** CLD3 returns script-tagged codes (`zh-Hant`,
+   `zh-Hans`) while the hint set holds bare ISO 639-1 (`zh`), so a hinted Chinese candidate
+   never matched and the bias silently did nothing for exactly the languages that need it.
+   The lookup now compares `baseLanguageTag(candidate.language)` — cut at the first `-`/`_`,
+   lowercased, the same normalisation `IsoCodes.normalizeTag` applies downstream. The value
+   returned is still the full tag, which is what CLD2 would have handed back.
