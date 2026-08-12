@@ -1408,3 +1408,72 @@ The `D0` enabled-state gate is driven from the punctuation-mode spinner
 spinners drive `A0` and `C0` the same way. Our `applySpecificVisibility` is that, for all
 three groups, and it is invoked once per group at build time as AutoTTS does. The only extra
 row is the CLD3 switch, which is EasyVoice-only by design. **No divergence found.**
+
+## 29. Store and service internals, swept again (2026-08-12)
+
+A pass over the parts that hold state rather than produce speech — the settings store and
+the service's small helpers — looking for statement-level differences of the kind the theme
+work turned up in the UI.
+
+### `c3.n`, the store — read method by method
+
+`g(ctx, onlyEnabled)`, the rebuild, matches `LangStore.rebuildFromScan` statement for
+statement: dedup by **display name** (not iso3), the `S == 3` google-package filter applied
+before the dedup, the six preference reads with the same keys and defaults, the
+force-enable of a required language with the `changed` flag that then calls `y(ctx)` from
+inside the rebuild, `enginePkgs.add(pkg)`, the `engine#locale` split, the `onlyEnabled`
+gate, the duplicate branch that finds the entry by `iso3.equalsIgnoreCase` and appends the
+package, and the final sort on the NFD-stripped display name through a `Collator`.
+
+`c(ctx)` — the dual-mode list — is `LangStore.dualLangList`, including the
+`(!eng && !H) || seen` skip, no `enginePkgs` write, no required force-enable, and the same
+sort. `h()` is `dualLanguageLabels`. `i(pkg, iso3Only)` is `availableLanguagesFor`.
+
+Defaults all match, including the two that are not the obvious value:
+`disable_advanced_detection` defaults to **true**, `punctuation_with_sentence` defaults to
+**true**, and `auto_mode` defaults to **3** with the "no Google TTS installed → 0" fallback.
+The other six flags default false. The ten mode-language keys all fall back to the device
+iso3 through the same `cmn/lzh/gan/hak → zho` mapping.
+
+`t(ctx)` persists in the order `w, C, B, v, x, u, z` — engines, voice rows plus
+`dedicated_engines`, voice weights, mode languages, languages, `auto_mode` plus
+`locale_spans`, flags. `LangStore.persistAll` runs the same seven in the same order.
+
+### The divergence: `P` and `Q` skipped entries we did not
+
+`Q(lang)` (voice locale) and `P(lang)` (variant) both open their loop with
+
+```java
+if (entry.f.isEmpty() || entry.f.equalsIgnoreCase("disable") || entry.i) continue;
+```
+
+— a real skip of the whole iteration, placed **before** the name match. An entry whose
+engine is unset or `"disable"`, or which the user has disabled, is therefore never matched
+and the method returns `""`.
+
+Ours had turned that into a log-only gate, and on the wrong field:
+
+```kotlin
+if (entry.localeTag.isNotEmpty()) EasyVoiceLogger.debug(...)   // only guarded the log
+if (lang != entry.iso3) continue
+```
+
+so every entry stayed eligible. The consequence is not cosmetic. `Z` (our `onLoadLanguage`)
+takes the voice locale from `Q` and feeds it to `f0`; with `""` that yields null and `Z`
+returns `-2`, LANG_MISSING_DATA. With our version a **disabled** language still handed back
+its stored locale and went on to load and speak — the user could switch a language off in
+the Languages list and still hear it.
+
+Note the asymmetry that made this easy to get wrong: `M` (engine) gates only its trace line
+on the same three conditions and matches unconditionally, while `P` and `Q` gate the whole
+iteration. Both shapes are now reproduced as written.
+
+### Checked and equal
+
+`I()` the notification — `NotificationCompat.Builder`, `"<app> active"`, small icon
+`17301540`, `setOngoing(true)`; `J()` the channel — id `tts_channel`, name `"TTS Engine"`,
+`IMPORTANCE_LOW`; `W()` — scans active notifications for id **136549**. `V(a, b)` the locale
+compatibility test. `n.e`/`n.d` the iso3 helpers, `n.s` locale normalisation, `n.r` the
+weight parse with its `"1000"` default, `n.f` and `n.n`. `n.p` is what our `loadModeLangs`
+mirrors — all ten keys — and `X()`, AutoTTS's lazier `G != null` variant that loads only
+seven, is not on our path.
