@@ -150,58 +150,11 @@ jobs:
           }
           """)
 
-          write_source("app/proguard-dict.txt", """\
-          l
-          I
-          O
-          ll
-          lI
-          Il
-          II
-          lO
-          Ol
-          OO
-          lll
-          llI
-          lIl
-          lII
-          Ill
-          IlI
-          IIl
-          III
-          llO
-          lOl
-          Oll
-          OOl
-          OlO
-          lOO
-          OOO
-          OII
-          IOI
-          OIO
-          llll
-          IIII
-          OOOO
-          lIlI
-          IlIl
-          OlOl
-          lOlO
-          IOOI
-          OIIO
-          llII
-          IIll
-          OOII
-          """)
-
           write_source("app/proguard-rules.pro", """\
           -optimizationpasses 5
           -allowaccessmodification
-          -repackageclasses ''
-          -obfuscationdictionary proguard-dict.txt
-          -classobfuscationdictionary proguard-dict.txt
-          -packageobfuscationdictionary proguard-dict.txt
-          -renamesourcefileattribute ''
-          -keepattributes !SourceFile,!LineNumberTable
+          -dontobfuscate
+          -keepattributes SourceFile,LineNumberTable
           -keep class com.tts.easyvoice.NativeEngine { native <methods>; }
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
@@ -6198,7 +6151,9 @@ jobs:
           body: |
             Build #${{ github.run_number }}
             Commit: ${{ github.sha }}
-          files: app/build/outputs/apk/release/app-release.apk
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/mapping/release/mapping.txt
           make_latest: true
           fail_on_unmatched_files: true
         env:
