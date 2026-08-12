@@ -950,3 +950,140 @@ where `e()` is driven from on service destroy.
 
 None of this means those areas are wrong. It means they are **sampled, not swept**, and
 the sections must be read that way until the listed methods are actually opened.
+
+## 24. Closing §23 — the unread methods, opened (2026-08-12)
+
+Every method §23 listed as unread has now been opened. Six divergences came out of it.
+
+### §22 logger — `h()`, `b()`, `f()`
+
+`h()` is the one method `README.md` flags: CFR throws `ConfusedCFRException: Back jump on
+a try block` on it. Read from `smali18/smali/c3/p.smali` (apktool 2.9.3 on the 5.7.7.18
+APK). **This is the smali fallback rule being used for the reason it exists** — CFR
+genuinely failed, not "just to be sure".
+
+```
+synchronized h(level, tag, msg):
+    switch (level.ordinal())          // DEBUG=0, INFO=1, WARN=2, ERROR=3
+        0, 1 -> nothing               // debug and info never reach logcat
+        2    -> Log.w(tag, msg)
+        3    -> Log.e(tag, msg)
+    if (!enabled) return
+    i()                               // rotate
+    line = String.format("%s [%s] %s: %s", fmt.format(new Date()), level.c, tag, msg)
+    try (BufferedWriter w = new BufferedWriter(new FileWriter(file, true)))
+        w.write(line); w.newLine();
+    catch (IOException e) Log.e("TtsLogger", "Failed to write log", e)
+```
+
+`EasyVoiceLogger.writeLine` is this, line for line, including the `"TtsLogger"` tag on the
+failure path and the fact that a debug line is written to the file but never to logcat.
+
+`f(ctx)` is a `synchronized (p.class)` singleton over `getApplicationContext()`; `b(ctx)`
+builds the share intent — file must exist and be non-empty, `FileProvider` authority
+`packageName + ".fileprovider"`, `ACTION_SEND`, `text/plain`, `EXTRA_STREAM`,
+`EXTRA_SUBJECT`, `FLAG_GRANT_READ_URI_PERMISSION`, else null; `k(ctx)` toasts
+"No log file to share" on null, else a chooser with `FLAG_ACTIVITY_NEW_TASK`. Our
+"Share logs" button is all three inline and matches. **No divergence.**
+
+### §21 Languages tab — `c1.a()` and `z2()`
+
+`c1.a(query, selectedOnly, checked)` clears the three lists, lowercases a null query to
+`""`, and for every original index keeps the row when the label contains the query **and**
+— only when `selectedOnly` — `checked[i]` is true and `i` is in range. It records the
+surviving labels in `d` and the surviving **original** indices in `e`; `b(orig)` is
+`e.indexOf(orig)` and `c(pos)` is `e.get(pos)`. `x2()` re-runs it and then re-checks each
+visible row from `o0[orig]`.
+
+Our `applyFilter` is the same function with rows rebuilt instead of an adapter refreshed,
+and `visibleIdx` is `e`. The search listener also matches: `SearchView.m.a` is the
+**text-changed** callback (`SearchView.W` calls `M.a`, the submit path at line 676 calls
+`M.b`), AutoTTS returns `true` from `a` after `x2()` and `false` from `b` — ours is
+`onQueryTextChange { applyFilter(); true }` / `onQueryTextSubmit = false`.
+
+`z2()` is the required-engine install return path, not a list method: if a pending
+`u.d`/`u.a` pair exists it re-tests `getPackageInfo(pkg, 1)`, hands the result to the
+callback, toasts "Package not installed. Please try again." on false, then clears the
+pair. `N2(pkg)` opens `market://details?id=` and falls back to the Play web URL, both with
+`FLAG_ACTIVITY_NEW_TASK`, and only on the second `ActivityNotFoundException` toasts
+"Cannot open Play Store" and reports failure. `MainActivity.checkPendingInstall` /
+`openPlayStoreFor` match. **No divergence.**
+
+### §20 Voices tab — `I1`-`N1`, `M2`, `Q2`
+
+All six `+`/`-` handlers are `value ±5`, floor 10 on minus, `seekBar.getMax()` cap on
+plus, then a **`Toast` of `"<value> of <max>"`** with the max as a hardcoded literal:
+**500 for speed, 100 for volume, 200 for pitch**. The store write is bounds-checked in
+`L1`, `M1` and `N1` and **not** bounds-checked in `I1`, `J1` and `K1`, and `L1` alone sets
+the bar before writing. Ours already reproduced the checked/unchecked split and the
+ordering — **but had no Toast at all**. Fixed: all six now toast, last, exactly as
+AutoTTS does. (`seekBar.stateDescription` stays; that is ours under the UI carve-out and
+is additional, not a replacement.)
+
+`Q2` (battery optimisation) matches. **`M2` did not**: AutoTTS catches
+`ActivityNotFoundException` from the document picker and toasts **"No compatible file
+manager found on this device"** with `LENGTH_LONG`; ours caught `Exception` and toasted
+`"Import failed: <message>"` with `LENGTH_SHORT`. Fixed.
+
+### §19 engine scan — the driver, read in full
+
+`D0()`'s skip loop is where **CFR is wrong**. It renders
+
+```java
+while ((n3 = ++this.L) < object.size() && ((o)object.get(this.L)).a()) {}
+```
+
+which reads as an unconditional extra increment — every second engine skipped. The smali
+is a plain `while (L < size && o(L).a()) L++;` with the increment inside the body. Our
+`while (index < engines.size && isSelfEngine(engines[index].pkg)) index++` was already
+right; the CFR text was the artifact. Recording it so nobody "fixes" it to match CFR.
+
+Everything else in the driver was read from CFR plus smali for the exception ordering, and
+five divergences came out — all of them things **we had added** that AutoTTS does not do:
+
+1. **`y0()` has no try/catch and no empty-list guard.** It is `L = 0; M = false;` watchdog,
+   progress text `"%s %s... (3)"`, then `new TextToSpeech(this, j, n.b.get(L).b)` bare. Ours
+   wrapped the first engine in the same try/catch as the rest and returned early on an empty
+   engine list. Both removed. **This means an empty engine list now throws, exactly as
+   AutoTTS does** — the app has to have found at least one third-party engine by then.
+2. **The 30 s watchdog does not shut the engine down.** `$e.run()` is only
+   `if (!M) { synchronized(O) { O.add(capturedIndex) } } D0();`. Ours also called
+   `shutdown()`. Removed.
+3. **There is no late-arrival guard between the watchdog and `onInit`.** `j.onInit` opens
+   with `M = true; N.removeCallbacksAndMessages(null);` and then runs unconditionally — if
+   the watchdog already fired, AutoTTS advances twice. Our `watchdogHolder` identity check
+   suppressed the second advance. Removed, and the single-runnable `removeCallbacks` became
+   `removeCallbacksAndMessages(null)`.
+4. **`D0()`'s ctor `catch` does not cancel the watchdog.** It logs
+   `"Error when initialize <pkg>\n<message>"` at ERROR and calls `D0()`, leaving the 30 s
+   timer armed to fire and advance again. Ours cancelled it. Removed.
+5. **Three logging calls were missing.** Reflection failure logs
+   `e("AutoTTS", "Reflection failed", ex)` (with stack); a `getVoices()` failure and a
+   `shutdown()` failure each log `d("AutoTTS", ex.getMessage())`. Ours swallowed all three.
+   Added.
+
+Also aligned: `z0()` has no re-entry flag, does not shut the engine down and has no
+try/catch around the rebuild — the `AtomicBoolean`, the `holder[0]?.shutdown()` and the
+`try { … } catch (_: Exception) {}` are gone. `i.onInit`'s failure branch is a bare
+`Toast` + `z0()` with no `runOnUiThread` and no try/catch, because a `TextToSpeech`
+`OnInitListener` is delivered on the main thread — which is also why the `mainHandler.post`
+wrapper around both listener bodies is gone, and why the only place AutoTTS uses
+`runOnUiThread` is the progress text, which is where our caller already puts it. The
+180 s `z0` watchdog is now armed **before** discovery runs, as in `onCreate`.
+
+`C0()` reads `license_text` and is under the licence carve-out. `E0()` sets each tab's
+content description from `cd_tab_title_param` = `"%1$s, tab %2$d of %3$d"`; ours builds the
+same string inline.
+
+### §18 keep-alive — the destroy driver
+
+`AutoTtsService.onDestroy` is: log, `stopForeground(1)` + `abandonAudioFocusRequest` in a
+try/catch that logs `ex.getMessage()`, `shutdown()` on every pooled engine whose state is
+2, then **one try/catch around a loop calling `e()` on every `c3.d` in `g`**, then the
+licence checker (carve-out), then `super`. Ours is the same, with
+`unbindAllEngineKeepAlive()` as the loop. **No divergence.**
+
+### What this leaves
+
+§19-§22 are now swept, not sampled. The remaining open item is unchanged: the launcher
+icon artwork.
