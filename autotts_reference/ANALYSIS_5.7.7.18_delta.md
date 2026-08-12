@@ -1338,3 +1338,73 @@ alternation), `c3.c0` (all-whitespace), `c3.o` (engine info) and the `b`/`g`/`h`
 `h0`/`i0`/`j0`/`l`/`q`/`r`/`s`/`t` lambda shims carry no behaviour of their own beyond what
 is already ported. `c3.m` is the five-tab pager adapter — ours has three tabs under the UI
 carve-out.
+
+## 28. Speech onset latency, and the Advanced tab re-read (2026-08-12)
+
+### The two 50 ms posts
+
+AutoTTS delays the first `speak()` by 50 ms (`AutoTtsService.onSynthesizeText` →
+`t.postDelayed(new a(...), 50L)`) and the next-chunk step by another 50 ms
+(`AutoTtsService$e.onDone` → `b.postDelayed(new e$a(this), 50L)`). On a TalkBack swipe the
+first one is pure added onset latency. Removed on the user's instruction, with the
+reasoning rather than a blind deletion:
+
+- **`onSynthesizeText` is already off the main thread.** AOSP: "All calls to this method
+  will be on a single thread, which will be different from the main thread of the service",
+  and it "should block until the synthesis is finished". We are expected to work and block
+  there.
+- **`TextToSpeech` needs no main thread.** Every public method funnels through `runAction`,
+  which takes `mStartLock` before touching the service connection, and
+  `mUtteranceProgressListener` is a `volatile` field carrying the AOSP comment "Written from
+  an unspecified application thread, read from a binder thread". So `speak`,
+  `setSpeechRate`, `setPitch`, `setAudioAttributes` and `setOnUtteranceProgressListener` are
+  all safe from the synthesis thread.
+- **First chunk → inline.** `speak()` now runs in the same straight line as the listener,
+  rate and pitch calls that precede it. One thread, so program order gives exactly the
+  ordering the handler hop used to buy, and the volatile listener write happens-before the
+  binder thread's read.
+- **Later chunks → hop kept, delay dropped to zero.** `onDone` is delivered on a **binder
+  thread**, and the step that follows can create or shut down a `TextToSpeech` during an
+  engine switch; doing that inside an engine callback risks re-entering the same binder
+  transaction. `chunkHandler.post { … }` keeps it off the callback thread and runs on the
+  next main-loop turn — sub-millisecond while the main thread is idle, which it is during a
+  swipe.
+- **It also closes a race.** During the old 50 ms window a `stop()` would still be followed
+  by a `speak()`, because the runnable has no stop guard and must not get one (that addition
+  was reverted in `3b02624`). Inline, the existing `if (isStopped || isFlushed) return` sits
+  immediately before `speak()`.
+
+No published Google figure sets a screen-reader onset budget; the threshold the field works
+to — and that Android's own performance material builds on — is that roughly 100 ms reads as
+instantaneous. A fixed 50 ms on every swipe spent half of that doing nothing.
+
+### The Advanced tab, checkbox by checkbox
+
+`c3.k.T2()` read in full against `buildAdvancedTabView`, and `fragment_advanced.xml`'s text
+dumped in order against ours. Same nine controls in the same order, same eight groups, same
+labels and the same description paragraphs (with "Auto TTS" → "Easy Voice"), same six
+buttons:
+
+| # | id | field | ours |
+|---|---|---|---|
+| 1 | `remove_audio_attributes` | `W` | `stripAudioAttrFlag` |
+| 2 | `force_accessibility_stream` | `X` | `forceAccessibilityFlag` |
+| 3 | `keep_alive_mode` | `Y` | `keepAliveFlag` |
+| 4 | `show_notification` | `Z`, plus `R2()` when checked | `showNotificationFlag` + `requestNotificationPermission()` |
+| 5 | `disable_advanced_detect` | `a0` | `disableAdvancedFlag` |
+| 6 | `quick_character_reading` | `b0` | `quickCharacterFlag` |
+| 7 | `punctuation_with_sentence` | `c0`, held in `D0`, `setEnabled(K != 3)` | `punctuationInFlowBox`, same gate |
+| 8 | `smart_number_reading` | `d0` | `smartNumberFlag` |
+| 9 | `enable_logging` | `p.g()` / `p.j(bl)` | `EasyVoiceLogger` + prefs |
+
+Buttons: `tts_settings` → `O2()` (`com.android.settings.TTS_SETTINGS`,
+`FLAG_ACTIVITY_NEW_TASK`, and on `ActivityNotFoundException` the toast "TTS settings are not
+available on this device."), `disable_battery_optimization_button` → `Q2()`,
+`export_settings_button` → `g0.d`, `import_settings_button` → `M2()`, `share_logs` →
+`p.k`, `clear_logs` → `p.a`. All present and matching.
+
+The `D0` enabled-state gate is driven from the punctuation-mode spinner
+(`K != 3 → B0 GONE, D0 enabled; K == 3 → B0 VISIBLE, D0 disabled`), and the number and emoji
+spinners drive `A0` and `C0` the same way. Our `applySpecificVisibility` is that, for all
+three groups, and it is invoked once per group at build time as AutoTTS does. The only extra
+row is the CLD3 switch, which is EasyVoice-only by design. **No divergence found.**

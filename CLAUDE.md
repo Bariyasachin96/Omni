@@ -155,6 +155,26 @@ Recorded so far:
    `stateDescription`, `announceForAccessibility` or live region was touched — this change is
    colour, size and background only.
 
+6. **Instant speech start — the two 50 ms posts removed (user request, 2026-08-12).**
+   AutoTTS posts the first `speak()` with `t.postDelayed(a, 50L)` and the next-chunk step
+   with `b.postDelayed(e$a, 50L)`. The user swipes with TalkBack and wants speech to start
+   with no added delay, so **both delays are gone** — this is a deliberate departure and
+   must not be "restored" to AutoTTS.
+   - First chunk: `speak()` is now called **inline on the synthesis thread**, no handler.
+     `onSynthesizeText` already runs off the main thread and is documented to block there,
+     and `TextToSpeech` is internally synchronised (`runAction` takes `mStartLock`;
+     `mUtteranceProgressListener` is `volatile`, "written from an unspecified application
+     thread, read from a binder thread"), so `speak`/`setSpeechRate`/`setPitch`/
+     `setOnUtteranceProgressListener` carry no main-thread requirement. Program order on one
+     thread gives the listener-before-speak ordering the hop used to provide.
+   - Later chunks: the main-thread hop **stays**, at zero delay (`post`, not `postDelayed`).
+     It is not cosmetic — `onDone` arrives on a **binder thread** and the next step can create
+     or shut down a `TextToSpeech`, which must not happen inside an engine callback.
+   - Side benefit: the old 50 ms window let a `stop()` be followed by a `speak()`, because the
+     runnable has no stop guard (and must not get one — that was reverted in `3b02624`).
+     Inline, the existing `if (isStopped || isFlushed) return` sits immediately before
+     `speak()`, so the stray-utterance window closes on its own.
+
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. Both steps the user asked for are finished:
