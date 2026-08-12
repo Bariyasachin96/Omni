@@ -83,8 +83,10 @@ Recorded so far:
    swipes past everything to reach a spinner. Ours keeps the list exactly as AutoTTS has it —
    **each radio followed by its own description paragraph, as separate `TextView`s** — and adds
    a **collapse/expand disclosure** for the settings:
-   - the **selected** mode's `"<Mode> settings"` button sits directly after that mode's own
-     description; every other mode's button is `GONE`, and "None" has none;
+   - the **selected** mode's settings button sits **on the same row as its radio button**,
+     right-aligned, labelled `"Settings"` with `contentDescription = "<Mode> settings"`;
+     every other mode's button is `GONE`, and "None" has none. (It used to be a full-width
+     button under the description - the user rejected that as too heavy, 2026-08-12.)
    - pressing it expands that mode's settings **in place**, directly beneath the button. No
      dialog, no second screen, no navigation.
    - state is exposed with `ViewCompat.setStateDescription(toggle, "Expanded"/"Collapsed")` —
@@ -110,13 +112,16 @@ Recorded so far:
    `onlyEnabled = true`, so whichever section you open last must re-run its own rebuild.
    Expanding a mode's settings calls `refreshModeLanguages(mode)` for the same reason.
    `pageTitles`/`pageIcons` dropped to four and `ic_tab_voices.xml` is gone with them.
-3. **Languages tab folded into the Modes tab, per mode.** Now three tabs: Modes, Advanced,
-   Licenses. Unlike Voices, the language list **is** per-mode (`buildLanguagesTabView` reads
+3. **Languages tab folded into the Modes tab, per mode.** Now two tabs: Modes and Advanced
+   - the **Licenses tab was removed on 2026-08-12**; `buildLicensesTabView` is kept in
+   `TabViews.kt` unused, because the user intends to place it somewhere else. Unlike Voices, the language list **is** per-mode (`buildLanguagesTabView` reads
    `prefs.getReadingMode()` and builds `modeInt`/`required` from it), so it sits **inside each
    mode**, in the order the user asked for: radio → its description → **"Languages"
    collapse/expand** → **"<Mode> settings" collapse/expand**. Only modes that support a
    language list get the button — auto, mix, multilingual (google is `GONE` and shares auto's
-   holder via `holderMode`); **dual has none**, which is the inline equivalent of the old tab's
+   holder via `holderMode`); **dual has none**. Since 2026-08-12 the button lives **inside**
+   that mode's expanded settings section, under the mode settings, not directly beneath the
+   radio, which is the inline equivalent of the old tab's
    "not available for None and Dual" message. Rebuilt on each expand, same `LangStore.languages`
    reason as Voices. `ic_tab_languages.xml` is gone.
    The list itself changed from `ListView` to a `LinearLayout` of `CheckBox` rows — **required**,
