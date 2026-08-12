@@ -133,6 +133,28 @@ Recorded so far:
    `getReadingMode()`/`setReadingMode()` already use for an unrecognised value — otherwise the
    screen would open with nothing selected and no settings reachable.
 
+5. **Material 3 accessible dark theme (user request, 2026-08-12).** `AppTheme` now extends
+   `Theme.Material3.Dark.NoActionBar` with a fixed dark palette — there is no `values-night`
+   override any more, because the theme is dark in both modes by design. The palette lives in
+   `res/values/colors.xml` and, for code-built views, in `AppPalette` (`Theming.kt`):
+   background `#121212`, surface `#1E1F22`, section headers `#1B2A38`, text `#FFFFFF`,
+   primary `#82C7FF`, on-primary `#00325A`, bright control outline `#4FD8EB`.
+   Measured contrast: white on background **18.7:1**, light blue on background **10.3:1**,
+   button label on button fill **7.2:1**, checkbox border on background **11.0:1** — all WCAG
+   AAA; the disabled grey is 3.9:1, above the 3:1 UI-component floor.
+   Because every view is built in code, `applyAccessibleTheme(view)` walks the finished tree
+   and styles by type — compound buttons get a `buttonTintList` that is bright cyan unchecked
+   and light blue checked, buttons get a light-blue fill with dark label text, seek bars get
+   a light-blue track and thumb, spinners get a dark popup, and the `SearchView`'s internal
+   text, hint and icons are recoloured. `applyPageTheme` adds the background and is what each
+   `build*TabView` returns. It is re-run wherever rows are rebuilt (the Languages list filter,
+   the required-engines dialog) so late views are covered too. Spinner rows use
+   `res/layout/ev_spinner_item.xml` and `ev_spinner_dropdown_item.xml` — white on dark, 48dp
+   minimum height, and the dropdown wraps instead of truncating.
+   Every control is forced to a 48dp minimum touch target. No `contentDescription`,
+   `stateDescription`, `announceForAccessibility` or live region was touched — this change is
+   colour, size and background only.
+
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. Both steps the user asked for are finished:
