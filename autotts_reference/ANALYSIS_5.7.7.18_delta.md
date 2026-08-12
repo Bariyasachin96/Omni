@@ -1531,3 +1531,58 @@ interrupt break; `m0(Boolean)` both arms — the `speak("", QUEUE_FLUSH, null, n
 its debug-level "Speaking failed for" and the stop path with its error-level "Stop failed
 for" and two-space separator, then `p` and `q` set true in two separate synchronized blocks;
 `onTaskRemoved` as a bare super call.
+
+## 31. The hidden parts of the APK (2026-08-12)
+
+Everything in the package that is not obviously reachable from the tabs or the service, gone
+through so nothing is left unexamined.
+
+### assets
+
+`assets/Blocks.txt` — Unicode **Blocks-12.1.0**, 336 lines. Nothing reads it: no
+`getAssets`, no `AssetManager`, no occurrence of the name anywhere in the dex, and the string
+does not appear in `libcld2.so` either. It is the developer's reference for building
+`a.b(int)`, shipped by accident. Our `getScriptLang` was ported from `a.b` directly
+(`d6cb130`), so there is nothing to take from it, and nothing to ship.
+
+The only other asset is `dexopt/baseline.prof` and `.profm` — the AGP baseline profile.
+
+### Native libraries
+
+AutoTTS ships exactly one file: **`lib/arm64-v8a/libcld2.so`**. One ABI, and CLD2 only —
+no CLD3, no protobuf. We ship two ABIs with CLD2, CLD3 and protobuf-lite, which is where the
+size difference between the two APKs comes from. That is our choice, not a parity gap: the
+CLD3 switch is an EasyVoice-only feature and dropping `armeabi-v7a` would cut off 32-bit
+devices.
+
+### Dead code and dead resources
+
+Three layouts are declared and never referenced by any id in the dex:
+`activity_tts_settings`, `fragment_main`, `row_layout`.
+
+`LicensesDialogFragment` is a whole class that is **never instantiated** — nothing in the
+app constructs or shows it. It would inflate `dialog_licenses` into a `WebView` and load
+`file:///android_asset/open_source_licenses.html`, and that asset is **not in the APK**. So
+even if it were shown it would render nothing.
+
+The real licences screen is `U2()`, and it is one line of work: `Html.fromHtml(autotts_license,
+FROM_HTML_MODE_LEGACY)` into a `TextView` with `LinkMovementMethod.getInstance()`. Our
+`buildLicensesTabView` uses exactly that mechanism; only the text differs, because ours
+carries our own copyright line and a third entry for CLD3, which we actually ship. It is
+kept in `TabViews.kt` unused, ready for wherever the user places it.
+
+### No translations
+
+`values-bn`, `values-gu`, `values-kn`, `values-mr`, `values-ta`, `values-te` and the six
+English variants all contain **zero** `<string>` elements — they are AndroidX and Material
+dimension and boolean overrides. AutoTTS ships no localisation of its own strings, so
+neither missing nor needed on our side.
+
+### No hidden runtime components
+
+`res/xml/` holds only `file_paths`, `tts_engine`, Play's `splits0` and two Material internal
+state-list files. There is no `res/raw/`. The manifest declares no receiver or provider of
+AutoTTS's own beyond the `FileProvider`. And nothing registers one at runtime either — no
+`registerReceiver`, `ContentObserver`, `AlarmManager`, `JobScheduler`, `WorkManager` or
+`PendingIntent` anywhere in the app's dex. The four manifest components plus the service are
+the whole surface.
