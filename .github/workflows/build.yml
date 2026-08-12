@@ -67,7 +67,6 @@ jobs:
                   out.write(content)
 
           write_source("gradle.properties", "android.useAndroidX=true\n"
-            "android.enableJetifier=true\n"
             "org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8\n"
             "org.gradle.daemon=false\n"
             "android.enableR8.fullMode=true\n")
@@ -151,11 +150,31 @@ jobs:
           """)
 
           write_source("app/proguard-rules.pro", """\
-          -optimizationpasses 5
+          # ---------------------------------------------------------- shrinking
+          # R8 full mode is on (gradle.properties). Let it widen access so it can
+          # inline and merge across class boundaries.
           -allowaccessmodification
-          -dontobfuscate
+          # Move every surviving class into the root package: shorter descriptors.
+          -repackageclasses ''
+
+          # --------------------------------------------------- crash reports
+          # Keep the line table so a stack trace still carries line numbers, but
+          # rename the source file to a constant so real paths never ship.
+          # mapping.txt is kept as a private CI artifact - not in the APK, not in
+          # the release - so only we can retrace a trace.
           -keepattributes SourceFile,LineNumberTable
-          -keep class com.tts.easyvoice.NativeEngine { native <methods>; }
+          -renamesourcefileattribute SourceFile
+
+          # ------------------------------------------------------------ keeps
+          # JNI resolves by symbol name (Java_com_tts_easyvoice_NativeEngine_*),
+          # so this class and its native methods must keep theirs. Nothing else
+          # in the app is reached by name: the only two reflection sites read
+          # framework names (TextToSpeech.mCurrentEngine, android resource ids).
+          -keep,includedescriptorclasses class com.tts.easyvoice.NativeEngine {
+              native <methods>;
+          }
+          # kotlinx-coroutines ships this as a consumer rule; repeated so the
+          # build does not depend on the AAR carrying it.
           -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
           -dontwarn kotlinx.coroutines.**
           -dontwarn javax.annotation.**
@@ -6151,10 +6170,19 @@ jobs:
           body: |
             Build #${{ github.run_number }}
             Commit: ${{ github.sha }}
-          files: |
-            app/build/outputs/apk/release/app-release.apk
-            app/build/outputs/mapping/release/mapping.txt
+          files: app/build/outputs/apk/release/app-release.apk
           make_latest: true
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # mapping.txt must never ship publicly - it undoes the obfuscation.
+      # Kept as a repo-private build artifact so only we can retrace a crash.
+      - name: Upload R8 mapping (private)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r8-mapping-${{ github.run_number }}
+          path: app/build/outputs/mapping/release/mapping.txt
+          retention-days: 90
+          if-no-files-found: warn
