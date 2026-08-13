@@ -761,6 +761,26 @@ vector drawables, which Compose reads with `painterResource(R.drawable.…)`.
 **Order:** `ConfigurationActivity` first (smallest real screen), then the other activities,
 with `MainActivity`/`TabViews` last because they are the most intertwined.
 
+**Done so far:** `ConfigurationActivity` (verified working on device), `LanguagesActivity`.
+
+**Bug the first device test caught — read this before writing any Compose surface.**
+Material3's `ExtendedFloatingActionButton` fills with **`primaryContainer`**, not `primary`.
+In this palette `primaryContainer` is the dark header blue, which is **1.28:1** on the
+background — the FAB was effectively invisible. The View version tinted it with `primary`
+(10.3:1) and laboured the label `onPrimary` (7.2:1). **Always state `containerColor` /
+`contentColor` explicitly on Material3 components rather than trusting a default to land on
+the colour role you meant.** The user also reported the FAB announcing no label, so it now
+carries an explicit `Modifier.semantics { contentDescription = … }` alongside its `text` slot.
+
+**Accessible checkbox row pattern** (used in `LanguagesScreen`, keep it for every future row):
+`Row(Modifier.toggleable(value, role = Role.Checkbox, onValueChange = …))` with
+`Checkbox(onCheckedChange = null)` inside. That merges the row into one node, so TalkBack
+reads "<language>, checkbox, checked" once, and Material supplies the 48dp target.
+
+**Third checker patch** (negative-tested): `ktresolve.py` skipped identifiers followed by
+`(`, so a **generic call** like `mutableStateListOf<Boolean>()` looked like a bare unresolved
+name. It now also skips `name<T>(`.
+
 **Checker patches this needed** (both negative-tested afterwards):
 - `ktimports.py` now adds **module-wide capitalised top-level `fun` names** to the known set —
   every `@Composable` is a capitalised function, so without this each one is a false positive.
