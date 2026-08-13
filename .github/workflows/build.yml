@@ -30,7 +30,7 @@ jobs:
         run: |
           install_pkgs() {
             echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-              "ndk;25.1.8937393" "cmake;3.22.1" --sdk_root=$ANDROID_HOME
+              "ndk;25.1.8937393" "cmake;3.22.1" "build-tools;36.0.0" --sdk_root=$ANDROID_HOME
           }
           n=0
           until [ $n -ge 5 ]; do
@@ -74,7 +74,7 @@ jobs:
           write_source("gradle.properties", "android.useAndroidX=true\n"
             "org.gradle.jvmargs=-Xmx3096m -Dfile.encoding=UTF-8\n"
             "org.gradle.daemon=false\n"
-            "android.enableR8.fullMode=true\n")
+            )
 
           write_source("settings.gradle.kts", """\
           pluginManagement {
@@ -90,8 +90,9 @@ jobs:
 
           write_source("build.gradle.kts", """\
           plugins {
-              id("com.android.application") version "8.2.2" apply false
-              id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+              id("com.android.application") version "9.3.0" apply false
+              id("org.jetbrains.kotlin.android") version "2.3.21" apply false
+              id("org.jetbrains.kotlin.plugin.compose") version "2.3.21" apply false
           }
           """)
 
@@ -99,15 +100,16 @@ jobs:
           plugins {
               id("com.android.application")
               id("org.jetbrains.kotlin.android")
+              id("org.jetbrains.kotlin.plugin.compose")
           }
           android {
               namespace = "com.tts.easyvoice"
-              compileSdk = 34
+              compileSdk = 36
               ndkVersion = "25.1.8937393"
               defaultConfig {
                   applicationId = "com.tts.easyvoice"
                   minSdk = 24
-                  targetSdk = 34
+                  targetSdk = 36
                   versionCode = 1
                   versionName = "16.0"
                   externalNativeBuild {
@@ -118,7 +120,6 @@ jobs:
                   }
                   ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
               }
-              sourceSets { getByName("main") { java.srcDirs("src/main/java") } }
               externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
               signingConfigs {
                   create("release") {
@@ -138,25 +139,26 @@ jobs:
                   debug { isMinifyEnabled = false }
               }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-              kotlinOptions { jvmTarget = "17" }
               buildFeatures { compose = true }
-              composeOptions { kotlinCompilerExtensionVersion = "1.5.10" }
               packaging {
                   resources { excludes.add("**/libc++_shared.so") }
                   jniLibs { useLegacyPackaging = true }
               }
           }
+          kotlin {
+              compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
+          }
           dependencies {
               implementation("androidx.core:core-ktx:1.12.0")
               implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
               implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-              implementation("androidx.viewpager2:viewpager2:1.1.0")
               implementation("com.google.android.material:material:1.11.0")
               implementation("androidx.appcompat:appcompat:1.6.1")
-              implementation("androidx.activity:activity-compose:1.8.2")
-              implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+              implementation("androidx.activity:activity-compose:1.13.0")
+              implementation(platform("androidx.compose:compose-bom:2026.08.00"))
               implementation("androidx.compose.ui:ui")
               implementation("androidx.compose.ui:ui-graphics")
+              implementation("androidx.compose.foundation:foundation")
               implementation("androidx.compose.material3:material3")
           }
           """)
@@ -4468,14 +4470,11 @@ jobs:
           "import androidx.compose.foundation.rememberScrollState\n"
           "import androidx.compose.foundation.verticalScroll\n"
           "import androidx.compose.material3.Button\n"
+          "import androidx.compose.material3.DropdownMenu\n"
           "import androidx.compose.material3.DropdownMenuItem\n"
-          "import androidx.compose.material3.ExperimentalMaterial3Api\n"
-          "import androidx.compose.material3.ExposedDropdownMenuBox\n"
-          "import androidx.compose.material3.ExposedDropdownMenuDefaults\n"
           "import androidx.compose.material3.Icon\n"
           "import androidx.compose.material3.MaterialTheme\n"
           "import androidx.compose.material3.OutlinedButton\n"
-          "import androidx.compose.material3.OutlinedTextField\n"
           "import androidx.compose.material3.Slider\n"
           "import androidx.compose.material3.Text\n"
           "import androidx.compose.runtime.Composable\n"
@@ -4496,32 +4495,28 @@ jobs:
           "import androidx.compose.ui.unit.dp\n"
           "import java.util.Locale\n"
           "\n"
-          "@OptIn(ExperimentalMaterial3Api::class)\n"
           "@Composable\n"
           "fun LabeledDropdown(label: String, options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {\n"
           "    var expanded by remember { mutableStateOf(false) }\n"
           "    val selectedText = if (selectedIndex >= 0 && selectedIndex < options.size) options[selectedIndex] else \"\"\n"
-          "    ExposedDropdownMenuBox(\n"
-          "        expanded = expanded,\n"
-          "        onExpandedChange = { expanded = it },\n"
-          "        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)\n"
-          "    ) {\n"
-          "        OutlinedTextField(\n"
-          "            value = selectedText,\n"
-          "            onValueChange = { },\n"
-          "            readOnly = true,\n"
-          "            singleLine = true,\n"
-          "            label = { Text(label) },\n"
-          "            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },\n"
+          "    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {\n"
+          "        OutlinedButton(\n"
+          "            onClick = { expanded = true },\n"
           "            modifier = Modifier\n"
-          "                .menuAnchor()\n"
           "                .fillMaxWidth()\n"
           "                .semantics {\n"
           "                    role = Role.DropdownList\n"
+          "                    contentDescription = label + \", \" + selectedText\n"
           "                    stateDescription = if (expanded) \"Expanded\" else \"Collapsed\"\n"
           "                }\n"
-          "        )\n"
-          "        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {\n"
+          "        ) {\n"
+          "            Column(modifier = Modifier.weight(1f)) {\n"
+          "                Text(text = label, style = MaterialTheme.typography.labelMedium)\n"
+          "                Text(text = selectedText, style = MaterialTheme.typography.bodyLarge)\n"
+          "            }\n"
+          "            Icon(painterResource(R.drawable.ic_arrow_drop_down), contentDescription = null)\n"
+          "        }\n"
+          "        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {\n"
           "            for (index in options.indices) {\n"
           "                DropdownMenuItem(\n"
           "                    text = { Text(options[index]) },\n"
@@ -4531,7 +4526,6 @@ jobs:
           "                            Icon(painterResource(R.drawable.ic_check), contentDescription = null)\n"
           "                        }\n"
           "                    },\n"
-          "                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,\n"
           "                    modifier = Modifier.semantics { selected = index == selectedIndex }\n"
           "                )\n"
           "            }\n"
@@ -6301,6 +6295,15 @@ jobs:
           "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18h-2v-2h2v2zm0-4h-2V9h2v5z\"/>\n"
           "</vector>\n")
 
+          write_source("app/src/main/res/drawable/ic_arrow_drop_down.xml",
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
+          "    android:width=\"24dp\" android:height=\"24dp\"\n"
+          "    android:viewportWidth=\"24\" android:viewportHeight=\"24\"\n"
+          "    android:tint=\"?attr/colorControlNormal\">\n"
+          "  <path android:fillColor=\"@android:color/white\" android:pathData=\"M7,10l5,5 5,-5z\"/>\n"
+          "</vector>\n"
+          )
+
           write_source("app/src/main/res/drawable/ic_check.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
@@ -6515,36 +6518,7 @@ jobs:
           "    </style>\n"
           "</resources>\n")
 
-          write_source("app/src/main/res/layout/ev_spinner_item.xml",
-          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-          "<TextView xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
-          "    android:id=\"@android:id/text1\"\n"
-          "    android:layout_width=\"match_parent\"\n"
-          "    android:layout_height=\"wrap_content\"\n"
-          "    android:minHeight=\"48dp\"\n"
-          "    android:gravity=\"center_vertical\"\n"
-          "    android:paddingStart=\"12dp\"\n"
-          "    android:paddingEnd=\"12dp\"\n"
-          "    android:textSize=\"16sp\"\n"
-          "    android:textColor=\"@color/ev_on_surface\"\n"
-          "    android:ellipsize=\"end\"\n"
-          "    android:singleLine=\"true\" />\n")
 
-          write_source("app/src/main/res/layout/ev_spinner_dropdown_item.xml",
-          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-          "<TextView xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
-          "    android:id=\"@android:id/text1\"\n"
-          "    android:layout_width=\"match_parent\"\n"
-          "    android:layout_height=\"wrap_content\"\n"
-          "    android:minHeight=\"48dp\"\n"
-          "    android:gravity=\"center_vertical\"\n"
-          "    android:background=\"@color/ev_surface\"\n"
-          "    android:paddingStart=\"16dp\"\n"
-          "    android:paddingEnd=\"16dp\"\n"
-          "    android:paddingTop=\"12dp\"\n"
-          "    android:paddingBottom=\"12dp\"\n"
-          "    android:textSize=\"16sp\"\n"
-          "    android:textColor=\"@color/ev_on_surface\" />\n")
 
           write_source("app/src/main/res/values/strings.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
@@ -6624,7 +6598,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.5'
+          gradle-version: '9.5.0'
           cache-disabled: true
 
       - name: Restore Keystore
