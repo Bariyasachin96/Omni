@@ -327,6 +327,31 @@ the documented carrier for expanded/collapsed and avoids double-speaking.
 Sources: `developer.android.com/about/versions/16/behavior-changes-all`,
 `developer.android.com/guide/topics/ui/accessibility/principles`.
 
+## Settings live in STATICS, never re-read from prefs at runtime (audited 2026-08-13)
+AutoTTS loads every setting into a static once (`c3.n.p`/`n.r` fill `AutoTtsService.G/H/O/P/
+S/…`), the settings UI writes those statics directly, and the synthesis path reads **only**
+the statics — `Z()` resolves its fallback with `this.Q(G)`/`this.M(G)`, `M()` and `Q()` walk
+the in-memory `c3.n.c`, and `onSynthesizeText` re-reads nothing from `SharedPreferences`.
+Prefs are a persistence layer, not a runtime source.
+
+We had drifted from that in three places, all fixed:
+- `onLoadLanguage` read `auto_mode_language` from prefs → now the `autoLang` static;
+- the dual branch of the chunk loop read `dual_mode_language` from prefs → now `dualLang`;
+- `onSynthesizeText` did `scannedLangsIso3 = prefs.getScannedLangs()` **per utterance**, and
+  `scannedLangsIso3` was never read anywhere — dead. The call's only remaining effect was the
+  one-time legacy-key migration, which now runs once in `loadAllSettings()`.
+
+**Why it mattered:** prefs hold what was last *persisted*; the statics hold what the user has
+just *chosen*. They only converge when `persistAll` runs (onPause / the wizard's Finish). So
+choosing Hindi as the dual language inside the wizard updated the static but not the stored
+key, and the service kept routing with the previously stored language — the user heard
+Gujarati. Any future "the UI says X but it speaks Y" bug should be checked against this rule
+first.
+
+`loadModeLangsOnce()` is guarded by `if (autoLang.isNotEmpty()) return` and `loadAllSettings()`
+runs only from `onCreate`, so the statics are never silently reloaded over a live edit. Keep it
+that way.
+
 ## Local validation before every push (upgraded 2026-08-12 after a CI compile failure)
 Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → generate into a tree →
 `ktcheck.py` / `ktresolve.py` / `ktimports.py` → `g++ -fsyntax-only` for the C++.
@@ -347,7 +372,9 @@ Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → ge
     `finish`/`resources`/`packageManager`/`setContentView`/`onCreate`/`onPause` unresolved and
     `type mismatch: inferred type is <Activity> but Context was expected`;
   - `setTextAppearance(int)` is API 23 → `no value passed for parameter 'p1'` +
-    `type mismatch: inferred type is Int but Context! was expected`.
+    `type mismatch: inferred type is Int but Context! was expected`;
+  - `View.generateViewId()` is API 17 → `unresolved reference: generateViewId` (verified
+    absent from the jar with `javap`).
 - Judge the run by the **NEW error texts** the diff prints, not by the total count.
 
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
