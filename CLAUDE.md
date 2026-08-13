@@ -101,17 +101,36 @@ Recorded so far:
    unnecessary for this).
    The four sections, their spinners, checkboxes and every handler are unchanged; only where
    they are shown moved. Do NOT "restore" this to AutoTTS's bottom-of-page layout.
-2. **Voices tab folded into the Modes tab.** AutoTTS has five tabs; we now have four. Voices
-   is a **"Voices" collapse/expand section at the bottom of the Modes tab**, after the last
-   mode — not nested inside any mode, because voice, variant, speed, volume and pitch are
-   **per-language** settings that every mode reads (`speedFor`/`pitchFor`/`volumeFor`/
-   `variantFor`), so putting them under one mode would be a lie. `buildVoicesTabView` returns
-   its content root instead of a `ScrollView` and is embedded in the holder; the whole thing
-   is **rebuilt on each expand**, which is what keeps `LangStore.languages` correct — the
-   Modes tab rebuilds it with `onlyEnabled = false` and the Voices view with
-   `onlyEnabled = true`, so whichever section you open last must re-run its own rebuild.
-   Expanding a mode's settings calls `refreshModeLanguages(mode)` for the same reason.
-   `pageTitles`/`pageIcons` dropped to four and `ic_tab_voices.xml` is gone with them.
+2. **Voices tab replaced by "Configuration settings" — two screens (user request,
+   2026-08-13).** AutoTTS has five tabs; we now have two. The Voices tab first became a
+   collapse/expand section on the Modes tab, and **on 2026-08-13 the user replaced that
+   toggle with a "Configuration settings" button** that opens a real screen, because the
+   inline section felt heavy: *"voice wala jo collapse button hai use jagah per configuration
+   settings ka button add kar do … us per click karne se … language ki list … kisi bhi ek
+   language per click karunga to vah wala screen khulega jismein voice variant … slider"*.
+   - **`ConfigurationActivity`** — lists the languages configured for the current mode, one
+     button per language, from `voiceLanguageLabels(this, modeInt)`: dual gives the two
+     `dualLangList` entries, every other mode gives its selected languages. It rebuilds in
+     `onResume`, so returning from a voice screen or changing the mode is picked up.
+   - **`VoiceSetupActivity`** — the per-language voice screen, `buildVoicesTabView(this,
+     prefs, { testTts }, langIndex)` with the same `singleLangIndex` pin the wizard uses, so
+     engine/voice, variant, Test, speed, volume, pitch, Default and dedicated engines are
+     the untouched Voices code. Its `title` (what TalkBack announces) is read from
+     `LangStore.languages` **after** the view is built, in `dualLanguageLabels`'s exact
+     `displayName + " (" + iso3 + ")"` format, so no second rebuild is needed.
+   - The index passed as `lang_index` indexes `LangStore.languages`, matching the assumption
+     the Voices language spinner already makes (`onLanguageSelected(position)` indexes the
+     same list the labels came from). Do not "fix" that mapping here alone.
+   - Voice, variant, speed, volume and pitch stay **per-language** settings that every mode
+     reads (`speedFor`/`pitchFor`/`volumeFor`/`variantFor`), which is why this lives beside
+     the modes rather than inside one of them.
+   - `buildVoicesTabView` still returns its content root instead of a `ScrollView`; each
+     screen wraps it. Every entry point (`buildLanguagesTabView`, `buildVoicesTabView`,
+     `voiceLanguageLabels`) does its **own** `LangStore` rebuild — `onlyEnabled = false` for
+     the Modes tab and the Languages screen, `onlyEnabled = true` for the voice list — so
+     whichever one runs last leaves `LangStore.languages` correct for itself.
+     Expanding a mode's settings calls `refreshModeLanguages(mode)` for the same reason.
+   - `pageTitles`/`pageIcons` dropped and `ic_tab_voices.xml` is gone with them.
 3. **Languages tab folded into the Modes tab, per mode.** Now two tabs: Modes and Advanced
    - the **Licenses tab was removed on 2026-08-12**; `buildLicensesTabView` is kept in
    `TabViews.kt` unused, because the user intends to place it somewhere else. Unlike Voices, the language list **is** per-mode (`buildLanguagesTabView` reads
@@ -146,9 +165,10 @@ Recorded so far:
      `ComponentActivity` that puts `buildLanguagesTabView` in a `ScrollView`, declared with
      `android:label="Languages"` so TalkBack announces it on entry, and closed by the system
      back gesture. This replaced an inline disclosure the user rejected on 2026-08-12: they
-     want the whole separate screen AutoTTS's Languages tab gave. Voices keeps its
-     collapse/expand behaviour and its state description. The per-mode Languages buttons,
-     holders and `applyLanguagesExpandState` are gone.
+     want the whole separate screen AutoTTS's Languages tab gave. The per-mode Languages
+     buttons, holders and `applyLanguagesExpandState` are gone. The second button in that
+     row was "Voices" (collapse/expand) until 2026-08-13; it is now **"Configuration
+     settings"**, which opens `ConfigurationActivity` — see item 2.
    - **Every checkbox is a `MaterialSwitch`** (`EvSwitch` typealias, `evSwitch(context)`
      factory in `Theming.kt`): the nine Advanced rows, "Use locale spans", "Use dedicated
      engines" and the language-list rows. They are still `CompoundButton`s, so
@@ -238,6 +258,14 @@ Recorded so far:
      the wizard visits them does not matter — the same reason the tabs rebuild on each open.
    - `stepIndex` is clamped to `ids.lastIndex` in `showStep()`, for the case where the step
      list shrinks (a language disappearing while the wizard is open).
+   - **Next must stay snappy (user request, 2026-08-13: *"next karta hun to thoda bhari
+     bhari sa lagta hai"*).** `refreshVoiceLangs()` runs **once per Next** — in the Next
+     handler, before it decides finish-vs-advance — plus once before the first `showStep()`.
+     It used to also run at the top of `showStep()`, so every press rebuilt the language list
+     twice. Each rebuild goes through `LangStore.persistLanguages`, whose `editor.commit()`
+     is a synchronous main-thread disk write, so the duplicate was felt. `commit()` itself
+     must NOT be changed to `apply()` — that is AutoTTS-mirrored storage code. Back does not
+     refresh at all, since it cannot change the language selection.
    - Step 1 lists **every mode** as a radio (Google TTS skipped when
      `com.google.android.tts` is absent), each followed by its description — the same
      strings the Main Settings tab uses, because `modeRowSpecs` was lifted to a **top-level
