@@ -386,6 +386,49 @@ What was missing and is now fixed:
   `search_voice_btn`) now get the 48dp minimum too; `search_mag_icon` is decorative when the
   view is permanently expanded, so it is only recoloured.
 
+## Full UI audit against Google's guidelines (user request, 2026-08-13)
+*"pura user interface mein kahin per bhi Google ke khilaf kuch ho to usko sahi kar dijiyega"*.
+
+**Contrast — computed, not eyeballed.** Every palette pair was run through the WCAG relative
+luminance formula. All active pairs pass: body text on background **18.7:1**, on surface
+16.5:1, secondary text 14.6:1, white on the section header 14.6:1, button label on fill
+7.2:1, accent on background 10.3:1, bright outline 11.0:1, checked thumb on track 7.2:1,
+unchecked thumb on track 8.1:1 — against floors of 4.5 (text) and 3.0 (UI components).
+Four pairs land below their floor and **all four are exempt**: the disabled button label
+(2.9), disabled text (3.9) and the disabled switch thumb (2.9) are inactive components, and
+WCAG 1.4.3 states *"Text … that are part of an inactive user interface component … have no
+contrast requirement"*; `surface` vs `background` (1.1) is the spinner popup's own fill,
+which no criterion requires to be distinguishable — the text on it is 16.5:1 and the popup
+carries elevation. The hardcoded green `#4CAF50` on "Installed" is 6.7:1, and the state is
+carried by the words "Installed"/"Not installed", not by colour alone.
+
+**Fixed in this pass:**
+- **`android:supportsRtl="true"` was missing.** It defaults to false, so the layout never
+  mirrored for Arabic, Urdu or Hebrew users — languages this very app reads. Now declared.
+- **Two RTL-unsafe spots** in the required-engines dialog: `rightMargin`/`leftMargin` on the
+  Apply/Cancel buttons became `marginEnd`/`marginStart`, and
+  `notInstalledLabel.setPadding(0, 0, 16, 0)` became `setPaddingRelative`.
+- **Raw pixels instead of dp** throughout that dialog (`48/32/16`). AutoTTS's `c3.u` uses raw
+  px too (lines 99/104/141/157), so our port was faithful — but px is density-dependent and
+  the units guidance is dp, so under the UI carve-out it is now `dialogDp(…)`. `dialogDp` is
+  a **class member**, not a local of `buildContent()`, because `renderRows()` needs it as
+  well — the kotlinc+android.jar check caught that as a genuine `unresolved reference`.
+- **The app-bar icon duplicated the app name.** It carried
+  `contentDescription = app_name` while the `TextView` beside it shows the same string, so
+  TalkBack said "Easy Voice" twice. It is decorative, so it is now `contentDescription = null`
+  plus `IMPORTANT_FOR_ACCESSIBILITY_NO`.
+
+**Checked and deliberately left alone:**
+- the `SeekBar`'s `ACCESSIBILITY_LIVE_REGION_POLITE`. The Android 16 page names
+  `setAccessibilityLiveRegion` as *the* API for a critical UI change and only warns to use it
+  sparingly; a slider's value is exactly that case, and `stateDescription` (API 30+) alone
+  would leave API 24-29 without the announcement. Do not remove it.
+- `"Requried TTS Engines"` — the typo is **AutoTTS's own string** (`c3.u:102`), not ours, and
+  is not a guideline breach. Left per rule 5; change it only if the user asks.
+- text sizes are all `setTextAppearance(android.R.style.TextAppearance_*)` or
+  `setTextSize(float)`, both `sp`, so they follow the user's font-size setting; no view uses
+  a fixed height that could clip when the font scale grows.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both
