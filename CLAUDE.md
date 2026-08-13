@@ -109,8 +109,13 @@ Recorded so far:
    settings ka button add kar do … us per click karne se … language ki list … kisi bhi ek
    language per click karunga to vah wala screen khulega jismein voice variant … slider"*.
    - **`ConfigurationActivity`** — a **"Languages" `ExtendedFloatingActionButton`, anchored
-     bottom-end** (user, 2026-08-13: *"languages ka button bottom right corner per hona
-     chahie … primary action"*). Google's own wording: a FAB "lets the user perform a primary
+     bottom-end**, labelled **"Add language"** (user, 2026-08-13: *"languages ka button
+     bottom right corner per hona chahie … primary action"*, and *"languages button ka
+     content description change karna hai add language"*). The **visible text** was changed
+     rather than only the `contentDescription`: WCAG 2.5.3 *Label in Name* wants the
+     accessible name to contain the visible label, so a button reading "Languages" but
+     announcing "Add language" would be a defect. Setting the text makes both the same
+     string. Google's own wording: a FAB "lets the user perform a primary
      action" and is "typically found anchored to the bottom right"; the **extended** variant
      carries a text label, and that label is the accessibility affordance, so it stays a
      labelled "Languages" control rather than a bare icon. The list scrolls under it with
@@ -270,6 +275,16 @@ Recorded so far:
      the wizard visits them does not matter — the same reason the tabs rebuild on each open.
    - `stepIndex` is clamped to `ids.lastIndex` in `showStep()`, for the case where the step
      list shrinks (a language disappearing while the wizard is open).
+   - **Swipe navigation (user request, 2026-08-13).** A horizontal swipe on the step body
+     moves between steps, and the Back/Next buttons stay — the user asked for both. Both
+     paths call the same `goBack()`/`goNext()`, so there is one implementation of the step
+     logic. The gesture is a plain `OnTouchListener` comparing ACTION_DOWN/ACTION_UP
+     coordinates (≥64dp horizontal and more than twice the vertical movement), returning
+     `false` so the `ScrollView` still scrolls and child clicks still fire. `GestureDetector`
+     was avoided on purpose: `onFling`'s first parameter became `@Nullable` in a later API
+     than the API-15 check jar exposes, so the override signature could not be verified
+     locally. Note for expectations: with TalkBack on, the screen reader consumes swipes for
+     its own navigation, which is exactly why the buttons must stay.
    - **Next must stay snappy (user request, 2026-08-13: *"next karta hun to thoda bhari
      bhari sa lagta hai"*).** `refreshVoiceLangs()` runs **once per Next** — in the Next
      handler, before it decides finish-vs-advance — plus once before the first `showStep()`.
