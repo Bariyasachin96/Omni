@@ -202,19 +202,42 @@ Recorded so far:
      `speak()`, so the stray-utterance window closes on its own.
 
 8. **Setup wizard (user request, 2026-08-12).** `SetupWizardActivity` — a plain
-   `ComponentActivity`, **three steps** (mode → settings → languages), one heading + a
-   scrolling body + a Back/Next row.
-   - **The languages step is skipped for Dual**, so Dual is a two-step wizard (user request,
-     2026-08-12: *"dual board select karega to … vah language wala step nahin aaega"*). This
-     mirrors `buildLanguagesTabView`, which answers "Language selection is not available for
-     \"None\" and \"Dual languages\" modes." — so `stepIds()` returns
-     `["mode","settings"]` for `dual`/`none` and `["mode","settings","languages"]` otherwise.
-     The heading counts accordingly ("step 2 of 2" vs "step 2 of 3") and Next reads "Finish"
-     only on the real last step; changing the radio on step 1 re-labels Next immediately.
-   - Step 3 embeds `buildLanguagesTabView(this, prefs)` — the same function
-     `LanguagesActivity` uses, nothing duplicated. It reads `prefs.getReadingMode()`, which
-     is why `setReadingMode(chosenMode)` is written when **leaving step 1**, before either
-     later step is built.
+   `ComponentActivity` with a **dynamic step list**, one heading + a scrolling body + a
+   Back/Next row. The steps are
+   **mode → settings → languages → one voice step per language**:
+   - `baseIds()` is `["mode","settings","languages"]`, but **the languages step is dropped
+     for Dual** (user request, 2026-08-12: *"dual board select karega to … vah language wala
+     step nahin aaega"*), mirroring `buildLanguagesTabView`, which answers "Language
+     selection is not available for \"None\" and \"Dual languages\" modes." for exactly
+     `dual`/`none`.
+   - `stepIds()` = `baseIds()` + **one `"voice"` step per entry of `voiceLangLabels`**
+     (user request, 2026-08-12: *"jo bhi selected language hogi uske TTS setup aaega …
+     Charon language ke liye अलग-अलग next karna padega"*). Dual therefore ends with exactly
+     two voice steps — English and the dual language — because `LangStore.dualLangList`
+     returns only those two.
+   - `voiceLangLabels` comes from **`voiceLanguageLabels(context, modeInt)`**, which was
+     lifted out of `buildVoicesTabView`'s local `applyLanguageList()` so the wizard and the
+     Voices section share one list; `applyLanguageList()` now just calls it and sets the
+     adapter. It is re-read at the top of `showStep()` and again before Next decides
+     finish-vs-advance, so toggling languages immediately changes the step count, the
+     "step N of M" heading and the Next/Finish label.
+   - A voice step is `buildVoicesTabView(this, prefs, { testTts }, voiceIndex)` — the new
+     **`singleLangIndex`** parameter hides the "Select language" label and its spinner and
+     pins the view to that one language (`setSelection` + `onLanguageSelected`). Everything
+     else is the untouched Voices code: engine/voice spinner, variant spinner, Test, speed,
+     volume, pitch, Default, dedicated engines. `addSmallText` now returns its `TextView`
+     so the label can be hidden.
+   - The wizard owns a `TextToSpeech(this, null, "com.tts.easyvoice")` exactly like
+     `MainActivity.newTestClient()`, so **Test speaks** on the settings and voice steps.
+   - Steps 2 and 3 embed `buildModesTabView(..., settingsOnlyForMode)` and
+     `buildLanguagesTabView(this, prefs)` — the same functions the Main Settings tab and
+     `LanguagesActivity` use, nothing duplicated. Both read `prefs.getReadingMode()`, which
+     is why `setReadingMode(chosenMode)` is written when **leaving step 1**.
+   - Each of `buildLanguagesTabView`, `buildVoicesTabView` and `voiceLanguageLabels` does
+     its **own** `LangStore` rebuild (`onlyEnabled = false` / `true`), so the order in which
+     the wizard visits them does not matter — the same reason the tabs rebuild on each open.
+   - `stepIndex` is clamped to `ids.lastIndex` in `showStep()`, for the case where the step
+     list shrinks (a language disappearing while the wizard is open).
    - Step 1 lists **every mode** as a radio (Google TTS skipped when
      `com.google.android.tts` is absent), each followed by its description — the same
      strings the Main Settings tab uses, because `modeRowSpecs` was lifted to a **top-level
