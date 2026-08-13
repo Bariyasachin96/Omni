@@ -110,7 +110,11 @@ Recorded so far:
    language per click karunga to vah wala screen khulega jismein voice variant … slider"*.
    - **`ConfigurationActivity`** — a **"Languages" button** (moved here from the Main
      Settings row on 2026-08-13: *"configuration settings wala jo button hai uske andar vah
-     language ka button add kar dijiye"*), then the languages configured for the current
+     language ka button add kar dijiye"*) — **shown only when the mode has a language list**,
+     i.e. never for `dual`/`none` (user, 2026-08-13: *"vah button rakhne ki jarurat kya hai"*),
+     because `buildLanguagesTabView` answers those two with "Language selection is not
+     available…" and the button would only ever lead to that sentence — then the languages
+     configured for the current
      mode, one button per language, from `voiceLanguageLabels(this, modeInt)`: dual gives
      the two `dualLangList` entries, every other mode gives its selected languages. It
      rebuilds in `onResume`, so returning from the Languages screen or a voice screen, or
