@@ -108,10 +108,14 @@ Recorded so far:
    inline section felt heavy: *"voice wala jo collapse button hai use jagah per configuration
    settings ka button add kar do … us per click karne se … language ki list … kisi bhi ek
    language per click karunga to vah wala screen khulega jismein voice variant … slider"*.
-   - **`ConfigurationActivity`** — lists the languages configured for the current mode, one
-     button per language, from `voiceLanguageLabels(this, modeInt)`: dual gives the two
-     `dualLangList` entries, every other mode gives its selected languages. It rebuilds in
-     `onResume`, so returning from a voice screen or changing the mode is picked up.
+   - **`ConfigurationActivity`** — a **"Languages" button** (moved here from the Main
+     Settings row on 2026-08-13: *"configuration settings wala jo button hai uske andar vah
+     language ka button add kar dijiye"*), then the languages configured for the current
+     mode, one button per language, from `voiceLanguageLabels(this, modeInt)`: dual gives
+     the two `dualLangList` entries, every other mode gives its selected languages. It
+     rebuilds in `onResume`, so returning from the Languages screen or a voice screen, or
+     changing the mode, is picked up. The Main Settings tab therefore shows only
+     "Configuration settings"; Languages is one level in, not duplicated in both places.
    - **`VoiceSetupActivity`** — the per-language voice screen, `buildVoicesTabView(this,
      prefs, { testTts }, langIndex)` with the same `singleLangIndex` pin the wizard uses, so
      engine/voice, variant, Test, speed, volume, pitch, Default and dedicated engines are
@@ -266,6 +270,17 @@ Recorded so far:
      is a synchronous main-thread disk write, so the duplicate was felt. `commit()` itself
      must NOT be changed to `apply()` — that is AutoTTS-mirrored storage code. Back does not
      refresh at all, since it cannot change the language selection.
+   - **2026-08-13, second pass on the same complaint.** Two more sources of the stall:
+     - `refreshVoiceLangs()` now runs **only while on a base step**
+       (`if (stepIndex < baseIds().size)`). Moving between two voice steps cannot change the
+       language list, so the rebuild — and its `commit()` — was pure waste on exactly the
+       presses the user makes most.
+     - the Voices view is **built once and re-pinned**, not rebuilt per language. The new
+       `VoicePin` holder is handed to `buildVoicesTabView`, which fills `pin.select` with
+       the same `setSelection` + `onLanguageSelected` pair the language spinner uses. So the
+       2nd..Nth voice step costs one language switch instead of a whole view construction
+       plus two `commit()`s. `refreshVoiceLangs()` clears `voicesView`/`voicePin.select`, so
+       changing the language selection still forces a fresh build.
    - Step 1 lists **every mode** as a radio (Google TTS skipped when
      `com.google.android.tts` is absent), each followed by its description — the same
      strings the Main Settings tab uses, because `modeRowSpecs` was lifted to a **top-level
@@ -289,6 +304,28 @@ Recorded so far:
      have languages to show. The flag is `setup_done` in `SharedPrefsManager`.
    - Re-runnable: the Advanced tab's **first** section is now "Setup", with a
      "Setup wizard" button that starts the activity again.
+
+## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
+The user asked for the guidelines to be read properly rather than recalled. Google's
+**Android 16 behaviour-changes page deprecates accessibility announcements** — both
+`View.announceForAccessibility()` and dispatching `TYPE_ANNOUNCEMENT` events — because they
+"create inconsistent user experiences for TalkBack and Android's screen reader" users. The
+documented replacements, by case:
+- **significant UI / window change** → `Activity.setTitle()` and
+  `View.setAccessibilityPaneTitle()` (`ViewCompat.setAccessibilityPaneTitle`, which is
+  backwards compatible and spoken by TalkBack from API 19 — our `minSdk` is 24);
+- **critical UI change** → `setAccessibilityLiveRegion()`, and the docs say use it
+  *sparingly*, since it fires on every update;
+- **errors** → `CONTENT_CHANGE_TYPE_ERROR` / `setError()`.
+
+Applied: the wizard's per-step announce became
+`ViewCompat.setAccessibilityPaneTitle(stepBody, <step heading>)` — a content swap inside one
+window is exactly the pane case — and the mode-settings toggle's announce was deleted
+outright, because `applyExpandState` already sets `ViewCompat.setStateDescription`, which is
+the documented carrier for expanded/collapsed and avoids double-speaking.
+**There is now no `announceForAccessibility` anywhere in the app; do not reintroduce one.**
+Sources: `developer.android.com/about/versions/16/behavior-changes-all`,
+`developer.android.com/guide/topics/ui/accessibility/principles`.
 
 ## Local validation before every push (upgraded 2026-08-12 after a CI compile failure)
 Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → generate into a tree →
