@@ -455,6 +455,38 @@ language-list rows are uniquely labelled by language name.
   `setTextSize(float)`, both `sp`, so they follow the user's font-size setting; no view uses
   a fixed height that could clip when the font scale grows.
 
+## Material components: icons and button emphasis (user request, 2026-08-13)
+*"material icon se hote hain vah bhi humne nahi diye hain … jahan per jaruri hote hain"*.
+Sources read: `raw.githubusercontent.com/material-components/material-components-android/
+master/docs/components/CommonButton.md`, and the extended-FAB description on
+`developer.android.com`.
+
+- **Button emphasis order is a real spec**, quoted: *"There are five button styles, in order
+  of emphasis: 1. Elevated button 2. Filled button 3. Filled tonal button 4. Outlined button
+  5. Text button."* Every `Button` in the app was filled, so a two-action screen expressed no
+  hierarchy. `AppPalette.SECONDARY_BUTTON` is the tag for the **outlined** variant —
+  transparent fill, 1dp `outlineBright` stroke, `primary` label — handled in
+  `applyAccessibleTheme`'s `Button` branch. Contrast holds: label 10.3:1, stroke 11.0:1,
+  both above their floors. Used on the wizard's **Back**, so **Next/Finish** is the only
+  filled (higher-emphasis) action on that screen.
+- **Icon placement is specified**, quoted: *"Icons visually communicate the button's action
+  and help draw attention. They should be placed on the leading side of the button, before
+  the label text."* So the wizard's icons use
+  `setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0)` — the **relative** form,
+  which mirrors in RTL — never the left/right form.
+- **The extended FAB is *defined* as icon + text** ("Extended floating action buttons are
+  distinguished by an icon and a text"), and ours was text only. It now carries `ic_add`.
+- Three new vector drawables with standard Material paths: `ic_add`, `ic_arrow_back`,
+  `ic_arrow_forward`. **Both arrows are `android:autoMirrored="true"`** — directional icons
+  must flip in RTL, which matters now that `supportsRtl` is on.
+- Icon tint is set per button with `TextViewCompat.setCompoundDrawableTintList`, because the
+  filled and outlined buttons have different label colours; a single static `android:tint` in
+  the vector could only match one of them.
+- `GradientDrawable.setCornerRadius(...)` is called as a method, not via the `cornerRadius`
+  property: `javap` shows the API-15 check jar has only the setter, and the getter that the
+  Kotlin property needs arrived in API 24 — exactly our `minSdk`, so the method form removes
+  the edge case entirely.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both
