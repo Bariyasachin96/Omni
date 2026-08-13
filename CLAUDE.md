@@ -735,6 +735,42 @@ could be statics too:**
   the new value. Adding a static in front would only create a second copy of the truth — the
   exact shape of those two bugs.
 
+## Jetpack Compose migration (user decision, 2026-08-13) — IN PROGRESS, screen by screen
+The user chose to move the **whole UI** to Compose, strictly per Google's accessibility rules.
+I advised against it once; they decided, so this is the plan of record.
+
+**Why Compose is genuinely better here, from the docs (not opinion):** Material components
+apply the **48dp** minimum touch target themselves (only when the component is interactive —
+`onCheckedChange` non-null); `clickable`/`toggleable` **merge child semantics** so an icon +
+text button is one node, which our View code does not do at all today; and `heading()`,
+`paneTitle`, `liveRegion`, `customActions`, `stateDescription` are first-class modifiers.
+
+**The one real cost, and it is environmental, not Compose's fault:** Google Maven is blocked
+by the proxy, so the Compose compiler plugin and every `androidx.compose` artifact are
+unresolvable locally. `android.jar` comes from Maven Central, which is why the View code can
+still be type-checked; **there is no equivalent for Compose.** CI builds fine (it has network).
+So every Compose mistake reaches a real build before anything catches it. That is exactly why
+this migration is **incremental, one screen per build**, never a big-bang rewrite.
+
+**Toolchain, verified against Google's compose-kotlin compatibility table, not guessed:**
+Kotlin `1.9.22` → Compose Compiler **`1.5.10`**; BOM `2024.02.00`; `activity-compose:1.8.2`;
+`compose.ui`, `compose.ui:ui-graphics`, `material3`. **`material-icons-extended` is
+deliberately NOT added** — it is large, and we already ship the authentic Google icon paths as
+vector drawables, which Compose reads with `painterResource(R.drawable.…)`.
+
+**Order:** `ConfigurationActivity` first (smallest real screen), then the other activities,
+with `MainActivity`/`TabViews` last because they are the most intertwined.
+
+**Checker patches this needed** (both negative-tested afterwards):
+- `ktimports.py` now adds **module-wide capitalised top-level `fun` names** to the known set —
+  every `@Composable` is a capitalised function, so without this each one is a false positive.
+- `ktresolve.py`'s parameter patterns now allow an **annotated type** (`content: @Composable
+  () -> Unit`); the leading `@` made it miss the parameter and report it as unresolved.
+
+**`build.gradle.kts` lives in a raw YAML block, not an escaped Python string.** Inserted lines
+must carry the block's 14-space indent — getting that wrong breaks `yaml.safe_load` outright,
+which is how it was caught here.
+
 ## Local validation before every push (upgraded 2026-08-12 after a CI compile failure)
 Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → generate into a tree →
 `ktcheck.py` / `ktresolve.py` / `ktimports.py` → `g++ -fsyntax-only` for the C++.
