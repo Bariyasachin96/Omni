@@ -761,7 +761,19 @@ vector drawables, which Compose reads with `painterResource(R.drawable.…)`.
 **Order:** `ConfigurationActivity` first (smallest real screen), then the other activities,
 with `MainActivity`/`TabViews` last because they are the most intertwined.
 
-**Done so far:** `ConfigurationActivity` (verified working on device), `LanguagesActivity`.
+**Done so far:** `ConfigurationActivity` (verified on device), `LanguagesActivity`,
+`VoiceSetupActivity` + `VoiceScreen`/`VoiceRows`, `SetupWizardActivity`. Remaining:
+`TabViews` (Modes + Advanced) and `MainActivity`.
+
+**`blocks.py` is now the ONLY safe way to edit a `write_source` block.** A generated block
+ends either `"}\n")` (paren on the last string line) or `"}\n"` + a `)` line. Slicing with a
+hard-coded terminator silently swallows whole files when the style does not match — that is
+exactly how `LanguagesActivity.kt` disappeared, caught only because `ktimports` then reported
+its class as unimported. `blocks.py` consumes the string lines and accepts either ending, and
+every edit asserts `block_paths()` lost nothing.
+
+**The wizard's settings step still hosts a View** through `AndroidView { buildModesTabView(…) }`,
+because `TabViews` is not ported yet. That interop stays until it is.
 
 **Bug the first device test caught — read this before writing any Compose surface.**
 Material3's `ExtendedFloatingActionButton` fills with **`primaryContainer`**, not `primary`.
@@ -777,9 +789,15 @@ carries an explicit `Modifier.semantics { contentDescription = … }` alongside 
 `Checkbox(onCheckedChange = null)` inside. That merges the row into one node, so TalkBack
 reads "<language>, checkbox, checked" once, and Material supplies the 48dp target.
 
-**Third checker patch** (negative-tested): `ktresolve.py` skipped identifiers followed by
-`(`, so a **generic call** like `mutableStateListOf<Boolean>()` looked like a bare unresolved
-name. It now also skips `name<T>(`.
+**Checker patches for Compose, each negative-tested:**
+- `ktresolve.py` skipped identifiers followed by `(`, so a **generic call** like
+  `mutableStateListOf<Boolean>()` looked like a bare unresolved name. It now skips `name<T>(`.
+- `ktimports.py` knows **receiver-scope composables** (`ExposedDropdownMenu`) that are called
+  on a scope and never imported.
+- `ktimports.py` also flags **SCOPE-ONLY imports**: `weight`, `align`, `menuAnchor` and
+  friends are `RowScope`/`ColumnScope` members, so `import …layout.weight` is an unresolved
+  reference that no *missing*-import check could ever see. I wrote exactly that bug in the
+  wizard; the new guard catches it.
 
 **Checker patches this needed** (both negative-tested afterwards):
 - `ktimports.py` now adds **module-wide capitalised top-level `fun` names** to the known set —
