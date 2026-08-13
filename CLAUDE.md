@@ -543,6 +543,43 @@ navigation need no code, so the manifest now simply declares
 Source: `developer.android.com/guide/navigation/principles`,
 `.../guide/navigation/custom-back/predictive-back-gesture`.
 
+## TalkBack pass over the whole UI (user request, 2026-08-13)
+Google's pre-launch report groups accessibility findings into four buckets — **touch target
+size, low contrast, content labelling, implementation** (e.g. "traversal order that doesn't
+match logical arrangement"). Touch targets and contrast were closed earlier; this pass was
+labelling and implementation, screen by screen.
+
+**Fixed — and the first two are the very first thing a blind user meets:**
+- **The startup scan said nothing.** `currentEngineText` is rewritten as each engine is found,
+  but it was not a live region, so TalkBack read "Please wait while Easy Voice scans …" once
+  and then went silent for the whole scan. Android 16 names `setAccessibilityLiveRegion` as
+  the API for a **critical UI change**; it is now `ACCESSIBILITY_LIVE_REGION_POLITE`, which
+  queues rather than interrupts.
+- **Finishing the scan announced nothing** either — `progressBox` went `GONE` and the tabs
+  `VISIBLE` in silence. That is the documented "significant UI change" case, so `tabPager`
+  now carries `ViewCompat.setAccessibilityPaneTitle(…, "Easy Voice settings")` and TalkBack
+  announces it as the pane appears.
+- **The indeterminate `ProgressBar` was a focus stop that said nothing.** It is decorative —
+  the text above and below it carries the meaning — so it is now
+  `IMPORTANT_FOR_ACCESSIBILITY_NO`.
+
+**Considered and deliberately rejected, so it is not "fixed" later by mistake:**
+- **`labelFor` / `contentDescription` on the spinners.** A `contentDescription` on a `Spinner`
+  *replaces* the node text, so TalkBack would announce the label and **not the selected
+  value** — strictly worse. `ViewCompat.setLabelFor` avoids that but makes the label be read
+  twice (once as its own focus stop, once with the spinner). Every spinner already has an
+  adjacent label `TextView`, which is the conventional Android pattern and reads correctly.
+  Leave it alone.
+- **Reordering the radio / Settings button / description triple.** Traversal is radio →
+  "<Mode> settings" button → description, because the button shares the radio's row. That
+  matches the *visual* arrangement, which is what the implementation check actually asks for,
+  so `accessibilityTraversalAfter` would be solving a non-problem.
+
+**Re-verified in this pass:** no label contains its own role word (a `contentDescription` of
+"… settings" never says "button", so TalkBack does not say "button button"); `"Select\nall"`
+and friends read as normal words; no focusable view is unlabelled; header containers are not
+focusable, only the header `TextView` inside them is.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both
