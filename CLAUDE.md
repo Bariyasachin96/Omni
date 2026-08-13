@@ -375,6 +375,27 @@ first.
 runs only from `onCreate`, so the statics are never silently reloaded over a live edit. Keep it
 that way.
 
+**The two non-`EasyVoiceTtsService` flags, checked 2026-08-13 when the user asked whether they
+could be statics too:**
+- **Logging** already is one. `EasyVoiceLogger.loggingEnabled` is a `@Volatile` in-memory flag,
+  the Advanced switch reads it (not prefs) and writes both it and the pref with `apply()`. That
+  is byte-for-byte AutoTTS's `c3.p`: field `d`, seeded in the constructor from
+  `getBoolean("logging_enabled", false)`, read by `g()`, written by `j()` which also `apply()`s.
+  The immediate `apply()` here is correct and must NOT be moved into `persistAll` — AutoTTS
+  persists this one eagerly, unlike the settings that wait for `n.v()`.
+  **Gap found and fixed:** AutoTTS seeds it from a *lazily created* singleton (`p.f(context)`),
+  so whichever of the UI or the service touches it first seeds it. Ours seeded only in the
+  service's `onCreate`, so opening the app before the TTS service ever started showed the
+  "Enable logging" switch OFF while the pref said ON. `MainActivity.onCreate` now seeds it too,
+  next to the `LangStore.load*` calls.
+- **`setup_done` stays a pref, deliberately.** It is not a runtime setting — it is a persistent
+  one-shot marker with no AutoTTS counterpart, and it must survive process death, which a static
+  cannot. `isSetupDone()`/`setSetupDone()` already read and write the *same* storage, so the
+  getter/setter split that caused the Gujarati and the Dual-languages-step bugs cannot occur
+  here; `apply()` updates the in-memory map synchronously, so a read right after a write sees
+  the new value. Adding a static in front would only create a second copy of the truth — the
+  exact shape of those two bugs.
+
 ## Local validation before every push (upgraded 2026-08-12 after a CI compile failure)
 Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → generate into a tree →
 `ktcheck.py` / `ktresolve.py` / `ktimports.py` → `g++ -fsyntax-only` for the C++.

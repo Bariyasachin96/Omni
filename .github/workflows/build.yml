@@ -6231,6 +6231,7 @@ jobs:
           "        LangStore.loadModeLangs(this)\n"
           "        LangStore.loadMode(this)\n"
           "        LangStore.loadFlags(this)\n"
+          "        EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())\n"
           "        setContentView(rootColumn)\n"
           "        progressBox.visibility = android.view.View.VISIBLE\n"
           "        tabPager.visibility = android.view.View.GONE\n"
