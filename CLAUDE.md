@@ -580,6 +580,38 @@ labelling and implementation, screen by screen.
 and friends read as normal words; no focusable view is unlabelled; header containers are not
 focusable, only the header `TextView` inside them is.
 
+## Which control belongs where (user request, 2026-08-13)
+Sources: Material Components Android `docs/components/Switch.md` and `Checkbox.md`.
+- **Switch** — *"Toggle a single item on or off"*, *"Immediately activate or deactivate
+  something"*, *"The effects of a switch should start immediately, without needing to save"*,
+  *"best used to adjust settings and other standalone options"*.
+- **Checkbox** — *"Checkboxes let users select one or more items from a list, or turn an item
+  on or off."*
+
+Audited every selection control against that:
+
+| Control | Where | Verdict |
+|---|---|---|
+| 9 Advanced switches | standalone settings, effect immediate | **Switch — correct** |
+| "Use locale spans" | standalone setting | **Switch — correct** |
+| "Dedicated engines" | standalone setting | **Switch — correct** |
+| Mode radios | pick one of five | **RadioButton in a `RadioGroup` — correct** |
+| Language / voice / variant / mode-int spinners | pick one of many | **Dropdown — correct** |
+| Speed / Volume / Pitch | continuous value | **SeekBar — correct** |
+| "Add language" | screen's primary action | **Extended FAB — correct** |
+| Language list rows | **select one or more items from a list** | **guideline says Checkbox; we use Switch** |
+
+**The one mismatch is deliberate and is the user's call.** On 2026-08-12 the user asked to
+*"convert all checkboxes into modern switches"*, and the language list went with them. By the
+quotes above a list multi-select is the checkbox case, while switches are for *standalone*
+options — so the list is the single place where our control type differs from the guideline.
+It was raised with the user rather than reverted unilaterally. **Do not flip it back without
+the user saying so.**
+
+**Real defect found in the same pass:** `addLocaleSpanRow` added its switch with
+`LayoutParams(MATCH_PARENT, MATCH_PARENT)` — a `MATCH_PARENT` *height* inside a vertical
+`LinearLayout`, where every other switch row in the app uses `WRAP_CONTENT`. Fixed.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both

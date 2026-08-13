@@ -5187,7 +5187,7 @@ jobs:
           "            gravity = android.view.Gravity.CENTER_VERTICAL\n"
           "            isChecked = EasyVoiceTtsService.localeSpansFlag\n"
           "        }\n"
-          "        parent.addView(checkBox, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT))\n"
+          "        parent.addView(checkBox, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))\n"
           "        checkBox.setOnCheckedChangeListener { _, checked ->\n"
           "            EasyVoiceTtsService.localeSpansFlag = checked\n"
           "            for (other in localeSpanBoxes) if (other !== checkBox) other.isChecked = checked\n"
