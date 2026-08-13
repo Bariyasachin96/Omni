@@ -762,8 +762,20 @@ vector drawables, which Compose reads with `painterResource(R.drawable.…)`.
 with `MainActivity`/`TabViews` last because they are the most intertwined.
 
 **Done so far:** `ConfigurationActivity` (verified on device), `LanguagesActivity`,
-`VoiceSetupActivity` + `VoiceScreen`/`VoiceRows`, `SetupWizardActivity`. Remaining:
-`TabViews` (Modes + Advanced) and `MainActivity`.
+`VoiceSetupActivity` + `VoiceScreen`/`VoiceRows`, `SetupWizardActivity`, and the **Advanced
+tab** (`AdvancedScreen.kt`). Remaining: the **Modes tab** in `TabViews` and `MainActivity`.
+
+**Interop pattern for a tab:** `buildAdvancedTabView` still exists and still returns a `View`,
+but that view is now a `ComposeView` hosting `AdvancedScreen`. `MainActivity`'s pager is
+untouched, so a tab can be ported without touching the pager at all. Use the same shape for
+the Modes tab.
+
+**`punctuationInFlowBox` is gone with the Advanced View code.** It was a file-level `var` the
+Modes tab poked to disable that one switch when the punctuation mode is "Specific language".
+`AdvancedScreen` derives `enabled` from `EasyVoiceTtsService.punctuationModeInt != 3` instead,
+so the behaviour survives without the cross-screen global. `applySpecificVisibility` still has
+its `punctuationInFlowBox?.isEnabled` line, which is now a safe no-op — remove it when the
+Modes tab is ported.
 
 **`blocks.py` is now the ONLY safe way to edit a `write_source` block.** A generated block
 ends either `"}\n")` (paren on the last string line) or `"}\n"` + a `)` line. Slicing with a
