@@ -90,7 +90,7 @@ jobs:
 
           write_source("build.gradle.kts", """\
           plugins {
-              id("com.android.application") version "9.3.0" apply false
+              id("com.android.application") version "8.13.2" apply false
               id("org.jetbrains.kotlin.android") version "2.3.21" apply false
               id("org.jetbrains.kotlin.plugin.compose") version "2.3.21" apply false
           }
@@ -4279,7 +4279,7 @@ jobs:
           "        val prefs = SharedPrefsManager(this)\n"
           "        val mode = intent.getStringExtra(\"mode\") ?: prefs.getReadingMode()\n"
           "        val spec = modeRowSpecs.firstOrNull { it.first == mode }\n"
-          "        if (spec != null) setTitle(spec.second + \" settings\")\n"
+          "        if (spec != null) setTitle(spec.second)\n"
           "        setContent { EasyVoiceTheme { ModeSettingsScreen(prefs, mode) } }\n"
           "    }\n"
           "    override fun onPause() {\n"
@@ -4956,7 +4956,7 @@ jobs:
           "            OutlinedTextField(\n"
           "                value = query,\n"
           "                onValueChange = { query = it },\n"
-          "                label = { Text(\"Search languages\") },\n"
+          "                label = { Text(\"Search languages\\u2026\") },\n"
           "                singleLine = true,\n"
           "                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)\n"
           "            )\n"
@@ -5541,7 +5541,7 @@ jobs:
           "                enabled = EasyVoiceTtsService.punctuationModeInt != 3) { picked ->\n"
           "                punctuationInFlow = picked; EasyVoiceTtsService.punctuationInFlowFlag = picked\n"
           "            }\n"
-          "            SettingDescription(\"Reads a single character based on the preferred language in the mode settings.\")\n"
+          "            SettingDescription(\"When checked, punctuation is read as part of the sentence. If unchecked, punctuation is read separately.\")\n"
           "            SettingSwitch(\"Smart number reading\", smartNumber) { picked ->\n"
           "                smartNumber = picked; EasyVoiceTtsService.smartNumberFlag = picked\n"
           "            }\n"
@@ -6598,7 +6598,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '9.5.0'
+          gradle-version: '8.13'
           cache-disabled: true
 
       - name: Restore Keystore
