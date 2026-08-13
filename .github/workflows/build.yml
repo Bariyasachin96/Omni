@@ -3,6 +3,11 @@ on:
   push:
     branches: ["main", "master"]
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish the APK as a GitHub release"
+        type: boolean
+        default: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -7374,6 +7379,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
 
       - name: Publish APK to GitHub Release
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_release }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
@@ -7386,6 +7392,15 @@ jobs:
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APK (when no release is published)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: easy-voice-apk-${{ github.run_number }}
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
+          if-no-files-found: error
 
       # mapping.txt must never ship publicly - it undoes the obfuscation.
       # Kept as a repo-private build artifact so only we can retrace a crash.
