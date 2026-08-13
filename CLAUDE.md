@@ -418,6 +418,32 @@ carried by the words "Installed"/"Not installed", not by colour alone.
   TalkBack said "Easy Voice" twice. It is decorative, so it is now `contentDescription = null`
   plus `IMPORTANT_FOR_ACCESSIBILITY_NO`.
 
+**Second, deeper pass (same day, user: *"aur bhi bahut sari aisi jagah hogi … completely"*):**
+- **No section header was an accessibility heading.** Google: *"Indicate headings to allow
+  users to navigate between them."* The app has 13 header instances — "Modes", "Mode
+  Settings" (×4), "Voices" (×2), "Languages", "Licenses" and the eight Advanced sections —
+  built by six header factories, and only the wizard's step heading was marked. Without this
+  a TalkBack user has to swipe through every control instead of jumping section to section.
+  All six factories now call `ViewCompat.setAccessibilityHeading(this, true)` on the header
+  `TextView` (the leaf TalkBack focuses, not the coloured bar). The white-on-header
+  `setTextColor(0xffffffff)` + `CENTER_VERTICAL` pair is what identifies a header uniquely —
+  a blanket replace on `CENTER_VERTICAL` alone would have wrongly caught the locale-spans
+  switch.
+- **Tab position was announced twice.** Material's `TabLayout` already publishes collection
+  info, which TalkBack renders as "Tab 1 of 2", and we appended `", tab N of M"` on top in
+  two places. The suffix is gone; the tab title alone is the label.
+- **The three sliders had no name.** `SeekBar` carried only `stateDescription`, so landing on
+  one announced "100 of 500, seek control" with no clue whether it was Speed, Volume or
+  Pitch. Each now has `contentDescription = labelString`. (The `-`/`+` buttons already said
+  "Decrease speed" / "Increase speed".)
+
+**Verified clean in that pass, so do not re-audit blindly:** every `Spinner` has an adjacent
+label `TextView`; every `setOnClickListener` sits on a `Button`; no code sets `ellipsize`,
+`singleLine` or `maxLines` (only `ev_spinner_item.xml` does, which is the conventional
+closed-spinner behaviour and does not hide anything from TalkBack, since the node keeps the
+full text); every activity has a title, either `android:label` or a runtime `title`; the
+language-list rows are uniquely labelled by language name.
+
 **Checked and deliberately left alone:**
 - the `SeekBar`'s `ACCESSIBILITY_LIVE_REGION_POLITE`. The Android 16 page names
   `setAccessibilityLiveRegion` as *the* API for a critical UI change and only warns to use it
