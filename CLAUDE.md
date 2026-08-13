@@ -328,6 +328,50 @@ Recorded so far:
    - Re-runnable: the Advanced tab's **first** section is now "Setup", with a
      "Setup wizard" button that starts the activity again.
 
+## Responsive layout + touch targets (user request, 2026-08-13, guidelines read first)
+Sources read for this, not recalled: `developer.android.com/develop/ui/views/layout/window-size-classes`,
+`.../guide/topics/ui/accessibility/apps`, `.../design/ui/mobile/guides/layout-and-content/grids-and-units`,
+`.../docs/quality-guidelines/large-screen-app-quality`.
+
+What they actually say, with the numbers:
+- **Width window size classes**: compact `< 600dp`, medium `600–839dp`, expanded `840–1199dp`,
+  large `1200–1599dp`, extra-large `≥ 1600dp`. Google's advice is to "optimize your layout for
+  the expanded width size class" first.
+- **Touch targets**: "at least 48dp×48dp. Larger is even better."
+- **Baseline grid**: 8dp, with 4dp for finer steps.
+- **Text**: `sp`, so it follows the user's font-size setting.
+- **Large-screen tiers**: Tier 3 is running full screen without letterboxing; **Tier 2 is
+  "layout optimizations implemented for all screen sizes"**. Recommended test sizes:
+  841×701, 1024×640, 1280×800, 1600×900 dp.
+
+What was already satisfied, verified rather than assumed:
+- the manifest sets no `screenOrientation` and no `resizeableActivity`, and `targetSdk` is 34,
+  so activities are resizeable and rotate freely — Tier 3;
+- `applyAccessibleTheme` already forces `minimumHeight = 48dp` on `EvSwitch`, `CompoundButton`,
+  `Button` (plus `minimumWidth`), `SeekBar` and `Spinner`, and it walks the whole tree from
+  `applyPageTheme`, so every screen is covered — including the small `-`/`+` slider buttons,
+  which are `Button`s and so are lifted from `buttonStyleSmall` back to 48dp;
+- every text size comes from `setTextAppearance(android.R.style.TextAppearance_*)`, i.e. `sp`.
+
+What was missing and is now fixed:
+- **Tier 2.** Every page was a full-width `ScrollView`, so on a 1280dp tablet or a 1600dp
+  Chromebook each row stretched edge to edge. `applyResponsiveWidth(root)` now sets symmetric
+  horizontal padding of `(screenWidthDp - 840) / 2` whenever the window is wider than the
+  **expanded breakpoint**, so the content column is capped at 840dp and centred; below 840dp
+  nothing changes and the single pane fills the window. `840` is the documented expanded
+  breakpoint, not an invented number. It reads `resources.configuration.screenWidthDp`, which
+  is the *window* width (correct in split-screen), and the activities are recreated on
+  configuration change because no `android:configChanges` is declared, so it recomputes on
+  rotate/fold/resize. Applied at every full-screen `setContentView`: `MainActivity`,
+  `SetupWizardActivity`, `ConfigurationActivity`, `VoiceSetupActivity`, `ModeSettingsActivity`,
+  `LanguagesActivity`. The required-engines **dialog is deliberately excluded** — dialogs are
+  already width-constrained by the platform.
+- Setting rather than adding the padding keeps `applyResponsiveWidth` idempotent; no page root
+  carries horizontal padding of its own, checked before relying on that.
+- The `SearchView`'s clickable icons (`search_close_btn`, `search_button`, `search_go_btn`,
+  `search_voice_btn`) now get the 48dp minimum too; `search_mag_icon` is decorative when the
+  view is permanently expanded, so it is only recoloured.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both
