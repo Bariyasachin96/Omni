@@ -642,6 +642,31 @@ against the setting this section is about, and it buys a blind user nothing.
 `unresolved reference: Global` — verified with `javap` that the API-15 jar has only
 `Settings$System`, `Settings$Secure` and `Settings$NameValueTable`; `minSdk` is 24.
 
+## Three TalkBack regressions the user caught (2026-08-13) — two were mine
+- **Tabs stopped announcing their position.** I had removed the `", tab N of M"` suffix on the
+  belief that Material's `TabLayout` supplies collection info that TalkBack renders itself. On
+  device it does not — the user heard nothing at all afterwards. The position is back, but as
+  `"<title>, N of M"` **without the word "tab"**, because the service appends the role: the
+  original string said "tab" twice precisely because it contained the word.
+  **Lesson: do not delete an announcement on the theory that the framework supplies it —
+  the user's device is the authority.**
+- **The wizard never announced its step.** `ViewCompat.setAccessibilityPaneTitle` only fires
+  when the pane's **visibility changes** — the very note in the research that set it up — and
+  `stepBody` stays visible while only its children are swapped, so no event was ever sent.
+  Replaced with `setTitle(...)`, the other API the Android 16 page lists for a significant UI
+  change, which does fire a window-state-changed event. `tabPager`'s pane title is **kept**,
+  because that one really does go `GONE` → `VISIBLE` and therefore does fire.
+  Use `setTitle(text.toString())`, not `title = …`: the property form failed the kotlinc
+  check with "val cannot be reassigned" / an impossible smart cast.
+- **Coming back from a sub-screen dumped focus at the top.** `MainActivity.onResume` rebuilds
+  the Modes tab and `ConfigurationActivity.onResume` rebuilds its list, so the control that
+  opened the screen no longer exists and TalkBack falls back to the first element. Both now
+  remember what launched the screen — `pendingFocusMode` in `TabViews.kt`, `pendingFocusRow`
+  in `ConfigurationActivity` — and hand accessibility focus back to the rebuilt control with
+  `ViewCompat.performAccessibilityAction(view, ACTION_ACCESSIBILITY_FOCUS, null)`, posted so
+  it runs after layout. The flag is cleared as it is consumed, so focus is only restored on
+  the return trip and never steals focus later.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both
