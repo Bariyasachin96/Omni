@@ -4103,14 +4103,10 @@ jobs:
           "        backButton = android.widget.Button(this).apply {\n"
           "            text = \"Back\"\n"
           "            tag = AppPalette.SECONDARY_BUTTON\n"
-          "            setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_arrow_back, 0, 0, 0)\n"
-          "            compoundDrawablePadding = dpPx(8)\n"
           "        }\n"
-          "        nextButton = android.widget.Button(this).apply {\n"
-          "            text = \"Next\"\n"
-          "            setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_arrow_forward, 0, 0, 0)\n"
-          "            compoundDrawablePadding = dpPx(8)\n"
-          "        }\n"
+          "        setLeadingIcon(backButton, R.drawable.ic_arrow_back)\n"
+          "        nextButton = android.widget.Button(this).apply { text = \"Next\" }\n"
+          "        setLeadingIcon(nextButton, R.drawable.ic_arrow_forward)\n"
           "        buttonRow.addView(backButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dpPx(4) })\n"
           "        buttonRow.addView(nextButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dpPx(4) })\n"
           "        column.addView(buttonRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))\n"
@@ -4147,8 +4143,6 @@ jobs:
           "            true\n"
           "        }\n"
           "        setContentView(applyResponsiveWidth(applyPageTheme(column)))\n"
-          "        androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(backButton, AppPalette.outlinedButtonTextColor())\n"
-          "        androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(nextButton, AppPalette.buttonTextColor())\n"
           "        refreshVoiceLangs()\n"
           "        showStep()\n"
           "    }\n"
@@ -4927,6 +4921,12 @@ jobs:
           "        for (childIdx in 0 until view.childCount) applyAccessibleTheme(view.getChildAt(childIdx))\n"
           "    }\n"
           "}\n"
+          "fun setLeadingIcon(button: android.widget.Button, iconRes: Int) {\n"
+          "    button.setCompoundDrawablesRelativeWithIntrinsicBounds(iconRes, 0, 0, 0)\n"
+          "    button.compoundDrawablePadding = (8 * button.context.resources.displayMetrics.density).toInt()\n"
+          "    androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(button,\n"
+          "        if (button.tag == AppPalette.SECONDARY_BUTTON) AppPalette.outlinedButtonTextColor() else AppPalette.buttonTextColor())\n"
+          "}\n"
           "fun applyPageTheme(root: View): View {\n"
           "    root.setBackgroundColor(AppPalette.background)\n"
           "    applyAccessibleTheme(root)\n"
@@ -5064,6 +5064,7 @@ jobs:
           "            val toggle = android.widget.Button(context).apply {\n"
           "                text = \"Settings\"\n"
           "                contentDescription = label + \" settings\"\n"
+          "                setLeadingIcon(this, R.drawable.ic_settings)\n"
           "                visibility = View.GONE\n"
           "            }\n"
           "            val holder = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }\n"
@@ -5087,7 +5088,10 @@ jobs:
           "            holder.visibility = if (expanded) View.VISIBLE else View.GONE\n"
           "        }\n"
           "    }\n"
-          "    val configurationButton = android.widget.Button(context).apply { text = \"Configuration settings\" }\n"
+          "    val configurationButton = android.widget.Button(context).apply {\n"
+          "        text = \"Configuration settings\"\n"
+          "        setLeadingIcon(this, R.drawable.ic_tune)\n"
+          "    }\n"
           "    val listButtonRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }\n"
           "    listButtonRow.addView(configurationButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))\n"
           "    if (settingsOnlyForMode == null) root.addView(listButtonRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = margin5dp; marginStart = margin5dp; marginEnd = margin5dp })\n"
@@ -5285,8 +5289,9 @@ jobs:
           "fun buildAdvancedTabView(context: Context, prefs: SharedPrefsManager, requestNotificationPermission: () -> Unit, launchImportPicker: () -> Unit): View {\n"
           "    val root = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }\n"
           "    val scroll = ScrollView(context).apply { isFillViewport = true; addView(root) }\n"
-          "    fun fullWidthButton(label: String, onClick: () -> Unit): Button = android.widget.Button(context).apply {\n"
+          "    fun fullWidthButton(label: String, iconRes: Int = 0, onClick: () -> Unit): Button = android.widget.Button(context).apply {\n"
           "        text = label\n"
+          "        if (iconRes != 0) setLeadingIcon(this, iconRes)\n"
           "        setOnClickListener { onClick() }\n"
           "    }\n"
           "    fun addAdvancedHeader(text: String, topDp: Int) {\n"
@@ -5333,12 +5338,12 @@ jobs:
           "        return row\n"
           "    }\n"
           "    addAdvancedHeader(\"Setup\", 0)\n"
-          "    root.addView(fullWidthButton(\"Setup wizard\") {\n"
+          "    root.addView(fullWidthButton(\"Setup wizard\", R.drawable.ic_auto_fix) {\n"
           "        context.startActivity(android.content.Intent(context, SetupWizardActivity::class.java))\n"
           "    }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = android.view.Gravity.CENTER_HORIZONTAL })\n"
           "    addAdvancedDescription(\"Run the first-time setup again: pick a mode, then set it up.\")\n"
           "    addAdvancedHeader(\"Text-to-Speech Settings\", 16)\n"
-          "    root.addView(fullWidthButton(\"TTS Settings\") {\n"
+          "    root.addView(fullWidthButton(\"TTS Settings\", R.drawable.ic_record_voice) {\n"
           "        try {\n"
           "            context.startActivity(Intent(\"com.android.settings.TTS_SETTINGS\").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))\n"
           "        } catch (_: android.content.ActivityNotFoundException) {\n"
@@ -5363,7 +5368,7 @@ jobs:
           "        if (checked) requestNotificationPermission()\n"
           "    }\n"
           "    addAdvancedDescription(\"Use a foreground service and to keep Easy Voice running during battery optimization or screen-off states.\")\n"
-          "    root.addView(fullWidthButton(\"Disable battery optimization\") {\n"
+          "    root.addView(fullWidthButton(\"Disable battery optimization\", R.drawable.ic_battery_alert) {\n"
           "        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager\n"
           "        if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {\n"
           "            try {\n"
@@ -5387,8 +5392,8 @@ jobs:
           "    addAdvancedDescription(\"Experimental. More accurate language detection. Off = CLD2 (default).\")\n"
           "    addAdvancedHeader(\"Import/Export Configuration\", 16)\n"
           "    val importExportRow = advancedRow()\n"
-          "    importExportRow.addView(fullWidthButton(\"Import\") { launchImportPicker() }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dpToPx(context, 4) })\n"
-          "    importExportRow.addView(fullWidthButton(\"Export\") {\n"
+          "    importExportRow.addView(fullWidthButton(\"Import\", R.drawable.ic_file_download) { launchImportPicker() }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dpToPx(context, 4) })\n"
+          "    importExportRow.addView(fullWidthButton(\"Export\", R.drawable.ic_file_upload) {\n"
           "        if (!prefs.settingsXmlFile().exists()) {\n"
           "            Toast.makeText(context, \"Settings file not found\", Toast.LENGTH_SHORT).show()\n"
           "            return@fullWidthButton\n"
@@ -5405,7 +5410,7 @@ jobs:
           "    }\n"
           "    addAdvancedDescription(\"Enable logging to help troubleshoot issues. If you need support or want to report a problem, please attach log files to your message.\")\n"
           "    val logButtonRow = advancedRow()\n"
-          "    logButtonRow.addView(fullWidthButton(\"Share logs\") {\n"
+          "    logButtonRow.addView(fullWidthButton(\"Share logs\", R.drawable.ic_share) {\n"
           "        val logFile = EasyVoiceLogger.shareFileOrNull()\n"
           "        if (logFile == null) {\n"
           "            Toast.makeText(context, \"No log file to share\", Toast.LENGTH_SHORT).show()\n"
@@ -5417,7 +5422,7 @@ jobs:
           "        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)\n"
           "        context.startActivity(chooser)\n"
           "    }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = android.view.Gravity.CENTER_HORIZONTAL })\n"
-          "    logButtonRow.addView(fullWidthButton(\"Clear logs\") {\n"
+          "    logButtonRow.addView(fullWidthButton(\"Clear logs\", R.drawable.ic_delete) {\n"
           "        EasyVoiceLogger.clear()\n"
           "    }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = android.view.Gravity.CENTER_HORIZONTAL })\n"
           "    return applyPageTheme(scroll)\n"
@@ -5712,7 +5717,11 @@ jobs:
           "    addSmallText(root, \"Choose a variant for voice\", 5)\n"
           "    val variantSpinner = Spinner(context)\n"
           "    root.addView(variantSpinner, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = margin2dp })\n"
-          "    val testButton = android.widget.Button(context).apply { text = \"Test\"; isEnabled = false }\n"
+          "    val testButton = android.widget.Button(context).apply {\n"
+          "        text = \"Test\"\n"
+          "        isEnabled = false\n"
+          "        setLeadingIcon(this, R.drawable.ic_play_arrow)\n"
+          "    }\n"
           "    root.addView(testButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))\n"
           "    var speedValue = 100\n"
           "    var volumeValue = 100\n"
@@ -5762,7 +5771,11 @@ jobs:
           "            }\n"
           "        }\n"
           "    }\n"
-          "    val defaultButton = android.widget.Button(context, null, android.R.attr.buttonStyleSmall).apply { text = \"Default\"; contentDescription = \"Default\" }\n"
+          "    val defaultButton = android.widget.Button(context, null, android.R.attr.buttonStyleSmall).apply {\n"
+          "        text = \"Default\"\n"
+          "        contentDescription = \"Default\"\n"
+          "        setLeadingIcon(this, R.drawable.ic_restore)\n"
+          "    }\n"
           "    var selectedIso = \"\"\n"
           "    var selectedLangIndex = -1\n"
           "    var variantOptions: List<String> = emptyList()\n"
@@ -6046,6 +6059,7 @@ jobs:
           "            btnRow.layoutParams = buttonRowLayoutParams\n"
           "            applyBtn = android.widget.Button(viewCtx)\n"
           "            applyBtn.text = \"Apply\"\n"
+          "            setLeadingIcon(applyBtn, R.drawable.ic_check)\n"
           "            applyBtn.setOnClickListener { onApply?.invoke(); dismiss() }\n"
           "            val applyLp = android.widget.LinearLayout.LayoutParams(0, -2, 1.0f)\n"
           "            applyLp.marginEnd = (8 * viewCtx.resources.displayMetrics.density).toInt()\n"
@@ -6053,6 +6067,8 @@ jobs:
           "            btnRow.addView(applyBtn)\n"
           "            cancelBtn = android.widget.Button(viewCtx)\n"
           "            cancelBtn.text = \"Cancel\"\n"
+          "            cancelBtn.tag = AppPalette.SECONDARY_BUTTON\n"
+          "            setLeadingIcon(cancelBtn, R.drawable.ic_close)\n"
           "            cancelBtn.setOnClickListener { onCancelled?.invoke(); dismiss() }\n"
           "            val cancelLp = android.widget.LinearLayout.LayoutParams(0, -2, 1.0f)\n"
           "            cancelLp.marginStart = (8 * viewCtx.resources.displayMetrics.density).toInt()\n"
@@ -6089,6 +6105,7 @@ jobs:
           "                    row.addView(notInstalledLabel)\n"
           "                    val installButton = android.widget.Button(viewCtx)\n"
           "                    installButton.text = \"Install\"\n"
+          "                    setLeadingIcon(installButton, R.drawable.ic_get_app)\n"
           "                    installButton.setOnClickListener {\n"
           "                        installButton.isEnabled = false\n"
           "                        installButton.text = \"Installing...\"\n"
@@ -6339,6 +6356,90 @@ jobs:
           "    <files-path name=\"logs\" path=\"logs/\" />\n"
           "    <cache-path name=\"shared\" path=\"shared/\" />\n"
           "</paths>\n")
+
+          write_source("app/src/main/res/drawable/ic_auto_fix.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M7.5 5.6L10 7 8.6 4.5 10 2 7.5 3.4 5 2l1.4 2.5L5 7zm12 9.8L17 14l1.4 2.5L17 19l2.5-1.4L22 19l-1.4-2.5L22 14zM22 2l-2.5 1.4L17 2l1.4 2.5L17 7l2.5-1.4L22 7l-1.4-2.5zm-7.63 5.29c-.39-.39-1.02-.39-1.41 0L1.29 18.96c-.39.39-.39 1.02 0 1.41l2.34 2.34c.39.39 1.02.39 1.41 0L16.7 11.05c.39-.39.39-1.02 0-1.41l-2.33-2.35zm-1.03 5.49l-2.12-2.12 2.44-2.44 2.12 2.12-2.44 2.44z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_battery_alert.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18h-2v-2h2v2zm0-4h-2V9h2v5z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_check.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_close.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_delete.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_file_download.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_file_upload.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_get_app.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_play_arrow.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M8 5v14l11-7z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_record_voice.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M9 15c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm7.76-9.64l-1.68 1.69c.84 1.18.84 2.71 0 3.89l1.68 1.69c2.02-2.02 2.02-5.07 0-7.27zM20.07 2l-1.63 1.63c2.77 3.02 2.77 7.56 0 10.74L20.07 16c3.9-3.89 3.91-9.95 0-14z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_restore.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_settings.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_share.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z\"/>\n"
+          "</vector>\n")
+
+          write_source("app/src/main/res/drawable/ic_tune.xml",
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          "<vector xmlns:android=\"http://schemas.android.com/apk/res/android\" android:width=\"24dp\" android:height=\"24dp\" android:viewportWidth=\"24\" android:viewportHeight=\"24\">\n"
+          "    <path android:fillColor=\"#ffffffff\" android:pathData=\"M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z\"/>\n"
+          "</vector>\n")
 
           write_source("app/src/main/res/drawable/ic_add.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"

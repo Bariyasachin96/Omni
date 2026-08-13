@@ -482,6 +482,26 @@ master/docs/components/CommonButton.md`, and the extended-FAB description on
 - Icon tint is set per button with `TextViewCompat.setCompoundDrawableTintList`, because the
   filled and outlined buttons have different label colours; a single static `android:tint` in
   the vector could only match one of them.
+- **Icons are now on every action button that has a standard Material icon** (user,
+  2026-08-13: *"jo cheez ke liye hota hai already icon bana hota hai vah"*). All path data is
+  fetched from **Google's own `google/material-design-icons` repo**
+  (`src/<category>/<name>/materialicons/24px.svg`) and pasted verbatim — no hand-drawn paths.
+  17 buttons: Setup wizard `auto_fix_high`, TTS Settings `record_voice_over`, Disable battery
+  optimization `battery_alert`, Import `file_download`, Export `file_upload`, Share logs
+  `share`, Clear logs `delete`, Configuration settings `tune`, per-mode Settings `settings`,
+  Test `play_arrow`, Default `restore`, dialog Install `get_app` / Apply `check` /
+  Cancel `close`, the FAB `add`, and the wizard's Back/Next arrows.
+- One helper does all of it: **`setLeadingIcon(button, iconRes)`** in `Theming.kt` — leading
+  placement, the **relative** compound-drawable form so it mirrors in RTL, 8dp padding, and a
+  tint chosen from the button's own emphasis variant (`SECONDARY_BUTTON` → `primary`,
+  otherwise `onPrimary`). `fullWidthButton` gained an `iconRes` parameter defaulting to 0.
+- **Deliberately left without icons:** the Languages screen's "Select all" / "Clear all" /
+  "Show selected" — three `WRAP_CONTENT` buttons with two-line labels sharing one row; adding
+  24dp + 8dp to each would overflow a compact (<600dp) width. The slider `-`/`+` buttons keep
+  their glyph labels, which already act as the icon and carry
+  "Decrease …"/"Increase …" content descriptions.
+- Icons never touch the accessible name: every one of these buttons keeps its visible text as
+  the label, and compound drawables are not announced.
 - `GradientDrawable.setCornerRadius(...)` is called as a method, not via the `cornerRadius`
   property: `javap` shows the API-15 check jar has only the setter, and the getter that the
   Kotlin property needs arrived in API 24 — exactly our `minSdk`, so the method form removes
