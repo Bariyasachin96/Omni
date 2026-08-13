@@ -108,13 +108,17 @@ Recorded so far:
    inline section felt heavy: *"voice wala jo collapse button hai use jagah per configuration
    settings ka button add kar do … us per click karne se … language ki list … kisi bhi ek
    language per click karunga to vah wala screen khulega jismein voice variant … slider"*.
-   - **`ConfigurationActivity`** — a **"Languages" button** (moved here from the Main
-     Settings row on 2026-08-13: *"configuration settings wala jo button hai uske andar vah
-     language ka button add kar dijiye"*) — **shown only when the mode has a language list**,
-     i.e. never for `dual`/`none` (user, 2026-08-13: *"vah button rakhne ki jarurat kya hai"*),
-     because `buildLanguagesTabView` answers those two with "Language selection is not
-     available…" and the button would only ever lead to that sentence — then the languages
-     configured for the current
+   - **`ConfigurationActivity`** — a **"Languages" `ExtendedFloatingActionButton`, anchored
+     bottom-end** (user, 2026-08-13: *"languages ka button bottom right corner per hona
+     chahie … primary action"*). Google's own wording: a FAB "lets the user perform a primary
+     action" and is "typically found anchored to the bottom right"; the **extended** variant
+     carries a text label, and that label is the accessibility affordance, so it stays a
+     labelled "Languages" control rather than a bare icon. The list scrolls under it with
+     `clipToPadding = false` + 88dp bottom padding so the last row is never covered. It is
+     **`GONE` unless the mode has a language list**, i.e. never for `dual`/`none` (user:
+     *"vah button rakhne ki jarurat kya hai"*), because `buildLanguagesTabView` answers those
+     two with "Language selection is not available…" and the button would only ever lead to
+     that sentence. Below it are the languages configured for the current
      mode, one button per language, from `voiceLanguageLabels(this, modeInt)`: dual gives
      the two `dualLangList` entries, every other mode gives its selected languages. It
      rebuilds in `onResume`, so returning from the Languages screen or a voice screen, or
@@ -378,7 +382,14 @@ Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → ge
   - `setTextAppearance(int)` is API 23 → `no value passed for parameter 'p1'` +
     `type mismatch: inferred type is Int but Context! was expected`;
   - `View.generateViewId()` is API 17 → `unresolved reference: generateViewId` (verified
-    absent from the jar with `javap`).
+    absent from the jar with `javap`);
+  - `clipToPadding = false` needs the **getter** `getClipToPadding()`, which is API 21 —
+    `javap` shows the API-15 jar has only `setClipToPadding(boolean)`, so Kotlin cannot form
+    the property → `unresolved reference: clipToPadding`. Fine at `compileSdk 34`/`minSdk 24`;
+  - anything from **`com.google.android.material`** (`MaterialSwitch`,
+    `ExtendedFloatingActionButton`) → `unresolved reference: google` plus a cascade on its
+    members (`text`, `variable expected`), because Google Maven is blocked. The baseline
+    already carries nine of these for `MainActivity`/`Theming`.
 - Judge the run by the **NEW error texts** the diff prints, not by the total count.
 
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
