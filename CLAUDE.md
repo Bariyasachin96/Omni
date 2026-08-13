@@ -175,8 +175,13 @@ Recorded so far:
    screen would open with nothing selected and no settings reachable.
 
 7. **Tab title, list buttons and switches (user request, 2026-08-12).**
-   - The first tab is titled **"Main Settings Tab"**; the section header inside it still says
+   - The first tab is titled **"Main Settings"**; the section header inside it still says
      "Modes", because that header labels the radio group, not the tab.
+     It was "Main Settings Tab" until 2026-08-13, when the user heard TalkBack say "tab"
+     twice: the accessibility role is appended by the service, so a title ending in "Tab" is
+     announced as "Main Settings Tab, Tab 1 of 2". **A label must never contain its own role
+     word.** Swept the rest of the app for the same mistake — no other user-facing string
+     contains button/tab/switch/checkbox/slider/dropdown/menu/radio.
    - **Languages and Voices sit in one row** at the bottom of that tab, Languages first, each
      at half width. Languages **opens its own screen** — `LanguagesActivity`, a plain
      `ComponentActivity` that puts `buildLanguagesTabView` in a `ScrollView`, declared with
@@ -599,14 +604,15 @@ Audited every selection control against that:
 | Language / voice / variant / mode-int spinners | pick one of many | **Dropdown — correct** |
 | Speed / Volume / Pitch | continuous value | **SeekBar — correct** |
 | "Add language" | screen's primary action | **Extended FAB — correct** |
-| Language list rows | **select one or more items from a list** | **guideline says Checkbox; we use Switch** |
+| Language list rows | **select one or more items from a list** | **Checkbox — corrected 2026-08-13** |
 
-**The one mismatch is deliberate and is the user's call.** On 2026-08-12 the user asked to
-*"convert all checkboxes into modern switches"*, and the language list went with them. By the
-quotes above a list multi-select is the checkbox case, while switches are for *standalone*
-options — so the list is the single place where our control type differs from the guideline.
-It was raised with the user rather than reverted unilaterally. **Do not flip it back without
-the user saying so.**
+**The language list is the one place the 2026-08-12 "all checkboxes → switches" sweep went too
+far.** By the quotes above a list multi-select is the checkbox case, while switches are for
+*standalone* options. Raised with the user, who agreed (*"han kar do checkboxes"*), so
+`rowBoxes` is `ArrayList<android.widget.CheckBox>` again and the rows are
+`android.widget.CheckBox`. Everything else stays a `MaterialSwitch` — those really are
+standalone settings. `applyAccessibleTheme`'s `CompoundButton` branch already styles
+checkboxes, and `setRowChecked`/`suppressRowEvents` are type-agnostic, so nothing else moved.
 
 **Real defect found in the same pass:** `addLocaleSpanRow` added its switch with
 `LayoutParams(MATCH_PARENT, MATCH_PARENT)` — a `MATCH_PARENT` *height* inside a vertical
