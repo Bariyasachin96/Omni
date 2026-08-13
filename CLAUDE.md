@@ -618,6 +618,30 @@ checkboxes, and `setRowChecked`/`suppressRowEvents` are type-agnostic, so nothin
 `LayoutParams(MATCH_PARENT, MATCH_PARENT)` — a `MATCH_PARENT` *height* inside a vertical
 `LinearLayout`, where every other switch row in the app uses `WRAP_CONTENT`. Fixed.
 
+## Animation (user request, 2026-08-13) — the answer was "respect the setting", not "add motion"
+Audited first: **the app writes no animation code at all.** No `Animator`, no
+`overridePendingTransition`, no `TransitionManager`, no interpolators, and `styles.xml`
+overrides no window or activity transition. So app open/close, the `ViewPager2` page scroll,
+the `TabLayout` indicator, `MaterialSwitch` thumb travel and every ripple are **framework
+animations**, which the platform already scales by the user's window/transition/animator
+scales. Predictive back is opted in, and from Android 15 those system animations show for
+apps that did so — which is us.
+
+That leaves exactly one animation we own: the **indeterminate `ProgressBar`** on the startup
+scan. Android's accessibility settings carry **Colour and motion → "Remove animations"**, for
+users with motion sickness, photosensitivity or seizure triggers, and it works *"on supported
+apps"*. So `animationsEnabled(context)` reads
+`Settings.Global.ANIMATOR_DURATION_SCALE != 0f` (wrapped in try/catch, defaulting to true)
+and the spinner is `GONE` when the user has removed animations. Nothing is lost: the
+"Please wait …" text and the per-engine progress line are still there, and that line is a
+polite live region, so a TalkBack user is better informed than the spinner ever made them.
+
+**Do not "improve" this by adding decorative transitions.** Adding motion would work directly
+against the setting this section is about, and it buys a blind user nothing.
+`Settings.Global` is API 17, so the local kotlinc check reports
+`unresolved reference: Global` — verified with `javap` that the API-15 jar has only
+`Settings$System`, `Settings$Secure` and `Settings$NameValueTable`; `minSdk` is 24.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both
