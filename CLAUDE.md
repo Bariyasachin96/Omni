@@ -275,16 +275,30 @@ Recorded so far:
      the wizard visits them does not matter — the same reason the tabs rebuild on each open.
    - `stepIndex` is clamped to `ids.lastIndex` in `showStep()`, for the case where the step
      list shrinks (a language disappearing while the wizard is open).
-   - **Swipe navigation (user request, 2026-08-13).** A horizontal swipe on the step body
-     moves between steps, and the Back/Next buttons stay — the user asked for both. Both
-     paths call the same `goBack()`/`goNext()`, so there is one implementation of the step
-     logic. The gesture is a plain `OnTouchListener` comparing ACTION_DOWN/ACTION_UP
-     coordinates (≥64dp horizontal and more than twice the vertical movement), returning
-     `false` so the `ScrollView` still scrolls and child clicks still fire. `GestureDetector`
-     was avoided on purpose: `onFling`'s first parameter became `@Nullable` in a later API
-     than the API-15 check jar exposes, so the override signature could not be verified
-     locally. Note for expectations: with TalkBack on, the screen reader consumes swipes for
-     its own navigation, which is exactly why the buttons must stay.
+   - **Swipe navigation (user request, 2026-08-13; reworked the same day for TalkBack).**
+     A horizontal swipe on the step body moves between steps, and the Back/Next buttons stay.
+     Both paths call the same `goBack()`/`goNext()`, so there is one implementation.
+     `GestureDetector` was avoided on purpose: `onFling`'s first parameter became `@Nullable`
+     in a later API than the API-15 check jar exposes, so the override signature could not be
+     verified locally.
+     **What the first attempt got wrong.** Google's TalkBack help states that with TalkBack on
+     *"most one-finger gestures become two-finger gestures … put two fingers on the screen and
+     drag"*. The first version read `event.action` and `event.x`, which describe **pointer 0
+     only** — under a two-finger drag the tracked finger can lift as `ACTION_POINTER_UP` while
+     `event.x` reports whichever pointer currently sits at index 0, so the measurement was
+     wrong exactly in the TalkBack case the user tested. It now uses `actionMasked`, records
+     the pointer id from `ACTION_DOWN`, settles on whichever of `ACTION_UP`/`ACTION_POINTER_UP`
+     lifts **that** id, reads `getX(actionIndex)`, and resets on `ACTION_CANCEL`.
+     **The documented fix, which the gesture alone can never be.** For gesture-only flows the
+     Views guidance is `ViewCompat.addAccessibilityAction(view, label, action)` — *"your app
+     can expose the actions in a way that is accessible to users of accessibility services"*.
+     `stepHeading` therefore carries **"Next step"** and **"Previous step"** actions, so
+     TalkBack, Voice Access and Switch Access users reach them from the Actions menu on the
+     heading they already land on at every step. The actions are added **once** in `onCreate`,
+     not per step — `addAccessibilityAction` allocates a new action id per call, so repeating
+     it would stack duplicates.
+     Source: `support.google.com/accessibility/android/answer/6151827`,
+     `developer.android.com/guide/topics/ui/accessibility/views/principles-views`.
    - **Next must stay snappy (user request, 2026-08-13: *"next karta hun to thoda bhari
      bhari sa lagta hai"*).** `refreshVoiceLangs()` runs **once per Next** — in the Next
      handler, before it decides finish-vs-advance — plus once before the first `showStep()`.
@@ -469,7 +483,11 @@ Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → ge
   - anything from **`com.google.android.material`** (`MaterialSwitch`,
     `ExtendedFloatingActionButton`) → `unresolved reference: google` plus a cascade on its
     members (`text`, `variable expected`), because Google Maven is blocked. The baseline
-    already carries nine of these for `MainActivity`/`Theming`.
+    already carries nine of these for `MainActivity`/`Theming`;
+  - a SAM lambda passed to an **androidx** method (e.g. `ViewCompat.addAccessibilityAction`)
+    → `cannot infer a type for this parameter`, because the functional interface itself is
+    unresolved. The baseline already carries this for `EasyVoiceTtsService`,
+    `LanguagesVoicesViews`, `MainActivity` and `TabViews`.
 - Judge the run by the **NEW error texts** the diff prints, not by the total count.
 
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
