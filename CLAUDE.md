@@ -507,6 +507,42 @@ master/docs/components/CommonButton.md`, and the extended-FAB description on
   Kotlin property needs arrived in API 24 — exactly our `minSdk`, so the method form removes
   the edge case entirely.
 
+## Colour and navigation, checked against the rules (user request, 2026-08-13)
+
+**Colour — every pair computed, and the "not by colour alone" rule walked.**
+Beyond the earlier table, the components added since were measured too: tab text selected
+**9.1:1** and unselected **16.5:1** on the app-bar surface, the tab indicator **9.1:1** (floor
+3.0 as a UI component), the outlined button's label **10.3:1** and its stroke **11.0:1**.
+Every state is carried by something other than colour as well: the selected tab has
+TabLayout's indicator underline, a switch has thumb position, a radio has its dot, a disabled
+button is announced as disabled by TalkBack, and "Installed"/"Not installed" is words. The
+palette is blue/cyan on dark grey, so no red-green pair carries meaning anywhere.
+
+**A regression of my own, found and fixed.** Giving the outlined button
+`view.background = GradientDrawable` replaced the default background and therefore **removed
+its ripple**, leaving no pressed or focused feedback — WCAG 2.4.7 wants the focus state
+visible. `outlinedButtonBackground` now returns a `RippleDrawable(colorControlHighlight,
+shape, mask)`, so press and focus are visible again. **Never assign a bare `Drawable` to a
+button background here; wrap it.**
+
+**Navigation.** Quoted from the navigation principles: *"Within your app's task, the Up and
+Back buttons behave identically"*, and *"If a user is at the app's start destination, then
+the Up button does not appear, because the Up button never exits the app."* Every sub-screen
+(Languages, Configuration settings, Voice setup, Mode settings, the wizard) is reachable only
+from inside the app, never by deep link, so **system Back already is Up** and a separate Up
+affordance is not required — that is why the `NoActionBar` screens have none.
+Verified alongside it: `MainActivity` is the launcher and the fixed start destination; the
+manifest declares **no** `launchMode`, `noHistory`, `taskAffinity` or `clearTaskOnLaunch`, so
+the back stack is an ordinary stack; every internal `startActivity` passes no flags and simply
+pushes; the only `FLAG_ACTIVITY_NEW_TASK` uses target **external** apps (Play Store, system
+TTS settings, share chooser) plus the deliberate post-import restart, which is correct there.
+Tab swiping is lateral navigation, so Back not traversing it is correct.
+**Predictive back**: we intercept back nowhere, and the docs say apps using default back
+navigation need no code, so the manifest now simply declares
+`android:enableOnBackInvokedCallback="true"` to opt into the system animations.
+Source: `developer.android.com/guide/navigation/principles`,
+`.../guide/navigation/custom-back/predictive-back-gesture`.
+
 ## Accessibility rule: `announceForAccessibility` is BANNED (researched 2026-08-13)
 The user asked for the guidelines to be read properly rather than recalled. Google's
 **Android 16 behaviour-changes page deprecates accessibility announcements** — both
