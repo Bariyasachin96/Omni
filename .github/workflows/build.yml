@@ -30,7 +30,7 @@ jobs:
         run: |
           install_pkgs() {
             echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-              "ndk;25.1.8937393" "cmake;3.22.1" "build-tools;36.0.0" --sdk_root=$ANDROID_HOME
+              "ndk;25.1.8937393" "cmake;3.22.1" "build-tools;36.0.0" "platforms;android-37" --sdk_root=$ANDROID_HOME
           }
           n=0
           until [ $n -ge 5 ]; do
@@ -111,7 +111,7 @@ jobs:
           }
           android {
               namespace = "com.tts.easyvoice"
-              compileSdk = 36
+              compileSdk = 37
               ndkVersion = "25.1.8937393"
               defaultConfig {
                   applicationId = "com.tts.easyvoice"
