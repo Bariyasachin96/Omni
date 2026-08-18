@@ -863,6 +863,51 @@ Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → ge
     `LanguagesVoicesViews`, `MainActivity` and `TabViews`.
 - Judge the run by the **NEW error texts** the diff prints, not by the total count.
 
+## Number / punctuation / emoji "Specific language" — VERIFIED EXACT (2026-08-18)
+Checked against CFR, not assumed, after the user asked whether the specific option matches.
+Do NOT re-derive this; it is done.
+
+**Where AutoTTS decides.** `onSynthesizeText` dispatches on the reading mode `AutoTtsService.S`:
+line 2032 guards `S != 1` (dual), 2178 guards `S != 4` (mix), 2392 guards `S != 5`
+(multilingual). Anything between those lines belongs to that mode.
+
+**Mix branch, lines 2207-2262.** For each segment the type is tested with `d0.n` (number),
+`d0.o` (punctuation), `d0.l` (emoji), then the matching mode int decides the language:
+```java
+var7_25 = AutoTtsService.I;              // K for punctuation, M for emoji
+if (mode != 0 && mode != 1) {
+    if (mode != 2) {
+        if (mode == 3) Q.add(new e0(text, AutoTtsService.J));   // L / N
+        break;                                                   // >3: nothing is added
+    } else Q.add(new e0(text, AutoTtsService.P));
+    break;
+}
+Q.add(new e0(text, AutoTtsService.O));
+```
+So **0 or 1 -> O (mix latin), 2 -> P (mix non-latin), 3 -> the specific language, anything
+else -> the segment is dropped.** Ours is `languageForSegmentKind`, which returns
+latinFallback / nonLatinFallback / specific / null, and the caller adds the chunk only when
+non-null — the same four outcomes.
+
+**Dual branch, lines 2060-2157.** Types dispatch to: 1 -> `"eng"`, 2 -> `H` (dual language),
+3 -> `J`, 4 -> `L`, 5 -> `N`. Ours matches exactly.
+
+**A false alarm worth recording so it is not raised again.** Line 2356 maps the FIRST segment
+of `AutoTtsService.Q` to a preflight language with `1 -> O, 2 -> P, 3 -> J, 4 -> L, 5 -> N,
+else -> the already-resolved language`. That looks like it contradicts our
+`1 -> "eng", 2 -> dualLang`, but 2356 sits between 2178 and 2392, so it is the **mix** branch,
+while ours is inside `if (modeInt == 1)` — the **dual** branch. Different branches, no bug.
+
+**CFR is genuinely broken in this region** (`lbl432:`, `// 3 sources`, `break block140..172`),
+so the structure was recovered from the mode-dispatch line numbers and the `break blockNNN`
+targets rather than from indentation. Smali was not needed.
+
+**Advanced tab defaults, all verified against `c3/n.java` q() and the persist:** strip_audio_attr
+false, force_accessibility_stream false, keep_alive_mode false, show_notification false,
+disable_advanced_detection **true**, quick_character_reading false, punctuation_with_sentence
+**true**, smart_number_reading false; and `number/punc/emoji_specific_language` each fall back to
+`n.e(Locale.getDefault())` when empty. Ours matches all of it.
+
 ## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
 The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
 feature and **must NOT be removed**. Both steps the user asked for are finished:
