@@ -243,7 +243,15 @@ Recorded so far:
      Inline, the existing `if (isStopped || isFlushed) return` sits immediately before
      `speak()`, so the stray-utterance window closes on its own.
 
-8. **Setup wizard (user request, 2026-08-12).** `SetupWizardActivity` — a plain
+8. **Setup wizard — REMOVED ENTIRELY (user request, 2026-08-18: *"setup wizard hamen
+   kahin per bhi rakhna nahin hai, setup wizard pura hata do"*). Do NOT reintroduce it,
+   and do not treat anything below as current.** Gone with it: `SetupWizardActivity.kt`
+   (including `ModeChoiceStep`), its manifest entry, the launch from
+   `MainActivity`'s scan callback, the Advanced tab's whole "Setup" section and its
+   `ic_auto_fix` icon, and `isSetupDone()`/`setSetupDone()` — the `setup_done` pref now
+   has no reader. The description below is kept only as a record of what once existed.
+
+   ~~**Setup wizard (user request, 2026-08-12).**~~ `SetupWizardActivity` — a plain
    `ComponentActivity` with a **dynamic step list**, one heading + a scrolling body + a
    Back/Next row. The steps are
    **mode → settings → languages → one voice step per language**:
@@ -727,13 +735,11 @@ could be statics too:**
   service's `onCreate`, so opening the app before the TTS service ever started showed the
   "Enable logging" switch OFF while the pref said ON. `MainActivity.onCreate` now seeds it too,
   next to the `LangStore.load*` calls.
-- **`setup_done` stays a pref, deliberately.** It is not a runtime setting — it is a persistent
-  one-shot marker with no AutoTTS counterpart, and it must survive process death, which a static
-  cannot. `isSetupDone()`/`setSetupDone()` already read and write the *same* storage, so the
-  getter/setter split that caused the Gujarati and the Dual-languages-step bugs cannot occur
-  here; `apply()` updates the in-memory map synchronously, so a read right after a write sees
-  the new value. Adding a static in front would only create a second copy of the truth — the
-  exact shape of those two bugs.
+- **`setup_done` — GONE with the setup wizard (2026-08-18).** Its only reader and writer were
+  the wizard and the first-run launch in `MainActivity`, so `isSetupDone()`/`setSetupDone()`
+  were removed with it. Nothing reads the key any more. (It used to be argued for as a
+  persistent one-shot marker that must survive process death, which a static cannot do — that
+  reasoning stands, but there is no longer anything to mark.)
 
 ## Jetpack Compose migration (user decision, 2026-08-13) — IN PROGRESS, screen by screen
 The user chose to move the **whole UI** to Compose, strictly per Google's accessibility rules.
