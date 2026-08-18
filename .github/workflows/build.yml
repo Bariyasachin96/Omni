@@ -30,20 +30,20 @@ jobs:
         run: |
           install_pkgs() {
             echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-              "ndk;25.1.8937393" "cmake;3.22.1" "build-tools;36.0.0" --sdk_root=$ANDROID_HOME
+              "ndk;29.0.14206865" "cmake;3.22.1" "build-tools;36.0.0" --sdk_root=$ANDROID_HOME
           }
           n=0
           until [ $n -ge 5 ]; do
-            if install_pkgs && [ -d "$ANDROID_HOME/ndk/25.1.8937393" ]; then
+            if install_pkgs && [ -d "$ANDROID_HOME/ndk/29.0.14206865" ]; then
               echo "NDK + CMake installed successfully."; break
             fi
             n=$((n+1))
             echo "::warning::NDK/CMake install attempt $n failed (likely corrupt download) — clearing caches and retrying..."
-            rm -rf "$ANDROID_HOME/ndk/25.1.8937393" 2>/dev/null || true
+            rm -rf "$ANDROID_HOME/ndk/29.0.14206865" 2>/dev/null || true
             rm -rf "$HOME/.android/cache" "$HOME/.cache/Google/AndroidStudio"*/ 2>/dev/null || true
             sleep $((n * 5))
           done
-          if [ ! -d "$ANDROID_HOME/ndk/25.1.8937393" ]; then
+          if [ ! -d "$ANDROID_HOME/ndk/29.0.14206865" ]; then
             echo "::error::NDK install failed after $n retries."; exit 1
           fi
           # compileSdk 37 needs the platform. Best effort only: AGP downloads a
@@ -118,7 +118,7 @@ jobs:
           android {
               namespace = "com.tts.easyvoice"
               compileSdk = 37
-              ndkVersion = "25.1.8937393"
+              ndkVersion = "29.0.14206865"
               defaultConfig {
                   applicationId = "com.tts.easyvoice"
                   minSdk = 24
