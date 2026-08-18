@@ -30,7 +30,7 @@ jobs:
         run: |
           install_pkgs() {
             echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-              "ndk;25.1.8937393" "cmake;3.22.1" "build-tools;36.0.0" "platforms;android-37" --sdk_root=$ANDROID_HOME
+              "ndk;25.1.8937393" "cmake;3.22.1" "build-tools;36.0.0" --sdk_root=$ANDROID_HOME
           }
           n=0
           until [ $n -ge 5 ]; do
@@ -46,6 +46,12 @@ jobs:
           if [ ! -d "$ANDROID_HOME/ndk/25.1.8937393" ]; then
             echo "::error::NDK install failed after $n retries."; exit 1
           fi
+          # compileSdk 37 needs the platform. Best effort only: AGP downloads a
+          # missing platform itself, and a bad package name here must never take
+          # the NDK install down with it (that is how run 711 failed).
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-37" --sdk_root=$ANDROID_HOME \
+            || echo "::warning::platforms;android-37 not available from sdkmanager; letting AGP fetch it"
 
       - name: Clone CLD2 + CLD3 Native Libraries
         run: |
