@@ -162,8 +162,6 @@ jobs:
               implementation("androidx.core:core-ktx:1.12.0")
               implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
               implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-              implementation("com.google.android.material:material:1.11.0")
-              implementation("androidx.appcompat:appcompat:1.6.1")
               implementation("androidx.activity:activity-compose:1.13.0")
               implementation(platform("androidx.compose:compose-bom:2026.08.00"))
               implementation("androidx.compose.ui:ui")
@@ -6262,58 +6260,41 @@ jobs:
           write_source("app/src/main/res/values/colors.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
+          "    <!-- The UI palette lives in EvColorScheme (ComposeTheme.kt). This one colour\n"
+          "         exists only so the window is already dark before Compose draws; keeping\n"
+          "         the rest here would be a second, silently diverging copy of the palette. -->\n"
           "    <color name=\"ev_background\">#ff121212</color>\n"
-          "    <color name=\"ev_surface\">#ff1e1f22</color>\n"
-          "    <color name=\"ev_surface_variant\">#ff2a2d31</color>\n"
-          "    <color name=\"ev_header\">#ff1b2a38</color>\n"
-          "    <color name=\"ev_on_surface\">#ffffffff</color>\n"
-          "    <color name=\"ev_on_surface_variant\">#ffe3e3e6</color>\n"
-          "    <color name=\"ev_primary\">#ff82c7ff</color>\n"
-          "    <color name=\"ev_on_primary\">#ff00325a</color>\n"
-          "    <color name=\"ev_outline_bright\">#ff4fd8eb</color>\n"
-          "    <color name=\"ev_outline\">#ff8e9199</color>\n"
-          "    <color name=\"ev_disabled\">#ff6e7379</color>\n"
-          "    <color name=\"colorPrimary\">#ff82c7ff</color>\n"
-          "    <color name=\"colorPrimaryDark\">#ff121212</color>\n"
-          "    <color name=\"colorAccent\">#ff4fd8eb</color>\n"
-          "</resources>\n")
+          "</resources>\n"
+          )
 
           write_source("app/src/main/res/values/styles.xml",
           "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
           "<resources>\n"
-          "    <style name=\"AppTheme\" parent=\"@style/Theme.Material3.Dark.NoActionBar\">\n"
-          "        <item name=\"colorPrimary\">@color/ev_primary</item>\n"
-          "        <item name=\"colorOnPrimary\">@color/ev_on_primary</item>\n"
-          "        <item name=\"colorPrimaryContainer\">@color/ev_header</item>\n"
-          "        <item name=\"colorOnPrimaryContainer\">@color/ev_on_surface</item>\n"
-          "        <item name=\"colorSecondary\">@color/ev_outline_bright</item>\n"
-          "        <item name=\"colorOnSecondary\">@color/ev_on_primary</item>\n"
-          "        <item name=\"colorSurface\">@color/ev_surface</item>\n"
-          "        <item name=\"colorOnSurface\">@color/ev_on_surface</item>\n"
-          "        <item name=\"colorSurfaceVariant\">@color/ev_surface_variant</item>\n"
-          "        <item name=\"colorOnSurfaceVariant\">@color/ev_on_surface_variant</item>\n"
-          "        <item name=\"colorOutline\">@color/ev_outline_bright</item>\n"
-          "        <item name=\"colorOutlineVariant\">@color/ev_outline</item>\n"
-          "        <item name=\"colorAccent\">@color/ev_primary</item>\n"
-          "        <item name=\"colorControlNormal\">@color/ev_outline_bright</item>\n"
-          "        <item name=\"colorControlActivated\">@color/ev_primary</item>\n"
-          "        <item name=\"colorControlHighlight\">#33ffffff</item>\n"
+          "    <!-- This app draws its entire UI with Jetpack Compose, and every colour it\n"
+          "         uses comes from EvColorScheme in ComposeTheme.kt. The only job left for\n"
+          "         an XML theme is dressing the window before Compose's first frame: the\n"
+          "         background (so there is no flash) and the system bars.\n"
+          "\n"
+          "         The parent is therefore the FRAMEWORK theme, not\n"
+          "         Theme.Material3.Dark.NoActionBar from com.google.android.material. That\n"
+          "         View library and androidx.appcompat were pulled in for this one line and\n"
+          "         are now gone from the build; the activities are ComponentActivity, which\n"
+          "         needs no AppCompat theme. Only android: attributes remain, because the\n"
+          "         colorPrimary / colorSurfaceVariant / colorOutline family are Material\n"
+          "         Components attributes that do not exist outside that library. -->\n"
+          "    <style name=\"AppTheme\" parent=\"@android:style/Theme.Material.NoActionBar\">\n"
           "        <item name=\"android:colorBackground\">@color/ev_background</item>\n"
           "        <item name=\"android:windowBackground\">@color/ev_background</item>\n"
-          "        <item name=\"android:textColorPrimary\">@color/ev_on_surface</item>\n"
-          "        <item name=\"android:textColorSecondary\">@color/ev_on_surface_variant</item>\n"
-          "        <item name=\"android:textColorTertiary\">@color/ev_on_surface_variant</item>\n"
-          "        <item name=\"android:textColorHint\">@color/ev_on_surface_variant</item>\n"
           "        <item name=\"android:statusBarColor\">@color/ev_background</item>\n"
           "        <item name=\"android:navigationBarColor\">@color/ev_background</item>\n"
           "        <item name=\"android:windowLightStatusBar\">false</item>\n"
           "    </style>\n"
-          "    <style name=\"AppTheme.AppBarOverlay\" parent=\"@style/AppTheme\" />\n"
-          "    <style name=\"AppTheme.NoActionBar\" parent=\"@style/AppTheme\">\n"
-          "        <item name=\"windowActionBar\">false</item>\n"
-          "        <item name=\"windowNoTitle\">true</item>\n"
-          "    </style>\n"
-          "</resources>\n")
+          "    <!-- The manifest names this one. The parent already has no action bar, so\n"
+          "         windowActionBar / windowNoTitle (AppCompat attributes) are not needed.\n"
+          "         AppTheme.AppBarOverlay is deleted; nothing referenced it. -->\n"
+          "    <style name=\"AppTheme.NoActionBar\" parent=\"@style/AppTheme\" />\n"
+          "</resources>\n"
+          )
 
 
 
