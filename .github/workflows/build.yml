@@ -51,13 +51,32 @@ jobs:
             "platforms;android-37" --sdk_root=$ANDROID_HOME \
             || echo "::warning::platforms;android-37 not available from sdkmanager; letting AGP fetch it"
 
+      # Run 738 sat on this step for 33 minutes -- it normally takes 45 seconds --
+      # because a clone hung with no timeout to kill it. Each fetch now gets its
+      # own timeout and three tries, and the step as a whole fails fast instead
+      # of burning the job's 6-hour budget.
       - name: Clone CLD2 + CLD3 Native Libraries
+        timeout-minutes: 12
         run: |
+          set -e
           mkdir -p app/src/main/cpp
-          git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
-          git clone --depth 1 https://github.com/google/cld3.git app/src/main/cpp/cld3_src
-          git clone --depth 1 -b v3.21.12 https://github.com/protocolbuffers/protobuf.git app/src/main/cpp/protobuf_src
-          sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
+          clone() {
+            url=$1; dir=$2; shift 2
+            n=0
+            until [ $n -ge 3 ]; do
+              rm -rf "$dir"
+              if timeout 240 git clone --depth 1 "$@" "$url" "$dir"; then return 0; fi
+              n=$((n+1)); echo "clone attempt $n failed for $url, retrying"; sleep $((n * 5))
+            done
+            echo "giving up on $url"; return 1
+          }
+          clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+          clone https://github.com/google/cld3.git app/src/main/cpp/cld3_src
+          clone https://github.com/protocolbuffers/protobuf.git app/src/main/cpp/protobuf_src -b v3.21.12
+          for attempt in 1 2 3; do
+            if timeout 180 sudo apt-get update -qq && timeout 180 sudo apt-get install -y -qq protobuf-compiler; then break; fi
+            echo "apt attempt $attempt failed, retrying"; sleep $((attempt * 5))
+          done
           protoc --version
           mkdir -p app/src/main/cpp/cld3_gen/cld_3/protos
           protoc -Iapp/src/main/cpp/cld3_src/src --cpp_out=app/src/main/cpp/cld3_gen/cld_3/protos app/src/main/cpp/cld3_src/src/*.proto
