@@ -1185,3 +1185,53 @@ The input is gone and both the release and the backup artifact are unconditional
 copied to **`EasyVoice-<run_number>.apk`** first, so it is distinguishable by name from the
 mapping and does not collide in the Downloads folder. `mapping.txt` stays a private artifact —
 it undoes the obfuscation and must never be attached to a release.
+
+## Full Compose accessibility guideline pass (2026-08-19)
+All seven pages under `developer.android.com/develop/ui/compose/accessibility/` were read
+(index, api-defaults, semantics, merging-clearing, traversal, scalable-content, inspect-debug,
+testing), plus `guide/topics/ui/accessibility/{principles,apps}`. What that changed, each item
+verified against androidx source rather than a doc summary:
+
+1. **Colour roles we never declared.** `darkColorScheme()` fills the rest from the M3 baseline,
+   and two of those are actually drawn and failed WCAG 1.4.11's 3:1 floor for non-text UI:
+   - `outlineVariant` `#49454F` — `TabRow`'s default `divider = { HorizontalDivider() }`
+     (TabRow.kt) and `DividerDefaults.color = DividerTokens.Color = OutlineVariant`, i.e. the
+     line between the tab bar and the page, at **1.76:1** on surface. It is also
+     `FilterChipTokens.FlatUnselectedOutlineColor`, so an unselected chip's whole boundary.
+     Now `#727880` = 3.70:1.
+   - `secondaryContainer` `#4A4458` — `FilterChipTokens.FlatSelectedContainerColor`, the selected
+     chip's fill, **2.02:1** on the page, and `FlatSelectedOutlineWidth = 0.0.dp` with
+     `selectedBorderColor = Color.Transparent`, so the fill is the only boundary a selected chip
+     has. Now `#42707F` = 3.44:1 with a white label at 5.45:1.
+   `surfaceContainer` / `surfaceContainerHigh` (menu and dialog fills) follow our own surface —
+   their low ratio against the page needs no fixing, a popup over a scrim has no contrast
+   requirement against what it covers, but the baseline values are purple-tinted.
+   Every pair in the palette is computed in `scratchpad`, not eyeballed; the four that read as
+   failures are the two above plus the unchecked switch track and the menu fill, and those two
+   are covered by `uncheckedBorderColor = outline` (11.0:1) and the scrim respectively.
+
+2. **Text has to survive the font scale** ("test across all scales, 0.75x-3.5x").
+   - **Material3's `AlertDialog` does not scroll its text slot** — `AlertDialog.kt` gives it
+     `Modifier.weight(weight = 1f, fill = false)` and nothing else — so the required-engines list
+     clipped. It now scrolls. There is no nested-scroll conflict *because* M3 adds none.
+   - The startup scan screen had no scroll at all. `fillMaxSize().verticalScroll()` keeps
+     `Arrangement.Center` working: `verticalScroll` only relaxes `maxHeight`, so `minHeight` still
+     forces the column to fill the viewport and it grows only when the text is genuinely taller.
+   - The Languages header is capped at `heightIn(max = 280.dp)` and scrolls inside itself, so it
+     can never starve the list. Natural height is ~235dp, so at the default scale nothing changes.
+
+3. **A LazyColumn's `collectionInfo` counts everything it holds.**
+   `LazyLayoutSemanticState.kt`: `CollectionInfo(rowCount = totalItemsCount, columnCount = 1)`.
+   The Languages list therefore reported **141 items** (137 languages + header + note + button row
+   + search field) and every row's index was off by four; Configuration was off by one. The
+   non-row content moved out of both lists into a fixed header above them — which also keeps
+   search and Select all reachable without scrolling back through 130 rows.
+   **Never put a header, a paragraph or a control inside a LazyColumn that represents a list.**
+
+4. Configuration gained a `SectionHeader`, so every tab now has at least one heading to jump to.
+
+Checked and already correct, so do not re-audit: traversal order (every screen is a single
+vertical column, so the default reading order matches the visual one — `isTraversalGroup` /
+`traversalIndex` are not needed); `liveRegion` used twice only, as the docs ask; the Languages
+search field carries **no** `contentDescription`, which `EditableContentDescCheck` requires; no
+duplicate literal accessible name remains anywhere (swept automatically).
