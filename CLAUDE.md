@@ -827,21 +827,27 @@ reads "<language>, checkbox, checked" once, and Material supplies the 48dp targe
 must carry the block's 14-space indent — getting that wrong breaks `yaml.safe_load` outright,
 which is how it was caught here.
 
-## A LazyColumn inside a DropdownMenu needs an explicit width (crash, 2026-08-18)
+## NEVER put a lazy list inside a DropdownMenu (crash, 2026-08-18)
 `DropdownMenu` sizes itself to its widest item, i.e. it asks its content for an **intrinsic
-width**. A `LazyColumn` is a `SubcomposeLayout` and cannot answer that, so the app died with
+width**. A `LazyColumn` is a `SubcomposeLayout` and cannot answer that:
 
     IllegalStateException: Asking for intrinsic measurements of SubcomposeLayout layouts is
-    not supported... adding a size modifier to the component, in order to fast return the
-    queried intrinsic measurement.
+    not supported... such as lazy lists, BoxWithConstraints, TabRow
 
-The lazy list is there on purpose — a menu composes ALL its items (Google's own doc says so,
-and lazy menu support is still open at b/242398344), which made TalkBack announce nameless
-"button, button" while swiping a 130-language list. So the list stays lazy and carries
-`Modifier.width(280.dp).heightIn(max = 320.dp)`: the width answers the intrinsic query
-without subcomposing, the bounded height keeps it from being a scrollable inside a scrollable.
-Do not remove either modifier. The app's other lazy lists sit inside plain `Box`/`widthIn`
-parents and the `TabRow` inside `Scaffold`'s `bottomBar`, none of which query intrinsics.
+The exception suggests "adding a size modifier ... to fast return the queried intrinsic
+measurement". **That was tried — `width(280.dp)` on the list — and the app crashed again in
+the same place.** So the mitigation the log prints does not save this combination; the lazy
+list simply cannot live in a menu. Do not reintroduce it, and do not trust that hint here.
+
+The menu therefore holds ordinary `DropdownMenuItem`s. Because a `LazyColumn` would have
+supplied them automatically, `collectionInfo` / `collectionItemInfo` are instead declared by
+hand on a plain `Column` inside the menu (a `Column` is not a `SubcomposeLayout`, so it
+answers intrinsics fine) — that is what lets TalkBack say "item 5 of 137" while swiping a
+130-language list.
+
+The app's other lazy lists are fine where they are: `ConfigurationScreen` and
+`LanguagesScreen` sit inside plain `Box`/`widthIn` parents, and `TabRow` sits in `Scaffold`'s
+`bottomBar`, none of which query intrinsics.
 
 ## Local validation before every push (upgraded 2026-08-12 after a CI compile failure)
 Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → generate into a tree →
