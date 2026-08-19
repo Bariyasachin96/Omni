@@ -1262,3 +1262,21 @@ Two deliberate departures, both asked for directly.
    `speakTest` and `variantsFor` already use. The variant picker was already gated on it; the rest
    were not, so they sat on the screen doing nothing. An explanatory line replaces them, so the
    screen is never left with nothing to perceive.
+
+## The tab must never change by itself, and Mode settings names its mode (user, 2026-08-19)
+1. **`HorizontalPager` now has `userScrollEnabled = false`.** The user, navigating with a screen
+   reader, found the tab flipping on its own mid-swipe. Cause: with user scrolling on, the pager
+   publishes scroll actions, and a screen reader that runs out of controls on a page performs
+   `ACTION_SCROLL_FORWARD` on the nearest scrollable ancestor — the pager — so the page and its
+   tab changed while the user was only trying to reach the next control.
+   `LazyLayoutSemanticsModifierNode` installs `scrollBy` / `scrollToIndex` **only** when
+   `userScrollEnabled` is true, so turning it off removes the action outright. Tapping a tab still
+   animates: `animateScrollToPage` is a programmatic scroll and is unaffected.
+   **AutoTTS is not the reference here.** Its `new_settings_activity.xml` uses
+   `androidx.viewpager2.widget.ViewPager2` with a bottom `TabLayout` (same shape as ours) and
+   `NewSettingsActivity` calls `setOffscreenPageLimit(4)` but never `setUserInputEnabled(false)`,
+   so AutoTTS does allow swiping between tabs. This is a deliberate UI departure, asked for
+   directly, and it must not be "restored".
+2. **The Mode settings heading names the mode** — "Dual languages settings" rather than the
+   generic "Mode Settings". The window title already carried the mode name, but that is announced
+   once on entry and easily missed, so nothing on the screen said which mode you were editing.
