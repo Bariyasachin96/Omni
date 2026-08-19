@@ -1263,41 +1263,51 @@ Two deliberate departures, both asked for directly.
    were not, so they sat on the screen doing nothing. An explanatory line replaces them, so the
    screen is never left with nothing to perceive.
 
-## userScrollEnabled on the pager MUST stay true — it is what makes it a TalkBack container (2026-08-19)
-**A mistake of mine, caught by the user, and the reasoning is worth keeping.**
+## The tab strip is a Box + draggable, NOT a pager — do not "restore" the pager (2026-08-19)
+Two rounds of getting this wrong; the record matters.
 
-The user first reported the tab changing on its own while they swiped with a screen reader, so I
-set `HorizontalPager(userScrollEnabled = false)`. That broke two things at once, and they caught
-it: *"do ungali se screen reader ke sath jab main swipe karta tha tab tab change hote the pehle
-wale build mein, ab ismein nahi ho raha, vah hone chahiye the"* — plus the pointer that
-**TalkBack containers** were the thing to read about. They were right on both counts.
+**What the user reported, exactly.** From a language row in Configuration, swiping backward with a
+screen reader landed on **Main Settings**; from the last language row, swiping forward landed on
+**Advanced**. Separately, the deliberate **two-finger swipe** must keep changing tabs — TalkBack
+forwards a two-finger gesture through as ordinary touch, so it is a real gesture, not an accident.
 
-What the source says, all verified:
-- `Pager.kt`'s `pagerSemantics` is gated on the flag —
-  `if (userScrollEnabled) Modifier.semantics { pageLeft {…}; pageRight {…} } else Modifier` —
-  and its KDoc says the flag covers *"scrolling via the user gestures **or accessibility
-  actions**"*. One switch for both; they cannot be separated through the public API.
-- TalkBack decides what a pager is from **the actions, not the class name**
-  (`Role.java`, comment "Inheritance: View->ViewGroup->ViewPager2"):
-  `if (supportsAction(node, ACTION_PAGE_UP|DOWN|LEFT|RIGHT)) return ROLE_PAGER;`
-- and `AccessibilityNodeInfoUtils.CONTAINER_ROLES` is
-  `{ROLE_LIST, ROLE_GRID, ROLE_PAGER, ROLE_SCROLL_VIEW, ROLE_HORIZONTAL_SCROLL_VIEW,
-  ROLE_WEB_VIEW}`, with
-  `FILTER_CONTAINER = CONTAINER_ROLES.contains(getRole(node)) || !isEmpty(getContainerTitle())`.
+**Why `HorizontalPager` cannot do both.** Its scroll semantics come from `lazyLayoutSemantics`, and
+the Compose a11y delegate deliberately makes every scroll container auto-scrollable for TalkBack:
 
-So `userScrollEnabled = false` removed `pageLeft`/`pageRight`, which removed `ROLE_PAGER`, which
-removed the node from TalkBack's **container** set — container navigation stopped working — and it
-also killed the **two-finger swipe**, because TalkBack passes a two-finger gesture through as
-ordinary touch, making that swipe a deliberate way to change tabs rather than an accident.
+```kotlin
+// Talkback defines SCROLLABLE_ROLE_FILTER_FOR_DIRECTION_NAVIGATION, so we need to
+// assign a role for auto scroll to work. Node with collectionInfo resolved by
+// Talkback to ROLE_LIST and supports autoscroll too
+if (!semanticsNode.hasCollectionInfo()) { info.className = "android.widget.HorizontalScrollView" }
+```
 
-`containerTitle` is the only other route into `FILTER_CONTAINER`, and **Compose has no semantics
-property for it** (nothing in `SemanticsProperties.kt` or the a11y delegate), so the page actions
-are the only lever we have. Leave the flag at its default.
+Either branch puts the node in TalkBack's `FILTER_AUTO_SCROLL`
+(`ROLE_DROP_DOWN_LIST`/`ROLE_LIST`/`ROLE_GRID`/`ROLE_SCROLL_VIEW`/`ROLE_HORIZONTAL_SCROLL_VIEW`),
+the set TalkBack scrolls by itself when linear navigation runs off the end. The only switch that
+removes that action, **`userScrollEnabled`, removes `pageLeft`/`pageRight` and the touch gesture
+with it** — `Pager.kt`'s `pagerSemantics` is gated on it and its KDoc says the flag covers
+"scrolling via the user gestures **or** accessibility actions". That was the first attempt and it
+cost the two-finger swipe.
 
-The accidental page change during linear navigation is not something AutoTTS avoids either:
-`ViewPager2.addScrollActions` adds `ACTION_SCROLL_FORWARD`/`BACKWARD` whenever
-`isUserInputEnabled()`. Our lists are already containers too — the Languages and Configuration
-`LazyColumn`s publish `collectionInfo`, giving them `ROLE_LIST`.
+**What it is now.** A plain `Box` rendering only the selected page, with `currentPage` as ordinary
+state that the `TabRow` drives. A `Box` publishes no scroll semantics, so there is nothing for
+TalkBack to scroll and each page is a hard boundary. `Modifier.draggable` supplies the swipe: it
+adds **no** semantics of its own (unlike `Modifier.scrollable`), it is stable API, and it still
+sees the two-finger gesture. The delta is accumulated and acted on once in `onDragStopped` against
+`SWIPE_THRESHOLD_PX`, so one flick moves exactly one tab — the bug the old hand-written
+`detectHorizontalDragGestures` had.
+
+**Accepted costs, stated so they are not "fixed" later:** the tab strip is no longer a TalkBack
+`ROLE_PAGER` and therefore no longer one of its containers, and there is no slide animation between
+tabs. Container navigation still works where it matters — the Languages and Configuration
+`LazyColumn`s publish `collectionInfo`, so they are `ROLE_LIST` containers, which is what lets a
+user escape 137 language rows.
+
+**For reference, TalkBack's own rules** (`google/talkback`, `AccessibilityNodeInfoUtils.java` and
+`Role.java`): `FILTER_CONTAINER` accepts `CONTAINER_ROLES` (`LIST`, `GRID`, `PAGER`, `SCROLL_VIEW`,
+`HORIZONTAL_SCROLL_VIEW`, `WEB_VIEW`) **or** a non-empty `getContainerTitle()`; and `ROLE_PAGER` is
+derived from the node supporting `ACTION_PAGE_UP/DOWN/LEFT/RIGHT`, not from any class name.
+Compose has no semantics property for `containerTitle` at all.
 
 2. **The Mode settings heading names the mode** — "Dual languages settings" rather than the
    generic "Mode Settings". The window title already carried the mode name, but that is announced
