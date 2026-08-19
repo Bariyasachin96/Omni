@@ -73,10 +73,28 @@ jobs:
           clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
           clone https://github.com/google/cld3.git app/src/main/cpp/cld3_src
           clone https://github.com/protocolbuffers/protobuf.git app/src/main/cpp/protobuf_src -b v3.21.12
-          for attempt in 1 2 3; do
-            if timeout 180 sudo apt-get update -qq && timeout 180 sudo apt-get install -y -qq protobuf-compiler; then break; fi
-            echo "apt attempt $attempt failed, retrying"; sleep $((attempt * 5))
+
+      # protoc used to come from `apt-get install protobuf-compiler`, and apt is
+      # what actually kept breaking: run 738 hung 33 minutes inside `apt-get
+      # update`, and run 739 failed after three timed-out attempts, leaving
+      # "protoc: command not found" (exit 127). In both runs the three git
+      # clones finished in nine seconds -- GitHub was fine, the distro mirror
+      # was not. So protoc now comes from the protobuf project's own GitHub
+      # release. It is also pinned to the same version we build the runtime
+      # from (release v21.12 IS protobuf 3.21.12; the project dropped the "3."
+      # from tag names at 21), which apt never guaranteed.
+      - name: Install protoc and generate CLD3 protos
+        timeout-minutes: 5
+        run: |
+          set -e
+          url=https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
+          n=0
+          until [ $n -ge 3 ]; do
+            if timeout 120 curl -fsSL -o /tmp/protoc.zip "$url"; then break; fi
+            n=$((n+1)); echo "protoc download attempt $n failed, retrying"; sleep $((n * 5))
           done
+          unzip -q -o /tmp/protoc.zip -d /tmp/protoc
+          sudo install -m 0755 /tmp/protoc/bin/protoc /usr/local/bin/protoc
           protoc --version
           mkdir -p app/src/main/cpp/cld3_gen/cld_3/protos
           protoc -Iapp/src/main/cpp/cld3_src/src --cpp_out=app/src/main/cpp/cld3_gen/cld_3/protos app/src/main/cpp/cld3_src/src/*.proto
