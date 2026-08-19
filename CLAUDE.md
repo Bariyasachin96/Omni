@@ -827,6 +827,36 @@ reads "<language>, checkbox, checked" once, and Material supplies the 48dp targe
 must carry the block's 14-space indent — getting that wrong breaks `yaml.safe_load` outright,
 which is how it was caught here.
 
+## A merged node carries NO name for non-TalkBack screen readers (2026-08-19)
+The user tried a screen reader other than TalkBack: swiping the dropdown list announced
+"button, button, button" with no item labels. TalkBack was fine. The cause is in Compose's
+own `AndroidComposeViewAccessibilityDelegateCompat`:
+
+```kotlin
+if (!node.unmergedConfig.isMergingSemanticsOfDescendants || node.replacedChildren.isEmpty()) {
+    info.contentDescription = node.unmergedConfig.getOrNull(ContentDescription)?.firstOrNull()
+}
+info.text = getInfoText(node)      // reads node.UNMERGED config
+```
+
+A `DropdownMenuItem` / `Button` / `clickable` row **merges** its children and **has** children,
+so BOTH branches skip it: the focused node gets neither `text` nor `contentDescription`. The
+label lives on the **fake child nodes** Compose emits. TalkBack walks those; a reader that only
+inspects the focused node finds nothing and announces the bare role.
+
+**The fix, where it matters:** leave the item with no semantic children, so the condition above
+holds and the description is really written onto the node —
+- `Text(..., modifier = Modifier.clearAndSetSemantics { })` on the visible label,
+- `contentDescription = null` on any decorative icon,
+- `Modifier.semantics { contentDescription = <the full label> }` on the item itself.
+
+Put only the VALUE on a control whose label is a separate Text beside it, never "label, value" —
+the label is its own leaf node and would otherwise be announced twice.
+
+This applies to every merged clickable, not just menus. It is currently applied to the dropdown
+trigger and the dropdown items, which is where it was reported; if that reader is also silent on
+other controls, the same three steps are the remedy.
+
 ## NEVER put a lazy list inside a DropdownMenu (crash, 2026-08-18)
 `DropdownMenu` sizes itself to its widest item, i.e. it asks its content for an **intrinsic
 width**. A `LazyColumn` is a `SubcomposeLayout` and cannot answer that:
