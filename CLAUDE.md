@@ -1263,20 +1263,42 @@ Two deliberate departures, both asked for directly.
    were not, so they sat on the screen doing nothing. An explanatory line replaces them, so the
    screen is never left with nothing to perceive.
 
-## The tab must never change by itself, and Mode settings names its mode (user, 2026-08-19)
-1. **`HorizontalPager` now has `userScrollEnabled = false`.** The user, navigating with a screen
-   reader, found the tab flipping on its own mid-swipe. Cause: with user scrolling on, the pager
-   publishes scroll actions, and a screen reader that runs out of controls on a page performs
-   `ACTION_SCROLL_FORWARD` on the nearest scrollable ancestor — the pager — so the page and its
-   tab changed while the user was only trying to reach the next control.
-   `LazyLayoutSemanticsModifierNode` installs `scrollBy` / `scrollToIndex` **only** when
-   `userScrollEnabled` is true, so turning it off removes the action outright. Tapping a tab still
-   animates: `animateScrollToPage` is a programmatic scroll and is unaffected.
-   **AutoTTS is not the reference here.** Its `new_settings_activity.xml` uses
-   `androidx.viewpager2.widget.ViewPager2` with a bottom `TabLayout` (same shape as ours) and
-   `NewSettingsActivity` calls `setOffscreenPageLimit(4)` but never `setUserInputEnabled(false)`,
-   so AutoTTS does allow swiping between tabs. This is a deliberate UI departure, asked for
-   directly, and it must not be "restored".
+## userScrollEnabled on the pager MUST stay true — it is what makes it a TalkBack container (2026-08-19)
+**A mistake of mine, caught by the user, and the reasoning is worth keeping.**
+
+The user first reported the tab changing on its own while they swiped with a screen reader, so I
+set `HorizontalPager(userScrollEnabled = false)`. That broke two things at once, and they caught
+it: *"do ungali se screen reader ke sath jab main swipe karta tha tab tab change hote the pehle
+wale build mein, ab ismein nahi ho raha, vah hone chahiye the"* — plus the pointer that
+**TalkBack containers** were the thing to read about. They were right on both counts.
+
+What the source says, all verified:
+- `Pager.kt`'s `pagerSemantics` is gated on the flag —
+  `if (userScrollEnabled) Modifier.semantics { pageLeft {…}; pageRight {…} } else Modifier` —
+  and its KDoc says the flag covers *"scrolling via the user gestures **or accessibility
+  actions**"*. One switch for both; they cannot be separated through the public API.
+- TalkBack decides what a pager is from **the actions, not the class name**
+  (`Role.java`, comment "Inheritance: View->ViewGroup->ViewPager2"):
+  `if (supportsAction(node, ACTION_PAGE_UP|DOWN|LEFT|RIGHT)) return ROLE_PAGER;`
+- and `AccessibilityNodeInfoUtils.CONTAINER_ROLES` is
+  `{ROLE_LIST, ROLE_GRID, ROLE_PAGER, ROLE_SCROLL_VIEW, ROLE_HORIZONTAL_SCROLL_VIEW,
+  ROLE_WEB_VIEW}`, with
+  `FILTER_CONTAINER = CONTAINER_ROLES.contains(getRole(node)) || !isEmpty(getContainerTitle())`.
+
+So `userScrollEnabled = false` removed `pageLeft`/`pageRight`, which removed `ROLE_PAGER`, which
+removed the node from TalkBack's **container** set — container navigation stopped working — and it
+also killed the **two-finger swipe**, because TalkBack passes a two-finger gesture through as
+ordinary touch, making that swipe a deliberate way to change tabs rather than an accident.
+
+`containerTitle` is the only other route into `FILTER_CONTAINER`, and **Compose has no semantics
+property for it** (nothing in `SemanticsProperties.kt` or the a11y delegate), so the page actions
+are the only lever we have. Leave the flag at its default.
+
+The accidental page change during linear navigation is not something AutoTTS avoids either:
+`ViewPager2.addScrollActions` adds `ACTION_SCROLL_FORWARD`/`BACKWARD` whenever
+`isUserInputEnabled()`. Our lists are already containers too — the Languages and Configuration
+`LazyColumn`s publish `collectionInfo`, giving them `ROLE_LIST`.
+
 2. **The Mode settings heading names the mode** — "Dual languages settings" rather than the
    generic "Mode Settings". The window title already carried the mode name, but that is announced
    once on entry and easily missed, so nothing on the screen said which mode you were editing.
