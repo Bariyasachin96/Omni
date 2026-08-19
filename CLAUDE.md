@@ -1235,3 +1235,30 @@ vertical column, so the default reading order matches the visual one — `isTrav
 `traversalIndex` are not needed); `liveRegion` used twice only, as the docs ask; the Languages
 search field carries **no** `contentDescription`, which `EditableContentDescCheck` requires; no
 duplicate literal accessible name remains anywhere (swept automatically).
+
+## Languages start CLEARED, and the voice screen hides what needs a voice (user, 2026-08-19)
+Two deliberate departures, both asked for directly.
+
+1. **`rebuildFromScan` reads `iso3 + "_disabled"` with a default of `true`.** AutoTTS defaults it
+   to `false`, so every scanned language arrived enabled and the Languages screen opened with all
+   ~137 boxes ticked. The user does not want that: *"default language bhale hi selected rahe,
+   baaki language clear rehni chahiye"*. Nothing else was needed, because the very next line
+   already existed:
+   `if (entry.disabled && required.contains(iso3)) { entry.disabled = false; changed = true }`
+   and `requiredLangs` returns the mode's own languages — `autoLang` for auto/google,
+   `dualLang` + `"eng"` for dual, `mixLatin` + `mixNonLatin` for mix/multilingual — so the default
+   language stays ticked and nothing else does.
+   **Deliberately NOT flipped:** `dualLangList` (it builds only `"eng"` and the dual language,
+   both always required, and it has no required-language fix-up, so a `true` default there would
+   leave dual mode with nothing routable) and `load()` (it parses the persisted `language_N` list,
+   whose entries have been written at least once).
+   The default only applies where the key has never been written, so an install that already has
+   choices keeps them; **"Clear all" produces the same state on demand** and already re-ticks the
+   required languages.
+
+2. **`VoiceScreen` shows Test, the three sliders and Default only when a voice is selected.**
+   `voiceRows.firstOrNull() == null` is exactly "no TTS selected" — either the language has no
+   voices at all, or the `"*Disabled"` row sits at the front — and it is the same test
+   `speakTest` and `variantsFor` already use. The variant picker was already gated on it; the rest
+   were not, so they sat on the screen doing nothing. An explanatory line replaces them, so the
+   screen is never left with nothing to perceive.
