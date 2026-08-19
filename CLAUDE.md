@@ -844,18 +844,53 @@ so BOTH branches skip it: the focused node gets neither `text` nor `contentDescr
 label lives on the **fake child nodes** Compose emits. TalkBack walks those; a reader that only
 inspects the focused node finds nothing and announces the bare role.
 
-**The fix, where it matters:** leave the item with no semantic children, so the condition above
-holds and the description is really written onto the node —
-- `Text(..., modifier = Modifier.clearAndSetSemantics { })` on the visible label,
-- `contentDescription = null` on any decorative icon,
-- `Modifier.semantics { contentDescription = <the full label> }` on the item itself.
+**Why `replacedChildren` is never empty here — read from the source, do not re-derive.**
+`SemanticsOwner.getAllUncoveredSemanticsNodesToIntObjectMap` starts from
+`unmergedRootSemanticsNode`, so the delegate walks the **unmerged** tree, i.e.
+`mergingEnabled = false`. `SemanticsNode.getChildren` only short-circuits to
+`findOneLayerOfMergingSemanticsNodes()` when its *gated* `isMergingSemanticsOfDescendants`
+(`mergingEnabled && config.isMergingSemanticsOfDescendants`) is true — which it is not in that
+tree — so it falls through to `unmergedChildren()`, and
+`LayoutNode.fillOneLayerOfSemanticsWrappers` adds **every** child layout node that
+`has(Nodes.Semantics)`. A `Text` marked `clearAndSetSemantics { }` still has a semantics node,
+so it still counts. **`clearAndSetSemantics` on the child does NOT make the parent's
+`contentDescription` land on the parent node**; the earlier note here claimed it did and was
+wrong.
+
+**What the fix actually does, and the on-device proof.** Setting `contentDescription` on the
+merging node makes Compose emit the "contentDescription clobbering" **fake first child**
+carrying it (`SemanticsNode.emitFakeNodes`). Google's **Accessibility Scanner**, run by the user
+on 2026-08-19, read that description back verbatim from a dropdown item
+(*"This item's content description, \"English (eng), Selected\", contains the state
+\"selected\""*), which proves the label really is exposed to a plain
+`AccessibilityNodeInfo` consumer. So the pattern is:
+- `Modifier.semantics { contentDescription = <label> }` on the clickable node — this is what
+  puts the name in the tree;
+- `Text(..., modifier = Modifier.clearAndSetSemantics { })` on the visible label — this is
+  **only** to stop the name being announced twice, not to empty `replacedChildren`;
+- `contentDescription = null` on any decorative icon.
+
+**Never put state in the name.** That was the scanner's one reproducible finding. State goes in
+real semantics — `selected`, the `ToggleableState` that `toggleable`/`selectable` supply, or
+`stateDescription`. The dropdown item's `", Selected"` suffix is gone; it now sets
+`selected = index == selectedIndex`. (`SemanticsProperties.Selected` maps to `info.isChecked`
+unless the role is `Tab`, and it suppresses `ACTION_CLICK` **only** for `Role.RadioButton` /
+`Role.Tab` — our menu items declare no role, so activation is untouched.)
 
 Put only the VALUE on a control whose label is a separate Text beside it, never "label, value" —
-the label is its own leaf node and would otherwise be announced twice.
+the label is its own leaf node and would otherwise be announced twice. That is why the dropdown
+*trigger* is described with the selected value alone.
 
-This applies to every merged clickable, not just menus. It is currently applied to the dropdown
-trigger and the dropdown items, which is where it was reported; if that reader is also silent on
-other controls, the same three steps are the remedy.
+**Applied to every merged clickable in the app (2026-08-19)** — 25 controls: the 9 Advanced
+switches and `ActionButton`, Import/Export/Share logs/Clear logs, the Configuration language
+rows, the Languages checkbox rows + Select all/Clear all/"Show selected" chip, the dialog's
+Install/Apply/Cancel, the FAB, the 3 tabs, the mode radio rows and their Settings button, the
+dropdown trigger and items, the slider −/+, Test and Default. Keep the pattern on anything new.
+
+**"Unexposed Text" from the scanner is flaky — do not chase it.** Three scans of the *same* open
+dropdown produced "No suggestions", "No suggestions", and 17 × *"Unexposed Text … Ensure this
+item's accessibility label includes its visible text"*. The check is OCR-timing based; judge it
+by whether the label is set, not by one report.
 
 ## NEVER put a lazy list inside a DropdownMenu (crash, 2026-08-18)
 `DropdownMenu` sizes itself to its widest item, i.e. it asks its content for an **intrinsic
