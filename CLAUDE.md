@@ -877,9 +877,24 @@ real semantics — `selected`, the `ToggleableState` that `toggleable`/`selectab
 unless the role is `Tab`, and it suppresses `ACTION_CLICK` **only** for `Role.RadioButton` /
 `Role.Tab` — our menu items declare no role, so activation is untouched.)
 
-Put only the VALUE on a control whose label is a separate Text beside it, never "label, value" —
-the label is its own leaf node and would otherwise be announced twice. That is why the dropdown
-*trigger* is described with the selected value alone.
+**The label belongs to the control, not beside it (corrected 2026-08-19).** The rule here used to
+say "put only the VALUE on a control whose label is a separate Text beside it, never
+'label, value'", because the label was its own leaf node and would be announced twice. That
+produced a worse bug, which Google's `DuplicateSpeakableTextCheck` calls out as a WARNING —
+*two clickable views with the same speakable text*: on mode settings, "Select language for
+reading numbers / punctuations / emojis" all default to `"Auto language"`, so three controls
+announced identically, and the Latin / non-Latin preferred languages are both `"English (eng)"`
+by default, making five. The same held for `ValueSlider`, whose Slider is already named "Speed"
+while a Text above it said "Speed" again.
+
+So `LabeledDropdown` now names the button `"<label>, <value>"` and silences the visible label
+`Text` with `clearAndSetSemantics { }`; `ValueSlider` does the same with its label. The text
+stays on screen — only its semantics go. Use `clearAndSetSemantics`, **not**
+`hideFromAccessibility()`: that API's own KDoc says *"If looking for a way to clear semantics of
+small items from the UI tree completely because they are redundant with semantics of their
+parent, consider [clearAndSetSemantics] instead"* — `hideFromAccessibility()` is for **occluded**
+content. (The Compose accessibility doc page's summary table reads the other way round; the KDoc
+is the authority.)
 
 **Applied to every merged clickable in the app (2026-08-19)** — 25 controls: the 9 Advanced
 switches and `ActionButton`, Import/Export/Share logs/Clear logs, the Configuration language
@@ -1112,3 +1127,61 @@ Almost every `c3.*` class shifted by **one letter**. The *pref keys* are unchang
   engine test is a different method, `AutoTtsService.M(lang)`, and the two are used in
   different places — see `ANALYSIS_5.7.7.10_mix.md` §30.
 - `AutoTtsService.W` (was `S`) — disable-advanced-detection flag; `AutoTtsService.X` — single-char UNKNOWN gate
+
+## Google's Accessibility Test Framework is the spec (read 2026-08-19)
+`support.google.com` is blocked by this container's egress proxy, so the "Learn more" links in a
+Scanner report (e.g. `?p=unexposed_text`) cannot be fetched here. The **implementation** behind
+every one of those pages is open source and reachable:
+`raw.githubusercontent.com/google/Accessibility-Test-Framework-for-Android/master/src/main/java/
+com/google/android/apps/common/testing/accessibility/framework/…`. Read the check class, not a
+summary. `AccessibilityCheckPreset.java` lists all 14.
+
+What matters for this app:
+- **`SpeakableTextPresentCheck`** is the only ERROR-level one (topic 7158690). It has never fired
+  on us — every focusable element already has a name.
+- **`RedundantDescriptionCheck`** (topic 6378990) matches, case-insensitively and on word
+  boundaries, `button`/`checkbox` (type), `checked`/`unchecked`/`selected`/`unselected` (state),
+  `click`/`swipe`/`tap` (action) **inside a contentDescription**. Keep state out of names.
+  *Known accepted warning:* the Languages screen's **"Show selected"** chip contains "selected" as
+  part of its visible label, and WCAG 2.5.3 Label in Name requires the accessible name to contain
+  the visible label. Renaming the chip is the only way to silence it — a UI wording decision, so
+  ask the user first.
+- **`UnexposedTextCheck` is `@Beta`, javadoc "This check is under development"**, and entirely
+  OCR-driven (`CONFIDENCE_FILTER_THRESHOLD = 0.5f`, Levenshtein ≤ 2, best-match view by
+  intersection-over-union). Three scans of the *same* open dropdown gave "No suggestions",
+  "No suggestions", and 17 flagged rows. **Do not chase its results**; judge by whether the label
+  is set. Its real rule: an element's speakable text must contain its visible text, in the same
+  order, and a list row's contentDescription must cover all the text visible in that row.
+- **`DuplicateSpeakableTextCheck`** (topic 7102513) — two views with the same speakable text is a
+  WARNING when either is clickable. This is what the label-in-the-control change above fixes.
+- **`EditableContentDescCheck`** (topic 6378120) — an editable text field must **not** have a
+  contentDescription. The Languages search field therefore stays as it is; never add one.
+- `ViewHierarchyElementUtils.getSpeakableTextForElement` is ATF's model of what a screen reader
+  says, and it states plainly: *"Content descriptions override everything else — including
+  children."*
+
+**Compose's own docs confirm the merged-node diagnosis**: *"Unmerged Tree: keeps all nodes intact
+— used by accessibility services — allows services to apply their own merging."* Compose assumes
+the service merges. TalkBack does; the reader the user tried does not.
+
+**A doc snippet that is a trap.** `developer.android.com/develop/ui/compose/accessibility/
+api-defaults` shows `Modifier.semantics { onClick(label = "…", action = { true }) }` for
+relabelling a nested clickable. That **replaces** the accessibility click action with a no-op —
+it is exactly what once made the Configuration language rows unopenable under TalkBack. Relabel
+with `Modifier.clickable(onClickLabel = …)` instead.
+
+**Automated option, not yet set up:** Compose 1.8+ ships `ui-test-junit4-accessibility` with
+`enableAccessibilityChecks()`, which runs these same ATF checks from an instrumented test. It
+needs an emulator in CI.
+
+## The APK must always land on the Releases page (fixed 2026-08-19)
+`workflow_dispatch` declared an input `publish_release: {type: boolean, default: true}` and the
+release step was gated on it. **A dispatch through the API does not reliably apply that default**
+— run 730 skipped "Publish APK to GitHub Release" and run 731 did not, from identical calls, so
+builds 697-730 published no release at all and the only thing left to download on the run page
+was `r8-mapping-<n>`, which is what the user ended up with instead of an APK.
+
+The input is gone and both the release and the backup artifact are unconditional. The asset is
+copied to **`EasyVoice-<run_number>.apk`** first, so it is distinguishable by name from the
+mapping and does not collide in the Downloads folder. `mapping.txt` stays a private artifact —
+it undoes the obfuscation and must never be attached to a release.

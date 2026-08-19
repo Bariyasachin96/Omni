@@ -2,12 +2,10 @@ name: Build Easy Voice Native
 on:
   push:
     branches: ["main", "master"]
+  # No inputs. A dispatch through the API does not reliably apply a declared
+  # input default -- run 730 skipped the release step for exactly that reason
+  # and left only the R8 mapping to download -- so publishing is unconditional.
   workflow_dispatch:
-    inputs:
-      publish_release:
-        description: "Publish the APK as a GitHub release"
-        type: boolean
-        default: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -4298,25 +4296,39 @@ jobs:
           "fun LabeledDropdown(label: String, options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {\n"
           "    var expanded by remember { mutableStateOf(false) }\n"
           "    val selectedText = if (selectedIndex >= 0 && selectedIndex < options.size) options[selectedIndex] else \"\"\n"
+          "    // \"Select language for reading numbers:\" -> \"Select language for reading numbers\"\n"
+          "    // so the name does not read as \"... numbers colon, comma, Auto language\".\n"
+          "    val labelName = label.trimEnd(' ', ':')\n"
           "    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {\n"
+          "        // The label is announced as part of the button below, not on its own.\n"
+          "        //\n"
+          "        // It used to be a separate leaf node with the button named by its VALUE\n"
+          "        // alone. That is what a user hears three times on the mode settings\n"
+          "        // screen, because \"Select language for reading numbers / punctuations /\n"
+          "        // emojis\" all default to \"Auto language\", and twice more when the Latin\n"
+          "        // and non-Latin preferred languages are both English. Google's\n"
+          "        // DuplicateSpeakableTextCheck reports exactly that as a WARNING:\n"
+          "        // two clickable views with the same speakable text.\n"
+          "        //\n"
+          "        // Silencing it with clearAndSetSemantics -- rather than\n"
+          "        // hideFromAccessibility(), whose own KDoc says to use\n"
+          "        // clearAndSetSemantics for content that is redundant with its parent --\n"
+          "        // leaves the text on screen and lets the button own the whole name.\n"
           "        Text(\n"
           "            text = label,\n"
           "            style = MaterialTheme.typography.bodyMedium,\n"
-          "            modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)\n"
+          "            modifier = Modifier.padding(top = 4.dp, bottom = 2.dp).clearAndSetSemantics { }\n"
           "        )\n"
           "        // Same reasoning as the menu items below: the button merges its children,\n"
           "        // so without this the focused node carries no name and a screen reader\n"
           "        // that does not walk Compose's fake nodes announces only the role.\n"
-          "        // The description is the VALUE alone, not \"label, value\" -- the label is\n"
-          "        // the separate Text above, a leaf node any reader can read, and folding it\n"
-          "        // in here would have it announced twice.\n"
           "        OutlinedButton(\n"
           "            onClick = { expanded = true },\n"
           "            modifier = Modifier\n"
           "                .fillMaxWidth()\n"
           "                .semantics {\n"
           "                    role = Role.DropdownList\n"
-          "                    contentDescription = selectedText\n"
+          "                    contentDescription = labelName + \", \" + selectedText\n"
           "                    stateDescription = if (expanded) \"Expanded\" else \"Collapsed\"\n"
           "                }\n"
           "        ) {\n"
@@ -4392,10 +4404,13 @@ jobs:
           "@Composable\n"
           "fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit) {\n"
           "    val context = LocalContext.current\n"
+          "    // The Slider below is already named `label`, so this heading was a second\n"
+          "    // node speaking \"Speed\" right before \"Speed, 100 of 500\" -- the same\n"
+          "    // duplicate-speakable-text problem as the dropdown label.\n"
           "    Text(\n"
           "        text = label,\n"
           "        style = MaterialTheme.typography.bodyMedium,\n"
-          "        modifier = Modifier.padding(horizontal = 16.dp)\n"
+          "        modifier = Modifier.padding(horizontal = 16.dp).clearAndSetSemantics { }\n"
           "    )\n"
           "    Row(\n"
           "        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),\n"
@@ -6557,8 +6572,16 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
 
+      # Every build ships the same way: one clearly named APK on the release
+      # page. "app-release.apk" collided in the Downloads folder and was hard to
+      # tell apart from the mapping artifact.
+      - name: Name the APK after the build
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk \
+             "EasyVoice-${{ github.run_number }}.apk"
+          ls -l "EasyVoice-${{ github.run_number }}.apk"
+
       - name: Publish APK to GitHub Release
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_release }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
@@ -6566,18 +6589,18 @@ jobs:
           body: |
             Build #${{ github.run_number }}
             Commit: ${{ github.sha }}
-          files: app/build/outputs/apk/release/app-release.apk
+          files: EasyVoice-${{ github.run_number }}.apk
           make_latest: true
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload APK (when no release is published)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish_release }}
+      # Backup copy, so the APK is reachable even if the release step ever fails.
+      - name: Upload APK (backup)
         uses: actions/upload-artifact@v4
         with:
           name: easy-voice-apk-${{ github.run_number }}
-          path: app/build/outputs/apk/release/app-release.apk
+          path: EasyVoice-${{ github.run_number }}.apk
           retention-days: 7
           if-no-files-found: error
 
