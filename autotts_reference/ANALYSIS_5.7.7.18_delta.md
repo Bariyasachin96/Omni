@@ -1586,3 +1586,89 @@ AutoTTS's own beyond the `FileProvider`. And nothing registers one at runtime ei
 `registerReceiver`, `ContentObserver`, `AlarmManager`, `JobScheduler`, `WorkManager` or
 `PendingIntent` anywhere in the app's dex. The four manifest components plus the service are
 the whole surface.
+
+## 32. Source-driven parity sweep, and the two methods CFR could never read (2026-08-20)
+
+The user asked to go **to the AutoTTS source directly** and find what is still missing, rather
+than trust this document. Done, and the two methods nobody had ever read are now read.
+
+### The two `ConfusedCFRException` methods, finally decompiled
+
+The README says to read these from baksmali. baksmali is not fetchable here (the GitHub
+release asset names 404), so they were read as **JVM bytecode instead**: dex2jar the APK,
+then `javap -c -p`. The README already blesses that route — *"`javap -c` on the dex2jar
+output is a good independent cross-check"*. Toolchain: `de.femtopedia.dex2jar:*:2.4.37` +
+ASM 9.10.1 from Maven Central, plus the committed `tools/d2j-base-cmd-2.4.37.jar`. Maven
+Central rate-limits (HTTP 429 arrives as a 96-byte "exceeded rate limits" page that looks
+like a jar) — use `curl -f --retry --retry-all-errors`.
+
+**`c3.p.h(Level, String, String)` — the logger write.** Reconstructed from bytecode:
+
+```java
+public synchronized void h(Level level, String tag, String msg) {
+    switch (level.ordinal()) { case 2 -> Log.w(tag, msg); case 3 -> Log.e(tag, msg); }
+    if (!d) return;                                   // note: AFTER the logcat calls
+    i();                                              // rotate at >= 0x200000 (2 MB)
+    String line = String.format("%s [%s] %s: %s", b.format(new Date()), level.c, tag, msg);
+    try (BufferedWriter w = new BufferedWriter(new FileWriter(a, true))) {
+        w.write(line); w.newLine();
+    } catch (Throwable t) { Log.e("TtsLogger", "Failed to write log", t); }
+}
+```
+Enum `c3.p$a`: DEBUG("D"), INFO("I"), WARN("W"), ERROR("E"). **DEBUG and INFO never reach
+logcat.** Our `EasyVoiceLogger.writeLine` matches all of it — the synchronisation, the
+W/E-only logcat, the disabled-check placement, the 2 MB rotate with `.3` deleted and
+3←2←1←base, the format string, append mode, and the identical `"TtsLogger"` /
+`"Failed to write log"` failure log. **No gap.**
+
+**`c3.k.G2(Context, String)` — settings import.** `Editor.clear()`, then an
+`XmlPullParser` over a `StringReader`, and on each START_TAG with a `name` attribute:
+`float`/`boolean`(`"true".equals`)/`long`/`int` read `value`, `string` uses `nextText()`;
+then `commit()`. Our `SharedPrefsManager.importSettingsXml` is an exact port; the only
+difference is that AutoTTS's try/catch lives in the caller `H2` (`printStackTrace`) and
+ours is inside the function. **No gap.**
+
+### Everything else checked, source-first
+
+- **All 13 `TextToSpeechService` overrides** present on our side.
+- **API-call diff** of `AutoTtsService.java` against our whole Kotlin: the only genuinely
+  absent calls are `Settings.Secure` + `LicenseChecker` in `U()` — the licensing gate, an
+  explicit carve-out. `W()` (is notification 136549 live) and `o0()`/`g0()` (the 32-byte
+  silence keep-alive loop) are both present in `EasyVoiceTtsService`.
+- **Same diff** over `c3/{n,d0,e,g0,p,o,d}.java` — no missing behaviour.
+- **`V(Locale, Locale)`**, the three-level ISO3 language → ISO3 country → variant match, is
+  our `localeMatches`, identical.
+- **Engine scan startup**: 180 000 ms watchdog → finalise, `B0()`'s three
+  `queryIntentServices` calls, **and** the second stage nobody would guess from the CFR
+  output — a `TextToSpeech` on the app's own package whose `onInit` calls `getEngines()`
+  and appends whatever `queryIntentServices` missed, skipping already-seen and self, then
+  `shutdown()` and start the per-engine loop; on failure a Toast and straight to finalise.
+  Our `probe` block is the same, including the Toast.
+- **Manifest**: our `<service>` matches AutoTTS's attribute for attribute.
+
+### AutoTTS's own dead strings — not gaps
+
+Resolved by resource id against the dex, so this is evidence, not inference:
+
+| string | text | referenced in AutoTTS? |
+|---|---|---|
+| `autotts_stop_progress` | "If scanning takes too long, click Stop button!" | **dead** |
+| `go_to_mode_settings` / `go_to_voice_settings` | "Go to Mode/Voice Settings" | **dead** |
+| `autotts_init_engine` / `autotts_engine_ready` | engine-init announcements | **dead** |
+| `none_mode_description` | "Disable language detection." | **dead** |
+| `accessibility_service_description` | "…requires access permission to work with TalkBack." | **dead** |
+| `autotts_engine_failed` | "init new engine failed." | referenced — and we have it |
+
+So there is no Stop button, no engine-ready announcement and no "Go to …" navigation in
+AutoTTS; those strings are leftovers.
+
+### AutoTTS is NOT an accessibility service
+
+`AutoTtsService` carries `accessibilityEventTypes`, `accessibilityFlags` and
+`canRetrieveWindowContent="true"` in the manifest, but there is **no**
+`<meta-data android:name="android.accessibilityservice">` and no accessibility config in
+`res/xml/`, and `accessibility_service_description` is unreferenced. The attributes are
+inert. AutoTTS therefore has no foreground-app awareness of any kind — which also settles
+the per-app-configuration question: it is not something AutoTTS does.
+
+**Conclusion: this sweep found no parity gap.**
