@@ -1348,3 +1348,32 @@ mode", "Multilingual mode (experimental)".
 
 This is a UI-only change under the carve-out: no logic, service, detection or storage behaviour
 moved, and `EasyVoiceLogger` messages and log tags were not touched.
+
+### Second pass: the wording had to sound like a person (user request, 2026-08-20)
+*"bahut Sare paragraph Aise Hain Jo AI generated lag rahe hain — Jaise symbols bhi a rahe hain …
+meaning aap Sahi rakhiye … bilkul Human Development ki tarah"*. The shortening pass got the
+meaning right but the prose read machine-made. 32 strings reworded, **meaning unchanged** — this
+pass touched wording only, and every replacement was checked against the meaning audit from the
+previous turn.
+
+What was actually wrong, and is now banned:
+- **Em dashes and ellipsis characters.** `—` appeared in the Oppo/OnePlus/Realme line and in
+  the Languages intro; `…` in `"Search languages…"`, `"Scan for tts engines…"` and
+  `"Finding the voices installed on your device…"`. **No `—`, `…` or `…` anywhere in a
+  user-facing string** — they read as a symbol to a screen reader and they are the giveaway the
+  user spotted.
+- **Clipped parallel fragments.** `"On, punctuation is read inside the sentence. Off, on its own."`
+  → `"Reads punctuation as part of the sentence. Turn it off and punctuation is read on its own."`
+  `"Check the voices themselves yourself."` →
+  `"You still have to make sure the individual voices are there."`
+- **`Off = CLD2 (default).`** — an equals sign is not prose.
+- **Two lines starting with the same word on the same screen.** The scan headline and the scan
+  progress line both began "Finding…"; the progress line is now "Checking your TTS engines".
+
+One AutoTTS line was rewritten here that the copyright pass had missed: the battery toast
+`"Find Auto TTS & all third-party tts engines and select 'Unrestricted'"` (`c3/k.java:1025`) was
+still carried over with only the app name swapped. It is now
+`"Set Easy Voice and each of your TTS engines to Unrestricted"`.
+
+The 23 short AutoTTS labels and toasts stay as they are — they were written by a person, so this
+pass had nothing to fix in them.
