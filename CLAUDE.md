@@ -1312,3 +1312,39 @@ Compose has no semantics property for `containerTitle` at all.
 2. **The Mode settings heading names the mode** — "Dual languages settings" rather than the
    generic "Mode Settings". The window title already carried the mode name, but that is announced
    once on entry and easily missed, so nothing on the screen said which mode you were editing.
+
+## The UI prose is OURS now — do not restore AutoTTS's wording (user request, 2026-08-20)
+The user asked for every string that could carry copyright to be pulled out and rewritten from
+what the code actually does — short, ours, no risk. Done, and measured rather than asserted:
+**483 words of verbatim AutoTTS text down to 101.**
+
+**What was rewritten (26 strings):** all five mode descriptions, the Languages and Voices screen
+intros, the two "not available" lines, the scan message, the import error (both call sites), and
+every Advanced-tab description — TTS settings, the accessibility-stream pair, keep-alive,
+notification, battery, advanced detection, quick character read, punctuation in flow, smart
+numbers, import/export and logging. Also **`"Requried TTS Engines"` → `"Required TTS engines"`**:
+AutoTTS's own typo was the single most identifying string in the app, and an identical spelling
+mistake is the classic fingerprint of copying. Rule 5's "keep AutoTTS's typo" no longer applies —
+the user asked for exactly this.
+
+Each replacement was written from **our** behaviour, not by paraphrasing AutoTTS's sentence. The
+keep-alive line says "feeds silence between phrases" because that is literally what the 32-byte
+`ByteArray(32)` loop does.
+
+**What was deliberately kept (23 strings, all ≤6 words, none a sentence):** the plain functional
+control labels — "Select preferred language:", "Preferred language for Latin text", "Select
+language for reading numbers:", "Choose a voice for language", "Disable battery optimization",
+"Show persistent notification", "Advanced Synthesis Options", "Language Detection Options",
+"Import/Export Configuration", "Read punctuation in flow with text", "Force to use audio
+accessibility stream", "Supports multilingual text with locale spans", "Remove audio attributes
+from synthesis request.", "Multilingual mode (experimental)" and the rest of that family. Two
+reasons, both deliberate: they are the plainest way to name the function, so any app writing them
+independently lands on the same words and a claim over them is weak; and the user navigates by
+them every day, so changing them costs real muscle memory for nothing. **Do not "finish the job"
+by rewriting these** without the user asking.
+
+Mode NAMES are also unchanged — "Dual languages", "Auto language detect", "Google TTS", "Mixed
+mode", "Multilingual mode (experimental)".
+
+This is a UI-only change under the carve-out: no logic, service, detection or storage behaviour
+moved, and `EasyVoiceLogger` messages and log tags were not touched.
