@@ -5897,11 +5897,11 @@ jobs:
           write_source("app/src/main/java/com/tts/easyvoice/TabViews.kt",
           "package com.tts.easyvoice\n"
           "val modeRowSpecs = listOf(\n"
-          "    Triple(\"dual\", \"Dual languages\", \"Reads Latin letters in English and everything else in the one language you pick. Use it for English mixed with one non-Latin language, such as English with Hindi.\"),\n"
-          "    Triple(\"auto\", \"Auto language detect\", \"Works out one language for the whole text and reads it in that language. If it cannot tell, it uses your preferred language. Use it when the text is all in one script.\"),\n"
+          "    Triple(\"dual\", \"Dual languages\", \"Reads Latin words in English and seamlessly switches to your preferred voice for non-Latin text.\"),\n"
+          "    Triple(\"auto\", \"Auto language detect\", \"Auto-detects the full sentence language and applies the ideal reading voice.\"),\n"
           "    Triple(\"google\", \"Google TTS\", \"The same as Auto, except it only uses Google's voices.\"),\n"
-          "    Triple(\"mix\", \"Mixed mode\", \"Splits the text into Latin and non-Latin parts, and reads each part in the language that suits it. Use it for a Latin language mixed with a non-Latin one, such as English with Hindi or French with Urdu.\"),\n"
-          "    Triple(\"multilingual\", \"Multilingual mode (experimental)\", \"Splits the text up by every language it finds. Best when there are three or more, but it is slower and it struggles with short text.\")\n"
+          "    Triple(\"mix\", \"Mixed mode\", \"Intelligently splits and reads mixed-script text, switching voices for each language segment.\"),\n"
+          "    Triple(\"multilingual\", \"Multilingual mode (experimental)\", \"Analyzes and reads complex multi-language text using the most accurate voice for each specific language.\")\n"
           ")\n"
           )
 
