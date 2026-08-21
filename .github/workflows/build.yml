@@ -158,7 +158,12 @@ jobs:
                   applicationId = "com.tts.easyvoice"
                   minSdk = 24
                   targetSdk = 36
-                  versionCode = 1
+                  // The Advanced tab's Information section shows these two, the way
+                  // AutoTTS's does. A frozen versionCode = 1 would make "Build number"
+                  // say the same thing for every build and tell the user nothing, so
+                  // it comes from the workflow's run number; EV_BUILD_NUMBER is set on
+                  // the Gradle step and falls back to 1 for a local build.
+                  versionCode = (System.getenv("EV_BUILD_NUMBER") ?: "1").toInt()
                   versionName = "16.0"
                   externalNativeBuild {
                       cmake {
@@ -582,11 +587,38 @@ jobs:
                   int cpLen = 0;
                   int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
                   if(codePoint>='0' && codePoint<='9') digits++;
-                  else if(codePoint==',' || codePoint=='.' || codePoint=='%' || codePoint=='$') return false;
+                  else if(codePoint==',' || codePoint=='.' || codePoint==':' || codePoint=='%' || codePoint=='$') return false;
                   else if(codePoint>=0x20A0 && codePoint<=0x20CF) return false;
                   at += cpLen;
               }
               return digits >= 4;
+          }
+          // AutoTTS 5.7.7.26 c3.d0.b, used with Matcher.matches():
+          //     Pattern.compile("[0-9]{1,2}:[0-9]{2}(:[0-9]{2})?")
+          // matches() means the WHOLE string, and the pattern is compiled with no flags
+          // -- unlike every other pattern in that class, which pass 64 (UNICODE_CASE) --
+          // so [0-9] is ASCII digits only.
+          //
+          // Written as a scan rather than a regex, and the greedy-with-backtracking case
+          // is why the leading run is counted rather than capped at two: for "123:45" the
+          // regex tries "12" then "1" for [0-9]{1,2}, fails to find ':' either way, and
+          // rejects. Counting all leading digits and requiring 1 or 2 rejects it too.
+          static bool looksLikeClockTime(const std::string& text){
+              size_t at = 0;
+              size_t digits = 0;
+              while(at < text.size() && text[at] >= '0' && text[at] <= '9'){ at++; digits++; }
+              if(digits < 1 || digits > 2) return false;
+              if(at >= text.size() || text[at] != ':') return false;
+              at++;
+              digits = 0;
+              while(at < text.size() && text[at] >= '0' && text[at] <= '9'){ at++; digits++; }
+              if(digits != 2) return false;
+              if(at == text.size()) return true;
+              if(text[at] != ':') return false;
+              at++;
+              digits = 0;
+              while(at < text.size() && text[at] >= '0' && text[at] <= '9'){ at++; digits++; }
+              return digits == 2 && at == text.size();
           }
           static bool isPhoneShaped(const std::string& raw){
               size_t begin = 0, finish = raw.size();
@@ -594,6 +626,8 @@ jobs:
               while(finish > begin && (unsigned char)raw[finish-1] <= 0x20) finish--;
               std::string text = raw.substr(begin, finish - begin);
               if(text.empty()) return false;
+              // Straight after the empty check, exactly where 5.7.7.26 puts it.
+              if(looksLikeClockTime(text)) return false;
               int digits = 0, run = 0, longestRun = 0;
               bool sawComma = false, sawDot = false, sawCurrency = false;
               size_t at = 0;
@@ -634,14 +668,23 @@ jobs:
               }
               return false;
           }
-          static std::string respaceDigits(const std::string& text){
+          // Byte-wise rather than char-wise, which is safe here: the only characters
+          // that advance the run are ASCII digits, and every byte of a multi-byte UTF-8
+          // character takes the else branch, where resetting the run to 0 repeatedly is
+          // the same as resetting it once.
+          static std::string respaceDigits(const std::string& text, int groupSize){
+              int size = groupSize > 1 ? groupSize : 1;      // Math.max(1, AutoTtsService.f0)
               std::string out;
               out.reserve(text.size() * 2);
-              char previous = 0;
+              int run = 0;
               for(char ch : text){
-                  if(ch>='0' && ch<='9' && previous>='0' && previous<='9') out += ' ';
+                  if(ch>='0' && ch<='9'){
+                      if(run > 0 && run % size == 0) out += ' ';
+                      run++;
+                  } else {
+                      run = 0;
+                  }
                   out += ch;
-                  previous = ch;
               }
               return out;
           }
@@ -899,6 +942,7 @@ jobs:
               int emojiMode = 0; std::string emojiSpecific;
               bool punctuationInFlow = true;
               bool smartNumber = false;
+              int smartNumberGroupSize = 1;                  // AutoTtsService.f0
           };
           static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
               std::vector<ChunkResult> result;
@@ -1009,7 +1053,7 @@ jobs:
                           respace = contextHasKeyword(lowerCaseRoot(before), keywords) ||
                                     contextHasKeyword(lowerCaseRoot(after), keywords);
                       }
-                      if (respace) segs[segPos].text = respaceDigits(numberText);
+                      if (respace) segs[segPos].text = respaceDigits(numberText, modes.smartNumberGroupSize);
                   }
               }
               std::vector<int> originalTypes;
@@ -1067,6 +1111,7 @@ jobs:
               jint jNumberMode, jstring jNumberSpecific,
               jint jPunctuationMode, jstring jPunctuationSpecific,
               jint jEmojiMode, jstring jEmojiSpecific, jboolean jPunctuationInFlow, jboolean jSmartNumber,
+              jint jSmartNumberGroupSize,
               jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
           {
               if(!directBuffer||length<=0) return env->NewStringUTF("");
@@ -1082,6 +1127,7 @@ jobs:
               modes.emojiMode = (int)jEmojiMode;
               modes.punctuationInFlow = (jPunctuationInFlow == JNI_TRUE);
               modes.smartNumber = (jSmartNumber == JNI_TRUE);
+              modes.smartNumberGroupSize = (int)jSmartNumberGroupSize;
               const char* numSpecC=env->GetStringUTFChars(jNumberSpecific,nullptr); modes.numberSpecific=numSpecC; env->ReleaseStringUTFChars(jNumberSpecific,numSpecC);
               const char* puncSpecC=env->GetStringUTFChars(jPunctuationSpecific,nullptr); modes.punctuationSpecific=puncSpecC; env->ReleaseStringUTFChars(jPunctuationSpecific,puncSpecC);
               const char* emojiSpecC=env->GetStringUTFChars(jEmojiSpecific,nullptr); modes.emojiSpecific=emojiSpecC; env->ReleaseStringUTFChars(jEmojiSpecific,emojiSpecC);
@@ -1891,6 +1937,7 @@ jobs:
           "        numberMode: Int, numberSpecific: String,\n"
           "        punctuationMode: Int, punctuationSpecific: String,\n"
           "        emojiMode: Int, emojiSpecific: String, punctuationInFlow: Boolean, smartNumber: Boolean,\n"
+          "        smartNumberGroupSize: Int,\n"
           "        neutralDefault: String, neutralType: Int,\n"
           "        disableAdvancedDetection: Boolean, useCld3: Boolean\n"
           "    ): String\n"
@@ -1901,7 +1948,8 @@ jobs:
           "    external fun setDetectSets(detectOkIso3: Array<String>, enabledLangs: Array<String>)\n"
           "    external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,\n"
           "        disableAdvancedDetection: Boolean, wantLog: Boolean, useCld3: Boolean): String\n"
-          "}\n")
+          "}\n"
+          )
 
           write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceLogger.kt",
           "package com.tts.easyvoice\n"
@@ -2257,6 +2305,7 @@ jobs:
           "        EasyVoiceTtsService.useCld3Flag = sharedPrefs.getBoolean(\"use_cld3\", false)\n"
           "        EasyVoiceTtsService.punctuationInFlowFlag = sharedPrefs.getBoolean(\"punctuation_with_sentence\", true)\n"
           "        EasyVoiceTtsService.smartNumberFlag = sharedPrefs.getBoolean(\"smart_number_reading\", false)\n"
+          "        EasyVoiceTtsService.smartNumberGroupSize = sharedPrefs.getInt(\"smart_number_reading_group_size\", 1)\n"
           "        EasyVoiceTtsService.useCld3Flag = sharedPrefs.getBoolean(\"use_cld3\", false)\n"
           "    }\n"
           "    @JvmStatic\n"
@@ -2323,6 +2372,7 @@ jobs:
           "        editor.putBoolean(\"quick_character_reading\", EasyVoiceTtsService.quickCharacterFlag)\n"
           "        editor.putBoolean(\"punctuation_with_sentence\", EasyVoiceTtsService.punctuationInFlowFlag)\n"
           "        editor.putBoolean(\"smart_number_reading\", EasyVoiceTtsService.smartNumberFlag)\n"
+          "        editor.putInt(\"smart_number_reading_group_size\", EasyVoiceTtsService.smartNumberGroupSize)\n"
           "        editor.putBoolean(\"use_cld3\", EasyVoiceTtsService.useCld3Flag)\n"
           "        editor.commit()\n"
           "    }\n"
@@ -2487,6 +2537,9 @@ jobs:
           "    fun isQuickCharacterReading(): Boolean = prefs.getBoolean(\"quick_character_reading\", false)\n"
           "    fun isPunctuationWithSentence(): Boolean = prefs.getBoolean(\"punctuation_with_sentence\", true)\n"
           "    fun isSmartNumberReading(): Boolean = prefs.getBoolean(\"smart_number_reading\", false)\n"
+          "    // c3.n: getInt(\"smart_number_reading_group_size\", 1). AutoTTS clamps with\n"
+          "    // Math.max(1, f0) at the point of use, not here, so the raw value is kept.\n"
+          "    fun getSmartNumberGroupSize(): Int = prefs.getInt(\"smart_number_reading_group_size\", 1)\n"
           "    fun isLoggingEnabled(): Boolean = prefs.getBoolean(\"logging_enabled\", false)\n"
           "    fun isUseCld3(): Boolean = prefs.getBoolean(\"use_cld3\", false)\n"
           "\n"
@@ -3534,6 +3587,7 @@ jobs:
           "        quickCharacterFlag = prefs.isQuickCharacterReading()\n"
           "        punctuationInFlowFlag = prefs.isPunctuationWithSentence()\n"
           "        smartNumberFlag = prefs.isSmartNumberReading()\n"
+          "        smartNumberGroupSize = prefs.getSmartNumberGroupSize()\n"
           "        useCld3Flag = prefs.isUseCld3()\n"
           "    }\n"
           "    private fun loadModeLangsOnce() {\n"
@@ -3706,6 +3760,7 @@ jobs:
           "                            numberModeInt, normalizeLangCode(numberSpecificLang),\n"
           "                            punctuationModeInt, normalizeLangCode(puncSpecificLang),\n"
           "                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
+          "                            smartNumberGroupSize,\n"
           "                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                        )\n"
           "                        for (chunkStr in chunkOutput.split('\\u001E').filter { it.isNotBlank() }) {\n"
@@ -3759,6 +3814,7 @@ jobs:
           "                            numberModeInt, normalizeLangCode(numberSpecificLang),\n"
           "                            punctuationModeInt, normalizeLangCode(puncSpecificLang),\n"
           "                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
+          "                            smartNumberGroupSize,\n"
           "                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                        )\n"
           "                        for (chunkStr in chunkOutput.split('\\u001E').filter { it.isNotBlank() }) {\n"
@@ -3806,6 +3862,7 @@ jobs:
           "                        numberModeInt, normalizeLangCode(numberSpecificLang),\n"
           "                        punctuationModeInt, normalizeLangCode(puncSpecificLang),\n"
           "                        emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,\n"
+          "                        smartNumberGroupSize,\n"
           "                        neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag\n"
           "                    )\n"
           "                    for (chunkStr in chunkOutput.split('\\u001E').filter { it.isNotBlank() }) {\n"
@@ -4132,6 +4189,9 @@ jobs:
           "        @Volatile @JvmField var emojiSpecificLang = \"\"\n"
           "        @Volatile @JvmField var punctuationInFlowFlag = true\n"
           "        @Volatile @JvmField var smartNumberFlag = false\n"
+          "        // AutoTtsService.f0, new in 5.7.7.26. Spaces go in every N digits\n"
+          "        // instead of after every one; 1 reproduces the old behaviour exactly.\n"
+          "        @Volatile @JvmField var smartNumberGroupSize = 1\n"
           "        @Volatile @JvmField var modeInt = 0\n"
           "        @Volatile @JvmField var autoLang = \"\"\n"
           "        @Volatile @JvmField var dualLang = \"\"\n"
@@ -4142,7 +4202,8 @@ jobs:
           "        @Volatile @JvmField var quickCharacterFlag = false\n"
           "        @Volatile @JvmField var useCld3Flag = false\n"
           "    }\n"
-          "}\n")
+          "}\n"
+          )
 
 
           write_source("app/src/main/java/com/tts/easyvoice/ModeSettingsActivity.kt",
@@ -4435,7 +4496,17 @@ jobs:
           "// The long-list announcement problem is therefore still open and is being\n"
           "// solved elsewhere, not by nesting a lazy list in a menu.\n"
           "@Composable\n"
-          "fun LabeledDropdown(label: String, options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {\n"
+          "fun LabeledDropdown(\n"
+          "    label: String,\n"
+          "    options: List<String>,\n"
+          "    selectedIndex: Int,\n"
+          "    // AutoTTS disables the group-size spinner whenever smart number reading\n"
+          "    // is off (c3.k.D0.setEnabled(AutoTtsService.e0)). Passing it to the button\n"
+          "    // is what marks the node disabled for a screen reader, and the menu has no\n"
+          "    // other way in, so the whole control goes with it.\n"
+          "    enabled: Boolean = true,\n"
+          "    onSelect: (Int) -> Unit\n"
+          ") {\n"
           "    var expanded by remember { mutableStateOf(false) }\n"
           "    val selectedText = if (selectedIndex >= 0 && selectedIndex < options.size) options[selectedIndex] else \"\"\n"
           "    // \"Select language for reading numbers:\" -> \"Select language for reading numbers\"\n"
@@ -4466,6 +4537,7 @@ jobs:
           "        // that does not walk Compose's fake nodes announces only the role.\n"
           "        OutlinedButton(\n"
           "            onClick = { expanded = true },\n"
+          "            enabled = enabled,\n"
           "            modifier = Modifier\n"
           "                .fillMaxWidth()\n"
           "                .semantics {\n"
@@ -5732,6 +5804,7 @@ jobs:
           "    var quickCharacter by remember { mutableStateOf(EasyVoiceTtsService.quickCharacterFlag) }\n"
           "    var punctuationInFlow by remember { mutableStateOf(EasyVoiceTtsService.punctuationInFlowFlag) }\n"
           "    var smartNumber by remember { mutableStateOf(EasyVoiceTtsService.smartNumberFlag) }\n"
+          "    var groupSize by remember { mutableStateOf(EasyVoiceTtsService.smartNumberGroupSize) }\n"
           "    var useCld3 by remember { mutableStateOf(EasyVoiceTtsService.useCld3Flag) }\n"
           "    var loggingEnabled by remember { mutableStateOf(EasyVoiceLogger.isLoggingEnabled()) }\n"
           "    ResponsiveContent {\n"
@@ -5805,7 +5878,20 @@ jobs:
           "            SettingSwitch(\"Smart number reading\", smartNumber) { picked ->\n"
           "                smartNumber = picked; EasyVoiceTtsService.smartNumberFlag = picked\n"
           "            }\n"
-          "            SettingDescription(\"Reads long numbers, like phone numbers and codes, one digit at a time.\")\n"
+          "            SettingDescription(\"Reads long numbers, like phone numbers and codes, in small groups of digits.\")\n"
+          "            // c3.k:1101-1105 -- three entries, selection is f0 - 1, and the whole\n"
+          "            // control is greyed out while smart number reading is off.\n"
+          "            LabeledDropdown(\n"
+          "                label = \"Group size\",\n"
+          "                options = listOf(\"1\", \"2\", \"3\"),\n"
+          "                selectedIndex = (if (groupSize in 1..3) groupSize else 1) - 1,\n"
+          "                enabled = smartNumber\n"
+          "            ) { picked ->\n"
+          "                // AutoTtsService.f0 = getSelectedItemPosition() + 1\n"
+          "                groupSize = picked + 1\n"
+          "                EasyVoiceTtsService.smartNumberGroupSize = groupSize\n"
+          "            }\n"
+          "            SettingDescription(\"One reads every digit on its own. Two or three read them in pairs or threes, which is easier to follow for a long number.\")\n"
           "            SettingSwitch(\"Use CLD3 (neural language detection)\", useCld3) { picked ->\n"
           "                useCld3 = picked; EasyVoiceTtsService.useCld3Flag = picked\n"
           "            }\n"
@@ -5889,6 +5975,28 @@ jobs:
           "                    Text(\"Clear logs\", modifier = Modifier.clearAndSetSemantics { })\n"
           "                }\n"
           "            }\n"
+          "\n"
+          "            SectionHeader(\"Information\")\n"
+          "            // AutoTTS writes its own literals here (c3.k:1187-1188); ours come\n"
+          "            // from PackageManager, so they are this build's real numbers.\n"
+          "            // Label and value are ONE Text, so a screen reader reads\n"
+          "            // \"Build number, 41\" as a single stop rather than two.\n"
+          "            val versionInfo = remember {\n"
+          "                try {\n"
+          "                    val info = context.packageManager.getPackageInfo(context.packageName, 0)\n"
+          "                    val build = if (android.os.Build.VERSION.SDK_INT >= 28) {\n"
+          "                        info.longVersionCode.toString()\n"
+          "                    } else {\n"
+          "                        @Suppress(\"DEPRECATION\")\n"
+          "                        info.versionCode.toString()\n"
+          "                    }\n"
+          "                    Pair(build, info.versionName ?: \"\")\n"
+          "                } catch (_: android.content.pm.PackageManager.NameNotFoundException) {\n"
+          "                    Pair(\"\", \"\")\n"
+          "                }\n"
+          "            }\n"
+          "            SettingDescription(\"Build number: \" + versionInfo.first)\n"
+          "            SettingDescription(\"Version: \" + versionInfo.second)\n"
           "        }\n"
           "    }\n"
           "}\n"
@@ -7067,6 +7175,9 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           gradle assembleRelease
         env:
+          # Read by defaultConfig.versionCode, so the Advanced tab's "Build number"
+          # is this run's number rather than a frozen 1.
+          EV_BUILD_NUMBER: ${{ github.run_number }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
