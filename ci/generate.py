@@ -248,6 +248,368 @@ inline int utf8ToCodepoint(const unsigned char* utf8, int& len) {
     if ((utf8[0]&0xF8)==0xF0)         { len=4; return ((utf8[0]&0x07)<<18)|((utf8[1]&0x3F)<<12)|((utf8[2]&0x3F)<<6)|(utf8[3]&0x3F); }
     len=1; return utf8[0];
 }
+// ---------------------------------------------------------------------------
+// AutoTTS 5.7.7.26 clsCLD2.a(int) / clsCLD2.b(String): decorated Latin letters
+// are folded back to plain ASCII before any language detection runs. Without
+// this a whole sentence written in maths-bold or script Unicode -- which is
+// ordinary on social media -- comes back UNKNOWN and falls through to the
+// preferred language.
+//
+// normalizeFancyCodepoint is a mechanical transcription of a(int). It was
+// verified rather than eyeballed: a(int) was extracted, compiled with javac,
+// swept over all 1,114,112 code points, and the 1,062 mappings it produces were
+// diffed against the same sweep of this function. Identical.
+static int normalizeFancyCodepoint(int n3) {
+        if (n3 >= 119808 && n3 <= 120483) {
+            if ((n3 = (n3 - 119808) % 52) >= 26) return n3 + 71;
+            return n3 + 65;
+        }
+        if (n3 == 120484) {
+            return 105;
+        }
+        if (n3 == 120485) {
+            return 106;
+        }
+        if (n3 >= 120782 && n3 <= 120831) {
+            return (n3 - 120782) % 10 + 48;
+        }
+        if (n3 >= 65296 && n3 <= 65305) {
+            return n3 - 65248;
+        }
+        if (n3 >= 65313 && n3 <= 65338) {
+            return n3 - 65248;
+        }
+        if (n3 >= 65345 && n3 <= 65370) {
+            return n3 - 65248;
+        }
+        if (n3 == 8450) return 67;
+        if (n3 == 8469) return 78;
+        if (n3 == 8484 || n3 == 8488) return 90;
+        if (n3 == 8492) return 66;
+        if (n3 == 8493) return 67;
+        if (n3 == 8499) return 77;
+        if (n3 == 8500) return 111;
+        switch (n3) {
+            default: {
+                switch (n3) {
+                    default: {
+                        switch (n3) {
+                            default: {
+                                switch (n3) {
+                                    default: {
+                                        if (n3 >= 9398 && n3 <= 9423) {
+                                            return n3 - 9333;
+                                        }
+                                        if (n3 >= 9424 && n3 <= 9449) {
+                                            return n3 - 9327;
+                                        }
+                                        if (n3 == 9450) {
+                                            return 48;
+                                        }
+                                        if (n3 >= 9312 && n3 <= 9320) {
+                                            return n3 - 9263;
+                                        }
+                                        if (n3 >= 9372 && n3 <= 9397) {
+                                            return n3 - 9275;
+                                        }
+                                        if (n3 >= 127312 && n3 <= 127337) {
+                                            return n3 - 127247;
+                                        }
+                                        if (n3 >= 127344 && n3 <= 127369) {
+                                            return n3 - 127279;
+                                        }
+                                        if (n3 >= 127280 && n3 <= 127305) {
+                                            return n3 - 127215;
+                                        }
+                                        switch (n3) {
+                                            default: {
+                                                if (n3 == 688) return 104;
+                                                if (n3 == 7491) return 97;
+                                                if (n3 == 7501) return 103;
+                                                if (n3 == 7506) return 111;
+                                                if (n3 == 7515) return 118;
+                                                if (n3 == 7580) return 99;
+                                                if (n3 == 7584) return 102;
+                                                if (n3 == 7611) return 122;
+                                                if (n3 == 8305) return 105;
+                                                if (n3 == 8319) return 110;
+                                                if (n3 == 690) return 106;
+                                                if (n3 == 691) return 114;
+                                                if (n3 == 695) return 119;
+                                                if (n3 == 696) return 121;
+                                                if (n3 == 7503) return 107;
+                                                if (n3 == 7504) return 109;
+                                                switch (n3) {
+                                                    default: {
+                                                        switch (n3) {
+                                                            default: {
+                                                                switch (n3) {
+                                                                    default: {
+                                                                        if (n3 == 8304) {
+                                                                            return 48;
+                                                                        }
+                                                                        if (n3 == 185) {
+                                                                            return 49;
+                                                                        }
+                                                                        if (n3 == 178) {
+                                                                            return 50;
+                                                                        }
+                                                                        if (n3 == 179) {
+                                                                            return 51;
+                                                                        }
+                                                                        if (n3 >= 8308 && n3 <= 8313) {
+                                                                            return n3 - 8256;
+                                                                        }
+                                                                        if (n3 >= 8320 && n3 <= 8329) {
+                                                                            return n3 - 8272;
+                                                                        }
+                                                                        switch (n3) {
+                                                                            default: {
+                                                                                return n3;
+                                                                            }
+                                                                            case 8348: {
+                                                                                return 116;
+                                                                            }
+                                                                            case 8347: {
+                                                                                return 115;
+                                                                            }
+                                                                            case 8346: {
+                                                                                return 112;
+                                                                            }
+                                                                            case 8345: {
+                                                                                return 110;
+                                                                            }
+                                                                            case 8344: {
+                                                                                return 109;
+                                                                            }
+                                                                            case 8343: {
+                                                                                return 108;
+                                                                            }
+                                                                            case 8342: {
+                                                                                return 107;
+                                                                            }
+                                                                            case 8341: {
+                                                                                return 104;
+                                                                            }
+                                                                            case 8339: {
+                                                                                return 120;
+                                                                            }
+                                                                            case 8338: {
+                                                                                return 111;
+                                                                            }
+                                                                            case 8337: {
+                                                                                return 101;
+                                                                            }
+                                                                            case 8336: 
+                                                                                break;
+                                                                        }
+                                                                        return 97;
+                                                                    }
+                                                                    case 7512: {
+                                                                        return 117;
+                                                                    }
+                                                                    case 7511: {
+                                                                        return 116;
+                                                                    }
+                                                                    case 7510: 
+                                                                        break;
+                                                                }
+                                                                return 112;
+                                                            }
+                                                            case 7497: {
+                                                                return 101;
+                                                            }
+                                                            case 7496: {
+                                                                return 100;
+                                                            }
+                                                            case 7495: 
+                                                                break;
+                                                        }
+                                                        return 98;
+                                                    }
+                                                    case 739: {
+                                                        return 120;
+                                                    }
+                                                    case 738: {
+                                                        return 115;
+                                                    }
+                                                    case 737: 
+                                                        break;
+                                                }
+                                                return 108;
+                                            }
+                                            case 42801: {
+                                                return 83;
+                                            }
+                                            case 42800: {
+                                                return 70;
+                                            }
+                                            case 7458: {
+                                                return 90;
+                                            }
+                                            case 7457: {
+                                                return 87;
+                                            }
+                                            case 7456: {
+                                                return 86;
+                                            }
+                                            case 7452: {
+                                                return 85;
+                                            }
+                                            case 7451: {
+                                                return 84;
+                                            }
+                                            case 7448: {
+                                                return 80;
+                                            }
+                                            case 7439: {
+                                                return 79;
+                                            }
+                                            case 7437: {
+                                                return 77;
+                                            }
+                                            case 7435: {
+                                                return 75;
+                                            }
+                                            case 7434: {
+                                                return 74;
+                                            }
+                                            case 7431: {
+                                                return 69;
+                                            }
+                                            case 7429: {
+                                                return 68;
+                                            }
+                                            case 7428: {
+                                                return 67;
+                                            }
+                                            case 7424: {
+                                                return 65;
+                                            }
+                                            case 671: {
+                                                return 76;
+                                            }
+                                            case 668: {
+                                                return 72;
+                                            }
+                                            case 665: {
+                                                return 66;
+                                            }
+                                            case 655: {
+                                                return 89;
+                                            }
+                                            case 640: {
+                                                return 82;
+                                            }
+                                            case 628: {
+                                                return 78;
+                                            }
+                                            case 618: {
+                                                return 73;
+                                            }
+                                            case 610: 
+                                                break;
+                                        }
+                                        return 71;
+                                    }
+                                    case 8497: {
+                                        return 70;
+                                    }
+                                    case 8496: {
+                                        return 69;
+                                    }
+                                    case 8495: 
+                                        break;
+                                }
+                                return 101;
+                            }
+                            case 8475: 
+                            case 8476: 
+                            case 8477: {
+                                return 82;
+                            }
+                            case 8474: {
+                                return 81;
+                            }
+                            case 8473: 
+                                break;
+                        }
+                        return 80;
+                    }
+                    case 8467: {
+                        return 108;
+                    }
+                    case 8466: {
+                        return 76;
+                    }
+                    case 8464: 
+                    case 8465: 
+                        break;
+                }
+                return 73;
+            }
+            case 8462: {
+                return 104;
+            }
+            case 8459: 
+            case 8460: 
+            case 8461: {
+                return 72;
+            }
+            case 8458: 
+                break;
+        }
+        return 103;
+    }
+
+static void appendCodepointUtf8(std::string& out, int cp){
+    if(cp < 0x80){ out += (char)cp; }
+    else if(cp < 0x800){ out += (char)(0xC0|(cp>>6)); out += (char)(0x80|(cp&0x3F)); }
+    else if(cp < 0x10000){ out += (char)(0xE0|(cp>>12)); out += (char)(0x80|((cp>>6)&0x3F)); out += (char)(0x80|(cp&0x3F)); }
+    else { out += (char)(0xF0|(cp>>18)); out += (char)(0x80|((cp>>12)&0x3F)); out += (char)(0x80|((cp>>6)&0x3F)); out += (char)(0x80|(cp&0x3F)); }
+}
+
+// clsCLD2.b's scan, moved from UTF-16 chars to code points. b() tests
+// n3 == 55349 and n3 == 55356, which are the lead surrogates 0xD835 and 0xD83C,
+// so on code points those become the first two ranges here. Trail surrogates
+// are 0xDC00-0xDFFF and match none of the others, so the two forms agree.
+static bool isFancyTrigger(int cp){
+    return (cp >= 0x1D400 && cp <= 0x1D7FF)      // 55349, maths alphanumerics
+        || (cp >= 0x1F000 && cp <= 0x1F3FF)      // 55356, squared / regional
+        || (cp >= 0x2102  && cp <= 0x2134)       // 8450..8500
+        || (cp >= 0xFF10  && cp <= 0xFF5A)       // 65296..65370
+        || (cp >= 0x2460  && cp <= 0x24EA)       // 9312..9450
+        || (cp >= 0x1D00  && cp <= 0x1DBB)       // 7424..7611
+        || (cp >= 0x262   && cp <= 0x2E3)        // 610..739
+        || (cp >= 0x2070  && cp <= 0x209C)       // 8304..8348
+        || cp == 0xB9 || cp == 0xB2 || cp == 0xB3          // 185, 178, 179
+        || cp == 0xA730 || cp == 0xA731;                   // 42800, 42801
+}
+
+static std::string normalizeFancyText(const std::string& text){
+    bool found = false;
+    for(int at = 0; at < (int)text.size(); ){
+        int cpLen = 0;
+        int cp = utf8ToCodepoint((const unsigned char*)text.data() + at, cpLen);
+        if(cpLen <= 0) cpLen = 1;
+        if(isFancyTrigger(cp)){ found = true; break; }
+        at += cpLen;
+    }
+    // The fast path matters: b() returns the ORIGINAL string when there is
+    // nothing to fold, so ordinary text is never rebuilt.
+    if(!found) return text;
+    std::string out;
+    out.reserve(text.size());
+    for(int at = 0; at < (int)text.size(); ){
+        int cpLen = 0;
+        int cp = utf8ToCodepoint((const unsigned char*)text.data() + at, cpLen);
+        if(cpLen <= 0) cpLen = 1;
+        appendCodepointUtf8(out, normalizeFancyCodepoint(cp));
+        at += cpLen;
+    }
+    return out;
+}
+// ---------------------------------------------------------------------------
 inline bool isEmoji(int codePoint) {
     return codePoint==0x00A9||codePoint==0x00AE||codePoint==0x203C||codePoint==0x2049||codePoint==0x2122||codePoint==0x2139||
            (codePoint>=0x2194&&codePoint<=0x2199)||(codePoint>=0x21A9&&codePoint<=0x21AA)||
@@ -883,6 +1245,10 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
         }
         fullText = std::move(collapsed);
     }
+    // c3.d0.t: d0.q(clsCLD2.b(text.replaceAll(...).replaceAll(...))). The
+    // whitespace collapse above is the two replaceAll calls, the bidi strip
+    // below is q(), and this is clsCLD2.b sitting between them.
+    fullText = normalizeFancyText(fullText);
     if (fullText.empty()) return result;
     {
         std::string clean;
@@ -1597,6 +1963,18 @@ Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
     std::string out = result + "\x01" + log;
     return env->NewStringUTF(out.c_str());
 }
+// clsCLD2.b, for the Kotlin side. clsCLD2.e and the new clsCLD2.f both call
+// it before anything else, and e()'s quick-character test measures the
+// NORMALISED string, so the fold has to be visible there rather than hidden
+// inside nativeGetLanguages.
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_tts_easyvoice_NativeEngine_normalizeFancy(JNIEnv* env, jclass, jstring jText){
+    if(!jText) return env->NewStringUTF("");
+    const char* chars = env->GetStringUTFChars(jText, nullptr);
+    std::string text(chars ? chars : "");
+    if(chars) env->ReleaseStringUTFChars(jText, chars);
+    return env->NewStringUTF(normalizeFancyText(text).c_str());
+}
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText, jboolean jUseCld3){
     jclass stringClass=env->FindClass("java/lang/String");
@@ -1620,6 +1998,12 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
         if ((unsigned)(codePoint - 0x8A0) < 0x60)  return 3;
         if ((codePoint & 0x1FFF00) == 0x600) return 3;
         if ((unsigned)(codePoint - 0x750) < 0x30)  return 3;
+        // 5.7.7.26: `and w10, w8, #0x1ffffe / cmp w10, #0x964 / b.eq` in
+        // getLanguageSpans, branching to the same `mov w27, w3` that a code
+        // point below 0xC0 jumps to. The mask makes one compare cover U+0964
+        // and U+0965, the danda and double danda, and the target is the neutral
+        // path -- so a danda no longer counts as Devanagari.
+        if ((codePoint & 0x1FFFFE) == 0x964) return -1;
         unsigned indicBlock = ((unsigned)(codePoint - 0x900)) >> 7;
         if (indicBlock <= 11) {
             static const int kIndic[12] = {4,6,11,12,13,14,15,16,17,18,19,20};
@@ -1851,6 +2235,8 @@ write_source("app/src/main/java/com/tts/easyvoice/NativeEngine.kt",
 "        disableAdvancedDetection: Boolean, useCld3: Boolean\n"
 "    ): String\n"
 "    external fun nativeGetLanguages(text: String, useCld3: Boolean): Array<String>\n"
+"    // clsCLD2.b: decorated Latin letters folded back to ASCII.\n"
+"    external fun normalizeFancy(text: String): String\n"
 "    external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)\n"
 "    external fun setLanguageHints(langs: Array<String>)\n"
 "    external fun segmentKind(text: String): Int\n"
@@ -1984,17 +2370,19 @@ write_source("app/src/main/java/com/tts/easyvoice/LangStore.kt",
 "    }\n"
 "    @JvmStatic\n"
 "    fun persistLanguages(ctx: Context) {\n"
-"        val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
-"        for (index in languages.indices) {\n"
-"            val entry = languages[index]\n"
-"            editor.putString(\"language_$index\", entry.iso3)\n"
-"            editor.putInt(entry.iso3 + \"_speed\", entry.speed)\n"
-"            editor.putInt(entry.iso3 + \"_volume\", entry.volume)\n"
-"            editor.putInt(entry.iso3 + \"_pitch\", entry.pitch)\n"
-"            editor.putString(entry.iso3 + \"_variant\", entry.variant)\n"
+"        synchronized(languages) {\n"
+"            val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
+"            for (index in languages.indices) {\n"
+"                val entry = languages[index]\n"
+"                editor.putString(\"language_$index\", entry.iso3)\n"
+"                editor.putInt(entry.iso3 + \"_speed\", entry.speed)\n"
+"                editor.putInt(entry.iso3 + \"_volume\", entry.volume)\n"
+"                editor.putInt(entry.iso3 + \"_pitch\", entry.pitch)\n"
+"                editor.putString(entry.iso3 + \"_variant\", entry.variant)\n"
+"            }\n"
+"            editor.putString(\"language_${languages.size}\", \"\")\n"
+"            editor.commit()\n"
 "        }\n"
-"        editor.putString(\"language_${languages.size}\", \"\")\n"
-"        editor.commit()\n"
 "    }\n"
 "    // Everything \"set up\" means for one language, undone: the chosen voice, the\n"
 "    // variant and the three sliders, in memory AND in prefs. The stored keys\n"
@@ -2018,10 +2406,12 @@ write_source("app/src/main/java/com/tts/easyvoice/LangStore.kt",
 "    }\n"
 "    @JvmStatic\n"
 "    fun persistDisabled(ctx: Context) {\n"
-"        val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
-"        var index = 0\n"
-"        while (index < languages.size) { val entry = languages[index]; index++; editor.putBoolean(entry.iso3 + \"_disabled\", entry.disabled) }\n"
-"        editor.commit()\n"
+"        synchronized(languages) {\n"
+"            val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
+"            var index = 0\n"
+"            while (index < languages.size) { val entry = languages[index]; index++; editor.putBoolean(entry.iso3 + \"_disabled\", entry.disabled) }\n"
+"            editor.commit()\n"
+"        }\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun requiredLangs(modeInt: Int, autoLang: String, dualLang: String, mixLatin: String, mixNonLatin: String): ArrayList<String> {\n"
@@ -2119,59 +2509,73 @@ write_source("app/src/main/java/com/tts/easyvoice/LangStore.kt",
 "        return out\n"
 "    }\n"
 "    @JvmStatic\n"
+"    // 5.7.7.26 wraps every c3.n accessor that walks the language list in\n"
+"    // synchronized (c) -- eleven methods, all reads and persists. The writes\n"
+"    // live outside c3.n and stay unguarded there, so they stay unguarded here\n"
+"    // too. Kotlin monitors are reentrant, so nesting these costs nothing.\n"
 "    fun dualLanguageLabels(dualLang: String): ArrayList<String> {\n"
-"        val out = ArrayList<String>()\n"
-"        var index = 0\n"
-"        while (index < languages.size) {\n"
-"            val entry = languages[index]\n"
-"            index++\n"
-"            if (!entry.iso3.equals(\"eng\", true) && !entry.iso3.equals(dualLang, true)) continue\n"
-"            out.add(entry.displayName + \" (\" + entry.iso3 + \")\")\n"
+"        synchronized(languages) {\n"
+"            val out = ArrayList<String>()\n"
+"            var index = 0\n"
+"            while (index < languages.size) {\n"
+"                val entry = languages[index]\n"
+"                index++\n"
+"                if (!entry.iso3.equals(\"eng\", true) && !entry.iso3.equals(dualLang, true)) continue\n"
+"                out.add(entry.displayName + \" (\" + entry.iso3 + \")\")\n"
+"            }\n"
+"            return out\n"
 "        }\n"
-"        return out\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun languageLabelsFor(pkg: String?): ArrayList<String> {\n"
-"        val out = ArrayList<String>()\n"
-"        var index = 0\n"
-"        while (index < languages.size) { val entry = languages[index]; index++; if (pkg != null && !entry.enginePkgs.contains(pkg)) continue; out.add(entry.displayName + \" (\" + entry.iso3 + \")\") }\n"
-"        return out\n"
+"        synchronized(languages) {\n"
+"            val out = ArrayList<String>()\n"
+"            var index = 0\n"
+"            while (index < languages.size) { val entry = languages[index]; index++; if (pkg != null && !entry.enginePkgs.contains(pkg)) continue; out.add(entry.displayName + \" (\" + entry.iso3 + \")\") }\n"
+"            return out\n"
+"        }\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun languageCodesFor(pkg: String?): ArrayList<String> {\n"
-"        val out = ArrayList<String>()\n"
-"        var index = 0\n"
-"        while (index < languages.size) { val entry = languages[index]; index++; if (pkg != null && !entry.enginePkgs.contains(pkg)) continue; out.add(entry.iso3) }\n"
-"        return out\n"
+"        synchronized(languages) {\n"
+"            val out = ArrayList<String>()\n"
+"            var index = 0\n"
+"            while (index < languages.size) { val entry = languages[index]; index++; if (pkg != null && !entry.enginePkgs.contains(pkg)) continue; out.add(entry.iso3) }\n"
+"            return out\n"
+"        }\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun checkedStatesFor(pkg: String?, modeInt: Int, autoLang: String, dualLang: String, mixLatin: String, mixNonLatin: String): ArrayList<Boolean> {\n"
-"        val out = ArrayList<Boolean>()\n"
-"        var index = 0\n"
-"        while (index < languages.size) {\n"
-"            val entry = languages[index]\n"
-"            index++\n"
-"            if (pkg != null && !entry.enginePkgs.contains(pkg)) continue\n"
-"            when (modeInt) {\n"
-"                1 -> if (entry.iso3.equals(dualLang, true)) entry.disabled = false\n"
-"                2, 3 -> if (entry.iso3.equals(autoLang, true)) entry.disabled = false\n"
-"                4, 5 -> if (entry.iso3.equals(mixLatin, true) || entry.iso3.equals(mixNonLatin, true)) entry.disabled = false\n"
+"        synchronized(languages) {\n"
+"            val out = ArrayList<Boolean>()\n"
+"            var index = 0\n"
+"            while (index < languages.size) {\n"
+"                val entry = languages[index]\n"
+"                index++\n"
+"                if (pkg != null && !entry.enginePkgs.contains(pkg)) continue\n"
+"                when (modeInt) {\n"
+"                    1 -> if (entry.iso3.equals(dualLang, true)) entry.disabled = false\n"
+"                    2, 3 -> if (entry.iso3.equals(autoLang, true)) entry.disabled = false\n"
+"                    4, 5 -> if (entry.iso3.equals(mixLatin, true) || entry.iso3.equals(mixNonLatin, true)) entry.disabled = false\n"
+"                }\n"
+"                out.add(!entry.disabled)\n"
 "            }\n"
-"            out.add(!entry.disabled)\n"
+"            return out\n"
 "        }\n"
-"        return out\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun availableLanguagesFor(pkg: String?, iso3Only: Boolean): ArrayList<String> {\n"
-"        val out = ArrayList<String>()\n"
-"        var index = 0\n"
-"        while (index < languages.size) {\n"
-"            val entry = languages[index]\n"
-"            index++\n"
-"            if (pkg != null && !entry.enginePkgs.contains(pkg) || entry.disabled) continue\n"
-"            if (!iso3Only) out.add(entry.displayName + \" (\" + entry.iso3 + \")\") else out.add(entry.iso3)\n"
+"        synchronized(languages) {\n"
+"            val out = ArrayList<String>()\n"
+"            var index = 0\n"
+"            while (index < languages.size) {\n"
+"                val entry = languages[index]\n"
+"                index++\n"
+"                if (pkg != null && !entry.enginePkgs.contains(pkg) || entry.disabled) continue\n"
+"                if (!iso3Only) out.add(entry.displayName + \" (\" + entry.iso3 + \")\") else out.add(entry.iso3)\n"
+"            }\n"
+"            return out\n"
 "        }\n"
-"        return out\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun loadModeLangs(ctx: Context) {\n"
@@ -2219,34 +2623,38 @@ write_source("app/src/main/java/com/tts/easyvoice/LangStore.kt",
 "    }\n"
 "    @JvmStatic\n"
 "    fun persistEngines(ctx: Context) {\n"
-"        val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
-"        val newEngineList = ArrayList<String>()\n"
-"        var index = 0\n"
-"        for (pkg in EngineFinder.lastScanEngines) {\n"
-"            if (pkg == \"com.tts.easyvoice\") continue\n"
-"            editor.putString(\"engine_$index\", pkg)\n"
-"            newEngineList.add(pkg)\n"
-"            index++\n"
+"        synchronized(languages) {\n"
+"            val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
+"            val newEngineList = ArrayList<String>()\n"
+"            var index = 0\n"
+"            for (pkg in EngineFinder.lastScanEngines) {\n"
+"                if (pkg == \"com.tts.easyvoice\") continue\n"
+"                editor.putString(\"engine_$index\", pkg)\n"
+"                newEngineList.add(pkg)\n"
+"                index++\n"
+"            }\n"
+"            editor.putString(\"engine_$index\", \"end\")\n"
+"            editor.commit()\n"
+"            EasyVoiceTtsService.engineList = newEngineList\n"
 "        }\n"
-"        editor.putString(\"engine_$index\", \"end\")\n"
-"        editor.commit()\n"
-"        EasyVoiceTtsService.engineList = newEngineList\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun persistVoiceList(ctx: Context) {\n"
-"        val voices = EngineFinder.lastScanVoices\n"
-"        if (voices.isEmpty()) return\n"
-"        val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
-"        val newVoiceList = ArrayList<String>()\n"
-"        for (index in voices.indices) {\n"
-"            val key = voices[index].pkg + \"#\" + voices[index].locale.toString()\n"
-"            editor.putString(\"voice_$index\", key)\n"
-"            newVoiceList.add(key)\n"
+"        synchronized(languages) {\n"
+"            val voices = EngineFinder.lastScanVoices\n"
+"            if (voices.isEmpty()) return\n"
+"            val editor = ctx.applicationContext.getSharedPreferences(\"easy_voice_settings\", 0).edit()\n"
+"            val newVoiceList = ArrayList<String>()\n"
+"            for (index in voices.indices) {\n"
+"                val key = voices[index].pkg + \"#\" + voices[index].locale.toString()\n"
+"                editor.putString(\"voice_$index\", key)\n"
+"                newVoiceList.add(key)\n"
+"            }\n"
+"            editor.putString(\"voice_\" + voices.size, \"\")\n"
+"            editor.putBoolean(\"dedicated_engines\", EasyVoiceTtsService.dedicatedEnginesFlag)\n"
+"            editor.commit()\n"
+"            EasyVoiceTtsService.voiceList = newVoiceList\n"
 "        }\n"
-"        editor.putString(\"voice_\" + voices.size, \"\")\n"
-"        editor.putBoolean(\"dedicated_engines\", EasyVoiceTtsService.dedicatedEnginesFlag)\n"
-"        editor.commit()\n"
-"        EasyVoiceTtsService.voiceList = newVoiceList\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun persistModeLangs(ctx: Context) {\n"
@@ -2314,8 +2722,10 @@ write_source("app/src/main/java/com/tts/easyvoice/LangStore.kt",
 "    }\n"
 "    @JvmStatic\n"
 "    fun indexOf(iso3: String): Int {\n"
-"        for (index in languages.indices) if (iso3 == languages[index].iso3) return index\n"
-"        return -1\n"
+"        synchronized(languages) {\n"
+"            for (index in languages.indices) if (iso3 == languages[index].iso3) return index\n"
+"            return -1\n"
+"        }\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun engineFor(lang: String, modeInt: Int): String {\n"
@@ -2339,39 +2749,43 @@ write_source("app/src/main/java/com/tts/easyvoice/LangStore.kt",
 "    }\n"
 "    @JvmStatic\n"
 "    fun localeFor(lang: String, modeInt: Int): String {\n"
-"        EasyVoiceLogger.debug(\"TAG\", \"getVoice4Language \" + lang)\n"
-"        if (modeInt == 3) return lang\n"
-"        var index = 0\n"
-"        while (index < languages.size) {\n"
-"            val entry = languages[index]\n"
-"            index++\n"
-"            if (entry.enginePkg.isEmpty() || entry.enginePkg.equals(\"disable\", true) || entry.disabled) continue\n"
-"            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" -\" + entry.iso3 + \" -> \" + entry.localeTag)\n"
-"            if (lang != entry.iso3) continue\n"
-"            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" Found \" + entry.localeTag)\n"
-"            return entry.localeTag\n"
+"        synchronized(languages) {\n"
+"            EasyVoiceLogger.debug(\"TAG\", \"getVoice4Language \" + lang)\n"
+"            if (modeInt == 3) return lang\n"
+"            var index = 0\n"
+"            while (index < languages.size) {\n"
+"                val entry = languages[index]\n"
+"                index++\n"
+"                if (entry.enginePkg.isEmpty() || entry.enginePkg.equals(\"disable\", true) || entry.disabled) continue\n"
+"                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" -\" + entry.iso3 + \" -> \" + entry.localeTag)\n"
+"                if (lang != entry.iso3) continue\n"
+"                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" Found \" + entry.localeTag)\n"
+"                return entry.localeTag\n"
+"            }\n"
+"            return \"\"\n"
 "        }\n"
-"        return \"\"\n"
 "    }\n"
 "    @JvmStatic\n"
 "    fun variantFor(lang: String, modeInt: Int): String {\n"
-"        EasyVoiceLogger.debug(\"TAG\", \"getVariant4Language \" + lang)\n"
-"        if (modeInt == 3) return lang\n"
-"        var index = 0\n"
-"        while (index < languages.size) {\n"
-"            val entry = languages[index]\n"
-"            index++\n"
-"            if (entry.enginePkg.isEmpty() || entry.enginePkg.equals(\"disable\", true) || entry.disabled) continue\n"
-"            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" -\" + entry.iso3 + \" -> \" + entry.variant)\n"
-"            if (lang != entry.iso3) continue\n"
-"            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" Found \" + entry.variant)\n"
-"            return entry.variant\n"
+"        synchronized(languages) {\n"
+"            EasyVoiceLogger.debug(\"TAG\", \"getVariant4Language \" + lang)\n"
+"            if (modeInt == 3) return lang\n"
+"            var index = 0\n"
+"            while (index < languages.size) {\n"
+"                val entry = languages[index]\n"
+"                index++\n"
+"                if (entry.enginePkg.isEmpty() || entry.enginePkg.equals(\"disable\", true) || entry.disabled) continue\n"
+"                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" -\" + entry.iso3 + \" -> \" + entry.variant)\n"
+"                if (lang != entry.iso3) continue\n"
+"                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \" Found \" + entry.variant)\n"
+"                return entry.variant\n"
+"            }\n"
+"            return \"\"\n"
 "        }\n"
-"        return \"\"\n"
 "    }\n"
-"    @JvmStatic fun speedFor(lang: String): Int { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return entry.speed }; return 100 }\n"
-"    @JvmStatic fun volumeFor(lang: String): Int { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return entry.volume }; return 100 }\n"
-"    @JvmStatic fun pitchFor(lang: String): Int { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return entry.pitch }; return 100 }\n"
+"    @JvmStatic fun speedFor(lang: String): Int = synchronized(languages) { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return@synchronized entry.speed }; return@synchronized 100 }\n"
+"    @JvmStatic fun volumeFor(lang: String): Int = synchronized(languages) { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return@synchronized entry.volume }; return@synchronized 100 }\n"
+"    @JvmStatic fun pitchFor(lang: String): Int = synchronized(languages) { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return@synchronized entry.pitch }; return@synchronized 100 }\n"
 "}\n"
 )
 
@@ -3441,17 +3855,52 @@ write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "    private fun detectLanguageRuns(text: String): List<DetectedRun> {\n"
 "        val runs = ArrayList<DetectedRun>()\n"
 "        if (text.isEmpty()) { runs.add(DetectedRun(\"un\", false, \"\")); return runs }\n"
-"        if (quickCharacterFlag && text.length == 1) {\n"
-"            runs.add(DetectedRun(\"un\", isLatinCommonInherited(text.codePointAt(0)), text))\n"
+"        // clsCLD2.e folds first and only then measures the length. A lone\n"
+"        // maths-bold letter is two UTF-16 units, so testing the raw text would\n"
+"        // miss the single-character case that folding creates.\n"
+"        val folded = try { NativeEngine.normalizeFancy(text) } catch (_: Throwable) { text }\n"
+"        if (quickCharacterFlag && folded.length == 1) {\n"
+"            runs.add(DetectedRun(\"un\", isLatinCommonInherited(folded.codePointAt(0)), folded))\n"
 "            return runs\n"
 "        }\n"
-"        val flat = try { NativeEngine.nativeGetLanguages(text, useCld3Flag) } catch (_: Throwable) { return runs }\n"
+"        val flat = try { NativeEngine.nativeGetLanguages(folded, useCld3Flag) } catch (_: Throwable) { return runs }\n"
 "        var index = 0\n"
 "        while (index + 2 < flat.size) {\n"
 "            runs.add(DetectedRun(flat[index], flat[index + 1] == \"1\", flat[index + 2]))\n"
 "            index += 3\n"
 "        }\n"
 "        return runs\n"
+"    }\n"
+"    // AutoTTS 5.7.7.26 clsCLD2.f. Ask for every span the detector can see, add up\n"
+"    // how much text each language covers, and take the biggest -- except that a\n"
+"    // real language beats \"un\" even when \"un\" covers more, which is what the two\n"
+"    // separate best-so-far candidates below are for.\n"
+"    private fun detectLanguageAggregate(text: String): String {\n"
+"        if (text.isEmpty()) return \"un\"\n"
+"        val folded = try { NativeEngine.normalizeFancy(text) } catch (_: Throwable) { text }\n"
+"        if (quickCharacterFlag && folded.length == 1) return \"un\"\n"
+"        val flat = try { NativeEngine.nativeGetLanguages(folded, useCld3Flag) } catch (_: Throwable) { return \"un\" }\n"
+"        if (flat.size < 3) return \"un\"\n"
+"        // One triple means one span, so there is nothing to weigh up.\n"
+"        if (flat.size == 3) return flat[0]\n"
+"        val totals = LinkedHashMap<String, Int>()\n"
+"        var index = 0\n"
+"        while (index + 2 < flat.size) {\n"
+"            val key = flat[index] + \"|\" + flat[index + 1]\n"
+"            totals[key] = (totals[key] ?: 0) + flat[index + 2].length\n"
+"            index += 3\n"
+"        }\n"
+"        var bestAny: String? = null\n"
+"        var bestAnyTotal = -1\n"
+"        var bestReal: String? = null\n"
+"        var bestRealTotal = -1\n"
+"        for (entry in totals.entries) {\n"
+"            if (entry.value > bestAnyTotal) { bestAny = entry.key; bestAnyTotal = entry.value }\n"
+"            if (entry.key.startsWith(\"un|\")) continue\n"
+"            if (entry.value > bestRealTotal) { bestReal = entry.key; bestRealTotal = entry.value }\n"
+"        }\n"
+"        val winner = bestReal ?: bestAny ?: return \"un\"\n"
+"        return winner.substring(0, winner.indexOf('|'))\n"
 "    }\n"
 "    private fun isLatinCommonInherited(codePoint: Int): Boolean {\n"
 "        val script = Character.UnicodeScript.of(codePoint)\n"
@@ -3813,7 +4262,15 @@ write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "                for (spanChunk in localeChunks) {\n"
 "                    if (isFlushed) break\n"
 "                    val detected = if (spanChunk.lang.equals(\"unknown\", ignoreCase = true)) {\n"
-"                        val rawDetected = detectLanguage(spanChunk.text, latinFallback, nonLatinFallback)\n"
+"                        var rawDetected = detectLanguage(spanChunk.text, latinFallback, nonLatinFallback)\n"
+"                        // 5.7.7.26 adds a third step here: when the span carries no\n"
+"                        // language of its own AND the main detector still says\n"
+"                        // unknown, the aggregate detector gets a turn. It costs\n"
+"                        // nothing on ordinary text, because it only runs once both\n"
+"                        // earlier answers have failed.\n"
+"                        if (rawDetected.equals(\"unknown\", ignoreCase = true)) {\n"
+"                            rawDetected = detectLanguageAggregate(spanChunk.text)\n"
+"                        }\n"
 "                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \"Cld2: \" + rawDetected + \" '\" + spanChunk.text + \"'\")\n"
 "                        if (rawDetected.length > 2) rawDetected.substring(0, 2) else rawDetected\n"
 "                    } else spanChunk.lang\n"
