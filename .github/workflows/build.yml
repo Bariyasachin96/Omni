@@ -5897,7 +5897,7 @@ jobs:
           write_source("app/src/main/java/com/tts/easyvoice/TabViews.kt",
           "package com.tts.easyvoice\n"
           "val modeRowSpecs = listOf(\n"
-          "    Triple(\"dual\", \"Dual languages\", \"Reads Latin words in English and seamlessly switches to your preferred voice for non-Latin text.\"),\n"
+          "    Triple(\"dual\", \"Dual languages\", \"Reads Latin words in English and seamlessly switches to your secondary language for non-Latin text. Choose that language in Settings.\"),\n"
           "    Triple(\"auto\", \"Auto language detect\", \"Auto-detects the full sentence language and applies the ideal reading voice.\"),\n"
           "    Triple(\"google\", \"Google TTS\", \"The same as Auto, except it only uses Google's voices.\"),\n"
           "    Triple(\"mix\", \"Mixed mode\", \"Intelligently splits and reads mixed-script text, switching voices for each language segment.\"),\n"
