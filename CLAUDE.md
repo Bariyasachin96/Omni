@@ -7,6 +7,50 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE 500 KB WORKFLOW CEILING — and why the generator now lives in `ci/generate.py`
+**Fixed for good on 2026-08-21. Do NOT move the generator back into `build.yml`.**
+
+GitHub: *"Each workflow file in the .github/workflows directory must be 500 KB or
+smaller to trigger a run."* Over that, GitHub **creates and numbers the run and then
+never parses the workflow** — it sits `queued` forever with **zero jobs**, never
+reports a `startup_failure`, and `POST /actions/runs/<id>/cancel` answers **HTTP 500**.
+There is no error message anywhere. This has now bitten twice:
+
+| build.yml | outcome |
+|---|---|
+| 511,628 B | ran |
+| 522,764 B | queued forever (fixed by `4176493d`, deleting dead View builders) |
+| 508,811 B (`2bafac8`) | run 753 succeeded |
+| **516,086 B** (`be737f3`) | **runs 754 and 755 stuck** — the Advanced-tab commit ate the headroom |
+
+The limit is **512,000 bytes**, and it is **per workflow file**. So the fix is not to
+keep deleting code or comments to buy another few KB — it is to stop keeping half a
+megabyte of Kotlin and C++ inside the workflow:
+
+- **`ci/generate.py`** holds the entire generator, verbatim. `build.yml` is now
+  **11,578 bytes** and the step is one line, `python3 ci/generate.py`.
+- Safe because `actions/checkout@v4` is **step 0** and the generator is step 6, so the
+  file is on disk before it is needed, and the run step's working directory is the
+  repository root — which every `write_source` path is already relative to.
+- Proved, not assumed: the tree was generated from the inline block and from
+  `ci/generate.py` and diffed — **62 files, byte identical**.
+
+**Tooling that moved with it:**
+- `blocks.py` — `PREFIX` is now `''` (a plain `.py` file has no YAML block-scalar
+  indent). `find_block`, `replace_block`, `find_raw_block`, `replace_raw_block` and
+  `block_paths` all work unchanged otherwise; both round-trips were re-verified exact.
+- `gentree.py` — just runs `ci/generate.py` in a scratch dir now.
+- `ktcompile.sh` — `grab()` prefers `ci/generate.py` at a ref and **falls back to
+  slicing the old `python3 << 'PYEOF'` block**, so a baseline older than 2026-08-21
+  still works. Its last line now compares the our-own-names count against the baseline
+  instead of printing an absolute number, because `android.speech.tts.Voice` and
+  `TextToSpeech.voices` are API 21 and always unresolved against the API-15 jar (9 of
+  them, before and after).
+
+**Check before every push:** `wc -c .github/workflows/build.yml` must stay far under
+512,000. It has ~500 KB of headroom now, so this should never recur — but if a run is
+ever queued with zero jobs again, look here first.
+
 ## HARD RULES (NEVER violate)
 1. **NEVER build/push without explicit user request**
 2. **Fix #16 (Disable engine handling) — IMPLEMENTED 2026-07-10** (user override: "exactly AutoTTS"). `m.o()` (in `m.c` and not disabled, **no engine test**) is what `clsCLD2.b` accepts a detection with and what `a.e(cp, m.f)` filters by; on our side that is the `detectOk`/`enabledOk` arrays handed to the native detector. The auto and mix span resolution use a *different* test — `M(lang)` empty or `"Disable"` — which is `isLangRoutableRaw`. Do not merge the two. Dual mode untouched (type-based, no k.o). Previously set-aside; no longer.
