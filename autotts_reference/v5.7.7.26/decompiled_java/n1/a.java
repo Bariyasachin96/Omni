@@ -1,0 +1,20 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
+package n1;
+
+public abstract class a {
+    public static final int[] a = new int[]{0x1010003, 0x1010121, 0x1010155, 16843097, 16843551, 16843754, 16843771, 16843778, 16843779};
+    public static final int[] b = new int[]{0x1010003, 16843189, 16843190, 16843556, 16843557, 16843558, 16843866, 16843867};
+    public static final int[] c = new int[]{0x1010003, 0x1010404, 16843781, 16843782, 16843783, 16843784, 16843785, 16843786, 16843787, 16843788, 16843789, 16843979, 16843980, 16844062};
+    public static final int[] d = new int[]{0x1010003, 16843781, 16844062};
+    public static final int[] e = new int[]{0x1010199};
+    public static final int[] f = new int[]{0x1010003, 16843213};
+    public static final int[] g = new int[]{0x1010141, 16843160, 16843198, 16843199, 0x10101C0, 16843486, 16843487, 16843488};
+    public static final int[] h = new int[]{16843490};
+    public static final int[] i = new int[]{16843486, 16843487, 16843488, 16843489};
+    public static final int[] j = new int[]{16842788, 0x1010141, 16843488, 16843992};
+    public static final int[] k = new int[]{16843489, 16843781, 16843892, 16843893};
+    public static final int[] l = new int[]{16843772, 16843773, 16843774, 16843775, 16843781};
+}
+

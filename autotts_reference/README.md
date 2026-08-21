@@ -1,4 +1,17 @@
-# AutoTTS Reference (com.vnspeak.autotts 5.7.7.18)
+# AutoTTS Reference (com.vnspeak.autotts)
+
+> **Two versions live here.** This directory is **5.7.7.18**, the release EasyVoice's
+> behaviour is currently verified against and the one every path in `CLAUDE.md` and
+> `ANALYSIS_5.7.7.18_delta.md` refers to. The newer **5.7.7.26** sits in
+> **`v5.7.7.26/`** with its own README and a full delta analysis. Read
+> `v5.7.7.26/ANALYSIS_5.7.7.26_delta.md` before assuming any name below is still current —
+> the `AutoTtsService` static letters shifted by one again in 5.7.7.26.
+>
+> 5.7.7.26 also needs different CFR flags: `--ignoreexceptionsalways true` is the only
+> setting that decompiles `onSynthesizeText` at all there. The `--forcetopsortnopull false
+> --aexagg true` fallback named further down this file does **not** work on it. See
+> `v5.7.7.26/README.md` for the full flag matrix.
+
 
 **Purpose:** Decompiled, human-readable reference of the *AutoTTS* Android app.
 EasyVoice (this repo) matches AutoTTS's behaviour, so this is the ground-truth

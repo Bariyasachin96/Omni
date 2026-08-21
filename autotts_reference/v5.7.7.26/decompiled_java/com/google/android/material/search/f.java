@@ -1,0 +1,21 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
+package com.google.android.material.search;
+
+import com.google.android.material.search.SearchView;
+
+public final class f
+implements Runnable {
+    public final SearchView c;
+
+    public /* synthetic */ f(SearchView searchView) {
+        this.c = searchView;
+    }
+
+    @Override
+    public final void run() {
+        SearchView.i(this.c);
+    }
+}
+

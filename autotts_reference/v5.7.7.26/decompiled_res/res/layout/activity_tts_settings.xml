@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginLeft="0.0dip" android:layout_marginRight="0.0dip">
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/linlaHeaderProgress" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <TextView android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/autotts_progress" style="@android:style/TextAppearance.Large" />
+            <ProgressBar android:gravity="center" android:id="@id/pbHeaderProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" style="@android:style/Widget.ProgressBar.Large" />
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/ModeSettings" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_marginTop="2.0dip">
+            <LinearLayout android:gravity="start" android:id="@id/auto_mode" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                <TextView android:textSize="18.0sp" android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/auto_mode" />
+            </LinearLayout>
+            <RadioGroup android:orientation="vertical" android:id="@id/auto_mode_radio" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_below="@id/auto_mode">
+                <RadioButton android:id="@id/auto_mode_none" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/auto_mode_none" android:onClick="onRadioButtonClicked" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/none_mode_description" style="@android:style/TextAppearance.Small" />
+                <RadioButton android:id="@id/auto_mode_dual" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/auto_mode_dual" android:onClick="onRadioButtonClicked" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/dual_mode_description" style="@android:style/TextAppearance.Small" />
+                <RadioButton android:id="@id/auto_mode_auto" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/auto_mode_auto" android:onClick="onRadioButtonClicked" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/auto_mode_description" style="@android:style/TextAppearance.Small" />
+                <RadioButton android:id="@id/auto_mode_google" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/auto_mode_google" android:onClick="onRadioButtonClicked" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/google_mode_description" style="@android:style/TextAppearance.Small" />
+            </RadioGroup>
+            <LinearLayout android:orientation="vertical" android:id="@id/AutoModeSettings" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:layout_below="@id/auto_mode_radio">
+                <RelativeLayout android:gravity="start" android:id="@id/auto_mode_header" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <TextView android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/auto_mode_header" style="@android:style/TextAppearance.Medium" />
+                </RelativeLayout>
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/auto_mode_language" style="@android:style/TextAppearance.Medium" />
+                <Spinner android:id="@id/auto_mode_language" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/auto_mode_language" style="@android:style/TextAppearance.Medium" />
+            </LinearLayout>
+            <LinearLayout android:orientation="vertical" android:id="@id/DualModeSettings" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:layout_below="@id/AutoModeSettings">
+                <RelativeLayout android:gravity="start" android:id="@id/dual_mode_header" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <TextView android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/dual_mode_header" style="@android:style/TextAppearance.Medium" />
+                </RelativeLayout>
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/dual_mode_language" style="@android:style/TextAppearance.Medium" />
+                <Spinner android:id="@id/dual_mode_language" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/dual_mode_language" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/number_mode_language" style="@android:style/TextAppearance.Medium" />
+                <Spinner android:id="@id/number_mode_language" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/number_mode_language" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/punc_mode_language" style="@android:style/TextAppearance.Medium" />
+                <Spinner android:id="@id/punc_mode_language" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/punc_mode_language" style="@android:style/TextAppearance.Medium" />
+            </LinearLayout>
+            <Button android:id="@id/go_to_voice_settings" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/go_to_voice_settings" android:onClick="goToVoiceSettings" style="@android:style/TextAppearance.Medium" />
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/VoiceSettings" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <LinearLayout android:orientation="vertical" android:id="@id/linear_voice" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_above="@id/params">
+                <RelativeLayout android:gravity="start" android:id="@id/select_voice_header" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <TextView android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/voice_settings_header" style="@android:style/TextAppearance.Medium" />
+                </RelativeLayout>
+                <TextView android:gravity="start" android:id="@id/text11" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/autotts_select_voice_header" android:layout_below="@id/select_voice_header" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:id="@id/text22" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/autotts_select_language" android:layout_below="@id/text11" style="@android:style/TextAppearance.Medium" />
+                <Spinner android:id="@id/autotts_languages" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/autotts_language" android:layout_below="@id/text22" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:id="@id/text33" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/autotts_select_voice" android:layout_below="@id/autotts_languages" style="@android:style/TextAppearance.Medium" />
+                <LinearLayout android:orientation="horizontal" android:id="@id/voice" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_below="@id/text33">
+                    <Spinner android:id="@id/autotts_voices" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/autotts_language" android:layout_weight="1.0" style="@android:style/TextAppearance.Medium" />
+                    <Button android:id="@id/testbutton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/voice_test" android:onClick="testCurrentVoice" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:orientation="vertical" android:id="@id/params" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                <TextView android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/autotts_speed" />
+                <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <Button android:layout_gravity="left" android:id="@id/autotts_speed_decrease" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_decrease" android:contentDescription="@string/autotts_speed_decrease" style="?android:buttonStyleSmall" />
+                    <SeekBar android:gravity="center" android:layout_gravity="center" android:id="@id/speed_slider" android:layout_width="0.0dip" android:layout_height="wrap_content" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.0" />
+                    <Button android:layout_gravity="right" android:id="@id/autotts_speed_increase" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_increase" android:contentDescription="@string/autotts_speed_increase" style="?android:buttonStyleSmall" />
+                </LinearLayout>
+                <TextView android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/autotts_volume" />
+                <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <Button android:layout_gravity="left" android:id="@id/autotts_volume_decrease" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_decrease" android:contentDescription="@string/autotts_volume_decrease" style="?android:buttonStyleSmall" />
+                    <SeekBar android:gravity="center" android:layout_gravity="center" android:id="@id/volume_slider" android:layout_width="0.0dip" android:layout_height="wrap_content" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.0" />
+                    <Button android:layout_gravity="right" android:id="@id/autotts_volume_increase" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_increase" android:contentDescription="@string/autotts_volume_increase" style="?android:buttonStyleSmall" />
+                </LinearLayout>
+                <TextView android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/autotts_pitch" />
+                <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <Button android:layout_gravity="left" android:id="@id/autotts_pitch_decrease" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_decrease" android:contentDescription="@string/autotts_pitch_decrease" style="?android:buttonStyleSmall" />
+                    <SeekBar android:gravity="center" android:layout_gravity="center" android:id="@id/pitch_slider" android:layout_width="0.0dip" android:layout_height="wrap_content" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.0" />
+                    <Button android:layout_gravity="right" android:id="@id/autotts_pitch_increase" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_increase" android:contentDescription="@string/autotts_pitch_increase" style="?android:buttonStyleSmall" />
+                </LinearLayout>
+            </LinearLayout>
+            <Button android:id="@id/go_to_mode_settings" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/go_to_mode_settings" android:layout_below="@id/voice" android:onClick="goToModeSettings" style="@android:style/TextAppearance.Medium" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

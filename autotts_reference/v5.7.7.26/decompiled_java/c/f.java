@@ -1,0 +1,86 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
+package c;
+
+public abstract class f {
+    public static final int action_bar = 2131230782;
+    public static final int action_bar_activity_content = 2131230783;
+    public static final int action_bar_container = 2131230784;
+    public static final int action_bar_root = 2131230785;
+    public static final int action_bar_spinner = 2131230786;
+    public static final int action_bar_subtitle = 2131230787;
+    public static final int action_bar_title = 2131230788;
+    public static final int action_context_bar = 2131230790;
+    public static final int action_menu_divider = 2131230793;
+    public static final int action_menu_presenter = 2131230794;
+    public static final int action_mode_bar = 2131230795;
+    public static final int action_mode_bar_stub = 2131230796;
+    public static final int action_mode_close_button = 2131230797;
+    public static final int activity_chooser_view_content = 2131230800;
+    public static final int add = 2131230801;
+    public static final int alertTitle = 2131230803;
+    public static final int buttonPanel = 2131230857;
+    public static final int checkbox = 2131230870;
+    public static final int checked = 2131230871;
+    public static final int content = 2131230887;
+    public static final int contentPanel = 2131230888;
+    public static final int custom = 2131230897;
+    public static final int customPanel = 2131230898;
+    public static final int decor_content_parent = 2131230903;
+    public static final int default_activity_button = 2131230905;
+    public static final int edit_query = 2131230939;
+    public static final int expand_activities_button = 2131230953;
+    public static final int expanded_menu = 2131230954;
+    public static final int group_divider = 2131230981;
+    public static final int home = 2131230988;
+    public static final int icon = 2131230993;
+    public static final int image = 2131230998;
+    public static final int listMode = 2131231025;
+    public static final int list_item = 2131231028;
+    public static final int message = 2131231057;
+    public static final int multiply = 2131231095;
+    public static final int none = 2131231111;
+    public static final int normal = 2131231112;
+    public static final int off = 2131231119;
+    public static final int on = 2131231120;
+    public static final int parentPanel = 2131231146;
+    public static final int progress_circular = 2131231161;
+    public static final int progress_horizontal = 2131231162;
+    public static final int radio = 2131231167;
+    public static final int screen = 2131231184;
+    public static final int scrollIndicatorDown = 2131231186;
+    public static final int scrollIndicatorUp = 2131231187;
+    public static final int scrollView = 2131231188;
+    public static final int search_badge = 2131231191;
+    public static final int search_bar = 2131231192;
+    public static final int search_button = 2131231193;
+    public static final int search_close_btn = 2131231194;
+    public static final int search_edit_frame = 2131231195;
+    public static final int search_go_btn = 2131231196;
+    public static final int search_mag_icon = 2131231198;
+    public static final int search_plate = 2131231199;
+    public static final int search_src_text = 2131231200;
+    public static final int search_voice_btn = 2131231201;
+    public static final int select_dialog_listview = 2131231204;
+    public static final int shortcut = 2131231212;
+    public static final int spacer = 2131231228;
+    public static final int split_action_bar = 2131231232;
+    public static final int src_atop = 2131231237;
+    public static final int src_in = 2131231238;
+    public static final int src_over = 2131231239;
+    public static final int submenuarrow = 2131231250;
+    public static final int submit_area = 2131231251;
+    public static final int tabMode = 2131231253;
+    public static final int textSpacerNoButtons = 2131231276;
+    public static final int textSpacerNoTitle = 2131231277;
+    public static final int title = 2131231290;
+    public static final int titleDividerNoCustom = 2131231291;
+    public static final int title_template = 2131231292;
+    public static final int topPanel = 2131231296;
+    public static final int unchecked = 2131231311;
+    public static final int uniform = 2131231312;
+    public static final int up = 2131231314;
+    public static final int wrap_content = 2131231334;
+}
+

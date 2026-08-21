@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:id="@id/constraintLayout" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="fill_parent" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintTop_toTopOf="@id/constraintLayout"
+      xmlns:android="http://schemas.android.com/apk/res/android">
+        <RelativeLayout android:gravity="start" android:id="@id/select_languages_header" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/autotts_select_languages" style="@android:style/TextAppearance.Medium" />
+        </RelativeLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/list_inactive" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/autotts_select_languages_not_available" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/list_active" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/autotts_select_languages_descr" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+            <LinearLayout android:gravity="center" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                <Button android:id="@id/selecl_all_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/select_all" />
+                <Button android:id="@id/clear_all_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/clear_all" />
+                <Button android:id="@id/toggle_selected_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/show_selected" />
+            </LinearLayout>
+            <androidx.appcompat.widget.SearchView android:id="@id/search_languages" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:layout_marginBottom="5.0dip" android:queryHint="@string/search_languages_hint" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" />
+            <ListView android:id="@id/list_languages" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

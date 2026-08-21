@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:id="@id/constraintLayout" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:orientation="vertical" android:id="@id/VoicesInactive" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintTop_toTopOf="@id/constraintLayout">
+        <RelativeLayout android:gravity="start" android:id="@id/select_languages_header" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/voice_settings_header" style="@android:style/TextAppearance.Medium" />
+        </RelativeLayout>
+        <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/autotts_voice_settings_not_available" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+    </LinearLayout>
+    <ScrollView android:id="@id/scroller" android:layout_width="fill_parent" android:layout_height="fill_parent" android:fillViewport="true" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintTop_toTopOf="@id/constraintLayout">
+        <LinearLayout android:orientation="vertical" android:id="@id/VoiceSettings" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <LinearLayout android:orientation="vertical" android:id="@id/linear_voice" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                <RelativeLayout android:gravity="start" android:id="@id/select_voice_header" android:background="#ff293842" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <TextView android:textColor="#ffffffff" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="@string/voice_settings_header" style="@android:style/TextAppearance.Medium" />
+                </RelativeLayout>
+                <TextView android:gravity="start" android:id="@id/text11" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/autotts_select_voice_header" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+                <TextView android:gravity="start" android:id="@id/text22" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/autotts_select_language" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+                <Spinner android:id="@id/autotts_languages" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/autotts_language" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:id="@id/text33" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/autotts_select_voice" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+                <Spinner android:id="@id/autotts_voices" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/autotts_select_voice" style="@android:style/TextAppearance.Medium" />
+                <TextView android:gravity="start" android:id="@id/text333" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="@string/autotts_select_voice_variant" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+                <Spinner android:id="@id/autotts_voice_variant" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:prompt="@string/autotts_select_voice_variant" style="@android:style/TextAppearance.Medium" />
+                <Button android:id="@id/testbutton" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/voice_test" />
+            </LinearLayout>
+            <LinearLayout android:orientation="vertical" android:id="@id/params" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginStart="5.0dip">
+                <TextView android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/autotts_speed" />
+                <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <Button android:layout_gravity="start" android:id="@id/autotts_speed_decrease" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_decrease" android:contentDescription="@string/autotts_speed_decrease" style="?android:buttonStyleSmall" />
+                    <SeekBar android:gravity="center" android:layout_gravity="center" android:id="@id/speed_slider" android:layout_width="0.0dip" android:layout_height="wrap_content" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.0" />
+                    <Button android:layout_gravity="end" android:id="@id/autotts_speed_increase" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_increase" android:contentDescription="@string/autotts_speed_increase" style="?android:buttonStyleSmall" />
+                </LinearLayout>
+                <TextView android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/autotts_volume" />
+                <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <Button android:layout_gravity="start" android:id="@id/autotts_volume_decrease" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_decrease" android:contentDescription="@string/autotts_volume_decrease" style="?android:buttonStyleSmall" />
+                    <SeekBar android:gravity="center" android:layout_gravity="center" android:id="@id/volume_slider" android:layout_width="0.0dip" android:layout_height="wrap_content" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.0" />
+                    <Button android:layout_gravity="end" android:id="@id/autotts_volume_increase" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_increase" android:contentDescription="@string/autotts_volume_increase" style="?android:buttonStyleSmall" />
+                </LinearLayout>
+                <TextView android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/autotts_pitch" />
+                <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <Button android:layout_gravity="start" android:id="@id/autotts_pitch_decrease" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_decrease" android:contentDescription="@string/autotts_pitch_decrease" style="?android:buttonStyleSmall" />
+                    <SeekBar android:gravity="center" android:layout_gravity="center" android:id="@id/pitch_slider" android:layout_width="0.0dip" android:layout_height="wrap_content" android:max="19" android:progress="0" android:secondaryProgress="0" android:layout_weight="1.0" />
+                    <Button android:layout_gravity="end" android:id="@id/autotts_pitch_increase" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_increase" android:contentDescription="@string/autotts_pitch_increase" style="?android:buttonStyleSmall" />
+                </LinearLayout>
+            </LinearLayout>
+            <Button android:layout_gravity="center" android:id="@id/autotts_reset" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/autotts_reset" android:contentDescription="@string/autotts_reset" style="?android:buttonStyleSmall" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/experimental" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Medium" />
+            <CheckBox android:id="@id/dedicatedengines" android:layout_width="fill_parent" android:layout_height="wrap_content" android:checked="false" android:text="@string/dedicated_engines" android:layout_marginStart="5.0dip" />
+            <TextView android:gravity="start" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/dedicated_engines_description" android:layout_marginStart="5.0dip" style="@android:style/TextAppearance.Small" />
+        </LinearLayout>
+    </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>
