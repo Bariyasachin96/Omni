@@ -1798,9 +1798,23 @@ static std::string baseLanguageTag(const std::string& code){
     for(char& ch : base) if(ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
     return base;
 }
+// CLD3's model emits exactly six romanised tags; counted from
+// task_context_params.cc's kLanguageNames, which holds 109 entries in total.
 static bool isRomanisedTag(const std::string& code){
     return code=="bg-Latn" || code=="el-Latn" || code=="hi-Latn"
         || code=="ja-Latn" || code=="ru-Latn" || code=="zh-Latn";
+}
+// CLD2 says "un" for undetermined; CLD3 says "und"
+// (NNetLanguageIdentifier::kUnknown[] = "und"). Nothing else in the app knows
+// about "und" -- it is the one CLD3 tag out of 109 that IsoCodes cannot map --
+// and the aggregate detector filters unknown with startsWith("un|"), which
+// "und|1" does not match. So an undetermined span used to count as a real
+// language under CLD3 and could win the aggregate, which is the exact outcome
+// clsCLD2.f's two-candidate scan exists to prevent. Folding it to CLD3's own
+// empty-result convention makes both callers fall back the way they already do
+// for CLD2.
+static bool isCld3Unknown(const std::string& code){
+    return code == "und";
 }
 static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut){
     static std::mutex cld3Mutex;
@@ -1830,7 +1844,10 @@ static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut)
         }
     }
     const chrome_lang_id::NNetLanguageIdentifier::Result result = cld3Identifier->FindLanguage(utf8Text);
-    if(isRomanisedTag(result.language)){ if(reliableOut) *reliableOut = false; return ""; }
+    if(isRomanisedTag(result.language) || isCld3Unknown(result.language)){
+        if(reliableOut) *reliableOut = false;
+        return "";
+    }
     if(reliableOut) *reliableOut = result.is_reliable;
     return result.language;
 }
