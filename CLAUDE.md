@@ -766,6 +766,16 @@ first.
 runs only from `onCreate`, so the statics are never silently reloaded over a live edit. Keep it
 that way.
 
+**A fourth offender, found and removed 2026-08-25:** the `[EasyVoice:...]` bypass path called
+`prefs.getLocaleForLangPkg(...)` when the prefix carried no locale. AutoTTS's branch is
+`if (!engine.isEmpty() || !locale.isEmpty()) f0(engine, j0(locale), variant, false);` — the
+parsed fields and nothing else, an empty engine meaning "keep the last one" inside `loadVoice`
+and `j0("")` being `Locale("")`. Ours also ran the load for **every** bypassed utterance rather
+than only a forced one. Unreachable (`speakTest` always sends a real package and locale), but
+it was a pref read on the **Test button**, where prefs and statics differ by definition.
+**Swept afterwards: the only `prefs.` calls left on the synthesis path are `prefs.toIso3`,
+which is a pure conversion and reads nothing.**
+
 **The two non-`EasyVoiceTtsService` flags, checked 2026-08-13 when the user asked whether they
 could be statics too:**
 - **Logging** already is one. `EasyVoiceLogger.loggingEnabled` is a `@Volatile` in-memory flag,
