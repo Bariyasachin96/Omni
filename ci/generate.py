@@ -694,14 +694,6 @@ static std::mutex smartNumberMutex;
 static std::string smartNumberCachedHints;
 static std::vector<std::string> smartNumberActive;
 static bool smartNumberCacheValid = false;
-// c3.d0.a(). The cache is NEVER invalidated, and that is deliberate: d0.j is a
-// static volatile HashSet with exactly two assignments in the whole app -- null
-// in d0's static initialiser, and the built set at the end of a() -- so AutoTTS
-// builds its keyword list from whatever c3.n.f holds at the first utterance
-// with smart number reading on and keeps it for the life of the process.
-// Changing the enabled languages afterwards does not change the keyword list
-// there, so it must not change it here. smartNumberCachedHints is unused for
-// exactly that reason; do not wire it up.
 static std::vector<std::string> activeSmartNumberKeywords(){
     std::string hints = currentLanguageHints();
     std::lock_guard<std::mutex> lock(smartNumberMutex);
@@ -2124,8 +2116,35 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
         if (len < 1) return;
         if (start < 0 || start + len > (int)text.size()) return;
         std::string lang;
+        // getLanguageSpans dispatches on the script through a 26-entry jump
+        // table (0x62f8f0; `cmp w3, #0x19 / b.hi` sends anything above 25 to
+        // CLD2), and script 0 -- nothing classified, i.e. a run made only of
+        // digits, ASCII punctuation, spaces or emoji -- has a case of its own:
+        //
+        //     653ef0: mov  w20, #0x1        ; latin = TRUE
+        //     653ef8: adrp x19, <"un">      ; language = "un"
+        //     653f08: b.lt 0x6544c0         ; one past the cset below
+        //     6544b8: cmp  w3, #0x1
+        //     6544bc: cset w20, eq          ; latin = (script == 1)
+        //
+        // so it never reaches CLD2 and never reaches that cset. It matters
+        // because the caller resolves such a span with `run.b ? P : Q`: AutoTTS
+        // speaks a bare number, a bare punctuation run or a bare emoji with the
+        // LATIN preferred language. Detecting it and leaving latin false sent it
+        // to the NON-Latin one instead -- a different voice for every standalone
+        // number a screen reader announces.
+        //
+        // Script 0 can only be the single final span of a text in which nothing
+        // was classified: the two mid-text emits fire on `curScript >= 2` and on
+        // `curScript != 0 && stringClass != curScript`, and neither can pass 0.
+        // The case still branches to 0x6544c0, which IS the merge, cap and push
+        // code below, so only the language and the flag are settled early.
+        bool latin = (script == 1);
         unsigned scriptIdx = (unsigned)(script - 7);
-        if (scriptIdx < 19) {
+        if (script == 0) {
+            lang = "un";
+            latin = true;
+        } else if (scriptIdx < 19) {
             lang = SCRIPT_FIXED_LANG[scriptIdx];
         } else {
             int detectBytes = len;
@@ -2147,7 +2166,6 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 lang = code ? std::string(code) : "un";
             }
         }
-        bool latin = (script == 1);
         if (!spans.empty()
             && spans.back().offset + spans.back().bytes == start
             && spans.back().latin == latin
