@@ -1340,6 +1340,96 @@ same `put()` pairs, compared as sorted sets.
    `try { Z2(); } catch (Exception) { Toast "Test unknown error" }`. `speakTest` reaches into
    a `TextToSpeech` that may already be dead, and the settings screen used to go down with it.
 
+## The segmenter is PROVEN equal to `d0.t` — 163,296 cases (2026-08-25)
+The reading flow was checked by **measurement**, not by reading. `c3/d0.java`'s `t()` was
+lifted out of the 5.7.7.26 decompile into a standalone Java program in
+`scratchpad/jflow/` — the whole class, with only `n.e`, the `AutoTtsService` statics and
+`clsCLD2.a/b` stubbed — and the same inputs were run through it and through our
+`buildMixChunks` (`scratchpad/flow/`), chunk list against chunk list.
+
+**Rebuild it like this** (both harnesses read the same TSV on stdin and print
+`type:'text' | type:'text'`, so `diff` is the whole test):
+
+    scratchpad/jflow/     javac -encoding UTF-8 *.java ; java -cp jflow Main < cases.tsv
+    scratchpad/flow/      g++ -O1 -std=c++17 -o diffharness diffmain.cpp ; ./diffharness < cases.tsv
+    TSV columns: mode numMode puncMode emojiMode inFlow smart group dualLang mixNonLat deviceIso3 hints text
+
+CFR's output does **not** compile; five methods had to be re-transcribed by hand because CFR
+reuses one local for two types (`a`, `e`, `f`, `g`, `r`) and `t()`/`clsCLD2.b` need their
+declarations widened to `Object`. That is recorded in the scratchpad scripts.
+
+**The battery**: 189 texts × 16 number/punctuation/emoji mode triples × 6 flag sets
+(punctuation in flow on and off, smart numbers off and on at group 1/2/3) × dual, mixed and
+multilingual × 3 device/dual/non-Latin configurations × 7 hint lists. Texts cover Latin,
+Devanagari, Arabic, Chinese and Cyrillic; ASCII, Devanagari, Arabic-Indic and full-width
+digits; phone shapes, clock times, decimals, thousands separators, currency; emoji including
+ZWJ sequences, skin tones, keycaps and flag pairs; the danda; bidi controls; maths-bold,
+script, circled, superscript and full-width letters; every Java whitespace class from U+001C
+to U+3000 in leading, medial and trailing position; and smart-number keywords in English,
+Hindi, Urdu, Persian, Russian, Chinese, Japanese, Korean and Thai.
+
+**So the whole of `d0` is now verified, not argued**: `b`/`c`/`d` (the punctuation, emoji and
+number splits), `e` + `p` (keyword matching and the CJK/Thai boundary exemption), `f`/`g` (the
+24- and 48-character context windows), `h`/`i`/`k` (neighbour typing), `j` (segment typing),
+`l`/`m`/`n`/`o` (the four predicates), `q` (bidi strip), `r` (phone shape), `s` (digit
+grouping) and `t` itself — plus `clsCLD2.b`'s normaliser and both merge passes.
+
+**ONE input disagreed, and it was a real bug.** `d0.k`'s two scans return the first type that
+is not 3, 4 or 5 — and **type 0, all whitespace, IS such a type**. `k()` reads that 0 as
+"nothing found", falls through to the forward scan, meets the same 0 and answers 0 again, so
+the segment takes the **neutral** type. Ours treated 0 as "keep looking" and walked past it.
+
+    " 123 Hello", dual mode, device language == the dual language
+        AutoTTS   0:' ' | 2:'123 ' | 1:'Hello'
+        ours      0:' ' | 1:'123 Hello'
+
+Type 0 survives the first merge **only at index 0**, because every later whitespace segment is
+absorbed by the run before it. Index 0 can be whitespace because `trim()` strips nothing above
+U+0020: a leading **U+00A0, U+2007, U+202F or U+FEFF** is still there when the collapse turns
+it into a space. `surroundingType` is now a one-for-one port of `d0.i` / `d0.h` / `d0.k`.
+
+**`n7` is NOT the licence argument — it is the neutral type.** `t(text, n3, n4, n5, n6, n7)`
+tests `n6 == -1 || n7 == -1` and then **overwrites both**: `n6 = AutoTtsService.T` and
+`n7 = 2`, dropped to 1 unless (mode 1 and device iso3 == `I`, the dual language) or (mode 4/5
+and device iso3 == `Q`, the mix non-Latin language). Anywhere below that line, `n7` means
+1 or 2. An earlier note here read it as `j0` = 0; that was wrong.
+
+**Three more differences came out of reading the callers beside it, all fixed:**
+- `detectLanguageAggregate` totals into a plain `HashMap`, as `clsCLD2.f` does. Both
+  best-so-far scans replace only on a strict `>`, so an exact tie is settled by whichever
+  entry `entrySet()` yields first — HashMap's bucket order, not insertion order. Kotlin's
+  `HashMap` **is** `java.util.HashMap`, so the same keys inserted in the same order now
+  iterate in AutoTTS's sequence. Do not "improve" this to a `LinkedHashMap`.
+- the mix and multilingual branches no longer skip a detected run with empty text; AutoTTS
+  adds every element `clsCLD2.e` returns, and the skip was unreachable anyway.
+- **a `U+001E` in the text silently lost the rest of the utterance.** `processDirect` packs
+  the chunks as `type \x1F kind \x1F lang \x1F text` with records joined by `\x1E`.
+  U+001C–U+001F are `Character.isWhitespace`, but AutoTTS's collapse is `replaceAll("\\s+",
+  " ")` and Java's `\s` is only `[ \t\n\x0B\f\r]` — so a U+001E survives the collapse there
+  and here alike, and then split one record in two, leaving a half with three fields that the
+  Kotlin dropped. `packField` / `decodeChunkText` escape the three characters now.
+
+**Verified equal in the same pass, so do NOT re-audit:** the mix and multilingual span gate;
+the type 3/4/5 → specific-language mapping; `languageForDetectedRun` against `c3.e.c` →
+`run.b ? P : Q` → engine check → `P`/`Q`; the auto/Google chain `clsCLD2.d` →
+`clsCLD2.f` → `c3.e.c` → `H`; dual's type table (1→`eng`, 2→`I`, 3→`K`, 4→`M`, 5→`O`, and
+**type 0 → "eng" with no language load at all**, first chunk and next chunk alike);
+`splitByLocaleSpans` against `e0.g` down to `getSpans(0, len - 1)` and the `end + 1` step;
+and the mix first-chunk preflight, whose re-detect and two type fallbacks are dead because
+every chunk there carries a language and a type of −1.
+
+**`parts[1]` (the `kind` field) is dead payload** since `languageForSegmentKind` was removed.
+The Kotlin branches on `parts[0]`, the type `d0.t` resolved. Left in the wire format on
+purpose; do not start reading it again.
+
+**The smart-number keyword set is cached FOR THE LIFE OF THE PROCESS, deliberately.**
+`d0.j` is a `static volatile HashSet` assigned in exactly two places — `null` in the static
+initialiser and the built set in `a()` — and **nothing in the whole app ever clears it**. So
+AutoTTS builds the keyword list from whatever `c3.n.f` held at the first utterance with smart
+numbers on, and keeps it. Our `smartNumberCacheValid` does the same. Changing the enabled
+languages afterwards does not change the keyword list, in AutoTTS or here; that is not a bug
+to fix. (`smartNumberCachedHints` is unused for exactly this reason.)
+
 ## Per-mode DETECTION audited against 5.7.7.26 (2026-08-21)
 `onSynthesizeText` was decompiled from **both** 5.7.7.18 and 5.7.7.26 with identical CFR
 flags (`--ignoreexceptionsalways`) and compared after normalising the static letter shift.

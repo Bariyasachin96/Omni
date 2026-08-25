@@ -694,6 +694,14 @@ static std::mutex smartNumberMutex;
 static std::string smartNumberCachedHints;
 static std::vector<std::string> smartNumberActive;
 static bool smartNumberCacheValid = false;
+// c3.d0.a(). The cache is NEVER invalidated, and that is deliberate: d0.j is a
+// static volatile HashSet with exactly two assignments in the whole app -- null
+// in d0's static initialiser, and the built set at the end of a() -- so AutoTTS
+// builds its keyword list from whatever c3.n.f holds at the first utterance
+// with smart number reading on and keeps it for the life of the process.
+// Changing the enabled languages afterwards does not change the keyword list
+// there, so it must not change it here. smartNumberCachedHints is unused for
+// exactly that reason; do not wire it up.
 static std::vector<std::string> activeSmartNumberKeywords(){
     std::string hints = currentLanguageHints();
     std::lock_guard<std::mutex> lock(smartNumberMutex);
