@@ -1434,6 +1434,22 @@ no content hint, an **empty** tld hint, **encoding_hint 0** (`ISO_8859_1`, not
 CLD2's own test file, that nothing in the app ever sets, so **false**. It keeps `lang3[0]` when
 the result is reliable and answers `"UNKNOWN"` otherwise, which we already did.
 
+### 4. CLD3 must be level with CLD2 SITE BY SITE, not globally (2026-08-25)
+The rule for the CLD3 row is "wherever CLD2 makes a detection, the switch must be able to put
+CLD3 there instead". Once CLD2's real hinting was in, that had to be rebalanced **in both
+directions**, because the two native sites are not the same:
+
+| site | CLD2 | CLD3 |
+|---|---|---|
+| `getLanguageSpans` | per-script language hint, then filter the answer against the enabled list, then the per-script fallback | top-3 filtered by the same list, **then the same per-script fallback** |
+| `getLanguage` | **no hints and no filter** — `lang3[0]` when reliable, else UNKNOWN; `clsCLD2.d` does the `n.n()` test and the script-family fallback | `FindLanguage()`, kept when reliable, else UNKNOWN — **no filter** |
+
+So `cld3DetectRaw` takes a **`useHints`** flag: `true` at the span site, `false` at the window
+site. Filtering at the window site took the decision away from `clsCLD2.d` and made the two
+detectors answer differently for the same text; missing the per-script fallback at the span
+site made CLD3 return a language the user has not enabled, which the engine check then sent to
+`P`/`Q`. Both are voice changes, not cosmetics. **Do not "simplify" the flag away.**
+
 **Verified equal in the same read, so do NOT re-audit:** the ASCII branch
 (`and w8, w9, #0x5f`, `sub #0x41`, `cmp #0x19`, `b.hi` — non-letters change nothing);
 `latin = (script == 1)` for every script other than 0; the 1024-byte detect cap and its
@@ -1441,6 +1457,64 @@ continuation-byte back-off; `kMaxSpans` = **128** (`mov w3, #0x80` in `nativeGet
 the merge-with-previous test (contiguous **and** same latin **and** same language) and the
 cap-stretch; and `SCRIPT_FIXED_LANG`, which matches the jump table's scripts 7–25 exactly.
 The `"XXKNOWN"` early return in `nativeGetLanguages` is the licence gate — carve-out, not ported.
+
+## The script-family fallback is PROVEN equal to `a.java` (2026-08-25)
+`a.e(cp, n.f)` is what `clsCLD2.d` falls back to when the detector's answer is not an enabled
+language, so it decides the voice for auto and Google mode more often than the detector does.
+It was checked by **measurement**, like the segmenter: `com/vnspeak/autotts/a.java` was lifted
+into `scratchpad/jfam/ScriptFam.java` and swept against our `familyLangForCpFiltered` /
+`familyForCp` over **all 1,114,112 code points**, for **45 enabled-language sets** — one per
+script family, the full Latin set, fifteen hand-picked mixtures and thirty random realistic
+ones. Both the resolved language and the **unfiltered family, primary plus members in
+iteration order**, come out identical everywhere.
+
+    scratchpad/jfam/   javac -encoding UTF-8 *.java
+                       java -cp jfam Main "en,hi"     # resolved language per code point
+                       java -cp jfam Fam              # primary|members, unfiltered
+    scratchpad/fam/    g++ -O2 -std=c++17 -o famharness  main.cpp    # familyLangForCpFiltered
+                       g++ -O2 -std=c++17 -o famharness2 main2.cpp   # familyForCp
+
+**THE HARNESS TRAP, and it invalidated the first run: `HashSet` iterates differently on
+Android than on the JDK the harness runs.** Android's libcore keeps the classic
+OpenJDK 8–17 constructor
+
+    public HashSet(Collection<? extends E> c) {
+        map = new HashMap<>(Math.max((int)(c.size()/.75f) + 1, 16));
+        addAll(c); }
+
+while **JDK 19 replaced it** with `HashMap.newHashMap(c.size())`, i.e. `ceil(size/0.75)`. For a
+**12-element** family that is capacity 17 → table **32** on Android but 16 on JDK 19+, and the
+two orders differ:
+
+    Devanagari, table 32 (Android):  hi,new,mr,kok,bh,bho,awa,sa,mai,ne,raj,hne
+    Devanagari, table 16 (JDK 21):   hi,new,mai,mr,kok,bh,ne,bho,awa,raj,sa,hne
+
+Only the two 12-member families — Devanagari and the digit family — are affected, and the
+order is exactly what `a.f` and `clsCLD2.d` walk to pick a language, so it is not cosmetic.
+**Our C++ was right and the harness was wrong**: `ScriptFam.java` now routes every
+`new HashSet<>(Arrays.asList(...))` through an `androidSet()` helper that restores the Android
+form. **Any future Java harness that compares collection ORDER must do the same.**
+
+**Verified equal in the same sweep, so do NOT re-derive:** `a.b`/`a.d`'s code-point ranges and
+their order; every family in `a.a()` — primary, members and script name; `a.c`'s eighteen
+`bl…` script-presence flags and the order it tests them in; `a.f`'s "return unchanged when the
+primary and every member are enabled, otherwise keep what is enabled, and take the original
+primary if it survived or else the first kept member in HashSet order"; and `a.e`'s
+`set == null || set.isEmpty() ? d(cp) : c(cp, set)` gate, which our
+`enabled.empty() ? familyLangForCp(...) : familyLangForCpFiltered(...)` mirrors.
+
+**One difference exists and is unreachable.** For the punctuation, symbol, maths and emoji
+ranges AutoTTS returns the `"zz"` family (`t`, `w.get("emoji")`, `w.get("math")`) and lets the
+caller filter it, while ours answers `""` directly. They differ only if `"zz"` is itself an
+enabled language — and `n.f` is built from `IsoCodes.toIso2(entry.iso3)` over scanned
+languages, so it can never contain `"zz"`; `n.n("zz")` is false as well. Every one of the 45
+realistic sets agrees; only a hand-made `{"xx","zz"}` set separates them.
+
+**`c3.e` (the ISO map) was read line for line against `IsoCodes.kt` in the same pass** — same
+two tables, same `Locale.getISOLanguages()` seeding, same order of the five fix-up passes
+(iso2→terminological, bibliographic→iso2, the heb/ind/yid puts, the Chinese variants, the
+no-iso2 codes), and `e.a`/`e.b`/`e.c` match `normalizeTag`/`toIso2`/`toIso3` statement for
+statement.
 
 ## The segmenter is PROVEN equal to `d0.t` — 163,296 cases (2026-08-25)
 The reading flow was checked by **measurement**, not by reading. `c3/d0.java`'s `t()` was

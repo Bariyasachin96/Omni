@@ -3318,6 +3318,11 @@ write_source("app/src/main/java/com/tts/easyvoice/EngineFinder.kt",
 "            LangStore.languages.clear()\n"
 "            LangStore.languages.addAll(LangStore.rebuildFromScan(ctx, false, modeInt, required, lastScanVoices))\n"
 "            LangStore.persistAll(ctx)\n"
+"            // s0(). AutoTTS rebuilds the list after its own scan and pushes in\n"
+"            // the same block (NewSettingsActivity:483); without this the\n"
+"            // detector keeps hinting at whatever the list held before the scan,\n"
+"            // which on a first run is nothing at all.\n"
+"            EasyVoiceTtsService.pushLanguageSets()\n"
 "            onResult(orderedLangs)\n"
 "        }\n"
 "        val globalTimeout = Runnable { finalizeScan() }\n"
@@ -3413,8 +3418,8 @@ write_source("app/src/main/java/com/tts/easyvoice/EngineFinder.kt",
 "            }\n"
 "        }, \"com.tts.easyvoice\")\n"
 "    }\n"
-
-"}\n")
+"}\n"
+)
 
 write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "package com.tts.easyvoice\n"
@@ -5851,6 +5856,8 @@ write_source("app/src/main/java/com/tts/easyvoice/LanguagesActivity.kt",
 "        LangStore.persistLanguages(context)\n"
 "        LangStore.languages.clear()\n"
 "        LangStore.languages.addAll(LangStore.rebuildFromScan(context, false, modeInt, required, EngineFinder.lastScanVoices))\n"
+"        // s0(), as c3/k.java:1299 does after rebuilding for this same screen.\n"
+"        EasyVoiceTtsService.pushLanguageSets()\n"
 "        val pkgFilter = if (readingMode == \"google\") \"com.google.android.tts\" else null\n"
 "        val loadedLabels = LangStore.languageLabelsFor(pkgFilter)\n"
 "        val loadedCodes = LangStore.languageCodesFor(pkgFilter)\n"
