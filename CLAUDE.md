@@ -1458,6 +1458,42 @@ the merge-with-previous test (contiguous **and** same latin **and** same languag
 cap-stretch; and `SCRIPT_FIXED_LANG`, which matches the jump table's scripts 7–25 exactly.
 The `"XXKNOWN"` early return in `nativeGetLanguages` is the licence gate — carve-out, not ported.
 
+## EVERY language-list rebuild must push the sets (2026-08-25)
+AutoTTS keeps one invariant with no exception: wherever the list is rebuilt, `s0()` runs in
+the **same** block.
+
+    synchronized (c3.n.c) { c.clear(); c.addAll(c3.n.g(...)); AutoTtsService.s0(); }
+
+All eleven sites: `c3/k.java` **252, 300, 346, 370, 410, 1299, 1482, 1844, 1853**,
+`AutoTtsService.e0()` at **898**, `NewSettingsActivity` at **483**. `s0()` recomputes `c3.n.f`
+from the **live** list — every entry that is not disabled and whose engine is neither empty nor
+`"disable"`, mapped through `c3.e.b` — and hands it to `clsCLD2.i` → `nativeSetLanguageHints`,
+which is what builds the two per-script tables the native detector steers by. **A rebuild that
+does not push leaves the detector hinting at the previous list.**
+
+Two of ours did not, and both are now fixed:
+- **`EngineFinder.finalizeScan`** — the startup scan, whose counterpart is
+  `NewSettingsActivity:483`. Before this, the detector kept whatever the list held *before* the
+  scan; on a first run, nothing at all.
+- **`LanguagesActivity`** — rebuilds with `onlyEnabled = false` on open, exactly what
+  `c3/k.java:1299` does before its `s0()`.
+
+The other two (`ModesScreen.rebuildLanguagesFor`, `LanguagesVoicesViews.refreshModeLanguages`)
+already did. **Any new rebuild site must call `EasyVoiceTtsService.pushLanguageSets()`** — the
+full `s0`, not `pushDetectSetsOnly`, which stays the per-utterance call.
+
+A mere **toggle** does not push: AutoTTS's select-all / clear-all / row tap change `f.i` and
+call `n.y()` (persist) only, with no `s0()`. Ours matches; do not "fix" that either.
+
+**`c3.n.g` itself was read against `rebuildFromScan` in the same pass and matches statement for
+statement** — the mode-3 Google package filter, dedup by **display name**, the `_volume`/
+`_pitch`/`_speed` defaults of 100 and `_variant` of `"*Default"`, the `iso3` → `engine#locale`
+split on `#` needing at least 2 parts, the required-language re-enable and its conditional
+`n.y()`, the `onlyEnabled` gate, the repeat-name branch adding the package to the entry with
+the matching **iso3**, and the sort by `Collator` over the NFD-normalised, `\p{M}`-stripped
+display name. The one deliberate difference is the `_disabled` default (ours `true`, theirs
+`false`), which is the 2026-08-19 user request.
+
 ## The script-family fallback is PROVEN equal to `a.java` (2026-08-25)
 `a.e(cp, n.f)` is what `clsCLD2.d` falls back to when the detector's answer is not an enabled
 language, so it decides the voice for auto and Google mode more often than the detector does.
