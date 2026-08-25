@@ -1340,6 +1340,108 @@ same `put()` pairs, compared as sorted sets.
    `try { Z2(); } catch (Exception) { Toast "Test unknown error" }`. `speakTest` reaches into
    a `TextToSpeech` that may already be dead, and the settings screen used to go down with it.
 
+## The DETECTOR lives in `libcld2.so`, and it was read there (2026-08-25)
+The user reported it from the device: **mix mode, non-Latin preferred language Hindi, and
+numbers were being spoken in Hindi.** Correct report. The cause was not in any `.java` file —
+`clsCLD2`'s three natives are the whole story, so `lib/arm64-v8a/libcld2.so` was disassembled.
+**Three findings, all now ported. Do NOT re-derive them; re-read this section instead.**
+
+**Extract and disassemble like this:**
+
+    unzip -o AutoTTS_5.7.7.26.apk 'lib/arm64-v8a/*'
+    llvm-objdump -T lib/arm64-v8a/libcld2.so | grep -i "getLanguage\|Java_"
+    llvm-objdump -d --start-address=0x65392c --stop-address=0x653e90 lib/arm64-v8a/libcld2.so
+
+The four functions that matter: `getLanguageSpans` **0x65392c**, its span emitter **0x653e90**,
+`setLanguageHints` **0x653588**, `getLanguage` **0x6523c8**.
+
+### 1. Script 0 is its own case: `"un"` and `latin = TRUE` — THE number-in-Hindi bug
+`getLanguageSpans` dispatches on the script through a **26-entry jump table at 0x62f8f0**
+(`cmp w3, #0x19 / b.hi` sends anything above 25 straight to CLD2). Decoding all 26 entries:
+
+| script | target |
+|---|---|
+| 0 | 0x653ef0 — **its own case** |
+| 1–6 | 0x653fbc — the CLD2 detect path |
+| 7 | `"el"` |
+| 8–25 | the eighteen fixed languages, **in our exact `SCRIPT_FIXED_LANG` order** |
+
+and script 0's case is
+
+    653ef0: mov  w20, #0x1        ; latin = TRUE
+    653ef8: adrp x19, <"un">      ; language = "un"
+    653f08: b.lt 0x6544c0         ; ONE PAST the cset below
+    6544b8: cmp  w3, #0x1
+    6544bc: cset w20, eq          ; latin = (script == 1)
+
+so it never runs CLD2 **and never runs that cset**. `w20` really is the latin field — the
+append compares it with `ldur w8, [x23, #-0x8]`, the fourth member of the 24-byte span struct
+whose other three are offset, bytes and the language pointer.
+
+A run made only of **digits, ASCII punctuation, spaces or emoji** classifies as script 0,
+because the ASCII branch only sets a script for A–Z/a–z and the code-point classifier answers
+"keep the current script" for everything else. The caller resolves such a span with
+`run.b ? P : Q`, so **AutoTTS speaks a bare number, a bare punctuation run and a bare emoji
+with the preferred LATIN language.** Ours detected it, got "un" anyway, and left latin false —
+sending every one of them to the preferred NON-Latin language. That is every standalone number
+a screen reader announces: a battery level, a list position, a time, a percentage.
+
+Script 0 can only be the **single final span** of a text in which nothing was classified: the
+two mid-text emits fire on `curScript >= 2` and on `curScript != 0 && stringClass != curScript`,
+and neither can pass 0. Dual mode is unaffected (`d0.t`'s type picks the language, no detection).
+
+### 2. `setLanguageHints` builds TWO per-script tables, and CLD2 is steered with them
+`clsCLD2.i(n.f)` → `nativeSetLanguageHints` is all the Java side does with the list. The native
+side stores the codes lowercased, at most 64, **and then derives**:
+
+    653758: adr x25, 0x6984c0        ; scriptLanguageHint[40]
+    653760: adr x26, 0x698560        ; scriptLanguageFallback[40]
+    653778: stp q1, q1, [x25]        ; both filled with 26 = UNKNOWN_LANGUAGE
+    6537f0: adr x8, 0x62f924         ; 48 {script, Language} pairs
+    65386c: hint[script] = lang ; count[script]++ ;
+            if (fallback[script] == 26) fallback[script] = lang
+    653898: any slot whose count != 1 -> hint back to 26
+
+So the per-script **language hint** survives only where **exactly one** enabled language uses
+that script; the **fallback** is the first enabled language that does, in table order. The 48
+pairs cover the six scripts CLD2 is asked about — Latin, Cyrillic, Arabic, Devanagari, CJK,
+Bengali — and are transcribed verbatim into `kScriptLangPairs`.
+
+`getLanguageSpans` then calls CLD2 with **no content-language hint at all**:
+
+    65400c: stp xzr, xzr, [sp,#0x30]      ; content_language_hint = NULL, tld = NULL
+    653fec: mov w10, #0x17                ; encoding_hint = 23 = UNKNOWN_ENCODING
+    654030: ldr w9, [0x6984c0+script*4]   ; language_hint = the per-script one
+    654070: bl ExtDetectLanguageSummary(..., true, &hints, 0x4000, ...)
+
+and **filters** the answer: `lang3[0]`'s code if it is one of the hints (0x654098); else
+`lang3[1]` when it is a real language and `percent3[1] >= 1` (0x6542ac); else `lang3[2]` on the
+same terms (0x654380); else `scriptLanguageFallback[script]` when that is not UNKNOWN
+(0x654430); else `lang3[0]`'s code after all (0x654498).
+
+Ours had passed the comma list as `content_language_hint` and kept the top answer — a
+different selection, and the two disagree exactly on short or mixed runs.
+
+### 3. `getLanguage` (the auto/Google window detect) differs in three smaller ways
+
+    6523f0: ldr d0, [x11, #0xf20]     ; the 8 bytes are {0, 26}
+    6523f8: add x10, x10, #0x80a      ; tld_hint = "", not NULL
+    652404: ldrb w20, [x8]            ; is_plain_text = CLD2::FLAGS_plain
+    652408: stp xzr, x10, [sp,#0x28]  ; content_language_hint = NULL
+
+no content hint, an **empty** tld hint, **encoding_hint 0** (`ISO_8859_1`, not
+`UNKNOWN_ENCODING`), and `is_plain_text` from **`CLD2::FLAGS_plain`** — a flag defined only in
+CLD2's own test file, that nothing in the app ever sets, so **false**. It keeps `lang3[0]` when
+the result is reliable and answers `"UNKNOWN"` otherwise, which we already did.
+
+**Verified equal in the same read, so do NOT re-audit:** the ASCII branch
+(`and w8, w9, #0x5f`, `sub #0x41`, `cmp #0x19`, `b.hi` — non-letters change nothing);
+`latin = (script == 1)` for every script other than 0; the 1024-byte detect cap and its
+continuation-byte back-off; `kMaxSpans` = **128** (`mov w3, #0x80` in `nativeGetLanguages`);
+the merge-with-previous test (contiguous **and** same latin **and** same language) and the
+cap-stretch; and `SCRIPT_FIXED_LANG`, which matches the jump table's scripts 7–25 exactly.
+The `"XXKNOWN"` early return in `nativeGetLanguages` is the licence gate — carve-out, not ported.
+
 ## The segmenter is PROVEN equal to `d0.t` — 163,296 cases (2026-08-25)
 The reading flow was checked by **measurement**, not by reading. `c3/d0.java`'s `t()` was
 lifted out of the 5.7.7.26 decompile into a standalone Java program in
