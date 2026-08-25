@@ -1900,11 +1900,15 @@ static std::string detectWindowLang(const std::string& utf8Text, bool useCld3){
         if(!cld3Reliable) return "UNKNOWN";
         return cld3Raw.empty() ? "UNKNOWN" : cld3Raw;
     }
-    std::string hintList = currentLanguageHints();
-    CLD2::CLDHints hints = {hintList.empty()?nullptr:hintList.c_str(), nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+    // getLanguage (0x6523c8), which is what clsCLD2.d calls per 64-character
+    // window. It passes no content-language hint, an EMPTY tld hint rather than
+    // a null one, encoding_hint 0 (ISO_8859_1, not UNKNOWN_ENCODING), and
+    // is_plain_text from CLD2::FLAGS_plain -- a flag nothing in the app ever
+    // sets, so false.
+    CLD2::CLDHints hints = {nullptr, "", 0, CLD2::UNKNOWN_LANGUAGE};
     CLD2::Language lang3[3]; int percent3[3]; double score3[3];
     int textBytes=0; bool reliable=false;
-    CLD2::DetectLanguageSummaryV2(utf8Text.c_str(), (int)utf8Text.size(), true, &hints,
+    CLD2::DetectLanguageSummaryV2(utf8Text.c_str(), (int)utf8Text.size(), false, &hints,
                                   true, 0x4000, CLD2::UNKNOWN_LANGUAGE,
                                   lang3, percent3, score3, nullptr, &textBytes, &reliable);
     if(!reliable) return "UNKNOWN";
@@ -1913,26 +1917,114 @@ static std::string detectWindowLang(const std::string& utf8Text, bool useCld3){
 }
 static std::mutex languageHintMutex;
 static std::string languageHintList;
+// AutoTTS's native setLanguageHints (0x653588) keeps the codes lowercased and
+// at most 64 of them, and then derives two per-script tables that
+// getLanguageSpans steers CLD2 with. Both are 40 entries -- the script codes it
+// dispatches on stop at 39 -- and both start as UNKNOWN_LANGUAGE.
+static const int kScriptHintSlots = 40;
+static std::vector<std::string> languageHintCodes;
+static int scriptLanguageHint[kScriptHintSlots];
+static int scriptLanguageFallback[kScriptHintSlots];
+// The static table at 0x62f924: 48 {script, candidate language} pairs, in file
+// order, because the order is what decides which candidate becomes the
+// fallback. Only the six scripts CLD2 is ever asked about appear.
+static const struct { int script; CLD2::Language lang; } kScriptLangPairs[48] = {
+    { 3, CLD2::ARABIC},   { 3, CLD2::PERSIAN},    { 3, CLD2::URDU},
+    { 3, CLD2::PASHTO},   { 3, CLD2::SINDHI},
+    { 2, CLD2::RUSSIAN},  { 2, CLD2::UKRAINIAN},  { 2, CLD2::BULGARIAN},
+    { 2, CLD2::SERBIAN},  { 2, CLD2::MACEDONIAN}, { 2, CLD2::BELARUSIAN},
+    { 2, CLD2::MONGOLIAN},{ 2, CLD2::TAJIK},      { 2, CLD2::KAZAKH},
+    { 2, CLD2::KYRGYZ},
+    { 4, CLD2::HINDI},    { 4, CLD2::MARATHI},    { 4, CLD2::NEPALI},
+    { 4, CLD2::SANSKRIT},
+    { 6, CLD2::BENGALI},  { 6, CLD2::ASSAMESE},
+    { 5, CLD2::CHINESE},  { 5, CLD2::CHINESE_T},  { 5, CLD2::JAPANESE},
+    { 1, CLD2::ENGLISH},  { 1, CLD2::SPANISH},    { 1, CLD2::FRENCH},
+    { 1, CLD2::PORTUGUESE},{ 1, CLD2::GERMAN},    { 1, CLD2::ITALIAN},
+    { 1, CLD2::VIETNAMESE},{ 1, CLD2::INDONESIAN},{ 1, CLD2::TURKISH},
+    { 1, CLD2::DUTCH},    { 1, CLD2::POLISH},     { 1, CLD2::ROMANIAN},
+    { 1, CLD2::CZECH},    { 1, CLD2::HUNGARIAN},  { 1, CLD2::SWEDISH},
+    { 1, CLD2::DANISH},   { 1, CLD2::NORWEGIAN},  { 1, CLD2::FINNISH},
+    { 1, CLD2::SLOVAK},   { 1, CLD2::CROATIAN},   { 1, CLD2::MALAY},
+    { 1, CLD2::TAGALOG},  { 1, CLD2::SWAHILI},    { 1, CLD2::AFRIKAANS}
+};
+// Caller holds languageHintMutex. This is the second half of setLanguageHints.
+static void rebuildScriptLanguageTables(){
+    for(int slot=0; slot<kScriptHintSlots; slot++){
+        scriptLanguageHint[slot] = CLD2::UNKNOWN_LANGUAGE;
+        scriptLanguageFallback[slot] = CLD2::UNKNOWN_LANGUAGE;
+    }
+    if(languageHintCodes.empty()) return;
+    int matched[kScriptHintSlots];
+    for(int slot=0; slot<kScriptHintSlots; slot++) matched[slot] = 0;
+    for(int pair=0; pair<48; pair++){
+        const char* code = CLD2::LanguageCode(kScriptLangPairs[pair].lang);
+        if(!code) continue;
+        bool hinted = false;
+        for(size_t at=0; at<languageHintCodes.size(); at++){
+            if(languageHintCodes[at] == code){ hinted = true; break; }
+        }
+        if(!hinted) continue;
+        int slot = kScriptLangPairs[pair].script;
+        if(slot < 0 || slot >= kScriptHintSlots) continue;
+        scriptLanguageHint[slot] = (int)kScriptLangPairs[pair].lang;
+        matched[slot]++;
+        if(scriptLanguageFallback[slot] == CLD2::UNKNOWN_LANGUAGE)
+            scriptLanguageFallback[slot] = (int)kScriptLangPairs[pair].lang;
+    }
+    // The language hint is kept only where exactly one enabled language uses
+    // that script; anywhere else it goes back to UNKNOWN.
+    for(int slot=0; slot<kScriptHintSlots; slot++)
+        if(matched[slot] != 1) scriptLanguageHint[slot] = CLD2::UNKNOWN_LANGUAGE;
+}
 static std::string currentLanguageHints(){
     std::lock_guard<std::mutex> lock(languageHintMutex);
     return languageHintList;
 }
+static std::vector<std::string> currentLanguageHintCodes(){
+    std::lock_guard<std::mutex> lock(languageHintMutex);
+    return languageHintCodes;
+}
+static int currentScriptLanguageHint(int script){
+    std::lock_guard<std::mutex> lock(languageHintMutex);
+    if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
+    return scriptLanguageHint[script];
+}
+static int currentScriptLanguageFallback(int script){
+    std::lock_guard<std::mutex> lock(languageHintMutex);
+    if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
+    return scriptLanguageFallback[script];
+}
 extern "C" JNIEXPORT void JNICALL
 Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv* env, jclass, jobjectArray jLangs){
     std::string joined;
+    std::vector<std::string> codes;
     if(jLangs){
         jsize count = env->GetArrayLength(jLangs);
         for(jsize i=0;i<count;i++){
             jstring jLang = (jstring)env->GetObjectArrayElement(jLangs, i);
             if(!jLang) continue;
             const char* langC = env->GetStringUTFChars(jLang, nullptr);
-            if(langC && *langC){ if(!joined.empty()) joined += ","; joined += langC; }
+            if(langC && *langC){
+                if(!joined.empty()) joined += ",";
+                joined += langC;
+                // AutoTTS stores at most 64, lowercased, in 8-byte slots.
+                if(codes.size() < 64){
+                    std::string one(langC);
+                    if(one.size() > 8) one = one.substr(0, 8);
+                    for(size_t at=0; at<one.size(); at++)
+                        if(one[at] >= 'A' && one[at] <= 'Z') one[at] = (char)(one[at] | 0x20);
+                    codes.push_back(one);
+                }
+            }
             if(langC) env->ReleaseStringUTFChars(jLang, langC);
             env->DeleteLocalRef(jLang);
         }
     }
     std::lock_guard<std::mutex> lock(languageHintMutex);
     languageHintList = joined;
+    languageHintCodes = codes;
+    rebuildScriptLanguageTables();
 }
 static std::unordered_set<std::string> jStringArrayToSet(JNIEnv* env, jobjectArray arr){
     std::unordered_set<std::string> out;
@@ -2156,14 +2248,50 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 std::string cld3Lang = cld3DetectRaw(std::string(text, start, detectBytes), nullptr);
                 lang = cld3Lang.empty() ? "un" : cld3Lang;
             } else {
-                std::string hintList = currentLanguageHints();
-                CLD2::CLDHints hints = {hintList.empty()?nullptr:hintList.c_str(), nullptr, CLD2::UNKNOWN_ENCODING, CLD2::UNKNOWN_LANGUAGE};
+                // AutoTTS passes NO content-language hint here. What it passes
+                // is the per-script language hint setLanguageHints derived, and
+                // it then filters the answer against the hint list -- see
+                // 0x65400c (the two NULL pointers), 0x654030 (the table read)
+                // and 0x654098 onwards (the filter).
+                const std::vector<std::string> hintCodes = currentLanguageHintCodes();
+                const int scriptHint = currentScriptLanguageHint(script);
+                CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING,
+                                        hintCodes.empty() ? CLD2::UNKNOWN_LANGUAGE
+                                                          : (CLD2::Language)scriptHint};
                 CLD2::Language lang3[3]; int percent3[3]; double score3[3];
                 int textBytes = 0; bool reliable = false;
                 CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(text.c_str() + start, detectBytes, true, &hints, 0x4000,
                                            lang3, percent3, score3, nullptr, &textBytes, &reliable);
                 const char* code = CLD2::LanguageCode(cldLang);
                 lang = code ? std::string(code) : "un";
+                if(!hintCodes.empty()){
+                    auto isHinted = [&](const char* candidate) -> bool {
+                        if(!candidate) return false;
+                        for(size_t at=0; at<hintCodes.size(); at++)
+                            if(hintCodes[at] == candidate) return true;
+                        return false;
+                    };
+                    if(!isHinted(code)){
+                        bool picked = false;
+                        // lang3[1] then lang3[2], each only when it is a real
+                        // language and covers at least one percent of the text.
+                        for(int rank=1; rank<3 && !picked; rank++){
+                            if(lang3[rank] == CLD2::UNKNOWN_LANGUAGE) continue;
+                            if(percent3[rank] < 1) continue;
+                            const char* other = CLD2::LanguageCode(lang3[rank]);
+                            if(!isHinted(other)) continue;
+                            lang = other;
+                            picked = true;
+                        }
+                        if(!picked){
+                            const int fallback = currentScriptLanguageFallback(script);
+                            if(fallback != CLD2::UNKNOWN_LANGUAGE){
+                                const char* fallbackCode = CLD2::LanguageCode((CLD2::Language)fallback);
+                                if(fallbackCode) lang = fallbackCode;
+                            }
+                        }
+                    }
+                }
             }
         }
         if (!spans.empty()
