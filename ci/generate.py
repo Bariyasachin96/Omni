@@ -1335,13 +1335,35 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     originalTypes.reserve(segs.size());
     for (auto& seg : segs) originalTypes.push_back(seg.type);
     auto isTypedRun = [](int type) { return type != 3 && type != 4 && type != 5; };
+    // c3.d0.i(nArray, n3): the nearest type at or before n3-1 that is not 3, 4
+    // or 5 -- and it RETURNS that type even when it is 0, rather than reading
+    // past it. Type 0 is all-whitespace and survives the first merge only at
+    // index 0, which happens when the text began with U+00A0, U+2007, U+202F or
+    // U+FEFF: trim() strips nothing above U+0020, so the leading character is
+    // still there when the whitespace collapse turns it into a space.
+    auto typeBefore = [&](int segPos) {
+        for (int prevIdx = segPos - 1; prevIdx >= 0; prevIdx--) {
+            int type = originalTypes[prevIdx];
+            if (type != 3 && type != 4 && type != 5) return type;
+        }
+        return 0;
+    };
+    // c3.d0.h(nArray): the same scan, forwards from the start of the array.
+    auto typeAnywhere = [&]() {
+        for (int scanIdx = 0; scanIdx < (int)originalTypes.size(); scanIdx++) {
+            int type = originalTypes[scanIdx];
+            if (type != 3 && type != 4 && type != 5) return type;
+        }
+        return 0;
+    };
+    // c3.d0.k(nArray, n3, n7): backwards, then forwards, then the neutral type.
+    // A 0 from either scan counts as "not found", so a whitespace neighbour
+    // sends the segment to the neutral type instead of to the next real run.
     auto surroundingType = [&](int segPos) {
-        int found = 0;
-        for (int prevIdx = segPos - 1; prevIdx >= 0 && found == 0; prevIdx--)
-            if (isTypedRun(originalTypes[prevIdx])) found = originalTypes[prevIdx];
-        for (int scanIdx = 0; scanIdx < (int)originalTypes.size() && found == 0; scanIdx++)
-            if (isTypedRun(originalTypes[scanIdx])) found = originalTypes[scanIdx];
-        return found == 0 ? neutralType : found;
+        int found = typeBefore(segPos);
+        if (found == 0) found = typeAnywhere();
+        if (found == 0) return neutralType;
+        return found;
     };
     for (int segPos = 0; segPos < (int)segs.size(); segPos++) {
         int segType = originalTypes[segPos];
@@ -1416,13 +1438,33 @@ Java_com_tts_easyvoice_NativeEngine_processDirect(
     if(start<rawInput.size()) sentences.push_back(rawInput.substr(start));
     std::vector<std::string> processed; processed.reserve(sentences.size());
     for(auto& sentence: sentences){ processed.push_back(sentence); }
+    // The chunk list is packed as  type \x1F kind \x1F lang \x1F text, with
+    // records joined by \x1E. Those two characters can occur in the text
+    // itself: they are Character.isWhitespace, but AutoTTS's collapse is
+    // replaceAll("\\s+", " ") and Java's \\s is only [ \\t\\n\\x0B\\f\\r], so
+    // a U+001E survives the collapse there and here alike. Unescaped, it split
+    // one record into two and the Kotlin dropped the half with three fields --
+    // everything after it went unspoken. U+001D is the escape and is escaped
+    // too; the language and the two integers can never contain any of them.
+    auto packField = [](const std::string& in){
+        std::string out;
+        out.reserve(in.size());
+        for (size_t at = 0; at < in.size(); at++) {
+            char ch = in[at];
+            if (ch == '\x1D') { out += "\x1D""0"; }
+            else if (ch == '\x1E') { out += "\x1D""1"; }
+            else if (ch == '\x1F') { out += "\x1D""2"; }
+            else out += ch;
+        }
+        return out;
+    };
     std::string result;
     if (mode == "mix") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection);
-        for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + chunks[i].text; if(i+1 < chunks.size()) result += "\x1E"; }
+        for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text); if(i+1 < chunks.size()) result += "\x1E"; }
     } else if (mode == "dual") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection, true);
-        for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + chunks[i].text; if(i+1 < chunks.size()) result += "\x1E"; }
+        for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text); if(i+1 < chunks.size()) result += "\x1E"; }
     }
     return env->NewStringUTF(result.c_str());
 }
@@ -3862,6 +3904,28 @@ write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "        enabledLangs = enabledSet\n"
 "        return enabledSet\n"
 "    }\n"
+"    // The other half of processDirect's packField: U+001D, U+001E and U+001F\n"
+"    // are escaped there because they double as the field and record separators\n"
+"    // and can legitimately occur in the text.\n"
+"    private fun decodeChunkText(field: String): String {\n"
+"        if (field.indexOf('\\u001D') < 0) return field\n"
+"        val out = StringBuilder(field.length)\n"
+"        var at = 0\n"
+"        while (at < field.length) {\n"
+"            val ch = field[at]\n"
+"            if (ch == '\\u001D' && at + 1 < field.length) {\n"
+"                val marker = field[at + 1]\n"
+"                if (marker == '0' || marker == '1' || marker == '2') {\n"
+"                    out.append(if (marker == '0') '\\u001D' else if (marker == '1') '\\u001E' else '\\u001F')\n"
+"                    at += 2\n"
+"                    continue\n"
+"                }\n"
+"            }\n"
+"            out.append(ch)\n"
+"            at++\n"
+"        }\n"
+"        return out.toString()\n"
+"    }\n"
 "    private class DetectedRun(val lang: String, val latin: Boolean, val text: String)\n"
 "    private fun detectLanguageRuns(text: String): List<DetectedRun> {\n"
 "        val runs = ArrayList<DetectedRun>()\n"
@@ -3894,7 +3958,12 @@ write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "        if (flat.size < 3) return \"un\"\n"
 "        // One triple means one span, so there is nothing to weigh up.\n"
 "        if (flat.size == 3) return flat[0]\n"
-"        val totals = LinkedHashMap<String, Int>()\n"
+"        // A plain HashMap, as clsCLD2.f uses: both best-so-far scans below\n"
+"        // replace only on a strict >, so an exact tie is settled by whichever\n"
+"        // entry entrySet() yields first, and that is HashMap's bucket order --\n"
+"        // not insertion order. Kotlin's HashMap is java.util.HashMap, so the\n"
+"        // same keys inserted in the same order iterate in the same sequence.\n"
+"        val totals = HashMap<String, Int>()\n"
 "        var index = 0\n"
 "        while (index + 2 < flat.size) {\n"
 "            val key = flat[index] + \"|\" + flat[index + 1]\n"
@@ -4174,10 +4243,9 @@ write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "                                // non-Latin run and is detected together with it.\n"
 "                                val spanMixType = parts[0].toIntOrNull() ?: 0\n"
 "                                if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {\n"
-"                                    chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))\n"
+"                                    chunks.add(TextChunk(decodeChunkText(parts[3]), prefs.toIso3(normalizeLangCode(parts[2]))))\n"
 "                                } else {\n"
-"                                    for (run in detectLanguageRuns(parts[3])) {\n"
-"                                        if (run.text.isEmpty()) continue\n"
+"                                    for (run in detectLanguageRuns(decodeChunkText(parts[3]))) {\n"
 "                                        chunks.add(TextChunk(run.text, prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))))\n"
 "                                    }\n"
 "                                }\n"
@@ -4226,10 +4294,9 @@ write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "                            // Same branch as mixed above, and for the same reason.\n"
 "                            val spanMixType = parts[0].toIntOrNull() ?: 0\n"
 "                            if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {\n"
-"                                chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))\n"
+"                                chunks.add(TextChunk(decodeChunkText(parts[3]), prefs.toIso3(normalizeLangCode(parts[2]))))\n"
 "                            } else {\n"
-"                                for (run in detectLanguageRuns(parts[3])) {\n"
-"                                    if (run.text.isEmpty()) continue\n"
+"                                for (run in detectLanguageRuns(decodeChunkText(parts[3]))) {\n"
 "                                    chunks.add(TextChunk(run.text, prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))))\n"
 "                                }\n"
 "                            }\n"
@@ -4270,7 +4337,7 @@ write_source("app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt",
 "                        val parts = chunkStr.split('\\u001F', limit = 4)\n"
 "                        if (parts.size == 4) {\n"
 "                            val resolved = normalizeLangCode(parts[2])\n"
-"                            chunks.add(TextChunk(parts[3], resolved, typeCode = parts[0].toIntOrNull() ?: 0))\n"
+"                            chunks.add(TextChunk(decodeChunkText(parts[3]), resolved, typeCode = parts[0].toIntOrNull() ?: 0))\n"
 "                        }\n"
 "                    }\n"
 "                    val segmenterEmpty = chunks.isEmpty()\n"
