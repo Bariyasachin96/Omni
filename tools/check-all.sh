@@ -32,6 +32,7 @@ step "kotlin structure"        python3 tools/check/ktcheck.py
 step "kotlin call signatures"  python3 tools/check/ktresolve.py
 step "kotlin imports"          python3 tools/check/ktimports.py
 step "xml resources"           python3 tools/check/xmlcheck.py
+step "invariants"              bash    tools/check/invariants.sh
 step "c++ syntax"              bash    tools/check/cpp-syntax.sh
 step "kotlin type-check vs $BASE" bash tools/check/kotlin-typecheck.sh "$BASE"
 

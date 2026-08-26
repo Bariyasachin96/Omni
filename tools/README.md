@@ -28,8 +28,17 @@ Runs, cheapest first:
 | `check/ktresolve.py` | a call to one of **our own** functions whose arity or parameter names do not match the declaration |
 | `check/ktimports.py` | a capitalised name used but never imported, and the reverse — an import of something that is a scope member and cannot be imported |
 | `check/xmlcheck.py` | an `@color/`, `@drawable/`, `@string/` or `?attr/` reference with nothing behind it |
+| `check/invariants.sh` | the rules in `docs/INVARIANTS.md` that a grep can decide, plus CLD2/CLD3 parity |
 | `check/cpp-syntax.sh` | `g++ -fsyntax-only` over the native source |
 | `check/kotlin-typecheck.sh` | **NEW** Kotlin type errors against a baseline commit |
+
+`check/invariants.sh` is the one to notice. Each rule in `docs/INVARIANTS.md` is
+there because breaking it caused a bug that took days to find, and most of them
+are decidable by grep — so "did I break one" is a question with an answer rather
+than a memory test. **`check/selftest.sh` proves that checker actually fires**,
+by copying the repo, breaking each rule on purpose and asserting the check
+reports it. Run it after touching `invariants.sh`; writing that script produced
+two silent-failure bugs in a row, both recorded in its header.
 
 ### Why the Kotlin type-check works by diff
 

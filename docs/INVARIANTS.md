@@ -8,6 +8,15 @@ being discovered by ear weeks later.
 Each entry says what the rule is, why, how to check it, and what it looked like
 when it was broken.
 
+**Most of these are checked automatically now:**
+
+    tools/check/invariants.sh     # the ones a grep can decide
+    tools/check/selftest.sh       # proves that checker actually fires
+
+`invariants.sh` also runs as part of `tools/check-all.sh`. The rules it cannot
+decide — #7, #9, #10, #11 and #13 — need judgement, and it says so rather than
+pretending.
+
 ---
 
 ## 1. Every language-list rebuild must push the language sets
@@ -80,12 +89,19 @@ and when it lands **speech simply stops with no error anywhere**.
 AutoTTS cannot have this: its `P()` holds only the list monitor and `e0()`
 re-enters the same one.
 
-**Check.**
+**Check.** `tools/check/nested_locks.py`, which is brace-aware. A flat
+`grep -A 12` cannot do this one: the correct shape and the deadlocking shape are
+three lines apart and look almost identical —
 
-    grep -n "synchronized(LangStore.languages)" -A 12 app/src/main/java/com/tts/easyvoice/*.kt
+    val missing = synchronized(LangStore.languages) { … }   // correct: read the
+    if (!missing) return                                    // guard inside,
+    synchronized(this) { LangStore.loadLanguages(ctx) }     // reload OUTSIDE
 
-No nested `synchronized(this)` inside any of them. The pattern to use is: read
-the guard under the list monitor, then do the work outside it.
+    synchronized(LangStore.languages) {                     // deadlock
+        synchronized(this) { LangStore.loadLanguages(ctx) }
+    }
+
+— so a window-based grep reports the working code as a violation. It did.
 
 **When it was broken.** Speech stopped intermittently with nothing in the log.
 
@@ -146,9 +162,11 @@ Tab" is announced as "Main Settings Tab, Tab 1 of 2". State belongs in real
 semantics — `selected`, a `ToggleableState`, or `stateDescription` — which is
 also what Google's `RedundantDescriptionCheck` enforces.
 
-**Check.**
-
-    grep -rniE '"[^"]*(button|checkbox|slider|dropdown|radio)[^"]*"' app/src/main/java
+**Check.** `tools/check/invariants.sh`. It looks only at
+`contentDescription =` and `stateDescription =` assignments, with comments
+stripped — ordinary prose on screen may of course say "no voice is selected",
+and several comments quote the very strings the rule forbids, because that is
+where the rule is written down. A broader grep flags all of those.
 
 One accepted exception: the Languages screen's **"Show selected"** chip, because
 WCAG 2.5.3 requires the accessible name to contain the visible label. Renaming
