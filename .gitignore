@@ -19,3 +19,9 @@
 
 # Downloaded by tools/bootstrap.sh.
 /tools/.cache/
+
+__pycache__/
+*.pyc
+
+# Compiled by the verify harnesses if they are ever run in place.
+*.class
