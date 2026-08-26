@@ -242,8 +242,9 @@ Recorded so far:
      Expanding a mode's settings calls `refreshModeLanguages(mode)` for the same reason.
    - `pageTitles`/`pageIcons` dropped and `ic_tab_voices.xml` is gone with them.
 3. **Languages tab folded into the Modes tab, per mode.** Now two tabs: Modes and Advanced
-   - the **Licenses tab was removed on 2026-08-12**; `buildLicensesTabView` is kept in
-   `TabViews.kt` unused, because the user intends to place it somewhere else. Unlike Voices, the language list **is** per-mode (`buildLanguagesTabView` reads
+   - the **Licenses tab was removed on 2026-08-12**. `buildLicensesTabView` was kept unused
+   in `TabViews.kt` for a while afterwards, in case the user wanted it placed elsewhere; it
+   **went with the Compose migration and no longer exists anywhere**. Unlike Voices, the language list **is** per-mode (`buildLanguagesTabView` reads
    `prefs.getReadingMode()` and builds `modeInt`/`required` from it), so it sits **inside each
    mode**, in the order the user asked for: radio → its description → **"Languages"
    collapse/expand** → **"<Mode> settings" collapse/expand**. Only modes that support a
@@ -870,21 +871,24 @@ vector drawables, which Compose reads with `painterResource(R.drawable.…)`.
 **Order:** `ConfigurationActivity` first (smallest real screen), then the other activities,
 with `MainActivity`/`TabViews` last because they are the most intertwined.
 
-**Done so far:** `ConfigurationActivity` (verified on device), `LanguagesActivity`,
-`VoiceSetupActivity` + `VoiceScreen`/`VoiceRows`, `SetupWizardActivity`, and the **Advanced
-tab** (`AdvancedScreen.kt`). Remaining: the **Modes tab** in `TabViews` and `MainActivity`.
+**THE MIGRATION IS FINISHED (verified 2026-08-26).** Every screen is Compose: there is no
+`ComposeView`, no `AndroidView`, no `setContentView` and no View-era theming helper left in
+the tree — `applyAccessibleTheme`, `applyPageTheme`, `applyResponsiveWidth`, `evSwitch`,
+`fullWidthButton`, `setLeadingIcon` and `AppPalette` are all gone, and `Theming.kt` is now
+`ComposeTheme.kt`. Every activity calls `setContent`. Sections below that describe those
+helpers are a record of the View era; read them for the *decision*, not for the file name.
 
-**Interop pattern for a tab:** `buildAdvancedTabView` still exists and still returns a `View`,
-but that view is now a `ComposeView` hosting `AdvancedScreen`. `MainActivity`'s pager is
-untouched, so a tab can be ported without touching the pager at all. Use the same shape for
+**Interop pattern for a tab (historical).** While the migration was in flight,
+`buildAdvancedTabView` still returned a `View` that was a `ComposeView` hosting
+`AdvancedScreen`, so a tab could be ported without touching the pager. Use the same shape for
 the Modes tab.
 
 **`punctuationInFlowBox` is gone with the Advanced View code.** It was a file-level `var` the
 Modes tab poked to disable that one switch when the punctuation mode is "Specific language".
 `AdvancedScreen` derives `enabled` from `EasyVoiceTtsService.punctuationModeInt != 3` instead,
-so the behaviour survives without the cross-screen global. `applySpecificVisibility` still has
-its `punctuationInFlowBox?.isEnabled` line, which is now a safe no-op — remove it when the
-Modes tab is ported.
+so the behaviour survives without the cross-screen global. `applySpecificVisibility` used to
+carry a leftover `punctuationInFlowBox?.isEnabled` no-op; **both are gone** — the Modes tab
+was ported and the View code went with it. Neither name exists in the tree any more.
 
 **~~`blocks.py` is now the ONLY safe way to edit a `write_source` block.~~ OBSOLETE
 since 2026-08-26 — the source is checked in and you edit it directly.** Kept as a

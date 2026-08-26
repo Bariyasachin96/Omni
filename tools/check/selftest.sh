@@ -70,6 +70,8 @@ run "#6  put state in a contentDescription" "#6" \
     "perl -0pi -e 's/contentDescription = /contentDescription = \"Speed, checked\" ?: /' $K/VoiceScreen.kt"
 run "#8  put a LazyColumn in a DropdownMenu" "#8" \
     "perl -0pi -e 's/(DropdownMenu\(expanded = expanded)/\$1\n            LazyColumn { }/' $K/VoiceScreen.kt"
+run "#14 log with a stray tag literal" "#14" \
+    "perl -0pi -e 's/EasyVoiceLogger\\.debug\\(EasyVoiceLogger\\.TAG/EasyVoiceLogger.debug(\"TAG\"/' $K/LangStore.kt"
 run "#12 grow build.yml past the ceiling" "#12" \
     "head -c 500000 /dev/zero | tr '\\0' '#' >> .github/workflows/build.yml"
 run "CLD3 parity: delete one CLD3 arm" "CLD3 parity" \

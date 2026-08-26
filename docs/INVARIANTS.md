@@ -36,10 +36,12 @@ detector hinting at the previous list.
 
     grep -rn "languages.addAll\|languages.clear()" app/src/main/java
 
-Every hit must have a `pushLanguageSets()` next to it. The current sites are
-`EngineFinder.finalizeScan`, `LanguagesActivity`, `ModesScreen.rebuildLanguagesFor`,
-`LanguagesVoicesViews.refreshModeLanguages`, and the service's `loadAllSettings`
-and `reloadLanguagesIfMissing`.
+Every hit must have a `pushLanguageSets()` next to it. The six current sites are
+`EngineFinder`'s scan completion, `LanguagesActivity`'s `loaded` block,
+`ModesScreen.rebuildLanguagesFor`, `LanguagesVoicesViews.voiceLanguageLabels`,
+and the service's `loadAllSettings` and `reloadLanguagesIfMissing`.
+`LangStore.loadLanguages` is exempt: it is not a rebuild site of its own, and
+both of its callers push.
 
 **When it was broken.** The startup scan rebuilt the whole list and never
 pushed, so on a first run the detector had no hints at all.
@@ -251,6 +253,28 @@ sessions.
 **Check.** `wc -c .github/workflows/build.yml` — currently about 11 KB, and now
 that the sources are checked in as real files rather than embedded in a
 generator there is nothing that can grow it.
+
+---
+
+## 14. A log tag is `EasyVoiceLogger.TAG`, or `"TTS"` at six sites
+
+**Rule.** Every `EasyVoiceLogger` call passes `EasyVoiceLogger.TAG`, except the
+six that pass the literal `"TTS"`.
+
+**Why.** AutoTTS logs under exactly two tags, counted across the whole 5.7.7.26
+decompile: `"AutoTTS"` at 133 call sites, and `"TTS"` at six — the three
+audio-focus lines (`AutoTtsService:211,214,217`), the focus request
+(`:1495`), and the two notification-permission lines (`c3/k.java:160,163`).
+Ours mirrors all six message-for-message. `EasyVoiceLogger.TAG` is `"EasyVoice"`,
+our counterpart of `"AutoTTS"`, so any *other* literal is a mistake.
+
+**Check.** `tools/check/invariants.sh` #14, comments stripped.
+
+**When it was broken.** `LangStore.localeFor` and `variantFor` shipped
+`debug("TAG", …)` — the name of the constant, written as a string. AutoTTS
+passes `"AutoTTS"` at both (`AutoTtsService.T` and `.U`), so this was a plain
+typo, and it wrote the word `TAG` into the log file the owner attaches when
+reporting a problem.
 
 ---
 

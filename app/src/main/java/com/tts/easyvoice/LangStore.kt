@@ -444,7 +444,7 @@ object LangStore {
     @JvmStatic
     fun localeFor(lang: String, modeInt: Int): String {
         synchronized(languages) {
-            EasyVoiceLogger.debug("TAG", "getVoice4Language " + lang)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "getVoice4Language " + lang)
             if (modeInt == 3) return lang
             var index = 0
             while (index < languages.size) {
@@ -462,7 +462,7 @@ object LangStore {
     @JvmStatic
     fun variantFor(lang: String, modeInt: Int): String {
         synchronized(languages) {
-            EasyVoiceLogger.debug("TAG", "getVariant4Language " + lang)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "getVariant4Language " + lang)
             if (modeInt == 3) return lang
             var index = 0
             while (index < languages.size) {

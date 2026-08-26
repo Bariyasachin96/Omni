@@ -89,6 +89,20 @@ n=$(sed 's://.*::' $KT/*.kt | grep -A 25 "DropdownMenu(" | grep -c "LazyColumn\|
 [ "$n" = 0 ] && ok "#8  no lazy list inside a DropdownMenu" \
              || bad "#8  a lazy list inside a DropdownMenu ($n) -- it cannot answer intrinsics and throws"
 
+# --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's six sites --
+# AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and
+# "TTS" at six -- the three audio-focus lines, the focus request, and the two
+# notification-permission lines. EasyVoiceLogger.TAG is our "AutoTTS". Any
+# OTHER literal is a mistake: `debug("TAG", ...)` shipped in localeFor and
+# variantFor, which put the string "TAG" in the log file the owner attaches
+# when reporting a problem. Comments are stripped so prose about tags is fine.
+badtags=$(sed 's://.*::' $KT/*.kt |
+          grep -oE 'EasyVoiceLogger\.[a-z]+\("[^"]*"' |
+          grep -oE '"[^"]*"$' | grep -v '^"TTS"$' | sort -u || true)
+[ -z "$badtags" ] \
+  && ok "#14 every log tag is EasyVoiceLogger.TAG or AutoTTS's \"TTS\"" \
+  || bad "#14 log call with a stray tag literal: $badtags"
+
 # --- 12. the workflow file must stay far under 512,000 bytes ---------------
 size=$(wc -c < .github/workflows/build.yml)
 [ "$size" -lt 400000 ] && ok "#12 build.yml is $size bytes" \
