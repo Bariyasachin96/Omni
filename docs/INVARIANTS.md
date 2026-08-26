@@ -101,12 +101,18 @@ the user can press right after changing a setting.
 has just *chosen*. They converge only when `persistAll` runs. AutoTTS loads
 every setting into a static once and the synthesis path re-reads nothing.
 
-**Check.**
+**Check.** Look only at the synthesis path — `onSynthesizeText` and the
+`speakChunk` loop inside it, which is everything between the `SYNTHESIS` and
+`SHUTDOWN` banners:
 
-    grep -n "prefs\." app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt
+    awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' \
+      app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt |
+      grep -o "prefs\.[a-zA-Z]*" | sort -u
 
-Every remaining hit must be `prefs.toIso3`, which is a pure conversion and reads
-nothing.
+That must print **`prefs.toIso3` and nothing else** — it is a pure string
+conversion and reads no preference. Everywhere else in the file, `prefs.` calls
+are fine and expected: they are `loadAllSettings` and `loadModeLangsOnce`
+filling the statics once.
 
 **When it was broken.** Four times: `onLoadLanguage` reading `auto_mode_language`,
 the dual branch reading `dual_mode_language`, `onSynthesizeText` re-reading the

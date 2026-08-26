@@ -3,53 +3,102 @@
 ## Project Overview
 - **App name**: Easy Voice — Android TTS screen reader for 100% blind users
 - **Goal**: Exactly match AutoTTS (com.vnspeak.autotts) behavior in all modes
-- **All source code** is embedded as Python string literals in `.github/workflows/build.yml`
+- **Source**: real files under `app/`, checked in. Edit them directly.
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE 500 KB WORKFLOW CEILING — and why the generator now lives in `ci/generate.py`
-**Fixed for good on 2026-08-21. Do NOT move the generator back into `build.yml`.**
+## READ THESE BEFORE ANYTHING ELSE
+Four documents were written on 2026-08-26 so that a session does not have to
+reconstruct the same knowledge every time. They are short and they are the fastest
+route into the code:
 
-GitHub: *"Each workflow file in the .github/workflows directory must be 500 KB or
-smaller to trigger a run."* Over that, GitHub **creates and numbers the run and then
-never parses the workflow** — it sits `queued` forever with **zero jobs**, never
-reports a `startup_failure`, and `POST /actions/runs/<id>/cancel` answers **HTTP 500**.
-There is no error message anywhere. This has now bitten twice:
-
-| build.yml | outcome |
+| file | what it answers |
 |---|---|
-| 511,628 B | ran |
-| 522,764 B | queued forever (fixed by `4176493d`, deleting dead View builders) |
-| 508,811 B (`2bafac8`) | run 753 succeeded |
-| **516,086 B** (`be737f3`) | **runs 754 and 755 stuck** — the Advanced-tab commit ate the headroom |
+| `README.md` | what the repo is, where things are, how to change one |
+| `docs/ARCHITECTURE.md` | one utterance from the system to the speaker, stage by stage — **start here to find the code that owns a symptom** |
+| `docs/AUTOTTS_MAP.md` | every AutoTTS class and method and its counterpart here, with what is verified and how |
+| `docs/INVARIANTS.md` | thirteen rules that must hold, each one there because breaking it caused a real bug |
 
-The limit is **512,000 bytes**, and it is **per workflow file**. So the fix is not to
-keep deleting code or comments to buy another few KB — it is to stop keeping half a
-megabyte of Kotlin and C++ inside the workflow:
+`tools/README.md` covers the checks and the four proof harnesses.
 
-- **`ci/generate.py`** holds the entire generator, verbatim. `build.yml` is now
-  **11,578 bytes** and the step is one line, `python3 ci/generate.py`.
-- Safe because `actions/checkout@v4` is **step 0** and the generator is step 6, so the
-  file is on disk before it is needed, and the run step's working directory is the
-  repository root — which every `write_source` path is already relative to.
-- Proved, not assumed: the tree was generated from the inline block and from
-  `ci/generate.py` and diffed — **62 files, byte identical**.
+## THE SOURCE IS CHECKED IN NOW (2026-08-26) — there is no generator
+**Do NOT reintroduce one.** Every Kotlin, C++, XML and Gradle file used to be embedded
+as Python string literals inside `ci/generate.py`, which CI ran to materialise the tree.
+That is gone. `app/`, `build.gradle.kts`, `settings.gradle.kts` and `gradle.properties`
+are ordinary files; **edit them with `Edit`**, and `git diff` shows the real change.
 
-**Tooling that moved with it:**
-- `blocks.py` — `PREFIX` is now `''` (a plain `.py` file has no YAML block-scalar
-  indent). `find_block`, `replace_block`, `find_raw_block`, `replace_raw_block` and
-  `block_paths` all work unchanged otherwise; both round-trips were re-verified exact.
-- `gentree.py` — just runs `ci/generate.py` in a scratch dir now.
-- `ktcompile.sh` — `grab()` prefers `ci/generate.py` at a ref and **falls back to
-  slicing the old `python3 << 'PYEOF'` block**, so a baseline older than 2026-08-21
-  still works. Its last line now compares the our-own-names count against the baseline
-  instead of printing an absolute number, because `android.speech.tts.Voice` and
-  `TextToSpeech.voices` are API 21 and always unresolved against the API-15 jar (9 of
-  them, before and after).
+What went with it, and must not be resurrected:
+- **`blocks.py`** — the string-splicing tool that was the only safe way to edit a
+  `write_source` block. It had already swallowed a whole file once.
+- **`gentree.py`** — materialised the tree into a scratch dir.
+- the **"Generate Complete Project"** step in `build.yml`.
 
-**Check before every push:** `wc -c .github/workflows/build.yml` must stay far under
-512,000. It has ~500 KB of headroom now, so this should never recur — but if a run is
-ever queued with zero jobs again, look here first.
+Proved before deleting, not assumed: `ci/generate.py` parsed to 67 top-level statements
+with no conditional, no environment read and no computation; two runs under different
+environments produced byte-identical trees; and the 62 checked-in files were each
+compared byte for byte against the generator's output.
+
+**The 500 KB ceiling that forced the generator out of `build.yml` no longer applies to
+anything** — the workflow is 11 KB and has nothing in it that can grow. The rule is
+recorded in `docs/INVARIANTS.md` #12 for the day someone is tempted to inline something
+again. In short: GitHub's limit is **512,000 bytes per workflow file**, and over it a run
+is created and numbered but **never parsed** — queued forever, zero jobs, no
+`startup_failure`, and cancel answers HTTP 500. It cost two debugging sessions.
+
+**One thing genuinely lost.** Three launcher drawables were spliced from a shared
+`launcher_mark` literal, so editing one changed all three. They are independent copies
+now; change them together by hand.
+
+## Navigating the two big files (2026-08-26)
+`tts_engine_core.cpp` and `EasyVoiceTtsService.kt` each carry a table of contents:
+
+    grep -n "^//  [A-Z]"   app/src/main/cpp/tts_engine_core.cpp
+    grep -n "^ *//  [A-Z]" app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt
+
+Every banner names the AutoTTS counterpart of the section under it, and the ones over
+proven code say which harness proves it. Inside `onSynthesizeText` the five mode
+branches are marked too — that method is 571 lines and was the hardest thing in the
+project to navigate.
+
+**Three dead things were deleted from the native core at the same time**, all verified
+by grep to have no caller and all already dropped by the compiler at `-Os`:
+`scriptLangForCp` (65 lines — a *third* copy of the code-point ladder, sitting right
+after `processDirect` and looking exactly like live code; the live port of `a.b`/`a.d`
+is `familyForCp`), `isEmojiJoiner`, and four forward declarations that declared nothing.
+The one forward declaration that IS load-bearing — `currentLanguageHints`, called 1,288
+lines before it is defined — stays and now says so.
+
+**Neither file was split.** The Kotlin cannot be: Kotlin has no partial classes, and
+almost every member of `EasyVoiceTtsService` touches instance state, so a split would
+mean rewriting call sites rather than moving text. The C++ could be, and there is a
+worked plan for it — but it needs headers, internal-linkage changes and a CMake edit,
+and none of that can be verified without an NDK build. Do it when a build is available
+to check it, not before.
+
+## Local validation before every push
+    tools/bootstrap.sh          # once per container: android.jar + kotlinc
+    tools/check-all.sh          # ~2 min, everything static
+    tools/verify/*/run.sh       # the behaviour proofs, when you touch what they cover
+
+`tools/check-all.sh` runs, cheapest first: `ktcheck` (structure), `ktresolve` (our own
+call signatures), `ktimports`, `xmlcheck`, `cpp-syntax.sh`, and `kotlin-typecheck.sh`,
+which diffs kotlinc's errors against a baseline commit. **Judge that last one by the NEW
+error texts it prints, never by the total** — the jar is API 15 from Maven Central
+because Google Maven is blocked, so androidx, Material and Compose are all unresolvable
+and every run reports over a thousand errors. Running it *without* a real `android.jar`
+is worse than useless: kotlinc then checks **nothing** at `android.*` call sites, which
+is how a wrong trailing lambda once reached CI.
+
+`kotlin-typecheck.sh` still understands the old layouts — it reads a baseline from real
+files, else `ci/generate.py`, else the generator inlined in `build.yml` — so a baseline
+from before 2026-08-26 still works.
+
+**Stale and worth fixing when someone has a build to check it with:** CI builds with
+Kotlin **2.3.0**, Compose BOM **2026.08.00** and `compileSdk 37`, while the local
+`kotlinc` is pinned to 1.9.22 in `tools/bootstrap.sh` and the Compose-migration note far
+below still says 1.9.22 / Compose Compiler 1.5.10 / BOM 2024.02.00. The check is a diff
+against a baseline compiled by the same compiler, so it still works — but it cannot see
+anything Kotlin 2.x specific.
 
 ## HARD RULES (NEVER violate)
 1. **NEVER build/push without explicit user request**
@@ -837,12 +886,13 @@ so the behaviour survives without the cross-screen global. `applySpecificVisibil
 its `punctuationInFlowBox?.isEnabled` line, which is now a safe no-op — remove it when the
 Modes tab is ported.
 
-**`blocks.py` is now the ONLY safe way to edit a `write_source` block.** A generated block
-ends either `"}\n")` (paren on the last string line) or `"}\n"` + a `)` line. Slicing with a
-hard-coded terminator silently swallows whole files when the style does not match — that is
-exactly how `LanguagesActivity.kt` disappeared, caught only because `ktimports` then reported
-its class as unimported. `blocks.py` consumes the string lines and accepts either ending, and
-every edit asserts `block_paths()` lost nothing.
+**~~`blocks.py` is now the ONLY safe way to edit a `write_source` block.~~ OBSOLETE
+since 2026-08-26 — the source is checked in and you edit it directly.** Kept as a
+record of why: a generated block ended either `"}\n")` or `"}\n"` + a lone `)` line, and
+slicing with a hard-coded terminator silently swallowed whole files when the style did
+not match. That is exactly how `LanguagesActivity.kt` once disappeared, caught only
+because `ktimports` then reported its class as unimported. That entire class of accident
+is gone with the generator.
 
 **The wizard's settings step still hosts a View** through `AndroidView { buildModesTabView(…) }`,
 because `TabViews` is not ported yet. That interop stays until it is.
@@ -877,9 +927,8 @@ reads "<language>, checkbox, checked" once, and Material supplies the 48dp targe
 - `ktresolve.py`'s parameter patterns now allow an **annotated type** (`content: @Composable
   () -> Unit`); the leading `@` made it miss the parameter and report it as unresolved.
 
-**`build.gradle.kts` lives in a raw YAML block, not an escaped Python string.** Inserted lines
-must carry the block's 14-space indent — getting that wrong breaks `yaml.safe_load` outright,
-which is how it was caught here.
+**~~`build.gradle.kts` lives in a raw YAML block, not an escaped Python string.~~
+OBSOLETE since 2026-08-26** — it is `app/build.gradle.kts`, an ordinary file.
 
 ## A merged node carries NO name for non-TalkBack screen readers (2026-08-19)
 The user tried a screen reader other than TalkBack: swiping the dropdown list announced
@@ -983,12 +1032,13 @@ The app's other lazy lists are fine where they are: `ConfigurationScreen` and
 `LanguagesScreen` sit inside plain `Box`/`widthIn` parents, and `TabRow` sits in `Scaffold`'s
 `bottomBar`, none of which query intrinsics.
 
-## Local validation before every push (upgraded 2026-08-12 after a CI compile failure)
-Run, in order: `yaml.safe_load` → extract the generator → `ast.parse` → generate into a tree →
-`ktcheck.py` / `ktresolve.py` / `ktimports.py` → `g++ -fsyntax-only` for the C++.
-**Then the Kotlin type-check, which is the step that was toothless and must not be skipped:**
+## Why the checks are what they are (2026-08-12; the procedure moved to `tools/` on 2026-08-26)
+**Run `tools/check-all.sh`** — see the top of this file. What follows is the reasoning
+behind it, which is still exactly right and is the reason none of these steps may be
+skipped. The old procedure ("extract the generator, `ast.parse` it, generate into a
+tree…") is gone with the generator; everything below about *why* is not.
 - kotlinc **with a real `android.jar` on the classpath**, and the errors **diffed against the
-  same run on the last commit that built green**. Script: `scratchpad/ktcompile.sh <good-ref>`.
+  same run on the last commit that built green**. Script: `tools/check/kotlin-typecheck.sh <good-ref>`.
 - Without `android.jar` every `android.*` type is unresolved, so kotlinc silently type-checks
   **nothing** at call sites. That is exactly how `MainActivity`'s
   `buildModesTabView(container.context, prefs) { testTts }` reached CI: adding a trailing
@@ -1320,7 +1370,7 @@ future CLD3 tag folding there rather than at the call sites.
 `--ignoreexceptionsalways` for the four classes the standard flags cannot do) and **every**
 `.java` in `com/vnspeak/autotts` and `c3` was compared with identifiers, literals, block
 labels and casts normalised away, so only real structure and real string literals survive.
-Script: `scratchpad/cmp26.py`.
+Script: `tools/autotts/cmp_versions.py`.
 
 **Result: 14 files differ at all, and only these five carry a behaviour change.**
 
@@ -1508,17 +1558,13 @@ display name. The one deliberate difference is the `_disabled` default (ours `tr
 `a.e(cp, n.f)` is what `clsCLD2.d` falls back to when the detector's answer is not an enabled
 language, so it decides the voice for auto and Google mode more often than the detector does.
 It was checked by **measurement**, like the segmenter: `com/vnspeak/autotts/a.java` was lifted
-into `scratchpad/jfam/ScriptFam.java` and swept against our `familyLangForCpFiltered` /
+into `tools/verify/scriptfamily/java/ScriptFam.java` and swept against our `familyLangForCpFiltered` /
 `familyForCp` over **all 1,114,112 code points**, for **45 enabled-language sets** — one per
 script family, the full Latin set, fifteen hand-picked mixtures and thirty random realistic
 ones. Both the resolved language and the **unfiltered family, primary plus members in
 iteration order**, come out identical everywhere.
 
-    scratchpad/jfam/   javac -encoding UTF-8 *.java
-                       java -cp jfam Main "en,hi"     # resolved language per code point
-                       java -cp jfam Fam              # primary|members, unfiltered
-    scratchpad/fam/    g++ -O2 -std=c++17 -o famharness  main.cpp    # familyLangForCpFiltered
-                       g++ -O2 -std=c++17 -o famharness2 main2.cpp   # familyForCp
+    tools/verify/scriptfamily/run.sh          # both sweeps, one command
 
 **THE HARNESS TRAP, and it invalidated the first run: `HashSet` iterates differently on
 Android than on the JDK the harness runs.** Android's libcore keeps the classic
@@ -1565,20 +1611,19 @@ statement.
 ## The segmenter is PROVEN equal to `d0.t` — 163,296 cases (2026-08-25)
 The reading flow was checked by **measurement**, not by reading. `c3/d0.java`'s `t()` was
 lifted out of the 5.7.7.26 decompile into a standalone Java program in
-`scratchpad/jflow/` — the whole class, with only `n.e`, the `AutoTtsService` statics and
+`tools/verify/segmenter/java/` — the whole class, with only `n.e`, the `AutoTtsService` statics and
 `clsCLD2.a/b` stubbed — and the same inputs were run through it and through our
-`buildMixChunks` (`scratchpad/flow/`), chunk list against chunk list.
+`buildMixChunks` (`tools/verify/segmenter/cpp/`), chunk list against chunk list.
 
 **Rebuild it like this** (both harnesses read the same TSV on stdin and print
 `type:'text' | type:'text'`, so `diff` is the whole test):
 
-    scratchpad/jflow/     javac -encoding UTF-8 *.java ; java -cp jflow Main < cases.tsv
-    scratchpad/flow/      g++ -O1 -std=c++17 -o diffharness diffmain.cpp ; ./diffharness < cases.tsv
+    tools/verify/segmenter/run.sh             # generates the cases, builds both, diffs
     TSV columns: mode numMode puncMode emojiMode inFlow smart group dualLang mixNonLat deviceIso3 hints text
 
 CFR's output does **not** compile; five methods had to be re-transcribed by hand because CFR
 reuses one local for two types (`a`, `e`, `f`, `g`, `r`) and `t()`/`clsCLD2.b` need their
-declarations widened to `Object`. That is recorded in the scratchpad scripts.
+declarations widened to `Object`. Every departure is listed in `tools/verify/segmenter/java/README.md`.
 
 **The battery**: 189 texts × 16 number/punctuation/emoji mode triples × 6 flag sets
 (punctuation in flow on and off, smart numbers off and on at group 1/2/3) × dual, mixed and
@@ -1865,7 +1910,7 @@ most-text-wins fallback detector, `c3.n`'s `synchronized` list accessors, and th
 native Devanagari-danda span break. All four are written up in
 `autotts_reference/v5.7.7.26/ANALYSIS_5.7.7.26_delta.md`.
 
-**`blocks.py` gained `replace_raw_block`.** The C++ lives in a `r"""..."""` block, which
+**~~`blocks.py` gained `replace_raw_block`.~~ Obsolete with the generator.** The C++ lives in a `r"""..."""` block, which
 `find_block` cannot see — it only understands the escaped one-line-per-source-line
 style. The new helper re-adds the 14-space YAML block indent on write and was
 round-trip tested (replace the block with the file generated from it, assert the YAML
