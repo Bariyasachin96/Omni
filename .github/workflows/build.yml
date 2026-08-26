@@ -100,15 +100,6 @@ jobs:
           protoc -Iapp/src/main/cpp/cld3_src/src --cpp_out=app/src/main/cpp/cld3_gen/cld_3/protos app/src/main/cpp/cld3_src/src/*.proto
           ls app/src/main/cpp/cld3_gen/cld_3/protos
 
-      - name: Generate Complete Project
-        run: |
-          # The generator lives in ci/generate.py, not here: a workflow file
-          # over 500 KB is created but never parsed by GitHub, so the run
-          # queues forever with no jobs. actions/checkout runs first, so the
-          # script is already on disk, and the working directory is the
-          # repository root, which every write_source path is relative to.
-          python3 ci/generate.py
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:

@@ -1,0 +1,251 @@
+# AutoTTS → Easy Voice symbol map
+
+Easy Voice is a re-implementation of **AutoTTS 5.7.7.26** (`com.vnspeak.autotts`),
+and the project rule is that its behaviour matches AutoTTS exactly, everywhere
+except the user interface. Every bug found in this codebase so far has been
+"our X does not do what their Y does", so the first question when hunting one is
+always **"what is the AutoTTS counterpart of this code?"**
+
+This file answers that in both directions. The reference tree is
+`autotts_reference/v5.7.7.26/decompiled_java/`; regeneration commands are in
+`autotts_reference/README.md`.
+
+**Verified** below means checked against the decompiled source or the `.so`, and
+recorded in `CLAUDE.md` with the evidence. **Proven** means checked by an
+exhaustive comparison harness under `tools/verify/`, not by reading.
+
+---
+
+## The obfuscated names change between releases
+
+`c3.*` class letters and `AutoTtsService`'s static letters shift with almost
+every AutoTTS release — they shifted by one from 5.7.7.10 to 5.7.7.18 and again
+to 5.7.7.26. **Never carry a letter over from an older note.** The table below is
+5.7.7.26 only. `CLAUDE.md` keeps the older maps for reading old commits.
+
+The letters are also **not** guessable from position. Read the return expression:
+`T(lang)` returns the *variant*, `U(lang)` returns the *locale tag*, and
+`R`/`S`/`V` are *pitch*/*speed*/*volume* — not the alphabetical order you expect.
+
+---
+
+## Service — `com/vnspeak/autotts/AutoTtsService.java`
+
+Ours: `app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt`
+
+| AutoTTS | Easy Voice | Status |
+|---|---|---|
+| `onSynthesizeText` | `onSynthesizeText` | verified per mode |
+| `P()` | `reloadLanguagesIfMissing()` | verified |
+| `s0()` | `pushLanguageSets()` (companion) | verified — see INVARIANTS |
+| `e0()` | `loadAllSettings()` + `LangStore.loadLanguages` | verified |
+| `d0(lang, country, variant)` | `onLoadLanguage` | verified |
+| `f0(pkg, locale, variant, dedicated)` | `loadVoice` | verified line for line |
+| `W(...)` original-voice path | `loadVoiceOriginal` | verified |
+| `X(...)` dedicated-engine path | `loadVoiceDedicated` | verified |
+| `o0(Locale)` | `findEngineForLocale` | verified — three passes |
+| `j0(String)` | `parseVoiceNameAsLocale` | verified |
+| `Q(lang)` | `LangStore.engineFor` | verified |
+| **`T(lang)`** | `LangStore.variantFor` — the **variant** | verified |
+| **`U(lang)`** | `LangStore.localeFor` — the **locale tag** | verified |
+| `R(lang)` | `LangStore.pitchFor` | verified |
+| `S(lang)` | `LangStore.speedFor` | verified |
+| `V(lang)` | `LangStore.volumeFor` | verified |
+| `N(cb, n)` / `O(cb, n)` | `startAndFinish` | verified |
+| `k0` / `t0` | the keep-alive silence loop, inline in `onSynthesizeText` | verified |
+| `p0()` / `a0()` | `startForegroundIfPossible` / `isForegroundActive` | verified |
+
+### Statics (all on the companion object)
+
+| AutoTTS | Easy Voice |
+|---|---|
+| `T` | `modeInt` |
+| `H` | `autoLang` |
+| `I` | `dualLang` |
+| `P` / `Q` | `mixLatinLang` / `mixNonLatinLang` |
+| `J` / `L` / `N` | `numberModeInt` / `punctuationModeInt` / `emojiModeInt` |
+| `K` / `M` / `O` | `numberSpecificLang` / `puncSpecificLang` / `emojiSpecificLang` |
+| `V` | `localeSpansFlag` |
+| `W` / `X` / `Y` / `Z` | `stripAudioAttrFlag` / `forceAccessibilityFlag` / `keepAliveFlag` / `showNotificationFlag` |
+| `a0` | `disableAdvancedFlag` |
+| `b0` | `quickCharacterFlag` |
+| `d0` | `punctuationInFlowFlag` |
+| `e0` | `smartNumberFlag` |
+| `f0` | `smartNumberGroupSize` |
+| `R` (the chunk list) | `chunkQueue` |
+| `k0` (utterance id) | `utteranceIdStr` |
+
+There is no AutoTTS counterpart for the CLD3 switch (`useCld3Flag`) — see
+"CLD3" below.
+
+---
+
+## Segmenter — `c3/d0.java`
+
+Ours: `app/src/main/cpp/tts_engine_core.cpp`. **PROVEN** as a whole: 163,296
+generated cases through AutoTTS's own `t()` and through `buildMixChunks`, chunk
+list against chunk list, identical. Harness: `tools/verify/segmenter/`.
+
+| AutoTTS | Easy Voice |
+|---|---|
+| `t(text, numMode, puncMode, emojiMode, …)` | `buildMixChunks` |
+| `b(s, out)` | `splitByPunct` |
+| `c(s, out)` | `splitByEmoji` |
+| `d(s, out)` | `splitByNumber` |
+| `j(s)` | `segmentTypeOf` |
+| `h(types)` | `typeAnywhere` |
+| `i(types, at)` | `typeBefore` |
+| `k(types, at, neutral)` | `surroundingType` |
+| `a()` | `activeSmartNumberKeywords` |
+| `e(text, keywords)` | `contextHasKeyword` |
+| `p(keyword)` | `keywordMatchesAnywhere` |
+| `f(list, at, 24)` | `firstUtf16Units` |
+| `g(list, at, 48)` | `lastUtf16Units` |
+| `l(s)` / `n(s)` / `o(s)` | the emoji / number / punctuation tests inside `segmentTypeOf` |
+| `m(s)` | `hasEnoughDigits` |
+| `q(s)` | the bidi strip inside `buildMixChunks` |
+| `r(s)` | `isPhoneShaped` |
+| `s(s)` | `respaceDigits` |
+| pattern `b` | `looksLikeClockTime` |
+
+Segment types, used everywhere: **0** whitespace, **1** Latin, **2** non-Latin,
+**3** number, **4** punctuation, **5** emoji.
+
+---
+
+## Detection — `com/vnspeak/autotts/clsCLD2.java` and `libcld2.so`
+
+Ours: `tts_engine_core.cpp` plus the Kotlin wrappers in `EasyVoiceTtsService.kt`.
+
+| AutoTTS | Easy Voice | Status |
+|---|---|---|
+| `clsCLD2.a(int)` | `normalizeFancyCodepoint` | proven — full code-point sweep |
+| `clsCLD2.b(String)` | `normalizeFancyText`, exposed as `NativeEngine.normalizeFancy` | proven |
+| `clsCLD2.c(String)` | `firstValidCodePointU16` | verified |
+| `clsCLD2.d(...)` | `detectLanguageFull` (C++), called by `detectLanguage` (Kotlin) | verified |
+| `clsCLD2.e(...)` | `detectLanguageRuns` (Kotlin) over `nativeGetLanguages` | verified |
+| `clsCLD2.f(...)` | `detectLanguageAggregate` (Kotlin) | verified |
+| `clsCLD2.g(String)` | `isLatinCommonInherited` | verified |
+| `clsCLD2.h(char)` | `isLatinPunctuation` | verified |
+| `clsCLD2.i(Set)` | `NativeEngine.setLanguageHints` | verified |
+
+### The native half — read from the arm64, addresses are 5.7.7.26's `libcld2.so`
+
+| `libcld2.so` | Easy Voice | Status |
+|---|---|---|
+| `getLanguageSpans` **0x65392c** | the span loop in `nativeGetLanguages` | verified |
+| its code-point classifier **0x653ae0** | `classifyScript` | verified, range for range |
+| its span emitter **0x653e90** | `emitScriptSpan` | verified |
+| `getLanguage` **0x6523c8** | `detectWindowLang` | verified |
+| `setLanguageHints` **0x653588** | `Java_…_setLanguageHints` + `rebuildScriptLanguageTables` | verified |
+| the 48 `{script, Language}` pairs **0x62f924** | `kScriptLangPairs` | decoded from the binary |
+| `nativeGetLanguages`' span cap | `kMaxSpans = 128` (`mov w3, #0x80`) | verified |
+
+**Script 0 is a case of its own** and the source of a real bug: a run with no
+classified character — digits, ASCII punctuation, spaces, emoji — answers `"un"`
+with **`latin = true`**, so AutoTTS reads a bare number with the **Latin**
+preferred language. See CLAUDE.md, "The DETECTOR lives in libcld2.so".
+
+---
+
+## Script families — `com/vnspeak/autotts/a.java`
+
+Ours: `tts_engine_core.cpp`. **PROVEN**: 45 enabled-language sets × all
+1,114,112 code points, identical, including HashSet iteration order.
+Harness: `tools/verify/scriptfamily/`.
+
+| AutoTTS | Easy Voice |
+|---|---|
+| `a.b(int)` / `a.d(int)` | `familyForCp` |
+| `a.c(int, Set)` | `familyLangForCpFiltered` |
+| `a.e(int, Set)` | `scriptLangForCpFiltered` |
+| `a.f(family, Set)` | `pickFamilyLang` + `javaFamilyFallback` |
+| `a.g(Set, Set)` | `anyLangEnabled` |
+| `a.a()` — the `w` map | the per-script branches inside `familyLangForCpFiltered` / `familyForCp` |
+| `a.b … a.k` — the family sets | `FAMILY_LATIN`, `FAMILY_CYRILLIC`, `FAMILY_ARABIC`, `FAMILY_PERSIAN`, `FAMILY_URDU`, `FAMILY_DEVANAGARI`, `FAMILY_ETHIOPIC`, `FAMILY_CJK`, `FAMILY_DIGIT` |
+
+Java's `HashSet` iteration order is part of the behaviour here — it decides which
+family member is picked. `javaHashSetOrder` reproduces it, and it must model
+**Android's** libcore, not the JDK the harness runs on. See CLAUDE.md.
+
+---
+
+## Settings store — `c3/n.java`
+
+Ours: `app/src/main/java/com/tts/easyvoice/LangStore.kt`
+
+| AutoTTS | Easy Voice |
+|---|---|
+| `n.c` (the language list) | `LangStore.languages` |
+| `n.d` (the scan) | `EngineFinder.lastScanVoices` |
+| `n.f` (enabled ISO set) | the set `pushLanguageSets()` builds |
+| `n.e(Locale)` | `localeIso3` |
+| `n.g(ctx, onlyEnabled)` | `rebuildFromScan` |
+| `n.h()` | `dualLangList` |
+| `n.i(pkg, onlyEnabled)` | `availableLanguagesFor` |
+| `n.j(pkg)` / `n.k(pkg)` / `n.l(pkg)` | `languageCodesFor` / `checkedStatesFor` / `languageLabelsFor` |
+| `n.m()` | `requiredLangs` |
+| `n.n(lang)` | membership of the detect-ok set |
+| `n.o` | `loadMode` |
+| `n.q` | the Advanced-tab defaults in `loadAllSettings` |
+| `n.x(ctx)` | `persistLanguages` |
+| `n.y(ctx)` | `persistDisabled` |
+| `n.z(ctx)` | the flag persist inside `persistAll` |
+| `c3.f` (one language entry) | `LangStore.LangEntry` |
+
+---
+
+## Everything else
+
+| AutoTTS | Easy Voice | Note |
+|---|---|---|
+| `c3/e.java` `a`/`b`/`c` | `IsoCodes.normalizeTag` / `toIso2` / `toIso3` | verified statement for statement |
+| `c3/e0.java` `g(CharSequence)` | `splitByLocaleSpans` | verified, quirks included |
+| `c3/e0.java` the class | `TextChunk` | type −1 vs a real type matters — see CLAUDE.md on dead branches |
+| `c3/f0.java` | `SampleTexts.kt` | verified, 184 entries byte for byte |
+| `c3/p.java` | `EasyVoiceLogger.kt` | verified |
+| `c3/g0.java` | the import/export code in `AdvancedScreen.kt` | verified |
+| `c3/u.java` / `c3/v.java` | the required-engines dialog | UI carve-out |
+| `c3/k.java` | `ModesScreen`, `AdvancedScreen`, `LanguagesActivity`, `VoiceScreen`, `ConfigurationScreen`, `VoiceRows` | UI carve-out — layout differs on purpose |
+| `NewSettingsActivity` | `MainActivity.kt` | UI carve-out |
+| `CheckVoiceData` | `CheckVoiceData.kt` | verified, result codes included |
+| `GetSampleText` | `GetSampleText.kt` | verified, result codes included |
+| `c3/l0.java`, `AutoTtsService.h0`/`m0`/`K`/`Y`/`n0` | **not ported** | licence and signature checks — deliberate carve-out |
+
+---
+
+## CLD3 — ours only
+
+The Advanced tab's "Use CLD3" switch has **no AutoTTS counterpart**, so the rule
+for it is not "match AutoTTS" but:
+
+> wherever CLD2 makes a detection, the switch must be able to put CLD3 there
+> instead, **site by site**.
+
+The two detection sites are not hinted the same way, so the CLD3 arms differ too:
+
+| site | CLD2 | CLD3 |
+|---|---|---|
+| `emitScriptSpan` | per-script language hint, filter the answer against the enabled list, then the per-script fallback | top 3 filtered by the same list, then the **same** per-script fallback |
+| `detectWindowLang` | no hints, no filter — `lang3[0]` when reliable | `FindLanguage()` when reliable — **no filter** |
+
+`cld3DetectRaw`'s `useHints` parameter is what keeps those two straight. Do not
+remove it.
+
+---
+
+## AutoTTS code that must NEVER be ported
+
+Reading these into our code would add behaviour AutoTTS does not actually have,
+because the branches are unreachable there:
+
+1. **`d0`'s `n3 == 1` and `n3 == 2` blocks** — `onIsLanguageAvailable` returns
+   only `0` or `-2`, so only `n3 == 0` runs.
+2. **`c3.k.K2(...)`** — returns `true` on every path, so `if (!K2(x)) continue`
+   never skips.
+3. **`onDone`'s mix/multilingual re-detect**, and
+4. **its type fallback** (`1→P 2→Q 3→K 4→M 5→O`) — both dead because every chunk
+   in `R` for those modes is built with `e0(String, String)`, whose type is −1.
+
+`LangStore.engineFor` is still called at that point and its result deliberately
+discarded, mirroring `Q(lang)`. The comment there says so; leave it.

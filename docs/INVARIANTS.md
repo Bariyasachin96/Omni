@@ -1,0 +1,250 @@
+# Invariants
+
+Rules that must hold across the whole app. Each one is here because **breaking
+it produced a real bug that was hard to find** — the point of writing them down
+is that the next change can be checked against the list in a minute instead of
+being discovered by ear weeks later.
+
+Each entry says what the rule is, why, how to check it, and what it looked like
+when it was broken.
+
+---
+
+## 1. Every language-list rebuild must push the language sets
+
+**Rule.** Any code that does `LangStore.languages.clear()` followed by
+`addAll(...)` must call `EasyVoiceTtsService.pushLanguageSets()` immediately
+afterwards.
+
+**Why.** `pushLanguageSets` is AutoTTS's `s0()`. It recomputes the enabled-ISO
+set from the *live* list and hands it to `NativeEngine.setLanguageHints`, which
+rebuilds the two per-script tables the native detector steers CLD2 with. AutoTTS
+does this at **all eleven** of its rebuild sites, inside the same
+`synchronized` block, without exception. A rebuild that does not push leaves the
+detector hinting at the previous list.
+
+**Check.**
+
+    grep -rn "languages.addAll\|languages.clear()" app/src/main/java
+
+Every hit must have a `pushLanguageSets()` next to it. The current sites are
+`EngineFinder.finalizeScan`, `LanguagesActivity`, `ModesScreen.rebuildLanguagesFor`,
+`LanguagesVoicesViews.refreshModeLanguages`, and the service's `loadAllSettings`
+and `reloadLanguagesIfMissing`.
+
+**When it was broken.** The startup scan rebuilt the whole list and never
+pushed, so on a first run the detector had no hints at all.
+
+**The other half of the rule.** A mere *toggle* does **not** push. AutoTTS's
+select-all / clear-all / row tap change the disabled flag and call `n.y()`
+(persist) only. Do not add a push there.
+
+---
+
+## 2. Hints move only on a rebuild; detect sets move every utterance
+
+**Rule.** `pushLanguageSets()` (= `s0()`) sends **both** the detect sets and the
+hints, and may only be called where the list was just loaded or rebuilt.
+`pushDetectSetsOnly()` is the per-utterance call and must never send hints.
+
+**Why.** The hints steer the detector — CLD2 takes them as its per-script
+language hint and CLD3 filters its top-3 by the same list — so they decide which
+languages may be named at all. `LangStore.languages` is a shared static that the
+settings screens rebuild, and **not always whole**: `dualLangList` is two
+entries, and `voiceLanguageLabels` uses `onlyEnabled = true`. Re-deriving the
+hints per utterance therefore lets one visit to a settings screen leave the
+detector on a two-language hint set for the rest of the process.
+
+There is no `s0()` anywhere in AutoTTS's `onSynthesizeText`.
+
+**Check.** `pushLanguageSets` must not appear anywhere in `onSynthesizeText` or
+anything it calls per utterance.
+
+**When it was broken.** Reading changed in every mode after one visit to the
+Configuration screen.
+
+---
+
+## 3. Never hold `LangStore.languages` while taking another lock
+
+**Rule.** Inside `synchronized(LangStore.languages) { … }`, do not take the
+service monitor or any other lock.
+
+**Why.** `onSynthesizeText` runs on the synthesis thread and reaches
+`reloadLanguagesIfMissing`; `onLoadLanguage` is a `TextToSpeechService` override
+that Android also calls on **binder** threads and which takes the service
+monitor and then `languages` (inside `localeFor` / `engineFor` / `variantFor`).
+Two threads taking the same pair in opposite orders is a textbook ABBA deadlock,
+and when it lands **speech simply stops with no error anywhere**.
+
+AutoTTS cannot have this: its `P()` holds only the list monitor and `e0()`
+re-enters the same one.
+
+**Check.**
+
+    grep -n "synchronized(LangStore.languages)" -A 12 app/src/main/java/com/tts/easyvoice/*.kt
+
+No nested `synchronized(this)` inside any of them. The pattern to use is: read
+the guard under the list monitor, then do the work outside it.
+
+**When it was broken.** Speech stopped intermittently with nothing in the log.
+
+---
+
+## 4. Settings live in statics, never re-read from prefs at runtime
+
+**Rule.** The synthesis path reads only the companion statics. No
+`SharedPreferences` read may happen per utterance, per chunk, or on any control
+the user can press right after changing a setting.
+
+**Why.** Prefs hold what was last *persisted*; the statics hold what the user
+has just *chosen*. They converge only when `persistAll` runs. AutoTTS loads
+every setting into a static once and the synthesis path re-reads nothing.
+
+**Check.**
+
+    grep -n "prefs\." app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt
+
+Every remaining hit must be `prefs.toIso3`, which is a pure conversion and reads
+nothing.
+
+**When it was broken.** Four times: `onLoadLanguage` reading `auto_mode_language`,
+the dual branch reading `dual_mode_language`, `onSynthesizeText` re-reading the
+scanned languages per utterance, and the Test path reading a locale back with
+`getLocaleForLangPkg`.
+
+---
+
+## 5. `announceForAccessibility` is banned
+
+**Rule.** Never call `View.announceForAccessibility` or dispatch a
+`TYPE_ANNOUNCEMENT` event.
+
+**Why.** Android 16 deprecates both. The documented replacements are
+`Activity.setTitle()` and `ViewCompat.setAccessibilityPaneTitle()` for a
+significant UI change, `setAccessibilityLiveRegion()` for a critical one (used
+sparingly), and `setError()` for errors.
+
+**Check.** `grep -rn announceForAccessibility app/src/main/java` must be empty.
+
+---
+
+## 6. A label must never contain its own role word
+
+**Rule.** No user-facing label or `contentDescription` may contain "button",
+"tab", "switch", "checkbox", "slider", "dropdown", "menu" or "radio", and none
+may contain state ("checked", "selected") either.
+
+**Why.** The accessibility service appends the role itself, so "Main Settings
+Tab" is announced as "Main Settings Tab, Tab 1 of 2". State belongs in real
+semantics — `selected`, a `ToggleableState`, or `stateDescription` — which is
+also what Google's `RedundantDescriptionCheck` enforces.
+
+**Check.**
+
+    grep -rniE '"[^"]*(button|checkbox|slider|dropdown|radio)[^"]*"' app/src/main/java
+
+One accepted exception: the Languages screen's **"Show selected"** chip, because
+WCAG 2.5.3 requires the accessible name to contain the visible label. Renaming
+it is a wording decision for the owner.
+
+---
+
+## 7. A merged Compose node needs the name on the node itself
+
+**Rule.** Any `clickable` / `toggleable` / `Button` / `DropdownMenuItem` that
+merges children must carry
+`Modifier.semantics { contentDescription = <label> }`, and the visible `Text`
+inside it must carry `Modifier.clearAndSetSemantics { }`.
+
+**Why.** Compose's accessibility delegate skips both the `text` and the
+`contentDescription` of a node that merges its descendants *and* has children.
+TalkBack walks the fake child nodes and copes; a screen reader that only
+inspects the focused node announces the bare role. The owner hit exactly that:
+a dropdown that read "button, button, button".
+
+Use `clearAndSetSemantics`, **not** `hideFromAccessibility()` — that one is for
+occluded content, and its own KDoc says so.
+
+---
+
+## 8. Never put a lazy list inside a `DropdownMenu`
+
+**Rule.** A `DropdownMenu` may contain only a plain `Column` of
+`DropdownMenuItem`s.
+
+**Why.** `DropdownMenu` sizes itself to its widest item, i.e. it asks for an
+intrinsic width, and a `LazyColumn` is a `SubcomposeLayout` that cannot answer —
+it throws. The exception message suggests adding a size modifier; that was tried
+and it crashed again. Because a plain `Column` supplies no collection info,
+`collectionInfo` / `collectionItemInfo` are declared by hand so TalkBack can
+still say "item 5 of 137".
+
+---
+
+## 9. A list's `collectionInfo` counts everything in it
+
+**Rule.** A `LazyColumn` that represents a list must contain **only** the rows.
+Headers, paragraphs, search fields and button rows go above it.
+
+**Why.** `LazyLayoutSemanticState` reports `rowCount = totalItemsCount`, so a
+header inside the list makes it announce the wrong count and puts every row's
+index out by one. The Languages screen once reported 141 items for 137 languages.
+
+---
+
+## 10. Wrap, never replace, a Compose or View background
+
+**Rule.** Do not assign a bare `GradientDrawable` to a button's background; wrap
+it in a `RippleDrawable`.
+
+**Why.** Replacing the background removes the ripple, and with it the visible
+pressed and focused state that WCAG 2.4.7 asks for.
+
+---
+
+## 11. Do not delete an announcement because the framework "should" supply it
+
+**Rule.** Do not remove an accessibility announcement on the theory that a
+component publishes it — verify on the device first.
+
+**Why.** The tab position was removed on the belief that Material's `TabLayout`
+supplies collection info; on the owner's device nothing was announced at all.
+It is back, as `"<title>, N of M"` without the word "tab".
+
+---
+
+## 12. The workflow file must stay far under 500 KB
+
+**Rule.** `.github/workflows/build.yml` must remain small.
+
+**Why.** GitHub's limit is **512,000 bytes per workflow file**, and over it a run
+is **created and numbered but never parsed**: it sits `queued` forever with zero
+jobs, never reports a `startup_failure`, and the cancel endpoint answers HTTP
+500. There is no error message anywhere. This cost two separate debugging
+sessions.
+
+**Check.** `wc -c .github/workflows/build.yml` — currently about 11 KB, and now
+that the sources are checked in as real files rather than embedded in a
+generator there is nothing that can grow it.
+
+---
+
+## 13. Do not "improve" a copied AutoTTS quirk
+
+Several oddities are deliberate. Removing them is a behaviour change:
+
+- the variant list sorts `[1, n-1)`, leaving the **last** entry unsorted;
+- Google mode's language spinner uses a filtered adapter with an unfiltered
+  index, so the selection is off by the filter;
+- "Select all" ticks the filtered view but clears `disabled` on the whole list;
+- the smart-number keyword set is built once per process and **never** rebuilt,
+  because AutoTTS's `d0.j` is assigned in exactly two places and nothing clears
+  it;
+- `detectLanguageAggregate` uses a plain `HashMap`, because a tie is settled by
+  bucket order and AutoTTS gets `HashMap`'s, not insertion order;
+- `commit()` rather than `apply()` in the storage code.
+
+The two deliberate **departures** from AutoTTS are the whole user interface
+(the owner's decision) and the `_disabled` default, which starts languages
+cleared instead of ticked.

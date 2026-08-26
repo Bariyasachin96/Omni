@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The UI palette lives in EvColorScheme (ComposeTheme.kt). This one colour
+         exists only so the window is already dark before Compose draws; keeping
+         the rest here would be a second, silently diverging copy of the palette. -->
+    <color name="ev_background">#ff121212</color>
+</resources>

@@ -1,9 +1,21 @@
 .claude/
 
-/app/
-/build.gradle.kts
-/settings.gradle.kts
-/gradle.properties
-/local.properties
+# Build output and local machine configuration.
 /.gradle/
 /build/
+/app/build/
+/app/.cxx/
+/local.properties
+
+# Cloned by .github/workflows/build.yml at build time, never checked in.
+/app/src/main/cpp/cld2_src/
+/app/src/main/cpp/cld3_src/
+/app/src/main/cpp/protobuf_src/
+/app/src/main/cpp/cld3_gen/
+
+# Written into the tree by CI: the release APK and the signing key.
+/easyvoice-release.keystore
+/EasyVoice-*.apk
+
+# Downloaded by tools/bootstrap.sh.
+/tools/.cache/
