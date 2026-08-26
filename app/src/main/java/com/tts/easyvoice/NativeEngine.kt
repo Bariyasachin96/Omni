@@ -18,7 +18,6 @@ object NativeEngine {
     external fun normalizeFancy(text: String): String
     external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)
     external fun setLanguageHints(langs: Array<String>)
-    external fun segmentKind(text: String): Int
     external fun setDetectSets(detectOkIso3: Array<String>, enabledLangs: Array<String>)
     external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,
         disableAdvancedDetection: Boolean, wantLog: Boolean, useCld3: Boolean): String

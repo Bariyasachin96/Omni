@@ -487,7 +487,6 @@ static const char* const smartNumberKeywords[][20] = {
 };
 static const int smartNumberKeywordRows = 53;
 static std::mutex smartNumberMutex;
-static std::string smartNumberCachedHints;
 static std::vector<std::string> smartNumberActive;
 static bool smartNumberCacheValid = false;
 static std::vector<std::string> activeSmartNumberKeywords(){
@@ -509,7 +508,6 @@ static std::vector<std::string> activeSmartNumberKeywords(){
         if(tag != "*" && enabled.find(tag) == enabled.end()) continue;
         for(int col = 1; smartNumberKeywords[row][col]; col++) collected.push_back(smartNumberKeywords[row][col]);
     }
-    smartNumberCachedHints = hints;
     smartNumberActive = collected;
     smartNumberCacheValid = true;
     return collected;
@@ -788,14 +786,6 @@ static int wholeSegmentKind(const std::string& text){
     if(allPunct) return 4;
     if(allEmoji) return 5;
     return 0;
-}
-extern "C" JNIEXPORT jint JNICALL
-Java_com_tts_easyvoice_NativeEngine_segmentKind(JNIEnv* env, jclass, jstring jText){
-    if(!jText) return 0;
-    const char* textC = env->GetStringUTFChars(jText, nullptr);
-    std::string text(textC ? textC : "");
-    if(textC) env->ReleaseStringUTFChars(jText, textC);
-    return (jint)wholeSegmentKind(text);
 }
 
 // ==========================================================================

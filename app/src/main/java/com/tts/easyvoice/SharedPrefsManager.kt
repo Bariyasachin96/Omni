@@ -4,16 +4,9 @@ import android.content.SharedPreferences
 class SharedPrefsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("easy_voice_settings", Context.MODE_PRIVATE)
     private val appCtx: Context = context.applicationContext
-    private fun isGoogleTtsInstalled(): Boolean = try {
-        appCtx.packageManager.getPackageInfo("com.google.android.tts", 0); true
-    } catch (_: Exception) { false }
     fun toIso3(lang: String): String {
         val iso3 = if (lang.length != 2) lang else try { java.util.Locale(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
         return when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
-    }
-    fun getLocaleForLangPkg(lang: String, pkg: String): String {
-        val combined = prefs.getString(toIso3(lang), "") ?: ""
-        return combined.split("#", limit = 2).getOrElse(1) { "" }
     }
     fun getLanguageList(): List<String> {
         val out = mutableListOf<String>()
