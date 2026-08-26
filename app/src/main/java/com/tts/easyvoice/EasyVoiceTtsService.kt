@@ -50,6 +50,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private val FOREGROUND_NOTIFICATION_ID = 136549
     private val FOREGROUND_CHANNEL_ID = "tts_channel"
     @Volatile private var lastEnginePkg = ""
+
+    // ==========================================================================
+    //  FOREGROUND NOTIFICATION AND AUDIO FOCUS
+    // ==========================================================================
     private fun createNotificationChannel() {
         val channel = NotificationChannel(FOREGROUND_CHANNEL_ID, "TTS Engine", NotificationManager.IMPORTANCE_LOW)
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -109,6 +113,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val result = audioManager!!.requestAudioFocus(focusRequest)
         EasyVoiceLogger.debug("TTS", "Audio focus request: " + (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED))
     }
+
+    // ==========================================================================
+    //  LIFECYCLE
+    //  onCreate is ordering-critical: context, logger, prefs and the logging flag
+    //  come BEFORE super.onCreate(), and the language sets are pushed only after
+    //  loadAllSettings has filled them.
+    // ==========================================================================
     override fun onCreate() {
         appCtx = this
         EasyVoiceLogger.init(this)
@@ -127,6 +138,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int = START_STICKY
     override fun onTaskRemoved(rootIntent: android.content.Intent?) { super.onTaskRemoved(rootIntent) }
+
+    // ==========================================================================
+    //  THE ENGINE POOL
+    //  One TextToSpeech client per installed engine. state == 2 means ready.
+    // ==========================================================================
     inner class EngineWrapper(pkgName: String) {
         val pkg: String = pkgName.replace("-","").replace("_","")
         var tts: TextToSpeech? = null
@@ -155,6 +171,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         }
     }
+
+    // ==========================================================================
+    //  VOICE LOADING               AutoTTS f0, and its two helpers
+    //  An empty package means "keep the last one". The "do nothing" short-circuit
+    //  fires when the current voice already matches language, country and name.
+    // ==========================================================================
     private fun loadVoice(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "LoadVoice " + pkg + " " + locale + " " + variant)
         if (dedicated && modeInt != 3) { loadVoiceDedicated(pkg, locale, variant, dedicated); return }
@@ -318,6 +340,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (setLangResult != null && setLangResult >= 0) { wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else restoreEngine(wrapper.pkg)
         }
     }
+
+    // ==========================================================================
+    //  ENGINE INIT, RESTORE AND KEEP-ALIVE
+    // ==========================================================================
     private fun initAllEngines() {
         synchronized(this) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "initAllTTS")
@@ -428,6 +454,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
     }
     private fun unbindAllEngineKeepAlive() { for (boundPkg in engineBinders.keys.toList()) unbindEngineKeepAlive(boundPkg) }
+
+    // ==========================================================================
+    //  THE TextToSpeechService API SURFACE
+    //  onIsLanguageAvailable answers only 0 or -2, which is why two whole branches
+    //  of AutoTTS's d0 are unreachable and must not be ported. See AUTOTTS_MAP.
+    // ==========================================================================
     override fun onGetLanguage(): Array<String> {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onGetLanguage")
         val iso3 = localeIso3()
@@ -568,6 +600,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
         synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }
     }
+
+    // ==========================================================================
+    //  LOCALE SPANS                AutoTTS e0.g
+    //  Two quirks copied on purpose: getSpans(0, length - 1), and end + 1.
+    // ==========================================================================
     private fun splitByLocaleSpans(input: CharSequence): MutableList<TextChunk> {
         val result = mutableListOf<TextChunk>()
         if (localeSpansFlag) {
@@ -591,6 +628,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         result.add(TextChunk(input.toString(), "UNKNOWN"))
         return result
     }
+
+    // ==========================================================================
+    //  DETECTION                   AutoTTS clsCLD2.d / clsCLD2.e / clsCLD2.f
+    //  detectLanguage is the windowed detect, detectLanguageRuns the per-span one,
+    //  detectLanguageAggregate the most-text-wins fallback. They are hinted
+    //  DIFFERENTLY in the native half -- see docs/AUTOTTS_MAP.md.
+    // ==========================================================================
     private fun detectLanguage(text: String, latinFallback: String, nonLatinFallback: String): String {
         if (text.isEmpty()) return "UNKNOWN"
         if (text.length == 1 && quickCharacterFlag) return "UNKNOWN"
@@ -770,6 +814,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val loaded = onLoadLanguage(lang, "", "")
         return loaded != TextToSpeech.LANG_MISSING_DATA && loaded != TextToSpeech.LANG_NOT_SUPPORTED
     }
+
+    // ==========================================================================
+    //  SETTINGS
+    //  Loaded once into the companion statics and never re-read from prefs on the
+    //  synthesis path. INVARIANTS #4 -- prefs hold what was last persisted, the
+    //  statics hold what the user has just chosen.
+    // ==========================================================================
     private fun loadAllSettings() {
         prefs.getScannedLangs()
         buildEngineList()
@@ -855,6 +906,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         pushLanguageSets()
         languagesLoaded = true
     }
+
+    // ==========================================================================
+    //  SYNTHESIS                   AutoTTS onSynthesizeText
+    //  The one entry point. Order: reload the list if missing, read the request,
+    //  pick the mode, build the chunk list in one of five branches below, then
+    //  speakChunk walks the queue.
+    // ==========================================================================
     override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "\n-------------------------------\nonSynthesizeText")
         reloadLanguagesIfMissing()
@@ -972,6 +1030,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 val noneLang = normalizeLangCode(request?.language ?: latinFallback)
                 chunks.add(TextChunk(trimmedText, noneLang))
                     }
+
+            // ==========================================================================
+            //  branch: MIXED               spans, then segment, then detect each run
+            // ==========================================================================
             "mix" -> {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Mixed mode")
                 val localeChunks = splitByLocaleSpans(rawCharSeq)
@@ -1032,6 +1094,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     }
                 }
             }
+
+            // ==========================================================================
+            //  branch: MULTILINGUAL        as mixed, but a locale span with an engine wins
+            // ==========================================================================
             "multilingual" -> {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Multilingual mode")
                 val localeChunks = splitByLocaleSpans(rawCharSeq)
@@ -1082,6 +1148,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     return
                 }
             }
+
+            // ==========================================================================
+            //  branch: DUAL                no detection at all -- the segment TYPE picks it
+            // ==========================================================================
             "dual" -> {
                 run {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Dual mode")
@@ -1199,6 +1269,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
             chunkQueue.clear()
             chunkQueue.addAll(chunks.mapIndexed { chunkIdx, queued -> (chunkIdx + 1) to queued })
         }
+
+        // ==========================================================================
+        //  THE SPEAK LOOP
+        //  Rate, pitch and volume are each the system request times the per-language
+        //  setting. onDone arrives on a BINDER thread and posts the next chunk to the
+        //  main thread, because the next step may create or shut down a TextToSpeech.
+        // ==========================================================================
         fun speakChunk(first: Boolean) {
             if (isStopped || isFlushed) return
             val pair = synchronized(chunkQueue) { if (chunkQueue.isEmpty()) null else chunkQueue.removeAt(0) }
@@ -1426,6 +1503,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onSynthesizeText ended")
         startAndFinish(callback)
     }
+
+    // ==========================================================================
+    //  SHUTDOWN
+    // ==========================================================================
     override fun onDestroy() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onDestroy")
         try {
@@ -1437,6 +1518,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { unbindAllEngineKeepAlive() } catch (_: Exception) {}
         super.onDestroy()
     }
+
+    // ==========================================================================
+    //  STATICS                     AutoTtsService's fields
+    //  pushLanguageSets is s0(): detect sets AND hints, and it may only be called
+    //  where the language list was just rebuilt. pushDetectSetsOnly is the
+    //  per-utterance one. INVARIANTS #1 and #2.
+    // ==========================================================================
     companion object {
         // AutoTtsService.s0, "updateLanguage2LetterCodes". It rebuilds the enabled
         // two-letter set from the language list and pushes it to the detector:

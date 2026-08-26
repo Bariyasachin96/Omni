@@ -15,6 +15,12 @@
 JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
     return JNI_VERSION_1_6;
 }
+
+// ==========================================================================
+//  UTF-8 AND UTF-16 PRIMITIVES
+//  Decoding, encoding, and the UTF-16 length helpers that exist so the 24- and
+//  48-character context windows count the same units Java counts.
+// ==========================================================================
 inline int utf8ToCodepoint(const unsigned char* utf8, int& len) {
     if (utf8[0] < 0x80)               { len=1; return utf8[0]; }
     if ((utf8[0]&0xE0)==0xC0)         { len=2; return ((utf8[0]&0x1F)<<6)|(utf8[1]&0x3F); }
@@ -33,6 +39,12 @@ inline int utf8ToCodepoint(const unsigned char* utf8, int& len) {
 // verified rather than eyeballed: a(int) was extracted, compiled with javac,
 // swept over all 1,114,112 code points, and the 1,062 mappings it produces were
 // diffed against the same sweep of this function. Identical.
+
+// ==========================================================================
+//  UNICODE NORMALISER          AutoTTS clsCLD2.a(int) / clsCLD2.b(String)
+//  PROVEN: tools/verify/normalizer/run.sh -- 1,062 mappings over every code
+//  point. If this is ever touched, re-run that. Do not hand-check it.
+// ==========================================================================
 static int normalizeFancyCodepoint(int n3) {
         if (n3 >= 119808 && n3 <= 120483) {
             if ((n3 = (n3 - 119808) % 52) >= 26) return n3 + 71;
@@ -384,6 +396,10 @@ static std::string normalizeFancyText(const std::string& text){
     return out;
 }
 // ---------------------------------------------------------------------------
+
+// ==========================================================================
+//  EMOJI
+// ==========================================================================
 inline bool isEmoji(int codePoint) {
     return codePoint==0x00A9||codePoint==0x00AE||codePoint==0x203C||codePoint==0x2049||codePoint==0x2122||codePoint==0x2139||
            (codePoint>=0x2194&&codePoint<=0x2199)||(codePoint>=0x21A9&&codePoint<=0x21AA)||
@@ -398,16 +414,22 @@ inline bool isEmoji(int codePoint) {
            codePoint==0x1F201||codePoint==0x1F202||codePoint==0x1F21A||codePoint==0x1F22F||(codePoint>=0x1F232&&codePoint<=0x1F23A)||codePoint==0x1F250||codePoint==0x1F251||
            (codePoint>=0x1F300&&codePoint<=0x1F5FF)||(codePoint>=0x1F600&&codePoint<=0x1F64F)||(codePoint>=0x1F680&&codePoint<=0x1F6FF)||(codePoint>=0x1F900&&codePoint<=0x1F9FF);
 }
-inline bool isEmojiJoiner(int codePoint) {
-    return codePoint==0x200D||codePoint==0xFE0F||codePoint==0x20E3;
-}
+
+// ==========================================================================
+//  SHARED STATE AND FORWARD DECLARATIONS
+// ==========================================================================
 struct ChunkResult { std::string lang; std::string text; int type; int kind; };
 static std::mutex detectSetMutex;
 static std::unordered_set<std::string> detectOkIso3Set;
 static std::unordered_set<std::string> enabledLangSet;
-static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut, bool useHints);
+// activeSmartNumberKeywords calls this 1,288 lines before it is defined.
 static std::string currentLanguageHints();
-static std::string detectWindowLang(const std::string& utf8Text, bool useCld3);
+
+// ==========================================================================
+//  SMART NUMBER READING        AutoTTS d0.i / d0.a / d0.e / d0.p / d0.m / d0.r / d0.s
+//  The keyword table is cached for the life of the process and never rebuilt,
+//  exactly as AutoTTS caches it in d0.j. That is deliberate; see INVARIANTS.
+// ==========================================================================
 static const char* const smartNumberKeywords[][20] = {
     {"*", "otp", "pin", "sms", "imei", "cvv", "tel", "fax", "hotline", "sim", "whatsapp", "zalo", "viber", "telegram", nullptr},
     {"en", "phone", "mobile", "cell", "call", "dial", "code", "extension", "ext", "passcode", "verification", "account", "contact", nullptr},
@@ -775,6 +797,13 @@ Java_com_tts_easyvoice_NativeEngine_segmentKind(JNIEnv* env, jclass, jstring jTe
     if(textC) env->ReleaseStringUTFChars(jText, textC);
     return (jint)wholeSegmentKind(text);
 }
+
+// ==========================================================================
+//  CODE-POINT PREDICATES
+//  Note two pairs that look mergeable and are not: cpIsAsciiPunct EXCLUDES
+//  backslash while isLatinPunctuation includes it, and cpIsJavaSpace and
+//  isJavaWhitespace are separate ports of separate AutoTTS sources.
+// ==========================================================================
 static bool cpIsNumericCore(int codePoint){
     return (codePoint >= '0' && codePoint <= '9') || codePoint == 0x00B0 || codePoint == 0x00D7 ||
            codePoint == 0x00F7 || (codePoint >= 0x20A0 && codePoint <= 0x20CF);
@@ -865,6 +894,12 @@ static std::string firstUtf16Units(const std::string& text, int want){
     }
     return text.substr(0, at);
 }
+
+// ==========================================================================
+//  SEGMENT TYPING AND SPLITTING    AutoTTS d0.j / d0.b / d0.c / d0.d
+//  Types are 0 whitespace, 1 Latin, 2 non-Latin, 3 number, 4 punctuation,
+//  5 emoji -- and the type is what ultimately picks the voice.
+// ==========================================================================
 static int segmentTypeOf(const std::string& text){
     bool allSpace = true, allPunct = true, allNumber = true, allEmoji = true, sawDigit = false, sawAny = false;
     int at = 0, len = (int)text.size();
@@ -989,6 +1024,12 @@ struct ReadingModes {
     bool smartNumber = false;
     int smartNumberGroupSize = 1;                  // AutoTtsService.f0
 };
+
+// ==========================================================================
+//  THE SEGMENTER               AutoTTS c3.d0.t
+//  The heart of the app: one utterance in, typed chunks out.
+//  PROVEN: tools/verify/segmenter/run.sh -- 163,296 cases against AutoTTS.
+// ==========================================================================
 static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
     std::vector<ChunkResult> result;
     std::string fullText;
@@ -1176,6 +1217,14 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     return result;
 }
 extern "C" JNIEXPORT jstring JNICALL
+
+// ==========================================================================
+//  JNI: processDirect
+//  Packs the chunk list as  type US kind US lang US text, with records
+//  joined by RS -- US is U+001F, RS is U+001E. Both, and U+001D which is
+//  the escape, are escaped inside the text: they can occur in it, and an
+//  unescaped U+001E once cost the rest of the utterance.
+// ==========================================================================
 Java_com_tts_easyvoice_NativeEngine_processDirect(
     JNIEnv* env, jobject, jobject directBuffer, jint length,
     jstring jLat, jstring jNonLat, jstring jMode,
@@ -1242,71 +1291,13 @@ Java_com_tts_easyvoice_NativeEngine_processDirect(
     }
     return env->NewStringUTF(result.c_str());
 }
-static const char* scriptLangForCp(int codePoint){
-    if(codePoint>=0x30&&codePoint<=0x39) return "en";
-    if((codePoint>=0x20&&codePoint<=0x2F)||(codePoint>=0x3A&&codePoint<=0x40)||(codePoint>=0x5B&&codePoint<=0x60)||(codePoint>=0x7B&&codePoint<=0x7E)||(codePoint>=0x2000&&codePoint<=0x206F)) return "zz";
-    if(codePoint==0xC0||codePoint==0xC2||codePoint==0xC7||codePoint==0xC8||codePoint==0xC9||codePoint==0xCA||codePoint==0xCB||codePoint==0xCE||codePoint==0xCF||codePoint==0xD4||codePoint==0xD9||codePoint==0xDB||codePoint==0xE0||codePoint==0xE2||codePoint==0xE7||codePoint==0xE8||codePoint==0xE9||codePoint==0xEA||codePoint==0xEB||codePoint==0xEE||codePoint==0xEF||codePoint==0xF4||codePoint==0xF9||codePoint==0xFB||codePoint==0x152||codePoint==0x153) return "fr";
-    if(codePoint==0xC1||codePoint==0xCD||codePoint==0xD1||codePoint==0xD3||codePoint==0xDA||codePoint==0xE1||codePoint==0xED||codePoint==0xF1||codePoint==0xF3||codePoint==0xFA) return "es";
-    if(codePoint==0xC4||codePoint==0xD6||codePoint==0xDC||codePoint==0xE4||codePoint==0xF6||codePoint==0xFC||codePoint==0xDF) return "de";
-    if(codePoint==0xC5||codePoint==0xC6||codePoint==0xD8||codePoint==0xE5||codePoint==0xE6||codePoint==0xF8) return "no";
-    if(codePoint==0x104||codePoint==0x105||codePoint==0x106||codePoint==0x107||codePoint==0x118||codePoint==0x119||codePoint==0x141||codePoint==0x142||codePoint==0x143||codePoint==0x144||codePoint==0x15A||codePoint==0x15B||codePoint==0x179||codePoint==0x17A||codePoint==0x17B||codePoint==0x17C) return "pl";
-    if(codePoint==0x10C||codePoint==0x10D||codePoint==0x10E||codePoint==0x10F||codePoint==0x11A||codePoint==0x11B||codePoint==0x147||codePoint==0x148||codePoint==0x158||codePoint==0x159||codePoint==0x160||codePoint==0x161||codePoint==0x164||codePoint==0x165||codePoint==0x16E||codePoint==0x16F||codePoint==0x17D||codePoint==0x17E) return "cs";
-    if((codePoint>=0x1EA0&&codePoint<=0x1EF9)||codePoint==0x110||codePoint==0x111||codePoint==0x1A0||codePoint==0x1A1||codePoint==0x1AF||codePoint==0x1B0) return "vi";
-    if((codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A)||(codePoint>=0xC0&&codePoint<=0xFF)||(codePoint>=0x100&&codePoint<=0x24F)) return "en";
-    if((codePoint>=0x370&&codePoint<=0x3FF)||(codePoint>=0x1F00&&codePoint<=0x1FFF)) return "el";
-    if(codePoint>=0x400&&codePoint<=0x52F){
-        if(codePoint==0x404||codePoint==0x454||codePoint==0x406||codePoint==0x456||codePoint==0x407||codePoint==0x457||codePoint==0x490||codePoint==0x491) return "uk";
-        if(codePoint==0x402||codePoint==0x452||codePoint==0x408||codePoint==0x458||codePoint==0x409||codePoint==0x459||codePoint==0x40A||codePoint==0x45A||codePoint==0x40B||codePoint==0x45B||codePoint==0x40F||codePoint==0x45F) return "sr";
-        if(codePoint==0x42A||codePoint==0x44A) return "bg";
-        if(codePoint==0x4A2||codePoint==0x4A3||codePoint==0x492||codePoint==0x493||codePoint==0x4B0||codePoint==0x4B1||codePoint==0x4AE||codePoint==0x4AF||codePoint==0x4D8||codePoint==0x4D9) return "kk";
-        return "ru";
-    }
-    if((codePoint>=0x530&&codePoint<=0x58F)||(codePoint>=0xFB00&&codePoint<=0xFB17)) return "hy";
-    if((codePoint>=0x590&&codePoint<=0x5FF)||(codePoint>=0xFB1D&&codePoint<=0xFB4F)) return "he";
-    if((codePoint>=0x600&&codePoint<=0x6FF)||(codePoint>=0x750&&codePoint<=0x77F)||(codePoint>=0x8A0&&codePoint<=0x8FF)||(codePoint>=0xFB50&&codePoint<=0xFDFF)||(codePoint>=0xFE70&&codePoint<=0xFEFF)){
-        if(codePoint==0x679||codePoint==0x688||codePoint==0x691||codePoint==0x6C1||codePoint==0x6D2||codePoint==0x6BA||codePoint==0x6BE) return "ur";
-        if(codePoint==0x681||codePoint==0x685||codePoint==0x689||codePoint==0x693||codePoint==0x696||codePoint==0x69A||codePoint==0x6BC||codePoint==0x6D0) return "ps";
-        if(codePoint>=0x67A&&codePoint<=0x67D) return "sd";
-        if(codePoint==0x6CE||codePoint==0x695||codePoint==0x6B5||codePoint==0x6C6) return "ku";
-        if(codePoint==0x67E||codePoint==0x686||codePoint==0x698||codePoint==0x6AF) return "fa";
-        return "ar";
-    }
-    if(codePoint>=0x780&&codePoint<=0x7BF) return "dv";
-    if((codePoint>=0x900&&codePoint<=0x97F)||(codePoint>=0xA8E0&&codePoint<=0xA8FF)) return (codePoint==0x933)?"mr":"hi";
-    if(codePoint>=0x980&&codePoint<=0x9FF) return (codePoint==0x9F0||codePoint==0x9F1)?"as":"bn";
-    if(codePoint>=0xA00&&codePoint<=0xA7F) return "pa";
-    if(codePoint>=0xA80&&codePoint<=0xAFF) return "gu";
-    if(codePoint>=0xB00&&codePoint<=0xB7F) return "or";
-    if(codePoint>=0xB80&&codePoint<=0xBFF) return "ta";
-    if(codePoint>=0xC00&&codePoint<=0xC7F) return "te";
-    if(codePoint>=0xC80&&codePoint<=0xCFF) return "kn";
-    if(codePoint>=0xD00&&codePoint<=0xD7F) return "ml";
-    if(codePoint>=0xD80&&codePoint<=0xDFF) return "si";
-    if(codePoint>=0xE00&&codePoint<=0xE7F) return "th";
-    if(codePoint>=0xE80&&codePoint<=0xEFF) return "lo";
-    if(codePoint>=0xF00&&codePoint<=0xFFF) return "bo";
-    if((codePoint>=0x1000&&codePoint<=0x109F)||(codePoint>=0xAA60&&codePoint<=0xAA7F)) return "my";
-    if((codePoint>=0x10A0&&codePoint<=0x10FF)||(codePoint>=0x2D00&&codePoint<=0x2D2F)) return "ka";
-    if((codePoint>=0x1100&&codePoint<=0x11FF)||(codePoint>=0x3130&&codePoint<=0x318F)||(codePoint>=0xA960&&codePoint<=0xA97F)||(codePoint>=0xAC00&&codePoint<=0xD7AF)||(codePoint>=0xD7B0&&codePoint<=0xD7FF)) return "ko";
-    if((codePoint>=0x1200&&codePoint<=0x137F)||(codePoint>=0x1380&&codePoint<=0x139F)||(codePoint>=0x2D80&&codePoint<=0x2DDF)) return "am";
-    if((codePoint>=0x1780&&codePoint<=0x17FF)||(codePoint>=0x19E0&&codePoint<=0x19FF)) return "km";
-    if((codePoint>=0x1800&&codePoint<=0x18AF)||(codePoint>=0x11660&&codePoint<=0x1167F)) return "mn";
-    if(codePoint>=0x3000&&codePoint<=0x303F) return "zh";
-    if((codePoint>=0x3040&&codePoint<=0x309F)||(codePoint>=0x1B000&&codePoint<=0x1B12F)) return "ja";
-    if((codePoint>=0x30A0&&codePoint<=0x30FF)||(codePoint>=0x31F0&&codePoint<=0x31FF)||(codePoint>=0x1B130&&codePoint<=0x1B16F)) return "ja";
-    if((codePoint>=0x4E00&&codePoint<=0x9FFF)||(codePoint>=0x3400&&codePoint<=0x4DBF)||(codePoint>=0x20000&&codePoint<=0x2A6DF)||(codePoint>=0x2A700&&codePoint<=0x2B73F)||(codePoint>=0x2B740&&codePoint<=0x2B81F)||(codePoint>=0x2B820&&codePoint<=0x2CEAF)||(codePoint>=0x2CEB0&&codePoint<=0x2EBEF)||(codePoint>=196608&&codePoint<=201551)||(codePoint>=201552&&codePoint<=205743)) return "zh";
-    if((codePoint>=0x1F000&&codePoint<=0x1F02F)||(codePoint>=0x1F300&&codePoint<=0x1F9FF)||(codePoint>=0x1FA70&&codePoint<=0x1FAFF)||(codePoint>=0x2600&&codePoint<=0x26FF)||(codePoint>=0x2700&&codePoint<=0x27BF)) return "zz";
-    if((codePoint>=0x1D400&&codePoint<=0x1D7FF)||(codePoint>=0x2100&&codePoint<=0x214F)||(codePoint>=0x2200&&codePoint<=0x22FF)) return "zz";
-    if(codePoint>=0x10000&&codePoint<=0x1007F) return "grc";
-    if(codePoint>=0x10300&&codePoint<=0x1032F) return "la";
-    if(codePoint>=0x10330&&codePoint<=0x1034F) return "got";
-    if(codePoint>=0x10400&&codePoint<=0x1044F) return "en";
-    if(codePoint>=0x10800&&codePoint<=0x1083F) return "grc";
-    if(codePoint>=0x10A00&&codePoint<=0x10A5F) return "sa";
-    if(codePoint>=0x12000&&codePoint<=0x1247F) return "akk";
-    if((codePoint>=0x13000&&codePoint<=0x1342F)||(codePoint>=0x13430&&codePoint<=0x1345F)) return "egy";
-    return nullptr;
-}
+
+// ==========================================================================
+//  ISO CODES AND JAVA COLLECTION-ORDER EMULATION
+//  javaHashSetOrder is load-bearing: the family fallback takes the first
+//  enabled member IN HashSet ORDER, so any other container is a different
+//  voice. It models ANDROID's HashSet, which is not JDK 19+'s.
+// ==========================================================================
 static std::unordered_map<std::string,std::string> g_iso2to3;
 static std::string toIso3(const std::string& lang){
     std::string normalised = lang;
@@ -1369,6 +1360,15 @@ static std::string javaFamilyFallback(const std::string& primary, const std::vec
     for(auto& code2: ordered) if(enabled.count(code2)) return code2;
     return "";
 }
+
+// ==========================================================================
+//  SCRIPT FAMILIES             AutoTTS com/vnspeak/autotts/a.java
+//  PROVEN: tools/verify/scriptfamily/run.sh -- 15 language sets over every
+//  code point, iteration order included.
+//  familyLangForCpFiltered and familyForCp are near-identical ladders and must
+//  stay separate: the filtered one is GATED by which families are enabled, and
+//  the gates change which branch a code point falls through to.
+// ==========================================================================
 static const char* FAMILY_LATIN[] = {"en","es","fr","de","it","pt","nl","sv","no","da","fi","pl","cs","sk","hu","ro","tr","id","ms","vi","tl","sw","hr","sr","sl","et","lv","lt","is","ga","cy","sq","mt"};
 static const char* FAMILY_CYRILLIC[]   = {"ru","uk","be","bg","mk","sr","bs","hr","kk","ky","tg","mn","uz","tt","ba","cv","sah","ce","av","ab"};
 static const char* FAMILY_ARABIC[]  = {"ar","fa","ur","ps","sd","ku","ckb","az","ks","ug","ha"};
@@ -1605,9 +1605,13 @@ static std::string scriptLangForCpFiltered(int codePoint, const std::unordered_s
     if(logBuf) *logBuf += std::string("[SCRIPT] a.e cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n";
     return res;
 }
-static const char* scriptLangForCp(int codePoint);
-static bool isJavaWhitespace(int codePoint);
-static bool isLatinPunctuation(int codePoint);
+
+// ==========================================================================
+//  DETECTORS                   AutoTTS clsCLD2.d / libcld2.so getLanguage 0x6523c8
+//  cld3DetectRaw takes useHints because the two call sites are hinted
+//  differently: the span site hints and filters, the window site does neither
+//  and lets clsCLD2.d decide. See docs/AUTOTTS_MAP.md.
+// ==========================================================================
 static std::string baseLanguageTag(const std::string& code){
     size_t cut = code.find_first_of("-_");
     std::string base = (cut == std::string::npos) ? code : code.substr(0, cut);
@@ -1695,6 +1699,13 @@ static std::string detectWindowLang(const std::string& utf8Text, bool useCld3){
     const char* code = CLD2::LanguageCode(lang3[0]);
     return code ? std::string(code) : "UNKNOWN";
 }
+
+// ==========================================================================
+//  LANGUAGE HINTS              libcld2.so setLanguageHints 0x653588
+//  setLanguageHints does more than remember the list: it derives two per-script
+//  tables that steer CLD2. The hint survives only where exactly one enabled
+//  language uses that script; the fallback is the first one that does.
+// ==========================================================================
 static std::mutex languageHintMutex;
 static std::string languageHintList;
 // AutoTTS's native setLanguageHints (0x653588) keeps the codes lowercased and
@@ -1776,6 +1787,10 @@ static int currentScriptLanguageFallback(int script){
     return scriptLanguageFallback[script];
 }
 extern "C" JNIEXPORT void JNICALL
+
+// ==========================================================================
+//  JNI: the remaining entry points
+// ==========================================================================
 Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv* env, jclass, jobjectArray jLangs){
     std::string joined;
     std::vector<std::string> codes;
@@ -1907,6 +1922,13 @@ Java_com_tts_easyvoice_NativeEngine_normalizeFancy(JNIEnv* env, jclass, jstring 
     return env->NewStringUTF(normalizeFancyText(text).c_str());
 }
 extern "C" JNIEXPORT jobjectArray JNICALL
+
+// ==========================================================================
+//  JNI: nativeGetLanguages     libcld2.so getLanguageSpans 0x65392c
+//  Script 0 -- a run with nothing classified: digits, punctuation, spaces,
+//  emoji -- answers "un" with latin = TRUE and never reaches a detector. That
+//  is why a bare number is read in the LATIN preferred language.
+// ==========================================================================
 Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText, jboolean jUseCld3){
     jclass stringClass=env->FindClass("java/lang/String");
     if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
