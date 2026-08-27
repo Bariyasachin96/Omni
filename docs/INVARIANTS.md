@@ -256,6 +256,46 @@ generator there is nothing that can grow it.
 
 ---
 
+## 17. An activity that persists must load first
+
+**Rule.** Any activity whose `onPause` calls `LangStore.persistAll` must call
+`LangStore.ensureLoaded(this)` in `onCreate`.
+
+**Why.** AutoTTS has one settings screen, `NewSettingsActivity`, and it does
+both: `onCreate` loads, `onPause` calls `c3.n.t`, which is `persistAll`
+call-for-call and in the same order (`w`, `C`, `B`, `v`, `x`, `u`, `z`). We
+split that screen into four activities, **all four persist and only
+`MainActivity` loads**. That asymmetry is ours, not AutoTTS's.
+
+Android restores the **top** activity of a task after the process is killed, not
+the whole stack, so `ModeSettingsActivity`, `LanguagesActivity` or
+`VoiceSetupActivity` can each come back in a process where nothing has loaded —
+`modeInt` 0, every mode language `""`, every Advanced flag `false`, all at their
+declared defaults. Their `onPause` would then write **all of that** over the
+user's real settings. A silent wipe, on the owner's only TTS engine.
+
+It has not bitten constantly only because the TTS service usually lives in the
+same process and its `onCreate` has already run `loadAllSettings`. That is luck,
+not design.
+
+**The load must be guarded, not unconditional.** Reloading over a *live* edit is
+its own bug — the one where the service kept routing to the previously stored
+language while the UI showed the new one (see #4). `ensureLoaded` returns
+immediately when `EasyVoiceTtsService.autoLang` is non-empty, which is exactly
+the marker `loadModeLangsOnce` already uses: it is `""` only before anything has
+loaded, and both loaders end with `ifEmpty { deviceIso3 }`, so it can never be
+empty afterwards.
+
+**Check.** `tools/check/invariants.sh` #17.
+
+**A checker asleep, caught by the selftest.** The first version of this check
+grepped the file without stripping comments, and the line above each call reads
+"see `LangStore.ensureLoaded`" — so deleting the call left the comment matching
+and the check still said ok. It strips comments and counts matches now, like #6.
+That is the second time this exact trap has been hit; `selftest.sh` found both.
+
+---
+
 ## 16. An unreliable detector answer must never reach a span
 
 **Rule.** Every `cld3DetectRaw` call passes a real `bool*` for `reliableOut` and

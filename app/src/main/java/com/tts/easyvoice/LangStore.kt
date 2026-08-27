@@ -300,6 +300,33 @@ object LangStore {
         EasyVoiceTtsService.modeInt = index
         EasyVoiceTtsService.localeSpansFlag = sharedPrefs.getBoolean("locale_spans", false)
     }
+    // Load the statics ONLY if this process has never loaded them.
+    //
+    // AutoTTS has one settings screen, NewSettingsActivity, and it both loads
+    // (onCreate) and persists (onPause -> n.t). We split that screen into four
+    // activities and all four persist in onPause, but only MainActivity loads.
+    // Android restores the TOP activity of a task after the process is killed,
+    // not the whole stack, so ModeSettings / Languages / VoiceSetup can each
+    // come back in a process where nothing has loaded -- statics at their
+    // declared defaults, modeInt 0, every mode language "", every Advanced flag
+    // false -- and their onPause would then write all of that over the user's
+    // real settings. That is a silent wipe, and for someone whose only TTS
+    // engine this is, it is not a recoverable one.
+    //
+    // The guard is autoLang, because that is exactly the marker
+    // loadModeLangsOnce already uses: it is "" only before anything has loaded,
+    // and both loaders end with ifEmpty { deviceIso3 }, so it can never be
+    // empty afterwards. That matters more than convenience -- reloading over a
+    // LIVE edit is its own bug, the one that made the service route to the
+    // previously stored language while the UI showed the new one, and this
+    // cannot do that: if anything is loaded, this returns immediately.
+    @JvmStatic
+    fun ensureLoaded(ctx: Context) {
+        if (EasyVoiceTtsService.autoLang.isNotEmpty()) return
+        loadModeLangs(ctx)
+        loadMode(ctx)
+        loadFlags(ctx)
+    }
     @JvmStatic
     fun loadFlags(ctx: Context) {
         val sharedPrefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)

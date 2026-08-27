@@ -13,6 +13,10 @@ class VoiceSetupActivity : ComponentActivity() {
     private var total by mutableStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // This screen persists in onPause, so it must not run with unloaded
+        // statics: Android can restore it alone into a fresh process. No-op
+        // whenever anything is already loaded -- see LangStore.ensureLoaded.
+        LangStore.ensureLoaded(this)
         val prefs = SharedPrefsManager(this)
         testTts = android.speech.tts.TextToSpeech(this, null, "com.tts.easyvoice")
         langIndex = intent.getIntExtra("lang_index", -1)

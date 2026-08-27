@@ -89,6 +89,27 @@ n=$(sed 's://.*::' $KT/*.kt | grep -A 25 "DropdownMenu(" | grep -c "LazyColumn\|
 [ "$n" = 0 ] && ok "#8  no lazy list inside a DropdownMenu" \
              || bad "#8  a lazy list inside a DropdownMenu ($n) -- it cannot answer intrinsics and throws"
 
+# --- 17. an activity that PERSISTS must also LOAD ---------------------------
+# AutoTTS has one settings screen and it does both (onCreate loads, onPause ->
+# n.t persists). We split it into four activities that all persist, and Android
+# restores only the TOP activity of a task after the process is killed -- so any
+# of them can come back with statics at their declared defaults and write those
+# over the user's real settings. Loading must be guarded, not unconditional:
+# reloading over a live edit is its own bug. LangStore.ensureLoaded does both.
+# Comments are stripped and matches are COUNTED, not tested by exit code. The
+# first version of this check did neither and the selftest caught it asleep: the
+# line above each call says "see LangStore.ensureLoaded", so deleting the call
+# left the comment matching and the check still reported ok. Same trap as #6.
+missing=""
+for f in $(grep -rln "LangStore.persistAll" $KT); do
+  case "$f" in */LangStore.kt|*/EngineFinder.kt) continue ;;   # not activities
+  esac
+  n=$(sed 's://.*::' "$f" | grep -c "LangStore\.ensureLoaded\|LangStore\.loadMode(")
+  [ "$n" = 0 ] && missing="$missing $(basename $f)"
+done
+[ -z "$missing" ] && ok "#17 every activity that persists also loads first" \
+                  || bad "#17 persists in onPause but never loads:$missing -- a fresh process would write defaults over real settings"
+
 # --- 16. an unreliable detector answer must never reach a span --------------
 # Both arms of detectWindowLang answer "UNKNOWN" when the detector is unsure.
 # The span site once passed nullptr for cld3DetectRaw's reliableOut and used the

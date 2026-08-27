@@ -70,6 +70,8 @@ run "#6  put state in a contentDescription" "#6" \
     "perl -0pi -e 's/contentDescription = /contentDescription = \"Speed, checked\" ?: /' $K/VoiceScreen.kt"
 run "#8  put a LazyColumn in a DropdownMenu" "#8" \
     "perl -0pi -e 's/(DropdownMenu\(expanded = expanded)/\$1\n            LazyColumn { }/' $K/VoiceScreen.kt"
+run "#17 persist without loading" "#17" \
+    "sed -i '/LangStore.ensureLoaded(this)/d' $K/LanguagesActivity.kt"
 run "#16 drop the wrong-script rejection" "#16" \
     "perl -0pi -e 's/const bool wrongScript = \\(cld3Script >= 0 && cld3Script != script\\);/const bool wrongScript = false; (void)cld3Script;/' app/src/main/cpp/tts_engine_core.cpp"
 run "#16 drop the span site's reliability flag" "#16" \
