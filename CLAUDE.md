@@ -85,11 +85,11 @@ runs Google's Accessibility Test Framework — the engine behind Accessibility S
 every screen, and catches the four mechanical things this document has been computing by
 hand: missing labels, colour contrast, touch target size and traversal order.
 `enableAccessibilityChecks()` needs **API 34** and is a no-op under Robolectric, so it runs on
-an emulator in the workflow's **`accessibility` job**. That job is deliberately independent of
-`build`: emulators are slow and sometimes flaky, and a bad one must never cost the owner an
-APK. A red tick there means an accessibility regression, not a broken app. It cannot judge
-whether a label is the *right* label — INVARIANTS #6, #7, #9 and #18 are still a careful read
-and the owner's ear.
+an emulator in the workflow's **`accessibility` job**. **That job failing fails the run.** It is
+a separate job only so it runs in *parallel* with the APK build; an accessibility regression is
+a real defect and is to be fixed, never tolerated because the APK happened to build. Do not add
+`continue-on-error`. It still cannot judge whether a label is the *right* label — INVARIANTS
+#6, #7, #9 and #18 are a careful read and the owner's ear.
 
 `tools/check-all.sh` runs, cheapest first: `ktcheck` (structure), `ktresolve` (our own
 call signatures), `ktimports`, `xmlcheck`, `cpp-syntax.sh`, and `kotlin-typecheck.sh`,

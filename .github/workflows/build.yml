@@ -171,15 +171,12 @@ jobs:
 
   # Google's Accessibility Test Framework over every screen -- labels, colour
   # contrast, touch target size, traversal order. See
-  # app/src/androidTest/.../AccessibilityChecksTest.kt for what it does and does
-  # not cover.
+  # app/src/androidTest/.../AccessibilityChecksTest.kt for what it covers.
   #
-  # A SEPARATE JOB, ON PURPOSE. It needs an emulator, emulators are slow and
-  # occasionally flaky, and the person waiting for this build is blind and
-  # relies on the APK. `build` does not depend on this and this does not depend
-  # on `build`, so the two run in parallel and a bad emulator can never cost a
-  # release. Read its result on the run page; a red tick here means an
-  # accessibility regression, not a broken app.
+  # THIS JOB FAILING FAILS THE RUN. It is a separate job only so that it runs in
+  # PARALLEL with the APK build -- an accessibility regression is a real defect
+  # and must be seen and fixed, not tolerated because the APK happened to build.
+  # Do not add continue-on-error, and do not make anything here optional.
   #
   # API 34 is the floor: enableAccessibilityChecks() requires it and is a no-op
   # below. The AVD needs KVM, which ubuntu-latest has once the udev rule below
@@ -273,10 +270,15 @@ jobs:
             echo "sdk.dir=$ANDROID_HOME" > local.properties
             gradle connectedDebugAndroidTest
 
+      # Uploaded on failure too -- the HTML report names the exact node and the
+      # exact check, which is the only way to fix a failure you cannot reproduce
+      # locally without an emulator.
       - name: Upload the accessibility report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: accessibility-report-${{ github.run_number }}
-          path: app/build/reports/androidTests/
-          if-no-files-found: ignore
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          if-no-files-found: warn

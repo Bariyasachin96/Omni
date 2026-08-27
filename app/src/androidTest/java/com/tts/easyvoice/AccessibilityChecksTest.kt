@@ -23,8 +23,8 @@ import java.util.Locale
 //
 // It needs a real device or emulator at API 34 or above -- the checks are a
 // no-op under Robolectric -- which is why the workflow runs this in its own job
-// with an emulator, and why that job does NOT gate the APK: a flaky emulator
-// must never cost the owner a build.
+// with an emulator. That job failing FAILS THE RUN; it is separate only so it
+// runs in parallel with the APK build.
 //
 // WHAT THIS DOES NOT REPLACE. The framework cannot tell whether a label is the
 // RIGHT label, whether a heading is in the right place, or whether the reading

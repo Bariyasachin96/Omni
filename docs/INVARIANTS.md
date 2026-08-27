@@ -475,3 +475,49 @@ which is #11's rule and was exactly what I skipped.
 **Check.** `tools/check/invariants.sh` #18 parses each `semantics { … }` block
 and reports any that sets both `heading()` and `contentDescription`.
 Negative-tested in `selftest.sh`.
+
+---
+
+## 19. The two accessibility warnings that are accepted, and why
+
+`enableAccessibilityChecks()` throws on **ERROR** results only — that is the
+framework's own default, not a setting of ours. Two of the thirteen ATF checks
+report **WARNING** on this app, deliberately, and both were audited rather than
+waved through.
+
+**`DuplicateSpeakableTextCheck` on the mode-int radios.** Three radio groups on
+a mode's settings screen — numbers, punctuation, emojis — each offer the same
+four options, so twelve clickable rows carry four speakable names between them.
+The check's own source says it warns when "two Views with the same text, and at
+least one of them is clickable"; it has no way to see that each group sits under
+its own heading. Naming the rows "Numbers, Auto language" and so on **does**
+silence it, and that is exactly what the owner used and rejected on 2026-08-27:
+with a heading already above each group, repeating the group name on all four
+rows is noise. A radio group whose options repeat is the canonical case this
+check cannot judge. The heading stays, the prefix does not.
+
+**`RedundantDescriptionCheck` on "Show selected".** The chip's visible label
+contains the word "selected", and WCAG 2.5.3 Label in Name requires the
+accessible name to contain the visible label. Renaming the chip is the only way
+to silence it, and that is a wording decision for the owner.
+
+**Everything else was measured, not assumed** (2026-08-27):
+
+| check | result |
+|---|---|
+| `SpeakableTextPresentCheck` (the only ERROR-level one that could plausibly fire) | **36 of 36** clickable / selectable / toggleable nodes carry a name |
+| `TouchTargetSizeCheck` | passes. M3 `Button` is 40dp tall but every one is built on the clickable `Surface`, whose modifier chain **begins** with `minimumInteractiveComponentSize()`, so the a11y bounds are 48dp. Our own rows are larger still: the radio rows are a `RadioButton` plus 24dp of vertical padding, and the list rows are `ListItem` at 56dp |
+| `TextContrastCheck` | every text-on-background pair computed: 18.73, 16.48, 14.63, 14.64, 7.21, 10.31, 5.45, 16.48 — all above 4.5 |
+| non-text contrast (WCAG 1.4.11) | control outline 11.02, tab divider 3.70, selected chip fill 3.44, switch thumb 7.21 — all above 3.0 |
+| `EditableContentDescCheck` | the Languages search field carries no `contentDescription`; never add one |
+| `TraversalOrderCheck` | no `traversalIndex` or `traversalBefore/After` anywhere, so there is no order to contradict |
+| `ClickableSpanCheck`, `LinkPurposeUnclearCheck` | no links or spans in the app |
+
+**One measurement that is a design question, not a violation.** The
+`SectionHeader` bar (`primaryContainer` `#1B2A38`) is **1.28:1** against the page
+(`#121212`). ATF does not flag it — `TextContrastCheck` compares text against
+its own background, and the heading text on that bar is 14.64:1. The bar is a
+grouping fill whose meaning is carried by the text on it, so it is the same
+exemption already recorded for `surface` against `background`. Raising it would
+make the header bars visibly lighter across the whole app, which is the owner's
+call, not a correctness fix.
