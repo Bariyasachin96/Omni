@@ -51,9 +51,17 @@ android {
     }
 }
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    // Latest stable, checked against the androidx release notes on 2026-08-27.
+    // core-ktx is what NotificationCompat, ServiceCompat and FileProvider come
+    // from, so it is the one that actually earns its place.
+    implementation("androidx.core:core-ktx:1.19.0")
+    // lifecycle and coroutines are declared but not imported directly anywhere:
+    // Compose and activity-compose pull both in, and Gradle resolves to the
+    // highest, so the old 2.7.0 / 1.7.3 pins were already inert. Declared at
+    // current stable rather than removed, so the resolved versions are stated
+    // in one place instead of being whatever the transitive graph settles on.
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")

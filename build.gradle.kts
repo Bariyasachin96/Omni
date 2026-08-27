@@ -7,7 +7,7 @@ buildscript {
     }
 }
 plugins {
-    id("com.android.application") version "9.3.0" apply false
+    id("com.android.application") version "9.3.2" apply false
     // Ships with Kotlin, so it must match the Kotlin version exactly.
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.0" apply false
 }
