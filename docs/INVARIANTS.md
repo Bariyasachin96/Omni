@@ -256,6 +256,34 @@ generator there is nothing that can grow it.
 
 ---
 
+## 15. Two things look dead to a text scan and are not
+
+**Rule.** Never delete these on the strength of a grep.
+
+**`import androidx.compose.runtime.getValue` / `setValue`.** Fourteen of these
+across seven files, and no occurrence of either name anywhere in the bodies.
+They are the **operator imports Kotlin needs for property delegation** — every
+`var x by remember { mutableStateOf(…) }` compiles to `getValue`/`setValue`
+calls the compiler resolves through the import, not through anything written in
+the file. Removing them does not tidy the file; it fails the build. The seven
+files use `by remember` between 1 and 12 times each.
+
+**A parameter used only inside a string template.** `openPlayStoreFor(pkg)`
+reads `pkg` only in `"market://details?id=$pkg"` and the https fallback, so any
+scan that blanks string literals before counting identifiers reports the
+parameter as unused. It is not.
+
+**Why this is written down.** A dead-code sweep on 2026-08-26 produced exactly
+these two as its only "findings" outside real dead code. Both were false
+positives from the same cause — the scanner strips comments and strings so that
+braces and prose cannot skew the counts, which is right for finding dead
+functions and wrong for anything the compiler resolves implicitly or that lives
+inside a `"…"`. The genuinely unused import that same sweep found,
+`android.text.Spanned`, was removed only after `tools/check/kotlin-typecheck.sh`
+showed 1135 errors before and 1135 after, with no new error text.
+
+---
+
 ## 14. A log tag is `EasyVoiceLogger.TAG`, or `"TTS"` at six sites
 
 **Rule.** Every `EasyVoiceLogger` call passes `EasyVoiceLogger.TAG`, except the

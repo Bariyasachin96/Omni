@@ -824,7 +824,10 @@ and `j0("")` being `Locale("")`. Ours also ran the load for **every** bypassed u
 than only a forced one. Unreachable (`speakTest` always sends a real package and locale), but
 it was a pref read on the **Test button**, where prefs and statics differ by definition.
 **Swept afterwards: the only `prefs.` calls left on the synthesis path are `prefs.toIso3`,
-which is a pure conversion and reads nothing.**
+which is a pure conversion and reads nothing.** The accessor itself outlived that fix as dead
+code and was deleted on 2026-08-26, along with `SharedPrefsManager.isGoogleTtsInstalled`,
+which had been dead since `getReadingMode()` moved to the statics — the Google-TTS presence
+test AutoTTS's `c3.n.o` actually performs lives in `LangStore.loadMode`.
 
 **The two non-`EasyVoiceTtsService` flags, checked 2026-08-13 when the user asked whether they
 could be statics too:**
@@ -1699,7 +1702,9 @@ initialiser and the built set in `a()` — and **nothing in the whole app ever c
 AutoTTS builds the keyword list from whatever `c3.n.f` held at the first utterance with smart
 numbers on, and keeps it. Our `smartNumberCacheValid` does the same. Changing the enabled
 languages afterwards does not change the keyword list, in AutoTTS or here; that is not a bug
-to fix. (`smartNumberCachedHints` is unused for exactly this reason.)
+to fix. (There used to be a `smartNumberCachedHints` beside it, written once and never read —
+a leftover from a design where a hint change invalidated the cache. Neither AutoTTS nor we
+invalidate, so it was doing nothing; deleted 2026-08-26.)
 
 ## Per-mode DETECTION audited against 5.7.7.26 (2026-08-21)
 `onSynthesizeText` was decompiled from **both** 5.7.7.18 and 5.7.7.26 with identical CFR

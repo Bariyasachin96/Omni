@@ -1226,7 +1226,9 @@ exactly **two** places a detector is invoked, and both have both arms:
 
 Nothing else detects. `processDirect` / `buildMixChunks` only segments — its `useCld3` and
 `disableAdvancedDetection` parameters are inert, kept so the JNI signature carries the
-intent; `segmentKind` is pure text classification; and the two post-detection stages,
+intent; `wholeSegmentKind` is pure text classification (it had a JNI entry point of its own,
+`segmentKind`, which was deleted on 2026-08-26 with no caller ever recorded); and the two
+post-detection stages,
 `n.n()` (`detectOkIso3Set`) and `a.e(cp, m.f)` (`scriptLangForCpFiltered`), are
 detector-independent and shared by both arms.
 
