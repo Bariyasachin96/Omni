@@ -150,8 +150,65 @@ private fun LanguageChoice(
         if (picked >= 0 && picked < codes.size) onPick(codes[picked])
     }
 }
+// One of the three choices under "Numbers, punctuation and emojis", as a radio
+// group rather than a dropdown (owner request, 2026-08-27). Four options is
+// small enough that a list is faster than opening a menu, and every option is
+// then reachable by one swipe instead of a menu round trip.
+//
+// `title` is a real heading, so a screen reader can jump between the three
+// groups instead of swiping through twelve rows to find out which is which --
+// that was the other half of the request. It is a plain Text with heading()
+// rather than a SectionHeader, because SectionHeader draws a filled bar and
+// there is already one of those above these three.
+//
+// `groupName` exists because of Google's DuplicateSpeakableTextCheck, the same
+// reason LabeledDropdown names its button "<label>, <value>": all three groups
+// offer the identical four options, so twelve clickable rows would carry four
+// speakable names between them. "Numbers, Auto language" is unique, still
+// contains the visible label (WCAG 2.5.3 Label in Name), and names no role or
+// state, which RedundantDescriptionCheck forbids.
+@Composable
+private fun LabeledRadioGroup(
+    title: String,
+    groupName: String,
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() }
+        )
+        for (index in options.indices) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = index == selectedIndex,
+                        role = Role.RadioButton,
+                        onClick = { onSelect(index) }
+                    )
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .semantics { contentDescription = groupName + ", " + options[index] },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(selected = index == selectedIndex, onClick = null)
+                Text(
+                    text = options[index],
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 12.dp).clearAndSetSemantics { }
+                )
+            }
+        }
+    }
+}
 @Composable
 private fun ReadingSettings(codes: List<String>, labels: List<String>) {
+    // The four options and their order are AutoTTS's number_mode_* strings, and
+    // the index written to each static is what d0.t re-types a segment with, so
+    // neither may be reordered: 0 auto, 1 primary, 2 secondary, 3 specific.
     val modeOptions = listOf("Auto language", "Primary language", "Secondary language", "Specific language")
     // These three belong together and are a different thing from the preferred
     // languages above them, but they ran on as one flat list of dropdowns with
@@ -160,7 +217,7 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
     var numberMode by remember { mutableStateOf(EasyVoiceTtsService.numberModeInt) }
     var puncMode by remember { mutableStateOf(EasyVoiceTtsService.punctuationModeInt) }
     var emojiMode by remember { mutableStateOf(EasyVoiceTtsService.emojiModeInt) }
-    LabeledDropdown("Select language for reading numbers:", modeOptions, numberMode) { picked ->
+    LabeledRadioGroup("Select language for reading numbers", "Numbers", modeOptions, numberMode) { picked ->
         numberMode = picked
         EasyVoiceTtsService.numberModeInt = picked
     }
@@ -168,7 +225,7 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
         LanguageChoice("Specific language for reading numbers", codes, labels,
             EasyVoiceTtsService.numberSpecificLang) { EasyVoiceTtsService.numberSpecificLang = it }
     }
-    LabeledDropdown("Select language for reading punctuations:", modeOptions, puncMode) { picked ->
+    LabeledRadioGroup("Select language for reading punctuations", "Punctuation", modeOptions, puncMode) { picked ->
         puncMode = picked
         EasyVoiceTtsService.punctuationModeInt = picked
     }
@@ -176,7 +233,7 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
         LanguageChoice("Specific language for reading punctuations", codes, labels,
             EasyVoiceTtsService.puncSpecificLang) { EasyVoiceTtsService.puncSpecificLang = it }
     }
-    LabeledDropdown("Select language for reading emojis:", modeOptions, emojiMode) { picked ->
+    LabeledRadioGroup("Select language for reading emojis", "Emojis", modeOptions, emojiMode) { picked ->
         emojiMode = picked
         EasyVoiceTtsService.emojiModeInt = picked
     }
