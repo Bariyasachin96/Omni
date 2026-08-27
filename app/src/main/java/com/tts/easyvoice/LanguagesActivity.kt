@@ -61,17 +61,38 @@ class LanguagesActivity : ComponentActivity() {
         super.onPause()
     }
 }
+// The whole coloured bar is ONE merged node: role heading, name = the title,
+// and the Text inside silenced so it is not announced twice.
+//
+// It used to put heading() on the inner Text and leave the Surface alone. The
+// owner reported the result on device: the heading was spoken while reading
+// through, but swiping never landed on it, so on the voice screen, the
+// Languages screen and every mode's settings there was no way to reach the
+// heading or navigate by it (2026-08-27). Material's Surface wraps its content
+// in a Box that carries its own `semantics(mergeDescendants = false) {}`, so the
+// bar and the Text were two nodes and which one a screen reader treated as the
+// heading was not something to leave to chance. Merging at the Surface makes it
+// one node that is unambiguously a heading and unambiguously has a name -- the
+// same shape INVARIANTS #7 already forced on every clickable row here.
+//
+// Do not move the semantics back onto the Text.
 @Composable
 fun SectionHeader(title: String) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .semantics(mergeDescendants = true) {
+                heading()
+                contentDescription = title
+            }
     ) {
         Text(
             text = title,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp).semantics { heading() }
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp).clearAndSetSemantics { }
         )
     }
 }

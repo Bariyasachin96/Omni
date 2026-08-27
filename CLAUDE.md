@@ -269,13 +269,15 @@ Recorded so far:
    **Google is AutoTTS-faithful, not a departure:** its radio is
    `android:visibility="gone"` in `fragment_modes.xml` and `setVisibility` is never called on
    it anywhere, so AutoTTS never offers it either.
-   `ModesScreen.shownMode()` maps a stored `"none"` **or** `"google"` to `"auto"` and writes
-   it back, otherwise the screen opens with no radio selected — for a screen reader user that
-   is worse than a wrong selection. Google needs that mapping as much as None does, because it
-   is reachable without ever being offered: `LangStore.loadMode` reads `auto_mode` with a
-   default of **3** (AutoTTS's own `c3.n.o`), so a device with Google TTS installed and no
-   stored mode — a fresh install, or cleared data — starts in Google mode. That is exactly how
-   the row surfaced on the owner's device on 2026-08-27.
+   `ModesScreen.shownMode()` maps a stored `"none"` to `"auto"` and writes it back, because
+   None is not a row. **Google is deliberately NOT mapped** (owner, 2026-08-27: *"vahi Google
+   wala selected rahana chahie, bus visible nahin hona chahie"*). `LangStore.loadMode` reads
+   `auto_mode` with a default of **3** — AutoTTS's own `c3.n.o` — so a fresh install on a
+   device with Google TTS starts in Google mode, and AutoTTS starts there too with nothing
+   checked in its own list, because its radio is `gone`. Ours now behaves identically: the
+   mode stays Google and the list simply shows no checked radio. An earlier version mapped
+   google to auto and wrote it back; that stopped the app ever sitting in Google mode, which
+   is a behaviour change rather than a UI one, and it was reverted.
 
 7. **Tab title, list buttons and switches (user request, 2026-08-12).**
    - The first tab is titled **"Main Settings"**; the section header inside it still says

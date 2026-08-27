@@ -89,6 +89,33 @@ n=$(sed 's://.*::' $KT/*.kt | grep -A 25 "DropdownMenu(" | grep -c "LazyColumn\|
 [ "$n" = 0 ] && ok "#8  no lazy list inside a DropdownMenu" \
              || bad "#8  a lazy list inside a DropdownMenu ($n) -- it cannot answer intrinsics and throws"
 
+# --- 18. a heading must be a MERGED, NAMED node -----------------------------
+# heading() on a bare Text is spoken while reading through and never takes
+# focus, so the heading cannot be reached or navigated by. Reported from the
+# device on 2026-08-27 for the voice screen, the Languages screen and every
+# mode's settings. Every heading is `semantics(mergeDescendants = true) {
+# heading(); contentDescription = ... }` now. Comments are stripped, because
+# this rule is written down inside them.
+n=$(sed 's://.*::' $KT/*.kt | python3 -c "
+import re,sys
+text = sys.stdin.read()
+bad = 0
+for m in re.finditer(r'semantics\s*(\([^)]*\))?\s*\{', text):
+    args = m.group(1) or ''
+    depth, at = 0, m.end() - 1
+    while at < len(text):
+        if text[at] == '{': depth += 1
+        elif text[at] == '}':
+            depth -= 1
+            if depth == 0: break
+        at += 1
+    if 'heading()' in text[m.end():at] and 'mergeDescendants = true' not in args:
+        bad += 1
+print(bad)
+")
+[ "$n" = 0 ] && ok "#18 every heading is a merged, named node" \
+             || bad "#18 heading() on a non-merging semantics block ($n) -- it would be spoken but never focusable"
+
 # --- 17. an activity that PERSISTS must also LOAD ---------------------------
 # AutoTTS has one settings screen and it does both (onCreate loads, onPause ->
 # n.t persists). We split it into four activities that all persist, and Android

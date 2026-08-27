@@ -31,19 +31,22 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 fun modeIntOf(mode: String): Int =
     when (mode) { "dual" -> 1; "auto" -> 2; "google" -> 3; "mix" -> 4; "multilingual" -> 5; else -> 0 }
-// The mode list offers exactly four: Dual, Auto, Mixed, Multilingual. "None" and
-// "Google TTS" are never rows, so a stored value of either has to resolve to one
-// that is, or the screen opens with no radio selected and no way to tell what is
-// in force -- which for a screen reader user is worse than a wrong selection.
-// Both map to "auto", and the caller writes that back, so the stored mode and
-// the visible one never disagree.
+// The mode list offers exactly four: Dual, Auto, Mixed, Multilingual. "None" is
+// never a row and a stored "none" resolves to "auto", which the caller writes
+// back, so the stored mode and the visible one never disagree.
 //
-// Google needs this as much as None does, because it is reachable without ever
-// being offered: LangStore.loadMode reads `auto_mode` with a default of 3, which
-// is AutoTTS's own c3.n.o, so a device with Google TTS installed and no stored
-// mode -- a fresh install, or cleared data -- starts in Google mode.
+// "Google TTS" is NOT mapped, and that is deliberate (owner, 2026-08-27).
+// LangStore.loadMode reads `auto_mode` with a default of 3 -- AutoTTS's own
+// c3.n.o -- so a fresh install on a device with Google TTS starts in Google
+// mode. AutoTTS starts there too, and its Google radio is gone from the layout,
+// so nothing is checked in its list either. The owner wants exactly that:
+// "vahi Google wala selected rahana chahie, bus visible nahin hona chahie".
+//
+// An earlier version mapped google to auto here and wrote it back. It stopped
+// the app ever sitting in Google mode, which is a real behaviour change and not
+// ours to make. Do not reintroduce it: the mode is hidden, not converted.
 private fun shownMode(stored: String): String =
-    if (stored == "none" || stored == "google") "auto" else stored
+    if (stored == "none") "auto" else stored
 private fun rebuildLanguagesFor(context: android.content.Context, modeInt: Int) {
     val required = LangStore.requiredLangs(modeInt,
         EasyVoiceTtsService.autoLang,
@@ -83,11 +86,10 @@ fun ModesScreen(
                 //
                 // It was briefly drawn here while google was the mode in force,
                 // to keep its preferred-language setting reachable. The owner
-                // rejected that on 2026-08-27 -- the list must show four modes
-                // and only four -- and shownMode() is the better answer anyway:
-                // a stored google resolves to auto on open, so the setting is
-                // not stranded, it simply stops being the mode. Do not put this
-                // row back.
+                // rejected that -- the list must show four modes and only four.
+                // So when Google IS the mode, which is the default on a fresh
+                // install, the list shows no checked radio at all. AutoTTS does
+                // the same, for the same reason, and that is the intent.
                 if (mode == "google") continue
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -184,10 +186,15 @@ private fun LabeledRadioGroup(
     onSelect: (Int) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+        // Merged and named on the node itself, for the same reason SectionHeader
+        // is: heading() on a bare Text was spoken while reading through but
+        // never took focus, so it could not be reached or navigated by.
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() }
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .semantics(mergeDescendants = true) { heading(); contentDescription = title }
         )
         for (index in options.indices) {
             Row(
@@ -316,7 +323,9 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
                 Text(
                     text = "Other options",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp).semantics { heading() }
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .semantics(mergeDescendants = true) { heading(); contentDescription = "Other options" }
                 )
                 LocaleSpanRow()
             }

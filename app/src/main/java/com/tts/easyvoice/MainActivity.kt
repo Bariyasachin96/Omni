@@ -276,7 +276,8 @@ fun RequiredEnginesDialog(
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
         // A dialog is a screen too. Material3 does not mark its title slot as a
         // heading, so it was the one screen-sized surface with nothing to jump to.
-        title = { Text("Required TTS engines", modifier = Modifier.semantics { heading() }) },
+        title = { Text("Required TTS engines", modifier = Modifier
+            .semantics(mergeDescendants = true) { heading(); contentDescription = "Required TTS engines" }) },
         text = {
             // Material3's AlertDialog does not scroll its text slot -- it only
             // gives it Modifier.weight(weight = 1f, fill = false) -- so with
@@ -447,7 +448,9 @@ fun MainScreen(
                         // The first screen the app ever shows, and it was the only
                         // one whose title was styled as a headline but never
                         // marked as one.
-                        modifier = Modifier.semantics { heading() }
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            heading(); contentDescription = "Finding the languages and voices on your device"
+                        }
                     )
                     if (animationsEnabled(context)) {
                         CircularProgressIndicator(

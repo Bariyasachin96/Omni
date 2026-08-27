@@ -437,3 +437,35 @@ Several oddities are deliberate. Removing them is a behaviour change:
 The two deliberate **departures** from AutoTTS are the whole user interface
 (the owner's decision) and the `_disabled` default, which starts languages
 cleared instead of ticked.
+
+---
+
+## 18. A heading must be a merged, named node
+
+**Rule.** Every heading is
+`Modifier.semantics(mergeDescendants = true) { heading(); contentDescription = … }`.
+Never `Modifier.semantics { heading() }` on a bare `Text`.
+
+**Why.** With the non-merging form the heading is spoken while reading straight
+through, but swiping never lands on it — so it cannot be reached, and heading
+navigation has nothing to jump to. The owner reported exactly that on
+2026-08-27 for three screens at once: the voice screen, the Languages screen,
+and every mode's settings. `SectionHeader` was the common cause; Material's
+`Surface` wraps its content in a `Box` carrying its own
+`semantics(mergeDescendants = false) {}`, so the coloured bar and the `Text`
+inside it were two nodes and which one counted as the heading was left to
+chance.
+
+Merging at the outermost node makes it one node that is unambiguously a heading
+and unambiguously has a name — the same shape #7 already forces on every
+clickable row, and for the same underlying reason.
+
+**A window title is not a heading.** `ModeSettingsActivity` calls `setTitle`,
+which fires a window-state-changed event, so a screen reader announces it on
+entry — and that is *all* it does. There is no node, so there is nothing to
+focus. Both are wanted: the title on entry, and a heading you can navigate back
+to. Do not treat one as a substitute for the other.
+
+**Check.** `tools/check/invariants.sh` #18, which parses each `semantics { … }`
+block and reports any that contains `heading()` without
+`mergeDescendants = true`. Negative-tested in `selftest.sh`.
