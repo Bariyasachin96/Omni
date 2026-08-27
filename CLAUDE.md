@@ -260,13 +260,22 @@ Recorded so far:
    `persistDisabled`, search, select-all, clear-all, show-selected). `setRowChecked` sets
    `suppressRowEvents` so a programmatic check does **not** re-enter the handler — that
    reproduces `ListView.setItemChecked`, which never fired `onItemClick`.
-4. **"None" mode removed from the radio list** (user: *"None ki koi jarurat hi nahi … hata hi
-   dena hai"*). Only the UI option is gone — mode 0 still exists in the store and the service,
-   and `buildVoicesTabView`'s `readingMode == "none"` guards stay. Because
-   `getReadingMode()` returns `"none"` by default when Google TTS is absent (`auto_mode` 3 → 0),
-   `buildModesTabView` maps a stored `"none"` to `"auto"` — the same fallback
-   `getReadingMode()`/`setReadingMode()` already use for an unrecognised value — otherwise the
-   screen would open with nothing selected and no settings reachable.
+4. **"None" AND "Google TTS" are never rows — the list shows exactly four modes**
+   (None: *"None ki koi jarurat hi nahi … hata hi dena hai"*; Google, 2026-08-27: *"vah
+   already bhale hi rahe but use vahan per nahin dikhna chahie … sirf aur sirf vahi charon hi
+   dikhna chahie"*). Dual, Auto, Mixed, Multilingual, and nothing else. Only the UI option is
+   gone — modes 0 and 3 still exist in the store and the service, and every
+   `readingMode == "none"` / `== "google"` guard elsewhere stays.
+   **Google is AutoTTS-faithful, not a departure:** its radio is
+   `android:visibility="gone"` in `fragment_modes.xml` and `setVisibility` is never called on
+   it anywhere, so AutoTTS never offers it either.
+   `ModesScreen.shownMode()` maps a stored `"none"` **or** `"google"` to `"auto"` and writes
+   it back, otherwise the screen opens with no radio selected — for a screen reader user that
+   is worse than a wrong selection. Google needs that mapping as much as None does, because it
+   is reachable without ever being offered: `LangStore.loadMode` reads `auto_mode` with a
+   default of **3** (AutoTTS's own `c3.n.o`), so a device with Google TTS installed and no
+   stored mode — a fresh install, or cleared data — starts in Google mode. That is exactly how
+   the row surfaced on the owner's device on 2026-08-27.
 
 7. **Tab title, list buttons and switches (user request, 2026-08-12).**
    - The first tab is titled **"Main Settings"**; the section header inside it still says
@@ -1840,8 +1849,11 @@ skipping that row was already correct.
 3. **Google mode's settings were unreachable.** We skip the Google row, so no Settings
    button was drawn beside it — and an imported `auto_mode = 3` left the preferred-language
    spinner with no way in, while AutoTTS still shows it (its `AutoModeSettings` IS visible
-   for mode 3). The row is now drawn **only while google is the mode in force**, which
-   keeps AutoTTS's hidden radio and AutoTTS's reachable settings at once.
+   for mode 3). This was first answered by drawing the row while google was the mode in
+   force. **That is REVERTED (2026-08-27, owner request): the row is never drawn.** The
+   setting is not stranded, because `shownMode()` resolves a stored `"google"` to `"auto"` on
+   open and writes it back, so google simply stops being the mode instead of becoming an
+   unreachable one. See the UI-departures list, item 4.
 
 **One AutoTTS bug copied on purpose:** in google mode the adapter is
 `n.l("com.google.android.tts")` (filtered) while the selection index is `n.f(H)` — an

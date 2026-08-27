@@ -31,6 +31,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 fun modeIntOf(mode: String): Int =
     when (mode) { "dual" -> 1; "auto" -> 2; "google" -> 3; "mix" -> 4; "multilingual" -> 5; else -> 0 }
+// The mode list offers exactly four: Dual, Auto, Mixed, Multilingual. "None" and
+// "Google TTS" are never rows, so a stored value of either has to resolve to one
+// that is, or the screen opens with no radio selected and no way to tell what is
+// in force -- which for a screen reader user is worse than a wrong selection.
+// Both map to "auto", and the caller writes that back, so the stored mode and
+// the visible one never disagree.
+//
+// Google needs this as much as None does, because it is reachable without ever
+// being offered: LangStore.loadMode reads `auto_mode` with a default of 3, which
+// is AutoTTS's own c3.n.o, so a device with Google TTS installed and no stored
+// mode -- a fresh install, or cleared data -- starts in Google mode.
+private fun shownMode(stored: String): String =
+    if (stored == "none" || stored == "google") "auto" else stored
 private fun rebuildLanguagesFor(context: android.content.Context, modeInt: Int) {
     val required = LangStore.requiredLangs(modeInt,
         EasyVoiceTtsService.autoLang,
@@ -51,12 +64,9 @@ fun ModesScreen(
     onOpenModeSettings: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var selectedMode by remember {
-        mutableStateOf(prefs.getReadingMode().let { if (it == "none") "auto" else it })
-    }
+    var selectedMode by remember { mutableStateOf(shownMode(prefs.getReadingMode())) }
     LaunchedEffect(refreshKey) {
-        val stored = prefs.getReadingMode()
-        val mode = if (stored == "none") "auto" else stored
+        val mode = shownMode(prefs.getReadingMode())
         selectedMode = mode
         prefs.setReadingMode(mode)
         rebuildLanguagesFor(context, modeIntOf(mode))
@@ -66,14 +76,19 @@ fun ModesScreen(
             SectionHeader("Modes")
             for (spec in modeRowSpecs) {
                 val mode = spec.first
-                // AutoTTS's Google radio is android:visibility="gone" in
-                // fragment_modes.xml and setVisibility is never called on it, so it
-                // is never offered there either. But its AutoModeSettings block IS
-                // visible for mode 3, so the preferred language stays editable.
-                // Skipping the row outright cost us that: a stored or imported
-                // auto_mode = 3 left the setting with no way in. So the row appears
-                // only while google is the mode actually in force.
-                if (mode == "google" && selectedMode != "google") continue
+                // Google TTS is NEVER a row, exactly like None. AutoTTS does the
+                // same: its Google radio is android:visibility="gone" in
+                // fragment_modes.xml and setVisibility is never called on it
+                // anywhere, so that mode is not offered there either.
+                //
+                // It was briefly drawn here while google was the mode in force,
+                // to keep its preferred-language setting reachable. The owner
+                // rejected that on 2026-08-27 -- the list must show four modes
+                // and only four -- and shownMode() is the better answer anyway:
+                // a stored google resolves to auto on open, so the setting is
+                // not stranded, it simply stops being the mode. Do not put this
+                // row back.
+                if (mode == "google") continue
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
