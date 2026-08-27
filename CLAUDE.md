@@ -1530,18 +1530,25 @@ per-script fallback never ran. The span site now asks for the flag and treats un
 negative test: **`tools/verify/cld3span/run.sh`**, which links the real core against CLD2 and
 CLD3 and starts a JVM for a genuine `JNIEnv`. Recorded as INVARIANTS #16.
 
-**Still open, deliberately, and MEASURED before deferring (2026-08-27):** a *reliable* answer
-in the wrong script is still accepted when that language is enabled. CLD2 cannot do this because
-its per-script hint goes **into** the detector; the CLD3 arm can only filter afterwards, against
-a flat list with no notion of the span's script. The user asked whether that second fix was
-needed, so 536 unique Latin-only strings — every `speak N:`/`Speak:` line in the reported device
-log plus every user-facing literal in the app — were run through the real pipeline under both
-detectors: **0 of 536 disagree for the user's own set `{eng, guj, hin}`**, against 4 with
-`{en, ja}`, 19 with `{en, sr}` and 23 with `{en, ja, sr, ru, zh}`. Hindi and Gujarati are clean
-because CLD3 never reliably answers bare `hi`/`gu` for Latin text — it answers `hi-Latn`, which
-`isRomanisedTag` drops, or an unreliable `hi`, which the fix above drops. So the gap is real but
-dormant here, and wakes only if a confidently-guessed non-Latin-script language joins the list.
-Re-run that measure before deciding again. Details in `docs/INVARIANTS.md` #16.
+**The fourth thing, and it is now DONE too (2026-08-27): the answer must belong to the span's
+own script.** CLD2 gets that free — its per-script hint goes **into** the detector — while the
+CLD3 arm can only reject afterwards, against a flat enabled list that knows nothing about
+script. So a reliable `sr` or `ja` won a Latin span merely because Serbian or Japanese was
+enabled. `scriptOfLanguageCode` looks the answer up in the same 48 `kScriptLangPairs` and the
+span site rejects it only when the table places it under a **different** script; **`-1` means
+"not listed" and is ACCEPTED**, because those 48 pairs are not a full classification (Latin
+lists 24 languages and no Catalan; CJK has no Korean at all), so "absent" must never mean
+"wrong".
+
+Measured over 536 Latin strings from the reported log plus the app's own literals, first with
+the reliability fix alone and then with both: `{eng,guj,hin}` 0 → **0**, `{en,ru,uk,bg}` 1 → **0**,
+`{en,ja}` 4 → **0**, `{en,zh,ja,ko}` 4 → **0**, `{en,sr}` 19 → **0**, `{en,ja,sr,ru,zh}` 23 → **0**.
+The other direction was checked as well — 18 non-Latin lines across seven enabled sets, 0
+disagreements — so rejecting wrong-script answers did not start rejecting right ones. The
+reporter's own set was already 0 because CLD3 never reliably answers bare `hi`/`gu` for Latin
+text (it answers `hi-Latn`, which `isRomanisedTag` drops); it was closed anyway because the
+enabled-language list is something the user changes. Both halves are covered by
+`tools/verify/cld3span/run.sh` and INVARIANTS #16, each negative-tested.
 
 **Verified equal in the same read, so do NOT re-audit:** the ASCII branch
 (`and w8, w9, #0x5f`, `sub #0x41`, `cmp #0x19`, `b.hi` — non-letters change nothing);

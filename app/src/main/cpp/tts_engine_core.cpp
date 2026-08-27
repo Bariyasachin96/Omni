@@ -1766,6 +1766,29 @@ static std::vector<std::string> currentLanguageHintCodes(){
     std::lock_guard<std::mutex> lock(languageHintMutex);
     return languageHintCodes;
 }
+// Which of the six scripts a language belongs to, per the same 48 pairs, or -1
+// when the table does not mention it.
+//
+// This exists for the CLD3 arm of the span site only. CLD2 is steered by
+// scriptLanguageHint, which goes INTO the detector, so it rarely names a
+// language of the wrong script for a span; CLD3 has no hints API and can only
+// be filtered afterwards, against a flat enabled-language list that knows
+// nothing about script. That is how a reliable "sr" or "ja" could win a Latin
+// span -- see INVARIANTS #16.
+//
+// The table is NOT a complete script classification: Latin lists 24 languages
+// and has no Catalan or Basque, and CJK has no Korean. So "absent" must mean
+// "no evidence", never "wrong script" -- answering -1 here and having the caller
+// accept the language is the whole point. Only a language the table places under
+// a DIFFERENT script is a mismatch we can prove.
+static int scriptOfLanguageCode(const std::string& code){
+    if(code.empty()) return -1;
+    for(int pair=0; pair<48; pair++){
+        const char* listed = CLD2::LanguageCode(kScriptLangPairs[pair].lang);
+        if(listed && code == listed) return kScriptLangPairs[pair].script;
+    }
+    return -1;
+}
 static int currentScriptLanguageHint(int script){
     std::lock_guard<std::mutex> lock(languageHintMutex);
     if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
@@ -2074,9 +2097,29 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 // English. Unreliable now becomes "un", which is not in the
                 // hint list, so the per-script fallback below resolves the span
                 // to the one language its script implies.
+                //
+                // The answer must also belong to THIS span's script. CLD2 gets
+                // that for free: its per-script hint is fed into the detector,
+                // so for a Latin span with one enabled Latin language it is
+                // told what to expect. The CLD3 arm can only filter afterwards,
+                // and the enabled list it filters against is flat -- so a
+                // reliable "sr" or "ja" would otherwise win a Latin span merely
+                // because the user has Serbian or Japanese enabled. Measured
+                // over 536 Latin strings from the reporter's own log: 19 such
+                // spans with {en, sr} and 4 with {en, ja}.
+                //
+                // scriptOfLanguageCode answers -1 for a language the table does
+                // not list, and -1 is ACCEPTED. The table names 24 Latin
+                // languages and no Catalan, and no Korean at all, so treating
+                // "absent" as "wrong" would break far more than it fixed. Only
+                // a language the table places under a different script is
+                // rejected, and then the per-script fallback below resolves the
+                // span the way CLD2 would have.
                 bool cld3Reliable = false;
                 std::string cld3Lang = cld3DetectRaw(std::string(text, start, detectBytes), &cld3Reliable, true);
-                lang = (cld3Lang.empty() || !cld3Reliable) ? "un" : cld3Lang;
+                const int cld3Script = scriptOfLanguageCode(baseLanguageTag(cld3Lang));
+                const bool wrongScript = (cld3Script >= 0 && cld3Script != script);
+                lang = (cld3Lang.empty() || !cld3Reliable || wrongScript) ? "un" : cld3Lang;
                 if(!hintCodes.empty() && !isHinted(baseLanguageTag(lang))){
                     const std::string fallbackCode = scriptFallbackCode();
                     if(!fallbackCode.empty()) lang = fallbackCode;

@@ -99,6 +99,14 @@ n=$(sed 's://.*::' $CPP | grep -c "cld3DetectRaw([^;]*nullptr")
 [ "$n" = 0 ] && ok "#16 every cld3DetectRaw call asks for the reliability flag" \
              || bad "#16 cld3DetectRaw called with nullptr for reliableOut ($n) -- an unreliable answer would reach a span"
 
+# The other half of #16: the answer must belong to the span's own script. CLD2
+# gets that from the per-script hint it feeds INTO the detector; the CLD3 arm
+# can only reject afterwards. Without this, 19 Latin spans out of 536 went to
+# Serbian with {en, sr} enabled, and 4 to Japanese with {en, ja}.
+n=$(sed 's://.*::' $CPP | grep -c "cld3Script >= 0 && cld3Script != script")
+[ "$n" = 1 ] && ok "#16 the CLD3 span answer is checked against the span's script" \
+             || bad "#16 the CLD3 wrong-script rejection is missing ($n) -- an enabled language of another script could win a span"
+
 # --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's six sites --
 # AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and
 # "TTS" at six -- the three audio-focus lines, the focus request, and the two

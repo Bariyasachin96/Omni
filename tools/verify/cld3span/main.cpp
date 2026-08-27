@@ -90,6 +90,13 @@ static void expect(const char* label, const std::string& text, bool useCld3,
     printf("  ok    %-46s %s: span %zu = %s\n", label, detector, spanIndex, got.c_str());
 }
 
+static void enable(const std::vector<std::string>& codes){
+    Java_com_tts_easyvoice_NativeEngine_setLanguageHints(env, nullptr, toArray(codes));
+    // The iso3 set only has to be non-empty and parallel; the span site reads
+    // the hint codes, not this one.
+    Java_com_tts_easyvoice_NativeEngine_setDetectSets(env, nullptr, toArray(codes), toArray(codes));
+}
+
 int main(){
     JavaVMInitArgs vmArgs;
     vmArgs.version = JNI_VERSION_1_8;
@@ -137,6 +144,48 @@ int main(){
         "WhatsApp", "POCO Launcher", "Telegram,Unlocked", "OK", "Play", nullptr };
     for(int at = 0; shortLatin[at]; at++)
         expect(shortLatin[at], shortLatin[at], true, 0, 1, "en");
+
+    // A language of the WRONG SCRIPT must not win a Latin span just because the
+    // user has it enabled. CLD2 is steered away from that by its per-script
+    // hint, which goes into the detector; the CLD3 arm can only reject the
+    // answer afterwards, which is what scriptOfLanguageCode is for. Measured
+    // over 536 Latin strings from the reporter's log, before that rejection
+    // existed: 19 spans went to Serbian with {en, sr} and 4 to Japanese with
+    // {en, ja}. These are the specific strings behind those counts.
+    printf("\nwrong-script languages enabled alongside English\n");
+    enable({"en", "sr"});
+    expect("sr enabled: log file name", "easy_voice.log.1", true, 0, 1, "en");
+    expect("sr enabled: log share title", "Easy Voice Log", true, 0, 1, "en");
+    expect("sr enabled: app name", "Easy Voice", true, 0, 1, "en");
+    enable({"en", "ja"});
+    expect("ja enabled: a bare verb", "load", true, 0, 1, "en");
+    expect("ja enabled: a button label", "Save", true, 0, 1, "en");
+    enable({"en", "ja", "sr", "ru", "zh"});
+    expect("five scripts enabled: app name", "Easy Voice", true, 0, 1, "en");
+    expect("five scripts enabled: a button label", "Save", true, 0, 1, "en");
+
+    // The other direction: rejecting a wrong-script answer must not start
+    // rejecting RIGHT-script ones. Each of these is a script CLD2 is asked
+    // about, with its own language enabled.
+    printf("\nnon-Latin text still reaches its own language\n");
+    enable({"en", "hi"});
+    expect("Devanagari with hi enabled",
+           "\xE0\xA4\xB9\xE0\xA4\xBF\xE0\xA4\x82\xE0\xA4\xA6\xE0\xA5\x80 "
+           "\xE0\xA4\x95\xE0\xA4\xB5\xE0\xA4\xBF\xE0\xA4\xA4\xE0\xA4\xBE\xE0\xA4\x8F\xE0\xA4\x81 "
+           "\xE0\xA4\x8F\xE0\xA4\xB5\xE0\xA4\x82 "
+           "\xE0\xA4\x95\xE0\xA4\xB9\xE0\xA4\xBE\xE0\xA4\xA8\xE0\xA4\xBF\xE0\xA4\xAF\xE0\xA4\xBE\xE0\xA4\x81",
+           true, 0, 1, "hi");
+    enable({"en", "ru"});
+    expect("Cyrillic with ru enabled",
+           "\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82 \xD0\xBA\xD0\xB0\xD0\xBA "
+           "\xD0\xB4\xD0\xB5\xD0\xBB\xD0\xB0 \xD1\x83 \xD1\x82\xD0\xB5\xD0\xB1\xD1\x8F "
+           "\xD1\x81\xD0\xB5\xD0\xB3\xD0\xBE\xD0\xB4\xD0\xBD\xD1\x8F",
+           true, 0, 1, "ru");
+    enable({"en", "ja"});
+    expect("Japanese with ja enabled",
+           "\xE3\x81\x93\xE3\x82\x8C\xE3\x81\xAF\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E\xE3\x81\xA7"
+           "\xE6\x9B\xB8\xE3\x81\x8B\xE3\x82\x8C\xE3\x81\x9F\xE6\x96\x87\xE3\x81\xA7\xE3\x81\x99",
+           true, 0, 1, "ja");
 
     printf("\n");
     if(failures == 0) printf("ALL CLD3 SPAN CASES PASS\n");

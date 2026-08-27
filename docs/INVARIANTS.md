@@ -286,35 +286,46 @@ and CLD3, starts a JVM for a genuine `JNIEnv`, and asserts both detectors agree
 on the reported utterance. Negative-tested: with the flag removed it reports the
 device's exact failure, `span 0 is "hi", expected "en"`.
 
-**What this does NOT fix, and exactly when that matters.** A *reliable* answer
-in the wrong script is still accepted if that language is enabled. CLD2 does not
-have this problem because its per-script hint is fed **into** the detector
-(`currentScriptLanguageHint`), while the CLD3 arm can only filter afterwards,
-against a flat enabled-language list with no notion of the span's script.
+### The second half: the answer must belong to the span's script
 
-The owner asked whether that second fix was needed, so it was measured rather
-than guessed. The corpus is 536 unique Latin-only strings taken from the two
-places that actually matter: every `speak N:` and `Speak:` line in the reported
-device log, and every user-facing string literal in the app. Each was run
-through the real pipeline under both detectors, for several enabled sets:
+**Rule.** A CLD3 answer is accepted only if the language is not placed under a
+*different* script by `kScriptLangPairs`. `scriptOfLanguageCode` answers the
+script or `-1`, and `-1` is **accepted**.
 
-| enabled languages | first spans where CLD2 and CLD3 disagree |
-|---|---|
-| **`eng`, `guj`, `hin`** — the owner's own set | **0 of 536** |
-| `en`, `ja` | 4 |
-| `en`, `sr` | 19 |
-| `en`, `ja`, `sr`, `ru`, `zh` | 23 |
+**Why.** CLD2 gets this free: its per-script hint is fed **into** the detector,
+so for a Latin span with one enabled Latin language it is told what to expect.
+The CLD3 arm has no hints API and can only filter afterwards, against a flat
+enabled-language list that knows nothing about script — so a reliable `sr` or
+`ja` would win a Latin span merely because the user has Serbian or Japanese
+enabled.
 
-Hindi and Gujarati come out clean because CLD3 never *reliably* answers bare
-`hi`/`gu` for Latin text: it answers `hi-Latn`, which `isRomanisedTag` already
-drops, or an unreliable `hi`, which #16 now drops. So the gap is real but
-**dormant for this configuration**, and it wakes up only if a language whose
-script is not Latin and which CLD3 confidently guesses for Latin text — Serbian
-and Japanese are the worst of those measured — is added to the list.
+Measured over the same 536 Latin strings, with and without the rejection:
 
-Closing it needs a script-aware filter and is a separate change. Deferred by the
-owner on 2026-08-27, with these numbers in front of them. **Re-run the measure
-before deciding again if the enabled-language list has changed.**
+| enabled languages | reliability only | + wrong-script rejection |
+|---|---|---|
+| `eng`, `guj`, `hin` — the reporter's set | 0 | **0** |
+| `en`, `ru`, `uk`, `bg` | 1 | **0** |
+| `en`, `ja` | 4 | **0** |
+| `en`, `zh`, `ja`, `ko` | 4 | **0** |
+| `en`, `sr` | 19 | **0** |
+| `en`, `ja`, `sr`, `ru`, `zh` | 23 | **0** |
+
+and the other direction checked too — 18 non-Latin lines (Devanagari, Cyrillic,
+Arabic, CJK, Bengali, Gujarati, Tamil) across seven enabled sets: **0
+disagreements**, so rejecting wrong-script answers did not start rejecting right
+ones.
+
+**`-1` must keep meaning "no evidence".** The 48 pairs are not a complete script
+classification: Latin lists 24 languages and has no Catalan or Basque, and CJK
+has no Korean at all. Treating "absent from the table" as "wrong script" would
+reject far more than it fixed. Only a language the table places under a
+different script is a provable mismatch.
+
+**Why the reporter's own set was already 0.** CLD3 never *reliably* answers bare
+`hi`/`gu` for Latin text — it answers `hi-Latn`, which `isRomanisedTag` drops,
+or an unreliable `hi`, which the reliability half drops. The gap was real but
+dormant there; it was closed anyway because the enabled-language list is
+something the owner changes.
 
 ---
 
