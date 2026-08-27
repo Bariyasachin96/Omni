@@ -249,3 +249,40 @@ because the branches are unreachable there:
 
 `LangStore.engineFor` is still called at that point and its result deliberately
 discarded, mirroring `Q(lang)`. The comment there says so; leave it.
+
+---
+
+# Full inventory audit, 2026-08-27
+
+Asked for directly: *"AutoTTS mein kuch rah gaya ho to hamare mein na ho … chahe
+native mein ho, chahe sabhi mode ka reading flow mein … koi system level ka kuch
+rah gaya ho vah bhi dekh lena."* This is that sweep, done mechanically against
+the 5.7.7.26 decompile rather than by re-reading prose.
+
+**Scope.** All 47 classes in AutoTTS's own packages (`com/vnspeak/autotts` and
+`c3`) were inventoried. Most of the small ones are compiler artifacts — listener
+lambdas (`c3/g h i j q r s t c0 l`), `PackageInfoFlags` bridges for API 33
+(`c3/x y z`), thread plumbing (`c3/h0 i0 j0`) — and carry no logic. Every class
+that does was checked.
+
+| checked | result |
+|---|---|
+| `c3/f0` — the 340 sample texts | **340 vs 340, byte-identical**, keys and strings |
+| `c3/d` — keep-alive binder | one `c3.d` per engine in `this.g`, unbound in `onDestroy`. Our `engineBinders` map plus `unbindAllEngineKeepAlive` is the same shape |
+| `AutoTtsService` — every method | all mapped. Verified this pass: `L()` notification, `M()` channel `tts_channel` at IMPORTANCE_LOW, small icon `17301540`, `W()` POST_NOTIFICATIONS on SDK 33+, `a0()` searching `getActiveNotifications()` for id **136549**, `N()` = `startAndFinish` (`start(16000, 2, 1)` / `done()`), `r0()` = "unlockSynthesis #n" |
+| `onStartCommand` | AutoTTS `return 1`; ours `START_STICKY`. Same value |
+| `onTaskRemoved` | AutoTTS calls only `super`; so do we |
+| `c3/n` — all 31 methods | all mapped, including `n.r`'s voice-order default of the **string** `"1000"` |
+| **`n.t()` vs `persistAll()`** | **call-for-call, same order**: `w C B v x u z` = engines, voice list, voice rows, mode languages, languages, mode, flags |
+| `clsCLD2` — all 11 methods | all mapped. Verified this pass: `c(String)` = `firstValidCodePointU16` (whitespace, `0-9`, `h(char)`, then `codePointAt` with surrogate handling, else `-1`), `h(char)` = `isLatinPunctuation` — which **includes** backslash, unlike `cpIsAsciiPunct`, and that difference is real and deliberate; `g(String)` = the `UnicodeScript` LATIN/COMMON/INHERITED test |
+| native surface | `libcld2.so` exports exactly **three** `Java_` symbols — `nativeGetLanguage`, `nativeGetLanguages`, `nativeSetLanguageHints` — and all three have counterparts. Ours exports seven because the segmenter and the ISO map moved into C++, both proven equal by harness |
+| manifest, system level | the five real permissions match exactly; the two we lack (`CHECK_LICENSE`, `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`) are the licence carve-out. `allowBackup="false"`, `installLocation="auto"`, `extractNativeLibs="true"`, the service's `accessibilityEventTypes` / `accessibilityFlags` / `canRetrieveWindowContent` / `foregroundServiceType` and `tts_engine.xml` all match |
+| the reading flow | already proven by measurement, not reading: segmenter 163,296 cases, script family 15 sets x 1,114,112 code points, normaliser 1,114,112 code points, every CLD3 tag, and the CLD3 span harness |
+
+**One real gap found, and it was ours rather than a missing port.** AutoTTS has
+one settings screen that both loads and persists; we split it into four
+activities that all persist while only `MainActivity` loads, which lets a
+process restored at a sub-activity write default statics over real settings.
+Fixed with `LangStore.ensureLoaded`, guarded on `autoLang`; see INVARIANTS #17.
+
+**Nothing else was missing.** Do not redo this sweep; extend it instead.
