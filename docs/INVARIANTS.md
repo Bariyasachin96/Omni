@@ -286,16 +286,35 @@ and CLD3, starts a JVM for a genuine `JNIEnv`, and asserts both detectors agree
 on the reported utterance. Negative-tested: with the flag removed it reports the
 device's exact failure, `span 0 is "hi", expected "en"`.
 
-**What this does NOT fix.** A *reliable* answer in the wrong script is still
-accepted if that language is enabled. CLD2 does not have this problem because
-its per-script hint is fed **into** the detector (`currentScriptLanguageHint`),
-while the CLD3 arm can only filter afterwards, against a flat enabled-language
-list with no notion of the span's script. Measured on 30 short Latin strings,
-CLD3 returned a reliable non-Latin-script language six times — `hi-Latn`,
-`el-Latn` (both caught by `isRomanisedTag`), and `ja` for `"Save"`, `sr` for
-`"Easy Voice"` (not caught). Those only misroute if the language is enabled.
-Closing that gap needs a script-aware filter and is a separate change; it was
-raised with the owner on 2026-08-27 and deliberately deferred.
+**What this does NOT fix, and exactly when that matters.** A *reliable* answer
+in the wrong script is still accepted if that language is enabled. CLD2 does not
+have this problem because its per-script hint is fed **into** the detector
+(`currentScriptLanguageHint`), while the CLD3 arm can only filter afterwards,
+against a flat enabled-language list with no notion of the span's script.
+
+The owner asked whether that second fix was needed, so it was measured rather
+than guessed. The corpus is 536 unique Latin-only strings taken from the two
+places that actually matter: every `speak N:` and `Speak:` line in the reported
+device log, and every user-facing string literal in the app. Each was run
+through the real pipeline under both detectors, for several enabled sets:
+
+| enabled languages | first spans where CLD2 and CLD3 disagree |
+|---|---|
+| **`eng`, `guj`, `hin`** — the owner's own set | **0 of 536** |
+| `en`, `ja` | 4 |
+| `en`, `sr` | 19 |
+| `en`, `ja`, `sr`, `ru`, `zh` | 23 |
+
+Hindi and Gujarati come out clean because CLD3 never *reliably* answers bare
+`hi`/`gu` for Latin text: it answers `hi-Latn`, which `isRomanisedTag` already
+drops, or an unreliable `hi`, which #16 now drops. So the gap is real but
+**dormant for this configuration**, and it wakes up only if a language whose
+script is not Latin and which CLD3 confidently guesses for Latin text — Serbian
+and Japanese are the worst of those measured — is added to the list.
+
+Closing it needs a script-aware filter and is a separate change. Deferred by the
+owner on 2026-08-27, with these numbers in front of them. **Re-run the measure
+before deciding again if the enabled-language list has changed.**
 
 ---
 

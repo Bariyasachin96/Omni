@@ -1530,13 +1530,18 @@ per-script fallback never ran. The span site now asks for the flag and treats un
 negative test: **`tools/verify/cld3span/run.sh`**, which links the real core against CLD2 and
 CLD3 and starts a JVM for a genuine `JNIEnv`. Recorded as INVARIANTS #16.
 
-**Still open, deliberately (owner informed 2026-08-27):** a *reliable* answer in the wrong
-script is still accepted when that language is enabled. CLD2 cannot do this because its
-per-script hint goes **into** the detector; the CLD3 arm can only filter afterwards, against a
-flat list with no notion of the span's script. Measured over 30 short Latin strings, CLD3
-returned a reliable non-Latin-script language six times — `hi-Latn` and `el-Latn` (caught by
-`isRomanisedTag`), plus `ja` for `"Save"` and `sr` for `"Easy Voice"` (not caught). A
-script-aware filter would close it; that is a separate change and was not made.
+**Still open, deliberately, and MEASURED before deferring (2026-08-27):** a *reliable* answer
+in the wrong script is still accepted when that language is enabled. CLD2 cannot do this because
+its per-script hint goes **into** the detector; the CLD3 arm can only filter afterwards, against
+a flat list with no notion of the span's script. The user asked whether that second fix was
+needed, so 536 unique Latin-only strings — every `speak N:`/`Speak:` line in the reported device
+log plus every user-facing literal in the app — were run through the real pipeline under both
+detectors: **0 of 536 disagree for the user's own set `{eng, guj, hin}`**, against 4 with
+`{en, ja}`, 19 with `{en, sr}` and 23 with `{en, ja, sr, ru, zh}`. Hindi and Gujarati are clean
+because CLD3 never reliably answers bare `hi`/`gu` for Latin text — it answers `hi-Latn`, which
+`isRomanisedTag` drops, or an unreliable `hi`, which the fix above drops. So the gap is real but
+dormant here, and wakes only if a confidently-guessed non-Latin-script language joins the list.
+Re-run that measure before deciding again. Details in `docs/INVARIANTS.md` #16.
 
 **Verified equal in the same read, so do NOT re-audit:** the ASCII branch
 (`and w8, w9, #0x5f`, `sub #0x41`, `cmp #0x19`, `b.hi` — non-letters change nothing);
