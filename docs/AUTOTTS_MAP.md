@@ -286,3 +286,92 @@ process restored at a sub-activity write default statics over real settings.
 Fixed with `LangStore.ensureLoaded`, guarded on `autoLang`; see INVARIANTS #17.
 
 **Nothing else was missing.** Do not redo this sweep; extend it instead.
+
+---
+
+# "Disable advanced language detection" — audited exact, 2026-08-27
+
+Asked because it felt different from AutoTTS. It is not. Every part was checked
+against the 5.7.7.26 decompile and **no divergence was found**; this is written
+down so it is not re-derived.
+
+| | AutoTTS | ours |
+|---|---|---|
+| static | `AutoTtsService.b0`, `b0 = true` in the static initialiser | `disableAdvancedFlag`, declared `= true` |
+| pref | `getBoolean("disable_advanced_detection", true)` | same key, same default |
+| label | `"Disable advanced language detection"` | same string |
+| binding | `setChecked(b0)` / `b0 = bl` — **direct, not inverted** | `SettingSwitch(label, disableAdvanced)` / `disableAdvancedFlag = picked` |
+| where it is read | **exactly two places, both inside `clsCLD2.d`** | `detectLanguageFull`, which is `clsCLD2.d` |
+
+**What the flag actually does**, from `clsCLD2.d`:
+
+    lang = nativeGetLanguage(window)
+    if (lang != null && lang != "UNKNOWN") {
+        if (b0) return lang;                 // <- disabled: take the answer raw
+        if (n.n(lang)) return lang;          // else: must be an enabled language
+        cp = clsCLD2.c(window);              // else: script family on the first
+        fam = a.e(cp, n.f);                  //       meaningful code point
+        ...
+    }
+    // no window answered:
+    if (b0) return "UNKNOWN";                // <- disabled: give up
+    ... whole-text script family ...
+
+so "advanced detection" IS the enabled-language test plus the script-family
+fallback, and turning it off means trust the detector. Ours is that, statement
+for statement, in the same order.
+
+**It affects auto and Google mode ONLY — in AutoTTS too.** `clsCLD2.e` (the span
+detector used by mix and multilingual) and `clsCLD2.f` (the aggregate) never
+read `b0`, and neither do our `detectLanguageRuns` and `detectLanguageAggregate`.
+In dual mode nothing is detected at all. So in mix, multilingual and dual this
+switch does nothing, on either side. That is the likeliest source of "it behaves
+differently": it is expected to change something in a mode it has never touched.
+
+**Reach is the same, three call sites versus one, and that is correct.** AutoTTS
+calls `clsCLD2.d` three times: the auto/Google span loop (noexc:1630), the mix
+first-chunk preflight (:1894) and `onDone`'s re-detect (:2604). The last two are
+already recorded here as **dead** — every chunk in those paths carries a language
+and a type of −1, so neither `isEmpty()` nor `equals("unknown")` can fire. Ours
+has the one live call, in the auto/Google branch.
+
+**Both detectors are affected equally**, which is the standing CLD3 rule: the
+flag logic sits *above* `detectWindowLang(text, useCld3)`, so it wraps whichever
+detector ran.
+
+**The one place the flag is passed and does nothing**: `processDirect` takes it
+and `buildMixChunks` does `(void)disableAdvancedDetection;`. The segmenter never
+detects, so it is inert by design — verified at the line, not assumed.
+
+---
+
+# Why "Remove audio attributes" adds a swipe delay — 2026-08-27
+
+Reported from the device: with that switch on, moving element to element with a
+screen reader feels slightly slower. Confirmed, and it is **AutoTTS's behaviour
+too, byte for byte**.
+
+Both build the downstream `speak()` bundle by copying the incoming
+`SynthesisRequest` params and removing seven keys, then two more when the flag
+is set (AutoTTS `AutoTtsService.X`, at noexc:2084 for the first chunk and :2677
+for the next one; ours at `EasyVoiceTtsService.kt:1431-1434`):
+
+    remove language, country, voiceName, variant, pitch, rate, utteranceId
+    if (strip) { remove streamType; remove audioAttributes }
+
+**Why that costs time.** The screen reader asks for speech with
+`AudioAttributes` whose usage is `USAGE_ASSISTANCE_ACCESSIBILITY`. Removing them
+means the downstream engine falls back to its own default, which is the media
+usage. Swiping produces many very short utterances in quick succession; on the
+accessibility path that output stays warm between them, while on the media path
+the output can be re-routed and re-opened each time. The cost is per utterance,
+which is exactly why it is felt while swiping and not on long text.
+
+**It is not a bug to fix — it is what the switch does**, and the switch exists
+because some engines misbehave with the attributes the caller supplies. The
+setting that undoes the side effect is already there: **"Force to use audio
+accessibility stream"** calls `setAudioAttributes(usage 11, contentType 1)` on
+the engine itself (`EasyVoiceTtsService.kt:1438-1439`), so the accessibility
+routing is restored at the engine even though the per-request attributes were
+stripped. Strip on + force on is the combination with neither the engines'
+complaint nor the delay.
