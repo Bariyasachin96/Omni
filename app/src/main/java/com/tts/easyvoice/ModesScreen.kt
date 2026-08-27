@@ -186,15 +186,10 @@ private fun LabeledRadioGroup(
     onSelect: (Int) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
-        // Merged and named on the node itself, for the same reason SectionHeader
-        // is: heading() on a bare Text was spoken while reading through but
-        // never took focus, so it could not be reached or navigated by.
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .semantics(mergeDescendants = true) { heading(); contentDescription = title }
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() }
         )
         for (index in options.indices) {
             Row(
@@ -323,9 +318,7 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
                 Text(
                     text = "Other options",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .semantics(mergeDescendants = true) { heading(); contentDescription = "Other options" }
+                    modifier = Modifier.padding(horizontal = 16.dp).semantics { heading() }
                 )
                 LocaleSpanRow()
             }

@@ -440,32 +440,38 @@ cleared instead of ticked.
 
 ---
 
-## 18. A heading must be a merged, named node
+## 18. A heading is a plain `Text`; never give a `Text` a `contentDescription`
 
-**Rule.** Every heading is
-`Modifier.semantics(mergeDescendants = true) { heading(); contentDescription = … }`.
-Never `Modifier.semantics { heading() }` on a bare `Text`.
+**Rule.** A heading is exactly
+`Text(…, modifier = Modifier.semantics { heading() })` — the shape
+developer.android.com's semantics page gives as its own example. Do not merge
+it, and do not add a `contentDescription`.
 
-**Why.** With the non-merging form the heading is spoken while reading straight
-through, but swiping never lands on it — so it cannot be reached, and heading
-navigation has nothing to jump to. The owner reported exactly that on
-2026-08-27 for three screens at once: the voice screen, the Languages screen,
-and every mode's settings. `SectionHeader` was the common cause; Material's
-`Surface` wraps its content in a `Box` carrying its own
-`semantics(mergeDescendants = false) {}`, so the coloured bar and the `Text`
-inside it were two nodes and which one counted as the heading was left to
-chance.
+**Why.** A `Text` is a **leaf**. Compose's delegate calls `setText(node, info)`
+unconditionally, so the node already carries its name and is already focusable;
+merging a leaf buys nothing. And on `contentDescription` the api-defaults page
+is explicit: it *"is mainly meant to be used for graphic elements, such as
+images. Material components, like `Button` or `Text`, and actionable behaviors,
+like `clickable` or `toggleable`, come with other predefined semantics"*. In the
+View API a `contentDescription` **overrides** the text, so on a `Text` it can
+only replace a label that was already correct.
 
-Merging at the outermost node makes it one node that is unambiguously a heading
-and unambiguously has a name — the same shape #7 already forces on every
-clickable row, and for the same underlying reason.
+**The opposite case is #7, and it is not this one.** A node that merges
+descendants *and* has children has its `contentDescription` moved into a fake
+leaf child, and `info.text` read from an unmerged config that is empty — so
+there the explicit name is required, and that one was verified on a real device
+and by Google's Accessibility Scanner. Leaf and merged-parent are opposite
+cases. Do not apply either rule to the other.
 
-**A window title is not a heading.** `ModeSettingsActivity` calls `setTitle`,
-which fires a window-state-changed event, so a screen reader announces it on
-entry — and that is *all* it does. There is no node, so there is nothing to
-focus. Both are wanted: the title on entry, and a heading you can navigate back
-to. Do not treat one as a substitute for the other.
+**When it was broken.** On 2026-08-27 the owner reported that headings were
+spoken but never took focus. I diagnosed it as a merging problem, merged every
+heading at the `Surface` and gave each a `contentDescription` — a fix aimed at
+a cause I had not verified, which broke this rule everywhere at once. Reverted
+the same day after reading the guidance, which prescribes the plain form the
+code already had. **The focus report itself is still unexplained and still
+open**: it must be reproduced on the device before anything is changed again,
+which is #11's rule and was exactly what I skipped.
 
-**Check.** `tools/check/invariants.sh` #18, which parses each `semantics { … }`
-block and reports any that contains `heading()` without
-`mergeDescendants = true`. Negative-tested in `selftest.sh`.
+**Check.** `tools/check/invariants.sh` #18 parses each `semantics { … }` block
+and reports any that sets both `heading()` and `contentDescription`.
+Negative-tested in `selftest.sh`.

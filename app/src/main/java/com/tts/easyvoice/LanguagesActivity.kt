@@ -61,38 +61,36 @@ class LanguagesActivity : ComponentActivity() {
         super.onPause()
     }
 }
-// The whole coloured bar is ONE merged node: role heading, name = the title,
-// and the Text inside silenced so it is not announced twice.
+// The documented way to mark a heading, and nothing more:
+// developer.android.com/develop/ui/compose/accessibility/semantics shows exactly
+// this shape -- a Text with Modifier.semantics { heading() }.
 //
-// It used to put heading() on the inner Text and leave the Surface alone. The
-// owner reported the result on device: the heading was spoken while reading
-// through, but swiping never landed on it, so on the voice screen, the
-// Languages screen and every mode's settings there was no way to reach the
-// heading or navigate by it (2026-08-27). Material's Surface wraps its content
-// in a Box that carries its own `semantics(mergeDescendants = false) {}`, so the
-// bar and the Text were two nodes and which one a screen reader treated as the
-// heading was not something to leave to chance. Merging at the Surface makes it
-// one node that is unambiguously a heading and unambiguously has a name -- the
-// same shape INVARIANTS #7 already forced on every clickable row here.
+// A previous version merged at the Surface and set contentDescription on it, to
+// chase a report that headings were spoken but never took focus. That was the
+// wrong fix and it broke a different rule. The API-defaults page says
+// contentDescription "is mainly meant to be used for graphic elements, such as
+// images. Material components, like Button or Text ... come with other
+// predefined semantics", and a Text is a LEAF: the delegate sets info.text from
+// it unconditionally, so it is already both named and focusable. Merging a leaf
+// buys nothing, and contentDescription on it only overrides the text it already
+// has.
 //
-// Do not move the semantics back onto the Text.
+// Contrast with a merged clickable row, where the extra contentDescription IS
+// needed and is INVARIANTS #7: there the node merges descendants AND has
+// children, so the delegate skips its contentDescription (it goes to a fake
+// leaf child) and info.text comes from the unmerged config, which is empty.
+// The two cases are opposite; do not apply one rule to the other.
 @Composable
 fun SectionHeader(title: String) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp)
-            .semantics(mergeDescendants = true) {
-                heading()
-                contentDescription = title
-            }
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
     ) {
         Text(
             text = title,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp).clearAndSetSemantics { }
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp).semantics { heading() }
         )
     }
 }

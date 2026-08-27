@@ -356,7 +356,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                 text = "Experimental",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    .semantics(mergeDescendants = true) { heading(); contentDescription = "Experimental" }
+                    .semantics { heading() }
             )
             SettingSwitch(
                 label = "Dedicated engines",

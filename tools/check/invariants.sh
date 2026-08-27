@@ -89,19 +89,28 @@ n=$(sed 's://.*::' $KT/*.kt | grep -A 25 "DropdownMenu(" | grep -c "LazyColumn\|
 [ "$n" = 0 ] && ok "#8  no lazy list inside a DropdownMenu" \
              || bad "#8  a lazy list inside a DropdownMenu ($n) -- it cannot answer intrinsics and throws"
 
-# --- 18. a heading must be a MERGED, NAMED node -----------------------------
-# heading() on a bare Text is spoken while reading through and never takes
-# focus, so the heading cannot be reached or navigated by. Reported from the
-# device on 2026-08-27 for the voice screen, the Languages screen and every
-# mode's settings. Every heading is `semantics(mergeDescendants = true) {
-# heading(); contentDescription = ... }` now. Comments are stripped, because
-# this rule is written down inside them.
+# --- 18. a heading is a plain Text; never give a Text a contentDescription ---
+# The documented shape is exactly `Text(..., Modifier.semantics { heading() })`
+# -- it is the example on developer.android.com's semantics page. A Text is a
+# LEAF, so the delegate already sets info.text from it and it is already
+# focusable; merging it buys nothing.
+#
+# contentDescription must not go on it. The api-defaults page: it "is mainly
+# meant to be used for graphic elements, such as images. Material components,
+# like Button or Text ... come with other predefined semantics" -- and in the
+# View API contentDescription OVERRIDES the text, so on a Text it can only
+# replace a label that was already correct.
+#
+# The opposite case is INVARIANTS #7 and is not this: a node that merges
+# descendants AND has children has its contentDescription moved to a fake leaf
+# child and its info.text taken from an empty unmerged config, so there the
+# explicit name is required. Both were got wrong here on 2026-08-27, in the same
+# change, in opposite directions.
 n=$(sed 's://.*::' $KT/*.kt | python3 -c "
 import re,sys
 text = sys.stdin.read()
 bad = 0
 for m in re.finditer(r'semantics\s*(\([^)]*\))?\s*\{', text):
-    args = m.group(1) or ''
     depth, at = 0, m.end() - 1
     while at < len(text):
         if text[at] == '{': depth += 1
@@ -109,12 +118,13 @@ for m in re.finditer(r'semantics\s*(\([^)]*\))?\s*\{', text):
             depth -= 1
             if depth == 0: break
         at += 1
-    if 'heading()' in text[m.end():at] and 'mergeDescendants = true' not in args:
+    body = text[m.end():at]
+    if 'heading()' in body and 'contentDescription' in body:
         bad += 1
 print(bad)
 ")
-[ "$n" = 0 ] && ok "#18 every heading is a merged, named node" \
-             || bad "#18 heading() on a non-merging semantics block ($n) -- it would be spoken but never focusable"
+[ "$n" = 0 ] && ok "#18 headings are plain Texts, with no contentDescription" \
+             || bad "#18 a heading also sets contentDescription ($n) -- a Text is a leaf and already named; that only overrides its own text"
 
 # --- 17. an activity that PERSISTS must also LOAD ---------------------------
 # AutoTTS has one settings screen and it does both (onCreate loads, onPause ->
