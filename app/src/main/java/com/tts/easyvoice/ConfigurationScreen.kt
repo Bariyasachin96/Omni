@@ -39,7 +39,12 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
         // so as `item {}` entries they counted as members of the language
         // collection and shifted every row's position.
         Column(modifier = Modifier.fillMaxSize()) {
-            SectionHeader("Languages")
+            // NOT "Languages": that is the heading of the screen the Add
+            // language button opens, so a screen reader announced the same word
+            // on both and there was no way to tell them apart by heading alone.
+            // This page is the one described by the line under it -- pick a
+            // language, set up its voice.
+            SectionHeader("Set up voices")
             Text(
                 text = "Choose a language to set up its voice.",
                 style = MaterialTheme.typography.bodyMedium,
