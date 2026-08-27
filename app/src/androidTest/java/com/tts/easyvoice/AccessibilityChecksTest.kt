@@ -1,11 +1,20 @@
 package com.tts.easyvoice
 
 import androidx.activity.ComponentActivity
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
-import androidx.compose.ui.test.enableAccessibilityChecks
+// NOT androidx.compose.ui.test -- enableAccessibilityChecks lives in its own
+// package, androidx.compose.ui.test.junit4.accessibility, because it ships in
+// the separate ui-test-junit4-accessibility artifact and extends ComposeTestRule
+// rather than SemanticsNodeInteraction. Importing it from androidx.compose.ui.test
+// alongside tryPerformAccessibilityChecks compiles for the latter and fails for
+// this one, which is exactly how run 785 and 786 failed. Verified against the
+// declaration in ComposeTestRuleExt.android.kt, not guessed.
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -32,7 +41,14 @@ import java.util.Locale
 // docs/INVARIANTS.md #6, #7, #9 and #18 is still the owner's ear and a careful
 // read. This catches the mechanical half so the judgement half gets the
 // attention.
+//
+// enableAccessibilityChecks is @RequiresApi(34) and the checks are a no-op below
+// that, so this is gated rather than left to run and quietly pass on an older
+// device: SdkSuppress reports it as SKIPPED there, which is the truth, while a
+// silent pass would be a lie. The workflow's emulator is API 34.
 @RunWith(AndroidJUnit4::class)
+@SdkSuppress(minSdkVersion = 34)
+@RequiresApi(34)
 class AccessibilityChecksTest {
 
     @get:Rule
