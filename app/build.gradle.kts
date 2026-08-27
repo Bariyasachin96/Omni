@@ -17,6 +17,7 @@ android {
         // the Gradle step and falls back to 1 for a local build.
         versionCode = (System.getenv("EV_BUILD_NUMBER") ?: "1").toInt()
         versionName = "16.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
                 cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-Os", "-g0", "-fvisibility=hidden", "-ffunction-sections", "-fdata-sections")
@@ -68,4 +69,27 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+
+    // Accessibility checks, run against the real screens on a real emulator.
+    // enableAccessibilityChecks() drives Google's Accessibility Test Framework
+    // -- the same engine behind Accessibility Scanner -- so the four things
+    // this project has been checking BY HAND for months become a test: missing
+    // labels, colour contrast, touch target size, and traversal order.
+    //
+    // It needs API 34 and is a no-op under Robolectric, which is why the
+    // workflow runs it on an emulator rather than as a unit test.
+    //
+    // ui-test-junit4-accessibility is pinned rather than left to the BOM: the
+    // BOM's published mapping table lists ui-test, ui-test-junit4 and
+    // ui-test-manifest but not this one, and every artifact in the
+    // androidx.compose.ui group shares one version line, which this BOM puts at
+    // 1.12.0. If a future BOM starts managing it, drop the version.
+    androidTestImplementation(platform("androidx.compose:compose-bom:2026.08.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4-accessibility:1.12.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    // Supplies the empty activity createAndroidComposeRule<ComponentActivity>()
+    // launches; debug-only, so it never reaches the release APK.
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

@@ -80,6 +80,17 @@ to check it, not before.
     tools/check-all.sh          # ~2 min, everything static
     tools/verify/*/run.sh       # the behaviour proofs, when you touch what they cover
 
+**Accessibility is checked in CI, not here.** `app/src/androidTest/.../AccessibilityChecksTest.kt`
+runs Google's Accessibility Test Framework — the engine behind Accessibility Scanner — over
+every screen, and catches the four mechanical things this document has been computing by
+hand: missing labels, colour contrast, touch target size and traversal order.
+`enableAccessibilityChecks()` needs **API 34** and is a no-op under Robolectric, so it runs on
+an emulator in the workflow's **`accessibility` job**. That job is deliberately independent of
+`build`: emulators are slow and sometimes flaky, and a bad one must never cost the owner an
+APK. A red tick there means an accessibility regression, not a broken app. It cannot judge
+whether a label is the *right* label — INVARIANTS #6, #7, #9 and #18 are still a careful read
+and the owner's ear.
+
 `tools/check-all.sh` runs, cheapest first: `ktcheck` (structure), `ktresolve` (our own
 call signatures), `ktimports`, `xmlcheck`, `cpp-syntax.sh`, and `kotlin-typecheck.sh`,
 which diffs kotlinc's errors against a baseline commit. **Judge that last one by the NEW
