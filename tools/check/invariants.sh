@@ -89,6 +89,16 @@ n=$(sed 's://.*::' $KT/*.kt | grep -A 25 "DropdownMenu(" | grep -c "LazyColumn\|
 [ "$n" = 0 ] && ok "#8  no lazy list inside a DropdownMenu" \
              || bad "#8  a lazy list inside a DropdownMenu ($n) -- it cannot answer intrinsics and throws"
 
+# --- 16. an unreliable detector answer must never reach a span --------------
+# Both arms of detectWindowLang answer "UNKNOWN" when the detector is unsure.
+# The span site once passed nullptr for cld3DetectRaw's reliableOut and used the
+# answer regardless, so an unreliable "hi" (p = 0.495) spoke a Latin name in the
+# Hindi voice while CLD2 read it in English. Asking for the flag is the whole
+# fix, so this checks nobody stops asking. Proof: tools/verify/cld3span/run.sh.
+n=$(sed 's://.*::' $CPP | grep -c "cld3DetectRaw([^;]*nullptr")
+[ "$n" = 0 ] && ok "#16 every cld3DetectRaw call asks for the reliability flag" \
+             || bad "#16 cld3DetectRaw called with nullptr for reliableOut ($n) -- an unreliable answer would reach a span"
+
 # --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's six sites --
 # AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and
 # "TTS" at six -- the three audio-focus lines, the focus request, and the two

@@ -1517,6 +1517,27 @@ detectors answer differently for the same text; missing the per-script fallback 
 site made CLD3 return a language the user has not enabled, which the engine check then sent to
 `P`/`Q`. Both are voice changes, not cosmetics. **Do not "simplify" the flag away.**
 
+**The third thing that table implies, and which was MISSING until 2026-08-27: reliability.**
+Both arms of `detectWindowLang` answer `"UNKNOWN"` when the detector is unsure. The span site
+passed **`nullptr`** for `cld3DetectRaw`'s `reliableOut` and used the answer regardless. Found
+from a device log: with CLD3 on, the Latin name `"MEET Choudhary "` was spoken by the **Hindi**
+voice, while CLD2 read the same utterance in English — identical chunking, only span 0's
+language differed. CLD3 answers `hi` there with `is_reliable = 0`, `p = 0.495`; its own top-3
+loop rejects that candidate for exactly that reason, and then the fallthrough to
+`FindLanguage()` returned it anyway. Hindi being enabled, `isHinted` accepted it and the
+per-script fallback never ran. The span site now asks for the flag and treats unreliable as
+`"un"`, so the fallback resolves the span to the language its script implies. Proof and
+negative test: **`tools/verify/cld3span/run.sh`**, which links the real core against CLD2 and
+CLD3 and starts a JVM for a genuine `JNIEnv`. Recorded as INVARIANTS #16.
+
+**Still open, deliberately (owner informed 2026-08-27):** a *reliable* answer in the wrong
+script is still accepted when that language is enabled. CLD2 cannot do this because its
+per-script hint goes **into** the detector; the CLD3 arm can only filter afterwards, against a
+flat list with no notion of the span's script. Measured over 30 short Latin strings, CLD3
+returned a reliable non-Latin-script language six times — `hi-Latn` and `el-Latn` (caught by
+`isRomanisedTag`), plus `ja` for `"Save"` and `sr` for `"Easy Voice"` (not caught). A
+script-aware filter would close it; that is a separate change and was not made.
+
 **Verified equal in the same read, so do NOT re-audit:** the ASCII branch
 (`and w8, w9, #0x5f`, `sub #0x41`, `cmp #0x19`, `b.hi` — non-letters change nothing);
 `latin = (script == 1)` for every script other than 0; the 1024-byte detect cap and its

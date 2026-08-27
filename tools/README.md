@@ -59,9 +59,20 @@ bound its trailing lambda to a newly added last parameter instead of
     tools/verify/scriptfamily/run.sh     # ~3 min,  15 language sets x 1,114,112 code points
     tools/verify/normalizer/run.sh       # ~20 s,   1,114,112 code points, 1,062 mappings
     tools/verify/isocodes/run.sh         # ~5 s,    all 109 CLD3 tags
+    tools/verify/cld3span/run.sh         # ~4 min first run, then seconds
 
-Each builds **AutoTTS's own code** from `autotts_reference/` alongside ours,
-runs both over the same inputs, and diffs. A failure prints the exact case.
+The first four build **AutoTTS's own code** from `autotts_reference/` alongside
+ours, run both over the same inputs, and diff. A failure prints the exact case.
+
+`cld3span` is the odd one out and is built differently, because AutoTTS has no
+CLD3 to compare against. The standing rule for that switch is not "match
+AutoTTS" but "wherever CLD2 makes a detection, the switch must be able to put
+CLD3 there instead", so it asserts the **two detectors agree with each other**
+on the same text. It also does not slice the core: it links
+`tts_engine_core.cpp` itself against CLD2, CLD3 and protobuf and starts a JVM
+for a real `JNIEnv`, because the bug it exists for lived in the interaction
+between `cld3DetectRaw`'s reliability flag and `emitScriptSpan`'s per-script
+fallback, and a slice reaches neither.
 
 These are the pieces of the app small enough to isolate and important enough to
 be worth proving:
@@ -79,6 +90,13 @@ be worth proving:
   redo this sweep rather than hand-checking it. This is that sweep.
 - **the ISO tags** — every language CLD3 can name has to survive
   `IsoCodes.toIso3`. One did not, and that was a real bug.
+- **the CLD3 span site** — the two detectors on the same utterance. It exists
+  because of a device log on 2026-08-27: with CLD3 on, the Latin name
+  `"MEET Choudhary "` was spoken by the **Hindi** voice while CLD2 read it in
+  English. CLD3 answers `hi` there with `is_reliable = 0`, its own top-3 loop
+  rejects that candidate, and the fallthrough returned it anyway because the
+  span site passed `nullptr` for `reliableOut`. Negative-tested: put the
+  `nullptr` back and the harness reports the device's exact failure.
 
 `verify/segmenter/cpp/explore.cpp` is the same segmenter with a readable
 main: 25 named cases printing type, kind, language and text. Use it to look at

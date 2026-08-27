@@ -2061,8 +2061,22 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 // CLD3 counterpart, so it is applied here; without it the two
                 // detectors answer differently for the same text, and the
                 // Kotlin's engine check then sends the run to P or Q instead.
-                std::string cld3Lang = cld3DetectRaw(std::string(text, start, detectBytes), nullptr, true);
-                lang = cld3Lang.empty() ? "un" : cld3Lang;
+                //
+                // The reliability flag MUST be asked for and honoured. Both
+                // arms of detectWindowLang answer "UNKNOWN" when the detector
+                // is not sure, and this span site is the one place that used to
+                // pass nullptr and drop the answer on the floor. What that cost
+                // is on record: for "MEET Choudhary " CLD3's top-3 loop rejects
+                // its own candidate (hi, is_reliable = 0, p = 0.495), falls
+                // through to FindLanguage(), and returned that same unreliable
+                // "hi" anyway -- so a Latin name was spoken by the Hindi voice
+                // while CLD2, steered by the per-script hint, read it in
+                // English. Unreliable now becomes "un", which is not in the
+                // hint list, so the per-script fallback below resolves the span
+                // to the one language its script implies.
+                bool cld3Reliable = false;
+                std::string cld3Lang = cld3DetectRaw(std::string(text, start, detectBytes), &cld3Reliable, true);
+                lang = (cld3Lang.empty() || !cld3Reliable) ? "un" : cld3Lang;
                 if(!hintCodes.empty() && !isHinted(baseLanguageTag(lang))){
                     const std::string fallbackCode = scriptFallbackCode();
                     if(!fallbackCode.empty()) lang = fallbackCode;

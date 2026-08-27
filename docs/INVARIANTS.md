@@ -256,6 +256,49 @@ generator there is nothing that can grow it.
 
 ---
 
+## 16. An unreliable detector answer must never reach a span
+
+**Rule.** Every `cld3DetectRaw` call passes a real `bool*` for `reliableOut` and
+treats "not reliable" as unknown. Never `nullptr`.
+
+**Why.** Both arms of `detectWindowLang` already answer `"UNKNOWN"` when the
+detector is unsure — the CLD2 arm on `!reliable`, the CLD3 arm on
+`!cld3Reliable`. The span site inside `nativeGetLanguages` was the one place
+that passed `nullptr` and used the answer regardless.
+
+What that cost, from a device log on 2026-08-27: with CLD3 enabled the Latin
+name `"MEET Choudhary "` was spoken by the **Hindi** voice, while CLD2 read it
+in English. The chunking was identical under both detectors; only the first
+span's language differed. CLD3 answers `hi` for that text with
+`is_reliable = 0` and `probability = 0.495`. Its own top-3 loop rejects the
+candidate for exactly that reason — and then the fallthrough to `FindLanguage()`
+returned the same unreliable `hi` anyway. Because Hindi *is* an enabled
+language, `isHinted` accepted it and the per-script fallback never ran.
+
+With the flag honoured, an unreliable answer becomes `"un"`, which is not in the
+hint list, so the per-script fallback resolves the span to the one language its
+script implies — English for a Latin span when English is the only enabled
+Latin language.
+
+**Check.** `tools/check/invariants.sh` #16, and the real proof,
+`tools/verify/cld3span/run.sh`, which links the actual native core against CLD2
+and CLD3, starts a JVM for a genuine `JNIEnv`, and asserts both detectors agree
+on the reported utterance. Negative-tested: with the flag removed it reports the
+device's exact failure, `span 0 is "hi", expected "en"`.
+
+**What this does NOT fix.** A *reliable* answer in the wrong script is still
+accepted if that language is enabled. CLD2 does not have this problem because
+its per-script hint is fed **into** the detector (`currentScriptLanguageHint`),
+while the CLD3 arm can only filter afterwards, against a flat enabled-language
+list with no notion of the span's script. Measured on 30 short Latin strings,
+CLD3 returned a reliable non-Latin-script language six times — `hi-Latn`,
+`el-Latn` (both caught by `isRomanisedTag`), and `ja` for `"Save"`, `sr` for
+`"Easy Voice"` (not caught). Those only misroute if the language is enabled.
+Closing that gap needs a script-aware filter and is a separate change; it was
+raised with the owner on 2026-08-27 and deliberately deferred.
+
+---
+
 ## 15. Two things look dead to a text scan and are not
 
 **Rule.** Never delete these on the strength of a grep.
