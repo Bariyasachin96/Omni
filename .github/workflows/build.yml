@@ -261,7 +261,12 @@ jobs:
       - name: Run accessibility checks on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          # The newest released API, so the checks run against the platform
+          # behaviour newer phones actually have. 34 is only the FLOOR --
+          # enableAccessibilityChecks() is @RequiresApi(34) and a no-op below
+          # it, which is what @SdkSuppress(minSdkVersion = 34) on the test
+          # class guards. Running higher is strictly better.
+          api-level: 37
           target: google_apis
           arch: x86_64
           profile: pixel_6

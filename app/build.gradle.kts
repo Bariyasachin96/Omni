@@ -8,8 +8,26 @@ android {
     ndkVersion = "29.0.14206865"
     defaultConfig {
         applicationId = "com.tts.easyvoice"
+        // minSdk STAYS 24. It is the oldest Android this app will install on,
+        // and raising it is the one number here that takes phones away -- at 37
+        // it would install on almost nothing. compileSdk and targetSdk are what
+        // "being on the latest API" actually means; minSdk is the opposite end.
         minSdk = 24
-        targetSdk = 36
+        // 37 = Android 17. Checked against its behaviour changes before moving,
+        // because targetSdk is an opt-in to all of them, and three could have
+        // bitten this app:
+        //   * native libraries loaded with System.load() must now be read-only
+        //     or throw UnsatisfiedLinkError. We use System.loadLibrary(), which
+        //     loads from the APK's own read-only lib directory. Unaffected.
+        //   * "static final" fields can no longer be modified by reflection.
+        //     Our single reflection is TextToSpeech's mCurrentEngine, an
+        //     INSTANCE field, read not written, inside a try/catch that falls
+        //     back to the expected package. Unaffected, and it degrades if the
+        //     non-SDK restrictions ever block it.
+        //   * the opt-out from orientation and resizability restrictions on
+        //     large screens is gone. We never declared screenOrientation or
+        //     resizeableActivity, so there was no opt-out to lose.
+        targetSdk = 37
         // The Advanced tab's Information section shows these two, the way
         // AutoTTS's does. A frozen versionCode = 1 would make "Build number"
         // say the same thing for every build and tell the user nothing, so
