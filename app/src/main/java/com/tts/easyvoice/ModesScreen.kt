@@ -161,16 +161,24 @@ private fun LanguageChoice(
 // rather than a SectionHeader, because SectionHeader draws a filled bar and
 // there is already one of those above these three.
 //
-// `groupName` exists because of Google's DuplicateSpeakableTextCheck, the same
-// reason LabeledDropdown names its button "<label>, <value>": all three groups
-// offer the identical four options, so twelve clickable rows would carry four
-// speakable names between them. "Numbers, Auto language" is unique, still
-// contains the visible label (WCAG 2.5.3 Label in Name), and names no role or
-// state, which RedundantDescriptionCheck forbids.
+// A row is named by its OPTION ALONE -- "Auto language", not "Numbers, Auto
+// language". The first version carried the group name on every row, for
+// Google's DuplicateSpeakableTextCheck: all three groups offer the identical
+// four options, so twelve rows share four names between them. The owner used it
+// and rejected it (2026-08-27) -- with a heading already above each group,
+// hearing "Numbers, Numbers, Numbers" down the list is noise, and they are
+// right. The heading plus the selectableGroup's own position announcement carry
+// the context, which is the conventional Android radio-group pattern and is how
+// the mode radios on the previous screen already read. Do not put the prefix
+// back; if the duplicate-name warning ever has to be answered, answer it with
+// the headings, not by lengthening twelve names.
+//
+// The name still has to be set explicitly rather than left to the child Text:
+// a merged node with children carries neither text nor contentDescription for a
+// screen reader that only inspects the focused node. See INVARIANTS #7.
 @Composable
 private fun LabeledRadioGroup(
     title: String,
-    groupName: String,
     options: List<String>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit
@@ -191,7 +199,7 @@ private fun LabeledRadioGroup(
                         onClick = { onSelect(index) }
                     )
                     .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .semantics { contentDescription = groupName + ", " + options[index] },
+                    .semantics { contentDescription = options[index] },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(selected = index == selectedIndex, onClick = null)
@@ -217,7 +225,7 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
     var numberMode by remember { mutableStateOf(EasyVoiceTtsService.numberModeInt) }
     var puncMode by remember { mutableStateOf(EasyVoiceTtsService.punctuationModeInt) }
     var emojiMode by remember { mutableStateOf(EasyVoiceTtsService.emojiModeInt) }
-    LabeledRadioGroup("Select language for reading numbers", "Numbers", modeOptions, numberMode) { picked ->
+    LabeledRadioGroup("Select language for reading numbers", modeOptions, numberMode) { picked ->
         numberMode = picked
         EasyVoiceTtsService.numberModeInt = picked
     }
@@ -225,7 +233,7 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
         LanguageChoice("Specific language for reading numbers", codes, labels,
             EasyVoiceTtsService.numberSpecificLang) { EasyVoiceTtsService.numberSpecificLang = it }
     }
-    LabeledRadioGroup("Select language for reading punctuations", "Punctuation", modeOptions, puncMode) { picked ->
+    LabeledRadioGroup("Select language for reading punctuations", modeOptions, puncMode) { picked ->
         puncMode = picked
         EasyVoiceTtsService.punctuationModeInt = picked
     }
@@ -233,7 +241,7 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
         LanguageChoice("Specific language for reading punctuations", codes, labels,
             EasyVoiceTtsService.puncSpecificLang) { EasyVoiceTtsService.puncSpecificLang = it }
     }
-    LabeledRadioGroup("Select language for reading emojis", "Emojis", modeOptions, emojiMode) { picked ->
+    LabeledRadioGroup("Select language for reading emojis", modeOptions, emojiMode) { picked ->
         emojiMode = picked
         EasyVoiceTtsService.emojiModeInt = picked
     }
@@ -287,6 +295,14 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
                 ReadingSettings(codes, labels)
             }
             if (mode == "mix" || mode == "multilingual") {
+                // These two are a pair and the only group on this screen that
+                // had no heading of its own, so a screen reader jumping by
+                // heading went straight from the mode name to "Numbers,
+                // punctuation and emojis" and passed both dropdowns without
+                // anything naming what they were for (owner, 2026-08-27).
+                // "Preferred languages" rather than either label, so it groups
+                // them instead of repeating one of them.
+                SectionHeader("Preferred languages")
                 LanguageChoice("Preferred language for Latin text", codes, labels,
                     EasyVoiceTtsService.mixLatinLang) { EasyVoiceTtsService.mixLatinLang = it }
                 LanguageChoice("Preferred language for non-Latin text", codes, labels,
