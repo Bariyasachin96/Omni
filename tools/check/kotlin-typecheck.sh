@@ -94,8 +94,29 @@ echo
 
 # Absolute counts are meaningless; a MOVE in the count of unresolved references
 # to OUR OWN names is not.
-own() { grep -c "unresolved reference: \(build\|apply\|voice\|lang\|Easy\|Lang\|Voice\|Mode\|Setting\|Advanced\|Configuration\|Section\|Labeled\|Responsive\)" "$1" || true; }
+#
+# BOTH compiler formats are matched on purpose. K1 wrote
+#     unresolved reference: androidx
+# and K2 writes
+#     unresolved reference 'androidx'.
+# so the K1-only pattern silently matched NOTHING once the compiler moved to
+# 2.4.10, and this metric read 0 where it had read 9 -- a checker going blind
+# dressed up as an improvement. Caught on 2026-08-27 by asking why the number
+# had improved rather than being pleased that it had.
+own() { grep -cE "unresolved reference:? '?(build|apply|voice|lang|Easy|Lang|Voice|Mode|Setting|Advanced|Configuration|Section|Labeled|Responsive)" "$1" || true; }
 b=$(own "$WORK/base.txt"); c=$(own "$WORK/cur.txt")
+
+# The metric must be able to see SOMETHING. androidx is unresolvable in this
+# container -- Google Maven is blocked -- so a run that reports unresolved
+# references at all but matches none of ours means the pattern has stopped
+# matching the compiler's wording, not that the code got better. That is
+# precisely how this went blind when kotlinc moved from 1.9.22 to 2.4.10.
+if grep -q "unresolved reference" "$WORK/base.txt" && [ "$b" = 0 ]; then
+  echo "the our-own-name pattern matched NOTHING while the compiler reported"
+  echo "unresolved references -- its wording has changed again. Fix own()."
+  grep -m3 "unresolved reference" "$WORK/base.txt"
+  exit 1
+fi
 if [ "$b" = "$c" ]; then
   echo "our-own-name unresolved refs: baseline $b, current $c (unchanged)"
 else

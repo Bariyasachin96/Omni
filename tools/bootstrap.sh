@@ -19,7 +19,7 @@
 set -euo pipefail
 
 CACHE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.cache"
-KOTLIN_VERSION=1.9.22
+KOTLIN_VERSION=2.4.10
 ANDROID_JAR_URL=https://repo1.maven.org/maven2/com/google/android/android/4.1.1.4/android-4.1.1.4.jar
 KOTLINC_URL="https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
 

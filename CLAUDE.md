@@ -93,12 +93,23 @@ is how a wrong trailing lambda once reached CI.
 files, else `ci/generate.py`, else the generator inlined in `build.yml` — so a baseline
 from before 2026-08-26 still works.
 
-**Stale and worth fixing when someone has a build to check it with:** CI builds with
-Kotlin **2.3.0**, Compose BOM **2026.08.00** and `compileSdk 37`, while the local
-`kotlinc` is pinned to 1.9.22 in `tools/bootstrap.sh` and the Compose-migration note far
-below still says 1.9.22 / Compose Compiler 1.5.10 / BOM 2024.02.00. The check is a diff
-against a baseline compiled by the same compiler, so it still works — but it cannot see
-anything Kotlin 2.x specific.
+**The local `kotlinc` now MATCHES the project (2026-08-27).** `tools/bootstrap.sh` pins
+**2.4.10**, the same Kotlin the build uses, so the local check finally sees what CI sees;
+it used to be 1.9.22, which could not diagnose anything Kotlin 2.x specific. The
+Compose-migration note far below still says 1.9.22 / Compose Compiler 1.5.10 /
+BOM 2024.02.00 — that is a record of the migration, not current fact.
+
+**Moving to K2 broke a checker silently, and it is worth knowing why.** Kotlin changed the
+wording of its most common diagnostic:
+
+    K1 (1.9.22):  unresolved reference: androidx
+    K2 (2.4.10):  unresolved reference 'androidx'.
+
+`kotlin-typecheck.sh`'s "our-own-name unresolved refs" metric grepped for the K1 form, so
+after the bump it matched **nothing** and read 0 where it had read 9 — a checker going
+blind, dressed up as an improvement. It matches both forms now, and it carries a guard: if
+the compiler reports unresolved references at all while the pattern matches none of ours,
+the script fails and says the wording has changed. Negative-tested both ways.
 
 ## HARD RULES (NEVER violate)
 1. **NEVER build/push without explicit user request**
