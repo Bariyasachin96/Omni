@@ -1096,6 +1096,11 @@ tree…") is gone with the generator; everything below about *why* is not.
     `type mismatch: inferred type is Int but Context! was expected`;
   - `View.generateViewId()` is API 17 → `unresolved reference: generateViewId` (verified
     absent from the jar with `javap`);
+  - **`android.icu` is API 24** → `unresolved reference 'icu'`. Verified the same way, by
+    listing the jar: it holds **zero** `android/icu/` entries against 125 under
+    `android/text/`. `minSdk` is 24, so it is present on every device the app installs on;
+    `buildDayPeriodMarkers()` uses `android.icu.text.DateFormatSymbols` for CLDR's AM/PM
+    strings;
   - `clipToPadding = false` needs the **getter** `getClipToPadding()`, which is API 21 —
     `javap` shows the API-15 jar has only `setClipToPadding(boolean)`, so Kotlin cannot form
     the property → `unresolved reference: clipToPadding`. Fine at `compileSdk 34`/`minSdk 24`;

@@ -41,6 +41,12 @@ int main(){
         m.smartNumberGroupSize = atoi(f[6].c_str());
         std::string dualLang = f[7], mixNonLat = f[8], deviceIso3 = f[9];
         setLanguageHintsForTest(f[10]);
+        // Columns 12 and 13 are OPTIONAL and EasyVoice-only: keepTimeMarker and
+        // the CLDR day-period marker list. Absent means off, so the generated
+        // 12-column battery -- the 163,296 cases that prove parity with AutoTTS
+        // -- runs with the flag clear and is completely unaffected by it.
+        if (f.size() > 12) m.keepTimeMarker = f[12]=="1";
+        if (f.size() > 13) m.dayPeriodMarkers = f[13];
         std::string text = f[11];
         { std::string t; for(size_t i=0;i<text.size();i++){ if(text[i]=='\\'&&i+1<text.size()&&text[i+1]=='t'){t+='\t';i++;} else t+=text[i]; } text=t; }
         // d0.t: n7 = 2 when (mode 1 and device==dualLang) or (mode 4/5 and device==mixNonLatin)

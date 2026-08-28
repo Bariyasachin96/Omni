@@ -839,6 +839,39 @@ class EasyVoiceTtsService : TextToSpeechService() {
         smartNumberFlag = prefs.isSmartNumberReading()
         smartNumberGroupSize = prefs.getSmartNumberGroupSize()
         useCld3Flag = prefs.isUseCld3()
+        keepTimeMarkerFlag = prefs.isKeepTimeMarker()
+        dayPeriodMarkers = buildDayPeriodMarkers()
+    }
+    // CLDR's own AM/PM strings, for every language this install actually uses.
+    //
+    // android.icu is CLDR, and it has been on Android since API 24 -- our
+    // minSdk -- so this is the same data the TTS engine consults when it decides
+    // whether 7:45 is morning or evening. Matching CLDR's strings rather than a
+    // hardcoded "AM"/"PM" is the point: a marker we recognise is then a marker
+    // the engine recognises too.
+    //
+    // Computed once, at load, and never on the synthesis path (INVARIANTS #4).
+    // In practice every locale here writes them in Latin -- Gujarati gives
+    // "AM"/"PM", Hindi "am"/"pm" -- but that is a fact about these locales, not
+    // an assumption to build on.
+    private fun buildDayPeriodMarkers(): String {
+        val out = LinkedHashSet<String>()
+        val tags = LinkedHashSet<String>()
+        tags.add(java.util.Locale.getDefault().language)
+        for (iso in listOf(autoLang, dualLang, mixLatinLang, mixNonLatinLang)) {
+            if (iso.isNotEmpty()) tags.add(IsoCodes.toIso2(iso) ?: iso)
+        }
+        for (tag in tags) {
+            try {
+                val symbols = android.icu.text.DateFormatSymbols(java.util.Locale(tag))
+                for (marker in symbols.amPmStrings) {
+                    val clean = StringBuilder()
+                    for (ch in marker) if (ch != '.' && !ch.isWhitespace()) clean.append(ch.lowercaseChar())
+                    if (clean.isNotEmpty()) out.add(clean.toString())
+                }
+            } catch (_: Throwable) { }
+        }
+        return out.joinToString(",")
     }
     private fun loadModeLangsOnce() {
         if (autoLang.isNotEmpty()) return
@@ -1056,7 +1089,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             punctuationModeInt, normalizeLangCode(puncSpecificLang),
                             emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
                             smartNumberGroupSize,
-                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag
+                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag,
+                        keepTimeMarkerFlag, dayPeriodMarkers
                         )
                         for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
                             val parts = chunkStr.split('\u001F', limit = 4)
@@ -1118,7 +1152,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             punctuationModeInt, normalizeLangCode(puncSpecificLang),
                             emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
                             smartNumberGroupSize,
-                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag
+                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag,
+                        keepTimeMarkerFlag, dayPeriodMarkers
                         )
                         for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
                             val parts = chunkStr.split('\u001F', limit = 4)
@@ -1167,7 +1202,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         punctuationModeInt, normalizeLangCode(puncSpecificLang),
                         emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
                         smartNumberGroupSize,
-                        neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag
+                        neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag,
+                        keepTimeMarkerFlag, dayPeriodMarkers
                     )
                     for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
                         val parts = chunkStr.split('\u001F', limit = 4)
@@ -1622,5 +1658,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @Volatile @JvmField var disableAdvancedFlag = true
         @Volatile @JvmField var quickCharacterFlag = false
         @Volatile @JvmField var useCld3Flag = false
+        // EasyVoice only. Off by default so the segmenter stays byte-for-byte
+        // AutoTTS; see the keepTimeMarker block in buildMixChunks.
+        @Volatile @JvmField var keepTimeMarkerFlag = false
+        @Volatile @JvmField var dayPeriodMarkers = ""
     }
 }
