@@ -283,7 +283,15 @@ fun AdvancedScreen(
             // "Build number, 41" as a single stop rather than two.
             val versionInfo = remember {
                 try {
-                    val info = context.packageManager.getPackageInfo(context.packageName, 0)
+                    // c3.a0.a switches overload at API 33.
+                    // The explicit type matters for the local kotlinc check: without
+                    // it, PackageInfoFlags being absent from the API-15 jar makes the
+                    // whole expression an error type and every member read below it
+                    // cascades into the noise.
+                    val info: android.content.pm.PackageInfo = if (android.os.Build.VERSION.SDK_INT >= 33)
+                        context.packageManager.getPackageInfo(context.packageName,
+                            android.content.pm.PackageManager.PackageInfoFlags.of(0L))
+                    else { @Suppress("DEPRECATION") context.packageManager.getPackageInfo(context.packageName, 0) }
                     val build = if (android.os.Build.VERSION.SDK_INT >= 28) {
                         info.longVersionCode.toString()
                     } else {

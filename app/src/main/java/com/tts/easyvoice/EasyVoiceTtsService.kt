@@ -137,14 +137,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
         initDone = true
         initAllEngines()
     }
-    // c3.a0.c / c3.a0.b, down to the logcat tag they report a miss under.
+    // c3.a0.a / c3.a0.c / c3.a0.b, down to the logcat tag they report a miss
+    // under and the API level at which a0.a switches overloads.
+    private fun ownPackageInfo(): android.content.pm.PackageInfo =
+        if (Build.VERSION.SDK_INT >= 33)
+            packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0L))
+        else { @Suppress("DEPRECATION") packageManager.getPackageInfo(packageName, 0) }
     private fun versionName(): String = try {
-        packageManager.getPackageInfo(packageName, 0).versionName ?: "Unknown"
+        ownPackageInfo().versionName ?: "Unknown"
     } catch (ex: android.content.pm.PackageManager.NameNotFoundException) {
         android.util.Log.e("VersionUtils", "Error getting version name", ex); "Unknown"
     }
     private fun versionCode(): Long = try {
-        val info = packageManager.getPackageInfo(packageName, 0)
+        val info = ownPackageInfo()
         if (Build.VERSION.SDK_INT >= 28) info.longVersionCode
         else { @Suppress("DEPRECATION") info.versionCode.toLong() }
     } catch (ex: android.content.pm.PackageManager.NameNotFoundException) {

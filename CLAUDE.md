@@ -1096,6 +1096,10 @@ tree…") is gone with the generator; everything below about *why* is not.
     `type mismatch: inferred type is Int but Context! was expected`;
   - `View.generateViewId()` is API 17 → `unresolved reference: generateViewId` (verified
     absent from the jar with `javap`);
+  - `PackageManager.PackageInfoFlags` is **API 33** → `unresolved reference 'PackageInfoFlags'`,
+    at the two sites that mirror `c3.a0.a`'s overload switch. Give the result an
+    **explicit `PackageInfo` type** or the error type cascades into every member read
+    below it — that is four extra noise lines instead of one;
   - `PackageInfo.getLongVersionCode()` is **API 28** → `unresolved reference 'longVersionCode'`.
     Verified with `javap` over the check jar: it declares only `public int versionCode`.
     Guarded by `Build.VERSION.SDK_INT >= 28` at both call sites;
