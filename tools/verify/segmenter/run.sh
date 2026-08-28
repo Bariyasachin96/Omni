@@ -53,54 +53,10 @@ echo "4/4  running both"
 java -cp "$WORK/java" Main < "$WORK/cases.tsv" 2>/dev/null | grep -v "^Picked up" > "$WORK/autotts.out"
 "$WORK/diffharness" < "$WORK/cases.tsv" > "$WORK/ours.out"
 
-# The EasyVoice-only "keep AM/PM with the time" switch, checked SEPARATELY.
-#
-# It cannot go in the diff above: AutoTTS has no such flag, so a case with it on
-# is SUPPOSED to differ. What the diff proves is the opposite and is the thing
-# that matters most -- with the flag off, which is the default, the segmenter is
-# still byte-for-byte AutoTTS over the whole battery.
-#
-# Columns 13 and 14 are the flag and the CLDR marker list; the generator emits
-# twelve, so every one of the cases above runs with the flag clear.
-keep_time_check() {
-  local label=$1 flag=$2 want=$3 text=$4
-  local got
-  got=$(printf '4\t0\t0\t0\t1\t0\t1\tguj\tguj\tguj\ten,gu\t%s\t%s\tam,pm\n' "$text" "$flag" \
-        | "$WORK/diffharness")
-  if [ "$got" = "$want" ]; then
-    printf '  ok    %s\n' "$label"
-  else
-    printf '  FAIL  %s\n         want %s\n         got  %s\n' "$label" "$want" "$got"
-    keep_time_failed=1
-  fi
-}
-
-echo
-echo "the keep-AM/PM switch (EasyVoice only, off by default):"
-keep_time_failed=0
-GU_TIME='મીટિંગ 7:45 PM છે'
-keep_time_check "off: the time and PM are split, as AutoTTS splits them" 0 \
-  "2:'મીટિંગ 7:45 ' | 1:'PM ' | 2:'છે'" "$GU_TIME"
-keep_time_check "on:  they stay in one chunk, so the voice sees the PM" 1 \
-  "2:'મીટિંગ 7:45 PM છે'" "$GU_TIME"
-# A bare number is not a clock time, so the marker must NOT be pulled in -- the
-# result has to stay exactly what the flag-off path produces. This assertion was
-# written the other way round at first and the harness caught it, which is the
-# whole reason for asserting the negative cases as well as the positive one.
-keep_time_check "on:  a number that is NOT a time is left alone" 1 \
-  "2:'બસ નંબર 45 ' | 1:'PM ' | 2:'છે'" 'બસ નંબર 45 PM છે'
-keep_time_check "on:  a time with no marker after it is left alone" 1 \
-  "2:'મીટિંગ 7:45 વાગ્યે છે'" 'મીટિંગ 7:45 વાગ્યે છે'
-
-if diff -q "$WORK/autotts.out" "$WORK/ours.out" >/dev/null && [ "$keep_time_failed" = 0 ]; then
+if diff -q "$WORK/autotts.out" "$WORK/ours.out" >/dev/null; then
   echo
-  echo "IDENTICAL over $(wc -l < "$WORK/cases.tsv") cases, and the switch behaves"
+  echo "IDENTICAL over $(wc -l < "$WORK/cases.tsv") cases"
   exit 0
-fi
-if [ "$keep_time_failed" != 0 ] && diff -q "$WORK/autotts.out" "$WORK/ours.out" >/dev/null; then
-  echo
-  echo "AutoTTS parity holds, but the keep-AM/PM switch is wrong"
-  exit 1
 fi
 
 echo

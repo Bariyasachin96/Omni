@@ -57,7 +57,6 @@ class SharedPrefsManager(context: Context) {
     fun isShowNotification(): Boolean = prefs.getBoolean("show_notification", false)
     fun isLocaleSpansEnabled(): Boolean = prefs.getBoolean("locale_spans", false)
     fun isDisableAdvancedDetection(): Boolean = prefs.getBoolean("disable_advanced_detection", true)
-    fun isKeepTimeMarker(): Boolean = prefs.getBoolean("keep_time_marker", false)
     fun isKeepAliveMode(): Boolean = prefs.getBoolean("keep_alive_mode", false)
     fun isQuickCharacterReading(): Boolean = prefs.getBoolean("quick_character_reading", false)
     fun isPunctuationWithSentence(): Boolean = prefs.getBoolean("punctuation_with_sentence", true)

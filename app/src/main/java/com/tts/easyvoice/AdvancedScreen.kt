@@ -102,7 +102,6 @@ fun AdvancedScreen(
     var showNotification by remember { mutableStateOf(EasyVoiceTtsService.showNotificationFlag) }
     var disableAdvanced by remember { mutableStateOf(EasyVoiceTtsService.disableAdvancedFlag) }
     var quickCharacter by remember { mutableStateOf(EasyVoiceTtsService.quickCharacterFlag) }
-    var keepTimeMarker by remember { mutableStateOf(EasyVoiceTtsService.keepTimeMarkerFlag) }
     var punctuationInFlow by remember { mutableStateOf(EasyVoiceTtsService.punctuationInFlowFlag) }
     var smartNumber by remember { mutableStateOf(EasyVoiceTtsService.smartNumberFlag) }
     var groupSize by remember { mutableStateOf(EasyVoiceTtsService.smartNumberGroupSize) }
@@ -167,10 +166,6 @@ fun AdvancedScreen(
                 disableAdvanced = picked; EasyVoiceTtsService.disableAdvancedFlag = picked
             }
             SettingDescription("Falls back to the simpler detection, which is faster.")
-            SettingSwitch("Keep AM and PM with the time", keepTimeMarker) { picked ->
-                keepTimeMarker = picked; EasyVoiceTtsService.keepTimeMarkerFlag = picked
-            }
-            SettingDescription("A time next to text in another language is normally read without its AM or PM, because the marker goes to the other voice. Turn this on and they are read together, so evening is not read as morning.")
             SettingSwitch("Quick character read", quickCharacter) { picked ->
                 quickCharacter = picked; EasyVoiceTtsService.quickCharacterFlag = picked
             }

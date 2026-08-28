@@ -11,8 +11,7 @@ object NativeEngine {
         emojiMode: Int, emojiSpecific: String, punctuationInFlow: Boolean, smartNumber: Boolean,
         smartNumberGroupSize: Int,
         neutralDefault: String, neutralType: Int,
-        disableAdvancedDetection: Boolean, useCld3: Boolean,
-        keepTimeMarker: Boolean, dayPeriodMarkers: String
+        disableAdvancedDetection: Boolean, useCld3: Boolean
     ): String
     external fun nativeGetLanguages(text: String, useCld3: Boolean): Array<String>
     // clsCLD2.b: decorated Latin letters folded back to ASCII.

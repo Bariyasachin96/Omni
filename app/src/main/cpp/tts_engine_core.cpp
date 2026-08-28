@@ -1013,41 +1013,7 @@ struct ReadingModes {
     bool punctuationInFlow = true;
     bool smartNumber = false;
     int smartNumberGroupSize = 1;                  // AutoTtsService.f0
-    // EasyVoice only -- AutoTTS has neither. Both default to off/empty so the
-    // segmenter stays byte-for-byte AutoTTS unless the owner turns the Advanced
-    // switch on, which is what tools/verify/segmenter proves on every run.
-    bool keepTimeMarker = false;
-    std::string dayPeriodMarkers;    // comma separated, lowercase, from CLDR
 };
-
-// Is this segment one of the locale's AM/PM markers?
-//
-// The list comes from CLDR by way of android.icu on the Kotlin side, not from a
-// hardcoded "AM"/"PM" here -- CLDR is what a TTS engine itself consults, so
-// matching its strings is what makes the marker recognisable to the same engine
-// that will read the time. "am"/"pm" are always accepted as well, because every
-// locale in play writes them in Latin letters anyway and a stray English marker
-// in a non-English sentence is common.
-static bool isDayPeriodMarker(const std::string& text, const std::string& markers){
-    std::string trimmed;
-    for(size_t at=0; at<text.size(); at++){
-        unsigned char ch = (unsigned char)text[at];
-        if(ch <= 0x20) continue;
-        if(ch == '.') continue;                    // a.m. -> am
-        trimmed += (char)((ch >= 'A' && ch <= 'Z') ? ch - 'A' + 'a' : ch);
-    }
-    if(trimmed.empty()) return false;
-    if(trimmed == "am" || trimmed == "pm") return true;
-    size_t from = 0;
-    while(from <= markers.size()){
-        size_t at = markers.find(',', from);
-        std::string one = markers.substr(from, at == std::string::npos ? std::string::npos : at - from);
-        if(!one.empty() && one == trimmed) return true;
-        if(at == std::string::npos) break;
-        from = at + 1;
-    }
-    return false;
-}
 
 // ==========================================================================
 //  THE SEGMENTER               AutoTTS c3.d0.t
@@ -1212,46 +1178,6 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
         if (typeMode == 3) continue;
         segs[segPos].type = (typeMode == 0) ? surroundingType(segPos) : typeMode;
     }
-    // KEEP A CLOCK TIME AND ITS AM/PM MARKER IN ONE CHUNK (EasyVoice only).
-    //
-    // Without this, "7:45 PM" inside a Gujarati sentence is split: the number
-    // takes the type of the text before it (d0.k scans backwards first) and
-    // joins the Gujarati run, while "PM" is Latin and becomes its own English
-    // run. The Gujarati engine is then handed a bare "7:45", and CLDR resolves a
-    // bare clock time by its hour -- 7 is morning, so it says "savare" for a
-    // quarter to eight in the EVENING. Reported from a device on 2026-08-28,
-    // and confirmed by the owner running the same text through Google TTS
-    // standalone, where the whole string including "PM" arrives and it correctly
-    // says "sanje".
-    //
-    // So the marker is given the TIME's type rather than the time being given
-    // the marker's: that keeps the sentence in one voice and hands that voice
-    // the evidence it needs. Any whitespace segments between them move too, or
-    // the merge below would refuse to join across them.
-    //
-    // Off by default. AutoTTS does not do this, and with the flag clear not a
-    // single byte of the output changes.
-    if (modes.keepTimeMarker) {
-        auto isBlank = [](const std::string& text) {
-            for (size_t at = 0; at < text.size(); at++) if ((unsigned char)text[at] > 0x20) return false;
-            return true;
-        };
-        auto trimmedOf = [](const std::string& text) {
-            size_t from = 0, to = text.size();
-            while (from < to && (unsigned char)text[from] <= 0x20) from++;
-            while (to > from && (unsigned char)text[to - 1] <= 0x20) to--;
-            return text.substr(from, to - from);
-        };
-        for (int segPos = 0; segPos < (int)segs.size(); segPos++) {
-            if (originalTypes[segPos] != 3) continue;
-            if (!looksLikeClockTime(trimmedOf(segs[segPos].text))) continue;
-            int at = segPos + 1;
-            while (at < (int)segs.size() && isBlank(segs[at].text)) at++;
-            if (at >= (int)segs.size()) break;
-            if (!isDayPeriodMarker(segs[at].text, modes.dayPeriodMarkers)) continue;
-            for (int move = segPos + 1; move <= at; move++) segs[move].type = segs[segPos].type;
-        }
-    }
     for (auto& seg : segs) {
         seg.lang = (seg.type == 1) ? latinFallback
                  : (seg.type == 2) ? nonLatinFallback
@@ -1296,8 +1222,7 @@ Java_com_tts_easyvoice_NativeEngine_processDirect(
     jint jPunctuationMode, jstring jPunctuationSpecific,
     jint jEmojiMode, jstring jEmojiSpecific, jboolean jPunctuationInFlow, jboolean jSmartNumber,
     jint jSmartNumberGroupSize,
-    jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection, jboolean jUseCld3,
-    jboolean jKeepTimeMarker, jstring jDayPeriodMarkers)
+    jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
 {
     if(!directBuffer||length<=0) return env->NewStringUTF("");
     void* buf=env->GetDirectBufferAddress(directBuffer);
@@ -1319,12 +1244,6 @@ Java_com_tts_easyvoice_NativeEngine_processDirect(
     const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
     int neutralType = (int)jNeutralType;
     bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
-    modes.keepTimeMarker = (jKeepTimeMarker == JNI_TRUE);
-    if(jDayPeriodMarkers){
-        const char* markC = env->GetStringUTFChars(jDayPeriodMarkers, nullptr);
-        modes.dayPeriodMarkers = markC ? markC : "";
-        if(markC) env->ReleaseStringUTFChars(jDayPeriodMarkers, markC);
-    }
     (void)jUseCld3;
     std::vector<std::string> sentences;
     size_t start=0, end=rawInput.find('\0');
