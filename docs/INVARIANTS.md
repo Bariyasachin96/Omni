@@ -369,6 +369,87 @@ something the owner changes.
 
 ---
 
+## 20. The span emitter has three parts nobody would guess from the Java
+
+**Rule.** `emitScriptSpan` must keep all three of these. They are not visible in
+any `.java` file — `clsCLD2.nativeGetLanguages` is a `native` declaration, and
+everything below lives in `getLanguageSpans` at **0x65392c** in
+`lib/arm64-v8a/libcld2.so`.
+
+**1. Script 0 falls back to the LATIN language, not to `"un"`.** Case 0 of the
+26-entry jump table starts at `"un"` with `latin = TRUE`, and then:
+
+```
+653f00: ldr  w8, [x8, #0x2b4]   ; how many hint codes are set
+653f04: cmp  w8, #0x1
+653f08: b.lt 0x6544c0           ; none -> keep "un"
+653f10: ldr  w0, [x8, #0x564]   ; scriptLanguageFallback[1], the LATIN slot
+653f14: cmp  w0, #0x1a          ; UNKNOWN_LANGUAGE
+653f18: b.eq 0x6544c0           ; no Latin language enabled -> keep "un"
+653f34: bl   CLD2::LanguageCode
+653f50: mov  x19, x0            ; the span's language is that code
+```
+
+Script 0 is a run in which nothing was classified: digits, ASCII punctuation,
+spaces, emoji. So a bare number, a bare punctuation run and a bare emoji are
+**named after the first enabled Latin language**, and `latin` stays true either
+way. Answering `"un"` there is not equivalent: an unnamed span is resolved by
+the caller with the *preferred* Latin language, a named one goes through
+`c3.e.c` and the engine check first.
+
+**2. The CLD2 answer filter tests FOUR candidates, not three.** In order: the
+value `ExtDetectLanguageSummary` returns, then `language3[0]`, `[1]` and `[2]`,
+each of the last three only when it is a real language covering at least one
+percent. The compiler unrolled the loop into three identical blocks at
+`0x654190`, `0x6542ac` and `0x654380`, reading `language3[0..2]` from
+`x29-0x14/-0x10/-0xc` and `percent3[0..2]` from `x29-0x20/-0x1c/-0x18`.
+
+Rank 0 is **not** a repeat of the summary above it. `CalcSummaryLang` in
+`compact_lang_det_impl.cc` returns `language3[active_slot[1]]` when it decides
+the top answer is English or FIGS boilerplate, and `UNKNOWN_LANGUAGE` when the
+top language covers less than `kGoodFirstMinPercent` (26) of the text. In both
+cases the summary can be a language the user has not enabled while
+`language3[0]` is one they have, and skipping rank 0 sent the span to the
+per-script fallback instead.
+
+**3. `setLanguageHints` skips a code it cannot store, and stops at 64.**
+`0x6535f4`: `sub x8, x0, #0x8 / cmn x8, #0x7 / b.lo <skip>` keeps a code only
+when `1 <= strlen <= 7` — it has to fit an 8-byte slot with its NUL — and a
+longer one is **skipped, not truncated**. `0x65373c` stops the loop once 64 have
+been kept. Our comma list, which is what the CLD3 arm filters against, is built
+from the same accepted codes so the two detectors are steered by one list.
+
+**4. In the script ladder, an ASCII letter means Latin and anything else means
+"no information".** `0x653ae8`: `and w8, w8, #0x5f / sub w8, w8, #0x5b /
+cmn w8, #0x1a / b.lo 0x653b88`, where `b.lo` is taken when the folded byte is
+**outside** `[0x41, 0x5A]` and `0x653b88` is `mov w27, w3` — keep the current
+script. A letter falls through to `mov w27, #1`. Ours had the ternary the wrong
+way round. The branch is reachable only through an **overlong** UTF-8 sequence,
+which is not hypothetical: `GetStringUTFChars` hands out modified UTF-8, where
+U+0000 is `C0 80`. `utf16to8` emits that form too, for the same reason.
+
+**5. The enabled ISO-2 set is ONE `HashSet` for the life of the process.**
+`c3.n.f` is created once and `clear()`ed and refilled by `s0()`, never replaced.
+A `HashMap`'s table never shrinks on `clear()`, so the iteration order of a
+later refill depends on how large the set has ever been — and that order is what
+decides **which 64** codes survive the cap in part 3 when more than 64 languages
+are enabled. A fresh `HashSet` per call would always iterate at the small table
+size and keep a different 64. `EasyVoiceTtsService.enabledIso2` is that set.
+
+**Check.** `tools/verify/cld3span/run.sh`. Negative-tested by building the
+harness with each change reverted:
+
+| reverted | what the harness reports |
+|---|---|
+| script 0 | 6 failures, e.g. `bare number, en enabled: span 0 is un/latin=1, expected en/latin=1` |
+| rank 0 | `French text, es+fr enabled: span 0 is "es", expected "fr"`, and three more |
+
+The four rank-0 cases were **found** by building both ways and diffing, not
+invented: with `{es, fr}` enabled, a French paragraph with a Dutch tail was
+spoken in **Spanish** before the fix and in French after it.
+
+---
+
 ## 15. Two things look dead to a text scan and are not
 
 **Rule.** Never delete these on the strength of a grep.

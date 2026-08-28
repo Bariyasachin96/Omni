@@ -1,4 +1,7 @@
-// Regression harness for the CLD3 span site, run against the REAL native core.
+// Regression harness for the SPAN SITE -- nativeGetLanguages -- run against the
+// REAL native core. It started life covering only the CLD3 arm, which is where
+// its directory name comes from; it now also covers the CLD2 answer filter and
+// the script-0 case, both read back off the arm64 of getLanguageSpans.
 //
 // Not a sliced copy: this links tts_engine_core.cpp itself, together with CLD2,
 // CLD3 and protobuf, starts a JVM so there is a genuine JNIEnv, and calls the
@@ -88,6 +91,30 @@ static void expect(const char* label, const std::string& text, bool useCld3,
         return;
     }
     printf("  ok    %-46s %s: span %zu = %s\n", label, detector, spanIndex, got.c_str());
+}
+
+// Script 0 -- a run in which nothing was classified -- settles both fields
+// itself, so both have to be asserted.
+static void expectSpan(const char* label, const std::string& text, bool useCld3,
+                       size_t spanIndex, size_t spanCount,
+                       const std::string& wantLang, const char* wantLatin){
+    const std::vector<Span> spans = spansOf(text, useCld3);
+    const char* detector = useCld3 ? "CLD3" : "CLD2";
+    if(spans.size() != spanCount){
+        printf("  FAIL  %-46s %s: expected %zu spans, got %zu\n",
+               label, detector, spanCount, spans.size());
+        failures++;
+        return;
+    }
+    if(spans[spanIndex].lang != wantLang || spans[spanIndex].latin != wantLatin){
+        printf("  FAIL  %-46s %s: span %zu is %s/latin=%s, expected %s/latin=%s\n",
+               label, detector, spanIndex, spans[spanIndex].lang.c_str(),
+               spans[spanIndex].latin.c_str(), wantLang.c_str(), wantLatin);
+        failures++;
+        return;
+    }
+    printf("  ok    %-46s %s: span %zu = %s latin=%s\n",
+           label, detector, spanIndex, spans[spanIndex].lang.c_str(), spans[spanIndex].latin.c_str());
 }
 
 static void enable(const std::vector<std::string>& codes){
@@ -186,6 +213,72 @@ int main(){
            "\xE3\x81\x93\xE3\x82\x8C\xE3\x81\xAF\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E\xE3\x81\xA7"
            "\xE6\x9B\xB8\xE3\x81\x8B\xE3\x82\x8C\xE3\x81\x9F\xE6\x96\x87\xE3\x81\xA7\xE3\x81\x99",
            true, 0, 1, "ja");
+
+    // Script 0: a run of digits, ASCII punctuation, spaces or emoji, in which
+    // the classifier never set a script. getLanguageSpans gives it a case of
+    // its own at 0x653ef0 -- "un" and latin = TRUE -- and then, if any hints
+    // are set, replaces the language with scriptLanguageFallback[1], the LATIN
+    // fallback, read from [x8, #0x564]. The flag stays true throughout, which
+    // is why AutoTTS reads a bare number in the PREFERRED LATIN language.
+    // Both detectors take this path: it never reaches one.
+    printf("\nscript 0 -- nothing classified\n");
+    enable({"en", "gu", "hi"});
+    expectSpan("bare number, en enabled",        "123",      false, 0, 1, "en", "1");
+    expectSpan("bare number, en enabled",        "123",      true,  0, 1, "en", "1");
+    expectSpan("bare punctuation, en enabled",   "!?!",      false, 0, 1, "en", "1");
+    expectSpan("a clock time, en enabled",       "7:45",     false, 0, 1, "en", "1");
+    enable({"gu", "hi"});
+    expectSpan("bare number, no Latin language", "123",      false, 0, 1, "un", "1");
+    expectSpan("bare number, no Latin language", "123",      true,  0, 1, "un", "1");
+    enable({"de", "en"});
+    // The fallback is the first pair in TABLE order that is enabled, not the
+    // first in the caller's list: English precedes German among the 48.
+    expectSpan("bare number, de and en enabled", "123",      false, 0, 1, "en", "1");
+    enable({"de", "ru"});
+    expectSpan("bare number, de is the only Latin one", "123", false, 0, 1, "de", "1");
+
+
+    // The CLD2 answer filter walks the SUMMARY first and then language3[0],
+    // [1] and [2] -- three unrolled blocks at 0x654190, 0x6542ac and 0x654380,
+    // reading language3[0..2] from x29-0x14/-0x10/-0xc and percent3[0..2] from
+    // x29-0x20/-0x1c/-0x18. Rank 0 is not a repeat of the summary above it:
+    // CalcSummaryLang returns language3[active_slot[1]] when it decides the top
+    // answer is English or FIGS boilerplate, and UNKNOWN_LANGUAGE when the top
+    // language covers less than 26 percent of the text. In both cases the
+    // summary is a language the user has not enabled while language3[0] is one
+    // they have, and skipping rank 0 sent the span to the per-script fallback
+    // instead -- a different voice for the same text.
+    //
+    // These four cases were found by building the harness both ways and
+    // diffing; each one answers differently with the loop starting at 1.
+    printf("\nthe summary and language3[0] disagree\n");
+    // French, then a Dutch tail big enough for the FIGS-boilerplate rule
+    // (percent3[1] >= 20 and at least 15 bytes), so the summary becomes Dutch.
+    const std::string frWithDutchTail =
+        "Le temps est tres beau aujourd hui et le soleil brille toute la journee sur la ville entiere. "
+        "Nous allons nous promener dans le parc avec nos amis et nos enfants pendant tout le week end. "
+        "Het weer is vandaag erg mooi en de zon schijnt de hele dag door over de hele stad heen.";
+    const std::string deWithDutchTail =
+        "Das Wetter ist heute sehr schoen und die Sonne scheint den ganzen Tag ueber die ganze Stadt. "
+        "Wir gehen mit unseren Freunden und Kindern das ganze Wochenende im Park spazieren gehen. "
+        "Het weer is vandaag erg mooi en de zon schijnt de hele dag door over de hele stad heen.";
+    // Five Latin languages in near-equal shares, so no single one reaches the
+    // 26 percent the summary needs and it comes back UNKNOWN.
+    const std::string fiveLatin =
+        "Het weer is vandaag erg mooi en de zon schijnt de hele dag door over de hele stad. "
+        "Das Wetter ist heute sehr schoen und die Sonne scheint den ganzen Tag lang. "
+        "Le temps est tres beau aujourd hui et le soleil brille toute la journee. "
+        "El tiempo es muy bueno hoy y el sol brilla durante todo el dia entero. "
+        "Il tempo e molto bello oggi e il sole splende per tutta la giornata.";
+    // Spanish precedes French among the 48 pairs, so the per-script fallback is
+    // Spanish and taking it instead of language3[0] is audible.
+    enable({"es", "fr"});
+    expect("French text, es+fr enabled",  frWithDutchTail, false, 0, 1, "fr");
+    enable({"de", "fr"});
+    expect("German text, de+fr enabled",  deWithDutchTail, false, 0, 1, "de");
+    enable({"de", "es"});
+    expect("German text, de+es enabled",  deWithDutchTail, false, 0, 1, "de");
+    expect("five-language text, de+es enabled", fiveLatin, false, 0, 1, "es");
 
     printf("\n");
     if(failures == 0) printf("ALL CLD3 SPAN CASES PASS\n");

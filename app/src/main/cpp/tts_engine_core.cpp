@@ -1323,7 +1323,11 @@ static std::string utf16to8(const jchar* units, int len){
     while(j<len){
         int codePoint=(int)units[j];
         if(codePoint>=0xD800&&codePoint<=0xDBFF&&j+1<len&&units[j+1]>=0xDC00&&units[j+1]<=0xDFFF){ codePoint=0x10000+((codePoint-0xD800)<<10)+(((int)units[j+1])-0xDC00); j+=2; } else j++;
-        if(codePoint<0x80) out+=(char)codePoint;
+        // Modified UTF-8, because the string this stands in for reaches
+        // AutoTTS's detector through GetStringUTFChars: U+0000 is C0 80 there,
+        // never a bare NUL byte.
+        if(codePoint==0){ out+=(char)0xC0; out+=(char)0x80; }
+        else if(codePoint<0x80) out+=(char)codePoint;
         else if(codePoint<0x800){ out+=(char)(0xC0|(codePoint>>6)); out+=(char)(0x80|(codePoint&0x3F)); }
         else if(codePoint<0x10000){ out+=(char)(0xE0|(codePoint>>12)); out+=(char)(0x80|((codePoint>>6)&0x3F)); out+=(char)(0x80|(codePoint&0x3F)); }
         else { out+=(char)(0xF0|(codePoint>>18)); out+=(char)(0x80|((codePoint>>12)&0x3F)); out+=(char)(0x80|((codePoint>>6)&0x3F)); out+=(char)(0x80|(codePoint&0x3F)); }
@@ -1805,30 +1809,37 @@ extern "C" JNIEXPORT void JNICALL
 //  JNI: the remaining entry points
 // ==========================================================================
 Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv* env, jclass, jobjectArray jLangs){
-    std::string joined;
     std::vector<std::string> codes;
     if(jLangs){
         jsize count = env->GetArrayLength(jLangs);
-        for(jsize i=0;i<count;i++){
+        for(jsize i=0;i<count && codes.size()<64;i++){
             jstring jLang = (jstring)env->GetObjectArrayElement(jLangs, i);
             if(!jLang) continue;
             const char* langC = env->GetStringUTFChars(jLang, nullptr);
-            if(langC && *langC){
-                if(!joined.empty()) joined += ",";
-                joined += langC;
-                // AutoTTS stores at most 64, lowercased, in 8-byte slots.
-                if(codes.size() < 64){
-                    std::string one(langC);
-                    if(one.size() > 8) one = one.substr(0, 8);
+            if(langC){
+                // 0x6535f4: `sub x8, x0, #0x8 / cmn x8, #0x7 / b.lo <skip>`,
+                // i.e. a code is kept only when 1 <= strlen <= 7 -- it has to
+                // fit an 8-byte slot with its NUL. A longer one is SKIPPED, not
+                // truncated. Then each byte is copied with A-Z folded to
+                // lower case, and the loop stops once 64 have been kept
+                // (0x65373c: `cmp w8, #0x40 / b.lt <continue>`).
+                std::string one(langC);
+                if(one.size() >= 1 && one.size() <= 7){
                     for(size_t at=0; at<one.size(); at++)
                         if(one[at] >= 'A' && one[at] <= 'Z') one[at] = (char)(one[at] | 0x20);
                     codes.push_back(one);
                 }
+                env->ReleaseStringUTFChars(jLang, langC);
             }
-            if(langC) env->ReleaseStringUTFChars(jLang, langC);
             env->DeleteLocalRef(jLang);
         }
     }
+    // The comma list is what the CLD3 arm filters its candidates by, so it is
+    // built from the SAME accepted codes rather than from the raw array: the
+    // two detectors have to be steered by one list, or the switch changes more
+    // than which detector runs.
+    std::string joined;
+    for(size_t at=0; at<codes.size(); at++){ if(at) joined += ","; joined += codes[at]; }
     std::lock_guard<std::mutex> lock(languageHintMutex);
     languageHintList = joined;
     languageHintCodes = codes;
@@ -1951,9 +1962,17 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
     std::vector<ScriptSpan> spans;
     const int kMaxSpans = 128;
     auto classifyScript = [](int codePoint) -> int {
+        // 0x653ae8: `and w8, w8, #0x5f / sub w8, w8, #0x5b / cmn w8, #0x1a /
+        // b.lo 0x653b88`. b.lo is taken when the folded byte is OUTSIDE
+        // [0x41, 0x5A], and 0x653b88 is `mov w27, w3` -- keep the current
+        // script. A letter falls through to 0x653b78, `mov w27, #1` = Latin.
+        // So a letter means Latin and anything else means "no information",
+        // exactly like the ASCII fast path in the caller. This branch is
+        // reachable only through an OVERLONG UTF-8 sequence, which is not
+        // hypothetical: JNI hands out modified UTF-8, where U+0000 is C0 80.
         if (codePoint < 0x80) {
             int folded = codePoint & 0x5F;
-            return (folded >= 0x41 && folded <= 0x5A) ? -1 : 1;
+            return (folded >= 0x41 && folded <= 0x5A) ? 1 : -1;
         }
         if (codePoint < 0xC0) return -1;
         if (codePoint < 0x2B0) return 1;
@@ -2049,8 +2068,34 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
         bool latin = (script == 1);
         unsigned scriptIdx = (unsigned)(script - 7);
         if (script == 0) {
+            // ...but "un" is only where case 0 STARTS. It then consults the
+            // LATIN fallback, hard-coded to slot 1 of the same table the CLD2
+            // path uses:
+            //
+            //     653f00: ldr  w8, [x8, #0x2b4]   ; hint count
+            //     653f04: cmp  w8, #0x1
+            //     653f08: b.lt 0x6544c0           ; no hints -> keep "un"
+            //     653f10: ldr  w0, [x8, #0x564]   ; scriptLanguageFallback[1]
+            //     653f14: cmp  w0, #0x1a          ; UNKNOWN_LANGUAGE
+            //     653f18: b.eq 0x6544c0           ; none -> keep "un"
+            //     653f34: bl   CLD2::LanguageCode
+            //     653f50: mov  x19, x0            ; language = that code
+            //
+            // so a run of nothing but digits, punctuation, spaces or emoji is
+            // named after the first enabled Latin language rather than left
+            // undetermined -- and latin stays true either way. It matters
+            // because the caller resolves an unnamed span with the PREFERRED
+            // Latin language while a named one goes through c3.e.c and the
+            // engine check first.
             lang = "un";
             latin = true;
+            if(!currentLanguageHintCodes().empty()){
+                const int latinFallback = currentScriptLanguageFallback(1);
+                if(latinFallback != CLD2::UNKNOWN_LANGUAGE){
+                    const char* latinFallbackCode = CLD2::LanguageCode((CLD2::Language)latinFallback);
+                    if(latinFallbackCode) lang = latinFallbackCode;
+                }
+            }
         } else if (scriptIdx < 19) {
             lang = SCRIPT_FIXED_LANG[scriptIdx];
         } else {
@@ -2142,9 +2187,20 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 lang = code ? std::string(code) : "un";
                 if(!hintCodes.empty() && !isHinted(lang)){
                     bool picked = false;
-                    // lang3[1] then lang3[2], each only when it is a real
-                    // language and covers at least one percent of the text.
-                    for(int rank=1; rank<3 && !picked; rank++){
+                    // lang3[0], [1] then [2] -- the compiler unrolled the loop
+                    // into three identical blocks at 0x654190, 0x6542ac and
+                    // 0x654380, reading language3[0..2] from x29-0x14/-0x10/-0xc
+                    // and percent3[0..2] from x29-0x20/-0x1c/-0x18. Rank 0 is
+                    // NOT a repeat of the summary above it: CalcSummaryLang
+                    // returns language3[active_slot[1]] when it decides the top
+                    // answer is English or FIGS boilerplate, and
+                    // UNKNOWN_LANGUAGE when the top language covers too little
+                    // of the text -- so the summary and language3[0] genuinely
+                    // differ, and skipping rank 0 sent those spans to the
+                    // per-script fallback instead of the language CLD2 ranked
+                    // first. Each rank counts only when it is a real language
+                    // and covers at least one percent of the text.
+                    for(int rank=0; rank<3 && !picked; rank++){
                         if(lang3[rank] == CLD2::UNKNOWN_LANGUAGE) continue;
                         if(percent3[rank] < 1) continue;
                         const char* other = CLD2::LanguageCode(lang3[rank]);

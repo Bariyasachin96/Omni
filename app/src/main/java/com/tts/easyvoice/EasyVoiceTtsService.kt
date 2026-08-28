@@ -38,7 +38,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
     var requestRate = 1.0f
     var requestPitch = 1.0f
     @Volatile var requestParams: android.os.Bundle? = null
-    @Volatile private var enabledLangs: Set<String> = emptySet()
     var initializingIndex = 0
     private val isoToIso3 = HashMap<String, String>()
     var initDone = false
@@ -124,17 +123,29 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.init(this)
         prefs = SharedPrefsManager(this)
         EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onCreate")
+        // AutoTtsService.onCreate opens with c3.a0.c/c3.a0.b, so every log a
+        // user shares names the build it came from -- "Unknown" and -1 are the
+        // values a0 answers with when PackageManager cannot find the package.
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onCreate Version Name: " + versionName() + " Version Code: " + versionCode())
         super.onCreate()
         try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { android.util.Log.e("EasyVoice", ex.message!!) }
         requestAudioFocus()
         initIsoMaps()
         loadAllSettings()
         // e0() ends with s0(): the list has just been loaded, so hints go too.
-        enabledLangs = pushLanguageSets()
+        pushLanguageSets()
         initDone = true
         initAllEngines()
     }
+    // c3.a0.c / c3.a0.b
+    private fun versionName(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "Unknown"
+    } catch (_: android.content.pm.PackageManager.NameNotFoundException) { "Unknown" }
+    private fun versionCode(): Long = try {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        if (Build.VERSION.SDK_INT >= 28) info.longVersionCode
+        else { @Suppress("DEPRECATION") info.versionCode.toLong() }
+    } catch (_: android.content.pm.PackageManager.NameNotFoundException) { -1L }
     override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int = START_STICKY
     override fun onTaskRemoved(rootIntent: android.content.Intent?) { super.onTaskRemoved(rootIntent) }
 
@@ -186,7 +197,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (idx != -1) {
             engineIndex = idx
             val wrapper = enginePool[idx]
-            if (variant.isEmpty() && wrapper.voiceName.isNotEmpty()) { loadVoiceOriginal(normPkg, locale); return }
+            if (variant.isEmpty() && wrapper.voiceName.isNotEmpty()) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Load voice original"); loadVoiceOriginal(normPkg, locale); return }
             var curLocale = java.util.Locale("zxx")
             var curVoiceName = ""
             if (wrapper.voiceName.isNotEmpty()) {
@@ -223,10 +234,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " variant " + effectiveVariant)
             if (effectiveVariant == "*Default") {
                 if (!localeMatches(locale, curLocale)) {
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + curLocale.toString())
                     val setLangResult = wrapper.tts?.setLanguage(locale)
                     if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else restoreEngine(wrapper.pkg)
                 }
             } else if (effectiveVariant != curVoiceName) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Check voice 1")
                 val voices = try { wrapper.tts?.voices } catch (_: Exception) { null }
                 if (voices != null) {
                     for (voiceObj in voices) {
@@ -579,9 +592,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return TextToSpeech.SUCCESS
     }
     override fun onStop() {
-        chunkQueue.clear()
+        // onStop logs, then calls q0(TRUE), which logs and only then clears R.
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop calling!!!")
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + true)
+        chunkQueue.clear()
         var index = 0
         while (index < enginePool.size) {
             val wrapper = enginePool[index]
@@ -709,10 +723,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // every utterance let a visit to the Configuration tab leave CLD2 hinting at
     // two languages for the rest of the process. AutoTTS rebuilds its hint set
     // (c3.n.f) only inside s0(), which it never calls from onSynthesizeText.
-    private fun refreshEnabledLangs(): HashSet<String> {
-        val enabledSet = pushDetectSetsOnly()
-        enabledLangs = enabledSet
-        return enabledSet
+    private fun refreshEnabledLangs() {
+        pushDetectSetsOnly()
     }
     // The other half of processDirect's packField: U+001D, U+001E and U+001F
     // are escaped there because they double as the field and record separators
@@ -932,8 +944,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
         utteranceId = (request?.params?.getString("utteranceId")).toString()
         if (rawText.trim().isEmpty()) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Speak text is empty")
-            chunkQueue.clear()
+            // q0 logs before it touches anything: "stopAllTts <flag>", then
+            // removeCallbacks(u) -- which has no counterpart here, because the
+            // speak runnable is no longer posted -- then R.clear().
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + false)
+            chunkQueue.clear()
             if (engineIndex >= 0 && engineIndex < enginePool.size) {
                 val wrapper = enginePool[engineIndex]
                 if (wrapper.state == 2 && wrapper.listenerSet && wrapper.tts?.isSpeaking == true) {
@@ -1087,7 +1102,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "engine: " + LangStore.engineFor(firstLang, modeInt))
                     if (!preflightLanguage(firstLang)) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG,
-                            "Language is not supported: " + firstLang + ", text: " + chunks[0].text)
+                            // 5.7.7.26 fixed AutoTTS's "Languge" typo at seven of its
+                            // nine sites and left it at two: the mix preflight (line
+                            // 1962 of the noexc decompile) and the auto/Google one
+                            // (1677). Those two are these two.
+                            "Languge is not supported: " + firstLang + ", text: " + chunks[0].text)
                         startAndFinish(callback)
                         return
                     }
@@ -1229,8 +1248,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     val firstLoad = onLoadLanguage(chunks[0].lang, "", "")
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "load " + firstLoad)
                     if (firstLoad == TextToSpeech.LANG_MISSING_DATA || firstLoad == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        // The second surviving "Languge" -- see the mix branch above.
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG,
-                            "Language is not supported: " + chunks[0].lang + ", text: " + chunks[0].text)
+                            "Languge is not supported: " + chunks[0].lang + ", text: " + chunks[0].text)
                         startAndFinish(callback)
                         return
                     }
@@ -1294,7 +1314,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 else -> "eng"
             } else prefs.toIso3(chunk.lang)
             val chunkText = chunk.text
-            val preferredPkg = chunk.forcedEngine ?: LangStore.engineFor(effectiveLang, modeInt).ifEmpty { "NOT_SET" }
             // AutoTTS's bypass branch runs f0 only when the prefix actually
             // carried an engine or a locale, and hands the parsed fields
             // straight through:
@@ -1322,7 +1341,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 startAndFinish(callback)
                 return
             }
-            val pkg = preferredPkg
+            // "Current engine: " logs the wrapper that is about to speak --
+            // AutoTTS reads f.get(d).e() here, the engine actually selected, not
+            // the one the language asked for. Resolving a "preferred" package
+            // instead meant a whole getEngine4Language block (the header, one
+            // line per enabled language, and the result) in the log for every
+            // chunk, which AutoTTS never emits at this point.
+            val pkg = wrapper.pkg
             val paramLang = if (first && firstChunkParamLang.isNotEmpty()) firstChunkParamLang else effectiveLang
             val appRate   = LangStore.speedFor(paramLang)  / 100.0f
             val appPitch  = LangStore.pitchFor(paramLang)  / 100.0f
@@ -1478,6 +1503,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         speakChunk(true)
         if (keepAliveFlag) {
+            // AutoTTS logs this immediately before k0(callback), and spells it
+            // "Keep-live", not "Keep-alive".
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-live activated")
             callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
             val silenceBuf = ByteArray(32)
             val maxBuf = callback?.maxBufferSize ?: silenceBuf.size
@@ -1541,8 +1569,23 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // native detector running on the hints it was given at process start.
         @JvmStatic
         fun pushLanguageSets(): HashSet<String> {
-            val enabledSet = HashSet<String>()
-            val detectOkList = ArrayList<String>()
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "updateLanguage2LetterCodes")
+            val enabledSet = refillEnabledIso2(true)
+            try { NativeEngine.setDetectSets(detectOkIso3().toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
+            try { NativeEngine.setLanguageHints(enabledSet.toTypedArray()) } catch (_: Throwable) {}
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " " + enabledSet.toString())
+            return enabledSet
+        }
+        // c3.n.f: ONE HashSet for the life of the process, cleared and refilled
+        // by s0() rather than replaced. That is not a detail -- a HashMap's
+        // table never shrinks on clear(), so the iteration order of a later
+        // refill depends on how large the set has ever been, and the order is
+        // what decides WHICH 64 codes survive nativeSetLanguageHints' cap when
+        // more than 64 languages are enabled. A fresh HashSet each time would
+        // always iterate at the small table size and keep a different 64.
+        @JvmField val enabledIso2: HashSet<String> = HashSet()
+        private fun refillEnabledIso2(logUnmapped: Boolean): HashSet<String> {
+            val ordered = ArrayList<String>()
             synchronized(LangStore.languages) {
                 var enabledIdx = 0
                 while (enabledIdx < LangStore.languages.size) {
@@ -1550,8 +1593,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     enabledIdx++
                     if (entry.disabled || entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true)) continue
                     val iso2 = IsoCodes.toIso2(entry.iso3)
-                    if (iso2 != null) enabledSet.add(iso2)
+                    if (iso2 != null) { if (!ordered.contains(iso2)) ordered.add(iso2) }
+                    else if (logUnmapped) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unmapped language code: " + entry.iso3)
                 }
+                enabledIso2.clear()
+                enabledIso2.addAll(ordered)
+            }
+            return enabledIso2
+        }
+        private fun detectOkIso3(): ArrayList<String> {
+            val detectOkList = ArrayList<String>()
+            synchronized(LangStore.languages) {
                 var detectIdx = 0
                 while (detectIdx < LangStore.languages.size) {
                     val entry = LangStore.languages[detectIdx]
@@ -1559,9 +1611,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     if (!entry.disabled) detectOkList.add(entry.iso3)
                 }
             }
-            try { NativeEngine.setDetectSets(detectOkList.toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
-            try { NativeEngine.setLanguageHints(enabledSet.toTypedArray()) } catch (_: Throwable) {}
-            return enabledSet
+            return detectOkList
         }
         // The detect sets ALONE. This has no AutoTTS counterpart: their detector
         // reads c3.n.c and c3.n.f live from Java, ours lives in C++ and has to be
@@ -1569,25 +1619,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // refreshed here, and that distinction matters -- see pushLanguageSets.
         @JvmStatic
         fun pushDetectSetsOnly(): HashSet<String> {
-            val enabledSet = HashSet<String>()
-            val detectOkList = ArrayList<String>()
-            synchronized(LangStore.languages) {
-                var enabledIdx = 0
-                while (enabledIdx < LangStore.languages.size) {
-                    val entry = LangStore.languages[enabledIdx]
-                    enabledIdx++
-                    if (entry.disabled || entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true)) continue
-                    val iso2 = IsoCodes.toIso2(entry.iso3)
-                    if (iso2 != null) enabledSet.add(iso2)
-                }
-                var detectIdx = 0
-                while (detectIdx < LangStore.languages.size) {
-                    val entry = LangStore.languages[detectIdx]
-                    detectIdx++
-                    if (!entry.disabled) detectOkList.add(entry.iso3)
-                }
-            }
-            try { NativeEngine.setDetectSets(detectOkList.toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
+            val enabledSet = refillEnabledIso2(false)
+            try { NativeEngine.setDetectSets(detectOkIso3().toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
             return enabledSet
         }
         @JvmField val chunkQueue: ArrayList<Pair<Int, TextChunk>> = ArrayList()
