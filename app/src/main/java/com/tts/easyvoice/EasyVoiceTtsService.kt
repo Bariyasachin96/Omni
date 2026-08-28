@@ -244,18 +244,30 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
             } else if (effectiveVariant != curVoiceName) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Check voice 1")
+                // f0 leaves the voice loop with `break block32` only when a voice
+                // MATCHED the variant -- success or failure. A list that holds no
+                // voice by that name falls straight through to the setLanguage
+                // below, and so does a null list. Making the fallback the `else`
+                // of `voices != null` cut off the first of those two: with a
+                // stored variant naming a voice the engine no longer has --
+                // renamed or dropped by an engine update -- AutoTTS still moves
+                // the engine to the right LANGUAGE, and we left it wherever it
+                // happened to be.
+                var matchedAVoice = false
                 val voices = try { wrapper.tts?.voices } catch (_: Exception) { null }
                 if (voices != null) {
                     for (voiceObj in voices) {
                         if (voiceObj.name.equals(effectiveVariant, ignoreCase = true)) {
                             val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
-                            if (setVoiceResult != null && setVoiceResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + effectiveVariant + " res=" + setVoiceResult) } else restoreEngine(wrapper.pkg)
+                            if (setVoiceResult != null && setVoiceResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult) } else restoreEngine(wrapper.pkg)
+                            matchedAVoice = true
                             break
                         }
                     }
-                } else if (!localeMatches(locale, curLocale)) {
+                }
+                if (!matchedAVoice && !localeMatches(locale, curLocale)) {
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " ") } else restoreEngine(wrapper.pkg)
+                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else restoreEngine(wrapper.pkg)
                 }
             }
             wrapper.locale = locale; wrapper.voiceName = effectiveVariant
@@ -267,12 +279,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
         for (index in 0 until enginePool.size) { if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) { idx = index; break } }
         if (idx != -1) {
             engineIndex = idx; val wrapper = enginePool[idx]
+            // g0 runs the comparison unconditionally: the wrapper's locale can
+            // be null, and n.e(null) is "zxx" while n.d(null) is "". Skipping
+            // the whole test on null is not the same thing -- a request whose
+            // own iso3 also resolves to "zxx" would match and AutoTTS would do
+            // nothing, where a null check falls through to setLanguage.
             val wrapperLocale = wrapper.locale
-            if (wrapperLocale != null) {
-                val reqCountry = try { locale.isO3Country } catch (_: Exception) { "" }
-                val storedCountry = try { wrapperLocale.isO3Country } catch (_: Exception) { "" }
-                if (localeIso3(wrapperLocale) == localeIso3(locale) && (storedCountry == reqCountry || reqCountry.isEmpty())) return
-            }
+            val reqCountry = nullableIso3Country(locale)
+            if (nullableIso3(wrapperLocale) == nullableIso3(locale) &&
+                (nullableIso3Country(wrapperLocale) == reqCountry || reqCountry.isEmpty())) return
             val setLangResult = wrapper.tts?.setLanguage(locale)
             if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.locale = locale; wrapper.voiceName = "" } else restoreEngine(wrapper.pkg)
         } else { engineIndex = -1 }
@@ -385,7 +400,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init " + (if (initializingIndex < enginePool.size) enginePool[initializingIndex].pkg else ""))
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
             if (status == TextToSpeech.SUCCESS) {
-                if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); if (initializingIndex < enginePool.size) enginePool[initializingIndex].audioAttrSet = true } catch (_: Exception) {} }
+                if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); if (initializingIndex < enginePool.size) enginePool[initializingIndex].audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                 if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].state = 2 }
                 if (engineList[initializingIndex] == "com.google.android.tts") googleEngineIndex = initializingIndex
             } else {
@@ -427,7 +442,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Restore " + wrapper.pkg)
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
                 if (status == TextToSpeech.SUCCESS) {
-                    if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (_: Exception) {} }
+                    if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                     wrapper.tts = initializingTts
                     wrapper.state = 2
                     wrapper.voiceName = ""
@@ -869,6 +884,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
         puncSpecificLang = prefs.getPuncSpecificLang().ifEmpty { localeIso3() }
         emojiSpecificLang = prefs.getEmojiSpecificLang().ifEmpty { localeIso3() }
     }
+    // c3.n.e and c3.n.d, which both accept null: "zxx" and "" respectively.
+    private fun nullableIso3(locale: java.util.Locale?): String =
+        if (locale == null) "zxx" else localeIso3(locale)
+    private fun nullableIso3Country(locale: java.util.Locale?): String =
+        if (locale == null) "" else try { locale.isO3Country } catch (_: Exception) { "" }
     private fun localeIso3(locale: java.util.Locale = java.util.Locale.getDefault()): String {
         return try {
             val iso3 = locale.isO3Language

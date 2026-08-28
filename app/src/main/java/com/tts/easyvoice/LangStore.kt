@@ -22,18 +22,25 @@ object LangStore {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadLanguages")
         val parsed = ArrayList<LangEntry>()
         val sharedPrefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
-        val storedKeyCount = sharedPrefs.all.size
+        // e0() reads language_0 upward and stops at the FIRST empty key. There
+        // is no cap and no tolerance for a gap, and three things that were here
+        // instead are gone, because none of them is AutoTTS's and two were
+        // doing real damage:
+        //
+        //   while (index < 64)   -- a device with more than 64 scanned
+        //     languages lost every one past the 64th. The service reads this
+        //     list, so engineFor, n.n() and the detect sets all missed them,
+        //     and the next persistLanguages wrote the truncated list back.
+        //   emptyRun < 8         -- reading past the terminator to tolerate a
+        //     gap that persistLanguages never leaves. When the list SHRANK the
+        //     stale keys of the longer one were still there, and this read
+        //     them back in.
+        //   two "keep the previous state" early returns -- e0 always clears and
+        //     replaces, even with nothing parsed.
         var index = 0
-        var emptyRun = 0
-        while (index < 64) {
+        while (true) {
             val iso = sharedPrefs.getString("language_$index", "") ?: ""
-            if (iso.isEmpty()) {
-                emptyRun++
-                index++
-                if (emptyRun < 8) continue
-                if (parsed.isEmpty()) continue
-                break
-            }
+            if (iso.isEmpty()) break
             val speed = sharedPrefs.getInt(iso + "_speed", 100)
             val pitch = sharedPrefs.getInt(iso + "_pitch", 100)
             val volume = sharedPrefs.getInt(iso + "_volume", 100)
@@ -50,14 +57,6 @@ object LangStore {
             parsed.add(entry)
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - " + iso + " " + engine + " " + locale + " " + variant)
             index++
-        }
-        if (parsed.isEmpty() && storedKeyCount > 0) {
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "prefs readable (" + storedKeyCount + " keys) but no languages parsed")
-            return
-        }
-        if (parsed.isEmpty()) {
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "no languages loaded - keeping previous state")
-            return
         }
         languages.clear()
         languages.addAll(parsed)

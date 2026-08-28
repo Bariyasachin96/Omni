@@ -450,6 +450,49 @@ spoken in **Spanish** before the fix and in French after it.
 
 ---
 
+## 21. `e0` reads until the first empty key, and `f0` always reaches setLanguage
+
+**Rule.** `LangStore.loadLanguages` stops at the first empty `language_N` and
+always replaces the list. `loadVoice`'s `setLanguage` fallback runs whenever no
+voice matched the variant, not only when the engine reports no voices at all.
+
+**Why, for the loader.** `AutoTtsService.e0()` is nine lines: read
+`language_0` upward, break on the first empty string, then
+`synchronized (c) { c.clear(); c.addAll(list); s0(); }`. Three things had been
+added to ours that it does not have, and two of them were doing damage:
+
+| added | what it cost |
+|---|---|
+| `while (index < 64)` | a device with more than 64 scanned languages lost every one past the 64th. The **service** reads this list, so `engineFor`, `n.n()` and the detect sets all missed them — and the next `persistLanguages` wrote the truncated list back over the stored one. |
+| `emptyRun < 8` | reading past the terminator to tolerate a gap `persistLanguages` never leaves. When the list SHRANK, the stale keys of the longer one were still in prefs, and this read them back in. |
+| two "keep the previous state" returns | `e0` clears and replaces even when it parsed nothing. |
+
+None had a comment or a note anywhere; all three came in with the original
+import.
+
+**Why, for `f0`.** Its voice loop leaves with `break block32` only when a voice
+**matched** the variant — success or failure alike. A list that contains no
+voice by that name falls straight through to
+
+```java
+if (!this.Z(locale, object4)) { ... setLanguage(locale) ... }
+```
+
+and so does a null list. Ours had made that fallback the `else` of
+`voices != null`, which cut off the first of the two cases: with a stored
+`_variant` naming a voice the engine no longer has — renamed or dropped by an
+engine update — AutoTTS still moves the engine to the right **language**, and we
+left it wherever it happened to be.
+
+**And `g0`.** It compares the wrapper's locale unconditionally; the wrapper's
+locale can be null, and `n.e(null)` is `"zxx"` while `n.d(null)` is `""`.
+Skipping the comparison on null is not the same test.
+
+**Check.** Not grep-able — read this entry. The loader is nine lines; keep it
+that way.
+
+---
+
 ## 15. Two things look dead to a text scan and are not
 
 **Rule.** Never delete these on the strength of a grep.
