@@ -40,15 +40,17 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 
-// Material's purpose-built "select one value" control. Verified against the
-// material3 1.4.0 API surface, which we build against:
-//   ExposedDropdownMenuBoxScope is @ExperimentalMaterial3Api  -> the @OptIn below
-//   menuAnchor(Modifier) is @Deprecated                        -> use the typed form
-//   menuAnchor(Modifier, ExposedDropdownMenuAnchorType, enabled)
-// The component sets role = Role.DropdownList on a primary anchor and tracks the
-// expanded state itself, so the hand-written semantics block this replaces --
-// role, contentDescription and stateDescription -- is deleted rather than kept.
-// Material's dropdown menu, with ordinary menu items.
+// A named button that opens a Material DropdownMenu of ordinary menu items.
+//
+// THE SEMANTICS BLOCK ON THE BUTTON IS LOAD-BEARING; do not delete it. A comment
+// here used to describe an ExposedDropdownMenuBox version -- menuAnchor, the
+// component supplying role = Role.DropdownList and the expanded state itself,
+// "so the hand-written semantics block is deleted rather than kept". That
+// version is not what is below and has not been for a long time: it was given up
+// when the long language list had to leave the menu (see the LazyColumn note),
+// and the comment outlived it. Following it would strip the button's only
+// accessible name, because an OutlinedButton merges its children and the Text
+// inside is silenced.
 //
 // NO LazyColumn in here, and it must not come back. A DropdownMenu sizes itself
 // to its widest item, which means it asks its content for an INTRINSIC width,
@@ -124,12 +126,24 @@ fun LabeledDropdown(
             Icon(painterResource(R.drawable.ic_arrow_drop_down), contentDescription = null)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            // A LazyColumn would publish these two properties itself, but it
-            // cannot live in a menu (see above), so they are declared by hand on
-            // a plain Column, which is not a SubcomposeLayout and answers
-            // intrinsic measurement fine. Without them TalkBack has no structure
-            // for the list and cannot say where you are in it, which is what
-            // made a fast swipe through 130 languages unintelligible.
+            // Declared by hand on a plain Column, which is not a SubcomposeLayout
+            // and answers intrinsic measurement fine. Without them TalkBack has
+            // no structure for the list and cannot say where you are in it,
+            // which is what made a fast swipe through 130 languages
+            // unintelligible.
+            //
+            // BOTH halves are needed, and neither comes free from a lazy list
+            // either: LazyLayoutSemantics sets `collectionInfo` on the layout
+            // node and nothing else -- there is no collectionItemInfo anywhere
+            // in that file -- so per-item positions are always the caller's job.
+            // That is also why the section headings inside the Languages screen's
+            // LazyColumn do not claim a row of their own.
+            //
+            // collectionInfo is what makes this a TalkBack CONTAINER as well:
+            // its Role.java resolves a node carrying collection info to
+            // ROLE_LIST, which is in both FILTER_CONTAINER and the auto-scroll
+            // set. Without it a 137-language menu would be a list you can only
+            // leave by swiping to the end of.
             Column(
                 modifier = Modifier.semantics {
                     collectionInfo = CollectionInfo(rowCount = options.size, columnCount = 1)

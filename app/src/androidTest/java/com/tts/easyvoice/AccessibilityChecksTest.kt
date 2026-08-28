@@ -3,7 +3,9 @@ package com.tts.easyvoice
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
 // NOT androidx.compose.ui.test -- enableAccessibilityChecks lives in its own
 // package, androidx.compose.ui.test.junit4.accessibility, because it ships in
@@ -91,6 +93,16 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.dualLang = "hin"
         EasyVoiceTtsService.mixLatinLang = "eng"
         EasyVoiceTtsService.mixNonLatinLang = "hin"
+        // These are companion statics, so they survive from one test to the
+        // next in the same process -- and the mode ints decide whether the
+        // "Specific language for ..." dropdowns are on screen at all. Reset
+        // them here or the tests depend on the order JUnit happens to run in.
+        EasyVoiceTtsService.numberModeInt = 0
+        EasyVoiceTtsService.punctuationModeInt = 0
+        EasyVoiceTtsService.emojiModeInt = 0
+        EasyVoiceTtsService.numberSpecificLang = "eng"
+        EasyVoiceTtsService.puncSpecificLang = "eng"
+        EasyVoiceTtsService.emojiSpecificLang = "eng"
     }
 
     private fun entry(name: String, iso3: String, tag: String) =
@@ -162,5 +174,80 @@ class AccessibilityChecksTest {
     @Test
     fun languagesList() {
         check { LanguagesScreen(prefs()) }
+    }
+
+    // ======================================================================
+    //  THE POPUPS
+    //  Everything above renders one composition and checks what is on screen,
+    //  which means a menu that has not been opened is never looked at. That was
+    //  the whole of the gap: the language dropdown -- the control a blind user
+    //  spends the longest in, because it can hold every language an engine
+    //  speaks -- the per-language overflow menu, and the required-engines
+    //  dialog were all unchecked.
+    //
+    //  A popup lives in its OWN view, so onRoot().tryPerformAccessibilityChecks()
+    //  would not reach it. What does reach it is that enableAccessibilityChecks
+    //  runs the checks before every action performed through the test API: the
+    //  click that opens the menu checks the screen behind it, and a click on
+    //  something INSIDE the open menu checks the menu's own view.
+    // ======================================================================
+
+    // "Select secondary language, Hindi (hin)" -- the label, then the value, as
+    // LabeledDropdown names its anchor.
+    @Test
+    fun languageDropdownOpen() {
+        rule.setContent { EasyVoiceTheme { ModeSettingsScreen(prefs(), "dual") } }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("Select secondary language, Hindi (hin)").performClick()
+        // Acting on an item is what puts the OPEN menu through the checks.
+        rule.onNodeWithContentDescription("Gujarati (guj)").performClick()
+    }
+
+    // Mode 3 is a screen STATE nothing else covers: choosing "Specific language"
+    // for numbers reveals a second dropdown, and with all three set it reveals
+    // three. None of the four mode-settings tests above ever renders them,
+    // because the seed leaves every mode int at 0.
+    @Test
+    fun specificLanguageDropdownOpen() {
+        EasyVoiceTtsService.numberModeInt = 3
+        EasyVoiceTtsService.punctuationModeInt = 3
+        EasyVoiceTtsService.emojiModeInt = 3
+        rule.setContent { EasyVoiceTheme { ModeSettingsScreen(prefs(), "dual") } }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("Specific language for reading numbers, English (eng)")
+            .performClick()
+        rule.onNodeWithContentDescription("Hindi (hin)").performClick()
+    }
+
+    @Test
+    fun configurationRowMenuOpen() {
+        rule.setContent {
+            EasyVoiceTheme {
+                ConfigurationScreen(
+                    labels = listOf("English (eng)", "Hindi (hin)"),
+                    engines = listOf("com.google.android.tts", ""),
+                    onLanguage = { }, onDeleteConfiguration = { }, onDisable = { }
+                )
+            }
+        }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("More actions for English (eng)").performClick()
+        rule.onNodeWithContentDescription("Disable language").performClick()
+    }
+
+    // Both rows: one engine installed, one not, so the "Install" button and the
+    // green "Installed" label are both on screen. Apply is disabled while
+    // anything is missing, and a disabled control still has to be labelled.
+    @Test
+    fun requiredEnginesDialog() {
+        check {
+            RequiredEnginesDialog(
+                items = listOf(
+                    RequiredEnginesItem("Google Speech Services", "com.google.android.tts", true),
+                    RequiredEnginesItem("Samsung Text-to-Speech", "com.samsung.SMT", false)
+                ),
+                onInstall = { }, onApply = { }, onCancel = { }
+            )
+        }
     }
 }

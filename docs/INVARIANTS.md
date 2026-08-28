@@ -493,6 +493,55 @@ that way.
 
 ---
 
+## 22. A popup is not checked unless a test opens it
+
+**Rule.** Every menu, dialog and conditional block of the UI needs its own
+`AccessibilityChecksTest` case. Rendering a screen checks only what is on it.
+
+**Why.** `enableAccessibilityChecks()` runs Google's Accessibility Test
+Framework, but only over the view that is actually there. A `DropdownMenu` is a
+separate window that does not exist until something opens it, so
+`onRoot().tryPerformAccessibilityChecks()` cannot see it — and the language
+dropdown is the control a blind user spends the longest in, because it can hold
+every language the installed engines speak.
+
+The way in is that the checks also run **before every action performed through
+the test API**. So a click on the anchor checks the screen behind the menu, and
+a click on something *inside* the open menu checks the menu's own view:
+
+```kotlin
+rule.onNodeWithContentDescription("Select secondary language, Hindi (hin)").performClick()
+rule.onNodeWithContentDescription("Gujarati (guj)").performClick()   // checks the OPEN menu
+```
+
+Four cases cover what was invisible: the language dropdown, the specific-language
+dropdown (a screen **state** — it only exists when the mode int is 3, and none of
+the four mode-settings cases render it), the per-language overflow menu, and the
+required-engines dialog.
+
+**The seed must reset the mode ints.** They are companion statics and survive
+from one test to the next in the same process, so without a reset the tests
+depend on the order JUnit happens to pick.
+
+### What was checked by hand in the same pass, and is correct
+
+- **`collectionItemInfo` is always the caller's job.** `LazyLayoutSemantics`
+  sets `collectionInfo` on the lazy layout node and nothing else — the file
+  contains no `collectionItemInfo` at all. So the hand-written per-row info in
+  both the Languages list and the dropdown is required, and the section headings
+  inside that `LazyColumn` do **not** claim a row of their own.
+- **`collectionInfo` is also what makes a list escapable.** TalkBack's
+  `Role.java` resolves a node carrying collection info to `ROLE_LIST`, which is
+  in `FILTER_CONTAINER` and in the auto-scroll set, so container navigation can
+  jump out of 137 rows.
+- **Touch targets**: the only explicit sizes under 48dp in the whole UI are
+  decorative icons inside larger controls — the 18dp chip check mark and the
+  32dp app-bar image, neither of which is clickable.
+- **`isTraversalGroup`** is true by default on scroll containers and Material
+  surfaces, so the single-column screens need nothing.
+
+---
+
 ## 15. Two things look dead to a text scan and are not
 
 **Rule.** Never delete these on the strength of a grep.
