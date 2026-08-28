@@ -261,12 +261,26 @@ jobs:
       - name: Run accessibility checks on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          # The newest released API, so the checks run against the platform
-          # behaviour newer phones actually have. 34 is only the FLOOR --
-          # enableAccessibilityChecks() is @RequiresApi(34) and a no-op below
-          # it, which is what @SdkSuppress(minSdkVersion = 34) on the test
-          # class guards. Running higher is strictly better.
-          api-level: 37
+          # 34, and NOT the app's targetSdk. This is the API of the throwaway
+          # emulator the tests run on; it has nothing to do with which Android
+          # the app targets or installs on.
+          #
+          # 34 is the FLOOR that matters: enableAccessibilityChecks() is
+          # @RequiresApi(34) and a documented no-op below it, which is what
+          # @SdkSuppress(minSdkVersion = 34) on the test class guards.
+          #
+          # 37 WAS TRIED AND DOES NOT EXIST HERE. Run 788: the emulator action
+          # runs its own `sdkmanager --install ... 'platforms;android-37'` and
+          # answered "Warning: Failed to find package 'platforms;android-37'",
+          # so no emulator ever booted and no test ran. The same sdkmanager also
+          # warns that it "only understands SDK XML versions up to 3 but an SDK
+          # XML file of version 4 was encountered", which is why the newest
+          # packages are invisible to it. Before raising this again, check that
+          # exact line in the log rather than assuming an image exists.
+          #
+          # There is nothing to gain by chasing it either: ATF's checks are
+          # library code and give the same answers at 34 as at 37.
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_6
