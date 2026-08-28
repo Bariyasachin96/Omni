@@ -1096,6 +1096,9 @@ tree…") is gone with the generator; everything below about *why* is not.
     `type mismatch: inferred type is Int but Context! was expected`;
   - `View.generateViewId()` is API 17 → `unresolved reference: generateViewId` (verified
     absent from the jar with `javap`);
+  - `PackageInfo.getLongVersionCode()` is **API 28** → `unresolved reference 'longVersionCode'`.
+    Verified with `javap` over the check jar: it declares only `public int versionCode`.
+    Guarded by `Build.VERSION.SDK_INT >= 28` at both call sites;
   - `clipToPadding = false` needs the **getter** `getClipToPadding()`, which is API 21 —
     `javap` shows the API-15 jar has only `setClipToPadding(boolean)`, so Kotlin cannot form
     the property → `unresolved reference: clipToPadding`. Fine at `compileSdk 34`/`minSdk 24`;
@@ -1420,7 +1423,7 @@ Script: `tools/autotts/cmp_versions.py`.
 | `c3/n.java` | `synchronized` accessors, group-size pref | ported |
 | `c3/k.java` | Group size spinner, Information section, **Test try/catch** | ported |
 | `clsCLD2.java` | normaliser `a()`/`b()`, aggregate `f()` | ported |
-| `AutoTtsService` | **new `P()`**, `"Languge"` → `"Language"` | ported |
+| `AutoTtsService` | **new `P()`**, `"Languge"` → `"Language"` at 7 of 9 sites | ported |
 
 **Everything else is CFR noise and must not be re-investigated:** `c3/d`, `c3/e`, `c3/e0`,
 `c3/g0`, `c3/l0`, `c3/p`, `a.java`, `CheckVoiceData`, `NewSettingsActivity` differ only in
@@ -1439,6 +1442,52 @@ same `put()` pairs, compared as sorted sets.
 2. **The Test button gained a try/catch.** 5.7.7.18 was `onClick { Y2(); }`; 5.7.7.26 is
    `try { Z2(); } catch (Exception) { Toast "Test unknown error" }`. `speakTest` reaches into
    a `TextToSpeech` that may already be dead, and the settings screen used to go down with it.
+
+## The native detector was read AGAIN, instruction by instruction (2026-08-28)
+The owner asked for a complete sweep of anything AutoTTS has that we do not, detection
+first and in the finest detail. `getLanguageSpans` (**0x65392c**), its span emitter
+(**0x653e90**), `setLanguageHints` (**0x653588**), `getLanguage` (**0x6523c8**) and both JNI
+wrappers were disassembled and compared line by line. Most of it matched — the script
+ladder, the 26-entry jump table and all nineteen fixed languages, the 1024-byte cap and its
+continuation back-off, `kMaxSpans` = 128, the merge test, the cap-stretch, the clamp in the
+wrapper, the CLDHints layout at both sites, and the 48 `{script, language}` pairs, which were
+decoded from **0x62f924** and matched entry for entry against `kScriptLangPairs`.
+
+**Five things did not, and all five are now fixed. They are written up in
+`docs/INVARIANTS.md` #20 with the instruction listings; do NOT re-derive them.**
+
+1. **Script 0 falls back to the LATIN language, not to `"un"`.** A run of digits,
+   punctuation, spaces or emoji is named after the first enabled Latin language whenever any
+   hint is set. This is the one that decides the voice of every bare number.
+2. **The CLD2 answer filter tests FOUR candidates** — the summary, then `language3[0]`,
+   `[1]`, `[2]`. Rank 0 is not a repeat of the summary: `CalcSummaryLang` returns a different
+   language on its English and FIGS boilerplate rules and `UNKNOWN_LANGUAGE` when the top
+   language covers under 26%.
+3. **`setLanguageHints` skips a code outside 1..7 characters** rather than truncating it, and
+   stops at 64. The CLD3 hint list is now built from the same accepted codes.
+4. **An ASCII letter means Latin; anything else means "keep the current script."** Ours had
+   the ternary inverted. Reachable through overlong UTF-8, which JNI produces for U+0000.
+5. **`c3.n.f` is ONE `HashSet` for the life of the process.** `clear()` never shrinks the
+   table, and that order decides which 64 codes survive the cap in 3.
+
+**`N` and `O` are two DIFFERENT end-synthesis helpers, and the map only ever named `O`.**
+`N(cb, n)` starts the callback if it has not started and finishes it if it has not finished —
+no log, no stop flag — and is what `onSynthesizeText` calls (numbers 1, 2, 4, 5, 7, 9, 10, 12,
+13). `O(cb, n)` logs `"endSynthesis #n"`, sets the stopped flag and notifies, and calls
+`done()` **only if the callback has already started**; it is what the utterance listener
+calls. `startAndFinish` is `N`; the listener sites inline `O`. Checked site by site.
+
+**A literal-by-literal diff of every AutoTTS class against ours** (`AutoTtsService`,
+`clsCLD2`, `c3.n`, `c3.d0`, `c3.k`, `c3.u`, `c3.v`, `c3.g0`, `c3.p`, `c3.d`, `c3.b0`,
+`c3.f0`, `c3.a0`, `c3.w`, `c3.f`, `c3.m`) found the remaining gaps, all log-only, all now
+matched: `s0`'s three lines, `onCreate`'s version name and code, `"Load voice original"`,
+the `"<want> vs <have>"` locale line, `"Check voice 1"`, `"Keep-live activated"`, and the
+`stopAllTts` / `onStop` orderings. **`"Current engine: "` names the wrapper about to speak**
+(`f.get(d).e()`), not a resolved preferred package — resolving one meant a whole
+`getEngine4Language` block in the log for every chunk that AutoTTS never emits.
+`c3.f0`'s sample-text table was compared key by key: **184 iso3 entries, identical**. Its
+other 156 entries are keyed by **iso2** and are unreachable — both callers pass an iso3 —
+so they are deliberately not carried.
 
 ## The DETECTOR lives in `libcld2.so`, and it was read there (2026-08-25)
 The user reported it from the device: **mix mode, non-Latin preferred language Hindi, and
@@ -1781,7 +1830,11 @@ The call profile is the same in both:
     clsCLD2.f(  0→1   ← the only added call, already ported
 
 so **the per-mode detection shape did not change in 5.7.7.26.** Only the log typo did:
-`"Languge is not supported"` → `"Language is not supported"`, now matched.
+`"Languge is not supported"` → `"Language is not supported"` — but only at **seven of
+its nine sites**. The **auto/Google** branch (noexc line 1677) and the **mix** branch (1962)
+still carry the typo in 5.7.7.26; the five dual sites, multilingual and the final path are
+spelled correctly. Ours matches site by site. An earlier note here said the typo was simply
+fixed, and a pass that "corrects" both remaining sites is a regression.
 
 **How `d0.t` really works — this is the part that was misunderstood.** It takes the three
 mode ints and **resolves them itself**, re-typing each number/punctuation/emoji segment:
