@@ -526,6 +526,60 @@ What was missing and is now fixed:
   `search_voice_btn`) now get the 48dp minimum too; `search_mag_icon` is decorative when the
   view is permanently expanded, so it is only recoloured.
 
+## Latency: what was MEASURED, and what is still unexplained (2026-09-01)
+The owner reported slow language switching with Gujarati/Hindi/Marathi in one message, and a
+long wait before a 25-to-30 paragraph text starts. Researched and measured before touching
+anything, per rule 6. **Nothing was changed, because nothing measured was ours.**
+
+**Our own code is fast, and this is now measured, not argued.** New harness
+`tools/verify/latency/run.sh` links the REAL native core with CLD2/CLD3 and a genuine JNIEnv
+and times the work that must finish before the first word:
+
+| paragraphs | chars | chunks | segment | detect | TOTAL |
+|---|---|---|---|---|---|
+| 10 | 1,758 | 29 | 0.2 ms | 1.0 ms | **1.2 ms** |
+| 30 | 5,310 | 81 | 0.5 ms | 1.5 ms | **2.0 ms** |
+| 60 | 10,620 | 161 | 0.6 ms | 2.6 ms | **3.3 ms** |
+
+Run to run the totals move by a few tenths of a millisecond, which is the point: the whole
+measurement is smaller than the noise in anything a person can hear. Allow an order of
+magnitude for a phone and it is still tens of milliseconds.
+**Segmentation and detection are not the delay.** Measure here before blaming chunking again.
+
+**From the owner's own logs** (122 utterances across three): start-to-first-speak is a median
+of **8-12 ms**, worst 54 ms. One language switch — `onDone` to the next `speak 2:` — is
+**15-44 ms**, and that path writes **32 log lines**, each a separate open/write/close in
+`EasyVoiceLogger.writeLine` plus `rotate()`'s `exists()` + `length()`. That is `c3.p.h`
+byte for byte, so it is parity, not a defect — but it is most of the 15-44 ms when logging is
+on. **No log the owner has sent contains the slow case**; the longest utterance in any of them
+is 404 characters.
+
+**The 4000-character limit is NOT our bug — verified, so do not "fix" it.**
+`TextToSpeech.speak`'s contract says *"No longer than getMaxSpeechInputLength() characters"*
+(4000), and AOSP `TextToSpeechService.SynthesisSpeechItem.isValid()` rejects `> 4000` with
+`ERROR_INVALID_REQUEST`. But **that same check runs on OUR service for incoming text**, so
+`onSynthesizeText` can never receive more than 4000 characters and a merged chunk cannot
+exceed it either. A screen reader splits a long document into requests before we ever see it.
+Read from the AOSP mirror, not from memory.
+
+**Foreground service, checked against the current rules.** `mediaPlayback` is right for us:
+its description is *"Continue audio or video playback from the background"* and its runtime
+prerequisites are **None**. We declare the type and `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, and
+pass `FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK` on API 34+. A TTS engine is **not** in the
+Android 12+ exemption list for starting a foreground service from the background, so
+`startForeground` can throw `ForegroundServiceStartNotAllowedException` — `startForegroundIfPossible`
+already catches and logs it, so it degrades to no notification rather than a crash.
+`isForegroundActive()` doing a `getActiveNotifications()` binder call **per utterance** is
+`AutoTtsService.a0()` called from exactly where AutoTTS calls it, including the `&&`
+short-circuit that still calls it when the setting is off.
+
+**What is left, and it needs a log rather than a guess.** Everything on the hot path measured
+so far is either fast or AutoTTS-faithful, so the audible gap is most likely the target
+engine's own time-to-first-audio: we wait for `onDone` of chunk N before asking engine N+1 to
+start, and nothing overlaps. That is AutoTTS's architecture too. **Do not "optimise" it on
+theory** — ask for a log of the actual slow message first, with logging on, and measure
+`onDone` to `speak 2:` against `speak 2:` to the next `onStart`.
+
 ## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
 Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
 from the environment settings — measured, not assumed:

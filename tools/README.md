@@ -98,6 +98,21 @@ be worth proving:
   span site passed `nullptr` for `reliableOut`. Negative-tested: put the
   `nullptr` back and the harness reports the device's exact failure.
 
+## Measuring, not proving
+
+    tools/verify/latency/run.sh          # ~1 min first run, then seconds
+
+The odd one out: it asserts nothing. It links the real `tts_engine_core.cpp`
+against CLD2, CLD3 and protobuf, starts a JVM for a genuine `JNIEnv`, and
+**times** the work that has to finish before the first word is spoken -- the
+segmenter and then one `nativeGetLanguages` per chunk -- for a 30- and a
+60-paragraph text.
+
+It exists because the owner reported a long wait before a long text starts
+reading, and the honest answer to "is our own pipeline the delay?" is a number,
+not an argument. It is 2.5 ms for 30 paragraphs. Run it before blaming chunking
+or detection for anything the owner reports as slow.
+
 `verify/segmenter/cpp/explore.cpp` is the same segmenter with a readable
 main: 25 named cases printing type, kind, language and text. Use it to look at
 one input rather than to prove anything.
