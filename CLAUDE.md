@@ -526,6 +526,43 @@ What was missing and is now fixed:
   `search_voice_btn`) now get the 48dp minimum too; `search_mag_icon` is decorative when the
   view is permanently expanded, so it is only recoloured.
 
+## Adaptive layout brought to the current standard (user request, 2026-09-01)
+*"Puri application sabhi screen per chalani hai … use screen ke according adjust ho jana
+chahie … bilkul naya standard."* Read for this, and the reading is the point:
+`develop/ui/compose/layouts/adaptive/use-window-size-classes`,
+`.../support-different-display-sizes`, `.../canonical-layouts`, the five Compose
+accessibility pages, **and androidx's own API files** — which is where two of the three
+findings came from, because the doc pages are behind the libraries.
+
+**The library was missing.** `androidx.compose.material3.adaptive:adaptive:1.3.0` (latest
+stable, 12 Aug 2026) is not in the Compose BOM and carries its own version. Only the
+`adaptive` artifact is declared; `adaptive-layout` and `adaptive-navigation` are the pane
+scaffolds and we have no two-pane layout.
+
+**Three things were behind, all now current — details and the traps in INVARIANTS #23/#24:**
+1. **`currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true)` is DEPRECATED.** The doc
+   page still shows it; `api/current.txt` says V2 replaced it in 1.3.0-alpha10. We use
+   `currentWindowAdaptiveInfoV2()`.
+2. **`TabRow` is deprecated in material3 1.4.0** — the version BOM `2026.08.00` pins, checked
+   against `api/1.4.0-beta01.txt`, not androidx-main. The app's tab strip is `PrimaryTabRow`
+   now. Every other component we call is current in 1.4.0; the other "deprecated" overloads
+   in that file are binary-compat shims hidden from Kotlin source. **Do not migrate those.**
+3. **Two hard-coded dp numbers did not adapt.** The 840dp content cap is now
+   `WIDTH_DP_EXPANDED_LOWER_BOUND` and applies only at/above that breakpoint, so a compact or
+   medium window fills. The Languages header's 280dp cap is **most of a landscape phone** —
+   compact height is under 480dp — so on a short window it is 140dp.
+
+**The top app bar is hidden when the window is short**, which is Google's own worked example
+for compact height (*"Decide whether to show the top app bar based on window size class"*).
+It held only the icon and the app name, no actions, and a landscape phone lost a fifth of its
+height to it. The screen is still announced: `paneTitle` is on the pager, not the bar.
+
+**NOT done, and it needs the owner's decision: the canonical large-screen layouts.** A
+navigation rail at medium+ instead of tabs, or a two-pane list-detail for
+Configuration → Voice setup, is what the guidance recommends for an expanded window. Both
+change how the screen reader traverses the app, which is the thing the owner uses every day,
+so neither was done unilaterally.
+
 ## Full UI audit against Google's guidelines (user request, 2026-08-13)
 *"pura user interface mein kahin per bhi Google ke khilaf kuch ho to usko sahi kar dijiyega"*.
 

@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 
 private val EvColorScheme = darkColorScheme(
     primary = Color(0xFF82C7FF),
@@ -61,17 +64,68 @@ fun EasyVoiceTheme(content: @Composable () -> Unit) {
     }
 }
 
+// ==========================================================================
+//  WINDOW SIZE CLASSES
+//  The one place the app asks how much room it has. Everything else takes the
+//  answer as ordinary state, which is what the guidance asks for: "a layered
+//  approach confines display size logic to a single location instead of
+//  scattering it across your app in many places that need to be kept in sync."
+//
+//  Read `currentWindowAdaptiveInfoV2()`, NOT `currentWindowAdaptiveInfo(...)`.
+//  The doc page still shows the latter with a `supportLargeAndXLargeWidth`
+//  flag, but androidx's own api/current.txt marks that one @Deprecated and
+//  lists V2 as the replacement; it landed in adaptive 1.3.0-alpha10 and is in
+//  1.3.0 stable, which is what we depend on.
+//
+//  It is the WINDOW, never the device. Split-screen, desktop windowing and a
+//  folded inner display all give the app less than the physical screen, and
+//  the class changes while the app is running, so this is read per composition
+//  rather than cached.
+// ==========================================================================
+@Composable
+fun evWindowSizeClass(): WindowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
+
+// A short window is the case Google's own worked example calls out: a phone or
+// an open flippable in landscape is medium WIDTH but compact HEIGHT, where a
+// top app bar costs more than it gives.
+@Composable
+fun evIsCompactHeight(): Boolean =
+    !evWindowSizeClass().isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND)
+
+// The content measure. Below the expanded breakpoint the single pane fills the
+// window, which is right for every phone and for a tablet in portrait. At and
+// above it the column is capped and centred, so a 1600dp desktop window does
+// not stretch one settings row edge to edge.
+//
+// The cap stays at the expanded breakpoint rather than growing with the window:
+// this is a single-column reading measure, and Material's answer to a wider
+// window is a second PANE, not a wider line. Widening the column is the thing
+// the large-screen guidance actually warns about.
+// Nullable rather than Dp.Unspecified on purpose: Dp.Unspecified is Dp(Float.NaN)
+// and Dp is a value class whose equals compares the floats, so `x == Dp.Unspecified`
+// is ALWAYS false -- NaN never equals NaN. The idiomatic test is `isUnspecified`,
+// and a null is plainer still.
+@Composable
+private fun evContentMaxWidth(): Dp? =
+    if (evWindowSizeClass().isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND))
+        WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND.dp
+    else null
+
 @Composable
 fun ResponsiveContent(
     modifier: Modifier = Modifier,
     padding: PaddingValues = PaddingValues(0.dp),
     content: @Composable () -> Unit
 ) {
+    val maxWidth = evContentMaxWidth()
     Box(
         modifier = modifier.fillMaxSize().padding(padding),
         contentAlignment = Alignment.TopCenter
     ) {
-        Box(modifier = Modifier.widthIn(max = 840.dp).fillMaxWidth()) { content() }
+        Box(
+            modifier = if (maxWidth == null) Modifier.fillMaxWidth()
+                       else Modifier.fillMaxWidth().widthIn(max = maxWidth)
+        ) { content() }
     }
 }
 

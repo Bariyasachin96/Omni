@@ -32,7 +32,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -377,6 +377,9 @@ fun MainScreen(
     // below for why the pager had to go.
     var currentPage by remember { mutableStateOf(0) }
     var dragTotal by remember { mutableStateOf(0f) }
+    // Window size class, read once here and passed down as ordinary state --
+    // the layered approach the adaptive guidance asks for.
+    val compactHeight = evIsCompactHeight()
     Scaffold(
         floatingActionButton = {
             if (!scanning && currentPage == 1 && showAddLanguage) {
@@ -391,7 +394,13 @@ fun MainScreen(
             }
         },
         topBar = {
-            TopAppBar(
+            // Google's own worked example for compact height: "Decide whether to
+            // show the top app bar based on window size class." A phone or an
+            // open flippable in LANDSCAPE is medium width but compact height, and
+            // there the bar costs a fifth of the usable height to repeat a name
+            // the launcher already said. The screen title is not lost -- the
+            // pager still carries paneTitle "Easy Voice settings".
+            if (!compactHeight) TopAppBar(
                 title = { Text(context.getString(R.string.app_name)) },
                 navigationIcon = {
                     if (appIcon != null) {
@@ -410,7 +419,11 @@ fun MainScreen(
         },
         bottomBar = {
             if (!scanning) {
-                TabRow(selectedTabIndex = currentPage) {
+                // PrimaryTabRow, not TabRow: in material3 1.4.0 TabRow has ONE
+                // overload and it is @Deprecated. These are the app's top-level
+                // destinations, which is the PRIMARY tab row in the M3 spec;
+                // SecondaryTabRow is for tabs nested inside a destination.
+                PrimaryTabRow(selectedTabIndex = currentPage) {
                     for (index in pageTitles.indices) {
                         Tab(
                             selected = currentPage == index,

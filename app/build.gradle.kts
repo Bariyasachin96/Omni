@@ -87,6 +87,15 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    // Window size classes. This is the library the adaptive guidance is written
+    // against -- currentWindowAdaptiveInfoV2() and the WindowSizeClass
+    // breakpoints -- and it is NOT in the Compose BOM, which is why it carries
+    // its own version. 1.3.0 is the latest stable (12 August 2026), from the
+    // compose-material3-adaptive release notes.
+    //
+    // Only the `adaptive` artifact: adaptive-layout and adaptive-navigation are
+    // the pane scaffolds, and we deliberately have no two-pane layout.
+    implementation("androidx.compose.material3.adaptive:adaptive:1.3.0")
 
     // Accessibility checks, run against the real screens on a real emulator.
     // enableAccessibilityChecks() drives Google's Accessibility Test Framework

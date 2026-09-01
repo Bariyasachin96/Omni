@@ -542,6 +542,78 @@ depend on the order JUnit happens to pick.
 
 ---
 
+## 23. Window size classes come from ONE place, and never from the device
+
+**Rule.** Ask `evWindowSizeClass()` in `ComposeTheme.kt` and pass the answer down
+as ordinary state. Never branch on `screenWidthDp`, a device type, an
+orientation, or a hard-coded dp number.
+
+**Why.** The adaptive guidance is explicit: *"Avoid using physical hardware
+values for making layout decisions… the physical screen size isn't relevant"* —
+split-screen, desktop windowing and a folded inner display all give the app less
+than the screen — and *"a layered approach confines display size logic to a
+single location instead of scattering it across your app in many places that
+need to be kept in sync."*
+
+**Use `currentWindowAdaptiveInfoV2()`, not `currentWindowAdaptiveInfo(...)`.**
+The developer.android.com page still shows the older one with a
+`supportLargeAndXLargeWidth` flag; androidx's own `api/current.txt` marks that
+overload `@Deprecated` and lists V2 as the replacement. It landed in adaptive
+`1.3.0-alpha10` and is in `1.3.0` stable, which is what is declared. **Read the
+API file, not the doc page** — that is how this one was caught.
+
+The breakpoints are named constants, never literals:
+
+| constant | dp |
+|---|---|
+| `WIDTH_DP_MEDIUM_LOWER_BOUND` | 600 |
+| `WIDTH_DP_EXPANDED_LOWER_BOUND` | 840 |
+| `WIDTH_DP_LARGE_LOWER_BOUND` | 1200 |
+| `WIDTH_DP_EXTRA_LARGE_LOWER_BOUND` | 1600 |
+| `HEIGHT_DP_MEDIUM_LOWER_BOUND` | 480 |
+| `HEIGHT_DP_EXPANDED_LOWER_BOUND` | 900 |
+
+**`Dp.Unspecified` cannot be compared with `==`.** It is `Dp(Float.NaN)` and
+`Dp` is a value class whose `equals` compares the floats, so `x == Dp.Unspecified`
+is **always false** — NaN never equals NaN. The idiomatic test is `isUnspecified`;
+`evContentMaxWidth()` returns a nullable `Dp` instead, which needs no trap
+knowledge at all. This was written the wrong way once and caught before it shipped.
+
+**Why the content column does NOT grow past 840dp.** It is a single-column
+reading measure. Material's answer to a wider window is a second **pane**, not a
+longer line, and stretching one settings row across a 1600dp desktop window is
+the thing the large-screen guidance warns about. If a two-pane layout is ever
+wanted, that is a navigation change and needs the owner's decision first,
+because it changes how the screen reader traverses the app.
+
+---
+
+## 24. `TabRow` is deprecated — the app's tab strip is `PrimaryTabRow`
+
+**Rule.** Use `PrimaryTabRow` for the app's top-level destinations, and
+`SecondaryTabRow` only for tabs nested inside one of them.
+
+**Why.** In material3 **1.4.0** — the version Compose BOM `2026.08.00` pins —
+`TabRow` has exactly **one** overload and it is `@Deprecated`, while
+`PrimaryTabRow` and `SecondaryTabRow` are current. Checked against
+`compose/material3/material3/api/1.4.0-beta01.txt`, not against androidx-main,
+which is a later version and deprecates things ours has not reached yet.
+
+**Everything else we call is current, and the rest of the "deprecated" counts in
+that API file are a trap.** `Text`, `IconButton`, `TopAppBar`, `DropdownMenu` and
+`CircularProgressIndicator` each list deprecated overloads, but those are
+**binary-compatibility shims** — the previous parameter lists, kept so old
+bytecode still links, hidden from Kotlin source. A call using named arguments
+binds to the current overload on its own. Do not "migrate" them.
+
+Checked and current in 1.4.0: `Button`, `OutlinedButton`, `TextButton`,
+`IconButton`, `Icon`, `Text`, `Surface`, `Scaffold`, `TopAppBar`, `Tab`,
+`ListItem`, `Checkbox`, `RadioButton`, `Switch`, `Slider`, `FilterChip`,
+`AlertDialog`, `DropdownMenu`, `DropdownMenuItem`, `OutlinedTextField`,
+`ExtendedFloatingActionButton`, `CircularProgressIndicator`.
+
+---
+
 ## 15. Two things look dead to a text scan and are not
 
 **Rule.** Never delete these on the strength of a grep.

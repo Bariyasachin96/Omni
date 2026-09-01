@@ -205,10 +205,16 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
             // 235dp, so at the default scale the cap is never reached and this
             // behaves exactly like a plain column; past roughly 1.5x the header
             // scrolls within itself and the list keeps the rest of the screen.
+            //
+            // The cap itself has to adapt. 280dp is most of a LANDSCAPE PHONE --
+            // compact height is anything under 480dp -- so a fixed 280 left the
+            // language list a sliver on exactly the window where the list is
+            // already hardest to use. On a short window the header keeps 140dp
+            // and scrolls inside that instead.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 280.dp)
+                    .heightIn(max = if (evIsCompactHeight()) 140.dp else 280.dp)
                     .verticalScroll(rememberScrollState())
             ) {
             SectionHeader("Languages")
