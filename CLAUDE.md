@@ -660,6 +660,44 @@ before asking engine N+1 to start, and `onLoadLanguage` on that path does binder
 another app's TTS service. That is AutoTTS's architecture as well. Measure it from a device
 log -- `onDone` to `speak 2:`, and `speak 2:` to the next `onStart` -- before touching it.
 
+## Runs 795-797 went red on DISK, not on anything we wrote (fixed 2026-09-01)
+The owner reported failing builds. **The APK was fine every time** -- `build-795`, `build-796`
+and `build-797` are all on the Releases page, published by the `build` job, which passed. What
+went red was the second job, `accessibility`, and only that.
+
+**The cause, and it is one line buried a thousand lines above the noise.** The job log ends in
+hundreds of `adb: device 'emulator-5554' not found` and `Timeout waiting for emulator to boot`,
+which look like KVM or a missing system image and are neither. The real line is at emulator
+start:
+
+    FATAL | Not enough space to create userdata partition.
+            Available: 6881.56 MB at /home/runner/.android/avd/test.avd, need 7372.80 MB.
+
+**Short by 491 MB.** The system image installed, `avdmanager create avd` succeeded, the KVM udev
+rule was already in place -- the emulator simply refused to make its partition and exited, and
+everything after that is adb talking to a process that was never there. **When this job fails,
+grep the log for `FATAL` before reading a single `adb` line.**
+
+**Nothing in this repository changed.** Run 794 on 28 August passed with `build.yml` byte for
+byte identical. What moved is the hosted runner image, which keeps growing while the `pixel_6`
+userdata partition stays 7.2 GB; by the time the emulator starts, this job has already spent its
+budget on NDK 29, the protobuf clone, Gradle and the system image.
+
+**The fix** is a `Free disk space for the emulator` step before the NDK install, removing
+preinstalled toolchains a TTS build provably never touches -- .NET, Haskell, Swift, PowerShell,
+node_modules, CodeQL, and the Docker image cache -- each with `|| true` so a path vanishing from
+a future image cannot fail the run, and `df -h /` printed on both sides so the next failure
+states its own numbers. **NEVER add `/opt/hostedtoolcache/Java_*` (JAVA_HOME) or
+`/usr/local/lib/android` (ANDROID_HOME) to that list**; they are what the job runs on.
+
+`disk-size` on `reactivecircus/android-emulator-runner` is a real input and would also work by
+shrinking the partition, but freeing space leaves the emulator exactly as it was and gives
+headroom for the next image bump, so that is what was done rather than capping the AVD.
+
+**Do not answer this by adding `continue-on-error`.** The rule at the top of this file stands:
+an accessibility regression is a real defect. This was an infrastructure failure wearing its
+costume, and the way to tell them apart is the `FATAL` line.
+
 ## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
 Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
 from the environment settings — measured, not assumed:

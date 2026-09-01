@@ -204,6 +204,42 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # THE EMULATOR NEEDS 7.2 GB OF FREE DISK AND THE RUNNER STOPPED HAVING IT.
+      # Runs 795 and 796 both died with the emulator never booting, and the only
+      # line that matters is buried a thousand lines above the adb retries:
+      #
+      #   FATAL | Not enough space to create userdata partition.
+      #           Available: 6881.56 MB at /home/runner/.android/avd/test.avd,
+      #           need 7372.80 MB.
+      #
+      # Short by 491 MB. Not KVM, not a missing system image -- and NOT anything
+      # in this repository: run 794 passed with this workflow byte for byte, so
+      # what changed is the hosted runner image, which keeps growing while the
+      # pixel_6 userdata partition stays 7.2 GB. By the time the emulator starts
+      # this job has already spent its budget on NDK 29, the protobuf clone,
+      # Gradle and the system image.
+      #
+      # So reclaim what a TTS build provably never touches. Every path here is a
+      # preinstalled toolchain for another language or ecosystem; `|| true` on
+      # each, because a path disappearing from a future image must not fail the
+      # run. NEVER add /opt/hostedtoolcache/Java_* (JAVA_HOME) or
+      # /usr/local/lib/android (ANDROID_HOME) to this list -- they are what the
+      # job runs on.
+      #
+      # The `df` lines are deliberate: if this ever fails again, the log states
+      # the space on both sides instead of leaving the next person to guess.
+      - name: Free disk space for the emulator
+        run: |
+          echo "before:"; df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo rm -rf /opt/ghc /usr/local/.ghcup || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune -af || true
+          echo "after:"; df -h / | tail -1
+
       - name: Install NDK and CMake
         timeout-minutes: 20
         run: |
