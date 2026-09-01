@@ -1641,8 +1641,17 @@ static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut,
     static chrome_lang_id::NNetLanguageIdentifier* cld3Identifier = nullptr;
     std::lock_guard<std::mutex> cld3Lock(cld3Mutex);
     if(!cld3Identifier) cld3Identifier = new chrome_lang_id::NNetLanguageIdentifier(0, 1024);
+    // Built only when it is going to be read. `hinted` is used in exactly one
+    // place -- the `useHints && !hinted.empty()` test below -- which
+    // short-circuits when useHints is false, so at the WINDOW site every one of
+    // these was a comma-split plus an unordered_set of up to 64 std::strings
+    // that nothing ever looked at. That site is called once per 64-character
+    // window of the utterance, so on a long text in auto mode it was the whole
+    // list rebuilt hundreds of times to be thrown away.
+    // This changes no answer: the guard already made the set unreachable when
+    // useHints is false.
     std::unordered_set<std::string> hinted;
-    {
+    if(useHints){
         const std::string hintList = currentLanguageHints();
         size_t hintStart = 0;
         while(hintStart < hintList.size()){

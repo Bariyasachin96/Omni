@@ -76,8 +76,8 @@ int main(){
     Java_com_tts_easyvoice_NativeEngine_setLanguageHints(env, nullptr, arr(iso2));
     Java_com_tts_easyvoice_NativeEngine_setDetectSets(env, nullptr, arr(iso3), arr(iso2));
 
-    printf("%-12s %8s %8s %10s %12s %12s\n",
-           "paragraphs", "chars", "chunks", "segment ms", "detect ms", "TOTAL ms");
+    printf("%-12s %8s %8s %10s %12s %12s %12s\n",
+           "paragraphs", "chars", "chunks", "segment ms", "CLD2 ms", "CLD3 ms", "TOTAL ms");
     for (int p : {1, 5, 10, 20, 30, 60}) {
         const std::string text = buildText(p);
 
@@ -113,19 +113,29 @@ int main(){
             if (field > 3 && chunkTexts.empty()) {}
         }
 
-        // 2. one detection per chunk, which is what detectLanguageRuns does
-        const double d0 = nowMs();
-        for (const std::string& c : chunkTexts) {
-            if (c.empty()) continue;
-            jstring js = env->NewStringUTF(c.c_str());
-            jobjectArray got = Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(env, nullptr, js, JNI_FALSE);
-            (void)got;
-            env->DeleteLocalRef(js);
-        }
-        const double detMs = nowMs() - d0;
+        // 2. one detection per chunk, which is what detectLanguageRuns does.
+        // BOTH detectors, because the Advanced tab's "Use CLD3" switch chooses
+        // between them at exactly this call and they are not the same price:
+        // CLD2 scores n-gram tables, CLD3 runs a neural net -- and the hinted
+        // span site runs it TWICE per span when the top-3 loop finds no
+        // candidate the user has enabled (FindTopNMostFreqLangs, then
+        // FindLanguage). Measuring only CLD2 hid the arm the owner may be on.
+        auto detectAll = [&](jboolean useCld3) -> double {
+            const double t0 = nowMs();
+            for (const std::string& c : chunkTexts) {
+                if (c.empty()) continue;
+                jstring js = env->NewStringUTF(c.c_str());
+                jobjectArray got = Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(env, nullptr, js, useCld3);
+                (void)got;
+                env->DeleteLocalRef(js);
+            }
+            return nowMs() - t0;
+        };
+        const double detMs = detectAll(JNI_FALSE);
+        const double det3Ms = detectAll(JNI_TRUE);
 
-        printf("%-12d %8zu %8zu %10.1f %12.1f %12.1f\n",
-               p, text.size(), chunkTexts.size(), segMs, detMs, segMs + detMs);
+        printf("%-12d %8zu %8zu %10.1f %12.1f %12.1f %12.1f\n",
+               p, text.size(), chunkTexts.size(), segMs, detMs, det3Ms, segMs + detMs);
     }
     vm->DestroyJavaVM();
     return 0;

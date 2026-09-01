@@ -580,6 +580,86 @@ start, and nothing overlaps. That is AutoTTS's architecture too. **Do not "optim
 theory** — ask for a log of the actual slow message first, with logging on, and measure
 `onDone` to `speak 2:` against `speak 2:` to the next `onStart`.
 
+## Detection speed: CLD3 is 5x CLD2, and that is the whole story (measured 2026-09-01)
+The owner asked for language detection to be made as fast as possible, and pointed at eSpeak
+NG's source as a place to learn from. Both were done properly: an instruction-level profile
+of our own pipeline, and a read of eSpeak's synthesis loop. **Read the numbers before
+changing anything here again.**
+
+**`tools/verify/latency/run.sh` now times BOTH detectors.** It had only ever measured CLD2,
+which hid the arm the owner may actually be running:
+
+| paragraphs | chars | chunks | segment | **CLD2** | **CLD3** |
+|---|---|---|---|---|---|
+| 10 | 1,758 | 29 | 0.1 ms | 0.1 ms | **2.5 ms** |
+| 30 | 5,310 | 81 | 0.3 ms | 1.1 ms | **6.6 ms** |
+| 60 | 10,620 | 161 | 0.6 ms | 2.6 ms | **8.6 ms** |
+
+**So the Advanced tab's "Use CLD3" switch costs about 5x**, and on a phone (an order of
+magnitude slower than this container) that is tens of milliseconds before the first word of a
+long text. With CLD2 it is single-digit milliseconds. That switch is the one real lever on
+detection speed, and it belongs to the owner.
+
+**Where the time goes, from `valgrind --tool=callgrind` over the whole harness — not from
+reading the code and guessing:**
+- `SparseReluProductPlusBias` is **40.67% of every instruction the program executes**. That
+  is CLD3's hidden layer. Nothing else is within an order of magnitude of it.
+- **294 spans produce 464 net evaluations.** `FindTopNMostFreqLangs` runs 294 times (once per
+  span) and `FindLanguageOfValidUTF8` 464 times, so **58% of spans pay the net twice**: the
+  hinted top-3 loop finds no candidate the user has enabled, and `cld3DetectRaw` falls through
+  to `FindLanguage`. `SparseReluProductPlusBias` runs 928 times = two layers per evaluation.
+- CLD2 for the same 294 spans: `ExtDetectLanguageSummary` 294 calls, and its whole cost
+  (`DocTote::Sort`, `GetOneScriptSpan`, `GetOctaHits`, `GetQuadHits`, the UTF8 scanners) is
+  about 2.5M instructions — **beaten by our own segmenter**, where `buildMixChunks` alone is
+  1.58M.
+
+**The obvious halving was investigated and REJECTED, and the reasoning is recorded so it is
+not re-attempted casually.** For a text containing exactly one script span,
+`FindTopNMostFreqLangs(t, 3)[0]` and `FindLanguage(t)` evaluate the net on byte-identical
+text: `FindLanguage` concatenates the lowered script spans and squeezes the result, TopN
+squeezes each span, and with one span those are the same bytes through the same
+`CheapSqueezeInplace(ptr, len, 0)` into the same `SelectTextGivenBeginAndSize` (TopN's
+`SelectTextGivenScriptSpan` is a one-line delegate to it). So the second run looks redundant.
+**It was not taken, for two reasons.** The single-span condition cannot be tested from
+outside CLD3's public API, and TopN reports `probability = prob_sum / byte_sum`, i.e.
+`(p * n) / n` in float, which is not guaranteed to be bit-identical to `p` -- and
+`is_reliable` is `probability >= 0.7f`, so a span sitting on the threshold could flip.
+Trading a proven detector for a 37% saving on a switch the owner can turn off for a 5%
+saving is the wrong trade, and "behaviourally equivalent" is a forbidden justification here.
+CLD3 is vendored by a CI `git clone`, so it cannot be patched either.
+
+**One change was made, and it is provably dead work, not an optimisation of behaviour.**
+`cld3DetectRaw` built its `hinted` set -- a comma split plus an `unordered_set` of up to 64
+`std::string`s -- on **every** call, including the window site where `useHints` is false and
+the set is unreachable behind `useHints && !hinted.empty()`. The window site runs once per
+64-character window in auto mode, so a long utterance rebuilt and discarded that list hundreds
+of times. It is now built only when `useHints` is true. Proven by
+`tools/verify/cld3span/run.sh` (all cases pass) and `tools/verify/segmenter/run.sh`
+(identical over 163,296 cases).
+
+**eSpeak NG, read rather than recalled** (`raw.githubusercontent.com/espeak-ng/espeak-ng/master`;
+`codeload.github.com` is 403 from this proxy, so files were fetched one at a time):
+- `src/libespeak-ng/speech.c` `Synthesize()` is **clause at a time**. `SpeakNextClause(0)`
+  reads ONE clause, `WavegenFill()` fills `outbuf`, and `synth_callback(outbuf, length, ...)`
+  hands that buffer out **immediately**; the next clause is only read once the current one has
+  finished generating. `outbuf_size` is derived from a millisecond buffer length, so audio
+  starts flowing after tens of milliseconds rather than after the whole text.
+- `src/libespeak-ng/fifo.c` is a command queue with a dedicated `say_thread`, so in async mode
+  `espeak_Synth` enqueues and returns and the caller never blocks.
+- **What that teaches, and why it does not transfer.** eSpeak never precomputes the whole
+  text; we build every chunk and detect every language before `speakChunk(true)`. But that
+  entire precompute is the "segment + CLD2" column above -- **1.4 ms for 30 paragraphs** --
+  so making it lazy would save 1.4 ms and diverge from AutoTTS, which builds its list up
+  front too. eSpeak's other lesson, streaming the first buffer early, cannot apply at all:
+  eSpeak IS a synthesiser and owns its samples, while we are a proxy that calls
+  `TextToSpeech.speak()` on another engine and never touches audio. There is no `outbuf` here
+  to hand out sooner.
+
+**So what is left is the engine switch, not detection.** We wait for `onDone` of chunk N
+before asking engine N+1 to start, and `onLoadLanguage` on that path does binder calls into
+another app's TTS service. That is AutoTTS's architecture as well. Measure it from a device
+log -- `onDone` to `speak 2:`, and `speak 2:` to the next `onStart` -- before touching it.
+
 ## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
 Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
 from the environment settings — measured, not assumed:

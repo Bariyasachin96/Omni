@@ -108,10 +108,17 @@ against CLD2, CLD3 and protobuf, starts a JVM for a genuine `JNIEnv`, and
 segmenter and then one `nativeGetLanguages` per chunk -- for a 30- and a
 60-paragraph text.
 
+It times **both detectors**, because the Advanced tab's "Use CLD3" switch picks
+between them at exactly that call and they are not the same price. For 30
+paragraphs: segmenting 0.3 ms, CLD2 1.1 ms, **CLD3 6.6 ms**. Measuring only
+CLD2, as it did at first, hid the arm the owner may actually be running.
+
 It exists because the owner reported a long wait before a long text starts
 reading, and the honest answer to "is our own pipeline the delay?" is a number,
-not an argument. It is 2.5 ms for 30 paragraphs. Run it before blaming chunking
-or detection for anything the owner reports as slow.
+not an argument. Run it before blaming chunking or detection for anything the
+owner reports as slow -- and see the CLD3 section of CLAUDE.md for the
+callgrind profile behind those numbers, including why the obvious halving of
+CLD3's net evaluations was investigated and deliberately not taken.
 
 `verify/segmenter/cpp/explore.cpp` is the same segmenter with a readable
 main: 25 named cases printing type, kind, language and text. Use it to look at
