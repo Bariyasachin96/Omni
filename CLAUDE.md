@@ -526,6 +526,45 @@ What was missing and is now fixed:
   `search_voice_btn`) now get the 48dp minimum too; `search_mag_icon` is decorative when the
   view is permanently expanded, so it is only recoloured.
 
+## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
+Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
+from the environment settings — measured, not assumed:
+
+| host | result |
+|---|---|
+| `maven.google.com` | reachable, **HTTP 301** — it is only a redirector |
+| `dl.google.com` | **CONNECT tunnel failed, 403** — where the artifacts actually live |
+| `repo.maven.apache.org`, `repo1.maven.org` | reachable |
+| `plugins.gradle.org`, `services.gradle.org`, `gradle.org` | reachable |
+
+So **one host** is the whole blockage. The cloud environment's *Trusted* network level has a
+"JVM package managers" group — `maven.org`, `repo1.maven.org`, `repo.maven.apache.org`,
+`gradle.org`, `services.gradle.org`, `plugins.gradle.org` — and **no Google Maven host at
+all**. That is why `android.jar` comes from Maven Central and every androidx symbol is
+unresolvable.
+
+**The fix, which is the owner's to make** (`code.claude.com/docs/en/cloud-environments`):
+on `claude.ai/code`, the cloud icon above the message box opens the environment selector —
+there is no settings URL — then the settings icon on the environment, **Network access →
+Custom**, and in **Allowed domains**:
+
+    dl.google.com
+    maven.google.com
+
+with **"Also include default list of common package managers" TICKED**, or Maven Central,
+GitHub and the rest are lost. It takes effect on a **new** session; the running one keeps the
+policy it started with.
+
+**Do not route around it.** `/root/.ccr/README.md` is explicit: a 403 from the proxy is an
+egress-policy denial, *"Do not retry or route around it — report the blocked host."* A
+third-party mirror of Google Maven would defeat the owner's own setting; ask instead.
+
+**What it would buy.** `kotlin-typecheck.sh` would resolve androidx, Compose and Material3,
+so the ~1,240-error baseline mostly disappears and a real Compose mistake is caught locally
+instead of in CI — which is the single biggest hole in the local checks. It would also let a
+coordinate like `androidx.compose.material3.adaptive:adaptive:1.3.0` be verified before it is
+pushed, rather than trusting the release notes.
+
 ## Adaptive layout brought to the current standard (user request, 2026-09-01)
 *"Puri application sabhi screen per chalani hai … use screen ke according adjust ho jana
 chahie … bilkul naya standard."* Read for this, and the reading is the point:
