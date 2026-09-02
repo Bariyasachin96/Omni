@@ -813,9 +813,45 @@ UNKNOWN -- CLD2 runs unguided and its own model happens to answer `hi`.
   people who need it;
 - prefer the table-order language among close candidates -- there are no close candidates.
 
-**So the answer to the owner is the switch, not the code:** CLD2 is the default, it is right
-here, and it is 5x faster (measured 2026-09-01). CLD3's model simply cannot separate short
-Hindi from Marathi, and Hindi/Marathi share most of their orthography. Nothing was changed.
+**The owner then asked, reasonably, whether CLD3 could simply be made to behave like CLD2.
+That was researched properly and the answer is NO. Here is the evidence, so it is never
+re-opened on a hunch.**
+
+`FindLanguageOfValidUTF8` computes the FULL 109-language score vector
+(`network_.ComputeFinalScores(features, &scores)`), takes the argmax and discards the rest;
+both it and `GetLanguageName` are **private**. A diagnostic build of
+`tools/verify/cld3span/` with `#define private public` peeked at that distribution for the
+failing chunk:
+
+    0  mr   p=0.99991
+    1  hi   p=0.00006      <- sixteen thousand times less likely
+    2  is   p=0.00003
+
+**CLD3 is 99.99% certain it is Marathi.** There is no close second, so there is nothing to
+tie-break, no threshold to tune and no candidate to re-rank. Any rule that produced Hindi
+here would have to ignore the model outright -- and would then read genuine, unambiguous
+Marathi as Hindi too. At that point CLD3 is not being used at all; it is the per-script
+fallback table with extra steps and five times the cost.
+
+(The 0.712 that `FindTopNMostFreqLangs` reports is the AGGREGATED figure,
+`prob_sum / byte_sum` across script spans; the raw softmax is 0.99991. Do not confuse them.)
+
+**And the speed premise is backwards, which matters because it is why the owner wanted to
+keep CLD3.** Measured 2026-09-01, 30 paragraphs: **CLD2 1.1 ms, CLD3 6.6 ms**. CLD3 is
+about **5x SLOWER**, not faster -- `SparseReluProductPlusBias` is 40.67% of all instructions.
+
+**What DOES fix it, with no code change, and it is the owner's lever:** untick **Marathi**
+in the Languages screen. Then `mr` is not in the hint list, `isHinted` rejects it, and the
+per-script fallback resolves Devanagari to Hindi, because `kScriptLangPairs` lists
+`{4, HINDI}` before `{4, MARATHI}`. Verified both ways and now asserted permanently in
+`tools/verify/cld3span/run.sh`:
+
+    Hindi tail, CLD2, mr also enabled   -> hi
+    Hindi tail, CLD3, mr also enabled   -> mr
+    Hindi tail, CLD3, mr NOT enabled    -> hi
+    Hindi tail, CLD2, mr NOT enabled    -> hi
+
+**Nothing in the detection path was changed.** CLD2 remains the default and the recommendation.
 
 ## The launcher icon is the owner's artwork (2026-09-02)
 Supplied as a square JPG with a white margin around a rounded-square badge.

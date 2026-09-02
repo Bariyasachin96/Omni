@@ -281,6 +281,31 @@ int main(){
     expect("five-language text, de+es enabled", fiveLatin, false, 0, 1, "es");
 
     printf("\n");
+    // ---- Hindi vs Marathi, from the 2026-09-02 device log (id 614) ----------
+    // The owner reads Hindi with Marathi ALSO enabled, and the tail of a Hindi
+    // sentence was spoken by the Marathi voice under CLD3 while CLD2 read it in
+    // Hindi. It is not a plumbing bug: peeking at CLD3's full 109-language
+    // softmax for this chunk gives mr p=0.99991 and hi p=0.00006. The model is
+    // certain, and wrong. There is no tie to break and no threshold to tune, so
+    // the CLD3 answer is left alone -- see CLAUDE.md.
+    //
+    // What DOES change it is the enabled list, and that is the owner's lever:
+    // with Marathi unticked, "mr" is no longer hinted, isHinted rejects it and
+    // the per-script fallback resolves Devanagari to Hindi (kScriptLangPairs
+    // lists {4, HINDI} before {4, MARATHI}). Both directions are asserted so a
+    // future change to either the filter or the fallback is caught.
+    {
+        const std::string hindiTail =
+            "\u0935\u0939\u0940 \u0905\u0938\u0932\u0940 \u091a\u0948\u0928\u0932 "
+            "\u0939\u094b\u0924\u093e \u0939\u0948!";
+        enable({"en", "gu", "hi", "mr"});
+        expectSpan("Hindi tail, CLD2, mr also enabled",  hindiTail, false, 0, 1, "hi", "0");
+        expectSpan("Hindi tail, CLD3, mr also enabled",  hindiTail, true,  0, 1, "mr", "0");
+        enable({"en", "gu", "hi"});
+        expectSpan("Hindi tail, CLD3, mr NOT enabled",   hindiTail, true,  0, 1, "hi", "0");
+        expectSpan("Hindi tail, CLD2, mr NOT enabled",   hindiTail, false, 0, 1, "hi", "0");
+    }
+
     if(failures == 0) printf("ALL CLD3 SPAN CASES PASS\n");
     else              printf("%d CASE(S) FAILED\n", failures);
     vm->DestroyJavaVM();
