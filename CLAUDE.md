@@ -109,6 +109,56 @@ The rotation test is the in-memory byte count rather than two `stat` calls, seed
 from the real `file.length()` when the writer opens, so it is never an
 underestimate and the file cannot grow past the cap unnoticed.
 
+## The sliders: a swipe moves 5, the buttons move 1 (owner request, 2026-09-02)
+*"TalkBack se slider ko badhate hain ghatate hain to 5% 5% nahin badh raha hai,
+aage piche ho jata hai"*, and *"increase decrease button se to ek-ek percent hi
+aage badhna chahie"*. Both fixed in `ValueSlider` (`VoiceScreen.kt`). Speed,
+Volume and Pitch are percentages -- 100 is the engine's own rate -- so one unit
+IS one percent, which is what makes "5%" and "one percent" the same vocabulary.
+
+**Why it drifted, read from the delegate rather than guessed.** Compose turns a
+screen-reader swipe into a value ITSELF, without asking the component:
+
+    var increment = if (rangeInfo.steps > 0) (max - min) / (rangeInfo.steps + 1)
+                    else (max - min) / AccessibilitySliderStepsCount   // = 20
+    return setProgressAction.action?.invoke(rangeInfo.current + increment)
+        -- AndroidComposeViewAccessibilityDelegateCompat, ACTION_SCROLL_FORWARD
+
+A continuous slider therefore moves by a **twentieth of its range**: 24.5 for
+Speed (10..500), 4.5 for Volume (10..100), 9.5 for Pitch (10..200). Not one is
+a whole number, and the value we keep is an `Int`, so `onValueChange`'s
+`toInt()` threw the half away every single time:
+
+    100 -> swipe up -> 124 -> swipe down -> 99
+
+That is the "aage piche" exactly -- up and back down does not return -- and it
+is why the step the owner heard alternated between four and five.
+
+**The fix is to answer the action ourselves**, with `setProgress` in the
+semantics block we already pass through `modifier`. **That block overrides the
+component's own, and here is why it does**: `LayoutNode.calculateSemantics-
+Configuration` walks `nodes.tailToHead(Nodes.Semantics)` writing every node into
+ONE shared config, so the modifier nearest the head -- the FIRST in the chain,
+which is ours, since Slider does `modifier.<...>.sliderSemantics(state, enabled)` --
+is written last and wins. (The older `collapsePeer` path agrees from the other
+end: it keeps the value already present, and ours is collapsed first.) Slider's
+own `progressBarRangeInfo` is deliberately left alone; the delegate needs it to
+offer the scroll actions at all.
+
+A swipe now steps to the next multiple of 5, so it is exactly 5 in both
+directions and always lands on the same grid whatever the buttons did in
+between. Verified over every value of all three sliders: every step is 5, and
+up-then-down returns. The buttons step by 1.
+
+**Setting `steps` on the Slider is the obvious alternative and is wrong twice**:
+`SliderState.value`'s setter snaps to the nearest tick, so it would quietly
+round away the single percent a button had just added, and the default track
+draws a tick mark per step -- 98 of them on Speed. Do not "simplify" to it.
+
+Voice Access asking for a specific value is still honoured exactly; the
+platform's increment is compared only to tell the two kinds of call apart, and
+nothing depends on it being any particular size.
+
 ## READ THESE BEFORE ANYTHING ELSE
 Four documents were written on 2026-08-26 so that a session does not have to
 reconstruct the same knowledge every time. They are short and they are the fastest
@@ -1339,7 +1389,8 @@ so the cost is the **widening**, and it grew only because the squeeze used to
 collapse the widened evidence into nothing. `onSynthesizeText` can never receive
 more than 4000 characters, so the real ceiling is the 20-paragraph row at
 **8.7 ms**; a typical screen-reader utterance is under a millisecond. CLD2 is
-untouched and still the faster switch. Full write-up: `docs/INVARIANTS.md` #25.
+untouched and still the faster switch. (The write-up that lived in
+`docs/INVARIANTS.md` #25 went with CLD3; this section is what is left of it.)
 
 **Do not raise `min_num_bytes`, do not route to CLD2, do not touch the enabled
 list** — all three were measured and rejected earlier and none of them was ever the
