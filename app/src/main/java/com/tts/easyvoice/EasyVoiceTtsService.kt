@@ -32,54 +32,44 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private val syncLock = Object()
     @Volatile private var isStopped = false
     @Volatile private var isFlushed = false
-    // ---- SYNTHESIS WATCHDOG -------------------------------------------------
+    // ---- WHO IS SPEAKING, so engine death can unblock the wait ---------------
     // onSynthesizeText ends by parking the SCREEN READER'S synthesis thread on
-    // syncLock until the utterance listener sets isStopped or isFlushed. That
-    // wait had no timeout, here and in AutoTTS alike (AutoTtsService:2165 is a
-    // bare this.o.wait()), so if the target engine accepts a speak() and then
-    // never calls back -- its process is killed mid-utterance, it is updated
-    // under us, or it simply drops the utterance -- the thread parks FOREVER.
-    // The screen reader has one synthesis thread, so from that moment the whole
-    // device stops speaking and only killing the engine brings it back. That is
-    // the "kabhi kabhar beech mein band ho jata hai" the owner reported.
+    // syncLock until the utterance listener sets isStopped or isFlushed. If the
+    // target engine accepts a speak() and then never calls back, that thread
+    // parks forever -- the screen reader has one synthesis thread, so from that
+    // moment the whole device stops speaking. AutoTtsService:2165 has the same
+    // bare o.wait() and the same defect.
     //
-    // DELIBERATE DEPARTURE, owner request 2026-09-02. Same class as the onStop
-    // change: AutoTTS has the defect too, and it costs a blind user their whole
-    // screen reader, so it is fixed rather than mirrored.
+    // THERE IS NO TIMEOUT HERE, AND THERE MUST NEVER BE ONE. A clock cannot tell
+    // "this engine is dead" from "this paragraph is long", so any number picked
+    // is a guess that either cuts off real speech or leaves the hang in place.
+    // Android already reports the real event.
     //
-    // The watchdog is deliberately NOT a plain timeout on the utterance -- a
-    // long paragraph legitimately takes tens of seconds to speak, and cutting
-    // that off would be a worse bug than the one being fixed. It fires only on
-    // BOTH of these together:
-    //   * no signal of any kind from the engine for WATCHDOG_QUIET_MS, where a
-    //     signal is speak() being accepted or any listener callback, and
-    //   * the engine itself reporting isSpeaking() == false.
-    // TextToSpeech.isSpeaking() answers true while an item is speaking OR still
-    // queued, so during real speech it cannot be false. Both conditions holding
-    // for ten seconds means the utterance is no longer inside the engine and no
-    // callback is coming. Note this is the opposite use to onStop, where
-    // isSpeaking() was REMOVED: a false "not speaking" there suppressed a stop,
-    // while here it only matters alongside ten seconds of total silence.
-    private val WATCHDOG_QUIET_MS = 10_000L
-    // How long an engine must go without needing a restore before its restore
-    // budget starts again. See restoreEngine.
-    private val RESTORE_STORM_WINDOW_MS = 60_000.0
-    @Volatile private var lastEngineSignalNanos = 0L
-    @Volatile private var watchdogTts: TextToSpeech? = null
-    private fun noteEngineSignal() { lastEngineSignalNanos = System.nanoTime() }
-    // Called only from the wait loop, never while syncLock is held: isSpeaking()
-    // is a binder call into another app, and the utterance listener takes
-    // syncLock from a binder thread.
-    private fun engineWentQuiet(): Boolean {
-        val since = lastEngineSignalNanos
-        if (since == 0L) return false
-        if ((System.nanoTime() - since) / 1_000_000L < WATCHDOG_QUIET_MS) return false
-        // No engine attached means this utterance never reached speak(), so
-        // there is nothing to abandon -- only a stale callback from the previous
-        // utterance can leave a timestamp in that state, and acting on it would
-        // cut off speech that was never the watchdog's business.
-        val engine = watchdogTts ?: return false
-        return try { !engine.isSpeaking } catch (_: Exception) { true }
+    // WHY AN EVENT IS ENOUGH -- read from AOSP, not assumed:
+    //   * TextToSpeechService dispatches onDone, onError or onStop for every
+    //     speech item it processes, and dispatchOnError(ERROR_SERVICE) even for
+    //     items it refuses. So a live engine ALWAYS calls back.
+    //   * The one path with no callback is the engine's process going away.
+    //     TextToSpeech's own Connection.onServiceDisconnected just sets
+    //     mService = null and tells the app nothing (dispatchOnInit(ERROR) fires
+    //     only if a connect was still in flight), which is exactly why this hung.
+    //   * But we hold our OWN binding to every engine -- bindEngineKeepAlive is
+    //     called for each one as the pool is built, not only in keep-alive mode
+    //     -- and Android calls onServiceDisconnected / onBindingDied on it the
+    //     moment that process dies. That is the missing signal, it is free, and
+    //     it arrives sooner than any timeout could have fired.
+    //
+    // speakingPkg names the engine currently holding the utterance, so the
+    // connection callback can tell "the engine I am waiting on died" from "some
+    // other engine in the pool died". Cleared when the utterance ends.
+    @Volatile private var speakingPkg: String? = null
+    // Called from a ServiceConnection callback on the main thread. Ends the
+    // utterance the dead engine was holding; does nothing for any other engine.
+    private fun onEngineProcessGone(pkg: String) {
+        if (speakingPkg != pkg) return
+        EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Engine holding this utterance died: " + pkg)
+        speakingPkg = null
+        synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
     }
     lateinit var appCtx: Context
     @Volatile var googleEngineIndex = -1
@@ -522,22 +512,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // AutoTTS's k0.h() is `k == 0 || (elapsed > 3000ms && k < 10)`, and
             // k0.i() only ever increments k -- NOTHING resets it. So after ten
             // restores an engine is unrecoverable for the whole life of the
-            // process, and this service is START_STICKY and can run for days.
-            // That is a second, slower road to the silence the owner reported:
-            // the engine dies an eleventh time and is simply never brought back.
+            // process, and this service is START_STICKY and can run for days:
+            // the engine dies an eleventh time and is never brought back. That is
+            // a second, slower road to the same silence.
             //
-            // DELIBERATE DEPARTURE, owner request 2026-09-02. The cap is kept --
-            // it is what stops a restart storm -- but it now counts restores per
-            // STORM rather than per process: an engine that has been healthy for
-            // a full minute starts again from zero. The 3-second rate limit is
-            // untouched, so ten restores still take at least thirty seconds and
-            // a genuinely broken engine is still throttled exactly as before.
-            val sinceLastRestoreMs = (System.nanoTime() - wrapper.lastRestoreTime) / 1000000.0
-            if (wrapper.restoreCount > 0 && sinceLastRestoreMs > RESTORE_STORM_WINDOW_MS) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -restore budget reset after " + sinceLastRestoreMs.toLong() + "ms healthy")
-                wrapper.restoreCount = 0
-            }
-            if (!(wrapper.restoreCount == 0 || (sinceLastRestoreMs > 3000.0 && wrapper.restoreCount < 10))) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -restore is not applicable!"); return }
+            // The counter is reset by an EVENT, not by a clock -- see onStart in
+            // the utterance listener, which zeroes it the moment the engine
+            // actually speaks. "It worked" is what ends a failure streak; how
+            // long ago it last failed says nothing on its own. The cap and the
+            // 3-second rate limit below are AutoTTS's own and are untouched.
+            if (!(wrapper.restoreCount == 0 || ((System.nanoTime() - wrapper.lastRestoreTime) / 1000000.0 > 3000.0 && wrapper.restoreCount < 10))) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -restore is not applicable!"); return }
             wrapper.lastRestoreTime = System.nanoTime(); wrapper.restoreCount++
             restoringIndex = idx
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + wrapper.pkg)
@@ -583,8 +567,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             intent.component = android.content.ComponentName(resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name)
             val conn = object : android.content.ServiceConnection {
                 override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-alive bound to " + name?.flattenToShortString()) }
-                override fun onServiceDisconnected(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine process died: " + name?.flattenToShortString()); restoreEngine(pkg) }
-                override fun onBindingDied(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) }
+                override fun onServiceDisconnected(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine process died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); restoreEngine(pkg) }
+                override fun onBindingDied(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) }
                 override fun onNullBinding(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Service returned null binding"); unbindEngineKeepAlive(pkg) }
             }
             val bound = try { bindService(intent, conn, android.content.Context.BIND_AUTO_CREATE or android.content.Context.BIND_IMPORTANT) } catch (_: Exception) { false }
@@ -1098,8 +1082,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         synchronized(syncLock) { isStopped = false; syncLock.notifyAll() }
         synchronized(syncLock) { isFlushed = false; syncLock.notifyAll() }
-        lastEngineSignalNanos = 0L
-        watchdogTts = null
+        speakingPkg = null
         val rawCharSeq = request?.charSequenceText ?: ""
         val rawText = rawCharSeq.toString()
         requestRate = (request?.speechRate ?: 100) / 100.0f
@@ -1526,12 +1509,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val chunkHandler = android.os.Handler(android.os.Looper.getMainLooper())
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String) {
-                    noteEngineSignal()
+                    // The engine really spoke, so its failure streak is over.
+                    // This is what replaces a "healthy for N seconds" clock in
+                    // restoreEngine: an event that means exactly "it worked".
+                    wrapper.restoreCount = 0
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
                     if (callback?.hasStarted() == false) { callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
                 }
                 override fun onDone(id: String) {
-                    noteEngineSignal()
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onDone " + id)
                     val next = synchronized(chunkQueue) { chunkQueue.firstOrNull()?.second }
                     if (next == null) { speakChunk(false); return }
@@ -1604,21 +1589,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     }
                 }
                 override fun onError(id: String) {
-                    noteEngineSignal()
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id)
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #8")
                     synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
                     if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
                 override fun onError(id: String, errorCode: Int) {
-                    noteEngineSignal()
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id + " code " + errorCode)
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #9")
                     synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
                     if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
                 override fun onStop(id: String, interrupted: Boolean) {
-                    noteEngineSignal()
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop " + id)
                 }
             })
@@ -1642,12 +1624,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             val speakRunnable = Runnable {
                 try {
-                    // The watchdog measures silence from here: the engine has
-                    // been handed the chunk, so the next thing owed to us is a
-                    // callback. Recorded BEFORE the result is checked, because a
-                    // rejected speak() unblocks the wait on its own below.
-                    watchdogTts = tts
-                    noteEngineSignal()
+                    // Whose death would strand this utterance. Set before the
+                    // call, so a process that dies during it is still matched.
+                    speakingPkg = pkg
                     val speakResult = tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)
                     if (speakResult != 0) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Speaking failed!!!")
@@ -1697,42 +1676,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (keepAliveInterrupted) break@keepAlive
             }
         } else {
-            // AutoTtsService:2165 is `while (!p && !q) o.wait();` -- unbounded.
-            // Ours wakes every WATCHDOG_QUIET_MS to ask whether the engine has
-            // gone silent AND stopped speaking; see the watchdog notes at the
-            // top of the class for why both conditions are required. The normal
-            // path is unchanged: notifyAll from the listener still wakes this
-            // immediately, so nothing waits for the timeout in the common case.
-            var abandoned = false
-            while (!isStopped && !isFlushed && !abandoned) {
-                var interrupted = false
-                synchronized(syncLock) {
-                    if (!isStopped && !isFlushed) {
-                        try { syncLock.wait(WATCHDOG_QUIET_MS) } catch (ex: InterruptedException) { interrupted = true }
-                    }
+            // Byte for byte AutoTtsService:2165. It is woken by the utterance
+            // listener, by onStop, or by onEngineProcessGone -- never by a clock.
+            synchronized(syncLock) {
+                while (!isStopped && !isFlushed) {
+                    try { syncLock.wait() } catch (ex: InterruptedException) { break }
                 }
-                if (interrupted) break
-                if (isStopped || isFlushed) break
-                // Outside the lock on purpose: isSpeaking() is a binder call
-                // into another app, and the utterance listener takes syncLock
-                // from a binder thread.
-                if (engineWentQuiet()) {
-                    EasyVoiceLogger.error(EasyVoiceLogger.TAG,
-                        "Engine went silent for " + WATCHDOG_QUIET_MS + "ms and is not speaking - abandoning utterance")
-                    abandoned = true
-                }
-            }
-            if (abandoned) {
-                // Free the engine that stopped answering, so the next utterance
-                // is not queued behind a chunk it will never finish, and restore
-                // it the same way a died-mid-speech engine is restored.
-                val stuck = watchdogTts
-                val stuckPkg = enginePool.firstOrNull { it.tts === stuck }?.pkg
-                try { stuck?.stop() } catch (_: Exception) {}
-                if (stuckPkg != null) restoreEngine(stuckPkg)
             }
         }
-        watchdogTts = null
+        speakingPkg = null
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onSynthesizeText ended")
         startAndFinish(callback)
     }

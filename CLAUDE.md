@@ -1026,57 +1026,60 @@ stays on. It is called from **both** load paths -- `LangStore.loadFlags` and the
 service's `loadAllSettings`, which reads through `SharedPrefsManager` and does not
 go through `loadFlags` -- and the marker makes the second call a no-op.
 
-### 2. The synthesis wait has a watchdog -- this is the "TTS band ho jata hai" bug
-Owner: *"kabhi kabhar beech mein vah band ho jata hai … vah stop na ho jaye, vah
-complete kaam kare."*
+### 2. Engine death unblocks the wait -- BY EVENT, never by a clock
+Owner: *"kabhi kabhar beech mein vah band ho jata hai … vah stop na ho jaye."*
 
 `onSynthesizeText` ends by parking **the screen reader's synthesis thread** on
-`syncLock` until the utterance listener sets `isStopped` or `isFlushed`. That wait
-had no timeout, here and in AutoTTS alike -- `AutoTtsService:2165` is a bare
-`while (!p.get() && !q.get()) o.wait();`. So if a target engine accepts a
-`speak()` and then never calls back -- its process is killed mid-utterance, it is
-updated underneath us, or it drops the utterance -- **the thread parks forever**.
-The screen reader has one synthesis thread, so from that moment the whole device
-stops speaking and only killing the engine brings it back. Exactly the reported
-symptom.
+`syncLock` until the utterance listener sets `isStopped` or `isFlushed`.
+`AutoTtsService:2165` is a bare `while (!p.get() && !q.get()) o.wait();` and ours
+was the same. If a target engine accepts a `speak()` and then never calls back,
+that thread parks forever -- the screen reader has one synthesis thread, so from
+that moment the whole device stops speaking and only killing the engine brings it
+back.
 
-**It is NOT a plain timeout on the utterance.** A long paragraph legitimately
-takes tens of seconds and cutting that off would be worse than the bug. The
-watchdog fires only when BOTH hold:
-- no signal from the engine for **10 s** -- a signal being `speak()` accepted or
-  any listener callback (`onStart`/`onDone`/`onError`/`onStop`), and
-- the engine itself answering `isSpeaking() == false`.
+**THERE IS NO TIMEOUT, AND THERE MUST NEVER BE ONE.** A first attempt used a
+10-second quiet watchdog and the owner rejected it outright, correctly:
+*"koi timeout kuchh nahin rakhna hai … koi second nahin, koi millisecond bhi
+nahin … yah to jugaad kar diya."* A clock cannot tell "this engine is dead" from
+"this paragraph is long", so any number is a guess that either cuts off real
+speech or leaves the hang in place. **If a future session is tempted to add a
+timeout here, that is the wrong shape; read the next paragraph instead.**
 
-`TextToSpeech.isSpeaking()` is true while an item is speaking **or still queued**,
-so during real speech it cannot be false; both conditions together for ten seconds
-mean the utterance is no longer inside the engine and no callback is coming.
-**Note this is the opposite use to `onStop`, where `isSpeaking()` was removed:**
-there a false "not speaking" suppressed a stop outright, while here it only counts
-alongside ten seconds of total silence.
+**Why an event is sufficient -- read from AOSP, not assumed:**
+- `TextToSpeechService` dispatches `onDone`, `onError` or `onStop` for **every**
+  speech item it processes, and `dispatchOnError(ERROR_SERVICE)` even for items it
+  refuses. A live engine always calls back, so silence is never "still working".
+- The one path with no callback is the engine's **process going away**.
+  `TextToSpeech.Connection.onServiceDisconnected` merely sets `mService = null`
+  and tells the app nothing -- its `dispatchOnInit(ERROR)` fires only when a
+  connect was still in flight -- which is exactly why this hung.
+- But **we hold our own binding to every engine already**: `bindEngineKeepAlive`
+  is called for each one as the pool is built, not only in keep-alive mode. Android
+  calls `onServiceDisconnected` / `onBindingDied` on it the moment that process
+  dies. The signal was already arriving; nothing was listening.
 
-Two implementation points that are load-bearing:
-- **the `isSpeaking()` call is made OUTSIDE `syncLock`.** It is a binder call into
-  another app and the utterance listener takes `syncLock` from a binder thread.
-- **`watchdogTts == null` means "not armed" and returns false**, never true. Only
-  a stale callback from the previous utterance can leave a timestamp in that
-  state, and acting on it would cut off speech the watchdog has no business in.
+So `speakingPkg` names the engine currently holding the utterance, set at the
+`speak()` site, and `onEngineProcessGone(pkg)` -- called from both connection
+callbacks -- ends the wait only when the dead engine is that one. It costs a field
+write and a string compare, adds **no latency of any kind**, and fires sooner than
+any timeout could have.
 
-On firing it stops the stuck engine and runs `restoreEngine(pkg)`, the same path a
-died-mid-speech engine takes, so the next utterance is not queued behind a chunk
-that will never finish.
-
-### 3. The restore budget decays -- the second road to permanent silence
+### 3. The restore streak is ended by an EVENT too
 `k0.h()` is `k == 0 || (elapsed > 3000ms && k < 10)` and `k0.i()` only ever
-increments `k`; **nothing in AutoTTS resets it.** So after ten restores an engine
-is unrecoverable for the whole life of the process -- and this service is
-`START_STICKY` and can run for days. The engine dies an eleventh time and is
-simply never brought back.
+increments `k`; **nothing in AutoTTS resets it.** After ten restores an engine is
+unrecoverable for the life of the process -- and this service is `START_STICKY`
+and can run for days. It dies an eleventh time and is never brought back.
 
-The cap is **kept** (it is what stops a restart storm) but now counts restores per
-**storm** rather than per process: an engine healthy for a full minute
-(`RESTORE_STORM_WINDOW_MS`) starts again from zero. The 3-second rate limit is
-untouched, so ten restores still take at least thirty seconds and a genuinely
-broken engine is throttled exactly as before.
+The first attempt reset the counter after a minute of health. That is the same
+jugaad in a smaller costume, so it is gone. **`onStart` zeroes
+`wrapper.restoreCount`** instead: the engine actually spoke, which is what ends a
+failure streak. How long ago it last failed says nothing on its own. AutoTTS's cap
+and its 3-second rate limit are untouched.
+
+**The only two time values left in the service are AutoTTS's own** -- that 3000 ms
+rate limit, and the `wait(100)` inside the keep-alive loop (`k0`/`t0`), which runs
+only when keep-alive is switched on. There is no constant of ours anywhere on the
+speaking path.
 
 **None of the owner's logs contains any of these three failures** -- zero
 `restoreTts`, zero `Engine process died`, zero `onDestroy` across all seven logs
