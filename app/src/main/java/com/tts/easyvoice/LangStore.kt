@@ -326,14 +326,49 @@ object LangStore {
         loadMode(ctx)
         loadFlags(ctx)
     }
+    // "Disable advanced language detection" must arrive OFF (owner, 2026-09-02:
+    // "already by default off hona chahie, hamare mein on rahata hai").
+    //
+    // This is a DELIBERATE DEPARTURE. AutoTTS's own default is ON --
+    // c3/n.java: getBoolean("disable_advanced_detection", true) -- so this is
+    // not a parity bug being corrected, it is the owner overriding AutoTTS.
+    // Do not "restore" it to true.
+    //
+    // What the flag actually gates, read from the native window detector: with
+    // it ON, detectLanguageFull takes the detector's first reliable answer and
+    // stops -- no check that the language is one the user enabled, and no
+    // script-family fallback. With it OFF, the answer must be in the enabled
+    // set, and if it is not, a.e(cp, n.f) resolves the window by its script
+    // instead. So ON is the CRUDER path, and it can route a span to a language
+    // the user never ticked.
+    //
+    // CHANGING THE DEFAULT ALONE WOULD DO NOTHING ON AN EXISTING INSTALL.
+    // persistAll writes this key on every onPause, so any device that has ever
+    // opened the app already has "true" stored and a new default is never
+    // consulted. Hence the one-time migration: it flips the stored value once,
+    // records that it has done so, and never touches the key again -- so the
+    // owner can still switch it back on afterwards and it stays on.
+    private const val ADVANCED_DEFAULT_MIGRATED = "disable_advanced_detection_default_off_applied"
+
+    @JvmStatic
+    fun applyAdvancedDetectionDefault(ctx: Context) {
+        val sharedPrefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
+        if (sharedPrefs.getBoolean(ADVANCED_DEFAULT_MIGRATED, false)) return
+        sharedPrefs.edit()
+            .putBoolean("disable_advanced_detection", false)
+            .putBoolean(ADVANCED_DEFAULT_MIGRATED, true)
+            .apply()
+    }
+
     @JvmStatic
     fun loadFlags(ctx: Context) {
+        applyAdvancedDetectionDefault(ctx)
         val sharedPrefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
         EasyVoiceTtsService.stripAudioAttrFlag = sharedPrefs.getBoolean("strip_audio_attr", false)
         EasyVoiceTtsService.forceAccessibilityFlag = sharedPrefs.getBoolean("force_accessibility_stream", false)
         EasyVoiceTtsService.keepAliveFlag = sharedPrefs.getBoolean("keep_alive_mode", false)
         EasyVoiceTtsService.showNotificationFlag = sharedPrefs.getBoolean("show_notification", false)
-        EasyVoiceTtsService.disableAdvancedFlag = sharedPrefs.getBoolean("disable_advanced_detection", true)
+        EasyVoiceTtsService.disableAdvancedFlag = sharedPrefs.getBoolean("disable_advanced_detection", false)
         EasyVoiceTtsService.quickCharacterFlag = sharedPrefs.getBoolean("quick_character_reading", false)
         EasyVoiceTtsService.useCld3Flag = sharedPrefs.getBoolean("use_cld3", false)
         EasyVoiceTtsService.punctuationInFlowFlag = sharedPrefs.getBoolean("punctuation_with_sentence", true)

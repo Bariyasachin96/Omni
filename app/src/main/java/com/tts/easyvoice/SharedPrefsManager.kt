@@ -56,7 +56,10 @@ class SharedPrefsManager(context: Context) {
     fun getNumberSpecificLang(): String = prefs.getString("number_specific_language", "") ?: ""
     fun isShowNotification(): Boolean = prefs.getBoolean("show_notification", false)
     fun isLocaleSpansEnabled(): Boolean = prefs.getBoolean("locale_spans", false)
-    fun isDisableAdvancedDetection(): Boolean = prefs.getBoolean("disable_advanced_detection", true)
+    // Owner override, 2026-09-02: this arrives OFF, where AutoTTS ships it ON.
+    // See LangStore.applyAdvancedDetectionDefault for why, and for the one-time
+    // migration that existing installs need on top of the default.
+    fun isDisableAdvancedDetection(): Boolean = prefs.getBoolean("disable_advanced_detection", false)
     fun isKeepAliveMode(): Boolean = prefs.getBoolean("keep_alive_mode", false)
     fun isQuickCharacterReading(): Boolean = prefs.getBoolean("quick_character_reading", false)
     fun isPunctuationWithSentence(): Boolean = prefs.getBoolean("punctuation_with_sentence", true)

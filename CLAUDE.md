@@ -941,6 +941,91 @@ sets x 1,114,112 code points.
 **CLD2 is still the faster switch** (1.1 ms vs 6.6 ms per 30 paragraphs) and is untouched by
 all of this.
 
+## Three owner overrides on 2026-09-02, all DELIBERATE DEPARTURES from AutoTTS
+Asked for directly. Do not "restore" any of them to AutoTTS's behaviour.
+
+### 1. "Disable advanced language detection" now arrives OFF
+Owner: *"already by default off hona chahie, hamare mein on rahata hai."*
+AutoTTS ships it **ON** -- `c3/n.java:636` is
+`getBoolean("disable_advanced_detection", true)` -- so this is an override, not a
+parity bug being corrected.
+
+**What the flag gates, read from the native window detector rather than the name.**
+With it ON, `detectLanguageFull` takes the detector's first reliable answer and
+stops: no check that the language is one the user enabled, and no script-family
+fallback. With it OFF, the answer must be in the enabled set, and if it is not,
+`a.e(cp, n.f)` resolves the window by its script instead. **ON is the cruder
+path** and can route a span to a language the user never ticked.
+
+**Changing the default alone does nothing on an existing install**, and that is
+the part worth remembering: `persistAll` writes this key on every `onPause`, so
+any device that has opened the app already has `true` stored and never consults a
+default again. Hence `LangStore.applyAdvancedDetectionDefault`, a one-time
+migration behind its own marker key
+(`disable_advanced_detection_default_off_applied`). It flips the stored value
+once and never touches it again, so the owner can still switch it back on and it
+stays on. It is called from **both** load paths -- `LangStore.loadFlags` and the
+service's `loadAllSettings`, which reads through `SharedPrefsManager` and does not
+go through `loadFlags` -- and the marker makes the second call a no-op.
+
+### 2. The synthesis wait has a watchdog -- this is the "TTS band ho jata hai" bug
+Owner: *"kabhi kabhar beech mein vah band ho jata hai … vah stop na ho jaye, vah
+complete kaam kare."*
+
+`onSynthesizeText` ends by parking **the screen reader's synthesis thread** on
+`syncLock` until the utterance listener sets `isStopped` or `isFlushed`. That wait
+had no timeout, here and in AutoTTS alike -- `AutoTtsService:2165` is a bare
+`while (!p.get() && !q.get()) o.wait();`. So if a target engine accepts a
+`speak()` and then never calls back -- its process is killed mid-utterance, it is
+updated underneath us, or it drops the utterance -- **the thread parks forever**.
+The screen reader has one synthesis thread, so from that moment the whole device
+stops speaking and only killing the engine brings it back. Exactly the reported
+symptom.
+
+**It is NOT a plain timeout on the utterance.** A long paragraph legitimately
+takes tens of seconds and cutting that off would be worse than the bug. The
+watchdog fires only when BOTH hold:
+- no signal from the engine for **10 s** -- a signal being `speak()` accepted or
+  any listener callback (`onStart`/`onDone`/`onError`/`onStop`), and
+- the engine itself answering `isSpeaking() == false`.
+
+`TextToSpeech.isSpeaking()` is true while an item is speaking **or still queued**,
+so during real speech it cannot be false; both conditions together for ten seconds
+mean the utterance is no longer inside the engine and no callback is coming.
+**Note this is the opposite use to `onStop`, where `isSpeaking()` was removed:**
+there a false "not speaking" suppressed a stop outright, while here it only counts
+alongside ten seconds of total silence.
+
+Two implementation points that are load-bearing:
+- **the `isSpeaking()` call is made OUTSIDE `syncLock`.** It is a binder call into
+  another app and the utterance listener takes `syncLock` from a binder thread.
+- **`watchdogTts == null` means "not armed" and returns false**, never true. Only
+  a stale callback from the previous utterance can leave a timestamp in that
+  state, and acting on it would cut off speech the watchdog has no business in.
+
+On firing it stops the stuck engine and runs `restoreEngine(pkg)`, the same path a
+died-mid-speech engine takes, so the next utterance is not queued behind a chunk
+that will never finish.
+
+### 3. The restore budget decays -- the second road to permanent silence
+`k0.h()` is `k == 0 || (elapsed > 3000ms && k < 10)` and `k0.i()` only ever
+increments `k`; **nothing in AutoTTS resets it.** So after ten restores an engine
+is unrecoverable for the whole life of the process -- and this service is
+`START_STICKY` and can run for days. The engine dies an eleventh time and is
+simply never brought back.
+
+The cap is **kept** (it is what stops a restart storm) but now counts restores per
+**storm** rather than per process: an engine healthy for a full minute
+(`RESTORE_STORM_WINDOW_MS`) starts again from zero. The 3-second rate limit is
+untouched, so ten restores still take at least thirty seconds and a genuinely
+broken engine is throttled exactly as before.
+
+**None of the owner's logs contains any of these three failures** -- zero
+`restoreTts`, zero `Engine process died`, zero `onDestroy` across all seven logs
+sent so far. They were found by reading the wait and the restore guard, not from a
+log, which is why the watchdog is written to be impossible to trigger during
+healthy speech rather than tuned against a trace.
+
 ## The SECOND CLD3 report: it was never the model, it was the squeeze (2026-09-02)
 The owner sent a fresh log and said the problem was still there — *"kuchh chijon ke
 liye to fix hua hai but kis chij ke liye abhi bhi fix nahin hua hai … Usi direction
