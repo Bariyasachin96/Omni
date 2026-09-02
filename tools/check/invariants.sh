@@ -62,6 +62,32 @@ stray=$(awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' $SERVICE |
 [ -z "$stray" ] && ok "#4  synthesis path reads statics only" \
                 || bad "#4  runtime preference read on the synthesis path: $stray"
 
+# --- 4b. the SETTINGS UI reads and writes the statics, never the preferences --
+# The other half of #4, and the owner asked for it in so many words on
+# 2026-09-02: "sab kuchh static rakho ... static wala bahut andar hi andar apply
+# ho jata hai". It is AutoTTS's own design: c3.k writes AutoTtsService's fields
+# directly and c3.n.v() persists them later, at onPause.
+#
+# Why it matters, from the bug that produced the rule: preferences hold what was
+# last PERSISTED, the statics hold what the user has just CHOSEN, and the two
+# only converge when persistAll runs. A screen that reads a flag back out of
+# preferences therefore shows the value from before the current edit, and the
+# service keeps speaking with the one the user has already changed.
+#
+# getReadingMode/setReadingMode are NOT preference accessors despite living on
+# SharedPrefsManager -- they read and write EasyVoiceTtsService.modeInt -- so
+# they are not listed. isLoggingEnabled is the one eager-persist flag (AutoTTS's
+# c3.p does the same) and is seeded from MainActivity on purpose.
+settings_readers='isStripAudioAttr|isForceAccessibilityStream|getPuncModeLang|getEmojiModeLang|getNumberModeLang|getPuncSpecificLang|getEmojiSpecificLang|getNumberSpecificLang|isShowNotification|isLocaleSpansEnabled|isDisableAdvancedDetection|isKeepAliveMode|isQuickCharacterReading|isPunctuationWithSentence|isSmartNumberReading|getSmartNumberGroupSize'
+uiread=$(for f in $KT/*.kt; do
+           case "$f" in
+             */EasyVoiceTtsService.kt|*/SharedPrefsManager.kt) continue ;;
+           esac
+           sed 's://.*::' "$f" | grep -qE "prefs\.($settings_readers)\(" && echo "$f"
+         done)
+[ -z "$uiread" ] && ok "#4b settings live in statics -- no screen reads them from preferences" \
+                 || bad "#4b a screen reads a setting from preferences instead of the static:$uiread"
+
 # --- 5. announceForAccessibility is banned --------------------------------
 n=$(grep -rc "announceForAccessibility" $KT | awk -F: '{s+=$2} END{print s+0}')
 [ "$n" = 0 ] && ok "#5  no announceForAccessibility" \

@@ -619,7 +619,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadLanguage " + langCode + " " + countryCode + " " + variantName)
             val result = onIsLanguageAvailable(langCode, countryCode, variantName)
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " isLanguageAvailable = " + result)
-            if ((result == TextToSpeech.LANG_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE) && !langCode.isNullOrEmpty() && ::prefs.isInitialized) {
+            // There used to be a `&& ::prefs.isInitialized` here. It was ours, not
+            // AutoTTS's, and it could only ever do harm: if it had been false this
+            // method would have reported the language available and loaded no voice
+            // at all, silently. It also cannot be false. AOSP's own
+            // TextToSpeechService.onCreate ENDS with
+            //     onLoadLanguage(defaultLocale[0], defaultLocale[1], defaultLocale[2]);
+            // so the earliest possible call is our own `super.onCreate()`, six lines
+            // after `prefs` is assigned, and no binder call can arrive before
+            // onCreate returns. AutoTTS's onCreate has the same shape -- logger,
+            // version log, super.onCreate(), and only then e0()/n.o()/n.q().
+            if ((result == TextToSpeech.LANG_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE) && !langCode.isNullOrEmpty()) {
                 val lang = prefs.toIso3(langCode.lowercase())
                 val variantOrEmpty = variantName ?: ""
                 val autoIso3 = prefs.toIso3(autoLang)
@@ -1107,7 +1117,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
             chunkQueue.clear()
             if (engineIndex >= 0 && engineIndex < enginePool.size) {
                 val wrapper = enginePool[engineIndex]
-                if (wrapper.state == 2 && wrapper.listenerSet && wrapper.tts?.isSpeaking == true) {
+                // DELIBERATE DEPARTURE FROM AutoTTS -- the SAME one onStop carries,
+                // finished here on 2026-09-02 because it was left half-done.
+                //
+                // q0(FALSE) at AutoTtsService:1886 gates this flush on
+                //     ... && f.get(d).g().isSpeaking()
+                // and that is the identical race described at onStop: isSpeaking()
+                // is a binder query into another app's engine and answers FALSE in
+                // the window between our speak() and that engine really starting.
+                // This is the path a screen reader takes when it interrupts with an
+                // EMPTY utterance, which is how TalkBack flushes -- so landing in
+                // the window meant the flush never happened and the previous phrase
+                // carried on. Same defect, same evidence, same fix.
+                //
+                // speak("", QUEUE_FLUSH, null, null) on an idle engine is harmless:
+                // it flushes an empty queue, and the null utterance id means AOSP
+                // dispatches no callback for it (dispatchOnSuccess only fires when
+                // the id is non-null). So asking unconditionally costs one binder
+                // call and closes the race.
+                if (wrapper.state == 2 && wrapper.listenerSet) {
                     try {
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling speak empty for " + wrapper.pkg)
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onSynthesizeText: " + utteranceId + " ''")
@@ -1821,6 +1849,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @Volatile @JvmField var engineList: ArrayList<String> = ArrayList()
         @Volatile @JvmField var voiceList: ArrayList<String> = ArrayList()
         @JvmField var dedicatedEnginesFlag = false
+        // AutoTtsService's static `m0` (declared at :114, zeroed at :169), which
+        // onLoadVoice assigns and NOTHING in the app ever reads -- do not confuse
+        // it with the method `m0(String)` at :1503, which is a different member
+        // with the same letter. Written here for the same reason: it is dead in
+        // AutoTTS, so it stays dead here rather than being deleted or given a
+        // reader we invented.
         @JvmField var lastLoadedVoiceName = ""
         @JvmField var chunkCounter = 0
         @Volatile @JvmField var utteranceId = ""

@@ -109,6 +109,92 @@ The rotation test is the in-memory byte count rather than two `stat` calls, seed
 from the real `file.length()` when the writer opens, so it is never an
 underestimate and the file cannot grow past the cap unnoticed.
 
+## The half-done sweep, and the AOSP TTS class read end to end (owner request, 2026-09-02)
+*"jo bhi function mein jo bhi jagah per aadha adhura lagta hai … completely fix
+karo"*, *"sab kuchh static rakho … preferences wala sahi nahin rahta"*, and
+*"TTS wala jo class hai … properly uske bare mein sab kuchh nikalo"*. Three
+findings, all fixed; the rest of the sweep is recorded so it is not redone.
+
+### 1. The empty-text flush still had the `isSpeaking()` race — FINISHED
+The `onStop` fix of earlier the same day dropped
+`f.get(i3).g().isSpeaking()` from the stop path, and the note here said the
+**other** `stopAllTts` site was *"left alone deliberately"* because it was a
+different trigger. That was the half-done thing.
+
+`q0(FALSE)` at `AutoTtsService:1886` carries the identical guard on the identical
+race: `isSpeaking()` is a binder query into another app's engine and answers
+FALSE in the window between our `speak()` and that engine really starting. And
+this is the path a screen reader takes when it interrupts with an **empty
+utterance**, which is how TalkBack flushes — so landing in the window meant the
+flush never happened and the previous phrase carried on. Same defect, same
+evidence, same fix, and it is a **DELIBERATE DEPARTURE** on the same footing.
+`speak("", QUEUE_FLUSH, null, null)` on an idle engine is harmless: it flushes an
+empty queue, and the null utterance id means AOSP dispatches no callback for it.
+
+### 2. A guard of ours that could only ever do harm — REMOVED
+`onLoadLanguage` tested `&& ::prefs.isInitialized`. AutoTTS's `d0` has nothing of
+the sort, and had it ever been false this method would have reported the language
+**available** and loaded **no voice at all**, silently. It also cannot be false:
+AOSP's own `TextToSpeechService.onCreate` **ends** with
+
+    onLoadLanguage(defaultLocale[0], defaultLocale[1], defaultLocale[2]);
+
+so the earliest possible call is our own `super.onCreate()`, six lines after
+`prefs` is assigned, and no binder call can arrive before `onCreate` returns.
+AutoTTS's `onCreate` has the same shape — logger, version log, `super.onCreate()`,
+and only then `e0()` / `n.o()` / `n.q()` — so at that first call BOTH apps see an
+empty language list and answer LANG_NOT_SUPPORTED. Parity, not luck.
+
+### 3. Statics: already complete, and now ENFORCED rather than asserted
+Every settings flag is read from preferences exactly **once**, in the service's
+`loadAllSettings`, and every Advanced/Modes/Voices control reads and writes
+`EasyVoiceTtsService.<flag>` directly. `getReadingMode`/`setReadingMode` look
+like preference accessors and are not — they read and write
+`EasyVoiceTtsService.modeInt`. So the answer to *"sab kuchh static rakho"* is
+that it already is; what was missing was anything stopping it from drifting back.
+**`invariants.sh` #4b** now fails the build if any screen calls one of the
+sixteen settings accessors, negative-tested in `selftest.sh`. Written up as
+`docs/INVARIANTS.md` #4b.
+
+### What the AOSP read produced, so it is not redone
+`TextToSpeechService.java` and `TextToSpeech.java` were read against our service
+method by method. **The override surface matches AutoTTS exactly**: fourteen
+overrides including `onTaskRemoved` (both just call super) and all five
+`UtteranceProgressListener` members including the API-21 `onError(id, code)` and
+`onStop(id, interrupted)`; `onGetFeaturesForLanguage` is overridden by neither.
+`onStartCommand` returns 1 = START_STICKY in both.
+
+Four contracts checked and clean, so **do not re-audit**:
+- *"the engine must NOT hold on to the callback or call any methods on it after
+  the method returns"* — `callback` is a **parameter** captured by the listener
+  closure, never a field, and `onSynthesizeText` is still parked on `syncLock`
+  while those callbacks run. A late callback after the wait is released is
+  AutoTTS's shape too, and AOSP's `PlaybackSynthesisCallback` answers `ERROR` and
+  does nothing once stopped.
+- *"return values HAVE to be consistent with onLoadLanguage"* —
+  `onLoadLanguage` literally returns `onIsLanguageAvailable`'s result.
+- **the wait cannot be orphaned by service death**: `SynthHandler.quit()` calls
+  `current.stop()` → `stopImpl()` → `synthesisCallback.stop()` **and**
+  `TextToSpeechService.this.onStop()`, so `onDestroy` releases it. Our
+  `super.onDestroy()` is last, as AutoTTS's is.
+- **`d0`'s `variant.contains("autotts.") && n3 == 2` branch is dead**, like the
+  `n3 == 1` / `n3 == 2` blocks already recorded: `onIsLanguageAvailable` answers
+  only 0 or −2.
+
+Two more pieces of AutoTTS dead code confirmed and left dead on purpose:
+`AutoTtsService`'s static field **`m0`** (assigned by `onLoadVoice`, read
+nowhere — not to be confused with the *method* `m0(String)` at :1503) is our
+`lastLoadedVoiceName`, now carrying that explanation; and `k0.h` is
+`wrapper.audioAttrSet`, one-shot per engine under `if (!Y || h) break`, which is
+byte for byte our `if (isForceAccessibility && !wrapper.audioAttrSet)`.
+
+**Mechanical sweeps that came back empty**, so there is nothing else of this kind
+to find: no `TODO`/`FIXME`/"for now"/"not implemented" anywhere in the app
+sources; every Kotlin declaration is referenced (the only apparent orphans are
+framework overrides); every `static` in the native core is called; and the single
+`(void)` cast is `disableAdvancedDetection` in `buildMixChunks`, inert by design
+and verified at the line.
+
 ## The sliders: a swipe moves 5, the buttons move 1 (owner request, 2026-09-02)
 *"TalkBack se slider ko badhate hain ghatate hain to 5% 5% nahin badh raha hai,
 aage piche ho jata hai"*, and *"increase decrease button se to ek-ek percent hi

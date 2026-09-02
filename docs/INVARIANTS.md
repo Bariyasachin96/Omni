@@ -139,6 +139,31 @@ scanned languages per utterance, and the Test path reading a locale back with
 
 ---
 
+## 4b. The settings UI reads and writes the statics, never the preferences
+
+**Rule.** No screen may call a settings accessor on `SharedPrefsManager`
+(`isKeepAliveMode`, `isDisableAdvancedDetection`, `getSmartNumberGroupSize`, and
+the thirteen others). It reads `EasyVoiceTtsService.<flag>` and writes it back.
+`getReadingMode` / `setReadingMode` are exempt because, despite living on
+`SharedPrefsManager`, they read and write `EasyVoiceTtsService.modeInt` and
+touch no preference at all. `isLoggingEnabled` is exempt because it is the one
+flag AutoTTS persists eagerly (`c3.p`), and `MainActivity` seeds the logger from
+it on purpose.
+
+**Why.** This is #4 seen from the other end, and it is AutoTTS's own design:
+`c3.k` assigns `AutoTtsService`'s fields directly and `c3.n.v()` persists them
+later, at `onPause`. Preferences hold what was last **persisted**; the statics
+hold what the user has just **chosen**; the two converge only when `persistAll`
+runs. A screen that reads a flag back out of preferences therefore shows the
+value from before the current edit while the service is already speaking with
+the new one — the "the UI says X but it speaks Y" bug class recorded in #4.
+
+The owner asked for it in these words on 2026-09-02: *"sab kuchh static rakho …
+static wala bahut andar hi andar apply ho jata hai"*.
+
+**Check.** `tools/check/invariants.sh` #4b, negative-tested in `selftest.sh` by
+making `AdvancedScreen` read `prefs.isKeepAliveMode()`.
+
 ## 5. `announceForAccessibility` is banned
 
 **Rule.** Never call `View.announceForAccessibility` or dispatch a
