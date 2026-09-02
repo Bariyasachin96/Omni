@@ -1309,6 +1309,91 @@ sequence, **and three neighbours from the same log that both detectors get right
 are what stops a future "fix" from routing every short Devanagari span to Hindi and
 declaring the problem solved.
 
+## The two shipped CLD3 fixes were RE-TESTED under suspicion, and three more ideas died (2026-09-02)
+The owner suspected the fix itself: *"jo fix kiya hai vah valid nahin hai … shayad
+aapne galat fix kar diya hai … jahan se fix kiya hai vahan se aap hata dena."* That
+is a fair challenge and it was answered by measurement, not by argument. **A 25-item
+corpus** — the owner's own Hindi labels from the device logs plus Marathi labels of
+the same kinds — was run at the REAL span site with the core in three states:
+
+| core state | CLD3 wrong |
+|---|---|
+| both fixes removed | **6** of 24 |
+| widening + squeeze gate (shipped) | **5** of 24 |
+
+**So the shipped fixes are not wrong.** They fix one case (the 130-byte repeated
+sentence, which the squeeze was mutilating) and break nothing. They stay. What they
+are is **insufficient**, which is a different thing and is what the owner is feeling.
+
+**Three further ideas were then implemented and measured, and ALL THREE MADE IT
+WORSE. Do not try them again; the numbers are here so nobody has to.**
+
+**1. Decline below CLD3's own minimum and let the user's preference decide.**
+The most promising idea by far, because it needs no invented number (CLD3's own
+`kMinNumBytesToConsider = 140`) and no invented fallback: `IsoCodes.toIso3("un")` is
+null, so `languageForDetectedRun` already falls to `run.latin ? P : Q`, the user's
+own **"Preferred language for Latin / non-Latin text"**. A Hindi reader has set that
+to Hindi and a Marathi reader to Marathi, so each would be answered in their own
+language exactly where the model cannot tell them apart. Measured what each reader
+actually HEARS, sweeping the threshold:
+
+| decline below | Hindi reader | Marathi reader | both |
+|---|---|---|---|
+| 0 (today) | **76%** | **76%** | **76%** |
+| 20 | 80% | 72% | 76% |
+| 40 | 72% | 64% | 68% |
+| 80 | 64% | 48% | 56% |
+| 140 | 64% | 44% | 54% |
+
+**Today's behaviour is the best row.** The user's stated preference is a weaker prior
+than even a coin-toss detector, because it is right only for the language they read
+most and wrong for every other one they enabled. Reverted.
+
+**2. Pad short text by repeating it until it reaches CLD3's minimum.** It looked
+right — one earlier probe showed a 56-byte tail answered correctly when doubled, and
+with the squeeze gate in place the repetition now survives to the network. Measured
+over the same corpus:
+
+| pad to | Hindi | Marathi | combined |
+|---|---|---|---|
+| no padding | 67% | 80% | **72%** |
+| 140 bytes | 53% | 60% | 56% |
+| 300 bytes | 53% | 60% | 56% |
+| 700 bytes | 47% | 60% | 52% |
+
+That one doubling was luck, not an effect. Reverted.
+
+**3. Constrain the answer to the enabled languages OF THAT SCRIPT**, using the full
+109-language softmax we already reach through `#define private public`. Not even
+implemented, because the distribution settles it: for `नई चैट` the enabled Devanagari
+languages are {hi, mr} and the model gives **mr 0.9640, hi 0.0015**; for the real
+Marathi `नवीन चॅट` it answers **hi**. The ordering itself is wrong, so constraining
+the choice cannot help.
+
+**WHY NONE OF THIS CAN WORK, in one measurement.** Twelve real Hindi and Marathi
+sentences were cut to rising byte prefixes and put through `FindLanguage`:
+
+| bytes | Hindi right | Marathi right | combined |
+|---|---|---|---|
+| ≤20 | 33% | 67% | **50%** |
+| ≤40 | 50% | 50% | **50%** |
+| ≤60 | 50% | 83% | **67%** |
+| ≤80 | 83% | 100% | **92%** |
+| ≥100 | 100% | 100% | **100%** |
+
+**Below about 80 bytes CLD3 is a coin toss between the two, in both directions.**
+Above 100 it is perfect. There is no threshold, no re-rank, no fallback and no
+padding that turns a coin toss into an answer — every one of those only decides
+*which* way to be wrong. **CLD2 scores 24 of 25 on the same corpus at every length**,
+because n-gram tables degrade gracefully on short text and a neural net does not.
+
+**So the honest position, and it should be stated plainly rather than worked around:
+CLD3 cannot read short Devanagari, and no code in this app can make it.** What the
+app can do is what it already does — let the owner choose the detector. For UI labels
+and button names, which is what a screen reader mostly speaks, **CLD2 is the correct
+switch, and it is also five times faster**. CLD3 earns its place on long text, where
+it is 100% and where a neural detector genuinely beats n-grams.
+
 ## The verify harnesses could pass on a STALE binary (found and fixed 2026-09-02)
 `tools/verify/cld3span/run.sh` and `tools/verify/latency/run.sh` compile through a
 `compile()` helper that ends in `echo "$obj"`, so the function returned **0 however
