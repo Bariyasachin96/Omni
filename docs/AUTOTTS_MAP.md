@@ -75,8 +75,8 @@ Ours: `app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt`
 | `R` (the chunk list) | `chunkQueue` |
 | `k0` (utterance id) | `utteranceIdStr` |
 
-There is no AutoTTS counterpart for the CLD3 switch (`useCld3Flag`) — see
-"CLD3" below.
+There was no AutoTTS counterpart for the CLD3 switch; it was removed on
+2026-09-02 — see "CLD3" below.
 
 ---
 
@@ -214,25 +214,14 @@ Ours: `app/src/main/java/com/tts/easyvoice/LangStore.kt`
 
 ---
 
-## CLD3 — ours only
+## CLD3 — REMOVED 2026-09-02
 
-The Advanced tab's "Use CLD3" switch has **no AutoTTS counterpart**, so the rule
-for it is not "match AutoTTS" but:
-
-> wherever CLD2 makes a detection, the switch must be able to put CLD3 there
-> instead, **site by site**.
-
-The two detection sites are not hinted the same way, so the CLD3 arms differ too:
-
-| site | CLD2 | CLD3 |
-|---|---|---|
-| `emitScriptSpan` | per-script language hint, filter the answer against the enabled list, then the per-script fallback | top 3 filtered by the same list, then the **same** per-script fallback |
-| `detectWindowLang` | no hints, no filter — `lang3[0]` when reliable | `FindLanguage()` when reliable — **no filter** |
-
-`cld3DetectRaw`'s `useHints` parameter is what keeps those two straight. Do not
-remove it.
-
----
+The Advanced tab once carried a "Use CLD3" switch with no AutoTTS counterpart,
+and the rule for it was "wherever CLD2 makes a detection, the switch must be
+able to put CLD3 there instead". **The owner removed it, A to Z**, after
+measuring that CLD3 reads short Devanagari at about 50% while CLD2 reads it at
+24 of 25. Nothing about CLD3 remains in the tree, and `invariants.sh` #16 fails
+the build if any of it returns. See CLAUDE.md, "CLD3 IS GONE".
 
 ## AutoTTS code that must NEVER be ported
 
@@ -277,7 +266,7 @@ that does was checked.
 | `clsCLD2` — all 11 methods | all mapped. Verified this pass: `c(String)` = `firstValidCodePointU16` (whitespace, `0-9`, `h(char)`, then `codePointAt` with surrogate handling, else `-1`), `h(char)` = `isLatinPunctuation` — which **includes** backslash, unlike `cpIsAsciiPunct`, and that difference is real and deliberate; `g(String)` = the `UnicodeScript` LATIN/COMMON/INHERITED test |
 | native surface | `libcld2.so` exports exactly **three** `Java_` symbols — `nativeGetLanguage`, `nativeGetLanguages`, `nativeSetLanguageHints` — and all three have counterparts. Ours exports seven because the segmenter and the ISO map moved into C++, both proven equal by harness |
 | manifest, system level | the five real permissions match exactly; the two we lack (`CHECK_LICENSE`, `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`) are the licence carve-out. `allowBackup="false"`, `installLocation="auto"`, `extractNativeLibs="true"`, the service's `accessibilityEventTypes` / `accessibilityFlags` / `canRetrieveWindowContent` / `foregroundServiceType` and `tts_engine.xml` all match |
-| the reading flow | already proven by measurement, not reading: segmenter 163,296 cases, script family 15 sets x 1,114,112 code points, normaliser 1,114,112 code points, every CLD3 tag, and the CLD3 span harness |
+| the reading flow | already proven by measurement, not reading: segmenter 163,296 cases, script family 15 sets x 1,114,112 code points, normaliser 1,114,112 code points |
 
 **One real gap found, and it was ours rather than a missing port.** AutoTTS has
 one settings screen that both loads and persists; we split it into four
@@ -335,7 +324,7 @@ already recorded here as **dead** — every chunk in those paths carries a langu
 and a type of −1, so neither `isEmpty()` nor `equals("unknown")` can fire. Ours
 has the one live call, in the auto/Google branch.
 
-**Both detectors are affected equally**, which is the standing CLD3 rule: the
+**The one detector is affected throughout**: the
 flag logic sits *above* `detectWindowLang(text, useCld3)`, so it wraps whichever
 detector ran.
 

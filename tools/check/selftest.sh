@@ -74,19 +74,16 @@ run "#18 contentDescription on a heading" "#18" \
     "perl -0pi -e 's/\\.semantics \\{ heading\\(\\) \\}/.semantics { heading(); contentDescription = title }/' $K/ModesScreen.kt"
 run "#17 persist without loading" "#17" \
     "sed -i '/LangStore.ensureLoaded(this)/d' $K/LanguagesActivity.kt"
-run "#16 drop the wrong-script rejection" "#16" \
-    "perl -0pi -e 's/const bool wrongScript = \\(cld3Script >= 0 && cld3Script != script\\);/const bool wrongScript = false; (void)cld3Script;/' app/src/main/cpp/tts_engine_core.cpp"
-run "#16 drop the span site's reliability flag" "#16" \
-    "perl -0pi -e 's/cld3DetectRaw\\(std::string\\(text, start, detectBytes\\), &cld3Reliable, true\\)/cld3DetectRaw(std::string(text, start, detectBytes), nullptr, true)/' app/src/main/cpp/tts_engine_core.cpp"
+run "#16 bring a CLD3 symbol back into the core" "#16" \
+    "perl -0pi -e 's/static std::string detectWindowLang/static std::string cld3DetectRaw(const std::string\&, bool*, bool);\\nstatic std::string detectWindowLang/' app/src/main/cpp/tts_engine_core.cpp"
+run "#16 bring a useCld3 flag back into the service" "#16" \
+    "sed -i 's/var utteranceId = \"\"/var useCld3Flag = false/' $K/EasyVoiceTtsService.kt"
 run "#14 log with a stray tag literal" "#14" \
     "perl -0pi -e 's/EasyVoiceLogger\\.debug\\(EasyVoiceLogger\\.TAG/EasyVoiceLogger.debug(\"TAG\"/' $K/LangStore.kt"
 run "#12 grow build.yml past the ceiling" "#12" \
     "head -c 500000 /dev/zero | tr '\\0' '#' >> .github/workflows/build.yml"
-run "CLD3 parity: delete one CLD3 arm" "CLD3 parity" \
-    "perl -0pi -e 's/cld3DetectRaw\(utf8Text, &cld3Reliable, false\)/std::string()/' app/src/main/cpp/tts_engine_core.cpp"
-run "CLD3 flag: stop passing it from Kotlin" "CLD3 flag" \
-    "sed -i 's/useCld3Flag/false/g' $K/EasyVoiceTtsService.kt"
-
+run "put a CLD3 source back in CMakeLists" "a CLD3/protobuf build input" \
+    "sed -i 's|    \${CLD2_DIR}/cldutil.cc|    \${CLD3_DIR}/nnet_language_identifier.cc\\n    \${CLD2_DIR}/cldutil.cc|' app/src/main/cpp/CMakeLists.txt"
 echo
 [ "$fail" = 0 ] && echo "EVERY CHECK FIRES" || echo "AT LEAST ONE CHECK IS ASLEEP"
 exit $fail

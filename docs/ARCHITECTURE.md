@@ -106,7 +106,7 @@ The text is walked code point by code point, each classified into a script by
 - script 0 (nothing classified — digits, punctuation, spaces, emoji) →
   `"un"` with **`latin = true`**, and no detector runs at all;
 - scripts 7..25 → a fixed language (Greek, Armenian, Hebrew, …);
-- scripts 1..6 → CLD2 (or CLD3), hinted with the per-script language hint and
+- scripts 1..6 → CLD2, hinted with the per-script language hint and
   then **filtered** against the enabled languages, falling back to the script's
   own language.
 
@@ -120,8 +120,8 @@ a code point and the enabled languages, it answers the most likely language of
 that script. It is **proven** over all 1,114,112 code points for 45 language
 sets: `tools/verify/scriptfamily/`.
 
-CLD3 is an Easy Voice extra with no AutoTTS counterpart. Its rule is
-site-by-site parity with CLD2 — see AUTOTTS_MAP.md.
+CLD3 used to sit beside CLD2 here as an Easy Voice extra. It was removed on
+2026-09-02 at the owner's instruction; see CLAUDE.md, "CLD3 IS GONE".
 
 ---
 
@@ -159,7 +159,7 @@ and the next-chunk hop is `post` rather than `postDelayed(50)`.
 ## The native library
 
 `app/src/main/cpp/tts_engine_core.cpp` is one translation unit built with CMake
-against **CLD2** and **CLD3**, which CI clones at build time (they are not in
+against **CLD2**, which CI clones at build time (it is not in
 this repository). It holds, roughly in file order:
 
 | area | what |
@@ -171,7 +171,7 @@ this repository). It holds, roughly in file order:
 | script classification | `classifyScript`, `SCRIPT_FIXED_LANG` |
 | script families | `FAMILY_*`, `familyForCp`, `familyLangForCpFiltered` |
 | Java emulation | `javaStringHash`, `javaHashSetOrder` — Android's `HashSet` order is part of the behaviour |
-| detectors | `detectWindowLang`, `cld3DetectRaw`, `emitScriptSpan` |
+| detectors | `detectWindowLang`, `emitScriptSpan` |
 | hints | `setLanguageHints`, `rebuildScriptLanguageTables`, `kScriptLangPairs` |
 | JNI | the `Java_com_tts_easyvoice_NativeEngine_*` entry points |
 

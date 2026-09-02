@@ -13,22 +13,6 @@
 #include "compact_lang_det.h"
 #include "encodings.h"
 #include "compact_lang_det_impl.h"
-// CLD3's FindLanguage and FindTopNMostFreqLangs both call
-// CLD2::CheapSqueezeInplace on every text they are given, however short, and
-// that turns out to change the answer on the short repetitive phrases a screen
-// reader produces -- see cld3FindLanguageGated below for the measurement. The
-// only way to run CLD3's own pipeline without that step is to call the two
-// members it hides, FindLanguageOfValidUTF8 and SelectTextGivenBeginAndSize.
-// Access control changes neither layout nor mangling, so this affects nothing
-// but what this translation unit is allowed to name; CLD3's own .cc files are
-// separate translation units and are compiled untouched. CLD3 is vendored by a
-// CI `git clone`, so patching its source is not an option.
-#define private public
-#include "nnet_language_identifier.h"
-#undef private
-// CheapSqueezeInplace is the one piece of CLD3's vendored CLD2 copy that
-// nnet_language_identifier.h does not pull in for us.
-#include "script_span/text_processing.h"
 JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
     return JNI_VERSION_1_6;
 }
@@ -1038,45 +1022,6 @@ struct ReadingModes {
 //  PROVEN: tools/verify/segmenter/run.sh -- 163,296 cases against AutoTTS.
 // ==========================================================================
 // ==========================================================================
-//  DETECT CONTEXT -- EasyVoice only, and it exists for the CLD3 arm alone.
-//
-//  CLD3 is a small neural net and it is unreliable on short fragments; CLD2's
-//  n-gram tables are not. Measured on the owner's own sentence (2026-09-02),
-//  the Hindi tail "वही असली चैनल होता है" with {en,gu,hi,mr} enabled:
-//
-//      the 56-byte chunk alone                    -> mr  p=0.712
-//      that chunk WITH the utterance's Devanagari -> hi  p=1.0000
-//      the same, doubled                          -> hi  p=1.0000
-//
-//  The model is not broken; it is being asked with too little text. The app
-//  makes that unavoidable on its own: buildMixChunks splits an utterance into
-//  per-script chunks first, so "जहाँ", "और", "दोनों मिलें" and the tail arrive at
-//  the detector as four separate 3-to-56-byte fragments even though they are one
-//  Devanagari sentence.
-//
-//  So the whole normalised utterance is kept here, and the CLD3 arm detects a
-//  SHORT span against that utterance's same-script text instead of the span
-//  alone. CLD2's arm is untouched -- it does not need this and it must stay
-//  byte-for-byte AutoTTS.
-//
-//  It lives HERE, immediately above buildMixChunks, rather than beside the
-//  language-hint tables where the rest of the detector state sits. That is
-//  deliberate: tools/verify/make_core_inc.py slices the core "--until
-//  buildMixChunks" for the segmenter harness, so anything the chunk builder
-//  calls has to be defined above it or that harness will not link.
-// ==========================================================================
-static std::mutex detectContextMutex;
-static std::string detectContextText;
-
-static void setDetectContext(const std::string& text){
-    std::lock_guard<std::mutex> lock(detectContextMutex);
-    detectContextText = text;
-}
-static std::string currentDetectContext(){
-    std::lock_guard<std::mutex> lock(detectContextMutex);
-    return detectContextText;
-}
-
 static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
     std::vector<ChunkResult> result;
     std::string fullText;
@@ -1125,11 +1070,6 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
         }
         fullText = clean;
     }
-    // The text every chunk is cut from, kept for the CLD3 arm of the span site.
-    // Set HERE rather than in the JNI wrapper so it is the NORMALISED text --
-    // the same bytes the chunks are substrings of, which is what makes the
-    // staleness guard at the span site a simple substring test.
-    setDetectContext(fullText);
     if (fullText.empty()) return result;
     std::vector<TextSegment> segs;
     {
@@ -1284,7 +1224,7 @@ Java_com_tts_easyvoice_NativeEngine_processDirect(
     jint jPunctuationMode, jstring jPunctuationSpecific,
     jint jEmojiMode, jstring jEmojiSpecific, jboolean jPunctuationInFlow, jboolean jSmartNumber,
     jint jSmartNumberGroupSize,
-    jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection, jboolean jUseCld3)
+    jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection)
 {
     if(!directBuffer||length<=0) return env->NewStringUTF("");
     void* buf=env->GetDirectBufferAddress(directBuffer);
@@ -1306,7 +1246,6 @@ Java_com_tts_easyvoice_NativeEngine_processDirect(
     const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
     int neutralType = (int)jNeutralType;
     bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
-    (void)jUseCld3;
     std::vector<std::string> sentences;
     size_t start=0, end=rawInput.find('\0');
     while(end!=std::string::npos){ sentences.push_back(rawInput.substr(start,end-start)); start=end+1; end=rawInput.find('\0',start); }
@@ -1663,247 +1602,11 @@ static std::string scriptLangForCpFiltered(int codePoint, const std::unordered_s
 }
 
 // ==========================================================================
-//  DETECTORS                   AutoTTS clsCLD2.d / libcld2.so getLanguage 0x6523c8
-//  cld3DetectRaw takes useHints because the two call sites are hinted
-//  differently: the span site hints and filters, the window site does neither
-//  and lets clsCLD2.d decide. See docs/AUTOTTS_MAP.md.
+//  DETECTOR                    AutoTTS clsCLD2.d / libcld2.so getLanguage 0x6523c8
+//  CLD2 is the only detector. The CLD3 arm that used to sit beside it was
+//  removed on 2026-09-02 at the owner's instruction -- see CLAUDE.md.
 // ==========================================================================
-static std::string baseLanguageTag(const std::string& code){
-    size_t cut = code.find_first_of("-_");
-    std::string base = (cut == std::string::npos) ? code : code.substr(0, cut);
-    for(char& ch : base) if(ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
-    return base;
-}
-// CLD3's model emits exactly six romanised tags; counted from
-// task_context_params.cc's kLanguageNames, which holds 109 entries in total.
-static bool isRomanisedTag(const std::string& code){
-    return code=="bg-Latn" || code=="el-Latn" || code=="hi-Latn"
-        || code=="ja-Latn" || code=="ru-Latn" || code=="zh-Latn";
-}
-// CLD2 says "un" for undetermined; CLD3 says "und"
-// (NNetLanguageIdentifier::kUnknown[] = "und"). Nothing else in the app knows
-// about "und" -- it is the one CLD3 tag out of 109 that IsoCodes cannot map --
-// and the aggregate detector filters unknown with startsWith("un|"), which
-// "und|1" does not match. So an undetermined span used to count as a real
-// language under CLD3 and could win the aggregate, which is the exact outcome
-// clsCLD2.f's two-candidate scan exists to prevent. Folding it to CLD3's own
-// empty-result convention makes both callers fall back the way they already do
-// for CLD2.
-static bool isCld3Unknown(const std::string& code){
-    return code == "und";
-}
-// --------------------------------------------------------------------------
-//  CLD3's REPETITION SQUEEZE, GATED THE WAY CLD2 GATES IT
-//
-// THE BUG (device log, 2026-09-02). With CLD3 on, the Hindi sentence
-//
-//     किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
-//
-// was spoken by the MARATHI voice; with CLD2 it was read in Hindi. Identical
-// chunking, only the span's language differed -- the same shape as the earlier
-// report, but the context widening does not touch it, because this Devanagari
-// chunk IS all the Devanagari in the utterance and there is nothing to widen to.
-//
-// It is not the model. Feeding the raw bytes straight to the network gives
-// hi p=0.9926, mr p=0.0008. What reaches the network is not those bytes:
-//
-//     cleaned  (131 B)  किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
-//     squeezed  (75 B)  किसी दूसरी भाषा भाषा बातचीत          <- hi 0.99 becomes mr 0.91
-//
-// CLD2::CheapSqueezeInplace walks the text in 48-byte chunks and drops a chunk
-// whose bytes are mostly predicted from what came before -- boilerplate removal
-// for multi-kilobyte web documents. "किसी दूसरी भाषा" occurs twice in this
-// sentence, so a third of it is deleted and the network is asked about the
-// wreckage.
-//
-// CLD2 NEVER DOES THIS TO A SHORT TEXT, and that asymmetry is the whole defect.
-// compact_lang_det_impl.cc:1867 squeezes a script span only when
-//
-//     (kCheapSqueezeTestThresh >> 1) < scriptspan.text_bytes      // 2048 bytes
-//
-// and even then only after CheapSqueezeTriggerTest agrees. CLD3
-// (nnet_language_identifier.cc, FindLanguage and FindTopNMostFreqLangs alike)
-// calls the same function unconditionally with chunk_size 0. So the switch the
-// owner flips does not only change detector -- it silently changes the text.
-//
-// The two helpers below are CLD3's own two entry points, mirrored statement for
-// statement, with exactly one change: the squeeze runs only above CLD2's own
-// 2048-byte threshold. Nothing else moves; the network, the script scanner, the
-// snippet selection, the reliability rule and the aggregation are CLD3's.
-//
-// MEASURED over 608 distinct strings -- every phrase spoken in both device logs
-// plus the app's own literals. The stock squeeze removes text from 9 of them
-// and changes the answer on 4. All four move to the better answer:
-//
-//     किसी दूसरी भाषा ... बातचीत          mr 0.913  ->  hi 0.989
-//     the same, 154-byte variant           mr 0.526  ->  hi 0.814
-//     "Text box Compose message" doubled   ja 0.784  ->  en (unreliable)
-//     a Samoan sentence                    hu 0.861  ->  sm 1.000
-//
-// There is no case in that corpus where gating makes the answer worse. CLD2's
-// arm is untouched by any of this.
-static const int kCld3SqueezeGateBytes = 2048;   // CLD2's kCheapSqueezeTestThresh >> 1
-
-// ResultIsReliable and FindNumValidBytesToProcess live in an anonymous
-// namespace inside CLD3's .cc, so they cannot be named from here; both are
-// transcribed rather than reimplemented.
-static bool cld3ResultIsReliable(const std::string& language, float probability){
-    if(language == "hr" || language == "bs")
-        return probability >= chrome_lang_id::NNetLanguageIdentifier::kReliabilityHrBsThreshold;
-    return probability >= chrome_lang_id::NNetLanguageIdentifier::kReliabilityThreshold;
-}
-static int cld3NumValidBytes(const std::string& text){
-    const int docTextSize = (text.size() < (size_t)std::numeric_limits<int>::max())
-        ? (int)text.size() : std::numeric_limits<int>::max();
-    return chrome_lang_id::CLD2::SpanInterchangeValid(
-        text.c_str(),
-        std::min(chrome_lang_id::NNetLanguageIdentifier::kMaxNumInputBytesToConsider, docTextSize));
-}
-
-// NNetLanguageIdentifier::FindLanguage, with the squeeze gated.
-static chrome_lang_id::NNetLanguageIdentifier::Result cld3FindLanguageGated(
-        chrome_lang_id::NNetLanguageIdentifier& identifier, const std::string& text){
-    typedef chrome_lang_id::NNetLanguageIdentifier NN;
-    const int numValidBytes = cld3NumValidBytes(text);
-    chrome_lang_id::CLD2::ScriptScanner scanner(text.c_str(), numValidBytes, /*is_plain_text=*/true);
-    chrome_lang_id::CLD2::LangSpan scriptSpan;
-    std::string cleaned;
-    while(scanner.GetOneScriptSpanLower(&scriptSpan))
-        cleaned.append(scriptSpan.text, scriptSpan.text_bytes);
-    if((int)cleaned.size() < identifier.min_num_bytes_) return NN::Result();
-
-    std::vector<char> textToProcess(cleaned.begin(), cleaned.end());
-    textToProcess.push_back('\0');
-    char* textBegin = &textToProcess[0];
-    int newLength = (int)textToProcess.size() - 1;
-    if(newLength > kCld3SqueezeGateBytes)
-        newLength = chrome_lang_id::CLD2::CheapSqueezeInplace(textBegin, newLength, /*chunk_size=*/0);
-    if(newLength < identifier.min_num_bytes_) return NN::Result();
-
-    return identifier.FindLanguageOfValidUTF8(
-        identifier.SelectTextGivenBeginAndSize(textBegin, newLength));
-}
-
-// NNetLanguageIdentifier::FindTopNMostFreqLangs, with the squeeze gated. The
-// per-language totals, the tie-break on language name and the padding with
-// empty results are CLD3's; byte_ranges is carried even though nothing here
-// reads it, so this stays a mirror rather than a rewrite.
-static std::vector<chrome_lang_id::NNetLanguageIdentifier::Result> cld3TopNGated(
-        chrome_lang_id::NNetLanguageIdentifier& identifier, const std::string& text, int numLangs){
-    typedef chrome_lang_id::NNetLanguageIdentifier NN;
-    struct Stats { float probSum = 0.0f; int byteSum = 0; std::vector<NN::SpanInfo> byteRanges; };
-    std::vector<NN::Result> results;
-
-    const int numValidBytes = cld3NumValidBytes(text);
-    if(numValidBytes == 0){
-        while(numLangs-- > 0) results.emplace_back();
-        return results;
-    }
-    chrome_lang_id::CLD2::ScriptScanner scanner(text.c_str(), numValidBytes, /*is_plain_text=*/true);
-    chrome_lang_id::CLD2::LangSpan scriptSpan;
-    std::unordered_map<std::string, Stats> langStats;
-    int totalNumBytes = 0;
-    while(scanner.GetOneScriptSpanLower(&scriptSpan)){
-        const int numOriginalSpanBytes = scriptSpan.text_bytes;
-        if(scriptSpan.text_bytes > kCld3SqueezeGateBytes)
-            scriptSpan.text_bytes = chrome_lang_id::CLD2::CheapSqueezeInplace(
-                scriptSpan.text, scriptSpan.text_bytes, /*chunk_size=*/0);
-        if(scriptSpan.text_bytes < identifier.min_num_bytes_) continue;
-        totalNumBytes += numOriginalSpanBytes;
-
-        const NN::Result one =
-            identifier.FindLanguageOfValidUTF8(identifier.SelectTextGivenScriptSpan(scriptSpan));
-        Stats& stats = langStats[one.language];
-        stats.byteSum += numOriginalSpanBytes;
-        stats.probSum += one.probability * numOriginalSpanBytes;
-        stats.byteRanges.push_back(NN::SpanInfo(
-            scanner.MapBack(0), scanner.MapBack(scriptSpan.text_bytes), one.probability));
-    }
-
-    std::vector<std::pair<std::string, float> > langsAndByteCounts;
-    for(const auto& entry : langStats)
-        langsAndByteCounts.push_back(std::make_pair(entry.first, (float)entry.second.byteSum));
-    std::sort(langsAndByteCounts.begin(), langsAndByteCounts.end(),
-              [](const std::pair<std::string,float>& x, const std::pair<std::string,float>& y){
-                  return x.second == y.second ? x.first < y.first : x.second > y.second;
-              });
-
-    const float byteSum = (float)totalNumBytes;
-    const int numLangsToSave = std::min(numLangs, (int)langsAndByteCounts.size());
-    for(int at = 0; at < numLangsToSave; at++){
-        const std::string& language = langsAndByteCounts.at(at).first;
-        const Stats& stats = langStats.at(language);
-        NN::Result one;
-        one.language    = language;
-        one.probability = stats.probSum / stats.byteSum;
-        one.proportion  = stats.byteSum / byteSum;
-        one.is_reliable = cld3ResultIsReliable(language, one.probability);
-        one.byte_ranges = stats.byteRanges;
-        results.push_back(one);
-    }
-    int paddingSize = numLangs - (int)langsAndByteCounts.size();
-    while(paddingSize-- > 0) results.emplace_back();
-    return results;
-}
-
-// useHints mirrors whether CLD2 is hinted at the call site: getLanguageSpans
-// hands CLD2 a per-script language hint and then filters what comes back
-// against the enabled list, while getLanguage hands it nothing at all and lets
-// clsCLD2.d's own n.n() test and script-family fallback deal with the answer.
-// Filtering here at the window site would take that decision away from the
-// caller and make the two detectors disagree.
-static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut, bool useHints){
-    static std::mutex cld3Mutex;
-    static chrome_lang_id::NNetLanguageIdentifier* cld3Identifier = nullptr;
-    std::lock_guard<std::mutex> cld3Lock(cld3Mutex);
-    if(!cld3Identifier) cld3Identifier = new chrome_lang_id::NNetLanguageIdentifier(0, 1024);
-    // Built only when it is going to be read. `hinted` is used in exactly one
-    // place -- the `useHints && !hinted.empty()` test below -- which
-    // short-circuits when useHints is false, so at the WINDOW site every one of
-    // these was a comma-split plus an unordered_set of up to 64 std::strings
-    // that nothing ever looked at. That site is called once per 64-character
-    // window of the utterance, so on a long text in auto mode it was the whole
-    // list rebuilt hundreds of times to be thrown away.
-    // This changes no answer: the guard already made the set unreachable when
-    // useHints is false.
-    std::unordered_set<std::string> hinted;
-    if(useHints){
-        const std::string hintList = currentLanguageHints();
-        size_t hintStart = 0;
-        while(hintStart < hintList.size()){
-            size_t hintEnd = hintList.find(',', hintStart);
-            if(hintEnd == std::string::npos) hintEnd = hintList.size();
-            if(hintEnd > hintStart) hinted.insert(hintList.substr(hintStart, hintEnd - hintStart));
-            hintStart = hintEnd + 1;
-        }
-    }
-    if(useHints && !hinted.empty()){
-        const std::vector<chrome_lang_id::NNetLanguageIdentifier::Result> ranked =
-            cld3TopNGated(*cld3Identifier, utf8Text, 3);
-        for(const auto& candidate : ranked){
-            if(!candidate.is_reliable) continue;
-            if(isRomanisedTag(candidate.language)) continue;
-            if(hinted.find(baseLanguageTag(candidate.language)) == hinted.end()) continue;
-            if(reliableOut) *reliableOut = true;
-            return candidate.language;
-        }
-    }
-    const chrome_lang_id::NNetLanguageIdentifier::Result result =
-        cld3FindLanguageGated(*cld3Identifier, utf8Text);
-    if(isRomanisedTag(result.language) || isCld3Unknown(result.language)){
-        if(reliableOut) *reliableOut = false;
-        return "";
-    }
-    if(reliableOut) *reliableOut = result.is_reliable;
-    return result.language;
-}
-static std::string detectWindowLang(const std::string& utf8Text, bool useCld3){
-    if(useCld3) {
-        bool cld3Reliable = false;
-        std::string cld3Raw = cld3DetectRaw(utf8Text, &cld3Reliable, false);
-        if(!cld3Reliable) return "UNKNOWN";
-        return cld3Raw.empty() ? "UNKNOWN" : cld3Raw;
-    }
+static std::string detectWindowLang(const std::string& utf8Text){
     // getLanguage (0x6523c8), which is what clsCLD2.d calls per 64-character
     // window. It passes no content-language hint, an EMPTY tld hint rather than
     // a null one, encoding_hint 0 (ISO_8859_1, not UNKNOWN_ENCODING), and
@@ -1996,29 +1699,6 @@ static std::vector<std::string> currentLanguageHintCodes(){
     std::lock_guard<std::mutex> lock(languageHintMutex);
     return languageHintCodes;
 }
-// Which of the six scripts a language belongs to, per the same 48 pairs, or -1
-// when the table does not mention it.
-//
-// This exists for the CLD3 arm of the span site only. CLD2 is steered by
-// scriptLanguageHint, which goes INTO the detector, so it rarely names a
-// language of the wrong script for a span; CLD3 has no hints API and can only
-// be filtered afterwards, against a flat enabled-language list that knows
-// nothing about script. That is how a reliable "sr" or "ja" could win a Latin
-// span -- see INVARIANTS #16.
-//
-// The table is NOT a complete script classification: Latin lists 24 languages
-// and has no Catalan or Basque, and CJK has no Korean. So "absent" must mean
-// "no evidence", never "wrong script" -- answering -1 here and having the caller
-// accept the language is the whole point. Only a language the table places under
-// a DIFFERENT script is a mismatch we can prove.
-static int scriptOfLanguageCode(const std::string& code){
-    if(code.empty()) return -1;
-    for(int pair=0; pair<48; pair++){
-        const char* listed = CLD2::LanguageCode(kScriptLangPairs[pair].lang);
-        if(listed && code == listed) return kScriptLangPairs[pair].script;
-    }
-    return -1;
-}
 static int currentScriptLanguageHint(int script){
     std::lock_guard<std::mutex> lock(languageHintMutex);
     if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
@@ -2060,7 +1740,7 @@ Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv* env, jclass, jobjec
             env->DeleteLocalRef(jLang);
         }
     }
-    // The comma list is what the CLD3 arm filters its candidates by, so it is
+    // The comma list is what the hint tables are derived from, so it is
     // built from the SAME accepted codes rather than from the raw array: the
     // two detectors have to be steered by one list, or the switch changes more
     // than which detector runs.
@@ -2113,9 +1793,8 @@ Java_com_tts_easyvoice_NativeEngine_setDetectSets(JNIEnv* env, jclass, jobjectAr
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
     JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
-    jboolean jDisableAdv, jboolean jWantLog, jboolean jUseCld3)
+    jboolean jDisableAdv, jboolean jWantLog)
 {
-    bool useCld3 = (jUseCld3==JNI_TRUE);
     if(!jText) return env->NewStringUTF("UNKNOWN\x01");
     const jchar* chars = env->GetStringChars(jText, nullptr);
     int textLen = (int)env->GetStringLength(jText);
@@ -2133,10 +1812,10 @@ Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
         if(logBuf){
             int snippetLen = (windowEnd-winStart)<30?(windowEnd-winStart):30;
             char nbuf[32]; snprintf(nbuf,sizeof(nbuf),"%d",windowEnd-winStart);
-            *logBuf += std::string(useCld3?"[CLD3] cld3DetectWindow windowLen=":"[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latinFallback+" nonLatFall="+nonLatinFallback+" isDisableAdv="+(disableAdvanced?"true":"false")+" snip='"+utf16to8(chars+winStart,snippetLen)+"'\n";
+            *logBuf += std::string("[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latinFallback+" nonLatFall="+nonLatinFallback+" isDisableAdv="+(disableAdvanced?"true":"false")+" snip='"+utf16to8(chars+winStart,snippetLen)+"'\n";
         }
-        std::string detectedLang = detectWindowLang(windowUtf8, useCld3);
-        if(logBuf) *logBuf += std::string(useCld3?"[CLD3] cld3DetectWindow rawOut='":"[CLD2] cld2DetectWindow rawOut='")+(detectedLang.empty()?"UNKNOWN":detectedLang)+"|"+windowUtf8+"' → result="+(detectedLang.empty()?"null":detectedLang)+"\n";
+        std::string detectedLang = detectWindowLang(windowUtf8);
+        if(logBuf) *logBuf += std::string("[CLD2] cld2DetectWindow rawOut='")+(detectedLang.empty()?"UNKNOWN":detectedLang)+"|"+windowUtf8+"' → result="+(detectedLang.empty()?"null":detectedLang)+"\n";
         if(!detectedLang.empty() && detectedLang!="UNKNOWN"){
             if(disableAdvanced){ result=detectedLang; done=true; break; }
             if(okIso3.count(toIso3(detectedLang))){ result=detectedLang; done=true; break; }
@@ -2179,11 +1858,10 @@ extern "C" JNIEXPORT jobjectArray JNICALL
 //  emoji -- answers "un" with latin = TRUE and never reaches a detector. That
 //  is why a bare number is read in the LATIN preferred language.
 // ==========================================================================
-Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText, jboolean jUseCld3){
+Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
     jclass stringClass=env->FindClass("java/lang/String");
     if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
     const char* textChars=env->GetStringUTFChars(jText,nullptr); std::string text(textChars?textChars:""); env->ReleaseStringUTFChars(jText,textChars);
-    const bool spanUseCld3 = (jUseCld3 == JNI_TRUE);
     struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
     std::vector<ScriptSpan> spans;
     const int kMaxSpans = 128;
@@ -2242,47 +1920,6 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
         if ((unsigned)(codePoint - 0xFF66) < 0x38)  return 5;
         if ((((unsigned)(codePoint - 0x20000)) >> 5) < 0x7D1) return 5;
         return -1;
-    };
-
-    // The utterance's text in THIS span's script, for the CLD3 arm only.
-    //
-    // Returns "" -- meaning "no usable context, detect the span alone" -- when
-    // the stored context does not contain the span. That is the staleness
-    // guard: the context is written by buildMixChunks, and nativeGetLanguages
-    // is also reached from the auto/Google aggregate detector, which never runs
-    // the chunk builder. A context left over from an earlier utterance cannot
-    // contain this span, so it is refused rather than used.
-    //
-    // ASCII letters are matched directly because the scanner classifies them in
-    // its own fast path (`& 0x5F`, then A..Z) and never asks classifyScript;
-    // everything else goes through classifyScript, which is the same ladder the
-    // span boundaries were drawn with. Spaces are kept so words stay separated
-    // and n-grams do not run together; digits and punctuation are dropped
-    // because they carry no language signal.
-    auto sameScriptContextText = [&](int wantScript, const std::string& span) -> std::string {
-        const std::string context = currentDetectContext();
-        if (context.empty()) return std::string();
-        if (context.find(span) == std::string::npos) return std::string();
-        std::string out;
-        out.reserve(context.size());
-        size_t at = 0;
-        bool lastWasSpace = true;
-        while (at < context.size()) {
-            int cpLen = 0;
-            const int codePoint = utf8ToCodepoint((const unsigned char*)context.c_str() + at, cpLen);
-            if (cpLen <= 0) break;
-            bool keep = false;
-            if (codePoint < 0x80) {
-                const int folded = codePoint & 0x5F;
-                keep = (wantScript == 1 && folded >= 0x41 && folded <= 0x5A);
-            } else {
-                keep = (classifyScript(codePoint) == wantScript);
-            }
-            if (keep) { out.append(context, at, (size_t)cpLen); lastWasSpace = false; }
-            else if (!lastWasSpace) { out += ' '; lastWasSpace = true; }
-            at += (size_t)cpLen;
-        }
-        return out;
     };
 
     static const char* SCRIPT_FIXED_LANG[19] = {
@@ -2373,7 +2010,6 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 while (detectBytes > 0 && ((unsigned char)text[start + detectBytes] & 0xC0) == 0x80) detectBytes--;
             }
             // The hint list and the per-script tables belong to BOTH detectors.
-            // CLD3 cannot be given a CLD2 Language as a hint, but the filter --
             // keep an answer only if the user has that language enabled, and
             // otherwise fall back to the one language this script implies -- is
             // the part that decides the voice, so both arms run it.
@@ -2390,126 +2026,48 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 const char* fallbackCode = CLD2::LanguageCode((CLD2::Language)fallback);
                 return fallbackCode ? std::string(fallbackCode) : std::string();
             };
-            if (spanUseCld3) {
-                // cld3DetectRaw already keeps the first reliable candidate of
-                // its own top 3 that the hints allow, which is CLD2's first
-                // three tests. The fourth -- the per-script fallback -- has no
-                // CLD3 counterpart, so it is applied here; without it the two
-                // detectors answer differently for the same text, and the
-                // Kotlin's engine check then sends the run to P or Q instead.
-                //
-                // The reliability flag MUST be asked for and honoured. Both
-                // arms of detectWindowLang answer "UNKNOWN" when the detector
-                // is not sure, and this span site is the one place that used to
-                // pass nullptr and drop the answer on the floor. What that cost
-                // is on record: for "MEET Choudhary " CLD3's top-3 loop rejects
-                // its own candidate (hi, is_reliable = 0, p = 0.495), falls
-                // through to FindLanguage(), and returned that same unreliable
-                // "hi" anyway -- so a Latin name was spoken by the Hindi voice
-                // while CLD2, steered by the per-script hint, read it in
-                // English. Unreliable now becomes "un", which is not in the
-                // hint list, so the per-script fallback below resolves the span
-                // to the one language its script implies.
-                //
-                // The answer must also belong to THIS span's script. CLD2 gets
-                // that for free: its per-script hint is fed into the detector,
-                // so for a Latin span with one enabled Latin language it is
-                // told what to expect. The CLD3 arm can only filter afterwards,
-                // and the enabled list it filters against is flat -- so a
-                // reliable "sr" or "ja" would otherwise win a Latin span merely
-                // because the user has Serbian or Japanese enabled. Measured
-                // over 536 Latin strings from the reporter's own log: 19 such
-                // spans with {en, sr} and 4 with {en, ja}.
-                //
-                // scriptOfLanguageCode answers -1 for a language the table does
-                // not list, and -1 is ACCEPTED. The table names 24 Latin
-                // languages and no Catalan, and no Korean at all, so treating
-                // "absent" as "wrong" would break far more than it fixed. Only
-                // a language the table places under a different script is
-                // rejected, and then the per-script fallback below resolves the
-                // span the way CLD2 would have.
-                //
-                // THE SPAN IS WIDENED BEFORE IT IS DETECTED (owner request,
-                // 2026-09-02). CLD3 is a neural net and it is unreliable on a
-                // short fragment, which is exactly what this site hands it:
-                // buildMixChunks has already cut the utterance into per-script
-                // chunks, so one Devanagari sentence arrives as several 3-to-56
-                // byte pieces. Measured on the reported sentence with
-                // {en,gu,hi,mr} enabled:
-                //
-                //     the 56-byte tail alone                    -> mr p=0.712
-                //     the same tail with the utterance's
-                //     Devanagari in front of it                 -> hi p=1.0000
-                //
-                // Same model, same enabled set, same span -- only the amount of
-                // text changed. So a span shorter than CLD3's OWN documented
-                // minimum is detected against the utterance's text in this
-                // span's script. 140 is not a number of ours:
-                // NNetLanguageIdentifier::kMinNumBytesToConsider is 140, and we
-                // construct the identifier with 0 precisely so that short spans
-                // still get an answer rather than "und".
-                //
-                // The span itself is still what gets the answer -- only the
-                // evidence is wider. CLD2's arm below is untouched: it does not
-                // need this, and it has to stay byte-for-byte AutoTTS.
-                bool cld3Reliable = false;
-                std::string cld3Text(text, start, detectBytes);
-                if ((int)cld3Text.size() < chrome_lang_id::NNetLanguageIdentifier::kMinNumBytesToConsider) {
-                    const std::string wider = sameScriptContextText(script, cld3Text);
-                    if (wider.size() > cld3Text.size()) cld3Text = wider;
+            // AutoTTS passes NO content-language hint here. What it passes
+            // is the per-script language hint setLanguageHints derived, and
+            // it then filters the answer against the hint list -- see
+            // 0x65400c (the two NULL pointers), 0x654030 (the table read)
+            // and 0x654098 onwards (the filter).
+            const int scriptHint = currentScriptLanguageHint(script);
+            CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING,
+                                    hintCodes.empty() ? CLD2::UNKNOWN_LANGUAGE
+                                                      : (CLD2::Language)scriptHint};
+            CLD2::Language lang3[3]; int percent3[3]; double score3[3];
+            int textBytes = 0; bool reliable = false;
+            CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(text.c_str() + start, detectBytes, true, &hints, 0x4000,
+                                       lang3, percent3, score3, nullptr, &textBytes, &reliable);
+            const char* code = CLD2::LanguageCode(cldLang);
+            lang = code ? std::string(code) : "un";
+            if(!hintCodes.empty() && !isHinted(lang)){
+                bool picked = false;
+                // lang3[0], [1] then [2] -- the compiler unrolled the loop
+                // into three identical blocks at 0x654190, 0x6542ac and
+                // 0x654380, reading language3[0..2] from x29-0x14/-0x10/-0xc
+                // and percent3[0..2] from x29-0x20/-0x1c/-0x18. Rank 0 is
+                // NOT a repeat of the summary above it: CalcSummaryLang
+                // returns language3[active_slot[1]] when it decides the top
+                // answer is English or FIGS boilerplate, and
+                // UNKNOWN_LANGUAGE when the top language covers too little
+                // of the text -- so the summary and language3[0] genuinely
+                // differ, and skipping rank 0 sent those spans to the
+                // per-script fallback instead of the language CLD2 ranked
+                // first. Each rank counts only when it is a real language
+                // and covers at least one percent of the text.
+                for(int rank=0; rank<3 && !picked; rank++){
+                    if(lang3[rank] == CLD2::UNKNOWN_LANGUAGE) continue;
+                    if(percent3[rank] < 1) continue;
+                    const char* other = CLD2::LanguageCode(lang3[rank]);
+                    if(!other) continue;
+                    if(!isHinted(other)) continue;
+                    lang = other;
+                    picked = true;
                 }
-                std::string cld3Lang = cld3DetectRaw(cld3Text, &cld3Reliable, true);
-                const int cld3Script = scriptOfLanguageCode(baseLanguageTag(cld3Lang));
-                const bool wrongScript = (cld3Script >= 0 && cld3Script != script);
-                lang = (cld3Lang.empty() || !cld3Reliable || wrongScript) ? "un" : cld3Lang;
-                if(!hintCodes.empty() && !isHinted(baseLanguageTag(lang))){
+                if(!picked){
                     const std::string fallbackCode = scriptFallbackCode();
                     if(!fallbackCode.empty()) lang = fallbackCode;
-                }
-            } else {
-                // AutoTTS passes NO content-language hint here. What it passes
-                // is the per-script language hint setLanguageHints derived, and
-                // it then filters the answer against the hint list -- see
-                // 0x65400c (the two NULL pointers), 0x654030 (the table read)
-                // and 0x654098 onwards (the filter).
-                const int scriptHint = currentScriptLanguageHint(script);
-                CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING,
-                                        hintCodes.empty() ? CLD2::UNKNOWN_LANGUAGE
-                                                          : (CLD2::Language)scriptHint};
-                CLD2::Language lang3[3]; int percent3[3]; double score3[3];
-                int textBytes = 0; bool reliable = false;
-                CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(text.c_str() + start, detectBytes, true, &hints, 0x4000,
-                                           lang3, percent3, score3, nullptr, &textBytes, &reliable);
-                const char* code = CLD2::LanguageCode(cldLang);
-                lang = code ? std::string(code) : "un";
-                if(!hintCodes.empty() && !isHinted(lang)){
-                    bool picked = false;
-                    // lang3[0], [1] then [2] -- the compiler unrolled the loop
-                    // into three identical blocks at 0x654190, 0x6542ac and
-                    // 0x654380, reading language3[0..2] from x29-0x14/-0x10/-0xc
-                    // and percent3[0..2] from x29-0x20/-0x1c/-0x18. Rank 0 is
-                    // NOT a repeat of the summary above it: CalcSummaryLang
-                    // returns language3[active_slot[1]] when it decides the top
-                    // answer is English or FIGS boilerplate, and
-                    // UNKNOWN_LANGUAGE when the top language covers too little
-                    // of the text -- so the summary and language3[0] genuinely
-                    // differ, and skipping rank 0 sent those spans to the
-                    // per-script fallback instead of the language CLD2 ranked
-                    // first. Each rank counts only when it is a real language
-                    // and covers at least one percent of the text.
-                    for(int rank=0; rank<3 && !picked; rank++){
-                        if(lang3[rank] == CLD2::UNKNOWN_LANGUAGE) continue;
-                        if(percent3[rank] < 1) continue;
-                        const char* other = CLD2::LanguageCode(lang3[rank]);
-                        if(!other) continue;
-                        if(!isHinted(other)) continue;
-                        lang = other;
-                        picked = true;
-                    }
-                    if(!picked){
-                        const std::string fallbackCode = scriptFallbackCode();
-                        if(!fallbackCode.empty()) lang = fallbackCode;
-                    }
                 }
             }
         }

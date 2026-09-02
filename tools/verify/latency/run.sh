@@ -13,7 +13,7 @@
 # WHAT IT MEASURES. The work that must finish before speakChunk(true) runs:
 # buildMixChunks through processDirect, then one detection per chunk, which is
 # what the mix and multilingual branches do. It links the REAL
-# tts_engine_core.cpp with CLD2 and CLD3 and starts a JVM for a genuine JNIEnv,
+# tts_engine_core.cpp with CLD2 and starts a JVM for a genuine JNIEnv,
 # so the numbers are the device's code, not a model of it.
 #
 # WHAT IT FOUND (2026-09-01, x86-64 container):
@@ -30,7 +30,7 @@
 # magnitude for a phone. Anything that looks like a chunking cost should be
 # measured here first.
 #
-# Needs: g++, javac (for libjvm and jni.h), and the CLD2/CLD3 sources CI clones.
+# Needs: g++, javac (for libjvm and jni.h), and the CLD2 sources CI clones.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -40,21 +40,16 @@ WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-latency
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
 
 missing=0
-for d in "$CPP/cld2_src/internal" "$CPP/cld3_src/src" "$CPP/cld3_gen"; do
+for d in "$CPP/cld2_src/internal"; do
   [ -d "$d" ] || { echo "missing: ${d#$ROOT/}"; missing=1; }
 done
 if [ "$missing" = 1 ]; then
   cat <<EOF
 
-The CLD2/CLD3 sources are not present. They are cloned by CI, not checked in.
+The CLD2 sources are not present. They are cloned by CI, not checked in.
 From the repository root:
 
   git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
-  git clone --depth 1 https://github.com/google/cld3.git     app/src/main/cpp/cld3_src
-  mkdir -p app/src/main/cpp/cld3_gen/cld_3/protos
-  protoc -Iapp/src/main/cpp/cld3_src/src \\
-         --cpp_out=app/src/main/cpp/cld3_gen/cld_3/protos \\
-         app/src/main/cpp/cld3_src/src/*.proto
 EOF
   exit 2
 fi
@@ -63,7 +58,7 @@ if ! ls "$JH"/lib/server/libjvm.so >/dev/null 2>&1; then
 fi
 
 INC="-I$JH/include -I$JH/include/linux -I$CPP/cld2_src/public -I$CPP/cld2_src/internal
-     -I$CPP/cld3_src/src -I$CPP/cld3_src -I$CPP/cld3_gen -I$CPP"
+     -I$CPP"
 
 mkdir -p "$WORK/obj"
 compile() {  # compile <source> -- cached on mtime
@@ -82,7 +77,7 @@ compile() {  # compile <source> -- cached on mtime
   echo "$obj"
 }
 
-echo "1/3  compiling CLD2, CLD3 and the native core (cached in $WORK)"
+echo "1/3  compiling CLD2 and the native core (cached in $WORK)"
 # The source list comes from CMakeLists.txt, not a glob -- see sources.py for
 # why a glob cannot work here.
 sources=$(python3 "$HERE/sources.py" "$CPP")
@@ -95,7 +90,7 @@ done
 echo "2/3  linking the harness"
 g++ -c -O1 -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp"
 g++ -o "$WORK/latency" "$WORK/obj/main.o" $objs \
-    -L"$JH/lib/server" -ljvm -lprotobuf-lite -lpthread -Wl,-rpath,"$JH/lib/server"
+    -L"$JH/lib/server" -ljvm -lpthread -Wl,-rpath,"$JH/lib/server"
 
 echo "3/3  running"
 echo

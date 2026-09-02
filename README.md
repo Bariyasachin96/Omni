@@ -14,7 +14,7 @@ which is deliberately different.
 | path | what |
 |---|---|
 | `app/src/main/java/com/tts/easyvoice/` | the service, the settings screens, the storage |
-| `app/src/main/cpp/tts_engine_core.cpp` | the segmenter, the script classifier and the CLD2/CLD3 wrappers |
+| `app/src/main/cpp/tts_engine_core.cpp` | the segmenter, the script classifier and the CLD2 wrapper |
 | `docs/` | how it works, what it maps to, and the rules that must hold |
 | `tools/` | the checks and the two proof harnesses |
 | `autotts_reference/` | the decompiled AutoTTS releases this is checked against |
@@ -40,7 +40,7 @@ CI does it, and only on a manual dispatch:
     Actions → "Build Easy Voice Native" → Run workflow
 
 The APK is published to a GitHub release named after the run number. There is no
-local build — the NDK, CMake and R8 are CI's job, and CLD2, CLD3 and protobuf
+local build — the NDK, CMake and R8 are CI's job, and CLD2
 are cloned at build time rather than checked in.
 
 ## Changing something

@@ -28,7 +28,7 @@ Runs, cheapest first:
 | `check/ktresolve.py` | a call to one of **our own** functions whose arity or parameter names do not match the declaration |
 | `check/ktimports.py` | a capitalised name used but never imported, and the reverse — an import of something that is a scope member and cannot be imported |
 | `check/xmlcheck.py` | an `@color/`, `@drawable/`, `@string/` or `?attr/` reference with nothing behind it |
-| `check/invariants.sh` | the rules in `docs/INVARIANTS.md` that a grep can decide, plus CLD2/CLD3 parity |
+| `check/invariants.sh` | the rules in `docs/INVARIANTS.md` that a grep can decide |
 | `check/cpp-syntax.sh` | `g++ -fsyntax-only` over the native source |
 | `check/kotlin-typecheck.sh` | **NEW** Kotlin type errors against a baseline commit |
 
@@ -58,21 +58,12 @@ bound its trailing lambda to a newly added last parameter instead of
     tools/verify/segmenter/run.sh        # ~1 min,  163,296 cases
     tools/verify/scriptfamily/run.sh     # ~3 min,  15 language sets x 1,114,112 code points
     tools/verify/normalizer/run.sh       # ~20 s,   1,114,112 code points, 1,062 mappings
-    tools/verify/isocodes/run.sh         # ~5 s,    all 109 CLD3 tags
-    tools/verify/cld3span/run.sh         # ~4 min first run, then seconds
 
 The first four build **AutoTTS's own code** from `autotts_reference/` alongside
 ours, run both over the same inputs, and diff. A failure prints the exact case.
 
-`cld3span` is the odd one out and is built differently, because AutoTTS has no
-CLD3 to compare against. The standing rule for that switch is not "match
-AutoTTS" but "wherever CLD2 makes a detection, the switch must be able to put
-CLD3 there instead", so it asserts the **two detectors agree with each other**
-on the same text. It also does not slice the core: it links
-`tts_engine_core.cpp` itself against CLD2, CLD3 and protobuf and starts a JVM
-for a real `JNIEnv`, because the bug it exists for lived in the interaction
-between `cld3DetectRaw`'s reliability flag and `emitScriptSpan`'s per-script
-fallback, and a slice reaches neither.
+CLD3 and its two harnesses (`cld3span`, `isocodes`) were removed on
+2026-09-02 at the owner's instruction; see CLAUDE.md, "CLD3 IS GONE".
 
 These are the pieces of the app small enough to isolate and important enough to
 be worth proving:
@@ -88,37 +79,27 @@ be worth proving:
 - **the Unicode normaliser** — `clsCLD2.a` versus `normalizeFancyCodepoint`, a
   300-line hand transcription. CLAUDE.md says outright: if it is ever touched,
   redo this sweep rather than hand-checking it. This is that sweep.
-- **the ISO tags** — every language CLD3 can name has to survive
-  `IsoCodes.toIso3`. One did not, and that was a real bug.
-- **the CLD3 span site** — the two detectors on the same utterance. It exists
-  because of a device log on 2026-08-27: with CLD3 on, the Latin name
-  `"MEET Choudhary "` was spoken by the **Hindi** voice while CLD2 read it in
-  English. CLD3 answers `hi` there with `is_reliable = 0`, its own top-3 loop
-  rejects that candidate, and the fallthrough returned it anyway because the
-  span site passed `nullptr` for `reliableOut`. Negative-tested: put the
-  `nullptr` back and the harness reports the device's exact failure.
 
 ## Measuring, not proving
 
     tools/verify/latency/run.sh          # ~1 min first run, then seconds
 
 The odd one out: it asserts nothing. It links the real `tts_engine_core.cpp`
-against CLD2, CLD3 and protobuf, starts a JVM for a genuine `JNIEnv`, and
+against CLD2, starts a JVM for a genuine `JNIEnv`, and
 **times** the work that has to finish before the first word is spoken -- the
 segmenter and then one `nativeGetLanguages` per chunk -- for a 30- and a
 60-paragraph text.
 
-It times **both detectors**, because the Advanced tab's "Use CLD3" switch picks
-between them at exactly that call and they are not the same price. For 30
-paragraphs: segmenting 0.3 ms, CLD2 1.1 ms, **CLD3 6.6 ms**. Measuring only
-CLD2, as it did at first, hid the arm the owner may actually be running.
+It times the one detector there is. For 30 paragraphs: segmenting 0.3 ms,
+CLD2 1.6 ms. CLD3 used to add a second column at 6.6 ms and is gone.
 
 It exists because the owner reported a long wait before a long text starts
 reading, and the honest answer to "is our own pipeline the delay?" is a number,
 not an argument. Run it before blaming chunking or detection for anything the
-owner reports as slow -- and see the CLD3 section of CLAUDE.md for the
-callgrind profile behind those numbers, including why the obvious halving of
-CLD3's net evaluations was investigated and deliberately not taken.
+owner reports as slow. The callgrind profile behind these numbers is in
+CLAUDE.md; it was taken while CLD3 was still here, and CLD3's hidden layer was
+40.67% of every instruction the program executed, which is most of what removing
+it bought back.
 
 `verify/segmenter/cpp/explore.cpp` is the same segmenter with a readable
 main: 25 named cases printing type, kind, language and text. Use it to look at

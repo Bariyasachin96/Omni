@@ -7,6 +7,45 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## CLD3 IS GONE — CLD2 IS THE ONLY DETECTOR (owner decision, 2026-09-02)
+*"cld3 library hai na, ham hata hi dete hain properly … jitna bhi cld3 ke saath juda
+hua hai sab kuchh, A to Z … only CLD2 hi rakhna hai."* Done, and it is not a pause:
+**do not reintroduce CLD3, its switch, its flag or its build inputs** without the
+owner reversing this in writing. `tools/check/invariants.sh` #16 fails the build if
+any `cld3*` / `useCld3*` / `NNetLanguageIdentifier` symbol reappears in the core or
+the service, and a second check fails if `cld3`, `protobuf` or `protoc` reappears in
+`CMakeLists.txt` or `build.yml`. Both are negative-tested in
+`tools/check/selftest.sh`.
+
+**What went, in one list.** The native detector arm (`cld3DetectRaw`,
+`cld3FindLanguageGated`, `cld3TopNGated`, `isRomanisedTag`, `isCld3Unknown`,
+`scriptOfLanguageCode`, `baseLanguageTag`, the squeeze gate, the `#define private
+public` include wrapper); the **detect-context store and the span widening** that
+existed only to feed it; the `useCld3` parameter on all three JNI entry points and
+their Kotlin declarations; `useCld3Flag` and the `use_cld3` preference with its load
+and persist; the Advanced-tab switch and its description; **nineteen CLD3 sources,
+three generated protobufs and the whole protobuf runtime** from `CMakeLists.txt`;
+the cld3 and protobuf clones and the protoc step from **both** CI jobs; and two
+harnesses that existed only for it, `tools/verify/cld3span/` and
+`tools/verify/isocodes/`.
+
+**Why, in one line the owner earned by testing it for days:** CLD3 reads short
+Devanagari at about 50%, a coin toss, and is wrong in both directions; CLD2 scores
+24 of 25 on the same corpus at every length. The measurements that killed every
+attempted fix are kept below under the three CLD3 report sections — read them before
+ever proposing to bring it back.
+
+**Two things got better on the way out, both measured, neither of them the point:**
+- the detection path is now **12x faster on long text** — the latency harness reads
+  3.9 ms for 60 paragraphs where CLD3 plus the widening read 47.3 ms;
+- the APK loses the protobuf runtime, nineteen CLD3 translation units and a protoc
+  download from every CI run.
+
+**The CLD2 path is byte-for-byte what it was.** That is the one thing this change had
+to guarantee and it is proven, not asserted: `tools/verify/segmenter/run.sh` is still
+**identical over 163,296 cases** after the removal, and `check-all` reports no new
+type errors.
+
 ## READ THESE BEFORE ANYTHING ELSE
 Four documents were written on 2026-08-26 so that a session does not have to
 reconstruct the same knowledge every time. They are short and they are the fastest
@@ -2186,16 +2225,13 @@ disable_advanced_detection **true**, quick_character_reading false, punctuation_
 **true**, smart_number_reading false; and `number/punc/emoji_specific_language` each fall back to
 `n.e(Locale.getDefault())` when empty. Ours matches all of it.
 
-## CLD3 (user decision, 2026-07-29 — DONE 2026-08-06)
-The Advanced-tab row **"Use CLD3 (neural language detection)"** is an EasyVoice-only
-feature and **must NOT be removed**. Both steps the user asked for are finished:
-1. CLD2 path taken to exact AutoTTS parity (coverage audit, `ANALYSIS` §42-§47).
-2. CLD3 brought level with CLD2 (`ANALYSIS` §37 and §48) — both detector call sites have
-   symmetric arms, and the switch now lives on the same static/persist/load path as the
-   other five Advanced flags.
-The rule for this row is not "match AutoTTS" (AutoTTS has no such switch) but **"wherever
-CLD2 makes a detection, the switch must be able to put CLD3 there instead"**. Keep that
-invariant on any future change to the detection path.
+## ~~CLD3 (user decision, 2026-07-29)~~ — SUPERSEDED, see "CLD3 IS GONE" at the top
+This section used to say the Advanced-tab row **"Use CLD3 (neural language
+detection)"** was an EasyVoice-only feature that **must NOT be removed**, and that
+wherever CLD2 detects, the switch must be able to put CLD3 there instead. **The
+owner reversed that on 2026-09-02 and CLD3 is gone, A to Z.** The paragraph is kept
+only so a future session that remembers the old rule finds the reversal instead of
+the rule. Do not act on it.
 
 ## How to Trigger Build
 ```

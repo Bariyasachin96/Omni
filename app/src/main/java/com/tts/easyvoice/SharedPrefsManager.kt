@@ -68,7 +68,6 @@ class SharedPrefsManager(context: Context) {
     // Math.max(1, f0) at the point of use, not here, so the raw value is kept.
     fun getSmartNumberGroupSize(): Int = prefs.getInt("smart_number_reading_group_size", 1)
     fun isLoggingEnabled(): Boolean = prefs.getBoolean("logging_enabled", false)
-    fun isUseCld3(): Boolean = prefs.getBoolean("use_cld3", false)
 
     fun setLoggingEnabled(value: Boolean) = prefs.edit().putBoolean("logging_enabled", value).apply()
     fun settingsXmlFile(): java.io.File = java.io.File(appCtx.applicationInfo.dataDir, "shared_prefs/easy_voice_settings.xml")

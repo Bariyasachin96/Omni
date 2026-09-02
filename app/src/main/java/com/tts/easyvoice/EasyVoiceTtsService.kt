@@ -803,7 +803,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         run {
             try {
                 initIsoMaps()
-                val out = NativeEngine.detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled(), useCld3Flag)
+                val out = NativeEngine.detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled())
                 val markerIdx = out.indexOf('\u0001')
                 if (markerIdx >= 0) {
                     if (markerIdx + 1 < out.length) for (line in out.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)
@@ -909,7 +909,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             runs.add(DetectedRun("un", isLatinCommonInherited(folded.codePointAt(0)), folded))
             return runs
         }
-        val flat = try { NativeEngine.nativeGetLanguages(folded, useCld3Flag) } catch (_: Throwable) { return runs }
+        val flat = try { NativeEngine.nativeGetLanguages(folded) } catch (_: Throwable) { return runs }
         var index = 0
         while (index + 2 < flat.size) {
             runs.add(DetectedRun(flat[index], flat[index + 1] == "1", flat[index + 2]))
@@ -925,7 +925,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (text.isEmpty()) return "un"
         val folded = try { NativeEngine.normalizeFancy(text) } catch (_: Throwable) { text }
         if (quickCharacterFlag && folded.length == 1) return "un"
-        val flat = try { NativeEngine.nativeGetLanguages(folded, useCld3Flag) } catch (_: Throwable) { return "un" }
+        val flat = try { NativeEngine.nativeGetLanguages(folded) } catch (_: Throwable) { return "un" }
         if (flat.size < 3) return "un"
         // One triple means one span, so there is nothing to weigh up.
         if (flat.size == 3) return flat[0]
@@ -1003,7 +1003,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
         punctuationInFlowFlag = prefs.isPunctuationWithSentence()
         smartNumberFlag = prefs.isSmartNumberReading()
         smartNumberGroupSize = prefs.getSmartNumberGroupSize()
-        useCld3Flag = prefs.isUseCld3()
     }
     private fun loadModeLangsOnce() {
         if (autoLang.isNotEmpty()) return
@@ -1230,7 +1229,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             punctuationModeInt, normalizeLangCode(puncSpecificLang),
                             emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
                             smartNumberGroupSize,
-                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag
+                            neutralDefault, neutralType, disableAdvancedDetection
                         )
                         for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
                             val parts = chunkStr.split('\u001F', limit = 4)
@@ -1296,7 +1295,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             punctuationModeInt, normalizeLangCode(puncSpecificLang),
                             emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
                             smartNumberGroupSize,
-                            neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag
+                            neutralDefault, neutralType, disableAdvancedDetection
                         )
                         for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
                             val parts = chunkStr.split('\u001F', limit = 4)
@@ -1345,7 +1344,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         punctuationModeInt, normalizeLangCode(puncSpecificLang),
                         emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
                         smartNumberGroupSize,
-                        neutralDefault, neutralType, disableAdvancedDetection, useCld3Flag
+                        neutralDefault, neutralType, disableAdvancedDetection
                     )
                     for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
                         val parts = chunkStr.split('\u001F', limit = 4)
@@ -1851,6 +1850,5 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @Volatile @JvmField var keepAliveFlag = false
         @Volatile @JvmField var disableAdvancedFlag = true
         @Volatile @JvmField var quickCharacterFlag = false
-        @Volatile @JvmField var useCld3Flag = false
     }
 }

@@ -105,7 +105,6 @@ fun AdvancedScreen(
     var punctuationInFlow by remember { mutableStateOf(EasyVoiceTtsService.punctuationInFlowFlag) }
     var smartNumber by remember { mutableStateOf(EasyVoiceTtsService.smartNumberFlag) }
     var groupSize by remember { mutableStateOf(EasyVoiceTtsService.smartNumberGroupSize) }
-    var useCld3 by remember { mutableStateOf(EasyVoiceTtsService.useCld3Flag) }
     var loggingEnabled by remember { mutableStateOf(EasyVoiceLogger.isLoggingEnabled()) }
     ResponsiveContent {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
@@ -192,11 +191,6 @@ fun AdvancedScreen(
                 EasyVoiceTtsService.smartNumberGroupSize = groupSize
             }
             SettingDescription("One reads every digit on its own. Two or three read them in pairs or threes, which is easier to follow for a long number.")
-            SettingSwitch("Use CLD3 (neural language detection)", useCld3) { picked ->
-                useCld3 = picked; EasyVoiceTtsService.useCld3Flag = picked
-            }
-            SettingDescription("Experimental. Detects languages more accurately. Leave it off and Easy Voice uses CLD2, which is the default.")
-
             SectionHeader("Import/Export Configuration")
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),

@@ -2,7 +2,7 @@
 """Slice the native core into something a desktop harness can compile.
 
 app/src/main/cpp/tts_engine_core.cpp is an Android JNI translation unit: it
-includes <jni.h>, CLD2 and CLD3, and half of it is Java_… entry points. A
+includes <jni.h> and CLD2, and half of it is Java_… entry points. A
 verification harness wants none of that -- it wants the pure functions, compiled
 by an ordinary g++, so their output can be diffed against AutoTTS's own Java.
 
@@ -11,12 +11,11 @@ plumbing, and appends the few stubs the remainder needs. The result is a .inc th
 harness #includes.
 
 WHAT IS DROPPED, and why it is safe for the two proofs that use this:
-  * #include <jni.h> and the CLD2/CLD3 headers -- nothing before the cut point
+  * #include <jni.h> and the CLD2 headers -- nothing before the cut point
     calls into either library. The segmenter never detects (buildMixChunks
     segments and merges; detection happens back in Kotlin), and the script
     family is table lookups.
   * JNI_OnLoad and every extern "C" JNIEXPORT function -- entry points only.
-  * the forward declaration of cld3DetectRaw, which would need CLD3's headers.
 
 WHAT IS ADDED:
   * a jchar typedef, because a couple of UTF-16 helpers use it;
@@ -44,10 +43,6 @@ DROP_INCLUDES = (
     '#include "compact_lang_det.h"',
     '#include "encodings.h"',
     '#include "compact_lang_det_impl.h"',
-    '#include "nnet_language_identifier.h"',
-    '#include "script_span/text_processing.h"',
-    '#define private public',
-    '#undef private',
 )
 
 HINTS_STUB = """
@@ -111,9 +106,6 @@ def strip(lines):
                 index += 1
                 if seen_brace and depth <= 0:
                     break
-            continue
-        if line.startswith('static std::string cld3DetectRaw(') and line.rstrip().endswith(';'):
-            index += 1
             continue
         out.append(line)
         index += 1

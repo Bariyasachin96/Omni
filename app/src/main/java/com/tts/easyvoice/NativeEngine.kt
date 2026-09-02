@@ -11,14 +11,14 @@ object NativeEngine {
         emojiMode: Int, emojiSpecific: String, punctuationInFlow: Boolean, smartNumber: Boolean,
         smartNumberGroupSize: Int,
         neutralDefault: String, neutralType: Int,
-        disableAdvancedDetection: Boolean, useCld3: Boolean
+        disableAdvancedDetection: Boolean
     ): String
-    external fun nativeGetLanguages(text: String, useCld3: Boolean): Array<String>
+    external fun nativeGetLanguages(text: String): Array<String>
     // clsCLD2.b: decorated Latin letters folded back to ASCII.
     external fun normalizeFancy(text: String): String
     external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)
     external fun setLanguageHints(langs: Array<String>)
     external fun setDetectSets(detectOkIso3: Array<String>, enabledLangs: Array<String>)
     external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,
-        disableAdvancedDetection: Boolean, wantLog: Boolean, useCld3: Boolean): String
+        disableAdvancedDetection: Boolean, wantLog: Boolean): String
 }

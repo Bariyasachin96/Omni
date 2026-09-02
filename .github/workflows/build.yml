@@ -55,7 +55,7 @@ jobs:
       # because a clone hung with no timeout to kill it. Each fetch now gets its
       # own timeout and three tries, and the step as a whole fails fast instead
       # of burning the job's 6-hour budget.
-      - name: Clone CLD2 + CLD3 Native Libraries
+      - name: Clone the CLD2 Native Library
         timeout-minutes: 12
         run: |
           set -e
@@ -71,34 +71,6 @@ jobs:
             echo "giving up on $url"; return 1
           }
           clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
-          clone https://github.com/google/cld3.git app/src/main/cpp/cld3_src
-          clone https://github.com/protocolbuffers/protobuf.git app/src/main/cpp/protobuf_src -b v3.21.12
-
-      # protoc used to come from `apt-get install protobuf-compiler`, and apt is
-      # what actually kept breaking: run 738 hung 33 minutes inside `apt-get
-      # update`, and run 739 failed after three timed-out attempts, leaving
-      # "protoc: command not found" (exit 127). In both runs the three git
-      # clones finished in nine seconds -- GitHub was fine, the distro mirror
-      # was not. So protoc now comes from the protobuf project's own GitHub
-      # release. It is also pinned to the same version we build the runtime
-      # from (release v21.12 IS protobuf 3.21.12; the project dropped the "3."
-      # from tag names at 21), which apt never guaranteed.
-      - name: Install protoc and generate CLD3 protos
-        timeout-minutes: 5
-        run: |
-          set -e
-          url=https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
-          n=0
-          until [ $n -ge 3 ]; do
-            if timeout 120 curl -fsSL -o /tmp/protoc.zip "$url"; then break; fi
-            n=$((n+1)); echo "protoc download attempt $n failed, retrying"; sleep $((n * 5))
-          done
-          unzip -q -o /tmp/protoc.zip -d /tmp/protoc
-          sudo install -m 0755 /tmp/protoc/bin/protoc /usr/local/bin/protoc
-          protoc --version
-          mkdir -p app/src/main/cpp/cld3_gen/cld_3/protos
-          protoc -Iapp/src/main/cpp/cld3_src/src --cpp_out=app/src/main/cpp/cld3_gen/cld_3/protos app/src/main/cpp/cld3_src/src/*.proto
-          ls app/src/main/cpp/cld3_gen/cld_3/protos
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -216,7 +188,7 @@ jobs:
       # in this repository: run 794 passed with this workflow byte for byte, so
       # what changed is the hosted runner image, which keeps growing while the
       # pixel_6 userdata partition stays 7.2 GB. By the time the emulator starts
-      # this job has already spent its budget on NDK 29, the protobuf clone,
+      # this job has already spent its budget on NDK 29, the CLD2 clone,
       # Gradle and the system image.
       #
       # So reclaim what a TTS build provably never touches. Every path here is a
@@ -252,8 +224,8 @@ jobs:
           done
 
       # The debug APK links the same native core as the release one, so the
-      # CLD2/CLD3 sources have to be here too.
-      - name: Clone CLD2 + CLD3 Native Libraries
+      # the CLD2 sources have to be here too.
+      - name: Clone the CLD2 Native Library
         timeout-minutes: 12
         run: |
           set -e
@@ -269,24 +241,6 @@ jobs:
             echo "giving up on $url"; return 1
           }
           clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
-          clone https://github.com/google/cld3.git app/src/main/cpp/cld3_src
-          clone https://github.com/protocolbuffers/protobuf.git app/src/main/cpp/protobuf_src -b v3.21.12
-
-      - name: Install protoc and generate CLD3 protos
-        timeout-minutes: 5
-        run: |
-          set -e
-          url=https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
-          n=0
-          until [ $n -ge 3 ]; do
-            if timeout 120 curl -fsSL -o /tmp/protoc.zip "$url"; then break; fi
-            n=$((n+1)); echo "protoc download attempt $n failed, retrying"; sleep $((n * 5))
-          done
-          unzip -q -o /tmp/protoc.zip -d /tmp/protoc
-          sudo install -m 0755 /tmp/protoc/bin/protoc /usr/local/bin/protoc
-          mkdir -p app/src/main/cpp/cld3_gen/cld_3/protos
-          protoc -Iapp/src/main/cpp/cld3_src/src --cpp_out=app/src/main/cpp/cld3_gen/cld_3/protos \
-                 app/src/main/cpp/cld3_src/src/*.proto
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3

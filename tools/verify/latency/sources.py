@@ -3,7 +3,7 @@
 
     sources.py app/src/main/cpp
 
-Both CLD2's internal/ and CLD3's src/ carry files the app deliberately does not
+CLD2's internal/ carries files the app deliberately does not
 build: offline tools that have their own main(), alternate data tables that
 redefine the same symbols, debug_empty.cc alongside debug.cc. A glob picks all
 of those up and the link dies on duplicate definitions -- which is exactly what
@@ -27,19 +27,12 @@ def sources(cpp_dir):
     variables = {
         'CMAKE_CURRENT_SOURCE_DIR': cpp_dir,
         'CLD2_DIR': os.path.join(cpp_dir, 'cld2_src', 'internal'),
-        'CLD3_DIR': os.path.join(cpp_dir, 'cld3_src', 'src'),
-        'CLD3_GEN': os.path.join(cpp_dir, 'cld3_gen'),
     }
     out = []
     for token in body.split():
         if token in ('add_library(', 'easyvoice_core', 'SHARED'):
             continue
         # CMake builds this one with file(GLOB ...) and then filters out tests.
-        if token == '${CLD3_SCRIPT_SPAN}':
-            span = os.path.join(cpp_dir, 'cld3_src', 'src', 'script_span')
-            out += sorted(os.path.join(span, name) for name in os.listdir(span)
-                          if name.endswith('.cc') and 'test' not in name)
-            continue
         path = re.sub(r'\$\{(\w+)\}',
                       lambda m: variables.get(m.group(1), m.group(0)), token)
         if not os.path.isabs(path):

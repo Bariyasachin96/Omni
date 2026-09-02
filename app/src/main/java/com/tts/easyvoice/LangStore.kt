@@ -370,11 +370,9 @@ object LangStore {
         EasyVoiceTtsService.showNotificationFlag = sharedPrefs.getBoolean("show_notification", false)
         EasyVoiceTtsService.disableAdvancedFlag = sharedPrefs.getBoolean("disable_advanced_detection", false)
         EasyVoiceTtsService.quickCharacterFlag = sharedPrefs.getBoolean("quick_character_reading", false)
-        EasyVoiceTtsService.useCld3Flag = sharedPrefs.getBoolean("use_cld3", false)
         EasyVoiceTtsService.punctuationInFlowFlag = sharedPrefs.getBoolean("punctuation_with_sentence", true)
         EasyVoiceTtsService.smartNumberFlag = sharedPrefs.getBoolean("smart_number_reading", false)
         EasyVoiceTtsService.smartNumberGroupSize = sharedPrefs.getInt("smart_number_reading_group_size", 1)
-        EasyVoiceTtsService.useCld3Flag = sharedPrefs.getBoolean("use_cld3", false)
     }
     @JvmStatic
     fun persistEngines(ctx: Context) {
@@ -445,7 +443,6 @@ object LangStore {
         editor.putBoolean("punctuation_with_sentence", EasyVoiceTtsService.punctuationInFlowFlag)
         editor.putBoolean("smart_number_reading", EasyVoiceTtsService.smartNumberFlag)
         editor.putInt("smart_number_reading_group_size", EasyVoiceTtsService.smartNumberGroupSize)
-        editor.putBoolean("use_cld3", EasyVoiceTtsService.useCld3Flag)
         editor.commit()
     }
     @JvmStatic

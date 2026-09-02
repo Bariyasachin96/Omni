@@ -156,23 +156,19 @@ done
 [ -z "$missing" ] && ok "#17 every activity that persists also loads first" \
                   || bad "#17 persists in onPause but never loads:$missing -- a fresh process would write defaults over real settings"
 
-# --- 16. an unreliable detector answer must never reach a span --------------
-# Both arms of detectWindowLang answer "UNKNOWN" when the detector is unsure.
-# The span site once passed nullptr for cld3DetectRaw's reliableOut and used the
-# answer regardless, so an unreliable "hi" (p = 0.495) spoke a Latin name in the
-# Hindi voice while CLD2 read it in English. Asking for the flag is the whole
-# fix, so this checks nobody stops asking. Proof: tools/verify/cld3span/run.sh.
-n=$(sed 's://.*::' $CPP | grep -c "cld3DetectRaw([^;]*nullptr")
-[ "$n" = 0 ] && ok "#16 every cld3DetectRaw call asks for the reliability flag" \
-             || bad "#16 cld3DetectRaw called with nullptr for reliableOut ($n) -- an unreliable answer would reach a span"
-
-# The other half of #16: the answer must belong to the span's own script. CLD2
-# gets that from the per-script hint it feeds INTO the detector; the CLD3 arm
-# can only reject afterwards. Without this, 19 Latin spans out of 536 went to
-# Serbian with {en, sr} enabled, and 4 to Japanese with {en, ja}.
-n=$(sed 's://.*::' $CPP | grep -c "cld3Script >= 0 && cld3Script != script")
-[ "$n" = 1 ] && ok "#16 the CLD3 span answer is checked against the span's script" \
-             || bad "#16 the CLD3 wrong-script rejection is missing ($n) -- an enabled language of another script could win a span"
+# --- 16. there is ONE detector, and it must stay that way ------------------
+# CLD3 was removed on 2026-09-02 at the owner's instruction. Its arm had grown
+# three guards of its own -- a reliability flag, a wrong-script rejection and a
+# squeeze gate -- and all three are gone with it, so this checks that none of it
+# comes back by accident: no CLD3 symbol, no second detector, no useCld3 flag.
+# See CLAUDE.md, "CLD3 IS GONE", for why, and for the measurements that decided
+# it. Comments are stripped, because that section quotes these very names.
+strays=$(sed 's://.*::' $CPP $KT/*.kt |
+         grep -oE '\b(cld3[A-Za-z]*|useCld3[A-Za-z]*|NNetLanguageIdentifier|isRomanisedTag)\b' |
+         sort -u || true)
+[ -z "$strays" ] \
+  && ok "#16 CLD2 is the only detector -- no CLD3 symbol anywhere" \
+  || bad "#16 CLD3 has come back: $strays"
 
 # --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's six sites --
 # AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and
@@ -193,16 +189,20 @@ size=$(wc -c < .github/workflows/build.yml)
 [ "$size" -lt 400000 ] && ok "#12 build.yml is $size bytes" \
                        || bad "#12 build.yml is $size bytes -- at 512,000 a run is never parsed"
 
-# --- CLD3 parity: wherever CLD2 detects, CLD3 must be able to ---------------
-cld2=$(grep -c "CLD2::DetectLanguageSummaryV2\|CLD2::ExtDetectLanguageSummary" $CPP)
-cld3=$(grep -c "cld3DetectRaw(.*, *\(true\|false\))" $CPP)
-[ "$cld2" = "$cld3" ] && ok "CLD3 parity: $cld2 CLD2 detection sites, $cld3 CLD3 arms" \
-                      || bad "CLD3 parity: $cld2 CLD2 detection sites but $cld3 CLD3 arms"
-
-flagged=$(grep -c "useCld3Flag" $SERVICE)
-[ "$flagged" -ge 6 ] && ok "CLD3 flag reaches all $flagged native call sites" \
-                     || bad "CLD3 flag reaches only $flagged call sites"
-
+# --- the detector's build inputs stay CLD2-only -----------------------------
+# CMakeLists carried nineteen CLD3 sources, three generated protobufs and the
+# whole protobuf runtime; build.yml cloned cld3 and protobuf and ran protoc.
+# All of it went with the detector. If any of those names reappear the APK has
+# grown a dependency nobody asked for.
+# Comment lines are stripped first in BOTH files -- CMakeLists and build.yml
+# each carry a note saying these names must not come back, and a check that
+# fires on its own warning is a check nobody keeps.
+buildstray=$(cat app/src/main/cpp/CMakeLists.txt .github/workflows/build.yml |
+             sed 's:#.*::' |
+             grep -oiE 'cld3|protobuf|protoc' | sort -u || true)
+[ -z "$buildstray" ] \
+  && ok "no CLD3 or protobuf input in CMakeLists or build.yml" \
+  || bad "a CLD3/protobuf build input is back: $buildstray"
 echo
 echo "not checkable by grep -- read docs/INVARIANTS.md #7, #9, #10, #11, #13"
 [ "$fail" = 0 ] && echo "ALL MECHANICAL INVARIANTS HOLD" || echo "SOMETHING IS BROKEN"

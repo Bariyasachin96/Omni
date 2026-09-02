@@ -59,7 +59,7 @@ hints, and may only be called where the list was just loaded or rebuilt.
 `pushDetectSetsOnly()` is the per-utterance call and must never send hints.
 
 **Why.** The hints steer the detector — CLD2 takes them as its per-script
-language hint and CLD3 filters its top-3 by the same list — so they decide which
+language hint is derived from that list — so it decides which
 languages may be named at all. `LangStore.languages` is a shared static that the
 settings screens rebuild, and **not always whole**: `dualLangList` is two
 entries, and `voiceLanguageLabels` uses `onlyEnabled = true`. Re-deriving the
@@ -302,158 +302,43 @@ That is the second time this exact trap has been hit; `selftest.sh` found both.
 
 ---
 
-## 16. An unreliable detector answer must never reach a span
+## 16. CLD2 is the only detector — CLD3 must not come back
 
-**Rule.** Every `cld3DetectRaw` call passes a real `bool*` for `reliableOut` and
-treats "not reliable" as unknown. Never `nullptr`.
+**Rule.** No `cld3*`, `useCld3*`, `NNetLanguageIdentifier` or `isRomanisedTag`
+symbol in `tts_engine_core.cpp` or the service, and no `cld3` / `protobuf` /
+`protoc` in `CMakeLists.txt` or `build.yml`. Both halves are checked by
+`invariants.sh` and both are negative-tested in `selftest.sh`.
 
-**Why.** Both arms of `detectWindowLang` already answer `"UNKNOWN"` when the
-detector is unsure — the CLD2 arm on `!reliable`, the CLD3 arm on
-`!cld3Reliable`. The span site inside `nativeGetLanguages` was the one place
-that passed `nullptr` and used the answer regardless.
+**Why.** CLD3 was removed on 2026-09-02 at the owner's instruction, after they had
+tested it on their own device for days. This invariant used to say the opposite
+thing — that an unreliable CLD3 answer must never reach a span — and it grew three
+guards of its own (a reliability flag, a wrong-script rejection, a squeeze gate).
+All three are gone with the arm they protected.
 
-What that cost, from a device log on 2026-08-27: with CLD3 enabled the Latin
-name `"MEET Choudhary "` was spoken by the **Hindi** voice, while CLD2 read it
-in English. The chunking was identical under both detectors; only the first
-span's language differed. CLD3 answers `hi` for that text with
-`is_reliable = 0` and `probability = 0.495`. Its own top-3 loop rejects the
-candidate for exactly that reason — and then the fallthrough to `FindLanguage()`
-returned the same unreliable `hi` anyway. Because Hindi *is* an enabled
-language, `isHinted` accepted it and the per-script fallback never ran.
+**The measurement that ended it**, twelve real Hindi and Marathi sentences cut to
+rising byte prefixes through `FindLanguage`:
 
-With the flag honoured, an unreliable answer becomes `"un"`, which is not in the
-hint list, so the per-script fallback resolves the span to the one language its
-script implies — English for a Latin span when English is the only enabled
-Latin language.
+| bytes | Hindi right | Marathi right | combined |
+|---|---|---|---|
+| ≤20 | 33% | 67% | **50%** |
+| ≤40 | 50% | 50% | **50%** |
+| ≤60 | 50% | 83% | **67%** |
+| ≤80 | 83% | 100% | **92%** |
+| ≥100 | 100% | 100% | **100%** |
 
-**Check.** `tools/check/invariants.sh` #16, and the real proof,
-`tools/verify/cld3span/run.sh`, which links the actual native core against CLD2
-and CLD3, starts a JVM for a genuine `JNIEnv`, and asserts both detectors agree
-on the reported utterance. Negative-tested: with the flag removed it reports the
-device's exact failure, `span 0 is "hi", expected "en"`.
+Below about 80 bytes CLD3 is a coin toss between the two, **in both directions** —
+a real Marathi label is answered Nepali as readily as a Hindi one is answered
+Marathi. UI labels and button names, which is most of what a screen reader speaks,
+live entirely in that range. CLD2 scores 24 of 25 on the same corpus at every
+length. Seven attempted fixes were measured and every one made some user worse;
+they are written up in CLAUDE.md under the three CLD3 report sections.
 
-### The second half: the answer must belong to the span's script
-
-**Rule.** A CLD3 answer is accepted only if the language is not placed under a
-*different* script by `kScriptLangPairs`. `scriptOfLanguageCode` answers the
-script or `-1`, and `-1` is **accepted**.
-
-**Why.** CLD2 gets this free: its per-script hint is fed **into** the detector,
-so for a Latin span with one enabled Latin language it is told what to expect.
-The CLD3 arm has no hints API and can only filter afterwards, against a flat
-enabled-language list that knows nothing about script — so a reliable `sr` or
-`ja` would win a Latin span merely because the user has Serbian or Japanese
-enabled.
-
-Measured over the same 536 Latin strings, with and without the rejection:
-
-| enabled languages | reliability only | + wrong-script rejection |
-|---|---|---|
-| `eng`, `guj`, `hin` — the reporter's set | 0 | **0** |
-| `en`, `ru`, `uk`, `bg` | 1 | **0** |
-| `en`, `ja` | 4 | **0** |
-| `en`, `zh`, `ja`, `ko` | 4 | **0** |
-| `en`, `sr` | 19 | **0** |
-| `en`, `ja`, `sr`, `ru`, `zh` | 23 | **0** |
-
-and the other direction checked too — 18 non-Latin lines (Devanagari, Cyrillic,
-Arabic, CJK, Bengali, Gujarati, Tamil) across seven enabled sets: **0
-disagreements**, so rejecting wrong-script answers did not start rejecting right
-ones.
-
-**`-1` must keep meaning "no evidence".** The 48 pairs are not a complete script
-classification: Latin lists 24 languages and has no Catalan or Basque, and CJK
-has no Korean at all. Treating "absent from the table" as "wrong script" would
-reject far more than it fixed. Only a language the table places under a
-different script is a provable mismatch.
-
-**Why the reporter's own set was already 0.** CLD3 never *reliably* answers bare
-`hi`/`gu` for Latin text — it answers `hi-Latn`, which `isRomanisedTag` drops,
-or an unreliable `hi`, which the reliability half drops. The gap was real but
-dormant there; it was closed anyway because the enabled-language list is
-something the owner changes.
+**Do not reintroduce it to "give the user the choice".** The choice was measured
+and it was a bad one, and the switch cost the APK the protobuf runtime, nineteen
+translation units, a protoc download per CI run, and 12x on the detection path.
 
 ---
 
-## 25. CLD3 must not squeeze a short text — CLD2 never does
-
-**Rule.** The CLD3 arm goes through `cld3FindLanguageGated` and `cld3TopNGated`,
-never through `NNetLanguageIdentifier::FindLanguage` or
-`FindTopNMostFreqLangs` directly. Those two are CLD3's own functions mirrored
-statement for statement with one change: `CheapSqueezeInplace` runs only when the
-text is longer than **2048 bytes**, which is CLD2's own gate
-(`kCheapSqueezeTestThresh >> 1`, `compact_lang_det_impl.cc:1867`). Do not
-"simplify" the mirrors back to the library calls.
-
-**Why.** Device log, 2026-09-02. With CLD3 on, the Hindi sentence
-
-    किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
-
-was spoken by the **Marathi** voice; with CLD2 it was read in Hindi. Identical
-chunking, only the span's language differed — and the context widening of
-INVARIANTS #16 cannot help, because that chunk **is** all the Devanagari in the
-utterance, so there is nothing wider to detect against.
-
-**The model is not wrong.** Handed the raw bytes it answers `hi p=0.9926`,
-`mr p=0.0008`. What it is handed is not those bytes:
-
-    cleaned  (131 B)  किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
-    squeezed  (75 B)  किसी दूसरी भाषा भाषा बातचीत        →  mr p=0.913
-
-`CLD2::CheapSqueezeInplace` walks the text in 48-byte chunks and drops one whose
-bytes are mostly predicted from what came before — boilerplate removal for
-multi-kilobyte web documents. `"किसी दूसरी भाषा"` occurs twice here, so a third of
-the sentence is deleted and the network is asked about the wreckage.
-
-**CLD2 never does this to a short text**, and that asymmetry is the whole defect.
-It squeezes a script span only when `2048 < scriptspan.text_bytes`, and even then
-only after `CheapSqueezeTriggerTest` agrees. CLD3 calls the same function
-unconditionally with `chunk_size = 0`, in both of its entry points. So the switch
-the owner flips did not only change detector — it silently changed the text.
-
-**Measured over 608 distinct strings** — every phrase spoken in both device logs
-plus the app's own literals. The stock squeeze removes text from **9** of them
-and changes the answer on **4**, and all four move to the better answer:
-
-| text | stock | gated |
-|---|---|---|
-| `किसी दूसरी भाषा … बातचीत` | mr 0.913 | **hi 0.989** |
-| the same, 154-byte variant | mr 0.526 | **hi 0.814** |
-| `"Text box Compose message"` doubled | ja 0.784 | **en, unreliable** |
-| a Samoan sentence | hu 0.861 | **sm 1.000** |
-
-No case in that corpus gets worse. The third row is the same defect on Latin
-text: the doubled phrase squeezes to something CLD3 calls **Japanese** with 0.784,
-which clears its own reliability bar; gated, it answers `en` unreliably and the
-per-script fallback resolves the Latin span to the Latin language.
-
-**Reaching CLD3's pipeline without the squeeze needs two of its private members**
-(`FindLanguageOfValidUTF8`, `SelectTextGivenBeginAndSize`), so
-`tts_engine_core.cpp` wraps the include in `#define private public`. Access
-control changes neither layout nor mangling, CLD3's own `.cc` files are separate
-translation units compiled untouched, and CLD3 is vendored by a CI `git clone`,
-so patching its source is not an option. Note the namespace: CLD3 carries its
-**own copy** of CLD2's span code, so these are `chrome_lang_id::CLD2::…`, not the
-top-level `CLD2::…`.
-
-**The speed cost, measured, and where it comes from.** `tools/verify/latency`
-repeats three fixed paragraphs, so at 60 paragraphs each appears twenty times —
-the pathological case the squeeze exists for, and nothing like real screen-reader
-text (9 strings out of 608). On that benchmark, 60 paragraphs:
-
-    gate only, no widening        6.6 ms     (stock was 8.6 ms)
-    gate + the #16 widening      47.3 ms
-
-The widening is what costs, and it costs more now only because the squeeze used
-to collapse the widened evidence into almost nothing — i.e. CLD3's old speed on
-long repetitive text came from throwing the evidence away. `onSynthesizeText` can
-never receive more than 4000 characters (AOSP rejects longer), so the real
-ceiling is the 20-paragraph row at **8.7 ms**, and a typical utterance is under a
-millisecond. CLD2 is unchanged at ~1 ms and remains the faster switch.
-
-Proof and negative test: `tools/verify/cld3span/run.sh`.
-
----
 
 ## 20. The span emitter has three parts nobody would guess from the Java
 
@@ -502,7 +387,7 @@ per-script fallback instead.
 `0x6535f4`: `sub x8, x0, #0x8 / cmn x8, #0x7 / b.lo <skip>` keeps a code only
 when `1 <= strlen <= 7` — it has to fit an 8-byte slot with its NUL — and a
 longer one is **skipped, not truncated**. `0x65373c` stops the loop once 64 have
-been kept. Our comma list, which is what the CLD3 arm filters against, is built
+been kept. Our comma list, which the per-script hint tables are derived from, is built
 from the same accepted codes so the two detectors are steered by one list.
 
 **4. In the script ladder, an ASCII letter means Latin and anything else means
@@ -522,7 +407,8 @@ decides **which 64** codes survive the cap in part 3 when more than 64 languages
 are enabled. A fresh `HashSet` per call would always iterate at the small table
 size and keep a different 64. `EasyVoiceTtsService.enabledIso2` is that set.
 
-**Check.** `tools/verify/cld3span/run.sh`. Negative-tested by building the
+**Check.** was `tools/verify/cld3span/run.sh`, which went with CLD3 on 2026-09-02.
+It was negative-tested by building the
 harness with each change reverted:
 
 | reverted | what the harness reports |
