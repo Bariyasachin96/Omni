@@ -263,10 +263,26 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                 // "Show selected" and "Show all", nothing announced whether
                 // the filter was ON; a chip carries a real selected state,
                 // so TalkBack says "selected" and the label can stay fixed.
+                //
+                // The label is "My languages", NOT "Show selected", and the
+                // reason is the state word. A FilterChip already publishes
+                // `selected`, so TalkBack says the state itself; a label that
+                // also contains "selected" makes it announce twice, and that is
+                // precisely what Google's RedundantDescriptionCheck reports --
+                // it matches checked/unchecked/selected/unselected inside a
+                // content description, case-insensitively, on word boundaries.
+                // It was the last such warning left in the app and was carried
+                // as accepted for a while, because WCAG 2.5.3 Label in Name
+                // forbids fixing it by changing only the contentDescription:
+                // the VISIBLE text has to change with it. Both change here, so
+                // the two stay identical. "My languages" also says what the
+                // filter actually leaves on screen, which "Show selected" never
+                // did. (Owner asked for the accessibility attributes to be put
+                // right everywhere, 2026-09-02.)
                 FilterChip(
                     selected = showSelectedOnly,
                     onClick = { showSelectedOnly = !showSelectedOnly },
-                    label = { Text("Show selected", modifier = Modifier.clearAndSetSemantics { }) },
+                    label = { Text("My languages", modifier = Modifier.clearAndSetSemantics { }) },
                     leadingIcon = {
                         if (showSelectedOnly) {
                             Icon(
@@ -276,7 +292,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                             )
                         }
                     },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Show selected" }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "My languages" }
                 )
             }
             OutlinedTextField(

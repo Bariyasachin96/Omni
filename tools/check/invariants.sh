@@ -73,11 +73,20 @@ n=$(grep -rc "announceForAccessibility" $KT | awk -F: '{s+=$2} END{print s+0}')
 # names the role the service already appends, or that puts state in the name.
 # Comments are stripped first -- several of them quote the very strings this
 # looks for, because that is where the rule was written down.
+#
+# There is NO exemption any more. "Show selected" used to be carved out here:
+# the Languages filter chip's visible label contained the state, and WCAG 2.5.3
+# Label in Name meant it could not be fixed by editing the contentDescription
+# alone. On 2026-09-02 the owner asked for the accessibility attributes to be
+# put right everywhere, so the visible label and the name became "My languages"
+# together and the carve-out went with them. Do not add another one: if a label
+# genuinely has to carry a state word, that is a UI wording decision and belongs
+# to the owner, not to a grep -v.
 names=$(grep -rh "contentDescription *=\|stateDescription *=" $KT |
         sed 's://.*::' |
         grep -oE '"[^"]*"' |
         grep -iE '\b(button|checkbox|dropdown|radio|slider|tab)\b|\b(checked|unchecked|selected|unselected)\b' |
-        grep -v "Show selected" | sort -u || true)
+        sort -u || true)
 [ -z "$names" ] \
   && ok "#6  no accessible name carries its own role word or state" \
   || bad "#6  accessible name carries a role word or state: $names"

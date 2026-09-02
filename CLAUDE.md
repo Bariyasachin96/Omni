@@ -941,6 +941,64 @@ sets x 1,114,112 code points.
 **CLD2 is still the faster switch** (1.1 ms vs 6.6 ms per 30 paragraphs) and is untouched by
 all of this.
 
+## Accessibility swept again against the CURRENT APIs (owner request, 2026-09-02)
+*"accessibility attributes … usko bhi sahi karna hai sab jagah se properly … jo
+latest devices aur latest technology hai uske hisab se research karke."* Done by
+reading the current sources, not from memory, and it found two real gaps rather
+than a list of things to admire.
+
+**What was actually checked, and where the list came from.** Android 15 and 16's
+behaviour-changes pages carry exactly one accessibility item between them -- the
+`announceForAccessibility` deprecation, which this app closed on 2026-08-13 -- so
+the platform side is current. For Compose the authority is androidx's own
+`SemanticsProperties.kt`, fetched rather than recalled: **101 semantics keys and
+83 `SemanticsPropertyReceiver` setters**. Every one was compared against what the
+app uses (`contentDescription`, `stateDescription`, `heading`, `paneTitle`,
+`liveRegion`, `collectionInfo`, `collectionItemInfo`, `selectableGroup`, `role`,
+`selected`, `toggleableState`, `clearAndSetSemantics`, `onClickLabel`,
+`hideFromAccessibility`). The rest are either set for us by the Material
+component (`disabled`, `dialog`, `popup`, `isEditable`, `progressBarRangeInfo`),
+belong to text input we do not have (`imeAction`, `insertTextAtCursor`,
+`textSubstitution`, `maxTextLength`), or are `isTraversalGroup` /
+`traversalIndex`, which are deliberately unused -- see below.
+
+**Gap 1: `MainScreen` had no accessibility test.** Six of the seven screens were
+covered by `AccessibilityChecksTest`; the one that was not is the app's front
+door -- the startup scan, the app bar, the tab strip and the selected page. It is
+covered now in **both** states, which share no views at all: `mainScreenScanning`
+and `mainScreenSettled`. `appIcon` is passed as null on purpose -- the real one
+comes from `PackageManager` and its `Image` carries
+`contentDescription = null` because the name is written beside it, so null
+exercises the same branch without needing a bitmap. That job runs Google's
+Accessibility Test Framework on a real emulator and **fails the build**, so this
+is the part that keeps working without anyone re-reading the screen.
+
+**Gap 2: the last `RedundantDescriptionCheck` warning is closed.** The Languages
+filter chip said **"Show selected"** while a `FilterChip` also publishes
+`selected`, so TalkBack announced the state twice. It had been carried as an
+accepted warning because WCAG 2.5.3 Label in Name forbids fixing it by editing
+the accessible name alone -- the visible text has to change with it. Both changed
+together to **"My languages"**, which also says what the filter leaves on screen
+where "Show selected" never did. **The `grep -v "Show selected"` carve-out is out
+of `tools/check/invariants.sh`**, negative-tested both ways, so the rule now has
+no exception and a future regression cannot slip through it.
+
+**Verified clean in the same sweep, so do NOT re-audit:** every
+`clickable`/`toggleable`/`selectable`/`IconButton` in the app has an accessible
+name within its own block; no two accessible names in one file collide
+(`DuplicateSpeakableTextCheck`); no name contains a role word or a state word any
+more; disabled controls really are disabled rather than only greyed --
+`SettingSwitch` passes `enabled` to `toggleable` and `LabeledDropdown` passes it
+to the `OutlinedButton`, which is what puts the `Disabled` semantics on the node.
+
+**Deliberately NOT done, and it needs the owner's decision.** The tab strip is in
+`Scaffold`'s `bottomBar`, so it is the LAST thing in reading order and a user
+must swipe past a whole page -- up to 137 language rows -- to reach it.
+`isTraversalGroup` + `traversalIndex` could move it to the front. That changes how
+the owner traverses the app every day, and both `LazyColumn`s publish
+`collectionInfo`, so container navigation already offers a way out of a long list.
+Ask before changing it.
+
 ## Three owner overrides on 2026-09-02, all DELIBERATE DEPARTURES from AutoTTS
 Asked for directly. Do not "restore" any of them to AutoTTS's behaviour.
 

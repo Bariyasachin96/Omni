@@ -177,6 +177,47 @@ class AccessibilityChecksTest {
     }
 
     // ======================================================================
+    //  THE FRONT DOOR
+    //  MainScreen was the one screen with no test, and it is the first thing a
+    //  blind user meets: the startup scan, then the tab strip and whichever page
+    //  is selected. Both of its states are checked, because they share no views
+    //  at all -- the scan state is a centred column with a live region, and the
+    //  settled state is the app bar plus PrimaryTabRow plus a page.
+    //
+    //  appIcon is null on purpose. The real one is loaded from PackageManager,
+    //  and its Image carries contentDescription = null because the app name is
+    //  written beside it; passing null exercises the same branch without needing
+    //  a bitmap, and the label under test is the Text, not the icon.
+    // ======================================================================
+
+    private fun mainScreen(scanning: Boolean, scanLine: String) = @androidx.compose.runtime.Composable {
+        MainScreen(
+            prefs = prefs(),
+            scanning = scanning,
+            scanLine = scanLine,
+            modeRefresh = 0,
+            appIcon = null,
+            onOpenModeSettings = { },
+            onAddLanguage = { },
+            onLanguage = { },
+            onDeleteConfiguration = { },
+            onDisableLanguage = { },
+            requestNotificationPermission = { },
+            launchImportPicker = { }
+        )
+    }
+
+    @Test
+    fun mainScreenScanning() {
+        check(mainScreen(scanning = true, scanLine = "Checking your TTS engines"))
+    }
+
+    @Test
+    fun mainScreenSettled() {
+        check(mainScreen(scanning = false, scanLine = ""))
+    }
+
+    // ======================================================================
     //  THE POPUPS
     //  Everything above renders one composition and checks what is on screen,
     //  which means a menu that has not been opened is never looked at. That was

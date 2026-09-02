@@ -170,9 +170,15 @@ stripped — ordinary prose on screen may of course say "no voice is selected",
 and several comments quote the very strings the rule forbids, because that is
 where the rule is written down. A broader grep flags all of those.
 
-One accepted exception: the Languages screen's **"Show selected"** chip, because
-WCAG 2.5.3 requires the accessible name to contain the visible label. Renaming
-it is a wording decision for the owner.
+**There is no exception left.** The Languages screen's filter chip used to be
+carved out of this check: its visible label was "Show selected", and WCAG 2.5.3
+Label in Name meant the state word could not be removed from the accessible name
+without also changing the text on screen. On 2026-09-02 the owner asked for the
+accessibility attributes to be put right everywhere, so both became
+**"My languages"** together and the `grep -v` came out of `invariants.sh`.
+A chip already publishes `selected`, so the state is announced once now instead
+of twice. Do not add another carve-out: if a label genuinely has to carry a
+state word, that is a wording decision and belongs to the owner.
 
 ---
 
@@ -821,10 +827,14 @@ with a heading already above each group, repeating the group name on all four
 rows is noise. A radio group whose options repeat is the canonical case this
 check cannot judge. The heading stays, the prefix does not.
 
-**`RedundantDescriptionCheck` on "Show selected".** The chip's visible label
-contains the word "selected", and WCAG 2.5.3 Label in Name requires the
-accessible name to contain the visible label. Renaming the chip is the only way
-to silence it, and that is a wording decision for the owner.
+**`RedundantDescriptionCheck` on "Show selected" -- CLOSED 2026-09-02.** The
+chip's visible label contained "selected" while the chip also published the
+`selected` state, so TalkBack said it twice; WCAG 2.5.3 Label in Name meant it
+could not be fixed by editing the accessible name alone. The owner asked for the
+accessibility attributes to be put right everywhere, so the visible label and the
+name changed together to **"My languages"** -- which also describes what the
+filter leaves on screen, where "Show selected" never did. This was the last
+outstanding accessibility warning in the app.
 
 **Everything else was measured, not assumed** (2026-08-27):
 
