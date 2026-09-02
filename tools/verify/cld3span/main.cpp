@@ -304,6 +304,25 @@ int main(){
         enable({"en", "gu", "hi"});
         expectSpan("Hindi tail, CLD3, mr NOT enabled",   hindiTail, true,  0, 1, "hi", "0");
         expectSpan("Hindi tail, CLD2, mr NOT enabled",   hindiTail, false, 0, 1, "hi", "0");
+
+        // The two detectors AGREE on every other realistic Indic case, and these
+        // assert it. They exist because of a rejected idea: CLD3 is built with
+        // min_num_bytes = 0 while its own default is 140, so raising it looked
+        // like a principled fix -- short chunks would return "und" and the
+        // per-script fallback would resolve Devanagari to Hindi. Measured, and
+        // it is a net LOSS: at min = 60 the 56-byte Hindi tail is fixed but
+        // 41-byte Marathi ALSO becomes "und" and reads as Hindi, and both
+        // detectors get that one right today. One sentence gained, a whole
+        // language's short phrases lost. Do not raise min_num_bytes.
+        enable({"en", "gu", "hi", "mr"});
+        const std::string shortMarathi =
+            "\u092e\u0932\u093e \u092e\u0930\u093e\u0920\u0940 \u0906\u0935\u0921\u0924\u0947";
+        const std::string shortHindi =
+            "\u092e\u0941\u091d\u0947 \u0939\u093f\u0928\u094d\u0926\u0940 \u092a\u0938\u0902\u0926 \u0939\u0948";
+        expectSpan("short Marathi, CLD2, mr enabled",    shortMarathi, false, 0, 1, "mr", "0");
+        expectSpan("short Marathi, CLD3, mr enabled",    shortMarathi, true,  0, 1, "mr", "0");
+        expectSpan("short Hindi, CLD2, mr enabled",      shortHindi,   false, 0, 1, "hi", "0");
+        expectSpan("short Hindi, CLD3, mr enabled",      shortHindi,   true,  0, 1, "hi", "0");
     }
 
     if(failures == 0) printf("ALL CLD3 SPAN CASES PASS\n");

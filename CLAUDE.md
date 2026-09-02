@@ -851,6 +851,38 @@ per-script fallback resolves Devanagari to Hindi, because `kScriptLangPairs` lis
     Hindi tail, CLD3, mr NOT enabled    -> hi
     Hindi tail, CLD2, mr NOT enabled    -> hi
 
+**The owner's next idea was Unicode**: CLD2 does better, AutoTTS uses Unicode well, so
+something Unicode-shaped must be missing from the CLD3 path. Checked, and there is no gap:
+- the fancy-letter normaliser (`clsCLD2.a`) is **proven** identical over all 1,114,112 code
+  points and runs before both detectors, in `buildMixChunks` and `detectLanguageRuns` alike;
+- at the span site **both arms get the same bytes** -- `text[start .. start+detectBytes]`;
+- AutoTTS's genuinely Unicode-driven fallback, `a.e(cp, n.f)`, belongs to `clsCLD2.d`, the
+  auto/Google WINDOW path, and ours is proven equal there over 1,114,112 code points x 45
+  enabled sets. Mixed mode uses the per-script fallback instead, which we also have.
+The failing text is plain Devanagari that is valid in both languages -- no character in it
+distinguishes Hindi from Marathi, so no Unicode rule could.
+
+**One idea from that line of thinking WAS promising and was measured, then rejected.** We
+build CLD3 with `NNetLanguageIdentifier(0, 1024)` while its own default minimum is
+`kMinNumBytesToConsider = 140`; below the minimum it returns `Result()` = "und", which our
+span site folds to `"un"` and resolves through the per-script fallback. Raising it looked
+like a clean fix. Measured across thresholds:
+
+    text                  bytes  min=0  min=40  min=60  min=80
+    hindi tail (the bug)     56  mr     mr      und     und
+    real marathi            112  mr     mr      mr      mr
+    short marathi            41  mr     mr      und     und
+
+At `min = 60` the reported sentence is fixed **and 41-byte Marathi breaks**, becoming "und"
+and then Hindi. **Both detectors get short Marathi right today**, so that trade is one
+sentence gained for a whole language's short phrases lost. **Do not raise `min_num_bytes`.**
+
+**Measured at the span site with the owner's exact set `{en, gu, hi, mr}`, the two detectors
+AGREE on five of six realistic cases** -- real Marathi, short Marathi, short Hindi, short
+English and short Gujarati all match; only the reported Hindi tail differs. Those agreements
+are now asserted in `tools/verify/cld3span/run.sh` so a future change cannot quietly break
+Marathi while chasing this sentence.
+
 **Nothing in the detection path was changed.** CLD2 remains the default and the recommendation.
 
 ## The launcher icon is the owner's artwork (2026-09-02)
