@@ -173,10 +173,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
         var audioAttrSet: Boolean = false
         var restoreCount: Int = 0
         var lastRestoreTime: Long = 0L
-        val stopExec: java.util.concurrent.ExecutorService =
-            java.util.concurrent.ThreadPoolExecutor(0, 5, 60L, java.util.concurrent.TimeUnit.SECONDS,
+        // The engine's own voice set, cached. See loadVoice for why. Cleared
+        // wherever `tts` is replaced, because a new TextToSpeech is a new
+        // connection to the engine and the old objects belong to the old one.
+        @Volatile var voicesCache: MutableSet<android.speech.tts.Voice>? = null
+        // AutoTTS's c3.k0.java:78 is ThreadPoolExecutor(0, 5, 60s, LinkedBlockingQueue,
+        // h0) with daemon "TtsStop" threads, and k0.m() is just i.execute(new i0(this)).
+        // Queuing is right -- onStop() must return promptly, so the binder call into the
+        // other engine cannot happen on the caller's thread.
+        //
+        // DELIBERATE DEPARTURE (owner request, 2026-09-02): the core size is 1, not 0,
+        // and the thread is prestarted. With a core of 0 the FIRST stop after an idle
+        // spell has to construct a thread before it can even issue the stop, which is
+        // pure added delay on the one call that must not be slow. One idle daemon
+        // thread per engine wrapper is the price, and it is blocked on the queue.
+        val stopExec: java.util.concurrent.ThreadPoolExecutor =
+            java.util.concurrent.ThreadPoolExecutor(1, 5, 60L, java.util.concurrent.TimeUnit.SECONDS,
                 java.util.concurrent.LinkedBlockingQueue<Runnable>(),
                 java.util.concurrent.ThreadFactory { runnable -> Thread(runnable, "TtsStop").apply { isDaemon = true } })
+                .apply { prestartCoreThread() }
         fun stop() {
             stopExec.execute {
                 try { tts!!.stop() }
@@ -259,16 +274,43 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // the engine to the right LANGUAGE, and we left it wherever it
                 // happened to be.
                 var matchedAVoice = false
-                val voices = try { wrapper.tts?.voices } catch (_: Exception) { null }
-                if (voices != null) {
-                    for (voiceObj in voices) {
+                // TextToSpeech.getVoices() is a BINDER CALL that marshals the
+                // engine's ENTIRE voice set -- for Google TTS that is hundreds of
+                // Voice objects, each with a name, a Locale, quality, latency and a
+                // feature Set. AutoTTS's f0 asks for it on every voice change and we
+                // copied that, so switching Hindi -> Gujarati on one engine paid the
+                // whole marshal, ON THE MAIN THREAD: onDone posts to the main looper,
+                // and onLoadLanguage -> loadVoice runs inside that post. That is the
+                // "halka sa delay" the owner hears between languages even when both
+                // sit on the same engine (owner request, 2026-09-02).
+                //
+                // DELIBERATE DEPARTURE FROM AutoTTS: the list is cached per wrapper.
+                // It is safe because the set only changes when the engine itself
+                // changes -- an update, or newly downloaded voice data -- and both
+                // replace `tts`, which clears the cache. A variant that is NOT in the
+                // cached list re-queries once and rescans, so a voice installed while
+                // the service is alive is still found; that path costs exactly what
+                // every call used to cost, and it is the rare one.
+                var voices = wrapper.voicesCache
+                if (voices == null) {
+                    voices = try { wrapper.tts?.voices } catch (_: Exception) { null }
+                    wrapper.voicesCache = voices
+                }
+                fun scanFor(list: MutableSet<android.speech.tts.Voice>?): Boolean {
+                    if (list == null) return false
+                    for (voiceObj in list) {
                         if (voiceObj.name.equals(effectiveVariant, ignoreCase = true)) {
                             val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
                             if (setVoiceResult != null && setVoiceResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult) } else restoreEngine(wrapper.pkg)
-                            matchedAVoice = true
-                            break
+                            return true
                         }
                     }
+                    return false
+                }
+                matchedAVoice = scanFor(voices)
+                if (!matchedAVoice && voices != null) {
+                    val fresh = try { wrapper.tts?.voices } catch (_: Exception) { null }
+                    if (fresh != null) { wrapper.voicesCache = fresh; matchedAVoice = scanFor(fresh) }
                 }
                 if (!matchedAVoice && !localeMatches(locale, curLocale)) {
                     val setLangResult = wrapper.tts?.setLanguage(locale)
@@ -406,10 +448,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
             if (status == TextToSpeech.SUCCESS) {
                 if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); if (initializingIndex < enginePool.size) enginePool[initializingIndex].audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
-                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].state = 2 }
+                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].voicesCache = null; enginePool[initializingIndex].state = 2 }
                 if (engineList[initializingIndex] == "com.google.android.tts") googleEngineIndex = initializingIndex
             } else {
-                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].state = -1 }
+                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].voicesCache = null; enginePool[initializingIndex].state = -1 }
             }
             initializingIndex++
             while (initializingIndex < engineList.size) {
@@ -448,12 +490,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
                 if (status == TextToSpeech.SUCCESS) {
                     if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
-                    wrapper.tts = initializingTts
+                    wrapper.tts = initializingTts; wrapper.voicesCache = null
                     wrapper.state = 2
                     wrapper.voiceName = ""
                     wrapper.locale = null
                 } else {
-                    wrapper.tts = initializingTts
+                    wrapper.tts = initializingTts; wrapper.voicesCache = null
                     wrapper.state = -1
                 }
             } else { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "ttsInitListener_restore invalid index") }
@@ -623,7 +665,28 @@ class EasyVoiceTtsService : TextToSpeechService() {
         var index = 0
         while (index < enginePool.size) {
             val wrapper = enginePool[index]
-            if (wrapper.state == 2 && wrapper.listenerSet && wrapper.tts?.isSpeaking == true) {
+            // DELIBERATE DEPARTURE FROM AutoTTS (owner request, 2026-09-02):
+            // "kabhi kabhar to vah stop nahi hota hai".
+            //
+            // AutoTtsService.java:1918 gates the stop on THREE conditions:
+            //     if (f.get(i3).f() != 2 || !f.get(i3).g || !f.get(i3).g().isSpeaking()) continue;
+            // and we carried all three. The third one is the bug.
+            //
+            // isSpeaking() is a binder query into ANOTHER app's TTS service, and it
+            // answers true only while that engine is actually producing audio. Between
+            // our speak() and the engine really starting there is a window in which it
+            // answers FALSE. A screen-reader user swiping quickly lands onStop() inside
+            // exactly that window: the guard fails, stop() is never called, and the
+            // engine then starts speaking with nothing left to cancel it. That is the
+            // reported "sometimes it does not stop", and it is AutoTTS's own defect --
+            // verified in the decompile, not guessed.
+            //
+            // eSpeak NG's Android service is the counter-example the owner pointed at:
+            //     protected void onStop() { Log.i(TAG, "Received stop request."); mEngine.stop(); }
+            // no state query at all. TextToSpeech.stop() on an idle engine is a
+            // documented no-op that returns SUCCESS, so asking unconditionally costs
+            // one harmless binder call and closes the race.
+            if (wrapper.state == 2 && wrapper.listenerSet) {
                 try {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling stop for " + wrapper.pkg)
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stop " + utteranceId)

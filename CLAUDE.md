@@ -698,6 +698,71 @@ headroom for the next image bump, so that is what was done rather than capping t
 an accessibility regression is a real defect. This was an infrastructure failure wearing its
 costume, and the way to tell them apart is the `FATAL` line.
 
+## Stop, and the language-switch stall (owner request, 2026-09-02)
+Three changes, all DELIBERATE DEPARTURES from AutoTTS, all asked for directly after the
+owner compared us with eSpeak NG's Android service. Do not "restore" any of them.
+
+**The report:** *"kabhi kabhar to vah stop nahi hota hai"*, and a *"halka sa delay"* when the
+voice changes between Hindi and Gujarati -- **both on Google TTS**, i.e. one engine.
+
+### 1. onStop no longer asks isSpeaking() first
+`AutoTtsService.java:1918` gates its stop on three conditions and we carried all three:
+
+    if (f.get(i3).f() != 2 || !f.get(i3).g || !f.get(i3).g().isSpeaking()) continue;
+
+**The third one is the defect.** `isSpeaking()` is a binder query into ANOTHER app's TTS
+service and answers true only while that engine is actually producing audio. Between our
+`speak()` and the engine really starting it answers **false**. A screen-reader user swiping
+quickly lands `onStop()` inside exactly that window: the guard fails, `stop()` is never
+called, and the engine then starts speaking with nothing left to cancel it.
+
+eSpeak NG's whole `onStop` is the counter-example, and it is three lines:
+
+    protected void onStop() { Log.i(TAG, "Received stop request."); mEngine.stop(); }
+
+no state query at all. It also carries a SECOND, independent net in `onSynthDataReady` --
+if `mCallback.audioAvailable(...)` returns non-SUCCESS it calls `mEngine.stop()` too,
+commented *"A stop normally reaches the engine through onStop(); stopping here as well
+covers a failure that arrives without one."* **We cannot copy that half** -- we never
+produce audio and have no `audioAvailable` -- so the guard removal is the whole fix.
+`TextToSpeech.stop()` on an idle engine is a documented no-op returning SUCCESS, so asking
+unconditionally costs one harmless binder call.
+
+**The empty-text path at the other `stopAllTts` site still has the guard.** It is a
+different trigger (`q0(FALSE)`, which flushes with `speak("", QUEUE_FLUSH)`) and was not
+part of the request. Left alone deliberately.
+
+### 2. the stop pool starts with a live thread
+`c3/k0.java:78` is `ThreadPoolExecutor(0, 5, 60s, LinkedBlockingQueue, h0)` with daemon
+"TtsStop" threads and `k0.m()` is `i.execute(new i0(this))`. Queuing is RIGHT and stays --
+`onStop()` must return promptly, so the binder call cannot run on the caller's thread. But a
+core of **0** means the first stop after an idle spell must construct a thread before it can
+issue the stop. Core is now **1** and prestarted.
+
+### 3. the engine's voice list is cached -- this is the language-switch stall
+`loadVoice` (= `f0`) calls **`TextToSpeech.getVoices()`** whenever the wanted variant differs
+from the current one. That is a binder call marshalling the engine's ENTIRE voice set --
+hundreds of `Voice` objects for Google TTS, each with a name, Locale, quality, latency and a
+feature `Set`. And it runs **ON THE MAIN THREAD**: `onDone` posts to the main looper, and
+`onLoadLanguage` -> `loadVoice` runs inside that post.
+
+So Hindi -> Gujarati on ONE engine paid a full voice-set marshal on the main thread, every
+switch. **This only bites when the language has a named variant**; at `"*Default"` the branch
+is just `setLanguage`, which is why it is a *slight* delay rather than a stall.
+
+The list is now cached per `EngineWrapper` and cleared wherever `tts` is replaced (the two
+init sites and `restoreEngine`), because a new `TextToSpeech` is a new connection and the old
+`Voice` objects belong to the old one. A variant **not** found in the cache re-queries once
+and rescans, so a voice installed while the service is alive is still found -- that path
+costs exactly what every call used to cost, and it is the rare one.
+
+**What was NOT changed, and why it must not be:** the proxy hop itself. eSpeak has zero
+latency because it IS the synthesiser -- text into its own wavegen, audio straight out, one
+process. We call `TextToSpeech.speak()` on another app and wait for its audio. That hop is
+what this app IS, and it is AutoTTS's architecture too. The two 50 ms `postDelayed` calls
+were already removed on 2026-08-12; the owner's own logs show start-to-first-speak at a
+median of 8-12 ms on our side. Everything beyond that belongs to the target engine.
+
 ## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
 Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
 from the environment settings — measured, not assumed:
@@ -1351,6 +1416,13 @@ tree…") is gone with the generator; everything below about *why* is not.
   - `PackageInfo.getLongVersionCode()` is **API 28** → `unresolved reference 'longVersionCode'`.
     Verified with `javap` over the check jar: it declares only `public int versionCode`.
     Guarded by `Build.VERSION.SDK_INT >= 28` at both call sites;
+  - **`android.speech.tts.Voice` and `TextToSpeech.getVoices()` are API 21** →
+    `unresolved reference 'Voice'` / `'voices'`. Verified by unzipping the check jar:
+    **zero** `android/speech/tts/Voice` entries and **zero** voice methods on
+    `TextToSpeech`. `minSdk` is 24, so this is fine. It inflates the
+    "our-own-name unresolved refs" COUNT, which is a guard meant to make you look --
+    look, confirm the NEW error *texts* list is empty, then commit, and the count
+    self-resolves because the baseline is HEAD;
   - `clipToPadding = false` needs the **getter** `getClipToPadding()`, which is API 21 —
     `javap` shows the API-15 jar has only `setClipToPadding(boolean)`, so Kotlin cannot form
     the property → `unresolved reference: clipToPadding`. Fine at `compileSdk 34`/`minSdk 24`;
