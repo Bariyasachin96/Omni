@@ -36,9 +36,12 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 // A named button that opens a Material DropdownMenu of ordinary menu items.
 //
@@ -200,9 +203,69 @@ fun LabeledDropdown(
     }
 }
 
+// The three sliders are percentages -- 100 is the engine's own speed, volume or
+// pitch -- so one unit IS one percent. The two ways of moving one are therefore
+// deliberately different sizes: the buttons are the fine adjustment and a
+// screen-reader swipe is the coarse one.
+private const val SLIDER_MIN = 10          // AutoTTS's own floor (c3.k.P1())
+private const val SLIDER_BUTTON_STEP = 1   // one press of - or +
+private const val SLIDER_SWIPE_STEP = 5    // one screen-reader swipe up or down
+
+// A swipe used to move by a fraction of a percent and never came back to where
+// it started. Compose's accessibility delegate is what turns the swipe into a
+// value, and it does that WITHOUT asking the component:
+//
+//   var increment = if (rangeInfo.steps > 0) (max - min) / (rangeInfo.steps + 1)
+//                   else (max - min) / AccessibilitySliderStepsCount   // = 20
+//   ...
+//   return setProgressAction.action?.invoke(rangeInfo.current + increment)
+//       -- AndroidComposeViewAccessibilityDelegateCompat, ACTION_SCROLL_FORWARD
+//
+// So a continuous slider moves by a twentieth of its range: 24.5 for Speed
+// (10..500), 4.5 for Volume (10..100), 9.5 for Pitch (10..200). Not one of
+// those is a whole number, and the value we keep is an Int, so every swipe threw
+// the half away and the two directions stopped agreeing:
+//
+//   100 -> swipe up -> 124 -> swipe down -> 99
+//
+// and the step the user heard alternated between four and five percent as the
+// discarded halves accumulated. Setting `steps` on the Slider would make the
+// platform's increment exact, but it also snaps the STATE to the nearest tick,
+// which would quietly round away the single percent the buttons just added, and
+// it draws a tick mark per step -- 98 of them on Speed.
+//
+// The fix is to answer the action ourselves. A semantics block passed in through
+// `modifier` overrides the component's own: LayoutNode.calculateSemantics-
+// Configuration walks `nodes.tailToHead(Nodes.Semantics)` writing every node
+// into ONE shared config, so the modifier nearest the head -- the first one in
+// the chain, which is ours -- is written last and wins. (The older collapsePeer
+// path reaches the same answer from the other end: it keeps the value that is
+// already there, and ours is collapsed first.) Slider's own progressBarRangeInfo
+// is left alone, because the delegate needs it to offer the actions at all.
+//
+// Nothing below depends on the platform's increment being any particular size.
+// It is compared only to tell a swipe apart from an assistant asking for a
+// specific value -- Voice Access's "set slider to 50" -- which is still honoured
+// exactly rather than turned into a single step.
+private fun sliderStepUp(value: Int) = (value / SLIDER_SWIPE_STEP + 1) * SLIDER_SWIPE_STEP
+
+private fun sliderStepDown(value: Int) =
+    ((value + SLIDER_SWIPE_STEP - 1) / SLIDER_SWIPE_STEP - 1) * SLIDER_SWIPE_STEP
+
 @Composable
 fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit) {
     val context = LocalContext.current
+    val lowered = label.lowercase(Locale.getDefault())
+    val clamp = { picked: Int ->
+        if (picked < SLIDER_MIN) SLIDER_MIN else if (picked > maxValue) maxValue else picked
+    }
+    // The buttons are their own focus stop, so nothing re-reads the slider when
+    // one is pressed. The toast is what tells you where you landed.
+    val step = { picked: Int ->
+        val next = clamp(picked)
+        onValue(next)
+        Toast.makeText(context, next.toString() + " of " + maxValue, Toast.LENGTH_SHORT).show()
+    }
     // The Slider below is already named `label`, so this heading was a second
     // node speaking "Speed" right before "Speed, 100 of 500" -- the same
     // duplicate-speakable-text problem as the dropdown label.
@@ -216,29 +279,40 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
         verticalAlignment = Alignment.CenterVertically
     ) {
         OutlinedButton(
-            onClick = {
-                val next = if (value - 5 < 10) 10 else value - 5
-                onValue(next)
-                Toast.makeText(context, next.toString() + " of " + maxValue, Toast.LENGTH_SHORT).show()
-            },
-            modifier = Modifier.semantics { contentDescription = "Decrease " + label.lowercase(Locale.getDefault()) }
+            onClick = { step(value - SLIDER_BUTTON_STEP) },
+            modifier = Modifier.semantics { contentDescription = "Decrease " + lowered }
         ) { Text("-", modifier = Modifier.clearAndSetSemantics { }) }
         Slider(
             value = value.toFloat(),
-            onValueChange = { picked -> onValue(if (picked.toInt() < 10) 10 else picked.toInt()) },
-            valueRange = 10f..maxValue.toFloat(),
+            // roundToInt, not toInt: a drag lands on fractions and truncating
+            // one is what made the two swipe directions disagree.
+            onValueChange = { picked -> onValue(clamp(picked.roundToInt())) },
+            valueRange = SLIDER_MIN.toFloat()..maxValue.toFloat(),
             modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics {
                 contentDescription = label
                 stateDescription = value.toString() + " of " + maxValue
+                setProgress { target ->
+                    val platformIncrement = (maxValue - SLIDER_MIN) / 20f
+                    val delta = target - value.toFloat()
+                    val next = clamp(
+                        if (abs(abs(delta) - platformIncrement) < 0.01f) {
+                            if (delta > 0f) sliderStepUp(value) else sliderStepDown(value)
+                        } else {
+                            target.roundToInt()
+                        }
+                    )
+                    if (next == value) {
+                        false
+                    } else {
+                        onValue(next)
+                        true
+                    }
+                }
             }
         )
         OutlinedButton(
-            onClick = {
-                val next = if (value + 5 > maxValue) maxValue else value + 5
-                onValue(next)
-                Toast.makeText(context, next.toString() + " of " + maxValue, Toast.LENGTH_SHORT).show()
-            },
-            modifier = Modifier.semantics { contentDescription = "Increase " + label.lowercase(Locale.getDefault()) }
+            onClick = { step(value + SLIDER_BUTTON_STEP) },
+            modifier = Modifier.semantics { contentDescription = "Increase " + lowered }
         ) { Text("+", modifier = Modifier.clearAndSetSemantics { }) }
     }
 }
