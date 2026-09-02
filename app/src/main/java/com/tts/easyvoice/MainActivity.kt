@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -153,6 +154,11 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) { Toast.makeText(this, "Could not read that settings file.", Toast.LENGTH_LONG).show() }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Swaps the splash theme for AppTheme.NoActionBar. It has to run before
+        // super.onCreate, which is where the window theme is read. There is no
+        // setKeepOnScreenCondition: the splash goes the moment the first frame
+        // is drawn, so it never delays a screen reader by a millisecond.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         val prefs = SharedPrefsManager(this)
         LangStore.loadModeLangs(this)

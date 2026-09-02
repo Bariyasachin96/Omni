@@ -82,6 +82,16 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("androidx.activity:activity-compose:1.13.0")
+    // The app-opening splash. From API 31 the platform shows one for every app
+    // whether we ask or not, built from the launcher icon and windowBackground;
+    // this library backports the same thing to API 23 and gives one theme that
+    // describes it on every level the app installs on (minSdk 24).
+    //
+    // 1.0.1 is the long-standing stable. It could NOT be verified against Google
+    // Maven from the build container -- dl.google.com answers 403 through the
+    // egress proxy, which is the environment's network policy and is not to be
+    // routed around -- so CI is what checks it resolves.
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

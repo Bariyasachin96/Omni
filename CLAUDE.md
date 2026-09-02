@@ -1046,6 +1046,43 @@ MISSING when it was there. A drawable resolves across every `drawable*/` and `mi
 folder and any extension. Negative-tested both ways: it still reports a genuinely absent
 drawable, and passes the real one.
 
+## The app-opening animation is the launcher icon, and it holds nothing up (2026-09-02)
+Asked for with the artwork: *"include the proper app opening animation using this
+icon"*. `androidx.core:core-splashscreen` + one theme, `Theme.EasyVoice.Splash` in
+`values/styles.xml`, named by **MainActivity only** — the sub-screens keep
+`AppTheme.NoActionBar`, so there is no splash when navigating inside the app.
+
+Three decisions worth keeping:
+1. **The icon is `@mipmap/ic_launcher`, the ADAPTIVE icon, not a new asset.** The
+   platform gives an adaptive splash icon a 240dp canvas and shows the inner 160dp
+   after masking — the same two-thirds rule the launcher mask uses, which is what
+   `tools/icon/make_icons.py`'s 68% inset was computed for. 68% of 240dp is 163dp,
+   so the badge lands on the visible circle instead of being cropped. On API 24-25,
+   which cannot parse `mipmap-anydpi-v26`, the same reference resolves to the
+   full-bleed legacy PNG, which is right there too. **Do not add a splash-specific
+   drawable** — the splash IS the launcher icon, and one asset cannot drift from
+   the other.
+2. **`windowSplashScreenBackground` is `@color/ev_background`**, the same `#121212`
+   as `windowBackground` and the Compose surface, so the handover is a change of
+   content rather than a flash of colour.
+3. **Nothing holds it open.** There is no `setKeepOnScreenCondition` and no
+   `setOnExitAnimationListener`. The owner is blind: parking the startup scan
+   behind a picture would delay TalkBack for seconds and show them nothing. The
+   splash lasts exactly as long as the first frame takes to draw.
+   `installSplashScreen()` runs **before** `super.onCreate`, which is where the
+   window theme is read.
+
+From API 31 the platform shows a splash for every app whether we ask or not, built
+from the launcher icon and `windowBackground`; the library is what gives API 24-30
+the same thing and lets one theme describe it everywhere.
+
+**The version could not be verified here.** `dl.google.com` answers 403 through the
+egress proxy, so `core-splashscreen`'s version list is unreadable from this
+container and `kotlin-typecheck.sh` reports `unresolved reference
+'installSplashScreen'` as ordinary androidx noise. `1.0.1` is the long-standing
+stable; CI is what checks it resolves. See the section below for how the owner can
+unblock that host.
+
 ## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
 Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
 from the environment settings — measured, not assumed:

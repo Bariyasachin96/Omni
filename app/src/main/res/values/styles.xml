@@ -23,4 +23,32 @@
          windowActionBar / windowNoTitle (AppCompat attributes) are not needed.
          AppTheme.AppBarOverlay is deleted; nothing referenced it. -->
     <style name="AppTheme.NoActionBar" parent="@style/AppTheme" />
+
+    <!-- The window the launcher opens. It hands over to AppTheme.NoActionBar as
+         soon as the first Compose frame is drawn.
+
+         windowSplashScreenAnimatedIcon is @mipmap/ic_launcher, the ADAPTIVE
+         icon, on purpose. The platform gives an adaptive splash icon a 240dp
+         canvas and shows the inner 160dp after masking - the same two-thirds
+         rule the launcher mask uses, which is exactly what
+         tools/icon/make_icons.py already inset the badge for: 68% of 240dp is
+         163dp, so the badge lands on the visible circle instead of being
+         cropped. On API 24-25, which cannot parse mipmap-anydpi-v26, the same
+         reference resolves to the full-bleed legacy PNG, which is right there
+         too. There is no separate splash asset and there should not be one -
+         the splash IS the launcher icon.
+
+         The background is ev_background, the same colour as windowBackground
+         and the Compose surface, so the handover is a change of content rather
+         than a flash of colour.
+
+         NOTHING holds this screen open. The owner is blind and navigates by
+         TalkBack, so the startup scan must not sit behind a picture: there is
+         no setKeepOnScreenCondition and no custom exit animation anywhere. The
+         splash lasts exactly as long as the first frame takes to draw. -->
+    <style name="Theme.EasyVoice.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ev_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    </style>
 </resources>
