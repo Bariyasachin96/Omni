@@ -1243,6 +1243,72 @@ untouched and still the faster switch. Full write-up: `docs/INVARIANTS.md` #25.
 list** — all three were measured and rejected earlier and none of them was ever the
 cause.
 
+## THE THIRD CLD3 REPORT: this one is the MODEL, and there is no fix to write (2026-09-02)
+Owner, with Marathi enabled this time so the case is genuinely exercised:
+*"cld3 ab natak karne laga hai kahin kahin per … bina title wali batchit aur nai
+chat wala jo button hai."* Two Gemini labels, spoken by the **Marathi** voice under
+CLD3 and by the **Hindi** voice under CLD2:
+
+    "नई चैट"                   17 bytes    ids 4590, 4592, 4594, 4618, 4620
+    "बिना टाइटल वाली बातचीत"    61 bytes    ids 4603, 4605, 4607
+
+**Unlike the previous two reports there is NO defect on our side.** All three
+suspects were checked and cleared, and that is the point of this section -- do not
+re-investigate them:
+- **the hint list is right.** Marathi really is enabled (`getEngine4Language mar`
+  lists eng/guj/hin/mar), so `isHinted` accepts `mr` and the per-script fallback
+  correctly does not fire. Nothing to fix.
+- **the squeeze gate is irrelevant.** 17 bytes is a single 48-byte chunk;
+  `CheapSqueeze` removes nothing.
+- **the widening has nothing to widen to.** Neither utterance carries any other
+  Devanagari, so `sameScriptContextText` returns the same bytes. Verified through
+  the real `processDirect` sequence in the harness, not argued.
+
+**It is the model, and its own softmax says so:**
+
+    "नई चैट"                  mr 0.9640   vi 0.0343   hi 0.0015
+    "बिना टाइटल वाली बातचीत"    mr 0.9992   hi 0.0006   ne 0.0001
+
+Hindi is 600 to 1600 times less likely. There is no close second to prefer, no
+threshold that separates these from the correct answers, and nothing to re-rank.
+
+**AND IT IS NOT A BIAS TOWARDS MARATHI -- that framing is wrong and it matters.**
+Measured over 16 real UI labels, nine Hindi from the owner's own log and seven
+Marathi of the same kinds, at the current `min_num_bytes = 0`: **four are wrong,
+two in each direction**, and one Marathi label (`मायक्रोफोन`) is answered **Nepali**.
+CLD3 is simply unusable on Devanagari below its own `kMinNumBytesToConsider`.
+
+**Raising that minimum was measured again, with the widening now in place, and it
+still fails.** It only trades the errors over:
+
+| `min_num_bytes` | 0 | 40 | 60 | 80 | 140 |
+|---|---|---|---|---|---|
+| Hindi labels wrong | 2 | 1 | 1 | **0** | **0** |
+| Marathi labels wrong | 2 | 3 | 5 | 5 | 6 |
+
+The total never improves, because below the threshold every Devanagari span falls
+to the per-script fallback, and `kScriptLangPairs` lists `{4, HINDI}` first -- so
+"raise the minimum" means "read all short Devanagari as Hindi", which is perfect
+for this owner and broken for a Marathi one. **Do not raise it.**
+
+**Everything else was already measured and rejected in the earlier rounds** -- a
+higher reliability bar, a shared-script override, table-order re-ranking, and
+routing to CLD2 under the CLD3 switch (which the owner refused outright). Each one
+makes some other user worse. **There is no code change that fixes this**, and
+writing one anyway would be the jugaad the owner has twice told us not to write.
+
+**What is true and worth telling the owner plainly:** CLD2 reads short Devanagari
+correctly, CLD3 does not, and choosing between them is the switch they already
+have. CLD2 is also five times faster. CLD3 earns its place on longer text, which is
+where a neural detector beats n-grams.
+
+The whole measurement is now permanent in `tools/verify/cld3span/run.sh` -- the two
+failing labels in both detectors, the same pair through the real `processDirect`
+sequence, **and three neighbours from the same log that both detectors get right**
+(`साइडबार बंद करें`, `चैट खोजें`, `मोबाइल पर कैनवा का उपयोग`). Those three are the guard: they
+are what stops a future "fix" from routing every short Devanagari span to Hindi and
+declaring the problem solved.
+
 ## The verify harnesses could pass on a STALE binary (found and fixed 2026-09-02)
 `tools/verify/cld3span/run.sh` and `tools/verify/latency/run.sh` compile through a
 `compile()` helper that ends in `echo "$obj"`, so the function returned **0 however

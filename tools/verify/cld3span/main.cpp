@@ -403,6 +403,84 @@ int main(){
         }
     }
 
+    // ======================================================================
+    //  SHORT DEVANAGARI IS BEYOND CLD3'S MODEL, IN BOTH DIRECTIONS
+    //
+    //  Third report of the Hindi/Marathi symptom (device log, 2026-09-02
+    //  evening, Marathi ENABLED this time so the case is genuinely exercised).
+    //  Two Gemini UI labels were spoken by the Marathi voice under CLD3 and by
+    //  the Hindi voice under CLD2:
+    //
+    //      "नई चैट"                    17 bytes
+    //      "बिना टाइटल वाली बातचीत"     61 bytes
+    //
+    //  UNLIKE THE PREVIOUS TWO REPORTS THERE IS NO DEFECT ON OUR SIDE, and that
+    //  is what these cases record so it is not re-investigated:
+    //    * the hint list is right -- Marathi really is enabled, so isHinted
+    //      accepts "mr" and the per-script fallback correctly does not fire;
+    //    * the squeeze gate is irrelevant -- 17 bytes is a single 48-byte chunk
+    //      and CheapSqueeze removes nothing;
+    //    * the widening has nothing to widen to -- these utterances carry no
+    //      other Devanagari, so sameScriptContextText returns the same bytes.
+    //
+    //  It is the model. Its own softmax on the raw text:
+    //      "नई चैट"                mr 0.9640   vi 0.0343   hi 0.0015
+    //      "बिना टाइटल वाली बातचीत"  mr 0.9992   hi 0.0006   ne 0.0001
+    //  hi is 600 to 1600 times less likely. There is nothing to re-rank.
+    //
+    //  AND IT IS NOT A BIAS TOWARDS MARATHI -- it is simply unusable below its
+    //  own kMinNumBytesToConsider. Measured over 16 real UI labels, 9 Hindi and
+    //  7 Marathi, at the current min_num_bytes = 0: FOUR are wrong, two in each
+    //  direction, and one Marathi label is answered NEPALI. Raising the minimum
+    //  does not help either -- it only trades the errors over:
+    //
+    //      min       0     40     60     80    140
+    //      Hindi     2      1      1      0      0     wrong
+    //      Marathi   2      3      5      5      6     wrong
+    //
+    //  so the total never improves. DO NOT raise min_num_bytes, and do not add
+    //  a threshold, a re-rank or a shared-script override; each was measured and
+    //  each makes some other user worse. CLD2 is the detector that reads short
+    //  Devanagari correctly, and choosing it is the owner's switch.
+    // ======================================================================
+    {
+        const std::string newChat  = "नई चैट ";
+        const std::string untitled = "बिना टाइटल वाली बातचीत ";
+        enable({"en", "gu", "hi", "mr"});
+
+        // What the owner hears. The CLD3 rows are the model's limitation, not a
+        // target -- if a future CLD3 ever answers "hi" here, that is an
+        // improvement and these two lines are what will notice it.
+        expectSpan("Gemini \"new chat\", CLD2",        newChat,  false, 0, 1, "hi", "0");
+        expectSpan("Gemini \"new chat\", CLD3",        newChat,  true,  0, 1, "mr", "0");
+        expectSpan("Gemini \"untitled chat\", CLD2",   untitled, false, 0, 1, "hi", "0");
+        expectSpan("Gemini \"untitled chat\", CLD3",   untitled, true,  0, 1, "mr", "0");
+
+        // The same two labels through the REAL sequence, Latin tail and all, to
+        // show the widening is a genuine no-op rather than a path not taken.
+        const std::string utterance = "बिना टाइटल वाली बातचीत Unchecked";
+        {
+            jobject buf = env->NewDirectByteBuffer((void*)utterance.data(), (jlong)utterance.size());
+            Java_com_tts_easyvoice_NativeEngine_processDirect(
+                env, nullptr, buf, (jint)utterance.size(),
+                env->NewStringUTF("eng"), env->NewStringUTF("hin"), env->NewStringUTF("mix"),
+                0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"),
+                JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF("eng"), 1, JNI_TRUE, JNI_FALSE);
+        }
+        expectSpan("\"untitled chat\" after processDirect, CLD3", untitled, true,  0, 1, "mr", "0");
+        expectSpan("\"untitled chat\" after processDirect, CLD2", untitled, false, 0, 1, "hi", "0");
+
+        // The neighbours from the same log that BOTH detectors read correctly.
+        // They are what stops a future "fix" from sending every short
+        // Devanagari span to Hindi and calling the problem solved.
+        const std::string closeSidebar = "साइडबार बंद करें";
+        const std::string searchChats  = "चैट खोजें ";
+        const std::string canvaOnPhone = "मोबाइल पर कैनवा का उपयोग ";
+        expectSpan("\"close sidebar\", CLD3",  closeSidebar, true,  0, 1, "hi", "0");
+        expectSpan("\"search chats\", CLD3",   searchChats,  true,  0, 1, "hi", "0");
+        expectSpan("\"canva on phone\", CLD3", canvaOnPhone, true,  0, 1, "hi", "0");
+    }
+
     if(failures == 0) printf("ALL CLD3 SPAN CASES PASS\n");
     else              printf("%d CASE(S) FAILED\n", failures);
     vm->DestroyJavaVM();
