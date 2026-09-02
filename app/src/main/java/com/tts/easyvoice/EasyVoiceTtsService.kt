@@ -800,18 +800,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun detectLanguage(text: String, latinFallback: String, nonLatinFallback: String): String {
         if (text.isEmpty()) return "UNKNOWN"
         if (text.length == 1 && quickCharacterFlag) return "UNKNOWN"
-        run {
-            try {
-                initIsoMaps()
-                val out = NativeEngine.detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled())
-                val markerIdx = out.indexOf('\u0001')
-                if (markerIdx >= 0) {
-                    if (markerIdx + 1 < out.length) for (line in out.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)
-                    return out.substring(0, markerIdx)
-                }
-                return out
-            } catch (_: Throwable) {  }
-        }
+        try {
+            initIsoMaps()
+            val out = NativeEngine.detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled())
+            val markerIdx = out.indexOf('\u0001')
+            if (markerIdx >= 0) {
+                if (markerIdx + 1 < out.length) for (line in out.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)
+                return out.substring(0, markerIdx)
+            }
+            return out
+        } catch (_: Throwable) {  }
         return "UNKNOWN"
     }
     private fun initIsoMaps() {

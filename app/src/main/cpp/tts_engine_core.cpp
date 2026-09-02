@@ -1208,7 +1208,6 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     }
     return result;
 }
-extern "C" JNIEXPORT jstring JNICALL
 
 // ==========================================================================
 //  JNI: processDirect
@@ -1217,6 +1216,7 @@ extern "C" JNIEXPORT jstring JNICALL
 //  the escape, are escaped inside the text: they can occur in it, and an
 //  unescaped U+001E once cost the rest of the utterance.
 // ==========================================================================
+extern "C" JNIEXPORT jstring JNICALL
 Java_com_tts_easyvoice_NativeEngine_processDirect(
     JNIEnv* env, jobject, jobject directBuffer, jint length,
     jstring jLat, jstring jNonLat, jstring jMode,
@@ -1709,11 +1709,11 @@ static int currentScriptLanguageFallback(int script){
     if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
     return scriptLanguageFallback[script];
 }
-extern "C" JNIEXPORT void JNICALL
 
 // ==========================================================================
 //  JNI: the remaining entry points
 // ==========================================================================
+extern "C" JNIEXPORT void JNICALL
 Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv* env, jclass, jobjectArray jLangs){
     std::vector<std::string> codes;
     if(jLangs){
@@ -1850,7 +1850,6 @@ Java_com_tts_easyvoice_NativeEngine_normalizeFancy(JNIEnv* env, jclass, jstring 
     if(chars) env->ReleaseStringUTFChars(jText, chars);
     return env->NewStringUTF(normalizeFancyText(text).c_str());
 }
-extern "C" JNIEXPORT jobjectArray JNICALL
 
 // ==========================================================================
 //  JNI: nativeGetLanguages     libcld2.so getLanguageSpans 0x65392c
@@ -1858,6 +1857,7 @@ extern "C" JNIEXPORT jobjectArray JNICALL
 //  emoji -- answers "un" with latin = TRUE and never reaches a detector. That
 //  is why a bare number is read in the LATIN preferred language.
 // ==========================================================================
+extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
     jclass stringClass=env->FindClass("java/lang/String");
     if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
@@ -2009,10 +2009,10 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 detectBytes = 1024;
                 while (detectBytes > 0 && ((unsigned char)text[start + detectBytes] & 0xC0) == 0x80) detectBytes--;
             }
-            // The hint list and the per-script tables belong to BOTH detectors.
-            // keep an answer only if the user has that language enabled, and
-            // otherwise fall back to the one language this script implies -- is
-            // the part that decides the voice, so both arms run it.
+            // What these two do -- keep an answer only if the user has that
+            // language enabled, and otherwise fall back to the one language
+            // this script implies -- is what decides the voice for the span,
+            // more often than the detector itself does.
             const std::vector<std::string> hintCodes = currentLanguageHintCodes();
             auto isHinted = [&](const std::string& candidate) -> bool {
                 if(candidate.empty()) return false;

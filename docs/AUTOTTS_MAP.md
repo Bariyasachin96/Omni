@@ -324,9 +324,9 @@ already recorded here as **dead** — every chunk in those paths carries a langu
 and a type of −1, so neither `isEmpty()` nor `equals("unknown")` can fire. Ours
 has the one live call, in the auto/Google branch.
 
-**The one detector is affected throughout**: the
-flag logic sits *above* `detectWindowLang(text, useCld3)`, so it wraps whichever
-detector ran.
+**The flag sits above the detector, not inside it**: the whole
+disable-advanced-detection ladder wraps `detectWindowLang(text)` rather than
+living in it, so it applies to the answer however that answer was reached.
 
 **The one place the flag is passed and does nothing**: `processDirect` takes it
 and `buildMixChunks` does `(void)disableAdvancedDetection;`. The segmenter never
