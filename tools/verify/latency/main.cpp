@@ -19,6 +19,7 @@ extern "C" {
 JNIEXPORT void JNICALL Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_tts_easyvoice_NativeEngine_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
 JNIEXPORT jobjectArray JNICALL Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv*, jclass, jstring);
+JNIEXPORT jstring JNICALL Java_com_tts_easyvoice_NativeEngine_normalizeFancy(JNIEnv*, jclass, jstring);
 JNIEXPORT jstring JNICALL Java_com_tts_easyvoice_NativeEngine_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
@@ -76,9 +77,9 @@ int main(){
     Java_com_tts_easyvoice_NativeEngine_setLanguageHints(env, nullptr, arr(iso2));
     Java_com_tts_easyvoice_NativeEngine_setDetectSets(env, nullptr, arr(iso3), arr(iso2));
 
-    printf("%-12s %8s %8s %10s %12s %12s\n",
-           "paragraphs", "chars", "chunks", "segment ms", "CLD2 ms", "TOTAL ms");
-    for (int p : {1, 5, 10, 20, 30, 60}) {
+    printf("%-12s %8s %8s %10s %10s %12s %10s\n",
+           "paragraphs", "chars", "chunks", "segment", "detect", "fold+detect", "TOTAL");
+    for (int p : {1, 2, 3, 5, 10, 20, 30, 60}) {
         const std::string text = buildText(p);
 
         // 1. segmentation, exactly as the mix branch calls it
@@ -116,21 +117,30 @@ int main(){
         // 2. one detection per chunk, which is what detectLanguageRuns does.
         // There is one detector now: CLD3 was removed on 2026-09-02 and this
         // used to carry a second column for it.
-        auto detectAll = [&]() -> double {
+        // detectLanguageRuns calls normalizeFancy AND THEN nativeGetLanguages for
+        // every chunk, so both are timed -- measuring only the detector hid a
+        // whole second JNI round trip per chunk.
+        auto detectAll = [&](bool withFold) -> double {
             const double t0 = nowMs();
             for (const std::string& c : chunkTexts) {
                 if (c.empty()) continue;
                 jstring js = env->NewStringUTF(c.c_str());
+                if (withFold) {
+                    jstring folded = Java_com_tts_easyvoice_NativeEngine_normalizeFancy(env, nullptr, js);
+                    env->DeleteLocalRef(js);
+                    js = folded;
+                }
                 jobjectArray got = Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(env, nullptr, js);
                 (void)got;
                 env->DeleteLocalRef(js);
             }
             return nowMs() - t0;
         };
-        const double detMs = detectAll();
+        const double detOnly = detectAll(false);
+        const double detMs   = detectAll(true);
 
-        printf("%-12d %8zu %8zu %10.1f %12.1f %12.1f\n",
-               p, text.size(), chunkTexts.size(), segMs, detMs, segMs + detMs);
+        printf("%-12d %8zu %8zu %10.2f %10.2f %12.2f %10.2f\n",
+               p, text.size(), chunkTexts.size(), segMs, detOnly, detMs, segMs + detMs);
     }
     vm->DestroyJavaVM();
     return 0;

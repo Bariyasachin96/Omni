@@ -46,6 +46,69 @@ to guarantee and it is proven, not asserted: `tools/verify/segmenter/run.sh` is 
 **identical over 163,296 cases** after the removal, and `check-all` reports no new
 type errors.
 
+## LATENCY: where it actually is, measured after CLD3 went (owner request, 2026-09-02)
+*"latency bilkul aani hi nahin chahie."* Measured rather than guessed, and the
+answer moved the work somewhere unexpected.
+
+**The detector was never the problem, and the number that made it look like one was
+the wrong number.** The latency harness repeats three fixed paragraphs, and the row
+being quoted was 60 paragraphs = 10,620 characters. **That utterance cannot exist**:
+`TextToSpeechService.SynthesisSpeechItem.isValid()` rejects anything over 4000
+characters before `onSynthesizeText` is ever called. Measured against the sizes a
+screen reader really sends, CLD2 alone, with `normalizeFancy` timed too because
+`detectLanguageRuns` calls it per chunk:
+
+| chars | chunks | segment | detect | fold+detect | TOTAL |
+|---|---|---|---|---|---|
+| **165** | 5 | 0.07 | 0.17 | 0.09 | **0.16 ms** |
+| **334** | 7 | 0.04 | 0.18 | 0.22 | **0.26 ms** |
+| **531** | 9 | 0.12 | 0.38 | 0.28 | **0.41 ms** |
+| 1,758 | 29 | 0.29 | 0.91 | 0.86 | **1.15 ms** |
+| 3,520 (the ceiling) | 55 | 0.33 | 1.27 | 1.25 | **1.58 ms** |
+
+The owner's own logged utterances run 20 to 400 characters, so the real figure is
+**a tenth to three tenths of a millisecond**. `normalizeFancy` costs nothing
+measurable: its fast path returns immediately when the text carries no decorated
+letter, which is almost always.
+
+**THE REAL LATENCY WAS THE LOGGER, and it is about a hundred times the detector.**
+`EasyVoiceLogger.writeLine` is a byte-for-byte port of AutoTTS's `c3.p.h`, which
+opens the file, writes ONE line and closes it again, after calling `exists()` and
+`length()` first. That is **five syscalls per line** — and one language switch
+writes **32 lines** between `onDone` and the next `speak()`, on the main thread, so
+roughly **160 syscalls with the next word already waiting**. The owner's own logs
+measured that whole step at **15 to 44 ms**.
+
+**The writer is held open now.** Measured on this container's NVMe, 32 lines:
+
+    open/write/close per line   1.177 ms
+    one held writer + flush     0.170 ms      7x
+
+A phone's flash is slower and busier than an NVMe, so the real saving is larger
+than 7x rather than smaller. **DELIBERATE DEPARTURE** from AutoTTS, on the same
+footing as the two 50 ms `postDelayed` removals.
+
+**The log file is byte-identical, and that is proven rather than claimed.** A
+harness ran the old and the new implementation over the same 120 operations --
+including random `clear()` calls and repeated rotations at a deliberately tiny cap
+so rotation really fires -- and compared all four files (`easy_voice.log` and `.1`
+`.2` `.3`) byte for byte. Identical on both trials. What changed is the open and
+the close, not the durability: `flush()` still runs after **every** line, so a crash
+or a kill loses no line a caller had already logged.
+
+**Three places close the handle, and each is a real bug if it is missed:**
+- **logging switched off** — otherwise the file stays open for the life of the
+  process;
+- **`clear()`** — the held writer carries its own offset, so writing through it
+  after the file is truncated would leave a hole of NUL bytes where the old content
+  was. It closes BEFORE truncating;
+- **rotation** — the handle would otherwise keep writing to the renamed inode, and
+  the new `easy_voice.log` would stay empty.
+
+The rotation test is the in-memory byte count rather than two `stat` calls, seeded
+from the real `file.length()` when the writer opens, so it is never an
+underestimate and the file cannot grow past the cap unnoticed.
+
 ## READ THESE BEFORE ANYTHING ELSE
 Four documents were written on 2026-08-26 so that a session does not have to
 reconstruct the same knowledge every time. They are short and they are the fastest
