@@ -27,6 +27,9 @@ extern "C" {
 JNIEXPORT void JNICALL Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_tts_easyvoice_NativeEngine_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
 JNIEXPORT jobjectArray JNICALL Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv*, jclass, jstring, jboolean);
+JNIEXPORT jstring JNICALL Java_com_tts_easyvoice_NativeEngine_processDirect(
+    JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
+    jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean);
 }
 
 static JNIEnv* env = nullptr;
@@ -323,6 +326,42 @@ int main(){
         expectSpan("short Marathi, CLD3, mr enabled",    shortMarathi, true,  0, 1, "mr", "0");
         expectSpan("short Hindi, CLD2, mr enabled",      shortHindi,   false, 0, 1, "hi", "0");
         expectSpan("short Hindi, CLD3, mr enabled",      shortHindi,   true,  0, 1, "hi", "0");
+
+        // ---- AND NOW THE FIX, exercised the way the app exercises it -------
+        // Everything above calls nativeGetLanguages directly, so no detect
+        // context exists and the span is judged alone -- which is why the CLD3
+        // row still reads "mr". The app does not do that: processDirect runs
+        // first and stores the whole normalised utterance, and the per-chunk
+        // detection that follows can then widen a short span to the utterance's
+        // text in its own script. These four cases run that real sequence.
+        const std::string utterance =
+            "\u091c\u0939\u093e\u0901 Quality \u0914\u0930 Quantity "
+            "\u0926\u094b\u0928\u094b\u0902 \u092e\u093f\u0932\u0947\u0902 - "
+            "\u0935\u0939\u0940 \u0905\u0938\u0932\u0940 \u091a\u0948\u0928\u0932 "
+            "\u0939\u094b\u0924\u093e \u0939\u0948!";
+        auto runProcessDirect = [&](const std::string& t){
+            jobject buf = env->NewDirectByteBuffer((void*)t.data(), (jlong)t.size());
+            Java_com_tts_easyvoice_NativeEngine_processDirect(
+                env, nullptr, buf, (jint)t.size(),
+                env->NewStringUTF("eng"), env->NewStringUTF("hin"), env->NewStringUTF("mix"),
+                0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"),
+                JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF("eng"), 1, JNI_TRUE, JNI_FALSE);
+        };
+
+        enable({"en", "gu", "hi", "mr"});
+        runProcessDirect(utterance);
+        expectSpan("THE BUG: Hindi tail after processDirect, CLD3", hindiTail, true,  0, 1, "hi", "0");
+        expectSpan("Hindi tail after processDirect, CLD2",          hindiTail, false, 0, 1, "hi", "0");
+
+        // A genuinely Marathi utterance must still come out Marathi -- the
+        // widened evidence is Marathi too, so the answer does not move.
+        const std::string marathiUtterance =
+            "\u0924\u094b\u091a \u0916\u0930\u093e \u091a\u0945\u0928\u0932 \u0905\u0938\u0924\u094b, "
+            "\u092e\u0932\u093e \u092e\u0930\u093e\u0920\u0940 \u092d\u093e\u0937\u093e "
+            "\u0916\u0942\u092a \u0906\u0935\u0921\u0924\u0947.";
+        runProcessDirect(marathiUtterance);
+        expectSpan("Marathi still Marathi after widening, CLD3", shortMarathi, true,  0, 1, "mr", "0");
+        expectSpan("Marathi still Marathi after widening, CLD2", shortMarathi, false, 0, 1, "mr", "0");
     }
 
     if(failures == 0) printf("ALL CLD3 SPAN CASES PASS\n");

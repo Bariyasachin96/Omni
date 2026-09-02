@@ -883,7 +883,63 @@ English and short Gujarati all match; only the reported Hindi tail differs. Thos
 are now asserted in `tools/verify/cld3span/run.sh` so a future change cannot quietly break
 Marathi while chasing this sentence.
 
-**Nothing in the detection path was changed.** CLD2 remains the default and the recommendation.
+### THE FIX (owner request, reaffirmed twice: it must be fixed INSIDE CLD3)
+The owner rejected two of my proposals outright and was right both times. First, telling
+them to untick Marathi: *"kisi ko char language detect karni hai to vah to enable rakhega
+na, to vah to galat tarika hai"* -- enabling the languages you read is correct usage, not a
+misconfiguration. Second, and this one I had already started writing: routing shared-script
+spans to CLD2 under the CLD3 switch. *"Agar user ne CLD3 enable kara hai to CLD3 hi chalna
+chahiye."* Reverted before it went anywhere. **There is no CLD2 anywhere in the CLD3 path.**
+
+**What the measurement finally showed, and it was in an earlier probe I had not chased:**
+
+    the 56-byte tail alone                             -> mr  p=0.712
+    the same tail WITH the utterance's Devanagari       -> hi  p=1.0000
+    the same, doubled                                   -> hi  p=1.0000
+
+Same model, same enabled set, same span. **Only the amount of text changed.** CLD3 is not
+broken; it is being asked with too little text -- and the app is what makes it too little.
+`buildMixChunks` cuts an utterance into per-script chunks BEFORE detection, so one Devanagari
+sentence reaches the detector as four fragments of 3 to 56 bytes. CLD2's n-gram tables
+tolerate that; a neural net does not.
+
+**So the span is widened before it is detected, and only in the CLD3 arm.**
+- `buildMixChunks` stores the whole normalised utterance in `detectContextText` -- the same
+  bytes the chunks are substrings of, which is why the staleness guard is a plain
+  `context.find(span)`. It is refused when it does not match, which is what keeps the
+  auto/Google aggregate detector (which never runs the chunk builder) from picking up a
+  context left over from an earlier utterance.
+- At the span site, a span **shorter than CLD3's own `kMinNumBytesToConsider` (140)** is
+  detected against the utterance's text **in that span's script**. 140 is CLD3's number, not
+  one of ours; we construct the identifier with 0 precisely so short spans still get an
+  answer instead of "und".
+- The extractor matches ASCII letters directly (the scanner classifies those in its own
+  `& 0x5F` fast path and never asks `classifyScript`) and everything else through
+  `classifyScript`, the same ladder the span boundaries were drawn with. Spaces are kept so
+  n-grams do not run together; digits and punctuation are dropped.
+- **The span still gets the answer. Only the evidence is wider.** CLD2's arm is untouched.
+
+**Where the store lives is load-bearing:** immediately above `buildMixChunks`, not beside the
+language-hint tables where the rest of the detector state sits, because
+`tools/verify/make_core_inc.py` slices the core `--until buildMixChunks` for the segmenter
+harness. Anything the chunk builder calls must be defined above it or that harness stops
+linking. It did, once.
+
+**Proven, not asserted.** `tools/verify/cld3span/run.sh` now runs the real sequence --
+`processDirect` first, then per-chunk detection, exactly as the app does:
+
+    THE BUG: Hindi tail after processDirect, CLD3   -> hi     (was mr)
+    Hindi tail after processDirect, CLD2            -> hi
+    Marathi still Marathi after widening, CLD3      -> mr
+    Marathi still Marathi after widening, CLD2      -> mr
+
+and the direct-call cases above them are kept, so the raw detector behaviour without context
+stays documented. Every other harness re-run clean: segmenter **identical over 163,296
+cases**, normaliser identical over 1,114,112 code points, script family identical over 15
+sets x 1,114,112 code points.
+
+**CLD2 is still the faster switch** (1.1 ms vs 6.6 ms per 30 paragraphs) and is untouched by
+all of this.
 
 ## The launcher icon is the owner's artwork (2026-09-02)
 Supplied as a square JPG with a white margin around a rounded-square badge.

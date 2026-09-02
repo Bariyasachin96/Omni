@@ -1020,6 +1020,46 @@ struct ReadingModes {
 //  The heart of the app: one utterance in, typed chunks out.
 //  PROVEN: tools/verify/segmenter/run.sh -- 163,296 cases against AutoTTS.
 // ==========================================================================
+// ==========================================================================
+//  DETECT CONTEXT -- EasyVoice only, and it exists for the CLD3 arm alone.
+//
+//  CLD3 is a small neural net and it is unreliable on short fragments; CLD2's
+//  n-gram tables are not. Measured on the owner's own sentence (2026-09-02),
+//  the Hindi tail "वही असली चैनल होता है" with {en,gu,hi,mr} enabled:
+//
+//      the 56-byte chunk alone                    -> mr  p=0.712
+//      that chunk WITH the utterance's Devanagari -> hi  p=1.0000
+//      the same, doubled                          -> hi  p=1.0000
+//
+//  The model is not broken; it is being asked with too little text. The app
+//  makes that unavoidable on its own: buildMixChunks splits an utterance into
+//  per-script chunks first, so "जहाँ", "और", "दोनों मिलें" and the tail arrive at
+//  the detector as four separate 3-to-56-byte fragments even though they are one
+//  Devanagari sentence.
+//
+//  So the whole normalised utterance is kept here, and the CLD3 arm detects a
+//  SHORT span against that utterance's same-script text instead of the span
+//  alone. CLD2's arm is untouched -- it does not need this and it must stay
+//  byte-for-byte AutoTTS.
+//
+//  It lives HERE, immediately above buildMixChunks, rather than beside the
+//  language-hint tables where the rest of the detector state sits. That is
+//  deliberate: tools/verify/make_core_inc.py slices the core "--until
+//  buildMixChunks" for the segmenter harness, so anything the chunk builder
+//  calls has to be defined above it or that harness will not link.
+// ==========================================================================
+static std::mutex detectContextMutex;
+static std::string detectContextText;
+
+static void setDetectContext(const std::string& text){
+    std::lock_guard<std::mutex> lock(detectContextMutex);
+    detectContextText = text;
+}
+static std::string currentDetectContext(){
+    std::lock_guard<std::mutex> lock(detectContextMutex);
+    return detectContextText;
+}
+
 static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
     std::vector<ChunkResult> result;
     std::string fullText;
@@ -1068,6 +1108,11 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
         }
         fullText = clean;
     }
+    // The text every chunk is cut from, kept for the CLD3 arm of the span site.
+    // Set HERE rather than in the JNI wrapper so it is the NORMALISED text --
+    // the same bytes the chunks are substrings of, which is what makes the
+    // staleness guard at the span site a simple substring test.
+    setDetectContext(fullText);
     if (fullText.empty()) return result;
     std::vector<TextSegment> segs;
     {
@@ -2026,6 +2071,48 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
         if ((((unsigned)(codePoint - 0x20000)) >> 5) < 0x7D1) return 5;
         return -1;
     };
+
+    // The utterance's text in THIS span's script, for the CLD3 arm only.
+    //
+    // Returns "" -- meaning "no usable context, detect the span alone" -- when
+    // the stored context does not contain the span. That is the staleness
+    // guard: the context is written by buildMixChunks, and nativeGetLanguages
+    // is also reached from the auto/Google aggregate detector, which never runs
+    // the chunk builder. A context left over from an earlier utterance cannot
+    // contain this span, so it is refused rather than used.
+    //
+    // ASCII letters are matched directly because the scanner classifies them in
+    // its own fast path (`& 0x5F`, then A..Z) and never asks classifyScript;
+    // everything else goes through classifyScript, which is the same ladder the
+    // span boundaries were drawn with. Spaces are kept so words stay separated
+    // and n-grams do not run together; digits and punctuation are dropped
+    // because they carry no language signal.
+    auto sameScriptContextText = [&](int wantScript, const std::string& span) -> std::string {
+        const std::string context = currentDetectContext();
+        if (context.empty()) return std::string();
+        if (context.find(span) == std::string::npos) return std::string();
+        std::string out;
+        out.reserve(context.size());
+        size_t at = 0;
+        bool lastWasSpace = true;
+        while (at < context.size()) {
+            int cpLen = 0;
+            const int codePoint = utf8ToCodepoint((const unsigned char*)context.c_str() + at, cpLen);
+            if (cpLen <= 0) break;
+            bool keep = false;
+            if (codePoint < 0x80) {
+                const int folded = codePoint & 0x5F;
+                keep = (wantScript == 1 && folded >= 0x41 && folded <= 0x5A);
+            } else {
+                keep = (classifyScript(codePoint) == wantScript);
+            }
+            if (keep) { out.append(context, at, (size_t)cpLen); lastWasSpace = false; }
+            else if (!lastWasSpace) { out += ' '; lastWasSpace = true; }
+            at += (size_t)cpLen;
+        }
+        return out;
+    };
+
     static const char* SCRIPT_FIXED_LANG[19] = {
         "el",
         "hy",
@@ -2169,8 +2256,37 @@ Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstr
                 // a language the table places under a different script is
                 // rejected, and then the per-script fallback below resolves the
                 // span the way CLD2 would have.
+                //
+                // THE SPAN IS WIDENED BEFORE IT IS DETECTED (owner request,
+                // 2026-09-02). CLD3 is a neural net and it is unreliable on a
+                // short fragment, which is exactly what this site hands it:
+                // buildMixChunks has already cut the utterance into per-script
+                // chunks, so one Devanagari sentence arrives as several 3-to-56
+                // byte pieces. Measured on the reported sentence with
+                // {en,gu,hi,mr} enabled:
+                //
+                //     the 56-byte tail alone                    -> mr p=0.712
+                //     the same tail with the utterance's
+                //     Devanagari in front of it                 -> hi p=1.0000
+                //
+                // Same model, same enabled set, same span -- only the amount of
+                // text changed. So a span shorter than CLD3's OWN documented
+                // minimum is detected against the utterance's text in this
+                // span's script. 140 is not a number of ours:
+                // NNetLanguageIdentifier::kMinNumBytesToConsider is 140, and we
+                // construct the identifier with 0 precisely so that short spans
+                // still get an answer rather than "und".
+                //
+                // The span itself is still what gets the answer -- only the
+                // evidence is wider. CLD2's arm below is untouched: it does not
+                // need this, and it has to stay byte-for-byte AutoTTS.
                 bool cld3Reliable = false;
-                std::string cld3Lang = cld3DetectRaw(std::string(text, start, detectBytes), &cld3Reliable, true);
+                std::string cld3Text(text, start, detectBytes);
+                if ((int)cld3Text.size() < chrome_lang_id::NNetLanguageIdentifier::kMinNumBytesToConsider) {
+                    const std::string wider = sameScriptContextText(script, cld3Text);
+                    if (wider.size() > cld3Text.size()) cld3Text = wider;
+                }
+                std::string cld3Lang = cld3DetectRaw(cld3Text, &cld3Reliable, true);
                 const int cld3Script = scriptOfLanguageCode(baseLanguageTag(cld3Lang));
                 const bool wrongScript = (cld3Script >= 0 && cld3Script != script);
                 lang = (cld3Lang.empty() || !cld3Reliable || wrongScript) ? "un" : cld3Lang;
