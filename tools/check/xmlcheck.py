@@ -48,8 +48,15 @@ def main():
         for el in ET.parse(RES + '/res/values/' + name).getroot():
             if el.tag in ('color', 'string', 'style'):
                 have[el.tag].add(el.get('name'))
-    for name in os.listdir(RES + '/res/drawable'):
-        have['drawable'].add(name.rsplit('.', 1)[0])
+    # A drawable can live in ANY drawable*/ or mipmap*/ folder and be a .xml, a
+    # .png, a .webp or a .jpg -- @drawable/x resolves across all of them and the
+    # extension is never part of the name. Reading only res/drawable/ reported
+    # the launcher artwork in res/drawable-nodpi/ as missing when it was there.
+    for folder in sorted(os.listdir(RES + '/res')):
+        if not (folder.startswith('drawable') or folder.startswith('mipmap')):
+            continue
+        for name in os.listdir(RES + '/res/' + folder):
+            have['drawable'].add(name.rsplit('.', 1)[0])
 
     missing = set()
     for root, _, files in os.walk(RES):

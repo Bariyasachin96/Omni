@@ -763,6 +763,87 @@ what this app IS, and it is AutoTTS's architecture too. The two 50 ms `postDelay
 were already removed on 2026-08-12; the owner's own logs show start-to-first-speak at a
 median of 8-12 ms on our side. Everything beyond that belongs to the target engine.
 
+## CLD3 calls Hindi "Marathi", and it is the MODEL, not our plumbing (2026-09-02)
+The owner reported it precisely: *"CLD2 bahut acche se read kar raha hai, CLD3 mein gadbadi
+hai"*, and named the sentence. Their log (`id: 614`, mixed mode, enabled = eng on Eloquence +
+guj/hin/**mar** on Google) reads:
+
+    जहाँ 𝙌𝙪𝙖𝙡𝙞𝙩𝙮 और 𝙌𝙪𝙖𝙣𝙩𝙞𝙩𝙮 दोनों मिलें  en dash  वही असली चैनल होता है!”
+
+and the chunks it produced were
+
+    1 जहाँ            hin  ok        5 दोनों मिलें        hin  ok
+    2 Quality         eng  ok        6 en dash           eng  ok
+    3 और              hin  ok        7 वही असली चैनल...   mar  WRONG
+    4 Quantity        eng  ok
+
+so the tail switched to `mr-in-x-mrc-local` mid-sentence. (Note chunks 2 and 4: the
+maths-bold-italic 𝙌𝙪𝙖𝙡𝙞𝙩𝙮 normalised to "Quality" correctly, so `clsCLD2.a` is fine.)
+
+**Reproduced against the real detectors, not argued.** A probe through
+`tools/verify/cld3span/` with the owner's exact enabled set `{en, gu, hi, mr}`:
+
+    TAIL  CLD2 -> hi
+    TAIL  CLD3 -> mr
+
+and CLD3's own numbers for that chunk:
+
+    0  mr   p=0.712  reliable=1  proportion=1.000
+    1  und  p=0.000  reliable=0
+    2  und  p=0.000  reliable=0
+    FindLanguage: mr p=0.712 reliable=1
+
+**Hindi is not in CLD3's top-3 at all.** There is no better candidate to prefer, so this
+cannot be fixed by reordering, by the reliability gate (0.712 clears CLD3's own 0.7
+threshold, if only just) or by the script check (Marathi IS Devanagari, script 4, same as the
+span). Our CLD3 arm is doing exactly what the design table above prescribes.
+
+**Why CLD2 gets it right, and why that is luck rather than skill.** `setLanguageHints` keeps
+a per-script hint only where **exactly one** enabled language uses that script. Hindi and
+Marathi are both Devanagari, so `matched[4] == 2` and `scriptLanguageHint[4]` goes back to
+UNKNOWN -- CLD2 runs unguided and its own model happens to answer `hi`.
+`scriptLanguageFallback[4]` is HINDI purely because `kScriptLangPairs` lists
+`{4, HINDI}` before `{4, MARATHI}`.
+
+**Three fixes were considered and all REJECTED. Do not implement them later.**
+- raise the reliability bar above 0.712 -- arbitrary, and rejects many correct answers;
+- override CLD3 with the per-script fallback whenever two enabled languages share a script --
+  that is every Hindi+Marathi, every Russian+Ukrainian, every Chinese+Japanese user, and it
+  would make a genuine Marathi sentence read as Hindi. It destroys CLD3 for exactly the
+  people who need it;
+- prefer the table-order language among close candidates -- there are no close candidates.
+
+**So the answer to the owner is the switch, not the code:** CLD2 is the default, it is right
+here, and it is 5x faster (measured 2026-09-01). CLD3's model simply cannot separate short
+Hindi from Marathi, and Hindi/Marathi share most of their orthography. Nothing was changed.
+
+## The launcher icon is the owner's artwork (2026-09-02)
+Supplied as a square JPG with a white margin around a rounded-square badge.
+`tools/icon/make_icons.py` regenerates the whole set from `tools/icon/source.jpg`; three
+decisions are baked into it rather than done by hand:
+
+1. **The white margin is cropped** -- it is part of the picture, not the icon.
+2. **The badge is INSET to 68%, not full bleed.** An adaptive icon is 108dp and the smallest
+   real launcher mask shows only the centre 72dp. This artwork's side bubbles ("Hello",
+   "नमस्ते") and their sound-wave arcs sit close to the badge edge, so full bleed would cut
+   them off on any circular launcher.
+3. **The background is a bilinear gradient sampled from inside the badge's own rounded
+   corners**, so the inset badge does not float on a colour that is not in the art.
+
+Layout afterwards: `drawable-nodpi/ic_launcher_art_{bg,fg}.png` feed
+`mipmap-anydpi-v26/ic_launcher{,_round}.xml`; `mipmap-{m,h,xh,xxh,xxx}dpi/ic_launcher{,_round}.png`
+serve API 24-25, which cannot parse `<adaptive-icon>`, and are FULL BLEED because legacy icons
+are not masked. The old `drawable/ic_launcher_{background,foreground}.xml` and the two
+`mipmap-anydpi/` vectors are gone. **`drawable/ic_launcher_monochrome.xml` is KEPT** -- it is
+the themed-icon silhouette (Android 13+), a speech bubble, which still suits the app; a
+bitmap monochrome would be worse.
+
+**`xmlcheck.py` had to be widened for this, and it was a real gap.** It read only
+`res/drawable/`, so `@drawable/ic_launcher_art_bg` in `res/drawable-nodpi/` was reported
+MISSING when it was there. A drawable resolves across every `drawable*/` and `mipmap*/`
+folder and any extension. Negative-tested both ways: it still reports a genuinely absent
+drawable, and passes the real one.
+
 ## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
 Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
 from the environment settings — measured, not assumed:
