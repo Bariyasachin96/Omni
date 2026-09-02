@@ -369,6 +369,86 @@ something the owner changes.
 
 ---
 
+## 25. CLD3 must not squeeze a short text — CLD2 never does
+
+**Rule.** The CLD3 arm goes through `cld3FindLanguageGated` and `cld3TopNGated`,
+never through `NNetLanguageIdentifier::FindLanguage` or
+`FindTopNMostFreqLangs` directly. Those two are CLD3's own functions mirrored
+statement for statement with one change: `CheapSqueezeInplace` runs only when the
+text is longer than **2048 bytes**, which is CLD2's own gate
+(`kCheapSqueezeTestThresh >> 1`, `compact_lang_det_impl.cc:1867`). Do not
+"simplify" the mirrors back to the library calls.
+
+**Why.** Device log, 2026-09-02. With CLD3 on, the Hindi sentence
+
+    किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
+
+was spoken by the **Marathi** voice; with CLD2 it was read in Hindi. Identical
+chunking, only the span's language differed — and the context widening of
+INVARIANTS #16 cannot help, because that chunk **is** all the Devanagari in the
+utterance, so there is nothing wider to detect against.
+
+**The model is not wrong.** Handed the raw bytes it answers `hi p=0.9926`,
+`mr p=0.0008`. What it is handed is not those bytes:
+
+    cleaned  (131 B)  किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
+    squeezed  (75 B)  किसी दूसरी भाषा भाषा बातचीत        →  mr p=0.913
+
+`CLD2::CheapSqueezeInplace` walks the text in 48-byte chunks and drops one whose
+bytes are mostly predicted from what came before — boilerplate removal for
+multi-kilobyte web documents. `"किसी दूसरी भाषा"` occurs twice here, so a third of
+the sentence is deleted and the network is asked about the wreckage.
+
+**CLD2 never does this to a short text**, and that asymmetry is the whole defect.
+It squeezes a script span only when `2048 < scriptspan.text_bytes`, and even then
+only after `CheapSqueezeTriggerTest` agrees. CLD3 calls the same function
+unconditionally with `chunk_size = 0`, in both of its entry points. So the switch
+the owner flips did not only change detector — it silently changed the text.
+
+**Measured over 608 distinct strings** — every phrase spoken in both device logs
+plus the app's own literals. The stock squeeze removes text from **9** of them
+and changes the answer on **4**, and all four move to the better answer:
+
+| text | stock | gated |
+|---|---|---|
+| `किसी दूसरी भाषा … बातचीत` | mr 0.913 | **hi 0.989** |
+| the same, 154-byte variant | mr 0.526 | **hi 0.814** |
+| `"Text box Compose message"` doubled | ja 0.784 | **en, unreliable** |
+| a Samoan sentence | hu 0.861 | **sm 1.000** |
+
+No case in that corpus gets worse. The third row is the same defect on Latin
+text: the doubled phrase squeezes to something CLD3 calls **Japanese** with 0.784,
+which clears its own reliability bar; gated, it answers `en` unreliably and the
+per-script fallback resolves the Latin span to the Latin language.
+
+**Reaching CLD3's pipeline without the squeeze needs two of its private members**
+(`FindLanguageOfValidUTF8`, `SelectTextGivenBeginAndSize`), so
+`tts_engine_core.cpp` wraps the include in `#define private public`. Access
+control changes neither layout nor mangling, CLD3's own `.cc` files are separate
+translation units compiled untouched, and CLD3 is vendored by a CI `git clone`,
+so patching its source is not an option. Note the namespace: CLD3 carries its
+**own copy** of CLD2's span code, so these are `chrome_lang_id::CLD2::…`, not the
+top-level `CLD2::…`.
+
+**The speed cost, measured, and where it comes from.** `tools/verify/latency`
+repeats three fixed paragraphs, so at 60 paragraphs each appears twenty times —
+the pathological case the squeeze exists for, and nothing like real screen-reader
+text (9 strings out of 608). On that benchmark, 60 paragraphs:
+
+    gate only, no widening        6.6 ms     (stock was 8.6 ms)
+    gate + the #16 widening      47.3 ms
+
+The widening is what costs, and it costs more now only because the squeeze used
+to collapse the widened evidence into almost nothing — i.e. CLD3's old speed on
+long repetitive text came from throwing the evidence away. `onSynthesizeText` can
+never receive more than 4000 characters (AOSP rejects longer), so the real
+ceiling is the 20-paragraph row at **8.7 ms**, and a typical utterance is under a
+millisecond. CLD2 is unchanged at ~1 ms and remains the faster switch.
+
+Proof and negative test: `tools/verify/cld3span/run.sh`.
+
+---
+
 ## 20. The span emitter has three parts nobody would guess from the Java
 
 **Rule.** `emitScriptSpan` must keep all three of these. They are not visible in

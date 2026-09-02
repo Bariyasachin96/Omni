@@ -941,6 +941,84 @@ sets x 1,114,112 code points.
 **CLD2 is still the faster switch** (1.1 ms vs 6.6 ms per 30 paragraphs) and is untouched by
 all of this.
 
+## The SECOND CLD3 report: it was never the model, it was the squeeze (2026-09-02)
+The owner sent a fresh log and said the problem was still there — *"kuchh chijon ke
+liye to fix hua hai but kis chij ke liye abhi bhi fix nahin hua hai … Usi direction
+ko"*. Correct on both counts. The log toggles the CLD3 switch mid-session (ids 924
+Unchecked → 926 Checked), so the same utterance is routed twice, and the engine
+column hides it because Hindi, Gujarati and Marathi all sit on Google TTS. Read the
+`loadLanguage` line, not the engine:
+
+    किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत Text box Compose message
+      ids 910-916  (CLD2)  chunk 1 -> hin      chunk 2 -> eng
+      ids 951-959  (CLD3)  chunk 1 -> mar      chunk 2 -> eng
+
+**The widening from the previous fix cannot touch this one.** That Devanagari chunk
+IS all the Devanagari in the utterance — 130 bytes, under CLD3's own 140 — so
+`sameScriptContextText` returns the same bytes and the widening is a no-op. Right
+direction, different cause.
+
+**And the model is not wrong.** Feeding the raw bytes straight to the network:
+
+    hi p=0.992561      ne p=0.006406      mr p=0.000844
+
+What the network is handed is not those bytes. `FindLanguage` lowers the text with
+CLD2's ScriptScanner and then runs `CLD2::CheapSqueezeInplace` on it:
+
+    cleaned  (131 B)  किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
+    squeezed  (75 B)  किसी दूसरी भाषा भाषा बातचीत          ->  mr p=0.913
+
+`"किसी दूसरी भाषा"` occurs twice, the squeezer drops the 48-byte chunk it can
+predict, and a third of the sentence is deleted before detection. **CLD2 never does
+this to a short text** — `compact_lang_det_impl.cc:1867` squeezes a span only when
+`2048 < scriptspan.text_bytes`, and even then only if `CheapSqueezeTriggerTest`
+agrees. CLD3 calls it unconditionally, in **both** entry points. So the switch did
+not only change detector, it silently changed the text. That is the whole defect,
+and it is inside CLD3 exactly as the owner insisted.
+
+**The fix** is `cld3FindLanguageGated` / `cld3TopNGated` in `tts_engine_core.cpp`:
+CLD3's own two functions mirrored statement for statement, with the squeeze gated
+by CLD2's own 2048-byte threshold. Reaching the pipeline without the squeeze needs
+two private members, so the include is wrapped in `#define private public` — CLD3
+is a CI `git clone`, so patching it is not an option. **Namespace trap:** CLD3
+carries its own copy of CLD2's span code, so it is `chrome_lang_id::CLD2::…`, not
+the top-level `CLD2::…`, and `CheapSqueezeInplace` needs
+`#include "script_span/text_processing.h"` on top of what the CLD3 header pulls in.
+
+**Measured over 608 distinct strings** (every phrase spoken in both device logs plus
+the app's own literals): the stock squeeze removes text from **9** and changes the
+answer on **4** — `mr 0.913 → hi 0.989`, `mr 0.526 → hi 0.814`,
+`"Text box Compose message"` doubled `ja 0.784 → en unreliable`, and a Samoan
+sentence `hu 0.861 → sm 1.000`. Nothing gets worse. The Japanese one is the same
+bug on Latin text and was found while measuring the fix.
+
+**Speed, measured rather than assumed.** `tools/verify/latency` repeats three fixed
+paragraphs, so at 60 paragraphs each appears twenty times — the pathological case
+the squeeze exists for, and nothing like real text (9 of 608). There:
+
+    gate only, no widening        6.6 ms      (stock was 8.6 ms)
+    gate + the widening fix      47.3 ms
+
+so the cost is the **widening**, and it grew only because the squeeze used to
+collapse the widened evidence into nothing. `onSynthesizeText` can never receive
+more than 4000 characters, so the real ceiling is the 20-paragraph row at
+**8.7 ms**; a typical screen-reader utterance is under a millisecond. CLD2 is
+untouched and still the faster switch. Full write-up: `docs/INVARIANTS.md` #25.
+
+**Do not raise `min_num_bytes`, do not route to CLD2, do not touch the enabled
+list** — all three were measured and rejected earlier and none of them was ever the
+cause.
+
+## The verify harnesses could pass on a STALE binary (found and fixed 2026-09-02)
+`tools/verify/cld3span/run.sh` and `tools/verify/latency/run.sh` compile through a
+`compile()` helper that ends in `echo "$obj"`, so the function returned **0 however
+g++ fared**, and the link then picked up the object file from the last good build.
+A broken core printed a wall of compile errors and the harness still reported every
+case passing. It cost a full debugging cycle on the day it was found: the CLD3 fix
+looked like it had no effect. Both scripts now `rm -f` the object first and `exit 1`
+on a compile failure, negative-tested by appending a syntax error to the core and
+confirming the run goes red. **Any new harness must do the same.**
+
 ## The launcher icon is the owner's artwork (2026-09-02)
 Supplied as a square JPG with a white margin around a rounded-square badge.
 `tools/icon/make_icons.py` regenerates the whole set from `tools/icon/source.jpg`; three

@@ -68,7 +68,14 @@ compile() {  # compile <source> -- cached on mtime
   local src=$1
   local obj="$WORK/obj/$(echo "$src" | md5sum | cut -c1-16).o"
   if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
-    g++ -c -O1 -std=c++17 -w -Wno-narrowing $INC -o "$obj" "$src"
+    # Delete first, and fail the whole run on a compile error. Without both,
+    # this function ended in a successful `echo` and so returned 0 however g++
+    # fared, and the link then picked up the object from the LAST GOOD build --
+    # so a broken core printed its errors and the harness still reported every
+    # case passing. That happened on 2026-09-02 and cost a full debugging cycle.
+    rm -f "$obj"
+    g++ -c -O1 -std=c++17 -w -Wno-narrowing $INC -o "$obj" "$src" || {
+      echo "compile failed: $src" >&2; exit 1; }
   fi
   echo "$obj"
 }

@@ -362,6 +362,45 @@ int main(){
         runProcessDirect(marathiUtterance);
         expectSpan("Marathi still Marathi after widening, CLD3", shortMarathi, true,  0, 1, "mr", "0");
         expectSpan("Marathi still Marathi after widening, CLD2", shortMarathi, false, 0, 1, "mr", "0");
+
+        // ---- THE SECOND REPORT (device log, 2026-09-02) ---------------
+        // Same symptom, different cause, and the widening above cannot touch
+        // it: this utterance's Devanagari chunk IS all the Devanagari there is,
+        // so there is nothing wider to detect against.
+        //
+        //     किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत Text box Compose message
+        //
+        // CLD2 read the Devanagari chunk as Hindi; CLD3 sent it to the MARATHI
+        // voice. The model is not at fault -- handed the raw bytes it answers
+        // hi p=0.9926. What it was handed was not those bytes: CLD3 runs
+        // CheapSqueezeInplace on every text it is given, and "किसी दूसरी भाषा"
+        // occurs twice here, so 131 bytes were cut to 75 --
+        // "किसी दूसरी भाषा भाषा बातचीत" -- and on the wreckage the answer is mr.
+        // CLD2 squeezes a span only above 2048 bytes. The gate is now applied
+        // in cld3FindLanguageGated / cld3TopNGated; these cases hold it.
+        {
+            const std::string repeatedHindi =
+                "किसी दूसरी भाषा "
+                "में हो रही किसी "
+                "दूसरी भाषा बातचीत ";
+            const std::string repeatedUtterance = repeatedHindi + "Text box Compose message";
+            enable({"en", "gu", "hi", "mr"});
+            expectSpan("repeated Hindi, CLD2", repeatedHindi, false, 0, 1, "hi", "0");
+            expectSpan("repeated Hindi, CLD3", repeatedHindi, true,  0, 1, "hi", "0");
+            runProcessDirect(repeatedUtterance);
+            expectSpan("repeated Hindi after processDirect, CLD3", repeatedHindi, true,  0, 1, "hi", "0");
+            expectSpan("repeated Hindi after processDirect, CLD2", repeatedHindi, false, 0, 1, "hi", "0");
+
+            // The same defect on Latin text, found while measuring the fix: the
+            // phrase doubled is squeezed to something CLD3 calls JAPANESE with
+            // p=0.784, which clears its own reliability bar. Gated, it answers
+            // en unreliably and the per-script fallback resolves the Latin span
+            // to the Latin language -- which is where it belonged all along.
+            const std::string doubledLatin =
+                "Text box Compose message Text box Compose message";
+            expectSpan("doubled Latin phrase, CLD3", doubledLatin, true,  0, 1, "en", "1");
+            expectSpan("doubled Latin phrase, CLD2", doubledLatin, false, 0, 1, "en", "1");
+        }
     }
 
     if(failures == 0) printf("ALL CLD3 SPAN CASES PASS\n");

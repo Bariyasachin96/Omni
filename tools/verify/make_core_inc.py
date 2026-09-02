@@ -45,6 +45,9 @@ DROP_INCLUDES = (
     '#include "encodings.h"',
     '#include "compact_lang_det_impl.h"',
     '#include "nnet_language_identifier.h"',
+    '#include "script_span/text_processing.h"',
+    '#define private public',
+    '#undef private',
 )
 
 HINTS_STUB = """

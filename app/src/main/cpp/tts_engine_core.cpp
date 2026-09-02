@@ -8,10 +8,27 @@
 #include <unordered_set>
 #include <stdint.h>
 #include <mutex>
+#include <algorithm>
+#include <limits>
 #include "compact_lang_det.h"
 #include "encodings.h"
 #include "compact_lang_det_impl.h"
+// CLD3's FindLanguage and FindTopNMostFreqLangs both call
+// CLD2::CheapSqueezeInplace on every text they are given, however short, and
+// that turns out to change the answer on the short repetitive phrases a screen
+// reader produces -- see cld3FindLanguageGated below for the measurement. The
+// only way to run CLD3's own pipeline without that step is to call the two
+// members it hides, FindLanguageOfValidUTF8 and SelectTextGivenBeginAndSize.
+// Access control changes neither layout nor mangling, so this affects nothing
+// but what this translation unit is allowed to name; CLD3's own .cc files are
+// separate translation units and are compiled untouched. CLD3 is vendored by a
+// CI `git clone`, so patching its source is not an option.
+#define private public
 #include "nnet_language_identifier.h"
+#undef private
+// CheapSqueezeInplace is the one piece of CLD3's vendored CLD2 copy that
+// nnet_language_identifier.h does not pull in for us.
+#include "script_span/text_processing.h"
 JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
     return JNI_VERSION_1_6;
 }
@@ -1675,6 +1692,160 @@ static bool isRomanisedTag(const std::string& code){
 static bool isCld3Unknown(const std::string& code){
     return code == "und";
 }
+// --------------------------------------------------------------------------
+//  CLD3's REPETITION SQUEEZE, GATED THE WAY CLD2 GATES IT
+//
+// THE BUG (device log, 2026-09-02). With CLD3 on, the Hindi sentence
+//
+//     किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
+//
+// was spoken by the MARATHI voice; with CLD2 it was read in Hindi. Identical
+// chunking, only the span's language differed -- the same shape as the earlier
+// report, but the context widening does not touch it, because this Devanagari
+// chunk IS all the Devanagari in the utterance and there is nothing to widen to.
+//
+// It is not the model. Feeding the raw bytes straight to the network gives
+// hi p=0.9926, mr p=0.0008. What reaches the network is not those bytes:
+//
+//     cleaned  (131 B)  किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
+//     squeezed  (75 B)  किसी दूसरी भाषा भाषा बातचीत          <- hi 0.99 becomes mr 0.91
+//
+// CLD2::CheapSqueezeInplace walks the text in 48-byte chunks and drops a chunk
+// whose bytes are mostly predicted from what came before -- boilerplate removal
+// for multi-kilobyte web documents. "किसी दूसरी भाषा" occurs twice in this
+// sentence, so a third of it is deleted and the network is asked about the
+// wreckage.
+//
+// CLD2 NEVER DOES THIS TO A SHORT TEXT, and that asymmetry is the whole defect.
+// compact_lang_det_impl.cc:1867 squeezes a script span only when
+//
+//     (kCheapSqueezeTestThresh >> 1) < scriptspan.text_bytes      // 2048 bytes
+//
+// and even then only after CheapSqueezeTriggerTest agrees. CLD3
+// (nnet_language_identifier.cc, FindLanguage and FindTopNMostFreqLangs alike)
+// calls the same function unconditionally with chunk_size 0. So the switch the
+// owner flips does not only change detector -- it silently changes the text.
+//
+// The two helpers below are CLD3's own two entry points, mirrored statement for
+// statement, with exactly one change: the squeeze runs only above CLD2's own
+// 2048-byte threshold. Nothing else moves; the network, the script scanner, the
+// snippet selection, the reliability rule and the aggregation are CLD3's.
+//
+// MEASURED over 608 distinct strings -- every phrase spoken in both device logs
+// plus the app's own literals. The stock squeeze removes text from 9 of them
+// and changes the answer on 4. All four move to the better answer:
+//
+//     किसी दूसरी भाषा ... बातचीत          mr 0.913  ->  hi 0.989
+//     the same, 154-byte variant           mr 0.526  ->  hi 0.814
+//     "Text box Compose message" doubled   ja 0.784  ->  en (unreliable)
+//     a Samoan sentence                    hu 0.861  ->  sm 1.000
+//
+// There is no case in that corpus where gating makes the answer worse. CLD2's
+// arm is untouched by any of this.
+static const int kCld3SqueezeGateBytes = 2048;   // CLD2's kCheapSqueezeTestThresh >> 1
+
+// ResultIsReliable and FindNumValidBytesToProcess live in an anonymous
+// namespace inside CLD3's .cc, so they cannot be named from here; both are
+// transcribed rather than reimplemented.
+static bool cld3ResultIsReliable(const std::string& language, float probability){
+    if(language == "hr" || language == "bs")
+        return probability >= chrome_lang_id::NNetLanguageIdentifier::kReliabilityHrBsThreshold;
+    return probability >= chrome_lang_id::NNetLanguageIdentifier::kReliabilityThreshold;
+}
+static int cld3NumValidBytes(const std::string& text){
+    const int docTextSize = (text.size() < (size_t)std::numeric_limits<int>::max())
+        ? (int)text.size() : std::numeric_limits<int>::max();
+    return chrome_lang_id::CLD2::SpanInterchangeValid(
+        text.c_str(),
+        std::min(chrome_lang_id::NNetLanguageIdentifier::kMaxNumInputBytesToConsider, docTextSize));
+}
+
+// NNetLanguageIdentifier::FindLanguage, with the squeeze gated.
+static chrome_lang_id::NNetLanguageIdentifier::Result cld3FindLanguageGated(
+        chrome_lang_id::NNetLanguageIdentifier& identifier, const std::string& text){
+    typedef chrome_lang_id::NNetLanguageIdentifier NN;
+    const int numValidBytes = cld3NumValidBytes(text);
+    chrome_lang_id::CLD2::ScriptScanner scanner(text.c_str(), numValidBytes, /*is_plain_text=*/true);
+    chrome_lang_id::CLD2::LangSpan scriptSpan;
+    std::string cleaned;
+    while(scanner.GetOneScriptSpanLower(&scriptSpan))
+        cleaned.append(scriptSpan.text, scriptSpan.text_bytes);
+    if((int)cleaned.size() < identifier.min_num_bytes_) return NN::Result();
+
+    std::vector<char> textToProcess(cleaned.begin(), cleaned.end());
+    textToProcess.push_back('\0');
+    char* textBegin = &textToProcess[0];
+    int newLength = (int)textToProcess.size() - 1;
+    if(newLength > kCld3SqueezeGateBytes)
+        newLength = chrome_lang_id::CLD2::CheapSqueezeInplace(textBegin, newLength, /*chunk_size=*/0);
+    if(newLength < identifier.min_num_bytes_) return NN::Result();
+
+    return identifier.FindLanguageOfValidUTF8(
+        identifier.SelectTextGivenBeginAndSize(textBegin, newLength));
+}
+
+// NNetLanguageIdentifier::FindTopNMostFreqLangs, with the squeeze gated. The
+// per-language totals, the tie-break on language name and the padding with
+// empty results are CLD3's; byte_ranges is carried even though nothing here
+// reads it, so this stays a mirror rather than a rewrite.
+static std::vector<chrome_lang_id::NNetLanguageIdentifier::Result> cld3TopNGated(
+        chrome_lang_id::NNetLanguageIdentifier& identifier, const std::string& text, int numLangs){
+    typedef chrome_lang_id::NNetLanguageIdentifier NN;
+    struct Stats { float probSum = 0.0f; int byteSum = 0; std::vector<NN::SpanInfo> byteRanges; };
+    std::vector<NN::Result> results;
+
+    const int numValidBytes = cld3NumValidBytes(text);
+    if(numValidBytes == 0){
+        while(numLangs-- > 0) results.emplace_back();
+        return results;
+    }
+    chrome_lang_id::CLD2::ScriptScanner scanner(text.c_str(), numValidBytes, /*is_plain_text=*/true);
+    chrome_lang_id::CLD2::LangSpan scriptSpan;
+    std::unordered_map<std::string, Stats> langStats;
+    int totalNumBytes = 0;
+    while(scanner.GetOneScriptSpanLower(&scriptSpan)){
+        const int numOriginalSpanBytes = scriptSpan.text_bytes;
+        if(scriptSpan.text_bytes > kCld3SqueezeGateBytes)
+            scriptSpan.text_bytes = chrome_lang_id::CLD2::CheapSqueezeInplace(
+                scriptSpan.text, scriptSpan.text_bytes, /*chunk_size=*/0);
+        if(scriptSpan.text_bytes < identifier.min_num_bytes_) continue;
+        totalNumBytes += numOriginalSpanBytes;
+
+        const NN::Result one =
+            identifier.FindLanguageOfValidUTF8(identifier.SelectTextGivenScriptSpan(scriptSpan));
+        Stats& stats = langStats[one.language];
+        stats.byteSum += numOriginalSpanBytes;
+        stats.probSum += one.probability * numOriginalSpanBytes;
+        stats.byteRanges.push_back(NN::SpanInfo(
+            scanner.MapBack(0), scanner.MapBack(scriptSpan.text_bytes), one.probability));
+    }
+
+    std::vector<std::pair<std::string, float> > langsAndByteCounts;
+    for(const auto& entry : langStats)
+        langsAndByteCounts.push_back(std::make_pair(entry.first, (float)entry.second.byteSum));
+    std::sort(langsAndByteCounts.begin(), langsAndByteCounts.end(),
+              [](const std::pair<std::string,float>& x, const std::pair<std::string,float>& y){
+                  return x.second == y.second ? x.first < y.first : x.second > y.second;
+              });
+
+    const float byteSum = (float)totalNumBytes;
+    const int numLangsToSave = std::min(numLangs, (int)langsAndByteCounts.size());
+    for(int at = 0; at < numLangsToSave; at++){
+        const std::string& language = langsAndByteCounts.at(at).first;
+        const Stats& stats = langStats.at(language);
+        NN::Result one;
+        one.language    = language;
+        one.probability = stats.probSum / stats.byteSum;
+        one.proportion  = stats.byteSum / byteSum;
+        one.is_reliable = cld3ResultIsReliable(language, one.probability);
+        one.byte_ranges = stats.byteRanges;
+        results.push_back(one);
+    }
+    int paddingSize = numLangs - (int)langsAndByteCounts.size();
+    while(paddingSize-- > 0) results.emplace_back();
+    return results;
+}
+
 // useHints mirrors whether CLD2 is hinted at the call site: getLanguageSpans
 // hands CLD2 a per-script language hint and then filters what comes back
 // against the enabled list, while getLanguage hands it nothing at all and lets
@@ -1708,7 +1879,7 @@ static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut,
     }
     if(useHints && !hinted.empty()){
         const std::vector<chrome_lang_id::NNetLanguageIdentifier::Result> ranked =
-            cld3Identifier->FindTopNMostFreqLangs(utf8Text, 3);
+            cld3TopNGated(*cld3Identifier, utf8Text, 3);
         for(const auto& candidate : ranked){
             if(!candidate.is_reliable) continue;
             if(isRomanisedTag(candidate.language)) continue;
@@ -1717,7 +1888,8 @@ static std::string cld3DetectRaw(const std::string& utf8Text, bool* reliableOut,
             return candidate.language;
         }
     }
-    const chrome_lang_id::NNetLanguageIdentifier::Result result = cld3Identifier->FindLanguage(utf8Text);
+    const chrome_lang_id::NNetLanguageIdentifier::Result result =
+        cld3FindLanguageGated(*cld3Identifier, utf8Text);
     if(isRomanisedTag(result.language) || isCld3Unknown(result.language)){
         if(reliableOut) *reliableOut = false;
         return "";
