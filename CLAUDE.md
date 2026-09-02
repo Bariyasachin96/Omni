@@ -941,6 +941,94 @@ sets x 1,114,112 code points.
 **CLD2 is still the faster switch** (1.1 ms vs 6.6 ms per 30 paragraphs) and is untouched by
 all of this.
 
+## The two audio switches, traced through AOSP (owner request, 2026-09-02)
+*"accessibility stream … aur ek audio attributes … dono properly research karke
+complete karo … modern phone ke hisab se."* Traced end to end through AOSP rather
+than reasoned about, and it found a switch that had never worked.
+
+**How audio attributes actually reach the speaking engine.** Four hops, each read
+from source:
+1. The screen reader calls `TextToSpeech.setAudioAttributes()`, which puts an
+   `AudioAttributes` parcelable into ITS params as `KEY_PARAM_AUDIO_ATTRIBUTES`
+   (`TextToSpeech.java:1522`).
+2. That bundle arrives here as `request.params`, and `onSynthesizeText` forwards a
+   copy of it to the downstream engine's `speak()`.
+3. `TextToSpeech.getParams()` merges it with the downstream client's own params:
+   `Bundle bundle = new Bundle(mParams); bundle.putAll(params);`
+4. The downstream `TextToSpeechService.AudioOutputParams.createFromParamsBundle`
+   reads `KEY_PARAM_AUDIO_ATTRIBUTES`, or -- only if it is absent -- builds
+   attributes from `KEY_PARAM_STREAM` defaulting to `Engine.DEFAULT_STREAM`
+   (`STREAM_MUSIC`) with `CONTENT_TYPE_SPEECH`.
+
+**THE BUG, at step 3.** `mParams` is the BASE and the forwarded bundle
+**overwrites** it. `setAudioAttributes` writes into `mParams`. So
+**"Force to use audio accessibility stream" was defeated by the caller's own
+attributes** -- and a screen reader sets them, so that is the normal case. The
+switch set `USAGE_ASSISTANCE_ACCESSIBILITY`, TalkBack's attributes landed on top,
+and the downstream engine never saw ours. It was silently a no-op for anyone whose
+client supplies attributes, which is why turning it on appeared to change nothing.
+
+**The fix** is one condition: forcing the accessibility stream now also clears
+`audioAttributes` / `streamType` out of the forwarded bundle, which is exactly
+what the strip switch already did. The two share the line for opposite reasons --
+**strip** so the engine falls back to `STREAM_MUSIC` + `CONTENT_TYPE_SPEECH`,
+**force** so our `USAGE_ASSISTANCE_ACCESSIBILITY` survives the merge.
+
+**Verified, so do not re-check:** the magic numbers are right --
+`AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY = 11` (line 186) and
+`CONTENT_TYPE_SPEECH = 1` (line 92) in AOSP. They are numbers only because the
+API-15 check jar has no `AudioAttributes` class at all, so the named constants
+cannot be resolved locally; the values are correct and `minSdk` is 24.
+
+**Considered and NOT added:** `setSpatializationBehavior(SPATIALIZATION_BEHAVIOR_NEVER)`
+(API 32). Spatialization defaults to `AUTO`, and the spatializer will not process
+a 16 kHz mono speech stream anyway, so it would be a speculative attribute on a
+path that cannot be tested here. Do not add it without a device showing a problem.
+
+## The last two clocks are gone -- what the research actually said (2026-09-02)
+The owner rejected every timing constant: *"koi timing wala system mat rakho yaar,
+yah to ek latency ka karan ban jata hai."* Both remaining ones were researched
+against AOSP; **one had to go and one had to stay**, and the difference matters.
+
+### The 3-second restore rate limit: REMOVED
+`k0.h()`'s `elapsed > 3000ms` is a rate limit on **recovery**, and it was the one
+place in the file where a delay was genuinely felt: an engine that dies within
+three seconds of being restored is refused, and **nothing schedules a retry** --
+it simply stays dead until some later failure happens to trigger another attempt.
+
+What it guarded is already guarded without a clock. `restoringIndex != -1` rejects
+a second restore while one is in flight, and that flag is cleared by
+`RestoreInitListener`, which **always** runs: every failure path in AOSP's
+`TextToSpeech.initTts` ends in `dispatchOnInit(ERROR)` (the requested engine is not
+installed, the bind fails, no engine can be reached), so the listener cannot be
+skipped. A restore therefore costs a bind plus an init before another can begin,
+and the loop can never be tight. The `k < 10` cap stays as the runaway guard, and
+`onStart` zeroes the streak -- an event, not an interval.
+
+### The keep-alive `wait(100)`: KEPT, and here is why it must be
+It looks like the same kind of constant and it is not. `k0`/`t0` feeds 32 bytes of
+silence per round, and the AOSP call it feeds **already blocks by itself**:
+
+    // Might block on mItem.this, if there are too many buffers waiting
+    // to be consumed.
+    item.put(bufferCopy);            // PlaybackSynthesisCallback.audioAvailable
+
+and `SynthesisPlaybackQueueItem.put` waits on `mNotFull` whenever more than
+**`MAX_UNCONSUMED_AUDIO_MS = 500`** of audio is unconsumed, waking on stop as well.
+So the backpressure is real -- but it only bites once 500 ms is buffered. **32
+bytes at 16 kHz 16-bit mono is 1 ms of audio.** Removing the `wait(100)` would not
+make the loop event-paced; it would make it spin about **a thousand times a second**
+to keep half a second of silence queued, burning CPU and battery for nothing. With
+the wait it pokes ten times a second and never fills the queue at all.
+
+**And it adds no latency**, which is the actual question: the loop is inside
+`synchronized(syncLock)`, and every stop path does
+`synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }`, so it is woken
+immediately rather than after the remainder of the 100 ms. It also runs **only when
+keep-alive is switched on**, which is off by default, and never on the speaking
+path. Leaving AutoTTS's own pacing alone here is the correct answer; replacing it
+would be the change that costs performance.
+
 ## Accessibility swept again against the CURRENT APIs (owner request, 2026-09-02)
 *"accessibility attributes … usko bhi sahi karna hai sab jagah se properly … jo
 latest devices aur latest technology hai uske hisab se research karke."* Done by

@@ -211,7 +211,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
         var listenerSet: Boolean = false
         var audioAttrSet: Boolean = false
         var restoreCount: Int = 0
-        var lastRestoreTime: Long = 0L
         // The engine's own voice set, cached. See loadVoice for why. Cleared
         // wherever `tts` is replaced, because a new TextToSpeech is a new
         // connection to the engine and the old objects belong to the old one.
@@ -509,20 +508,32 @@ class EasyVoiceTtsService : TextToSpeechService() {
             for (index in 0 until enginePool.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + enginePool[index].pkg); if (enginePool[index].pkg.equals(pkg, ignoreCase = true)) { idx = index; break } }
             if (idx == -1) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -restore package name is not found"); return }
             val wrapper = enginePool[idx]
-            // AutoTTS's k0.h() is `k == 0 || (elapsed > 3000ms && k < 10)`, and
-            // k0.i() only ever increments k -- NOTHING resets it. So after ten
-            // restores an engine is unrecoverable for the whole life of the
-            // process, and this service is START_STICKY and can run for days:
-            // the engine dies an eleventh time and is never brought back. That is
-            // a second, slower road to the same silence.
+            // AutoTTS's k0.h() is `k == 0 || (elapsed > 3000ms && k < 10)` and
+            // k0.i() only ever increments k. BOTH halves are wrong for us and
+            // both are gone; what is left is entirely event-driven.
             //
-            // The counter is reset by an EVENT, not by a clock -- see onStart in
-            // the utterance listener, which zeroes it the moment the engine
-            // actually speaks. "It worked" is what ends a failure streak; how
-            // long ago it last failed says nothing on its own. The cap and the
-            // 3-second rate limit below are AutoTTS's own and are untouched.
-            if (!(wrapper.restoreCount == 0 || ((System.nanoTime() - wrapper.lastRestoreTime) / 1000000.0 > 3000.0 && wrapper.restoreCount < 10))) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -restore is not applicable!"); return }
-            wrapper.lastRestoreTime = System.nanoTime(); wrapper.restoreCount++
+            // THE CLOCK. The 3-second window is a rate limit on RECOVERY, and it
+            // is the one place in this file where a delay was actually felt: an
+            // engine that dies within 3 seconds of being restored is refused,
+            // and nothing schedules a retry -- it simply stays dead until some
+            // later failure happens to trigger another attempt. Removing it
+            // makes recovery immediate. What it guarded is already guarded
+            // without a clock: `restoringIndex != -1` above rejects a second
+            // restore while one is in flight, and that flag is cleared by
+            // RestoreInitListener, which ALWAYS runs -- every failure path in
+            // AOSP's TextToSpeech.initTts ends in dispatchOnInit(ERROR), so the
+            // listener cannot be skipped. A restore therefore costs a bind plus
+            // an init before another can start; the loop can never be tight.
+            //
+            // THE CAP. `k < 10` stays, because a genuinely broken engine must
+            // stop being retried -- but the streak is now ended by an EVENT
+            // rather than being left to run out forever: onStart in the
+            // utterance listener zeroes restoreCount the moment the engine
+            // actually speaks. "It worked" is what ends a failure streak.
+            // Without it, ten deaths over a multi-day process life killed the
+            // engine for good, and this service is START_STICKY.
+            if (wrapper.restoreCount >= 10) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -restore is not applicable!"); return }
+            wrapper.restoreCount++
             restoringIndex = idx
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + wrapper.pkg)
             try {
@@ -1608,7 +1619,35 @@ class EasyVoiceTtsService : TextToSpeechService() {
             params.remove("pitch"); params.remove("rate")
             params.remove("language"); params.remove("country")
             params.remove("variant"); params.remove("voiceName"); params.remove("utteranceId")
-            if (isStripAudioAttr) { params.remove("streamType"); params.remove("audioAttributes") }
+            // "Force to use audio accessibility stream" DID NOT WORK whenever
+            // the screen reader supplied its own audio attributes, and that is
+            // most of the time. Traced through AOSP rather than guessed:
+            //
+            //   TextToSpeech.setAudioAttributes() stores the attributes in the
+            //   client's own mParams (TextToSpeech.java:1522), and speak() then
+            //   merges them with the bundle we hand it:
+            //       Bundle bundle = new Bundle(mParams);
+            //       bundle.putAll(params);          // TextToSpeech.getParams()
+            //   mParams is the BASE and our bundle OVERWRITES it. The bundle we
+            //   forward is a copy of the caller's request params, so TalkBack's
+            //   own KEY_PARAM_AUDIO_ATTRIBUTES landed on top of the accessibility
+            //   attributes this switch had just set, and the downstream engine's
+            //   TextToSpeechService.AudioOutputParams.createFromParamsBundle read
+            //   the caller's, never ours. The switch was silently a no-op.
+            //
+            // So forcing the accessibility stream means clearing the caller's
+            // attributes out of the forwarded bundle too -- exactly what the
+            // strip option already does -- and letting mParams through. The two
+            // switches share this line because they need the same removal for
+            // opposite reasons: strip so the engine falls back to
+            // Engine.DEFAULT_STREAM (STREAM_MUSIC) + CONTENT_TYPE_SPEECH, force
+            // so our USAGE_ASSISTANCE_ACCESSIBILITY survives.
+            //
+            // The two constants below are checked against AOSP AudioAttributes:
+            // USAGE_ASSISTANCE_ACCESSIBILITY = 11 (line 186), CONTENT_TYPE_SPEECH
+            // = 1 (line 92). They are written as numbers only because the API-15
+            // check jar has no AudioAttributes at all; the values are right.
+            if (isStripAudioAttr || isForceAccessibility) { params.remove("streamType"); params.remove("audioAttributes") }
             if (finalVolume != 0f) { params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, finalVolume) }
             if (isStopped || isFlushed) return
             wrapper.listenerSet = true
