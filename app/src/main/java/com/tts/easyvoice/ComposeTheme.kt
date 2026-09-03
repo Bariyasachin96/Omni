@@ -62,8 +62,59 @@ fun EasyVoiceTheme(content: @Composable () -> Unit) {
         Surface(
             color = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onBackground,
+            // The Surface fills the WHOLE window on purpose, so the background
+            // colour paints behind the status and navigation bars and there is
+            // no unpainted strip. Only the content inside is inset.
             modifier = Modifier.fillMaxSize()
-        ) { content() }
+        ) {
+            // WINDOW INSETS, ONE PLACE, EVERY SCREEN.
+            //
+            // targetSdk is 37, and from Android 15 (API 35) the system draws
+            // every app edge to edge and ignores android:statusBarColor and
+            // android:navigationBarColor -- which values/styles.xml still sets,
+            // and which do nothing there. So content starts at y = 0, under the
+            // status bar. The owner's screenshot of "English (eng) voices"
+            // sitting on top of the clock was exactly that.
+            //
+            // This is the ONLY place the app pads for insets, and it is enough
+            // for every screen -- present and future -- because of two library
+            // guarantees, both read from androidx rather than assumed:
+            //
+            // 1. Modifier.windowInsetsPadding CONSUMES what it pads.
+            //    WindowInsetsPadding.kt: "Any insets consumed by other insets
+            //    padding modifiers or [consumeWindowInsets] on a parent layout
+            //    will be excluded from [insets]. [insets] will be consumed for
+            //    child layouts as well."
+            // 2. Material3's Scaffold SUBTRACTS what an ancestor consumed.
+            //    Scaffold.kt: `safeInsets.insets =
+            //    contentWindowInsets.exclude(consumedWindowInsets)`.
+            //    So MainActivity's Scaffold hands out an innerPadding of zero
+            //    here instead of padding a second time. Nothing had to be told
+            //    about anything.
+            //
+            // safeDrawing, not systemBars: it is systemBars.union(ime)
+            //   .union(displayCutout) (WindowInsets.android.kt:362), so it also
+            // clears the punch-hole or notch -- which is what makes one device's
+            // usable top edge lower than another's, and why this looked like a
+            // Xiaomi-only bug -- and moves content off the keyboard.
+            //
+            // enableEdgeToEdge() is deliberately NOT called, and that is the
+            // point of doing it here. On API 24-34 the window is not edge to
+            // edge, the DecorView fits the system windows and consumes the bar
+            // insets before they reach the ComposeView -- and Compose reads its
+            // insets from a listener ON THAT VIEW
+            // (WindowInsetsHolder: ViewCompat.setOnApplyWindowInsetsListener(view,
+            // insetsListener)) -- so safeDrawing is zero there and this padding
+            // is a no-op. One line is correct on every API level the app
+            // installs on, with no per-activity code to remember. Calling
+            // enableEdgeToEdge would also need explicit SystemBarStyle.dark for
+            // both bars, because its default auto(...) picks the icon colour
+            // from the SYSTEM dark-mode setting while this app is always dark --
+            // dark icons on our dark bar on a light-mode phone.
+            Box(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+                content()
+            }
+        }
     }
 }
 
@@ -113,33 +164,6 @@ private fun evContentMaxWidth(): Dp? =
     if (evWindowSizeClass().isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND))
         WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND.dp
     else null
-
-// EVERY screen that is its own Activity must be wrapped in this, and the reason
-// is a platform change we had already opted into without handling: **targetSdk
-// is 37**, and from Android 15 (API 35) the system draws every app edge to edge
-// and IGNORES android:statusBarColor / android:navigationBarColor. Our theme
-// still sets both, and on API 35+ neither does anything.
-//
-// So the content of a screen starts at y = 0, UNDER the status bar. MainActivity
-// never showed it because its Scaffold hands `innerPadding` to
-// ResponsiveContent, and Scaffold's contentWindowInsets is systemBars -- but
-// About, Languages, Mode settings and Voice setup call setContent with nothing
-// between the theme and the screen, so their FIRST element sits behind the
-// clock and the signal icons. The owner's screenshot of "English (eng) voices"
-// overlapping the status bar is exactly that, and it is why the screen's own
-// heading could not be reached on their Xiaomi while a Pixel was fine: the
-// status bar is taller there, so the whole heading was covered rather than
-// peeking out below it.
-//
-// safeDrawing rather than systemBars, because it also covers the display cutout
-// -- a punch-hole or notch is what makes one device's usable top edge lower
-// than another's, which is the whole shape of this bug.
-@Composable
-fun EvScreenInsets(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        content()
-    }
-}
 
 @Composable
 fun ResponsiveContent(

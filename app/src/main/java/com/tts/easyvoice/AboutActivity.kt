@@ -58,7 +58,7 @@ private fun openLink(context: android.content.Context, url: String) {
 class AboutActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { EasyVoiceTheme { EvScreenInsets { AboutScreen() } } }
+        setContent { EasyVoiceTheme { AboutScreen() } }
     }
 }
 

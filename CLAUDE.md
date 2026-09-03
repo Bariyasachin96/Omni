@@ -1545,16 +1545,50 @@ The status bar is taller on the owner's Xiaomi than on the Pixel, so there the
 whole heading was covered while on the Pixel it cleared the bar. Same APK, same
 semantics, different usable top edge.
 
-**The fix is `EvScreenInsets`** in `ComposeTheme.kt` -- one `Box` with
-`Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)` -- wrapped
-around the screen inside `setContent` in those four activities, and nowhere else.
-**Do not put it in `ResponsiveContent`**: `ModesScreen`, `AdvancedScreen` and
-`ConfigurationScreen` render inside MainActivity's Scaffold, which already paid
-the insets, and they would be padded twice.
+**THE FIX IS ONE PLACE, `EasyVoiceTheme`, and it covers every screen the app
+will ever have.** The first attempt wrapped the four activities by hand in an
+`EvScreenInsets` helper. The owner rejected that shape, and was right: *"sabhi
+devices aur sabhi user interface ke saath compatible ho jaye ... hamein extra
+kuchh karne ki zarurat hi na pade ... library mein aisa kuchh to hoga."* There
+is, and it is two guarantees read from androidx rather than assumed:
 
-**`safeDrawing`, not `systemBars`**, because it also covers the **display
+1. **`Modifier.windowInsetsPadding` CONSUMES what it pads.**
+   `WindowInsetsPadding.kt`: *"Any insets consumed by other insets padding
+   modifiers or [consumeWindowInsets] on a parent layout will be excluded from
+   [insets]. [insets] will be consumed for child layouts as well."*
+2. **Material3's `Scaffold` SUBTRACTS what an ancestor consumed.**
+   `Scaffold.kt:104`: `safeInsets.insets =
+   contentWindowInsets.exclude(consumedWindowInsets)`.
+
+So a single `Modifier.windowInsetsPadding(WindowInsets.safeDrawing)` inside
+`EasyVoiceTheme` -- which **every** activity already goes through -- pads every
+screen, and MainActivity's `Scaffold` then hands out an `innerPadding` of **zero**
+instead of padding a second time. **Nothing had to be told about anything, and a
+future screen needs no action at all.** The `Surface` still fills the whole
+window so the background colour paints behind the bars; only the `Box` inside it
+is inset.
+
+**`safeDrawing`, not `systemBars`.** `WindowInsets.android.kt:362` defines it as
+`systemBars.union(ime).union(displayCutout)`, so it also clears the **display
 cutout** -- a punch-hole or notch is what makes one device's usable top edge
-lower than another's, which is the whole shape of this bug.
+lower than another's, which is why this read as a Xiaomi-only bug -- and moves
+content off the keyboard.
+
+**`enableEdgeToEdge()` is deliberately NOT called, and that is the point of doing
+it in the theme.** On API 24-34 the window is not edge to edge: the `DecorView`
+fits the system windows and consumes the bar insets before they reach the
+`ComposeView`, and Compose reads its insets from a listener **on that view**
+(`WindowInsetsHolder`: `ViewCompat.setOnApplyWindowInsetsListener(view,
+insetsListener)`), so `safeDrawing` is zero there and the padding is a no-op.
+**One line is correct on every API level the app installs on, with no
+per-activity code.** Calling `enableEdgeToEdge` would also need an explicit
+`SystemBarStyle.dark` for both bars, because its default `auto(...)` picks the
+icon colour from the SYSTEM dark-mode setting while this app is always dark --
+dark icons on our dark bar on a light-mode phone.
+
+**Do not move this padding into `ResponsiveContent`** and do not re-add a
+per-screen wrapper. The theme is the one place, and the two library guarantees
+above are what make it sufficient.
 
 **`focusOnOpen` is KEPT**, and it is now what the owner literally asked for
 rather than a theory about why it was needed: the first heading of each of those
