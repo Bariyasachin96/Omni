@@ -138,11 +138,38 @@ order the owner gave:
     License               (heading)
     ... CLD2 and AOSP under Apache 2.0, and a button to apache.org
 
-The license wording is the old Licenses tab's, recovered from the generator in
-commit `a4dc250` rather than rewritten: CLD2 is **Copyright (c) 2013 Google Inc.**
-and AOSP is **Copyright (c) The Android Open Source Project**, both **Apache
-License, Version 2.0** -- confirmed against `app/src/main/cpp/cld2_src/LICENSE`,
-which is the Apache 2.0 text verbatim.
+**The licence text comes from CLD2's OWN repository, not from the old Licenses
+tab.** The first version of this screen reused the wording recovered from the
+generator in commit `a4dc250`; the owner rejected that the same day -- *"licence
+info ... repository se dekhna chahie ... jo CLD2 ki repository hai vahan se
+uthana chahie ... purana wala ko aapko nahin dekhna chahie"* -- so it was written
+again from `github.com/CLD2Owners/cld2`, which is what `build.yml` clones. What
+was read there, and what each thing settled:
+
+| in the repo | what it gave the screen |
+|---|---|
+| `LICENSE` | the Apache 2.0 text, **byte-identical** to our clone's copy (`diff` clean) |
+| `README.md` | the name, the author line **Dick Sites (dsites@google.com)**, and "These **83** languages are detected" |
+| every `.cc` / `.h` header | `Copyright <year> Google Inc. All Rights Reserved.` plus the Apache notice |
+| **`NOTICE`** | **does not exist -- HTTP 404** |
+
+Two things that only reading the repo could have told us:
+- the copyright line is **"2013, 2014"**, not 2013 alone. Of the 24 CLD2 files
+  `CMakeLists.txt` compiles, 21 headers say 2013 and **three say 2014**
+  (`cld2_generated_quadchrome_16`, `cld2_generated_deltaoctachrome`,
+  `cld2_generated_distinctoctachrome`). The old wording said 2013 only.
+- there is **no `NOTICE` file**, so Apache 2.0 section 4(d) asks us to reproduce
+  nothing extra; the copyright line plus a pointer to the License is the whole
+  obligation.
+
+The two Apache paragraphs on the screen are the notice **verbatim**, exactly as
+it sits at the top of every CLD2 file we compile and in the LICENSE's own
+appendix. **Do not paraphrase them** -- being verbatim is the point. The screen
+also carries a button to the repository itself, because that is where the code
+comes from, and a line for AOSP/Jetpack, whose headers were checked the same way
+(`Copyright <year> The Android Open Source Project` plus the same notice, read
+from `androidx/androidx`; note androidx has no root `LICENSE` -- that URL is a
+404, the headers are the source of truth).
 
 **Two details that are load-bearing, not style:**
 - **The Advanced tab's "Information" section is GONE, folded into About.** It
