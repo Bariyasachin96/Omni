@@ -136,7 +136,7 @@ order the owner gave:
     Version: <name>
     Developer: Sachin Baria
     Copyright (c) 2026 Sachin Baria. All rights reserved.
-    License                        (SectionHeader)
+    Open source licenses           (SectionHeader)
     the Apache 2.0 line, CLD2, AOSP/Jetpack, the verbatim notice
     [Apache License 2.0]  [CLD2 on GitHub]      side by side, last
 
@@ -195,8 +195,12 @@ comes from, and a line for AOSP/Jetpack, whose headers were checked the same way
 from `androidx/androidx`; note androidx has no root `LICENSE` -- that URL is a
 404, the headers are the source of truth).
 
-**The License section's first sentence is COMMERCIALLY load-bearing (owner,
-2026-09-03).** The owner is preparing a **PAID** Play Store listing and asked
+**The licence section is COMMERCIALLY load-bearing -- its heading AND its
+first sentence (owner, 2026-09-03).** The heading is **"Open source licenses"**,
+not "License": on a paid listing a section called "License" sitting above an
+Apache 2.0 notice invites the reader to think the APP carries that licence, while
+this name says plainly that the licences below belong to the open source PARTS.
+It is also what a store listing's own section is normally called. The owner is preparing a **PAID** Play Store listing and asked
 about this line before anything was implemented -- *"main isko purchase rakhna
 chahta hun ... yah text mere khyal se thoda sahi nahin hai"*. They were right. It
 read:

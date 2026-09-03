@@ -116,7 +116,13 @@ fun AboutScreen() {
             SettingDescription("Developer: Sachin Baria")
             SettingDescription("Copyright \u00a9 2026 Sachin Baria. All rights reserved.")
 
-            SectionHeader("License")
+            // "Open source licenses", not "License". On a PAID listing the
+            // heading itself is the first thing that has to draw the line: a
+            // section called "License" above an Apache 2.0 notice invites the
+            // reader to think the app carries that licence, while this name says
+            // plainly that the licences below belong to the open source PARTS.
+            // It is also what a store listing's own section is normally called.
+            SectionHeader("Open source licenses")
             // Everything in this block is taken from CLD2's OWN repository --
             // its README, its LICENSE and the header its source files carry --
             // not from any second-hand summary. See the comment above CLD2_URL.
