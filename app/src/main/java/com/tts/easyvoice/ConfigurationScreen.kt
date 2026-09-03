@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -82,6 +83,7 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                     onClick = { menuOpen = true },
                                     modifier = Modifier.semantics {
                                         contentDescription = "More actions for " + labels[index]
+                                        accessibilityClassName = EvRoleClass.BUTTON
                                     }
                                 ) {
                                     Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null)
@@ -90,12 +92,12 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                     DropdownMenuItem(
                                         text = { Text("Delete configuration", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDeleteConfiguration(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Delete configuration" }
+                                        modifier = Modifier.semantics { contentDescription = "Delete configuration"; accessibilityClassName = EvRoleClass.BUTTON }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Disable language", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDisable(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Disable language" }
+                                        modifier = Modifier.semantics { contentDescription = "Disable language"; accessibilityClassName = EvRoleClass.BUTTON }
                                     )
                                 }
                             }
@@ -105,7 +107,7 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                             .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
                             // One node, so a screen reader says the language and
                             // its status together in a single swipe.
-                            .semantics { contentDescription = labels[index] + ", " + status }
+                            .semantics { contentDescription = labels[index] + ", " + status; accessibilityClassName = EvRoleClass.BUTTON }
                     )
                 }
             }

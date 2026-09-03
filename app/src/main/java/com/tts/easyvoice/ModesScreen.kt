@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -108,7 +109,7 @@ fun ModesScreen(
                                 }
                             )
                             .padding(horizontal = 8.dp, vertical = 12.dp)
-                            .semantics { contentDescription = spec.second },
+                            .semantics { contentDescription = spec.second; accessibilityClassName = EvRoleClass.RADIO_BUTTON },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(selected = mode == selectedMode, onClick = null)
@@ -121,7 +122,7 @@ fun ModesScreen(
                     if (mode == selectedMode) {
                         Button(
                             onClick = { onOpenModeSettings(mode) },
-                            modifier = Modifier.semantics { contentDescription = "Settings" }
+                            modifier = Modifier.semantics { contentDescription = "Settings"; accessibilityClassName = EvRoleClass.BUTTON }
                         ) {
                             Icon(painterResource(R.drawable.ic_settings), contentDescription = null,
                                 modifier = Modifier.padding(end = 8.dp))
@@ -201,7 +202,7 @@ private fun LabeledRadioGroup(
                         onClick = { onSelect(index) }
                     )
                     .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .semantics { contentDescription = options[index] },
+                    .semantics { contentDescription = options[index]; accessibilityClassName = EvRoleClass.RADIO_BUTTON },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(selected = index == selectedIndex, onClick = null)
@@ -220,10 +221,12 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
     // the index written to each static is what d0.t re-types a segment with, so
     // neither may be reordered: 0 auto, 1 primary, 2 secondary, 3 specific.
     val modeOptions = listOf("Auto language", "Primary language", "Secondary language", "Specific language")
-    // These three belong together and are a different thing from the preferred
-    // languages above them, but they ran on as one flat list of dropdowns with
-    // nothing naming the group.
-    SectionHeader("Numbers, punctuation and emojis")
+    // NO SectionHeader here (owner, 2026-09-03: "yah dono heading ko hata do").
+    // It used to read "Numbers, punctuation and emojis". The three groups below
+    // each carry their own heading already -- "Select language for reading
+    // numbers / punctuations / emojis" are real headings via LabeledRadioGroup --
+    // so a filled bar on top of them was a second level of heading for the same
+    // content, and heading navigation stopped on it before every group.
     var numberMode by remember { mutableStateOf(EasyVoiceTtsService.numberModeInt) }
     var puncMode by remember { mutableStateOf(EasyVoiceTtsService.punctuationModeInt) }
     var emojiMode by remember { mutableStateOf(EasyVoiceTtsService.emojiModeInt) }
@@ -297,14 +300,12 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
                 ReadingSettings(codes, labels)
             }
             if (mode == "mix" || mode == "multilingual") {
-                // These two are a pair and the only group on this screen that
-                // had no heading of its own, so a screen reader jumping by
-                // heading went straight from the mode name to "Numbers,
-                // punctuation and emojis" and passed both dropdowns without
-                // anything naming what they were for (owner, 2026-08-27).
-                // "Preferred languages" rather than either label, so it groups
-                // them instead of repeating one of them.
-                SectionHeader("Preferred languages")
+                // NO SectionHeader here either (owner, 2026-09-03). It read
+                // "Preferred languages" and was added on 2026-08-27 so that
+                // heading navigation had a stop before these two dropdowns.
+                // The owner has used it and does not want it: both dropdowns
+                // are already named in full ("Preferred language for Latin
+                // text"), so the heading only repeated them.
                 LanguageChoice("Preferred language for Latin text", codes, labels,
                     EasyVoiceTtsService.mixLatinLang) { EasyVoiceTtsService.mixLatinLang = it }
                 LanguageChoice("Preferred language for non-Latin text", codes, labels,

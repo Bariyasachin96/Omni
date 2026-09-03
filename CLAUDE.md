@@ -1643,6 +1643,167 @@ is the screen's own name.
 rounds of reading semantics source did not. **When a report says "on this device
 but not that one", ask for a picture before theorising about the screen reader.**
 
+## THE FOURTH EXIT: the downstream engine's onStop never woke the wait (2026-09-03)
+Owner: *"abhi bhi speech interrupt ho rahi hai ... khaas kar ke Xiaomi ke device
+mein ... mujhe lagta hai ki application ka hi koi problem hai ... kuchh na kuchh
+kahin na kahin missing hai."* They were right, and this is the fourth sibling of
+the three exits fixed earlier the same day.
+
+**The hole, in two lines.** The utterance listener's
+
+    override fun onStop(id: String, interrupted: Boolean) {
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop " + id)
+    }
+
+**logged and did nothing else** -- and so does AutoTTS's
+(`decompiled_java_noexc/.../AutoTtsService.java:2770` is a bare log), so this is
+their defect faithfully ported, exactly like the other three.
+
+**And onStop is TERMINAL. Read from AOSP, not assumed** --
+`TextToSpeechService.SynthesisSpeechItem.stopImpl()`:
+
+    if (synthesisCallback != null) {
+        synthesisCallback.stop();
+        TextToSpeechService.this.onStop();
+    } else {
+        dispatchOnStop();
+    }
+
+A stopped utterance gets `onStop` and **neither `onDone` nor `onError`**. So
+whenever the downstream engine's utterance was stopped by anything that is not
+us, `onSynthesizeText` was left parked on `syncLock` waiting for a callback that
+was never coming -- and it parks **the screen reader's only synthesis thread**,
+so the whole device goes silent until the app is force-stopped. That is the
+report, symptom for symptom.
+
+**Why Xiaomi most.** The stop comes from outside: an OEM trimming background
+audio, another app calling `stop()` on the same shared Google TTS client, or the
+engine's own service being torn down. MIUI is the OEM most willing to do it.
+
+**THE ID GUARD IS REQUIRED, and without it this fix would CAUSE the bug it
+cures.** A screen reader interrupts by stopping us and immediately sending the
+next utterance, so the real sequence is: our `onStop()` override sets `isStopped`
+for utterance A, the new `onSynthesizeText` for B resets it to false, and only
+then does the engine's `onStop` for A land on a binder thread. Unguarded, that
+late callback stops B before it ever speaks. `expectedId` is the exact string
+this listener's own `speak()` was given, so a callback for any other chunk or
+utterance is ignored. **Do not remove the guard, and do not add the same guard to
+`onDone`/`onError`** -- those are AutoTTS-shaped and have shipped for months; a
+stop is the only callback that coincides with the next utterance starting.
+
+`onDone`, `onError(id)`, `onError(id, code)` and the `speakRunnable` try/catch
+were all re-read in the same pass and every one of them already releases the
+wait. **This was the last unreleased path.**
+
+**Still the owner's lever, not ours to flip:** `startForegroundIfPossible` runs
+only when "Show persistent notification" is on, and that switch is OFF by
+default. On an OEM that kills background services, the foreground notification is
+what keeps the service alive at all. It was NOT turned on by default here -- that
+is a behaviour change the owner has not asked for -- but it is the first thing to
+try if speech still stops on that phone.
+
+## Tabs and buttons announced no ROLE to a non-TalkBack reader (2026-09-03)
+Owner: *"TalkBack mein to button aur tab bol raha hai, but aur screen reader mein
+vah button aur tab bol hi nahin raha ... sirf bolta hai jo likha hai, but vah tab
+hai ya phir button hai yah pata hi nahin chal raha."* The NAME arrives, the ROLE
+does not.
+
+**It is the same gate as INVARIANTS #7, one property over.** The delegate:
+
+    val role = semanticsNode.unmergedConfig.getOrNull(SemanticsProperties.Role)
+    role?.let {
+        if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty()) {
+            if (role == Role.Tab)         info.roleDescription = "Tab"
+            else if (role == Role.Switch) info.roleDescription = "Switch"
+            else info.className = role.toLegacyClassName()
+        }
+    }
+
+Every interactive control in this app is a **merging node WITH children** (a
+Button holds a Text, a Tab holds a Text) and the delegate walks the **unmerged**
+tree, so `replacedChildren` is never empty and that branch never runs. The role
+goes instead to a **fake child node** (`SemanticsNode.emitFakeNodes`), which is
+an explicit TalkBack bridge -- androidx says so in its own source: *"When
+Talkback can properly handle unmerged tree, fake nodes will be removed"*.
+TalkBack walks those children; a reader that inspects only the focused node finds
+`className = "android.view.View"` and announces no role at all.
+
+**THE FIX IS ANDROIDX'S OWN UNGATED HOOK**, applied last by the delegate:
+
+    // set the className provided through the
+    // [SemanticsPropertyReceiver.accessibilityClassName] as a last step to
+    // ensure it overrides a classname derived from other semantics properties
+    semanticsNode.unmergedConfig
+        .getOrNull(SemanticsPropertiesAndroid.AccessibilityClassName)
+        ?.let { info.className = it }
+
+No `isFake` check, no `replacedChildren` check. `EvRoleClass` in `ComposeTheme.kt`
+holds the strings and every interactive control now sets one.
+
+**The first four values are COMPOSE'S OWN**, copied from `Role.toLegacyClassName()`
+in `SemanticsUtils.android.kt`, so this sets precisely the class Compose would
+have set had the gate passed and invents nothing: Button ->
+`android.widget.Button`, Checkbox -> `android.widget.CheckBox`, RadioButton ->
+`android.widget.RadioButton`, DropdownList -> `android.widget.Spinner`. **TAB and
+SWITCH are not in that table** -- Compose answers those with a `roleDescription`,
+and Compose has no `roleDescription` semantics property at all, so there is no
+ungated path -- so those two are the platform's own classes, which are what
+TalkBack's `Role.java` resolves: `android.app.ActionBar.Tab` ->
+ROLE_ACTION_BAR_TAB, `android.widget.Switch` -> ROLE_SWITCH.
+
+**The Slider needed nothing**, and that is the proof the model is right:
+`info.className = "android.widget.SeekBar"` is set from `ProgressBarRangeInfo` +
+`SetProgress` with **no gate**, so it already reached every reader.
+
+**WHY `clearAndSetSemantics` IS NOT THE ANSWER, so it is not tried again.**
+`getChildren` really does `return emptyList()` for a node with
+`isClearingSemantics`, which would open the gate -- but
+`LayoutNode.calculateSemanticsConfiguration` walks `nodes.tailToHead` and a
+clearing node does `config = SemanticsConfiguration()`, i.e. it **RESETS**. Our
+modifier sits at the head and is therefore applied LAST, so it would wipe the
+component's own `onClick`, `role` and disabled state. That is the bug that once
+made the Configuration rows unopenable.
+
+## The dropdown is Material's own component now (owner request, 2026-09-03)
+*"aapne dropdown list wala apne jaanbujhkar nahin liya hai, usko le lijiye ...
+kyunki double-double baar TalkBack expand-collapse do baar announce kar raha hai
+... properly library ke through hi karvaiye ... apne haath se kuchh bhi nahin."*
+
+**The double announcement was mine, from the previous commit.** The
+`expand {}` / `collapse {}` actions added that morning sat on top of the existing
+`stateDescription = "Expanded"/"Collapsed"`, so TalkBack read the state and then
+offered the action for it. Both are gone with the migration.
+
+`LabeledDropdown` is `ExposedDropdownMenuBox` + `Modifier.menuAnchor(
+ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)` +
+`ExposedDropdownMenu`. Neither is `@ExperimentalMaterial3Api` any more (checked
+in the source; the only annotated overload is the deprecated one). What the
+library now owns, instead of this file: `role = Role.DropdownList` and the
+accessibility click action, opening on touch in the Initial pointer pass,
+Enter/space/arrow keys, `BackHandler(enabled = expanded)`, focus,
+`exposedDropdownSize`, and a `scrollState` on the menu.
+
+**`onClick = { }` on the anchor is deliberate.** `Modifier.expandable` consumes
+the gesture in the Initial pass and toggles the menu itself, so a real `onClick`
+would toggle a second time and the menu would open and shut in one tap.
+
+**Two semantics stay, and they are the two the library does NOT set for this
+anchor type** -- checked in `ExposedDropdownMenu.kt`, where `Modifier.expandable`
+applies `stateDescription` and `contentDescription` only on the
+`SecondaryEditable` branch: `contentDescription`, because this node merges its
+children and so carries no name of its own, and `stateDescription`, so
+expanded/collapsed is still spoken. Dropping those would be a regression, not
+purity.
+
+## The two headings on Mode settings are gone (owner request, 2026-09-03)
+*"Preferred languages / Numbers, punctuation and emojis -- yah dono heading ko
+hata do."* Both were added on 2026-08-27 at the owner's request and both are now
+removed at the owner's request; the earlier entry in this file argues for them
+and is superseded. The three reading groups keep their own headings
+(`LabeledRadioGroup`'s `title`), which is what made the filled bar above them a
+second heading level for the same content, and the two preferred-language
+dropdowns are already named in full so the bar only repeated them.
+
 ## The androidx / Compose library sweep (owner request, 2026-09-03)
 *"Jetpack compose aur Android X ki library jahan use ho sakti hai vahan per usko
 use karo ... jahan se aapne jo chijen hath se likhi hui hai aur yah library se ho

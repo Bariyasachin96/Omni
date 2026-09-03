@@ -1749,8 +1749,53 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
                     if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
+                // THE FOURTH EXIT THAT ENDED AN UTTERANCE WITHOUT WAKING THE WAIT
+                // (owner, 2026-09-03: "abhi bhi speech interrupt ho rahi hai ...
+                // khaas kar ke Xiaomi ke device mein"). This callback used to
+                // LOG AND NOTHING ELSE -- and so does AutoTTS's
+                // (decompiled_java_noexc/.../AutoTtsService.java:2770, a bare
+                // log) -- which is a hang in our shape for the same reason the
+                // three exits fixed earlier in the day were: onSynthesizeText
+                // parks the SCREEN READER'S ONLY synthesis thread on syncLock
+                // until a callback sets isStopped or isFlushed.
+                //
+                // And onStop is TERMINAL. Read from AOSP rather than assumed --
+                // TextToSpeechService.SynthesisSpeechItem.stopImpl():
+                //
+                //     if (synthesisCallback != null) {
+                //         synthesisCallback.stop();
+                //         TextToSpeechService.this.onStop();
+                //     } else {
+                //         dispatchOnStop();
+                //     }
+                //
+                // A stopped utterance gets onStop and NEITHER onDone NOR
+                // onError. So whenever the downstream engine's utterance is
+                // stopped by anything that is not us -- an OEM trimming
+                // background audio, another app calling stop() on the same
+                // shared Google TTS client, the engine's own service being torn
+                // down -- we waited for a callback that was never coming, the
+                // whole device went silent, and only force-stopping the app
+                // brought it back. That is the report, symptom for symptom, and
+                // it is why a Xiaomi sees it most: MIUI is the OEM most willing
+                // to stop somebody else's audio.
+                //
+                // THE ID GUARD IS NOT CAUTION, IT IS REQUIRED, and without it
+                // this fix would CAUSE the bug it cures. A screen reader
+                // interrupts by stopping us and immediately sending the next
+                // utterance, so the sequence is: our onStop() override sets
+                // isStopped for utterance A -> the new onSynthesizeText for B
+                // resets it to false -> the downstream engine's onStop for A
+                // finally lands on a binder thread. Unguarded, that late
+                // callback would stop B before it ever spoke. `expectedId` is
+                // the exact string this listener's own speak() was given, so a
+                // callback for any other chunk or utterance is ignored.
                 override fun onStop(id: String, interrupted: Boolean) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop " + id)
+                    if (id != expectedId) return
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #10")
+                    synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+                    if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
             })
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())

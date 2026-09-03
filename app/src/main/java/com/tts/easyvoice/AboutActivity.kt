@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -171,11 +172,11 @@ fun AboutScreen() {
             ) {
                 Button(
                     onClick = { openLink(context, APACHE_LICENSE_URL) },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Apache License 2.0" }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Apache License 2.0"; accessibilityClassName = EvRoleClass.BUTTON }
                 ) { Text("Apache License 2.0", modifier = Modifier.clearAndSetSemantics { }) }
                 Button(
                     onClick = { openLink(context, CLD2_URL) },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "CLD2 on GitHub" }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "CLD2 on GitHub"; accessibilityClassName = EvRoleClass.BUTTON }
                 ) { Text("CLD2 on GitHub", modifier = Modifier.clearAndSetSemantics { }) }
             }
         }

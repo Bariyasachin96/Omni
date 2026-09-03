@@ -9,8 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -27,15 +28,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -45,17 +43,13 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// A named button that opens a Material DropdownMenu of ordinary menu items.
+// Material's own exposed dropdown menu, with an OutlinedButton as the anchor.
 //
-// THE SEMANTICS BLOCK ON THE BUTTON IS LOAD-BEARING; do not delete it. A comment
-// here used to describe an ExposedDropdownMenuBox version -- menuAnchor, the
-// component supplying role = Role.DropdownList and the expanded state itself,
-// "so the hand-written semantics block is deleted rather than kept". That
-// version is not what is below and has not been for a long time: it was given up
-// when the long language list had to leave the menu (see the LazyColumn note),
-// and the comment outlived it. Following it would strip the button's only
-// accessible name, because an OutlinedButton merges its children and the Text
-// inside is silenced.
+// This WAS a hand-wired OutlinedButton plus a DropdownMenu, with the role, the
+// expanded state and the click all written here. The owner asked for the library
+// component instead (2026-09-03: "properly library ke through hi karvaiye ...
+// apne haath se kuchh bhi nahin"), and they were right -- see the block at the
+// call to ExposedDropdownMenuBox for the list of things it now owns.
 //
 // NO LazyColumn in here, and it must not come back. A DropdownMenu sizes itself
 // to its widest item, which means it asks its content for an INTRINSIC width,
@@ -110,48 +104,56 @@ fun LabeledDropdown(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 4.dp, bottom = 2.dp).clearAndSetSemantics { }
         )
-        // Same reasoning as the menu items below: the button merges its children,
-        // so without this the focused node carries no name and a screen reader
-        // that does not walk Compose's fake nodes announces only the role.
-        OutlinedButton(
-            onClick = { expanded = true },
-            enabled = enabled,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    role = Role.DropdownList
-                    contentDescription = labelName + ", " + selectedText
-                    stateDescription = if (expanded) "Expanded" else "Collapsed"
-                    // The library's own expandable actions, which the Compose
-                    // delegate turns into AccessibilityNodeInfo's ACTION_EXPAND
-                    // and ACTION_COLLAPSE:
-                    //     SemanticsActions.Expand   -> AccessibilityActionCompat(
-                    //         AccessibilityNodeInfoCompat.ACTION_EXPAND, it.label)
-                    // A tap already opens the menu, so this adds nothing for a
-                    // TalkBack double-tap. What it adds is a NAMED action for
-                    // every other service: Voice Access can be told "expand",
-                    // and Switch Access and TalkBack's Actions menu list it, so
-                    // the control says what it is rather than only what happens
-                    // if you press it. Only the action that can actually run is
-                    // offered, so a closed menu never advertises "collapse",
-                    // and neither is offered while the control is disabled --
-                    // Material3's own menuAnchor(enabled = false) skips its
-                    // whole expandable modifier for the same reason, and without
-                    // the guard an assistant could open a menu anchored to a
-                    // button the user cannot press.
-                    if (enabled) {
-                        if (expanded) collapse { expanded = false; true }
-                        else expand { expanded = true; true }
-                    }
-                }
+        // THE MENU IS MATERIAL'S OWN NOW, not a Button plus a DropdownMenu wired
+        // together here. `ExposedDropdownMenuBox` owns everything that used to
+        // be hand-written on this control:
+        //   * `role = Role.DropdownList` and the accessibility click action,
+        //     from Modifier.expandable inside menuAnchor;
+        //   * opening on touch, in the Initial pointer pass;
+        //   * Enter / space / arrow key handling;
+        //   * `BackHandler(enabled = expanded)`, so back closes the menu;
+        //   * focus, and `exposedDropdownSize`, which measures the menu against
+        //     the anchor instead of leaving it to size itself;
+        //   * a scrollState on the menu, which a 137-language list needs.
+        // The two expand/collapse ACTIONS added on 2026-09-03 are GONE with it:
+        // TalkBack announced the state twice, once from stateDescription and
+        // once from the action it was offering, which is what the owner heard.
+        //
+        // onClick is deliberately EMPTY. menuAnchor consumes the gesture in the
+        // Initial pass and toggles the menu itself, so a real onClick here would
+        // toggle a second time and the menu would open and shut in one tap.
+        //
+        // The two semantics that stay are the two the library does NOT set for a
+        // PrimaryNotEditable anchor, checked in ExposedDropdownMenu.kt rather
+        // than assumed -- `Modifier.expandable` applies stateDescription and
+        // contentDescription only on the SecondaryEditable branch:
+        //   * contentDescription, because this node merges its children and
+        //     therefore carries no name of its own (INVARIANTS #7);
+        //   * stateDescription, so expanded/collapsed is still spoken.
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { wanted: Boolean -> if (enabled) expanded = wanted },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = selectedText,
-                modifier = Modifier.weight(1f).clearAndSetSemantics { }
-            )
-            Icon(painterResource(R.drawable.ic_arrow_drop_down), contentDescription = null)
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            OutlinedButton(
+                onClick = { },
+                enabled = enabled,
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = labelName + ", " + selectedText
+                        stateDescription = if (expanded) "Expanded" else "Collapsed"
+                        accessibilityClassName = EvRoleClass.SPINNER
+                    }
+            ) {
+                Text(
+                    text = selectedText,
+                    modifier = Modifier.weight(1f).clearAndSetSemantics { }
+                )
+                Icon(painterResource(R.drawable.ic_arrow_drop_down), contentDescription = null)
+            }
+            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             // Declared by hand on a plain Column, which is not a SubcomposeLayout
             // and answers intrinsic measurement fine. Without them TalkBack has
             // no structure for the list and cannot say where you are in it,
@@ -211,6 +213,7 @@ fun LabeledDropdown(
                         },
                         modifier = Modifier.semantics {
                             contentDescription = options[index]
+                            accessibilityClassName = EvRoleClass.BUTTON
                             // The state goes in `selected`, never in the name.
                             // Google's Accessibility Scanner flagged the old
                             // description exactly for that: "This item's content
@@ -221,6 +224,7 @@ fun LabeledDropdown(
                         }
                     )
                 }
+            }
             }
         }
     }
@@ -303,7 +307,7 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
     ) {
         OutlinedButton(
             onClick = { step(value - SLIDER_BUTTON_STEP) },
-            modifier = Modifier.semantics { contentDescription = "Decrease " + lowered }
+            modifier = Modifier.semantics { contentDescription = "Decrease " + lowered; accessibilityClassName = EvRoleClass.BUTTON }
         ) { Text("-", modifier = Modifier.clearAndSetSemantics { }) }
         Slider(
             value = value.toFloat(),
@@ -335,7 +339,7 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
         )
         OutlinedButton(
             onClick = { step(value + SLIDER_BUTTON_STEP) },
-            modifier = Modifier.semantics { contentDescription = "Increase " + lowered }
+            modifier = Modifier.semantics { contentDescription = "Increase " + lowered; accessibilityClassName = EvRoleClass.BUTTON }
         ) { Text("+", modifier = Modifier.clearAndSetSemantics { }) }
     }
 }
@@ -429,7 +433,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .semantics { contentDescription = "Test" }
+                        .semantics { contentDescription = "Test"; accessibilityClassName = EvRoleClass.BUTTON }
                 ) {
                     Icon(painterResource(R.drawable.ic_play_arrow), contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp))
@@ -449,7 +453,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     },
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .semantics { contentDescription = "Default" }
+                        .semantics { contentDescription = "Default"; accessibilityClassName = EvRoleClass.BUTTON }
                 ) {
                     Icon(painterResource(R.drawable.ic_restore), contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp))
@@ -498,7 +502,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     OutlinedButton(
                         onClick = { onNavigate(langIndex - 1) },
                         enabled = langIndex > 0,
-                        modifier = Modifier.weight(1f).semantics { contentDescription = "Previous language" }
+                        modifier = Modifier.weight(1f).semantics { contentDescription = "Previous language"; accessibilityClassName = EvRoleClass.BUTTON }
                     ) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = null,
                             modifier = Modifier.padding(end = 8.dp))
@@ -507,7 +511,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     Button(
                         onClick = { onNavigate(langIndex + 1) },
                         enabled = langIndex < total - 1,
-                        modifier = Modifier.weight(1f).semantics { contentDescription = "Next language" }
+                        modifier = Modifier.weight(1f).semantics { contentDescription = "Next language"; accessibilityClassName = EvRoleClass.BUTTON }
                     ) {
                         Icon(painterResource(R.drawable.ic_arrow_forward), contentDescription = null,
                             modifier = Modifier.padding(end = 8.dp))

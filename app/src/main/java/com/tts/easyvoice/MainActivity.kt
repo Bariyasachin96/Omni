@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -336,6 +337,7 @@ fun RequiredEnginesDialog(
                                 enabled = !item.installing,
                                 modifier = Modifier.semantics {
                                     contentDescription = installLabel + " " + item.name
+                                    accessibilityClassName = EvRoleClass.BUTTON
                                 }
                             ) {
                                 Icon(painterResource(R.drawable.ic_get_app), contentDescription = null,
@@ -351,7 +353,7 @@ fun RequiredEnginesDialog(
             Button(
                 onClick = onApply,
                 enabled = allInstalled,
-                modifier = Modifier.semantics { contentDescription = "Apply" }
+                modifier = Modifier.semantics { contentDescription = "Apply"; accessibilityClassName = EvRoleClass.BUTTON }
             ) {
                 Icon(painterResource(R.drawable.ic_check), contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp))
@@ -361,7 +363,7 @@ fun RequiredEnginesDialog(
         dismissButton = {
             TextButton(
                 onClick = onCancel,
-                modifier = Modifier.semantics { contentDescription = "Cancel" }
+                modifier = Modifier.semantics { contentDescription = "Cancel"; accessibilityClassName = EvRoleClass.BUTTON }
             ) {
                 Icon(painterResource(R.drawable.ic_close), contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp))
@@ -417,7 +419,7 @@ fun MainScreen(
                     onClick = onAddLanguage,
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.semantics { contentDescription = "Add language" },
+                    modifier = Modifier.semantics { contentDescription = "Add language"; accessibilityClassName = EvRoleClass.BUTTON },
                     icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
                     text = { Text("Add language", modifier = Modifier.clearAndSetSemantics { }) }
                 )
@@ -462,6 +464,7 @@ fun MainScreen(
                             icon = { Icon(painterResource(pageIcons[index]), contentDescription = null) },
                             modifier = Modifier.semantics {
                                 contentDescription = pageTitles[index] + ", " + (index + 1) + " of " + pageTitles.size
+                                accessibilityClassName = EvRoleClass.TAB
                             }
                         )
                     }

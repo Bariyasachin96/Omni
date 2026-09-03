@@ -216,3 +216,79 @@ fun animationsEnabled(): Boolean {
     } catch (_: Exception) { 1f }
     return scale != 0f
 }
+
+// ==========================================================================
+//  THE ROLE HAS TO REACH THE NODE A SCREEN READER FOCUSES
+//
+//  Owner, 2026-09-03: "TalkBack mein to button aur tab bol raha hai, but aur
+//  screen reader mein vah button aur tab bol hi nahin raha ... sirf bolta hai
+//  jo likha hai, but vah tab hai ya phir button hai yah pata hi nahin chal
+//  raha." The name arrives, the ROLE does not. Read from androidx rather than
+//  guessed, and it is the same defect as INVARIANTS #7, one property over:
+//
+//      val role = semanticsNode.unmergedConfig.getOrNull(SemanticsProperties.Role)
+//      role?.let {
+//          if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty()) {
+//              if (role == Role.Tab)   info.roleDescription = ... "Tab"
+//              else if (role == Role.Switch) info.roleDescription = ... "Switch"
+//              else info.className = role.toLegacyClassName()
+//          }
+//      }
+//          -- AndroidComposeViewAccessibilityDelegateCompat
+//
+//  EVERY interactive control in this app is a MERGING node WITH children (a
+//  Button holds a Text, a Tab holds a Text), and the delegate walks the
+//  UNMERGED tree, so `replacedChildren` is never empty and that gate never
+//  passes. The role goes instead to a FAKE CHILD node Compose emits
+//  (`SemanticsNode.emitFakeNodes`), which is an explicit TalkBack bridge -- the
+//  source says so: "When Talkback can properly handle unmerged tree, fake nodes
+//  will be removed". TalkBack walks those children; a reader that only inspects
+//  the focused node finds className "android.view.View" and announces no role.
+//
+//  `accessibilityClassName` is androidx's own ungated hook for exactly this,
+//  and it is the LAST thing the delegate applies:
+//
+//      // set the className provided through the
+//      // [SemanticsPropertyReceiver.accessibilityClassName] as a last step to
+//      // ensure it overrides a classname derived from other semantics properties
+//      semanticsNode.unmergedConfig
+//          .getOrNull(SemanticsPropertiesAndroid.AccessibilityClassName)
+//          ?.let { info.className = it }
+//
+//  No isFake check, no replacedChildren check. It lands on the real node for
+//  every accessibility service.
+//
+//  WHY clearAndSetSemantics IS NOT THE ANSWER, so it is not tried again:
+//  `getChildren` does return emptyList() for a node with `isClearingSemantics`,
+//  which would open the gate -- but `LayoutNode.calculateSemanticsConfiguration`
+//  walks `nodes.tailToHead` and a clearing node does `config =
+//  SemanticsConfiguration()`, i.e. it RESETS. Our modifier sits at the head, so
+//  it is applied LAST and would wipe the component's own onClick, role and
+//  disabled state. That is the bug that once made the Configuration rows
+//  unopenable, and rebuilding those by hand is exactly what the owner asked us
+//  to stop doing.
+// ==========================================================================
+//
+//  The first five are Compose's OWN strings, copied from
+//  `Role.toLegacyClassName()` in SemanticsUtils.android.kt -- so this sets
+//  precisely the class Compose would have set had the gate passed, and invents
+//  nothing:
+//      Role.Button -> "android.widget.Button"
+//      Role.Checkbox -> "android.widget.CheckBox"
+//      Role.RadioButton -> "android.widget.RadioButton"
+//      Role.DropdownList -> "android.widget.Spinner"
+//  TAB and SWITCH are not in that table -- Compose answers those with a
+//  roleDescription instead, and there is no ungated path for one -- so they are
+//  the platform's own classes, which is what TalkBack's Role.java resolves:
+//  `android.app.ActionBar.Tab` -> ROLE_ACTION_BAR_TAB, `android.widget.Switch`
+//  -> ROLE_SWITCH.
+object EvRoleClass {
+    const val BUTTON = "android.widget.Button"
+    const val CHECKBOX = "android.widget.CheckBox"
+    const val RADIO_BUTTON = "android.widget.RadioButton"
+    const val SPINNER = "android.widget.Spinner"
+    const val SWITCH = "android.widget.Switch"
+    // \u0024 is '$'. Written as the escape because a bare $ starts a Kotlin
+    // string template, and "ActionBar${Tab}" is not what the platform calls it.
+    const val TAB = "android.app.ActionBar\u0024Tab"
+}

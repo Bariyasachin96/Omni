@@ -38,6 +38,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.Role
@@ -150,6 +151,7 @@ private fun LanguageCheckRow(label: String, checked: Boolean, position: Int, onT
             .toggleable(value = checked, role = Role.Checkbox, onValueChange = onToggle)
             .semantics {
                 contentDescription = label
+                accessibilityClassName = EvRoleClass.CHECKBOX
                 // Declared by hand because the section headings below are
                 // `item {}` entries and a LazyColumn counts everything it holds.
                 collectionItemInfo = CollectionItemInfo(position, 1, 0, 1)
@@ -278,7 +280,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                         while (enableIdx < LangStore.languages.size) { LangStore.languages[enableIdx].disabled = false; enableIdx++ }
                         LangStore.persistDisabled(context)
                     },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Select all" }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Select all"; accessibilityClassName = EvRoleClass.BUTTON }
                 ) { Text("Select all", modifier = Modifier.clearAndSetSemantics { }) }
                 Button(
                     onClick = {
@@ -298,7 +300,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                         }
                         LangStore.persistDisabled(context)
                     },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Clear all" }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Clear all"; accessibilityClassName = EvRoleClass.BUTTON }
                 ) { Text("Clear all", modifier = Modifier.clearAndSetSemantics { }) }
                 // This one FILTERS the list, it does not perform an action.
                 // Material: "Filter chips use tags or descriptive words to
@@ -336,7 +338,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                             )
                         }
                     },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "My languages" }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "My languages"; accessibilityClassName = EvRoleClass.CHECKBOX }
                 )
             }
             OutlinedTextField(
@@ -364,7 +366,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                     if (query.isNotEmpty()) {
                         IconButton(
                             onClick = { query = "" },
-                            modifier = Modifier.semantics { contentDescription = "Clear search" }
+                            modifier = Modifier.semantics { contentDescription = "Clear search"; accessibilityClassName = EvRoleClass.BUTTON }
                         ) {
                             Icon(painterResource(R.drawable.ic_close), contentDescription = null)
                         }
