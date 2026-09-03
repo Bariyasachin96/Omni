@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -109,7 +108,7 @@ fun ModesScreen(
                                 }
                             )
                             .padding(horizontal = 8.dp, vertical = 12.dp)
-                            .semantics { contentDescription = spec.second; accessibilityClassName = EvRoleClass.RADIO_BUTTON },
+                            .semantics { contentDescription = spec.second },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(selected = mode == selectedMode, onClick = null)
@@ -122,7 +121,7 @@ fun ModesScreen(
                     if (mode == selectedMode) {
                         Button(
                             onClick = { onOpenModeSettings(mode) },
-                            modifier = Modifier.semantics { contentDescription = "Settings"; accessibilityClassName = EvRoleClass.BUTTON }
+                            modifier = Modifier.semantics { contentDescription = "Settings" }
                         ) {
                             Icon(painterResource(R.drawable.ic_settings), contentDescription = null,
                                 modifier = Modifier.padding(end = 8.dp))
@@ -202,7 +201,7 @@ private fun LabeledRadioGroup(
                         onClick = { onSelect(index) }
                     )
                     .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .semantics { contentDescription = options[index]; accessibilityClassName = EvRoleClass.RADIO_BUTTON },
+                    .semantics { contentDescription = options[index] },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(selected = index == selectedIndex, onClick = null)

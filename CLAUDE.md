@@ -1702,67 +1702,79 @@ what keeps the service alive at all. It was NOT turned on by default here -- tha
 is a behaviour change the owner has not asked for -- but it is the first thing to
 try if speech still stops on that phone.
 
-## Tabs and buttons announced no ROLE to a non-TalkBack reader (2026-09-03)
+## The ROLE and the non-TalkBack reader: what works, what cannot (2026-09-03)
 Owner: *"TalkBack mein to button aur tab bol raha hai, but aur screen reader mein
-vah button aur tab bol hi nahin raha ... sirf bolta hai jo likha hai, but vah tab
-hai ya phir button hai yah pata hi nahin chal raha."* The NAME arrives, the ROLE
-does not.
+vah button aur tab bol hi nahin raha ... sirf bolta hai jo likha hai."* The NAME
+arrives, the ROLE does not. **The first fix for this was wrong and the owner
+caught it the same day** -- *"button button do baar TalkBack announce kar raha
+hai, drop down bhi do baar"*. This section is the corrected record.
 
-**It is the same gate as INVARIANTS #7, one property over.** The delegate:
+### Why the role does not reach the focused node
+The delegate applies the role only under
 
-    val role = semanticsNode.unmergedConfig.getOrNull(SemanticsProperties.Role)
-    role?.let {
-        if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty()) {
-            if (role == Role.Tab)         info.roleDescription = "Tab"
-            else if (role == Role.Switch) info.roleDescription = "Switch"
-            else info.className = role.toLegacyClassName()
-        }
+    if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty()) {
+        if (role == Role.Tab)         info.roleDescription = "Tab"
+        else if (role == Role.Switch) info.roleDescription = "Switch"
+        else info.className = role.toLegacyClassName()
     }
 
-Every interactive control in this app is a **merging node WITH children** (a
-Button holds a Text, a Tab holds a Text) and the delegate walks the **unmerged**
-tree, so `replacedChildren` is never empty and that branch never runs. The role
-goes instead to a **fake child node** (`SemanticsNode.emitFakeNodes`), which is
-an explicit TalkBack bridge -- androidx says so in its own source: *"When
-Talkback can properly handle unmerged tree, fake nodes will be removed"*.
-TalkBack walks those children; a reader that inspects only the focused node finds
-`className = "android.view.View"` and announces no role at all.
+Every interactive control here is a merging node WITH children and the delegate
+walks the UNMERGED tree, so `replacedChildren` is never empty. The role goes to a
+**fake child node** (`SemanticsNode.emitFakeNodes`), and that fake node is handed
+to the service as **its own virtual node** -- `SemanticsOwner`'s
+`addFakeNode(...)` writes it straight into the map the delegate serves. TalkBack
+walks those children; a reader that inspects only the focused node does not.
 
-**THE FIX IS ANDROIDX'S OWN UNGATED HOOK**, applied last by the delegate:
+### The fix that was WRONG: className on a node that already has a Role
+`accessibilityClassName` is androidx's one ungated hook and it DOES reach the
+focused node -- confirmed on device, the owner's second reader started announcing
+buttons and the dropdown. **But on a node that also has a Role it puts the role in
+TWO places**, the real node and the fake child, and TalkBack read both. That is
+"button button", and the dropdown twice. My regression, from the commit before.
 
-    // set the className provided through the
-    // [SemanticsPropertyReceiver.accessibilityClassName] as a last step to
-    // ensure it overrides a classname derived from other semantics properties
-    semanticsNode.unmergedConfig
-        .getOrNull(SemanticsPropertiesAndroid.AccessibilityClassName)
-        ?.let { info.className = it }
+### THE RULE
+- **A node WITH a Role already announces it, through the fake child. Do NOT add
+  `accessibilityClassName` there -- it will double.**
+- **A node WITHOUT a Role emits no fake child**, so `accessibilityClassName` is
+  the single source: safe, and the only way the role reaches the second reader.
 
-No `isFake` check, no `replacedChildren` check. `EvRoleClass` in `ComposeTheme.kt`
-holds the strings and every interactive control now sets one.
+Today that is **exactly one control**: the Configuration list row, whose
+`Modifier.clickable(onClickLabel = ...)` leaves `role` null. `EvRoleClass` has one
+entry and one use for that reason. Everything else -- Button, IconButton, Tab,
+FilterChip, FAB, DropdownMenuItem, and our own `toggleable`/`selectable` rows --
+carries a Role and must not get a class name.
 
-**The first four values are COMPOSE'S OWN**, copied from `Role.toLegacyClassName()`
-in `SemanticsUtils.android.kt`, so this sets precisely the class Compose would
-have set had the gate passed and invents nothing: Button ->
-`android.widget.Button`, Checkbox -> `android.widget.CheckBox`, RadioButton ->
-`android.widget.RadioButton`, DropdownList -> `android.widget.Spinner`. **TAB and
-SWITCH are not in that table** -- Compose answers those with a `roleDescription`,
-and Compose has no `roleDescription` semantics property at all, so there is no
-ungated path -- so those two are the platform's own classes, which are what
-TalkBack's `Role.java` resolves: `android.app.ActionBar.Tab` ->
-ROLE_ACTION_BAR_TAB, `android.widget.Switch` -> ROLE_SWITCH.
+### What CANNOT be done today, checked rather than assumed
+- **There is no `roleDescription` semantics API.** In the version the BOM pins,
+  `SemanticsPropertiesAndroid` has exactly three members -- `AccessibilityClassName`,
+  `CredentialRequest` (`@RequiresApi(34)`) and `TestTagsAsResourceId`
+  (`compose/ui/ui/api/1.12.0-beta01.txt`). So a **TAB**, which Compose announces
+  with `roleDescription = "Tab"` and no class name at all, has **no supported way
+  to reach the focused node**. `android.app.ActionBar$Tab` was tried and the
+  owner's second reader does not recognise it -- it is not one of the classes a
+  generic reader maps. **The tab role on a non-TalkBack reader is an open gap in
+  Compose, not something this app can close.**
+- **The fake child cannot be suppressed.** `emitFakeNodes` fires whenever the node
+  has a Role, merges descendants and has children, and Compose has no API to unset
+  a Role a Material component already set. Overwriting it with an inert Role would
+  work mechanically and is a hack -- it also breaks `isSelected` for Tab and the
+  localised "on"/"off" the delegate derives from `Role.Switch`.
+- **`clearAndSetSemantics` is not the way in.** It really does make
+  `replacedChildren` empty and open the gate, but
+  `LayoutNode.calculateSemanticsConfiguration` walks `tailToHead` and a clearing
+  node does `config = SemanticsConfiguration()` -- a RESET. Our modifier is at the
+  head and applied last, so it would wipe the component's own `onClick`, `role`
+  and disabled state. That is the bug that once made the Configuration rows
+  unopenable.
+- **The Slider needed nothing** and is the proof the model is right:
+  `info.className = "android.widget.SeekBar"` is set from `ProgressBarRangeInfo` +
+  `SetProgress` with **no gate**, so it already reaches every reader.
 
-**The Slider needed nothing**, and that is the proof the model is right:
-`info.className = "android.widget.SeekBar"` is set from `ProgressBarRangeInfo` +
-`SetProgress` with **no gate**, so it already reached every reader.
-
-**WHY `clearAndSetSemantics` IS NOT THE ANSWER, so it is not tried again.**
-`getChildren` really does `return emptyList()` for a node with
-`isClearingSemantics`, which would open the gate -- but
-`LayoutNode.calculateSemanticsConfiguration` walks `nodes.tailToHead` and a
-clearing node does `config = SemanticsConfiguration()`, i.e. it **RESETS**. Our
-modifier sits at the head and is therefore applied LAST, so it would wipe the
-component's own `onClick`, `role` and disabled state. That is the bug that once
-made the Configuration rows unopenable.
+**If this is ever to be solved properly, the shape is: build the control from
+`Surface(onClick = ...)`, which sets NO Role (checked -- zero `Role.` in
+Material3's `Surface.kt`), and give it `accessibilityClassName` as the single
+source.** That is a real option and it rewrites every button in the app, so it is
+the owner's call, not a change to make quietly.
 
 ## The dropdown is Material's own component now (owner request, 2026-09-03)
 *"aapne dropdown list wala apne jaanbujhkar nahin liya hai, usko le lijiye ...

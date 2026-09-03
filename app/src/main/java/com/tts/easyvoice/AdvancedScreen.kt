@@ -28,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -55,7 +54,7 @@ fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onCh
                 role = Role.Switch,
                 onValueChange = onChange
             )
-            .semantics { contentDescription = label; accessibilityClassName = EvRoleClass.SWITCH }
+            .semantics { contentDescription = label }
     )
 }
 
@@ -76,7 +75,7 @@ fun ActionButton(label: String, iconRes: Int, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .semantics { contentDescription = label; accessibilityClassName = EvRoleClass.BUTTON }
+            .semantics { contentDescription = label }
     ) {
         Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
         Text(label, modifier = Modifier.clearAndSetSemantics { })
@@ -215,7 +214,7 @@ fun AdvancedScreen(
             ) {
                 Button(
                     onClick = { launchImportPicker() },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Import"; accessibilityClassName = EvRoleClass.BUTTON }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Import" }
                 ) {
                     Icon(painterResource(R.drawable.ic_file_download), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                     Text("Import", modifier = Modifier.clearAndSetSemantics { })
@@ -250,7 +249,7 @@ fun AdvancedScreen(
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Export"; accessibilityClassName = EvRoleClass.BUTTON }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Export" }
                 ) {
                     Icon(painterResource(R.drawable.ic_file_upload), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                     Text("Export", modifier = Modifier.clearAndSetSemantics { })
@@ -291,14 +290,14 @@ fun AdvancedScreen(
                             context.startActivity(chooser)
                         }
                     },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Share logs"; accessibilityClassName = EvRoleClass.BUTTON }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Share logs" }
                 ) {
                     Icon(painterResource(R.drawable.ic_share), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                     Text("Share logs", modifier = Modifier.clearAndSetSemantics { })
                 }
                 Button(
                     onClick = { EasyVoiceLogger.clear() },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Clear logs"; accessibilityClassName = EvRoleClass.BUTTON }
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Clear logs" }
                 ) {
                     Icon(painterResource(R.drawable.ic_delete), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                     Text("Clear logs", modifier = Modifier.clearAndSetSemantics { })

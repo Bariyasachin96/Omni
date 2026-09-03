@@ -83,7 +83,6 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                     onClick = { menuOpen = true },
                                     modifier = Modifier.semantics {
                                         contentDescription = "More actions for " + labels[index]
-                                        accessibilityClassName = EvRoleClass.BUTTON
                                     }
                                 ) {
                                     Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null)
@@ -92,12 +91,12 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                     DropdownMenuItem(
                                         text = { Text("Delete configuration", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDeleteConfiguration(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Delete configuration"; accessibilityClassName = EvRoleClass.BUTTON }
+                                        modifier = Modifier.semantics { contentDescription = "Delete configuration" }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Disable language", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDisable(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Disable language"; accessibilityClassName = EvRoleClass.BUTTON }
+                                        modifier = Modifier.semantics { contentDescription = "Disable language" }
                                     )
                                 }
                             }
@@ -107,7 +106,27 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                             .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
                             // One node, so a screen reader says the language and
                             // its status together in a single swipe.
-                            .semantics { contentDescription = labels[index] + ", " + status; accessibilityClassName = EvRoleClass.BUTTON }
+                            //
+                            // THE ONE PLACE `accessibilityClassName` SURVIVES, and the
+                            // reason is that this row carries NO Role. Everywhere else in
+                            // the app the control has one -- either the Material component
+                            // sets it (Button, IconButton, Tab, FilterChip, DropdownMenuItem)
+                            // or we pass it to toggleable/selectable -- and a node with a
+                            // Role makes Compose emit a FAKE ROLE CHILD that the
+                            // accessibility service receives as its own virtual node
+                            // (`SemanticsOwner.addFakeNode`). Setting the class name on the
+                            // real node as well put the role in TWO places, which is what
+                            // the owner heard as "button button" on 2026-09-03.
+                            //
+                            // Here `Modifier.clickable(onClickLabel = ...)` leaves `role`
+                            // null, so no fake node exists and this is the single source --
+                            // it cannot double, and it is the only way the role reaches a
+                            // reader that inspects the focused node rather than walking
+                            // Compose's fake children.
+                            .semantics {
+                                contentDescription = labels[index] + ", " + status
+                                accessibilityClassName = EvRoleClass.BUTTON
+                            }
                     )
                 }
             }

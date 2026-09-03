@@ -29,7 +29,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
-import androidx.compose.ui.semantics.accessibilityClassName
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
@@ -153,7 +152,6 @@ fun LabeledDropdown(
                     .semantics {
                         contentDescription = labelName + ", " + selectedText
                         stateDescription = if (expanded) "Expanded" else "Collapsed"
-                        accessibilityClassName = EvRoleClass.SPINNER
                     }
             ) {
                 Text(
@@ -222,7 +220,6 @@ fun LabeledDropdown(
                         },
                         modifier = Modifier.semantics {
                             contentDescription = options[index]
-                            accessibilityClassName = EvRoleClass.BUTTON
                             // The state goes in `selected`, never in the name.
                             // Google's Accessibility Scanner flagged the old
                             // description exactly for that: "This item's content
@@ -316,7 +313,7 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
     ) {
         OutlinedButton(
             onClick = { step(value - SLIDER_BUTTON_STEP) },
-            modifier = Modifier.semantics { contentDescription = "Decrease " + lowered; accessibilityClassName = EvRoleClass.BUTTON }
+            modifier = Modifier.semantics { contentDescription = "Decrease " + lowered }
         ) { Text("-", modifier = Modifier.clearAndSetSemantics { }) }
         Slider(
             value = value.toFloat(),
@@ -348,7 +345,7 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
         )
         OutlinedButton(
             onClick = { step(value + SLIDER_BUTTON_STEP) },
-            modifier = Modifier.semantics { contentDescription = "Increase " + lowered; accessibilityClassName = EvRoleClass.BUTTON }
+            modifier = Modifier.semantics { contentDescription = "Increase " + lowered }
         ) { Text("+", modifier = Modifier.clearAndSetSemantics { }) }
     }
 }
@@ -442,7 +439,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .semantics { contentDescription = "Test"; accessibilityClassName = EvRoleClass.BUTTON }
+                        .semantics { contentDescription = "Test" }
                 ) {
                     Icon(painterResource(R.drawable.ic_play_arrow), contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp))
@@ -462,7 +459,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     },
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .semantics { contentDescription = "Default"; accessibilityClassName = EvRoleClass.BUTTON }
+                        .semantics { contentDescription = "Default" }
                 ) {
                     Icon(painterResource(R.drawable.ic_restore), contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp))
@@ -511,7 +508,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     OutlinedButton(
                         onClick = { onNavigate(langIndex - 1) },
                         enabled = langIndex > 0,
-                        modifier = Modifier.weight(1f).semantics { contentDescription = "Previous language"; accessibilityClassName = EvRoleClass.BUTTON }
+                        modifier = Modifier.weight(1f).semantics { contentDescription = "Previous language" }
                     ) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = null,
                             modifier = Modifier.padding(end = 8.dp))
@@ -520,7 +517,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     Button(
                         onClick = { onNavigate(langIndex + 1) },
                         enabled = langIndex < total - 1,
-                        modifier = Modifier.weight(1f).semantics { contentDescription = "Next language"; accessibilityClassName = EvRoleClass.BUTTON }
+                        modifier = Modifier.weight(1f).semantics { contentDescription = "Next language" }
                     ) {
                         Icon(painterResource(R.drawable.ic_arrow_forward), contentDescription = null,
                             modifier = Modifier.padding(end = 8.dp))
