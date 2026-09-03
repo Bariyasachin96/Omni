@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
@@ -26,12 +27,15 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -80,8 +84,46 @@ class LanguagesActivity : ComponentActivity() {
 // children, so the delegate skips its contentDescription (it goes to a fake
 // leaf child) and info.text comes from the unmerged config, which is empty.
 // The two cases are opposite; do not apply one rule to the other.
+//
+// focusOnOpen: pass true on the FIRST heading of a screen that is its own
+// Activity, i.e. its own window. It makes the screen reader land on the screen's
+// name when the window opens, instead of leaving that to the reader's own
+// initial-focus heuristic -- which is NOT the same on every device. On a Pixel
+// the heading is where focus lands; on the owner's Xiaomi it is not, so the
+// screen's name was never spoken and swiping forward never came back to it,
+// while every LATER heading on the same screen was reached normally. The
+// heading node and its heading() semantic were correct all along; only where
+// the reader chose to start differed.
+//
+// Why focusable() is what does it, read from androidx rather than assumed.
+// AndroidComposeViewAccessibilityDelegateCompat sets info.isFocusable ONLY when
+// the node carries SemanticsProperties.Focused, and it watches that property:
+//
+//     SemanticsProperties.Focused -> {
+//         val virtualId = semanticsNodeIdToAccessibilityVirtualNodeId(newNode.id)
+//         if (value as Boolean) {
+//             focusedVirtualViewId = virtualId
+//             sendEvent(createEvent(virtualId, AccessibilityEvent.TYPE_VIEW_FOCUSED))
+//
+// TYPE_VIEW_FOCUSED is the standard event every screen reader follows to move
+// its own focus, so taking Compose input focus is the supported bridge and it
+// does not depend on any OEM's heuristic. Modifier.focusable() is what puts
+// Focused (and RequestFocus) on the node; focusRequester is how we ask for it.
+//
+// The cost, stated rather than hidden: the heading also joins keyboard and
+// Switch Access focus order, one extra stop per screen at the very top. That is
+// the screen's own name, so it is a reasonable first stop.
+//
+// requestFocus() throws IllegalStateException by contract when no focusable
+// node is attached to the requester; the catch is that contract, not caution.
 @Composable
-fun SectionHeader(title: String) {
+fun SectionHeader(title: String, focusOnOpen: Boolean = false) {
+    val requester = remember { FocusRequester() }
+    if (focusOnOpen) {
+        LaunchedEffect(Unit) {
+            try { requester.requestFocus() } catch (_: IllegalStateException) { }
+        }
+    }
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
@@ -90,7 +132,10 @@ fun SectionHeader(title: String) {
             text = title,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp).semantics { heading() }
+            modifier = Modifier
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .then(if (focusOnOpen) Modifier.focusRequester(requester).focusable() else Modifier)
+                .semantics { heading() }
         )
     }
 }
@@ -119,7 +164,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
     if (readingMode == "none" || readingMode == "dual") {
         ResponsiveContent {
             Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader("Languages")
+                SectionHeader("Languages", focusOnOpen = true)
                 Text(
                     text = "Dual languages mode does not use this list.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -217,7 +262,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                     .heightIn(max = if (evIsCompactHeight()) 140.dp else 280.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-            SectionHeader("Languages")
+            SectionHeader("Languages", focusOnOpen = true)
             Text(
                 text = "Pick the languages you use. The list only shows what your installed engines can speak, so install another engine if the one you want is missing.",
                 style = MaterialTheme.typography.bodyMedium,

@@ -286,7 +286,7 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            SectionHeader(if (modeTitle == null) "Mode settings" else modeTitle + " settings")
+            SectionHeader(if (modeTitle == null) "Mode settings" else modeTitle + " settings", focusOnOpen = true)
             if (mode == "auto" || mode == "google") {
                 LanguageChoice("Select preferred language:", codes, labels,
                     EasyVoiceTtsService.autoLang) { EasyVoiceTtsService.autoLang = it }

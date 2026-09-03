@@ -1513,6 +1513,66 @@ advances `winStart` by 64 and the hint split always breaks on `npos` or advances
 `tools/verify/segmenter/run.sh`, which could not complete 163,296 cases
 otherwise. **No native hang exists. Do not re-sweep it.**
 
+## The screen's first heading is FOCUSED on open -- Xiaomi did not do it for us (2026-09-03)
+Owner: *"jitni bhi screen per aapne heading lagai hai, us per TalkBack ka focus
+nahin ja raha hai ... Pixel mein ... us screen ki heading per focus ja raha hai,
+Xiaomi mein nahin ... Mode settings kholta hun to focus sirf 'Preferred
+languages' wali heading per jata hai."*
+
+**Read the report precisely, because it names the cause.** "Preferred languages"
+is the SECOND `SectionHeader` on that screen; the first is `"<Mode> settings"`.
+Later headings work, the first one does not, on every screen, on one device and
+not another. **So the node is fine and the `heading()` semantic is fine** -- both
+headings are the same composable, and nothing above them merges or clears
+semantics (`ResponsiveContent` is two plain `Box`es, and the app sets
+`paneTitle` in exactly one place, `MainActivity`). What differs is only **where
+the screen reader chooses to start when a window opens**, which is a per-device
+heuristic and not something an app may rely on. Focus landed past the first
+heading, and swiping forward never comes back to it.
+
+**The fix takes that decision away from the device**, and the mechanism was read
+out of androidx rather than assumed.
+`AndroidComposeViewAccessibilityDelegateCompat` sets `info.isFocusable` **only**
+when a node carries `SemanticsProperties.Focused`, and it watches that property:
+
+    SemanticsProperties.Focused -> {
+        val virtualId = semanticsNodeIdToAccessibilityVirtualNodeId(newNode.id)
+        if (value as Boolean) {
+            focusedVirtualViewId = virtualId
+            sendEvent(createEvent(virtualId, AccessibilityEvent.TYPE_VIEW_FOCUSED))
+
+`TYPE_VIEW_FOCUSED` is the standard event every screen reader follows to move its
+own focus, so **taking Compose input focus is the supported bridge** and it does
+not depend on any OEM's heuristic. `Modifier.focusable()` is what puts `Focused`
+(and `RequestFocus`) on the node; `focusRequester` is how we ask for it.
+
+`SectionHeader` therefore gained **`focusOnOpen: Boolean = false`**, and it is
+passed `true` on the FIRST heading of each screen that is **its own Activity,
+i.e. its own window** -- About, Languages (both the real list and the
+dual/none message), Mode settings, and Voice setup (both branches). **The tabs
+inside `MainActivity` are deliberately NOT given it**: switching tab is not a new
+window, and grabbing focus there would fight the user mid-swipe.
+
+**The cost, stated rather than hidden:** the heading also joins keyboard and
+Switch Access focus order, one extra stop at the very top of the screen. That
+stop is the screen's own name, so it is a reasonable first stop.
+
+**Do not "simplify" this to `isTraversalGroup` / `traversalIndex`** -- those
+reorder traversal, and the problem was never the order; focus started past the
+heading, so no ordering could bring it back. And `requestFocus()` throws
+`IllegalStateException` by contract when no focusable node is attached to the
+requester, so the `catch` there is that contract, not caution.
+
+**The local check reports three NEW error texts for this** -- `FocusRequester`,
+`LaunchedEffect` and `semantics` unresolved in `LanguagesActivity.kt`. All three
+are the ordinary blocked-Google-Maven noise: `LaunchedEffect` is **already**
+unresolved in `AdvancedScreen.kt` and `ModesScreen.kt` in the baseline, and
+`semantics` appears only because inserting `.then(...)` moved where the modifier
+chain first fails. A full per-file diff of the two runs shows the deltas are
+`androidx` +4, `Modifier` +2, `remember` +1 and one more `cannot infer type for
+type parameter 'T'` -- **no structural error of any kind**, and the `heading`
+count is unchanged.
+
 ## The two audio switches, traced through AOSP (owner request, 2026-09-02)
 *"accessibility stream … aur ek audio attributes … dono properly research karke
 complete karo … modern phone ke hisab se."* Traced end to end through AOSP rather

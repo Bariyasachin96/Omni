@@ -329,7 +329,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
     if (entry == null) {
         ResponsiveContent {
             Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader("Voices")
+                SectionHeader("Voices", focusOnOpen = true)
                 Text(
                     text = "This mode has no voice settings.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -357,7 +357,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
     val languageLabel = entry.displayName + " (" + entry.iso3 + ")"
     ResponsiveContent {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-            SectionHeader(languageLabel + " voices")
+            SectionHeader(languageLabel + " voices", focusOnOpen = true)
             Text(
                 text = "Pick a voice for this language. Keeping to one engine per language makes switching quickest.",
                 style = MaterialTheme.typography.bodyMedium,

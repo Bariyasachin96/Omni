@@ -101,7 +101,7 @@ fun AboutScreen() {
             // ModeSettingsActivity. The first version put the app's name here
             // instead, so heading navigation opened on "Easy Voice", which reads
             // as content rather than as the heading of the page you just entered.
-            SectionHeader("About")
+            SectionHeader("About", focusOnOpen = true)
             // The app's name is the page's subject, so it is a real title rather
             // than another line of body text.
             Text(
