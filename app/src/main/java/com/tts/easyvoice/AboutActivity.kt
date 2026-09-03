@@ -120,7 +120,23 @@ fun AboutScreen() {
             // Everything in this block is taken from CLD2's OWN repository --
             // its README, its LICENSE and the header its source files carry --
             // not from any second-hand summary. See the comment above CLD2_URL.
-            SettingDescription("Easy Voice is built on open source work, and all of it is used under the Apache License, Version 2.0.")
+            // THIS SENTENCE IS COMMERCIALLY LOAD-BEARING -- do not shorten it back.
+            // It used to read "Easy Voice is built on open source work, and all of
+            // it is used under the Apache License, Version 2.0", and the owner
+            // caught that while preparing a PAID Play Store listing. Three things
+            // were wrong with it, and the replacement fixes all three:
+            //   - "all of it" reads back to "Easy Voice", so the line could be
+            //     understood as putting the WHOLE APP under Apache 2.0, which is
+            //     false and would undercut a paid app outright;
+            //   - "built on open source work" invites the reader to assume the app
+            //     itself is open source, and therefore free somewhere else;
+            //   - nothing in the section said who owns Easy Voice, so there was no
+            //     line between our code and the components we merely include.
+            // Selling it is not the problem: Apache 2.0 section 2 grants a
+            // "perpetual, worldwide, non-exclusive, no-charge, royalty-free,
+            // irrevocable" licence to "sublicense, and distribute", and section 4
+            // sets only four conditions, all of which this screen already meets.
+            SettingDescription("Easy Voice itself is proprietary software. The third-party components below are open source, and each one is used under the Apache License, Version 2.0.")
             SettingDescription("Compact Language Detector 2 (CLD2), written by Dick Sites at Google, is what reads the language of your text. It recognises 83 languages from UTF-8, and Easy Voice compiles it from the sources at github.com/CLD2Owners/cld2. Copyright 2013, 2014 Google Inc. All Rights Reserved.")
             // This used to be one run-on sentence stranded BELOW the buttons,
             // which left the page ending on a footnote instead of on its

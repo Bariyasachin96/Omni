@@ -195,6 +195,47 @@ comes from, and a line for AOSP/Jetpack, whose headers were checked the same way
 from `androidx/androidx`; note androidx has no root `LICENSE` -- that URL is a
 404, the headers are the source of truth).
 
+**The License section's first sentence is COMMERCIALLY load-bearing (owner,
+2026-09-03).** The owner is preparing a **PAID** Play Store listing and asked
+about this line before anything was implemented -- *"main isko purchase rakhna
+chahta hun ... yah text mere khyal se thoda sahi nahin hai"*. They were right. It
+read:
+
+    Easy Voice is built on open source work, and all of it is used under
+    the Apache License, Version 2.0.
+
+Three things wrong with it, all of which matter only once money is involved:
+- **"all of it" reads back to "Easy Voice"**, so the sentence could be understood
+  as putting the WHOLE APP under Apache 2.0. That is false, and on a paid app it
+  is a statement working directly against the thing being sold.
+- **"built on open source work"** invites the reader to assume the app itself is
+  open source, and therefore obtainable free somewhere else.
+- **nothing in the section said who owns Easy Voice**, so there was no line drawn
+  between our code and the components we merely include.
+
+It now reads *"Easy Voice itself is proprietary software. The third-party
+components below are open source, and each one is used under the Apache License,
+Version 2.0."* **Do not shorten it back to something friendlier.**
+
+**Selling it is NOT a licence problem, and that was checked at the source rather
+than assumed.** Apache 2.0 section 2 grants a *"perpetual, worldwide,
+non-exclusive, no-charge, royalty-free, irrevocable copyright license to
+reproduce, prepare Derivative Works of, publicly display, publicly perform,
+**sublicense, and distribute** the Work"*, and section 4 imposes exactly four
+conditions -- (a) give recipients the licence, (b) mark modified files, (c) keep
+the copyright and attribution notices, (d) reproduce `NOTICE` **if the work has
+one**, and CLD2 has none. Nothing anywhere forbids charging. The About screen
+already satisfies all four.
+
+**The AutoTTS question was raised once and the owner has decided.** Told plainly
+that this app's code was written from AutoTTS's decompiled source and that a paid
+listing raises a copyright and Play-policy question worth a lawyer's hour, the
+owner answered: *"mujhe usse koi fark nahin padta hai kyunki humne khud likha hai
+to hamara hi ho gaya ... uske liye hamen kuch likhne ki jarurat nahin hai."*
+**That is their call and it is settled -- do not add an AutoTTS credit, notice or
+attribution anywhere, and do not raise it again unless the owner does.**
+(`autotts_reference/` is repo-only and has never been part of the APK.)
+
 **Two details that are load-bearing, not style:**
 - **The Advanced tab's "Information" section is GONE, folded into About.** It
   showed Build number and Version at the bottom; About now shows both, and
