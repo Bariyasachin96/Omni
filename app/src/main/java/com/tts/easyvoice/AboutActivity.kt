@@ -1,6 +1,5 @@
 package com.tts.easyvoice
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +20,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.content.pm.PackageInfoCompat
+import androidx.core.net.toUri
 
 // About -- an Easy Voice screen with no AutoTTS counterpart, asked for on
 // 2026-09-03: "hamara alag hi proper, hamara standalone hai". It is the one
@@ -49,7 +50,7 @@ const val CLD2_URL = "https://github.com/CLD2Owners/cld2"
 
 private fun openLink(context: android.content.Context, url: String) {
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (_: android.content.ActivityNotFoundException) { }
 }
@@ -78,13 +79,19 @@ fun AboutScreen() {
                 context.packageManager.getPackageInfo(context.packageName,
                     android.content.pm.PackageManager.PackageInfoFlags.of(0L))
             else { @Suppress("DEPRECATION") context.packageManager.getPackageInfo(context.packageName, 0) }
-            val build = if (android.os.Build.VERSION.SDK_INT >= 28) {
-                info.longVersionCode.toString()
-            } else {
-                @Suppress("DEPRECATION")
-                info.versionCode.toString()
-            }
-            Pair(build, info.versionName ?: "")
+            // PackageInfoCompat, not a hand-written SDK_INT >= 28 branch. The
+            // library's body is the same two lines --
+            //     if (Build.VERSION.SDK_INT >= 28) return Api28Impl
+            //         .getLongVersionCode(info); return info.versionCode;
+            // -- with the API-28 call isolated in a nested class, which is the
+            // documented shape for a version-gated call and the one that cannot
+            // be tripped up by an eager verifier on an old device.
+            //
+            // The SERVICE keeps its own inline branch on purpose: onCreate's
+            // version log is AutoTTS-mirrored code and rule 5 governs it. This
+            // screen has no AutoTTS counterpart at all, so the library form is
+            // free to be used here.
+            Pair(PackageInfoCompat.getLongVersionCode(info).toString(), info.versionName ?: "")
         } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
             Pair("", "")
         }

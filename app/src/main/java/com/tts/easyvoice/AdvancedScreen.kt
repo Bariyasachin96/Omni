@@ -1,5 +1,4 @@
 package com.tts.easyvoice
-import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.provider.Settings
@@ -34,6 +33,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ShareCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 
 // Material's list row owns the heights, padding and colours. The description
@@ -154,8 +155,12 @@ fun AdvancedScreen(
             }
             SettingDescription("Keeps Easy Voice running in the foreground, so it carries on working under battery optimization and when the screen is off.")
             ActionButton("Disable battery optimization", R.drawable.ic_battery_alert) {
-                val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+                // ContextCompat.getSystemService, not getSystemService(String)
+                // plus an unchecked cast: the library overload is typed, so a
+                // device that answers null for POWER_SERVICE is a null here
+                // rather than a ClassCastException on the next line.
+                val powerManager = ContextCompat.getSystemService(context, PowerManager::class.java)
+                if (powerManager == null || !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
                     try {
                         context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                         Toast.makeText(context, "Set Easy Voice and each of your TTS engines to Unrestricted", Toast.LENGTH_LONG).show()
@@ -222,11 +227,25 @@ fun AdvancedScreen(
                             val exportFile = try { prefs.exportSettingsFile() } catch (ex: java.io.IOException) { ex.printStackTrace(); null }
                             if (exportFile != null) {
                                 val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", exportFile)
-                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/xml"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }, "Share Settings"))
+                                // ShareCompat.IntentBuilder is androidx's own API
+                                // for an ACTION_SEND, and it is what builds the
+                                // ClipData the URI grant is actually derived from
+                                // (migrateExtraStreamToClipData: setClipData, then
+                                // addFlags(FLAG_GRANT_READ_URI_PERMISSION)). The
+                                // framework does the same migration on its way out
+                                // of startActivity, and it walks into an
+                                // ACTION_CHOOSER's EXTRA_INTENT to do it -- so the
+                                // hand-built version was not broken -- but it
+                                // refuses once the extras have been parcelled, and
+                                // there is no reason to depend on that when the
+                                // library does it eagerly and in one line.
+                                context.startActivity(
+                                    ShareCompat.IntentBuilder(context)
+                                        .setType("text/xml")
+                                        .setStream(uri)
+                                        .setChooserTitle("Share Settings")
+                                        .createChooserIntent()
+                                )
                             }
                         }
                     },
@@ -256,13 +275,17 @@ fun AdvancedScreen(
                             Toast.makeText(context, "No log file to share", Toast.LENGTH_SHORT).show()
                         } else {
                             val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", logFile)
-                            val send = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                putExtra(Intent.EXTRA_SUBJECT, "Easy Voice Log")
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            val chooser = Intent.createChooser(send, "Share Easy Voice Log")
+                            // Same library builder as Export above.
+                            // createChooserIntent() rather than startChooser(),
+                            // only so the FLAG_ACTIVITY_NEW_TASK this path has
+                            // always carried survives -- startChooser() would
+                            // call startActivity itself with no flags.
+                            val chooser = ShareCompat.IntentBuilder(context)
+                                .setType("text/plain")
+                                .setStream(uri)
+                                .setSubject("Easy Voice Log")
+                                .setChooserTitle("Share Easy Voice Log")
+                                .createChooserIntent()
                             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(chooser)
                         }

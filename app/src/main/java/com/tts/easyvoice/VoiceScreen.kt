@@ -29,9 +29,11 @@ import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -120,6 +122,27 @@ fun LabeledDropdown(
                     role = Role.DropdownList
                     contentDescription = labelName + ", " + selectedText
                     stateDescription = if (expanded) "Expanded" else "Collapsed"
+                    // The library's own expandable actions, which the Compose
+                    // delegate turns into AccessibilityNodeInfo's ACTION_EXPAND
+                    // and ACTION_COLLAPSE:
+                    //     SemanticsActions.Expand   -> AccessibilityActionCompat(
+                    //         AccessibilityNodeInfoCompat.ACTION_EXPAND, it.label)
+                    // A tap already opens the menu, so this adds nothing for a
+                    // TalkBack double-tap. What it adds is a NAMED action for
+                    // every other service: Voice Access can be told "expand",
+                    // and Switch Access and TalkBack's Actions menu list it, so
+                    // the control says what it is rather than only what happens
+                    // if you press it. Only the action that can actually run is
+                    // offered, so a closed menu never advertises "collapse",
+                    // and neither is offered while the control is disabled --
+                    // Material3's own menuAnchor(enabled = false) skips its
+                    // whole expandable modifier for the same reason, and without
+                    // the guard an assistant could open a menu anchored to a
+                    // button the user cannot press.
+                    if (enabled) {
+                        if (expanded) collapse { expanded = false; true }
+                        else expand { expanded = true; true }
+                    }
                 }
         ) {
             Text(

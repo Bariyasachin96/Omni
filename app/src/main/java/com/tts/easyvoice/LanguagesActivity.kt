@@ -344,6 +344,16 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                 onValueChange = { query = it },
                 label = { Text("Search languages") },
                 singleLine = true,
+                // A search field is the one place in this app where an icon is
+                // genuinely load-bearing rather than decoration: Material's own
+                // search pattern leads with the magnifier, and it is what makes
+                // the field readable as "search" at a glance instead of "some
+                // text box". contentDescription is null on purpose -- the field
+                // is already named by its label, and naming the icon as well
+                // would add a second speakable string to the same control.
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.ic_search), contentDescription = null)
+                },
                 // Only offered once there is something to clear, so it is not a
                 // dead stop for a screen reader on an empty field. The name goes
                 // on the IconButton and the Icon is left null: the button merges

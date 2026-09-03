@@ -1,5 +1,4 @@
 package com.tts.easyvoice
-import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -14,7 +13,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -98,19 +99,12 @@ fun EasyVoiceTheme(content: @Composable () -> Unit) {
             // usable top edge lower than another's, and why this looked like a
             // Xiaomi-only bug -- and moves content off the keyboard.
             //
-            // enableEdgeToEdge() is deliberately NOT called, and that is the
-            // point of doing it here. On API 24-34 the window is not edge to
-            // edge, the DecorView fits the system windows and consumes the bar
-            // insets before they reach the ComposeView -- and Compose reads its
-            // insets from a listener ON THAT VIEW
-            // (WindowInsetsHolder: ViewCompat.setOnApplyWindowInsetsListener(view,
-            // insetsListener)) -- so safeDrawing is zero there and this padding
-            // is a no-op. One line is correct on every API level the app
-            // installs on, with no per-activity code to remember. Calling
-            // enableEdgeToEdge would also need explicit SystemBarStyle.dark for
-            // both bars, because its default auto(...) picks the icon colour
-            // from the SYSTEM dark-mode setting while this app is always dark --
-            // dark icons on our dark bar on a light-mode phone.
+            // The window itself is declared edge to edge in EvActivity, with
+            // androidx's own enableEdgeToEdge(), so there is ONE window shape on
+            // every API level the app installs on and this padding is exercised
+            // everywhere rather than only on Android 15 and up. Read the note
+            // there for the two SystemBarStyles and why the defaults were wrong
+            // for a permanently dark app.
             Box(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 content()
             }
@@ -183,9 +177,42 @@ fun ResponsiveContent(
     }
 }
 
-// Colour and motion -> "Remove animations". Moved here from Theming.kt when the
-// last View code went; the startup spinner is the only animation the app owns.
-fun animationsEnabled(context: Context): Boolean = try {
-    android.provider.Settings.Global.getFloat(context.contentResolver,
-        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
-} catch (_: Exception) { true }
+// Colour and motion -> "Remove animations", the accessibility setting for
+// people with motion sickness, photosensitivity or seizure triggers. The
+// startup spinner is the only animation the app owns, and it is hidden outright
+// when the setting is on.
+//
+// THE VALUE COMES FROM COMPOSE, not from a hand-read of Settings.Global, and
+// that is a real difference rather than tidying. androidx already reads exactly
+// this setting and, unlike a one-shot read, keeps watching it
+// (WindowRecomposer.android.kt):
+//
+//     private fun Context.readAnimationScale() =
+//         Settings.Global.getFloat(contentResolver,
+//             Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+//     ... Settings.Global.getUriFor(ANIMATOR_DURATION_SCALE) + a ContentObserver
+//         -> a StateFlow collected into MotionDurationScaleImpl._scaleFactor
+//
+// and it puts that MotionDurationScale into the Recomposer's own coroutine
+// context (`Recomposer(contextWithClockAndMotionScale)`), which is the context
+// rememberCoroutineScope() hands back. `_scaleFactor` is a mutableFloatStateOf,
+// so reading it HERE subscribes: switch "Remove animations" on while the scan
+// screen is open and the spinner goes at once. The old read could not do that.
+//
+// The try/catch is the documented contract, not caution: MotionDurationScaleImpl
+// throws `error("MotionDurationScale scale factor requested before recomposer
+// loop start")` if it is asked before the recomposer's ON_CREATE launch has run.
+//
+// Compose's own animations already handle a scale of 0 -- InfiniteTransition
+// suspends on `if (durationScale == 0f)` and waits for it to come back -- so the
+// spinner would FREEZE rather than spin without this. Hiding it is deliberately
+// more than the library does: a frozen ring says nothing, and the scan headline
+// and the polite live region below it carry the whole message anyway.
+@Composable
+fun animationsEnabled(): Boolean {
+    val scope = rememberCoroutineScope()
+    val scale = try {
+        scope.coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+    } catch (_: Exception) { 1f }
+    return scale != 0f
+}

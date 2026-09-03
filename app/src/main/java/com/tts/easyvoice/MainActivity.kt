@@ -1,10 +1,12 @@
 package com.tts.easyvoice
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +49,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -59,10 +63,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 // How far a horizontal drag must travel before it counts as a tab swipe.
-// Raw pixels, because a draggable reports pixel deltas; roughly a finger-width
-// on a normal-density screen, so a stray horizontal wobble while scrolling
-// vertically does not change the tab.
-private const val SWIPE_THRESHOLD_PX = 150f
+//
+// It is stated in DP and converted with LocalDensity at the point of use,
+// because a draggable reports RAW PIXELS and a raw-pixel constant is a
+// different physical distance on every phone. The old 150f was about 50dp on an
+// xhdpi screen, 100dp on hdpi and 37dp on xxhdpi -- so the same flick changed
+// the tab on one device and not on another, and the cheapest device needed the
+// longest swipe. 48dp is Material's own minimum touch target, comfortably past
+// the ~8dp touch slop `draggable` has already absorbed before it reports
+// anything, so a wobble while scrolling vertically still cannot reach it.
+private val SWIPE_THRESHOLD = 48.dp
 class RequiredEnginesItem(val name: String, val pkg: String, installed: Boolean) {
     var installed by mutableStateOf(installed)
     var installing by mutableStateOf(false)
@@ -106,12 +116,12 @@ class MainActivity : EvActivity() {
     private fun isPackageInstalledWithActivities(pkg: String): Boolean = try { packageManager.getPackageInfo(pkg, 1); true } catch (_: Exception) { false }
     private fun openPlayStoreFor(pkg: String) {
         try {
-            val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg"))
+            val marketIntent = Intent(Intent.ACTION_VIEW, "market://details?id=$pkg".toUri())
             marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(marketIntent)
         } catch (_: android.content.ActivityNotFoundException) {
             try {
-                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pkg"))
+                val webIntent = Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=$pkg".toUri())
                 webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(webIntent)
             } catch (_: android.content.ActivityNotFoundException) {
@@ -171,16 +181,23 @@ class MainActivity : EvActivity() {
                     scanning = scanning,
                     scanLine = scanLine,
                     modeRefresh = modeRefresh,
+                    // core-ktx's Drawable.toBitmap, not a hand-rolled
+                    // Bitmap + Canvas. It does two things the hand-rolled
+                    // version did not: it RESTORES the drawable's original
+                    // bounds afterwards instead of leaving it resized, and it
+                    // returns a BitmapDrawable's own bitmap directly when the
+                    // size already matches -- which is the API 24-25 launcher
+                    // icon, where our version allocated and redrew for nothing.
+                    // The explicit width and height keep our own fallback for a
+                    // drawable that reports no intrinsic size; they are also
+                    // toBitmap's own defaults, so passing them changes nothing
+                    // when the icon is well behaved.
                     appIcon = remember {
                         try {
                             val drawable = applicationInfo.loadIcon(packageManager)
                             val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
                             val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
-                            val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
-                            val canvas = android.graphics.Canvas(bitmap)
-                            drawable.setBounds(0, 0, width, height)
-                            drawable.draw(canvas)
-                            bitmap.asImageBitmap()
+                            drawable.toBitmap(width, height).asImageBitmap()
                         } catch (_: Exception) { null }
                     },
                     onOpenModeSettings = { mode ->
@@ -224,7 +241,12 @@ class MainActivity : EvActivity() {
                         }
                     },
                     requestNotificationPermission = {
-                        if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        // ContextCompat.checkSelfPermission is the library form
+                        // of the same check. The SDK_INT guard stays beside it
+                        // and is doing a different job: POST_NOTIFICATIONS only
+                        // EXISTS from 33, and below that the permission is not a
+                        // runtime one, so there is nothing to ask for.
+                        if (android.os.Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                             try { notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) {}
                         }
                     },
@@ -382,6 +404,9 @@ fun MainScreen(
     // below for why the pager had to go.
     var currentPage by remember { mutableStateOf(0) }
     var dragTotal by remember { mutableStateOf(0f) }
+    // dp -> px once per composition, with the library's own density rather than
+    // a hand-multiplied displayMetrics read.
+    val swipeThresholdPx = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }
     // Window size class, read once here and passed down as ordinary state --
     // the layered approach the adaptive guidance asks for.
     val compactHeight = evIsCompactHeight()
@@ -406,7 +431,7 @@ fun MainScreen(
             // the launcher already said. The screen title is not lost -- the
             // pager still carries paneTitle "Easy Voice settings".
             if (!compactHeight) TopAppBar(
-                title = { Text(context.getString(R.string.app_name)) },
+                title = { Text(stringResource(R.string.app_name)) },
                 navigationIcon = {
                     if (appIcon != null) {
                         Image(
@@ -467,7 +492,7 @@ fun MainScreen(
                         // marked as one.
                         modifier = Modifier.semantics { heading() }
                     )
-                    if (animationsEnabled(context)) {
+                    if (animationsEnabled()) {
                         CircularProgressIndicator(
                             modifier = Modifier.padding(top = 10.dp).clearAndSetSemantics { }
                         )
@@ -526,9 +551,9 @@ fun MainScreen(
                             state = rememberDraggableState { delta -> dragTotal += delta },
                             onDragStarted = { dragTotal = 0f },
                             onDragStopped = {
-                                if (dragTotal <= -SWIPE_THRESHOLD_PX && currentPage < pageTitles.lastIndex) {
+                                if (dragTotal <= -swipeThresholdPx && currentPage < pageTitles.lastIndex) {
                                     currentPage++
-                                } else if (dragTotal >= SWIPE_THRESHOLD_PX && currentPage > 0) {
+                                } else if (dragTotal >= swipeThresholdPx && currentPage > 0) {
                                     currentPage--
                                 }
                                 dragTotal = 0f

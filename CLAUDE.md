@@ -1623,7 +1623,7 @@ whose own parent is unresolvable. It is the same blocked-Google-Maven cascade on
 level deeper -- the "our-own-name unresolved refs" counter stayed at 13, and the
 total went DOWN by 11. **Do not chase these.**
 
-**Do not move this padding into `ResponsiveContent`****Do not move this padding into `ResponsiveContent`** and do not re-add a
+**Do not move this padding into `ResponsiveContent`** and do not re-add a
 per-screen wrapper. The theme is the one place, and the two library guarantees
 above are what make it sufficient.
 
@@ -1642,6 +1642,122 @@ is the screen's own name.
 **The lesson worth keeping:** the owner's screenshot found in one frame what two
 rounds of reading semantics source did not. **When a report says "on this device
 but not that one", ask for a picture before theorising about the screen reader.**
+
+## The androidx / Compose library sweep (owner request, 2026-09-03)
+*"Jetpack compose aur Android X ki library jahan use ho sakti hai vahan per usko
+use karo ... jahan se aapne jo chijen hath se likhi hui hai aur yah library se ho
+sakti hai to usko research karke properly fully library integration karo ...
+Android accessibility ke liye bhi properly Androidx library chhan maro."*
+
+Every androidx API below was read from androidx's own source or `api/current.txt`
+before it was used, and the two things that were NOT adopted were measured
+against the same sources. Both halves are recorded, because "we looked and the
+library adds nothing here" is an answer that has to survive being asked again.
+
+### What moved to the library
+
+| was hand-written | now | why it is better, not just shorter |
+|---|---|---|
+| `Bitmap.createBitmap` + `Canvas` + `setBounds` + `draw`, for the app-bar icon | **`Drawable.toBitmap()`** (core-ktx) | it RESTORES the drawable's bounds afterwards, and returns a `BitmapDrawable`'s own bitmap when the size already matches -- which is the API 24-25 launcher icon, where ours allocated and redrew for nothing |
+| two hand-built `ACTION_SEND` intents + `createChooser` (Export, Share logs) | **`ShareCompat.IntentBuilder`** | it is what builds the `ClipData` the URI grant is really derived from (`migrateExtraStreamToClipData`: `setClipData`, then `addFlags(FLAG_GRANT_READ_URI_PERMISSION)`) |
+| `getSystemService(POWER_SERVICE) as PowerManager` | **`ContextCompat.getSystemService(ctx, PowerManager::class.java)`** | typed, so a device that answers null is a null rather than a `ClassCastException` |
+| `checkSelfPermission(POST_NOTIFICATIONS)` | **`ContextCompat.checkSelfPermission`** | the library form; the `SDK_INT >= 33` guard beside it stays, doing a different job |
+| `if (SDK_INT >= 28) longVersionCode else versionCode` on the About screen | **`PackageInfoCompat.getLongVersionCode`** | identical body, with the API-28 call isolated in a nested class |
+| `Uri.parse(...)` x3 | **`String.toUri()`** (core-ktx) | |
+| `context.getString(R.string.app_name)` inside a composable | **`stringResource(...)`** | the composable-correct read |
+| `animationsEnabled(context)` reading `Settings.Global.ANIMATOR_DURATION_SCALE` | **`MotionDurationScale` from the composition's coroutine context** | see below -- this one is a behaviour improvement |
+| `SWIPE_THRESHOLD_PX = 150f` | **`48.dp` + `LocalDensity`** | see below -- this one was a real bug |
+| the Languages search field had no leading icon | **Material `search` glyph**, fetched verbatim from `google/material-design-icons` | the one place in the app where an icon is load-bearing rather than decoration |
+| the dropdown button advertised no expandable action | **`expand {}` / `collapse {}`** semantics | |
+
+**The animation-scale read is the one that actually changes behaviour.**
+`WindowRecomposer.android.kt` already reads exactly the setting we were reading
+by hand -- and unlike a one-shot read it keeps WATCHING it:
+`Settings.Global.getUriFor(ANIMATOR_DURATION_SCALE)` plus a `ContentObserver`,
+collected into `MotionDurationScaleImpl._scaleFactor`, which is a
+`mutableFloatStateOf`. That `MotionDurationScale` goes into the Recomposer's own
+context (`Recomposer(contextWithClockAndMotionScale)`), which is what
+`rememberCoroutineScope()` hands back, so reading it in composition SUBSCRIBES:
+turn "Remove animations" on while the scan screen is open and the spinner goes at
+once. The try/catch around it is the documented contract, not caution -- the impl
+throws `error("MotionDurationScale scale factor requested before recomposer loop
+start")` if asked too early.
+**Hiding the spinner is still deliberately more than the library does**, and that
+was checked rather than assumed: `InfiniteTransition` handles a scale of 0 by
+suspending (`if (durationScale == 0f)`) and waiting for it to come back, so
+`CircularProgressIndicator` would FREEZE rather than spin. A frozen ring says
+nothing to anyone, and the headline plus the polite live region carry the whole
+message. Do not "restore" the spinner on the grounds that Compose handles it.
+
+**The swipe threshold was a genuine device-dependent bug.** `Modifier.draggable`
+reports RAW PIXELS, and `150f` is a different physical distance on every phone:
+about 50dp on xhdpi, **100dp on hdpi**, 37dp on xxhdpi. The same flick changed the
+tab on one device and not on another, and the cheapest screens needed the longest
+swipe. It is `48.dp` now -- Material's own minimum touch target, comfortably past
+the ~8dp slop `draggable` has already absorbed -- converted with `LocalDensity` at
+the point of use. **Never write a raw-pixel distance constant again; state it in
+dp and convert.**
+
+### What was researched and deliberately NOT adopted
+
+**1. `androidx.compose.material:material-icons-core` / `-extended`. Keep the
+vector drawables.** The 22 icons in `res/drawable/` are Google's own paths, copied
+verbatim from `google/material-design-icons`, and eleven of them have an
+`Icons.Filled` counterpart. Adopting them would still be a step backwards:
+material3 does **not** depend on the icons artifact in production -- its
+`build.gradle` names `androidx.compose.material:material-icons-core:1.7.5` only
+under `androidDeviceTest`, while every real dependency is 1.12.0 or
+`project(":...")` -- so it is a NEW dependency, not one already on the classpath,
+and it is generated Kotlin `ImageVector` builders rather than XML. The one thing
+it would give free, RTL mirroring on the two arrows, our XML already declares with
+`android:autoMirrored="true"`. Nothing is gained and a dependency is added.
+(`Icons.kt` and the module's `api/current.txt` are no longer at any path under
+`compose/material/` in `androidx-main`, so the icon list could not be read at the
+source; the material3 build file above is what the decision rests on.)
+
+**2. `ExposedDropdownMenuBox` + `Modifier.menuAnchor`. Keep `LabeledDropdown`.**
+This looks like the library component for our dropdown and it is not, and the
+source says so plainly. For a `PrimaryNotEditable` anchor, `Modifier.expandable`
+sets only `role = Role.DropdownList` and an `onClick`; the `stateDescription =
+expandedDescription / collapsedDescription` pair is applied **only** to
+`SecondaryEditable`. So migrating would DELETE the expanded/collapsed state our
+button announces today. Its `pointerInput` in the Initial pass also fights a
+`Button`'s own `clickable`, and the box is built around a text field we do not
+have. What was taken from that source instead is the pair of semantics actions
+below.
+
+**3. `Modifier.semantics { expand/collapse }` -- taken, though the library
+component does not use it.** The API is androidx's, and the delegate turns it into
+`AccessibilityNodeInfoCompat.ACTION_EXPAND` / `ACTION_COLLAPSE`
+(`AndroidComposeViewAccessibilityDelegateCompat` lines 1117-1125 and 1772-1777).
+A tap already opens the menu, so this changes nothing for a TalkBack double-tap;
+what it adds is a NAMED action, so Voice Access can be told "expand" and Switch
+Access and TalkBack's Actions menu list it. Only the action that can run is
+offered, and neither is offered while the control is disabled -- Material3's own
+`menuAnchor(enabled = false)` skips its whole expandable modifier for the same
+reason.
+
+**4. The service's own `versionCode()` keeps its inline SDK branch.** `About` is a
+screen with no AutoTTS counterpart, so the library form is free there; the
+service's `onCreate` version log is AutoTTS-mirrored and rule 5 governs it. Do not
+"finish the job" by changing the service one too.
+
+**5. Storage, detection, the logger and `IsoCodes` were not touched at all.**
+`SharedPrefsManager`'s `commit()`, `LangStore`, `EasyVoiceLogger` and the ISO
+tables are proven-equal AutoTTS ports; DataStore and `LocaleListCompat` are the
+androidx answers and both would break a proof. Out of scope by rule 5, not by
+oversight.
+
+**New local-check noise, all of it the blocked-Google-Maven cascade.**
+`kotlin-typecheck.sh` now also reports `unresolved reference` for `toUri`,
+`ContextCompat`, `ShareCompat`, `PackageInfoCompat`, `MotionDurationScale`,
+`rememberCoroutineScope`, `scaleFactor`, `LocalDensity`, `stringResource`,
+`expand` and `collapse` -- every one an androidx symbol behind `dl.google.com`.
+One is a cascade rather than a symbol: `swipeThresholdPx` is derived from
+`LocalDensity`, so it has an error type and kotlinc reports
+`'operator' modifier is required on 'fun String.compareTo(...)'` for the two
+comparisons that use it. **Do not chase these.** The counter that matters,
+"our-own-name unresolved refs", stayed at 13.
 
 ## The two audio switches, traced through AOSP (owner request, 2026-09-02)
 *"accessibility stream … aur ek audio attributes … dono properly research karke
