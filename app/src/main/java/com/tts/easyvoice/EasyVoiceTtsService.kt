@@ -1749,53 +1749,45 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
                     if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
-                // THE FOURTH EXIT THAT ENDED AN UTTERANCE WITHOUT WAKING THE WAIT
-                // (owner, 2026-09-03: "abhi bhi speech interrupt ho rahi hai ...
-                // khaas kar ke Xiaomi ke device mein"). This callback used to
-                // LOG AND NOTHING ELSE -- and so does AutoTTS's
-                // (decompiled_java_noexc/.../AutoTtsService.java:2770, a bare
-                // log) -- which is a hang in our shape for the same reason the
-                // three exits fixed earlier in the day were: onSynthesizeText
-                // parks the SCREEN READER'S ONLY synthesis thread on syncLock
-                // until a callback sets isStopped or isFlushed.
+                // LOG ONLY, exactly as AutoTTS's listener does
+                // (decompiled_java_noexc/.../AutoTtsService.java:2770 is a bare
+                // log). This DID release the wait for one commit on 2026-09-03
+                // and it was REVERTED the same day, because it broke
+                // explore-by-touch on the owner's device: "thoda sa bhi agar
+                // next element per jata hun ... to jo pehla text hai vah bilkul
+                // stop ho jata hai ... button read hi nahin karta".
                 //
-                // And onStop is TERMINAL. Read from AOSP rather than assumed --
-                // TextToSpeechService.SynthesisSpeechItem.stopImpl():
+                // WHY IT BROKE, so nobody writes it again the same way. A screen
+                // reader interrupts by stopping us and immediately sending the
+                // next utterance, and the engine's onStop for the OLD utterance
+                // lands on a binder thread afterwards. The released version
+                // guarded that with `if (id != expectedId) return`, believing
+                // expectedId identified the utterance. **It does not.**
+                // `expectedId` is "${utteranceId}_${chunkCounter}", and
+                // `utteranceId` is
+                //     (request?.params?.getString("utteranceId")).toString()
+                // -- a STATIC, and literally the string "null" whenever the
+                // caller sets no utteranceId param. So consecutive utterances
+                // share the id, the stale callback matched the NEW listener's
+                // expectedId, and it set isStopped on an utterance that had not
+                // spoken yet. Explore-by-touch is a continuous stream of
+                // interruptions, which is why it failed there every time and
+                // survived a slower swipe.
                 //
-                //     if (synthesisCallback != null) {
-                //         synthesisCallback.stop();
-                //         TextToSpeechService.this.onStop();
-                //     } else {
-                //         dispatchOnStop();
-                //     }
+                // The hang it was written for is real in principle -- AOSP's
+                // SynthesisSpeechItem.stopImpl() dispatches onStop and NEITHER
+                // onDone NOR onError, so an utterance stopped by something that
+                // is not us leaves the wait unwoken -- but it was found by
+                // reading, never in any log the owner sent, while the regression
+                // was immediate and total. AutoTTS carries the same shape, and
+                // rule 5 says mirror it.
                 //
-                // A stopped utterance gets onStop and NEITHER onDone NOR
-                // onError. So whenever the downstream engine's utterance is
-                // stopped by anything that is not us -- an OEM trimming
-                // background audio, another app calling stop() on the same
-                // shared Google TTS client, the engine's own service being torn
-                // down -- we waited for a callback that was never coming, the
-                // whole device went silent, and only force-stopping the app
-                // brought it back. That is the report, symptom for symptom, and
-                // it is why a Xiaomi sees it most: MIUI is the OEM most willing
-                // to stop somebody else's audio.
-                //
-                // THE ID GUARD IS NOT CAUTION, IT IS REQUIRED, and without it
-                // this fix would CAUSE the bug it cures. A screen reader
-                // interrupts by stopping us and immediately sending the next
-                // utterance, so the sequence is: our onStop() override sets
-                // isStopped for utterance A -> the new onSynthesizeText for B
-                // resets it to false -> the downstream engine's onStop for A
-                // finally lands on a binder thread. Unguarded, that late
-                // callback would stop B before it ever spoke. `expectedId` is
-                // the exact string this listener's own speak() was given, so a
-                // callback for any other chunk or utterance is ignored.
+                // IF IT EVER SHOWS UP IN A REAL LOG, the guard has to be a
+                // per-utterance GENERATION counter bumped at the top of
+                // onSynthesizeText and captured in this closure -- never the
+                // utterance id, which is not unique.
                 override fun onStop(id: String, interrupted: Boolean) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop " + id)
-                    if (id != expectedId) return
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #10")
-                    synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                    if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
             })
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())
