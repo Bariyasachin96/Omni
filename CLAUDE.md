@@ -1412,6 +1412,52 @@ sets x 1,114,112 code points.
 **CLD2 is still the faster switch** (1.1 ms vs 6.6 ms per 30 paragraphs) and is untouched by
 all of this.
 
+## THE MID-USE SILENCE: three exits that ended an utterance without waking the wait (2026-09-03)
+Owner: *"beech-beech mein kabhi kabhar chalte chalte bilkul TTS ruk jata hai ...
+APK ko full stop karne ke bad phir chalata hun tab completely chalta hai."* That
+last clause is the whole diagnosis: **only killing the process fixes it**, which
+means nothing is broken on disk and nothing retries -- a thread is parked.
+
+**The thread that parks is not ours.** `onSynthesizeText` ends by blocking **the
+screen reader's synthesis thread** on `syncLock` until the utterance listener sets
+`isStopped` or `isFlushed`. A screen reader has exactly ONE of those threads, so
+the moment it is parked with nobody left to wake it, the whole device goes silent
+and stays silent -- which is exactly the symptom.
+
+**The chain, end to end.** `setLanguage` fails on an engine -> `restoreEngine(pkg)`
+-> that wrapper leaves state 2 while it re-initialises -> the next utterance's
+`loadVoice*` finds no wrapper in state 2 -> `engineIndex = -1` -> `speakChunk`
+hits `engineIndex < 0`, logs **"mTTSIndex out of range."**, calls
+`startAndFinish(callback)` and returns -> `onSynthesizeText` walks straight into
+`syncLock.wait()` with both flags false, **no `speak()` ever issued**, so no
+`onDone`, no `onError`, no `onStop` is coming. `speakingPkg` is null too, so even
+`onEngineProcessGone` cannot match. Parked for ever.
+
+**This is OUR refactor's bug, not AutoTTS's, and that distinction is the reason
+the fix is safe.** AutoTTS's two equivalent guards (`decompiled_java_noexc/.../
+AutoTtsService.java` :2074 and :2176) are written INLINE in `onSynthesizeText`, so
+their `return` leaves the METHOD and the wait below is never reached. Ours live in
+a shared local `fun speakChunk(first: Boolean)`, so `return` only leaves
+`speakChunk` and execution falls into the wait. Same source, different scope, and
+the scope is what leaks.
+
+The fix is one local helper defined above `speakChunk` --
+`releaseWaitWithoutSpeaking(why)`: log, `startAndFinish(callback)`, then
+`synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }`. It is called
+at all three exits that end an utterance without speaking:
+
+    "mTTSIndex out of range."          engineIndex < 0
+    "mTTSIndex refers null tts."       the wrapper has no TextToSpeech
+    "Language <x> is not supported."   the mix/multilingual NEXT-chunk branch
+
+The third one is the same hole one level down and had a sibling that always got it
+right -- the auto/Google next-chunk branch beside it already released the wait.
+
+**No clock, no timeout, nothing to tune** -- this is the shape the owner demanded
+on 2026-09-02 (*"koi second nahin, koi millisecond bhi nahin"*). The release
+happens on the exact event that made speech impossible, in the same statement that
+decides it, so it can never fire during healthy speech and can never be late.
+
 ## The two audio switches, traced through AOSP (owner request, 2026-09-02)
 *"accessibility stream … aur ek audio attributes … dono properly research karke
 complete karo … modern phone ke hisab se."* Traced end to end through AOSP rather
@@ -1455,6 +1501,53 @@ cannot be resolved locally; the values are correct and `minSdk` is 24.
 (API 32). Spatialization defaults to `AUTO`, and the spatializer will not process
 a 16 kHz mono speech stream anyway, so it would be a speculative attribute on a
 path that cannot be tested here. Do not add it without a device showing a problem.
+
+### The switch was re-read on 2026-09-03 and it was still broken in TWO more places
+Owner: *"jo uses accessibility services use karta hai na TTS mein ... uses 11 ...
+uske bare mein bhi ek bar padh kar sahi karo ... ho sakta hai hamare mein kuchh
+galat ho."* They were right twice. AOSP was read again rather than recalled --
+`TextToSpeech.java` 1522 (`setAudioAttributes`) and 2024 (`getParams`), and
+`TextToSpeechService.java` 738 (`AudioOutputParams.createFromParamsBundle`). The
+merge fix above is confirmed correct; both new defects are the same root cause,
+which the merge write-up never states: **`mParams` is STICKY, and
+`wrapper.audioAttrSet` describes a `TextToSpeech` OBJECT, not a setting.**
+
+**1. A restore left the flag lying.** `RestoreInitListener` replaces `tts` with a
+brand new `TextToSpeech`, and attributes live in that object's `mParams`, so the
+old client's are gone -- but AutoTTS never clears `k0.h` (noexc:2130 only ever
+sets it true, like :2052 and :2438), and neither did we. If the force switch was
+OFF at the moment of a restore, turning it back ON afterwards did **nothing for
+the life of the process**: the speak path's `!wrapper.audioAttrSet` guard skipped
+the install, the forwarded bundle had its own attributes removed by the very same
+switch, and the engine fell through to `STREAM_MUSIC`. `wrapper.audioAttrSet =
+false` now runs before the status check in the restore listener, so it always
+describes the client actually in `tts`. (`initAllEngines` is clean -- it
+`clear()`s the pool and builds fresh wrappers, so that path always started false.)
+
+**2. Turning the switch OFF could not undo it.** There is no way to take
+attributes back out of a client: `setAudioAttributes(null)` answers `ERROR` and
+leaves `mParams` untouched, and `mParams` lives as long as the `TextToSpeech`
+object. So an engine ever spoken to with force ON keeps
+`USAGE_ASSISTANCE_ACCESSIBILITY` in `mParams`, and `getParams()` hands it
+downstream whenever the merged bundle carries none of its own -- either because
+the **strip** switch just removed the caller's, or because the caller never set
+any. The user switches it off and still hears accessibility routing.
+
+Overwriting the key is the only way to beat `mParams` in that merge, so the speak
+path now puts back **exactly what AOSP would have built had the key been absent**:
+`setLegacyStreamType(KEY_PARAM_STREAM, default Engine.DEFAULT_STREAM =
+STREAM_MUSIC = 3).setContentType(CONTENT_TYPE_SPEECH = 1)`, which is
+`createFromParamsBundle`'s own fallback, transcribed from lines 746-755. Guarded
+by `!isForceAccessibility && wrapper.audioAttrSet && !params.containsKey(...)`,
+so it is inert unless that wrapper really is carrying our attributes and nothing
+else is going to overwrite them anyway.
+
+Both are **DELIBERATE DEPARTURES** on the same footing as the merge fix: AutoTTS
+carries both defects. Verified in the same read and NOT changed: `requestAudioFocus`
+is `l0()` byte for byte (`AUDIOFOCUS_GAIN` = 1, usage 11, content type 1, one
+request in `onCreate`, abandoned in `onDestroy`), and `k0.f`/`k0.g` (`localeSet` /
+`listenerSet`) are left un-cleared on restore in both apps -- they gate logging and
+re-entry, not audio routing.
 
 ## The last two clocks are gone -- what the research actually said (2026-09-02)
 The owner rejected every timing constant: *"koi timing wala system mat rakho yaar,

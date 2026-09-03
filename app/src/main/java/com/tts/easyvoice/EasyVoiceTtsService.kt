@@ -209,6 +209,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         var voiceName: String = ""
         var localeSet: Boolean = false
         var listenerSet: Boolean = false
+        // TRUE means "the TextToSpeech client currently in `tts` has had our
+        // USAGE_ASSISTANCE_ACCESSIBILITY attributes installed on it". AutoTTS's
+        // k0.h is the same flag, but it is only ever set to true (AutoTtsService
+        // noexc:2052, :2130, :2438) and never cleared, which is wrong for a
+        // field that describes a client object AutoTTS itself replaces on
+        // restore. Cleared wherever `tts` is replaced -- see RestoreInitListener.
         var audioAttrSet: Boolean = false
         var restoreCount: Int = 0
         // The engine's own voice set, cached. See loadVoice for why. Cleared
@@ -550,6 +556,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 val wrapper = enginePool[restoreIdx]
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Restore " + wrapper.pkg)
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
+                // DELIBERATE DEPARTURE (owner request, 2026-09-03). Both branches
+                // below replace `tts` with a brand new TextToSpeech, and audio
+                // attributes live in THAT object's mParams, so whatever the old
+                // client carried is gone. AutoTTS never clears k0.h here, which
+                // leaves the flag claiming attributes are installed on a client
+                // that has none: if the force switch happened to be OFF at the
+                // moment of a restore, turning it back ON afterwards did nothing
+                // for the rest of the process -- the speak path's
+                // `!wrapper.audioAttrSet` guard skipped the install, and the
+                // forwarded bundle had its own attributes removed, so the engine
+                // fell back to STREAM_MUSIC. The switch was dead on that engine.
+                wrapper.audioAttrSet = false
                 if (status == TextToSpeech.SUCCESS) {
                     if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                     wrapper.tts = initializingTts; wrapper.voicesCache = null
@@ -1479,6 +1497,38 @@ class EasyVoiceTtsService : TextToSpeechService() {
         //  setting. onDone arrives on a BINDER thread and posts the next chunk to the
         //  main thread, because the next step may create or shut down a TextToSpeech.
         // ==========================================================================
+        // DELIBERATE DEPARTURE, and the fix for "beech mein TTS ruk jata hai,
+        // force stop karne ke baad phir chalta hai" (owner, 2026-09-03).
+        //
+        // onSynthesizeText ends by parking THE SCREEN READER'S ONE synthesis
+        // thread on syncLock until a callback sets isStopped or isFlushed. Both
+        // are set to false at the top of every utterance, so the wait is only
+        // ever released by an engine that has actually been handed the text.
+        // Every exit from speakChunk that does NOT reach speak() therefore has
+        // to release it by hand. The `isStopped || isFlushed` returns are safe
+        // because whoever set the flag already notified; these three were not:
+        //
+        //   engineIndex = -1 ("TTS is not ready") is set whenever no wrapper
+        //   matches the package in state 2 -- which is exactly what restoreEngine
+        //   leaves behind while an engine re-initialises after a failed
+        //   setLanguage. The NEXT utterance then hit "mTTSIndex out of range",
+        //   logged it, called startAndFinish and returned... into the wait, with
+        //   both flags false, no speak() issued, no callback coming, and
+        //   speakingPkg null so onEngineProcessGone could not match either. The
+        //   thread parked for ever, and since a screen reader has ONE synthesis
+        //   thread the whole device went silent until our process was killed.
+        //
+        // AutoTTS does not hang here, and not because it releases anything: its
+        // two guards (noexc:2074 and :2176) are inline in onSynthesizeText and
+        // `return` from the METHOD, so the wait is never entered. Ours is a
+        // shared local fun used for the first chunk AND for the next-chunk step,
+        // where `return` only leaves speakChunk. The hang is our refactor's, not
+        // AutoTTS's, which is why fixing it is not a parity break.
+        fun releaseWaitWithoutSpeaking(why: String) {
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis: " + why)
+            startAndFinish(callback)
+            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+        }
         fun speakChunk(first: Boolean) {
             if (isStopped || isFlushed) return
             val pair = synchronized(chunkQueue) { if (chunkQueue.isEmpty()) null else chunkQueue.removeAt(0) }
@@ -1516,13 +1566,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             if (engineIndex < 0 || engineIndex >= enginePool.size) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex out of range.")
-                startAndFinish(callback)
+                releaseWaitWithoutSpeaking("engine index out of range")
                 return
             }
             val wrapper = enginePool[engineIndex]
             val tts = wrapper.tts ?: run {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex refers null tts.")
-                startAndFinish(callback)
+                releaseWaitWithoutSpeaking("engine has no TextToSpeech")
                 return
             }
             // "Current engine: " logs the wrapper that is about to speak --
@@ -1601,7 +1651,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             val loadRes = onLoadLanguage(nextLang, "", "")
                             if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)
-                                startAndFinish(callback)
+                                // Same hole as the two guards above: this ends the
+                                // utterance without speaking, so the parked thread
+                                // has to be released here too. Its sibling branch
+                                // (the auto/Google one just below) always did.
+                                releaseWaitWithoutSpeaking("next chunk language not supported")
                                 advance = false
                             }
                         } else {
@@ -1673,6 +1727,32 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // = 1 (line 92). They are written as numbers only because the API-15
             // check jar has no AudioAttributes at all; the values are right.
             if (isStripAudioAttr || isForceAccessibility) { params.remove("streamType"); params.remove("audioAttributes") }
+            // ...and turning the switch back OFF has to undo it, which is the
+            // other half of the same AOSP fact and is NOT free. DELIBERATE
+            // DEPARTURE (owner request, 2026-09-03).
+            //
+            // setAudioAttributes writes into the client's mParams and there is
+            // no way to take it back out: TextToSpeech.java:1522 answers ERROR
+            // for a null argument and leaves mParams untouched, and mParams
+            // lives as long as the TextToSpeech object. So an engine that was
+            // ever spoken to with the force switch on keeps
+            // USAGE_ASSISTANCE_ACCESSIBILITY in its mParams for the life of the
+            // process, and getParams() hands it downstream whenever the merged
+            // bundle carries no attributes of its own -- either because the
+            // strip switch just removed the caller's, or because the caller
+            // never set any. The user turns the switch off and still hears the
+            // accessibility routing.
+            //
+            // Overwriting the key is the only way to beat mParams in that
+            // merge, so we put back exactly what AOSP itself would have built
+            // had the key been absent: TextToSpeechService's
+            // AudioOutputParams.createFromParamsBundle falls back to
+            // `setLegacyStreamType(KEY_PARAM_STREAM, default Engine.DEFAULT_STREAM
+            // = STREAM_MUSIC = 3).setContentType(CONTENT_TYPE_SPEECH = 1)`.
+            // Inert unless this wrapper really is carrying our attributes.
+            if (!isForceAccessibility && wrapper.audioAttrSet && !params.containsKey("audioAttributes")) {
+                try { params.putParcelable("audioAttributes", android.media.AudioAttributes.Builder().setLegacyStreamType(params.getInt("streamType", 3)).setContentType(1).build()) } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
+            }
             if (finalVolume != 0f) { params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, finalVolume) }
             if (isStopped || isFlushed) return
             wrapper.listenerSet = true
