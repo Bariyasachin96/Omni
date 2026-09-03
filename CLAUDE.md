@@ -109,6 +109,90 @@ The rotation test is the in-memory byte count rather than two `stat` calls, seed
 from the real `file.length()` when the writer opens, so it is never an
 underestimate and the file cannot grow past the cap unnoticed.
 
+## APK size: it is CLD2's tables x two ABIs, not the code (measured 2026-09-03)
+Owner: *"unused file unused code hata do jahan per bhi ho aur APK size kam kar do
+aur koi tarkeeb laga R8 ki."* Measured rather than guessed, and the measurement
+moves the answer away from R8 entirely.
+
+**Baseline: build 818 is 3,837,769 bytes** (the release asset, from the API).
+**The release APK could not be opened here** -- the GitHub download answers 403
+through the egress proxy, and that is a policy denial, not to be routed around --
+so the native side was measured by compiling the exact source list
+`CMakeLists.txt` names, with the same `-Os -g0 -fvisibility=hidden
+-ffunction-sections -fdata-sections`, and summing `.text + .rodata`:
+
+| object | bytes |
+|---|---|
+| **`cld2_generated_quadchrome_16`** | **814,971** |
+| `cld_generated_cjk_uni_prop_80` | 75,077 |
+| `cld2_generated_deltaoctachrome` | 70,227 |
+| `getonescriptspan` | 61,011 |
+| `generated_language` | 38,990 |
+| the other 19 objects together | ~100,000 |
+| **CLD2 total, per ABI** | **1,160,930** |
+
+So **one quadgram table is 70% of CLD2, CLD2 is ~1.11 MB per ABI, and the APK
+ships TWO ABIs** (`armeabi-v7a` + `arm64-v8a`). The native libraries are most of
+the download; the Kotlin is not where the size is.
+
+**The smaller-table idea is already taken, and this is why it must not be
+re-opened.** CLD2 ships five quad tables and we already build the SMALLEST:
+
+    cld2_generated_quad0122.cc      27,817,652    <- not used
+    cld2_generated_quad0720.cc      27,428,641    <- not used
+    cld2_generated_quadchrome_2.cc   7,661,476    <- not used
+    cld2_generated_quadchrome_16.cc  4,874,655    <- OURS
+
+and it is also the one `libcld2.so` uses, so swapping it would change detection
+answers and break the segmenter's proven parity. Do not.
+
+**What was actually changed, and what was deliberately NOT.**
+- **R8 full mode is now stated** in `gradle.properties` instead of inherited from
+  the AGP default. It changes nothing today (AGP 9 defaults it true) -- it is
+  there because `proguard-rules.pro` is WRITTEN for full mode
+  (`-allowaccessmodification`, `-repackageclasses ''`) and would quietly stop
+  paying for itself if a default ever flipped. The comment in that file used to
+  claim gradle.properties said so; now it does.
+- **Kotlin's `Intrinsics` null checks are stripped.** Every public Kotlin function
+  with a non-null parameter carries a `checkNotNullParameter` call plus its
+  parameter-name string, and R8 does not remove them on its own even in full mode.
+  Safe here for a reason rather than by hope: the framework entry points all
+  declare their parameters **nullable**, so no check is generated for them, and
+  the JNI boundary is the only other source of a null -- every entry point in
+  `tts_engine_core.cpp` returns `NewStringUTF`/`NewObjectArray` and cannot return
+  null, with a `try/catch` around every Kotlin call into it besides.
+- **`android.util.Log` is NOT stripped, and that was a measurement, not a
+  preference.** It is the obvious next `-assumenosideeffects` line and it is
+  wrong here: `EasyVoiceLogger` itself calls `Log.e`/`Log.w` **and
+  `Log.getStackTraceString`**, which is what puts a stack trace INTO
+  `easy_voice.log` -- the file the owner shares when reporting a bug. Stripping it
+  would delete that trace and save nothing worth having, because the message
+  strings are built by our own code and handed to `EasyVoiceLogger`, so they stay
+  in the APK either way. There is a comment in `proguard-rules.pro` saying so.
+
+**THE ONE BIG LEVER IS THE DOUBLE ABI, AND IT IS THE OWNER'S CALL** because it
+changes what gets published, so it was not done unilaterally. Three shapes:
+an **AAB**, which is what a Play Store listing needs anyway and lets Play deliver
+one ABI per device; **ABI splits**, which publish two APKs and mean picking the
+right file; or **dropping `armeabi-v7a`**, which is the smallest change and takes
+32-bit-only phones away -- the same kind of cost as raising `minSdk`, which this
+project has always refused.
+
+**The unused sweep came back nearly empty, which is the real answer to "unused
+hata do".** Every `res/` file and every `values/` entry is referenced; no Kotlin
+declaration is unused (the one apparent orphan, `marketIntent`, is a local read
+on the next line); no `static` in the native core is uncalled. Two real findings:
+`abbreviateEngineNameFor` was a pure pass-through to a `private` function in the
+same file, so the private modifier went and the wrapper with it; and **five tool
+files nothing runs** were deleted -- `tools/check/ktown.py` (superseded by the
+metric `kotlin-typecheck.sh` computes inline), `tools/autotts/extract_method.py`,
+`tools/autotts/showskel.py` + `skelmod.py` (showskel imports skelmod and nothing
+imports showskel; `cmp_versions.py` imports neither), and
+`tools/verify/normalizer/cpp/e2e.cpp` (`run.sh` builds only `sweep.cpp`).
+**`Norm.java` in that same harness LOOKS orphaned to a grep and is not** -- the
+script copies `java/*.java` and runs `java Norm`. None of this touches the APK;
+tools are not shipped.
+
 ## Easy Voice is STANDALONE now, and About is the first thing that shows it (owner, 2026-09-03)
 *"kya donon mein jo nahin hai uski jarurat padegi? Agar uski jarurat hamare mein
 pad sakti hai to hamare mein dalne mein koi harj nahin hai. Hamara alag hi

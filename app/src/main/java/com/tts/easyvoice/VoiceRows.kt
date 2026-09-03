@@ -7,7 +7,7 @@ object VoiceRows {
         if (row == null) "Disable#" + Locale(selectedIso).toString() else row.pkg + "#" + row.locale.toString()
     fun label(row: EngineFinder.ScanVoice?): String {
         if (row == null) return "*Disabled"
-        val abbreviated = abbreviateEngineNameFor(row.engineName)
+        val abbreviated = abbreviateEngineName(row.engineName)
         return if (row.locale.country.isNotEmpty()) abbreviated + ", " + row.locale.getDisplayCountry() else abbreviated
     }
     fun load(context: Context, readingMode: String, selectedIso: String): List<EngineFinder.ScanVoice?> {
@@ -29,7 +29,7 @@ object VoiceRows {
         val mixNonLatinIso3 = EasyVoiceTtsService.mixNonLatinLang
         if (readingMode == "auto" && selectedIso != autoModeC) rows.add(null)
         if ((readingMode == "mix" || readingMode == "multilingual") && selectedIso != mixLatinIso3 && selectedIso != mixNonLatinIso3) rows.add(null)
-        fun tieBreakLabel(row: EngineFinder.ScanVoice?): String = if (row == null) "*Disabled" else abbreviateEngineNameFor(row.engineName)
+        fun tieBreakLabel(row: EngineFinder.ScanVoice?): String = if (row == null) "*Disabled" else abbreviateEngineName(row.engineName)
         val sorted = rows.sortedWith(Comparator { rowA, rowB ->
             val orderA = voiceOrder(voiceKey(rowA, selectedIso))
             val orderB = voiceOrder(voiceKey(rowB, selectedIso))

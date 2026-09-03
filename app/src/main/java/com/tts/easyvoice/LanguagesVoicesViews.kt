@@ -1,7 +1,6 @@
 package com.tts.easyvoice
 import android.content.Context
-fun abbreviateEngineNameFor(name: String): String = abbreviateEngineName(name)
-private fun abbreviateEngineName(name: String): String {
+fun abbreviateEngineName(name: String): String {
     val parts = name.split(" ").dropLastWhile { it.isEmpty() }
     if (parts.size < 2) return name
     val headBuf = StringBuilder(parts[0])
