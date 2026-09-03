@@ -28,6 +28,7 @@ class VoiceSetupActivity : ComponentActivity() {
         applyTitle()
         setContent {
             EasyVoiceTheme {
+              EvScreenInsets {
                 // key() throws away the whole subtree when the language changes.
                 // VoiceScreen holds the voice rows, the variant and the three
                 // slider values in plain remember blocks; without this they
@@ -50,6 +51,7 @@ class VoiceSetupActivity : ComponentActivity() {
                         }
                     }) { testTts }
                 }
+              }
             }
         }
     }

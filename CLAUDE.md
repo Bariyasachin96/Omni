@@ -1513,65 +1513,64 @@ advances `winStart` by 64 and the hint split always breaks on `npos` or advances
 `tools/verify/segmenter/run.sh`, which could not complete 163,296 cases
 otherwise. **No native hang exists. Do not re-sweep it.**
 
-## The screen's first heading is FOCUSED on open -- Xiaomi did not do it for us (2026-09-03)
+## The screen's first heading was UNDER THE STATUS BAR -- edge-to-edge, not focus (2026-09-03)
 Owner: *"jitni bhi screen per aapne heading lagai hai, us per TalkBack ka focus
-nahin ja raha hai ... Pixel mein ... us screen ki heading per focus ja raha hai,
-Xiaomi mein nahin ... Mode settings kholta hun to focus sirf 'Preferred
-languages' wali heading per jata hai."*
+nahin ja raha hai ... Pixel mein ja raha hai, Xiaomi mein nahin ... Mode settings
+kholta hun to focus sirf 'Preferred languages' wali heading per jata hai."*
 
-**Read the report precisely, because it names the cause.** "Preferred languages"
-is the SECOND `SectionHeader` on that screen; the first is `"<Mode> settings"`.
-Later headings work, the first one does not, on every screen, on one device and
-not another. **So the node is fine and the `heading()` semantic is fine** -- both
-headings are the same composable, and nothing above them merges or clears
-semantics (`ResponsiveContent` is two plain `Box`es, and the app sets
-`paneTitle` in exactly one place, `MainActivity`). What differs is only **where
-the screen reader chooses to start when a window opens**, which is a per-device
-heuristic and not something an app may rely on. Focus landed past the first
-heading, and swiping forward never comes back to it.
+**The first answer here was incomplete and is corrected below.** It blamed a
+per-device initial-focus heuristic and added a focus request. That was reasoning
+from the symptom. The owner then sent a **screenshot** of the Voice setup screen
+and it settles the question in one look: the heading **"English (eng) voices" is
+drawn on top of the clock and the signal icons**. It was never a focus decision.
+The heading was behind the status bar.
 
-**The fix takes that decision away from the device**, and the mechanism was read
-out of androidx rather than assumed.
-`AndroidComposeViewAccessibilityDelegateCompat` sets `info.isFocusable` **only**
-when a node carries `SemanticsProperties.Focused`, and it watches that property:
+**The cause is one line in the build file: `targetSdk = 37`.** From Android 15
+(API 35) the system draws every app **edge to edge** and **ignores**
+`android:statusBarColor` and `android:navigationBarColor`. `values/styles.xml`
+still sets both; on API 35+ neither does anything. And the app consumed window
+insets **nowhere**.
 
-    SemanticsProperties.Focused -> {
-        val virtualId = semanticsNodeIdToAccessibilityVirtualNodeId(newNode.id)
-        if (value as Boolean) {
-            focusedVirtualViewId = virtualId
-            sendEvent(createEvent(virtualId, AccessibilityEvent.TYPE_VIEW_FOCUSED))
+**Which screens broke, and why exactly those.** `MainActivity` is fine because
+its `Scaffold` hands `innerPadding` to `ResponsiveContent`, and Scaffold's
+`contentWindowInsets` is `systemBars`. The four screens that are their own
+Activity -- About, Languages, Mode settings, Voice setup -- call `setContent`
+with nothing between `EasyVoiceTheme` and the screen, so their content starts at
+y = 0 and the FIRST element lands under the status bar. **That is exactly the set
+the owner reported**, and it is why the first heading was the only one affected:
+it is the only element at the top of the window.
 
-`TYPE_VIEW_FOCUSED` is the standard event every screen reader follows to move its
-own focus, so **taking Compose input focus is the supported bridge** and it does
-not depend on any OEM's heuristic. `Modifier.focusable()` is what puts `Focused`
-(and `RequestFocus`) on the node; `focusRequester` is how we ask for it.
+**And it explains the device split, which the focus theory never really did.**
+The status bar is taller on the owner's Xiaomi than on the Pixel, so there the
+whole heading was covered while on the Pixel it cleared the bar. Same APK, same
+semantics, different usable top edge.
 
-`SectionHeader` therefore gained **`focusOnOpen: Boolean = false`**, and it is
-passed `true` on the FIRST heading of each screen that is **its own Activity,
-i.e. its own window** -- About, Languages (both the real list and the
-dual/none message), Mode settings, and Voice setup (both branches). **The tabs
-inside `MainActivity` are deliberately NOT given it**: switching tab is not a new
-window, and grabbing focus there would fight the user mid-swipe.
+**The fix is `EvScreenInsets`** in `ComposeTheme.kt` -- one `Box` with
+`Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)` -- wrapped
+around the screen inside `setContent` in those four activities, and nowhere else.
+**Do not put it in `ResponsiveContent`**: `ModesScreen`, `AdvancedScreen` and
+`ConfigurationScreen` render inside MainActivity's Scaffold, which already paid
+the insets, and they would be padded twice.
 
-**The cost, stated rather than hidden:** the heading also joins keyboard and
-Switch Access focus order, one extra stop at the very top of the screen. That
-stop is the screen's own name, so it is a reasonable first stop.
+**`safeDrawing`, not `systemBars`**, because it also covers the **display
+cutout** -- a punch-hole or notch is what makes one device's usable top edge
+lower than another's, which is the whole shape of this bug.
 
-**Do not "simplify" this to `isTraversalGroup` / `traversalIndex`** -- those
-reorder traversal, and the problem was never the order; focus started past the
-heading, so no ordering could bring it back. And `requestFocus()` throws
-`IllegalStateException` by contract when no focusable node is attached to the
-requester, so the `catch` there is that contract, not caution.
+**`focusOnOpen` is KEPT**, and it is now what the owner literally asked for
+rather than a theory about why it was needed: the first heading of each of those
+four screens takes Compose input focus when the window opens, so the screen's own
+name is where the reader lands. The mechanism, read from androidx rather than
+assumed: `AndroidComposeViewAccessibilityDelegateCompat` sets `info.isFocusable`
+only when a node carries `SemanticsProperties.Focused`, and on that property
+turning true it sends `TYPE_VIEW_FOCUSED` for the node -- the standard event a
+screen reader follows. `Modifier.focusable()` is what puts `Focused` there;
+`focusRequester` is how we ask. Cost, stated rather than hidden: the heading also
+joins keyboard and Switch Access focus order, one stop at the top, and that stop
+is the screen's own name.
 
-**The local check reports three NEW error texts for this** -- `FocusRequester`,
-`LaunchedEffect` and `semantics` unresolved in `LanguagesActivity.kt`. All three
-are the ordinary blocked-Google-Maven noise: `LaunchedEffect` is **already**
-unresolved in `AdvancedScreen.kt` and `ModesScreen.kt` in the baseline, and
-`semantics` appears only because inserting `.then(...)` moved where the modifier
-chain first fails. A full per-file diff of the two runs shows the deltas are
-`androidx` +4, `Modifier` +2, `remember` +1 and one more `cannot infer type for
-type parameter 'T'` -- **no structural error of any kind**, and the `heading`
-count is unchanged.
+**The lesson worth keeping:** the owner's screenshot found in one frame what two
+rounds of reading semantics source did not. **When a report says "on this device
+but not that one", ask for a picture before theorising about the screen reader.**
 
 ## The two audio switches, traced through AOSP (owner request, 2026-09-02)
 *"accessibility stream … aur ek audio attributes … dono properly research karke

@@ -58,7 +58,7 @@ class LanguagesActivity : ComponentActivity() {
         // whenever anything is already loaded -- see LangStore.ensureLoaded.
         LangStore.ensureLoaded(this)
         val prefs = SharedPrefsManager(this)
-        setContent { EasyVoiceTheme { LanguagesScreen(prefs) } }
+        setContent { EasyVoiceTheme { EvScreenInsets { LanguagesScreen(prefs) } } }
     }
     override fun onPause() {
         LangStore.persistAll(this)

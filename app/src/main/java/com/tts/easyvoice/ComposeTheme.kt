@@ -2,6 +2,9 @@ package com.tts.easyvoice
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -110,6 +113,33 @@ private fun evContentMaxWidth(): Dp? =
     if (evWindowSizeClass().isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND))
         WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND.dp
     else null
+
+// EVERY screen that is its own Activity must be wrapped in this, and the reason
+// is a platform change we had already opted into without handling: **targetSdk
+// is 37**, and from Android 15 (API 35) the system draws every app edge to edge
+// and IGNORES android:statusBarColor / android:navigationBarColor. Our theme
+// still sets both, and on API 35+ neither does anything.
+//
+// So the content of a screen starts at y = 0, UNDER the status bar. MainActivity
+// never showed it because its Scaffold hands `innerPadding` to
+// ResponsiveContent, and Scaffold's contentWindowInsets is systemBars -- but
+// About, Languages, Mode settings and Voice setup call setContent with nothing
+// between the theme and the screen, so their FIRST element sits behind the
+// clock and the signal icons. The owner's screenshot of "English (eng) voices"
+// overlapping the status bar is exactly that, and it is why the screen's own
+// heading could not be reached on their Xiaomi while a Pixel was fine: the
+// status bar is taller there, so the whole heading was covered rather than
+// peeking out below it.
+//
+// safeDrawing rather than systemBars, because it also covers the display cutout
+// -- a punch-hole or notch is what makes one device's usable top edge lower
+// than another's, which is the whole shape of this bug.
+@Composable
+fun EvScreenInsets(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        content()
+    }
+}
 
 @Composable
 fun ResponsiveContent(
