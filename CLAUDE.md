@@ -1776,9 +1776,26 @@ offered the action for it. Both are gone with the migration.
 
 `LabeledDropdown` is `ExposedDropdownMenuBox` + `Modifier.menuAnchor(
 ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)` +
-`ExposedDropdownMenu`. Neither is `@ExperimentalMaterial3Api` any more (checked
-in the source; the only annotated overload is the deprecated one). What the
-library now owns, instead of this file: `role = Role.DropdownList` and the
+`ExposedDropdownMenu`, under `@OptIn(ExperimentalMaterial3Api::class)`.
+
+**THAT OptIn IS REQUIRED, AND LEAVING IT OUT BROKE BUILD 827.** The first version
+of this section claimed "neither is `@ExperimentalMaterial3Api` any more", because
+androidx-main really has dropped the annotation from all three. **That was the
+wrong file to read**, and it is the trap this document already records for
+`TabRow`: the BOM pins **material3 1.4.0**, and `api/1.4.0-beta01.txt` says
+
+    @ExperimentalMaterial3Api public abstract sealed class ExposedDropdownMenuBoxScope
+    @ExperimentalMaterial3Api @Composable public static void ExposedDropdownMenuBox(...)
+
+so `ExposedDropdownMenuBox`, and `menuAnchor` and `ExposedDropdownMenu` through
+that scope, all still carry it. `ExperimentalMaterial3Api` is
+`RequiresOptIn.Level.ERROR`, so the compile fails outright rather than warning --
+three `e:` lines and `compileReleaseKotlin FAILED`, in both the build and the
+accessibility job. (`ExposedDropdownMenuAnchorType` is NOT annotated; it is a
+plain value class.) **ALWAYS check the api/*.txt of the version the BOM pins,
+never androidx-main.**
+
+What the library owns, instead of this file: `role = Role.DropdownList` and the
 accessibility click action, opening on touch in the Initial pointer pass,
 Enter/space/arrow keys, `BackHandler(enabled = expanded)`, focus,
 `exposedDropdownSize`, and a `scrollState` on the menu.

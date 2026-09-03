@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
@@ -67,6 +68,14 @@ import kotlin.math.roundToInt
 //
 // The long-list announcement problem is therefore still open and is being
 // solved elsewhere, not by nesting a lazy list in a menu.
+// OptIn is REQUIRED and its absence is what broke build 827. androidx-main has
+// dropped @ExperimentalMaterial3Api from ExposedDropdownMenuBox, menuAnchor and
+// ExposedDropdownMenu, and reading it there is how this was missed -- but the
+// version the BOM actually pins is material3 1.4.0, where all three still carry
+// it, and the annotation is Level.ERROR so the compile fails outright. This is
+// the trap CLAUDE.md already records for TabRow: check the api/*.txt of the
+// version the BOM pins, NEVER androidx-main.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LabeledDropdown(
     label: String,
