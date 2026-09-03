@@ -152,6 +152,13 @@ class AccessibilityChecksTest {
         check { AdvancedScreen(prefs(), 0, { }, { }) }
     }
 
+    // The About screen, added 2026-09-03. It is mostly text, so the checks that
+    // matter here are contrast and the license button's name and touch target.
+    @Test
+    fun aboutScreen() {
+        check { AboutScreen() }
+    }
+
     @Test
     fun configurationTab() {
         check {

@@ -109,6 +109,59 @@ The rotation test is the in-memory byte count rather than two `stat` calls, seed
 from the real `file.length()` when the writer opens, so it is never an
 underestimate and the file cannot grow past the cap unnoticed.
 
+## Easy Voice is STANDALONE now, and About is the first thing that shows it (owner, 2026-09-03)
+*"kya donon mein jo nahin hai uski jarurat padegi? Agar uski jarurat hamare mein
+pad sakti hai to hamare mein dalne mein koi harj nahin hai. Hamara alag hi
+proper, hamara standalone hai."*
+
+**What this changes, and what it does NOT.** It is a standing permission to ADD
+things AutoTTS has no counterpart for, when the app needs them. It is **not** a
+repeal of rule 5: anything AutoTTS *does* have is still mirrored exactly, and
+detection, the service and storage are untouched. The test is "AutoTTS lacks it
+and we need it", never "AutoTTS has it and I would do it differently".
+
+### The About screen
+Asked for in the same message: an **About section at the very top of the
+Advanced tab**, and tapping it shows the license and everything else. The
+developer is **Sachin Baria**.
+
+`AboutActivity` / `AboutScreen`, a separate screen for the same reason Languages
+and Mode settings are screens: the license notice is long and the Advanced tab
+is already the longest thing in the app to swipe through. Its content is in the
+order the owner gave:
+
+    Easy Voice            (heading -- the app name)
+    Build number: <n>
+    Version: <name>
+    Developer: Sachin Baria
+    Copyright (c) 2026 Sachin Baria. All rights reserved.
+    License               (heading)
+    ... CLD2 and AOSP under Apache 2.0, and a button to apache.org
+
+The license wording is the old Licenses tab's, recovered from the generator in
+commit `a4dc250` rather than rewritten: CLD2 is **Copyright (c) 2013 Google Inc.**
+and AOSP is **Copyright (c) The Android Open Source Project**, both **Apache
+License, Version 2.0** -- confirmed against `app/src/main/cpp/cld2_src/LICENSE`,
+which is the Apache 2.0 text verbatim.
+
+**Two details that are load-bearing, not style:**
+- **The Advanced tab's "Information" section is GONE, folded into About.** It
+  showed Build number and Version at the bottom; About now shows both, and
+  leaving the old section would make a screen reader meet the same two facts
+  twice on one tab. Nothing was lost -- it is the same `PackageManager` read,
+  moved. (It was AutoTTS's `c3.k:1187-1188`; this is a UI departure under the
+  carve-out. Say so if it should come back.)
+- **The header says "About" and the button says "About Easy Voice", on purpose.**
+  ATF's `DuplicateSpeakableTextCheck` warns when two elements share a speakable
+  name and either is clickable, which a header reading "About" directly above a
+  button reading "About" is exactly. Do not "tidy" them to the same string.
+
+Two new icons, both fetched verbatim from `google/material-design-icons`
+(`src/action/info` and `src/action/open_in_new`); `ic_open_in_new` is
+`autoMirrored` because it is directional. `AboutScreen` is covered by
+`AccessibilityChecksTest.aboutScreen`, so the emulator job checks its contrast,
+label and touch target on every run.
+
 ## The half-done sweep, and the AOSP TTS class read end to end (owner request, 2026-09-02)
 *"jo bhi function mein jo bhi jagah per aadha adhura lagta hai … completely fix
 karo"*, *"sab kuchh static rakho … preferences wala sahi nahin rahta"*, and

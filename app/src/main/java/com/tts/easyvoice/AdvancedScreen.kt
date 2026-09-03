@@ -108,6 +108,17 @@ fun AdvancedScreen(
     var loggingEnabled by remember { mutableStateOf(EasyVoiceLogger.isLoggingEnabled()) }
     ResponsiveContent {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            // About sits FIRST, asked for on 2026-09-03. The header and the
+            // button deliberately carry DIFFERENT text: ATF's
+            // DuplicateSpeakableTextCheck warns when two elements share a
+            // speakable name and either one is clickable, which a header
+            // reading "About" above a button reading "About" is exactly.
+            SectionHeader("About")
+            ActionButton("About Easy Voice", R.drawable.ic_info) {
+                context.startActivity(Intent(context, AboutActivity::class.java))
+            }
+            SettingDescription("The app and developer details, and the open source licenses Easy Voice is built on.")
+
             SectionHeader("Text-to-Speech Settings")
             ActionButton("TTS Settings", R.drawable.ic_record_voice) {
                 try {
@@ -269,36 +280,6 @@ fun AdvancedScreen(
                     Text("Clear logs", modifier = Modifier.clearAndSetSemantics { })
                 }
             }
-
-            SectionHeader("Information")
-            // AutoTTS writes its own literals here (c3.k:1187-1188); ours come
-            // from PackageManager, so they are this build's real numbers.
-            // Label and value are ONE Text, so a screen reader reads
-            // "Build number, 41" as a single stop rather than two.
-            val versionInfo = remember {
-                try {
-                    // c3.a0.a switches overload at API 33.
-                    // The explicit type matters for the local kotlinc check: without
-                    // it, PackageInfoFlags being absent from the API-15 jar makes the
-                    // whole expression an error type and every member read below it
-                    // cascades into the noise.
-                    val info: android.content.pm.PackageInfo = if (android.os.Build.VERSION.SDK_INT >= 33)
-                        context.packageManager.getPackageInfo(context.packageName,
-                            android.content.pm.PackageManager.PackageInfoFlags.of(0L))
-                    else { @Suppress("DEPRECATION") context.packageManager.getPackageInfo(context.packageName, 0) }
-                    val build = if (android.os.Build.VERSION.SDK_INT >= 28) {
-                        info.longVersionCode.toString()
-                    } else {
-                        @Suppress("DEPRECATION")
-                        info.versionCode.toString()
-                    }
-                    Pair(build, info.versionName ?: "")
-                } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-                    Pair("", "")
-                }
-            }
-            SettingDescription("Build number: " + versionInfo.first)
-            SettingDescription("Version: " + versionInfo.second)
         }
     }
 }
