@@ -2,7 +2,6 @@ package com.tts.easyvoice
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,7 +54,7 @@ private fun openLink(context: android.content.Context, url: String) {
     } catch (_: android.content.ActivityNotFoundException) { }
 }
 
-class AboutActivity : ComponentActivity() {
+class AboutActivity : EvActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { EasyVoiceTheme { AboutScreen() } }

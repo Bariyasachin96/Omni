@@ -1574,19 +1574,56 @@ cutout** -- a punch-hole or notch is what makes one device's usable top edge
 lower than another's, which is why this read as a Xiaomi-only bug -- and moves
 content off the keyboard.
 
-**`enableEdgeToEdge()` is deliberately NOT called, and that is the point of doing
-it in the theme.** On API 24-34 the window is not edge to edge: the `DecorView`
-fits the system windows and consumes the bar insets before they reach the
-`ComposeView`, and Compose reads its insets from a listener **on that view**
-(`WindowInsetsHolder`: `ViewCompat.setOnApplyWindowInsetsListener(view,
-insetsListener)`), so `safeDrawing` is zero there and the padding is a no-op.
-**One line is correct on every API level the app installs on, with no
-per-activity code.** Calling `enableEdgeToEdge` would also need an explicit
-`SystemBarStyle.dark` for both bars, because its default `auto(...)` picks the
-icon colour from the SYSTEM dark-mode setting while this app is always dark --
-dark icons on our dark bar on a light-mode phone.
+**`enableEdgeToEdge()` IS called, from one place -- `EvActivity` (owner decision,
+2026-09-03).** The first version of this fix deliberately skipped it, reasoning
+that on API 24-34 the `DecorView` fits the system windows and consumes the bar
+insets before they reach the `ComposeView` -- which is where Compose's listener
+sits (`WindowInsetsHolder`:
+`ViewCompat.setOnApplyWindowInsetsListener(view, insetsListener)`) -- so
+`safeDrawing` is zero there and the padding is a harmless no-op. That reasoning
+is correct and the app worked. **But it left the app with TWO window shapes**:
+edge to edge on API 35+, decor-inset below it, and **only one of them ever
+exercised the padding**. The owner asked for androidx to be the thing we depend
+on and for one behaviour everywhere -- *"sabhi devices ... Android X library,
+Jetpack Compose library ... usi ke saath depend rehna chahta hun"* -- so
+`enableEdgeToEdge()`, which is androidx's own API for declaring it, is now
+called and there is one shape, one code path and the same first frame on every
+Android the app installs on.
 
-**Do not move this padding into `ResponsiveContent`** and do not re-add a
+**It lives in `EvActivity`, a base `ComponentActivity` all five Compose
+activities extend**, so it is one place and a future screen inherits it. (The two
+plain `Activity` intent handlers, `CheckVoiceData` and `GetSampleText`, draw no
+UI and are untouched.) The order in `MainActivity` still works:
+`installSplashScreen()` runs, then `super.onCreate` enters `EvActivity`, which
+declares edge to edge before `ComponentActivity.onCreate`.
+
+**Both `SystemBarStyle`s are stated explicitly, and the default would have been a
+real bug.** `EdgeToEdge.kt`'s default is
+`statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)`, and
+`auto` picks light or dark icons from `detectDarkMode(resources)` -- **the
+SYSTEM's** dark-mode setting. This app is dark in both settings by design, so on
+a phone in light mode `auto` would ask for DARK icons on our DARK bar and the
+clock and signal icons would vanish. `SystemBarStyle.dark(Color.TRANSPARENT)`
+states what is true of this app and is right on every device. It also closes a
+gap the XML theme had: `styles.xml` sets `android:windowLightStatusBar` but never
+`windowLightNavigationBar`, so the navigation bar's icons were unspecified. Both
+bars are now stated together.
+
+**TRANSPARENT scrims are correct HERE and would not be in a light app** --
+`EdgeToEdge.kt` defaults the navigation bar to a scrim precisely for pale content
+behind the bar, and our content is always `#121212`.
+
+**A new local-check noise signature came with the base class, and it is not a
+defect.** `kotlin-typecheck.sh` now prints `'onPause' overrides nothing` (and
+`onResume` / `onDestroy`) for the five activities. Before, each extended
+`ComponentActivity` directly, kotlinc could not resolve it, and an error
+supertype **suppresses** that diagnostic; now the supertype is `EvActivity`,
+which kotlinc resolves fine, so the members are genuinely looked up in a class
+whose own parent is unresolvable. It is the same blocked-Google-Maven cascade one
+level deeper -- the "our-own-name unresolved refs" counter stayed at 13, and the
+total went DOWN by 11. **Do not chase these.**
+
+**Do not move this padding into `ResponsiveContent`****Do not move this padding into `ResponsiveContent`** and do not re-add a
 per-screen wrapper. The theme is the one place, and the two library guarantees
 above are what make it sufficient.
 

@@ -1,8 +1,7 @@
 package com.tts.easyvoice
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-class ModeSettingsActivity : ComponentActivity() {
+class ModeSettingsActivity : EvActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // This screen persists in onPause, so it must not run with unloaded

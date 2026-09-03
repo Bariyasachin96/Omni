@@ -3,7 +3,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -68,7 +67,7 @@ class RequiredEnginesItem(val name: String, val pkg: String, installed: Boolean)
     var installed by mutableStateOf(installed)
     var installing by mutableStateOf(false)
 }
-class MainActivity : ComponentActivity() {
+class MainActivity : EvActivity() {
     private var testTts: android.speech.tts.TextToSpeech? = null
     private fun newTestClient() {
         testTts = android.speech.tts.TextToSpeech(this, null, "com.tts.easyvoice")

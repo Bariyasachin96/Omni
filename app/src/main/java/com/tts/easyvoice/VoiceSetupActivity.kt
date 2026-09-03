@@ -1,12 +1,11 @@
 package com.tts.easyvoice
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-class VoiceSetupActivity : ComponentActivity() {
+class VoiceSetupActivity : EvActivity() {
     private var testTts: android.speech.tts.TextToSpeech? = null
     // State now, not a local, so Previous/Next can move within this one screen.
     private var langIndex by mutableStateOf(-1)
