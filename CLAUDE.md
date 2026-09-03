@@ -1458,6 +1458,61 @@ on 2026-09-02 (*"koi second nahin, koi millisecond bhi nahin"*). The release
 happens on the exact event that made speech impossible, in the same statement that
 decides it, so it can never fire during healthy speech and can never be late.
 
+### The SECOND round: releasing the wait was only half of it (2026-09-03)
+Owner, after the first fix: *"beech beech mein chalte chalte speech atak jata hai
+... mere khyal se aapne sirf vah Java wali file padhi hai, aur bhi sources ho
+sakte hain."* Both halves of that were right. The wait fix above is correct and
+stays, but on its own it turns a **hang** into **silence** -- the utterance now
+ends promptly instead of parking the thread, and the device still says nothing,
+because the reason `engineIndex` was -1 was never addressed. The engine pool had
+a state it could not leave.
+
+**`state = -1` was TERMINAL, and nothing in either app could leave it.** All
+seven in-app `restoreEngine` call sites live inside `loadVoice` /
+`loadVoiceOriginal` / `loadVoiceDedicated`, and all three find their wrapper with
+`pkg == normPkg && state == 2`. The eighth is `onServiceDisconnected`, which
+fires once per death. So the moment a wrapper lands on -1 -- **one** failed init,
+which is exactly what a Play Store update of the engine produces, because the
+package is briefly unresolvable and `bindService` fails -- nothing can ever call
+`restoreEngine` for it again. `engineIndex` answers -1 for every language on that
+engine for the life of the process, and the only cure is force-stopping the app.
+That is the report, symptom for symptom, **including why force stop is the fix**.
+
+**The recovery signal was already arriving and nothing was listening.** We hold a
+binding to every engine, so Android calls `onServiceConnected` the moment that
+process is back; the callback existed and only wrote a log line. It now calls
+`onEngineProcessBack(pkg)` -- the mirror of `onEngineProcessGone`, in the other
+direction. **No clock, no retry timer, no polling: the event IS "this engine is
+alive again"**, which is the shape the owner has now required three times.
+
+Two details in it are load-bearing:
+- **the test is `state == -1`, never `!= 2`.** A wrapper that has never been
+  initialised is 0, and the first bind fires this callback too, while
+  `EngineInitListener` is still walking the pool -- retrying there would fight
+  the init. -1 is only reachable from an init or a restore that actually failed.
+- **`restoreCount` is zeroed**, for the same reason `onStart` zeroes it: the
+  engine demonstrably came back, and that is an event rather than an interval.
+  Without it the `k < 10` cap would hold an engine dead through a reconnect that
+  would have worked.
+
+**A second process-lifetime wedge, in the same method.** `restoreEngine` sets
+`restoringIndex = idx` and then calls `TextToSpeech(...)` **unguarded**, while
+`initAllEngines` wraps the identical call in a `try/catch`. That constructor does
+real work -- it reads `Settings.Secure`, resolves the engine and calls
+`bindService` -- so it can throw, exactly when the engine is mid-update. The
+throw left `restoringIndex >= 0` for ever, and the guard at the top of the method
+then answers `" -Restoring in progress..."` to **every** restore for the rest of
+the process: no engine could be recovered again, by any path. Now guarded, with
+the wrapper marked -1 and `restoringIndex` cleared -- and the new reconnect
+callback is what picks it up.
+
+**The native side was checked too, since a non-advancing loop there would hang
+the same thread with no log at all.** `cld2DetectWindow`'s window loop always
+advances `winStart` by 64 and the hint split always breaks on `npos` or advances
+`from`; and `buildMixChunks` / `processDirect` are proven terminating by
+`tools/verify/segmenter/run.sh`, which could not complete 163,296 cases
+otherwise. **No native hang exists. Do not re-sweep it.**
+
 ## The two audio switches, traced through AOSP (owner request, 2026-09-02)
 *"accessibility stream … aur ek audio attributes … dono properly research karke
 complete karo … modern phone ke hisab se."* Traced end to end through AOSP rather

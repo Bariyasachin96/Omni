@@ -546,7 +546,66 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 wrapper.stop()
                 wrapper.shutdown()
             } catch (_: Exception) {}
-            initializingTts = TextToSpeech(applicationContext, RestoreInitListener(), wrapper.pkg)
+            // The try/catch is NOT decoration, and its absence was a
+            // process-lifetime wedge. restoringIndex was already set above, and
+            // a TextToSpeech constructor does real work -- it reads
+            // Settings.Secure, resolves the engine and calls bindService -- so
+            // it can throw, exactly when the engine is mid-update. The throw
+            // would then leave restoringIndex >= 0 for ever, and the guard at
+            // the top of this method answers " -Restoring in progress..." to
+            // every restore attempt for the rest of the process: no engine can
+            // ever be recovered again. initAllEngines already guards the
+            // identical call for the identical reason; this site did not.
+            try {
+                initializingTts = TextToSpeech(applicationContext, RestoreInitListener(), wrapper.pkg)
+            } catch (ex: Exception) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when restoring " + wrapper.pkg + ": " + ex.message)
+                wrapper.state = -1
+                restoringIndex = -1
+            }
+        }
+    }
+    // DELIBERATE DEPARTURE, and the second half of the "chalte chalte ruk jata
+    // hai" fix (owner, 2026-09-03). state = -1 was a TERMINAL state and nothing
+    // in either app could leave it.
+    //
+    // Every one of the seven in-app restoreEngine call sites lives inside
+    // loadVoice / loadVoiceOriginal / loadVoiceDedicated, and all three find
+    // their wrapper with `pkg == normPkg && state == 2`. The eighth is
+    // onServiceDisconnected, which fires once per death. So the moment a
+    // wrapper lands on -1 -- one failed init, which is exactly what a Play
+    // Store update of the engine produces, because the package is briefly
+    // unresolvable and bindService fails -- NOTHING can ever call restoreEngine
+    // for it again. engineIndex then answers -1 for every language on that
+    // engine, for the life of the process, and the only cure is force-stopping
+    // the app. That is the owner's report, symptom for symptom, including why
+    // force stop is what fixes it.
+    //
+    // The recovery signal was already arriving and nothing was listening --
+    // the same shape as onEngineProcessGone, in the other direction. We hold a
+    // binding to every engine, so Android calls onServiceConnected the moment
+    // that process is back up. No clock, no retry timer, no polling: the event
+    // IS "this engine is alive again".
+    //
+    // state == -1 is the exact test, never `!= 2`: a wrapper that has never
+    // been initialised is 0, and the first bind fires this callback too, while
+    // EngineInitListener is still walking the pool. -1 can only be reached by
+    // an init or a restore that actually failed.
+    //
+    // restoreCount is zeroed for the same reason onStart zeroes it: the engine
+    // demonstrably came back, and that is an event, not an interval. Without
+    // it, ten failed restores would leave the cap holding the engine dead
+    // through a reconnect that would have worked.
+    private fun onEngineProcessBack(pkg: String) {
+        val normPkg = pkg.replace("-","").replace("_","")
+        for (index in 0 until enginePool.size) {
+            val wrapper = enginePool[index]
+            if (wrapper.pkg == normPkg && wrapper.state == -1) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine is back, retrying: " + wrapper.pkg)
+                wrapper.restoreCount = 0
+                restoreEngine(wrapper.pkg)
+                return
+            }
         }
     }
     inner class RestoreInitListener : TextToSpeech.OnInitListener {
@@ -595,7 +654,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (resolveInfo == null || resolveInfo.serviceInfo == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "No TTS service found in " + pkg); return }
             intent.component = android.content.ComponentName(resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name)
             val conn = object : android.content.ServiceConnection {
-                override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-alive bound to " + name?.flattenToShortString()) }
+                override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-alive bound to " + name?.flattenToShortString()); onEngineProcessBack(pkg) }
                 override fun onServiceDisconnected(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine process died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); restoreEngine(pkg) }
                 override fun onBindingDied(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) }
                 override fun onNullBinding(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Service returned null binding"); unbindEngineKeepAlive(pkg) }
