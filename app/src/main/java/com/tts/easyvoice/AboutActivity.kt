@@ -4,15 +4,23 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 // About -- an Easy Voice screen with no AutoTTS counterpart, asked for on
@@ -83,35 +91,65 @@ fun AboutScreen() {
         }
     }
     ResponsiveContent {
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-            // The app's name is the screen's first heading, so heading
-            // navigation goes straight from it to "License".
-            SectionHeader("Easy Voice")
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 16.dp)
+        ) {
+            // The heading names the SCREEN, exactly as every other screen in the
+            // app does -- "Languages" on LanguagesActivity, "<Mode> settings" on
+            // ModeSettingsActivity. The first version put the app's name here
+            // instead, so heading navigation opened on "Easy Voice", which reads
+            // as content rather than as the heading of the page you just entered.
+            SectionHeader("About")
+            // The app's name is the page's subject, so it is a real title rather
+            // than another line of body text.
+            Text(
+                text = "Easy Voice",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
+            )
             // Label and value are ONE Text each, so a screen reader reads
             // "Build number, 41" as a single stop rather than two.
             SettingDescription("Build number: " + versionInfo.first)
             SettingDescription("Version: " + versionInfo.second)
             SettingDescription("Developer: Sachin Baria")
-            SettingDescription("Copyright © 2026 Sachin Baria. All rights reserved.")
+            SettingDescription("Copyright \u00a9 2026 Sachin Baria. All rights reserved.")
 
             SectionHeader("License")
             // Everything in this block is taken from CLD2's OWN repository --
             // its README, its LICENSE and the header its source files carry --
             // not from any second-hand summary. See the comment above CLD2_URL.
-            SettingDescription("Compact Language Detector 2, written by Dick Sites at Google, is what reads the language of your text. It recognises 83 languages from UTF-8, and it is compiled into Easy Voice from the sources at github.com/CLD2Owners/cld2.")
-            SettingDescription("Copyright 2013, 2014 Google Inc. All Rights Reserved.")
+            SettingDescription("Easy Voice is built on open source work, and all of it is used under the Apache License, Version 2.0.")
+            SettingDescription("Compact Language Detector 2 (CLD2), written by Dick Sites at Google, is what reads the language of your text. It recognises 83 languages from UTF-8, and Easy Voice compiles it from the sources at github.com/CLD2Owners/cld2. Copyright 2013, 2014 Google Inc. All Rights Reserved.")
+            // This used to be one run-on sentence stranded BELOW the buttons,
+            // which left the page ending on a footnote instead of on its
+            // actions. It is a licence entry like the one above it, so it reads
+            // like one and sits beside it.
+            SettingDescription("The Android Open Source Project and the Jetpack libraries are what the app itself is written with. Copyright The Android Open Source Project.")
             // The two paragraphs below are the Apache 2.0 notice verbatim, as it
             // appears at the top of every CLD2 file Easy Voice compiles and in
             // the appendix of the repository's LICENSE. Do not paraphrase them.
             SettingDescription("Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0")
             SettingDescription("Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.")
-            ActionButton("Read the Apache License 2.0", R.drawable.ic_open_in_new) {
-                openLink(context, APACHE_LICENSE_URL)
+            // Side by side, not stacked -- the shape the Import/Export and
+            // Share logs/Clear logs rows already use. NO ICONS here, which is
+            // the app's own recorded rule for a row of buttons: at a compact
+            // width (<600dp) half the row leaves about 112dp for the label, and
+            // 24dp of icon plus 8dp of padding on top of that overflows it.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { openLink(context, APACHE_LICENSE_URL) },
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Apache License 2.0" }
+                ) { Text("Apache License 2.0", modifier = Modifier.clearAndSetSemantics { }) }
+                Button(
+                    onClick = { openLink(context, CLD2_URL) },
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "CLD2 on GitHub" }
+                ) { Text("CLD2 on GitHub", modifier = Modifier.clearAndSetSemantics { }) }
             }
-            ActionButton("Compact Language Detector 2 on GitHub", R.drawable.ic_open_in_new) {
-                openLink(context, CLD2_URL)
-            }
-            SettingDescription("Easy Voice is also built with the Android Open Source Project and the Jetpack libraries, Copyright The Android Open Source Project, under that same Apache License, Version 2.0.")
         }
     }
 }

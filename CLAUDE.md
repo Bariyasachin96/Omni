@@ -130,13 +130,37 @@ and Mode settings are screens: the license notice is long and the Advanced tab
 is already the longest thing in the app to swipe through. Its content is in the
 order the owner gave:
 
-    Easy Voice            (heading -- the app name)
+    About                          (SectionHeader -- names the SCREEN)
+    Easy Voice                     (headlineSmall -- the app's name)
     Build number: <n>
     Version: <name>
     Developer: Sachin Baria
     Copyright (c) 2026 Sachin Baria. All rights reserved.
-    License               (heading)
-    ... CLD2 and AOSP under Apache 2.0, and a button to apache.org
+    License                        (SectionHeader)
+    the Apache 2.0 line, CLD2, AOSP/Jetpack, the verbatim notice
+    [Apache License 2.0]  [CLD2 on GitHub]      side by side, last
+
+**Three things the owner sent it back for on 2026-09-03, all fixed. Do not undo
+them:**
+1. **The first heading names the SCREEN, not the app.** It said "Easy Voice",
+   so heading navigation opened on the app's name, which reads as content --
+   *"vah vahan per developer ke upar aa hi nahin raha hai, jaise aur screen mein
+   heading aati hai"*. Every other screen's first heading names the screen
+   ("Languages", "<Mode> settings"), and About now does too. The app's name sits
+   under it as a `headlineSmall` title, which is what it actually is.
+2. **The two link buttons are SIDE BY SIDE, never stacked** -- *"button ko upar
+   niche nahin, baju mein karna hai"*. It is the `Row` + `weight(1f)` +
+   `spacedBy(8.dp)` shape Import/Export and Share logs/Clear logs already use.
+   **They carry NO icons**, which is the app's own recorded rule for a row of
+   buttons: at a compact width half the row leaves about 112dp for the label,
+   and 24dp of icon plus 8dp of padding overflows it. That is also why the
+   labels are short -- "Apache License 2.0" and "CLD2 on GitHub" -- and
+   `ic_open_in_new.xml` was deleted with them, since nothing referenced it any
+   more.
+3. **The AOSP/Jetpack line moved UP.** It was one run-on sentence stranded
+   *below* the buttons, so the page ended on a footnote instead of on its
+   actions. It is a licence entry like CLD2's, so it now reads like one and sits
+   beside it, and the buttons are last.
 
 **The licence text comes from CLD2's OWN repository, not from the old Licenses
 tab.** The first version of this screen reused the wording recovered from the
