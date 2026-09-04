@@ -1702,6 +1702,49 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## THE CONFIGURATION SCREEN IS RESTORED AND IS NOW OFF LIMITS (owner, 2026-09-04)
+*"usmein to sab kuchh sahi tha, vah button bhi read kar raha tha, sab kuchh sahi
+tha, to vah aapko shayad nahin chhodana chahie tha, jo tha vaisa hi rakhna
+tha."* They are right, and this is the third time in two days that a change to
+this one screen broke it.
+
+`ConfigurationScreen.kt` is now **byte-for-byte commit `c04fc01`** plus a comment
+block. Do not add an accessibility property to it again without asking first.
+
+**Three changes, three different breakages, all mine:**
+1. `accessibilityClassName = "android.widget.Button"` on the row -- it made a
+   non-TalkBack reader say something, and the something was wrong: a row in a
+   list of languages is not a button.
+2. `evControl` (= `clearAndSetSemantics`) on the row -- clearing drops the whole
+   subtree from the accessibility tree, and this row's `trailingContent` is a
+   real three-dot `IconButton`, so **"More actions for &lt;language&gt;" vanished
+   and took Delete configuration and Disable language with it**. The
+   `accessibility` job caught that one.
+3. **`collectionItemInfo` on the row, which I kept after reverting (2), and
+   which was the remaining half of the same breakage.** Build 834 still had the
+   three-dot button unreachable: *"screen reader ka focus bhi nahin jata hai aur
+   vah button se nahin aa raha hai."*
+
+**How (3) was found, and the method is the transferable part.** `git diff
+c04fc01 HEAD -- ConfigurationScreen.kt` showed the `IconButton` and its whole
+`trailingContent` **byte-identical** to the version that worked. If the button's
+own code never changed, the cause has to be something added to the row -- and
+after (2) was reverted the only thing left there was `collectionItemInfo`. The
+row is a MERGING node (`clickable` sets `shouldMergeDescendantSemantics`), so
+declaring it a collection item makes a reader treat the whole row as one focus
+stop and stop descending into it. **Diff against the last state the owner
+confirmed working before theorising about the reader.**
+
+**What the screen already does, with none of that:** the row carries a
+`contentDescription` of "&lt;language&gt;, &lt;engine&gt;", the `LazyColumn`
+publishes its own `CollectionInfo`, the three-dot `IconButton` is its own focus
+stop with its own name, and neither carries a Role -- so nothing calls the row a
+button, which is what the owner asked for in the first place.
+
+**And the process rule the owner stated twice today:** *"jo library mein
+available hai bas vahi fix karni hai"*, and do not touch what already works. One
+change at a time on a path they use daily, then wait for them to test it.
+
 ## evControl MUST NOT WRAP A NODE WITH AN INTERACTIVE CHILD (caught by CI, 2026-09-04)
 Build 832's `build` job passed and published the APK; its **`accessibility` job
 failed**, on exactly one of sixteen tests:

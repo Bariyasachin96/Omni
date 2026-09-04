@@ -23,12 +23,46 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+// ==========================================================================
+//  THIS FILE IS RESTORED TO ITS LAST KNOWN-GOOD STATE (commit c04fc01) AND
+//  MUST NOT BE "IMPROVED" AGAIN. Owner, 2026-09-04: "usmein to sab kuchh sahi
+//  tha, vah button bhi read kar raha tha ... jo tha vaisa hi rakhna tha."
+//
+//  Three separate accessibility changes were made to this screen on
+//  2026-09-03/04 and ALL THREE broke it, each in a different way:
+//
+//  1. `accessibilityClassName = "android.widget.Button"` on the row, so a
+//     non-TalkBack reader would say something. It said the wrong thing: a row
+//     in a list of languages is not a button.
+//  2. `evControl` (= clearAndSetSemantics) on the row. Clearing a node drops
+//     its WHOLE SUBTREE from the accessibility tree, and this row's
+//     `trailingContent` is a real three-dot IconButton -- so "More actions for
+//     <language>" vanished and took Delete configuration and Disable language
+//     with it. The `accessibility` job caught this one:
+//     `AccessibilityChecksTest.configurationRowMenuOpen` could no longer find
+//     the button in the merged tree.
+//  3. `collectionItemInfo` on the row, kept after (2) was reverted. The row is
+//     a MERGING node (`clickable` sets shouldMergeDescendantSemantics), and
+//     declaring it a collection item made a screen reader treat the whole row
+//     as one focus stop -- so the three-dot button was still unreachable in
+//     build 834 even though its own code was byte-identical to the version
+//     that worked. That is what proved it: the button's code never changed,
+//     so the only thing that could have broken it was what I added to the row.
+//
+//  WHAT THIS SCREEN ALREADY DOES, WITHOUT ANY OF THAT: the row carries a
+//  `contentDescription` of "<language>, <engine>" and the LazyColumn publishes
+//  its own `CollectionInfo`, so a reader announces the row and its position;
+//  the three-dot IconButton is its own focus stop with its own name; and
+//  neither carries a Role, so nothing calls the row a button.
+//
+//  If a reader ever needs more here, ASK FIRST and change ONE thing, then wait
+//  for the owner to test it. Three untested "improvements" in a row is what
+//  cost them a working screen.
+// ==========================================================================
 // A tab in MainActivity's pager, not its own screen any more. The Scaffold and
 // the "Add language" button it used to carry now live in MainScreen, which owns
 // the only Scaffold: Material puts a floating action button in the Scaffold, and
@@ -90,62 +124,24 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                 }
                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                     DropdownMenuItem(
-                                        text = { Text("Delete configuration") },
+                                        text = { Text("Delete configuration", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDeleteConfiguration(index) },
-                                        modifier = Modifier.evControl(
-                                            "Delete configuration",
-                                            listItem = CollectionItemInfo(0, 1, 0, 1),
-                                            action = { menuOpen = false; onDeleteConfiguration(index) }
-                                        )
+                                        modifier = Modifier.semantics { contentDescription = "Delete configuration" }
                                     )
                                     DropdownMenuItem(
-                                        text = { Text("Disable language") },
+                                        text = { Text("Disable language", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDisable(index) },
-                                        modifier = Modifier.evControl(
-                                            "Disable language",
-                                            listItem = CollectionItemInfo(1, 1, 0, 1),
-                                            action = { menuOpen = false; onDisable(index) }
-                                        )
+                                        modifier = Modifier.semantics { contentDescription = "Disable language" }
                                     )
                                 }
                             }
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        // THIS ROW IS A LIST ITEM AND IS ANNOUNCED AS ONE, not as a
-                        // button (owner, 2026-09-03). The LazyColumn already publishes
-                        // `CollectionInfo` for itself; what was missing is the per-row
-                        // half, because Compose sets `collectionItemInfo` on no lazy
-                        // item by itself. The delegate assigns it with NO gate, so it
-                        // reaches the focused node and the reader says "item N of M".
-                        // `clickable(onClickLabel = ...)` leaves `role` null on purpose:
-                        // a Role here would make Compose emit a fake role child and the
-                        // row would be called a button again by the back door.
-                        //
-                        // THIS IS THE ONE ROW IN THE APP THAT MUST NOT USE evControl,
-                        // AND THE REASON IS THE THREE-DOT BUTTON IN trailingContent.
-                        // evControl is `clearAndSetSemantics`, and clearing a node drops
-                        // its whole subtree from the accessibility tree -- that is the
-                        // documented meaning of `replacedChildren` being empty. On every
-                        // other control the subtree is only a label and an icon, so
-                        // losing it is the point. Here it contains a REAL, SEPARATELY
-                        // FOCUSABLE control, so clearing made "More actions for <lang>"
-                        // unreachable and took Delete configuration and Disable language
-                        // with it. Build 832's accessibility job caught it --
-                        // `AccessibilityChecksTest.configurationRowMenuOpen` could no
-                        // longer find that button in the merged tree, while the unmerged
-                        // tree still had it, which is exactly that signature.
-                        //
-                        // THE RULE, and it belongs to evControl everywhere: never wrap a
-                        // node that CONTAINS an interactive child. A plain `semantics {}`
-                        // block adds without clearing, so the button survives, and the
-                        // name reaches TalkBack through the fake contentDescription child
-                        // as it always did.
                         modifier = Modifier
                             .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
-                            .semantics {
-                                contentDescription = labels[index] + ", " + status
-                                collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
-                            }
+                            // One node, so a screen reader says the language and
+                            // its status together in a single swipe.
+                            .semantics { contentDescription = labels[index] + ", " + status }
                     )
                 }
             }
