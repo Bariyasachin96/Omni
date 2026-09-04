@@ -1702,6 +1702,45 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## THE ROLE COVERAGE TABLE: every control type, and who announces it (2026-09-04)
+Owner: *"user jab button per ungali rakhe ya tab per ya radio button ya checkbox
+ya switch ya kahin per bhi ungali rakhe ... ya swiping kare ... to use pata
+chalna chahie ki yah radio button hai, yah tab hai, yah button hai, yah dropdown
+list hai ... jo library mein available hai bas vahi fix karni hai."*
+
+**Nothing here is a role string of ours.** Every name below is written by
+androidx's own delegate, from the library's own `Role` enum and its own string
+resources. `evControl` supplies no wording at all -- it only clears the merged
+children that were stopping the delegate from putting the role on the node the
+reader is actually focused on. Explore-by-touch and swipe both land on that same
+node, which is why one fix answers both.
+
+| control | role | what the reader is given | who writes it |
+|---|---|---|---|
+| every button, the FAB, slider - / + | `Role.Button` | `android.widget.Button` | delegate, `Role.toLegacyClassName()` |
+| the two tabs | `Role.Tab` | `roleDescription` "Tab" + `isSelected` | delegate, `R.string.tab` |
+| mode radios, the three reading groups | `Role.RadioButton` | `android.widget.RadioButton` + "Selected"/"Not selected" | delegate, `R.string.selected` |
+| language rows, the My-languages chip | `Role.Checkbox` | `android.widget.CheckBox` + checked state | delegate |
+| the nine Advanced switches | `Role.Switch` | `roleDescription` "Switch" + "On"/"Off" | delegate, `R.string.switch_role` / `state_on` / `state_off` |
+| every dropdown anchor | `Role.DropdownList` | `android.widget.Spinner` + Expanded/Collapsed | delegate |
+| Configuration rows, dropdown menu items | none, by design | `collectionItemInfo` -> "item N of M" | delegate, from CollectionItemInfo |
+| Speed / Volume / Pitch | none needed | `android.widget.SeekBar` | Material3 Slider, **ungated** |
+| the three-dot and clear-search buttons | `IconButton` | `android.widget.Button` | delegate, gate passes on its own |
+
+**Two rows are deliberately NOT wrapped and must stay that way.** A `Slider` sets
+its class name from `ProgressBarRangeInfo` with **no gate**, so it already reaches
+every reader, and wrapping it would cost `ValueSlider`'s `setProgress` -- the
+thing that makes one screen-reader swipe move exactly 5. An `IconButton`'s
+`Icon(contentDescription = null)` adds no semantics modifier at all, so the button
+has no semantics children, the gate passes by itself and the class name is already
+on the focused node.
+
+**There is no `Role.ListItem` in Compose**, so a list row is named the way the
+platform names one: the container publishes `CollectionInfo` (a `LazyColumn` does
+this itself) and the row publishes `CollectionItemInfo`. That is the library's own
+answer, and it is why the Configuration rows carry no role -- a role there would
+make them buttons again.
+
 ## THE REAL FIX FOR ROLES IS SHIPPED: evControl (owner, 2026-09-04)
 *"Jo asali hal hai vah complete kar hi do."* Done. The shape written up the day
 before as "the owner's call" is now the app's only way of describing a control,
@@ -1855,51 +1894,46 @@ announcement and the heading still say it twice. Making them differ means
 changing either a visible heading or the name the screen shows in the recents
 list, and both are wording the owner has chosen before.
 
-## "Pop-Up Window" was ANDROIDX'S OWN STRING, not our code (owner, 2026-09-04)
-*"drop down list open karne ke bad expand to announce karta hai TalkBack, but
-saath saath mein pop up window bhi announce kar raha hai. Vah kyon kar raha hai?
-Mere khyal se pop up window ka uska code hata dena."*
+## THE POPUP-TITLE OVERRIDE WAS SHIPPED AND REVERTED THE SAME DAY (2026-09-04)
+**Do not write it again.** Every Compose `Popup` titles its own Android window
+from `androidx.compose.ui`'s `R.string.default_popup_window_title`
+(`AndroidPopup.android.kt`, `createLayoutParams`: *"accessibilityTitle is not
+exposed as a public API therefore we set popup window title which is used as a
+fallback by a11y services"*), and the library's value is the words **"Pop-Up
+Window"**. A screen reader speaks a window's title when the window appears, so
+opening a dropdown said our "Expanded" and then "Pop-Up Window".
 
-Grepping the app for it finds nothing, and that is the whole point: **it is not
-our string and never was.** Every Compose `Popup` -- so `ExposedDropdownMenu` on
-the Voice and Mode settings screens, and `DropdownMenu` on the Configuration
-rows -- gives its real Android window a title, in `AndroidPopup.android.kt`'s
-`createLayoutParams`:
+The owner asked for that second announcement to go, and I answered it by
+overriding the resource in `app/src/main/res/values/strings.xml` with an **empty**
+string. AAPT2 does merge the application's value over the library's, so the
+override worked exactly as designed -- **and that is the bug.** An empty title
+does not remove the announcement, it removes the NAME, and the reader then falls
+back to describing the window itself. The owner heard it immediately:
 
-    // accessibilityTitle is not exposed as a public API therefore we set popup
-    // window title which is used as a fallback by a11y services
-    title = composeView.context.resources.getString(R.string.default_popup_window_title)
+*"sab panel, uske bad kuchh activity, uske bad kuchh package name ka kuchh aisa
+kuchh bolna shuru ho jata hai."*
 
-and in `compose/ui/ui/src/androidMain/res/values/strings.xml` that resource is
+"Sub panel" is the window type (`TYPE_APPLICATION_SUB_PANEL`) followed by the
+activity and the package -- the platform's own debug name for an untitled window.
+**A window with no title is worse than a window with a dull one**, which is
+precisely why androidx put a string there in the first place.
 
-    <string name="default_popup_window_title">"Pop-Up Window"</string>
+Reverted. The library's own wording ships, and the owner accepted it in the same
+message: *"compose mein to already hota hai na ... bhale vah to bolta hi rahata
+hai, to aapko yah extra fix karne ki jarurat hi nahin hai."* `strings.xml` now
+carries only `app_name` plus a comment saying not to try this again.
 
-A screen reader speaks a window's title when the window appears, so one tap on a
-dropdown produced our `stateDescription` **and** the library's window title.
+**The lesson, and it is the same one as the `onStop` release and "button
+button".** A change that is correct about the mechanism can still be wrong about
+the outcome, and the way to tell is to ask what the system does with the state you
+are creating -- here, "what does a reader say about a window with no name?" --
+rather than only whether the mechanism does what the docs promise. Three of my
+regressions this session have that identical shape.
 
-**There is no API knob.** `PopupProperties` in the pinned compose ui
-`api/1.12.0-beta01.txt` is `focusable`, `dismissOnBackPress`,
-`dismissOnClickOutside`, `securePolicy`, `excludeFromSystemGesture`,
-`clippingEnabled`, `usePlatformDefaultWidth`, `windowType`, `windowToken`,
-`blurBehindRadius`, `scrimAlpha` -- and no title. Material3's dropdowns expose
-no popup properties for it either.
-
-**The fix is a resource override, which is the supported mechanism**, not a fork
-and not hand-written UI: AAPT2 merges the application module's resources OVER a
-library's, so `app/src/main/res/values/strings.xml` now declares
-`default_popup_window_title` as an **empty** string and that value wins for every
-Popup in the app. Empty rather than reworded on purpose -- the anchor has just
-said "Expanded" and the reader then lands on the first menu item and reads it, so
-any wording would be a third thing said about one tap. **Do not delete it as an
-unused string**; it is referenced only from inside androidx, and removing it
-brings "Pop-Up Window" straight back. The `tools:ignore` on the line says so to
-lint as well.
-
-**The delegate was cleared first, so this is not a guess:** there is no `IsPopup`
-or `IsDialog` handling anywhere in
-`AndroidComposeViewAccessibilityDelegateCompat` (grepped, zero hits), and
-TalkBack's own `strings.xml` contains no "pop-up window" string either -- it is
-reading the window title the platform hands it.
+**The standing rule the owner stated with it:** *"Jo library mein available hai
+bas vahi fix karni hai."* Do not override a library resource, and do not add a
+semantics property the library already supplies, to remove something the library
+deliberately says.
 
 ## The Configuration language rows are LIST ITEMS now, not buttons (owner, 2026-09-04)
 *"language list items ... announced specifically as 'list items', not buttons."*
