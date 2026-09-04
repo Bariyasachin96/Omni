@@ -1745,6 +1745,50 @@ rather than failing. Negative-tested both ways: a deliberate `fun broken( {`
 appended to the test file is reported at its real line and the clean file
 passes.
 
+**THE SECOND PASS FOUND THE STATES THE FIRST ONE COULD NOT SEE (25 to 29).**
+Reading every screen's branches against the test list turned up four views no
+test had ever drawn, and one of them was invisible for the same reason the
+reading mode was:
+
+**THE LANGUAGES LIST HAS TWO LAYOUTS AND THE DEVICE PICKED WHICH ONE RAN.**
+`LanguagesScreen` groups the device REGION's languages above the rest, and
+`grouped` is true only when `regionIdx` and `otherIdx` are both non-empty --
+where `regionLangs` is built from voices whose `locale.country` equals
+`Locale.getDefault().country`. On the emulator's en_US image the GROUPED branch
+renders and the flat one never does; on an image with no country it is the
+other way round. So one of the two has always gone unchecked, and nothing said
+which. `Locale.setDefault(Locale("en", "US"))` is now stated in `seed()` beside
+`modeInt`, `languagesListUngrouped` states the other, and each test ASSERTS the
+branch it got rather than trusting the image. An `@After` restores the process
+locale.
+
+**Grouped is also the branch with the accessibility machinery in it**, which is
+what makes leaving it unrendered expensive: two `SectionHeader`s live INSIDE the
+`LazyColumn` -- the one thing this document's own rule forbids -- and it is
+allowed there only because the list overrides `collectionInfo` with the real row
+count and each row's `collectionItemInfo` index runs continuously ACROSS both
+groups. If any of that is wrong a reader counts the headings as rows and every
+announced position is off by two.
+
+The other two are the empty-result messages, which exist precisely so a blind
+user can tell an empty filter from a frozen screen: `languagesListNoMatch` (a
+search matching nothing) and `languagesListFilteredNoMatch`. The second string
+had no way of being rendered at all -- in mix mode the required languages are
+always ticked, so the "My languages" filter alone can never empty the list;
+filter PLUS a search that matches nothing can.
+
+**Checked and already covered, so do not add them again:** `voiceSetup` passes
+`total = 3` at index 0 and `voiceSetupNoVoices` index 3 of 4, so the Previous/Next
+row is rendered with EACH button disabled in turn; every one of the nine screen
+composables, `RequiredEnginesDialog` included, has a test.
+
+**A trap this pass hit, worth keeping.** `assertExists` and `assertDoesNotExist`
+are MEMBER functions of `SemanticsNodeInteraction`, not top-level extensions like
+`onNodeWithText` -- importing them is an unresolved reference and would have
+failed the compile in CI. `ktimports` cannot see that, because it does not know
+androidx. **Before importing a Compose test symbol, check whether it is a member
+or an extension.**
+
 **The rule this establishes for new UI:** a screen's test is not done when the
 screen renders. Ask what the screen looks like after a tap, with the switch the
 other way, with the list empty, and in the mode the branch above it takes -- and

@@ -5,6 +5,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.tryPerformAccessibilityChecks
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -63,9 +65,22 @@ class AccessibilityChecksTest {
     // realistic configuration in place -- three languages across two engines,
     // which is the shape the owner actually runs (English on a dedicated
     // engine, Gujarati and Hindi on Google).
+    private val deviceLocale: Locale = Locale.getDefault()
+
     @Before
     fun seed() {
         val context = rule.activity.applicationContext
+        // THE DEVICE LOCALE DECIDES WHICH LIST BRANCH RENDERS, so it is
+        // pinned here for the same reason the reading mode is. The
+        // Languages list groups the device REGION's languages above the
+        // rest, and it only groups when both sides are non-empty --
+        // `regionLangs` is built from voices whose `locale.country` equals
+        // `Locale.getDefault().country`. So on an en_US image the GROUPED
+        // branch renders and the flat one never does, and on an image with
+        // no country it is the other way round. Neither is a choice we
+        // were making. en_US is stated, `languagesListUngrouped` states
+        // the other, and each asserts which branch it got.
+        Locale.setDefault(Locale("en", "US"))
         LangStore.ensureLoaded(context)
 
         EngineFinder.lastScanVoices = listOf(
@@ -130,6 +145,11 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.punctuationInFlowFlag = true
         EasyVoiceTtsService.smartNumberFlag = false
         EasyVoiceTtsService.smartNumberGroupSize = 1
+    }
+
+    @After
+    fun restoreLocale() {
+        Locale.setDefault(deviceLocale)
     }
 
     private fun entry(name: String, iso3: String, tag: String) =
@@ -403,6 +423,60 @@ class AccessibilityChecksTest {
     // The OTHER half of LanguagesScreen. In "none" and "dual" the whole list is
     // replaced by one explanatory line, and that line is the entire screen --
     // if it is unreadable there is nothing else to fall back on.
+    // The Languages list has TWO layouts and only one of them could ever run
+    // on a given device, so one of the two has always gone unchecked. Both are
+    // stated here, and each asserts the branch it got rather than trusting the
+    // emulator image.
+    //
+    // Grouped is the one with the accessibility machinery in it: two
+    // SectionHeaders live INSIDE the LazyColumn, which is the one thing this
+    // project's own rule forbids, and it is allowed here only because the list
+    // overrides `collectionInfo` with the real row count and each row carries a
+    // `collectionItemInfo` index that runs continuously ACROSS both groups. If
+    // any of that is wrong, a reader counts the headings as rows and every
+    // announced position is off. Nothing had ever rendered it under ATF.
+    @Test
+    fun languagesListGrouped() {
+        check { LanguagesScreen(prefs()) }
+        rule.onNodeWithText("United States languages").assertExists()
+        rule.onNodeWithText("All languages").assertExists()
+    }
+
+    // No country means no region to group by, so the flat list renders. This is
+    // a real device state, not a contrivance: a user whose language is set
+    // without a region gets it.
+    @Test
+    fun languagesListUngrouped() {
+        Locale.setDefault(Locale("en"))
+        check { LanguagesScreen(prefs()) }
+        rule.onNodeWithText("All languages").assertDoesNotExist()
+    }
+
+    // A search that matches nothing. The list is empty and this one line is the
+    // only thing on the screen below the controls -- it exists precisely so a
+    // blind user can tell an empty result from a frozen screen, which makes it
+    // the last place an unchecked label should be sitting.
+    @Test
+    fun languagesListNoMatch() {
+        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        rule.enableAccessibilityChecks()
+        rule.onNode(hasSetTextAction()).performTextInput("zzzz")
+        rule.onNodeWithText("No languages match your search.").assertExists()
+    }
+
+    // The SAME empty list under the "My languages" filter says something else,
+    // and that second string had no way of being rendered by any test: in mix
+    // mode the required languages are always ticked, so the filter alone can
+    // never empty the list. Filter plus a search that matches nothing can.
+    @Test
+    fun languagesListFilteredNoMatch() {
+        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("My languages").performClick()
+        rule.onNode(hasSetTextAction()).performTextInput("zzzz")
+        rule.onNodeWithText("No languages are selected yet.").assertExists()
+    }
+
     @Test
     fun languagesListNotAvailable() {
         EasyVoiceTtsService.modeInt = 1
