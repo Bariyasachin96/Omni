@@ -25,7 +25,6 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -36,7 +35,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -54,6 +52,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -331,42 +330,31 @@ fun RequiredEnginesDialog(
                         if (!item.installed) {
                             Spacer(modifier = Modifier.width(8.dp))
                             val installLabel = if (item.installing) "Installing..." else "Install"
-                            Button(
-                                onClick = { onInstall(item) },
-                                enabled = !item.installing,
-                                modifier = Modifier.semantics {
-                                    contentDescription = installLabel + " " + item.name
-                                }
-                            ) {
-                                Icon(painterResource(R.drawable.ic_get_app), contentDescription = null,
-                                    modifier = Modifier.padding(end = 8.dp))
-                                Text(installLabel, modifier = Modifier.clearAndSetSemantics { })
-                            }
+                            // The visible label is "Install"; the accessible
+                            // name adds the engine, because a column of
+                            // identically named buttons is what
+                            // DuplicateSpeakableTextCheck flags. WCAG 2.5.3 is
+                            // satisfied because the name still CONTAINS the
+                            // visible label.
+                            EvButton(
+                                label = installLabel + " " + item.name,
+                                iconRes = R.drawable.ic_get_app,
+                                enabled = !item.installing
+                            ) { onInstall(item) }
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(
-                onClick = onApply,
-                enabled = allInstalled,
-                modifier = Modifier.semantics { contentDescription = "Apply" }
-            ) {
-                Icon(painterResource(R.drawable.ic_check), contentDescription = null,
-                    modifier = Modifier.padding(end = 8.dp))
-                Text("Apply", modifier = Modifier.clearAndSetSemantics { })
-            }
+            EvButton("Apply", iconRes = R.drawable.ic_check, enabled = allInstalled, onClick = onApply)
         },
+        // Outlined, not filled: Apply is the action this dialog is FOR, and the
+        // Material emphasis ladder puts the filled style above the outlined one.
+        // It used to be a TextButton, which is a step lower again and carried an
+        // icon anyway; outlined keeps the icon looking deliberate.
         dismissButton = {
-            TextButton(
-                onClick = onCancel,
-                modifier = Modifier.semantics { contentDescription = "Cancel" }
-            ) {
-                Icon(painterResource(R.drawable.ic_close), contentDescription = null,
-                    modifier = Modifier.padding(end = 8.dp))
-                Text("Cancel", modifier = Modifier.clearAndSetSemantics { })
-            }
+            EvButton("Cancel", iconRes = R.drawable.ic_close, outlined = true, onClick = onCancel)
         }
     )
 }
@@ -417,9 +405,9 @@ fun MainScreen(
                     onClick = onAddLanguage,
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.semantics { contentDescription = "Add language" },
+                    modifier = Modifier.evControl("Add language", Role.Button, action = onAddLanguage),
                     icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-                    text = { Text("Add language", modifier = Modifier.clearAndSetSemantics { }) }
+                    text = { Text("Add language") }
                 )
             }
         },
@@ -458,11 +446,31 @@ fun MainScreen(
                         Tab(
                             selected = currentPage == index,
                             onClick = { currentPage = index },
-                            text = { Text(pageTitles[index], modifier = Modifier.clearAndSetSemantics { }) },
+                            text = { Text(pageTitles[index]) },
                             icon = { Icon(painterResource(pageIcons[index]), contentDescription = null) },
-                            modifier = Modifier.semantics {
-                                contentDescription = pageTitles[index] + ", " + (index + 1) + " of " + pageTitles.size
-                            }
+                            // THE TAB ROLE NOW REACHES THE FOCUSED NODE. Material
+                            // sets `role = Role.Tab` on a node that merges a text
+                            // child, so the delegate's gate sent its
+                            // `roleDescription = "Tab"` to a fake child only, and a
+                            // reader that does not walk those said nothing at all.
+                            // A class name could not rescue it either -- Role.Tab
+                            // has no legacy class, and `android.app.ActionBar$Tab`
+                            // was tried on device and not recognised. Clearing the
+                            // node is what opens the gate, and then the library
+                            // writes its own "Tab" onto the node in focus.
+                            //
+                            // `isSelected` also earns the position back for free:
+                            // the delegate turns Selected + Role.Tab into
+                            // `info.isSelected`, which is how a reader says which
+                            // tab is current. The ", N of M" stays because the
+                            // owner's device proved on 2026-08-13 that nothing
+                            // else announces it.
+                            modifier = Modifier.evControl(
+                                pageTitles[index] + ", " + (index + 1) + " of " + pageTitles.size,
+                                Role.Tab,
+                                isSelected = currentPage == index,
+                                action = { currentPage = index }
+                            )
                         )
                     }
                 }

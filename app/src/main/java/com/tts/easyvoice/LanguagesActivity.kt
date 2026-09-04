@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -26,21 +24,19 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
@@ -84,45 +80,30 @@ class LanguagesActivity : EvActivity() {
 // leaf child) and info.text comes from the unmerged config, which is empty.
 // The two cases are opposite; do not apply one rule to the other.
 //
-// focusOnOpen: pass true on the FIRST heading of a screen that is its own
-// Activity, i.e. its own window. It makes the screen reader land on the screen's
-// name when the window opens, instead of leaving that to the reader's own
-// initial-focus heuristic -- which is NOT the same on every device. On a Pixel
-// the heading is where focus lands; on the owner's Xiaomi it is not, so the
-// screen's name was never spoken and swiping forward never came back to it,
-// while every LATER heading on the same screen was reached normally. The
-// heading node and its heading() semantic were correct all along; only where
-// the reader chose to start differed.
+// THE SCREEN'S NAME IS SPOKEN ONCE, and `focusOnOpen` is why it used to be
+// spoken twice (owner, 2026-09-04: "settings wali activity open karun to Mode
+// settings double double announce kyon ho raha hai").
 //
-// Why focusable() is what does it, read from androidx rather than assumed.
-// AndroidComposeViewAccessibilityDelegateCompat sets info.isFocusable ONLY when
-// the node carries SemanticsProperties.Focused, and it watches that property:
+// It gave the first heading of a stand-alone screen `Modifier.focusRequester()
+// .focusable()` and requested Compose input focus in a LaunchedEffect. That
+// works -- the delegate sends TYPE_VIEW_FOCUSED when SemanticsProperties.Focused
+// turns true, which is the event every reader follows -- and that is exactly the
+// problem: a screen reader has ALREADY placed its initial focus on the first
+// element of a new window, which is this same heading. So the heading was read
+// once by the reader's own initial focus and again by ours, a frame later.
 //
-//     SemanticsProperties.Focused -> {
-//         val virtualId = semanticsNodeIdToAccessibilityVirtualNodeId(newNode.id)
-//         if (value as Boolean) {
-//             focusedVirtualViewId = virtualId
-//             sendEvent(createEvent(virtualId, AccessibilityEvent.TYPE_VIEW_FOCUSED))
+// It was added on 2026-09-03 for a symptom that turned out to be something else
+// entirely: the heading was drawn UNDERNEATH the status bar, because the app
+// was edge-to-edge from targetSdk 35 and consumed no insets. That is fixed in
+// EasyVoiceTheme, with `windowInsetsPadding(WindowInsets.safeDrawing)`, so the
+// heading is on screen and reachable on every device and there is nothing left
+// for a focus request to rescue. Removing it also takes the heading back out of
+// keyboard and Switch Access focus order, where it never belonged.
 //
-// TYPE_VIEW_FOCUSED is the standard event every screen reader follows to move
-// its own focus, so taking Compose input focus is the supported bridge and it
-// does not depend on any OEM's heuristic. Modifier.focusable() is what puts
-// Focused (and RequestFocus) on the node; focusRequester is how we ask for it.
-//
-// The cost, stated rather than hidden: the heading also joins keyboard and
-// Switch Access focus order, one extra stop per screen at the very top. That is
-// the screen's own name, so it is a reasonable first stop.
-//
-// requestFocus() throws IllegalStateException by contract when no focusable
-// node is attached to the requester; the catch is that contract, not caution.
+// DO NOT put it back without a report that the heading is genuinely unreachable
+// again, and check the insets first.
 @Composable
-fun SectionHeader(title: String, focusOnOpen: Boolean = false) {
-    val requester = remember { FocusRequester() }
-    if (focusOnOpen) {
-        LaunchedEffect(Unit) {
-            try { requester.requestFocus() } catch (_: IllegalStateException) { }
-        }
-    }
+fun SectionHeader(title: String) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
@@ -133,7 +114,6 @@ fun SectionHeader(title: String, focusOnOpen: Boolean = false) {
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier
                 .padding(horizontal = 8.dp, vertical = 8.dp)
-                .then(if (focusOnOpen) Modifier.focusRequester(requester).focusable() else Modifier)
                 .semantics { heading() }
         )
     }
@@ -147,13 +127,20 @@ private fun LanguageCheckRow(label: String, checked: Boolean, position: Int, onT
         leadingContent = { Checkbox(checked = checked, onCheckedChange = null) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier
+            // `toggleable` keeps the touch; evControl states the row on the
+            // focused node so the Checkbox role is not left on a fake child, and
+            // it is FIRST because the configuration is built tailToHead and a
+            // clearing node resets it. The collection position is declared by
+            // hand because the section headings are `item {}` entries and a
+            // LazyColumn counts everything it holds.
+            .evControl(
+                label,
+                Role.Checkbox,
+                toggle = if (checked) ToggleableState.On else ToggleableState.Off,
+                listItem = CollectionItemInfo(position, 1, 0, 1),
+                action = { onToggle(!checked) }
+            )
             .toggleable(value = checked, role = Role.Checkbox, onValueChange = onToggle)
-            .semantics {
-                contentDescription = label
-                // Declared by hand because the section headings below are
-                // `item {}` entries and a LazyColumn counts everything it holds.
-                collectionItemInfo = CollectionItemInfo(position, 1, 0, 1)
-            }
     )
 }
 @Composable
@@ -163,7 +150,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
     if (readingMode == "none" || readingMode == "dual") {
         ResponsiveContent {
             Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader("Languages", focusOnOpen = true)
+                SectionHeader("Languages")
                 Text(
                     text = "Dual languages mode does not use this list.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -261,7 +248,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                     .heightIn(max = if (evIsCompactHeight()) 140.dp else 280.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-            SectionHeader("Languages", focusOnOpen = true)
+            SectionHeader("Languages")
             Text(
                 text = "Pick the languages you use. The list only shows what your installed engines can speak, so install another engine if the one you want is missing.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -271,16 +258,19 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
+                EvButton(
+                    "Select all",
+                    Modifier.weight(1f),
                     onClick = {
                         for (index in visibleIdx) if (index < checked.size) checked[index] = true
                         var enableIdx = 0
                         while (enableIdx < LangStore.languages.size) { LangStore.languages[enableIdx].disabled = false; enableIdx++ }
                         LangStore.persistDisabled(context)
-                    },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Select all" }
-                ) { Text("Select all", modifier = Modifier.clearAndSetSemantics { }) }
-                Button(
+                    }
+                )
+                EvButton(
+                    "Clear all",
+                    Modifier.weight(1f),
                     onClick = {
                         for (index in visibleIdx) if (index < checked.size) checked[index] = false
                         var disableIdx = 0
@@ -297,9 +287,8 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                             if (index < checked.size) checked[index] = true
                         }
                         LangStore.persistDisabled(context)
-                    },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Clear all" }
-                ) { Text("Clear all", modifier = Modifier.clearAndSetSemantics { }) }
+                    }
+                )
                 // This one FILTERS the list, it does not perform an action.
                 // Material: "Filter chips use tags or descriptive words to
                 // filter content... a good alternative to toggle buttons or
@@ -326,7 +315,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                 FilterChip(
                     selected = showSelectedOnly,
                     onClick = { showSelectedOnly = !showSelectedOnly },
-                    label = { Text("My languages", modifier = Modifier.clearAndSetSemantics { }) },
+                    label = { Text("My languages") },
                     leadingIcon = {
                         if (showSelectedOnly) {
                             Icon(
@@ -336,7 +325,16 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                             )
                         }
                     },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "My languages" }
+                    // Role.Checkbox is what FilterChip itself sets; `isSelected`
+                    // is what makes the delegate say "Selected"/"Not selected"
+                    // from its own string resources, and it is why the label is
+                    // allowed to stay free of a state word.
+                    modifier = Modifier.weight(1f).evControl(
+                        "My languages",
+                        Role.Checkbox,
+                        isSelected = showSelectedOnly,
+                        action = { showSelectedOnly = !showSelectedOnly }
+                    )
                 )
             }
             OutlinedTextField(

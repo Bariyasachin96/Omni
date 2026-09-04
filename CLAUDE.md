@@ -1702,6 +1702,159 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## THE REAL FIX FOR ROLES IS SHIPPED: evControl (owner, 2026-09-04)
+*"Jo asali hal hai vah complete kar hi do."* Done. The shape written up the day
+before as "the owner's call" is now the app's only way of describing a control,
+and the two things that had been bolted on instead -- `accessibilityClassName`
+and a hand-repeated `contentDescription` at every call site -- are gone.
+
+**`Modifier.evControl(name, role, enabled, state, toggle, isSelected, listItem,
+action)`** in `ComposeTheme.kt`. It is `clearAndSetSemantics` with the control's
+whole accessible identity declared inside it, and that single step closes the
+gap the owner has reported twice:
+
+    if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty()) {
+        if (role == Role.Tab)         info.roleDescription = "Tab"
+        else if (role == Role.Switch) info.roleDescription = "Switch"
+        else                          info.className = role.toLegacyClassName()
+    }
+
+A cleared node has **no** `replacedChildren` -- that is the documented contract
+of the property ("node marked as clearAndSetSemantics will not have children",
+`SemanticsNode.kt`) -- so the gate PASSES and the role lands on the real,
+focused node. `emitFakeNodes` cannot fire either: it is guarded by
+`unmergedConfig.isMergingSemanticsOfDescendants`, and a cleared config does not
+merge. **One node carries the role, so the "button button" doubling of
+2026-09-03 is now structurally impossible**, not merely avoided by discipline.
+
+**ORDER IS LOAD-BEARING, and it is the one way to get this wrong.**
+`LayoutNode.calculateSemanticsConfiguration` walks `nodes.tailToHead` and a
+clearing node does `config = SemanticsConfiguration()` -- a RESET of everything
+collected so far. So the clearing modifier wins only if it is visited LAST,
+which means it must be the **head-most** semantics node, i.e. **first in the
+chain we write**. Two shapes follow from that and both are in the code:
+- passed as a component's `modifier` (`EvButton`, `Tab`, `FilterChip`,
+  `ExtendedFloatingActionButton`, `DropdownMenuItem`) it is already head-ward of
+  everything the component appends, so `modifier.evControl(...)` is correct;
+- chained with one of OUR own semantics modifiers (`toggleable`, `selectable`,
+  `menuAnchor`) it must come FIRST: `Modifier.evControl(...).toggleable(...)`.
+  Written the other way round the component's own semantics are applied on top
+  of the reset and the fake child is back.
+
+**Why it is safe, and this is the part that had to be right.**
+`clearAndSetSemantics` touches SEMANTICS ONLY: the component's `clickable` /
+`toggleable` pointer input is untouched, so a finger still activates the real
+Material control with its ripple and its state. For a screen reader the
+activation path is `ACTION_CLICK`, and `action` is what declares it --
+`onClick { action(); true }` puts `SemanticsActions.OnClick` in the cleared
+config and the delegate turns that into `info.addAction(ACTION_CLICK)`. **The
+old bug this file warned about was `onClick(label, action = null)`** -- a label
+with no action, which replaced the real one with nothing and once made the
+Configuration rows unopenable. `action` is a parameter here, so that shape
+cannot be written by accident.
+
+**State stays the library's**, never a string we invent: `toggle` +
+`Role.Switch` makes the delegate say "On"/"Off" from its own
+`R.string.state_on`/`state_off`; `isSelected` on anything that is not a Tab
+makes it say "Selected"/"Not selected"; and a **selected** Tab or RadioButton is
+deliberately left un-clickable, because the delegate drops ACTION_CLICK for
+exactly those two roles when selected. `enabled = false` adds `disabled()`,
+which is what `semanticsNode.enabled()` reads before it will add the click
+action at all.
+
+**`EvButton` is now the only button in the app.** One Material3
+`Button`/`OutlinedButton`, one place that decides the accessible name, the role,
+the disabled state and the leading icon -- which is what the owner asked for
+("us type ke buttons laga dene chahie taki har screen reader achhe se read
+kare"). Eleven call sites that each repeated `.semantics { contentDescription =
+... }` and silenced their own label with `clearAndSetSemantics` are gone.
+`outlined = true` is the Material emphasis ladder, so a two-action row states
+which action it is for: Apply filled / Cancel outlined, Next filled / Previous
+outlined, Test filled / Default outlined.
+
+**THE TAB ROLE IS FIXED TOO, which the class-name approach could never do.**
+`Role.Tab` has no legacy class name at all -- the delegate answers it with
+`roleDescription` -- so there was nothing for `accessibilityClassName` to carry,
+and `android.app.ActionBar$Tab` was tried on device and not recognised. Clearing
+the node is what opens the gate, and then the LIBRARY writes its own "Tab" onto
+the node in focus. `isSelected` comes with it, so a reader also says which tab
+is current.
+
+**What is deliberately NOT wrapped, because the library already puts it on the
+focused node:**
+- **`IconButton`** -- `Icon(contentDescription = null)` adds no semantics
+  modifier at all, so the button has no semantics children, the gate passes by
+  itself and `info.className = "android.widget.Button"` is already right;
+- **`Slider`** -- `info.className = "android.widget.SeekBar"` is set from
+  `ProgressBarRangeInfo` with **no gate**, and `ValueSlider`'s `setProgress` is
+  what makes a screen-reader swipe move exactly 5. Wrapping it would cost that.
+
+## The dropdown opens at the language you already chose (owner, 2026-09-04)
+*"AutoTTS mein preferred languages ka jo dropdown list hai ... jab dropdown list
+open karte hain to jo language select kari hui hai vahan se hi shuru hota hai.
+Hamare mein aisa nahin hai, pahle language se hi aa jata hai."*
+
+Correct, and on a 137-language menu it means scrolling past everything to find
+out what is set, every single time. `ExposedDropdownMenu` takes a `scrollState`
+(checked in the pinned material3 `api/1.4.0-beta01.txt`), so `LabeledDropdown`
+holds one and scrolls it to the selected row when the menu opens.
+
+**The offset is MEASURED, not computed.** A language label can wrap to two
+lines, so counting a fixed row height would drift further wrong the further down
+the list the answer is. `Modifier.onGloballyPositioned` on the selected row
+reports where it really is, and `positionInParent()` is taken inside the content
+`Column`, so it does not move when the menu scrolls and there is no feedback
+loop.
+
+**No delay and no frame-counting**, which matters because the owner has banned
+timing constants twice. Layout has not happened when the menu first composes, so
+the effect is keyed on the measurement as well as on `expanded`: the position
+arrives a frame later, the key changes, and the scroll runs then.
+
+## The screen no longer introduces itself twice (owner, 2026-09-04)
+*"Jo bhi activity ham open karte hain ... pahle announce karta hai ... Mode
+settings double double announce kyon ho raha hai."* Two separate causes, both
+ours, both removed.
+
+**1. `focusOnOpen` was reading the heading a second time.** It gave the first
+heading of a stand-alone screen `Modifier.focusRequester().focusable()` and
+requested Compose input focus in a `LaunchedEffect`. That works -- the delegate
+sends `TYPE_VIEW_FOCUSED` when `SemanticsProperties.Focused` turns true, which
+is the event every reader follows -- and **that is exactly the problem**: a
+screen reader has already placed its initial focus on the first element of a new
+window, which is that same heading. So it was read once by the reader's own
+initial focus and again by ours, a frame later.
+
+It was added on 2026-09-03 for a symptom that turned out to be something else
+entirely: the heading was drawn UNDERNEATH the status bar, because the app went
+edge-to-edge at targetSdk 35 and consumed no insets. That is fixed in
+`EasyVoiceTheme` with `windowInsetsPadding(WindowInsets.safeDrawing)`, so there
+is nothing left for a focus request to rescue. Removing it also takes the
+heading back out of keyboard and Switch Access focus order, where it never
+belonged. **Do not put it back without a report that the heading is genuinely
+unreachable again, and check the insets first.**
+
+**2. A SECOND window title was being set during startup.**
+`ModeSettingsActivity` called `setTitle(spec.second)` in `onCreate` and
+`VoiceSetupActivity` called `applyTitle()` there too. The window already has a
+title from the manifest, and a screen reader speaks a window's title when the
+window appears -- so changing it during startup fired another
+window-state-changed event and the screen introduced itself twice, with two
+different names. Both entry calls are gone. Nothing is lost: the specific name
+is the screen's first heading, "<Mode> settings" and "<language> voices", which
+is where the reader lands.
+
+**`VoiceSetupActivity.applyTitle()` STAYS for Previous/Next**, and only there.
+On that path the window is not changing, so nothing else would say which
+language you have moved to and this is the whole announcement.
+
+**One thing is left and it is the owner's wording call, not a defect I can
+settle alone:** on the Languages and About screens the manifest label and the
+first heading are the same word ("Languages", "About"), so the window
+announcement and the heading still say it twice. Making them differ means
+changing either a visible heading or the name the screen shows in the recents
+list, and both are wording the owner has chosen before.
+
 ## "Pop-Up Window" was ANDROIDX'S OWN STRING, not our code (owner, 2026-09-04)
 *"drop down list open karne ke bad expand to announce karta hai TalkBack, but
 saath saath mein pop up window bhi announce kar raha hai. Vah kyon kar raha hai?

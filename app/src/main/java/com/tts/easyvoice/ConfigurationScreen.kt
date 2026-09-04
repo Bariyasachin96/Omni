@@ -76,8 +76,8 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                     // by everyone and gets its own focus stop.
                     var menuOpen by remember { mutableStateOf(false) }
                     ListItem(
-                        headlineContent = { Text(labels[index], modifier = Modifier.clearAndSetSemantics { }) },
-                        supportingContent = { Text(status, modifier = Modifier.clearAndSetSemantics { }) },
+                        headlineContent = { Text(labels[index]) },
+                        supportingContent = { Text(status) },
                         trailingContent = {
                             Box {
                                 IconButton(
@@ -90,62 +90,70 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                 }
                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                     DropdownMenuItem(
-                                        text = { Text("Delete configuration", modifier = Modifier.clearAndSetSemantics { }) },
+                                        text = { Text("Delete configuration") },
                                         onClick = { menuOpen = false; onDeleteConfiguration(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Delete configuration" }
+                                        modifier = Modifier.evControl(
+                                            "Delete configuration",
+                                            listItem = CollectionItemInfo(0, 1, 0, 1),
+                                            action = { menuOpen = false; onDeleteConfiguration(index) }
+                                        )
                                     )
                                     DropdownMenuItem(
-                                        text = { Text("Disable language", modifier = Modifier.clearAndSetSemantics { }) },
+                                        text = { Text("Disable language") },
                                         onClick = { menuOpen = false; onDisable(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Disable language" }
+                                        modifier = Modifier.evControl(
+                                            "Disable language",
+                                            listItem = CollectionItemInfo(1, 1, 0, 1),
+                                            action = { menuOpen = false; onDisable(index) }
+                                        )
                                     )
                                 }
                             }
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        // One node, so a screen reader says the language and its
+                        // status together in a single swipe.
+                        //
+                        // THIS ROW IS A LIST ITEM AND IS ANNOUNCED AS ONE, not as a
+                        // button (owner, 2026-09-03: "language list items ...
+                        // announced specifically as list items, not buttons"). It
+                        // used to carry `accessibilityClassName =
+                        // "android.widget.Button"`, added the day before so that a
+                        // reader other than TalkBack would say something about the
+                        // control at all. It did say something, and the something
+                        // was wrong: this is one entry in a list of languages, and
+                        // the only reason it was a button is that a class name was
+                        // the tool I had in my hand.
+                        //
+                        // What a list row is announced by is its place in a
+                        // collection, not a widget class. The LazyColumn above
+                        // already publishes `collectionInfo` for itself
+                        // (LazyLayoutSemanticState: `CollectionInfo(rowCount =
+                        // totalItemsCount, columnCount = 1)`), which is what makes
+                        // it a list; what was missing is the per-row half, because
+                        // Compose sets `collectionItemInfo` on NO lazy item by
+                        // itself. evControl carries NO role on purpose -- a role
+                        // here would make Compose emit a fake role child and the
+                        // row would be called a button again by the back door --
+                        // and because the node is cleared, the name and the
+                        // position land on the FOCUSED node instead of on a fake
+                        // child a reader may never walk.
+                        //
+                        // `clickable` stays for the touch and keeps its
+                        // onClickLabel; evControl is FIRST because the
+                        // configuration is built tailToHead and a clearing node
+                        // resets it.
+                        //
+                        // The Languages screen's checkbox rows are written the same
+                        // way (`LanguageCheckRow`), so both language lists in the
+                        // app now describe themselves identically.
                         modifier = Modifier
+                            .evControl(
+                                labels[index] + ", " + status,
+                                listItem = CollectionItemInfo(index, 1, 0, 1),
+                                action = { onLanguage(index) }
+                            )
                             .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
-                            // One node, so a screen reader says the language and
-                            // its status together in a single swipe.
-                            //
-                            // THIS ROW IS A LIST ITEM AND IS ANNOUNCED AS ONE, not
-                            // as a button (owner, 2026-09-03: "language list items
-                            // ... announced specifically as list items, not
-                            // buttons"). It used to carry
-                            // `accessibilityClassName = "android.widget.Button"`,
-                            // added the day before so that a reader other than
-                            // TalkBack would say something about the control at
-                            // all. It did say something, and the something was
-                            // wrong: this is one entry in a list of languages, and
-                            // the only reason it was a button was that a button was
-                            // the class name I had to hand.
-                            //
-                            // What a list row is announced by is its place in a
-                            // collection, not a widget class. The LazyColumn above
-                            // already publishes `collectionInfo` for itself
-                            // (LazyLayoutSemanticState:
-                            // `CollectionInfo(rowCount = totalItemsCount,
-                            // columnCount = 1)`), which is what makes it a list;
-                            // what was missing is the per row half, because Compose
-                            // sets `collectionItemInfo` on NO lazy item by itself.
-                            // With both present the platform reports a list and the
-                            // row's index within it, so a reader says the language,
-                            // its engine and "item N of M" -- and it reaches the
-                            // FOCUSED node, so it does not depend on a service
-                            // walking Compose's fake children.
-                            //
-                            // `Modifier.clickable(onClickLabel = ...)` deliberately
-                            // still leaves `role` null. A Role here would make
-                            // Compose emit a fake role child and the row would be
-                            // called a button again by the back door.
-                            //
-                            // The Languages screen's checkbox rows are written the
-                            // same way (`LanguageCheckRow`), so both language lists
-                            // in the app now describe themselves identically.
-                            .semantics {
-                                contentDescription = labels[index] + ", " + status
-                                collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
-                            }
                     )
                 }
             }

@@ -24,7 +24,9 @@ class VoiceSetupActivity : EvActivity() {
         // Rebuilds LangStore.languages, which is what lang_index indexes, and
         // its size is the list Configuration shows -- the same list to walk.
         total = voiceLanguageLabels(this, modeInt).size
-        applyTitle()
+        // applyTitle() is deliberately NOT called here. See its comment: on
+        // entry the window already announces the manifest title, and setting a
+        // second one during startup meant the screen introduced itself twice.
         setContent {
             EasyVoiceTheme {
                 // key() throws away the whole subtree when the language changes.
@@ -55,6 +57,12 @@ class VoiceSetupActivity : EvActivity() {
     // setTitle fires a window-state-changed event, which is what announces the
     // language you just moved to. See the CLAUDE.md note on why this is used
     // rather than setAccessibilityPaneTitle.
+    //
+    // ONLY FROM Previous/Next, never on entry. There the window is not changing,
+    // so nothing else would say which language you have moved to and this is the
+    // whole announcement. On entry the window's own title is already spoken, and
+    // adding one during onCreate is what made every screen introduce itself
+    // twice.
     private fun applyTitle() {
         val entry = LangStore.languages.getOrNull(langIndex)
         if (entry != null) setTitle(entry.displayName + " (" + entry.iso3 + ")")

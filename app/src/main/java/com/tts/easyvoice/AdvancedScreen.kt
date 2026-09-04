@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.core.content.ContextCompat
@@ -47,14 +43,33 @@ fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onCh
         headlineContent = { Text(label, modifier = Modifier.clearAndSetSemantics { }) },
         trailingContent = { Switch(checked = checked, enabled = enabled, onCheckedChange = null) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        // `toggleable` still owns the touch: it is what makes a finger
+        // anywhere on the row flip the switch, and it keeps Material's own
+        // minimum target. `evControl` then states the row's whole accessible
+        // identity on the focused node -- name, Switch role, on/off, and the
+        // activation action a screen reader uses -- so the role no longer lives
+        // only on a fake child. Passing the SAME `onChange(!checked)` means both
+        // routes do exactly one thing.
+        // ORDER IS LOAD-BEARING: evControl comes FIRST. Compose builds the node
+        // configuration with `nodes.tailToHead`, and a clearing node RESETS what
+        // has been collected so far, so the clearing modifier only wins if it is
+        // the LAST one visited -- which is the one nearest the HEAD, i.e. first
+        // in the chain we write. Written the other way round, `toggleable` would
+        // be applied on top of the reset and the fake role child would be back.
         modifier = Modifier
+            .evControl(
+                label,
+                Role.Switch,
+                enabled = enabled,
+                toggle = if (checked) ToggleableState.On else ToggleableState.Off,
+                action = { onChange(!checked) }
+            )
             .toggleable(
                 value = checked,
                 enabled = enabled,
                 role = Role.Switch,
                 onValueChange = onChange
             )
-            .semantics { contentDescription = label }
     )
 }
 
@@ -68,18 +83,17 @@ fun SettingDescription(text: String) {
     )
 }
 
+// A full-width EvButton. Kept as its own name because the Advanced tab's
+// sections read as a column of full-width actions and the width is part of that
+// layout, not of the button.
 @Composable
 fun ActionButton(label: String, iconRes: Int, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .semantics { contentDescription = label }
-    ) {
-        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-        Text(label, modifier = Modifier.clearAndSetSemantics { })
-    }
+    EvButton(
+        label = label,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        iconRes = iconRes,
+        onClick = onClick
+    )
 }
 
 @Composable
@@ -212,14 +226,11 @@ fun AdvancedScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = { launchImportPicker() },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Import" }
-                ) {
-                    Icon(painterResource(R.drawable.ic_file_download), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Import", modifier = Modifier.clearAndSetSemantics { })
-                }
-                Button(
+                EvButton("Import", Modifier.weight(1f), R.drawable.ic_file_download) { launchImportPicker() }
+                EvButton(
+                    "Export",
+                    Modifier.weight(1f),
+                    R.drawable.ic_file_upload,
                     onClick = {
                         if (!prefs.settingsXmlFile().exists()) {
                             Toast.makeText(context, "Settings file not found", Toast.LENGTH_SHORT).show()
@@ -248,12 +259,8 @@ fun AdvancedScreen(
                                 )
                             }
                         }
-                    },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Export" }
-                ) {
-                    Icon(painterResource(R.drawable.ic_file_upload), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Export", modifier = Modifier.clearAndSetSemantics { })
-                }
+                    }
+                )
             }
             SettingDescription("Importing only checks that the engines you need are installed. You still have to make sure the individual voices are there.")
 
@@ -268,7 +275,10 @@ fun AdvancedScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
+                EvButton(
+                    "Share logs",
+                    Modifier.weight(1f),
+                    R.drawable.ic_share,
                     onClick = {
                         val logFile = EasyVoiceLogger.shareFileOrNull()
                         if (logFile == null) {
@@ -289,19 +299,9 @@ fun AdvancedScreen(
                             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(chooser)
                         }
-                    },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Share logs" }
-                ) {
-                    Icon(painterResource(R.drawable.ic_share), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Share logs", modifier = Modifier.clearAndSetSemantics { })
-                }
-                Button(
-                    onClick = { EasyVoiceLogger.clear() },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Clear logs" }
-                ) {
-                    Icon(painterResource(R.drawable.ic_delete), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Clear logs", modifier = Modifier.clearAndSetSemantics { })
-                }
+                    }
+                )
+                EvButton("Clear logs", Modifier.weight(1f), R.drawable.ic_delete) { EasyVoiceLogger.clear() }
             }
         }
     }

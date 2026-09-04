@@ -8,8 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -22,7 +20,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -96,7 +93,23 @@ fun ModesScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        // `selectable` keeps the touch and the exclusive group;
+                        // evControl states the row on the focused node so a
+                        // reader that does not walk Compose's fake children still
+                        // hears "radio button, selected". It is FIRST because the
+                        // configuration is built tailToHead and a clearing node
+                        // resets it, so only the head-most one survives.
                         modifier = Modifier
+                            .evControl(
+                                spec.second,
+                                Role.RadioButton,
+                                isSelected = mode == selectedMode,
+                                action = {
+                                    selectedMode = mode
+                                    prefs.setReadingMode(mode)
+                                    rebuildLanguagesFor(context, modeIntOf(mode))
+                                }
+                            )
                             .weight(1f)
                             .selectable(
                                 selected = mode == selectedMode,
@@ -107,8 +120,7 @@ fun ModesScreen(
                                     rebuildLanguagesFor(context, modeIntOf(mode))
                                 }
                             )
-                            .padding(horizontal = 8.dp, vertical = 12.dp)
-                            .semantics { contentDescription = spec.second },
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(selected = mode == selectedMode, onClick = null)
@@ -119,14 +131,7 @@ fun ModesScreen(
                         )
                     }
                     if (mode == selectedMode) {
-                        Button(
-                            onClick = { onOpenModeSettings(mode) },
-                            modifier = Modifier.semantics { contentDescription = "Settings" }
-                        ) {
-                            Icon(painterResource(R.drawable.ic_settings), contentDescription = null,
-                                modifier = Modifier.padding(end = 8.dp))
-                            Text("Settings", modifier = Modifier.clearAndSetSemantics { })
-                        }
+                        EvButton("Settings", iconRes = R.drawable.ic_settings) { onOpenModeSettings(mode) }
                     }
                 }
                 Text(
@@ -194,14 +199,19 @@ private fun LabeledRadioGroup(
         for (index in options.indices) {
             Row(
                 modifier = Modifier
+                    .evControl(
+                        options[index],
+                        Role.RadioButton,
+                        isSelected = index == selectedIndex,
+                        action = { onSelect(index) }
+                    )
                     .fillMaxWidth()
                     .selectable(
                         selected = index == selectedIndex,
                         role = Role.RadioButton,
                         onClick = { onSelect(index) }
                     )
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .semantics { contentDescription = options[index] },
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(selected = index == selectedIndex, onClick = null)
@@ -288,7 +298,7 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            SectionHeader(if (modeTitle == null) "Mode settings" else modeTitle + " settings", focusOnOpen = true)
+            SectionHeader(if (modeTitle == null) "Mode settings" else modeTitle + " settings")
             if (mode == "auto" || mode == "google") {
                 LanguageChoice("Select preferred language:", codes, labels,
                     EasyVoiceTtsService.autoLang) { EasyVoiceTtsService.autoLang = it }

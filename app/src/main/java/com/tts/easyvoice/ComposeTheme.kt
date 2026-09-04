@@ -8,7 +8,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.darkColorScheme
@@ -18,6 +23,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.CollectionItemInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.collectionItemInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
@@ -218,6 +236,98 @@ fun animationsEnabled(): Boolean {
 }
 
 // ==========================================================================
+//  evControl: THE ROLE ON THE FOCUSED NODE ITSELF, FOR EVERY SCREEN READER
+//
+//  Owner, 2026-09-03 and again on 2026-09-04 ("jo asali hal hai vah complete kar
+//  hi do"): TalkBack says "button" and "tab", their other reader says only the
+//  label. This modifier is the fix, and it is one line at each control instead
+//  of a class name bolted on beside a role that is already there.
+//
+//  WHY THE ROLE WAS NOT REACHING THEM. The delegate writes a role only under
+//
+//      if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty())
+//          if (role == Role.Tab)    info.roleDescription = "Tab"
+//          else if (role == Switch) info.roleDescription = "Switch"
+//          else                     info.className = role.toLegacyClassName()
+//
+//  and a Material control with a text label always has a semantics child, so it
+//  fails that gate. Its role goes instead to a FAKE ROLE CHILD that Compose
+//  emits (`SemanticsNode.emitFakeNodes`) and hands to the service as a separate
+//  virtual node. TalkBack walks those children. A reader that reads only the
+//  focused node finds nothing, which is exactly what the owner reported.
+//
+//  WHAT THIS DOES, and every step of it is the library's own behaviour:
+//    * `clearAndSetSemantics` makes this node's configuration exactly what we
+//      declare. `replacedChildren` is then EMPTY for it -- that is the documented
+//      contract of the property: "node marked as clearAndSetSemantics will not
+//      have children" (SemanticsNode.kt) -- so the gate above PASSES and the role
+//      lands on the real, focused node.
+//    * `emitFakeNodes` cannot fire either: it is guarded by
+//      `unmergedConfig.isMergingSemanticsOfDescendants`, and a cleared config
+//      does not merge. So there is exactly ONE node carrying the role, and the
+//      "button button" doubling of 2026-09-03 is structurally impossible here.
+//    * the label goes on as `contentDescription`, which the delegate assigns
+//      whenever the node does not merge descendants -- so the inner Text is no
+//      longer read a second time and no longer needs silencing.
+//
+//  WHY IT IS SAFE, stated because getting it wrong leaves a blind user unable to
+//  press anything, and that is the exact failure this file has already caused
+//  once:
+//    * `clearAndSetSemantics` touches SEMANTICS ONLY. The component's own
+//      `clickable` pointer input is untouched, so a finger on the screen still
+//      activates the real Material control, with its ripple and its state.
+//    * for a screen reader the activation path is `ACTION_CLICK`, and we declare
+//      it here: `onClick { action(); true }` puts `SemanticsActions.OnClick` in
+//      the cleared configuration and the delegate turns that into
+//      `info.addAction(ACTION_CLICK)`. The old bug this file warns about was
+//      declaring `onClick(label, action = null)` -- a LABEL with no action, which
+//      replaced the real action with nothing. `action` is required here for
+//      anything the user can press, so that shape cannot be written by accident.
+//    * `enabled = false` adds `disabled()`, which is what the delegate's
+//      `semanticsNode.enabled()` test reads before it will add the click action
+//      at all. Without it a greyed-out control would still offer activation.
+//
+//  STATE IS THE LIBRARY'S TOO, not a string we invent:
+//    * `toggle` + `Role.Switch` makes the delegate say "On"/"Off" from its own
+//      `R.string.state_on` / `state_off`;
+//    * `isSelected` on anything that is not a Tab makes it say
+//      "Selected"/"Not selected" from `R.string.selected` / `not_selected`;
+//    * a selected Tab or RadioButton is deliberately NOT clickable -- the
+//      delegate drops ACTION_CLICK for exactly those two roles when selected,
+//      because a chosen tab cannot be chosen again. That happens on its own.
+//
+//  WHAT IT IS NOT FOR: anything whose semantics the library already puts on the
+//  focused node without help. An `IconButton` is the clearest case -- its
+//  `Icon(contentDescription = null)` adds NO semantics modifier, so the button
+//  has no semantics children, the gate passes by itself and the class name is
+//  already right. A `Slider` is another: `info.className = "android.widget.
+//  SeekBar"` is set from ProgressBarRangeInfo with no gate at all. Do not wrap
+//  those; there is nothing to gain and a state to lose.
+fun Modifier.evControl(
+    name: String,
+    controlRole: Role? = null,
+    enabled: Boolean = true,
+    state: String? = null,
+    toggle: ToggleableState? = null,
+    isSelected: Boolean? = null,
+    listItem: CollectionItemInfo? = null,
+    action: (() -> Unit)? = null,
+): Modifier = this.clearAndSetSemantics {
+    contentDescription = name
+    // Null for a control the library gives no Role of its own -- a dropdown menu
+    // item is the case here. It still gets the name, the position in the list
+    // and the click action on the focused node; it simply has no role to state,
+    // and inventing one would be a class name bolted on again.
+    if (controlRole != null) role = controlRole
+    if (!enabled) disabled()
+    if (state != null) stateDescription = state
+    if (toggle != null) toggleableState = toggle
+    if (isSelected != null) selected = isSelected
+    if (listItem != null) collectionItemInfo = listItem
+    if (action != null) onClick { action(); true }
+}
+
+// ==========================================================================
 //  THE ROLE AND THE NON-TALKBACK READER: THE RECORD, NOW THAT THE APP CARRIES
 //  NO CLASS NAME OF ITS OWN
 //
@@ -280,3 +390,60 @@ fun animationsEnabled(): Boolean {
 //     user cannot press anything. That is the owner's call to make, not a change
 //     to slip in.
 // ==========================================================================
+
+// ==========================================================================
+//  EvButton: ONE button type, used everywhere there is a button
+//
+//  Owner, 2026-09-04: "jo action button diye gaye hain ... vah sahi tarike se
+//  jo bhi screen reader agar main use kar raha hun, vah achhe se read kar rahe
+//  hain ... yah jo button wale system hai jahan par bhi buttons hai to us type
+//  ke buttons laga dene chahie taki har screen reader achhe se read kare."
+//
+//  So there is now exactly one of them. Every button in the app goes through
+//  this function, which means the accessible name, the role, the disabled state
+//  and the icon placement are decided in ONE place and cannot drift apart
+//  screen by screen -- which is what had happened: eleven call sites each
+//  repeating `.semantics { contentDescription = ... }` and each silencing its
+//  own label with `clearAndSetSemantics`.
+//
+//  It is a Material3 `Button` or `OutlinedButton` and nothing else; the only
+//  thing added is `evControl`, which is what puts the role on the focused node
+//  for a reader that does not walk Compose's fake children. See evControl above
+//  for why that is safe and what it does NOT apply to.
+//
+//  `outlined = true` is the Material emphasis ladder, not decoration: the spec
+//  orders the styles elevated > filled > filled tonal > outlined > text, so a
+//  screen with two actions uses filled for the one it wants pressed and
+//  outlined for the other. `iconRes` is placed LEADING and through the icon
+//  slot, which is where the spec puts it ("They should be placed on the leading
+//  side of the button, before the label text"), and it carries no description
+//  of its own because the label beside it already names the action.
+@Composable
+fun EvButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    iconRes: Int = 0,
+    enabled: Boolean = true,
+    outlined: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val described = modifier.evControl(label, Role.Button, enabled = enabled, action = onClick)
+    val body: @Composable RowScope.() -> Unit = {
+        if (iconRes != 0) {
+            Icon(
+                painterResource(iconRes),
+                contentDescription = null,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+        // No `clearAndSetSemantics` here any more, and that is the point: the
+        // button's own configuration is cleared, so this Text is already out of
+        // the accessibility tree and cannot be read a second time.
+        Text(label)
+    }
+    if (outlined) {
+        OutlinedButton(onClick = onClick, modifier = described, enabled = enabled, content = body)
+    } else {
+        Button(onClick = onClick, modifier = described, enabled = enabled, content = body)
+    }
+}

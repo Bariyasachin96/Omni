@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -19,15 +18,19 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
@@ -138,6 +141,10 @@ fun LabeledDropdown(
         //   * contentDescription, because this node merges its children and
         //     therefore carries no name of its own (INVARIANTS #7);
         //   * stateDescription, so expanded/collapsed is still spoken.
+        // Held here rather than inside the menu so the measured position
+        // survives the menu closing and reopening.
+        val menuScroll = rememberScrollState()
+        var selectedTop by remember(options, selectedIndex) { mutableStateOf(-1) }
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { wanted: Boolean -> if (enabled) expanded = wanted },
@@ -146,21 +153,55 @@ fun LabeledDropdown(
             OutlinedButton(
                 onClick = { },
                 enabled = enabled,
+                // evControl FIRST: `menuAnchor` carries semantics of its own
+                // (Modifier.expandable sets role and an onClick), and the
+                // configuration is built tailToHead, so only the head-most
+                // clearing node survives. menuAnchor still sits before
+                // fillMaxWidth, which is what decides the anchor's measured
+                // width, so the layout is untouched.
                 modifier = Modifier
+                    .evControl(
+                        labelName + ", " + selectedText,
+                        Role.DropdownList,
+                        enabled = enabled,
+                        state = if (expanded) "Expanded" else "Collapsed",
+                        action = { expanded = !expanded }
+                    )
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
                     .fillMaxWidth()
-                    .semantics {
-                        contentDescription = labelName + ", " + selectedText
-                        stateDescription = if (expanded) "Expanded" else "Collapsed"
-                    }
             ) {
-                Text(
-                    text = selectedText,
-                    modifier = Modifier.weight(1f).clearAndSetSemantics { }
-                )
+                Text(text = selectedText, modifier = Modifier.weight(1f))
                 Icon(painterResource(R.drawable.ic_arrow_drop_down), contentDescription = null)
             }
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                scrollState = menuScroll
+            ) {
+                // THE LIST OPENS AT THE LANGUAGE THAT IS ALREADY CHOSEN, which is
+                // what AutoTTS does and what ours did not (owner, 2026-09-04:
+                // "jab dropdown list open karte hain to jo language select kari
+                // hui hai vahan se hi shuru hota hai ... hamare mein pahli
+                // language se aata hai"). A 137-language menu that always starts
+                // at the top means scrolling past everything to find out what is
+                // set, every single time.
+                //
+                // The offset is MEASURED, not computed from an assumed row
+                // height: a language label can wrap to two lines, so counting
+                // 48dp per item would drift further wrong the further down the
+                // list the answer is. `onGloballyPositioned` on the selected row
+                // reports where it really is, and `positionInParent()` is taken
+                // inside the content Column, so it does not move when the menu
+                // scrolls and there is no feedback loop.
+                //
+                // The effect is keyed on the measurement as well as on `expanded`
+                // precisely because layout has not happened yet when the menu
+                // first composes: the position arrives a frame later, the key
+                // changes, and the scroll runs then. No delay, no timing
+                // constant, no guess about frames.
+                LaunchedEffect(expanded, selectedTop) {
+                    if (expanded && selectedTop >= 0) menuScroll.scrollTo(selectedTop)
+                }
             // Declared by hand on a plain Column, which is not a SubcomposeLayout
             // and answers intrinsic measurement fine. Without them TalkBack has
             // no structure for the list and cannot say where you are in it,
@@ -211,23 +252,35 @@ fun LabeledDropdown(
                     // with a semantics node counts -- it is there to stop the label
                     // being announced twice. The visible text is untouched.
                     DropdownMenuItem(
-                        text = { Text(options[index], modifier = Modifier.clearAndSetSemantics { }) },
+                        text = { Text(options[index]) },
                         onClick = { onSelect(index); expanded = false },
                         trailingIcon = {
                             if (index == selectedIndex) {
                                 Icon(painterResource(R.drawable.ic_check), contentDescription = null)
                             }
                         },
-                        modifier = Modifier.semantics {
-                            contentDescription = options[index]
-                            // The state goes in `selected`, never in the name.
-                            // Google's Accessibility Scanner flagged the old
-                            // description exactly for that: "This item's content
-                            // description, \"English (eng), Selected\", contains
-                            // the state \"selected\"."
-                            selected = index == selectedIndex
-                            collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
-                        }
+                        modifier = Modifier
+                            .then(
+                                if (index == selectedIndex) {
+                                    Modifier.onGloballyPositioned { placed ->
+                                        selectedTop = placed.positionInParent().y.toInt()
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            // No role: DropdownMenuItem sets none of its own, so
+                            // there is nothing to restate. The state goes in
+                            // `selected`, never in the name -- Google's
+                            // Accessibility Scanner flagged exactly that once:
+                            // "This item's content description, \"English (eng),
+                            // Selected\", contains the state \"selected\"."
+                            .evControl(
+                                options[index],
+                                isSelected = index == selectedIndex,
+                                listItem = CollectionItemInfo(index, 1, 0, 1),
+                                action = { onSelect(index); expanded = false }
+                            )
                     )
                 }
             }
@@ -313,8 +366,12 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
     ) {
         OutlinedButton(
             onClick = { step(value - SLIDER_BUTTON_STEP) },
-            modifier = Modifier.semantics { contentDescription = "Decrease " + lowered }
-        ) { Text("-", modifier = Modifier.clearAndSetSemantics { }) }
+            modifier = Modifier.evControl(
+                "Decrease " + lowered,
+                Role.Button,
+                action = { step(value - SLIDER_BUTTON_STEP) }
+            )
+        ) { Text("-") }
         Slider(
             value = value.toFloat(),
             // roundToInt, not toInt: a drag lands on fractions and truncating
@@ -345,8 +402,12 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
         )
         OutlinedButton(
             onClick = { step(value + SLIDER_BUTTON_STEP) },
-            modifier = Modifier.semantics { contentDescription = "Increase " + lowered }
-        ) { Text("+", modifier = Modifier.clearAndSetSemantics { }) }
+            modifier = Modifier.evControl(
+                "Increase " + lowered,
+                Role.Button,
+                action = { step(value + SLIDER_BUTTON_STEP) }
+            )
+        ) { Text("+") }
     }
 }
 
@@ -362,7 +423,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
     if (entry == null) {
         ResponsiveContent {
             Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader("Voices", focusOnOpen = true)
+                SectionHeader("Voices")
                 Text(
                     text = "This mode has no voice settings.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -390,7 +451,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
     val languageLabel = entry.displayName + " (" + entry.iso3 + ")"
     ResponsiveContent {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-            SectionHeader(languageLabel + " voices", focusOnOpen = true)
+            SectionHeader(languageLabel + " voices")
             Text(
                 text = "Pick a voice for this language. Keeping to one engine per language makes switching quickest.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -424,7 +485,10 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                         }
                     }
                 }
-                Button(
+                EvButton(
+                    "Test",
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    R.drawable.ic_play_arrow,
                     // 5.7.7.26 wrapped the Test click in a try/catch that toasts
                     // "Test unknown error". speakTest reaches into a TextToSpeech
                     // client that may already be dead, and before this the whole
@@ -435,20 +499,16 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                         } catch (_: Exception) {
                             Toast.makeText(context, "Test unknown error", Toast.LENGTH_SHORT).show()
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .semantics { contentDescription = "Test" }
-                ) {
-                    Icon(painterResource(R.drawable.ic_play_arrow), contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp))
-                    Text("Test", modifier = Modifier.clearAndSetSemantics { })
-                }
+                    }
+                )
                 ValueSlider("Speed", speed, 500) { picked -> speed = picked; entry.speed = picked }
                 ValueSlider("Volume", volume, 100) { picked -> volume = picked; entry.volume = picked }
                 ValueSlider("Pitch", pitch, 200) { picked -> pitch = picked; entry.pitch = picked }
-                OutlinedButton(
+                EvButton(
+                    "Default",
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    R.drawable.ic_restore,
+                    outlined = true,
                     onClick = {
                         speed = 100
                         volume = 100
@@ -456,15 +516,8 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                         entry.speed = 100
                         entry.volume = 100
                         entry.pitch = 100
-                    },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .semantics { contentDescription = "Default" }
-                ) {
-                    Icon(painterResource(R.drawable.ic_restore), contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp))
-                    Text("Default", modifier = Modifier.clearAndSetSemantics { })
-                }
+                    }
+                )
             } else {
                 // Never leave the screen with nothing to perceive.
                 Text(
@@ -505,24 +558,23 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = { onNavigate(langIndex - 1) },
+                    // The visible labels are "Previous" and "Next"; the
+                    // accessible names add "language", which the name is allowed
+                    // to do because WCAG 2.5.3 asks only that it CONTAIN the
+                    // visible label.
+                    EvButton(
+                        "Previous language",
+                        Modifier.weight(1f),
+                        R.drawable.ic_arrow_back,
                         enabled = langIndex > 0,
-                        modifier = Modifier.weight(1f).semantics { contentDescription = "Previous language" }
-                    ) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp))
-                        Text("Previous", modifier = Modifier.clearAndSetSemantics { })
-                    }
-                    Button(
-                        onClick = { onNavigate(langIndex + 1) },
-                        enabled = langIndex < total - 1,
-                        modifier = Modifier.weight(1f).semantics { contentDescription = "Next language" }
-                    ) {
-                        Icon(painterResource(R.drawable.ic_arrow_forward), contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp))
-                        Text("Next", modifier = Modifier.clearAndSetSemantics { })
-                    }
+                        outlined = true
+                    ) { onNavigate(langIndex - 1) }
+                    EvButton(
+                        "Next language",
+                        Modifier.weight(1f),
+                        R.drawable.ic_arrow_forward,
+                        enabled = langIndex < total - 1
+                    ) { onNavigate(langIndex + 1) }
                 }
             }
         }

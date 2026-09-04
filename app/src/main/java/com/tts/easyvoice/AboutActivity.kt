@@ -9,15 +9,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.PackageInfoCompat
@@ -107,7 +104,7 @@ fun AboutScreen() {
             // ModeSettingsActivity. The first version put the app's name here
             // instead, so heading navigation opened on "Easy Voice", which reads
             // as content rather than as the heading of the page you just entered.
-            SectionHeader("About", focusOnOpen = true)
+            SectionHeader("About")
             // The app's name is the page's subject, so it is a real title rather
             // than another line of body text.
             Text(
@@ -169,14 +166,8 @@ fun AboutScreen() {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = { openLink(context, APACHE_LICENSE_URL) },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Apache License 2.0" }
-                ) { Text("Apache License 2.0", modifier = Modifier.clearAndSetSemantics { }) }
-                Button(
-                    onClick = { openLink(context, CLD2_URL) },
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "CLD2 on GitHub" }
-                ) { Text("CLD2 on GitHub", modifier = Modifier.clearAndSetSemantics { }) }
+                EvButton("Apache License 2.0", Modifier.weight(1f)) { openLink(context, APACHE_LICENSE_URL) }
+                EvButton("CLD2 on GitHub", Modifier.weight(1f)) { openLink(context, CLD2_URL) }
             }
         }
     }
