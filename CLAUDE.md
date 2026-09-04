@@ -1702,48 +1702,51 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
-## THE CONFIGURATION SCREEN IS RESTORED AND IS NOW OFF LIMITS (owner, 2026-09-04)
-*"usmein to sab kuchh sahi tha, vah button bhi read kar raha tha, sab kuchh sahi
-tha, to vah aapko shayad nahin chhodana chahie tha, jo tha vaisa hi rakhna
-tha."* They are right, and this is the third time in two days that a change to
-this one screen broke it.
+## I DIAGNOSED THE CONFIGURATION ROW WRONG, AND THE CORRECTION IS THE LESSON (2026-09-04)
+The owner reported on build 834 that the three-dot action button beside each
+language was unreachable. I reverted the whole screen to `c04fc01` and wrote up
+`collectionItemInfo` as the cause. **Both halves of that were wrong**, and the
+owner corrected it themselves: *"meri galti thi ki maine action button wale ke
+liye ulta sidha bol diya, vah sahi kaam kar raha hai."* The screen is restored to
+build 834's version (`bd797b4`).
 
-`ConfigurationScreen.kt` is now **byte-for-byte commit `c04fc01`** plus a comment
-block. Do not add an accessibility property to it again without asking first.
+**Two independent proofs that `collectionItemInfo` is innocent, so this is never
+re-litigated:**
 
-**Three changes, three different breakages, all mine:**
-1. `accessibilityClassName = "android.widget.Button"` on the row -- it made a
-   non-TalkBack reader say something, and the something was wrong: a row in a
-   list of languages is not a button.
-2. `evControl` (= `clearAndSetSemantics`) on the row -- clearing drops the whole
-   subtree from the accessibility tree, and this row's `trailingContent` is a
-   real three-dot `IconButton`, so **"More actions for &lt;language&gt;" vanished
-   and took Delete configuration and Disable language with it**. The
-   `accessibility` job caught that one.
-3. **`collectionItemInfo` on the row, which I kept after reverting (2), and
-   which was the remaining half of the same breakage.** Build 834 still had the
-   three-dot button unreachable: *"screen reader ka focus bhi nahin jata hai aur
-   vah button se nahin aa raha hai."*
+1. **Build 834's `accessibility` job was GREEN**, both jobs, all sixteen tests.
+   `AccessibilityChecksTest.configurationRowMenuOpen` finds and clicks
+   "More actions for English (eng)" **in the merged tree** -- which is exactly
+   the thing I claimed had become unreachable.
+2. **The delegate's own focus rule, read rather than assumed:**
 
-**How (3) was found, and the method is the transferable part.** `git diff
-c04fc01 HEAD -- ConfigurationScreen.kt` showed the `IconButton` and its whole
-`trailingContent` **byte-identical** to the version that worked. If the button's
-own code never changed, the cause has to be something added to the row -- and
-after (2) was reverted the only thing left there was `collectionItemInfo`. The
-row is a MERGING node (`clickable` sets `shouldMergeDescendantSemantics`), so
-declaring it a collection item makes a reader treat the whole row as one focus
-stop and stop descending into it. **Diff against the last state the owner
-confirmed working before theorising about the reader.**
+       private fun isScreenReaderFocusable(node, resources, isInMergingHiddenSubtree) {
+           if (node.isHidden || isInMergingHiddenSubtree) return false
+           // If the node explicitly merges its descendants, we map it directly to
+           // the merging algorithm on the accessibility side.
+           if (node.unmergedConfig.isMergingSemanticsOfDescendants) return true
+           ...
 
-**What the screen already does, with none of that:** the row carries a
-`contentDescription` of "&lt;language&gt;, &lt;engine&gt;", the `LazyColumn`
-publishes its own `CollectionInfo`, the three-dot `IconButton` is its own focus
-stop with its own name, and neither carries a Role -- so nothing calls the row a
-button, which is what the owner asked for in the first place.
+   An `IconButton` merges its own descendants, so it is its own focus stop **no
+   matter what its parent row carries**, and `collectionItemInfo` is not
+   consulted anywhere in that function. `setCollectionItemInfo` likewise writes
+   only `info.setCollectionItemInfo(...)` on that one node and touches nothing
+   about children.
 
-**And the process rule the owner stated twice today:** *"jo library mein
-available hai bas vahi fix karni hai"*, and do not touch what already works. One
-change at a time on a path they use daily, then wait for them to test it.
+**What DID break it is still true and still the rule.** `evControl`
+(= `clearAndSetSemantics`) on that row dropped its whole subtree from the
+accessibility tree, which is what hid the button; builds 832 and 833 failed that
+same test on exactly it. **Never put `evControl` on a node that contains an
+interactive child.** A plain `semantics {}` block adds without clearing, and that
+is what the row uses.
+
+**THE REAL MISTAKE, and it is a method mistake rather than a code one.** I had a
+device report and a plausible mechanism, and I shipped the mechanism as the
+diagnosis without checking the one piece of evidence that could refute it -- the
+`accessibility` job for the very build being reported on, which was still running
+and which came back green. **When a device report and a CI result disagree, get
+the CI result before writing the fix**, and when a report contradicts a test that
+exercises the exact same interaction, say so and ask rather than reverting good
+work. Reverting cost a correct change and a build.
 
 ## evControl MUST NOT WRAP A NODE WITH AN INTERACTIVE CHILD (caught by CI, 2026-09-04)
 Build 832's `build` job passed and published the APK; its **`accessibility` job
