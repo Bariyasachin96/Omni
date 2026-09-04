@@ -76,8 +76,8 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                     // by everyone and gets its own focus stop.
                     var menuOpen by remember { mutableStateOf(false) }
                     ListItem(
-                        headlineContent = { Text(labels[index]) },
-                        supportingContent = { Text(status) },
+                        headlineContent = { Text(labels[index], modifier = Modifier.clearAndSetSemantics { }) },
+                        supportingContent = { Text(status, modifier = Modifier.clearAndSetSemantics { }) },
                         trailingContent = {
                             Box {
                                 IconButton(
@@ -111,49 +111,41 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                             }
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        // One node, so a screen reader says the language and its
-                        // status together in a single swipe.
-                        //
                         // THIS ROW IS A LIST ITEM AND IS ANNOUNCED AS ONE, not as a
-                        // button (owner, 2026-09-03: "language list items ...
-                        // announced specifically as list items, not buttons"). It
-                        // used to carry `accessibilityClassName =
-                        // "android.widget.Button"`, added the day before so that a
-                        // reader other than TalkBack would say something about the
-                        // control at all. It did say something, and the something
-                        // was wrong: this is one entry in a list of languages, and
-                        // the only reason it was a button is that a class name was
-                        // the tool I had in my hand.
+                        // button (owner, 2026-09-03). The LazyColumn already publishes
+                        // `CollectionInfo` for itself; what was missing is the per-row
+                        // half, because Compose sets `collectionItemInfo` on no lazy
+                        // item by itself. The delegate assigns it with NO gate, so it
+                        // reaches the focused node and the reader says "item N of M".
+                        // `clickable(onClickLabel = ...)` leaves `role` null on purpose:
+                        // a Role here would make Compose emit a fake role child and the
+                        // row would be called a button again by the back door.
                         //
-                        // What a list row is announced by is its place in a
-                        // collection, not a widget class. The LazyColumn above
-                        // already publishes `collectionInfo` for itself
-                        // (LazyLayoutSemanticState: `CollectionInfo(rowCount =
-                        // totalItemsCount, columnCount = 1)`), which is what makes
-                        // it a list; what was missing is the per-row half, because
-                        // Compose sets `collectionItemInfo` on NO lazy item by
-                        // itself. evControl carries NO role on purpose -- a role
-                        // here would make Compose emit a fake role child and the
-                        // row would be called a button again by the back door --
-                        // and because the node is cleared, the name and the
-                        // position land on the FOCUSED node instead of on a fake
-                        // child a reader may never walk.
+                        // THIS IS THE ONE ROW IN THE APP THAT MUST NOT USE evControl,
+                        // AND THE REASON IS THE THREE-DOT BUTTON IN trailingContent.
+                        // evControl is `clearAndSetSemantics`, and clearing a node drops
+                        // its whole subtree from the accessibility tree -- that is the
+                        // documented meaning of `replacedChildren` being empty. On every
+                        // other control the subtree is only a label and an icon, so
+                        // losing it is the point. Here it contains a REAL, SEPARATELY
+                        // FOCUSABLE control, so clearing made "More actions for <lang>"
+                        // unreachable and took Delete configuration and Disable language
+                        // with it. Build 832's accessibility job caught it --
+                        // `AccessibilityChecksTest.configurationRowMenuOpen` could no
+                        // longer find that button in the merged tree, while the unmerged
+                        // tree still had it, which is exactly that signature.
                         //
-                        // `clickable` stays for the touch and keeps its
-                        // onClickLabel; evControl is FIRST because the
-                        // configuration is built tailToHead and a clearing node
-                        // resets it.
-                        //
-                        // The Languages screen's checkbox rows are written the same
-                        // way (`LanguageCheckRow`), so both language lists in the
-                        // app now describe themselves identically.
+                        // THE RULE, and it belongs to evControl everywhere: never wrap a
+                        // node that CONTAINS an interactive child. A plain `semantics {}`
+                        // block adds without clearing, so the button survives, and the
+                        // name reaches TalkBack through the fake contentDescription child
+                        // as it always did.
                         modifier = Modifier
-                            .evControl(
-                                labels[index] + ", " + status,
-                                listItem = CollectionItemInfo(index, 1, 0, 1),
-                                action = { onLanguage(index) }
-                            )
                             .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
+                            .semantics {
+                                contentDescription = labels[index] + ", " + status
+                                collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
+                            }
                     )
                 }
             }

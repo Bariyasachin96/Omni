@@ -1702,6 +1702,45 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## evControl MUST NOT WRAP A NODE WITH AN INTERACTIVE CHILD (caught by CI, 2026-09-04)
+Build 832's `build` job passed and published the APK; its **`accessibility` job
+failed**, on exactly one of sixteen tests:
+
+    configurationRowMenuOpen FAILED
+    could not find any node that satisfies:
+        ContentDescription = 'More actions for English (eng)'
+    However, the unmerged tree contains '1' node that matches.
+
+**That is a real defect, not a test artefact, and the wording of the failure is
+its whole diagnosis.** `evControl` is `clearAndSetSemantics`, and clearing a node
+drops its **entire subtree** from the accessibility tree -- an empty
+`replacedChildren` is precisely what that means. The Configuration row's
+`trailingContent` is a real three-dot `IconButton`, so wrapping the row made
+**"More actions for &lt;language&gt;" unreachable for a screen reader, and Delete
+configuration and Disable language with it**. The node still existed in the
+UNMERGED tree, which is why the test could see it there and not in the merged one.
+
+**THE RULE: never put `evControl` on a node that CONTAINS an interactive child.**
+On every other control the subtree is a label and an icon, and losing it is the
+point. Where the subtree holds something the user must reach, use a plain
+`semantics {}` block, which adds without clearing -- that is what the
+Configuration row does now, and it is the one row in the app that must not use
+`evControl`.
+
+**A child passed `onCheckedChange = null` / `onClick = null` is NOT interactive**,
+which is the whole point of the Material row pattern, so `SettingSwitch`'s Switch,
+`LanguageCheckRow`'s Checkbox and the mode rows' RadioButton are all safe. The
+mode row's "Settings" button is safe for a different reason: it is a **sibling**
+of the cleared Row, not inside it. Every `evControl` site was re-audited against
+that test and only the Configuration row failed it.
+
+**Two things worth keeping about how this was found.** The `accessibility` job is
+the only check in this project that runs the real app, and it is the third time it
+has earned its place -- **read its failure before assuming the APK is fine**,
+because the `build` job passing means only that the code compiled. And the owner
+would not have noticed quickly: the three-dot menu is not on the path they use
+every minute, so this would have sat broken.
+
 ## THE ROLE COVERAGE TABLE: every control type, and who announces it (2026-09-04)
 Owner: *"user jab button per ungali rakhe ya tab per ya radio button ya checkbox
 ya switch ya kahin per bhi ungali rakhe ... ya swiping kare ... to use pata

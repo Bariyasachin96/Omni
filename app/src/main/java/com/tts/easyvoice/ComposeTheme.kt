@@ -296,6 +296,26 @@ fun animationsEnabled(): Boolean {
 //      delegate drops ACTION_CLICK for exactly those two roles when selected,
 //      because a chosen tab cannot be chosen again. That happens on its own.
 //
+//  NEVER WRAP A NODE THAT CONTAINS AN INTERACTIVE CHILD. This is the one way to
+//  do real damage with it, and it was done once: clearing a node drops its WHOLE
+//  SUBTREE from the accessibility tree -- that is what an empty `replacedChildren`
+//  means -- so anything focusable inside it simply stops existing for a screen
+//  reader. On every control here the subtree is a label and an icon and losing it
+//  is the point. The Configuration list row is the exception: its trailingContent
+//  is a real three-dot IconButton, and wrapping the row made "More actions for
+//  <language>" unreachable, taking Delete configuration and Disable language with
+//  it. Build 832's accessibility job is what caught it --
+//  `AccessibilityChecksTest.configurationRowMenuOpen` could no longer find that
+//  button in the merged tree while the unmerged tree still had it, which is the
+//  exact signature of this mistake. That row uses a plain `semantics {}` block
+//  instead, which adds without clearing.
+//
+//  A child passed `onCheckedChange = null` or `onClick = null` is NOT interactive
+//  -- that is the whole point of the Material row pattern -- so the Switch inside
+//  `SettingSwitch`, the Checkbox inside `LanguageCheckRow` and the RadioButton
+//  inside the mode rows are all safe. The mode row's "Settings" button is safe for
+//  a different reason: it is a SIBLING of the cleared Row, not inside it.
+//
 //  WHAT IT IS NOT FOR: anything whose semantics the library already puts on the
 //  focused node without help. An `IconButton` is the clearest case -- its
 //  `Icon(contentDescription = null)` adds NO semantics modifier, so the button
