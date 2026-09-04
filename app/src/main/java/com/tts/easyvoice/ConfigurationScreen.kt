@@ -23,8 +23,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.accessibilityClassName
+import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -107,25 +108,43 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                             // One node, so a screen reader says the language and
                             // its status together in a single swipe.
                             //
-                            // THE ONE PLACE `accessibilityClassName` SURVIVES, and the
-                            // reason is that this row carries NO Role. Everywhere else in
-                            // the app the control has one -- either the Material component
-                            // sets it (Button, IconButton, Tab, FilterChip, DropdownMenuItem)
-                            // or we pass it to toggleable/selectable -- and a node with a
-                            // Role makes Compose emit a FAKE ROLE CHILD that the
-                            // accessibility service receives as its own virtual node
-                            // (`SemanticsOwner.addFakeNode`). Setting the class name on the
-                            // real node as well put the role in TWO places, which is what
-                            // the owner heard as "button button" on 2026-09-03.
+                            // THIS ROW IS A LIST ITEM AND IS ANNOUNCED AS ONE, not
+                            // as a button (owner, 2026-09-03: "language list items
+                            // ... announced specifically as list items, not
+                            // buttons"). It used to carry
+                            // `accessibilityClassName = "android.widget.Button"`,
+                            // added the day before so that a reader other than
+                            // TalkBack would say something about the control at
+                            // all. It did say something, and the something was
+                            // wrong: this is one entry in a list of languages, and
+                            // the only reason it was a button was that a button was
+                            // the class name I had to hand.
                             //
-                            // Here `Modifier.clickable(onClickLabel = ...)` leaves `role`
-                            // null, so no fake node exists and this is the single source --
-                            // it cannot double, and it is the only way the role reaches a
-                            // reader that inspects the focused node rather than walking
-                            // Compose's fake children.
+                            // What a list row is announced by is its place in a
+                            // collection, not a widget class. The LazyColumn above
+                            // already publishes `collectionInfo` for itself
+                            // (LazyLayoutSemanticState:
+                            // `CollectionInfo(rowCount = totalItemsCount,
+                            // columnCount = 1)`), which is what makes it a list;
+                            // what was missing is the per row half, because Compose
+                            // sets `collectionItemInfo` on NO lazy item by itself.
+                            // With both present the platform reports a list and the
+                            // row's index within it, so a reader says the language,
+                            // its engine and "item N of M" -- and it reaches the
+                            // FOCUSED node, so it does not depend on a service
+                            // walking Compose's fake children.
+                            //
+                            // `Modifier.clickable(onClickLabel = ...)` deliberately
+                            // still leaves `role` null. A Role here would make
+                            // Compose emit a fake role child and the row would be
+                            // called a button again by the back door.
+                            //
+                            // The Languages screen's checkbox rows are written the
+                            // same way (`LanguageCheckRow`), so both language lists
+                            // in the app now describe themselves identically.
                             .semantics {
                                 contentDescription = labels[index] + ", " + status
-                                accessibilityClassName = EvRoleClass.BUTTON
+                                collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
                             }
                     )
                 }

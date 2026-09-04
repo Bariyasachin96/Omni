@@ -1,4 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Easy Voice</string>
+
+    <!--
+      THE "POP-UP WINDOW" ANNOUNCEMENT, AND WHY IT IS ANSWERED HERE AND NOWHERE ELSE
+      (owner, 2026-09-03: "drop down list open karne ke bad expand to announce
+      karta hai TalkBack, but saath saath mein pop up window bhi announce kar
+      raha hai ... pop up window ka uska code hata dena.")
+
+      This is NOT our string and it was never in our code, which is why grepping
+      the app for it found nothing. It belongs to androidx.compose.ui, and every
+      Compose Popup, so ExposedDropdownMenu on the Voice and Mode settings
+      screens and DropdownMenu on the Configuration rows, sets it as the title of
+      the real Android window the menu lives in. From AndroidPopup.android.kt,
+      createLayoutParams:
+
+          // accessibilityTitle is not exposed as a public API therefore we set
+          // popup window title which is used as a fallback by a11y services
+          title = composeView.context.resources
+                      .getString(R.string.default_popup_window_title)
+
+      and in that library's own res/values/strings.xml the value is literally
+      the words "Pop-Up Window".
+
+      A screen reader speaks a window's title when the window appears, so opening
+      any menu announced our own "Expanded" and then the library's "Pop-Up
+      Window": two announcements for one action, which is what the owner heard.
+
+      PopupProperties carries no title parameter. Checked against the pinned
+      compose ui api/1.12.0-beta01.txt, its whole surface is focusable,
+      dismissOnBackPress, dismissOnClickOutside, securePolicy,
+      excludeFromSystemGesture, clippingEnabled, usePlatformDefaultWidth,
+      windowType, windowToken, blurBehindRadius, scrimAlpha and nothing else, so
+      there is no API knob to turn. Overriding the resource is the supported way:
+      AAPT2 merges the application module's resources OVER a library's, so this
+      value wins for every Popup in the app. Nothing is forked, no library code
+      is copied, and no UI is hand written.
+
+      It is EMPTY on purpose. The title has no useful content to carry, because
+      the anchor already says "Expanded" and the reader then lands on the first
+      menu item and reads it, so any wording here would be a second announcement
+      of something the user has just been told. An empty title says "this window
+      has no name", which is the truth.
+
+      DO NOT delete this override to tidy up unused strings: it has no reference
+      in our code by design, and a lint pass that removes it brings "Pop-Up
+      Window" straight back.
+    -->
+    <string name="default_popup_window_title" tools:ignore="ExtraTranslation,UnusedResources"></string>
 </resources>

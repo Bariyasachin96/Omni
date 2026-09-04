@@ -1702,6 +1702,112 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## "Pop-Up Window" was ANDROIDX'S OWN STRING, not our code (owner, 2026-09-04)
+*"drop down list open karne ke bad expand to announce karta hai TalkBack, but
+saath saath mein pop up window bhi announce kar raha hai. Vah kyon kar raha hai?
+Mere khyal se pop up window ka uska code hata dena."*
+
+Grepping the app for it finds nothing, and that is the whole point: **it is not
+our string and never was.** Every Compose `Popup` -- so `ExposedDropdownMenu` on
+the Voice and Mode settings screens, and `DropdownMenu` on the Configuration
+rows -- gives its real Android window a title, in `AndroidPopup.android.kt`'s
+`createLayoutParams`:
+
+    // accessibilityTitle is not exposed as a public API therefore we set popup
+    // window title which is used as a fallback by a11y services
+    title = composeView.context.resources.getString(R.string.default_popup_window_title)
+
+and in `compose/ui/ui/src/androidMain/res/values/strings.xml` that resource is
+
+    <string name="default_popup_window_title">"Pop-Up Window"</string>
+
+A screen reader speaks a window's title when the window appears, so one tap on a
+dropdown produced our `stateDescription` **and** the library's window title.
+
+**There is no API knob.** `PopupProperties` in the pinned compose ui
+`api/1.12.0-beta01.txt` is `focusable`, `dismissOnBackPress`,
+`dismissOnClickOutside`, `securePolicy`, `excludeFromSystemGesture`,
+`clippingEnabled`, `usePlatformDefaultWidth`, `windowType`, `windowToken`,
+`blurBehindRadius`, `scrimAlpha` -- and no title. Material3's dropdowns expose
+no popup properties for it either.
+
+**The fix is a resource override, which is the supported mechanism**, not a fork
+and not hand-written UI: AAPT2 merges the application module's resources OVER a
+library's, so `app/src/main/res/values/strings.xml` now declares
+`default_popup_window_title` as an **empty** string and that value wins for every
+Popup in the app. Empty rather than reworded on purpose -- the anchor has just
+said "Expanded" and the reader then lands on the first menu item and reads it, so
+any wording would be a third thing said about one tap. **Do not delete it as an
+unused string**; it is referenced only from inside androidx, and removing it
+brings "Pop-Up Window" straight back. The `tools:ignore` on the line says so to
+lint as well.
+
+**The delegate was cleared first, so this is not a guess:** there is no `IsPopup`
+or `IsDialog` handling anywhere in
+`AndroidComposeViewAccessibilityDelegateCompat` (grepped, zero hits), and
+TalkBack's own `strings.xml` contains no "pop-up window" string either -- it is
+reading the window title the platform hands it.
+
+## The Configuration language rows are LIST ITEMS now, not buttons (owner, 2026-09-04)
+*"language list items ... announced specifically as 'list items', not buttons."*
+
+They were buttons because **I made them buttons the day before**. The row carried
+`accessibilityClassName = "android.widget.Button"`, added so that a reader other
+than TalkBack would say *something* about the control; it did, and the something
+was wrong. A row in a list of languages is a list item, and the only reason it
+was a button is that a class name was the tool I had in my hand.
+
+**What names a list row is its place in a collection, not a widget class.** The
+`LazyColumn` already publishes its own half -- `LazyLayoutSemanticState` sets
+`CollectionInfo(rowCount = totalItemsCount, columnCount = 1)` -- and what was
+missing is the per-row half, because **Compose sets `collectionItemInfo` on no
+lazy item by itself**. The row now declares
+`collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)`, so the platform
+reports a list and the row's index in it, and that lands on the **focused** node
+rather than depending on a service walking Compose's fake children. The
+Languages screen's checkbox rows (`LanguageCheckRow`) were already written this
+way, so both language lists in the app now describe themselves identically.
+
+`Modifier.clickable(onClickLabel = ...)` still deliberately leaves `role` null. A
+Role here would make Compose emit a fake role child and the row would be called a
+button again by the back door.
+
+**`EvRoleClass` is GONE, and with it the last `accessibilityClassName` in the
+app.** That row was its only use. `ComposeTheme.kt` keeps the findings as a
+comment; the section below is the record and is still accurate except that
+nothing sets a class name any more.
+
+**What is still not solved, stated plainly rather than papered over.** A control
+that Material gives a Role AND that has a text child -- every `Button`,
+`OutlinedButton`, `Tab`, `FilterChip`, `DropdownMenuItem` and our
+`toggleable`/`selectable` rows -- still announces its role only through Compose's
+fake child node, which TalkBack walks and a reader that inspects only the focused
+node does not. Three things were checked again and none of them opens:
+- **an `IconButton` already works everywhere**, and the reason is worth keeping:
+  `Icon(contentDescription = null)` adds no semantics modifier at all, so the
+  button has **no semantics children**, `replacedChildren` is empty, the
+  delegate's gate passes and `info.className = "android.widget.Button"` lands on
+  the real node. One source, every reader.
+- **a text label always creates a semantics node**, `clearAndSetSemantics {}`
+  included, so a labelled button can never pass that gate. Proven on the owner's
+  own device rather than argued: adding a class name beside the fake node is what
+  produced "button button".
+- **`Role.Tab` sets `roleDescription` and no class name at all**, so a tab has
+  nothing to reach a non-TalkBack reader with, and there is no `roleDescription`
+  semantics API to set by hand (`SemanticsPropertiesAndroid` has exactly three
+  members in the pinned api file).
+
+**The one shape that would fix it is written down and NOT shipped.** A `Box`
+around the control carrying `clearAndSetSemantics { contentDescription; role;
+onClick { ... } }` empties `replacedChildren`, so the role lands on the focused
+node once -- and the config being reset is the Box's own, so the objection
+recorded below (a clearing modifier passed to a component wipes the component's
+semantics) does not apply. It also re-declares the click action for **every
+button in the app**, cannot be tested in this container, and if it is wrong a
+blind user cannot press anything. That is the owner's call, not a change to slip
+in -- and it is the third time this session that an untested change on a path the
+owner uses every second has been the thing that broke.
+
 ## The ROLE and the non-TalkBack reader: what works, what cannot (2026-09-03)
 Owner: *"TalkBack mein to button aur tab bol raha hai, but aur screen reader mein
 vah button aur tab bol hi nahin raha ... sirf bolta hai jo likha hai."* The NAME

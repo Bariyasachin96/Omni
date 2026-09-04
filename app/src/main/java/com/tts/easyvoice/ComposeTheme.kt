@@ -218,55 +218,65 @@ fun animationsEnabled(): Boolean {
 }
 
 // ==========================================================================
-//  THE ROLE, AND WHY THIS OBJECT HAS EXACTLY ONE ENTRY AND ONE USE
+//  THE ROLE AND THE NON-TALKBACK READER: THE RECORD, NOW THAT THE APP CARRIES
+//  NO CLASS NAME OF ITS OWN
 //
-//  Owner, 2026-09-03: "TalkBack mein to button aur tab bol raha hai, but aur
-//  screen reader mein vah button aur tab bol hi nahin raha." The name arrives,
-//  the role does not. The delegate applies the role only under
+//  `EvRoleClass` used to live here. It is gone, and so is the last
+//  `accessibilityClassName` in the app, because the owner asked for the UI to
+//  rest on the library alone ("apne haath se kuchh bhi nahin") and because the
+//  one place it survived was describing a list row as a button. That row is a
+//  list item now and says so through `collectionItemInfo`, which is the
+//  library's own way of naming what it is. See ConfigurationScreen.kt.
 //
-//      if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty())
+//  KEEP THE FINDINGS, so this is not rediscovered a third time.
 //
-//  and every merged control has children, so the role goes to a FAKE ROLE CHILD
-//  (`SemanticsNode.emitFakeNodes`) which the service receives as its own virtual
-//  node (`SemanticsOwner.addFakeNode`). TalkBack walks that; a reader that
-//  inspects only the focused node finds className "android.view.View".
+//  1. The delegate applies a Role only under
 //
-//  `accessibilityClassName` is androidx's one ungated hook and it does reach the
-//  focused node -- the owner confirmed on device that buttons and the dropdown
-//  started announcing on their second reader.
+//         if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty())
 //
-//  BUT PUTTING IT ON A NODE THAT ALSO HAS A ROLE PUTS THE ROLE IN TWO PLACES,
-//  and the owner heard exactly that: "button button", and the dropdown twice.
-//  That was my regression, and it is why this object is now used in ONE place.
+//     and it does so before `accessibilityClassName`, which is applied last and
+//     UNGATED (AndroidComposeViewAccessibilityDelegateCompat, the role block and
+//     the final `AccessibilityClassName` let). Every merged control with a text
+//     child fails that gate, so its role goes to a FAKE ROLE CHILD
+//     (`SemanticsNode.emitFakeNodes`, guarded by `unmergedChildren.isNotEmpty()`)
+//     which the service receives as its own virtual node. TalkBack walks those
+//     children; a reader that inspects only the focused node does not.
 //
-//  THE RULE, so it is not re-broken:
-//    * a node WITH a Role already announces it, through the fake child.
-//      Do NOT add accessibilityClassName there -- it will double.
-//    * a node WITHOUT a Role emits no fake child, so accessibilityClassName is
-//      the single source and is safe and useful. Today that is exactly one
-//      control: the Configuration list row, whose `Modifier.clickable(
-//      onClickLabel = ...)` leaves role null.
+//  2. So putting `accessibilityClassName` on a node that ALSO has a Role states
+//     the role TWICE. The owner heard exactly that on 2026-09-03: "button
+//     button", and the dropdown twice. Never do it again.
 //
-//  WHAT CANNOT BE DONE TODAY, checked rather than assumed, so it is not retried:
-//    * there is NO roleDescription semantics API. In the version the BOM pins,
-//      `SemanticsPropertiesAndroid` has exactly three members --
-//      AccessibilityClassName, CredentialRequest (@RequiresApi 34) and
-//      TestTagsAsResourceId (compose ui api/1.12.0-beta01.txt). So a TAB, which
-//      Compose announces with `roleDescription = "Tab"` and no class name, has
-//      no way to reach the focused node at all. `android.app.ActionBar$Tab` was
-//      tried and the owner's second reader does not recognise it.
-//    * the fake child cannot be suppressed: `emitFakeNodes` fires whenever the
-//      node has a Role, merges descendants and has children, and Compose has no
-//      API to unset a Role that a Material component already set.
-//    * `clearAndSetSemantics` WOULD empty replacedChildren and open the gate, but
-//      `LayoutNode.calculateSemanticsConfiguration` RESETS the config on a
-//      clearing node and our modifier is applied last, so it would wipe the
-//      component's own onClick, role and disabled state.
+//  3. An `IconButton` is the case that already works everywhere, and it is worth
+//     knowing why: `Icon(contentDescription = null)` adds NO semantics modifier,
+//     so the button has no semantics children, `replacedChildren` is empty, the
+//     gate PASSES and `info.className = "android.widget.Button"` lands on the
+//     real node. One source, every reader. Nothing to fix there.
+//
+//  4. What is still not reachable, checked rather than assumed:
+//       * there is no roleDescription semantics API. In the version the BOM
+//         pins, `SemanticsPropertiesAndroid` has exactly three members --
+//         AccessibilityClassName, CredentialRequest (@RequiresApi 34) and
+//         TestTagsAsResourceId (compose ui api/1.12.0-beta01.txt). A TAB is
+//         announced by Compose with `roleDescription = "Tab"` and no class name
+//         at all, so on a non-TalkBack reader the tab role cannot be reached
+//         from this app. `android.app.ActionBar$Tab` was tried and the owner's
+//         second reader does not recognise it.
+//       * the fake child cannot be suppressed: Compose has no API to unset a
+//         Role a Material component already set.
+//       * `clearAndSetSemantics` passed to a component as its `modifier` is NOT
+//         the way in: `LayoutNode.calculateSemanticsConfiguration` walks
+//         tailToHead and a clearing node RESETS the config, and our modifier is
+//         at the head, so it would wipe the component's own onClick, role and
+//         disabled state. That is the bug that once made the Configuration rows
+//         unopenable.
+//
+//  5. The one shape that WOULD put a button's role on the focused node for every
+//     reader is a wrapper whose semantics are cleared and re-declared by hand
+//     (`clearAndSetSemantics { contentDescription; role = Role.Button;
+//     onClick {...} }` on a Box AROUND the Button, where the reset is harmless
+//     because the config being reset is the Box's own). It is written down here
+//     rather than shipped: it re-declares the click action for every button in
+//     the app, it cannot be tested in this container, and if it is wrong a blind
+//     user cannot press anything. That is the owner's call to make, not a change
+//     to slip in.
 // ==========================================================================
-//
-//  "android.widget.Button" is Compose's OWN string for Role.Button, copied from
-//  `Role.toLegacyClassName()` in SemanticsUtils.android.kt, so this sets exactly
-//  the class Compose would have set had the gate passed, and invents nothing.
-object EvRoleClass {
-    const val BUTTON = "android.widget.Button"
-}
