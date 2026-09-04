@@ -53,13 +53,23 @@ def check(name, raw):
 
 def main():
     total = 0
-    for name in sorted(os.listdir(SRC)):
-        if not name.endswith('.kt'):
-            continue
-        raw = open(os.path.join(SRC, name), encoding='utf-8').read()
-        for p in check(name, raw):
-            print('   %-26s %s' % (name, p))
-            total += 1
+    # The app, and then the instrumented tests. The tests are here because they
+    # compile only in CI's emulator job: before this, an unbalanced brace in
+    # AccessibilityChecksTest.kt was found thirteen minutes after the push, and
+    # only after an emulator had booted. This is a structure check, so it needs
+    # no classpath and costs nothing.
+    dirs = [SRC]
+    tests = evpaths.android_test_dir()
+    if tests:
+        dirs.append(tests)
+    for directory in dirs:
+        for name in sorted(os.listdir(directory)):
+            if not name.endswith('.kt'):
+                continue
+            raw = open(os.path.join(directory, name), encoding='utf-8').read()
+            for p in check(name, raw):
+                print('   %-26s %s' % (name, p))
+                total += 1
     print('PROBLEMS:', total)
     return 1 if total else 0
 

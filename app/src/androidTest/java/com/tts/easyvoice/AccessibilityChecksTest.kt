@@ -2,10 +2,12 @@ package com.tts.easyvoice
 
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
 // NOT androidx.compose.ui.test -- enableAccessibilityChecks lives in its own
 // package, androidx.compose.ui.test.junit4.accessibility, because it ships in
@@ -103,6 +105,31 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.numberSpecificLang = "eng"
         EasyVoiceTtsService.puncSpecificLang = "eng"
         EasyVoiceTtsService.emojiSpecificLang = "eng"
+        // THE READING MODE HAS TO BE STATED, and leaving it out was a real hole
+        // rather than an omission. `prefs.getReadingMode()` reads
+        // `EasyVoiceTtsService.modeInt`, whose default is 0 = "none", and
+        // `LangStore.ensureLoaded` may then set it from `auto_mode` -- which is
+        // 3 when Google TTS is on the emulator image and 0 when it is not. So
+        // the mode was whatever the device and the previous test left behind,
+        // and `LanguagesScreen` answers "none" and "dual" with a one-line
+        // "not available" message INSTEAD of the list. The 137-row list, its
+        // search field, its filter chip and its buttons could therefore have
+        // been going unchecked without anything saying so.
+        //
+        // Mix is the mode to seed: it is the one the owner runs, it has a
+        // language list, and it is the mode in which MainScreen shows the
+        // "Add language" button. Tests that need another mode set it themselves.
+        EasyVoiceTtsService.modeInt = 4
+        EasyVoiceTtsService.dedicatedEnginesFlag = false
+        EasyVoiceTtsService.stripAudioAttrFlag = false
+        EasyVoiceTtsService.forceAccessibilityFlag = false
+        EasyVoiceTtsService.keepAliveFlag = false
+        EasyVoiceTtsService.showNotificationFlag = false
+        EasyVoiceTtsService.disableAdvancedFlag = false
+        EasyVoiceTtsService.quickCharacterFlag = false
+        EasyVoiceTtsService.punctuationInFlowFlag = true
+        EasyVoiceTtsService.smartNumberFlag = false
+        EasyVoiceTtsService.smartNumberGroupSize = 1
     }
 
     private fun entry(name: String, iso3: String, tag: String) =
@@ -281,6 +308,138 @@ class AccessibilityChecksTest {
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("More actions for English (eng)").performClick()
         rule.onNodeWithContentDescription("Disable language").performClick()
+    }
+
+    // ======================================================================
+    //  THE STATES, not just the screens
+    //  Everything above renders each screen ONCE, in whatever state its seeded
+    //  statics put it in. That checks the screen but not the app: a control
+    //  that only exists after a tap, a switch's other position, an empty list
+    //  and a mode's alternative branch are all views a blind user really meets
+    //  and none of them was ever rendered here.
+    //
+    //  Each test below exists because it puts a DIFFERENT view on screen, and
+    //  says which one.
+    // ======================================================================
+
+    // THE "ADD LANGUAGE" BUTTON HAD NEVER BEEN CHECKED. It is MainScreen's
+    // floating action button and it is drawn only when `currentPage == 1`
+    // (`!scanning && currentPage == 1 && showAddLanguage`), while
+    // mainScreenSettled starts on page 0 -- so no test had ever put it on
+    // screen. That matters here more than most: this exact control shipped
+    // invisible once, because Material3 fills an ExtendedFloatingActionButton
+    // with `primaryContainer`, which is 1.28:1 on this background, and it took
+    // a device to notice. Contrast is precisely what this framework measures.
+    @Test
+    fun mainScreenAddLanguageButton() {
+        rule.setContent { EasyVoiceTheme { mainScreen(scanning = false, scanLine = "")() } }
+        rule.enableAccessibilityChecks()
+        // Moving to Configuration is what draws the button; the click itself
+        // also puts page 0 through the checks.
+        rule.onNodeWithContentDescription("Configuration, 2 of 3").performClick()
+        // Acting on the button is what puts the page that CONTAINS it through
+        // them.
+        rule.onNodeWithContentDescription("Add language").performClick()
+    }
+
+    // Every switch in its other position, and the Group size dropdown ENABLED.
+    // A Material switch draws different colours checked and unchecked -- this
+    // palette states four of them by hand (checked thumb #00325A on a #82C7FF
+    // track, unchecked #4FD8EB on #2A2D31) and all four ratios in CLAUDE.md
+    // were computed with a calculator, never measured on a real screen. The
+    // seeded run only ever showed the unchecked half.
+    @Test
+    fun advancedTabEverythingOn() {
+        EasyVoiceTtsService.stripAudioAttrFlag = true
+        EasyVoiceTtsService.forceAccessibilityFlag = true
+        EasyVoiceTtsService.keepAliveFlag = true
+        EasyVoiceTtsService.showNotificationFlag = true
+        EasyVoiceTtsService.disableAdvancedFlag = true
+        EasyVoiceTtsService.quickCharacterFlag = true
+        EasyVoiceTtsService.punctuationInFlowFlag = true
+        EasyVoiceTtsService.smartNumberFlag = true
+        EasyVoiceTtsService.smartNumberGroupSize = 3
+        check { AdvancedScreen(prefs(), 0, { }, { }) }
+    }
+
+    // The one DISABLED control on that tab: "Read punctuation in flow with
+    // text" is greyed out exactly when the punctuation mode is "Specific
+    // language" (mode 3), mirroring c3.k:833-843. A disabled control is exempt
+    // from the contrast floor but not from having a name or a 48dp target, and
+    // that state had never been rendered.
+    @Test
+    fun advancedTabPunctuationLocked() {
+        EasyVoiceTtsService.punctuationModeInt = 3
+        check { AdvancedScreen(prefs(), 0, { }, { }) }
+    }
+
+    // The filter ON. A selected FilterChip is drawn with
+    // `secondaryContainer` as its whole boundary -- `FlatSelectedOutlineWidth`
+    // is 0.dp and `selectedBorderColor` is Transparent -- so the fill is the
+    // only thing separating it from the page. That value was changed to
+    // #42707F for a hand-computed 3.44:1, which is close enough to the 3.0
+    // floor to be worth a real measurement.
+    @Test
+    fun languagesListFiltered() {
+        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("My languages").performClick()
+        rule.onNodeWithContentDescription("My languages").performClick()
+    }
+
+    // The CLEAR button inside the search field, which exists only once
+    // something has been typed -- "only offered once there is something to
+    // clear, so it is not a dead stop for a screen reader on an empty field".
+    // Nothing had ever typed, so nothing had ever seen it.
+    @Test
+    fun languagesListSearching() {
+        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        rule.enableAccessibilityChecks()
+        rule.onNode(hasSetTextAction()).performTextInput("Hin")
+        // Clicking the clear button checks the screen while it is on it.
+        rule.onNodeWithContentDescription("Clear search").performClick()
+    }
+
+    // The OTHER half of LanguagesScreen. In "none" and "dual" the whole list is
+    // replaced by one explanatory line, and that line is the entire screen --
+    // if it is unreadable there is nothing else to fall back on.
+    @Test
+    fun languagesListNotAvailable() {
+        EasyVoiceTtsService.modeInt = 1
+        check { LanguagesScreen(prefs()) }
+    }
+
+    // Configuration with nothing configured yet. This is what a user sees on a
+    // first run before picking any language, so it is the first thing the
+    // screen ever says to them.
+    @Test
+    fun configurationTabEmpty() {
+        check {
+            ConfigurationScreen(
+                labels = emptyList(), engines = emptyList(),
+                onLanguage = { }, onDeleteConfiguration = { }, onDisable = { }
+            )
+        }
+    }
+
+    // A language the scan found no voice for. VoiceRows.load filters
+    // lastScanVoices by iso3, so an entry with no match collapses the screen to
+    // the explanatory line and hides Test, the three sliders and Default --
+    // "never leave the screen with nothing to perceive" is the rule, and this
+    // is the branch that has to honour it.
+    @Test
+    fun voiceSetupNoVoices() {
+        synchronized(LangStore.languages) {
+            LangStore.languages.add(entry("Marathi", "mar", "mr_IN"))
+        }
+        check { VoiceScreen(prefs(), 3, 4, { }) { null } }
+    }
+
+    // And the branch above that one: no entry at all at that index, which is
+    // what a mode with no voice settings produces.
+    @Test
+    fun voiceSetupNoLanguage() {
+        check { VoiceScreen(prefs(), 99, 1, { }) { null } }
     }
 
     // Both rows: one engine installed, one not, so the "Install" button and the

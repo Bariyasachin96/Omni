@@ -13,6 +13,7 @@ import os
 import sys
 
 KOTLIN_PACKAGE = os.path.join('app', 'src', 'main', 'java', 'com', 'tts', 'easyvoice')
+ANDROID_TEST_PACKAGE = os.path.join('app', 'src', 'androidTest', 'java', 'com', 'tts', 'easyvoice')
 MAIN = os.path.join('app', 'src', 'main')
 CPP = os.path.join('app', 'src', 'main', 'cpp')
 
@@ -37,6 +38,19 @@ def repo_root():
 
 def kotlin_dir():
     return os.path.join(repo_root(), KOTLIN_PACKAGE)
+
+
+def android_test_dir():
+    """The instrumented tests.
+
+    These compile ONLY in CI, on the emulator job, so a brace left open or a
+    missing import there costs a thirteen-minute run to discover. ktcheck reads
+    them for that reason -- it is a structure check and needs no classpath.
+    Returns None when the directory is absent, so a checker can skip it rather
+    than fail on a tree that has no tests.
+    """
+    path = os.path.join(repo_root(), ANDROID_TEST_PACKAGE)
+    return path if os.path.isdir(path) else None
 
 
 def main_dir():

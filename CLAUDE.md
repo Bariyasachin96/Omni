@@ -1702,6 +1702,54 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## THE ACCESSIBILITY JOB NOW COVERS STATES, NOT JUST SCREENS (owner request, 2026-09-04)
+*"Sabhi screen per accessibility job apply karo ... to aapko acche se pata
+chalega aur jahan per bhi problem aaye vahan per ekadam properly source ke
+through fix karna."* Every screen already had a test; what none of them had was
+its **other states**. 16 tests to **25**, and the first finding was in the test
+harness itself.
+
+**THE SEED WAS NON-DETERMINISTIC, AND IT MAY HAVE BEEN CHECKING THE WRONG
+SCREEN.** `prefs.getReadingMode()` reads `EasyVoiceTtsService.modeInt`, whose
+default is **0 = "none"**, and `LangStore.ensureLoaded` may then set it from
+`auto_mode` -- which is 3 when Google TTS is on the emulator image and 0 when it
+is not. So the mode was whatever the device and the previous test left behind.
+That matters because **`LanguagesScreen` answers "none" and "dual" with a
+one-line "not available" message instead of the list**: the 137-row list, its
+search field, its filter chip and its three buttons could have been going
+unchecked with nothing saying so. The seed now states `modeInt = 4` (mix -- the
+mode the owner runs, which has a language list and shows the Add language
+button) and every Advanced flag explicitly.
+
+**The nine states that had never been rendered**, each because a view only exists
+after an action or in another branch:
+
+| test | the view nothing had drawn |
+|---|---|
+| `mainScreenAddLanguageButton` | **the FAB.** It is drawn only at `currentPage == 1` and `mainScreenSettled` starts on page 0, so the one control that once shipped INVISIBLE (Material3 fills an ExtendedFAB with `primaryContainer`, 1.28:1 here) had never been measured |
+| `advancedTabEverythingOn` | every switch CHECKED, and the Group size dropdown ENABLED. The four checked/unchecked thumb-and-track ratios in this file were calculator work, never measured |
+| `advancedTabPunctuationLocked` | the one DISABLED control (`punctuationModeInt == 3`) |
+| `languagesListFiltered` | the chip SELECTED -- its fill is its only boundary (`FlatSelectedOutlineWidth = 0.dp`, transparent border) at a hand-computed 3.44:1 |
+| `languagesListSearching` | the **Clear search** button, which exists only once text is typed |
+| `languagesListNotAvailable` | the "none"/"dual" branch, where that one line IS the whole screen |
+| `configurationTabEmpty` | the first-run empty state |
+| `voiceSetupNoVoices` | a language the scan found no voice for |
+| `voiceSetupNoLanguage` | no entry at that index at all |
+
+**`ktcheck` now reads `app/src/androidTest` too**, and that was a gap of its own:
+the instrumented tests compile ONLY in CI's emulator job, so an unbalanced brace
+or a missing import there costs a thirteen-minute run to discover. It is a
+structure check and needs no classpath, so it is free. `evpaths.android_test_dir()`
+returns `None` when the directory is absent, so a tree without tests skips it
+rather than failing. Negative-tested both ways: a deliberate `fun broken( {`
+appended to the test file is reported at its real line and the clean file
+passes.
+
+**The rule this establishes for new UI:** a screen's test is not done when the
+screen renders. Ask what the screen looks like after a tap, with the switch the
+other way, with the list empty, and in the mode the branch above it takes -- and
+write one test per view, not per screen.
+
 ## I DIAGNOSED THE CONFIGURATION ROW WRONG, AND THE CORRECTION IS THE LESSON (2026-09-04)
 The owner reported on build 834 that the three-dot action button beside each
 language was unreachable. I reverted the whole screen to `c04fc01` and wrote up
