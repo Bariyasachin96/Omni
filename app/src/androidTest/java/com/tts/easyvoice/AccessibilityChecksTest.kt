@@ -2,6 +2,7 @@ package com.tts.easyvoice
 
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -171,17 +172,51 @@ class AccessibilityChecksTest {
     // menu -- survives, so an interaction test keeps whatever it set up.
     private val darkScheme = mutableStateOf(false)
 
+    // What the composition ACTUALLY resolved `background` to on its last pass.
+    // Written from inside the theme, which is the only place a ColorScheme can
+    // be read, and it is what lets sweepSchemes() prove the flip landed.
+    private var composedBackground: ULong = 0uL
+
     private fun themed(content: @androidx.compose.runtime.Composable () -> Unit) {
-        rule.setContent { EasyVoiceTheme(darkTheme = darkScheme.value) { content() } }
+        rule.setContent {
+            EasyVoiceTheme(darkTheme = darkScheme.value) {
+                composedBackground = MaterialTheme.colorScheme.background.value
+                content()
+            }
+        }
     }
 
     private fun sweepSchemes() {
         darkScheme.value = false
         rule.waitForIdle()
+        val light = composedBackground
         rule.onRoot().tryPerformAccessibilityChecks()
+
         darkScheme.value = true
         rule.waitForIdle()
+        val dark = composedBackground
         rule.onRoot().tryPerformAccessibilityChecks()
+
+        // THE SWEEP HAS TO PROVE IT SWEPT. Without this the two passes could
+        // quietly be the same scheme twice -- if the flip ever stopped reaching
+        // the composition, every "light" measurement would be a second dark one
+        // and the run would still go green. That is the exact shape of the
+        // three bugs this suite has already had: the reading mode the device
+        // was choosing, the Languages list layout the image was choosing, and
+        // the locale. Each was closed by asserting the state actually rendered,
+        // and this is the same guard for the scheme.
+        //
+        // It compares what the LIBRARY resolved, so it hard-codes no colour:
+        // lightColorScheme().background and darkColorScheme().background are
+        // different by construction, and if a future BOM changed that, this
+        // failing is the correct outcome rather than a silent half-measurement.
+        if (light == dark) {
+            throw AssertionError(
+                "The colour scheme did not change between the two passes -- both " +
+                    "ran with background " + light + ". Every 'light' check in " +
+                    "this run was a second dark check."
+            )
+        }
     }
 
     // enableAccessibilityChecks() also runs on every action, so a screen with no
