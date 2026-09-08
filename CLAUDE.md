@@ -135,16 +135,70 @@ So **one quadgram table is 70% of CLD2, CLD2 is ~1.11 MB per ABI, and the APK
 ships TWO ABIs** (`armeabi-v7a` + `arm64-v8a`). The native libraries are most of
 the download; the Kotlin is not where the size is.
 
-**The smaller-table idea is already taken, and this is why it must not be
-re-opened.** CLD2 ships five quad tables and we already build the SMALLEST:
+**THE TABLE CHOICE WAS REVERSED BY THE OWNER ON 2026-09-08 -- THE APP NOW BUILDS
+THE FULL SET.** This paragraph used to say we build the SMALLEST of CLD2's five
+quad tables and must never change it. That is no longer true and the reasoning
+it rested on was incomplete, so read the CMakeLists comment for the current
+story. In short:
 
-    cld2_generated_quad0122.cc      27,817,652    <- not used
-    cld2_generated_quad0720.cc      27,428,641    <- not used
-    cld2_generated_quadchrome_2.cc   7,661,476    <- not used
-    cld2_generated_quadchrome_16.cc  4,874,655    <- OURS
+    compile.sh      quadchrome_16 + deltaoctachrome + distinctoctachrome
+                    + score_quad_octa_2 + cjk_delta_bi_4        <- was ours
+    compile_full.sh quad0122 + deltaocta0122 + distinctocta0122
+                    + score_quad_octa_0122 + cjk_delta_bi_32    <- is ours now
 
-and it is also the one `libcld2.so` uses, so swapping it would change detection
-answers and break the segmenter's proven parity. Do not.
+They are a matched SET and must be swapped together; the score and CJK-delta
+tables are built for their quad table. **Both quad tables define exactly the
+same two public symbols** (`CLD2::kQuad_obj`, `kQuad_obj2`), so this is a
+file-list change and no C++ moves -- verified with `nm -C --defined-only`, not
+assumed.
+
+**What it buys, from CLD2's own evaluation files** (`docs/evaluate_cld2_small_
+20140122.txt` and `docs/evaluate_cld2_large_20140122.txt`, same corpus, same
+date): **82 languages to 183**. The extra hundred are the ones the QUADGRAM
+scorer needs a bigger table to name -- Frisian, Breton, Corsican, Luxembourgish,
+Occitan, Maori, Samoan, Xhosa, Shona, Wolof, Kurdish, Pashto, Sindhi, Tajik,
+Kazakh, Uzbek, Turkmen, Uighur, Tatar, Bashkir, Mongolian, Sanskrit and the
+rest. Accuracy on the languages both sets already had is equal or better
+(Bihari 0.7769 -> 0.8541; Arabic and Bengali reach 1.0000).
+
+**It does NOT change the script-defined languages, and that correction matters.**
+Gujarati, Tamil, Telugu, Kannada, Malayalam, Punjabi, Oriya, Sinhala, Khmer,
+Lao, Georgian, Armenian and the rest are decided by their Unicode SCRIPT, never
+by the quad table -- CLD2's README says so and our own `SCRIPT_FIXED_LANG`
+ladder is that same rule. They worked before this change and are untouched by
+it. They are missing from the small evaluation file only because that run did
+not cover them, which is why that file's 82 counts quadgram-scored languages
+rather than what the build can detect. **Do not read a language's absence from
+that file as "the compact build cannot detect it".**
+
+**What it costs, measured by compiling both sets with the project's own flags
+and reading the object sizes:**
+
+| | bytes | per ABI |
+|---|---|---|
+| compact tables | 951,416 | 0.91 MB |
+| full tables | 6,103,648 | 5.82 MB |
+| **delta** | **+5,152,232** | **+4.91 MB** |
+
+and the APK ships TWO ABIs, so about **+9.8 MB uncompressed**. This is the one
+change in the project that makes the download substantially bigger, and it sits
+directly against the earlier "APK size kam kar do" request -- the owner asked
+for the full detector knowing the tables are what the size is.
+
+**Latency is unaffected, and that was measured rather than hoped.**
+`tools/verify/latency/run.sh` links the REAL core and reads its source list from
+`CMakeLists.txt`, so it compiled exactly what the app compiles:
+
+    chars   3,520 (the ceiling)   1.38 ms   (compact was 1.58 ms)
+    chars     165                 0.17 ms   (compact was 0.16 ms)
+
+within noise in both directions. A bigger table is a bigger lookup, not more
+work. `tools/verify/segmenter/run.sh` is still **IDENTICAL over 163,296 cases**,
+which it must be -- it slices the core above `buildMixChunks` and never links a
+table.
+
+**To go back**, swap those five names in `CMakeLists.txt` for `compile.sh`'s and
+change nothing else.
 
 **What was actually changed, and what was deliberately NOT.**
 - **R8 full mode is now stated** in `gradle.properties` instead of inherited from
@@ -1701,6 +1755,27 @@ isolation and wrong in the presence of the next event.
 only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
+
+## THE ROLE/STATE STRINGS IN THE APK ARE androidx's, NOT OURS (asked 2026-09-08)
+The owner opened the APK in a resource viewer and saw `tab`, `switch_role`,
+`state_on`, `state_off`, `selected`, `not_selected`, `m3c_dropdown_menu_collapsed`
+/ `_expanded` / `_toggle`, `default_popup_window_title`, `in_progress`,
+`indeterminate`, `m3c_dialog`, `template_percent`,
+`androidx_compose_foundation_autofill` -- and reasonably asked why they are there
+when everything is supposed to come from the library.
+
+**They ARE the library.** `app/src/main/res/values/strings.xml` contains exactly
+**one** string, `app_name`, plus a comment. Every other key is shipped by
+`androidx.compose.ui` and `androidx.compose.material3` and merged into the APK
+because those are dependencies. They are precisely the words the accessibility
+delegate speaks -- "Tab", "Switch", "On", "Off", "Selected", "Not selected",
+"Collapsed", "Expanded" -- i.e. the role and state announcements the owner asked
+for. **Deleting or overriding them would break exactly the feature they were
+added for**, which is what the `default_popup_window_title` experiment already
+proved the hard way (see that section).
+
+**Nothing is duplicated either.** The two screenshots were the same list at two
+scroll positions, which is why the middle rows appear in both.
 
 ## THE THEME IS MATERIAL 3's OWN AND IT FOLLOWS THE SYSTEM (owner, 2026-09-08)
 *"sare buttons ke colour ... sab kuchh accessibility ke hisab se sahi hai na ...
