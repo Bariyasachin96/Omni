@@ -1,27 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- This app draws its entire UI with Jetpack Compose, and every colour it
-         uses comes from EvColorScheme in ComposeTheme.kt. The only job left for
-         an XML theme is dressing the window before Compose's first frame: the
-         background (so there is no flash) and the system bars.
+         uses comes from Material 3's own lightColorScheme() / darkColorScheme()
+         through EasyVoiceTheme. The only job left for an XML theme is dressing
+         the window before Compose's first frame: the background, so there is no
+         flash, and the system bars. -->
+    <!-- THIS THEME IS THE LIGHT ONE, AND values-night/styles.xml IS THE DARK
+         ONE. The app follows the system now, so the window that is painted
+         BEFORE Compose draws has to follow it as well - otherwise a phone in
+         light mode opens on a dark rectangle and then swaps, which is a flash
+         rather than a handover.
 
-         The parent is therefore the FRAMEWORK theme, not
-         Theme.Material3.Dark.NoActionBar from com.google.android.material. That
-         View library and androidx.appcompat were pulled in for this one line and
-         are now gone from the build; the activities are ComponentActivity, which
-         needs no AppCompat theme. Only android: attributes remain, because the
-         colorPrimary / colorSurfaceVariant / colorOutline family are Material
-         Components attributes that do not exist outside that library. -->
-    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+         The parent is the FRAMEWORK theme, not Theme.Material3 from
+         com.google.android.material: that View library and androidx.appcompat
+         were pulled in for one line and are gone from the build, and the
+         activities are ComponentActivity, which needs no AppCompat theme. Only
+         android: attributes are set here, because colorPrimary and its family
+         are Material Components attributes that do not exist outside that
+         library. Theme.Material.Light.NoActionBar and Theme.Material.NoActionBar
+         both exist in the framework - checked in AOSP's own
+         core/res/res/values/themes_material.xml, not recalled.
+
+         windowLightStatusBar is TRUE here and false at night: it asks for DARK
+         bar icons, which is what a light window needs.
+         windowLightNavigationBar says the same for the other bar and closes a
+         gap this theme used to have - it was never stated, so the navigation
+         bar's icons were left unspecified. It arrived in API 27 and minSdk is
+         24; an older device ignores an attribute it does not know.
+
+         statusBarColor / navigationBarColor are ignored from API 35, where the
+         system draws every app edge to edge. They still matter below it, and
+         only for the first frame, because EvActivity calls enableEdgeToEdge()
+         and androidx makes both bars transparent at runtime. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:colorBackground">@color/ev_background</item>
         <item name="android:windowBackground">@color/ev_background</item>
         <item name="android:statusBarColor">@color/ev_background</item>
         <item name="android:navigationBarColor">@color/ev_background</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
-    <!-- The manifest names this one. The parent already has no action bar, so
-         windowActionBar / windowNoTitle (AppCompat attributes) are not needed.
-         AppTheme.AppBarOverlay is deleted; nothing referenced it. -->
     <style name="AppTheme.NoActionBar" parent="@style/AppTheme" />
 
     <!-- The window the launcher opens. It hands over to AppTheme.NoActionBar as

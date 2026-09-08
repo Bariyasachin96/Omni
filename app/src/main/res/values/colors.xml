@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The UI palette lives in EvColorScheme (ComposeTheme.kt). This one colour
-         exists only so the window is already dark before Compose draws; keeping
-         the rest here would be a second, silently diverging copy of the palette. -->
-    <color name="ev_background">#ff121212</color>
+    <!-- The UI palette is Material 3's own: EasyVoiceTheme takes
+         lightColorScheme() / darkColorScheme() unmodified. This one colour is
+         the only thing that has to be repeated in XML, because the WINDOW is
+         painted before Compose draws its first frame and the framework cannot
+         read a Compose scheme.
+
+         It is the LIGHT scheme's `background`, and the value is not chosen -
+         it is what the library resolves to: ColorLightTokens.Background =
+         PaletteTokens.Neutral98 = #FEF7FF. values-night/colors.xml carries the
+         dark scheme's, ColorDarkTokens.Background = Neutral6 = #141218. Keeping
+         them equal to the library is what makes the splash-to-Compose handover
+         a change of content rather than a flash of colour; if a future Compose
+         BOM moves those tokens, these two follow. -->
+    <color name="ev_background">#FFFEF7FF</color>
 </resources>

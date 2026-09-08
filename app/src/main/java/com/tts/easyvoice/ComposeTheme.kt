@@ -1,4 +1,5 @@
 package com.tts.easyvoice
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -17,12 +18,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.Role
@@ -40,44 +41,76 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 
-private val EvColorScheme = darkColorScheme(
-    primary = Color(0xFF82C7FF),
-    onPrimary = Color(0xFF00325A),
-    primaryContainer = Color(0xFF1B2A38),
-    onPrimaryContainer = Color(0xFFFFFFFF),
-    secondary = Color(0xFF4FD8EB),
-    onSecondary = Color(0xFF00325A),
-    background = Color(0xFF121212),
-    onBackground = Color(0xFFFFFFFF),
-    surface = Color(0xFF1E1F22),
-    onSurface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFF2A2D31),
-    onSurfaceVariant = Color(0xFFE3E3E6),
-    outline = Color(0xFF4FD8EB),
-    // Roles below were left to darkColorScheme()'s M3 baseline until the
-    // guideline pass measured them. Two are used and failed WCAG 1.4.11's 3:1
-    // floor for non-text UI:
-    //   outlineVariant #49454F is what TabRow's own HorizontalDivider draws
-    //     with -- 1.76:1 on surface, and that line is the boundary between the
-    //     tab bar and the page. Now 3.70:1.
-    //   secondaryContainer #4A4458 fills a SELECTED FilterChip, 2.02:1 on the
-    //     page, and M3 gives a selected chip no border at all
-    //     (selectedBorderWidth = 0), so the fill is its only boundary.
-    //     Now 3.44:1, with a white label at 5.45:1.
-    // surfaceContainer / surfaceContainerHigh are the menu and dialog fills.
-    // Their low ratio against the page is fine -- a popup over a scrim has no
-    // contrast requirement against what it covers -- but the baseline values
-    // are purple-tinted, so they follow our own surface.
-    secondaryContainer = Color(0xFF42707F),
-    onSecondaryContainer = Color(0xFFFFFFFF),
-    surfaceContainer = Color(0xFF1E1F22),
-    surfaceContainerHigh = Color(0xFF1E1F22),
-    outlineVariant = Color(0xFF727880)
-)
+// THE PALETTE IS THE LIBRARY'S, AND IT FOLLOWS THE SYSTEM (owner, 2026-09-08).
+//
+// This used to be one hand-built dark scheme with fourteen colours picked by
+// hand, and the app was dark whatever the phone was set to. Both halves of that
+// are gone: `lightColorScheme()` and `darkColorScheme()` are Material 3's own
+// baseline schemes, taken unmodified, and `isSystemInDarkTheme()` chooses
+// between them.
+//
+// WHY UNMODIFIED, AND IT IS A MEASUREMENT RATHER THAN A PREFERENCE. Material 3
+// builds every scheme from tonal palettes, and the accessibility of a colour
+// PAIR is a property of the tone gap between them, not of the hue: a role and
+// its `on` role are placed far enough apart that the pair passes by
+// construction. Both baseline schemes were resolved from androidx's own
+// ColorLightTokens / ColorDarkTokens / PaletteTokens and every pair this app
+// actually draws was run through the WCAG formula:
+//
+//     pair                       LIGHT     DARK
+//     body text on the page      16.23     14.35
+//     text on a surface          16.23     14.35
+//     secondary text              8.88     10.91
+//     filled button label         6.44      7.71
+//     accent on the page          6.12     10.91
+//     outlined button label       6.12     10.91
+//     section header text        13.32      7.23
+//     control outline             4.33      5.87
+//     error text                  6.21     10.89
+//     text on a menu             14.85     12.57
+//
+// against floors of 4.5 for text and 3.0 for a UI component. Nothing is close.
+// Hand-picking a replacement could only make one of those worse, and it would
+// have to be done TWICE now that there are two schemes.
+//
+// FOUR PAIRS READ LOW AND ALL FOUR ARE CONTAINER FILLS, NOT TEXT -- the section
+// header bar (1.23 light / 1.99 dark on the page), the divider (1.62 / 1.99),
+// and the selected chip and switch track (1.23 / 2.00). They are low in
+// Google's own baseline, in both schemes, so "fixing" them means overriding the
+// library with numbers of ours -- the exact move this project has had to undo
+// before. They are also not carrying any information by colour alone:
+//   - the selected filter chip draws a CHECK icon when selected, so the state
+//     has a glyph;
+//   - a Switch is read by thumb position, and its unchecked track is outlined
+//     with `outline`, which measures 4.33 / 5.87 against the page;
+//   - the divider and the header bar are decoration; the heading text sitting
+//     on that bar is 13.32 / 7.23.
+// Google's own Accessibility Test Framework -- the engine the CI job runs --
+// checks TEXT against its background and IMAGES against theirs, and has no
+// check for a fill against the page at all.
+//
+// DYNAMIC COLOUR IS DELIBERATELY NOT USED. `dynamicLightColorScheme` /
+// `dynamicDarkColorScheme` are in the pinned material3 (1.4.0) behind
+// @RequiresApi(S), and they would derive the palette from the user's wallpaper.
+// The tone gaps survive that, so it would not be unsafe -- but it makes the
+// app's colours different on every device, which means the accessibility job
+// would be measuring whatever the emulator's wallpaper happened to produce
+// instead of what the app ships. A fixed baseline is what makes that job's
+// result mean something. Say so if it should be turned on.
 
 @Composable
-fun EasyVoiceTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = EvColorScheme) {
+fun EasyVoiceTheme(
+    // Named, with the system as the default, because that is the shape Compose
+    // itself uses for a theme -- and because it is what lets a test render a
+    // screen in a STATED scheme instead of whichever one the emulator image
+    // happens to be in. `isSystemInDarkTheme()` reads
+    // LocalConfiguration.uiMode & UI_MODE_NIGHT_MASK, so a change to the
+    // system setting recomposes the whole app on its own; nothing here listens
+    // for it by hand.
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
         Surface(
             color = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onBackground,

@@ -2,6 +2,7 @@ package com.tts.easyvoice
 
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -155,12 +156,40 @@ class AccessibilityChecksTest {
     private fun entry(name: String, iso3: String, tag: String) =
         LangEntry(name, iso3, 100, 100, 100, "com.google.android.tts", tag, "*Default")
 
-    // enableAccessibilityChecks() also runs on every action, so a screen with no
-    // interaction still needs the explicit call to be checked at all.
-    private fun check(content: @androidx.compose.runtime.Composable () -> Unit) {
-        rule.setContent { EasyVoiceTheme { content() } }
-        rule.enableAccessibilityChecks()
+    // EVERY SCREEN IS CHECKED IN BOTH SCHEMES, and that is the whole reason the
+    // scheme is a parameter of EasyVoiceTheme rather than a read of the system.
+    // The app follows the phone now, so a colour is only half-measured until it
+    // has been measured in light AND in dark -- and an emulator image is in
+    // exactly one of them, so leaving it to the device would have meant one of
+    // the two schemes never being rendered under ATF and nothing saying which.
+    // It is the same hole the reading mode and the Languages list layout each
+    // turned out to have.
+    //
+    // setContent can only be called once per test, so the switch is a state
+    // object the composition reads: flipping it recomposes the same tree into
+    // the other scheme, and every remembered value -- a typed query, an open
+    // menu -- survives, so an interaction test keeps whatever it set up.
+    private val darkScheme = mutableStateOf(false)
+
+    private fun themed(content: @androidx.compose.runtime.Composable () -> Unit) {
+        rule.setContent { EasyVoiceTheme(darkTheme = darkScheme.value) { content() } }
+    }
+
+    private fun sweepSchemes() {
+        darkScheme.value = false
+        rule.waitForIdle()
         rule.onRoot().tryPerformAccessibilityChecks()
+        darkScheme.value = true
+        rule.waitForIdle()
+        rule.onRoot().tryPerformAccessibilityChecks()
+    }
+
+    // enableAccessibilityChecks() also runs on every action, so a screen with no
+    // interaction still needs the explicit sweep to be checked at all.
+    private fun check(content: @androidx.compose.runtime.Composable () -> Unit) {
+        themed(content)
+        rule.enableAccessibilityChecks()
+        sweepSchemes()
     }
 
     private fun prefs() = SharedPrefsManager(rule.activity)
@@ -291,11 +320,12 @@ class AccessibilityChecksTest {
     // LabeledDropdown names its anchor.
     @Test
     fun languageDropdownOpen() {
-        rule.setContent { EasyVoiceTheme { ModeSettingsScreen(prefs(), "dual") } }
+        themed { ModeSettingsScreen(prefs(), "dual") }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("Select secondary language, Hindi (hin)").performClick()
         // Acting on an item is what puts the OPEN menu through the checks.
         rule.onNodeWithContentDescription("Gujarati (guj)").performClick()
+        sweepSchemes()
     }
 
     // Mode 3 is a screen STATE nothing else covers: choosing "Specific language"
@@ -307,27 +337,27 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.numberModeInt = 3
         EasyVoiceTtsService.punctuationModeInt = 3
         EasyVoiceTtsService.emojiModeInt = 3
-        rule.setContent { EasyVoiceTheme { ModeSettingsScreen(prefs(), "dual") } }
+        themed { ModeSettingsScreen(prefs(), "dual") }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("Specific language for reading numbers, English (eng)")
             .performClick()
         rule.onNodeWithContentDescription("Hindi (hin)").performClick()
+        sweepSchemes()
     }
 
     @Test
     fun configurationRowMenuOpen() {
-        rule.setContent {
-            EasyVoiceTheme {
-                ConfigurationScreen(
-                    labels = listOf("English (eng)", "Hindi (hin)"),
-                    engines = listOf("com.google.android.tts", ""),
-                    onLanguage = { }, onDeleteConfiguration = { }, onDisable = { }
-                )
-            }
+        themed {
+            ConfigurationScreen(
+                labels = listOf("English (eng)", "Hindi (hin)"),
+                engines = listOf("com.google.android.tts", ""),
+                onLanguage = { }, onDeleteConfiguration = { }, onDisable = { }
+            )
         }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("More actions for English (eng)").performClick()
         rule.onNodeWithContentDescription("Disable language").performClick()
+        sweepSchemes()
     }
 
     // ======================================================================
@@ -352,7 +382,7 @@ class AccessibilityChecksTest {
     // a device to notice. Contrast is precisely what this framework measures.
     @Test
     fun mainScreenAddLanguageButton() {
-        rule.setContent { EasyVoiceTheme { mainScreen(scanning = false, scanLine = "")() } }
+        themed { mainScreen(scanning = false, scanLine = "")() }
         rule.enableAccessibilityChecks()
         // Moving to Configuration is what draws the button; the click itself
         // also puts page 0 through the checks.
@@ -360,6 +390,7 @@ class AccessibilityChecksTest {
         // Acting on the button is what puts the page that CONTAINS it through
         // them.
         rule.onNodeWithContentDescription("Add language").performClick()
+        sweepSchemes()
     }
 
     // Every switch in its other position, and the Group size dropdown ENABLED.
@@ -401,10 +432,11 @@ class AccessibilityChecksTest {
     // floor to be worth a real measurement.
     @Test
     fun languagesListFiltered() {
-        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        themed { LanguagesScreen(prefs()) }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("My languages").performClick()
         rule.onNodeWithContentDescription("My languages").performClick()
+        sweepSchemes()
     }
 
     // The CLEAR button inside the search field, which exists only once
@@ -413,11 +445,12 @@ class AccessibilityChecksTest {
     // Nothing had ever typed, so nothing had ever seen it.
     @Test
     fun languagesListSearching() {
-        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        themed { LanguagesScreen(prefs()) }
         rule.enableAccessibilityChecks()
         rule.onNode(hasSetTextAction()).performTextInput("Hin")
         // Clicking the clear button checks the screen while it is on it.
         rule.onNodeWithContentDescription("Clear search").performClick()
+        sweepSchemes()
     }
 
     // The OTHER half of LanguagesScreen. In "none" and "dual" the whole list is
@@ -458,10 +491,11 @@ class AccessibilityChecksTest {
     // the last place an unchecked label should be sitting.
     @Test
     fun languagesListNoMatch() {
-        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        themed { LanguagesScreen(prefs()) }
         rule.enableAccessibilityChecks()
         rule.onNode(hasSetTextAction()).performTextInput("zzzz")
         rule.onNodeWithText("No languages match your search.").assertExists()
+        sweepSchemes()
     }
 
     // The SAME empty list under the "My languages" filter says something else,
@@ -470,11 +504,12 @@ class AccessibilityChecksTest {
     // never empty the list. Filter plus a search that matches nothing can.
     @Test
     fun languagesListFilteredNoMatch() {
-        rule.setContent { EasyVoiceTheme { LanguagesScreen(prefs()) } }
+        themed { LanguagesScreen(prefs()) }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("My languages").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("zzzz")
         rule.onNodeWithText("No languages are selected yet.").assertExists()
+        sweepSchemes()
     }
 
     @Test

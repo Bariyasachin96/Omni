@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The night half of values/styles.xml. Only AppTheme is repeated:
+         AppTheme.NoActionBar declares parent="@style/AppTheme", which is a
+         resource reference and so resolves to whichever AppTheme the current
+         configuration selects, and Theme.EasyVoice.Splash reads
+         @color/ev_background, which does the same. So the two styles that are
+         defined once serve both modes and cannot drift.
+
+         The parent is the DARK framework theme, and both windowLight* flags are
+         false, which asks for LIGHT bar icons over a dark window. Read the
+         comment in values/styles.xml for why each item is here at all. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorBackground">@color/ev_background</item>
+        <item name="android:windowBackground">@color/ev_background</item>
+        <item name="android:statusBarColor">@color/ev_background</item>
+        <item name="android:navigationBarColor">@color/ev_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

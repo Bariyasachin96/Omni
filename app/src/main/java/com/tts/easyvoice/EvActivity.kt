@@ -1,9 +1,7 @@
 package com.tts.easyvoice
 
-import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 
 // EVERY Compose screen in this app extends this, and it exists so that the
@@ -15,38 +13,47 @@ import androidx.activity.enableEdgeToEdge
 // app therefore had two different window shapes -- edge to edge on new phones,
 // inset by the DecorView on older ones -- and only one of them ever exercised
 // the padding in EasyVoiceTheme. `enableEdgeToEdge()` is androidx's own API for
-// declaring it, so now there is one shape, one code path, and the same first
-// frame everywhere.
+// declaring it, so there is one shape, one code path, and the same first frame
+// everywhere.
 //
-// **The two styles are explicit, and the default would have been a real bug.**
-// EdgeToEdge.kt's default is
-//     statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
-// and `auto` picks light or dark icons from `detectDarkMode(resources)`, i.e.
-// from the SYSTEM's dark-mode setting. This app is dark in both settings by
-// design (there is no values-night; see the palette note in ComposeTheme.kt), so
-// on a phone in light mode `auto` would ask for DARK icons on our DARK bar and
-// the clock and the signal icons would disappear. `SystemBarStyle.dark(...)`
-// states what is actually true of this app and is right on every device.
+// THE TWO EXPLICIT SystemBarStyle.dark(...) ARGUMENTS ARE GONE, AND THE NOTE
+// THAT ARGUED FOR THEM IS NOW WRONG (owner, 2026-09-08). It said `auto` would
+// be a real bug, because `auto` picks the icon colour from the SYSTEM's
+// dark-mode setting while this app was dark in both settings -- so in light
+// mode `auto` would have asked for dark icons on our dark bar. That reasoning
+// was correct for an app that ignored the system. The app follows the system
+// now, so the same sentence says the opposite: `dark(...)` would pin light
+// icons over a LIGHT app and the clock would disappear.
 //
-// It also closes a gap the XML theme had: styles.xml sets
-// android:windowLightStatusBar but never windowLightNavigationBar, so the
-// navigation bar's icon appearance was simply unspecified. Both bars are stated
-// here, in one place.
+// The bare `enableEdgeToEdge()` is exactly right, and it is not a shortcut --
+// its defaults, read from EdgeToEdge.kt in the pinned activity 1.13.0, are
+//     statusBarStyle     = SystemBarStyle.auto(TRANSPARENT, TRANSPARENT)
+//     navigationBarStyle = SystemBarStyle.auto(DefaultLightScrim, DefaultDarkScrim)
+// so the scrims are androidx's own recommended values instead of two numbers of
+// ours, and they are used only on API 28 and below in any case.
 //
-// TRANSPARENT scrims are correct HERE and would not be in a light app:
-// EdgeToEdge.kt defaults the navigation bar to a scrim for exactly the case
-// where pale content sits behind the bar. Our content is always #121212, so a
-// scrim would only darken what is already dark.
+// AND THE TWO DETECTORS CANNOT DISAGREE, which is what makes this safe rather
+// than merely tidy. `SystemBarStyle.auto`'s default is
+//     (resources.configuration.uiMode and UI_MODE_NIGHT_MASK) == UI_MODE_NIGHT_YES
+// and Compose's `isSystemInDarkTheme()`, which EasyVoiceTheme uses to pick the
+// scheme, is
+//     (LocalConfiguration.current.uiMode and UI_MODE_NIGHT_MASK) == UI_MODE_NIGHT_YES
+// -- the same predicate on the same field. The bar icons and the app's colours
+// are therefore decided by one signal, so they cannot end up describing
+// different themes.
+//
+// (`SystemBarStyle` and this overload ARE deprecated in androidx-main, pointing
+// at WindowCompat.enableEdgeToEdge. They are NOT deprecated in activity 1.13.0,
+// which is what this build pins -- checked in that version's api file, which is
+// the rule this project already learned the hard way with TabRow and
+// ExposedDropdownMenuBox. Do not migrate on the strength of androidx-main.)
 //
 // The padding that keeps content out of those bars is NOT here -- it is one
 // line in EasyVoiceTheme, which every screen also goes through. Read the note
 // there for why one place is enough.
 open class EvActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
-        )
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
     }
 }

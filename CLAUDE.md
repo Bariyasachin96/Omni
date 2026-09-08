@@ -1702,6 +1702,144 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## THE THEME IS MATERIAL 3's OWN AND IT FOLLOWS THE SYSTEM (owner, 2026-09-08)
+*"sare buttons ke colour ... sab kuchh accessibility ke hisab se sahi hai na ...
+material accessibility guideline mein kya kahta hai, kaisi theme rakhni chahie
+... library se hi import karna hai, extra khud likhne ki jarurat nahin ... system
+dark hai to app mein bhi dark, system light hai to light."*
+
+**Two things changed and both are removals.** The app had ONE hand-built dark
+scheme with fourteen colours picked by hand, and it stayed dark whatever the
+phone was set to. It now takes `lightColorScheme()` and `darkColorScheme()`
+**unmodified** and picks between them with `isSystemInDarkTheme()`.
+
+**WHY UNMODIFIED IS THE ACCESSIBLE ANSWER, MEASURED RATHER THAN ASSUMED.**
+Material 3 builds every scheme from tonal palettes, and the accessibility of a
+colour PAIR is a property of the TONE GAP, not the hue: a role and its `on` role
+are placed far enough apart that the pair passes by construction. Both baseline
+schemes were resolved from androidx's own `ColorLightTokens`, `ColorDarkTokens`
+and `PaletteTokens` and every pair this app draws was put through the WCAG
+formula:
+
+| pair | LIGHT | DARK |
+|---|---|---|
+| body text on the page | 16.23 | 14.35 |
+| text on a surface | 16.23 | 14.35 |
+| secondary text | 8.88 | 10.91 |
+| filled button label | 6.44 | 7.71 |
+| accent / outlined button label on the page | 6.12 | 10.91 |
+| section header text | 13.32 | 7.23 |
+| app bar title on its bar | 13.32 | 7.23 |
+| control outline | 4.33 | 5.87 |
+| error text | 6.21 | 10.89 |
+| text on a menu | 14.85 | 12.57 |
+
+against floors of 4.5 for text and 3.0 for a UI component. **Nothing is close.**
+Hand-picking a replacement could only make one of those worse, and it would now
+have to be done TWICE.
+
+**FOUR PAIRS READ LOW AND ALL FOUR ARE CONTAINER FILLS, NOT TEXT** -- the section
+header bar (1.23 light / 1.99 dark against the page), the divider (1.62 / 1.99),
+and the selected chip and switch track (1.23 / 2.00). **They are low in Google's
+own baseline, in both schemes**, so "fixing" them means overriding the library
+with numbers of ours -- the move this project has had to undo before. None of
+them carries information by colour alone: the selected filter chip draws a
+**check icon**, a Switch is read by thumb position and its unchecked track is
+outlined with `outline` (4.33 / 5.87), and the divider and the header bar are
+decoration with 13.32 / 7.23 text on them. And Google's own **Accessibility Test
+Framework -- the engine the CI job runs -- has `TextContrastCheck` and
+`ImageContrastCheck` and no check for a fill against the page at all** (read from
+`AccessibilityCheckPreset.java`, which lists all fourteen).
+
+**The two component overrides that remain are role PAIRINGS, not colours, and
+both were re-measured.** The FAB is `primary` / `onPrimary` rather than
+Material's default `primaryContainer` / `onPrimaryContainer`, which gives its
+shape 6.12 / 10.91 against the page where the default gives 1.23 / 1.99 -- right
+for the screen's primary action, and it is why the "invisible FAB" of the
+Compose migration cannot come back. The top app bar is `primaryContainer` with
+`titleContentColor = onPrimaryContainer`, i.e. the pair, at 13.32 / 7.23.
+
+**DYNAMIC COLOUR WAS RESEARCHED AND DELIBERATELY NOT ADOPTED.**
+`dynamicLightColorScheme` / `dynamicDarkColorScheme` **are** in the pinned
+material3 1.4.0 (`api/1.4.0-beta01.txt`, both `@RequiresApi(S)`), and the tone
+gaps survive a wallpaper-derived palette, so it would not be unsafe. It would
+make the app's colours different on every device, which means the accessibility
+job would be measuring whatever the emulator's wallpaper produced instead of what
+the app ships. A fixed baseline is what makes that job's result mean anything.
+Turn it on if the owner asks; do not slip it in.
+
+**There is NO contrast-level API to adopt.** Android 14's system contrast setting
+and M3's high-contrast schemes are **not** in material3 1.4.0 -- `grep -i contrast`
+over that api file returns nothing. Do not invent one.
+
+### `enableEdgeToEdge()` now takes NO arguments, and the note that argued against that is REVERSED
+The section below ("Both `SystemBarStyle`s are stated explicitly, and the default
+would have been a real bug") was correct **for an app that ignored the system**
+and is now exactly wrong. `SystemBarStyle.dark(...)` pins LIGHT bar icons; over a
+light window the clock and the signal icons disappear. The bare
+`enableEdgeToEdge()` is right, and it is not a shortcut -- its defaults, read
+from `EdgeToEdge.kt`, are `auto(TRANSPARENT, TRANSPARENT)` for the status bar and
+`auto(DefaultLightScrim, DefaultDarkScrim)` for the navigation bar, so the scrims
+are androidx's own recommended values instead of two of ours, and they are used
+only on API 28 and below.
+
+**The two detectors cannot disagree, and that is what makes it safe:**
+
+    SystemBarStyle.auto  (resources.configuration.uiMode and UI_MODE_NIGHT_MASK) == UI_MODE_NIGHT_YES
+    isSystemInDarkTheme  (LocalConfiguration.current.uiMode and UI_MODE_NIGHT_MASK) == UI_MODE_NIGHT_YES
+
+the same predicate on the same field, so the bar icons and the app's colours are
+decided by one signal.
+
+**`SystemBarStyle` IS deprecated in androidx-main and is NOT deprecated in
+activity 1.13.0**, which this build pins -- checked in that version's api file.
+That is the same trap `TabRow` and `ExposedDropdownMenuBox` already sprang here.
+**Do not migrate to `WindowCompat.enableEdgeToEdge` on the strength of
+androidx-main.**
+
+### The window before Compose draws is split by the night qualifier
+`values/styles.xml` is now the LIGHT theme (parent
+`@android:style/Theme.Material.Light.NoActionBar`, `windowLightStatusBar` and
+`windowLightNavigationBar` **true**) and `values-night/styles.xml` the dark one
+(parent `Theme.Material.NoActionBar`, both false). Both framework style names
+were confirmed in AOSP's own `core/res/res/values/themes_material.xml` rather
+than recalled. `windowLightNavigationBar` also closes a gap the theme always had
+-- it was never stated, so that bar's icons were unspecified.
+
+Only `AppTheme` is repeated. `AppTheme.NoActionBar` declares
+`parent="@style/AppTheme"`, a resource reference that resolves per
+configuration, and `Theme.EasyVoice.Splash` reads `@color/ev_background`, which
+does the same -- so the two styles defined once serve both modes and cannot
+drift. **`ev_background` is the library's value, not a choice**: `#FEF7FF` is
+`ColorLightTokens.Background` = `PaletteTokens.Neutral98` and `#141218` is
+`ColorDarkTokens.Background` = `Neutral6`. Keeping them equal to the scheme is
+what makes splash-to-Compose a change of content rather than a flash of colour.
+
+### Every screen is now checked in BOTH schemes
+`EasyVoiceTheme(darkTheme: Boolean = isSystemInDarkTheme(), content)` -- the
+signature Compose's own templates use -- exists so a test can state the scheme
+instead of inheriting the emulator's. An emulator image is in exactly one mode,
+so leaving it to the device would have meant one of the two schemes never being
+rendered under ATF with nothing saying which: the same hole the reading mode and
+the Languages list layout each turned out to have.
+
+`setContent` can only be called once per test, so the switch is a state object
+the composition reads (`darkScheme`); flipping it recomposes the same tree into
+the other scheme and every remembered value -- a typed query, an open menu --
+survives, so the interaction tests keep what they set up. `sweepSchemes()` runs
+the ATF checks in light and then in dark, and every test goes through it.
+
+**One earlier section is superseded by this one.** "Colour roles we never
+declared" argued for replacing `outlineVariant` with `#727880` and
+`secondaryContainer` with `#42707F`. Those numbers are gone with the hand-built
+palette; the reasoning above is what replaces it. The *contrast tables* in the
+older sections describe the OLD palette and are a record, not current fact.
+
+**Blocked while doing this:** `www.w3.org` answers 403 through the egress proxy,
+so WCAG's own Understanding pages could not be read here. The floors used are the
+ones already recorded in this file, and ATF's source -- which is reachable and is
+what CI actually runs -- was read instead.
+
 ## THE ACCESSIBILITY JOB NOW COVERS STATES, NOT JUST SCREENS (owner request, 2026-09-04)
 *"Sabhi screen per accessibility job apply karo ... to aapko acche se pata
 chalega aur jahan per bhi problem aaye vahan per ekadam properly source ke
