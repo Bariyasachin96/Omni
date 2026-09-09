@@ -2010,6 +2010,68 @@ a wrapper with a single child is only a layout node; and the Modes column gained
 **88dp of bottom padding**, the same clearance the Configuration list gives its
 own FAB, so the last mode's description can be scrolled out from under it.
 
+## THERE IS NO NATIVE R8, AND THAT IS MEASURED (owner asked 2026-09-09)
+*"R8 mein to aapne shrink kar diya hai ... to native size bhi file size kam ho
+jaani chahie na ... native side mein jaisa kuchh compiler hoga na jiske through
+bilkul file size kam ho jayegi."*
+
+A fair question with a disappointing answer, so here is the evidence rather than
+the opinion. **R8 shrinks by deleting unreachable CODE. This library is not code.**
+
+    .rodata  (CLD2's lookup tables)   6,253,216 bytes    95%
+    .text    (every line we wrote)      110,533 bytes   1.7%
+
+Every one of those tables is reached from the detector, so there is nothing for a
+garbage collector to collect -- and **`-Wl,--gc-sections` was already enabled**,
+paired with the `-ffunction-sections -fdata-sections` in `build.gradle.kts`, so
+the one flag that IS R8-shaped has been doing its job all along.
+
+**Every remaining candidate was built and weighed**, against the real source list,
+with the project's own flags (host clang 18 + lld; absolute bytes are x86-64, the
+deltas are what transfer):
+
+| flag | delta | verdict |
+|---|---|---|
+| `-Oz` instead of `-Os` | **+12,648** | **WORSE.** Measured, not guessed |
+| `-Wl,--icf=all` | -3,696 | noise, and it can fold two functions to one address, so a function-pointer compare could change meaning |
+| `-Wl,--exclude-libs,ALL` | **0** | exactly nothing |
+| `-fno-exceptions -fno-rtti` | -28,256 | a real behaviour change; the owner said "bina kuchh badle" |
+| **`-Wl,--strip-all`** | **-47,184** | **free and safe -- TAKEN** |
+| all the safe ones together | -52,648 | 0.8% of the library |
+
+**`--strip-all` keeps the app working, and that was checked rather than hoped:**
+it removes `.symtab` and `.strtab` only. All **seven** `Java_...` JNI entry points
+live in `.dynsym`, which a shared library must keep to be loadable, and `nm -D
+--defined-only` finds all seven after stripping.
+
+**And the honest number is smaller still.** The APK stores `.so` **compressed**
+(`useLegacyPackaging = true`, which is already the smaller of the two packaging
+choices for download size). Gzipped, the library is 4.78 MB, and stripping saves
+**10,621 bytes of actual download**. That is 0.2%.
+
+**THE REAL APK, FROM THE RELEASES API, IS WHERE THIS LANDS.** Build 849 is
+**11,428,505 bytes (10.90 MB)**, and the compact-table build 818 was 3,837,769 --
+so the full table set the owner chose on 2026-09-08 is about **+7 MB**, exactly as
+that section predicted. Against that:
+
+    native .so, two ABIs, compressed      ~9.6 MB      ~88% of the APK
+    everything else (dex, resources)      ~1.3 MB
+    what every flag above can save          10 KB      0.09%
+
+**So the flags are finished. Do not chase them again.** The two levers that would
+actually move this are both already recorded above and both are the owner's call:
+the **full CLD2 table set** (+4.91 MB per ABI over the compact one, chosen on
+2026-09-08 for 183 languages instead of 82) and the fact that the APK ships **two
+ABIs**, which doubles all of it. An AAB, ABI splits, or dropping `armeabi-v7a`
+are the only changes with a megabyte in them.
+
+**A limitation worth stating.** The three proof harnesses compile the core with
+their own `-O1`/`-O2` under g++, not with the app's flag set, so they cannot
+certify that a codegen flag is behaviour-neutral. That did not matter here --
+`--strip-all` is a link-time symbol-table removal and cannot change codegen -- but
+if a future flag DOES touch codegen, teach the harnesses a `CXXFLAGS` override
+first and re-run them under the app's real flags.
+
 ## EVERYTHING IS ON THE LATEST STABLE NOW (owner, 2026-09-09)
 *"sab kuchh latest hi use karna. Aisa nahin ki AutoTTS mein purane component use
 kiye hain to ham bhi pura nahin use karenge ... sab kuchh latest version hi hona

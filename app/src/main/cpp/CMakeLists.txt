@@ -83,4 +83,36 @@ add_library(easyvoice_core SHARED
 target_include_directories(easyvoice_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
 find_library(log-lib log)
 target_link_libraries(easyvoice_core ${log-lib})
-target_link_options(easyvoice_core PRIVATE "-Wl,--gc-sections")
+# --gc-sections is the LINKER half of -ffunction-sections/-fdata-sections in
+# build.gradle.kts. Without it those two compile flags do nothing at all.
+#
+# --strip-all drops .symtab and .strtab. The seven JNI entry points live in
+# .dynsym, which a shared library must keep to be loadable, so they survive --
+# verified with `nm -D --defined-only`, all seven still exported after stripping.
+#
+# THERE IS NO NATIVE R8 HERE, AND THAT IS MEASURED, NOT ASSUMED (2026-09-09).
+# The owner asked for a native equivalent of R8's shrinking. R8 works by removing
+# unreachable CODE, and this library is not code:
+#
+#     .rodata (CLD2's tables)   6,253,216 bytes    95%
+#     .text   (all our code)      110,533 bytes   1.7%
+#
+# Every one of those tables is reached, so there is nothing to garbage-collect.
+# Each candidate flag was built and weighed against the real source list:
+#
+#     -Oz instead of -Os          +12,648   WORSE, and that is why it is not here
+#     -Wl,--icf=all                -3,696   noise, and it can fold two functions
+#                                           into one address, so a pointer compare
+#                                           could change meaning
+#     -Wl,--exclude-libs,ALL           +0   exactly nothing
+#     -fno-exceptions -fno-rtti   -28,256   a real behaviour change, so not taken
+#     -Wl,--strip-all             -47,184   free and safe -- taken
+#
+# And the APK stores .so COMPRESSED (useLegacyPackaging = true), so the number
+# that reaches a phone is smaller still: stripping saves 10,621 bytes of actual
+# download out of 4.78 MB. The flags are finished; do not chase them again.
+#
+# The two levers that WOULD move this are both the owner's, and both are already
+# recorded in CLAUDE.md: the full CLD2 table set (+4.91 MB per ABI over the
+# compact one) and shipping TWO ABIs.
+target_link_options(easyvoice_core PRIVATE "-Wl,--gc-sections" "-Wl,--strip-all")
