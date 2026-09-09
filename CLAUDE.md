@@ -2443,8 +2443,9 @@ library or toolchain it is built with.
 `compose-bom` 2026.08.00, `material3.adaptive` 1.3.0, `kotlinx-coroutines` 1.11.0,
 `test:runner` 1.7.0, `test.ext:junit` 1.3.0, `ui-test-junit4-accessibility` 1.12.0.
 
-### AGP 9.4.0 WAS TAKEN AND THEN REVERTED -- IT BREAKS THE accessibility JOB
-Build 849 is the evidence, and it is worth reading before anyone bumps AGP again.
+### AGP 9.4.0 WAS BLAMED FOR THE accessibility FAILURE AND IT WAS INNOCENT
+**READ THE CORRECTION AT THE END OF THIS SECTION BEFORE ACTING ON ANY OF IT.**
+Build 849 is where it started, and the first diagnosis below was wrong.
 
 **The `build` job PASSED and published the APK.** Every step green: Install NDK
 and CMake, Build APK, Publish. So **NDK r30, CMake 4.1.2, Gradle 9.7.1, Kotlin
@@ -2483,6 +2484,37 @@ CI runs. AGP holds at **9.3.2**, the combination build 848 proved green.
 **This is the same carve-out as lifecycle 2.12.0-alpha**: "latest" means the
 newest version that actually works, and one that fails the accessibility gate is
 not one. Revisit on the next AGP.
+
+**THE CORRECTION (2026-09-09, build 854).** AGP was already back at **9.3.2**
+and build 854 failed with the **identical** error, so the diagnosis above is
+refuted: AGP 9.4.0 is not the cause and holding at 9.3.2 buys nothing.
+
+What it actually is, measured rather than eliminated by hand-waving:
+- **the two graphs genuinely disagree, and always did.** `tools/fetch-deps.py`
+  resolved both -- the app resolves `concurrent-futures` **1.1.0** and has no
+  guava at all, while adding the androidTest roots brings `concurrent-futures`
+  **1.2.0** (via `androidx.test:core:1.7.0`) and **guava 31.0.1-android** (via
+  ATF 4.1.1), whose `listenablefuture` is the empty
+  `9999.0-empty-to-avoid-conflict-with-guava` marker that `strictly 1.0` can
+  never accept;
+- **`core-splashscreen` 1.2.0 is innocent too** -- resolved at 1.0.1 and 1.2.0,
+  and neither artifact moves; it only adds `appcompat-resources`;
+- **by elimination the version that changed the behaviour is Gradle 9.5.0 ->
+  9.7.1.** Nothing else in that batch can touch dependency resolution: Kotlin,
+  NDK, CMake and build-tools cannot. Both conflicts are older than the batch and
+  were simply tolerated before.
+
+**The fix is `android.dependency.useConstraints=false`** in `gradle.properties`,
+with the whole reasoning written beside it there. The option was read out of the
+**AGP 9.3.2 jar** rather than recalled -- `BooleanOption.USE_DEPENDENCY_CONSTRAINTS`,
+`ApiStage.Stable`, and it is exactly what `VariantDependenciesBuilder.
+maybeAddDependencyConstraints()` gates on. It affects the debug/androidTest
+classpath only; the release APK the owner installs comes from the `build` job,
+which passed on every one of these runs.
+
+**AGP can go back to 9.4.0 once a run is green.** It is held at 9.3.2 only so
+that this run changes one variable, not two. Say the word.
+
 
 ### LATEST STABLE, not latest published -- and the difference is deliberate
 `lifecycle` publishes **2.12.0-alpha02** and `lifecycle-runtime-compose` shows it
