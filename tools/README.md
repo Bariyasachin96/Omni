@@ -58,8 +58,9 @@ bound its trailing lambda to a newly added last parameter instead of
     tools/verify/segmenter/run.sh        # ~1 min,  163,296 cases
     tools/verify/scriptfamily/run.sh     # ~3 min,  15 language sets x 1,114,112 code points
     tools/verify/normalizer/run.sh       # ~20 s,   1,114,112 code points, 1,062 mappings
+    tools/verify/langcodes/run.sh        # ~5 s,    283 CLD2 language codes
 
-The first four build **AutoTTS's own code** from `autotts_reference/` alongside
+The first three build **AutoTTS's own code** from `autotts_reference/` alongside
 ours, run both over the same inputs, and diff. A failure prints the exact case.
 
 CLD3 and its two harnesses (`cld3span`, `isocodes`) were removed on
@@ -79,6 +80,17 @@ be worth proving:
 - **the Unicode normaliser** — `clsCLD2.a` versus `normalizeFancyCodepoint`, a
   300-line hand transcription. CLAUDE.md says outright: if it is ever touched,
   redo this sweep rather than hand-checking it. This is that sweep.
+- **the language codes** — `c3.n.n`'s normalisation versus the native
+  `toIso3()`, over **every** code CLD2's full build can return. It is the
+  youngest of the four and it exists because of a specific worry: the 2026-09-08
+  swap to CLD2's full tables handed the app a hundred languages it had never
+  seen, and "does anything downstream choke on them?" deserved a measurement
+  rather than a read. `n.n` does NOT normalise a three-letter code, our native
+  `toIso3` never returns null, and the sweep asserts those two rules still agree
+  code by code. It also pins the three deprecated ISO 639-1 pairs `c3.e` states
+  by hand and fails if a fourth (`jw`) comes back -- see CLAUDE.md, 2026-09-09.
+  It reads the ISO tables out of `IsoCodes.kt` at run time and fingerprints the
+  C++ `toIso3()`, so neither side can drift away from it silently.
 
 ## Measuring, not proving
 

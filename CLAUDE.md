@@ -1783,10 +1783,10 @@ compile standalone -- CFR's static initialiser reuses one `Object` local for
 `String[]`, the same defect the segmenter harness records, plus one orphan
 `catch`. The methods render fine, which is what this needed.)
 
-**THE ONE REAL FIND: CLD2 says `jw` for Javanese and nothing mapped it.**
+**THE ONE FIND, AND THE OWNER REVERSED IT THE SAME DAY. DO NOT RE-APPLY IT.**
 Every code the full build can return -- 164 of them, taken from CLD2's own
 `evaluate_cld2_large_20140122.txt` -- was put through a Java mirror of
-`IsoCodes`. Seven failed, and one of the seven matters:
+`IsoCodes`. Seven failed, and one looked like it mattered:
 
     "iw",    //  6 HEBREW        toIso3Map["iw"] = "heb"   already there
     "id",    // 38 INDONESIAN    toIso3Map["id"] = "ind"   already there
@@ -1796,12 +1796,17 @@ Every code the full build can return -- 164 of them, taken from CLD2's own
 Those are the four pre-1989 ISO 639-1 spellings, and CLD2's own
 `kLanguageToCode` still uses the old one for Javanese. `Locale.getISOLanguages()`
 carries **`jv` and not `jw`**, so the seeding loop never makes a `jw` key and
-`toIso3("jw")` answered null -- which sends the span through
+`toIso3("jw")` answers null -- which sends the span through
 `languageForDetectedRun`'s `?: byScript` to the **preferred Latin language**.
-Javanese was being detected correctly and then spoken by the wrong voice, on a
-language Google TTS really has. **AutoTTS carries the identical gap**, so this is
-a DELIBERATE DEPARTURE -- and it is the same shape and size as the three lines
-already sitting above it.
+
+`toIso3Map["jw"] = "jav"` was added, and the owner reversed it in the next
+message: *"Agar CLD2 to JW kehta hai to JW hi rehne do."* They are right and the
+reasoning is rule 5. **AutoTTS's `c3.e` behaves identically** -- it has exactly
+those three lines and no fourth -- so adding one is not "closing a gap", it is
+this project deciding something about DETECTION on its own, which is the one
+place the UI carve-out does not reach. The three lines exist only because
+AutoTTS has them. `IsoCodes.kt` now carries a comment saying so, so the sweep
+does not re-find it and re-fix it.
 
 **The other six are deliberately NOT added** -- `crs` (Seselwa), `kha` (Khasi),
 `lif` (Limbu), `mfe` (Mauritian Creole), `tlh` (Klingon), `zzp` (Pig Latin). No
@@ -1822,6 +1827,99 @@ which feeds `nativeSetLanguageHints`' 64-code cap -- and this file already
 records that the cap's iteration order decides WHICH 64 survive. That is a
 change to proven detection state for a language nobody has reported, so it is
 **not** made here. Say the word and it is two lines.
+
+### THE SECOND PASS, METHOD BY METHOD (owner, 2026-09-09)
+*"aur bhi chijen bahut deeply check kar lijiye ki kya-kya chhut raha hai jo
+AutoTTS mein hai."* Every method of every class the reading path touches was
+inventoried and matched. **Nothing is missing.** What the pass produced is one
+correction to this file, one new proof harness, and a list of things that are
+now settled and must not be re-audited.
+
+**THE CORRECTION: `clsCLD2.g` and `clsCLD2.h` are NOT dead code.** A grep for
+their callers comes back empty across the whole decompile *if you exclude
+`clsCLD2.java` itself*, which is exactly the mistake to avoid -- both are called
+from inside their own class:
+- **`clsCLD2.h(char)`** is the ASCII-punctuation test `clsCLD2.c` skips with,
+  ours is `isLatinPunctuation` (33-47, 58-64, 91-96, 123-126 -- identical);
+- **`clsCLD2.g(String)`** is `UnicodeScript.of(cp0) == LATIN || COMMON ||
+  INHERITED`, and it supplies the **latin flag of the quick-character
+  single-character span** in `clsCLD2.e` AND `clsCLD2.f`. Ours is
+  `isLatinCommonInherited`, and `detectLanguageRuns` already calls it at exactly
+  that site. Present and correct -- but if it had been missing, a lone character
+  under "Quick character read" would have taken the wrong preferred language,
+  and no harness covers that path.
+
+**The method inventory, all matched:**
+
+| AutoTTS | count | ours | how it is known |
+|---|---|---|---|
+| `c3.d0` a-t | 20 | `buildMixChunks` + helpers | segmenter harness, 163,296 cases |
+| `clsCLD2` a,b | 2 | `normalizeFancyCodepoint` | normaliser harness, 1,114,112 code points |
+| `clsCLD2` c,g,h | 3 | `firstValidCodePointU16`, `isLatinCommonInherited`, `isLatinPunctuation` | read this pass, line for line |
+| `clsCLD2` d,e,f,i | 4 | `detectLanguage`, `detectLanguageRuns`, `detectLanguageAggregate`, `pushLanguageSets` | read this pass, branch for branch |
+| `a.java` a-g | 7 | `familyForCp` / `familyLangForCp*` | script-family harness, 15 sets x 1,114,112 |
+| `c3.e` a,b,c | 3 | `IsoCodes` | entry-by-entry read + the new langcodes harness |
+| `c3.e0` ctors, g, a-f | 10 | `TextChunk`, `splitByLocaleSpans` | read this pass, byte for byte |
+| `c3.c`, `c3.c0` | 2 | the emoji regex, the all-whitespace test | inside the segmenter harness |
+
+**Four things machine-checked in this pass rather than read:**
+- **the smart-number keyword table is identical** -- AutoTTS's `d0.i` and our
+  `smartNumberKeywords` were parsed and diffed row by row: **53 rows, same
+  order, same contents**, including the four rows CFR hoists into named locals
+  (`ar`, `hu`, `ro`, `he`, `bn`, `mr`, `lo`).
+- **`CMakeLists.txt` builds exactly `compile_full.sh`'s list**, minus
+  `cld2_unittest_full.cc` and `compact_lang_det_test.cc`, which are test drivers
+  with their own `main`. Nothing else in the full build needs adding, and the
+  two compile scripts differ in the five table files and nothing else.
+- **the `Language` enum is shared.** `generated_language.cc` is in BOTH compile
+  scripts, so the enum numbering `kScriptLangPairs` and
+  `scriptLanguageHint[script]` are written in terms of did not move when the
+  tables were swapped. That is the mechanical reason the swap needed no C++ change.
+- **`splitByLocaleSpans` is `e0.g` byte for byte** and
+  `refillEnabledIso2`/`pushLanguageSets` is `s0` statement for statement,
+  including `getSpans(0, len - 1)`, the `end + 1` step, and s0's skip of any
+  entry that is disabled or whose engine is empty or `"disable"`.
+
+**THE NEW HARNESS: `tools/verify/langcodes/run.sh`, 283 codes, 0 differences.**
+This is the one that actually answers the owner's worry. The full tables can
+return **283 distinct codes** -- not the 164 of the evaluation file, because
+`kLanguageToCode` also carries `zh-Hant`, `sr-ME` and 101 `xx-Script`
+pseudo-languages. Two DIFFERENT rules decide whether such a code is routable:
+
+    AutoTTS   c3.n.n: a THREE-letter code is scanned for VERBATIM, never
+              normalised; anything else goes through c3.e.c and a null there
+              makes n.n answer FALSE outright
+    ours      the native toIso3(), which never returns null -- an unmappable
+              code comes back unchanged and simply fails the set lookup
+
+Swept over all 283: **104 codes are ones `c3.e.c` refuses, and every one of them
+produces on our side a string (`jw`, `un`, `xx`) that cannot be an iso3 and so
+fails the same way. REAL differences: 0.** The harness reads the ISO tables out
+of `IsoCodes.kt` at run time and **fingerprints the C++ `toIso3()`**, so neither
+side can drift away from it in silence, and it fails outright if a fourth
+deprecated pair (`jw`) is ever added back. Negative-tested three ways: the `jw`
+pair restored, the C++ changed, and the two-letter mapping broken.
+
+**Settled by this pass, so do NOT re-audit:**
+- CLD2 never emits `cmn`, `lzh`, `gan` or `hak`, so the Chinese fold at the end
+  of the native `toIso3()` is unreachable from the detector -- harmless, and not
+  a divergence;
+- for CLD2's own vocabulary the three-letter branch **cannot** differ between
+  the two rules: of its 27 three-letter codes only the eight in
+  `codesWithoutIso2` are in `toIso3Map` at all, and each maps to itself;
+- `AutoTtsService.o0` and `j0` -- the two ints passed to `clsCLD2.d`,
+  `clsCLD2.f` and `d0.t` -- are the **licence gate** (`c3.l0.b`/`c`/`d`), not
+  detection inputs. Both initialise to -1, which is the branch `d0.t` overwrites,
+  so our port taking that branch unconditionally is correct and is the carve-out,
+  not a gap;
+- both CLD2 call sites still match the disassembly exactly: the span site passes
+  `{nullptr, nullptr, UNKNOWN_ENCODING, per-script hint}` with `is_plain_text =
+  true`, the window site `{nullptr, "", 0, UNKNOWN_LANGUAGE}` with
+  `is_plain_text = false`, both with flags `0x4000`.
+
+**The three proofs were re-run after all of this and are unchanged:** segmenter
+IDENTICAL over 163,296 cases, normaliser IDENTICAL with 1,062 mappings over
+1,114,112 code points, script family IDENTICAL over 15 sets x 1,114,112.
 
 **Verified clean in the same audit, so do NOT re-check:**
 - all **19** `SCRIPT_FIXED_LANG` codes (`el hy iw ka pa gu or ta te kn ml si th
