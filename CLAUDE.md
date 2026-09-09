@@ -2027,15 +2027,42 @@ on 2026-09-09, unchanged from the 2026-09-01 diagnosis:
     maven.google.com     301                      <- only a redirector
     repo1.maven.org      200
 
-So `dl.google.com` is the whole blockage, `/root/.ccr/README.md` says a proxy
-denial is not to be routed around, and **the fix is the owner's to make in the
-environment**: claude.ai/code, the cloud icon above the message box, the settings
-icon on the environment, **Network access -> Custom**, add `dl.google.com` and
-`maven.google.com` with **"Also include default list of common package managers"
-TICKED**, and start a NEW session. It buys local type-checking of androidx and
+**And the published Trusted list confirms why**, read on 2026-09-09 from
+`code.claude.com/docs/en/cloud-environments` rather than recalled. Its
+"Default allowed domains" section carries five Google hosts --
+`cloud.google.com`, `accounts.google.com`, `gcloud.google.com`,
+`*.googleapis.com`, `storage.googleapis.com` -- and **neither `dl.google.com`
+nor `maven.google.com`**. So this is the allowlist working as designed, not a
+fault.
+
+`/root/.ccr/README.md` says a proxy denial is not to be routed around, and **I
+have no tool that can change it either** -- `list_environments` is read-only and
+this session exposes no create/update environment call. It is the owner's
+setting.
+
+**IT CAN BE DONE FROM THE PHONE -- do not tell the owner they need a computer.**
+The docs say the environment editor is opened by "the cloud icon", and that it
+"appears on the app surfaces listed under The Default environment", which are
+*"Claude Code on the web, the terminal with `claude --cloud`, Claude Tag,
+routines, **the Claude mobile app**, and the Desktop app"*. So the Android app
+has it, near the message box. The steps, in the docs' own words: open the
+environment for editing, use the **Network access** selector in the dialog,
+choose **Custom**, and list one domain per line in **Allowed domains** --
+
+    dl.google.com
+    maven.google.com
+
+with **"Also include default list of common package managers" TICKED**, or every
+Trusted host (Maven Central, npm, PyPI, GitHub) is lost. It takes effect on a
+**NEW** session; the running one keeps the policy it started with. If the icon
+cannot be found in the app, `claude.ai/code` in the phone's own browser is the
+same setting and the same account -- a computer is never required.
+
+**Say the cost honestly when asked.** It buys local type-checking of androidx and
 Compose, which is the biggest hole in the local checks -- it would have caught
-the `ExperimentalMaterial3Api` opt-in that broke build 827. It does not change
-what the app builds or ships.
+the `ExperimentalMaterial3Api` opt-in that broke build 827. It changes **nothing**
+about what the app builds, ships or does, so if the menu is awkward with a screen
+reader it is entirely fine to skip.
 
 ## "1 of 3" WAS BEING SAID TWICE, AND THE SECOND ONE WAS OURS (owner, 2026-09-09)
 *"bahut sari jagah per one of three, two of three ... mere khyal se yah thoda
