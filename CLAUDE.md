@@ -1762,6 +1762,123 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## THE UTTERANCE ID WAS NOT UNIQUE, AND THAT IS THE INTERRUPTION BUG (owner, 2026-09-09)
+*"yah problem a raha hai na speech interruption ka ... abhi to sahi tarike se fix
+nahin kiya hai, abhi aap check karoge na to pata chal jaega sab."* They were right,
+and the thing to check turned out to be one string.
+
+**THE DEFECT, and it is a three-thread race the code had no way to see.** Three
+different threads touch the speaking state and nothing said which utterance an
+arriving callback belonged to:
+
+    synthesis thread   onSynthesizeText, and speakChunk(true) for the first chunk
+    binder threads     the target engine's onStart / onDone / onError / onStop
+    main looper        onDone's chunkHandler.post, the next-chunk step
+
+`setOnUtteranceProgressListener` is **one volatile field per `TextToSpeech`**
+(`TextToSpeech.java:2156` is a bare assignment) and the framework reads it **at
+dispatch time** (`Connection.mCallback.onSuccess`: `listener = mUtteranceProgress-
+Listener; listener.onDone(id)`). So when a screen reader interrupts -- stop us,
+send the next utterance -- the OLD utterance's callback is delivered to the
+listener the NEW utterance installed, **carrying the new utterance's `callback`
+and `chunkQueue` in its closure**. A stale `onDone` then popped the new
+utterance's chunk and spoke it against the old, already finished callback; a stale
+`onError` set `isStopped` on an utterance that had not spoken yet. That is text
+being cut off, skipped, or simply not read -- the report, exactly.
+
+**WHY THE 2026-09-03 ATTEMPT FAILED, and it is the whole lesson.** That commit
+guarded with `id != expectedId` and broke explore-by-touch outright. The check was
+right. **The id was not.**
+
+    expectedId  = "${utteranceId}_${chunkCounter}"
+    utteranceId = (request?.params?.getString("utteranceId")).toString()
+
+`utteranceId` is a static and is literally the string `"null"` when the caller
+sets no param -- and `chunkCounter` is **reset to 1 for every utterance** by the
+`if (currentChunk == 1) chunkCounter = 1` line right above it. So two consecutive
+screen-reader utterances, which are one chunk each, both spoke under `"null_1"`,
+the stale callback matched, and the guard did the damage it was written to
+prevent.
+
+**THE FIX IS THE ID.** A `synthesisGeneration` is bumped once at the top of every
+`onSynthesizeText` and goes into the id: `"${utteranceId}_${myGeneration}_${chunk
+Counter}"`. Now `id != expectedId` means what it says, and it is used in `onStart`,
+`onDone` and both `onError`s. **Eleven lines of code.**
+
+**The framework hands that string back verbatim and an engine cannot alter it** --
+read from AOSP, not assumed. `TextToSpeech.speak()` passes it as its **own AIDL
+argument**, not inside `params` (`TextToSpeech.java:1238`); `TextToSpeechService`
+stores it in `UtteranceSpeechItemWithParams.mUtteranceId`, `protected final` on a
+**private** class of the framework; and every `dispatchOn*` sends
+`getUtteranceId()`. An engine subclass overrides `onSynthesizeText` and friends,
+never those. A live callback therefore always matches, so the guard cannot hang
+the wait.
+
+**The id check alone is not enough, and the second half is why.** A callback can be
+perfectly live when it arrives and still act too late: `onDone` posts the
+next-chunk step to the **main looper**, and an interrupt in between means that
+runnable runs after the utterance ended, when `chunkQueue` already belongs to the
+next one. The id was true when we posted. So two more guards, on the generation
+rather than the id:
+- **at the top of `speakChunk`** -- the one place that pops `chunkQueue` and
+  speaks, reached from all three threads;
+- **inside the posted runnable**, so `chunkCounter++` and `onLoadLanguage` do not
+  run for a dead utterance either.
+
+**Why the generation needs no lock:** only `onSynthesizeText` writes it, and AOSP
+guarantees exactly one writer -- `SynthHandler` is a single `HandlerThread`,
+`SpeechItem.play()` throws on a second call, and `playImpl()` is the only caller.
+`@Volatile` is for the readers.
+
+**Why none of this can hang, stated rather than hoped.** The guards only ever drop
+a call from a generation whose `onSynthesizeText` has already returned -- and that
+method ends with `startAndFinish(callback)`, so that utterance's callback is
+already finished and nothing is parked on it. The live utterance's own callbacks
+carry its own generation and its own id, so nothing of its is dropped.
+
+**A second, smaller defect fixed in the same pass: two `chunkQueue.clear()` calls
+did not hold the monitor.** `onStop` (binder thread) and the empty-text path,
+against `speakChunk`'s `removeAt(0)` on the synthesis or main thread -- and the
+other four accesses already synchronize on it. A bare `ArrayList.clear()` racing a
+`removeAt` does not merely lose an element, it **throws**, and an exception inside
+`onStop` would abort it **before** the two lines at the bottom that release the
+parked synthesis thread. `chunkQueue` is a leaf lock everywhere (nothing is taken
+while holding it), so this cannot invert with the `syncLock` or `LangStore.languages`
+orders already recorded.
+
+**`onStop(id, interrupted)` IS STILL LOG-ONLY, and that is deliberate.** AutoTTS's
+listener is a bare log (`noexc:2770`) and rule 5 governs. The hang it would guard
+against is real in principle -- AOSP's `SynthesisSpeechItem.stopImpl()` dispatches
+`onStop` and **neither `onDone` nor `onError`** (verified again this pass:
+`PlaybackSynthesisCallback.stop()` -> `item.stop(STOPPED)` ->
+`SynthesisPlaybackQueueItem` line 143 `dispatcher.dispatchOnStop()`) -- but no log
+the owner has sent contains it, and our own `onStop()` override already releases
+the wait on every interrupt we are told about. **If it ever does show up in a log,
+`id != expectedId` there is finally a correct guard.** Do not add it on theory.
+
+**Verified in the same read and NOT changed, so do NOT re-audit:**
+- **calling `callback.start()`/`done()` off the synthesis thread is safe.**
+  `AbstractSynthesisCallback`'s javadoc says those are synthesis-thread-only, and
+  our listener calls them from binder threads -- as AutoTTS's does. The real
+  implementation is internally thread-safe: `PlaybackSynthesisCallback` has a
+  `private final Object mStateLock`, a `volatile boolean mDone`, and
+  `synchronized (mStateLock)` on every one of its entry points.
+- **AOSP already covers a callback we start but never finish.**
+  `SynthesisSpeechItem.playImpl()` ends with *"Fix for case where client called
+  .start() & .error(), but did not called .done()"* and calls `done()` itself. Ours
+  ends with `startAndFinish(callback)` anyway.
+- **the next utterance cannot begin before ours returns.** `SynthHandler` is one
+  `HandlerThread` and `enqueueSpeechItem` posts the new item's runnable behind the
+  one that is blocked in `onSynthesizeText`, so the generation can only advance
+  after we return.
+- **an interrupt reaches us as `onStop()`, not as a queued item.**
+  `enqueueSpeechItem(QUEUE_FLUSH, ...)` calls `stopForApp` **synchronously on the
+  binder thread first**, and only then posts; `stopForApp` -> `current.stop()` ->
+  `stopImpl()` -> `synthesisCallback.stop()` **and** `TextToSpeechService.this.onStop()`.
+- **`enginePool`'s bounds-checked `while (index < enginePool.size)` walk is
+  AutoTTS's own shape and is left alone** -- adding a lock there would be the
+  "defensive" justification rule 5 forbids, and nothing has been reported on it.
+
 ## THE READING PATH AUDITED A TO Z AGAINST THE FULL CLD2 (owner, 2026-09-09)
 *"pura A to Z reading ... segmentation mein AutoTTS mein hamare paas se kuchh
 chhut to nahin raha ... kyunki hamare paas CLD2 pehle full nahin tha ... native

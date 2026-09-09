@@ -32,6 +32,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private val syncLock = Object()
     @Volatile private var isStopped = false
     @Volatile private var isFlushed = false
+    // ---- WHICH UTTERANCE A CALLBACK BELONGS TO ------------------------------
+    // Bumped once at the top of every onSynthesizeText and captured by that
+    // utterance's listener closures. Three different threads touch the speaking
+    // state -- the screen reader's synthesis thread runs onSynthesizeText, the
+    // target engine's callbacks arrive on OUR binder threads, and onDone posts
+    // the next-chunk step to the main looper -- and until this existed nothing
+    // said which utterance an arriving callback belonged to.
+    //
+    // Only onSynthesizeText writes it, and AOSP guarantees exactly one writer:
+    // SynthHandler is a single HandlerThread, SpeechItem.play() throws on a
+    // second call, and playImpl() is the only caller of onSynthesizeText. So the
+    // read-modify-write needs no lock; @Volatile is for the readers.
+    @Volatile private var synthesisGeneration = 0
     // ---- WHO IS SPEAKING, so engine death can unblock the wait ---------------
     // onSynthesizeText ends by parking the SCREEN READER'S synthesis thread on
     // syncLock until the utterance listener sets isStopped or isFlushed. If the
@@ -810,7 +823,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // onStop logs, then calls q0(TRUE), which logs and only then clears R.
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop calling!!!")
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + true)
-        chunkQueue.clear()
+        // Under the monitor the other four accesses already use. onStop runs on
+        // a binder thread while speakChunk may be popping on the synthesis or
+        // main thread, and a bare ArrayList.clear() against a concurrent
+        // removeAt is not merely a lost element -- it throws, and an exception
+        // here would abort onStop before the two lines at the bottom that
+        // release the parked synthesis thread.
+        synchronized(chunkQueue) { chunkQueue.clear() }
         var index = 0
         while (index < enginePool.size) {
             val wrapper = enginePool[index]
@@ -1178,6 +1197,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         synchronized(syncLock) { isStopped = false; syncLock.notifyAll() }
         synchronized(syncLock) { isFlushed = false; syncLock.notifyAll() }
         speakingPkg = null
+        // THIS utterance's identity, for the rest of this method and for every
+        // closure it creates. See the field for why the ++ needs no lock.
+        val myGeneration = ++synthesisGeneration
         val rawCharSeq = request?.charSequenceText ?: ""
         val rawText = rawCharSeq.toString()
         requestRate = (request?.speechRate ?: 100) / 100.0f
@@ -1191,7 +1213,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // removeCallbacks(u) -- which has no counterpart here, because the
             // speak runnable is no longer posted -- then R.clear().
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + false)
-            chunkQueue.clear()
+            synchronized(chunkQueue) { chunkQueue.clear() }
             if (engineIndex >= 0 && engineIndex < enginePool.size) {
                 val wrapper = enginePool[engineIndex]
                 // DELIBERATE DEPARTURE FROM AutoTTS -- the SAME one onStop carries,
@@ -1589,6 +1611,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
         }
         fun speakChunk(first: Boolean) {
+            // The one place that pops chunkQueue and speaks, and it is reached
+            // from three threads: the synthesis thread for the first chunk, a
+            // binder thread when onDone finds no next chunk, and the main looper
+            // for every chunk after the first. Once this utterance has ended the
+            // queue belongs to the next one, so a late caller must not pop it.
+            if (myGeneration != synthesisGeneration) return
             if (isStopped || isFlushed) return
             val pair = synchronized(chunkQueue) { if (chunkQueue.isEmpty()) null else chunkQueue.removeAt(0) }
             if (pair == null) {
@@ -1650,23 +1678,64 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val finalVolume = requestVolume * appVolume
             tts.setSpeechRate(finalRate); tts.setPitch(finalPitch)
             if (currentChunk == 1) chunkCounter = 1
-            val expectedId = "${utteranceId}_${chunkCounter}"
+            // THE UTTERANCE ID IS NOW UNIQUE, AND IT WAS NOT (owner, 2026-09-09:
+            // "speech interruption ka problem").
+            //
+            // It used to be "${utteranceId}_${chunkCounter}", and neither half
+            // separates one utterance from the next: `utteranceId` is a static
+            // read from the caller's params and is literally the string "null"
+            // whenever the caller sets none, and `chunkCounter` is reset to 1 for
+            // every utterance by the line above -- so two consecutive
+            // screen-reader utterances, which are one chunk each, both spoke
+            // under the id "null_1".
+            //
+            // That is why the 2026-09-03 attempt to drop stale callbacks with
+            // `id != expectedId` broke explore-by-touch instead of fixing it: the
+            // check was right and the id was not. The generation makes the id
+            // genuinely unique, and the guards below then mean what they say.
+            //
+            // The framework hands this string back verbatim and cannot alter it:
+            // TextToSpeech.speak() passes it as its own AIDL argument, not inside
+            // params; TextToSpeechService stores it in UtteranceSpeechItemWith-
+            // Params.mUtteranceId, which is protected final on a PRIVATE class of
+            // the framework; and every dispatchOn* sends getUtteranceId(). An
+            // engine implementation overrides onSynthesizeText, never those.
+            val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}"
             val chunkHandler = android.os.Handler(android.os.Looper.getMainLooper())
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String) {
                     // The engine really spoke, so its failure streak is over.
                     // This is what replaces a "healthy for N seconds" clock in
                     // restoreEngine: an event that means exactly "it worked".
+                    // True whichever utterance it belongs to, so it is not gated.
                     wrapper.restoreCount = 0
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
+                    if (id != expectedId) return
                     if (callback?.hasStarted() == false) { callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
                 }
                 override fun onDone(id: String) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onDone " + id)
+                    // STALE CALLBACK. setOnUtteranceProgressListener stores ONE
+                    // volatile listener per TextToSpeech and the framework reads
+                    // it at dispatch time, so a callback for the utterance we
+                    // just interrupted is delivered to the listener the NEXT
+                    // utterance installed -- carrying the next utterance's
+                    // `callback` and `chunkQueue` in its closure. Acting on it
+                    // spoke the new utterance's chunk against the old, already
+                    // finished callback, which is the text that gets cut off.
+                    // The id is unique now, so this tells the two apart.
+                    if (id != expectedId) return
                     val next = synchronized(chunkQueue) { chunkQueue.firstOrNull()?.second }
                     if (next == null) { speakChunk(false); return }
                     chunkHandler.post {
                         try {
+                        // Posted while THIS utterance was live; it runs on the
+                        // main looper, which is neither the synthesis thread nor
+                        // the binder thread, so an interrupt in between means it
+                        // arrives after the utterance ended and the next one has
+                        // already refilled chunkQueue. The id check above cannot
+                        // see that -- it was true when we posted.
+                        if (myGeneration != synthesisGeneration) return@post
                         chunkCounter++
                         var advance = true
                         if (modeInt == 1) {
@@ -1739,12 +1808,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 override fun onError(id: String) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id)
+                    if (id != expectedId) return
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #8")
                     synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
                     if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
                 override fun onError(id: String, errorCode: Int) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id + " code " + errorCode)
+                    if (id != expectedId) return
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #9")
                     synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
                     if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
@@ -1782,10 +1853,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // was immediate and total. AutoTTS carries the same shape, and
                 // rule 5 says mirror it.
                 //
-                // IF IT EVER SHOWS UP IN A REAL LOG, the guard has to be a
-                // per-utterance GENERATION counter bumped at the top of
-                // onSynthesizeText and captured in this closure -- never the
-                // utterance id, which is not unique.
+                // THE ID IS UNIQUE NOW (see expectedId above), so if that hang
+                // ever does show up in a real log, `id != expectedId` here is
+                // finally a correct guard and this can release the wait. It is
+                // still NOT done, because AutoTTS's listener is a bare log and
+                // no log the owner has sent contains the hang -- only the
+                // interruption the id fixes. Do not add it on theory.
                 override fun onStop(id: String, interrupted: Boolean) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop " + id)
                 }
