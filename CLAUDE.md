@@ -601,8 +601,9 @@ and none of that can be verified without an NDK build. Do it when a build is ava
 to check it, not before.
 
 ## Local validation before every push
-    tools/bootstrap.sh          # once per container: android.jar + kotlinc
-    tools/check-all.sh          # ~2 min, everything static
+    tools/bootstrap.sh          # once per container: android.jar, kotlinc,
+                                #   the Compose plugin and the androidx classpath
+    tools/check-all.sh          # ~1 min, everything static
     tools/verify/*/run.sh       # the behaviour proofs, when you touch what they cover
 
 **Accessibility is checked in CI, not here.** `app/src/androidTest/.../AccessibilityChecksTest.kt`
@@ -617,13 +618,18 @@ a real defect and is to be fixed, never tolerated because the APK happened to bu
 #6, #7, #9 and #18 are a careful read and the owner's ear.
 
 `tools/check-all.sh` runs, cheapest first: `ktcheck` (structure), `ktresolve` (our own
-call signatures), `ktimports`, `xmlcheck`, `cpp-syntax.sh`, and `kotlin-typecheck.sh`,
-which diffs kotlinc's errors against a baseline commit. **Judge that last one by the NEW
-error texts it prints, never by the total** — the jar is API 15 from Maven Central
-because Google Maven is blocked, so androidx, Material and Compose are all unresolvable
-and every run reports over a thousand errors. Running it *without* a real `android.jar`
-is worse than useless: kotlinc then checks **nothing** at `android.*` call sites, which
-is how a wrong trailing lambda once reached CI.
+call signatures), `ktimports`, `xmlcheck`, `cpp-syntax.sh`, and `kotlin-typecheck.sh`.
+
+**That last one changed completely on 2026-09-09 and the old advice is now wrong.**
+It used to report ~1,254 errors, none of them meaningful, and had to be judged by the
+NEW error texts alone. With Full network access it resolves androidx, generates `R`,
+runs the Compose compiler plugin and reports **0** — so the count is real, and **any new
+error fails the run**. It prints which of its two modes it is in on every run; see
+"THE LOCAL CHECK NOW RESOLVES androidx" below for both, and for why REDUCED never fails.
+
+Running it with no real `android.jar` at all would be worse than useless: kotlinc then
+checks **nothing** at `android.*` call sites, which is how a wrong trailing lambda once
+reached CI — and the same was true of androidx, which is how build 827 failed.
 
 `kotlin-typecheck.sh` still understands the old layouts — it reads a baseline from real
 files, else `ci/generate.py`, else the generator inlined in `build.yml` — so a baseline
@@ -2004,65 +2010,144 @@ a wrapper with a single child is only a layout node; and the Modes column gained
 **88dp of bottom padding**, the same clearance the Configuration list gives its
 own FAB, so the last mode's description can be scrolled out from under it.
 
-## GOOGLE MAVEN IS ALREADY CONFIGURED -- WHAT IS BLOCKED IS THIS CONTAINER (owner asked 2026-09-09)
-*"uska Google Maven configure karna ... uske hisab se vah library download karke
-configure karega."* Checked rather than assumed, and there is **nothing to change
-in the build**: `google()` IS Google Maven, and it is declared in all three
-places it can be --
+## THE LOCAL CHECK NOW RESOLVES androidx, AND IT WENT FROM 1,254 ERRORS TO 0 (owner, 2026-09-09)
+*"ab Maine network access full de diya hai dekh lijiye ab."* They did, and this
+is what it bought. **Measured from this session, not recalled:**
 
-    settings.gradle.kts   pluginManagement { repositories { google(); ... } }
-    settings.gradle.kts   dependencyResolutionManagement { repositories { google(); ... } }
-    build.gradle.kts      buildscript { repositories { google(); ... } }
-
-with `repositoriesMode.set(FAIL_ON_PROJECT_REPOS)`, which is the strict setting
-that makes those two lists the only ones any module can use. That is why CI
-resolves AGP 9.3.2, Kotlin 2.4.10, the Compose BOM, material3, activity,
-core-splashscreen and the adaptive artifact and publishes an APK on every run --
-Gradle is already downloading and configuring exactly what the build asks for.
-
-**What fails is the egress policy of THIS container, and only here.** Re-measured
-on 2026-09-09, unchanged from the 2026-09-01 diagnosis:
-
-    dl.google.com        CONNECT tunnel refused   <- where the artifacts live
-    maven.google.com     301                      <- only a redirector
+    dl.google.com        302   <- was "CONNECT tunnel refused"
+    maven.google.com     301
     repo1.maven.org      200
 
-**And the published Trusted list confirms why**, read on 2026-09-09 from
-`code.claude.com/docs/en/cloud-environments` rather than recalled. Its
-"Default allowed domains" section carries five Google hosts --
-`cloud.google.com`, `accounts.google.com`, `gcloud.google.com`,
-`*.googleapis.com`, `storage.googleapis.com` -- and **neither `dl.google.com`
-nor `maven.google.com`**. So this is the allowlist working as designed, not a
-fault.
+and a real fetch, because a 302 on the root proves nothing: `material3-1.4.0.pom`
+200/3,667 B, `compose-bom-2026.08.00.pom` 200/41,126 B, `gradle-9.3.2.pom`
+200/9,034 B. The docs say the change takes effect on a NEW session and the
+running one keeps its policy; **this container picked it up anyway**, so it was
+used rather than deferred.
 
-`/root/.ccr/README.md` says a proxy denial is not to be routed around, and **I
-have no tool that can change it either** -- `list_environments` is read-only and
-this session exposes no create/update environment call. It is the owner's
-setting.
+**THE HOLE THIS CLOSES IS THE ONE THIS FILE HAS COMPLAINED ABOUT FOR WEEKS.**
+`kotlin-typecheck.sh` reported ~1,254 errors and the whole apparatus around it --
+the baseline diff, the "our-own-name" counter, "do not chase these" written into
+six separate sections -- existed to work around the fact that it could not
+resolve a single androidx symbol. It now reports **0**, and the count is real.
 
-**IT CAN BE DONE FROM THE PHONE -- do not tell the owner they need a computer.**
-The docs say the environment editor is opened by "the cloud icon", and that it
-"appears on the app surfaces listed under The Default environment", which are
-*"Claude Code on the web, the terminal with `claude --cloud`, Claude Tag,
-routines, **the Claude mobile app**, and the Desktop app"*. So the Android app
-has it, near the message box. The steps, in the docs' own words: open the
-environment for editing, use the **Network access** selector in the dialog,
-choose **Custom**, and list one domain per line in **Allowed domains** --
+    before   ~1,254 errors, none of them meaningful, Compose unchecked
+    after         0 errors, and a Compose mistake fails locally
 
-    dl.google.com
-    maven.google.com
+**And it got FASTER, which was not the point but is worth knowing.**
+`tools/check-all.sh` now runs in **55 seconds** where the note in this file said
+two minutes -- kotlinc no longer has to produce and format 1,254 error messages.
+So the better check is also the cheaper one; there is no reason to skip it.
 
-with **"Also include default list of common package managers" TICKED**, or every
-Trusted host (Maven Central, npm, PyPI, GitHub) is lost. It takes effect on a
-**NEW** session; the running one keeps the policy it started with. If the icon
-cannot be found in the app, `claude.ai/code` in the phone's own browser is the
-same setting and the same account -- a computer is never required.
+### Four pieces, each measured
+| piece | what it fixed |
+|---|---|
+| **android.jar is API 37** -- the app's own `compileSdk`, unpacked from `platform-37.0_r02.zip` off `dl.google.com` | `Voice`, `AudioAttributes`, `Settings$Global`, `PackageInfoFlags`, `getLongVersionCode`, `generateViewId` all resolve. Every "known noise signature" in this file is gone with them. |
+| **`tools/fetch-deps.py`** -- 110 artifacts resolved from `app/build.gradle.kts` | every androidx / Compose / Material3 call site |
+| **`-jvm-target 17`** matching `compileOptions` | **218 of the first 245 errors**: kotlinc defaults to 1.8 and answers every androidx inline function with "cannot inline bytecode built with JVM target 11" |
+| **`tools/check/genr.py`** -- generates R from `res/` the way AGP does | the last 26, all `unresolved reference 'R'`, plus one inference cascade |
 
-**Say the cost honestly when asked.** It buys local type-checking of androidx and
-Compose, which is the biggest hole in the local checks -- it would have caught
-the `ExperimentalMaterial3Api` opt-in that broke build 827. It changes **nothing**
-about what the app builds, ships or does, so if the menu is awkward with a screen
-reader it is entirely fine to skip.
+### The Compose compiler plugin is on, and it earns its place in one test
+`kotlin-compose-compiler-plugin:2.4.10`, the same version `build.gradle.kts`
+applies. Without it this is legal to kotlinc and illegal to Compose:
+
+    fun NotComposable() { Text("hi") }
+    without the plugin   0 errors
+    with the plugin      functions which invoke @Composable functions must be
+                         marked with the @Composable annotation
+
+**USE THE PLAIN ARTIFACT, NEVER `-embeddable`.** The embeddable one is shaded
+against `org.jetbrains.kotlin.com.intellij`, which the kotlinc CLI's preloader
+classloader does not provide -- it dies with `ClassNotFoundException:
+org.jetbrains.kotlin.com.intellij.psi.PsiElement` before compiling anything.
+
+### PROVEN TO FIRE, four negative tests, because a quiet checker is the worst outcome
+    drop @OptIn(ExperimentalMaterial3Api::class)   3 errors  <- IS build 827
+    R.drawable.ic_settings -> ic_settingz          1 error
+    Text("Settings") -> Text(42)                   1 error
+    @Composable called from an ordinary function   2 errors
+    unmodified tree                                0 errors
+
+The first is the exact failure that broke build 827, reproduced locally with the
+same three `e:` lines. The second is new coverage: `xmlcheck.py` resolves
+references made from XML and **nothing checked the ones made from Kotlin**, so a
+misspelled `R.drawable.*` used to be caught only by AAPT in CI.
+
+### THE `own()` HEURISTIC IS GONE -- IT FIRED A FALSE FAILURE, AND THAT IS THE LESSON
+It counted unresolved references to our own names, on the reasoning that a file
+which fails to resolve cascades into them. **That reasoning stopped being true
+the moment android.jar became real and R was generated**: our own names now
+resolve even without androidx, the count reads a legitimate 0, and the guard
+built on it announced *"the compiler's wording has changed again"* and exited 1.
+A tripwire whose premise has been repaired underneath it does not go quiet -- it
+lies. Replaced by two things that are not heuristics:
+- **kotlinc really compiled the package** -- assert the class-file count, so an
+  empty error list cannot mean "it never saw the sources";
+- **an error really would be reported and really would be caught by the grep** --
+  compile a deliberate `fun deliberatelyWrong(): Int = "not an Int"` and require
+  it to fail. This is what the K1/K2 wording break of 2026-08-27 needed and never
+  had.
+
+### Two modes, and REDUCED never fails
+**FULL** is the above. **REDUCED** is what a container on the *Trusted* network
+level gets: `dl.google.com` refused, so API 15 from Maven Central and no androidx
+at all, ~1,112 errors. It prints the diff and **deliberately never exits 1**,
+because one added androidx import produces a handful of errors that say nothing
+about whether the code is right, and a check people learn to ignore is worse than
+no check. `bootstrap.sh` degrades to it silently and says which mode it is in on
+every run. **A proxy denial is still not to be routed around with a mirror.**
+
+### Two traps inside `fetch-deps.py`, both found by the jars they silently dropped
+- **`[1.12.0]` is a version, not a list.** androidx poms pin with Maven's
+  hard-requirement syntax. Read literally it resolves nothing, and that took
+  `compose.runtime`, `ui-graphics`, `ui-text` and `ui-unit` -- **the core of
+  Compose** -- straight off the classpath while the run still reported success.
+- **`androidx.compose.ui:ui` has no jar and that is correct.** It is
+  `packaging=pom`, a shim that exists to depend on `ui-android`, where the classes
+  are. The resolver reads `<packaging>` and skips those silently.
+
+It parses the roots and the BOM **out of `app/build.gradle.kts` itself**, so it
+cannot drift from what the app declares -- a hand-kept jar list would go stale the
+first time a dependency is added and say nothing. Version conflicts are settled by
+highest-wins; Maven uses nearest-wins, so this can differ, and for a type-check
+classpath the newer API surface is the safe direction.
+
+### `set -o pipefail` broke the new self-checks TWICE, in two different ways
+Both were silent or misleading failures of a checker that was working, which is
+the exact failure mode this whole section exists to prevent. Recorded because a
+third one is likely:
+- **`grep -q` SIGPIPEs the producer.** The self-test ran
+  `kotlinc ... 2>&1 | grep -q ": error: "`. `grep -q` exits on the first match,
+  kotlinc takes SIGPIPE, and under `pipefail` the pipeline reports 141 -- so the
+  self-test reported "kotlinc is not reporting errors" while kotlinc was printing
+  exactly the error asked for. Write to a file and test `-s`, which is what
+  `errs()` already did and why `errs()` never had this bug.
+- **`find` on a missing directory kills the script with no message.**
+  `classes=$(find "$WORK/out" ... | wc -l)` -- in REDUCED mode compilation
+  produces no output directory at all, `find` exits non-zero, `pipefail` carries
+  it out of the command substitution and `set -e` ends the run between two
+  `echo`s. The mode "failed" with a blank line. Wrap it: `$( { find ... || true; } | wc -l )`.
+
+**And the assertion itself was wrong for one mode.** "kotlinc really compiled the
+package" cannot hold in REDUCED, where androidx is unresolvable and producing no
+classes is correct behaviour. It is FULL-only now. The error-reporting self-test
+runs in both, because it is about the compiler and the grep rather than about
+this app's dependencies.
+
+### A process trap worth more than any of them
+The both-modes verification run failed with `line 126: es: command not found`.
+Nothing was wrong with the script. **bash reads a script incrementally, and I
+edited it while it was running**, so execution resumed at a byte offset that now
+landed mid-token. If a shell script fails with a nonsense fragment as a command
+name, check whether it was edited mid-run before debugging a single line of it.
+
+**The Gradle side needed no change and never did.** `google()` IS Google Maven and
+was already declared in all three places it can be -- `pluginManagement`,
+`dependencyResolutionManagement` (with `repositoriesMode.set(FAIL_ON_PROJECT_REPOS)`)
+and `buildscript` -- which is why CI has always resolved AGP, Kotlin, the Compose
+BOM and the rest and published an APK. What was blocked was this container's
+egress, and only that. **Nothing about what the app builds, ships or does has
+changed by any of this**; the change is entirely in what can be caught before a
+push instead of thirteen minutes into a CI run.
 
 ## "1 of 3" WAS BEING SAID TWICE, AND THE SECOND ONE WAS OURS (owner, 2026-09-09)
 *"bahut sari jagah per one of three, two of three ... mere khyal se yah thoda
@@ -3585,6 +3670,11 @@ stable; CI is what checks it resolves. See the section below for how the owner c
 unblock that host.
 
 ## "Google Maven is blocked" is ONE HOST, and the owner can unblock it (diagnosed 2026-09-01)
+**SUPERSEDED 2026-09-09 -- the owner set network access to Full and it is not
+blocked any more.** Kept as the record of how it was diagnosed and of what the
+fix was, because the same reasoning applies to any host the policy refuses. The
+measurements below describe the *Trusted* level and are still accurate for it.
+
 Repeated everywhere in this file as a flat fact. It is narrower than that, and it is fixable
 from the environment settings — measured, not assumed:
 
