@@ -28,6 +28,27 @@ object IsoCodes {
         toIso3Map["id"] = "ind"
         toIso3Map["ji"] = "yid"
         toIso3Map["yi"] = "yid"
+        // THE FOURTH DEPRECATED CODE, and it is the one c3.e leaves out
+        // (found 2026-09-09 while auditing the reading path against the full
+        // CLD2 tables). The three lines above exist because Java's Locale
+        // still answers with the pre-1989 ISO 639-1 spellings -- iw, in, ji --
+        // where the modern codes are he, id, yi. Javanese changed the same way,
+        // jw to jv, and CLD2's own kLanguageToCode still says the OLD one:
+        //
+        //     "iw",    //  6 HEBREW        <- handled above
+        //     "id",    // 38 INDONESIAN    <- handled above
+        //     "jw",    // 48 JAVANESE      <- was handled NOWHERE
+        //     "yi",    // 91 YIDDISH       <- handled above
+        //
+        // Locale.getISOLanguages() carries jv and NOT jw, so the seeding loop
+        // never makes a jw key and toIso3("jw") answered null. Javanese text
+        // was therefore detected correctly and then resolved by
+        // languageForDetectedRun's `?: byScript` to the preferred Latin
+        // language -- the wrong voice, on a language Google TTS really speaks.
+        // AutoTTS carries the identical gap; this is a DELIBERATE DEPARTURE of
+        // exactly the same shape and size as the three lines above it.
+        toIso3Map["jw"] = "jav"
+        toIso2Map["jw"] = "jv"
         toIso2Map["heb"] = "he"
         toIso2Map["ind"] = "id"
         toIso2Map["yid"] = "yi"

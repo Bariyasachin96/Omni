@@ -1756,6 +1756,86 @@ only when "Show persistent notification" is on, and that switch is OFF by
 default. On an OEM that kills background services, the foreground notification is
 what keeps the service alive at all.
 
+## THE READING PATH AUDITED A TO Z AGAINST THE FULL CLD2 (owner, 2026-09-09)
+*"pura A to Z reading ... segmentation mein AutoTTS mein hamare paas se kuchh
+chhut to nahin raha ... kyunki hamare paas CLD2 pehle full nahin tha ... native
+jagah per bhi aur sabhi jagah per."* The instinct was right and it found exactly
+one thing.
+
+**THE THREE PROOFS WERE RE-RUN ON THE FULL TABLES AND ARE UNCHANGED**, which is
+what rules out a whole class of worry rather than arguing about it:
+
+    segmenter (d0.t)        IDENTICAL over 163,296 cases
+    normaliser (clsCLD2.a)  IDENTICAL, 1,062 mappings over 1,114,112 code points
+    script family (a.java)  IDENTICAL over 15 sets x 1,114,112 code points
+
+None of them can be affected by the table swap -- the segmenter slices the core
+above `buildMixChunks` and never links a table -- but running them is what turns
+"cannot be affected" into "was not affected".
+
+**`IsoCodes` IS `c3.e`, and that is now MEASURED rather than trusted.** The four
+tables were compared entry by entry (20 bibliographic pairs, 20 iso2 pairs, 9
+Chinese variants, 10 no-iso2 codes -- all identical), and `e.a` / `e.b` / `e.c`
+were read from the decompile and match `normalizeTag` / `toIso2` / `toIso3`
+statement for statement, including `toIso3`'s three-letter branch returning the
+ORIGINAL code when the iso2 round-trip finds nothing. (`c3/e.java` does not
+compile standalone -- CFR's static initialiser reuses one `Object` local for
+`String[]`, the same defect the segmenter harness records, plus one orphan
+`catch`. The methods render fine, which is what this needed.)
+
+**THE ONE REAL FIND: CLD2 says `jw` for Javanese and nothing mapped it.**
+Every code the full build can return -- 164 of them, taken from CLD2's own
+`evaluate_cld2_large_20140122.txt` -- was put through a Java mirror of
+`IsoCodes`. Seven failed, and one of the seven matters:
+
+    "iw",    //  6 HEBREW        toIso3Map["iw"] = "heb"   already there
+    "id",    // 38 INDONESIAN    toIso3Map["id"] = "ind"   already there
+    "jw",    // 48 JAVANESE      NOTHING
+    "yi",    // 91 YIDDISH       toIso3Map["yi"] = "yid"   already there
+
+Those are the four pre-1989 ISO 639-1 spellings, and CLD2's own
+`kLanguageToCode` still uses the old one for Javanese. `Locale.getISOLanguages()`
+carries **`jv` and not `jw`**, so the seeding loop never makes a `jw` key and
+`toIso3("jw")` answered null -- which sends the span through
+`languageForDetectedRun`'s `?: byScript` to the **preferred Latin language**.
+Javanese was being detected correctly and then spoken by the wrong voice, on a
+language Google TTS really has. **AutoTTS carries the identical gap**, so this is
+a DELIBERATE DEPARTURE -- and it is the same shape and size as the three lines
+already sitting above it.
+
+**The other six are deliberately NOT added** -- `crs` (Seselwa), `kha` (Khasi),
+`lif` (Limbu), `mfe` (Mauritian Creole), `tlh` (Klingon), `zzp` (Pig Latin). No
+TTS engine speaks any of them, so `languageForDetectedRun`'s engine check would
+bounce them to the same fallback they reach today: mapping them would add a map
+entry and change no behaviour at all.
+
+**AND `jw` WAS ALREADY REACHABLE BEFORE THE FULL TABLES** (it is in the compact
+build's 82 as well), so this was never a consequence of the swap -- it is a
+long-standing hole the swap merely gave a reason to look for.
+
+### What is still mismatched, stated rather than quietly fixed
+`refillEnabledIso2` builds the hint list from `IsoCodes.toIso2(entry.iso3)`, so
+an enabled Javanese arrives as **`jv`** while CLD2's answer is **`jw`** --
+`isHinted` therefore cannot match them, and the span falls to
+`scriptFallbackCode()`. Closing that needs a second spelling in the enabled set,
+which feeds `nativeSetLanguageHints`' 64-code cap -- and this file already
+records that the cap's iteration order decides WHICH 64 survive. That is a
+change to proven detection state for a language nobody has reported, so it is
+**not** made here. Say the word and it is two lines.
+
+**Verified clean in the same audit, so do NOT re-check:**
+- all **19** `SCRIPT_FIXED_LANG` codes (`el hy iw ka pa gu or ta te kn ml si th
+  lo bo my km am ko`) map through `IsoCodes` -- the script path, which is the
+  high-traffic one, has no holes;
+- the native core holds **no** language-count assumption -- the only cap is
+  `kMaxSpans = 128`, AutoTTS's own, and it counts spans;
+- `kScriptLangPairs` is still the 48 pairs read off AutoTTS's `.rodata`. Javanese
+  is **not** among them and must not be added: those pairs are a transcription of
+  AutoTTS's binary, not a list we maintain;
+- the CLD2 answer filter still ends by keeping `lang3[0]`'s raw code when nothing
+  is hinted and the per-script fallback is empty, so an unmapped code really does
+  reach the Kotlin rather than being swallowed.
+
 ## THE ROLE/STATE STRINGS IN THE APK ARE androidx's, NOT OURS (asked 2026-09-08)
 The owner opened the APK in a resource viewer and saw `tab`, `switch_role`,
 `state_on`, `state_off`, `selected`, `not_selected`, `m3c_dropdown_menu_collapsed`
