@@ -11,7 +11,14 @@ it could start. That is why it is here now.
 
 ## First run
 
-    tools/bootstrap.sh          # android.jar, kotlinc and the androidx classpath
+    tools/bootstrap.sh          # android.jar, kotlinc, the Compose plugin
+                                #   and the androidx classpath
+
+Every download retries five times with a widening wait. Maven Central answers
+**429** under load -- it did on the first run of the Kotlin 2.4.20 bump, and a
+one-shot `curl` turned that into a missing Compose plugin. A **403** is not
+retried: that is the egress policy answering, and the rule is to report the
+blocked host rather than hammer it.
 
 Everything else needs only `python3`, `javac` and `g++`, which are expected to
 be on `PATH`.

@@ -36,7 +36,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE="$ROOT/tools/.cache"
-KOTLIN_VERSION=2.4.10
+KOTLIN_VERSION=2.4.20
 
 # The SDK platform whose android.jar we want, and the release of it. Both are
 # read off dl.google.com's own repository2-3.xml, not guessed: the package is
@@ -57,11 +57,35 @@ COMPOSE_PLUGIN_URL="https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-c
 
 mkdir -p "$CACHE"
 
+# Download with retries. Maven Central answers 429 under load -- that happened on
+# the very first run of the Kotlin 2.4.20 bump -- and a one-shot curl turns a
+# transient rate limit into a missing compiler plugin, silently, because the
+# caller only sees the tail of a pipeline. Retry with a widening wait, and fail
+# loudly if it never lands.
+#
+# A 403 is NOT retried: that is the egress policy answering, and the rule is to
+# report the blocked host rather than hammer it.
+fetch() {
+  local url="$1" out="$2" n=0 code
+  while [ $n -lt 5 ]; do
+    code=$(curl -sSL --max-time 900 -w '%{http_code}' -o "$out" "$url" 2>/dev/null || echo 000)
+    case "$code" in
+      200) return 0 ;;
+      403) echo "   $url -> 403 (egress policy; not retried)"; return 1 ;;
+    esac
+    n=$((n + 1))
+    echo "   $url -> HTTP $code, retry $n of 5"
+    sleep $((n * 5))
+  done
+  rm -f "$out"
+  return 1
+}
+
 # ---------------------------------------------------------------- android.jar
 if [ -f "$CACHE/android.jar" ]; then
   echo "android.jar    already present ($(cat "$CACHE/android.jar.source" 2>/dev/null || echo 'source unknown'))"
 else
-  if curl -fsSL --max-time 600 -o "$CACHE/platform.zip" "$SDK_URL" 2>/dev/null; then
+  if fetch "$SDK_URL" "$CACHE/platform.zip"; then
     unzip -q -o -j "$CACHE/platform.zip" "$SDK_PLATFORM_DIR/android.jar" -d "$CACHE"
     rm -f "$CACHE/platform.zip"
     echo "API 37 (dl.google.com, $SDK_PLATFORM_ZIP)" > "$CACHE/android.jar.source"
@@ -69,7 +93,7 @@ else
   else
     echo "android.jar    dl.google.com unreachable -- egress policy, not an error."
     echo "               falling back to API 15 from Maven Central."
-    curl -fsSL -o "$CACHE/android.jar" "$FALLBACK_JAR_URL"
+    fetch "$FALLBACK_JAR_URL" "$CACHE/android.jar" || { echo "android.jar unavailable"; exit 1; }
     echo "API 15 (Maven Central fallback -- dl.google.com was unreachable)" > "$CACHE/android.jar.source"
     echo "android.jar    ok, API 15 ($(wc -c < "$CACHE/android.jar") bytes)"
   fi
@@ -82,7 +106,7 @@ elif command -v kotlinc >/dev/null 2>&1; then
   echo "kotlinc        found on PATH, not downloading"
 else
   echo "kotlinc        downloading ${KOTLIN_VERSION}..."
-  curl -fsSL -o "$CACHE/kotlin-compiler.zip" "$KOTLINC_URL"
+  fetch "$KOTLINC_URL" "$CACHE/kotlin-compiler.zip" || { echo "kotlinc unavailable"; exit 1; }
   unzip -q -o "$CACHE/kotlin-compiler.zip" -d "$CACHE"
   rm -f "$CACHE/kotlin-compiler.zip"
   echo "kotlinc        ok"
@@ -93,7 +117,7 @@ if [ -f "$CACHE/compose-plugin.jar" ]; then
   echo "compose plugin already present"
 else
   echo "compose plugin downloading ${KOTLIN_VERSION}..."
-  curl -fsSL -o "$CACHE/compose-plugin.jar" "$COMPOSE_PLUGIN_URL"
+  fetch "$COMPOSE_PLUGIN_URL" "$CACHE/compose-plugin.jar" || { rm -f "$CACHE/compose-plugin.jar"; echo "compose plugin unavailable"; exit 1; }
   echo "compose plugin ok ($(wc -c < "$CACHE/compose-plugin.jar") bytes)"
 fi
 

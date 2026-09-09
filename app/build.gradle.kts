@@ -5,7 +5,7 @@ plugins {
 android {
     namespace = "com.tts.easyvoice"
     compileSdk = 37
-    ndkVersion = "29.0.14206865"
+    ndkVersion = "30.0.16248370"
     defaultConfig {
         applicationId = "com.tts.easyvoice"
         // minSdk STAYS 24. It is the oldest Android this app will install on,
@@ -44,7 +44,7 @@ android {
         }
         ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
     }
-    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "4.1.2" } }
     signingConfigs {
         create("release") {
             storeFile = rootProject.file("easyvoice-release.keystore")
@@ -87,25 +87,18 @@ dependencies {
     // this library backports the same thing to API 23 and gives one theme that
     // describes it on every level the app installs on (minSdk 24).
     //
-    // 1.0.1 IS DELIBERATE AND IT IS NOT "OUT OF DATE BY ACCIDENT" (checked
-    // 2026-09-09, against Google Maven, which is reachable now).
+    // 1.2.0, the latest stable (owner, 2026-09-09: "sab kuchh latest version
+    // hi hona chahie"). This REVERSES the note that stood here, which argued for
+    // staying on 1.0.1 -- do not restore that reasoning.
     //
-    // 1.2.0 is the latest stable, and it was compared rather than assumed:
-    //   - the public API is IDENTICAL. `javap` over both aars lists the same
-    //     members on SplashScreen -- installSplashScreen, setKeepOnScreenCondition,
-    //     setOnExitAnimationListener. There is nothing new to call.
-    //   - the class list is the same too, minus one inner lambda. No Impl35, no
-    //     new platform handling, so being on 1.0.1 is not a gap on API 35+.
-    //   - and 1.2.0 adds a RUNTIME dependency on
-    //     androidx.appcompat:appcompat-resources:1.7.0 (a 64 KB aar) which 1.0.1
-    //     does not have. This app deliberately depends on neither AppCompat nor
-    //     Material Components -- xmlcheck.py's LIBRARY_ATTRS_WE_NO_LONGER_HAVE
-    //     exists to catch a reference to one -- and the owner has asked for the
-    //     APK to get smaller, not larger.
-    //
-    // So the upgrade buys nothing callable and costs a library the project has
-    // removed on purpose. Take it only if a real splash defect shows up.
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    // What the upgrade costs, measured rather than guessed, so the decision is
+    // recorded honestly: the public API is IDENTICAL (`javap` over both aars
+    // lists the same members on SplashScreen), the class lists match but for one
+    // inner lambda, and 1.2.0 adds a RUNTIME dependency on
+    // androidx.appcompat:appcompat-resources:1.7.0 -- a 64 KB aar, and the first
+    // AppCompat artifact in this project. That is the whole price, and the owner
+    // has taken it knowingly in exchange for being current.
+    implementation("androidx.core:core-splashscreen:1.2.0")
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

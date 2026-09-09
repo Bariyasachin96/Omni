@@ -2010,6 +2010,94 @@ a wrapper with a single child is only a layout node; and the Modes column gained
 **88dp of bottom padding**, the same clearance the Configuration list gives its
 own FAB, so the last mode's description can be scrolled out from under it.
 
+## EVERYTHING IS ON THE LATEST STABLE NOW (owner, 2026-09-09)
+*"sab kuchh latest hi use karna. Aisa nahin ki AutoTTS mein purane component use
+kiye hain to ham bhi pura nahin use karenge ... sab kuchh latest version hi hona
+chahie."*
+
+**This is a standing instruction and it OVERRIDES one decision recorded the same
+day.** The note beside `core-splashscreen` argued for staying on 1.0.1 because
+1.2.0 adds an AppCompat artifact; the owner has taken that cost knowingly. Do not
+restore that reasoning, and do not decline a version bump again on the grounds
+that the old one still works.
+
+**AutoTTS's own component ages are NOT a reason to stay behind.** That is the
+sentence the owner led with, and it is the general rule this section establishes:
+rule 5 governs **behaviour** -- what the code does -- never the **version** of the
+library or toolchain it is built with.
+
+### What moved, each checked against its own metadata rather than recalled
+| | was | now | source of truth |
+|---|---|---|---|
+| Android Gradle Plugin | 9.3.2 | **9.4.0** | Google Maven `maven-metadata.xml` |
+| Kotlin (+ the Compose plugin, which must match exactly) | 2.4.10 | **2.4.20** | Maven Central |
+| Gradle | 9.5.0 | **9.7.1** | `services.gradle.org/versions/current` |
+| NDK | 29.0.14206865 | **30.0.16248370** | the SDK's own `repository2-3.xml` |
+| CMake | 3.22.1 | **4.1.2** | same |
+| build-tools | 36.0.0 | **37.0.0** | same |
+| `core-splashscreen` | 1.0.1 | **1.2.0** | Google Maven |
+
+**build-tools was a real inconsistency, not just an old number**: `compileSdk` is
+37 and build-tools was still 36.0.0.
+
+**Everything else was already current** and that is measured, not assumed --
+`activity-compose` 1.13.0, `core-ktx` 1.19.0, `lifecycle-runtime-ktx` 2.11.0,
+`compose-bom` 2026.08.00, `material3.adaptive` 1.3.0, `kotlinx-coroutines` 1.11.0,
+`test:runner` 1.7.0, `test.ext:junit` 1.3.0, `ui-test-junit4-accessibility` 1.12.0.
+
+### LATEST STABLE, not latest published -- and the difference is deliberate
+`lifecycle` publishes **2.12.0-alpha02** and `lifecycle-runtime-compose` shows it
+as its `<release>`. It stays at **2.11.0**. An alpha is not a version you ship in
+the app a blind person depends on every minute, and "latest" in the owner's
+instruction means the newest one its authors call finished. Every check in this
+project filters `alpha|beta|rc|dev|eap` for that reason.
+
+### What is verified here and what only CI can test -- stated rather than blurred
+- **Kotlin 2.4.20 IS verified locally.** `tools/bootstrap.sh` downloads that exact
+  compiler and its matching Compose plugin, and `check-all` type-checks the whole
+  app with them. A Kotlin regression would have shown up before the push.
+- **The dependency graph IS verified**: `tools/fetch-deps.py` re-resolved every
+  artifact at the new versions off Google Maven and Maven Central.
+- **NDK r30 IS verified safe for `minSdk 24`, and that mattered.** Every NDK
+  release raises its floor eventually, and this project has always refused to
+  raise `minSdk`, so "the NDK dropped API 24" would have been a silent way to
+  break the app for old phones. Read from the NDK's OWN
+  `meta/platforms.json` rather than from release notes -- **without downloading
+  the 0.74 GB archive**: `dl.google.com` answers range requests (HTTP 206), so
+  the zip's central directory was fetched from the tail, walked for that entry,
+  and just that member inflated. It says **min 21, max 37** -- 24 clears the
+  floor, and the ceiling is exactly our `compileSdk`. **Reuse this trick** for
+  any large archive whose metadata is the only part that matters.
+- **AGP, Gradle and CMake CANNOT be tested here.** There is no NDK in this
+  container and the local `cmake` is 3.28, so CMake 4's semantics cannot be
+  exercised. The one thing that could be checked was checked: our
+  `cmake_minimum_required(VERSION 3.18.1)` is **above** CMake 4's floor of 3.5, so
+  the headline CMake-4 breaking change does not apply to us.
+- **If a build goes red, read WHICH STEP failed before backing anything out.** The
+  four unverifiable bumps fail in four distinguishable places -- the sdkmanager
+  install, Gradle's own startup, the CMake configure, or the native compile -- so
+  one run names the culprit. Do not revert the whole set on a single red.
+
+### The Actions versions could NOT be checked, and were therefore NOT touched
+`actions/checkout@v4`, `setup-java@v4`, `upload-artifact@v4`,
+`android-actions/setup-android@v3`, `gradle/actions/setup-gradle@v3`,
+`softprops/action-gh-release@v2` and `reactivecircus/android-emulator-runner@v2`
+are all still on their old pins. **This session's GitHub API is scoped to
+`bariyasachin96/omni` only**, so every other repository answers *"GitHub access to
+this repository is not ..."* -- that is a policy restriction, not something to
+route around, and guessing a tag number would be exactly the guesswork rule 6
+forbids. Ask for them and they can be bumped from a session that can read those
+tags, or the owner can name the versions.
+
+### Navigation Compose is STILL not adopted, and the reason is unchanged
+The owner's "integrate whatever library is needed" does not resolve the objection
+written up above it, because that objection is not about age: `navigation-compose`
+2.10.0 has **zero** accessibility handling (grepped, not assumed), and this app's
+per-screen window title is what announces the screen to a blind user. A NavHost
+removes the window change and therefore the announcement. It remains the owner's
+call and it needs one word; nothing about "use the latest" makes a silent screen
+the right outcome.
+
 ## FOUR LIBRARIES RESEARCHED AT THE SOURCE, THREE NOT ADOPTED (owner, 2026-09-09)
 *"Jetpack navigation components sahi tarike se use kariye ... ab to Google Maven
 open ho gaya hai to aap research bhi kar sakte hain proper. Agar mujhe to nahin
@@ -2143,16 +2231,15 @@ Every declared coordinate was checked against its `maven-metadata.xml`:
     test.ext:junit 1.3.0           current
     core-splashscreen 1.0.1        <-- 1.2.0 exists, and 1.0.1 STAYS
 
-**`core-splashscreen` is the only one behind, and upgrading is the wrong move**,
-measured rather than argued: the public API of 1.0.1 and 1.2.0 is **identical**
-(`javap` over both aars gives the same members), the class lists match but for one
-inner lambda, there is no new platform handling -- and 1.2.0 adds a runtime
-dependency on **`androidx.appcompat:appcompat-resources:1.7.0`**, a library this
-project deliberately does not have (`xmlcheck.py`'s
-`LIBRARY_ATTRS_WE_NO_LONGER_HAVE` exists to catch a reference to one) and which
-makes the APK bigger for nothing callable. The reasoning is now in
-`build.gradle.kts` beside the line, replacing the old comment that said the
-version could not be checked from this container.
+**`core-splashscreen` WAS the only one behind, and the owner then reversed the
+decision below in the very next message -- it is on 1.2.0 now. Read the
+"EVERYTHING IS ON THE LATEST STABLE" section above; what follows is the
+measurement, which is still accurate, and NOT the conclusion.** The public API
+of 1.0.1 and 1.2.0 is **identical** (`javap` over both aars gives the same
+members), the class lists match but for one inner lambda, and 1.2.0 adds a
+runtime dependency on **`androidx.appcompat:appcompat-resources:1.7.0`**, a
+library this project did not otherwise have. That is the price of being
+current and the owner has taken it.
 
 ## THE LOCAL CHECK NOW RESOLVES androidx, AND IT WENT FROM 1,254 ERRORS TO 0 (owner, 2026-09-09)
 *"ab Maine network access full de diya hai dekh lijiye ab."* They did, and this
