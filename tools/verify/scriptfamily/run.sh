@@ -60,7 +60,7 @@ python3 "$ROOT/tools/verify/make_core_inc.py" \
         --source "$ROOT/app/src/main/cpp/tts_engine_core.cpp" \
         --until scriptLangForCpFiltered --out "$WORK/core2.inc" >/dev/null
 cp "$HERE"/cpp/main.cpp "$HERE"/cpp/main2.cpp "$WORK/"
-(cd "$WORK" && g++ -O2 -std=c++17 -I. -o filtered main.cpp && g++ -O2 -std=c++17 -I. -o unfiltered main2.cpp)
+(cd "$WORK" && g++ ${EV_CXXFLAGS:--O2} -std=c++17 -I. -o filtered main.cpp && g++ ${EV_CXXFLAGS:--O2} -std=c++17 -I. -o unfiltered main2.cpp)
 
 echo "3/3  sweeping all 1,114,112 code points"
 fail=0

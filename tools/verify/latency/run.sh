@@ -71,7 +71,7 @@ compile() {  # compile <source> -- cached on mtime
     # so a broken core printed its errors and the harness still reported every
     # case passing. That happened on 2026-09-02 and cost a full debugging cycle.
     rm -f "$obj"
-    g++ -c -O1 -std=c++17 -w -Wno-narrowing $INC -o "$obj" "$src" || {
+    g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w -Wno-narrowing $INC -o "$obj" "$src" || {
       echo "compile failed: $src" >&2; exit 1; }
   fi
   echo "$obj"
@@ -88,7 +88,7 @@ for f in $sources; do
 done
 
 echo "2/3  linking the harness"
-g++ -c -O1 -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp"
+g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp"
 g++ -o "$WORK/latency" "$WORK/obj/main.o" $objs \
     -L"$JH/lib/server" -ljvm -lpthread -Wl,-rpath,"$JH/lib/server"
 

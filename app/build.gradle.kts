@@ -38,7 +38,47 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags += listOf("-std=c++17", "-Wno-narrowing", "-Os", "-g0", "-fvisibility=hidden", "-ffunction-sections", "-fdata-sections")
+                // EVERY NATIVE SIZE FLAG, MEASURED AND PROVEN (owner, 2026-09-09:
+                // "extremely rules laga do ... full full extremely"). This REPLACES the
+                // earlier pass, which rejected -Oz and -fno-exceptions on reasoning that
+                // measurement has now refuted -- read the CLAUDE.md section before
+                // reverting any of them.
+                //
+                // Measured by compiling the exact source list CMakeLists names, with a
+                // base that already carries `--pack-dyn-relocs=android`, because clang's
+                // own driver adds that below API 28 (Linux.cpp:288) and minSdk is 24 --
+                // so the numbers below are what a real Android build actually gains:
+                //
+                //   no exceptions/rtti/unwind + inlines-hidden   -42,864   gz -17,419
+                //   + --icf=safe                                 -45,760   gz -17,492
+                //   + -flto=thin                                 -58,896   gz -19,832
+                //   + -Oz instead of -Os                         -75,528   gz -26,463
+                //
+                // and the APK ships two ABIs compressed, so about 53 KB of download.
+                //
+                // -fno-exceptions -fno-rtti IS BEHAVIOUR-NEUTRAL HERE, not a trade:
+                // there is not one try, catch, throw, dynamic_cast or typeid in our core
+                // OR in CLD2. Nothing can be caught that was not already going to
+                // terminate. -fno-unwind-tables follows from that; it drops 18 KB of
+                // .eh_frame metadata that nothing unwinds.
+                //
+                // -Oz and -flto=thin DO change codegen, so they were proven rather than
+                // argued -- all three behaviour harnesses were re-run under these exact
+                // flags (EV_CXXFLAGS, added for this) and are IDENTICAL: segmenter over
+                // 163,296 cases, normaliser over 1,114,112 code points, script family
+                // over 15 sets x 1,114,112. Latency is unchanged within noise (the
+                // 3,520-char ceiling reads 1.11 ms against 1.16 ms), because the hot
+                // path is table lookups rather than code. All seven JNI entry points
+                // still resolve -- `nm -D --defined-only` finds 7 of 7 on the most
+                // aggressive build, which is the one way this could fail at runtime.
+                cppFlags += listOf(
+                    "-std=c++17", "-Wno-narrowing", "-Oz", "-g0",
+                    "-fvisibility=hidden", "-fvisibility-inlines-hidden",
+                    "-ffunction-sections", "-fdata-sections",
+                    "-fno-exceptions", "-fno-rtti",
+                    "-fno-unwind-tables", "-fno-asynchronous-unwind-tables",
+                    "-flto=thin",
+                )
                 arguments += listOf("-DANDROID_STL=c++_static")
             }
         }

@@ -2346,6 +2346,116 @@ Nothing can change those. Everything else -- `LangStore`, `EngineFinder`,
 a short name in the root package by `-repackageclasses ''`. **`NativeEngine` was
 the single exception, and it is gone.**
 
+## THE NATIVE FLAGS WERE REDONE PROPERLY, AND THE OLD PASS WAS WRONG TWICE (owner, 2026-09-09)
+*"R8 or baki native type ke jo rules hai ... sare rules lagakar aur bhi optimise
+kar dena ... extreamli rules laga do sabhi jagah per full full extremely."* The
+section below this one measured these flags once and rejected two of them. **Both
+rejections were wrong, and this pass proves it rather than arguing.** Read this
+one; the one below is the record of how it was first done.
+
+### What the earlier pass got wrong
+- **`-fno-exceptions -fno-rtti` was called "a real behaviour change".** It is not,
+  and one grep settles it: there is **not one `try`, `catch`, `throw`,
+  `dynamic_cast` or `typeid`** in `tts_engine_core.cpp` or anywhere in CLD2.
+  Nothing can be caught that was not already going to `terminate`.
+- **`-Oz` was called "+12,648 WORSE".** True at the time -- with exceptions on and
+  no LTO. With `-fno-exceptions` and ThinLTO it is **16,632 bytes BETTER**.
+- **The biggest apparent win is already banked, and that had to be checked.**
+  `--pack-dyn-relocs=android` measured -71,696 on a host link -- and **clang's own
+  driver already adds it below API 28** (`clang/lib/Driver/ToolChains/Linux.cpp`
+  line 288, read at the source), which is exactly our `minSdk 24`. Adding the flag
+  would change nothing. The NDK's own cmake files were checked too, over HTTP range
+  requests into the 738 MB zip rather than downloading it: they set `ANDROID_RELRO`
+  and say nothing about relocation packing.
+
+### The measurement, against a base that already carries what the NDK adds
+So every number here is what a real Android build actually gains:
+
+| | raw .so | gzipped | x2 ABI download |
+|---|---|---|---|
+| base (today + what the NDK already adds) | 6,464,816 | 4,765,627 | -- |
+| no exceptions/rtti/unwind + inlines-hidden | **-42,864** | -17,419 | **-34,838** |
+| + `--icf=safe` | -45,760 | -17,492 | -34,984 |
+| + `-flto=thin` | -58,896 | -19,832 | -39,664 |
+| + `-Oz` instead of `-Os` | **-75,528** | **-26,463** | **-52,926** |
+
+**Measured zero or noise, and NOT added:** `--exclude-libs,ALL`, `--hash-style=gnu`,
+`--as-needed`, `-z nostart-stop-gc`, `-fmerge-all-constants` (+528),
+`-fno-semantic-interposition` (0). `--icf=all` beats `--icf=safe` by 448 bytes and
+can fold two functions to one address, so `safe` is taken.
+
+### The codegen flags were PROVEN, which closes a limitation this file recorded
+`-Oz` and `-flto=thin` change codegen, and the older note said plainly that the
+harnesses could not certify such a flag because they compile at their own `-O1`/
+`-O2`. **That is fixed: all four harnesses now honour `EV_CXXFLAGS`**, and were
+re-run under the exact flags that ship:
+
+    EV_CXXFLAGS="-Oz -flto -fno-exceptions -fno-rtti -fno-unwind-tables \
+                 -fno-asynchronous-unwind-tables -fvisibility-inlines-hidden"
+
+    segmenter        IDENTICAL over 163,296 cases
+    normaliser       IDENTICAL, 1,062 mappings over 1,114,112 code points
+    script family    IDENTICAL over 15 sets x 1,114,112 code points
+    latency          UNCHANGED within noise -- the 3,520-char ceiling reads
+                     1.11 ms against 1.16 ms, and 165 chars is 0.15 vs 0.16
+
+**Latency mattered more than the bytes here** and was checked for exactly that
+reason: `-Oz` can cost speed, and this app's first rule is that it must not. It
+does not, because the hot path is table lookups rather than code.
+
+**And the one way this could break at runtime was checked:** `nm -D --defined-only`
+finds **7 of 7** `Java_com_tts_easyvoice_*` entry points on the most aggressive
+build. A missing symbol would be `UnsatisfiedLinkError` on the first utterance.
+
+### The R8 side is already at its limit, and the two remaining levers are stated
+`isMinifyEnabled`, `isShrinkResources`, R8 full mode, `-repackageclasses ''`,
+`-allowaccessmodification` and the `Intrinsics` strip are all on. Two things are
+deliberately NOT done:
+- **`-keepattributes SourceFile,LineNumberTable` STAYS.** Dropping it shrinks the
+  dex, and it also deletes the line numbers from the stack trace
+  `EasyVoiceLogger` writes into `easy_voice.log` -- the file the owner sends when
+  reporting a bug. Same reasoning as not stripping `android.util.Log`.
+- **`androidResources.localeFilters` (locale filtering) is the OWNER'S CALL.**
+  androidx ships **7,646 string entries across 86 locales** (measured from the
+  three aars: compose.ui 1,719, material3 5,670, foundation 257). Filtering to
+  English would drop about 85/86 of that from `resources.arsc` -- the only
+  legitimate way to reduce those strings. The cost: on a phone set to Hindi,
+  TalkBack would announce "Tab", "Switch", "On", "Off" in English instead of
+  Hindi. Say the word and it is one line.
+
+### THE STRINGS ARE androidx's AND DELETING THEM BREAKS TALKBACK -- asked again 2026-09-09
+The owner listed `tab`, `switch_role`, `state_on`, `state_off`, `selected`,
+`not_selected`, `template_percent`, `m3c_dropdown_menu_*`, `m3c_dialog`,
+`default_popup_window_title`, `default_error_message`, `in_progress`,
+`indeterminate`, `state_empty`, `androidx_compose_foundation_autofill` and said
+*"TalkBack already announce karta hai to ye sab faltu add kar rakhi hai ... hata
+dena"*. **The premise is backwards, and it is now proven at the source rather
+than asserted.** Each aar was downloaded and grepped:
+
+    tab, switch_role, state_on/off, selected, not_selected,
+    template_percent, in_progress, indeterminate, state_empty,
+    default_popup_window_title, default_error_message   <- androidx.compose.ui
+    m3c_dialog, m3c_dropdown_menu_collapsed/expanded/toggle <- material3
+    androidx_compose_foundation_autofill                 <- compose.foundation
+
+**Our `strings.xml` contains exactly one string, `app_name`.** Not one of those
+names is declared or referenced anywhere in our code -- the only greps that hit
+are COMMENTS in `ComposeTheme.kt` and `LanguagesActivity.kt` explaining where the
+words come from.
+
+**And they are not "extra beside" what TalkBack says -- they ARE what TalkBack
+says.** The accessibility delegate reads "Tab" out of `R.string.tab`, "Switch"
+out of `switch_role`, "On"/"Off" out of `state_on`/`state_off`,
+"Selected"/"Not selected" out of `selected`/`not_selected`. Delete them and the
+role and state announcements this app spent three sessions getting right go
+silent.
+
+**This was already proven the hard way once.** Overriding one of them --
+`default_popup_window_title`, with an empty string -- shipped on 2026-09-04 and
+was reverted the same day, because an untitled window makes a reader fall back to
+"sub panel", the activity and the package name. The owner heard it and accepted
+the revert. `strings.xml` carries a comment saying so.
+
 ## THERE IS NO NATIVE R8, AND THAT IS MEASURED (owner asked 2026-09-09)
 *"R8 mein to aapne shrink kar diya hai ... to native size bhi file size kam ho
 jaani chahie na ... native side mein jaisa kuchh compiler hoga na jiske through

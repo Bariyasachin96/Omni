@@ -115,4 +115,19 @@ target_link_libraries(easyvoice_core ${log-lib})
 # The two levers that WOULD move this are both the owner's, and both are already
 # recorded in CLAUDE.md: the full CLD2 table set (+4.91 MB per ABI over the
 # compact one) and shipping TWO ABIs.
-target_link_options(easyvoice_core PRIVATE "-Wl,--gc-sections" "-Wl,--strip-all")
+# --gc-sections pairs with the -ffunction-sections/-fdata-sections in
+# build.gradle.kts; --strip-all removes .symtab and .strtab only, and every
+# Java_ entry point lives in .dynsym, which a shared library must keep.
+#
+# --icf=safe folds identical functions whose address is never taken, so a
+# function-pointer compare cannot change meaning -- that is why it is `safe`
+# and not `all`, which measured only 448 bytes better and does take addresses.
+# -flto=thin must appear at link as well as at compile; see the measurement
+# table beside cppFlags in build.gradle.kts.
+#
+# NOT added, and each for a measured reason: --pack-dyn-relocs is ALREADY
+# supplied by clang's own driver below API 28 (Linux.cpp:288) and minSdk is 24,
+# so passing it changes nothing; --exclude-libs,ALL, --hash-style=gnu,
+# --as-needed and -z nostart-stop-gc each measured zero or noise.
+target_link_options(easyvoice_core PRIVATE
+    "-Wl,--gc-sections" "-Wl,--strip-all" "-Wl,--icf=safe" "-flto=thin")

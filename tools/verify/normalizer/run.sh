@@ -36,7 +36,7 @@ python3 "$ROOT/tools/verify/make_core_inc.py" \
         --source "$ROOT/app/src/main/cpp/tts_engine_core.cpp" \
         --until normalizeFancyText --out "$WORK/core.inc" >/dev/null
 cp "$HERE"/cpp/sweep.cpp "$WORK/"
-(cd "$WORK" && g++ -O2 -std=c++17 -I. -o sweep sweep.cpp)
+(cd "$WORK" && g++ ${EV_CXXFLAGS:--O2} -std=c++17 -I. -o sweep sweep.cpp)
 
 echo "3/3  sweeping all 1,114,112 code points"
 java -cp "$WORK/java" Norm 2>/dev/null | grep -v "^Picked up" > "$WORK/autotts.out"

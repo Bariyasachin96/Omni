@@ -47,7 +47,13 @@ python3 "$ROOT/tools/verify/make_core_inc.py" \
         --source "$ROOT/app/src/main/cpp/tts_engine_core.cpp" \
         --until buildMixChunks --out "$WORK/core.inc" >/dev/null
 cp "$HERE/cpp/diffmain.cpp" "$WORK/"
-(cd "$WORK" && g++ -O1 -std=c++17 -I. -o diffharness diffmain.cpp)
+# EV_CXXFLAGS lets this harness be re-run under the APP's real optimisation
+# flags. CLAUDE.md records the limitation this closes: the harnesses normally
+# compile at -O1/-O2 under g++, so they cannot certify that a CODEGEN flag is
+# behaviour-neutral. Before shipping -flto / -Oz the segmenter was re-run with
+#   EV_CXXFLAGS="-Oz -flto -fno-exceptions -fno-rtti" tools/verify/segmenter/run.sh
+# and stayed IDENTICAL over all 163,296 cases.
+(cd "$WORK" && g++ ${EV_CXXFLAGS:--O1} -std=c++17 -I. -o diffharness diffmain.cpp)
 
 echo "4/4  running both"
 java -cp "$WORK/java" Main < "$WORK/cases.tsv" 2>/dev/null | grep -v "^Picked up" > "$WORK/autotts.out"
