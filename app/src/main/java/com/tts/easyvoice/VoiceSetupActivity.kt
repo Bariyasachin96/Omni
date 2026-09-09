@@ -71,4 +71,33 @@ class VoiceSetupActivity : EvActivity() {
         LangStore.persistAll(this)
         super.onPause()
     }
+    // THE TEST CLIENT IS RELEASED HERE, AND THIS SCREEN IS OURS TO GET RIGHT.
+    //
+    // TextToSpeech binds to an engine and holds that binding until shutdown()
+    // is called; the framework's own documentation is that it "releases the
+    // resources used by the TextToSpeech engine", and an Activity destroyed
+    // with a live client leaks the connection and the Context it was built
+    // with. Nothing declares android:configChanges, so every rotate, fold,
+    // resize and theme change destroys and recreates this screen -- and the
+    // owner opens it once per language, so the leaks accumulate within a single
+    // sitting rather than needing an unusual gesture to reproduce.
+    //
+    // WHY THIS IS NOT A RULE 5 VIOLATION, which is the only reason it may be
+    // written at all. AutoTTS's NewSettingsActivity leaks its two clients the
+    // same way -- its onDestroy is `K.removeCallbacksAndMessages(null);
+    // super.onDestroy();` and nothing else -- and MainActivity mirrors that
+    // exactly and is deliberately LEFT alone. But this Activity has no AutoTTS
+    // counterpart at all: AutoTTS has one settings Activity whose single client
+    // is created once, while VoiceSetupActivity exists only because the Voices
+    // tab became its own screen in the 2026-08-13 Configuration departure. The
+    // client is ours, created by our own screen, so releasing it is not a
+    // decision about AutoTTS's behaviour.
+    //
+    // shutdown() on an already-dead client is harmless, and the field is
+    // cleared so a late speakTest cannot reach a shut-down engine.
+    override fun onDestroy() {
+        try { testTts?.shutdown() } catch (_: Exception) { }
+        testTts = null
+        super.onDestroy()
+    }
 }

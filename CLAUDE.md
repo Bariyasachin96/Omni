@@ -2010,6 +2010,150 @@ a wrapper with a single child is only a layout node; and the Modes column gained
 **88dp of bottom padding**, the same clearance the Configuration list gives its
 own FAB, so the last mode's description can be scrolled out from under it.
 
+## FOUR LIBRARIES RESEARCHED AT THE SOURCE, THREE NOT ADOPTED (owner, 2026-09-09)
+*"Jetpack navigation components sahi tarike se use kariye ... ab to Google Maven
+open ho gaya hai to aap research bhi kar sakte hain proper. Agar mujhe to nahin
+pata hai aapko hi pata hoga is app ko jarurat padati hai ya nahin ... lifecycle
+... hilt library ... AndroidX startup library."*
+
+The owner delegated the judgement, so each one was read from its OWN artifact off
+Google Maven rather than from memory or a blog. **Three are wrong for this app and
+one was already present.** The reasons are below so nobody re-opens them on a hunch.
+
+### 1. Navigation Compose -- NOT adopted, and the reason is the owner's ears
+`navigation-compose:2.10.0` sources were downloaded and grepped. The result is one
+line long and it decides the question:
+
+    grep -niE "semantics|paneTitle|announce|accessib|liveRegion|contentDescription"
+      -> ZERO hits across the whole library
+
+NavHost is `AnimatedContent` swapping composables **inside one window**. It has no
+accessibility handling of any kind.
+
+**That is exactly what this app currently relies on.** Every screen is its own
+Activity with `android:label` in the manifest -- "About", "Languages", "Mode
+settings", "Voice setup" -- and a screen reader speaks a window's title when the
+window appears. **That announcement IS how a blind user knows which screen they
+landed on**, and this file already records two rounds of bugs getting it to fire
+exactly once (the `focusOnOpen` removal and the two `setTitle` calls in
+`onCreate`). Migrate to a NavHost and there is no new window, so **there is no
+announcement at all** -- the owner would open Languages and be told nothing.
+
+It could be rebuilt with `Modifier.semantics { paneTitle = ... }` per destination
+(the app already does this once, on the main pager). But that is unproven for this
+app, cannot be tested in this container, and lands on the path the owner walks
+every few seconds. Twice this year a change that was correct about the mechanism
+was wrong about the outcome on exactly that path.
+
+**And it buys this app nothing.** No deep links (there are none and none are
+wanted), no shared-element transitions (the owner is blind and the app
+deliberately has no decorative motion), no nested graphs, no ViewModel scoping --
+there are no ViewModels. Activities already survive configuration change and
+already give predictive back for free via `enableOnBackInvokedCallback`.
+
+**If the owner wants it anyway it is doable** -- one `paneTitle` per destination
+plus an `AccessibilityChecksTest` case for each, so the announcement is proven on
+the emulator rather than hoped for. Say the word; it is not being done on my own
+judgement in either direction.
+
+### 2. Lifecycle -- already correct, and it found the one real bug of this pass
+`lifecycle-runtime-ktx:2.11.0` is declared and **is the current stable** (2.12.0
+is alpha). Nothing to change there.
+
+What the lifecycle read DID find is a genuine resource leak, in two places:
+
+    MainActivity.testTts     = TextToSpeech(this, null, "com.tts.easyvoice")
+    VoiceSetupActivity.testTts = TextToSpeech(this, null, "com.tts.easyvoice")
+
+`TextToSpeech` holds a binding until `shutdown()` is called. **Neither was ever
+shut down**, and nothing declares `android:configChanges`, so every rotate, fold,
+resize and theme change destroys the Activity and leaks the connection plus the
+Context it was built with.
+
+**Only ONE of them was fixed, and the split is rule 5.**
+- **`MainActivity` is LEFT LEAKING ON PURPOSE.** AutoTTS's `NewSettingsActivity`
+  creates two clients (`this.F` at :397 and `c3.n.g` at :473) and its whole
+  `onDestroy` is `K.removeCallbacksAndMessages(null); super.onDestroy();` -- it
+  shuts down neither. Ours is that byte for byte. Rule 5's forbidden-justification
+  list names "prevents a leak" explicitly. **This needs an owner override before
+  it can be touched, exactly like the two 50 ms `postDelayed` removals did.**
+- **`VoiceSetupActivity` IS fixed**, because it has no AutoTTS counterpart at all.
+  AutoTTS has one settings Activity with one client; this screen exists only
+  because the Voices tab became its own Activity in the 2026-08-13 Configuration
+  departure, and the owner opens it **once per language**, so ours leaks several
+  times per sitting where AutoTTS's leaks once. The client is ours, so releasing
+  it is not a decision about AutoTTS's behaviour. It had no `onDestroy` at all.
+
+**State across configuration change was checked too and is deliberately fine.**
+There is no `rememberSaveable` anywhere and that is correct rather than an
+oversight: almost every `remember { mutableStateOf(...) }` is seeded from the
+**statics** (`EasyVoiceTtsService.*`), which are process-scoped and survive the
+Activity, so a rotation re-reads the right value. The genuinely UI-only state that
+does reset is the selected tab and the Languages search box -- both AutoTTS resets
+too, and neither has been reported.
+
+### 3. Hilt -- NOT adopted, and it would fight an enforced invariant
+`hilt-android:2.60.1`. There is nothing here for it to inject:
+- **there is no `Application` class at all** (checked: zero matches, and the
+  manifest declares none), so `@HiltAndroidApp` would mean adding one purely to
+  host a framework;
+- **every piece of state is deliberately static.** That is the owner's own
+  instruction -- *"sab kuchh static rakho ... preferences wala sahi nahin rahta"*
+  -- and it is not a style preference: **`invariants.sh` #4b FAILS THE BUILD** if a
+  screen reads a setting from preferences instead of the static. `LangStore`,
+  `EasyVoiceLogger`, `EngineFinder` are `object`s; `SharedPrefsManager` is a thin
+  per-screen wrapper. Hilt's whole value is replacing exactly that with injected
+  scopes;
+- it needs KSP or kapt, so every build gets an annotation-processing round;
+- it adds to the APK, against a recorded "APK size kam kar do";
+- and its usual payoff, swapping fakes in unit tests, does not apply -- the tests
+  here are instrumented ATF checks driving the real screens on an emulator.
+
+So it costs build time, size and an argument with an invariant, and returns
+nothing this app can use.
+
+### 4. AndroidX Startup -- ALREADY IN THE APK, and nothing of ours belongs in it
+`androidx.startup:startup-runtime:1.1.1` is **already on the classpath**, pulled in
+transitively by `emoji2`, `lifecycle-process` and `profileinstaller`. Its
+`InitializationProvider` ContentProvider therefore already runs at every process
+start. Adding the dependency would change nothing.
+
+The question is only whether to write an `Initializer`, and there is nothing to
+put in one:
+- there is no app-wide initialisation. Every entry point loads lazily and on
+  purpose -- `LangStore.ensureLoaded(this)` per Activity, `loadAllSettings()` in
+  the service -- and **INVARIANTS #17 enforces** that any Activity which persists
+  also loads first;
+- the one thing that looks like a candidate, seeding `EasyVoiceLogger` in both
+  `MainActivity.onCreate` and the service's `onCreate`, is a port of `c3.p`, which
+  AutoTTS seeds lazily through `p.f(context)`. Moving it into a process-start
+  initializer changes WHEN it is seeded, which is rule 5 territory and not a UI
+  question;
+- and the app's first priority is that the TTS service starts fast --
+  *"latency bilkul aani hi nahin chahie"* -- so adding work to every process
+  start, including the one a screen reader triggers, is the wrong direction.
+
+### The dependency audit that came with it: everything current but one, and that one stays
+Every declared coordinate was checked against its `maven-metadata.xml`:
+
+    activity-compose 1.13.0        current      core-ktx 1.19.0            current
+    material3.adaptive 1.3.0       current      lifecycle-runtime-ktx 2.11.0 current
+    compose-bom 2026.08.00         current      kotlinx-coroutines 1.11.0   current
+    ui-test-junit4-accessibility 1.12.0 current test:runner 1.7.0          current
+    test.ext:junit 1.3.0           current
+    core-splashscreen 1.0.1        <-- 1.2.0 exists, and 1.0.1 STAYS
+
+**`core-splashscreen` is the only one behind, and upgrading is the wrong move**,
+measured rather than argued: the public API of 1.0.1 and 1.2.0 is **identical**
+(`javap` over both aars gives the same members), the class lists match but for one
+inner lambda, there is no new platform handling -- and 1.2.0 adds a runtime
+dependency on **`androidx.appcompat:appcompat-resources:1.7.0`**, a library this
+project deliberately does not have (`xmlcheck.py`'s
+`LIBRARY_ATTRS_WE_NO_LONGER_HAVE` exists to catch a reference to one) and which
+makes the APK bigger for nothing callable. The reasoning is now in
+`build.gradle.kts` beside the line, replacing the old comment that said the
+version could not be checked from this container.
+
 ## THE LOCAL CHECK NOW RESOLVES androidx, AND IT WENT FROM 1,254 ERRORS TO 0 (owner, 2026-09-09)
 *"ab Maine network access full de diya hai dekh lijiye ab."* They did, and this
 is what it bought. **Measured from this session, not recalled:**
