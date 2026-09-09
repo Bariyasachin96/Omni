@@ -69,6 +69,31 @@ android {
         jniLibs { useLegacyPackaging = true }
     }
 }
+// THE OTHER HALF OF THE SAME FAILURE: com.google.guava:listenablefuture.
+//
+// The app has it at 1.0 (androidx.core and profileinstaller both depend on it),
+// so AGP's consistent resolution pins the androidTest classpath to
+// `strictly 1.0`. But the Accessibility Test Framework 4.1.1 drags in
+// guava 31.0.1-android, whose listenablefuture is the EMPTY marker
+// 9999.0-empty-to-avoid-conflict-with-guava -- it exists precisely so that the
+// standalone jar is dropped when the real guava is present. `strictly 1.0` can
+// never accept 9999.0, so the two requirements are unsatisfiable together.
+//
+// Excluding the module from the androidTest configurations removes every
+// dependency edge to it there, and a Gradle constraint only constrains a module
+// that is otherwise in the graph -- so the pin becomes inert. Nothing is lost at
+// runtime: guava itself carries com.google.common.util.concurrent.ListenableFuture,
+// which is the whole reason the empty marker exists.
+//
+// The APP's own classpath is untouched -- it keeps listenablefuture 1.0, which is
+// where the class comes from there. This is androidTest only, so the release APK
+// the owner installs cannot be affected by it.
+configurations.configureEach {
+    if (name.contains("AndroidTest")) {
+        exclude(group = "com.google.guava", module = "listenablefuture")
+    }
+}
+
 dependencies {
     // Latest stable, checked against the androidx release notes on 2026-08-27.
     // core-ktx is what NotificationCompat, ServiceCompat and FileProvider come
@@ -99,6 +124,21 @@ dependencies {
     // AppCompat artifact in this project. That is the whole price, and the owner
     // has taken it knowingly in exchange for being current.
     implementation("androidx.core:core-splashscreen:1.2.0")
+    // ALIGNS THE APP WITH THE androidTest CLASSPATH -- one of the two halves of
+    // the accessibility job's dependency failure, and it attacks the ERROR rather
+    // than the question of which version bump first surfaced it (three answers to
+    // that were wrong: AGP 9.4.0, android.dependency.useConstraints, and Gradle
+    // 9.7.1 -- all reverted, all still red).
+    //
+    // Measured with tools/fetch-deps.py: the app resolves concurrent-futures
+    // 1.1.0 (via profileinstaller), while androidx.test:core:1.7.0 pulls
+    // concurrent-futures-ktx:1.2.0 -> concurrent-futures:1.2.0. AGP's consistent
+    // resolution then pins the test classpath to `strictly 1.1.0` and the two
+    // cannot both be satisfied. Declaring 1.2.0 here makes the app resolve 1.2.0,
+    // so the constraint becomes `strictly 1.2.0` -- which is exactly what the test
+    // graph asks for. It is also the newer version, which is the direction this
+    // project takes anyway.
+    implementation("androidx.concurrent:concurrent-futures:1.2.0")
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

@@ -2535,6 +2535,31 @@ of a green run, not stacked.
 **AGP can go back to 9.4.0 once a run is green** -- it was never the cause. Say
 the word.
 
+**THE THIRD CORRECTION (build 857): GRADLE WAS INNOCENT TOO.** 9.5.0 ran (the
+error's own doc URL says `docs.gradle.org/9.5.0/`) and failed with the identical
+message. So AGP, `useConstraints` and Gradle have each been reverted or set and
+each still fails, and `core-splashscreen` was measured twice -- resolving the
+app graph at 1.0.1 and 1.2.0 moves neither artifact, it only adds
+`appcompat-resources`. **848 really was green and 849 really is the first red**
+(checked against the run list, not recalled), so the break is in that commit --
+but every candidate in it that can touch dependency resolution is now excluded.
+
+**SO THE FIX ATTACKS THE ERROR, NOT ITS ORIGIN**, and both halves are in
+`app/build.gradle.kts` with the reasoning beside them:
+- **`implementation("androidx.concurrent:concurrent-futures:1.2.0")`** -- the app
+  resolved 1.1.0 and the test graph needs 1.2.0, so the `strictly` pin was
+  unsatisfiable. Declaring 1.2.0 makes the pin *become* 1.2.0.
+- **`exclude(group = "com.google.guava", module = "listenablefuture")` on every
+  `*AndroidTest*` configuration** -- the app has it at 1.0 while ATF's guava needs
+  the empty `9999.0-empty-to-avoid-conflict-with-guava` marker. With no dependency
+  edge left in that configuration the constraint has nothing to constrain, and
+  guava itself supplies `ListenableFuture` there. The app's own classpath keeps
+  1.0 and is untouched.
+
+**Gradle stays at 9.5.0 for this run** even though it is now proven innocent --
+restoring 9.7.1 in the same commit would add a variable to a run that is already
+testing two changes. It is one line once a run is green.
+
 **THE METHOD LESSON, and it is the third time this shape has cost a run.** Both
 wrong diagnoses were *mechanically* well-sourced -- the AGP release behaviour and
 the AGP jar's own option table -- and both were wrong about the OUTCOME. When a
