@@ -120,13 +120,11 @@ object EngineFinder {
         // A cell rather than a val because finalizeScan is declared above it.
         val myTimeout = arrayOfNulls<Runnable>(1)
         voiceWeights.clear()
-        var initFired = false
         val langs = LinkedHashSet<String>()
         val displayNames = HashMap<String, String>()
         val voiceEntries = ArrayList<ScanVoice>()
         val failed = HashSet<Int>()
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
-        val holder = arrayOfNulls<TextToSpeech>(1)
         var index = 0
         fun finalizeScan() {
             // A superseded scan writes NOTHING. Without this the older scan
@@ -187,62 +185,131 @@ object EngineFinder {
             }
             startEngine("(2)", false)
         }
-        val engineInitListener = TextToSpeech.OnInitListener { status ->
-            initFired = true
-            mainHandler.removeCallbacksAndMessages(null)
-            if (status != TextToSpeech.SUCCESS) {
-                failed.add(index)
-            } else {
-                val expectedPkg = if (index < engines.size) engines[index].pkg else ""
-                val actualEngine = try {
-                    val currentEngineField = holder[0]!!.javaClass.getDeclaredField("mCurrentEngine")
-                    currentEngineField.isAccessible = true
-                    currentEngineField.get(holder[0])?.toString() ?: engines[index].pkg
-                } catch (ex: Exception) {
-                    EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "Reflection failed", ex)
-                    expectedPkg
+        // ONE ENGINE, ONE LISTENER, ONE TIMEOUT, ONE CLIENT -- all captured
+        // together (owner, 2026-09-09, explicitly overriding rule 5 here:
+        // "properly sources ke through fix karo ... latency bilkul nahin aani
+        // chahie").
+        //
+        // WHAT WAS WRONG. There was ONE shared listener reading the mutable
+        // `index`, and the 30 s timeout advanced the walk WITHOUT shutting the
+        // abandoned client down. So a slow engine's onInit arrived after the walk
+        // had moved on and was attributed to the NEXT engine: it set the shared
+        // `initFired`, masking that engine's own timeout; it read `holder[0]`,
+        // which by then held a different engine's client; it could mark the wrong
+        // index failed; and it called scanNextEngine() a second time, so the walk
+        // skipped an engine. Every abandoned client also stayed bound for the life
+        // of the process.
+        //
+        // THE FIX IS AOSP'S OWN, read from TextToSpeech.java rather than invented:
+        //
+        //   shutdown()  "Special case, we are asked to shutdown connection that
+        //               did finalize its connection" -- while still connecting it
+        //               does mConnectingServiceConnection.disconnect(), which is
+        //               unbindService(). After that onServiceConnected never
+        //               arrives, so dispatchOnInit never runs. Shutting the
+        //               abandoned client down at timeout is what PREVENTS the late
+        //               callback, and it releases the binding at the same time.
+        //
+        //   dispatchOnInit  calls the listener and then sets mInitListener = null,
+        //               so a client fires onInit at most once.
+        //
+        //   every INLINE dispatchOnInit is ERROR (lines 871, 877, 907, 2385,
+        //               2476). The only one that can carry SUCCESS is inside
+        //               SetupConnectionAsyncTask.onPostExecute, which is always
+        //               asynchronous -- so on SUCCESS the constructor has long
+        //               returned and `cell[0]` is set. On the inline ERROR path
+        //               `cell[0]` is still null, and that path needs no client.
+        //
+        // `handled` is the belt to shutdown()'s braces: unbindService stops future
+        // callbacks, but one already queued on the main looper can still land.
+        // Both this flag and the callbacks run on the main thread, so the check is
+        // a plain read -- no lock, no clock, nothing to tune.
+        //
+        // NO LATENCY IS ADDED. Nothing new waits. The 30 s per-engine and 180 s
+        // overall timeouts are AutoTTS's own numbers and are untouched; this only
+        // stops abandoned work from continuing, so it does strictly less than
+        // before.
+        startEngine = { suffix, liveIndex ->
+            val myIndex = index
+            val pkg = engines[myIndex].pkg
+            val cell = arrayOfNulls<TextToSpeech>(1)
+            var handled = false
+
+            fun release() {
+                try { cell[0]?.shutdown() } catch (ex: Exception) {
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "")
                 }
-                if (index < engines.size) {
-                    if (actualEngine == engines[index].pkg) {
+                cell[0] = null
+            }
+
+            val timeout = Runnable {
+                if (handled) return@Runnable
+                handled = true
+                release()
+                failed.add(myIndex)
+                scanNextEngine()
+            }
+            mainHandler.postDelayed(timeout, 30000L)
+
+            val listener = TextToSpeech.OnInitListener { status ->
+                if (handled) {
+                    // A callback that beat the unbind. It belongs to an engine the
+                    // walk has already left, so it must not touch `failed` and must
+                    // not advance the walk -- just let its client go.
+                    release()
+                    return@OnInitListener
+                }
+                handled = true
+                mainHandler.removeCallbacks(timeout)
+                if (status != TextToSpeech.SUCCESS) {
+                    failed.add(myIndex)
+                } else {
+                    val client = cell[0]
+                    val expectedPkg = engines[myIndex].pkg
+                    val actualEngine = try {
+                        val currentEngineField = client!!.javaClass.getDeclaredField("mCurrentEngine")
+                        currentEngineField.isAccessible = true
+                        currentEngineField.get(client)?.toString() ?: expectedPkg
+                    } catch (ex: Exception) {
+                        EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "Reflection failed", ex)
+                        expectedPkg
+                    }
+                    if (actualEngine == expectedPkg) {
                         try {
-                            val engineVoices = holder[0]?.voices
+                            val engineVoices = client?.voices
                             if (engineVoices != null) for (voice in engineVoices) {
                                 val scannedVoiceName = voice.name ?: ""
                                 if (scannedVoiceName.isEmpty()) continue
                                 val loc = voice.locale ?: continue
-                                val pkg = engines[index].pkg
                                 val code = iso3Of(loc)
                                 if (code.isNotEmpty() && langs.add(code)) displayNames[code] = try { loc.displayLanguage } catch (_: Exception) { code }
-                                if (addVoiceToMatchingEntry(voiceEntries, loc, pkg, scannedVoiceName)) continue
-                                voiceEntries.add(ScanVoice(pkg, engines[index].name, loc, arrayListOf("*Default")))
-                                addVoiceToMatchingEntry(voiceEntries, loc, pkg, scannedVoiceName)
+                                if (addVoiceToMatchingEntry(voiceEntries, loc, expectedPkg, scannedVoiceName)) continue
+                                voiceEntries.add(ScanVoice(expectedPkg, engines[myIndex].name, loc, arrayListOf("*Default")))
+                                addVoiceToMatchingEntry(voiceEntries, loc, expectedPkg, scannedVoiceName)
                             }
                         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
                     } else {
-                        failed.add(index)
+                        failed.add(myIndex)
                     }
+                    release()
                 }
-                try { holder[0]?.shutdown() } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
-            }
-            scanNextEngine()
-        }
-        startEngine = { suffix, liveIndex ->
-            val pkg = engines[index].pkg
-            val myIndex = index
-            initFired = false
-            mainHandler.postDelayed({
-                if (!initFired) failed.add(if (liveIndex) index else myIndex)
                 scanNextEngine()
-            }, 30000L)
+            }
+
             onProgress?.invoke("Scanning $pkg... $suffix")
             if (liveIndex) {
-                holder[0] = TextToSpeech(ctx, engineInitListener, pkg)
+                cell[0] = TextToSpeech(ctx, listener, pkg)
             } else {
                 try {
-                    holder[0] = TextToSpeech(ctx, engineInitListener, pkg)
+                    cell[0] = TextToSpeech(ctx, listener, pkg)
                 } catch (ex: Exception) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize " + pkg + "\n" + ex.message)
-                    scanNextEngine()
+                    if (!handled) {
+                        handled = true
+                        mainHandler.removeCallbacks(timeout)
+                        failed.add(myIndex)
+                        scanNextEngine()
+                    }
                 }
             }
         }

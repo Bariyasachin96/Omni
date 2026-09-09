@@ -2058,6 +2058,61 @@ out.
 - **The watchdog is cancelled by identity**, `removeCallbacks(myTimeout[0])`
   rather than clearing the whole handler.
 
+### THE LATE-INIT RACE IS FIXED, FROM AOSP (owner override, 2026-09-09)
+*"properly sources ke through fix karo ... ham log is per depend rahenge na to
+achha nahin rahega ... latency bilkul nahin aani chahie."* The section above had
+recorded this race as AutoTTS's own and left it under rule 5. The owner has
+overridden that explicitly, so it is fixed -- and read out of
+`frameworks/base/core/java/android/speech/tts/TextToSpeech.java` rather than
+reasoned about.
+
+**What was wrong.** There was ONE shared `OnInitListener` reading the mutable
+`index`, and the 30 s timeout advanced the walk **without shutting the abandoned
+client down**. A slow engine's `onInit` therefore arrived after the walk had moved
+on and was attributed to the NEXT engine: it set the shared `initFired`, masking
+that engine's own timeout; it read `holder[0]`, which by then held a different
+client; it could mark the wrong index failed; and it called `scanNextEngine()` a
+second time, so an engine was skipped. Every abandoned client also stayed bound
+for the life of the process.
+
+**Three facts from AOSP decide the fix:**
+
+| line | what it says |
+|---|---|
+| `shutdown()` 956-964 | *"Special case, we are asked to shutdown connection that did finalize its connection"* -- while still connecting it calls `mConnectingServiceConnection.disconnect()`, which is `unbindService`. **After that `onServiceConnected` never arrives, so `dispatchOnInit` never runs.** |
+| `dispatchOnInit` 930-938 | calls the listener then sets `mInitListener = null`, so one client fires `onInit` **at most once** |
+| 871, 877, 907, 2385, 2476 vs 2324 | **every INLINE dispatch is ERROR.** The only one that can carry SUCCESS is inside `SetupConnectionAsyncTask.onPostExecute`, which is always asynchronous |
+
+So **shutting the abandoned client down at the timeout is what PREVENTS the late
+callback**, and it releases the binding in the same move. That is the fix, and it
+is AOSP's own mechanism rather than a guard invented here.
+
+That third row is what makes the code safe to write: on SUCCESS the constructor
+has long returned and the client cell is set; on the inline ERROR path the cell is
+still null and that path does not need a client.
+
+**Each engine now owns its whole step** -- its index, its client, its timeout and a
+one-shot `handled` flag, all captured together. `handled` is the belt to
+`shutdown()`'s braces: `unbindService` stops future callbacks, but one already
+queued on the main looper can still land, and such a callback now releases its own
+client and returns **without touching `failed` and without advancing the walk**.
+No lock is needed -- every path here is the main thread, because
+`onServiceConnected` and `onPostExecute` are, and the inline ERROR dispatch runs on
+the constructor's thread, which is also main.
+
+**NO LATENCY IS ADDED, and this was the owner's condition.** Nothing new waits.
+The 30 s per-engine and 180 s overall timeouts are AutoTTS's own numbers and are
+untouched. The change only stops abandoned work from continuing, so the scan does
+strictly less than before: a timed-out engine's binding is released at once
+instead of being held for the life of the process, and a superseded scan stops
+walking.
+
+**And there is no faster API to move to, which was checked rather than assumed.**
+`TextToSpeech.getEngines()` returns `EngineInfo` only -- name, label, icon -- so
+voices genuinely require binding each engine. The `Executor`-based init that would
+make dispatch explicit is a **private `@hide` constructor**; the three public ones
+take no executor. There is nothing newer to adopt here.
+
 ### Checked against AutoTTS and deliberately NOT changed
 - **the engine list is built the same way.** `B0()` is our `getEngines`: the same
   three `queryIntentServices` flag passes (131072, 128, 0) with a dedupe map;
@@ -2067,12 +2122,11 @@ out.
   ours shows a Toast and calls `finalizeScan()`, and `z0` **is** our
   `finalizeScan` -- distinct the failed indices, reverse-sort, remove, rebuild
   the language list, persist, then make a new `TextToSpeech`.
-- **THE LATE INIT CALLBACK IS AutoTTS'S OWN RACE AND STAYS.** When an engine
-  times out at 30 s, the walk advances, and that engine's `onInit` can still
-  arrive afterwards and be attributed to the next engine. AutoTTS's `j.onInit`
-  has no guard against it either -- it sets `M = true`, clears `N`, reflects on
-  `mCurrentEngine` and compares against `c3.n.b.get(L)` with no generation of its
-  own. Rule 5: ours mirrors it. Do not "fix" this without the owner.
+- **THE LATE INIT CALLBACK: this bullet is SUPERSEDED -- the owner overrode rule
+  5 the same day and it is fixed.** It used to say the race was AutoTTS's own
+  (`j.onInit` really does set `M = true`, clear `N` and compare against
+  `c3.n.b.get(L)` with no generation of its own) and must not be touched. See
+  "THE LATE-INIT RACE IS FIXED, FROM AOSP" below for what replaced it.
 - **`D0()`'s index arithmetic was NOT re-derived.** CFR renders it as
   `this.L = n3 + 1` followed by `while ((n3 = ++this.L) < size && get(L).a())`,
   which reads as a double increment and is exactly the ambiguous shape rule 7
