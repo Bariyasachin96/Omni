@@ -889,7 +889,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (text.length == 1 && quickCharacterFlag) return "UNKNOWN"
         try {
             initIsoMaps()
-            val out = NativeEngine.detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled())
+            val out = detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled())
             val markerIdx = out.indexOf('\u0001')
             if (markerIdx >= 0) {
                 if (markerIdx + 1 < out.length) for (line in out.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)
@@ -904,7 +904,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         for ((iso2, iso3) in IsoCodes.iso2Pairs()) isoToIso3[iso2] = iso3
         try {
             val entries = isoToIso3.entries.toList()
-            NativeEngine.setIsoMap(entries.map { it.key }.toTypedArray(), entries.map { it.value }.toTypedArray())
+            setIsoMap(entries.map { it.key }.toTypedArray(), entries.map { it.value }.toTypedArray())
         } catch (_: Throwable) {}
     }
     private fun hasEngineForLang(lang: String): Boolean {
@@ -989,12 +989,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // clsCLD2.e folds first and only then measures the length. A lone
         // maths-bold letter is two UTF-16 units, so testing the raw text would
         // miss the single-character case that folding creates.
-        val folded = try { NativeEngine.normalizeFancy(text) } catch (_: Throwable) { text }
+        val folded = try { normalizeFancy(text) } catch (_: Throwable) { text }
         if (quickCharacterFlag && folded.length == 1) {
             runs.add(DetectedRun("un", isLatinCommonInherited(folded.codePointAt(0)), folded))
             return runs
         }
-        val flat = try { NativeEngine.nativeGetLanguages(folded) } catch (_: Throwable) { return runs }
+        val flat = try { nativeGetLanguages(folded) } catch (_: Throwable) { return runs }
         var index = 0
         while (index + 2 < flat.size) {
             runs.add(DetectedRun(flat[index], flat[index + 1] == "1", flat[index + 2]))
@@ -1008,9 +1008,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // separate best-so-far candidates below are for.
     private fun detectLanguageAggregate(text: String): String {
         if (text.isEmpty()) return "un"
-        val folded = try { NativeEngine.normalizeFancy(text) } catch (_: Throwable) { text }
+        val folded = try { normalizeFancy(text) } catch (_: Throwable) { text }
         if (quickCharacterFlag && folded.length == 1) return "un"
-        val flat = try { NativeEngine.nativeGetLanguages(folded) } catch (_: Throwable) { return "un" }
+        val flat = try { nativeGetLanguages(folded) } catch (_: Throwable) { return "un" }
         if (flat.size < 3) return "un"
         // One triple means one span, so there is nothing to weigh up.
         if (flat.size == 3) return flat[0]
@@ -1325,7 +1325,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         val textBytes = spanChunk.text.toByteArray(Charsets.UTF_8)
                         val textBuffer = ByteBuffer.allocateDirect(textBytes.size)
                         textBuffer.put(textBytes); textBuffer.position(0)
-                        val chunkOutput = NativeEngine.processDirect(
+                        val chunkOutput = processDirect(
                             textBuffer, textBytes.size,
                             latinFallback, nonLatinFallback, "mix",
                             numberModeInt, normalizeLangCode(numberSpecificLang),
@@ -1391,7 +1391,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         val textBytes = spanChunk.text.toByteArray(Charsets.UTF_8)
                         val textBuffer = ByteBuffer.allocateDirect(textBytes.size)
                         textBuffer.put(textBytes); textBuffer.position(0)
-                        val chunkOutput = NativeEngine.processDirect(
+                        val chunkOutput = processDirect(
                             textBuffer, textBytes.size,
                             latinFallback, nonLatinFallback, "mix",
                             numberModeInt, normalizeLangCode(numberSpecificLang),
@@ -1440,7 +1440,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     val neutralType = if (localeIso3() == prefs.toIso3(dualLang)) 2 else 1
                     val neutralDefault = requestedLang.ifEmpty { latinFallback }
                     val disableAdvancedDetection = disableAdvancedFlag
-                    val chunkOutput = NativeEngine.processDirect(
+                    val chunkOutput = processDirect(
                         textBuffer, textBytes.size,
                         latinFallback, nonLatinFallback, "dual",
                         numberModeInt, normalizeLangCode(numberSpecificLang),
@@ -1951,6 +1951,54 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  per-utterance one. INVARIANTS #1 and #2.
     // ==========================================================================
     companion object {
+        // THE NATIVE METHODS LIVE HERE, NOT IN A CLASS OF THEIR OWN (owner,
+        // 2026-09-09: "vah sari native method aa jaaye, alag se class na bane").
+        // They used to sit in a `NativeEngine` object, which survived R8 as its
+        // own class in the decompiled APK -- a class carrying native methods
+        // cannot be renamed or merged away, because JNI resolves by symbol name.
+        //
+        // @JvmStatic ON A COMPANION `external fun` IS THE ONE FORM THAT WORKS,
+        // and the other two were compiled and rejected rather than reasoned
+        // about (kotlinc 2.4.20, read back with javap):
+        //
+        //   instance member          -> native on the class, but needs an
+        //                               instance, and nine call sites are
+        //                               instance methods while three are here
+        //   plain companion member   -> native lands on EasyVoiceTtsService$Companion,
+        //                               so the separate class is still there and
+        //                               the symbol gains _00024Companion
+        //   @JvmStatic companion     -> `public static final native` on
+        //                               EasyVoiceTtsService ITSELF. One class,
+        //                               callable unqualified from both scopes.
+        //
+        // System.loadLibrary is safe where it is, and that was verified too: the
+        // companion's init block compiles INTO EasyVoiceTtsService.<clinit>
+        // (javap shows the ldc "easyvoice_core" + invokestatic System.loadLibrary
+        // right there), so touching any of these statics initialises the class
+        // and loads the library first. It is not left to the companion being
+        // touched separately.
+        init { System.loadLibrary("easyvoice_core") }
+
+        @JvmStatic external fun processDirect(
+            buffer: java.nio.ByteBuffer, length: Int,
+            latinFallback: String, nonLatinFallback: String,
+            mode: String,
+            numberMode: Int, numberSpecific: String,
+            punctuationMode: Int, punctuationSpecific: String,
+            emojiMode: Int, emojiSpecific: String, punctuationInFlow: Boolean, smartNumber: Boolean,
+            smartNumberGroupSize: Int,
+            neutralDefault: String, neutralType: Int,
+            disableAdvancedDetection: Boolean
+        ): String
+        @JvmStatic external fun nativeGetLanguages(text: String): Array<String>
+        // clsCLD2.b: decorated Latin letters folded back to ASCII.
+        @JvmStatic external fun normalizeFancy(text: String): String
+        @JvmStatic external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)
+        @JvmStatic external fun setLanguageHints(langs: Array<String>)
+        @JvmStatic external fun setDetectSets(detectOkIso3: Array<String>, enabledLangs: Array<String>)
+        @JvmStatic external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,
+            disableAdvancedDetection: Boolean, wantLog: Boolean): String
+
         // AutoTtsService.s0, "updateLanguage2LetterCodes". It rebuilds the enabled
         // two-letter set from the language list and pushes it to the detector:
         //
@@ -1969,8 +2017,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         fun pushLanguageSets(): HashSet<String> {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "updateLanguage2LetterCodes")
             val enabledSet = refillEnabledIso2(true)
-            try { NativeEngine.setDetectSets(detectOkIso3().toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
-            try { NativeEngine.setLanguageHints(enabledSet.toTypedArray()) } catch (_: Throwable) {}
+            try { setDetectSets(detectOkIso3().toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
+            try { setLanguageHints(enabledSet.toTypedArray()) } catch (_: Throwable) {}
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " " + enabledSet.toString())
             return enabledSet
         }
@@ -2018,7 +2066,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @JvmStatic
         fun pushDetectSetsOnly(): HashSet<String> {
             val enabledSet = refillEnabledIso2(false)
-            try { NativeEngine.setDetectSets(detectOkIso3().toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
+            try { setDetectSets(detectOkIso3().toTypedArray(), enabledSet.toTypedArray()) } catch (_: Throwable) {}
             return enabledSet
         }
         @JvmField val chunkQueue: ArrayList<Pair<Int, TextChunk>> = ArrayList()

@@ -15,11 +15,18 @@
 -renamesourcefileattribute SourceFile
 
 # ------------------------------------------------------------ keeps
-# JNI resolves by symbol name (Java_com_tts_easyvoice_NativeEngine_*),
-# so this class and its native methods must keep theirs. Nothing else
-# in the app is reached by name: the only two reflection sites read
-# framework names (TextToSpeech.mCurrentEngine, android resource ids).
--keep,includedescriptorclasses class com.tts.easyvoice.NativeEngine {
+# JNI resolves by symbol name (Java_com_tts_easyvoice_EasyVoiceTtsService_*),
+# so these native methods must keep theirs. They are @JvmStatic members of the
+# service's companion, which puts them on EasyVoiceTtsService itself -- there is
+# deliberately no NativeEngine class any more (owner, 2026-09-09), because a
+# class holding native methods cannot be renamed or merged away and so always
+# showed up in a decompile. Nothing else in the app is reached by name: the only
+# two reflection sites read framework names (TextToSpeech.mCurrentEngine,
+# android resource ids).
+#
+# The service itself is already kept by the manifest, so this rule is only about
+# the METHOD names.
+-keepclassmembers class com.tts.easyvoice.EasyVoiceTtsService {
     native <methods>;
 }
 # kotlinx-coroutines ships this as a consumer rule; repeated so the

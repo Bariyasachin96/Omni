@@ -1217,7 +1217,7 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
 //  unescaped U+001E once cost the rest of the utterance.
 // ==========================================================================
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_tts_easyvoice_NativeEngine_processDirect(
+Java_com_tts_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv* env, jobject, jobject directBuffer, jint length,
     jstring jLat, jstring jNonLat, jstring jMode,
     jint jNumberMode, jstring jNumberSpecific,
@@ -1714,7 +1714,7 @@ static int currentScriptLanguageFallback(int script){
 //  JNI: the remaining entry points
 // ==========================================================================
 extern "C" JNIEXPORT void JNICALL
-Java_com_tts_easyvoice_NativeEngine_setLanguageHints(JNIEnv* env, jclass, jobjectArray jLangs){
+Java_com_tts_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv* env, jclass, jobjectArray jLangs){
     std::vector<std::string> codes;
     if(jLangs){
         jsize count = env->GetArrayLength(jLangs);
@@ -1766,7 +1766,7 @@ static std::unordered_set<std::string> jStringArrayToSet(JNIEnv* env, jobjectArr
     return out;
 }
 extern "C" JNIEXPORT void JNICALL
-Java_com_tts_easyvoice_NativeEngine_setIsoMap(JNIEnv* env, jclass, jobjectArray jIso2, jobjectArray jIso3){
+Java_com_tts_easyvoice_EasyVoiceTtsService_setIsoMap(JNIEnv* env, jclass, jobjectArray jIso2, jobjectArray jIso3){
     if(!jIso2||!jIso3) return;
     jsize iso2Count=env->GetArrayLength(jIso2); jsize iso3Count=env->GetArrayLength(jIso3);
     if(iso3Count<iso2Count) iso2Count=iso3Count;
@@ -1783,7 +1783,7 @@ Java_com_tts_easyvoice_NativeEngine_setIsoMap(JNIEnv* env, jclass, jobjectArray 
     }
 }
 extern "C" JNIEXPORT void JNICALL
-Java_com_tts_easyvoice_NativeEngine_setDetectSets(JNIEnv* env, jclass, jobjectArray jDetectOk, jobjectArray jEnabled){
+Java_com_tts_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv* env, jclass, jobjectArray jDetectOk, jobjectArray jEnabled){
     std::unordered_set<std::string> ok = jStringArrayToSet(env, jDetectOk);
     std::unordered_set<std::string> enabled = jStringArrayToSet(env, jEnabled);
     std::lock_guard<std::mutex> lock(detectSetMutex);
@@ -1791,7 +1791,7 @@ Java_com_tts_easyvoice_NativeEngine_setDetectSets(JNIEnv* env, jclass, jobjectAr
     enabledLangSet = std::move(enabled);
 }
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
+Java_com_tts_easyvoice_EasyVoiceTtsService_detectLanguageFull(
     JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
     jboolean jDisableAdv, jboolean jWantLog)
 {
@@ -1843,7 +1843,7 @@ Java_com_tts_easyvoice_NativeEngine_detectLanguageFull(
 // NORMALISED string, so the fold has to be visible there rather than hidden
 // inside nativeGetLanguages.
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_tts_easyvoice_NativeEngine_normalizeFancy(JNIEnv* env, jclass, jstring jText){
+Java_com_tts_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv* env, jclass, jstring jText){
     if(!jText) return env->NewStringUTF("");
     const char* chars = env->GetStringUTFChars(jText, nullptr);
     std::string text(chars ? chars : "");
@@ -1858,7 +1858,7 @@ Java_com_tts_easyvoice_NativeEngine_normalizeFancy(JNIEnv* env, jclass, jstring 
 //  is why a bare number is read in the LATIN preferred language.
 // ==========================================================================
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_tts_easyvoice_NativeEngine_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
+Java_com_tts_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
     jclass stringClass=env->FindClass("java/lang/String");
     if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
     const char* textChars=env->GetStringUTFChars(jText,nullptr); std::string text(textChars?textChars:""); env->ReleaseStringUTFChars(jText,textChars);

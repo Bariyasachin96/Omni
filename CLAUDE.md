@@ -2010,6 +2010,63 @@ a wrapper with a single child is only a layout node; and the Modes column gained
 **88dp of bottom padding**, the same clearance the Configuration list gives its
 own FAB, so the last mode's description can be scrolled out from under it.
 
+## THERE IS NO `NativeEngine` CLASS ANY MORE (owner, 2026-09-09)
+*"native engine wala class ... APK ko unpack karke dekhta hun to yah alag class
+padta hai ... vah sari native method aa jaaye services wale ke andar hi, alag se
+class na bane."*
+
+The owner decompiled the shipped APK and found `NativeEngine` sitting there under
+its own real name. That was not an accident and it was not R8 failing: **a class
+that holds native methods cannot be renamed or merged away**, because JNI resolves
+by symbol name and the symbol contains the class name. `proguard-rules.pro` had a
+`-keep` for exactly that reason, so the class was pinned by design.
+
+The seven `external fun`s now live in **`EasyVoiceTtsService`'s companion, marked
+`@JvmStatic`**, and `NativeEngine.kt` is deleted.
+
+### `@JvmStatic` on a companion `external fun` is the ONE form that works
+All three candidates were compiled with the project's own kotlinc 2.4.20 and read
+back with `javap`, rather than reasoned about:
+
+| Kotlin form | where the native method lands | verdict |
+|---|---|---|
+| instance member of the class | `EasyVoiceTtsService`, but non-static | needs an instance, and **three** of the twelve call sites are in the companion |
+| plain `companion object` member | **`EasyVoiceTtsService$Companion`** | the separate class is still there, and the symbol gains `_00024Companion` |
+| **`@JvmStatic` companion member** | **`public static final native` on `EasyVoiceTtsService` itself** | one class, callable unqualified from both scopes -- **taken** |
+
+So the JNI symbols moved from `Java_com_tts_easyvoice_NativeEngine_*` to
+`Java_com_tts_easyvoice_EasyVoiceTtsService_*`, in the core and in
+`tools/verify/latency/main.cpp`, which declares them by hand.
+
+**`System.loadLibrary` is safe where it is, and that was verified too.** The
+companion's `init` block compiles **into `EasyVoiceTtsService.<clinit>`** --
+`javap -c` shows the `ldc "easyvoice_core"` and `invokestatic
+System.loadLibrary` right there in the outer class's static initialiser. So
+touching any of these statics initialises the class and loads the library first;
+it does not depend on the companion being touched separately. That was the one
+way this change could have failed at runtime with `UnsatisfiedLinkError`.
+
+### Proven, not assumed
+**`tools/verify/latency/run.sh` links the REAL core and calls the REAL symbols
+through a genuine `JNIEnv`.** It compiled, linked and ran clean after the rename,
+which is exactly what a mismatched symbol name could not do. Timings unchanged
+(165 chars 0.23 ms, the 3,520-char ceiling 2.62 ms).
+
+### AND THIS WAS THE ONLY CLASS LEFT WITH A REAL NAME
+Worth writing down so the question does not come back. After this change
+`proguard-rules.pro` contains **no `-keep class` rule at all** -- only
+`-keepclassmembers`. So the classes a decompile can still name are exactly the
+**eight the manifest forces**, because Android instantiates them by name:
+
+    EasyVoiceTtsService  MainActivity  AboutActivity  LanguagesActivity
+    ModeSettingsActivity VoiceSetupActivity  CheckVoiceData  GetSampleText
+
+Nothing can change those. Everything else -- `LangStore`, `EngineFinder`,
+`IsoCodes`, `EasyVoiceLogger`, `SampleTexts`, `SharedPrefsManager`, `VoiceRows`,
+`EvActivity`, `LangEntry`, `TextChunk`, `RequiredEnginesItem` -- is obfuscated to
+a short name in the root package by `-repackageclasses ''`. **`NativeEngine` was
+the single exception, and it is gone.**
+
 ## THERE IS NO NATIVE R8, AND THAT IS MEASURED (owner asked 2026-09-09)
 *"R8 mein to aapne shrink kar diya hai ... to native size bhi file size kam ho
 jaani chahie na ... native side mein jaisa kuchh compiler hoga na jiske through
