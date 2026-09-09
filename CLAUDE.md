@@ -2148,7 +2148,7 @@ library or toolchain it is built with.
 ### What moved, each checked against its own metadata rather than recalled
 | | was | now | source of truth |
 |---|---|---|---|
-| Android Gradle Plugin | 9.3.2 | **9.4.0** | Google Maven `maven-metadata.xml` |
+| Android Gradle Plugin | 9.3.2 | **9.3.2 -- HELD, see below** | Google Maven `maven-metadata.xml` |
 | Kotlin (+ the Compose plugin, which must match exactly) | 2.4.10 | **2.4.20** | Maven Central |
 | Gradle | 9.5.0 | **9.7.1** | `services.gradle.org/versions/current` |
 | NDK | 29.0.14206865 | **30.0.16248370** | the SDK's own `repository2-3.xml` |
@@ -2163,6 +2163,47 @@ library or toolchain it is built with.
 `activity-compose` 1.13.0, `core-ktx` 1.19.0, `lifecycle-runtime-ktx` 2.11.0,
 `compose-bom` 2026.08.00, `material3.adaptive` 1.3.0, `kotlinx-coroutines` 1.11.0,
 `test:runner` 1.7.0, `test.ext:junit` 1.3.0, `ui-test-junit4-accessibility` 1.12.0.
+
+### AGP 9.4.0 WAS TAKEN AND THEN REVERTED -- IT BREAKS THE accessibility JOB
+Build 849 is the evidence, and it is worth reading before anyone bumps AGP again.
+
+**The `build` job PASSED and published the APK.** Every step green: Install NDK
+and CMake, Build APK, Publish. So **NDK r30, CMake 4.1.2, Gradle 9.7.1, Kotlin
+2.4.20 and build-tools 37 are all proven to work** -- the four bumps that could
+not be tested in the container are now tested by CI, and none of them was the
+problem.
+
+**Only `accessibility` failed**, on `:app:mergeDebugAndroidTestAssets`:
+
+    Could not resolve androidx.concurrent:concurrent-futures:{strictly 1.1.0}
+      1.1.0 - from lock file
+      1.2.0 - transitively via androidx.test.ext:junit:1.3.0
+    Could not resolve com.google.guava:listenablefuture:{strictly 1.0}
+      ... version resolved in configuration ':app:debugRuntimeClasspath'
+          by consistent resolution
+
+That `{strictly}` is **AGP's own consistent resolution**, which pins the
+androidTest classpath to whatever the app resolved. 9.4.0 applies it harder, and
+the two graphs genuinely disagree: the app resolves `concurrent-futures` 1.1.0
+and `listenablefuture` 1.0, while the Accessibility Test Framework drags in guava,
+whose `listenablefuture` is the empty `9999.0-empty-to-avoid-conflict-with-guava`
+marker.
+
+**It is NOT `core-splashscreen` 1.2.0, and that was measured rather than assumed.**
+`tools/fetch-deps.py` resolved the app's graph both ways: `concurrent-futures`
+stays 1.1.0 and `listenablefuture` stays 1.0 either way, and the upgrade adds only
+`appcompat-resources` plus two `vectordrawable` artifacts.
+
+**Why it is held rather than worked around.** Neither force is safe: pinning
+`listenablefuture` to 1.0 puts a second copy of `ListenableFuture` beside guava's,
+and the 9999.0 marker is an EMPTY jar that would take the class out of the app.
+And none of it can be tested here -- there is no Gradle or Android SDK in this
+container -- so a `resolutionStrategy` would be a hunch spending thirteen-minute
+CI runs. AGP holds at **9.3.2**, the combination build 848 proved green.
+
+**This is the same carve-out as lifecycle 2.12.0-alpha**: "latest" means the
+newest version that actually works, and one that fails the accessibility gate is
+not one. Revisit on the next AGP.
 
 ### LATEST STABLE, not latest published -- and the difference is deliberate
 `lifecycle` publishes **2.12.0-alpha02** and `lifecycle-runtime-compose` shows it
