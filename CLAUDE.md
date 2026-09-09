@@ -1856,6 +1856,44 @@ the owner has sent contains it, and our own `onStop()` override already releases
 the wait on every interrupt we are told about. **If it ever does show up in a log,
 `id != expectedId` there is finally a correct guard.** Do not add it on theory.
 
+### THE SAME SHAPE ONE LEVEL DOWN: two engine inits shared one client field
+Found while sweeping for more of the above, and it is a **wrong-voice** bug rather
+than an interruption one. `initializingTts` was a single field written by the pool
+walk in `initAllEngines` **and** by `restoreEngine`, and read back by both
+listeners in their `onInit`. Nothing excluded them from each other:
+`initAllEngines` and `restoreEngine` each take `this`, and neither `onInit` does.
+Both run on the main thread, so they interleave at message boundaries -- which is
+exactly where this lands:
+
+    pool walk constructs TextToSpeech(engine3), returns to the looper
+    engine5 dies -> onServiceDisconnected -> restoreEngine OVERWRITES the field
+    engine3's onInit arrives:  enginePool[3].tts = <engine5's client>
+
+Engine 3's wrapper then holds a client bound to engine 5, so every utterance
+routed to engine 3 is spoken **by engine 5** -- wrong voice, wrong language -- and
+once the restore lands too, two wrappers share one client and each one's
+`setLanguage`/`setVoice` clobbers the other's.
+
+**DELIBERATE DEPARTURE**, on the footing the owner set on 2026-09-09 for the
+identical defect in the engine scan: *"ham log is per depend rahenge na to achha
+nahin rahega ... properly source ke through fix karo."* AutoTTS carries one static
+here as well.
+
+Each construction now owns a one-element holder captured by its listener, the same
+shape `EngineFinder.startEngine` uses and for the same AOSP reason: `onInit` can
+fire **inline on the constructing thread, but only ever with ERROR** -- the only
+dispatch that can carry SUCCESS is inside `SetupConnectionAsyncTask.onPostExecute`,
+which is always asynchronous. So on SUCCESS the constructor has long returned and
+`cell[0]` is set; on the inline ERROR path `cell[0]` is still null, and storing
+null on a wrapper we are marking `state = -1` is strictly better than storing
+another engine's client. The field is gone; it had no other reader.
+
+`restoringIndex` itself was checked in the same pass and is **sound** --
+`restoreEngine` refuses a second restore while one is in flight and
+`RestoreInitListener` always runs to clear it (every failure path in AOSP's
+`initTts` ends in `dispatchOnInit(ERROR)`), and `initAllEngines` is called once,
+from `onCreate`. Only the client had to move.
+
 **Verified in the same read and NOT changed, so do NOT re-audit:**
 - **calling `callback.start()`/`done()` off the synthesis thread is safe.**
   `AbstractSynthesisCallback`'s javadoc says those are synthesis-thread-only, and

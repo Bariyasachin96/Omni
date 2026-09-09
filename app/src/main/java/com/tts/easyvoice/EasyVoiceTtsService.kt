@@ -494,12 +494,39 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (!engineList.isEmpty()) {
                 enginePool.add(EngineWrapper(engineList[initializingIndex]))
                 bindEngineKeepAlive(engineList[initializingIndex])
-                initializingTts = TextToSpeech(applicationContext, EngineInitListener(), engineList[initializingIndex])
+                val cell = arrayOfNulls<TextToSpeech>(1)
+                cell[0] = TextToSpeech(applicationContext, EngineInitListener(cell), engineList[initializingIndex])
             }
         }
     }
-    inner class EngineInitListener : TextToSpeech.OnInitListener {
+    // EACH INIT OWNS ITS CLIENT, and the shared field it replaces was a real
+    // cross-engine bug (2026-09-09). `initializingTts` was ONE field written by
+    // the pool walk here AND by restoreEngine, and read back by both listeners
+    // in their onInit -- with no mutual exclusion between them, because
+    // initAllEngines and restoreEngine each take `this` while the listeners do
+    // not. Both run on the main thread, so they interleave at message
+    // boundaries, which is exactly where this lands:
+    //
+    //   pool walk constructs TextToSpeech(engine3) and returns to the looper
+    //   engine5 dies -> onServiceDisconnected -> restoreEngine overwrites the field
+    //   engine3's onInit arrives and does enginePool[3].tts = <engine5's client>
+    //
+    // Engine 3's wrapper then holds a client bound to engine 5, so every
+    // utterance routed to engine 3 is spoken by engine 5 -- wrong voice, wrong
+    // language -- and once the restore lands too, two wrappers share one client
+    // and each one's setLanguage/setVoice clobbers the other's.
+    //
+    // The holder array is the same shape the engine scan uses, and for the same
+    // AOSP reason: onInit can fire INLINE on the constructing thread, but only
+    // ever with ERROR (TextToSpeech.java 871, 877, 907, 2385, 2476 -- the only
+    // dispatch that can carry SUCCESS is inside SetupConnectionAsyncTask.
+    // onPostExecute, which is always asynchronous). So on SUCCESS the
+    // constructor has long returned and cell[0] is set; on the inline ERROR path
+    // cell[0] is still null, and storing null there is strictly better than
+    // storing some other engine's client on a wrapper we are marking dead.
+    inner class EngineInitListener(private val cell: Array<TextToSpeech?>) : TextToSpeech.OnInitListener {
         override fun onInit(status: Int) {
+            val initializingTts = cell[0]
             if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (1)"); return }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init " + (if (initializingIndex < enginePool.size) enginePool[initializingIndex].pkg else ""))
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
@@ -514,7 +541,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             while (initializingIndex < engineList.size) {
                 enginePool.add(EngineWrapper(engineList[initializingIndex]))
                 bindEngineKeepAlive(engineList[initializingIndex])
-                try { initializingTts = TextToSpeech(applicationContext, EngineInitListener(), engineList[initializingIndex]); break } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex]); initializingIndex++ }
+                val nextCell = arrayOfNulls<TextToSpeech>(1)
+                try { nextCell[0] = TextToSpeech(applicationContext, EngineInitListener(nextCell), engineList[initializingIndex]); break } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex]); initializingIndex++ }
             }
             if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)") }
         }
@@ -570,7 +598,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // ever be recovered again. initAllEngines already guards the
             // identical call for the identical reason; this site did not.
             try {
-                initializingTts = TextToSpeech(applicationContext, RestoreInitListener(), wrapper.pkg)
+                val cell = arrayOfNulls<TextToSpeech>(1)
+                cell[0] = TextToSpeech(applicationContext, RestoreInitListener(cell), wrapper.pkg)
             } catch (ex: Exception) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when restoring " + wrapper.pkg + ": " + ex.message)
                 wrapper.state = -1
@@ -621,8 +650,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         }
     }
-    inner class RestoreInitListener : TextToSpeech.OnInitListener {
+    // Its own client, for the reason written over EngineInitListener: the
+    // shared field was also written by the pool walk. restoringIndex itself is
+    // sound -- restoreEngine refuses a second restore while one is in flight and
+    // this listener always runs to clear it -- so only the client had to move.
+    inner class RestoreInitListener(private val cell: Array<TextToSpeech?>) : TextToSpeech.OnInitListener {
         override fun onInit(status: Int) {
+            val initializingTts = cell[0]
             val restoreIdx = restoringIndex
             if (restoreIdx >= 0 && restoreIdx < enginePool.size) {
                 val wrapper = enginePool[restoreIdx]
@@ -2155,7 +2189,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @JvmField var lastLoadedVoiceName = ""
         @JvmField var chunkCounter = 0
         @Volatile @JvmField var utteranceId = ""
-        @JvmField var initializingTts: TextToSpeech? = null
         @Volatile @JvmField var showNotificationFlag = false
         @Volatile @JvmField var localeSpansFlag = false
         @Volatile @JvmField var stripAudioAttrFlag = false
