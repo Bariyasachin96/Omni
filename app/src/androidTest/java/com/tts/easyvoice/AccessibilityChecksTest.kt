@@ -335,6 +335,25 @@ class AccessibilityChecksTest {
         check(mainScreen(scanning = false, scanLine = ""))
     }
 
+    // THE MODE SETTINGS FAB FOLLOWS THE SELECTED MODE (owner, 2026-09-09).
+    // Page 0 draws it and mainScreenSettled starts there, so ATF already
+    // measures its contrast and touch target. What that cannot see is the
+    // WIRING: the radio writes the mode straight to the store without bumping
+    // modeRefresh, so MainScreen only learns about it through onModeChanged.
+    // Drop that callback and the button silently keeps opening the settings of
+    // the mode you left -- a failure with nothing visible about it. The seed is
+    // mix, so the name starts as "Mixed mode settings" and must become
+    // "Dual languages settings" after the Dual radio is picked.
+    @Test
+    fun mainScreenModeSettingsFabFollowsMode() {
+        themed { mainScreen(scanning = false, scanLine = "")() }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("Mixed mode settings").assertExists()
+        rule.onNodeWithContentDescription("Dual languages").performClick()
+        rule.onNodeWithContentDescription("Dual languages settings").assertExists()
+        sweepSchemes()
+    }
+
     // ======================================================================
     //  THE POPUPS
     //  Everything above renders one composition and checks what is on screen,

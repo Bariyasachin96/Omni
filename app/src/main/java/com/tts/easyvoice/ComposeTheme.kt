@@ -346,8 +346,10 @@ fun animationsEnabled(): Boolean {
 //  A child passed `onCheckedChange = null` or `onClick = null` is NOT interactive
 //  -- that is the whole point of the Material row pattern -- so the Switch inside
 //  `SettingSwitch`, the Checkbox inside `LanguageCheckRow` and the RadioButton
-//  inside the mode rows are all safe. The mode row's "Settings" button is safe for
-//  a different reason: it is a SIBLING of the cleared Row, not inside it.
+//  inside the mode rows are all safe. (The mode row used to carry a "Settings"
+//  button too, safe for a different reason -- it was a SIBLING of the cleared
+//  Row, not inside it. It moved to the FAB on 2026-09-09, so the mode row now
+//  has nothing in it but the RadioButton and its label.)
 //
 //  WHAT IT IS NOT FOR: anything whose semantics the library already puts on the
 //  focused node without help. An `IconButton` is the clearest case -- its

@@ -386,7 +386,12 @@ fun MainScreen(
     // and commits), so it is built inside the Configuration page instead, which
     // the pager composes only while that tab is showing -- the same moment
     // ConfigurationActivity used to do it in onResume.
-    val readingMode = remember(modeRefresh) { prefs.getReadingMode() }
+    // A `var`, because the Modes tab changes the mode without bumping
+    // modeRefresh -- it writes the store directly -- and BOTH floating buttons
+    // depend on the answer: the Main Settings one names the mode whose settings
+    // it opens, and the Configuration one is hidden for dual. Re-reading prefs
+    // on the refresh key alone left each of them one mode behind.
+    var readingMode by remember(modeRefresh) { mutableStateOf(prefs.getReadingMode()) }
     val showAddLanguage = readingMode != "none" && readingMode != "dual"
     // Plain state instead of a PagerState. See the comment on the content Box
     // below for why the pager had to go.
@@ -400,6 +405,39 @@ fun MainScreen(
     val compactHeight = evIsCompactHeight()
     Scaffold(
         floatingActionButton = {
+            // The selected mode's settings, in the corner rather than on the
+            // selected radio's own row, where the control moved down the list
+            // every time the mode changed (owner, 2026-09-09). See ModesScreen.
+            //
+            // The VISIBLE label is the short "Settings" while the ACCESSIBLE
+            // name is the whole "<Mode> settings" -- the same string the screen
+            // it opens uses as its first heading, so what you hear here is what
+            // you land on there. WCAG 2.5.3 Label in Name asks the accessible
+            // name to CONTAIN the visible label, which it does; the reverse
+            // mismatch is the one that had to be fixed on the Add language FAB,
+            // where the visible word was absent from the name entirely. The
+            // label is kept short on purpose: "Multilingual mode (experimental)
+            // settings" is 41 characters and an extended FAB is a single line,
+            // so spelling the mode out visibly would stretch the button across
+            // a compact screen.
+            //
+            // "none" is never a row and shownMode() rewrites it to "auto", but
+            // MainScreen reads the store before that has run, so the FAB is
+            // hidden for it rather than offering a screen with nothing on it.
+            if (!scanning && currentPage == 0 && readingMode != "none") {
+                val modeTitle = modeRowSpecs.firstOrNull { it.first == readingMode }?.second
+                val settingsName =
+                    if (modeTitle == null) "Mode settings" else modeTitle + " settings"
+                val openSettings = { onOpenModeSettings(readingMode) }
+                ExtendedFloatingActionButton(
+                    onClick = openSettings,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.evControl(settingsName, Role.Button, action = openSettings),
+                    icon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
+                    text = { Text("Settings") }
+                )
+            }
             if (!scanning && currentPage == 1 && showAddLanguage) {
                 ExtendedFloatingActionButton(
                     onClick = onAddLanguage,
@@ -590,7 +628,11 @@ fun MainScreen(
                         )
                 ) {
                     when (currentPage) {
-                        0 -> ModesScreen(prefs, modeRefresh, onOpenModeSettings)
+                        0 -> ModesScreen(
+                            prefs,
+                            modeRefresh,
+                            onModeChanged = { picked -> readingMode = picked }
+                        )
                         1 -> {
                             // One remember for both: voiceLanguageLabels rebuilds
                             // LangStore.languages as a side effect, and the flags

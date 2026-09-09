@@ -57,11 +57,29 @@ private fun rebuildLanguagesFor(context: android.content.Context, modeInt: Int) 
     // AutoTtsService.s0(). The first three are the lines above; this is s0.
     EasyVoiceTtsService.pushLanguageSets()
 }
+// THE MODE'S SETTINGS ARE REACHED FROM THE FAB, NOT FROM A BUTTON IN THE ROW
+// (owner, 2026-09-09): *"har ek mode ka jo settings button aata hai ... thoda
+// upar ki taraf hai ... jahan per FAB button aata hai, bottom right corner per,
+// vahan per hona chahie ... jo bhi mode mein change karunga uske hisab se vah
+// button vahan per change hoga."*
+//
+// It used to sit right-aligned on the SELECTED radio's own row, so its position
+// moved every time the mode changed -- it was beside Dual on one visit and
+// beside Multilingual on the next, three rows further down. A control that
+// moves is the hardest kind to find again, by touch or by eye. The FAB is
+// always in the same corner, and Material's own definition is what makes it the
+// right component here: a FAB "lets the user perform a primary action" and is
+// "typically found anchored to the bottom right".
+//
+// `onModeChanged` is what keeps the FAB honest. The radio writes the mode
+// straight to the store, so MainScreen cannot learn about it by re-reading
+// prefs on a refresh key -- it has to be told, or the FAB would go on offering
+// the settings of the mode you just left.
 @Composable
 fun ModesScreen(
     prefs: SharedPrefsManager,
     refreshKey: Int,
-    onOpenModeSettings: (String) -> Unit
+    onModeChanged: (String) -> Unit
 ) {
     val context = LocalContext.current
     var selectedMode by remember { mutableStateOf(shownMode(prefs.getReadingMode())) }
@@ -70,9 +88,16 @@ fun ModesScreen(
         selectedMode = mode
         prefs.setReadingMode(mode)
         rebuildLanguagesFor(context, modeIntOf(mode))
+        onModeChanged(mode)
     }
     ResponsiveContent {
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).selectableGroup()) {
+        // The bottom padding is the FAB's clearance, the same 88dp the
+        // Configuration list gives its own floating button, so the last mode's
+        // description can always be scrolled out from under it.
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .selectableGroup().padding(bottom = 88.dp)
+        ) {
             SectionHeader("Modes")
             for (spec in modeRowSpecs) {
                 val mode = spec.first
@@ -88,51 +113,47 @@ fun ModesScreen(
                 // install, the list shows no checked radio at all. AutoTTS does
                 // the same, for the same reason, and that is the intent.
                 if (mode == "google") continue
+                val pick = {
+                    selectedMode = mode
+                    prefs.setReadingMode(mode)
+                    rebuildLanguagesFor(context, modeIntOf(mode))
+                    onModeChanged(mode)
+                }
+                // ONE Row, not two. There used to be an outer Row holding this
+                // one at weight(1f) beside the selected mode's Settings button;
+                // with that button gone to the FAB there is nothing to share the
+                // line with, and a wrapper with a single child would only add a
+                // layout node.
+                //
+                // `selectable` keeps the touch and the exclusive group;
+                // evControl states the row on the focused node so a reader that
+                // does not walk Compose's fake children still hears "radio
+                // button, selected". It is FIRST because the configuration is
+                // built tailToHead and a clearing node resets it, so only the
+                // head-most one survives.
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    modifier = Modifier
+                        .evControl(
+                            spec.second,
+                            Role.RadioButton,
+                            isSelected = mode == selectedMode,
+                            action = pick
+                        )
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = mode == selectedMode,
+                            role = Role.RadioButton,
+                            onClick = pick
+                        )
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        // `selectable` keeps the touch and the exclusive group;
-                        // evControl states the row on the focused node so a
-                        // reader that does not walk Compose's fake children still
-                        // hears "radio button, selected". It is FIRST because the
-                        // configuration is built tailToHead and a clearing node
-                        // resets it, so only the head-most one survives.
-                        modifier = Modifier
-                            .evControl(
-                                spec.second,
-                                Role.RadioButton,
-                                isSelected = mode == selectedMode,
-                                action = {
-                                    selectedMode = mode
-                                    prefs.setReadingMode(mode)
-                                    rebuildLanguagesFor(context, modeIntOf(mode))
-                                }
-                            )
-                            .weight(1f)
-                            .selectable(
-                                selected = mode == selectedMode,
-                                role = Role.RadioButton,
-                                onClick = {
-                                    selectedMode = mode
-                                    prefs.setReadingMode(mode)
-                                    rebuildLanguagesFor(context, modeIntOf(mode))
-                                }
-                            )
-                            .padding(horizontal = 8.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = mode == selectedMode, onClick = null)
-                        Text(
-                            text = spec.second,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 12.dp).clearAndSetSemantics { }
-                        )
-                    }
-                    if (mode == selectedMode) {
-                        EvButton("Settings", iconRes = R.drawable.ic_settings) { onOpenModeSettings(mode) }
-                    }
+                    RadioButton(selected = mode == selectedMode, onClick = null)
+                    Text(
+                        text = spec.second,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = 12.dp).clearAndSetSemantics { }
+                    )
                 }
                 Text(
                     text = spec.third,

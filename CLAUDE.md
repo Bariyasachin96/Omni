@@ -1955,6 +1955,88 @@ proved the hard way (see that section).
 **Nothing is duplicated either.** The two screenshots were the same list at two
 scroll positions, which is why the middle rows appear in both.
 
+## THE MODE'S SETTINGS BUTTON IS THE FAB NOW (owner, 2026-09-09)
+*"har ek mode ka jo settings button aata hai ... thoda upar ki taraf hai ...
+jahan per FAB button aata hai, bottom right corner per, vahan per hona chahie
+... jo bhi mode mein change karunga uske hisab se vah button vahan per change
+hoga."*
+
+**The real problem was that the control MOVED.** It sat right-aligned on the
+SELECTED radio's own row, so its position changed with the mode: beside Dual at
+the top on one visit, beside Multilingual three rows further down on the next.
+A control that is somewhere else every time is the hardest kind to find again,
+by touch or by eye. The FAB is always the same corner. Material's own definition
+is what makes it the right component rather than a preference -- a FAB "lets the
+user perform a primary action" and is "typically found anchored to the bottom
+right" -- and the Configuration tab already had one, so the app now answers
+"where is the main action on this page?" the same way on both.
+
+**The wiring is the part that can silently break, and it has a test.** The radio
+writes the mode straight to the store, and `MainScreen` only re-reads prefs when
+`modeRefresh` changes -- which a radio tap does not do. So `ModesScreen` takes an
+**`onModeChanged`** callback and `readingMode` in `MainScreen` is a `var` fed by
+it. Without that the FAB would keep offering the settings of the mode you just
+left, and nothing on screen would look wrong. `mainScreenModeSettingsFabFollowsMode`
+picks the Dual radio and asserts the button renames from "Mixed mode settings"
+to "Dual languages settings".
+
+**The same `var` fixed a second staleness nobody had reported.** `showAddLanguage`
+(`readingMode != "none" && != "dual"`) was computed from the same stale read, so
+choosing Dual and swiping to Configuration still offered "Add language" -- a
+button leading to a screen that answers "Language selection is not available".
+
+**The label is short on purpose, and the split is deliberate.** Visible text is
+**"Settings"**; the accessible name is the whole **"<Mode> settings"**, which is
+the same string the screen it opens uses as its first heading -- so what you hear
+here is what you land on there. WCAG 2.5.3 Label in Name asks the accessible name
+to CONTAIN the visible label, and it does. (The reverse mismatch is what had to
+be fixed on the Add language FAB, where the visible word "Languages" was absent
+from the name entirely -- do not read that fix as forbidding this shape.)
+Spelling the mode out visibly was rejected for one measurable reason:
+"Multilingual mode (experimental) settings" is **41 characters** and an extended
+FAB is a single line, so it would stretch the button across a compact screen.
+**Say the word if the visible text should carry the mode too** -- it is one
+string, and the cost is that one mode's button gets very wide.
+
+**Two smaller things went with it.** The mode row is ONE `Row` again, not an
+outer wrapper holding the inner one at `weight(1f)` beside the button, because
+a wrapper with a single child is only a layout node; and the Modes column gained
+**88dp of bottom padding**, the same clearance the Configuration list gives its
+own FAB, so the last mode's description can be scrolled out from under it.
+
+## GOOGLE MAVEN IS ALREADY CONFIGURED -- WHAT IS BLOCKED IS THIS CONTAINER (owner asked 2026-09-09)
+*"uska Google Maven configure karna ... uske hisab se vah library download karke
+configure karega."* Checked rather than assumed, and there is **nothing to change
+in the build**: `google()` IS Google Maven, and it is declared in all three
+places it can be --
+
+    settings.gradle.kts   pluginManagement { repositories { google(); ... } }
+    settings.gradle.kts   dependencyResolutionManagement { repositories { google(); ... } }
+    build.gradle.kts      buildscript { repositories { google(); ... } }
+
+with `repositoriesMode.set(FAIL_ON_PROJECT_REPOS)`, which is the strict setting
+that makes those two lists the only ones any module can use. That is why CI
+resolves AGP 9.3.2, Kotlin 2.4.10, the Compose BOM, material3, activity,
+core-splashscreen and the adaptive artifact and publishes an APK on every run --
+Gradle is already downloading and configuring exactly what the build asks for.
+
+**What fails is the egress policy of THIS container, and only here.** Re-measured
+on 2026-09-09, unchanged from the 2026-09-01 diagnosis:
+
+    dl.google.com        CONNECT tunnel refused   <- where the artifacts live
+    maven.google.com     301                      <- only a redirector
+    repo1.maven.org      200
+
+So `dl.google.com` is the whole blockage, `/root/.ccr/README.md` says a proxy
+denial is not to be routed around, and **the fix is the owner's to make in the
+environment**: claude.ai/code, the cloud icon above the message box, the settings
+icon on the environment, **Network access -> Custom**, add `dl.google.com` and
+`maven.google.com` with **"Also include default list of common package managers"
+TICKED**, and start a NEW session. It buys local type-checking of androidx and
+Compose, which is the biggest hole in the local checks -- it would have caught
+the `ExperimentalMaterial3Api` opt-in that broke build 827. It does not change
+what the app builds or ships.
+
 ## "1 of 3" WAS BEING SAID TWICE, AND THE SECOND ONE WAS OURS (owner, 2026-09-09)
 *"bahut sari jagah per one of three, two of three ... mere khyal se yah thoda
 double hai ... jo already TalkBack announce karti chijen hain vah chijen aap
