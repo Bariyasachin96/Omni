@@ -33,11 +33,26 @@ object EngineFinder {
         for (wordIdx in start until parts.size) { val word = parts[wordIdx]; if (word.isEmpty()) continue; pretty.append(word[0].uppercaseChar()); if (word.length > 1) pretty.append(word.substring(1)); if (wordIdx < parts.size - 1) pretty.append(" ") }
         return pretty.toString().trim()
     }
-    @JvmStatic val seenEngines: HashMap<String, EngineInfo> = HashMap()
+    // THE SCAN'S STATE IS PER SCAN NOW, NOT SHARED (owner, 2026-09-09:
+    // "double triple baar jab bhi application open karte hain to 2 3 4 5 6 7").
+    //
+    // Every scan supersedes the one before it, and only the newest may write a
+    // result. AutoTTS gets this for free because its whole scan lives in
+    // NewSettingsActivity's INSTANCE fields -- L (index), M (init fired),
+    // N (per-engine timeout), O (failed list), J and F -- so a recreated
+    // Activity simply starts with fresh ones. Ours was lifted into an `object`,
+    // which turned all of that into process-wide state, and MainActivity starts
+    // a scan in EVERY onCreate: rotate the phone, or reopen the app while the
+    // previous scan is still walking engines at 30 s a time, and two scans run
+    // at once over the same fields. That is our refactor's bug, not AutoTTS's,
+    // which is what makes fixing it right rather than a rule 5 departure.
+    @Volatile private var scanGeneration = 0
     private fun isSelfEngine(pkg: String): Boolean =
         pkg.contains("easyvoice") || pkg.contains("multilingualtts")
-    fun getEngines(ctx: Context): List<EngineInfo> {
-        seenEngines.clear()
+    // `seen` is the caller's, so two overlapping scans cannot clear each
+    // other's half-built set. It used to be an object-level HashMap that this
+    // function cleared on entry, and nothing outside EngineFinder ever read it.
+    private fun getEngines(ctx: Context, seen: HashMap<String, EngineInfo>): List<EngineInfo> {
         val pkgManager = ctx.packageManager
         val intent = Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE)
         val list = mutableListOf<EngineInfo>()
@@ -50,9 +65,9 @@ object EngineFinder {
             for (resolveList in lists) for (resolveInfo in resolveList) {
                 val serviceInfo = resolveInfo.serviceInfo ?: continue
                 val pkg = serviceInfo.packageName
-                if (pkg.contains("easyvoice") || seenEngines.containsKey(pkg)) continue
+                if (pkg.contains("easyvoice") || seen.containsKey(pkg)) continue
                 val info = EngineInfo(pkg, resolveInfo.loadLabel(pkgManager).toString())
-                seenEngines[pkg] = info
+                seen[pkg] = info
                 list.add(info)
             }
         } catch (ex: Exception) {
@@ -65,6 +80,12 @@ object EngineFinder {
     @Volatile @JvmStatic var lastScanEngines: List<String> = emptyList()
     @JvmStatic val voiceWeights: HashMap<String, Int> = HashMap()
     private val globalTimeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    // MainActivity.onDestroy calls this. It clears the handler wholesale, which
+    // on a rotation is harmless -- onDestroy runs BEFORE the next onCreate, so
+    // there is no newer scan to hit -- and in the rare order where a live scan
+    // does lose its 180 s watchdog, the scan still finishes: the per-engine
+    // 30 s timeout is what actually advances scanNextEngine, and the generation
+    // guard is what decides who may publish.
     @JvmStatic fun cancelGlobalTimeout() { globalTimeoutHandler.removeCallbacksAndMessages(null) }
     @JvmStatic fun iso3Of(loc: Locale?): String = if (loc == null) "zxx" else try {
         val code = loc.isO3Language
@@ -93,6 +114,11 @@ object EngineFinder {
     }
     fun scanLanguages(ctx: Context, onProgress: ((String) -> Unit)? = null, onResult: (Set<String>) -> Unit) {
         val engines = ArrayList<EngineInfo>()
+        val seen = HashMap<String, EngineInfo>()
+        val myGeneration = ++scanGeneration
+        // This scan's own 180 s watchdog, so finalize cancels exactly that one.
+        // A cell rather than a val because finalizeScan is declared above it.
+        val myTimeout = arrayOfNulls<Runnable>(1)
         voiceWeights.clear()
         var initFired = false
         val langs = LinkedHashSet<String>()
@@ -103,7 +129,15 @@ object EngineFinder {
         val holder = arrayOfNulls<TextToSpeech>(1)
         var index = 0
         fun finalizeScan() {
-            globalTimeoutHandler.removeCallbacksAndMessages(null)
+            // A superseded scan writes NOTHING. Without this the older scan
+            // still reached here and did languages.clear() + rebuildFromScan() +
+            // persistAll() with its own half-finished engine list, which is
+            // exactly why the count differed on every open.
+            if (myGeneration != scanGeneration) return
+            // removeCallbacks, NOT removeCallbacksAndMessages(null): the handler
+            // is shared, and clearing it wholesale cancelled the OTHER scan's
+            // watchdog too.
+            myTimeout[0]?.let { globalTimeoutHandler.removeCallbacks(it) }
             val remaining = ArrayList(engines)
             val removedPkgs = ArrayList<String>()
             for (failedIdx in failed.distinct().sortedDescending()) {
@@ -135,10 +169,15 @@ object EngineFinder {
             onResult(orderedLangs)
         }
         val globalTimeout = Runnable { finalizeScan() }
+        myTimeout[0] = globalTimeout
         globalTimeoutHandler.postDelayed(globalTimeout, 180000L)
-        engines.addAll(getEngines(ctx))
+        engines.addAll(getEngines(ctx, seen))
         lateinit var startEngine: (String, Boolean) -> Unit
         fun scanNextEngine() {
+            // Stop dead once a newer scan has started: this one can no longer
+            // publish anything, and carrying on only fights the new scan for the
+            // progress line and keeps engines binding for nothing.
+            if (myGeneration != scanGeneration) return
             index++
             while (index < engines.size && isSelfEngine(engines[index].pkg)) index++
             if (index >= engines.size) {
@@ -216,7 +255,7 @@ object EngineFinder {
             if (status == TextToSpeech.SUCCESS && probe[0] != null) {
                 for (engineInfo in probe[0]!!.engines) {
                     val name = engineInfo.name
-                    if (seenEngines.containsKey(name) || name.contains("easyvoice")) continue
+                    if (seen.containsKey(name) || name.contains("easyvoice")) continue
                     engines.add(EngineInfo(name, engineInfo.label))
                 }
                 probe[0]!!.shutdown()

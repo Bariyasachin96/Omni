@@ -2010,6 +2010,76 @@ a wrapper with a single child is only a layout node; and the Modes column gained
 **88dp of bottom padding**, the same clearance the Configuration list gives its
 own FAB, so the last mode's description can be scrolled out from under it.
 
+## THE SCAN RAN TWICE AT ONCE, AND THAT IS THE CHANGING NUMBER (owner, 2026-09-09)
+*"hamare mein acche se scan nahin ho raha hai ... AutoTTS ka dekh lijiyega acche
+se ho raha hai ... double triple baar jab bhi application open karte hain to
+2 3 4 5 6 7 is tarike se."*
+
+The owner was right that AutoTTS does it better, and the reason is structural
+rather than a missing step. **Both apps scan on every `onCreate` of their main
+screen. The difference is where the scan keeps its state.**
+
+    AutoTTS   NewSettingsActivity INSTANCE fields:
+              L (index)  M (init fired)  N (per-engine timeout)
+              O (failed) J (dedupe map)  F (the TextToSpeech)
+    ours      `object EngineFinder` statics:
+              seenEngines, voiceWeights, globalTimeoutHandler
+
+A recreated Activity gives AutoTTS a fresh `J`, a fresh `O` and its own handlers,
+so two scans can never tread on each other. Ours lifted the scan into an
+`object`, which turned all of it into process-wide state -- and `MainActivity`
+starts a scan in **every** `onCreate`. Rotate the phone, or reopen the app while
+the previous scan is still walking engines at 30 seconds apiece, and two scans
+run at once over the same fields:
+
+- `getEngines()` did `seenEngines.clear()` on entry, so scan 2 wiped the dedupe
+  set that scan 1's probe callback was about to read -- which is how the engine
+  list came out different every time;
+- `finalizeScan()` did `removeCallbacksAndMessages(null)` on the SHARED handler,
+  cancelling the other scan's watchdog;
+- and both scans reached `finalizeScan()` and each did
+  `LangStore.languages.clear()` + `rebuildFromScan()` + `persistAll()` with its
+  own half-finished engine list. **That is the 2, 3, 4, 5, 6, 7.**
+
+**This is our refactor's bug, not AutoTTS's**, which is the same distinction that
+made `releaseWaitWithoutSpeaking` safe to write: the defect exists because the
+code was moved into a shared object, not because AutoTTS does something we left
+out.
+
+### The fix is AutoTTS's own shape, restored
+- **`seenEngines` is gone.** `getEngines(ctx, seen)` takes the caller's map, so
+  the dedupe set is per scan exactly as AutoTTS's `J` is per Activity. Nothing
+  outside `EngineFinder` ever read it.
+- **A generation counter decides who may publish.** `scanGeneration` is bumped at
+  the top of every scan; `finalizeScan` returns immediately if a newer scan has
+  started, so a superseded scan writes nothing. `scanNextEngine` checks it too,
+  so the old scan stops walking engines instead of fighting the new one for the
+  progress line and holding engine bindings open.
+- **The watchdog is cancelled by identity**, `removeCallbacks(myTimeout[0])`
+  rather than clearing the whole handler.
+
+### Checked against AutoTTS and deliberately NOT changed
+- **the engine list is built the same way.** `B0()` is our `getEngines`: the same
+  three `queryIntentServices` flag passes (131072, 128, 0) with a dedupe map;
+  then the probe's `getEngines()` adds what that missed, skipping its own package.
+  Identical.
+- **the probe-failure path matches.** AutoTTS shows a Toast and calls `z0()`;
+  ours shows a Toast and calls `finalizeScan()`, and `z0` **is** our
+  `finalizeScan` -- distinct the failed indices, reverse-sort, remove, rebuild
+  the language list, persist, then make a new `TextToSpeech`.
+- **THE LATE INIT CALLBACK IS AutoTTS'S OWN RACE AND STAYS.** When an engine
+  times out at 30 s, the walk advances, and that engine's `onInit` can still
+  arrive afterwards and be attributed to the next engine. AutoTTS's `j.onInit`
+  has no guard against it either -- it sets `M = true`, clears `N`, reflects on
+  `mCurrentEngine` and compares against `c3.n.b.get(L)` with no generation of its
+  own. Rule 5: ours mirrors it. Do not "fix" this without the owner.
+- **`D0()`'s index arithmetic was NOT re-derived.** CFR renders it as
+  `this.L = n3 + 1` followed by `while ((n3 = ++this.L) < size && get(L).a())`,
+  which reads as a double increment and is exactly the ambiguous shape rule 7
+  says to take to smali. Ours is `index++` then skip while self-engine, which is
+  clear and has been scanning correctly. Chasing an ambiguous decompile to
+  "match" it risks breaking a working walk for nothing.
+
 ## THERE IS NO `NativeEngine` CLASS ANY MORE (owner, 2026-09-09)
 *"native engine wala class ... APK ko unpack karke dekhta hun to yah alag class
 padta hai ... vah sari native method aa jaaye services wale ke andar hi, alag se
