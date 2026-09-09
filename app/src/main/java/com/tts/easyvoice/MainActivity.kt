@@ -90,6 +90,13 @@ class MainActivity : EvActivity() {
     // VoiceSetupActivity has carried the same two lines since 2026-09-09.
     private var testTts: android.speech.tts.TextToSpeech? = null
     private fun newTestClient() {
+        // Nothing cancels the scan when the Activity goes, so its completion
+        // callback can land after onDestroy -- backing out of the app during a
+        // scan is the case. A client made then has no Test button to serve and
+        // no onDestroy left to shut it down, which is the same leak one step
+        // further along. (A rotation does not reach here: the new Activity's
+        // scan bumps EngineFinder's generation and the old finalize is skipped.)
+        if (isDestroyed) return
         // The scan can finish more than once in one Activity, and each finish
         // used to drop the previous client on the floor.
         try { testTts?.shutdown() } catch (_: Exception) { }
