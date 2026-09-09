@@ -2512,8 +2512,35 @@ maybeAddDependencyConstraints()` gates on. It affects the debug/androidTest
 classpath only; the release APK the owner installs comes from the `build` job,
 which passed on every one of these runs.
 
-**AGP can go back to 9.4.0 once a run is green.** It is held at 9.3.2 only so
-that this run changes one variable, not two. Say the word.
+**THE SECOND CORRECTION (build 856): `android.dependency.useConstraints=false`
+DID NOT WORK EITHER.** The option is real -- read out of the AGP 9.3.2 jar,
+`BooleanOption.USE_DEPENDENCY_CONSTRAINTS`, `ApiStage.Stable`, gating
+`VariantDependenciesBuilder.maybeAddDependencyConstraints()` -- and build 856 set
+it and failed with the **same message**, still reasoned *"by consistent
+resolution"*. So it does not gate what that message comes from. The line was
+removed rather than left in as dead config.
+
+**GRADLE IS BACK AT 9.5.0.** By elimination it is the only variable left, and
+9.5.0 is the version build 848 proved green with this exact dependency graph.
+Same carve-out as lifecycle 2.12.0-alpha, and the owner's own rule: "latest"
+means the newest version that actually works.
+
+**The real repair, for a green baseline rather than mid-firefight:** make the two
+graphs agree -- add `androidx.concurrent:concurrent-futures:1.2.0` to the app so
+both classpaths resolve 1.2.0, and keep guava's empty `listenablefuture` marker
+off the androidTest classpath so the app's `1.0` is not contradicted. Neither can
+be tested in this container, so each is one CI run; do them one at a time on top
+of a green run, not stacked.
+
+**AGP can go back to 9.4.0 once a run is green** -- it was never the cause. Say
+the word.
+
+**THE METHOD LESSON, and it is the third time this shape has cost a run.** Both
+wrong diagnoses were *mechanically* well-sourced -- the AGP release behaviour and
+the AGP jar's own option table -- and both were wrong about the OUTCOME. When a
+fix cannot be tested locally and the only test costs thirteen minutes, prefer the
+change that is **known** to have been green over the one that is **reasoned** to
+work, and keep the reasoned one for a run that can afford to fail.
 
 
 ### LATEST STABLE, not latest published -- and the difference is deliberate
@@ -2630,12 +2657,16 @@ resize and theme change destroys the Activity and leaks the connection plus the
 Context it was built with.
 
 **Only ONE of them was fixed, and the split is rule 5.**
-- **`MainActivity` is LEFT LEAKING ON PURPOSE.** AutoTTS's `NewSettingsActivity`
-  creates two clients (`this.F` at :397 and `c3.n.g` at :473) and its whole
-  `onDestroy` is `K.removeCallbacksAndMessages(null); super.onDestroy();` -- it
-  shuts down neither. Ours is that byte for byte. Rule 5's forbidden-justification
-  list names "prevents a leak" explicitly. **This needs an owner override before
-  it can be touched, exactly like the two 50 ms `postDelayed` removals did.**
+- **`MainActivity` WAS left leaking on purpose, and the owner overrode that on
+  2026-09-09** -- *"han yah jo MainActivity wala hai vah bhi fix kar dena"*. It is
+  fixed now: `onDestroy` shuts the client down, and `newTestClient()` shuts down
+  the previous one before replacing it, because the scan can finish more than
+  once in one Activity. **DELIBERATE DEPARTURE**, on the owner's word.
+  The reason it needed that word: AutoTTS's `NewSettingsActivity` creates two
+  clients (`this.F` at :397 and `c3.n.g` at :473) and its whole `onDestroy` is
+  `K.removeCallbacksAndMessages(null); super.onDestroy();` -- it shuts down
+  neither, ours was that byte for byte, and rule 5's forbidden-justification list
+  names "prevents a leak" explicitly.
 - **`VoiceSetupActivity` IS fixed**, because it has no AutoTTS counterpart at all.
   AutoTTS has one settings Activity with one client; this screen exists only
   because the Voices tab became its own Activity in the 2026-08-13 Configuration

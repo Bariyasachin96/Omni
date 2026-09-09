@@ -77,8 +77,22 @@ class RequiredEnginesItem(val name: String, val pkg: String, installed: Boolean)
     var installing by mutableStateOf(false)
 }
 class MainActivity : EvActivity() {
+    // The Test button's own client. AutoTTS's NewSettingsActivity creates two of
+    // these and shuts down NEITHER -- its whole onDestroy is
+    // `K.removeCallbacksAndMessages(null); super.onDestroy();` -- and ours was
+    // that byte for byte, so this leaked a binding and the Context it was built
+    // with on every rotate, fold, resize and theme change.
+    //
+    // DELIBERATE DEPARTURE, and the owner granted it explicitly on 2026-09-09
+    // ("yah jo MainActivity wala hai vah bhi fix kar dena") after it was raised
+    // as needing their override. Rule 5's forbidden-justification list names
+    // "prevents a leak", which is exactly why it was not done unilaterally.
+    // VoiceSetupActivity has carried the same two lines since 2026-09-09.
     private var testTts: android.speech.tts.TextToSpeech? = null
     private fun newTestClient() {
+        // The scan can finish more than once in one Activity, and each finish
+        // used to drop the previous client on the floor.
+        try { testTts?.shutdown() } catch (_: Exception) { }
         testTts = android.speech.tts.TextToSpeech(this, null, "com.tts.easyvoice")
     }
     private var scanning by mutableStateOf(true)
@@ -285,6 +299,9 @@ class MainActivity : EvActivity() {
     }
     override fun onDestroy() {
         EngineFinder.cancelGlobalTimeout()
+        // TextToSpeech holds a binding until shutdown() is called; see the field.
+        try { testTts?.shutdown() } catch (_: Exception) { }
+        testTts = null
         super.onDestroy()
     }
 }
