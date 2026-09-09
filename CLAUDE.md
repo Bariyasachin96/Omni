@@ -1955,6 +1955,96 @@ proved the hard way (see that section).
 **Nothing is duplicated either.** The two screenshots were the same list at two
 scroll positions, which is why the middle rows appear in both.
 
+## "1 of 3" WAS BEING SAID TWICE, AND THE SECOND ONE WAS OURS (owner, 2026-09-09)
+*"bahut sari jagah per one of three, two of three ... mere khyal se yah thoda
+double hai ... jo already TalkBack announce karti chijen hain vah chijen aap
+rakhni hi nahin hai."* Right, and the doubled one was the tab strip.
+
+**THE RULE THE OWNER STATED, and it now has a mechanical test:** before adding
+any name, state or position, check whether the delegate already writes it onto
+the FOCUSED node. If it does, ours is a second voice saying the same thing.
+
+**THE DOUBLE: `MainActivity`'s tab name carried `", N of M"`.** The app has three
+tabs, which is exactly the "one of three, two of three" the owner heard. Proven
+from androidx's own source rather than argued:
+- `PrimaryTabRow` applies **`Modifier.selectableGroup()`** (`TabRow.kt:401`);
+- every `Tab` sets **`Selected`** with `role = Role.Tab` (`Tab.kt:177`);
+- `setCollectionInfo` derives a `CollectionInfo` from a `SelectableGroup` whose
+  children carry `Selected`, and `setCollectionItemInfo` derives THIS tab's index
+  by counting its selected siblings (`CollectionInfo.android.kt`).
+
+So the delegate announces "1 of 3" by itself, and it lands on the real node
+rather than a fake child, so a reader that walks no fake children gets it too.
+Our suffix was a second copy. The name is now the title alone.
+
+**THE STALE JUSTIFICATION IS THE LESSON HERE.** The comment at that line defended
+the suffix with the owner's own device test of 2026-08-13 -- and that test was
+real. It is simply not evidence any more: the app was **Views and `TabLayout`**
+then. `PrimaryTabRow`, the Compose migration and `evControl` all arrived
+afterwards, and the mechanism changed without anyone revisiting the note that
+rested on it. **A device result is evidence about the code that was running when
+it was taken.** Re-date it before quoting it.
+
+**A SECOND FINDING, smaller: a half-declared collection.** The Configuration
+three-dot menu's two items carried `CollectionItemInfo(0/1)` while **nothing
+published the matching `CollectionInfo`** -- unlike the language dropdown in
+`VoiceScreen`, which declares both. `setCollectionItemInfo` writes the developer
+property with no cross-check, so a reader was handed a position out of a
+collection whose size it was never told, on a two-line action menu. Both
+`listItem` arguments are gone. Do not "complete" it with a `collectionInfo`
+Column instead -- the ask was less position noise, not more.
+
+### Every other "N of M" in the app was checked and NONE of them is ours to remove
+- **the mode radios and the three reading groups** -- `LabeledRadioGroup` and
+  `ModesScreen` wrap their rows in `selectableGroup()`, so the "1 of 4" is
+  derived by the delegate from the group. **We add nothing there.** That is the
+  library announcing itself, which is what the owner asked for.
+- **the Languages rows and the Configuration rows** -- `collectionItemInfo` per
+  row is ours and must stay: **Compose sets it on no lazy item by itself**, and
+  it is what makes a row announce as a list item instead of a button (owner,
+  2026-09-04). The `LazyColumn` supplies the container half.
+- **the language dropdown in `VoiceScreen`** -- `collectionInfo` on the Column
+  plus `collectionItemInfo` per item, a matched pair, because a menu's content
+  is not a lazy list and Compose publishes neither.
+- **"Language 1 of 3" on Voice setup** is a VISIBLE line, not a duplicate.
+  Nothing else tells you which language of how many the Previous/Next pair is
+  moving through -- there is no collection on that screen at all. It stays.
+- **the slider's `stateDescription = "100 of 500"`** is a REPLACEMENT, not a
+  double: `getInfoStateDescriptionOrNull` reads ours first and only falls back to
+  `template_percent` **when it is null**. Keeping it matters -- Speed runs 10..500
+  where 100 is the engine's own rate, so "20 per cent" would be actively wrong.
+  (`template_percent` is the string the owner spotted in the APK; it is
+  androidx's fallback for exactly this, and it is why it ships.)
+- **the slider's `-`/`+` Toast** is not a position announcement. Those buttons
+  are their own focus stop, so nothing re-reads the slider when one is pressed.
+
+### Re-verified in the same pass, so do NOT re-open
+- **the dropdown anchor's `stateDescription` / `contentDescription` are NOT a
+  double.** `ExposedDropdownMenu.kt` applies both **only** under
+  `if (anchorType == SecondaryEditable)`; ours is `PrimaryNotEditable`, so the
+  library sets neither and our two lines are the only source. Checked in
+  androidx-main as well as the pinned api file -- it has not changed.
+- **`Selected` does not double with "Selected".** For a non-Tab node the delegate
+  sets `info.isChecked` AND a `stateDescription` of "Selected"/"Not selected",
+  and androidx's own comment says why: TalkBack would otherwise say "checked".
+  The stateDescription is what TalkBack speaks, once.
+- **a Switch's "On"/"Off"** comes from `ToggleableState` + `Role.Switch` in the
+  same function, guarded by `stateDescription == null`. We pass `toggle` and no
+  `state`, so the library's own words are used.
+- **A LATENT androidx BUG, worth knowing but not ours to trip.**
+  `setCollectionItemInfo` has **no `return`** after the developer branch, while
+  `setCollectionInfo` does. So a node carrying its own `collectionItemInfo`
+  *inside a `selectableGroup`* gets the info written twice and the group-derived
+  index wins. Nothing in this app does that -- our radio rows pass no `listItem`
+  and our list rows have no selectable-group parent -- and it must stay that way.
+
+**Sizes, switches, checkboxes and radio buttons: the emulator job is the answer,
+not a reading.** `AccessibilityChecksTest` runs Google's Accessibility Test
+Framework over **29 screen states in BOTH colour schemes** on every CI run, and
+its preset includes the touch-target and contrast checks. That job **fails the
+build**, so the 48dp minimum and every contrast pair are measured on the real
+app every time rather than argued here.
+
 ## THE THEME IS MATERIAL 3's OWN AND IT FOLLOWS THE SYSTEM (owner, 2026-09-08)
 *"sare buttons ke colour ... sab kuchh accessibility ke hisab se sahi hai na ...
 material accessibility guideline mein kya kahta hai, kaisi theme rakhni chahie

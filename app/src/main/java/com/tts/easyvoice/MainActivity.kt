@@ -462,11 +462,32 @@ fun MainScreen(
                             // `isSelected` also earns the position back for free:
                             // the delegate turns Selected + Role.Tab into
                             // `info.isSelected`, which is how a reader says which
-                            // tab is current. The ", N of M" stays because the
-                            // owner's device proved on 2026-08-13 that nothing
-                            // else announces it.
+                            // tab is current.
+                            //
+                            // THE NAME IS THE TITLE ALONE -- no ", N of M" (owner,
+                            // 2026-09-09: *"yah thoda double hai ... jo already
+                            // TalkBack announce karti chijen hain vah rakhni hi
+                            // nahin hai"*). They were right, and the library says
+                            // so: `PrimaryTabRow` applies `Modifier.selectableGroup()`
+                            // (TabRow.kt:401) and every `Tab` sets `Selected`
+                            // (Tab.kt:177), so `setCollectionInfo` derives a
+                            // CollectionInfo from the group and `setCollectionItemInfo`
+                            // derives this tab's index from its selected siblings
+                            // (CollectionInfo.android.kt) -- the delegate announces
+                            // "1 of 2" on its own, onto the FOCUSED node, so a reader
+                            // that walks no fake children still gets it.
+                            //
+                            // The comment that used to sit here justified the suffix
+                            // with the owner's device on 2026-08-13. That test was
+                            // real and it is not evidence any more: the app was
+                            // Views and `TabLayout` then. `PrimaryTabRow`, `evControl`
+                            // and this delegate path all arrived afterwards, and the
+                            // mechanism changed without the justification following
+                            // it. Do not put the suffix back on the strength of that
+                            // date; if the position ever goes silent again, check
+                            // `selectableGroup` first.
                             modifier = Modifier.evControl(
-                                pageTitles[index] + ", " + (index + 1) + " of " + pageTitles.size,
+                                pageTitles[index],
                                 Role.Tab,
                                 isSelected = currentPage == index,
                                 action = { currentPage = index }

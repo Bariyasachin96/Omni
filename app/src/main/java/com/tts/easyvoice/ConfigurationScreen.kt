@@ -88,13 +88,26 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                 ) {
                                     Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null)
                                 }
+                                // NO `listItem` ON THESE TWO (owner, 2026-09-09).
+                                // They used to carry CollectionItemInfo(0/1) with
+                                // NOTHING publishing the matching CollectionInfo --
+                                // this menu's content is a bare Column, unlike the
+                                // language dropdown in VoiceScreen, which declares
+                                // both. The delegate writes an item index for a
+                                // collection whose size it was never told
+                                // (CollectionInfo.android.kt sets item info from the
+                                // developer property with no cross-check), so a
+                                // reader was given a position out of nowhere on a
+                                // two-line action menu. Removing the half-declaration
+                                // is the fix; do not "complete" it by adding a
+                                // collectionInfo Column here -- the owner asked for
+                                // less position noise, not more.
                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                     DropdownMenuItem(
                                         text = { Text("Delete configuration") },
                                         onClick = { menuOpen = false; onDeleteConfiguration(index) },
                                         modifier = Modifier.evControl(
                                             "Delete configuration",
-                                            listItem = CollectionItemInfo(0, 1, 0, 1),
                                             action = { menuOpen = false; onDeleteConfiguration(index) }
                                         )
                                     )
@@ -103,7 +116,6 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                         onClick = { menuOpen = false; onDisable(index) },
                                         modifier = Modifier.evControl(
                                             "Disable language",
-                                            listItem = CollectionItemInfo(1, 1, 0, 1),
                                             action = { menuOpen = false; onDisable(index) }
                                         )
                                     )

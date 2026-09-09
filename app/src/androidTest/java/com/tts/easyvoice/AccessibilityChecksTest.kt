@@ -421,7 +421,10 @@ class AccessibilityChecksTest {
         rule.enableAccessibilityChecks()
         // Moving to Configuration is what draws the button; the click itself
         // also puts page 0 through the checks.
-        rule.onNodeWithContentDescription("Configuration, 2 of 3").performClick()
+        // The tab's name is the title ALONE since 2026-09-09 -- the ", 2 of 3"
+        // it used to carry doubled the position the delegate already derives
+        // from PrimaryTabRow's selectableGroup.
+        rule.onNodeWithContentDescription("Configuration").performClick()
         // Acting on the button is what puts the page that CONTAINS it through
         // them.
         rule.onNodeWithContentDescription("Add language").performClick()
