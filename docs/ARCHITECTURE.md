@@ -154,6 +154,23 @@ Two deliberate departures from AutoTTS, both requested by the owner: the first
 chunk is spoken inline on the synthesis thread rather than after a 50 ms post,
 and the next-chunk hop is `post` rather than `postDelayed(50)`.
 
+**Three threads share this stage, and every callback has to say which utterance
+it belongs to.** `onSynthesizeText` runs on the screen reader's synthesis thread
+and blocks there; the target engine's `onStart` / `onDone` / `onError` / `onStop`
+arrive on OUR binder threads; and the next-chunk step runs on the main looper.
+`setOnUtteranceProgressListener` holds ONE listener per `TextToSpeech` and the
+framework reads it at dispatch time, so when the reader interrupts, the old
+utterance's callback lands on the listener the NEW utterance installed.
+
+Two guards keep them apart, and INVARIANTS #26 has the whole story:
+- the utterance id we hand the engine is
+  `"${utteranceId}_${synthesisGeneration}_${chunkCounter}"`, unique per utterance
+  and per chunk, and the framework echoes it verbatim. `onStart`, `onDone` and
+  both `onError`s drop anything that does not match;
+- `synthesisGeneration`, bumped once per `onSynthesizeText`, is checked at the
+  top of `speakChunk` and inside the posted next-chunk step -- for the callback
+  that was live when it arrived and acts only after the utterance has ended.
+
 ---
 
 ## The native library
