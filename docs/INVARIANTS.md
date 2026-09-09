@@ -767,3 +767,64 @@ grouping fill whose meaning is carried by the text on it, so it is the same
 exemption already recorded for `surface` against `background`. Raising it would
 make the header bars visibly lighter across the whole app, which is the owner's
 call, not a correctness fix.
+
+## 26. The utterance id handed to an engine must be unique per utterance
+
+`speakChunk` builds it as
+
+    val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}"
+
+and the middle field is the whole point. Without it the id was
+`"${utteranceId}_${chunkCounter}"` and **could not tell two utterances apart**:
+`utteranceId` is a static read from the caller's params and is literally the
+string `"null"` when the caller sets none, and `chunkCounter` is reset to 1 for
+every utterance by the `if (currentChunk == 1) chunkCounter = 1` line directly
+above. Two consecutive screen-reader utterances, which are one chunk each, both
+spoke under `"null_1"`.
+
+**Why it matters.** `setOnUtteranceProgressListener` is ONE volatile field per
+`TextToSpeech` and the framework reads it **at dispatch time**, so when a screen
+reader interrupts, the OLD utterance's callback is delivered to the listener the
+NEW utterance installed -- carrying the new utterance's `callback` and
+`chunkQueue` in its closure. `onStart`, `onDone` and both `onError`s therefore
+begin with `if (id != expectedId) return`, and that guard is only correct
+because the id is unique.
+
+This was shipped once WITHOUT the generation, on 2026-09-03, and it broke
+explore-by-touch outright: the stale callback matched and killed the utterance
+that had not spoken yet. The check was right; the id was not.
+
+**The id survives the round trip and an engine cannot change it** --
+`TextToSpeech.speak()` passes it as its own AIDL argument rather than inside
+`params`, and `TextToSpeechService` keeps it in
+`UtteranceSpeechItemWithParams.mUtteranceId`, `protected final` on a private
+framework class that every `dispatchOn*` reads. So a live callback always
+matches and the guard can never hang the wait.
+
+**The id is not enough on its own.** `onDone` posts the next-chunk step to the
+main looper, and an interrupt in between means that runnable runs after the
+utterance ended -- the id was true when we posted. So `synthesisGeneration` is
+also compared at the top of `speakChunk`, the one place that pops `chunkQueue`
+and speaks, and inside the posted runnable. **Any new callback or posted step on
+the speech path needs one of the two guards**: the id where the engine hands it
+back, the generation where it does not.
+
+## 27. Every engine init owns its client
+
+`TextToSpeech(ctx, listener, pkg)` is constructed at three sites -- twice in the
+pool walk, once in `restoreEngine` -- and each passes a fresh
+`arrayOfNulls<TextToSpeech>(1)` that its listener captures. **Never put the
+in-flight client back into a shared field.** It used to be one
+`initializingTts`, written by the pool walk AND by `restoreEngine` with no
+mutual exclusion between them (both methods take `this`; neither `onInit`
+does), so an engine dying mid-walk made the next `onInit` store the wrong
+client and route one engine's utterances to another's voice.
+
+The holder is a one-element array rather than a `val` because `onInit` can fire
+**inline on the constructing thread** -- but only ever with ERROR, since the only
+dispatch that can carry SUCCESS is inside
+`SetupConnectionAsyncTask.onPostExecute`, which is always asynchronous. On the
+inline ERROR path `cell[0]` is still null, and that is correct: the wrapper is
+being marked `state = -1` and must not be handed anybody's client.
+
+`EngineFinder.startEngine` uses the identical shape for the identical reason.
