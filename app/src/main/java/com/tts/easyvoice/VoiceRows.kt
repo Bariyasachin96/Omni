@@ -17,7 +17,21 @@ object VoiceRows {
         fun voiceOrder(key: String): Int {
             val cached = EngineFinder.voiceWeights[key]
             if (cached != null) return cached
-            val storedWeight = (rawPrefs.getString(key, "1000") ?: "1000").toInt()
+            // toIntOrNull, and a try, because this reads STORAGE rather than a
+            // literal: `.toInt()` threw NumberFormatException on anything that is
+            // not a number, and `getString` throws ClassCastException outright if
+            // the key was ever written with putInt. Both land inside the Voice
+            // setup screen's composition, so they are a crash on a screen the
+            // owner opens once per language.
+            //
+            // The way a wrong type gets in is Import: importSettingsXml writes
+            // whatever TYPE the XML tag says, so one bad entry in a settings file
+            // the user picked is enough. 1000 is what a MISSING key already
+            // answers -- "unranked" -- so a corrupt entry now sorts last instead
+            // of taking the screen down, and valid data behaves exactly as before.
+            val storedWeight = try {
+                (rawPrefs.getString(key, "1000") ?: "1000").toIntOrNull() ?: 1000
+            } catch (_: Exception) { 1000 }
             EngineFinder.voiceWeights[key] = storedWeight
             return storedWeight
         }

@@ -2669,6 +2669,32 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+### A `.toInt()` on a stored preference, on the Voice setup screen
+`VoiceRows.load`'s `voiceOrder` read the per-voice sort weight with
+`(rawPrefs.getString(key, "1000") ?: "1000").toInt()`. That is a literal parser
+pointed at STORAGE, and it has two ways to throw: `NumberFormatException` if the
+value is not a number, and `ClassCastException` from `getString` itself if that
+key was ever written with `putInt`. Both land inside the Voice setup screen's
+composition, which is the screen the owner opens once per language.
+
+**The way a wrong type gets in is Import.** `importSettingsXml` writes whatever
+TYPE the XML tag names, so a single `<int name="com.x#en_US" .../>` in a settings
+file the user picked is enough, for ever, until the app's data is cleared. It is
+`toIntOrNull() ?: 1000` inside a `try` now, and **1000 is what a MISSING key
+already answers** -- "unranked" -- so a corrupt entry sorts last instead of
+taking the screen down, and valid data behaves exactly as before.
+
+**The wider version of that was considered and NOT taken.** Every
+`prefs.getInt`/`getBoolean` in `LangStore.loadFlags` and `loadModeLangs` has the
+same `ClassCastException` shape, and one of those would kill the SERVICE in
+`onCreate` rather than a screen. It is left alone because the import is already
+gated: `getReferencedEnginePackagesFromXml` runs first and refuses any file that
+does not contain three-letter string keys whose values carry a `#`, so a random
+XML never reaches `importSettingsXml` at all, and our own exports always write
+the right types. Hardening forty read sites against a file the app already
+refuses would be the "defensive" justification rule 5 names. **If a device log
+ever shows a ClassCastException out of loadAllSettings, that is the moment.**
+
 ### Swept in the same pass and CLEAN, so do NOT re-sweep
 - **the engine-facing binder overrides cannot throw.** `onGetLanguage`,
   `onIsLanguageAvailable`, `onGetDefaultVoiceNameFor`, `onGetVoices`,
