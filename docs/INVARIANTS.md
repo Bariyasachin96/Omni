@@ -881,3 +881,52 @@ this project has already broken twice. Owner's call, not a tidy-up.
 None of those is a **View**. Every one is read by a platform component outside
 this app's composition, and there is no Compose API that can replace any of
 them.
+
+## 29. Nothing may escape a framework entry point on the speaking path
+
+Checked by `tools/check/invariants.sh` **#27**, negative-tested three ways in
+`selftest.sh`.
+
+**Written after the owner reported it for the fourth time** (2026-09-11:
+*"achanak se bolna band ho jata hai"*). The first three rounds each found a
+specific hole and closed it — the three exits that ended an utterance without
+waking the wait, the terminal `state = -1`, and the utterance id that was not
+unique. This one is not a hole, it is the class: **on the speaking path an
+escaped `Throwable` is fatal rather than annoying**, and the three places the
+framework calls into us are where it escapes from.
+
+| entry point | what an escape does |
+|---|---|
+| **`onSynthesizeText`** | AOSP calls it from `SynthesisSpeechItem.playImpl()`, which `SpeechItem.play()` calls from a `Runnable` on **`SynthHandler` — a plain `HandlerThread` with no catch anywhere above it**. An uncaught `Throwable` there goes to the default handler and **kills the engine process**. The screen reader's `TextToSpeech` then loses its binding and stays mute until it re-initialises. |
+| **`onStop`** | its last two lines are what unpark the screen reader's **one** synthesis thread. An escape above them leaves that thread with nothing left that can wake it — the device silent until our process is killed. |
+| **the four `ServiceConnection` callbacks** | Android delivers every one on the **main looper**, so an escape is an uncaught exception on the main thread and therefore a process death. `onServiceDisconnected` is the worst: it both unparks a waiting synthesis thread (`onEngineProcessGone`) and recovers the engine (`restoreEngine`). |
+
+So the shapes are fixed and the check enforces each one:
+
+    onSynthesizeText   the override is NOTHING but a wrapper --
+                       onSynthesizeTextImpl(...) inside try/catch (ex: Throwable)
+    onStop             the two release lines are in a `finally`
+    the four callbacks each carries its own `{ try { ... } catch (ex: Throwable)`
+
+**`Throwable`, not `Exception`, and that is not fussiness.** The failures that
+actually reach these points are **Errors**: `NoClassDefFoundError` from an API
+above `minSdk` (two of those were real crashes, found 2026-09-10),
+`OutOfMemoryError` raised by the JNI guards added the same day, and
+`ArrayIndexOutOfBoundsException`/NPE from the races closed on 2026-09-10 and
+2026-09-11. `catch (Exception)` would have held **neither of the first two**.
+
+**Why this cannot be the "defensive" justification rule 5 forbids.** The test the
+owner set for `releaseWaitWithoutSpeaking` applies unchanged: a guard that can
+only fire on a path where speech has *already* become impossible costs nothing on
+the happy path and cannot cut a live utterance short. Every one of these catches
+does exactly what the neighbouring "this utterance cannot speak" exits already
+do — release the wait, finish the callback — and none of them can run while
+speech is healthy.
+
+**The same rule extends to `EasyVoiceLogger`, and that one is not grepped.**
+`writeLine` is reached from every thread in the app **including from inside these
+catches**, so a throw escaping the logger would defeat the very guard that called
+it. Its catch is `Throwable`, `rotate()` is inside the guard rather than beside
+it, and `init()` — the first line of the service's `onCreate`, before
+`super.onCreate()` — is guarded too. A diagnostic that can break the thing it is
+diagnosing is worse than no diagnostic.

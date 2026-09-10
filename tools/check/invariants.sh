@@ -180,6 +180,44 @@ else
   bad "#26 an Android View is back (res/layout dirs: $layoutdirs, view refs: $viewrefs)"
 fi
 
+# --- 27. nothing may escape a framework entry point on the speaking path ---
+# Added 2026-09-11, after the owner reported "achanak se bolna band ho jata hai".
+#
+# The three places the framework calls into us on the synthesis path are the ONE
+# place an escaped Throwable is fatal rather than annoying:
+#   onSynthesizeText   AOSP calls it from SynthesisSpeechItem.playImpl() on
+#                      SynthHandler, a plain HandlerThread with no catch above
+#                      it -- an escape kills the process, and a dead TTS engine
+#                      process is a screen reader with no voice
+#   onStop             its last two lines are what unpark the screen reader's
+#                      ONE synthesis thread; an escape above them leaves that
+#                      thread with nothing that can wake it
+#   the ServiceConnection callbacks  delivered on the main looper, where an
+#                      escape is also a process death
+#
+# Each is checked for its own guard shape, so a refactor that removes one is a
+# red build rather than a device report weeks later.
+guarded=1
+# onSynthesizeText must be nothing but the wrapper: delegate + catch Throwable.
+sig=$(grep -n "override fun onSynthesizeText(" "$KT/EasyVoiceTtsService.kt" | head -1 | cut -d: -f1)
+if [ -z "$sig" ]; then guarded=0
+else
+  body=$(sed -n "${sig},$((sig+9))p" "$KT/EasyVoiceTtsService.kt")
+  echo "$body" | grep -q "onSynthesizeTextImpl" || guarded=0
+  echo "$body" | grep -q "catch (ex: Throwable)" || guarded=0
+fi
+# onStop must release in a finally.
+grep -A 200 "override fun onStop() {" "$KT/EasyVoiceTtsService.kt" \
+  | sed -n '1,200p' | grep -q "} finally {" || guarded=0
+# all four ServiceConnection callbacks carry their own catch.
+conncatch=$(grep -cE "override fun on(ServiceConnected|ServiceDisconnected|BindingDied|NullBinding)\(.*\{ try \{.*catch \(ex: Throwable\)" "$KT/EasyVoiceTtsService.kt")
+[ "$conncatch" = 4 ] || guarded=0
+if [ "$guarded" = 1 ]; then
+  ok "#27 the framework entry points on the speaking path cannot let a Throwable escape"
+else
+  bad "#27 a framework entry point on the speaking path lost its guard (a throw there silences the phone)"
+fi
+
 # --- 18. a heading is a plain Text; never give a Text a contentDescription ---
 # The documented shape is exactly `Text(..., Modifier.semantics { heading() })`
 # -- it is the example on developer.android.com's semantics page. A Text is a
