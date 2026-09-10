@@ -2669,6 +2669,82 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+## ELEVEN JNI READS COULD SEGFAULT THE PROCESS (2026-09-10)
+The native core reads Java strings with `GetStringUTFChars`, and **that function
+ALLOCATES**. When it cannot, it answers **`nullptr`** and leaves an
+`OutOfMemoryError` **pending** in the JNIEnv. Eleven sites used the result
+without looking, and `std::string(chars)` on a null pointer is undefined
+behaviour -- on a phone, **SIGSEGV and the whole process gone, taking the voice
+with it**.
+
+**It was our own inconsistency rather than a decision.** Several sites in the
+SAME file already checked -- `setLanguageHints`, `normalizeFancy`, and
+`detectLanguageFull`'s own two fallback strings (`latC?latC:""`). The eleven that
+did not:
+
+| function | sites | how hot |
+|---|---|---|
+| **`processDirect`** | **7** | **once per utterance in mix and multilingual** |
+| `jStringArrayToSet` (via `setDetectSets`) | 1, over the whole array | **once per utterance** |
+| `setIsoMap` | 2 | once at startup, ~180 pairs |
+| `detectLanguageFull` (`GetStringChars` for the text) | 1 | per utterance in auto/google |
+
+`detectLanguageFull` was the worst-shaped of them: unguarded it did
+`utf16to8(chars + winStart, ...)` on a null pointer and then
+`ReleaseStringChars(jText, nullptr)` at the bottom, which is UB in its own right.
+`nativeGetLanguages` guarded the `std::string` but released a possibly-null
+pointer the same way.
+
+**AND THE KOTLIN SIDE WAS ALREADY WRITTEN FOR THIS, which is what makes the fix
+obviously right rather than defensive.** Every call into the core is already
+`try { ... } catch (_: Throwable) {}`, or falls back to `"UNKNOWN"` -- so a
+native failure was always *meant* to be recoverable. A segfault is the one
+failure that contract cannot survive. Returning `nullptr` with the pending
+exception intact turns it back into the `Throwable` those catches are waiting
+for, which is the textbook JNI shape: **make no further JNI call while an
+exception is pending.**
+
+One helper, `jstringToStd`, is now the only way this file reads a jstring. A
+**null jstring is not a failure** -- it is an empty string, which is what every
+already-guarded site treated it as.
+
+**Not a rule 5 question.** AutoTTS's native side is a stripped `.so`; this C++ is
+ours, and the finding is that our own file guards some sites and not others. It
+is also squarely the class the owner has overridden rule 5 for three times: the
+outcome is total, and only a reinstall or a reboot clears it.
+
+### The slicer had to learn a rule, and the harness caught the gap itself
+`tools/verify/make_core_inc.py` drops `extern "C" JNIEXPORT` entry points so the
+behaviour harnesses can compile the core with an ordinary g++ and no `<jni.h>`.
+`jstringToStd` is a **`static` helper**, not an entry point, so the slice kept it
+and `scriptfamily` stopped compiling with `'out' was not declared in this scope`
+-- an error that says nothing at all about the real cause.
+
+It now drops **any function whose signature takes a `JNIEnv*`**, whatever its
+linkage. A rule rather than a name, so the next JNI helper cannot repeat this.
+Two tests in that rule are load-bearing and were found by writing it wrong first:
+it requires a `(` on the line and rejects lines starting with `//` or `*`,
+because the WORD `JNIEnv` also appears in the prose above `jstringToStd`, and
+consuming from a comment line would have eaten real code until the braces
+happened to balance.
+
+**This is the mirror of the note already in this file** about `detectContextText`
+having to live above `buildMixChunks`: the slice boundary is real, and anything
+on the wrong side of it breaks a proof rather than the app.
+
+### ALL FIVE PROOFS RE-RUN AFTER THE NATIVE CHANGE, and that is the point
+    latency        REAL core, REAL JNI symbols, genuine JNIEnv -- links and runs
+                   3,520 chars 1.45 ms, 165 chars 0.15 ms (within noise)
+    segmenter      IDENTICAL over 163,296 cases
+    normaliser     IDENTICAL, 1,062 mappings over 1,114,112 code points
+    script family  IDENTICAL over 15 sets x 1,114,112 code points
+    langcodes      IDENTICAL over 283 CLD2 codes, 0 real differences
+
+The latency harness is the one that matters most here: it is the only one that
+**links the real core and calls the real `Java_com_tts_easyvoice_*` symbols
+through a genuine JNIEnv**, so a broken signature or a lost symbol could not
+have survived it.
+
 ### AGP 9.4.0 AND GRADLE 9.7.1 -- THE HOLD IS LIFTED (2026-09-10)
 The pin at 9.3.2 carried a long note blaming AGP 9.4.0 for the accessibility
 job's dependency failure. **That diagnosis was refuted by build 854**, which ran

@@ -107,6 +107,38 @@ def strip(lines):
                 if seen_brace and depth <= 0:
                     break
             continue
+        # ANY function that takes a JNIEnv* belongs to the JNI half, whatever
+        # its linkage, and must go with the rest of it -- <jni.h> is one of the
+        # includes dropped above, so JNIEnv has no definition in the slice.
+        #
+        # The rule above only catches `extern "C" JNIEXPORT` entry points, and
+        # that was enough until a `static` JNI HELPER appeared: jstringToStd,
+        # which reads a jstring safely and which the entry points share. It sits
+        # above the scriptfamily harness's cut point, so the slice kept it and
+        # stopped compiling with "'out' was not declared in this scope" -- an
+        # error that says nothing about the real cause.
+        #
+        # A rule rather than a name, so the next JNI helper cannot repeat it.
+        # The `(` and the comment tests matter: the WORD JNIEnv also appears in
+        # prose above jstringToStd, and consuming from a comment line would eat
+        # real code until the braces happened to balance.
+        stripped_line = line.lstrip()
+        if ('JNIEnv' in line and '(' in line
+                and not stripped_line.startswith('//')
+                and not stripped_line.startswith('*')):
+            if line.rstrip().endswith(';'):        # a forward declaration
+                index += 1
+                continue
+            depth = 0
+            seen_brace = False
+            while index < len(lines):
+                depth += lines[index].count('{') - lines[index].count('}')
+                if '{' in lines[index]:
+                    seen_brace = True
+                index += 1
+                if seen_brace and depth <= 0:
+                    break
+            continue
         out.append(line)
         index += 1
     return out

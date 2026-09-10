@@ -1210,6 +1210,41 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
 }
 
 // ==========================================================================
+//  READING A jstring, THE ONE WAY (2026-09-10)
+//
+//  GetStringUTFChars ALLOCATES, and it answers nullptr when it cannot -- with
+//  an OutOfMemoryError left PENDING in the JNIEnv. Eleven sites in this file
+//  used the result without looking: `std::string(chars)` on a null pointer is
+//  undefined behaviour, which on a phone means SIGSEGV and the whole process
+//  gone, taking the voice with it. Several other sites in the same file DID
+//  check (setLanguageHints, normalizeFancy, detectLanguageFull's two
+//  fallbacks), so this was our own inconsistency rather than a decision.
+//
+//  It matters most where it is hottest: processDirect reads SEVEN strings and
+//  runs once per utterance in mix and multilingual mode, and setDetectSets
+//  reads the whole enabled-language array once per utterance too.
+//
+//  AND THE KOTLIN SIDE WAS ALREADY WRITTEN FOR THIS. Every call into the core
+//  is wrapped in `try { ... } catch (_: Throwable) {}` or falls back to
+//  "UNKNOWN" -- so a native failure was always meant to be recoverable. A
+//  segfault is the one failure that contract cannot survive, and returning
+//  nullptr with the pending exception intact is what turns it back into the
+//  Throwable those catches are waiting for.
+//
+//  A null jstring is NOT a failure: it is an empty string, which is what every
+//  guarded site here already treated it as.
+// ==========================================================================
+static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
+    out.clear();
+    if(!value) return true;
+    const char* chars = env->GetStringUTFChars(value, nullptr);
+    if(!chars) return false;            // OOM pending -- make no further JNI call
+    out.assign(chars);
+    env->ReleaseStringUTFChars(value, chars);
+    return true;
+}
+
+// ==========================================================================
 //  JNI: processDirect
 //  Packs the chunk list as  type US kind US lang US text, with records
 //  joined by RS -- US is U+001F, RS is U+001E. Both, and U+001D which is
@@ -1230,9 +1265,10 @@ Java_com_tts_easyvoice_EasyVoiceTtsService_processDirect(
     void* buf=env->GetDirectBufferAddress(directBuffer);
     if(!buf) return env->NewStringUTF("");
     std::string rawInput((const char*)buf,(size_t)length);
-    const char* latC=env->GetStringUTFChars(jLat,nullptr); std::string latinFallback(latC); env->ReleaseStringUTFChars(jLat,latC);
-    const char* nonLatC=env->GetStringUTFChars(jNonLat,nullptr); std::string nonLatinFallback(nonLatC); env->ReleaseStringUTFChars(jNonLat,nonLatC);
-    const char* modeC=env->GetStringUTFChars(jMode,nullptr); std::string mode(modeC); env->ReleaseStringUTFChars(jMode,modeC);
+    std::string latinFallback, nonLatinFallback, mode;
+    if(!jstringToStd(env,jLat,latinFallback)) return nullptr;
+    if(!jstringToStd(env,jNonLat,nonLatinFallback)) return nullptr;
+    if(!jstringToStd(env,jMode,mode)) return nullptr;
     ReadingModes modes;
     modes.numberMode = (int)jNumberMode;
     modes.punctuationMode = (int)jPunctuationMode;
@@ -1240,10 +1276,11 @@ Java_com_tts_easyvoice_EasyVoiceTtsService_processDirect(
     modes.punctuationInFlow = (jPunctuationInFlow == JNI_TRUE);
     modes.smartNumber = (jSmartNumber == JNI_TRUE);
     modes.smartNumberGroupSize = (int)jSmartNumberGroupSize;
-    const char* numSpecC=env->GetStringUTFChars(jNumberSpecific,nullptr); modes.numberSpecific=numSpecC; env->ReleaseStringUTFChars(jNumberSpecific,numSpecC);
-    const char* puncSpecC=env->GetStringUTFChars(jPunctuationSpecific,nullptr); modes.punctuationSpecific=puncSpecC; env->ReleaseStringUTFChars(jPunctuationSpecific,puncSpecC);
-    const char* emojiSpecC=env->GetStringUTFChars(jEmojiSpecific,nullptr); modes.emojiSpecific=emojiSpecC; env->ReleaseStringUTFChars(jEmojiSpecific,emojiSpecC);
-    const char* ndC=env->GetStringUTFChars(jNeutralDefault,nullptr); std::string neutralDefault(ndC); env->ReleaseStringUTFChars(jNeutralDefault,ndC);
+    if(!jstringToStd(env,jNumberSpecific,modes.numberSpecific)) return nullptr;
+    if(!jstringToStd(env,jPunctuationSpecific,modes.punctuationSpecific)) return nullptr;
+    if(!jstringToStd(env,jEmojiSpecific,modes.emojiSpecific)) return nullptr;
+    std::string neutralDefault;
+    if(!jstringToStd(env,jNeutralDefault,neutralDefault)) return nullptr;
     int neutralType = (int)jNeutralType;
     bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
     std::vector<std::string> sentences;
@@ -1722,7 +1759,8 @@ Java_com_tts_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv* env, jclass,
             jstring jLang = (jstring)env->GetObjectArrayElement(jLangs, i);
             if(!jLang) continue;
             const char* langC = env->GetStringUTFChars(jLang, nullptr);
-            if(langC){
+            if(!langC){ env->DeleteLocalRef(jLang); return; }   // OOM pending
+            {
                 // 0x6535f4: `sub x8, x0, #0x8 / cmn x8, #0x7 / b.lo <skip>`,
                 // i.e. a code is kept only when 1 <= strlen <= 7 -- it has to
                 // fit an 8-byte slot with its NUL. A longer one is SKIPPED, not
@@ -1751,19 +1789,23 @@ Java_com_tts_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv* env, jclass,
     languageHintCodes = codes;
     rebuildScriptLanguageTables();
 }
-static std::unordered_set<std::string> jStringArrayToSet(JNIEnv* env, jobjectArray arr){
-    std::unordered_set<std::string> out;
-    if(!arr) return out;
+// Answers false on an allocation failure rather than inserting a std::string
+// built from a null pointer -- see jstringToStd. setDetectSets runs this over
+// the whole enabled-language array once per utterance, so it is the hottest of
+// the array readers.
+static bool jStringArrayToSet(JNIEnv* env, jobjectArray arr, std::unordered_set<std::string>& out){
+    out.clear();
+    if(!arr) return true;
     jsize count = env->GetArrayLength(arr);
     for(jsize i=0;i<count;i++){
         jstring elem=(jstring)env->GetObjectArrayElement(arr,i);
         if(!elem) continue;
-        const char* chars=env->GetStringUTFChars(elem,nullptr);
-        out.insert(std::string(chars));
-        env->ReleaseStringUTFChars(elem,chars);
+        std::string one;
+        if(!jstringToStd(env, elem, one)){ env->DeleteLocalRef(elem); return false; }
+        out.insert(one);
         env->DeleteLocalRef(elem);
     }
-    return out;
+    return true;
 }
 extern "C" JNIEXPORT void JNICALL
 Java_com_tts_easyvoice_EasyVoiceTtsService_setIsoMap(JNIEnv* env, jclass, jobjectArray jIso2, jobjectArray jIso3){
@@ -1774,18 +1816,23 @@ Java_com_tts_easyvoice_EasyVoiceTtsService_setIsoMap(JNIEnv* env, jclass, jobjec
         jstring jIso2Element=(jstring)env->GetObjectArrayElement(jIso2,i);
         jstring jIso3Element=(jstring)env->GetObjectArrayElement(jIso3,i);
         if(jIso2Element&&jIso3Element){
-            const char* iso2Chars=env->GetStringUTFChars(jIso2Element,nullptr);
-            const char* iso3Chars=env->GetStringUTFChars(jIso3Element,nullptr);
-            g_iso2to3[std::string(iso2Chars)]=std::string(iso3Chars);
-            env->ReleaseStringUTFChars(jIso2Element,iso2Chars); env->ReleaseStringUTFChars(jIso3Element,iso3Chars);
+            std::string iso2Text, iso3Text;
+            if(!jstringToStd(env,jIso2Element,iso2Text) || !jstringToStd(env,jIso3Element,iso3Text)){
+                env->DeleteLocalRef(jIso2Element); env->DeleteLocalRef(jIso3Element);
+                return;                                    // OOM pending
+            }
+            g_iso2to3[iso2Text]=iso3Text;
         }
         if(jIso2Element) env->DeleteLocalRef(jIso2Element); if(jIso3Element) env->DeleteLocalRef(jIso3Element);
     }
 }
 extern "C" JNIEXPORT void JNICALL
 Java_com_tts_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv* env, jclass, jobjectArray jDetectOk, jobjectArray jEnabled){
-    std::unordered_set<std::string> ok = jStringArrayToSet(env, jDetectOk);
-    std::unordered_set<std::string> enabled = jStringArrayToSet(env, jEnabled);
+    std::unordered_set<std::string> ok, enabled;
+    // Both or neither: a half-read pair would leave the detector filtering
+    // against a set that does not match the language list it came from.
+    if(!jStringArrayToSet(env, jDetectOk, ok)) return;
+    if(!jStringArrayToSet(env, jEnabled, enabled)) return;
     std::lock_guard<std::mutex> lock(detectSetMutex);
     detectOkIso3Set = std::move(ok);
     enabledLangSet = std::move(enabled);
@@ -1797,6 +1844,11 @@ Java_com_tts_easyvoice_EasyVoiceTtsService_detectLanguageFull(
 {
     if(!jText) return env->NewStringUTF("UNKNOWN\x01");
     const jchar* chars = env->GetStringChars(jText, nullptr);
+    // Unguarded, this was `utf16to8(chars+winStart, ...)` on a null pointer,
+    // and ReleaseStringChars(jText, nullptr) at the bottom. Returning nullptr
+    // hands the pending OutOfMemoryError to detectLanguage's catch, which
+    // already answers "UNKNOWN".
+    if(!chars) return nullptr;
     int textLen = (int)env->GetStringLength(jText);
     const char* latC = jLat?env->GetStringUTFChars(jLat,nullptr):nullptr; std::string latinFallback(latC?latC:""); if(latC) env->ReleaseStringUTFChars(jLat,latC);
     const char* nlC = jNonLat?env->GetStringUTFChars(jNonLat,nullptr):nullptr; std::string nonLatinFallback(nlC?nlC:""); if(nlC) env->ReleaseStringUTFChars(jNonLat,nlC);
@@ -1861,7 +1913,8 @@ extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_tts_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
     jclass stringClass=env->FindClass("java/lang/String");
     if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
-    const char* textChars=env->GetStringUTFChars(jText,nullptr); std::string text(textChars?textChars:""); env->ReleaseStringUTFChars(jText,textChars);
+    std::string text;
+    if(!jstringToStd(env, jText, text)) return nullptr;      // OOM pending
     struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
     std::vector<ScriptSpan> spans;
     const int kMaxSpans = 128;
