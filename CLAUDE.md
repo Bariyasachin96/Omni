@@ -2669,6 +2669,78 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+## THE FIRST ENGINE'S CONSTRUCTOR KILLED THE SERVICE, AND A FAILED BIND LEAKED (2026-09-10)
+Two more from the engine pool, both in the class the owner has overridden rule 5
+for, and the first one is the same defect found in `EngineFinder` earlier the
+same day -- in the other of the two places it appears.
+
+**`initAllEngines` constructed the FIRST engine's `TextToSpeech` bare.**
+`restoreEngine`'s own comment claimed *"initAllEngines already guards the
+identical call for the identical reason"* -- **it did not.** Only
+`EngineInitListener`'s walk over engines 2..N was wrapped; engine ONE was
+constructed with nothing around it, right in `initAllEngines`.
+
+That constructor does real work -- it reads `Settings.Secure`, resolves the
+engine and calls `bindService` -- so it throws when that engine is mid-update,
+which is exactly what a Play Store update of a TTS engine produces, because the
+package is briefly unresolvable. And `initAllEngines` is the last line of the
+**service's `onCreate`**, which does not wrap it either. So the throw killed
+`onCreate`: **the TTS service dead at startup, the phone with no voice at all,
+and `START_STICKY` restarting it straight back into the same state.** The one
+failure this app can least afford, on the one engine it always touches first.
+
+The recovery is **not invented** -- it is byte for byte the loop
+`EngineInitListener` already runs for every other engine: log, step
+`initializingIndex`, try the next. On the happy path it is what the old code did,
+statement for statement. A wrapper left in the pool at state 0 is inert:
+`loadVoice*` only ever matches `state == 2`, and `onEngineProcessBack` only acts
+on `state == -1` -- which is already true of the listener's own failure path.
+The misleading comment in `restoreEngine` is corrected rather than left to
+mislead the next reader.
+
+**A FAILED `bindService` STILL LEAVES THE CONNECTION REGISTERED**, and only
+`unbindService` takes it back. Read from AOSP rather than from the return
+value's wording: `ContextImpl.bindServiceCommon` calls
+`mPackageInfo.getServiceDispatcher(conn, ...)` -- which registers it -- **BEFORE**
+it asks the ActivityManager, and when the AM answers 0 (the `false` we see) that
+registration is **not** undone; `unbindService` is what calls
+`forgetServiceDispatcher`.
+
+So every failed bind leaked one dispatcher entry, and **this is not a one-shot
+path**: `onBindingDied` does unbind-then-bind, so a flaky engine leaks one per
+cycle on a `START_STICKY` service that can run for days, until the context is
+destroyed and logcat says *"ServiceConnection ... leaked"*. One
+`unbindService(conn)` on the false branch closes it.
+
+### Swept in the same pass and CLEAN, so do NOT re-sweep
+- **the Languages screen's collection arithmetic is CORRECT**, and it is worth
+  saying because getting it wrong makes every announced position wrong for a
+  blind user and nothing on screen looks different. `collectionInfo` publishes
+  `visibleIdx.size`, which excludes the two `SectionHeader` `item {}` entries;
+  the region group takes positions `0 .. regionIdx.size-1` and the other group
+  `regionIdx.size + position`; and the two are a PARTITION of `visibleIdx`, so
+  the positions run continuously to `visibleIdx.size - 1` with no gap and no
+  overlap.
+- **`ConfigurationScreen`'s `items(labels.size)` has no `key`**, so per-item
+  state is keyed by index. Looked at hard and **left alone**: the only per-item
+  state is `menuOpen`, and every path that changes the list closes the menu first
+  (`onDeleteConfiguration` and `onDisable` both set `menuOpen = false` before
+  calling back) or leaves the Activity, which dismisses the popup. No reachable
+  failure, so by rule 6 it is not a finding -- and adding a `key` would change
+  reuse and animation behaviour for nothing.
+- **`loadVoice`'s two bare `setLanguage` calls need no try** while `setVoice`
+  has one: `TextToSpeech.runAction` catches `RemoteException` internally and
+  returns the error value, so `setLanguage` cannot throw at a dead engine, and
+  the locale it is handed is never null.
+- **`rebuildFromScan`'s dedupe by DISPLAY NAME, and its silent drop of a package
+  whose entry was filtered out by `onlyEnabled`**, are `c3.n.g`'s own shape and
+  were verified statement for statement in the 2026-09-09 audit. Not a defect.
+- **the lock order holds after this session's changes**: `invariants.sh` #3
+  ("no lock nested inside the language-list monitor") passes, and the new
+  `synchronized(LangStore.languages)` blocks in `LanguagesActivity`,
+  `ModesScreen` and `LanguagesVoicesViews` each compute `requiredNow()` and call
+  `persistDisabled` OUTSIDE the block for exactly that reason.
+
 ## ELEVEN JNI READS COULD SEGFAULT THE PROCESS (2026-09-10)
 The native core reads Java strings with `GetStringUTFChars`, and **that function
 ALLOCATES**. When it cannot, it answers **`nullptr`** and leaves an

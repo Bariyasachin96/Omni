@@ -588,11 +588,39 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 index++
             }
             enginePool.clear(); initializingIndex = 0
-            if (!engineList.isEmpty()) {
+            // THE FIRST ENGINE'S CONSTRUCTOR IS GUARDED NOW (2026-09-10), and it
+            // was the last bare one in the app. restoreEngine's own comment even
+            // claimed "initAllEngines already guards the identical call" -- it
+            // did not: only EngineInitListener's walk over engines 2..N was
+            // wrapped, and engine ONE was constructed bare, right here.
+            //
+            // A TextToSpeech constructor does real work: it reads
+            // Settings.Secure, resolves the engine and calls bindService, so it
+            // throws when that engine is mid-update -- exactly what a Play Store
+            // update of a TTS engine produces, because the package is briefly
+            // unresolvable. And this runs from the SERVICE's onCreate, which
+            // does not wrap it either, so the throw killed onCreate: the TTS
+            // service dead at startup, the phone with no voice at all, and
+            // START_STICKY restarting it straight back into the same state.
+            //
+            // The recovery is not invented -- it is byte for byte the loop
+            // EngineInitListener already uses for every OTHER engine: log, step
+            // initializingIndex, try the next one. On the happy path this is
+            // what the old code did, statement for statement. A wrapper left in
+            // the pool at state 0 is inert: loadVoice* only ever matches
+            // state == 2 and onEngineProcessBack only acts on state == -1, which
+            // is already true of the listener's failure path.
+            while (initializingIndex < engineList.size) {
                 enginePool.add(EngineWrapper(engineList[initializingIndex]))
                 bindEngineKeepAlive(engineList[initializingIndex])
                 val cell = arrayOfNulls<TextToSpeech>(1)
-                cell[0] = TextToSpeech(applicationContext, EngineInitListener(cell), engineList[initializingIndex])
+                try {
+                    cell[0] = TextToSpeech(applicationContext, EngineInitListener(cell), engineList[initializingIndex])
+                    break
+                } catch (_: Exception) {
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex])
+                    initializingIndex++
+                }
             }
         }
     }
@@ -692,8 +720,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // would then leave restoringIndex >= 0 for ever, and the guard at
             // the top of this method answers " -Restoring in progress..." to
             // every restore attempt for the rest of the process: no engine can
-            // ever be recovered again. initAllEngines already guards the
-            // identical call for the identical reason; this site did not.
+            // ever be recovered again. (This used to say "initAllEngines
+            // already guards the identical call" -- that was WRONG until
+            // 2026-09-10: only the listener's walk over engines 2..N was
+            // guarded, and the FIRST engine was constructed bare. Both sites
+            // are guarded now.)
             try {
                 val cell = arrayOfNulls<TextToSpeech>(1)
                 cell[0] = TextToSpeech(applicationContext, RestoreInitListener(cell), wrapper.pkg)
@@ -804,7 +835,26 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 override fun onNullBinding(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Service returned null binding"); unbindEngineKeepAlive(pkg) }
             }
             val bound = try { bindService(intent, conn, android.content.Context.BIND_AUTO_CREATE or android.content.Context.BIND_IMPORTANT) } catch (_: Exception) { false }
-            if (bound) engineBinders[pkg] = conn else EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "bindService failed for " + pkg)
+            if (bound) {
+                engineBinders[pkg] = conn
+            } else {
+                // A FAILED bindService STILL LEAVES THE CONNECTION REGISTERED,
+                // and only unbindService takes it back. Read from AOSP rather
+                // than from the return value's wording: ContextImpl.
+                // bindServiceCommon calls mPackageInfo.getServiceDispatcher(conn,
+                // ...) -- which registers it -- BEFORE it asks the
+                // ActivityManager, and when the AM answers 0 (this false) that
+                // registration is NOT undone. unbindService is what calls
+                // forgetServiceDispatcher.
+                //
+                // So every failed bind leaked one dispatcher entry, and this is
+                // not a one-shot path: onBindingDied does unbind-then-bind, so a
+                // flaky engine leaks one per cycle on a START_STICKY service that
+                // can run for days, until the context is destroyed and logcat
+                // says "ServiceConnection ... leaked".
+                try { unbindService(conn) } catch (_: Exception) {}
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "bindService failed for " + pkg)
+            }
         } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "bindService failed for " + pkg) }
         }
     }
