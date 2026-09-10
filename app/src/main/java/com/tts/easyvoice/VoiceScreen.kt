@@ -294,8 +294,61 @@ fun LabeledDropdown(
 // deliberately different sizes: the buttons are the fine adjustment and a
 // screen-reader swipe is the coarse one.
 private const val SLIDER_MIN = 10          // AutoTTS's own floor (c3.k.P1())
-private const val SLIDER_BUTTON_STEP = 1   // one press of - or +
-private const val SLIDER_SWIPE_STEP = 5    // one screen-reader swipe up or down
+private const val SLIDER_BUTTON_STEP = 1   // one press of - or +   (see table)
+private const val SLIDER_SWIPE_STEP = 5    // one screen-reader swipe (see table)
+
+// AUTOTTS'S OWN SLIDER MECHANISM, READ OUT OF c3/k.java AND CONFIRMED AGAINST
+// AOSP (owner asked for exactly this, 2026-09-10). Written down so the next
+// session does not have to derive it again.
+//
+//   the bar          three SeekBars, setMax(500) / setMax(100) / setMax(200)
+//                    and setMin is NEVER called, so each range starts at 0
+//   the floor of 10  NOT part of the range -- P1() enforces it in the listener
+//                    by calling setProgress(10) on the bar itself
+//   the write        onProgressChanged -> P1() writes STRAIGHT into the live
+//                    entry, c3.n.c.get(b1).c / .d / .e. It ignores `fromUser`,
+//                    so a programmatic setProgress writes too
+//   persistence      NONE here. onStartTrackingTouch and onStopTrackingTouch
+//                    are both EMPTY; the value reaches disk with n.y() later
+//   the announcement setStateDescription("<n> of <max>") on API >= 30 only,
+//                    and it reads the value back with D2()/E2()/C2(), i.e. the
+//                    CLAMPED value P1 just stored, never the raw progress
+//   - and +          I1/J1 pitch, K1/L1 speed, M1/N1 volume: read D2/E2/C2,
+//                    add or subtract FIVE, floor 10, cap getMax(), store,
+//                    setProgress, then Toast "<n> of <max>"
+//   Default (c3())   speed, volume and pitch all to 100
+//
+// EVERY ONE OF THOSE IS WHAT THIS FILE DOES -- the maxima, the floor of 10, the
+// write straight to the LangStore entry with no persist, the Toast, the
+// "<n> of <max>" state description, and Default's three 100s -- with TWO
+// deliberate exceptions, both asked for by the owner on 2026-09-02:
+//
+//                      AutoTTS / AOSP          ours        why
+//   - and + press      5                       1           "increase decrease
+//                                                          button se to ek-ek
+//                                                          percent hi aage
+//                                                          badhna chahie"
+//   one swipe          range/20 = 25 / 5 / 10  5 on all    "5% 5% nahin badh
+//                                                          raha hai, aage
+//                                                          piche ho jata hai"
+//
+// The swipe figure is AOSP's, not a guess: AbsSeekBar.performAccessibility-
+// ActionInternal answers ACTION_SCROLL_FORWARD/BACKWARD with
+//     int range = getMax() - getMin();
+//     int increment = Math.max(1, Math.round((float) range / 20));
+// (AbsSeekBar.java:1125-1126), and setMax() seeds mKeyProgressIncrement the same
+// way, so a hardware D-pad moves by the same amount. With AutoTTS's range of
+// 0..500 that is a whole 25.
+//
+// AND THAT ZERO IS WHY AUTOTTS NEVER HAD THE BUG THE OWNER REPORTED. Our range
+// starts at the floor, 10..500, so Compose's own increment is (max-min)/20 =
+// 24.5 -- a fraction, and truncating it is exactly what made one swipe up and
+// one swipe down fail to return to the same number. The setProgress override
+// below is what answers that action ourselves and turns it into a clean 5.
+// Restoring AutoTTS's 0..max range would remove the fraction at the source,
+// but it would also make one swipe move 25 on Speed, which is the thing the
+// owner asked to get away from. Do not change either number without them
+// saying so.
 
 // A swipe used to move by a fraction of a percent and never came back to where
 // it started. Compose's accessibility delegate is what turns the swipe into a

@@ -2257,6 +2257,106 @@ would suppress real findings rather than one false one. Negative-tested three
 ways -- a genuinely unimported name is still reported, an INDENTED capitalised
 val is still reported, and the clean tree passes.
 
+## THE SLIDER MECHANISM, END TO END, AND WHAT THE TWO DIFFERENCES ARE (owner, 2026-09-10)
+*"AutoTTS ke slider ka mechanism check kar lijiye ... uski internal prakriya hai
+internal process ... aur hamara bhi aisa hi kar dijiye, AOSP se bhi confirm kar
+lijiye."* Done at the source. The full mechanism now lives as a comment beside
+`SLIDER_MIN` in `VoiceScreen.kt`; this is the summary and the decision.
+
+**AutoTTS's own mechanism, from `c3/k.java`:** three `SeekBar`s at
+`setMax(500)` / `100` / `200` with **`setMin` never called**, so each range
+starts at 0; the floor of 10 is NOT in the range but enforced inside
+`onProgressChanged` -> `P1()` by calling `setProgress(10)` on the bar itself;
+`P1()` writes **straight into the live entry** `c3.n.c.get(b1).c/.d/.e` and
+**ignores `fromUser`**; `onStartTrackingTouch` and `onStopTrackingTouch` are
+**both empty**, so nothing persists there; the announcement is
+`setStateDescription("<n> of <max>")` on **API >= 30 only**, read back through
+`D2()`/`E2()`/`C2()` so it reports the CLAMPED value; the `-`/`+` handlers
+(`I1`/`J1` pitch, `K1`/`L1` speed, `M1`/`N1` volume) read those same getters,
+move by **5**, floor 10, cap `getMax()`, store, `setProgress`, then Toast
+`"<n> of <max>"`; and `c3()` (Default) sets all three to 100.
+
+**Ours matches every one of those** -- maxima, floor, the write straight to the
+`LangStore` entry with no persist, the Toast, the `"<n> of <max>"` state
+description, Default's three 100s -- **except two numbers, and both are the
+owner's own instruction from 2026-09-02:**
+
+| | AutoTTS / AOSP | ours | the owner's words |
+|---|---|---|---|
+| one `-`/`+` press | **5** | **1** | *"increase decrease button se to ek-ek percent hi aage badhna chahie"* |
+| one screen-reader swipe | **range/20** = 25 / 5 / 10 | **5** on all three | *"5% 5% nahin badh raha hai, aage piche ho jata hai"* |
+
+**The swipe figure is AOSP's, read rather than recalled.**
+`AbsSeekBar.performAccessibilityActionInternal` answers `ACTION_SCROLL_FORWARD`
+and `ACTION_SCROLL_BACKWARD` with
+
+    int range = getMax() - getMin();
+    int increment = Math.max(1, Math.round((float) range / 20));
+
+(`AbsSeekBar.java:1125-1126`), and `setMax()` seeds `mKeyProgressIncrement` the
+same way, so a hardware D-pad moves by the same amount. With AutoTTS's 0..500
+that is a whole **25**.
+
+**AND THAT ZERO IS WHY AUTOTTS NEVER HAD THE BUG THE OWNER REPORTED**, which is
+the one genuinely new thing this audit produced. Our range starts at the floor,
+`10..500`, so Compose's own increment is `(max-min)/20 = 24.5` -- a fraction,
+and throwing away the half is exactly what made a swipe up and a swipe back down
+fail to return to the same number. AutoTTS's range starts at 0, so its increment
+is a whole number and the defect cannot arise. Our `setProgress` override
+answers the action ourselves and turns it into a clean 5, which fixes it a
+different way. **Neither number is to be changed without the owner saying so** --
+matching AutoTTS would undo the complaint that produced them.
+
+### The service and component surface is COMPLETE -- verified mechanically
+*"baki services bhi ... TTS ki aur TTS ke alava bhi."* The two manifests were
+diffed rather than read:
+- **our `<service>` carries AutoTTS's attributes byte for byte**, including the
+  three that are inert on a TTS service and are cargo in AutoTTS too
+  (`accessibilityEventTypes`, `accessibilityFlags`, `canRetrieveWindowContent`
+  belong to an `<accessibility-service>` resource, not to `<service>`), plus
+  `android:label`, `foregroundServiceType="mediaPlayback"`, the priority-100
+  intent filter and `<meta-data android:name="android.speech.tts">`;
+- **the four engine intents match**: `TTS_SERVICE` as the service,
+  `CHECK_TTS_DATA` and `GET_SAMPLE_TEXT` as `Theme.NoDisplay` activities, and
+  `INSTALL_TTS_DATA` in `<queries>` only -- **AutoTTS declares no activity for
+  it either**, so that is parity, not a gap;
+- **`tts-engine`'s `settingsActivity`** points at our main screen, as AutoTTS's
+  points at its own;
+- **permission diff: AutoTTS has exactly two we do not** --
+  `com.android.vending.CHECK_LICENSE` and its androidx-generated
+  `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. The first is the licence gate,
+  which is the standing carve-out. Nothing is missing.
+
+**`synthesizeToFile` was the one TTS entry point never traced, and it is now.**
+`SynthesisToFileOutputStreamSpeechItem` extends `SynthesisSpeechItem` and its
+`playImpl()` calls `super.playImpl()`, so it **does** reach our
+`onSynthesizeText`, with a `FileSynthesisCallback` instead of the playback one.
+We never produce audio, so the file gets a WAV header and no samples while the
+text is spoken **aloud** by the downstream engine. AutoTTS behaves identically
+for the identical reason, and **it cannot hang** -- the downstream `onDone`
+releases the wait exactly as it does for `speak()`. Parity; do not "fix" it.
+`playEarcon` and `playSilentUtterance` never reach an engine at all
+(`AudioSpeechItem` / `SilenceSpeechItem` are handled inside the framework), so
+there is nothing there to implement.
+
+### Checked in the same pass and clean, so do NOT re-sweep
+- **`String.lowercase()` is locale-independent.** The one call on a language
+  code, `prefs.toIso3(langCode.lowercase())`, is Kotlin's no-argument overload,
+  which is `Locale.ROOT` by definition -- so the Turkish dotless-i trap does not
+  apply. The only `Locale.getDefault()` lowercase is the slider's own
+  `"Decrease " + label.lowercase(...)`, where a localised name is what is wanted
+  and none of Speed/Volume/Pitch contains an "I".
+- **the sliders cannot write to a stale entry.** `VoiceSetupActivity` wraps the
+  screen in `key(langIndex)`, so Previous/Next resets every `remember` and the
+  three values are re-read from the new language.
+- **a swipe at either end is not mis-handled.** The delegate invokes
+  `setProgressAction` with `rangeInfo.current + increment` and **no coercion**
+  (`AndroidComposeViewAccessibilityDelegateCompat:1603`), so the delta still
+  equals the increment at the top of the range and our tolerance test still
+  recognises it as a swipe rather than a jump.
+- there is **no third slider**: all three go through `ValueSlider`, and no
+  `TODO`/`FIXME`/"for now" exists anywhere in our sources.
+
 ## THE ROLE/STATE STRINGS IN THE APK ARE androidx's, NOT OURS (asked 2026-09-08)
 The owner opened the APK in a resource viewer and saw `tab`, `switch_role`,
 `state_on`, `state_off`, `selected`, `not_selected`, `m3c_dropdown_menu_collapsed`
