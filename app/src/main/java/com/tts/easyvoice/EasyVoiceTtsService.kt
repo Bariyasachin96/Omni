@@ -79,7 +79,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // Called from a ServiceConnection callback on the main thread. Ends the
     // utterance the dead engine was holding; does nothing for any other engine.
     private fun onEngineProcessGone(pkg: String) {
-        if (speakingPkg != pkg) return
+        // NORMALISED, because the two sides were not (2026-09-11). speakingPkg is
+        // assigned `wrapper.pkg`, and EngineWrapper's constructor strips "-" and
+        // "_" from the package name; this callback is handed the RAW name out of
+        // engineList. For any engine package containing an underscore the compare
+        // could never match, so the one mechanism that unparks the synthesis
+        // thread when an engine dies was silently disabled for exactly those
+        // engines -- and a missed match here is the total failure this whole
+        // field exists to prevent.
+        if (speakingPkg != pkg.replace("-","").replace("_","")) return
         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Engine holding this utterance died: " + pkg)
         speakingPkg = null
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
@@ -379,7 +387,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
             var curLocale = java.util.Locale("zxx")
             var curVoiceName = ""
             if (wrapper.voiceName.isNotEmpty()) {
-                val curVoice = wrapper.tts!!.voice
+                // `wrapper.tts!!` until 2026-09-11, and state == 2 does NOT imply a
+                // non-null client: restoreEngine calls shutdown() and constructs a
+                // replacement WITHOUT first clearing state or tts, so a wrapper sits
+                // at state 2 for the whole bind-and-init window, and both init
+                // listeners assign `cell[0]`, which is null on AOSP's inline-ERROR
+                // dispatch. A NullPointerException here leaves loadVoice half done
+                // with engineIndex already written, on the thread that is about to
+                // speak. The null case is the one the code below already handles.
+                val curVoice = wrapper.tts?.voice
                 if (curVoice != null) {
                     curLocale = curVoice.locale
                     curVoiceName = curVoice.name
@@ -399,9 +415,29 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     val parts = voiceList[index].split("#")
                     if (parts.size < 2 || parts[0] != normPkg || parts[1] != locale.toString()) continue
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "voice: " + voiceList[index])
+                    // THE LAST TWO UNSYNCHRONIZED WALKS OF LangStore.languages WERE
+                    // HERE AND IN loadVoiceDedicated (2026-09-11), and they were the
+                    // two on the SPEAKING path -- the one place this hole costs a
+                    // blind user speech rather than a settings screen.
+                    //
+                    // The 2026-09-10 pass closed every other reader and made
+                    // LangStore.replaceAll the only writer, precisely so a rebuild on
+                    // the main thread cannot tear a walk on another one. It missed
+                    // these two. A bare `size` read followed by `get(index)` against a
+                    // clear()+addAll is not a stale element, it is
+                    // IndexOutOfBoundsException -- thrown out of loadVoice, which is
+                    // reached from onLoadLanguage on binder threads, from the main
+                    // looper inside onDone's post, and from speakChunk's bypass branch
+                    // on the synthesis thread itself.
+                    //
+                    // entryAt is the accessor the same pass introduced: it takes the
+                    // list monitor for ONE element and answers null past the end, so
+                    // no lock is held across the body and the logging inside the
+                    // sibling loop cannot nest the logger's monitor inside this one
+                    // (INVARIANTS #3).
                     var langIdx = 0
-                    while (langIdx < LangStore.languages.size) {
-                        val entry = LangStore.languages[langIdx]
+                    while (true) {
+                        val entry = LangStore.entryAt(langIdx) ?: break
                         langIdx++
                         if (entry.enginePkg != normPkg || entry.localeTag != locale.toString()) continue
                         effectiveVariant = entry.variant; break
@@ -523,9 +559,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *" + voiceList[index])
                 val parts = voiceList[index].split("#")
                 if (parts.size < 2 || parts[0] != normPkg) continue
+                // Same fix as loadVoice's walk above, and the same reason.
                 var langIdx = 0
-                while (langIdx < LangStore.languages.size) {
-                    val entry = LangStore.languages[langIdx]
+                while (true) {
+                    val entry = LangStore.entryAt(langIdx) ?: break
                     langIdx++
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "  -" + entry.enginePkg + " " + entry.localeTag + " " + entry.variant)
                     if (entry.enginePkg != normPkg || !localeMatches(locale, parseVoiceNameAsLocale(entry.localeTag)) || entry.variant.isEmpty()) continue
@@ -1010,6 +1047,22 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // removeAt is not merely a lost element -- it throws, and an exception
         // here would abort onStop before the two lines at the bottom that
         // release the parked synthesis thread.
+        // EVERYTHING BEFORE THE RELEASE IS IN A try/finally (2026-09-11).
+        //
+        // These last two lines are what unparks the screen reader's ONE synthesis
+        // thread when it interrupts us, and until now anything above them could
+        // stop them running. That is not hypothetical: enginePool is a plain
+        // ArrayList with no lock, walked here on a BINDER thread while
+        // EngineInitListener.onInit appends to it on the main thread, so a
+        // `get(index)` can land on the old backing array with the new size and
+        // throw ArrayIndexOutOfBounds. wrapper.stop() and the two logger calls can
+        // throw as well. Any of them aborted onStop before the release, and the
+        // parked thread then had nothing left that could wake it -- the whole
+        // device silent until our process is killed, which is the exact report.
+        //
+        // The finally cannot change behaviour when nothing throws: it runs the
+        // same two statements in the same order at the same point.
+        try {
         synchronized(chunkQueue) { chunkQueue.clear() }
         var index = 0
         while (index < enginePool.size) {
@@ -1046,8 +1099,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             index++
         }
-        synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-        synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStop failed before releasing: " + ex.toString())
+        } finally {
+            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+            synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }
+        }
     }
 
     // ==========================================================================
@@ -1366,7 +1423,52 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  pick the mode, build the chunk list in one of five branches below, then
     //  speakChunk walks the queue.
     // ==========================================================================
+    // AN EXCEPTION THROWN OUT OF HERE KILLED THE PROCESS, AND A DEAD PROCESS IS A
+    // SILENT PHONE (2026-09-11, owner: "achanak se bolna band ho jata hai").
+    //
+    // AOSP does not catch anything on this path. SynthesisSpeechItem.playImpl()
+    // calls onSynthesizeText directly, SpeechItem.play() calls playImpl, and
+    // play() is invoked from a Runnable on SynthHandler -- a plain HandlerThread.
+    // An uncaught Throwable there goes to the default handler and takes the whole
+    // engine process down. The screen reader's TextToSpeech then loses its
+    // binding and stays mute until it is re-initialised, which for the owner is
+    // "it suddenly stopped and only a restart fixes it".
+    //
+    // The body is 570 lines and most of it is NOT inside the one try it already
+    // has. That try covers segmentation only; everything before it
+    // (reloadLanguagesIfMissing, the foreground check, the params bundle read,
+    // which unparcels another app's Bundle) and everything after it
+    // (onLoadLanguage, the queue fill, the whole of speakChunk with its
+    // loadVoice call, its Bundle copy and its parcelable put) is bare.
+    //
+    // So the whole method moves into onSynthesizeTextImpl and this wrapper is the
+    // net. It converts "the process dies and the phone goes silent" into "this
+    // one utterance is dropped", which is the same trade every other fix in this
+    // file makes, and it is judged by the same test the owner set for
+    // releaseWaitWithoutSpeaking: it can never fire while speech is healthy, so
+    // it costs nothing on the happy path and cannot cut an utterance short.
+    //
+    // Throwable, not Exception, on purpose. The failures that actually reach here
+    // are Errors: NoClassDefFoundError from an API above minSdk (two of those
+    // were found on 2026-09-10), OutOfMemoryError raised by the JNI guards added
+    // the same day, and ArrayIndexOutOfBounds/NPE from the races this session
+    // closed. Catching Exception alone would have held none of the first two.
+    //
+    // The catch does exactly what every other "this utterance cannot speak" exit
+    // does: release the parked thread, then finish the callback. Both are
+    // idempotent -- startAndFinish tests hasStarted/hasFinished, and the wait
+    // below rechecks isStopped -- so the normal ending is unaffected.
     override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
+        try {
+            onSynthesizeTextImpl(request, callback)
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onSynthesizeText failed: " + ex.toString() + "\n" + android.util.Log.getStackTraceString(ex))
+            speakingPkg = null
+            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+            try { startAndFinish(callback) } catch (_: Throwable) {}
+        }
+    }
+    private fun onSynthesizeTextImpl(request: SynthesisRequest?, callback: SynthesisCallback?) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "\n-------------------------------\nonSynthesizeText")
         reloadLanguagesIfMissing()
         if (showNotificationFlag && !isForegroundActive()) {
