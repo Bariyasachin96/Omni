@@ -828,3 +828,56 @@ inline ERROR path `cell[0]` is still null, and that is correct: the wrapper is
 being marked `state = -1` and must not be handed anybody's client.
 
 `EngineFinder.startEngine` uses the identical shape for the identical reason.
+
+## 28. The user interface is PURE Jetpack Compose
+
+Owner, 2026-09-10: *"full Jetpack Compose user interface chahie, koi XML Android
+view ya fir kuchh bhi nahin."* It already is, and this rule exists so it stays
+that way: the way it would come back is **one `AndroidView()` in one screen**,
+and nothing on the screen would look wrong.
+
+`invariants.sh` #26 fails the build on any of:
+
+    res/layout*/                 an inflatable View layout -- no such directory
+    android.view.*               ANY of it -- there is currently not one
+                                 reference in the app or the test sources
+    android.widget.*             except Toast (see below)
+    setContentView( findViewById LayoutInflater AndroidView( ComposeView
+                                 the four ways a View gets into a Compose tree
+                                 or a Compose tree into a View one
+
+Comments are stripped first, and that is **not** optional: `ComposeTheme.kt` and
+`MainActivity.kt` explain in prose what the accessibility delegate writes into
+`info.className`, and the words `android.widget.Button` in a sentence are not a
+widget. Both cases are negative-tested in `selftest.sh` -- an added
+`AndroidView`, and an added `res/layout/leak.xml`.
+
+**`Toast` is the one exception, and it is deliberate.** Since API 30 a custom
+toast *view* is deprecated and the system renders text toasts in its own
+process, so `Toast.makeText(...).show()` is a system call like posting a
+notification rather than a View this app inflates. There are five, and every one
+of them is AutoTTS-mirrored feedback (the slider's `"<n> of <max>"`, the battery
+hint, the scan failure, the Play Store fallback, the import and export errors).
+**Moving them to a Compose `Snackbar` is possible under the UI carve-out and is
+NOT free**: a `Snackbar` needs a `SnackbarHost` in scope, so `EngineFinder`'s --
+which fires from an object with no composition around it -- would have to be
+re-routed, and it changes what a screen reader announces on the feedback path
+this project has already broken twice. Owner's call, not a tidy-up.
+
+### What is XML and CANNOT be Compose, each verified rather than assumed
+
+| file | what it is | why it stays |
+|---|---|---|
+| `res/drawable/*.xml` (22 icons) | icon **resources**, drawn by `Icon(painterResource(...))` | **Google's own current guidance.** developer.android.com's Compose images page says `material-icons` is *"no longer maintained or recommended ... contains an older look and feel and can also increase the build time of your apps significantly"* and recommends downloading the XML from fonts.google.com instead. Ours already are Google's own paths. |
+| `mipmap-anydpi-v26/ic_launcher*.xml`, `drawable/ic_launcher_monochrome.xml` | adaptive and themed launcher icons | the **launcher** reads them, in another process |
+| `values/styles.xml`, `values-night/styles.xml` | the **window** theme and the splash | the framework reads it at `setTheme` time, **before any composition exists** |
+| `values/colors.xml` | feeds those themes | same |
+| `values/strings.xml` | one string, `app_name` | read by the manifest and the launcher |
+| `res/xml/tts_engine.xml` | `<meta-data android:name="android.speech.tts">` | **required** by `TextToSpeechService` |
+| `res/xml/provider_paths.xml` | | **required** by `FileProvider` |
+| `res/xml/data_extraction_rules.xml` | | **required** by the backup manager |
+| `AndroidManifest.xml` | | required by Android |
+
+None of those is a **View**. Every one is read by a platform component outside
+this app's composition, and there is no Compose API that can replace any of
+them.

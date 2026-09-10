@@ -30,7 +30,14 @@ bad()  { printf '  FAIL  %s\n' "$1"; fail=1; }
 echo "invariants (docs/INVARIANTS.md)"
 
 # --- 1. every language-list rebuild pushes the language sets ---------------
-rebuilds=$(grep -rln "languages.addAll" $KT | sort)
+# BOTH SPELLINGS. Every rebuild site used to write `languages.addAll(...)`
+# directly; since 2026-09-10 they all go through LangStore.replaceAll(), which
+# is what puts the swap under the list's monitor. Matching only the old spelling
+# left this check scanning NOTHING -- the one remaining addAll is inside
+# replaceAll itself, in LangStore.kt, which the loop below skips -- and
+# selftest.sh caught it as "#1 NOT CAUGHT". A refactor can blind a checker
+# without touching it; that is what the selftest is for.
+rebuilds=$(grep -rln "languages\.addAll\|LangStore\.replaceAll(" $KT | sort)
 missing=""
 for f in $rebuilds; do
   case "$f" in
@@ -120,9 +127,58 @@ names=$(grep -rh "contentDescription *=\|stateDescription *=" $KT |
 # --- 8. no lazy list inside a DropdownMenu ---------------------------------
 # Comments are stripped: VoiceScreen carries a banner that says in words why a
 # LazyColumn must never come back here, and that is not a violation.
+#
+# `DropdownMenu(` is a SUBSTRING of `ExposedDropdownMenu(`, so this covers both
+# the plain menu in ConfigurationScreen and the Material one VoiceScreen moved
+# to on 2026-09-03. The NEGATIVE TEST used to patch VoiceScreen's plain
+# DropdownMenu and stopped matching anything when that migration happened, which
+# is why selftest reported "#8 NOT CAUGHT" -- the check was fine, the test had
+# gone stale. It points at ConfigurationScreen now.
 n=$(sed 's://.*::' $KT/*.kt | grep -A 25 "DropdownMenu(" | grep -c "LazyColumn\|LazyRow")
 [ "$n" = 0 ] && ok "#8  no lazy list inside a DropdownMenu" \
              || bad "#8  a lazy list inside a DropdownMenu ($n) -- it cannot answer intrinsics and throws"
+
+# --- 26. the user interface is PURE JETPACK COMPOSE ------------------------
+# Owner, 2026-09-10: "full Jetpack Compose user interface chahie, koi XML
+# Android view ya fir kuchh bhi nahin". It already IS -- this makes it a rule
+# instead of a fact that happens to hold today, because the way it would come
+# back is one AndroidView() in one screen, and nothing would look wrong.
+#
+# THREE THINGS ARE CHECKED, and each is a different way in:
+#   * res/layout*/ -- an inflatable View layout. There is no such directory.
+#   * android.view.*  -- ANY of it. There is currently not one reference in the
+#     whole app, test sources included.
+#   * android.widget.* -- except Toast, which since API 30 renders in the system
+#     process (custom toast VIEWS are deprecated there), so it is a system call
+#     like a notification rather than a View this app inflates. Five references,
+#     all of them AutoTTS-mirrored feedback.
+#   * setContentView / findViewById / LayoutInflater / AndroidView / ComposeView
+#     -- the four ways a View gets into a Compose tree or a Compose tree into a
+#     View one.
+#
+# Comments are stripped first, and that is not optional: ComposeTheme.kt and
+# MainActivity.kt explain in prose what the accessibility delegate writes into
+# info.className, and the words "android.widget.Button" in a sentence are not a
+# widget.
+#
+# WHAT IS NOT CHECKED, because it is not UI and cannot be Compose: the vector
+# drawables under res/drawable (Google's OWN current guidance is to download
+# icon XML from fonts.google.com and use it with Icon + painterResource --
+# material-icons is "no longer maintained or recommended"), the adaptive
+# launcher icon (read by the launcher, another process), values/styles.xml (the
+# WINDOW theme, read by the framework before any composition exists), and
+# res/xml/ (tts_engine, provider_paths and data_extraction_rules are each
+# required by a platform component that reads them, not by us).
+layoutdirs=$(ls -d app/src/main/res/layout* 2>/dev/null | wc -l)
+uisrc="$KT/*.kt app/src/androidTest/java/com/tts/easyvoice/*.kt"
+viewrefs=$(sed 's://.*::' $KT/*.kt app/src/androidTest/java/com/tts/easyvoice/*.kt 2>/dev/null \
+  | grep -oE "setContentView\(|findViewById|LayoutInflater|AndroidView\(|ComposeView|android\.view\.[A-Za-z]+|android\.widget\.[A-Za-z]+" \
+  | grep -v "android\.widget\.Toast" | wc -l)
+if [ "$layoutdirs" = 0 ] && [ "$viewrefs" = 0 ]; then
+  ok "#26 the UI is pure Compose -- no layout XML, no android.view, no AndroidView"
+else
+  bad "#26 an Android View is back (res/layout dirs: $layoutdirs, view refs: $viewrefs)"
+fi
 
 # --- 18. a heading is a plain Text; never give a Text a contentDescription ---
 # The documented shape is exactly `Text(..., Modifier.semantics { heading() })`

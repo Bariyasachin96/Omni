@@ -43,6 +43,12 @@ run() {  # run <label> <expected FAIL tag> <command that breaks the rule>
     fail=1
   fi
   git checkout -q -- .
+  # ADDING a file is a way to break a rule too -- #26's second case creates
+  # res/layout/leak.xml, and `git checkout` does not remove an UNTRACKED file,
+  # so without this every later check would run against a tree that still has a
+  # View layout in it. Scoped to res/ so nothing else in the scratch copy is
+  # touched.
+  git clean -qfd app/src/main/res 2>/dev/null || true
 }
 
 echo "first, the unbroken tree must be clean:"
@@ -71,7 +77,11 @@ run "#5  add an announceForAccessibility" "#5" \
 run "#6  put state in a contentDescription" "#6" \
     "perl -0pi -e 's/contentDescription = /contentDescription = \"Speed, checked\" ?: /' $K/VoiceScreen.kt"
 run "#8  put a LazyColumn in a DropdownMenu" "#8" \
-    "perl -0pi -e 's/(DropdownMenu\(expanded = expanded)/\$1\n            LazyColumn { }/' $K/VoiceScreen.kt"
+    "perl -0pi -e 's/(DropdownMenu\(expanded = menuOpen[^\n]*\{)/\$1\n                                    LazyColumn { }/' $K/ConfigurationScreen.kt"
+run "#26 add an AndroidView to a screen" "#26" \
+    "perl -0pi -e 's/(fun ConfigurationScreen)/fun Leak() { AndroidView(factory = { c -> android.widget.TextView(c) }) }\\n\$1/' $K/ConfigurationScreen.kt"
+run "#26 add a res/layout XML" "#26" \
+    "mkdir -p app/src/main/res/layout && printf '<FrameLayout/>' > app/src/main/res/layout/leak.xml"
 run "#18 contentDescription on a heading" "#18" \
     "perl -0pi -e 's/\\.semantics \\{ heading\\(\\) \\}/.semantics { heading(); contentDescription = title }/' $K/ModesScreen.kt"
 run "#17 persist without loading" "#17" \

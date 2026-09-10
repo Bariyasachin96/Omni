@@ -2669,6 +2669,74 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+## THE UI IS ALREADY 100% COMPOSE, AND IT IS ENFORCED NOW (owner, 2026-09-10)
+*"Full Jetpack Compose user interface chahie, koi XML Android view ya fir kuchh
+bhi nahin ... sari library aur sabhi chijon ke saath."* Measured before
+answering, and the measurement is the answer.
+
+    res/layout/                        DOES NOT EXIST
+    setContentView / findViewById      ZERO
+    LayoutInflater                     ZERO
+    AndroidView( / ComposeView         ZERO
+    android.view.*                     ZERO, app and test sources both
+    android.widget.*                   Toast ONLY -- five references
+
+So there is **no Android View anywhere in this app.** The 2026-08-26 migration
+finished the job and nothing has crept back.
+
+**GOOGLE'S OWN CURRENT GUIDANCE NOW CONFIRMS THE ICON DECISION, which this file
+had previously argued from first principles.** The Compose images page says of
+`androidx.compose.material:material-icons`:
+
+> *"this artifact is **no longer maintained or recommended** for use in your
+> apps, as it contains an older look and feel and can also increase the build
+> time of your apps **significantly**. Instead, we recommend using Google Font
+> Icons and download the XML file from the Android Tab"*
+
+That is **exactly what this app does**: 22 vector drawables taken verbatim from
+Google's own icon source, drawn with `Icon(painterResource(...))`. Moving them to
+`material-icons-extended` would be moving AGAINST current guidance and adding a
+large unmaintained dependency. **Do not propose it again**; the earlier note
+rejecting it is now backed by Google's own words rather than by our reasoning.
+
+### It is a RULE now, not a fact that happens to hold
+`invariants.sh` **#26** fails the build on a `res/layout*/` directory, on any
+`android.view.*`, on `android.widget.*` other than `Toast`, and on
+`setContentView` / `findViewById` / `LayoutInflater` / `AndroidView(` /
+`ComposeView`. Comments are stripped first, because `ComposeTheme.kt` and
+`MainActivity.kt` explain in prose what the delegate writes into
+`info.className` and the words "android.widget.Button" in a sentence are not a
+widget. **Both cases negative-tested** in `selftest.sh`: an added `AndroidView`,
+and an added `res/layout/leak.xml`. Written up as `docs/INVARIANTS.md` #28 with
+the full table of what XML remains and why each piece cannot be Compose.
+
+`selftest.sh`'s `run` helper also had to learn to `git clean` `res/` -- ADDING a
+file is a way to break a rule, and `git checkout` does not remove an untracked
+one, so without it every later check ran against a tree that still had a View
+layout in it.
+
+### AND THE SELFTEST CAUGHT TWO CHECKS THAT HAD GONE TO SLEEP
+This is the part worth keeping. Running it reported **"#1 NOT CAUGHT"** and
+**"#8 NOT CAUGHT"** -- two rules that had been reporting `ok` while checking
+nothing at all.
+
+- **#1 was blinded BY MY OWN CHANGE EARLIER THE SAME DAY.** It scanned
+  `grep -rln "languages.addAll"` for rebuild sites -- and `LangStore.replaceAll`
+  had just made every one of those sites call `replaceAll(...)` instead, leaving
+  the single remaining `addAll` inside `LangStore.kt`, which the loop explicitly
+  skips. So it scanned an empty list and passed. It matches **both spellings**
+  now. **A refactor can blind a checker without touching the checker**, and the
+  only thing that finds it is running the negative tests.
+- **#8's negative test had gone stale**, from the 2026-09-03 dropdown migration:
+  it patched `DropdownMenu(expanded = expanded` in `VoiceScreen`, which became
+  `ExposedDropdownMenu` and stopped matching, so the test broke nothing and there
+  was nothing to catch. The CHECK was fine -- `DropdownMenu(` is a substring of
+  `ExposedDropdownMenu(` -- so only the test moved, to `ConfigurationScreen`.
+
+**`selftest.sh` now reports EVERY CHECK FIRES over all 17 negative tests.** Run
+it after touching `invariants.sh` OR after any refactor that renames something a
+check greps for.
+
 ## BUILD 866 WENT RED ON THE REPOSITORIES, NOT ON ANYTHING WE WROTE (2026-09-10)
 The `build` job PASSED and **published `EasyVoice-866.apk`**. Only
 `accessibility` failed, and the log names the cause plainly enough that it is
