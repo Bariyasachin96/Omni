@@ -6,6 +6,28 @@ on:
   # input default -- run 730 skipped the release step for exactly that reason
   # and left only the R8 mapping to download -- so publishing is unconditional.
   workflow_dispatch:
+# ACTION MAJORS, AND WHY THEY MOVED TOGETHER (2026-09-10).
+# checkout, setup-java, upload-artifact and action-gh-release v2/v4 all run on
+# the Node 20 runtime GitHub has DEPRECATED -- action-gh-release's own README
+# says v2 "is no longer maintained or supported. It uses the Node 20 runtime
+# deprecated by GitHub Actions", and that is the step that publishes the APK.
+# This is a deadline rather than a preference: when the runtime is switched off,
+# the build stops producing anything.
+#
+# Every input this workflow passes was checked against each action's own README
+# before bumping, rather than assumed:
+#   gradle/actions/setup-gradle v3 -> v6   gradle-version and cache-disabled survive
+#   softprops/action-gh-release  v2 -> v3   tag_name/name/body/files/make_latest/
+#                                           fail_on_unmatched_files unchanged, and
+#                                           token defaults to github.token
+#   actions/checkout             v4 -> v7   no inputs passed here at all
+#   actions/setup-java           v4 -> v6   java-version and distribution unchanged
+#   actions/upload-artifact      v4 -> v7   name/path/retention-days/if-no-files-found
+#   android-actions/setup-android v3 -> v4  no inputs passed; the one real risk was
+#                                           the cmdline-tools path, closed by
+#                                           resolving sdkmanager from PATH above
+# reactivecircus/android-emulator-runner is ALREADY current at v2 (2.38.0) and is
+# deliberately untouched.
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,21 +35,30 @@ jobs:
       contents: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install NDK and CMake
         run: |
+          # RESOLVED FROM PATH FIRST, then the absolute path as a fallback.
+          # setup-android v3 puts cmdline-tools under .../latest/ and v4's own
+          # README documents .../16.0/bin on the PATH instead, so hard-coding
+          # "latest" made this step depend on the action's major version. Both
+          # shapes work now, and the fallback keeps the exact old behaviour when
+          # sdkmanager is not on the PATH at all.
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          echo "using sdkmanager: $SDKMANAGER"
           install_pkgs() {
-            echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            echo "y" | "$SDKMANAGER" \
               "ndk;30.0.16248370" "cmake;4.1.2" "build-tools;37.0.0" --sdk_root=$ANDROID_HOME
           }
           n=0
@@ -47,7 +78,7 @@ jobs:
           # compileSdk 37 needs the platform. Best effort only: AGP downloads a
           # missing platform itself, and a bad package name here must never take
           # the NDK install down with it (that is how run 711 failed).
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+          echo "y" | "$SDKMANAGER" \
             "platforms;android-37" --sdk_root=$ANDROID_HOME \
             || echo "::warning::platforms;android-37 not available from sdkmanager; letting AGP fetch it"
 
@@ -73,7 +104,7 @@ jobs:
           clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v6
         with:
           # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
           # release notes), so this is not an independent bump -- the two move
@@ -131,7 +162,7 @@ jobs:
           ls -l EasyVoice-${{ github.run_number }}*.apk
 
       - name: Publish APK to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ github.run_number }}
           name: Easy Voice build #${{ github.run_number }}
@@ -154,7 +185,7 @@ jobs:
 
       # Backup copy, so the APK is reachable even if the release step ever fails.
       - name: Upload APK (backup)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: easy-voice-apk-${{ github.run_number }}
           path: EasyVoice-${{ github.run_number }}*.apk
@@ -164,7 +195,7 @@ jobs:
       # mapping.txt must never ship publicly - it undoes the obfuscation.
       # Kept as a repo-private build artifact so only we can retrace a crash.
       - name: Upload R8 mapping (private)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: r8-mapping-${{ github.run_number }}
@@ -189,16 +220,16 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Enable KVM
         run: |
@@ -246,9 +277,15 @@ jobs:
       - name: Install NDK and CMake
         timeout-minutes: 20
         run: |
+          # PATH first, absolute path as the fallback -- the same reason as the
+          # build job's copy: setup-android v4 documents cmdline-tools/16.0/bin
+          # rather than .../latest/, and this step must not depend on which.
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          echo "using sdkmanager: $SDKMANAGER"
           n=0
           until [ $n -ge 3 ]; do
-            echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            echo "y" | "$SDKMANAGER" \
               "ndk;30.0.16248370" "cmake;4.1.2" "build-tools;37.0.0" \
               --sdk_root=$ANDROID_HOME && break
             n=$((n+1)); echo "sdkmanager attempt $n failed, retrying"; sleep $((n * 10))
@@ -274,7 +311,7 @@ jobs:
           clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v6
         with:
           # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
           # release notes), so this is not an independent bump -- the two move
@@ -320,7 +357,7 @@ jobs:
       # locally without an emulator.
       - name: Upload the accessibility report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: accessibility-report-${{ github.run_number }}
           path: |

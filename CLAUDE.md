@@ -2669,6 +2669,56 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+## SIX GITHUB ACTIONS WERE ON A DEPRECATED RUNTIME (2026-09-10)
+This is a **deadline**, not a preference. `softprops/action-gh-release`'s own
+README says v2 *"is no longer maintained or supported. It uses the Node 20
+runtime deprecated by GitHub Actions"* -- and that is the step that **publishes
+the APK**. When GitHub switches that runtime off, the build stops producing
+anything the owner can install. `checkout`, `setup-java` and `upload-artifact`
+were on the same runtime.
+
+    actions/checkout                v4 -> v7
+    actions/setup-java              v4 -> v6
+    actions/upload-artifact         v4 -> v7
+    gradle/actions/setup-gradle     v3 -> v6
+    android-actions/setup-android   v3 -> v4
+    softprops/action-gh-release     v2 -> v3
+    reactivecircus/android-emulator-runner   v2   ALREADY CURRENT (2.38.0)
+
+**Every input this workflow passes was checked against that action's own README
+before bumping**, rather than assumed -- this file already records what an
+unverified CI change costs:
+- `setup-gradle`: `gradle-version` and `cache-disabled` both survive to v6, and
+  the docs still say the downloaded version is added to the PATH for later
+  `run:` steps, which is exactly how the `gradle assembleRelease` step uses it;
+- `action-gh-release`: `tag_name`, `name`, `body`, `files`, `make_latest` and
+  `fail_on_unmatched_files` are unchanged in v3, and `token` **defaults to
+  `github.token`**, so the existing `GITHUB_TOKEN` env keeps working;
+- `checkout`: this workflow passes it no inputs at all;
+- `setup-java`: `java-version` and `distribution` are still core inputs;
+- `upload-artifact`: `name`, `path`, `retention-days`, `if-no-files-found` all
+  unchanged.
+
+**THE ONE REAL RISK WAS `setup-android` v4, AND IT IS CLOSED RATHER THAN
+GAMBLED.** Both NDK steps called `$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager`
+by absolute path, and v4's README documents **`cmdline-tools/16.0/bin`** on the
+PATH instead -- so the `latest` symlink may simply not be there. Both steps now
+resolve it the version-independent way:
+
+    SDKMANAGER="$(command -v sdkmanager || true)"
+    [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+
+PATH first, the old absolute path as the fallback -- so it works under v3 and v4
+alike, and if `sdkmanager` is not on the PATH at all the behaviour is exactly
+what it was. The step also prints which one it picked, so the next failure says
+so itself.
+
+**Its own commit**, for the reason recorded three times in this file: a change
+testable only by a thirteen-minute CI run must not be stacked with another. The
+Gradle and AGP move is in the commit before it, so a red run's failing STEP name
+separates them -- `Setup Gradle` is one, `Install NDK and CMake` and
+`Publish APK to GitHub Release` are the other.
+
 ## THE FIRST ENGINE'S CONSTRUCTOR KILLED THE SERVICE, AND A FAILED BIND LEAKED (2026-09-10)
 Two more from the engine pool, both in the class the owner has overridden rule 5
 for, and the first one is the same defect found in `EngineFinder` earlier the
