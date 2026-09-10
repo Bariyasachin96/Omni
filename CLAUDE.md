@@ -2742,14 +2742,44 @@ test puts `set -o pipefail` back into the emulator script and requires exit 1.
 **Wired into `check-all.sh`**, so a bashism in a `script:` costs milliseconds
 instead of two thirteen-minute runs.
 
-### Considered and NOT done, stated so it is not re-litigated
-**`cache-disabled: true` stays**, for now. It is the biggest remaining exposure
--- every run re-downloads the whole buildscript classpath, which is exactly what
-flaked in 866 -- and enabling `gradle/actions`' cache would remove the CAUSE
-rather than retrying the symptom, and make the job faster. It is not done in the
-same breath as the retry because that would stack two untestable CI changes,
-which is the mistake this file records three times. **One green run on the retry
-first; then it is one line.**
+### THE CACHE QUESTION IS SETTLED, AND THE ANSWER IS NOT "it is risky"
+`cache-disabled: true` looked like the biggest remaining lever -- every run
+re-downloads the whole buildscript classpath, which is exactly what flaked in
+866 -- so enabling it would remove the CAUSE rather than retrying the symptom.
+**`setup-gradle`'s own documentation settles it, and the answer is that it would
+do nothing at all here:**
+
+> *"By default, the `setup-gradle` action will only **write** to the cache for
+> builds run on the default (`master`/`main`) branch."*
+>
+> *"cache entries written for a Git branch are not visible from actions running
+> against different branches or tags. Entries written for the default branch are
+> visible to all."*
+
+**Every run of this workflow is a `workflow_dispatch` on
+`claude/yaml-file-nk3czh` -- a FEATURE branch.** So enabling the cache would
+**write nothing** (non-default branches are read-only by default) and **find
+nothing to read** (`main` has never populated one). It would add a cache-restore
+attempt that misses, on every run, for ever.
+
+Forcing writes with `cache-read-only: false` is worse: each run would store a
+gigabyte-plus entry that no other branch can see and that GitHub evicts, which
+is churn rather than caching.
+
+So the transient failure it would have prevented is handled at the **symptom**
+instead, by `tools/ci/gradle-retry.sh` -- and here that is the right place,
+because the cause cannot be removed from a branch. **`cache-disabled: true` is
+correct for this repository. Do not re-open it without moving the workflow to
+the default branch first.**
+
+### One more diagnosis made automatic: the disk
+The cleanup step now reads `df -m` after it runs and emits a `::warning::`
+naming the exact free space against the pixel_6 userdata partition's **7373 MB**
+when it is under 9 GB. It **warns rather than fails** -- a manufactured red run
+is worse than a real one, and the emulator may still manage. What it buys is
+that the number is at the TOP of the log rather than inferred from a wall of adb
+noise, which is what runs 795-797 cost. Tested against a stubbed `df` reporting
+run 795's own 6800 MB: the warning fires.
 
 ## THE UI IS ALREADY 100% COMPOSE, AND IT IS ENFORCED NOW (owner, 2026-09-10)
 *"Full Jetpack Compose user interface chahie, koi XML Android view ya fir kuchh

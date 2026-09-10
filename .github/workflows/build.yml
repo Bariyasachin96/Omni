@@ -112,6 +112,27 @@ jobs:
           # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
           # Gradle was innocent of the accessibility job's dependency failure.
           gradle-version: '9.7.1'
+          # cache-disabled STAYS TRUE, and it is now a measured decision rather
+          # than an unexamined default (2026-09-10). Enabling it looked like the
+          # biggest remaining lever -- every run re-downloads the whole
+          # buildscript classpath, which is exactly what flaked in build 866 --
+          # until setup-gradle's own docs settled it:
+          #
+          #   "By default, the setup-gradle action will only WRITE to the cache
+          #    for builds run on the default (master/main) branch"
+          #   "cache entries written for a Git branch are not visible from
+          #    actions running against different branches or tags. Entries
+          #    written for the default branch are visible to all."
+          #
+          # Every run of this workflow is a workflow_dispatch on
+          # claude/yaml-file-nk3czh, a FEATURE branch. So it would write nothing
+          # (read-only off the default branch) and find nothing to read (main
+          # never populated one). Turning it on buys a cache-restore attempt that
+          # misses, every run, for ever.
+          #
+          # The transient failure it would have prevented is handled at the
+          # symptom instead, by tools/ci/gradle-retry.sh -- which is the right
+          # place for it here, because the cause cannot be removed on a branch.
           cache-disabled: true
 
       - name: Restore Keystore
@@ -288,6 +309,23 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL || true
           sudo docker image prune -af || true
           echo "after:"; df -h / | tail -1
+          # SAY IT HERE IF THERE IS NOT ENOUGH ROOM, because the emulator will not.
+          # Runs 795-797 died on ONE line buried a thousand adb errors below the
+          # noise:
+          #     FATAL | Not enough space to create userdata partition.
+          #             Available: 6881.56 MB ... need 7372.80 MB.
+          # and everything after it was adb talking to a process that never
+          # started. 7372.80 MB is the pixel_6 userdata partition; the margin is
+          # for the system image and the build that follow it.
+          #
+          # This WARNS rather than fails: a manufactured red run is worse than a
+          # real one, and the emulator may still manage. What it buys is that the
+          # number is at the TOP of the log instead of inferred from adb noise.
+          avail_mb=$(df -m / | tail -1 | awk '{print $4}')
+          echo "free after cleanup: ${avail_mb} MB"
+          if [ "$avail_mb" -lt 9000 ]; then
+            echo "::warning::Only ${avail_mb} MB free. The pixel_6 userdata partition alone needs 7373 MB, and the system image and build come out of the same disk. If this run dies in adb, grep the log for FATAL first -- that is what runs 795-797 were."
+          fi
 
       - name: Install NDK and CMake
         timeout-minutes: 20
@@ -358,6 +396,27 @@ jobs:
           # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
           # Gradle was innocent of the accessibility job's dependency failure.
           gradle-version: '9.7.1'
+          # cache-disabled STAYS TRUE, and it is now a measured decision rather
+          # than an unexamined default (2026-09-10). Enabling it looked like the
+          # biggest remaining lever -- every run re-downloads the whole
+          # buildscript classpath, which is exactly what flaked in build 866 --
+          # until setup-gradle's own docs settled it:
+          #
+          #   "By default, the setup-gradle action will only WRITE to the cache
+          #    for builds run on the default (master/main) branch"
+          #   "cache entries written for a Git branch are not visible from
+          #    actions running against different branches or tags. Entries
+          #    written for the default branch are visible to all."
+          #
+          # Every run of this workflow is a workflow_dispatch on
+          # claude/yaml-file-nk3czh, a FEATURE branch. So it would write nothing
+          # (read-only off the default branch) and find nothing to read (main
+          # never populated one). Turning it on buys a cache-restore attempt that
+          # misses, every run, for ever.
+          #
+          # The transient failure it would have prevented is handled at the
+          # symptom instead, by tools/ci/gradle-retry.sh -- which is the right
+          # place for it here, because the cause cannot be removed on a branch.
           cache-disabled: true
 
       - name: Run accessibility checks on an emulator
