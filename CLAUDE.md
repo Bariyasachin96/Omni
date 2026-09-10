@@ -2669,6 +2669,32 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+### AGP 9.4.0 AND GRADLE 9.7.1 -- THE HOLD IS LIFTED (2026-09-10)
+The pin at 9.3.2 carried a long note blaming AGP 9.4.0 for the accessibility
+job's dependency failure. **That diagnosis was refuted by build 854**, which ran
+on 9.3.2 and failed with the identical message; two later attempts
+(`android.dependency.useConstraints=false`, then reverting Gradle) were refuted
+the same way by builds 856 and 857. The cause was never a version: the app's
+graph and the androidTest graph genuinely disagreed on `concurrent-futures` and
+on guava's empty `listenablefuture` marker, and both conflicts predate every one
+of those bumps.
+
+That is fixed in `app/build.gradle.kts` -- the app declares
+`concurrent-futures 1.2.0` so the `strictly` pin becomes the version the test
+graph asks for, and every `*AndroidTest*` configuration excludes
+`com.google.guava:listenablefuture` so the constraint has nothing left to
+constrain. **Green three runs running (861, 862, 863)**, which is the condition
+the old note itself set: *"AGP can go back to 9.4.0 once a run is green."*
+
+**GRADLE 9.7.1 IS NOT A SEPARATE DECISION.** AGP 9.4's own release notes give its
+minimum Gradle as **9.6.0**, and the workflow pinned 9.5.0, so the two move
+together or the build fails at configuration. 9.7.1 is not new ground either:
+builds 849 to 857 ran on it, and 857 is what proved Gradle innocent.
+
+**Its own commit, with nothing else in it that can touch the build** -- this
+file's own lesson is that a change testable only by a thirteen-minute CI run must
+never be stacked with another. If it goes red, the step name says which half.
+
 ### A `.toInt()` on a stored preference, on the Voice setup screen
 `VoiceRows.load`'s `voiceOrder` read the per-voice sort weight with
 `(rawPrefs.getString(key, "1000") ?: "1000").toInt()`. That is a literal parser

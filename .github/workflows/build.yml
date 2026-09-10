@@ -75,7 +75,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '9.5.0'
+          # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
+          # release notes), so this is not an independent bump -- the two move
+          # together or the build fails at configuration. It is also not new
+          # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
+          # Gradle was innocent of the accessibility job's dependency failure.
+          gradle-version: '9.7.1'
           cache-disabled: true
 
       - name: Restore Keystore
@@ -271,7 +276,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '9.5.0'
+          # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
+          # release notes), so this is not an independent bump -- the two move
+          # together or the build fails at configuration. It is also not new
+          # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
+          # Gradle was innocent of the accessibility job's dependency failure.
+          gradle-version: '9.7.1'
           cache-disabled: true
 
       - name: Run accessibility checks on an emulator
