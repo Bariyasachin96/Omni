@@ -445,10 +445,27 @@ fun MainScreen(
             // so spelling the mode out visibly would stretch the button across
             // a compact screen.
             //
-            // "none" is never a row and shownMode() rewrites it to "auto", but
-            // MainScreen reads the store before that has run, so the FAB is
-            // hidden for it rather than offering a screen with nothing on it.
-            if (!scanning && currentPage == 0 && readingMode != "none") {
+            // A MODE THAT IS NOT A ROW GETS NO BUTTON EITHER (owner,
+            // 2026-09-09: "Agar Google hidan hai Google mod to uska button bhi
+            // hidan Hona chahie"). ModesScreen draws exactly four rows -- it
+            // skips "none" and "google" -- so those two are the modes the list
+            // will not show, and offering a corner button that names one of
+            // them and opens its settings contradicts the whole point of
+            // hiding it. "Google TTS settings" was reachable from here on a
+            // fresh install, because LangStore.loadMode defaults auto_mode to
+            // 3 when Google TTS is present.
+            //
+            // The test is derived from the same list ModesScreen walks rather
+            // than repeated by hand, so a mode added or unhidden there cannot
+            // leave this button behind.
+            //
+            // What it costs, stated rather than hidden: Google mode's own
+            // "Select preferred language" is then unreachable while google is
+            // in force. That is the owner's standing decision for this mode --
+            // it stays selected and stays invisible -- and it is the same
+            // trade they already made when they rejected drawing the google
+            // radio to keep that setting reachable.
+            if (!scanning && currentPage == 0 && readingMode !in HIDDEN_MODES) {
                 val modeTitle = modeRowSpecs.firstOrNull { it.first == readingMode }?.second
                 val settingsName =
                     if (modeTitle == null) "Mode settings" else modeTitle + " settings"

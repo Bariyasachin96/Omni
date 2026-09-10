@@ -112,7 +112,7 @@ fun ModesScreen(
                 // So when Google IS the mode, which is the default on a fresh
                 // install, the list shows no checked radio at all. AutoTTS does
                 // the same, for the same reason, and that is the intent.
-                if (mode == "google") continue
+                if (mode in HIDDEN_MODES) continue
                 val pick = {
                     selectedMode = mode
                     prefs.setReadingMode(mode)

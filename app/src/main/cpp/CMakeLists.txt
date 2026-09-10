@@ -90,31 +90,40 @@ target_link_libraries(easyvoice_core ${log-lib})
 # .dynsym, which a shared library must keep to be loadable, so they survive --
 # verified with `nm -D --defined-only`, all seven still exported after stripping.
 #
-# THERE IS NO NATIVE R8 HERE, AND THAT IS MEASURED, NOT ASSUMED (2026-09-09).
+# THERE IS NO NATIVE R8 HERE, AND THAT IS MEASURED (2026-09-09).
 # The owner asked for a native equivalent of R8's shrinking. R8 works by removing
 # unreachable CODE, and this library is not code:
 #
 #     .rodata (CLD2's tables)   6,253,216 bytes    95%
 #     .text   (all our code)      110,533 bytes   1.7%
 #
-# Every one of those tables is reached, so there is nothing to garbage-collect.
-# Each candidate flag was built and weighed against the real source list:
+# Every one of those tables is reached from the detector, so there is nothing to
+# garbage-collect -- and --gc-sections, the one flag that IS R8-shaped, has been
+# on all along. Every remaining flag was then built and weighed; that pass is
+# finished and its table lives beside cppFlags in build.gradle.kts. The total it
+# can save is about 75 KB raw and 26 KB of actual download per ABI, against a
+# 6.4 MB library. Do not chase them again.
 #
-#     -Oz instead of -Os          +12,648   WORSE, and that is why it is not here
-#     -Wl,--icf=all                -3,696   noise, and it can fold two functions
-#                                           into one address, so a pointer compare
-#                                           could change meaning
-#     -Wl,--exclude-libs,ALL           +0   exactly nothing
-#     -fno-exceptions -fno-rtti   -28,256   a real behaviour change, so not taken
-#     -Wl,--strip-all             -47,184   free and safe -- taken
+# AND COMPRESSION CANNOT SAVE THIS EITHER, WHICH IS THE ANSWER TO "CLD2 KA
+# OPTIMISATION" (owner, 2026-09-09). Measured on the real table bytes of the
+# full set rather than argued:
 #
-# And the APK stores .so COMPRESSED (useLegacyPackaging = true), so the number
-# that reaches a phone is smaller still: stripping saves 10,621 bytes of actual
-# download out of 4.78 MB. The flags are finished; do not chase them again.
+#     raw                                   6,165,933
+#     deflate -9   <- what the APK does     4,653,696     -25%
+#     xz -9e                                4,106,444     -33%
 #
-# The two levers that WOULD move this are both the owner's, and both are already
-# recorded in CLAUDE.md: the full CLD2 table set (+4.91 MB per ABI over the
-# compact one) and shipping TWO ABIs.
+# A quadgram table is a HASH table, so its bytes are close to random and the
+# APK's own deflate already takes most of what there is. Storing the tables
+# pre-compressed and inflating them at load would buy 547,252 bytes per ABI and
+# cost 6 MB of dirty private RAM plus decompression on the path to the first
+# word. Refused on the measurement, not on taste.
+#
+# THE SIZE IS THE DUPLICATE, NOT THE TABLE. The APK ships this library once per
+# ABI, so every one of those bytes is paid twice. That is what
+# `splits { abi }` in build.gradle.kts removes, and it removes nothing else --
+# see the comment there, including why CLD2's own CLD2_DYNAMIC_MODE solves the
+# same duplicate and lands on a worse number.
+#
 # --gc-sections pairs with the -ffunction-sections/-fdata-sections in
 # build.gradle.kts; --strip-all removes .symtab and .strtab only, and every
 # Java_ entry point lives in .dynsym, which a shared library must keep.

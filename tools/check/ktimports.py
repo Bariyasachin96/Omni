@@ -19,6 +19,12 @@ OptIn Composable
 DECL_RE = re.compile(r'\b(?:class|object|interface|enum\s+class|annotation\s+class)\s+([A-Z]\w*)')
 CONST_RE = re.compile(r'\b(?:val|var)\s+([A-Z]\w*)\b')
 FUN_RE = re.compile(r'\bfun\s+(?:<[^>]*>\s*)?([A-Z]\w*)\s*\(')
+# A capitalised TOP-LEVEL val/var -- SCREAMING_SNAKE is Kotlin's own convention
+# for one, so HIDDEN_MODES in TabViews.kt looks exactly like an unimported type
+# to the scan below. Anchored at column 0 on purpose: CONST_RE matches every
+# `val X` including locals and class properties, and adding those module-wide
+# would suppress real findings rather than one false one.
+TOP_VAL_RE = re.compile(r'^(?:const\s+)?(?:val|var)\s+([A-Z]\w*)\b', re.M)
 
 # Receiver-scope members: called on a scope, never imported. Verified against the
 # material3 API file for the version we build against, not assumed --
@@ -77,6 +83,7 @@ def main():
         module_types |= declared_types(text)
         module_types |= set(re.findall(r'^typealias\s+([A-Z]\w*)', text, re.M))
         module_types |= set(FUN_RE.findall(text))
+        module_types |= set(TOP_VAL_RE.findall(text))
 
     problems = []
     for f in files:

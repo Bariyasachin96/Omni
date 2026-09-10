@@ -84,6 +84,50 @@ android {
         }
         ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
     }
+    // ONE ABI PER DOWNLOAD (owner, 2026-09-09: "complete full CLD2 rahe aur file
+    // size bhi kam ho jayegi"). This is the change that answers that, and it is
+    // the only one that does -- the research is written up in CLAUDE.md and in
+    // CMakeLists.txt, and it comes down to one measured fact: the library is 95%
+    // CLD2 lookup TABLES, the tables are near-random so they barely compress
+    // (the APK's own deflate gets 6,165,933 -> 4,653,696 and xz -9e manages only
+    // 4,106,444), and the APK ships the whole thing TWICE, once per ABI.
+    //
+    // So the duplicate copy is the size, and splitting removes it without
+    // dropping one language, one device or one byte of the detector. A phone
+    // installs the APK for its own ABI:
+    //
+    //     universal (today)   11,410,305 bytes   build 859, from the API
+    //     arm64-v8a only      about 6.7 MB       what a modern phone needs
+    //     armeabi-v7a only    about 6.7 MB       32-bit phones
+    //
+    // CLD2's OWN CLD2_DYNAMIC_MODE was researched as the alternative -- it mmaps
+    // the tables from a data file instead of linking them in, so one 6.17 MB
+    // asset would serve both ABIs. It solves the SAME duplicate, so the two do
+    // not add up, and it lands on a WORSE number (an uncompressed asset has to
+    // be stored uncompressed to be mmapped, giving about 8.4 MB) while adding a
+    // failure mode where a missing asset leaves the app detecting nothing at
+    // all. Not taken. Do not re-propose it without a reason the split cannot
+    // serve.
+    //
+    // isUniversalApk keeps the every-ABI build, and the workflow still publishes
+    // it under the name it has always had, so nothing the owner already
+    // downloads changes; the two smaller files are added beside it.
+    //
+    // GATED ON A PROPERTY, and that is deliberate: the accessibility job builds
+    // the debug and androidTest variants and drives them on an emulator, and
+    // splits apply to every variant. Only the release step passes -PevAbiSplit,
+    // so the job that is hardest to debug builds exactly what it built on the
+    // last green run.
+    if (project.hasProperty("evAbiSplit")) {
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                include("armeabi-v7a", "arm64-v8a")
+                isUniversalApk = true
+            }
+        }
+    }
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "4.1.2" } }
     signingConfigs {
         create("release") {

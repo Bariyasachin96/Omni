@@ -2095,6 +2095,168 @@ IDENTICAL over 163,296 cases, normaliser IDENTICAL with 1,062 mappings over
   is hinted and the per-script fallback is empty, so an unmapped code really does
   reach the Kotlin rather than being swallowed.
 
+## CLD2 CANNOT BE COMPRESSED, SO THE DUPLICATE HAD TO GO (owner, 2026-09-09)
+*"cld to already clone ho raha hai ... isliye uska optimization hota hi nahin hai
+to uska complete karo ... complete full CLD2 rahe aur file size bhi kam ho
+jayegi."* Researched at the source and measured, and the answer moved the fix
+somewhere the earlier passes never looked.
+
+**The premise is half right and the half that is wrong matters.** CLD2 is not
+skipped by the optimiser -- it is compiled with the app's own flags and
+`--gc-sections` has always run over it. It is simply not the KIND of thing an
+optimiser can shrink:
+
+    .rodata (CLD2's tables)   6,253,216 bytes    95%
+    .text   (all our code)      110,533 bytes   1.7%
+
+R8 and `--gc-sections` both work by deleting unreachable CODE. Every table here
+is reached from the detector, so there is nothing to collect, and the entire
+native flag pass -- eight flags, measured twice -- is worth about 26 KB of
+download per ABI.
+
+**AND COMPRESSION CANNOT SAVE IT EITHER. Measured on the real table bytes:**
+
+| | bytes | vs raw |
+|---|---|---|
+| raw | 6,165,933 | |
+| **deflate -9 -- what the APK itself already does** | **4,653,696** | -25% |
+| xz -9e | 4,106,444 | -33% |
+
+A quadgram table is a HASH table -- `kQuad0122` is 262,144 buckets of 16 bytes,
+79% filled, and only 2.0% of buckets are entirely zero -- so its bytes are close
+to random and the APK's own deflate takes most of what is there. Storing the
+tables pre-compressed and inflating them at load buys **547,252 bytes per ABI**
+and costs 6 MB of dirty private RAM plus decompression on the path to the first
+word. **Refused on the measurement, not on taste.**
+
+**Where the size actually is: the APK ships the whole library ONCE PER ABI.**
+`armeabi-v7a` and `arm64-v8a` each carry their own 6.4 MB copy of the same
+tables, so about 9.5 MB of the 11,410,305-byte APK (build 859, from the API) is
+one detector paid for twice.
+
+### The fix is an ABI split, and it removes nothing
+`splits { abi }` in `app/build.gradle.kts`, so a phone downloads only its own
+CPU's code. `isUniversalApk = true` keeps the every-ABI build, and the workflow
+still publishes it as **`EasyVoice-<n>.apk`** -- the name it has always had -- so
+nothing the owner already does changes. Two smaller files sit beside it:
+
+    EasyVoice-<n>.apk              universal, every ABI      ~11.4 MB
+    EasyVoice-<n>-arm64-v8a.apk    every phone since ~2015    ~6.7 MB
+    EasyVoice-<n>-armeabi-v7a.apk  32-bit-only phones         ~6.7 MB
+
+Not one language, one device or one byte of the detector is lost -- the full
+table set stays exactly as the owner chose on 2026-09-08.
+
+**GATED ON `-PevAbiSplit`, and that is load-bearing.** Splits apply to every
+variant, and the `accessibility` job builds debug + androidTest and drives them
+on an emulator. Only the release step passes the property, so the job that took
+four builds to get green is building exactly what it built on the green run.
+
+### CLD2's OWN CLD2_DYNAMIC_MODE was researched and NOT taken
+It is real and it is supported -- `compact_lang_det_impl.cc` compiles a whole
+second path under that define, `loadDataFromFile` / `loadDataFromRawAddress`
+mmap the tables from a data file, and `cld2_dynamic_data_tool.cc` writes that
+file. One 6.17 MB file would serve both ABIs. It was rejected for three
+measured reasons:
+- **it solves the SAME duplicate the split solves**, so the two do not add up;
+- **it lands on a worse number.** An asset has to be stored UNCOMPRESSED to be
+  mmapped from the APK, so the APK would be about 8.4 MB against the split's
+  6.7 MB. Compressing it instead means extracting 6.17 MB to internal storage
+  on first run, which trades the download for install size and startup time;
+- **it adds a failure mode with no floor**: a missing or unreadable asset leaves
+  the detector with null tables, and the app then detects nothing in any
+  language. For a blind user that is the worst outcome in the project.
+
+It also cannot be built as-is: `cld2_generated_quad0122.cc` does not define
+`kQuadChromeIndSize`/`kQuadChrome2IndSize` -- only the COMPACT `quadchrome`
+files do -- so the tool would need a shim. **Do not re-propose it without a
+reason the split cannot serve.**
+
+### The two levers that remain, both already recorded
+An **AAB** (what a Play listing needs anyway) and **dropping `armeabi-v7a`**.
+The split gets most of what either would, without a decision that takes a phone
+away, which is why it was done and they were not.
+
+## THE AOSP SWEEP CAME BACK EMPTY, AND THAT IS THE RESULT (owner, 2026-09-09)
+*"AOSP se sabhi chijen check kar lena aur bhi aapko IDs milenge jo AOSP se aap
+fix kar sakte hain."* The current `TextToSpeechService.java` was read again in
+full against our overrides. **No new defect.** Recorded so the same ground is
+not walked a fourth time:
+
+- **the override surface has not changed.** The five abstract methods are still
+  `onIsLanguageAvailable`, `onGetLanguage`, `onLoadLanguage`, `onStop`,
+  `onSynthesizeText`, and `onGetFeaturesForLanguage` is still the only
+  non-abstract one, overridden by neither app. Nothing new to implement.
+- **a dying CLIENT cannot park us.** `CallbackMap.onCallbackDied` calls
+  `mSynthHandler.stopForApp(caller)`, which reaches `stopImpl()` ->
+  `synthesisCallback.stop()` **and** `TextToSpeechService.this.onStop()`. So a
+  screen reader crashing while we are parked on `syncLock` releases the wait.
+- **an item flushed before it becomes current never enters `onSynthesizeText`
+  at all.** `enqueueSpeechItem`'s runnable is
+  `if (setCurrentSpeechItem(item)) { play(); remove(); } else { item.stop(); }`,
+  and `setCurrentSpeechItem` re-checks `isFlushed` under `synchronized(this)`
+  precisely to close that race. No wait is entered, so none can be orphaned.
+- **`stopImpl`'s two branches are both safe for us.** With `mSynthesisCallback`
+  null it calls `dispatchOnStop()` and NOT our `onStop` -- but that branch means
+  `playImpl` never passed its `synchronized(this)` block, so `onSynthesizeText`
+  was never called. With it non-null our `onStop` runs.
+- **the params bundle matches.** `AudioOutputParams.createFromParamsBundle`
+  reads `KEY_PARAM_AUDIO_ATTRIBUTES`, else `KEY_PARAM_STREAM`, plus
+  `KEY_PARAM_SESSION_ID`, `KEY_PARAM_VOLUME` and `KEY_PARAM_PAN`. Our forwarded
+  bundle removes exactly what AutoTTS removes and puts `volume` only when
+  non-zero; session id and pan are forwarded by both apps.
+- **the engine-facing overrides that run on binder threads are safe against the
+  UI rebuilding the list.** `onGetVoices`, `onIsValidVoiceName`,
+  `onIsLanguageAvailable` all go through `LangStore.availableLanguagesFor`,
+  which walks by index under `synchronized(languages)` and returns a fresh list,
+  so a rebuild on the main thread cannot throw
+  `ConcurrentModificationException` into a binder call.
+- **`onStop` takes only the `chunkQueue` leaf lock** before `syncLock`, so the
+  release path cannot invert with any order already recorded.
+
+**One thing was looked at hard and deliberately NOT changed.** `chunkCounter` is
+the single field in the companion's settings block without `@Volatile`, and it
+is written on the synthesis thread and incremented on the main looper. It is not
+a defect: the generation guard added the same day returns from the posted
+runnable **before** the increment, so the only remaining writer pair is ordered
+by the binder transaction and by `Handler`'s own synchronized queue. Adding the
+annotation would be the "defensive" justification rule 5 forbids, on a field
+that is AutoTTS's plain static `K`. **Do not add it without a log.**
+
+## A MODE THAT IS NOT A ROW GETS NO BUTTON EITHER (owner, 2026-09-09)
+*"Google mod already hidden hai to uska button hidden kyon nahin hai ... jo uska
+settings wala button hai."* A real defect, and the FAB was the one place the
+hiding had not reached.
+
+`modeRowSpecs` carries all five modes and `ModesScreen` skips `"google"` when it
+draws the rows, so the list shows four. `MainScreen`'s settings FAB tested only
+`readingMode != "none"` -- so with Google as the mode it read **"Google TTS
+settings"** and opened the settings of a mode the list refuses to show. That is
+not a corner case: `LangStore.loadMode` reads `auto_mode` with a default of
+**3**, AutoTTS's own `c3.n.o`, so a fresh install on a device with Google TTS
+starts in Google mode and that is the first thing the button says.
+
+Both places now test **`HIDDEN_MODES`**, one `setOf("none", "google")` beside
+`modeRowSpecs` in `TabViews.kt`, so the button cannot outlive the row it belongs
+to. (`"none"` is not in `modeRowSpecs` at all, so the row loop is unchanged by
+this; the FAB is where the set earns its place.)
+
+**What it costs, stated rather than hidden:** Google mode's own "Select
+preferred language" is unreachable while google is in force. That is the
+owner's standing decision for this mode -- *"vahi Google wala selected rahana
+chahie, bus visible nahin hona chahie"* -- and the same trade they already made
+when they rejected drawing the google radio to keep that setting reachable.
+
+**`ktimports` had a real gap that this found.** It collects module-wide
+capitalised top-level `fun` names but not top-level `val` names, and
+SCREAMING_SNAKE is Kotlin's own convention for a top-level constant -- so
+`HIDDEN_MODES` looked exactly like an unimported type and failed the check.
+`TOP_VAL_RE` is anchored at column 0 on purpose: `CONST_RE` matches every
+`val X` including locals and class properties, and adding those module-wide
+would suppress real findings rather than one false one. Negative-tested three
+ways -- a genuinely unimported name is still reported, an INDENTED capitalised
+val is still reported, and the clean tree passes.
+
 ## THE ROLE/STATE STRINGS IN THE APK ARE androidx's, NOT OURS (asked 2026-09-08)
 The owner opened the APK in a resource viewer and saw `tab`, `switch_role`,
 `state_on`, `state_off`, `selected`, `not_selected`, `m3c_dropdown_menu_collapsed`
