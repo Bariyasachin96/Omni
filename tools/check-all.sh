@@ -35,6 +35,7 @@ step "xml resources"           python3 tools/check/xmlcheck.py
 step "invariants"              bash    tools/check/invariants.sh
 step "c++ syntax"              bash    tools/check/cpp-syntax.sh
 step "minSdk API usage"        bash    tools/check/minsdk-api.sh
+step "workflow shell"          bash    tools/check/workflow-shell.sh
 step "kotlin type-check vs $BASE" bash tools/check/kotlin-typecheck.sh "$BASE"
 
 echo

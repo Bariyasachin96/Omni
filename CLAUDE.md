@@ -2669,6 +2669,88 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+## WHY IT KEPT GOING RED, ANSWERED WITH THE WHOLE HISTORY (owner, 2026-09-10)
+*"Kyon baar-baar fail ho raha hai ... properly dekh lo yaar, sab kuchh fix kar hi
+do."* Counted rather than guessed, over every run since 849:
+
+    849 850 851 852 853 854 856 857 866 868 869
+    accessibility=failure   build=success      <- ELEVEN times out of eleven
+
+**THE `build` JOB HAS NEVER FAILED. Not once.** Every red run in this project's
+recent history is the `accessibility` job, and **the APK was published every
+single time**. That is the first thing to say to the owner when a run goes red,
+and it is why the classifier below exists.
+
+**And not one of those eleven was a real accessibility regression:**
+
+| runs | what it actually was | fixed by |
+|---|---|---|
+| 795-797 | the emulator could not create its userdata partition (a `FATAL` line a thousand adb errors below the noise) | a disk-cleanup step |
+| 849-857 | a genuine dependency conflict between the app and androidTest graphs | build 858 |
+| 866 | a transient repository failure -- the SAME run's build job resolved the identical classpath | `gradle-retry.sh` |
+| 868-869 | `set -o pipefail` in a fragment the emulator action runs with **dash** | `gradle-retry.sh` as a FILE |
+
+### Why THAT job and not the other one, structurally
+It carries five independent failure sources the build job does not have:
+
+| | build | accessibility |
+|---|---|---|
+| dependency graph | app only | app + androidTest + ATF + guava -- the one that conflicted |
+| network | deps | deps + emulator system image + platform |
+| disk | modest | a **7.2 GB** emulator partition |
+| shell | bash (`run:`) | **dash, one line at a time** (a third-party action's `script:`) |
+| moving parts | none | KVM, emulator boot, adb, ATF |
+
+Each of those five has bitten at least once. **The job is not flaky because the
+app is fragile; it is flaky because it has five more things that can go wrong.**
+
+### What was hardened, beyond the two fixes already recorded
+**The accessibility job's NDK step used to PASS when the NDK was not there.** It
+looped three times and then simply ended -- **no check that the directory
+existed, and no non-zero exit if all three attempts failed** -- so a failed or
+corrupt download left the step GREEN and the real failure surfaced three minutes
+later, inside the emulator, as an opaque CMake or Gradle error with nothing
+pointing back. The build job has always verified and errored; this is now that,
+byte for byte, cache-clearing between attempts included.
+
+**`tools/ci/why-failed.sh` runs on `if: failure()` in BOTH jobs** and says which
+KIND of failure it was in one line at the top: a repository flake, the emulator,
+a compile error, a real accessibility check, or "gradle never ran, look before
+it". Tested against the exact shapes of all four historical failures. This is the
+`FATAL`-line lesson made automatic: twice a red X cost a wrong diagnosis because
+infrastructure and a real defect look identical from outside.
+
+### THE NEW CHECKER, AND THE TRAP INSIDE IT
+`tools/check/workflow-shell.sh` extracts every shell fragment from `build.yml`
+and parses it **with the shell that will actually run it** -- `run:` under bash,
+an action's `script:` under **dash**.
+
+**A syntax check alone is USELESS here, and it was written that way first.**
+`dash -n` parses all of these happily:
+
+    set -o pipefail          <- the exact line that broke 868 and 869
+    if [[ 1 == 1 ]]; then
+    f() { local n=0; }
+
+They are syntactically fine and fail at **runtime**. So the first version of
+this checker reported **ok** for precisely the bug it was written to prevent.
+It carries a **bashism blacklist** for `sh` fragments as well, and the negative
+test puts `set -o pipefail` back into the emulator script and requires exit 1.
+(`local` is deliberately NOT on the list: dash implements it, and Ubuntu's
+`/bin/sh` IS dash.)
+
+**Wired into `check-all.sh`**, so a bashism in a `script:` costs milliseconds
+instead of two thirteen-minute runs.
+
+### Considered and NOT done, stated so it is not re-litigated
+**`cache-disabled: true` stays**, for now. It is the biggest remaining exposure
+-- every run re-downloads the whole buildscript classpath, which is exactly what
+flaked in 866 -- and enabling `gradle/actions`' cache would remove the CAUSE
+rather than retrying the symptom, and make the job faster. It is not done in the
+same breath as the retry because that would stack two untestable CI changes,
+which is the mistake this file records three times. **One green run on the retry
+first; then it is one line.**
+
 ## THE UI IS ALREADY 100% COMPOSE, AND IT IS ENFORCED NOW (owner, 2026-09-10)
 *"Full Jetpack Compose user interface chahie, koi XML Android view ya fir kuchh
 bhi nahin ... sari library aur sabhi chijon ke saath."* Measured before

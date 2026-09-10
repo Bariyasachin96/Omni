@@ -190,6 +190,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # ONE LINE SAYING WHICH KIND OF FAILURE THIS WAS, before anyone reads a
+      # thousand log lines. Every failure this pipeline has had since run 795 was
+      # infrastructure rather than a real defect, and all of them looked the same
+      # from outside: one red X. Twice that cost a wrong diagnosis.
+      - name: Say WHY this went red
+        if: failure()
+        run: bash tools/ci/why-failed.sh
+
       # Backup copy, so the APK is reachable even if the release step ever fails.
       - name: Upload APK (backup)
         uses: actions/upload-artifact@v7
@@ -290,13 +298,37 @@ jobs:
           SDKMANAGER="$(command -v sdkmanager || true)"
           [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           echo "using sdkmanager: $SDKMANAGER"
-          n=0
-          until [ $n -ge 3 ]; do
+          # THIS STEP USED TO PASS WHEN THE NDK WAS NOT THERE (fixed 2026-09-10).
+          # It looped three times and then simply ended -- no check that the NDK
+          # had actually landed, and no non-zero exit if all three attempts
+          # failed. So a failed or CORRUPT download left this step GREEN and the
+          # real failure surfaced three minutes later, inside the emulator, as an
+          # opaque CMake or Gradle error with nothing pointing back here.
+          #
+          # The build job has always verified the directory and errored. This is
+          # that, byte for byte, including clearing the sdkmanager caches between
+          # attempts -- the build job's comment records that a corrupt download
+          # is the usual reason a retry is needed at all.
+          install_pkgs() {
             echo "y" | "$SDKMANAGER" \
               "ndk;30.0.16248370" "cmake;4.1.2" "build-tools;37.0.0" \
-              --sdk_root=$ANDROID_HOME && break
-            n=$((n+1)); echo "sdkmanager attempt $n failed, retrying"; sleep $((n * 10))
+              --sdk_root=$ANDROID_HOME
+          }
+          n=0
+          until [ $n -ge 3 ]; do
+            if install_pkgs && [ -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
+              echo "NDK + CMake installed successfully."; break
+            fi
+            n=$((n+1))
+            echo "::warning::NDK/CMake install attempt $n failed; clearing caches and retrying"
+            rm -rf "$ANDROID_HOME/ndk/30.0.16248370" 2>/dev/null || true
+            rm -rf "$HOME/.android/cache" "$HOME/.cache/Google/AndroidStudio"*/ 2>/dev/null || true
+            sleep $((n * 10))
           done
+          if [ ! -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
+            echo "::error::NDK install failed after $n retries. Failing HERE rather than letting the emulator step fail three minutes later with an unrelated message."
+            exit 1
+          fi
 
       # The debug APK links the same native core as the release one, so the
       # the CLD2 sources have to be here too.
@@ -362,6 +394,14 @@ jobs:
       # Uploaded on failure too -- the HTML report names the exact node and the
       # exact check, which is the only way to fix a failure you cannot reproduce
       # locally without an emulator.
+      # The same classifier as the build job. This is the job that has produced
+      # EVERY red run since 795, and not one of them was a real accessibility
+      # regression -- so "is this the app or the pipeline?" is the first question
+      # every single time, and it now has an answer at the top of the log.
+      - name: Say WHY this went red
+        if: failure()
+        run: bash tools/ci/why-failed.sh
+
       - name: Upload the accessibility report
         if: always()
         uses: actions/upload-artifact@v7
