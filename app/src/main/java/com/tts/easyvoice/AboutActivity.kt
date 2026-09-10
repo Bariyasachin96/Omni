@@ -1,10 +1,7 @@
 package com.tts.easyvoice
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -18,7 +15,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.PackageInfoCompat
-import androidx.core.net.toUri
 
 // About -- an Easy Voice screen with no AutoTTS counterpart, asked for on
 // 2026-09-03: "hamara alag hi proper, hamara standalone hai". It is the one
@@ -42,16 +38,17 @@ import androidx.core.net.toUri
 //     NOTICE           DOES NOT EXIST (HTTP 404), so Apache 2.0 section 4(d) asks
 //                      us to reproduce nothing extra -- the copyright line and a
 //                      pointer to the License is the whole obligation
-const val APACHE_LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0"
-const val CLD2_URL = "https://github.com/CLD2Owners/cld2"
-
-private fun openLink(context: android.content.Context, url: String) {
-    try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    } catch (_: android.content.ActivityNotFoundException) { }
-}
-
+// THE TWO LINK BUTTONS ARE GONE (owner, 2026-09-10: "jo donon buttons hai
+// about page mein vah button nahin rakhne hain"). They opened the Apache
+// licence and the CLD2 repository in a browser. Nothing is lost from the
+// NOTICE either way: Apache 2.0 section 4(a) asks for a copy of the licence and
+// 4(d) for the NOTICE file if one exists -- CLD2 has none (HTTP 404) -- and the
+// two paragraphs below reproduce the notice verbatim while the licence's own
+// URL is written into the text of the first one. A link is a convenience, not
+// an obligation, and this screen still states every term.
+//
+// APACHE_LICENSE_URL, CLD2_URL and openLink() went with them; nothing else
+// referenced any of the three.
 class AboutActivity : EvActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,6 +62,8 @@ class AboutActivity : EvActivity() {
 // change from build to build.
 @Composable
 fun AboutScreen() {
+    // Still needed after the two link buttons went: the version block below
+    // reads packageManager and packageName through it.
     val context = LocalContext.current
     val versionInfo = remember {
         try {
@@ -146,7 +145,27 @@ fun AboutScreen() {
             // irrevocable" licence to "sublicense, and distribute", and section 4
             // sets only four conditions, all of which this screen already meets.
             SettingDescription("Easy Voice itself is proprietary software. The third-party components below are open source, and each one is used under the Apache License, Version 2.0.")
-            SettingDescription("Compact Language Detector 2 (CLD2), written by Dick Sites at Google, is what reads the language of your text. It recognises 83 languages from UTF-8, and Easy Voice compiles it from the sources at github.com/CLD2Owners/cld2. Copyright 2013, 2014 Google Inc. All Rights Reserved.")
+            // THE COUNT WAS STALE AND IS NOW OURS RATHER THAN THE README'S
+            // (owner, 2026-09-10: "humne CLD2 full kar diya hai to usko sahi
+            // karna hai"). This line used to say 83, quoting CLD2's README --
+            // and that sentence describes the DEFAULT build, whose quadgram
+            // table is 256k. Since 2026-09-08 Easy Voice compiles
+            // compile_full.sh's table set instead, and the proof of which
+            // evaluation that matches is a number rather than a claim:
+            // kQuad0122Size is 262,144 buckets of four entries = 1,048,576, and
+            // CLD2's own docs/evaluate_cld2_large_20140122.txt is headed
+            // "Evaluate CLD2 20140122 1024k" while the small one says 256k. That
+            // large file scores 170 distinct language codes against the small
+            // one's 78, so "over 170" is read off CLD2's own evaluation of the
+            // exact table this app links.
+            //
+            // It is deliberately "over 170" and not an exact figure: the file
+            // counts languages the QUADGRAM scorer was evaluated on, while the
+            // script-defined ones -- Gujarati, Tamil, Telugu, Kannada and the
+            // rest -- are decided by their Unicode script and are detected
+            // whichever table is built, so an exact number here would be
+            // answering a different question from the one a reader is asking.
+            SettingDescription("Compact Language Detector 2 (CLD2), written by Dick Sites at Google, is what reads the language of your text. Easy Voice compiles it from the sources at github.com/CLD2Owners/cld2 with CLD2's full detection tables, which cover over 170 languages. Copyright 2013, 2014 Google Inc. All Rights Reserved.")
             // This used to be one run-on sentence stranded BELOW the buttons,
             // which left the page ending on a footnote instead of on its
             // actions. It is a licence entry like the one above it, so it reads
@@ -157,18 +176,6 @@ fun AboutScreen() {
             // the appendix of the repository's LICENSE. Do not paraphrase them.
             SettingDescription("Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0")
             SettingDescription("Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.")
-            // Side by side, not stacked -- the shape the Import/Export and
-            // Share logs/Clear logs rows already use. NO ICONS here, which is
-            // the app's own recorded rule for a row of buttons: at a compact
-            // width (<600dp) half the row leaves about 112dp for the label, and
-            // 24dp of icon plus 8dp of padding on top of that overflows it.
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                EvButton("Apache License 2.0", Modifier.weight(1f)) { openLink(context, APACHE_LICENSE_URL) }
-                EvButton("CLD2 on GitHub", Modifier.weight(1f)) { openLink(context, CLD2_URL) }
-            }
         }
     }
 }

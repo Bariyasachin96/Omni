@@ -39,11 +39,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // Material's own exposed dropdown menu, with an OutlinedButton as the anchor.
@@ -289,107 +287,48 @@ fun LabeledDropdown(
     }
 }
 
-// The three sliders are percentages -- 100 is the engine's own speed, volume or
-// pitch -- so one unit IS one percent. The two ways of moving one are therefore
-// deliberately different sizes: the buttons are the fine adjustment and a
-// screen-reader swipe is the coarse one.
+// THE SLIDER IS AUTOTTS'S OWN MECHANISM, AND AOSP'S (owner, 2026-09-10:
+// "han bilkul kar dijiye AutoTTS slider"). Read out of c3/k.java and confirmed
+// against AbsSeekBar; every line below traces to one of them.
+//
+//   the range      AutoTTS calls setMax(500)/setMax(100)/setMax(200) and NEVER
+//                  calls setMin, so each bar runs 0..max. Ours does too, and
+//                  that zero is load-bearing -- see the increment below.
+//   the floor      10 is NOT part of the range. P1() enforces it inside
+//                  onProgressChanged by calling setProgress(10) on the bar, so
+//                  a drag to 3 snaps back to 10. Our clamp in onValueChange is
+//                  that same snap-back: the value we keep never goes under 10
+//                  and the thumb re-renders where the value really is.
+//   - and +        I1/J1 pitch, K1/L1 speed, M1/N1 volume all move by FIVE,
+//                  floor 10, cap getMax(), then Toast "<n> of <max>".
+//   one swipe      AOSP decides this, not us. AbsSeekBar's
+//                  performAccessibilityActionInternal answers SCROLL_FORWARD
+//                  and SCROLL_BACKWARD with
+//                      int range = getMax() - getMin();
+//                      int increment = Math.max(1, Math.round((float) range / 20));
+//                  (AbsSeekBar.java:1125-1126), and setMax() seeds
+//                  mKeyProgressIncrement the same way so a D-pad matches. With
+//                  a range of 0..500 that is a whole 25; 5 on Volume, 10 on
+//                  Pitch.
+//   the write      straight into the live LangStore entry, no persist here --
+//                  AutoTTS's onStartTrackingTouch and onStopTrackingTouch are
+//                  both empty and the value reaches disk with n.y() later.
+//
+// THIS REPLACED TWO NUMBERS OF OUR OWN, AND THE REASON THEY EXISTED IS WORTH
+// KEEPING. The buttons used to move 1 and a swipe used to move 5, both asked
+// for on 2026-09-02 after the owner heard a swipe "aage piche ho jata hai" --
+// up then down did not return. That was real, and its CAUSE was the range: ours
+// started at the floor, 10..500, so Compose's own increment was (max-min)/20 =
+// 24.5, and an Int cannot keep the half. Starting at 0 makes every increment a
+// whole number, so the defect cannot arise and the hand-written setProgress
+// override that used to work around it is GONE -- Material3's own
+// sliderSemantics answers the action now, and its code carries the comment
+// "This is to keep it consistent with AbsSeekbar.java: return false if no
+// change from current." That is the library doing what the owner asked for.
+//
+// Do not reintroduce a step size of ours here without the owner saying so.
 private const val SLIDER_MIN = 10          // AutoTTS's own floor (c3.k.P1())
-private const val SLIDER_BUTTON_STEP = 1   // one press of - or +   (see table)
-private const val SLIDER_SWIPE_STEP = 5    // one screen-reader swipe (see table)
-
-// AUTOTTS'S OWN SLIDER MECHANISM, READ OUT OF c3/k.java AND CONFIRMED AGAINST
-// AOSP (owner asked for exactly this, 2026-09-10). Written down so the next
-// session does not have to derive it again.
-//
-//   the bar          three SeekBars, setMax(500) / setMax(100) / setMax(200)
-//                    and setMin is NEVER called, so each range starts at 0
-//   the floor of 10  NOT part of the range -- P1() enforces it in the listener
-//                    by calling setProgress(10) on the bar itself
-//   the write        onProgressChanged -> P1() writes STRAIGHT into the live
-//                    entry, c3.n.c.get(b1).c / .d / .e. It ignores `fromUser`,
-//                    so a programmatic setProgress writes too
-//   persistence      NONE here. onStartTrackingTouch and onStopTrackingTouch
-//                    are both EMPTY; the value reaches disk with n.y() later
-//   the announcement setStateDescription("<n> of <max>") on API >= 30 only,
-//                    and it reads the value back with D2()/E2()/C2(), i.e. the
-//                    CLAMPED value P1 just stored, never the raw progress
-//   - and +          I1/J1 pitch, K1/L1 speed, M1/N1 volume: read D2/E2/C2,
-//                    add or subtract FIVE, floor 10, cap getMax(), store,
-//                    setProgress, then Toast "<n> of <max>"
-//   Default (c3())   speed, volume and pitch all to 100
-//
-// EVERY ONE OF THOSE IS WHAT THIS FILE DOES -- the maxima, the floor of 10, the
-// write straight to the LangStore entry with no persist, the Toast, the
-// "<n> of <max>" state description, and Default's three 100s -- with TWO
-// deliberate exceptions, both asked for by the owner on 2026-09-02:
-//
-//                      AutoTTS / AOSP          ours        why
-//   - and + press      5                       1           "increase decrease
-//                                                          button se to ek-ek
-//                                                          percent hi aage
-//                                                          badhna chahie"
-//   one swipe          range/20 = 25 / 5 / 10  5 on all    "5% 5% nahin badh
-//                                                          raha hai, aage
-//                                                          piche ho jata hai"
-//
-// The swipe figure is AOSP's, not a guess: AbsSeekBar.performAccessibility-
-// ActionInternal answers ACTION_SCROLL_FORWARD/BACKWARD with
-//     int range = getMax() - getMin();
-//     int increment = Math.max(1, Math.round((float) range / 20));
-// (AbsSeekBar.java:1125-1126), and setMax() seeds mKeyProgressIncrement the same
-// way, so a hardware D-pad moves by the same amount. With AutoTTS's range of
-// 0..500 that is a whole 25.
-//
-// AND THAT ZERO IS WHY AUTOTTS NEVER HAD THE BUG THE OWNER REPORTED. Our range
-// starts at the floor, 10..500, so Compose's own increment is (max-min)/20 =
-// 24.5 -- a fraction, and truncating it is exactly what made one swipe up and
-// one swipe down fail to return to the same number. The setProgress override
-// below is what answers that action ourselves and turns it into a clean 5.
-// Restoring AutoTTS's 0..max range would remove the fraction at the source,
-// but it would also make one swipe move 25 on Speed, which is the thing the
-// owner asked to get away from. Do not change either number without them
-// saying so.
-
-// A swipe used to move by a fraction of a percent and never came back to where
-// it started. Compose's accessibility delegate is what turns the swipe into a
-// value, and it does that WITHOUT asking the component:
-//
-//   var increment = if (rangeInfo.steps > 0) (max - min) / (rangeInfo.steps + 1)
-//                   else (max - min) / AccessibilitySliderStepsCount   // = 20
-//   ...
-//   return setProgressAction.action?.invoke(rangeInfo.current + increment)
-//       -- AndroidComposeViewAccessibilityDelegateCompat, ACTION_SCROLL_FORWARD
-//
-// So a continuous slider moves by a twentieth of its range: 24.5 for Speed
-// (10..500), 4.5 for Volume (10..100), 9.5 for Pitch (10..200). Not one of
-// those is a whole number, and the value we keep is an Int, so every swipe threw
-// the half away and the two directions stopped agreeing:
-//
-//   100 -> swipe up -> 124 -> swipe down -> 99
-//
-// and the step the user heard alternated between four and five percent as the
-// discarded halves accumulated. Setting `steps` on the Slider would make the
-// platform's increment exact, but it also snaps the STATE to the nearest tick,
-// which would quietly round away the single percent the buttons just added, and
-// it draws a tick mark per step -- 98 of them on Speed.
-//
-// The fix is to answer the action ourselves. A semantics block passed in through
-// `modifier` overrides the component's own: LayoutNode.calculateSemantics-
-// Configuration walks `nodes.tailToHead(Nodes.Semantics)` writing every node
-// into ONE shared config, so the modifier nearest the head -- the first one in
-// the chain, which is ours -- is written last and wins. (The older collapsePeer
-// path reaches the same answer from the other end: it keeps the value that is
-// already there, and ours is collapsed first.) Slider's own progressBarRangeInfo
-// is left alone, because the delegate needs it to offer the actions at all.
-//
-// Nothing below depends on the platform's increment being any particular size.
-// It is compared only to tell a swipe apart from an assistant asking for a
-// specific value -- Voice Access's "set slider to 50" -- which is still honoured
-// exactly rather than turned into a single step.
-private fun sliderStepUp(value: Int) = (value / SLIDER_SWIPE_STEP + 1) * SLIDER_SWIPE_STEP
-
-private fun sliderStepDown(value: Int) =
-    ((value + SLIDER_SWIPE_STEP - 1) / SLIDER_SWIPE_STEP - 1) * SLIDER_SWIPE_STEP
+private const val SLIDER_BUTTON_STEP = 5   // AutoTTS's I1/J1/K1/L1/M1/N1
 
 @Composable
 fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit) {
@@ -427,30 +366,18 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
         ) { Text("-") }
         Slider(
             value = value.toFloat(),
-            // roundToInt, not toInt: a drag lands on fractions and truncating
-            // one is what made the two swipe directions disagree.
+            // roundToInt, not toInt, and then the same clamp P1() applies: the
+            // bar runs from 0 like AutoTTS's, and 10 is enforced here instead.
             onValueChange = { picked -> onValue(clamp(picked.roundToInt())) },
-            valueRange = SLIDER_MIN.toFloat()..maxValue.toFloat(),
+            // 0, not SLIDER_MIN -- AutoTTS never calls setMin, and starting at
+            // zero is what makes AOSP's range/20 increment a whole 25 / 5 / 10.
+            valueRange = 0f..maxValue.toFloat(),
             modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics {
                 contentDescription = label
+                // Ours REPLACES the library's percentage, which would be wrong
+                // here: 100 on Speed is the engine's own rate, not 20 per cent.
+                // AutoTTS says the same thing, from D2()/E2()/C2().
                 stateDescription = value.toString() + " of " + maxValue
-                setProgress { target ->
-                    val platformIncrement = (maxValue - SLIDER_MIN) / 20f
-                    val delta = target - value.toFloat()
-                    val next = clamp(
-                        if (abs(abs(delta) - platformIncrement) < 0.01f) {
-                            if (delta > 0f) sliderStepUp(value) else sliderStepDown(value)
-                        } else {
-                            target.roundToInt()
-                        }
-                    )
-                    if (next == value) {
-                        false
-                    } else {
-                        onValue(next)
-                        true
-                    }
-                }
             }
         )
         OutlinedButton(

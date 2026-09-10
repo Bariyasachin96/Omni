@@ -263,8 +263,10 @@ class AccessibilityChecksTest {
         check { AdvancedScreen(prefs(), 0, { }, { }) }
     }
 
-    // The About screen, added 2026-09-03. It is mostly text, so the checks that
-    // matter here are contrast and the license button's name and touch target.
+    // The About screen, added 2026-09-03. Its two link buttons were removed on
+    // 2026-09-10 at the owner's request, so it is now entirely text and the
+    // check that matters here is contrast -- of the heading bars, the title and
+    // every paragraph, in both colour schemes.
     @Test
     fun aboutScreen() {
         check { AboutScreen() }

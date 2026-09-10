@@ -104,7 +104,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // ==========================================================================
     //  FOREGROUND NOTIFICATION AND AUDIO FOCUS
     // ==========================================================================
+    // NotificationChannel is API 26 and minSdk is 24, so this is the SECOND
+    // NoClassDefFoundError the API-24 compile found. It is less severe than the
+    // audio-focus one only because "Show persistent notification" is off by
+    // default -- with it on, an Android 7 phone crashed here instead.
+    //
+    // Below 26 there is no channel to create and none is needed:
+    // NotificationCompat.Builder takes the channel id on every level and simply
+    // ignores it under 26, and startForeground has never required one there.
+    // AutoTTS makes the same unguarded call and does not need the guard; its
+    // own minSdk is at least 26. See requestAudioFocus for the same split.
     private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < 26) return
+        createNotificationChannel26()
+    }
+    private fun createNotificationChannel26() {
         val channel = NotificationChannel(FOREGROUND_CHANNEL_ID, "TTS Engine", NotificationManager.IMPORTANCE_LOW)
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -143,25 +157,74 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "")
         }
     }
+    // THE ONE LISTENER BOTH PATHS USE. Below API 26 the focus is abandoned by
+    // handing this same object back, so it has to outlive the request.
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            -2 -> EasyVoiceLogger.debug("TTS", "Audio focus lost temporarily")
+            -1 -> EasyVoiceLogger.debug("TTS", "Audio focus lost")
+            1 -> EasyVoiceLogger.debug("TTS", "Audio focus gained")
+        }
+    }
+
+    // AudioFocusRequest IS API 26, AND minSdk IS 24 -- THIS CRASHED EVERY
+    // ANDROID 7 PHONE (found 2026-09-10 by compiling the whole app against API
+    // 24's own android.jar, which is the only thing that can see this).
+    //
+    // requestAudioFocus() is called BARE from onCreate, with no try/catch, and
+    // AudioFocusRequest.Builder resolves its class the moment that line runs.
+    // On API 24 or 25 that is a NoClassDefFoundError -- an Error, NOT an
+    // Exception, so even a catch would not have held it -- thrown out of the
+    // service's onCreate. The TTS service died on startup and the phone had no
+    // voice at all. Nothing in the app could recover from it.
+    //
+    // AutoTTS does NOT have this defect: it makes the same unguarded call, but
+    // the lowest SDK_INT guard anywhere in its code is 28, so its own minSdk is
+    // at least 26 and API 24 is not a device it claims. Ours is 24 -- the same
+    // "our refactor's bug, not AutoTTS's" split as releaseWaitWithoutSpeaking
+    // and the double scan -- so the guard is ours to add and is not a rule 5
+    // divergence: on 26 and up this is byte for byte l0() as before.
+    //
+    // The pre-26 branch is AOSP's own equivalent rather than a guess.
+    // AudioAttributes.toVolumeStreamType maps USAGE_ASSISTANCE_ACCESSIBILITY to
+    // STREAM_ACCESSIBILITY -- and that constant is ITSELF API 26, so below it
+    // there is no accessibility stream in the audio policy at all. The right
+    // stream for speech there is STREAM_MUSIC, which is what the TTS framework
+    // itself falls back to: Engine.DEFAULT_STREAM is STREAM_MUSIC, and
+    // AudioOutputParams.createFromParamsBundle builds exactly that pairing when
+    // no attributes are supplied.
     private fun requestAudioFocus() {
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        val result = if (Build.VERSION.SDK_INT >= 26) requestAudioFocus26()
+        else {
+            @Suppress("DEPRECATION")
+            audioManager!!.requestAudioFocus(audioFocusListener,
+                AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        }
+        EasyVoiceLogger.debug("TTS", "Audio focus request: " + (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED))
+    }
+    // Its own method on purpose, which is the shape Android's own guidance and
+    // PackageInfoCompat's Api28Impl both use: the verifier only ever has to
+    // resolve AudioFocusRequest when this method is entered, and on API 24 it
+    // never is.
+    private fun requestAudioFocus26(): Int {
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
         val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(attrs)
-            .setOnAudioFocusChangeListener { focusChange ->
-                when (focusChange) {
-                    -2 -> EasyVoiceLogger.debug("TTS", "Audio focus lost temporarily")
-                    -1 -> EasyVoiceLogger.debug("TTS", "Audio focus lost")
-                    1 -> EasyVoiceLogger.debug("TTS", "Audio focus gained")
-                }
-            }
+            .setOnAudioFocusChangeListener(audioFocusListener)
             .build()
         audioFocusRequest = focusRequest
-        val result = audioManager!!.requestAudioFocus(focusRequest)
-        EasyVoiceLogger.debug("TTS", "Audio focus request: " + (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED))
+        return audioManager!!.requestAudioFocus(focusRequest)
+    }
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= 26) abandonAudioFocus26()
+        else { @Suppress("DEPRECATION") audioManager!!.abandonAudioFocus(audioFocusListener) }
+    }
+    private fun abandonAudioFocus26() {
+        audioManager!!.abandonAudioFocusRequest(audioFocusRequest!!)
     }
 
     // ==========================================================================
@@ -2044,7 +2107,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try {
             @Suppress("DEPRECATION")
             stopForeground(1)
-            audioManager!!.abandonAudioFocusRequest(audioFocusRequest!!)
+            abandonAudioFocus()
         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
         for (index in 0 until enginePool.size) { if (enginePool[index].state == 2) enginePool[index].shutdown() }
         try { unbindAllEngineKeepAlive() } catch (_: Exception) {}

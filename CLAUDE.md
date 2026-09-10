@@ -2257,6 +2257,156 @@ would suppress real findings rather than one false one. Negative-tested three
 ways -- a genuinely unimported name is still reported, an INDENTED capitalised
 val is still reported, and the clean tree passes.
 
+## TWO CRASHES ON ANDROID 7, FOUND BY COMPILING AGAINST minSdk's OWN JAR (2026-09-10)
+Owner: *"sirf TTS ki baat nahin kar raha hun, baki aur area ki baat kar raha hun
+... har jagah check kar lijiye ... A to Z."* The sweep found two defects of the
+same shape, and **both were total: the app had no voice at all on those
+devices.**
+
+**THE CHECK THAT FOUND THEM, because nothing else in this project could.**
+`kotlin-typecheck.sh` compiles against **API 37**, the compileSdk, where every
+call below resolves perfectly. Android Lint's `NewApi` is the usual answer and
+needs Gradle and the SDK, which this container does not have. So the app was
+compiled against **API 24's own `android.jar`** -- the minSdk -- and every
+unresolved `android.*` symbol read straight out as "this does not exist on the
+oldest phone we claim to support".
+
+| symbol | API | what it was |
+|---|---|---|
+| **`AudioFocusRequest`** | **26** | **called BARE from `onCreate`, no guard, no try** |
+| **`NotificationChannel`** | **26** | unguarded, behind the notification switch |
+| `POST_NOTIFICATIONS` x3 | 33 | already guarded |
+| `PackageInfoFlags` x2 | 33 | already guarded |
+| `longVersionCode` | 28 | already guarded |
+| `FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK` | 29 | used at `SDK_INT >= 34` |
+
+**Why a `try/catch` would not have saved either one.** A missing class is a
+`NoClassDefFoundError` -- an **Error**, not an Exception -- so
+`catch (ex: Exception)` does not hold it. And `requestAudioFocus()` has no catch
+at all: it is the fifth line of the service's `onCreate`, so on Android 7.0 and
+7.1 **the TTS service died the moment it started**, every time, with nothing in
+the app able to recover.
+
+**AutoTTS does NOT have either defect, and the reason is the same both times.**
+It makes the identical unguarded calls -- `new NotificationChannel(...)` at
+`AutoTtsService:340` and the `AudioFocusRequest` builder in `l0()` -- but **the
+lowest `Build.VERSION.SDK_INT` guard anywhere in its code is 28** (the full set
+is 28, 30, 33, 34), so its own minSdk is at least 26 and API 24 is not a device
+it claims. Ours is 24. That is the same "our refactor's bug, not AutoTTS's"
+split as `releaseWaitWithoutSpeaking` and the double scan, so the guards are
+ours to add and are **not** a rule 5 divergence -- on 26 and up both paths are
+byte for byte what they were.
+
+**The pre-26 audio-focus branch is AOSP's own equivalent, not a guess.**
+`AudioAttributes.toVolumeStreamType` maps `USAGE_ASSISTANCE_ACCESSIBILITY` to
+`STREAM_ACCESSIBILITY` -- and **that constant is itself API 26**, so below it
+there is no accessibility stream in the audio policy at all. The right stream
+for speech there is `STREAM_MUSIC`, which is what the TTS framework itself falls
+back to: `Engine.DEFAULT_STREAM` is `STREAM_MUSIC`, and
+`AudioOutputParams.createFromParamsBundle` builds exactly that pairing when no
+attributes are supplied. `androidx.media`'s `AudioManagerCompat` does the same
+branch and was **not** adopted -- it is not on the classpath, so it would be a
+new dependency and APK bytes for ten lines.
+
+**Each API-26 call now sits in its OWN method** (`requestAudioFocus26`,
+`abandonAudioFocus26`, `createNotificationChannel26`). That is the shape
+Android's own guidance and `PackageInfoCompat`'s `Api28Impl` both use: the
+verifier only has to resolve the new class when that method is entered, and on
+API 24 it never is.
+
+### THE CHECK IS PERMANENT NOW: `tools/check/minsdk-api.sh`
+In `check-all.sh`, between the C++ syntax check and the type-check. It reads
+`minSdk` out of `app/build.gradle.kts`, fetches that platform's `android.jar`
+(the package name comes from Google's own `repository2-3.xml` -- `platform-24_r02.zip`
+is not derivable from the API level), compiles the app against it, and compares
+every unresolved symbol to **`tools/check/minsdk-allowlist.txt`**.
+
+**Why an allowlist rather than a pass/fail.** Every hit is a call above minSdk,
+which is correct behind an `SDK_INT` guard and fatal without one -- and no
+compiler can tell those apart. So each is reviewed once by a person and written
+down with the guard that makes it safe. A hit that is **not** on the list fails
+the run, which is exactly the moment to add a guard. A stale entry only warns,
+because deleting code should never fail a run.
+
+**Negative-tested, and the first attempt was a dud worth recording.** A
+deliberate `areNotificationsEnabled()` was added expecting a failure and the
+check stayed green -- **because that method is API 24**, so it resolved. The
+real test is `android.os.VibrationEffect.createOneShot` (API 26), which the
+check reports as `CheckVoiceData.kt:VibrationEffect` and exits 1; the clean tree
+passes. **A checker you have not seen fail is not a checker.**
+
+**One self-inflicted trap in that script, fixed before it shipped.** It first
+unzipped the platform straight into `tools/.cache`, where the extracted file is
+called `android.jar` -- landing on top of the **API 37** one
+`kotlin-typecheck.sh` uses. The next `check-all` answered "no android.jar". It
+extracts to a scratch dir and moves to `android-<min>.jar` now.
+
+### Swept in the same pass and CLEAN, so do NOT re-check
+- **`FileProvider` resolves both shared files.** Export writes
+  `cacheDir/shared/easy_voice_settings.xml` and the log is
+  `filesDir/logs/easy_voice.log`; `provider_paths.xml` declares
+  `<cache-path name="shared" path="shared/">` and
+  `<files-path name="logs" path="logs/">`. A mismatch here is an
+  `IllegalArgumentException` on the Export and Share logs buttons.
+- **`CheckVoiceData` and `GetSampleText` match AutoTTS and AOSP.** AutoTTS calls
+  `setResult(1, ...)` and `setResult(0, ...)`; ours uses
+  `CHECK_VOICE_DATA_PASS` and `LANG_AVAILABLE`, whose values **are** 1 and 0.
+  The extras are `"availableVoices"`, `"sampleText"` and the incoming
+  `"language"` -- the same literals `TextToSpeech.Engine` defines.
+- **there is no `PendingIntent` anywhere**, so the API-31 `FLAG_IMMUTABLE`
+  requirement cannot bite.
+- **the battery button uses the SAFE intent.**
+  `Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS` opens the system list
+  and needs no permission. It is deliberately **not**
+  `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, which needs
+  `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` and is a restricted Play-policy
+  permission -- on the paid listing the owner is preparing, that matters.
+- **every `!!` in the app is safe.** There are three: two in `EngineFinder` sit
+  inside `if (probe[0] != null)`, and the third is `ex.message!!` in `onCreate`,
+  which is **AutoTTS's own** -- its `onCreate` does
+  `Objects.requireNonNull(exception2.getMessage())`, which is what `!!`
+  compiles to. It is also unreachable: `startForegroundIfPossible` catches
+  `Exception` internally, so the outer catch has nothing to receive. Parity plus
+  unreachable, so it stays.
+- **`onBindingDied` / `onNullBinding` are API 26 and 28 and need no guard.**
+  They are `ServiceConnection` OVERRIDES; a class carrying a method the base
+  class does not declare is simply a method nobody calls. Only a CALL to a
+  missing API can throw.
+
+## THE TWO ABOUT BUTTONS ARE GONE, AND THE CLD2 LINE WAS STALE (owner, 2026-09-10)
+*"jo donon buttons hai About page mein vah button nahin rakhne hain"*, and
+*"About page mein kuchh chijen purani hai ... humne CLD2 full kar diya hai to
+usko sahi karna hai."* Both done.
+
+**The buttons.** "Apache License 2.0" and "CLD2 on GitHub" opened a browser.
+`APACHE_LICENSE_URL`, `CLD2_URL` and `openLink()` went with them; nothing else
+referenced any of the three. **No obligation is lost**: Apache 2.0 section 4(a)
+asks that recipients get a copy of the licence and 4(d) that a `NOTICE` file be
+reproduced **if one exists** -- CLD2 has none (HTTP 404) -- and the screen still
+carries the notice **verbatim** with the licence's own URL written into its
+text. A link is a convenience, not a term.
+
+**The count was answering for the wrong build.** The line said *"It recognises
+83 languages"*, quoting CLD2's README -- and that sentence describes the
+**default** build, whose quadgram table is 256k. Since 2026-09-08 this app
+compiles `compile_full.sh`'s set instead. The proof of which evaluation matches
+is a number rather than a claim: **`kQuad0122Size` is 262,144 buckets of four
+entries = 1,048,576**, and CLD2's own `docs/evaluate_cld2_large_20140122.txt` is
+headed *"Evaluate CLD2 20140122 **1024k**"* while the small one says **256k**.
+Counted from those two files, the large scores **170 distinct language codes**
+against the small one's **78**.
+
+It now reads **"with CLD2's full detection tables, which cover over 170
+languages"**. Deliberately "over 170" and not an exact figure: that file counts
+languages the QUADGRAM scorer was evaluated on, while the script-defined ones --
+Gujarati, Tamil, Telugu, Kannada and the rest -- are decided by their Unicode
+script and are detected whichever table is built, so an exact number would be
+answering a different question from the one a reader is asking.
+
+**`AccessibilityChecksTest.aboutScreen` needed no change** -- it renders the
+screen and asserts nothing about the buttons -- but its comment named them, so
+that was corrected rather than left to mislead.
+
 ## THE SLIDER MECHANISM, END TO END, AND WHAT THE TWO DIFFERENCES ARE (owner, 2026-09-10)
 *"AutoTTS ke slider ka mechanism check kar lijiye ... uski internal prakriya hai
 internal process ... aur hamara bhi aisa hi kar dijiye, AOSP se bhi confirm kar
@@ -2276,10 +2426,20 @@ starts at 0; the floor of 10 is NOT in the range but enforced inside
 move by **5**, floor 10, cap `getMax()`, store, `setProgress`, then Toast
 `"<n> of <max>"`; and `c3()` (Default) sets all three to 100.
 
-**Ours matches every one of those** -- maxima, floor, the write straight to the
-`LangStore` entry with no persist, the Toast, the `"<n> of <max>"` state
-description, Default's three 100s -- **except two numbers, and both are the
-owner's own instruction from 2026-09-02:**
+**THE TWO DIFFERENCES BELOW WERE CLOSED ON 2026-09-10** -- *"han bilkul kar
+dijiye AutoTTS slider"*. The buttons move **5** now and the range starts at
+**0**, so AOSP's own `range/20` is a whole **25 / 5 / 10** and our hand-written
+`setProgress` override is **gone**: Material3's `sliderSemantics` answers the
+action, and its code carries the comment *"This is to keep it consistent with
+AbsSeekbar.java: return false if no change from current."* The floor of 10 moved
+out of `valueRange` and into the clamp in `onValueChange`, which is exactly
+where `P1()` puts it. **The table below is the record of what was there before
+and why**; the mechanism description above it is current.
+
+Ours matched every other part of it already -- maxima, floor, the write straight
+to the `LangStore` entry with no persist, the Toast, the `"<n> of <max>"` state
+description, Default's three 100s -- and differed only in **two numbers, both
+the owner's own instruction from 2026-09-02 and both now reversed by them:**
 
 | | AutoTTS / AOSP | ours | the owner's words |
 |---|---|---|---|
@@ -2302,10 +2462,10 @@ the one genuinely new thing this audit produced. Our range starts at the floor,
 `10..500`, so Compose's own increment is `(max-min)/20 = 24.5` -- a fraction,
 and throwing away the half is exactly what made a swipe up and a swipe back down
 fail to return to the same number. AutoTTS's range starts at 0, so its increment
-is a whole number and the defect cannot arise. Our `setProgress` override
-answers the action ourselves and turns it into a clean 5, which fixes it a
-different way. **Neither number is to be changed without the owner saying so** --
-matching AutoTTS would undo the complaint that produced them.
+is a whole number and the defect cannot arise. **That is the fix that shipped**:
+starting at 0 removes the fraction at its source, which is why the override
+could be deleted rather than kept. Do not put a step size of ours back here
+without the owner asking.
 
 ### The service and component surface is COMPLETE -- verified mechanically
 *"baki services bhi ... TTS ki aur TTS ke alava bhi."* The two manifests were

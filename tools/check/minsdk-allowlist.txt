@@ -1,0 +1,19 @@
+# Every android.* symbol the app uses that does not exist at minSdk, with the
+# guard that makes it safe. Reviewed by hand -- a compiler cannot tell a guarded
+# call from an unguarded one, so this file is the record that someone looked.
+# Format: <File.kt>:<Symbol>
+#
+# Reviewed 2026-09-10, when this check was written and found two real crashes.
+
+AboutActivity.kt:PackageInfoFlags                    # API 33, if (SDK_INT >= 33)
+EasyVoiceTtsService.kt:PackageInfoFlags              # API 33, ownPackageInfo()'s branch
+EasyVoiceTtsService.kt:longVersionCode               # API 28, versionCode()'s branch
+EasyVoiceTtsService.kt:POST_NOTIFICATIONS            # API 33, hasNotificationPermission()
+MainActivity.kt:POST_NOTIFICATIONS                   # API 33, guarded at both sites
+EasyVoiceTtsService.kt:FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK  # API 29, used at SDK_INT >= 34
+EasyVoiceTtsService.kt:NotificationChannel           # API 26, createNotificationChannel26()
+EasyVoiceTtsService.kt:createNotificationChannel     # API 26, same method
+EasyVoiceTtsService.kt:AudioFocusRequest             # API 26, requestAudioFocus26() -- and the
+                                                     # field's TYPE, which is resolved lazily and
+                                                     # never touched on the pre-26 path
+EasyVoiceTtsService.kt:abandonAudioFocusRequest      # API 26, abandonAudioFocus26()
