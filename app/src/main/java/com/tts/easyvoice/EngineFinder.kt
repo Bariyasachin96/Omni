@@ -76,6 +76,10 @@ object EngineFinder {
         return list
     }
     data class ScanVoice(val pkg: String, val engineName: String, val locale: Locale, val variants: ArrayList<String>)
+    // Compiled ONCE rather than per call -- see LangStore.COMBINING_MARKS for
+    // the measurement. Both files strip combining marks the same way and both
+    // did it inside a comparator.
+    private val COMBINING_MARKS = "\\p{M}".toRegex()
     @Volatile @JvmStatic var lastScanVoices: List<ScanVoice> = emptyList()
     @Volatile @JvmStatic var lastScanEngines: List<String> = emptyList()
     @JvmStatic val voiceWeights: HashMap<String, Int> = HashMap()
@@ -145,7 +149,10 @@ object EngineFinder {
             }
             val surviving = remaining.map { it.pkg }
             val collator = java.text.Collator.getInstance()
-            fun sortKey(code: String) = java.text.Normalizer.normalize(displayNames[code] ?: code, java.text.Normalizer.Form.NFD).replace("\\p{M}".toRegex(), "")
+            // COMBINING_MARKS is compiled once at class init -- see the note on it.
+            // This lambda runs inside the Collator comparator, so it was compiling a
+            // Pattern per comparison over every scanned language.
+            fun sortKey(code: String) = java.text.Normalizer.normalize(displayNames[code] ?: code, java.text.Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
             val sorted = langs.sortedWith { leftCode, rightCode -> collator.compare(sortKey(leftCode), sortKey(rightCode)) }
             val orderedLangs: Set<String> = LinkedHashSet(sorted)
             lastScanVoices = voiceEntries.filter { !removedPkgs.contains(it.pkg) }

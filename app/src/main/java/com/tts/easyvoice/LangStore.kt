@@ -157,8 +157,15 @@ object LangStore {
         if (EasyVoiceTtsService.emojiModeInt == 3) out.add(EasyVoiceTtsService.emojiSpecificLang)
         return out
     }
+    // Compiled ONCE. `"\\p{M}".toRegex()` inside sortKey compiled a fresh Pattern
+    // on every call, and sortKey is called from inside a Collator comparator over
+    // ~137 languages -- about 2,000 compilations per rebuild, on the path the app
+    // takes when it opens. Java's String.replaceAll compiles per call too, so
+    // AutoTTS's `c3.n.g` pays the same cost; the output is identical either way,
+    // which is what makes hoisting it a speed change and not a behaviour one.
+    private val COMBINING_MARKS = "\\p{M}".toRegex()
     private fun sortKey(text: String): String =
-        java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD).replace("\\p{M}".toRegex(), "")
+        java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
     @JvmStatic
     @Synchronized
     fun rebuildFromScan(ctx: Context, onlyEnabled: Boolean, modeInt: Int, required: List<String>,

@@ -12,7 +12,6 @@ object EasyVoiceLogger {
     private const val MAX_LOG_BYTES = 2L * 1024L * 1024L
     private val timestampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     private var logFile: File? = null
-    private var appContext: Context? = null
     @Volatile private var loggingEnabled = false
     // ---- THE WRITER IS HELD OPEN -------------------------------------------
     // AutoTTS's c3.p.h opens the file, writes one line and closes it again, for
@@ -52,8 +51,15 @@ object EasyVoiceLogger {
         if (!enabled) closeWriter()
     }
     fun isLoggingEnabled(): Boolean = loggingEnabled
-    fun init(ctx: Context) {
-        appContext = ctx.applicationContext
+    // @Synchronized, and it is the same monitor writeLine takes. `logFile` is a
+    // plain field written here on the MAIN thread and read by writeLine on the
+    // synthesis and binder threads, so without a common lock there is no
+    // happens-before edge and a reader could see null for ever -- the log file
+    // silently never written, on exactly the device whose owner is trying to
+    // report a bug. It costs one uncontended lock, once per process.
+    //
+    // `appContext` was assigned beside logFile and read by nothing; gone.
+    @Synchronized fun init(ctx: Context) {
         val dir = File(ctx.applicationContext.filesDir, "logs")
         if (!dir.exists()) dir.mkdirs()
         logFile = File(dir, "easy_voice.log")

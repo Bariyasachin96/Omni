@@ -223,7 +223,7 @@ dependencies {
     // graph asks for. It is also the newer version, which is the direction this
     // project takes anyway.
     implementation("androidx.concurrent:concurrent-futures:1.2.0")
-    implementation(platform("androidx.compose:compose-bom:2026.08.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
@@ -247,14 +247,23 @@ dependencies {
     // It needs API 34 and is a no-op under Robolectric, which is why the
     // workflow runs it on an emulator rather than as a unit test.
     //
-    // ui-test-junit4-accessibility is pinned rather than left to the BOM: the
-    // BOM's published mapping table lists ui-test, ui-test-junit4 and
-    // ui-test-manifest but not this one, and every artifact in the
-    // androidx.compose.ui group shares one version line, which this BOM puts at
-    // 1.12.0. If a future BOM starts managing it, drop the version.
-    androidTestImplementation(platform("androidx.compose:compose-bom:2026.08.00"))
+    // ui-test-junit4-accessibility USED TO CARRY ITS OWN VERSION and no longer
+    // needs to. The note here said "if a future BOM starts managing it, drop the
+    // version", and BOM 2026.09.00 does -- read out of the BOM's own pom, which
+    // lists ui-test-junit4-accessibility at 1.12.1 beside ui and ui-android.
+    // So the whole androidx.compose.ui line is managed from one place again,
+    // which is the point of a BOM and the thing a hand-pinned artifact quietly
+    // breaks the first time the BOM moves.
+    //
+    // THE BOM ITSELF WENT 2026.08.00 -> 2026.09.00, and it is a patch move
+    // rather than a feature one: compose.ui and compose.foundation go 1.12.0 ->
+    // 1.12.1 and material3 STAYS at 1.4.0. That last part is what makes it safe
+    // here -- every component this app argues with in CLAUDE.md
+    // (ExposedDropdownMenuBox and its OptIn, PrimaryTabRow, FilterChip, Slider's
+    // sliderSemantics) is material3, and material3 does not move.
+    androidTestImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4-accessibility:1.12.0")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4-accessibility")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     // Supplies the empty activity createAndroidComposeRule<ComponentActivity>()

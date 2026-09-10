@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:appCategory="accessibility"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
         android:extractNativeLibs="true"

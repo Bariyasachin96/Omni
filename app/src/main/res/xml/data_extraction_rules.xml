@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    android:allowBackup="false" stops CLOUD backup, and from Android 12 (API 31)
+    that is no longer the whole story: device-to-device transfer copies the app's
+    files anyway unless this file says otherwise. Without the file the behaviour
+    is whatever the platform happens to default to, which is not the same thing
+    as a decision.
+
+    WHAT IS EXCLUDED, AND WHY ONLY THIS. filesDir/logs holds easy_voice.log and
+    its three rotations, the diagnostic file the owner shares when reporting a
+    bug, up to 2 MB each. It describes the phone it was written on, so carrying
+    it to a new phone would move stale evidence and nothing else. Excluded from
+    both paths.
+
+    EVERYTHING ELSE IS DELIBERATELY LEFT ALONE. The language list, the per
+    language voice, speed, pitch and volume, the mode and the Advanced flags are
+    exactly what a blind user would otherwise have to set up again by hand on a
+    new phone, and the app reconciles them against a fresh engine scan on every
+    open, so a configuration that arrives naming an engine this phone does not
+    have is repaired rather than left broken. cacheDir is never backed up by the
+    platform, so the exported settings copy under cache/shared needs no rule.
+
+    (Note for anyone editing this file: an XML comment may not contain two
+    consecutive hyphens, which is what tools/check/xmlcheck.py caught here.)
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="logs" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="logs" />
+    </device-transfer>
+</data-extraction-rules>

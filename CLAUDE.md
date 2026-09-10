@@ -2520,6 +2520,176 @@ arbitrary package named by an imported settings file. It is left exactly as it i
 -- removing it could break that check on some devices -- but on the paid listing
 being prepared it is worth knowing about before submission.
 
+## THE WHOLE APP, NOT JUST THE TTS PATH (owner, 2026-09-10)
+*"Sare API aur sab kuchh puri application ki, TTS ke alava bhi aur bhi services
+hai ... kuchh chij missing ho sakti hai ... jo bhi dependency library jo bhi
+jarurat hai vah completely research karke sab kuchh implement karo ... bilkul
+stable banaa do."* Everything below was found by sweeping the parts of the app
+that are NOT the synthesis path.
+
+**A STATIC HELD THE WHOLE SERVICE ALIVE FOR THE LIFE OF THE PROCESS.** The
+companion carried `lateinit var appCtx: Context`, assigned `appCtx = this` on the
+first line of `onCreate` -- a **static** reference to the Service object, so it
+survived `onDestroy` and every restart, and the Service holds the engine pool,
+the chunk queue and every `TextToSpeech` client through it.
+
+**It had NO reader.** Swept the whole app: the only other `appCtx` is
+`SharedPrefsManager`'s own private instance field. So this is the vestige of
+AutoTTS's `this.h = this` -- and the difference is the entire defect. AutoTTS's
+`h` is an **instance** field, so it dies with the instance, and it exists because
+`c3.l0.b(this.h)` reads it: the licence gate, which is this project's standing
+carve-out and was never ported. Ours was moved into the companion during the
+port, which turned a field that dies into one that cannot. Our refactor's bug,
+nothing reads it, deleted.
+
+**`EasyVoiceLogger` had two smaller versions of the same thing.**
+`private var appContext: Context?` was assigned in `init` and read nowhere --
+gone. And **`init` was not synchronized** while `writeLine` is: `logFile` is a
+plain field written on the MAIN thread and read from the synthesis and binder
+threads, so there was no happens-before edge between them. The failure it allows
+is the quiet kind -- a reader seeing `null` for ever and the log file silently
+never written, on precisely the device whose owner is trying to report a bug.
+`@Synchronized` on `init` is the same monitor `writeLine` already takes, so it
+costs one uncontended lock once per process.
+
+**The `\p{M}` regex was compiled about two thousand times per app open.**
+`sortKey` is called from inside a `Collator` comparator over every scanned
+language (~137 of them, so ~970 comparisons x 2 calls), and both copies of it --
+`LangStore.sortKey` and `EngineFinder.finalizeScan`'s local one -- wrote
+`"\p{M}".toRegex()` **inside** the function, so each call compiled a fresh
+`Pattern`. Hoisted to one `COMBINING_MARKS` per file. This is a speed change and
+not a behaviour one, and AutoTTS pays the same cost for the same reason
+(`String.replaceAll` compiles per call in `c3.n.g`), so the output is identical
+either way.
+
+### The manifest was missing two things, and one of them is a real Android 12 gap
+- **`android:dataExtractionRules`** (API 31). `allowBackup="false"` is AutoTTS's
+  and stays -- it stops CLOUD backup -- but from Android 12 it is **not** the
+  whole story: device-to-device transfer copies the app's files anyway unless a
+  rules file says otherwise, and without the file the behaviour is whatever the
+  platform defaults to rather than a decision. `res/xml/data_extraction_rules.xml`
+  excludes **`filesDir/logs`** from both paths, and only that: the log and its
+  three rotations are up to 2 MB each, describe the phone they were written on,
+  and moving them to a new phone carries stale evidence and nothing else.
+  **Everything else is deliberately left transferable** -- the language list, the
+  per-language voice, speed, pitch and volume, the mode and the Advanced flags
+  are exactly what a blind user would otherwise set up again by hand, and the app
+  reconciles them against a fresh engine scan on every open, so a configuration
+  naming an engine the new phone lacks is repaired rather than broken. (`cacheDir`
+  is never backed up by the platform, so the exported settings copy under
+  `cache/shared` needs no rule.)
+- **`android:appCategory="accessibility"`**. Verified at the source rather than
+  recalled: `CATEGORY_ACCESSIBILITY` is in API 37's own `ApplicationInfo`
+  (`javap` over the platform jar), and the manifest documentation lists
+  `accessibility` as *"apps that are primarily accessibility apps, such as
+  screen-readers"*, which is what this is. An older platform that does not know
+  the value parses it to `CATEGORY_UNDEFINED`, so it cannot break anything below.
+
+**An XML comment may not contain two consecutive hyphens, and `xmlcheck.py`
+caught it** -- the first draft of the rules file used `--` as punctuation and
+failed the check at the exact line and column. Worth knowing before writing the
+next commented resource; the file now says so itself.
+
+### The dependency audit: everything current but one, and the BOM absorbed a pin
+Every declared coordinate was re-resolved against its own `maven-metadata.xml`.
+Current: `core-ktx` 1.19.0, `core-splashscreen` 1.2.0, `lifecycle-runtime-ktx`
+2.11.0, `activity-compose` 1.13.0, `material3.adaptive` 1.3.0, `test.ext:junit`
+1.3.0, `test:runner` 1.7.0, Kotlin 2.4.20, coroutines 1.11.0.
+
+**`compose-bom` 2026.08.00 -> 2026.09.00**, and it is a patch move rather than a
+feature one: `compose.ui` and `compose.foundation` go 1.12.0 -> 1.12.1 and
+**material3 stays at 1.4.0**. That last part is what makes it safe here -- every
+component this file argues with (`ExposedDropdownMenuBox` and its required
+`@OptIn`, `PrimaryTabRow`, `FilterChip`, `Slider`'s `sliderSemantics`) is
+material3, and material3 does not move.
+
+**`ui-test-junit4-accessibility` lost its hand-written version**, exactly as the
+note beside it said to do "if a future BOM starts managing it". Read out of the
+BOM's own pom: 2026.09.00 lists it at **1.12.1** beside `ui` and `ui-android`, so
+the whole `androidx.compose.ui` line is managed from one place again. A
+hand-pinned artifact in a group the BOM manages is a version skew waiting for the
+next BOM bump.
+
+**`concurrent-futures` 1.2.0 is NOT bumped to 1.3.0, and that is deliberate.** It
+is declared for one reason only -- to make the app's graph agree with the
+androidTest graph, which asks for 1.2.0 through `androidx.test:core:1.7.0` -- and
+that alignment is what took four red builds to find. Nothing in the app imports
+it. Moving it would re-open the exact `strictly` conflict it exists to close, for
+no gain. Leave it until the test graph moves.
+
+### Researched, NOT adopted, and NOT missing
+- **No library is missing.** The one candidate with a real case is a **baseline
+  profile**: `androidx.profileinstaller` is already on the classpath
+  transitively, but without a generated profile it does nothing, and generating
+  one needs a Macrobenchmark module and a real device -- neither of which exists
+  here. It would help cold start, which the owner cares about. **Owner's call;
+  say the word and it is a new module plus a device run.**
+- **Direct Boot.** A TTS engine that could speak at the lock screen before the
+  first unlock would need `android:directBootAware="true"` AND its settings moved
+  to device-protected storage, because `SharedPreferences` is unreadable in that
+  window. That is a storage change, which rule 5 governs, and AutoTTS does not do
+  it. Flagged, not done.
+- **`android:localeConfig`** is for per-app language choice and the app ships one
+  language, so declaring it would be declaring nothing.
+  **`usesCleartextTraffic`** is already false by default at this targetSdk and the
+  app makes no network call at all. **`allowAudioPlaybackCapture`** governs other
+  apps capturing OUR audio, and we never produce any.
+
+### Two things for the OWNER, both stated rather than changed
+- **`WAKE_LOCK` is declared and never used.** Swept: there is no `WakeLock`
+  anywhere in the app. AutoTTS declares it too, so removing it is "remove
+  something AutoTTS has", which rule 5 names -- but on the paid listing being
+  prepared, a permission with no use is a permission a reviewer and a user can
+  both see. One word and it goes.
+- **Six GitHub Actions are on deprecated majors**, and this one has a deadline
+  rather than a preference behind it. `softprops/action-gh-release`'s own README
+  says v2 *"is no longer maintained or supported. It uses the Node 20 runtime
+  deprecated by GitHub Actions"* -- and that is the step that publishes the APK.
+
+      actions/checkout                v4  ->  v7
+      actions/setup-java              v4  ->  v6
+      actions/upload-artifact         v4  ->  v7
+      gradle/actions/setup-gradle     v3  ->  v6   (gradle-version input survives)
+      android-actions/setup-android   v3  ->  v4
+      softprops/action-gh-release     v2  ->  v3   (inputs identical, token defaults)
+      reactivecircus/android-emulator-runner  v2   ALREADY CURRENT (2.38.0)
+
+  Checked at each action's own README rather than guessed: `gradle-version` and
+  `cache-disabled` survive to v6; `tag_name`/`name`/`body`/`files`/`make_latest`/
+  `fail_on_unmatched_files` are unchanged in v3 and `token` defaults to
+  `github.token`. **The one that cannot be verified from a README is
+  `setup-android` v4** -- our NDK step calls
+  `$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager` by absolute path, and v4's
+  README documents `cmdline-tools/16.0/bin` on the PATH instead, so the `latest`
+  symlink may not be there. If that bump is made, make the call resolve
+  `sdkmanager` from PATH first and fall back to the absolute path, so it works
+  under both.
+
+  **These are deliberately NOT in the same commit as the code changes**, per the
+  lesson this file already records: when a fix cannot be tested locally and the
+  only test costs thirteen minutes, do not stack it with anything else.
+
+### Swept in the same pass and CLEAN, so do NOT re-sweep
+- **the engine-facing binder overrides cannot throw.** `onGetLanguage`,
+  `onIsLanguageAvailable`, `onGetDefaultVoiceNameFor`, `onGetVoices`,
+  `onIsValidVoiceName`, `onLoadVoice` and `onLoadLanguage` were each read to the
+  end: every `isO3Language` / `isO3Country` read is inside a `try`, every locale
+  parse goes through `parseVoiceNameAsLocale` which answers null rather than
+  throwing, and `onLoadLanguage`'s voice load is wrapped. An exception on a binder
+  thread is a process death, so this is the surface that matters most.
+- **the override surface is complete**: fourteen overrides, the five abstract
+  members plus `onStartCommand` (START_STICKY) and `onTaskRemoved`, matching the
+  AOSP read already recorded.
+- **`SimpleDateFormat` is shared and that is safe** -- it is touched only inside
+  `writeLine`, which is `@Synchronized`.
+- **`lateinit`**: three in the app, and after `appCtx` went, both remaining ones
+  are assigned before any possible read (`prefs` in `onCreate`, `startEngine` at
+  the top of the scan).
+- **every permission the app declares is used** except `WAKE_LOCK` above, and
+  nothing it does needs a permission it lacks.
+- **`FileProvider`, `tts_engine.xml` and the four engine intents** were verified
+  in the previous pass and are unchanged.
+
 ## THE TWO ABOUT BUTTONS ARE GONE, AND THE CLD2 LINE WAS STALE (owner, 2026-09-10)
 *"jo donon buttons hai About page mein vah button nahin rakhne hain"*, and
 *"About page mein kuchh chijen purani hai ... humne CLD2 full kar diya hai to

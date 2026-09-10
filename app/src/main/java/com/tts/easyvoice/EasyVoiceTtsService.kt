@@ -84,7 +84,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
         speakingPkg = null
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
     }
-    lateinit var appCtx: Context
+    // `appCtx` USED TO SIT HERE AND IT LEAKED THE WHOLE SERVICE (2026-09-10).
+    // It was `lateinit var appCtx: Context`, assigned `appCtx = this` on the
+    // first line of onCreate, and read by NOTHING -- swept for readers across
+    // the whole app and there are none (SharedPrefsManager's `appCtx` is a
+    // different, private, instance field).
+    //
+    // It is the vestige of AutoTTS's `this.h = this`, and the difference is the
+    // whole defect: AutoTTS's `h` is an INSTANCE field, so it dies with the
+    // service, and it exists because `c3.l0.b(this.h)` -- the licence gate,
+    // which is this project's standing carve-out -- reads it. Ours was moved
+    // into the COMPANION during the port, which makes it a static holding a
+    // strong reference to the Service object for the life of the process,
+    // surviving onDestroy and every restart of the service. Our refactor's bug,
+    // not AutoTTS's, and with no reader there is nothing to keep.
     @Volatile var googleEngineIndex = -1
     var requestVolume = 1.0f
     var requestRate = 1.0f
@@ -234,7 +247,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  loadAllSettings has filled them.
     // ==========================================================================
     override fun onCreate() {
-        appCtx = this
         EasyVoiceLogger.init(this)
         prefs = SharedPrefsManager(this)
         EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())
