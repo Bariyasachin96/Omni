@@ -59,10 +59,23 @@ object EasyVoiceLogger {
     // report a bug. It costs one uncontended lock, once per process.
     //
     // `appContext` was assigned beside logFile and read by nothing; gone.
+    //
+    // GUARDED 2026-09-11. This is the FIRST line of the TTS service's onCreate,
+    // before super.onCreate(), so a throw out of it leaves the service dead and
+    // the phone with no voice at all -- and it does real filesystem work:
+    // getFilesDir() can fail on a device whose storage is not ready (direct boot,
+    // an encrypted profile, a full or read-only data partition) and mkdirs() can
+    // throw SecurityException. Logging is a diagnostic; it must never be the
+    // reason the app cannot speak.
     @Synchronized fun init(ctx: Context) {
-        val dir = File(ctx.applicationContext.filesDir, "logs")
-        if (!dir.exists()) dir.mkdirs()
-        logFile = File(dir, "easy_voice.log")
+        try {
+            val dir = File(ctx.applicationContext.filesDir, "logs")
+            if (!dir.exists()) dir.mkdirs()
+            logFile = File(dir, "easy_voice.log")
+        } catch (ex: Throwable) {
+            logFile = null
+            Log.e("TtsLogger", "Failed to open the log directory", ex)
+        }
     }
     @Synchronized private fun writeLine(level: String, tag: String, msg: String) {
         when (level) { "E" -> Log.e(tag, msg); "W" -> Log.w(tag, msg) }
@@ -73,8 +86,18 @@ object EasyVoiceLogger {
         // file.length() when the writer opens -- so the file cannot grow past
         // the cap without this noticing.
         if (writer != null && writtenBytes >= MAX_LOG_BYTES) closeWriter()
-        rotate(file)
-        val line = String.format("%s [%s] %s: %s", timestampFormat.format(Date()), level, tag, msg)
+        val line = try {
+            // rotate() moved INSIDE the guard on 2026-09-11: it calls exists(),
+            // length(), delete() and renameTo(), every one of which can throw
+            // SecurityException, and it sat outside the try. Same for the
+            // formatting.
+            rotate(file)
+            String.format("%s [%s] %s: %s", timestampFormat.format(Date()), level, tag, msg)
+        } catch (ex: Throwable) {
+            Log.e("TtsLogger", "Failed to prepare a log line", ex)
+            closeWriter()
+            return
+        }
         try {
             var out = writer
             if (out == null) {
@@ -89,9 +112,15 @@ object EasyVoiceLogger {
             // were costing the time.
             out.flush()
             writtenBytes += line.length + 1
-        } catch (ex: IOException) {
+        } catch (ex: Throwable) {
+            // Throwable, not IOException (2026-09-11). writeLine is reached from
+            // every thread in the app, including from inside the catch blocks that
+            // exist to stop a failure ending an utterance -- so a throw escaping
+            // the logger would defeat the very guard that called it. A diagnostic
+            // that can break the thing it is diagnosing is worse than no
+            // diagnostic. Logcat still gets the reason.
             Log.e("TtsLogger", "Failed to write log", ex)
-            closeWriter()
+            try { closeWriter() } catch (_: Throwable) {}
         }
     }
     private fun rotate(file: File) {

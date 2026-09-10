@@ -112,7 +112,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
     var requestPitch = 1.0f
     @Volatile var requestParams: android.os.Bundle? = null
     var initializingIndex = 0
-    private val isoToIso3 = HashMap<String, String>()
+    // TRUE only once setIsoMap has actually reached the native side. It used to
+    // be the emptiness of a scratch HashMap, and that was wrong twice -- see
+    // initIsoMaps.
+    @Volatile private var isoMapPushed = false
     var initDone = false
     // AutoTtsService.w: set once the language list has actually been read.
     @Volatile private var languagesLoaded = false
@@ -1006,7 +1009,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         val langOnly = Locale(lang)
                         loadVoice(findEngineForLocale(langOnly), langOnly, variantOut, dedicatedEnginesFlag)
                     }
-                } catch (_: Exception) {}
+                } catch (ex: Throwable) {
+                    // Silent until 2026-09-11, and this is the one place a "wrong
+                    // voice" or "no voice" bug can start: a throw here means the
+                    // voice was never loaded, engineIndex may already have been
+                    // written, and the utterance goes on to speak with whatever the
+                    // engine happened to be set to. Catching is right -- this runs
+                    // on binder threads, where an escape is returned to the CALLER,
+                    // i.e. it would surface as a crash inside the screen reader --
+                    // but swallowing it without a line meant the log the owner
+                    // shares said nothing about it. Throwable for the same reason
+                    // as everywhere else on this path.
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, "loadVoice failed for " + lang + ": " + ex.toString())
+                }
             }
             result
         }
@@ -1204,13 +1219,42 @@ class EasyVoiceTtsService : TextToSpeechService() {
         } catch (_: Throwable) {  }
         return "UNKNOWN"
     }
+    // THE "ALREADY DONE" FLAG USED TO BE SET BEFORE THE WORK, AND THE MAP IT
+    // TESTED WAS A PLAIN HashMap WRITTEN FROM TWO THREADS (2026-09-11).
+    //
+    //     if (isoToIso3.isNotEmpty()) return                 <- the flag
+    //     for (...) isoToIso3[iso2] = iso3                   <- sets the flag
+    //     try { setIsoMap(...) } catch (_: Throwable) {}     <- the actual work
+    //
+    // Two defects, and the first one is permanent. If setIsoMap threw -- an
+    // OutOfMemoryError out of the JNI reads guarded on 2026-09-10, or an
+    // UnsatisfiedLinkError -- the Kotlin map was already full, so the guard was
+    // satisfied and THE NATIVE SIDE KEPT AN EMPTY ISO MAP FOR THE LIFE OF THE
+    // PROCESS. Every toIso3() in the core then answers the code unchanged, so no
+    // detected language resolves to anything the engine list knows and the app
+    // reads everything in the fallback language, or nothing at all, until it is
+    // force-stopped. One transient failure, permanent damage.
+    //
+    // Second: initIsoMaps is called from onCreate on the main thread AND from
+    // every onSynthesizeText on the synthesis thread, and java.util.HashMap is
+    // not safe for concurrent writes -- two threads resizing one together is the
+    // classic livelock, which on this path is a spinning synthesis thread and a
+    // silent phone.
+    //
+    // Both go away by making the flag mean what it says and dropping the map,
+    // which had no other reader: it existed only to build the two arrays and to
+    // be its own "done" marker. The retry is free -- onSynthesizeText calls this
+    // once per utterance, so a transient failure is repaired by the next thing
+    // the user reads instead of lasting until a restart.
     private fun initIsoMaps() {
-        if (isoToIso3.isNotEmpty()) return
-        for ((iso2, iso3) in IsoCodes.iso2Pairs()) isoToIso3[iso2] = iso3
+        if (isoMapPushed) return
         try {
-            val entries = isoToIso3.entries.toList()
-            setIsoMap(entries.map { it.key }.toTypedArray(), entries.map { it.value }.toTypedArray())
-        } catch (_: Throwable) {}
+            val pairs = IsoCodes.iso2Pairs().toList()
+            setIsoMap(pairs.map { it.first }.toTypedArray(), pairs.map { it.second }.toTypedArray())
+            isoMapPushed = true
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "setIsoMap failed, will retry: " + ex.toString())
+        }
     }
     private fun hasEngineForLang(lang: String): Boolean {
         val engine = LangStore.engineFor(lang, modeInt)
