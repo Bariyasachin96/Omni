@@ -2779,13 +2779,41 @@ matched against a pattern of resolution and network signatures
 attempt**, so a genuine break still fails fast and says which line rather than
 costing three times the wall clock and three copies of the same error.
 
-**Tested locally against a stubbed `gradle` in all three shapes** before it was
-committed, because this file's own lesson is that an untested CI change costs
-runs:
+**Tested locally against a stubbed `gradle` in all three shapes:**
 
     transient, then success   retries twice, exits 0
     real compile error        exits 1 IMMEDIATELY, no retry warning
     transient for ever        exits 1 after three attempts
+
+### AND IT BROKE BUILD 868 ANYWAY, BECAUSE THE LOGIC WAS TESTED AND THE SHELL WAS NOT
+The first version wrote the function **inline in `build.yml`**. The `build` job
+was fine. The `accessibility` job failed instantly:
+
+    /usr/bin/sh -c set -o pipefail
+    /usr/bin/sh: 1: set: Illegal option -o pipefail
+
+**`reactivecircus/android-emulator-runner` runs its `script:` input with
+`/usr/bin/sh` -- dash, not bash -- ONE LINE AT A TIME.** `set -o pipefail` is not
+POSIX and dash rejects it, and a multi-line shell FUNCTION cannot survive being
+executed line by line either. The step's previous two lines happened to work
+because each was self-contained.
+
+**The fix is `tools/ci/gradle-retry.sh`**, a file with its own `#!/usr/bin/env
+bash` shebang. Whatever shell the caller uses, the script runs under bash, and
+each caller's line stays self-contained:
+
+    build:          bash tools/ci/gradle-retry.sh assembleRelease -PevAbiSplit
+    accessibility:  bash tools/ci/gradle-retry.sh connectedDebugAndroidTest
+
+It is also now testable directly (`EV_GRADLE=<stub> tools/ci/gradle-retry.sh ...`),
+which inline YAML never was, and the re-test added a **fourth** case: invoking it
+**from dash**, which is the thing that actually failed.
+
+**THE LESSON, and it is a sharper version of one this file already carries:** the
+local test proved the ALGORITHM. It did not prove the ENVIRONMENT. When a CI
+change runs inside a third-party action, check which shell that action gives it
+before believing a local run. `run:` on a GitHub runner is `bash`; an action's
+`script:` input is whatever that action chose.
 
 ## SIX GITHUB ACTIONS WERE ON A DEPRECATED RUNTIME (2026-09-10)
 This is a **deadline**, not a preference. `softprops/action-gh-release`'s own
