@@ -1566,8 +1566,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (showNotificationFlag && !isForegroundActive()) {
             startForegroundIfPossible()
         } else if (!showNotificationFlag && isForegroundActive()) {
-            @Suppress("DEPRECATION")
-            stopForeground(1)
+            // ServiceCompat, not the deprecated int overload (2026-09-11). The
+            // owner's standing instruction is that anything androidx already does
+            // comes from androidx; ServiceCompat.stopForeground is that API, and
+            // STOP_FOREGROUND_REMOVE is the same value 1 this passed by hand, so
+            // the behaviour is identical on every level. ServiceCompat is already
+            // imported for startForeground.
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         }
         synchronized(syncLock) { isStopped = false; syncLock.notifyAll() }
         synchronized(syncLock) { isFlushed = false; syncLock.notifyAll() }
@@ -2398,13 +2403,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // ==========================================================================
     override fun onDestroy() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onDestroy")
-        try {
-            @Suppress("DEPRECATION")
-            stopForeground(1)
-            abandonAudioFocus()
-        } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
-        for (index in 0 until enginePool.size) { if (enginePool[index].state == 2) enginePool[index].shutdown() }
-        try { unbindAllEngineKeepAlive() } catch (_: Exception) {}
+        // Each step on its own, for the same reason onCreate's five are: they are
+        // independent, and a failure in one must not skip the others. Shutting the
+        // engine clients down and releasing the bindings is what stops this
+        // process leaking a connection into every TTS engine on the phone, and
+        // until 2026-09-11 a throw from stopForeground or abandonAudioFocus --
+        // abandonAudioFocus dereferences audioManager!! and audioFocusRequest!!,
+        // both null if requestAudioFocus failed at startup -- skipped the pool
+        // walk that follows.
+        try { ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "stopForeground: " + ex.toString()) }
+        try { abandonAudioFocus() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "abandonAudioFocus: " + ex.toString()) }
+        try { for (index in 0 until enginePool.size) { if (enginePool[index].state == 2) enginePool[index].shutdown() } } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "engine shutdown: " + ex.toString()) }
+        try { unbindAllEngineKeepAlive() } catch (_: Throwable) {}
         super.onDestroy()
     }
 

@@ -7,7 +7,17 @@ import java.util.Locale
 class GetSampleText : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val langExtra = intent?.getStringExtra("language")
+        // getStringExtra UNPARCELS THE WHOLE BUNDLE, and this activity is exported
+        // (2026-09-11). Any app on the phone can send an extra carrying a class
+        // this process cannot load, and Bundle.unparcel then throws
+        // BadParcelableException or a RuntimeException wrapping
+        // ClassNotFoundException -- an "app has stopped" dialog triggered by
+        // somebody else's intent. Reading it defensively costs one try and the
+        // fallback is the device locale, which is what a caller that names no
+        // language gets anyway.
+        val langExtra = try { intent?.getStringExtra("language") } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "GetSampleText extra unreadable: " + ex.toString()); null
+        }
         val locale = if (langExtra != null) Locale(langExtra) else Locale.getDefault()
         // isO3Language THROWS MissingResourceException for a language with no
         // three-letter code -- measured, not assumed: Locale("xx").isO3Language
