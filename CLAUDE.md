@@ -2669,6 +2669,56 @@ no gain. Leave it until the test graph moves.
   lesson this file already records: when a fix cannot be tested locally and the
   only test costs thirteen minutes, do not stack it with anything else.
 
+## BUILD 866 WENT RED ON THE REPOSITORIES, NOT ON ANYTHING WE WROTE (2026-09-10)
+The `build` job PASSED and **published `EasyVoice-866.apk`**. Only
+`accessibility` failed, and the log names the cause plainly enough that it is
+worth writing down, because it looks exactly like a real dependency break:
+
+    > Could not find org.ow2.asm:asm-commons:9.9.
+    > Could not find org.jdom:jdom2:2.0.6.
+    > Could not find org.jetbrains.kotlin:kotlin-stdlib:2.4.0.
+    > Could not find com.google.code.gson:gson:2.11.0.
+    > Could not find com.google.code.findbugs:jsr305:3.0.2.
+      Required by: ... com.android.tools.build:gradle:9.4.0 > jetifier-processor
+
+Those are **AGP 9.4.0's own transitive dependencies**, so the obvious reading is
+"the AGP bump is broken, revert it". **Three measurements say otherwise, and this
+project has already reverted a correct change once on exactly that kind of
+reading:**
+1. **all five artifacts answer HTTP 200 from Maven Central** -- checked one by
+   one, at the exact URLs the failure listed;
+2. **build 864 ran the identical AGP 9.4.0 and Gradle 9.7.1 and both jobs
+   passed**, accessibility included;
+3. **the SAME RUN's `build` job resolved the same buildscript classpath and
+   published the APK.** Two jobs, two runners, one commit, opposite outcomes.
+
+So it is an infrastructure failure wearing a dependency failure's costume --
+the same shape as runs 795-797, which looked like KVM and were a `FATAL` disk
+line. **Before reverting anything on a "Could not find", check whether the other
+job in the same run resolved it.**
+
+### The retry that stops it costing a run, and why it is not a blunt one
+`cache-disabled: true` means every run re-downloads the whole buildscript
+classpath, so this workflow is maximally exposed to a momentary repository
+failure -- and it already retries the NDK install **five** times and the CLD2
+clone **three** times for exactly this reason. Gradle was the one step with no
+retry at all.
+
+`run_gradle` wraps both invocations and **retries ONLY a transient failure**,
+matched against a pattern of resolution and network signatures
+(`Could not find|resolve|GET|HEAD|download`, `Connection reset`,
+`Read timed out`, `502/503/504`). **A real compile error exits on the FIRST
+attempt**, so a genuine break still fails fast and says which line rather than
+costing three times the wall clock and three copies of the same error.
+
+**Tested locally against a stubbed `gradle` in all three shapes** before it was
+committed, because this file's own lesson is that an untested CI change costs
+runs:
+
+    transient, then success   retries twice, exits 0
+    real compile error        exits 1 IMMEDIATELY, no retry warning
+    transient for ever        exits 1 after three attempts
+
 ## SIX GITHUB ACTIONS WERE ON A DEPRECATED RUNTIME (2026-09-10)
 This is a **deadline**, not a preference. `softprops/action-gh-release`'s own
 README says v2 *"is no longer maintained or supported. It uses the Node 20

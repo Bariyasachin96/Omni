@@ -124,8 +124,48 @@ jobs:
           echo "Keystore ready" 
       - name: Build APK
         run: |
+          set -o pipefail
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          gradle assembleRelease -PevAbiSplit
+          # A TRANSIENT REPOSITORY FAILURE MUST NOT COST A RED RUN (2026-09-10).
+          # Build 866's accessibility job died on
+          #   Could not find org.ow2.asm:asm-commons:9.9
+          #   Could not find org.jdom:jdom2:2.0.6  ... and three more
+          # -- AGP 9.4.0's OWN transitive dependencies. None of it was real:
+          # all five artifacts answer 200 from Maven Central, build 864 ran the
+          # identical AGP and Gradle green, and the SAME RUN's build job
+          # resolved the same buildscript classpath and published the APK. One
+          # runner simply could not reach the repositories for a moment.
+          #
+          # cache-disabled: true means every run re-downloads the whole
+          # buildscript classpath, so this workflow is maximally exposed to it,
+          # and it already retries the NDK install five times and the CLD2
+          # clone three times for exactly the same reason. Gradle was the one
+          # step with no retry at all.
+          #
+          # IT RETRIES ONLY A TRANSIENT FAILURE. A real compile error exits on
+          # the FIRST attempt, so a genuine break still fails fast and says so
+          # rather than costing three times the wall clock. Tested locally
+          # against a stubbed gradle in all three shapes: transient then
+          # success (retries, exits 0), real error (exits 1 immediately, no
+          # retry), transient forever (exits 1 after three attempts).
+          TRANSIENT='Could not (find|resolve|GET|HEAD|download)|Connection reset|Read timed out|connect timed out|Premature end of Content-Length|502 Bad Gateway|503 Service|504 Gateway'
+          run_gradle() {
+            local n=0
+            until [ "$n" -ge 3 ]; do
+              if gradle "$@" 2>&1 | tee /tmp/ev-gradle.log; then return 0; fi
+              if grep -qE "$TRANSIENT" /tmp/ev-gradle.log; then
+                n=$((n+1))
+                echo "::warning::Gradle hit a transient repository failure (attempt $n of 3); retrying"
+                sleep $((n * 20))
+              else
+                echo "::error::Gradle failed for a real reason -- not retrying."
+                return 1
+              fi
+            done
+            echo "::error::Gradle still failing after 3 attempts."
+            return 1
+          }
+          run_gradle assembleRelease -PevAbiSplit
         env:
           # Read by defaultConfig.versionCode, so the Advanced tab's "Build number"
           # is this run's number rather than a frozen 1.
@@ -349,8 +389,48 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
+            set -o pipefail
             echo "sdk.dir=$ANDROID_HOME" > local.properties
-            gradle connectedDebugAndroidTest
+            # A TRANSIENT REPOSITORY FAILURE MUST NOT COST A RED RUN (2026-09-10).
+            # Build 866's accessibility job died on
+            #   Could not find org.ow2.asm:asm-commons:9.9
+            #   Could not find org.jdom:jdom2:2.0.6  ... and three more
+            # -- AGP 9.4.0's OWN transitive dependencies. None of it was real:
+            # all five artifacts answer 200 from Maven Central, build 864 ran the
+            # identical AGP and Gradle green, and the SAME RUN's build job
+            # resolved the same buildscript classpath and published the APK. One
+            # runner simply could not reach the repositories for a moment.
+            #
+            # cache-disabled: true means every run re-downloads the whole
+            # buildscript classpath, so this workflow is maximally exposed to it,
+            # and it already retries the NDK install five times and the CLD2
+            # clone three times for exactly the same reason. Gradle was the one
+            # step with no retry at all.
+            #
+            # IT RETRIES ONLY A TRANSIENT FAILURE. A real compile error exits on
+            # the FIRST attempt, so a genuine break still fails fast and says so
+            # rather than costing three times the wall clock. Tested locally
+            # against a stubbed gradle in all three shapes: transient then
+            # success (retries, exits 0), real error (exits 1 immediately, no
+            # retry), transient forever (exits 1 after three attempts).
+            TRANSIENT='Could not (find|resolve|GET|HEAD|download)|Connection reset|Read timed out|connect timed out|Premature end of Content-Length|502 Bad Gateway|503 Service|504 Gateway'
+            run_gradle() {
+              local n=0
+              until [ "$n" -ge 3 ]; do
+                if gradle "$@" 2>&1 | tee /tmp/ev-gradle.log; then return 0; fi
+                if grep -qE "$TRANSIENT" /tmp/ev-gradle.log; then
+                  n=$((n+1))
+                  echo "::warning::Gradle hit a transient repository failure (attempt $n of 3); retrying"
+                  sleep $((n * 20))
+                else
+                  echo "::error::Gradle failed for a real reason -- not retrying."
+                  return 1
+                fi
+              done
+              echo "::error::Gradle still failing after 3 attempts."
+              return 1
+            }
+            run_gradle connectedDebugAndroidTest
 
       # Uploaded on failure too -- the HTML report names the exact node and the
       # exact check, which is the only way to fix a failure you cannot reproduce
