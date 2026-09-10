@@ -58,9 +58,46 @@ object LangStore {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - " + iso + " " + engine + " " + locale + " " + variant)
             index++
         }
-        languages.clear()
-        languages.addAll(parsed)
+        replaceAll(parsed)
     }
+    // THE ONE WAY THE LIST IS EVER REPLACED (2026-09-10), and it exists because
+    // every writer skipped the monitor that every reader takes.
+    //
+    // `languages` is a shared static and the app is ONE process, so the settings
+    // screens on the main thread, the synthesis thread inside
+    // reloadLanguagesIfMissing, and Android's BINDER threads inside onGetVoices
+    // / onIsValidVoiceName / onIsLanguageAvailable all reach it. Those three
+    // engine-facing overrides go through availableLanguagesFor, which walks by
+    // index under synchronized(languages) precisely so a rebuild cannot tear the
+    // walk -- but `clear()` followed by `addAll()` was written bare at all five
+    // sites, so the writer never took the lock the readers were waiting on. A
+    // clear() landing between a reader's size read and its get() is not a lost
+    // element, it is IndexOutOfBoundsException thrown inside a binder call.
+    //
+    // AutoTTS does NOT have this hole at the site that matters. Its P() is
+    //     synchronized (c3.n.c) { if (!w || c.isEmpty()) { log(...); e0(); } }
+    // i.e. it holds the list monitor ACROSS the loader, so e0's own clear and
+    // refill are inside it. Ours moved the reload out of that monitor on purpose
+    // -- holding it across loadLanguages would take `this` while holding
+    // `languages`, and onLoadLanguage takes them the other way round -- so this
+    // is our refactor's hole, not AutoTTS's, the same split as
+    // releaseWaitWithoutSpeaking and the double scan.
+    //
+    // The list is BUILT outside the monitor and only the swap is inside it, so
+    // nothing else is ever taken while holding it: `languages` stays the leaf
+    // lock every order already recorded in this project depends on.
+    @JvmStatic
+    fun replaceAll(fresh: List<LangEntry>) {
+        synchronized(languages) {
+            languages.clear()
+            languages.addAll(fresh)
+        }
+    }
+    // getOrNull is `if (index in 0..lastIndex) get(index) else null` -- two
+    // steps against a list another thread can replace between them, so it can
+    // throw rather than answer null. Under the monitor it cannot.
+    @JvmStatic
+    fun entryAt(index: Int): LangEntry? = synchronized(languages) { languages.getOrNull(index) }
     @JvmStatic
     fun persistLanguages(ctx: Context) {
         synchronized(languages) {

@@ -399,7 +399,7 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
 fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigate: (Int) -> Unit, testTtsProvider: () -> TextToSpeech?) {
     val context = LocalContext.current
     val readingMode = remember { prefs.getReadingMode() }
-    val entry = LangStore.languages.getOrNull(langIndex)
+    val entry = LangStore.entryAt(langIndex)
     if (entry == null) {
         ResponsiveContent {
             Column(modifier = Modifier.fillMaxWidth()) {

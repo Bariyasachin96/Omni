@@ -257,6 +257,18 @@ fun AdvancedScreen(
                                         .setChooserTitle("Share Settings")
                                         .createChooserIntent()
                                 )
+                            } else {
+                                // A BUTTON THAT DOES NOTHING IS THE WORST
+                                // OUTCOME HERE (2026-09-10). The copy can fail
+                                // for reasons that have nothing to do with the
+                                // settings file existing -- no space on the
+                                // cache partition is the realistic one -- and
+                                // the null branch used to fall out of the click
+                                // silently. The "file not found" branch above
+                                // already speaks; a sighted user would at least
+                                // see nothing happen, and a blind user cannot
+                                // tell that from the app having frozen.
+                                Toast.makeText(context, "Could not export the settings file", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

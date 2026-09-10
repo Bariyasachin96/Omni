@@ -165,8 +165,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
         val required = LangStore.requiredLangs(modeInt, EasyVoiceTtsService.autoLang,
             EasyVoiceTtsService.dualLang, EasyVoiceTtsService.mixLatinLang, EasyVoiceTtsService.mixNonLatinLang)
         LangStore.persistLanguages(context)
-        LangStore.languages.clear()
-        LangStore.languages.addAll(LangStore.rebuildFromScan(context, false, modeInt, required, EngineFinder.lastScanVoices))
+        LangStore.replaceAll(LangStore.rebuildFromScan(context, false, modeInt, required, EngineFinder.lastScanVoices))
         // s0(), as c3/k.java:1299 does after rebuilding for this same screen.
         EasyVoiceTtsService.pushLanguageSets()
         val pkgFilter = if (readingMode == "google") "com.google.android.tts" else null
@@ -203,18 +202,28 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
         EasyVoiceTtsService.autoLang, EasyVoiceTtsService.dualLang,
         EasyVoiceTtsService.mixLatinLang, EasyVoiceTtsService.mixNonLatinLang)
     fun onRowToggled(orig: Int, isChecked: Boolean) {
-        val code = if (orig < LangStore.languages.size) LangStore.languages[orig].iso3 else return
+        // Under the list monitor -- see LangStore.replaceAll. The bounds test
+        // and the read below it were two separate steps against a list another
+        // thread can replace between them.
+        val code = synchronized(LangStore.languages) {
+            if (orig < LangStore.languages.size) LangStore.languages[orig].iso3 else null
+        } ?: return
         if (requiredNow().contains(code)) {
             if (orig < checked.size) checked[orig] = true
             return
         }
         if (orig < checked.size) checked[orig] = isChecked
-        var langIdx = 0
-        while (langIdx < LangStore.languages.size) {
-            val entry = LangStore.languages[langIdx]
-            langIdx++
-            if (code.equals(entry.iso3, true)) { entry.disabled = !isChecked; LangStore.persistDisabled(context); break }
+        val hit = synchronized(LangStore.languages) {
+            var langIdx = 0
+            var found = false
+            while (langIdx < LangStore.languages.size) {
+                val entry = LangStore.languages[langIdx]
+                langIdx++
+                if (code.equals(entry.iso3, true)) { entry.disabled = !isChecked; found = true; break }
+            }
+            found
         }
+        if (hit) LangStore.persistDisabled(context)
     }
     val visibleIdx = labels.indices.filter { index ->
         val matches = query.isEmpty() || labels[index].lowercase(Locale.getDefault())
@@ -263,8 +272,10 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                     Modifier.weight(1f),
                     onClick = {
                         for (index in visibleIdx) if (index < checked.size) checked[index] = true
-                        var enableIdx = 0
-                        while (enableIdx < LangStore.languages.size) { LangStore.languages[enableIdx].disabled = false; enableIdx++ }
+                        synchronized(LangStore.languages) {
+                            var enableIdx = 0
+                            while (enableIdx < LangStore.languages.size) { LangStore.languages[enableIdx].disabled = false; enableIdx++ }
+                        }
                         LangStore.persistDisabled(context)
                     }
                 )
@@ -273,14 +284,16 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                     Modifier.weight(1f),
                     onClick = {
                         for (index in visibleIdx) if (index < checked.size) checked[index] = false
-                        var disableIdx = 0
-                        while (disableIdx < LangStore.languages.size) { LangStore.languages[disableIdx].disabled = true; disableIdx++ }
                         val requiredForClear = requiredNow()
-                        var keepIdx = 0
-                        while (keepIdx < LangStore.languages.size) {
-                            val entry = LangStore.languages[keepIdx]
-                            keepIdx++
-                            if (requiredForClear.contains(entry.iso3)) entry.disabled = false
+                        synchronized(LangStore.languages) {
+                            var disableIdx = 0
+                            while (disableIdx < LangStore.languages.size) { LangStore.languages[disableIdx].disabled = true; disableIdx++ }
+                            var keepIdx = 0
+                            while (keepIdx < LangStore.languages.size) {
+                                val entry = LangStore.languages[keepIdx]
+                                keepIdx++
+                                if (requiredForClear.contains(entry.iso3)) entry.disabled = false
+                            }
                         }
                         for (index in codes.indices) {
                             if (!requiredForClear.contains(codes[index])) continue

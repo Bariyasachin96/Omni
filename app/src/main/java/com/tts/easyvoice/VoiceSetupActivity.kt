@@ -64,7 +64,7 @@ class VoiceSetupActivity : EvActivity() {
     // adding one during onCreate is what made every screen introduce itself
     // twice.
     private fun applyTitle() {
-        val entry = LangStore.languages.getOrNull(langIndex)
+        val entry = LangStore.entryAt(langIndex)
         if (entry != null) setTitle(entry.displayName + " (" + entry.iso3 + ")")
     }
     override fun onPause() {

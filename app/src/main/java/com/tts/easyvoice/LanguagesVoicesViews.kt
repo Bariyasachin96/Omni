@@ -25,9 +25,10 @@ fun voiceLanguageLabels(context: Context, modeInt: Int): List<String> {
     val mixNonLatinIso3 = EasyVoiceTtsService.mixNonLatinLang
     val required = LangStore.requiredLangs(modeInt, autoIso3, dualIso3, mixLatinIso3, mixNonLatinIso3)
     LangStore.persistLanguages(context)
-    LangStore.languages.clear()
-    if (modeInt == 1) LangStore.languages.addAll(LangStore.dualLangList(context, dualIso3, EngineFinder.lastScanVoices))
-    else LangStore.languages.addAll(LangStore.rebuildFromScan(context, true, modeInt, required, EngineFinder.lastScanVoices))
+    LangStore.replaceAll(
+        if (modeInt == 1) LangStore.dualLangList(context, dualIso3, EngineFinder.lastScanVoices)
+        else LangStore.rebuildFromScan(context, true, modeInt, required, EngineFinder.lastScanVoices)
+    )
     // c3.k.Y2 rebuilds the list the same way and finishes with s0().
     EasyVoiceTtsService.pushLanguageSets()
     return when (modeInt) {
@@ -46,17 +47,23 @@ fun voiceLanguageEngines(modeInt: Int): List<String> {
     val out = ArrayList<String>()
     val dualIso3 = EasyVoiceTtsService.dualLang
     val pkgFilter = if (modeInt == 3) "com.google.android.tts" else null
-    var index = 0
-    while (index < LangStore.languages.size) {
-        val entry = LangStore.languages[index]
-        index++
-        if (modeInt == 2 || modeInt == 3 || modeInt == 4 || modeInt == 5) {
-            if (pkgFilter != null && !entry.enginePkgs.contains(pkgFilter) || entry.disabled) continue
-        } else {
-            if (!entry.iso3.equals("eng", true) && !entry.iso3.equals(dualIso3, true)) continue
+    // Under the list's own monitor, like every walk inside LangStore. This one
+    // is on the main thread and the writer it races is the SYNTHESIS thread
+    // inside reloadLanguagesIfMissing, so an indexed walk here could read a size
+    // that a replaceAll had already shrunk. See LangStore.replaceAll.
+    synchronized(LangStore.languages) {
+        var index = 0
+        while (index < LangStore.languages.size) {
+            val entry = LangStore.languages[index]
+            index++
+            if (modeInt == 2 || modeInt == 3 || modeInt == 4 || modeInt == 5) {
+                if (pkgFilter != null && !entry.enginePkgs.contains(pkgFilter) || entry.disabled) continue
+            } else {
+                if (!entry.iso3.equals("eng", true) && !entry.iso3.equals(dualIso3, true)) continue
+            }
+            val pkg = entry.enginePkg
+            out.add(if (pkg.isNotEmpty() && !pkg.equals("disable", true)) pkg else "")
         }
-        val pkg = entry.enginePkg
-        out.add(if (pkg.isNotEmpty() && !pkg.equals("disable", true)) pkg else "")
     }
     return out
 }

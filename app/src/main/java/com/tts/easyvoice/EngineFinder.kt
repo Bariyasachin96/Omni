@@ -156,8 +156,7 @@ object EngineFinder {
                 EasyVoiceTtsService.dualLang,
                 EasyVoiceTtsService.mixLatinLang,
                 EasyVoiceTtsService.mixNonLatinLang)
-            LangStore.languages.clear()
-            LangStore.languages.addAll(LangStore.rebuildFromScan(ctx, false, modeInt, required, lastScanVoices))
+            LangStore.replaceAll(LangStore.rebuildFromScan(ctx, false, modeInt, required, lastScanVoices))
             LangStore.persistAll(ctx)
             // s0(). AutoTTS rebuilds the list after its own scan and pushes in
             // the same block (NewSettingsActivity:483); without this the
@@ -170,7 +169,7 @@ object EngineFinder {
         myTimeout[0] = globalTimeout
         globalTimeoutHandler.postDelayed(globalTimeout, 180000L)
         engines.addAll(getEngines(ctx, seen))
-        lateinit var startEngine: (String, Boolean) -> Unit
+        lateinit var startEngine: (String) -> Unit
         fun scanNextEngine() {
             // Stop dead once a newer scan has started: this one can no longer
             // publish anything, and carrying on only fights the new scan for the
@@ -183,7 +182,7 @@ object EngineFinder {
                 finalizeScan()
                 return
             }
-            startEngine("(2)", false)
+            startEngine("(2)")
         }
         // ONE ENGINE, ONE LISTENER, ONE TIMEOUT, ONE CLIENT -- all captured
         // together (owner, 2026-09-09, explicitly overriding rule 5 here:
@@ -229,7 +228,7 @@ object EngineFinder {
         // overall timeouts are AutoTTS's own numbers and are untouched; this only
         // stops abandoned work from continuing, so it does strictly less than
         // before.
-        startEngine = { suffix, liveIndex ->
+        startEngine = { suffix ->
             val myIndex = index
             val pkg = engines[myIndex].pkg
             val cell = arrayOfNulls<TextToSpeech>(1)
@@ -297,40 +296,87 @@ object EngineFinder {
             }
 
             onProgress?.invoke("Scanning $pkg... $suffix")
-            if (liveIndex) {
+            // THE FIRST ENGINE'S CONSTRUCTOR IS GUARDED NOW, AND IT WAS NOT
+            // (2026-09-10). The "(3)" first-engine step used to call the
+            // constructor BARE -- there was a `liveIndex` flag choosing between
+            // a guarded and an unguarded call, and it is gone with the last
+            // unguarded one -- exactly as
+            // AutoTTS's D0() does (NewSettingsActivity:446), while the "(2)"
+            // step below has always been wrapped -- AutoTTS wraps that one too
+            // (:245). So AutoTTS carries the identical asymmetry and we mirrored
+            // it faithfully.
+            //
+            // It is still a defect, and it is the SAME defect this file already
+            // records for restoreEngine: `new TextToSpeech(...)` does real work
+            // -- it reads Settings.Secure, resolves the engine and calls
+            // bindService -- so it can throw when that engine is mid-update,
+            // which is exactly when a Play Store update of a TTS engine leaves
+            // the package briefly unresolvable. This runs on the MAIN THREAD
+            // from onCreate, so a throw here is not a failed scan, it is the
+            // settings screen crashing the moment a blind user opens it, with
+            // nothing in the app able to recover.
+            //
+            // Covered by the owner's standing override for the scan (2026-09-09:
+            // "ham log is per depend rahenge na to achha nahin rahega ...
+            // properly source ke through fix karo"), and the recovery is not
+            // invented -- it is byte for byte what the "(2)" branch already does
+            // and what the 30 s timeout already does: mark this engine failed
+            // and advance the walk. On the happy path nothing changes at all.
+            try {
                 cell[0] = TextToSpeech(ctx, listener, pkg)
-            } else {
-                try {
-                    cell[0] = TextToSpeech(ctx, listener, pkg)
-                } catch (ex: Exception) {
-                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize " + pkg + "\n" + ex.message)
-                    if (!handled) {
-                        handled = true
-                        mainHandler.removeCallbacks(timeout)
-                        failed.add(myIndex)
-                        scanNextEngine()
-                    }
+            } catch (ex: Exception) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize " + pkg + "\n" + ex.message)
+                if (!handled) {
+                    handled = true
+                    mainHandler.removeCallbacks(timeout)
+                    failed.add(myIndex)
+                    scanNextEngine()
                 }
             }
         }
         fun scanFirstEngine() {
             index = 0
-            startEngine("(3)", true)
+            startEngine("(3)")
         }
         val probe = arrayOfNulls<TextToSpeech>(1)
-        probe[0] = TextToSpeech(ctx, { status ->
-            if (status == TextToSpeech.SUCCESS && probe[0] != null) {
-                for (engineInfo in probe[0]!!.engines) {
-                    val name = engineInfo.name
-                    if (seen.containsKey(name) || name.contains("easyvoice")) continue
-                    engines.add(EngineInfo(name, engineInfo.label))
-                }
-                probe[0]!!.shutdown()
-                scanFirstEngine()
-            } else {
-                android.widget.Toast.makeText(ctx, "Easy Voice: init new engine failed.", android.widget.Toast.LENGTH_LONG).show()
-                finalizeScan()
+        // THE PROBE IS GUARDED AND RELEASED ON BOTH PATHS (2026-09-10).
+        // AutoTTS's C0() calls this constructor bare too (NewSettingsActivity:402)
+        // and shuts its client down on neither path -- the same two defects as
+        // the first-engine step above, on the ONE line that runs before anything
+        // else in every app open. A throw here crashes MainActivity outright;
+        // and on the ERROR path the client stayed bound to our own service for
+        // the life of the process. Shutting it down inside its own onInit is
+        // AOSP's own mechanism: shutdown() while still connecting calls
+        // mConnectingServiceConnection.disconnect(), which is unbindService.
+        //
+        // The recovery is the one the ERROR branch already had, so nothing on
+        // the happy path moves.
+        fun probeFailed() {
+            try { probe[0]?.shutdown() } catch (ex: Exception) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "")
             }
-        }, "com.tts.easyvoice")
+            probe[0] = null
+            android.widget.Toast.makeText(ctx, "Easy Voice: init new engine failed.", android.widget.Toast.LENGTH_LONG).show()
+            finalizeScan()
+        }
+        try {
+            probe[0] = TextToSpeech(ctx, { status ->
+                if (status == TextToSpeech.SUCCESS && probe[0] != null) {
+                    for (engineInfo in probe[0]!!.engines) {
+                        val name = engineInfo.name
+                        if (seen.containsKey(name) || name.contains("easyvoice")) continue
+                        engines.add(EngineInfo(name, engineInfo.label))
+                    }
+                    probe[0]!!.shutdown()
+                    probe[0] = null
+                    scanFirstEngine()
+                } else {
+                    probeFailed()
+                }
+            }, "com.tts.easyvoice")
+        } catch (ex: Exception) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize probe\n" + ex.message)
+            probeFailed()
+        }
     }
 }

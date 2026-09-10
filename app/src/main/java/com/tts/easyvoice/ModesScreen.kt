@@ -51,8 +51,7 @@ private fun rebuildLanguagesFor(context: android.content.Context, modeInt: Int) 
         EasyVoiceTtsService.mixLatinLang,
         EasyVoiceTtsService.mixNonLatinLang)
     LangStore.persistLanguages(context)
-    LangStore.languages.clear()
-    LangStore.languages.addAll(LangStore.rebuildFromScan(context, false, modeInt, required, EngineFinder.lastScanVoices))
+    LangStore.replaceAll(LangStore.rebuildFromScan(context, false, modeInt, required, EngineFinder.lastScanVoices))
     // Every AutoTTS radio ends with n.x(ctx); c.clear(); c.addAll(n.g(a,false));
     // AutoTtsService.s0(). The first three are the lines above; this is s0.
     EasyVoiceTtsService.pushLanguageSets()
@@ -303,8 +302,11 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
         prefs.setReadingMode(mode)
         rebuildLanguagesFor(context, modeInt)
         val loadedCodes = ArrayList<String>()
-        var codeIdx = 0
-        while (codeIdx < LangStore.languages.size) { loadedCodes.add(LangStore.languages[codeIdx].iso3); codeIdx++ }
+        // Under the list monitor -- see LangStore.replaceAll.
+        synchronized(LangStore.languages) {
+            var codeIdx = 0
+            while (codeIdx < LangStore.languages.size) { loadedCodes.add(LangStore.languages[codeIdx].iso3); codeIdx++ }
+        }
         val loadedLabels = LangStore.languageLabelsFor(if (mode == "google") "com.google.android.tts" else null)
         Pair(loadedCodes, loadedLabels)
     }

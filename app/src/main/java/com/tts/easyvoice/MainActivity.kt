@@ -232,7 +232,7 @@ class MainActivity : EvActivity() {
                     // guard onRowToggled has -- but its settings can still go, so
                     // do that much and say why it stays.
                     onDeleteConfiguration = { index ->
-                        val entry = LangStore.languages.getOrNull(index)
+                        val entry = LangStore.entryAt(index)
                         if (entry != null) {
                             LangStore.clearConfiguration(this, entry)
                             if (isRequiredLanguage(prefs, entry.iso3)) {
@@ -248,7 +248,7 @@ class MainActivity : EvActivity() {
                     // Drop the language but keep everything configured for it, so
                     // adding it back later restores the voice and the sliders.
                     onDisableLanguage = { index ->
-                        val entry = LangStore.languages.getOrNull(index)
+                        val entry = LangStore.entryAt(index)
                         if (entry != null) {
                             if (isRequiredLanguage(prefs, entry.iso3)) {
                                 Toast.makeText(this, entry.displayName + " is needed by the current mode, so it cannot be turned off", Toast.LENGTH_LONG).show()

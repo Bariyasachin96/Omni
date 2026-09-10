@@ -243,7 +243,29 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // values a0 answers with when PackageManager cannot find the package.
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onCreate Version Name: " + versionName() + " Version Code: " + versionCode())
         super.onCreate()
-        try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { android.util.Log.e("EasyVoice", ex.message!!) }
+        // THE `!!` HERE WAS A CRASH, AND THE OWNER OVERRODE THE PARITY DEFENCE
+        // (2026-09-10). It was `ex.message!!`, which is AutoTTS's own
+        // `Objects.requireNonNull(exception2.getMessage())` byte for byte -- and
+        // that is exactly what makes it a defect rather than a style point: a
+        // great many exceptions carry a NULL message (a bare SecurityException,
+        // a framework NullPointerException, any `throw Foo()`), so on the one
+        // path that exists to REPORT a failure it would throw a second
+        // exception, out of onCreate, and take the whole TTS service down with
+        // it. The phone would then have no voice at all.
+        //
+        // I had answered this with "unreachable", and the reachability argument
+        // is real but it is not a licence to leave a landmine on the reporting
+        // path: startForegroundIfPossible() wraps its whole body in its own
+        // `catch (Exception)`, so the only things that reach here are an Error
+        // (which `catch (ex: Exception)` does not hold anyway) or a throw from
+        // EasyVoiceLogger inside that inner catch. The owner asked for it fixed
+        // and they are right -- the cost of being wrong is total.
+        //
+        // `?: ""` is what AutoTTS's OWN p0() does at the identical site
+        // (`c3.n.a.d("AutoTTS", exception2.getMessage())`, no requireNonNull),
+        // so this is not even a shape AutoTTS lacks; it is the one of its two
+        // spellings that does not crash.
+        try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { android.util.Log.e("EasyVoice", ex.message ?: ex.toString()) }
         requestAudioFocus()
         initIsoMaps()
         loadAllSettings()
@@ -2250,7 +2272,22 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // AutoTTS, so it stays dead here rather than being deleted or given a
         // reader we invented.
         @JvmField var lastLoadedVoiceName = ""
-        @JvmField var chunkCounter = 0
+        // @Volatile ADDED ON THE OWNER'S OVERRIDE (2026-09-10). This file used
+        // to record it as "left alone deliberately" because AutoTTS's K is a
+        // plain static and rule 5 forbids a "defensive" change. The owner has
+        // reversed that, and the read is genuinely cross-thread: speakChunk
+        // WRITES it (`if (currentChunk == 1) chunkCounter = 1`) and READS it
+        // into expectedId, and speakChunk is reached from three threads -- the
+        // synthesis thread for the first chunk, the MAIN LOOPER from onDone's
+        // post (which also does chunkCounter++), and a BINDER thread when
+        // onDone finds the queue empty and calls speakChunk(false) directly.
+        // The main-looper write and the binder-thread read are ordered only by
+        // the two binder round trips that happen to sit between them, which is
+        // a practical barrier and not a guarantee. A stale read builds the
+        // wrong expectedId, and every callback for that chunk is then dropped
+        // by the id guard -- silence, not a crash, which is the failure this
+        // app can least afford to leave to luck.
+        @Volatile @JvmField var chunkCounter = 0
         @Volatile @JvmField var utteranceId = ""
         @Volatile @JvmField var showNotificationFlag = false
         @Volatile @JvmField var localeSpansFlag = false

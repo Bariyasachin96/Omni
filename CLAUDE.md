@@ -2373,6 +2373,153 @@ extracts to a scratch dir and moves to `android-<min>.jar` now.
   class does not declare is simply a method nobody calls. Only a CALL to a
   missing API can throw.
 
+## THE LANGUAGE LIST HAD NO WRITER LOCK, AND FIVE OTHER CORNERS (owner, 2026-09-10)
+*"donon bug aapane Chhod Diye hain ... vah Sahi tarike se research Karke fix kar
+dena chahie thi na aapko"*, and then *"Puri App Ka ek-ek Kona chhan maro ...
+properly Koi bag Nahin Rahana chahie"*. The owner was right about both left-behind
+items, and the sweep that followed found a crash nobody had reported.
+
+**THE BIGGEST FIND: every writer of `LangStore.languages` skipped the monitor that
+every reader takes.** The app is ONE process, so that static list is reached from
+three kinds of thread -- the settings screens on the main thread, the SYNTHESIS
+thread inside `reloadLanguagesIfMissing`, and Android's BINDER threads inside
+`onGetVoices` / `onIsValidVoiceName` / `onIsLanguageAvailable`. The engine-facing
+three go through `availableLanguagesFor`, which walks by index under
+`synchronized(languages)` *precisely so a rebuild cannot tear the walk* -- and yet
+`languages.clear()` followed by `addAll(...)` was written bare at **all five**
+rebuild sites (`LangStore.loadLanguages`, `EngineFinder.finalizeScan`,
+`LanguagesActivity`, `ModesScreen`, `LanguagesVoicesViews`). A `clear()` landing
+between a reader's `size` read and its `get()` is not a lost element, it is
+**IndexOutOfBoundsException thrown inside a binder call**.
+
+**AutoTTS does not have this hole at the site that matters, and that is what makes
+it ours to fix.** Its `P()` is
+
+    synchronized (c3.n.c) { if (!w || c.isEmpty()) { log(...); e0(); } }
+
+i.e. it holds the list monitor **across** the loader, so `e0`'s own clear and
+refill happen inside it. Ours deliberately moved the reload out of that monitor --
+holding it across `loadLanguages` would take `this` while holding `languages`,
+and `onLoadLanguage` takes them the other way round, which is the ABBA this file
+already records. So the lock was dropped for a good reason and never put back
+where it belonged. Same split as `releaseWaitWithoutSpeaking` and the double scan.
+
+The fix is **`LangStore.replaceAll(fresh)`**: the new list is BUILT outside the
+monitor and only the two-statement swap is inside it, so `languages` stays the
+**leaf lock** every order recorded in this project depends on -- nothing is ever
+taken while holding it. All five sites go through it and there is now exactly one
+`languages.clear()` in the tree. The reader side was closed too: the direct
+indexed walks in `voiceLanguageEngines`, `ModesScreen` and `LanguagesActivity`
+take the monitor, and the four `getOrNull` reads go through **`LangStore.entryAt`**
+-- `getOrNull` is `if (index in 0..lastIndex) get(index) else null`, two steps
+against a list another thread can replace between them, so it can throw rather
+than answer null.
+
+### The two the owner named
+**1. `ex.message!!` in the service's `onCreate` -- FIXED, owner override.** I had
+answered it with "unreachable" and that was the wrong shape of answer. The
+reachability argument is real -- `startForegroundIfPossible()` wraps its whole
+body in its own `catch (Exception)`, so only an Error (which `catch (ex: Exception)`
+does not hold anyway) or a throw from `EasyVoiceLogger` inside that inner catch
+gets here -- but it is not a licence to leave a landmine on the one path that
+exists to REPORT a failure. A great many exceptions carry a **null** message (a
+bare `SecurityException`, a framework NPE, any `throw Foo()`), and `!!` would then
+throw a second exception out of `onCreate` and take the TTS service down: the
+phone with no voice at all, which is this project's worst outcome.
+It is `?: ex.toString()` now, and that is not even a shape AutoTTS lacks --
+**AutoTTS's own `p0()` writes `c3.n.a.d("AutoTTS", exception2.getMessage())` at
+the identical site with no `requireNonNull`.** Only its `onCreate` spells it the
+crashing way. We took the other spelling.
+
+(Noted while reading it and deliberately NOT copied: on the exception path
+AutoTTS's `onCreate` **skips `l0()`**, its audio-focus request -- the CFR block
+structure puts `this.l0()` inside the block the catch breaks out of. Ours calls
+`requestAudioFocus()` unconditionally, which is right; mirroring that one would
+mute the app after a notification failure.)
+
+**2. `chunkCounter` is `@Volatile` now -- FIXED, owner override.** This file used
+to say "do not add it without a log" on rule 5's "defensive" prohibition. The read
+is genuinely cross-thread: `speakChunk` WRITES it (`if (currentChunk == 1)
+chunkCounter = 1`) and READS it into `expectedId`, and `speakChunk` is reached
+from all three threads -- the synthesis thread for the first chunk, the MAIN
+LOOPER from `onDone`'s post (which also does `chunkCounter++`), and a BINDER
+thread when `onDone` finds the queue empty and calls `speakChunk(false)` directly.
+The main-looper write and the binder-thread read are ordered only by the two
+binder round trips that happen to sit between them, which is a practical barrier
+and not a guarantee. A stale read builds the wrong `expectedId` and every callback
+for that chunk is then dropped by the id guard -- **silence, not a crash**, which
+is the failure this app can least afford to leave to luck.
+
+### Four more found in the same sweep
+- **the first engine's `TextToSpeech` constructor was unguarded.** `EngineFinder`
+  had a `liveIndex` flag choosing between a guarded and an unguarded call, exactly
+  as AutoTTS does -- its `D0()` (`NewSettingsActivity:446`) and `C0()` (`:402`) are
+  bare while the "(2)" step at `:245` is wrapped. The constructor does real work
+  (reads `Settings.Secure`, resolves the engine, calls `bindService`), so it can
+  throw when that engine is mid-update -- and it runs on the MAIN THREAD from
+  `onCreate`, so a throw is not a failed scan, it is **the app crashing the moment
+  a blind user opens it**. Covered by the owner's standing 2026-09-09 override for
+  the scan. The recovery is not invented: it is byte for byte what the "(2)"
+  branch and the 30 s timeout already do -- mark the engine failed, advance the
+  walk. `liveIndex` is gone with the last unguarded call.
+- **the probe client leaked on its own failure path.** `probe[0]!!.shutdown()` ran
+  only on SUCCESS, so an ERROR left a binding to our own service open for the life
+  of the process. Both paths release it now, and the constructor is guarded too.
+  Shutting a client down inside its own `onInit` is AOSP's own mechanism --
+  `shutdown()` while still connecting calls `mConnectingServiceConnection.disconnect()`.
+- **`GetSampleText` could be crashed by any app on the phone.** `isO3Language`
+  **throws** `MissingResourceException` for a language with no three-letter code --
+  measured here, not assumed: `Locale("xx").isO3Language` is *"Couldn't find
+  3-letter language code for xx"*. That activity is **exported** and its
+  `"language"` extra comes from another app. AutoTTS reads it bare as well. The
+  fallback is the sentence the screen already shows for a language it has no
+  sample for, so a valid code behaves exactly as before. (The three other
+  `isO3Language` reads in the app -- `localeIso3`, `localeMatches` and the
+  bypass-prefix parse -- were each checked and are each already inside a
+  `try`/`catch`.)
+- **Export could do nothing at all, silently.** If `exportSettingsFile()` threw an
+  `IOException` (no space on the cache partition is the realistic one) the click
+  fell out with no Toast. The "file not found" branch beside it already speaks. A
+  sighted user would at least see nothing happen; a blind user cannot tell that
+  from the app having frozen.
+
+### Checked in the same sweep and CLEAN, so do NOT re-sweep
+- **every `chunks[0]` in `onSynthesizeText` is guarded** by an `isEmpty()`/
+  `isNotEmpty()` test, and the whole segmentation block sits in a `try`/`catch`
+  that ends with `startAndFinish(callback)`, so it cannot park the wait.
+- **every `startActivity` that can miss** is guarded -- TTS settings, battery,
+  Play Store (which falls back to the web URL and then a Toast), and the import
+  picker. The rest target our own activities or a chooser, which always resolve.
+- **import/export parsing is guarded to the right depth**: `importSettingsXml`
+  catches `Throwable` and never commits a partial edit (the `editor.clear()` is
+  discarded with it), `getReferencedEnginePackagesFromXml` catches `Exception` and
+  answers an empty set, and `handleImportedSettingsFile` Toasts on both.
+- **`onDestroy`'s engine-pool loop has no try and does not need one** --
+  `EngineWrapper.shutdown()` submits to `stopExec`, whose queue is unbounded so
+  `execute` cannot be rejected, and the real `tts!!.shutdown()` is inside the
+  worker's own catch. AutoTTS's loop is bare in the same way.
+- **`CheckVoiceData` returning an empty voice list in a cold process is PARITY,
+  not our bug.** It is `LangStore.availableLanguagesFor(null, true)` against
+  AutoTTS's `n.i(null, true)`, and `c3.n.i` was read: it walks `c3.n.c` and loads
+  nothing either. Both apps answer from whatever the process happens to hold. Do
+  not "fix" this one -- it is the engine-facing surface, where the UI carve-out
+  does not reach.
+- **`synthesizeToFile` still cannot be told apart from `speak`, and that is
+  measured rather than assumed.** `SynthesisCallback` exposes only
+  `getMaxBufferSize`, `hasStarted` and `hasFinished`; nothing in the public API
+  names the callback type, and `request.params` carries no marker. So there is no
+  non-guesswork way to answer it differently, rule 6 applies, and AutoTTS is
+  identical. It cannot hang -- the downstream `onDone` releases the wait exactly
+  as it does for `speak()`.
+
+**One thing for the OWNER to decide, not for me:** the manifest declares
+**`QUERY_ALL_PACKAGES`**, which is a Play-**restricted** permission needing a
+declaration form on a listing. The `<queries>` block already covers engine
+discovery; what still needs the permission is `isPackageInstalled(pkg)` on an
+arbitrary package named by an imported settings file. It is left exactly as it is
+-- removing it could break that check on some devices -- but on the paid listing
+being prepared it is worth knowing about before submission.
+
 ## THE TWO ABOUT BUTTONS ARE GONE, AND THE CLD2 LINE WAS STALE (owner, 2026-09-10)
 *"jo donon buttons hai About page mein vah button nahin rakhne hain"*, and
 *"About page mein kuchh chijen purani hai ... humne CLD2 full kar diya hai to
