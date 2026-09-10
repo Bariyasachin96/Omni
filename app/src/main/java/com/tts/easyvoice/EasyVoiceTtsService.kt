@@ -286,13 +286,30 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // so this is not even a shape AutoTTS lacks; it is the one of its two
         // spellings that does not crash.
         try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { android.util.Log.e("EasyVoice", ex.message ?: ex.toString()) }
-        requestAudioFocus()
-        initIsoMaps()
-        loadAllSettings()
+        // EVERY STEP IS GUARDED SEPARATELY (2026-09-11), and this is the most
+        // catastrophic failure in the whole app: a throw anywhere in onCreate
+        // leaves the TTS service dead, the phone with no voice at all, and
+        // START_STICKY restarting it straight back into the same state. Two real
+        // crashes of exactly this shape were found on 2026-09-10 (AudioFocusRequest
+        // and NotificationChannel, both API 26 against minSdk 24), and both were
+        // total for every Android 7 device.
+        //
+        // Guarding each step SEPARATELY rather than the block as a whole is the
+        // point: these five are independent, so a device on which one of them
+        // fails should still get the other four. An app that has loaded its
+        // settings and its engines but could not take audio focus still speaks; an
+        // app that skipped initAllEngines because requestAudioFocus threw does not.
+        //
+        // getSystemService(AUDIO_SERVICE) as AudioManager is the concrete new risk
+        // here -- `as` on a null answer is an NPE, and a heavily modified OEM build
+        // is exactly where a system service comes back null.
+        try { requestAudioFocus() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "requestAudioFocus failed: " + ex.toString()) }
+        try { initIsoMaps() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "initIsoMaps failed: " + ex.toString()) }
+        try { loadAllSettings() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "loadAllSettings failed: " + ex.toString()) }
         // e0() ends with s0(): the list has just been loaded, so hints go too.
-        pushLanguageSets()
+        try { pushLanguageSets() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "pushLanguageSets failed: " + ex.toString()) }
         initDone = true
-        initAllEngines()
+        try { initAllEngines() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "initAllEngines failed: " + ex.toString()) }
     }
     // c3.a0.a / c3.a0.c / c3.a0.b, down to the logcat tag they report a miss
     // under and the API level at which a0.a switches overloads.
@@ -687,7 +704,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // cell[0] is still null, and storing null there is strictly better than
     // storing some other engine's client on a wrapper we are marking dead.
     inner class EngineInitListener(private val cell: Array<TextToSpeech?>) : TextToSpeech.OnInitListener {
+        // Guarded 2026-09-11 for the same two reasons as RestoreInitListener: this
+        // is the main looper, so an escape is a process death, and it is also the
+        // only thing that advances the pool walk -- every engine after the one that
+        // threw would never be initialised, and every language on those engines
+        // would answer "TTS is not ready" for the life of the process.
         override fun onInit(status: Int) {
+            try {
             val initializingTts = cell[0]
             if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (1)"); return }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init " + (if (initializingIndex < enginePool.size) enginePool[initializingIndex].pkg else ""))
@@ -707,6 +730,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 try { nextCell[0] = TextToSpeech(applicationContext, EngineInitListener(nextCell), engineList[initializingIndex]); break } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex]); initializingIndex++ }
             }
             if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)") }
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Engine init failed: " + ex.toString())
+            }
         }
     }
     private fun restoreEngine(pkg: String) {
@@ -820,7 +846,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // sound -- restoreEngine refuses a second restore while one is in flight and
     // this listener always runs to clear it -- so only the client had to move.
     inner class RestoreInitListener(private val cell: Array<TextToSpeech?>) : TextToSpeech.OnInitListener {
+        // try/finally ADDED 2026-09-11. `restoringIndex = -1` at the bottom is the
+        // only thing that lets ANY engine be restored again -- restoreEngine's own
+        // first guard answers " -Restoring in progress..." while it is set -- so an
+        // escape from this method wedges recovery for the life of the process,
+        // which is the same process-lifetime wedge the unguarded TextToSpeech
+        // constructor produced on 2026-09-03, reached a different way. This runs on
+        // the main looper, where an escape is also a process death and therefore a
+        // silent phone. The finally runs the same statement at the same point when
+        // nothing throws.
         override fun onInit(status: Int) {
+            try {
             val initializingTts = cell[0]
             val restoreIdx = restoringIndex
             if (restoreIdx >= 0 && restoreIdx < enginePool.size) {
@@ -850,7 +886,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     wrapper.state = -1
                 }
             } else { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "ttsInitListener_restore invalid index") }
-            restoringIndex = -1
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Restore init failed: " + ex.toString())
+            } finally {
+                restoringIndex = -1
+            }
         }
     }
     private fun keepAliveLockFor(pkg: String): Any {
@@ -865,11 +905,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val resolveInfo = packageManager.resolveService(intent, 0)
             if (resolveInfo == null || resolveInfo.serviceInfo == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "No TTS service found in " + pkg); return }
             intent.component = android.content.ComponentName(resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name)
+            // ALL FOUR ARE GUARDED (2026-09-11). Android delivers every
+            // ServiceConnection callback on the MAIN LOOPER, so an escape from any
+            // of them is an uncaught exception on the main thread and therefore the
+            // death of this process -- and a dead TTS engine process is a screen
+            // reader with no voice. onServiceDisconnected is the worst of the four:
+            // it is the path that both unparks a waiting synthesis thread
+            // (onEngineProcessGone) and recovers the engine (restoreEngine), so a
+            // throw in the first would silently skip the second.
             val conn = object : android.content.ServiceConnection {
-                override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-alive bound to " + name?.flattenToShortString()); onEngineProcessBack(pkg) }
-                override fun onServiceDisconnected(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine process died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); restoreEngine(pkg) }
-                override fun onBindingDied(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) }
-                override fun onNullBinding(name: android.content.ComponentName?) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Service returned null binding"); unbindEngineKeepAlive(pkg) }
+                override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-alive bound to " + name?.flattenToShortString()); onEngineProcessBack(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceConnected: " + ex.toString()) } }
+                override fun onServiceDisconnected(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine process died: " + name?.flattenToShortString()); onEngineProcessGone(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceDisconnected: " + ex.toString()) }; try { restoreEngine(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restore after disconnect: " + ex.toString()) } }
+                override fun onBindingDied(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onBindingDied: " + ex.toString()) } }
+                override fun onNullBinding(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Service returned null binding"); unbindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onNullBinding: " + ex.toString()) } }
             }
             val bound = try { bindService(intent, conn, android.content.Context.BIND_AUTO_CREATE or android.content.Context.BIND_IMPORTANT) } catch (_: Exception) { false }
             if (bound) {
@@ -1991,10 +2039,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     // This is what replaces a "healthy for N seconds" clock in
                     // restoreEngine: an event that means exactly "it worked".
                     // True whichever utterance it belongs to, so it is not gated.
-                    wrapper.restoreCount = 0
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
-                    if (id != expectedId) return
-                    if (callback?.hasStarted() == false) { callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
+                    try {
+                        wrapper.restoreCount = 0
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
+                        if (id != expectedId) return
+                        if (callback?.hasStarted() == false) { callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
+                    } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStart failed: " + ex.toString()) }
                 }
                 override fun onDone(id: String) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onDone " + id)
@@ -2008,6 +2058,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     // finished callback, which is the text that gets cut off.
                     // The id is unique now, so this tells the two apart.
                     if (id != expectedId) return
+                    // THE BINDER-THREAD HALF IS GUARDED TOO (2026-09-11). This is
+                    // the engine's own oneway callback, so an escape is logged by
+                    // Binder.execTransact and does NOT crash -- it just stops. And
+                    // stopping here is the hang: speakChunk(false) below is what
+                    // ends the utterance when the queue is empty, and
+                    // chunkHandler.post is what starts the next chunk, so losing
+                    // either leaves the synthesis thread parked with no callback
+                    // left to come.
+                    try {
                     val next = synchronized(chunkQueue) { chunkQueue.firstOrNull()?.second }
                     if (next == null) { speakChunk(false); return }
                     chunkHandler.post {
@@ -2081,12 +2140,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             }
                         }
                         if (advance) speakChunk(false)
-                        } catch (ex: Exception) {
-                            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone Error: " + ex.message)
+                        } catch (ex: Throwable) {
+                            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone Error: " + ex.toString())
                             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #6")
                             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                            if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()
+                            try { startAndFinish(callback) } catch (_: Throwable) {}
                         }
+                    }
+                    } catch (ex: Throwable) {
+                        EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone failed: " + ex.toString())
+                        synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+                        try { startAndFinish(callback) } catch (_: Throwable) {}
                     }
                 }
                 override fun onError(id: String) {
