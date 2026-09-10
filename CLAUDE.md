@@ -7,6 +7,159 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE FOURTH ROUND OF "ACHANAK SE BOLNA BAND HO JATA HAI" — IT IS THE CLASS, NOT A HOLE (owner, 2026-09-11)
+*"actually khaas karke TTS wali jo chij hai vahan per bahut problem a rahi hai ki
+achanak se bolna band ho jata hai ... properly research karke ekadam sahi tarike
+se check karo."*
+
+The first three rounds each found ONE hole and closed it: the three exits that
+ended an utterance without waking the wait, the terminal `state = -1`, and the
+utterance id that was not unique. All three are still correct and still in place.
+This round found no fourth hole of that kind. **What it found is the class those
+three belong to, and the class is now enforced rather than patched.**
+
+**THE ONE SENTENCE THAT MATTERS: an escaped `Throwable` on the speaking path is
+fatal, not annoying.** Read from AOSP rather than assumed —
+`SynthesisSpeechItem.playImpl()` calls `onSynthesizeText` directly,
+`SpeechItem.play()` calls `playImpl`, and `play()` runs from a `Runnable` on
+**`SynthHandler`, a plain `HandlerThread` with no catch anywhere above it**. So
+an uncaught throw there goes to the default handler and **kills the engine
+process**; the screen reader's `TextToSpeech` loses its binding and stays mute.
+That is the report, symptom for symptom, and it is intermittent because it needs
+one of the races below to land.
+
+**The method's one existing `try` covered SEGMENTATION ONLY.** Everything before
+it (`reloadLanguagesIfMissing`, the foreground check, the params-bundle read —
+which unparcels another app's `Bundle`) and everything after it (`onLoadLanguage`,
+the queue fill, **the whole of `speakChunk`** with its `loadVoice` call, its
+`Bundle` copy and its `putParcelable`) was bare. The body is now
+`onSynthesizeTextImpl` and the override is a wrapper that releases the wait and
+finishes the callback. **`Throwable`, not `Exception`**, and that is not fussiness:
+the failures that actually reach these points are **Errors** —
+`NoClassDefFoundError` from an API above `minSdk` (two real crashes, 2026-09-10),
+`OutOfMemoryError` from the JNI guards of the same day, and
+`ArrayIndexOutOfBounds`/NPE from the races below. `catch (Exception)` holds
+neither of the first two.
+
+**The other two entry points on that path, and why each is fatal in its own way:**
+- **`onStop`** — its last two lines unpark the screen reader's ONE synthesis
+  thread. `enginePool` is a lock-free `ArrayList` walked here on a **binder
+  thread** while `EngineInitListener` appends on the main thread, and
+  `wrapper.stop()` and the logger can throw too. Any of them aborted `onStop`
+  *before* the release, and the parked thread then had nothing left that could
+  wake it. The release is in a **`finally`** now.
+- **the four `ServiceConnection` callbacks** — delivered on the **main looper**,
+  where an escape is also a process death. `onServiceDisconnected` is the worst:
+  it both unparks a waiting thread (`onEngineProcessGone`) and recovers the engine
+  (`restoreEngine`), so a throw in the first silently skipped the second. They are
+  separate `try` blocks now.
+
+All three shapes are **`invariants.sh` #27**, written up as `docs/INVARIANTS.md`
+#29, negative-tested three ways. **The third negative test caught the check being
+too weak on its first draft** — it matched the signature and `catch (ex: Throwable)`
+anywhere on the line, so replacing `try {` with `run {`, which is exactly how the
+guard would be lost in a refactor, still passed. That is the third time writing
+the negative test is what found the checker.
+
+### The five specific defects found on the way, each real on its own
+1. **`initIsoMaps` set its "already done" flag BEFORE doing the work.** The guard
+   was `if (isoToIso3.isNotEmpty()) return`, the map was filled next, and
+   `setIsoMap` — the native push — came last inside `catch (_: Throwable) {}`. So
+   one transient failure left **the native side with an EMPTY ISO map for the life
+   of the process**: every `toIso3()` in the core answers the code unchanged, no
+   detected language resolves to anything the engine list knows, and the app reads
+   everything in the fallback language or nothing at all until it is force-stopped.
+   Permanent damage from a transient failure, with no log line. The same method
+   also wrote a plain `HashMap` from the main thread AND the synthesis thread —
+   two threads resizing one `HashMap` together is the classic livelock, which here
+   is a spinning synthesis thread. Both go away by making the flag mean what it
+   says and dropping the map, which had no other reader. **The retry is free**:
+   `onSynthesizeText` calls it once per utterance.
+2. **The last two unsynchronized walks of `LangStore.languages` were on the
+   SPEAKING path** — in `loadVoice` and `loadVoiceDedicated`. The 2026-09-10 pass
+   made `replaceAll` the only writer and closed every other reader; it missed
+   these two, which are the only ones that cost a blind user speech rather than a
+   settings screen. A bare `size` read then `get(index)` against `clear()+addAll`
+   is `IndexOutOfBoundsException`, not a stale element. Both go through
+   `LangStore.entryAt`.
+3. **`wrapper.tts!!` in `loadVoice`, and `state == 2` does NOT imply a non-null
+   client.** `restoreEngine` calls `shutdown()` and constructs a replacement
+   *without* first clearing `state` or `tts`, so a wrapper sits at state 2 for the
+   whole bind-and-init window; and both init listeners assign `cell[0]`, which is
+   null on AOSP's inline-ERROR dispatch.
+4. **`onEngineProcessGone` compared a RAW package against a NORMALISED
+   `speakingPkg`.** `speakingPkg` is `wrapper.pkg`, and `EngineWrapper` strips `-`
+   and `_`; the callback is handed the raw name from `engineList`. For any engine
+   package with an underscore, the one mechanism that unparks the synthesis thread
+   when an engine dies could never match.
+5. **`onLoadLanguage`'s `catch (_: Exception) {}` around `loadVoice` was silent.**
+   That is where a "wrong voice" or "no voice" bug begins — the voice was never
+   loaded, `engineIndex` may already have been written, and the utterance speaks
+   with whatever the engine happened to be set to — and it was invisible in the log
+   the owner shares.
+
+### The logger must never be the reason the app cannot speak
+`EasyVoiceLogger.writeLine` is reached from every thread in the app **including
+from inside the catches above**, so a throw escaping it would defeat the very
+guard that called it. Its catch was `IOException` and is now `Throwable`;
+`rotate()` — four filesystem calls, each able to throw `SecurityException` — moved
+inside the guard from beside it; and `init()`, which is the **first line of the
+service's `onCreate`, before `super.onCreate()`**, is guarded too (`getFilesDir()`
+can fail when storage is not ready, `mkdirs()` can throw). A diagnostic that can
+break the thing it is diagnosing is worse than no diagnostic.
+
+### onCreate and onDestroy: each step on its own
+A throw anywhere in `onCreate` leaves the TTS service dead, the phone with no
+voice at all, and `START_STICKY` restarting it into the same state — the shape of
+both API-26-against-`minSdk`-24 crashes of 2026-09-10. The five steps are guarded
+**separately**, because they are independent: a device where audio focus cannot be
+taken should still get its settings, its language sets and its engines. The
+concrete new risk is `getSystemService(AUDIO_SERVICE) as AudioManager` — `as` on a
+null answer is an NPE, and a modified OEM build is exactly where a system service
+comes back null. `onDestroy` had the opposite shape: `stopForeground`,
+`abandonAudioFocus` and the engine-pool walk shared ONE `try`, so a throw from
+either of the first two skipped the shutdown that stops this process leaking a
+connection into every TTS engine on the phone — and `abandonAudioFocus`
+dereferences `audioManager!!` and `audioFocusRequest!!`, both null if
+`requestAudioFocus` failed at startup.
+
+### The two exported activities any app on the phone could crash
+`CheckVoiceData` and `GetSampleText` are `exported`, so a throw in either is an
+"app has stopped" dialog raised by somebody else's intent. Both now always
+`setResult` and `finish`. **`GetSampleText`'s `intent.getStringExtra` unparcels
+the WHOLE Bundle**, so any app can send an extra carrying a class this process
+cannot load and get `BadParcelableException`. **`CheckVoiceData` keeps
+`CHECK_VOICE_DATA_PASS` on every path deliberately** — an empty list is a state
+callers already handle, because this app answers with one in a cold process
+(AutoTTS's `n.i(null, true)` loads nothing either); `FAIL` would be a NEW outcome
+telling the caller to install voice data, and we declare no `INSTALL_TTS_DATA`
+activity.
+
+### THE BACKGROUND/FOREGROUND QUESTION IS SETTLED — AutoTTS HAS NOTHING WE LACK
+*"jo background mein chalti rahti hai ... background foreground wali chij hai."*
+The two manifests were listed component by component rather than remembered.
+**AutoTTS declares no `BroadcastReceiver`, no boot receiver, no `JobService`, no
+WorkManager and no second service of its own.** Its whole component list is:
+
+    service    com.vnspeak.autotts.AutoTtsService          <- ours, attribute for attribute
+    activity   CheckVoiceData / GetSampleText / NewSettingsActivity   <- ours
+    activity   PlayCoreDialogWrapperActivity               <- the licence gate, carve-out
+    activity   com.pairip.licensecheck.LicenseActivity     <- the licence gate, carve-out
+    receiver   androidx.profileinstaller.ProfileInstallReceiver   <- androidx's own, merged
+    provider   androidx.core.content.FileProvider          <- ours
+    provider   androidx.startup.InitializationProvider     <- androidx's own, merged
+
+The two `androidx` entries are contributed by those libraries' own manifests and
+merge into ours the same way; the two licence activities are the standing
+carve-out. Its `<service>` attributes match ours byte for byte, including the
+three that are inert on a TTS service and are cargo in AutoTTS too. Its permission
+list differs by exactly `com.android.vending.CHECK_LICENSE` and the
+androidx-generated `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. **So there is
+nothing running in the background in AutoTTS that is missing here, and no
+component to add. Do not re-sweep this.** (The one genuine difference is
+`extractNativeLibs`: AutoTTS `false`, ours `true`, which is the deliberate
+smaller-download choice recorded under APK size.)
+
 ## CLD3 IS GONE — CLD2 IS THE ONLY DETECTOR (owner decision, 2026-09-02)
 *"cld3 library hai na, ham hata hi dete hain properly … jitna bhi cld3 ke saath juda
 hua hai sab kuchh, A to Z … only CLD2 hi rakhna hai."* Done, and it is not a pause:
