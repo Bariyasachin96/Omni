@@ -7,6 +7,114 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE FIRST UTTERANCE AFTER A LANGUAGE SWITCH WAS SLOW, AND IT IS `getVoice()` (owner, 2026-09-11)
+The owner's report is the most precise one this project has had, and it names the
+mechanism by itself:
+
+*"Maine English ke liye vocalizer use kar raha hun aur Hindi aur Gujarati ke liye
+Google ... Jab main Hindi read kar raha hun to turant read karne lag jata hai ...
+fir jab main Gujarati text read karne jata hun to thodi der ke bad read karta hai
+... fir dusri bar jab main focus rakhta hun to turant ... English mein kyon time
+nahin lagta hai?"*
+
+Three facts in that, and together they are the whole diagnosis:
+
+| observation | what it rules in |
+|---|---|
+| slow on the FIRST utterance after a language CHANGE | the work happens in `onLoadLanguage`, which a screen reader calls **only when the locale changes** |
+| instant on the SECOND utterance of the same language | on a repeat `onLoadLanguage` never runs at all, so whatever is slow is inside it |
+| **English never slow** | English is on **another engine**. Same code, different engine -- so the cost scales with something the ENGINE owns |
+
+**THE ANSWER, read out of AOSP rather than reasoned about.**
+`TextToSpeech.getVoice()` is not a local read:
+
+    public Voice getVoice() {
+        return runAction(service -> {
+            String voiceName = mParams.getString(Engine.KEY_PARAM_VOICE_NAME, "");
+            if (TextUtils.isEmpty(voiceName)) return null;
+            return getVoice(service, voiceName);
+        }, null, "getVoice");
+    }
+    private Voice getVoice(ITextToSpeechService service, String voiceName) {
+        List<Voice> voices = service.getVoices();     // <-- THE WHOLE SET, EVERY CALL
+        ...                                           //     then a client-side scan by name
+    }
+
+So **every `tts.voice` marshals the engine's ENTIRE voice set across a binder** and
+then picks one entry out of it locally. For Google TTS that is hundreds of `Voice`
+objects, each carrying a name, a Locale, two ints, a boolean and a feature `Set`.
+For Vocalizer it is a handful -- **which is exactly why English is instant and the
+two Google languages are not.** It is the same expensive call the 2026-09-02 pass
+already cached for the variant scan, and `tts.voice` was left uncached beside it.
+
+**How many of those a single switch was paying, counted rather than estimated:**
+
+| `loadVoice`, named variant | before | after |
+|---|---|---|
+| `wrapper.tts.voice` (the "Do nothing!" test) | **1 full marshal** | 0 |
+| `wrapper.voicesCache` | 1 on the first switch only | 0 |
+| the `!matchedAVoice` re-query | **1 more**, and on the FIRST switch it re-fetched data we had just fetched, back to back | 0 |
+| `setVoice(voiceObj)` | 1 cheap binder (`loadVoice` only) | 1 cheap binder |
+
+| `loadVoiceDedicated` ("Use dedicated engines" ON) | before | after |
+|---|---|---|
+| `wrapper.tts.voice` | **1 full marshal** | 0 |
+| `wrapper.tts.voices` -- **completely uncached** | **1 full marshal, every single switch, for ever** | 0 |
+
+**THE FIX: mirror `mParams[KEY_PARAM_VOICE_NAME]` instead of asking for it.** AOSP
+writes that param in exactly two places, so the mirror is EXACT rather than
+approximate -- this is not a guess about what `getVoice()` "probably" returns:
+
+    setVoice(v)       on SUCCESS only, param = v.name   -> currentVoice = v, known
+    setLanguage(loc)  on success, param = the engine's own getDefaultVoiceNameFor(),
+                      a name we are never told          -> currentVoiceKnown = false
+    either one FAILS  writes nothing                    -> leave both untouched
+    `tts` replaced    a new client has empty mParams    -> null, known
+
+`EngineWrapper.voiceNow()` returns the cached answer when it is known and asks the
+engine only when it is not, so a binder call happens exactly where we genuinely do
+not know -- and never on the path the owner walks. `forgetClientState()` clears the
+voice cache and this pair together, at all four sites where `tts` is replaced.
+
+**Why this cannot answer differently from `getVoice()`:** that method reads OUR
+client's own `mParams`, which only OUR calls write -- another app's `setVoice` goes
+to its own client. The one divergence is a voice being UNINSTALLED between our
+`setVoice` and the next read, where AOSP's name lookup would now answer null; that
+is the same staleness `voicesCache` has accepted since 2026-09-02, and both are
+cleared together when the client is replaced.
+
+**DELIBERATE DEPARTURE**, on exactly the footing of the `voicesCache` change --
+same owner, same symptom, same engine pair, and that change's own note already said
+the marshal "runs ON THE MAIN THREAD" and is "the halka sa delay the owner hears
+between languages even when both sit on the same engine". This finishes it.
+
+### WHAT IS LEFT, stated rather than hidden
+**At `*Default` one marshal remains and it is INSIDE AOSP, not ours.**
+`setLanguage(loc)` is four blocking binder calls -- `isLanguageAvailable`,
+`getDefaultVoiceNameFor`, `loadVoice`, and then `getVoice(service, voiceName)`,
+which is a full `getVoices()` -- written so that `getLanguage()` will report the
+right locale afterwards. We cannot remove a call from inside the framework.
+**`setVoice(v)` is ONE binder call and no marshal**, so a language configured with a
+NAMED voice now switches with no voice-set marshal at all, while one left at
+`*Default` still pays AOSP's. Resolving the default ourselves from the cache would
+mean inventing the engine's own choice of default voice, which is rule 6, so it is
+**not** done.
+
+**The engine's own model load is also still there and is not ours.** `setVoice`
+queues a `LoadVoiceItem` on the target engine's `SynthHandler` and our `speak` queues
+behind it, so Google TTS loading the voice is serialised before the first word. That
+is already as pipelined as the API allows on this path: the screen reader calls
+`setLanguage` on us *before* it calls `speak`, so the load is already started when
+the text arrives.
+
+**One idea NOT taken.** In mix mode the NEXT chunk's `onLoadLanguage` runs inside
+`onDone`'s post, i.e. after the previous chunk has finished -- it could in principle
+be issued while the previous chunk is still speaking, since the engine queues the
+load behind the current item anyway. That is a change on the speaking path that
+cannot be tested here, it does not address the reported case (a single-language
+utterance after a switch), and this file records three regressions from exactly that
+shape. Ask before writing it.
+
 ## THE FOURTH ROUND OF "ACHANAK SE BOLNA BAND HO JATA HAI" — IT IS THE CLASS, NOT A HOLE (owner, 2026-09-11)
 *"actually khaas karke TTS wali jo chij hai vahan per bahut problem a rahi hai ki
 achanak se bolna band ho jata hai ... properly research karke ekadam sahi tarike

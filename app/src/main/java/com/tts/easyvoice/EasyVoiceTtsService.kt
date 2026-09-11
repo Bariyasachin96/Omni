@@ -359,6 +359,46 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // wherever `tts` is replaced, because a new TextToSpeech is a new
         // connection to the engine and the old objects belong to the old one.
         @Volatile var voicesCache: MutableSet<android.speech.tts.Voice>? = null
+        // WHAT `TextToSpeech.getVoice()` WOULD ANSWER, WITHOUT ASKING (2026-09-11).
+        //
+        // getVoice() is NOT a local read. AOSP:
+        //     public Voice getVoice() { ... return getVoice(service, voiceName); }
+        //     private Voice getVoice(service, name) { List<Voice> voices = service.getVoices(); ... }
+        // -- so every call marshals the engine's ENTIRE voice set across a binder
+        // and then picks one entry out of it by name, client-side. For Google TTS
+        // that is hundreds of Voice objects, each with a name, a Locale, two ints,
+        // a boolean and a feature Set. It is the same expensive call the 2026-09-02
+        // pass already cached for the VARIANT SCAN, and it was left uncached here.
+        //
+        // The name it looks up is `mParams[KEY_PARAM_VOICE_NAME]`, which AOSP writes
+        // in exactly two places, so this pair can mirror it EXACTLY rather than
+        // approximately:
+        //   setVoice(v)      -> on SUCCESS only, param = v.name  => currentVoice = v
+        //   setLanguage(loc) -> on success, param = the engine's own
+        //                       getDefaultVoiceNameFor(...), a name we are never
+        //                       told  => currentVoiceKnown = false, ask next time
+        //   a failed call writes nothing                         => leave both alone
+        //   a replaced `tts` is a new client with no params       => null, known
+        //
+        // So a binder call happens only where we genuinely do not know the answer,
+        // and never on the repeat path.
+        @Volatile var currentVoice: android.speech.tts.Voice? = null
+        @Volatile var currentVoiceKnown: Boolean = true
+        // Called wherever `tts` is replaced. A new TextToSpeech is a new connection
+        // with empty mParams, so getVoice() would answer null and the old engine's
+        // Voice objects belong to the old connection.
+        fun forgetClientState() {
+            voicesCache = null
+            currentVoice = null
+            currentVoiceKnown = true
+        }
+        fun voiceNow(): android.speech.tts.Voice? {
+            if (currentVoiceKnown) return currentVoice
+            val asked = try { tts?.voice } catch (_: Exception) { null }
+            currentVoice = asked
+            currentVoiceKnown = true
+            return asked
+        }
         // AutoTTS's c3.k0.java:78 is ThreadPoolExecutor(0, 5, 60s, LinkedBlockingQueue,
         // h0) with daemon "TtsStop" threads, and k0.m() is just i.execute(new i0(this)).
         // Queuing is right -- onStop() must return promptly, so the binder call into the
@@ -407,15 +447,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
             var curLocale = java.util.Locale("zxx")
             var curVoiceName = ""
             if (wrapper.voiceName.isNotEmpty()) {
-                // `wrapper.tts!!` until 2026-09-11, and state == 2 does NOT imply a
-                // non-null client: restoreEngine calls shutdown() and constructs a
-                // replacement WITHOUT first clearing state or tts, so a wrapper sits
-                // at state 2 for the whole bind-and-init window, and both init
-                // listeners assign `cell[0]`, which is null on AOSP's inline-ERROR
-                // dispatch. A NullPointerException here leaves loadVoice half done
-                // with engineIndex already written, on the thread that is about to
-                // speak. The null case is the one the code below already handles.
-                val curVoice = wrapper.tts?.voice
+                // voiceNow(), not `wrapper.tts!!.voice` -- see the field for why that
+                // read is a full voice-set marshal and how this mirrors it exactly.
+                // (It also fixes a second defect: `!!` on a client that state == 2
+                // does NOT guarantee is non-null, because restoreEngine shuts the old
+                // one down and constructs a replacement without clearing state, and
+                // both init listeners assign cell[0], which is null on AOSP's
+                // inline-ERROR dispatch.)
+                val curVoice = wrapper.voiceNow()
                 if (curVoice != null) {
                     curLocale = curVoice.locale
                     curVoiceName = curVoice.name
@@ -470,7 +509,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (!localeMatches(locale, curLocale)) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + curLocale.toString())
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else restoreEngine(wrapper.pkg)
+                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else restoreEngine(wrapper.pkg)
                 }
             } else if (effectiveVariant != curVoiceName) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Check voice 1")
@@ -502,6 +541,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // the service is alive is still found; that path costs exactly what
                 // every call used to cost, and it is the rare one.
                 var voices = wrapper.voicesCache
+                // THE RE-QUERY BELOW USED TO RUN BACK TO BACK WITH THIS ONE
+                // (2026-09-11). On the first switch the cache is null, so we fetch
+                // the whole set here, the scan fails to find the variant, and the
+                // `!matchedAVoice` branch immediately fetched THE SAME SET AGAIN --
+                // two full voice-set marshals, one behind the other, for identical
+                // data. The re-query only makes sense against a cache that is OLD
+                // enough to have gone stale, which is exactly what it was written
+                // for ("a voice installed while the service is alive").
+                val cacheWasFresh = voices == null
                 if (voices == null) {
                     voices = try { wrapper.tts?.voices } catch (_: Exception) { null }
                     wrapper.voicesCache = voices
@@ -511,20 +559,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     for (voiceObj in list) {
                         if (voiceObj.name.equals(effectiveVariant, ignoreCase = true)) {
                             val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
-                            if (setVoiceResult != null && setVoiceResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult) } else restoreEngine(wrapper.pkg)
+                            if (setVoiceResult != null && setVoiceResult >= 0) { wrapper.localeSet = true; wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult) } else restoreEngine(wrapper.pkg)
                             return true
                         }
                     }
                     return false
                 }
                 matchedAVoice = scanFor(voices)
-                if (!matchedAVoice && voices != null) {
+                if (!matchedAVoice && voices != null && !cacheWasFresh) {
                     val fresh = try { wrapper.tts?.voices } catch (_: Exception) { null }
                     if (fresh != null) { wrapper.voicesCache = fresh; matchedAVoice = scanFor(fresh) }
                 }
                 if (!matchedAVoice && !localeMatches(locale, curLocale)) {
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else restoreEngine(wrapper.pkg)
+                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else restoreEngine(wrapper.pkg)
                 }
             }
             wrapper.locale = locale; wrapper.voiceName = effectiveVariant
@@ -546,7 +594,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (nullableIso3(wrapperLocale) == nullableIso3(locale) &&
                 (nullableIso3Country(wrapperLocale) == reqCountry || reqCountry.isEmpty())) return
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.locale = locale; wrapper.voiceName = "" } else restoreEngine(wrapper.pkg)
+            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = "" } else restoreEngine(wrapper.pkg)
         } else { engineIndex = -1 }
     }
     private fun loadVoiceDedicated(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
@@ -561,7 +609,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         engineIndex = idx
         val wrapper = enginePool[idx]
         if (dedicated && wrapper.localeSet) return
-        val engineVoice = try { wrapper.tts?.voice } catch (_: Exception) { null }
+        // voiceNow(), for the reason written on the field: `tts.voice` is a full
+        // voice-set marshal, and this path runs on every language change when
+        // "Use dedicated engines" is on.
+        val engineVoice = wrapper.voiceNow()
         val engineLocale = engineVoice?.locale ?: java.util.Locale("zxx")
         val engineName = engineVoice?.name ?: ""
         if (previousEngineIndex == engineIndex && engineVoice != null) {
@@ -598,7 +649,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *1")
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + engineLocale)
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.locale = locale; wrapper.voiceName = locale.variant } else restoreEngine(wrapper.pkg)
+            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant } else restoreEngine(wrapper.pkg)
             return
         }
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *2")
@@ -610,13 +661,23 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *2.1 Do nothing"); return
             }
         }
-        val voices = try { wrapper.tts?.voices } catch (_: Exception) { null }
+        // CACHED, as loadVoice's scan already is (2026-09-11). This read was left
+        // uncached when the 2026-09-02 pass cached the other one, so with "Use
+        // dedicated engines" on, EVERY language change marshalled the engine's
+        // whole voice set -- the same cost that pass was written to remove, on the
+        // path it was written for.
+        var voices = wrapper.voicesCache
+        if (voices == null) {
+            voices = try { wrapper.tts?.voices } catch (_: Exception) { null }
+            wrapper.voicesCache = voices
+        }
         if (voices != null) {
             for (voiceObj in voices) {
                 if (!voiceObj.name.equals(effectiveVariant, ignoreCase = true)) continue
                 val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
                 if (setVoiceResult != null && setVoiceResult >= 0) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name)
+                    wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true
                     wrapper.locale = voiceObj.locale; wrapper.voiceName = effectiveVariant; wrapper.localeSet = true
                     return
                 }
@@ -626,7 +687,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         if (!localeMatches(locale, engineLocale)) {
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else restoreEngine(wrapper.pkg)
+            if (setLangResult != null && setLangResult >= 0) { wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else restoreEngine(wrapper.pkg)
         }
     }
 
@@ -720,10 +781,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
             if (status == TextToSpeech.SUCCESS) {
                 if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); if (initializingIndex < enginePool.size) enginePool[initializingIndex].audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
-                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].voicesCache = null; enginePool[initializingIndex].state = 2 }
+                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].forgetClientState(); enginePool[initializingIndex].state = 2 }
                 if (engineList[initializingIndex] == "com.google.android.tts") googleEngineIndex = initializingIndex
             } else {
-                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].voicesCache = null; enginePool[initializingIndex].state = -1 }
+                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].forgetClientState(); enginePool[initializingIndex].state = -1 }
             }
             initializingIndex++
             while (initializingIndex < engineList.size) {
@@ -880,12 +941,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 wrapper.audioAttrSet = false
                 if (status == TextToSpeech.SUCCESS) {
                     if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
-                    wrapper.tts = initializingTts; wrapper.voicesCache = null
+                    wrapper.tts = initializingTts; wrapper.forgetClientState()
                     wrapper.state = 2
                     wrapper.voiceName = ""
                     wrapper.locale = null
                 } else {
-                    wrapper.tts = initializingTts; wrapper.voicesCache = null
+                    wrapper.tts = initializingTts; wrapper.forgetClientState()
                     wrapper.state = -1
                 }
             } else { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "ttsInitListener_restore invalid index") }
