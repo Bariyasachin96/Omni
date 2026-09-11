@@ -608,7 +608,35 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val previousEngineIndex = engineIndex
         engineIndex = idx
         val wrapper = enginePool[idx]
-        if (dedicated && wrapper.localeSet) return
+        // THIS GUARD PINS ONE VOICE PER **ENGINE**, NOT PER LANGUAGE, and until
+        // 2026-09-11 it was the only path in the app that could keep the wrong
+        // voice while writing NOTHING to the log.
+        //
+        // It is AutoTTS's, byte for byte -- h0 (noexc:1023) wraps its whole body
+        // in `if (!bl || !((k0)f.get(d)).f)`, which is `if (dedicated &&
+        // localeSet) skip` written the other way round, and `localeSet` is
+        // assigned at the SAME seven sites in both apps (three in loadVoice, one
+        // in loadVoiceOriginal, three here). So it is parity, not a defect.
+        //
+        // What it MEANS is worth stating, because it is surprising and it
+        // matches a real report: "Use dedicated engines" assumes one engine per
+        // language. Put Hindi, Gujarati and Marathi all on Google TTS and the
+        // FIRST of them to load pins that engine's voice; every other language
+        // on it is skipped here and speaks in the first one's voice, for the
+        // life of the process, whatever the detector said. The owner reported
+        // exactly that on 2026-09-11 (Marathi read in the Hindi voice, either
+        // order), and detection was measured clean -- see
+        // tools/verify/devanagari/run.sh.
+        //
+        // The line below is a LOG, not a behaviour change. Without it the one
+        // path that can silently keep the wrong voice left no trace at all, so
+        // no log the owner sends could ever name it.
+        if (dedicated && wrapper.localeSet) {
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                " *dedicated: keeping " + wrapper.voiceName + " on " + wrapper.pkg +
+                ", not loading " + locale.toString() + " " + variant)
+            return
+        }
         // voiceNow(), for the reason written on the field: `tts.voice` is a full
         // voice-set marshal, and this path runs on every language change when
         // "Use dedicated engines" is on.

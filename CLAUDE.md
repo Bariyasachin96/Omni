@@ -7,6 +7,89 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## MARATHI IN THE HINDI VOICE: DETECTION IS CLEAN, THE DEDICATED SWITCH IS NOT (owner, 2026-09-11)
+*"Marathi ke liye maine voice select kari hai, vah voice ki awaaz nahin a rahi
+hai, Hindi wali voice se awaaz a rahi hai ... Marathi pehle rakhun ya Hindi baad
+mein rakhun, tab bhi yah problem a rahi hai ... ab to aapko focus karna hai
+detection ke upar."*
+
+**The owner asked for detection, so detection was MEASURED rather than argued --
+and it is clean.** `tools/verify/devanagari/run.sh` is the new harness: it links
+the REAL `tts_engine_core.cpp` with CLD2 and a genuine `JNIEnv`, pushes a real
+enabled set through `setLanguageHints`/`setDetectSets` exactly as
+`pushLanguageSets` does, and asks `nativeGetLanguages` what each span gets --
+printing CLD2's own summary, top three and percentages beside the answer, which
+is the only way to tell "the detector was wrong" from "our filter dropped a right
+answer".
+
+    Devanagari, enabled {en gu hi mr}     10 of 10   mr 95-99%, hi 94-99%
+    Devanagari, only Marathi enabled       2 of 2
+    Cyrillic, {en ru uk}                   2 of 2
+    Arabic script, {en ar ur fa}           3 of 3     ur / ar / fa all correct
+    THE REAL PATH: processDirect first, then detect each chunk
+                                          12 of 13 chunks
+
+**CLD2 names Marathi correctly even for "नवीन चॅट" -- eight characters, 95%.** The
+one miss in the real path is **`मायक्रोफोन`**, and it is not a defect: that
+loanword is spelled identically in Hindi and Marathi, so no detector can separate
+it and neither could a person without context.
+
+**The rest of the chain was verified too, and every link is right:**
+
+| link | verified |
+|---|---|
+| `mr` reaches the hint list | `IsoCodes.toIso2("mar")` = `mr` from `Locale.getISOLanguages()`; not the `jw` class of hole |
+| the per-script hint | with hi AND mr enabled `matched[4] == 2`, so the hint is UNKNOWN and CLD2 runs unguided -- which is what the measurement above exercises, and it still answers `mr` |
+| `languageForDetectedRun` | `toIso3("mr")` = `mar`, then the engine check |
+| `LangStore.engineFor/localeFor/variantFor` | exact `lang == entry.iso3`, no prefix matching |
+| **the mix and multilingual FIRST-CHUNK preflight** | ours calls `preflightLanguage(chunks[0].lang)` -- AutoTTS's `onLoadLanguage` at noexc **1956** (mix) and **2029** (multilingual). Present and matching. |
+
+**I was wrong about that last one mid-investigation and checked before acting.**
+Reading a summary rather than the code, I concluded the mix branch never loaded
+the first chunk's language and had a fix half-written. The code says otherwise --
+lines 1827 and 1886 do exactly what AutoTTS does. **Read the file, not the note
+about the file.**
+
+### SO WHAT PRODUCES THE SYMPTOM: `loadVoiceDedicated`'s guard pins ONE VOICE PER **ENGINE**
+
+    ours      if (dedicated && wrapper.localeSet) return
+    AutoTTS   if (!bl || !((k0)f.get(d)).f) { <the whole body> }      h0, noexc:1023
+
+Those are the same condition written the other way round, and **`localeSet` is
+assigned at the SAME SEVEN SITES in both apps** -- three in `loadVoice`, one in
+`loadVoiceOriginal`, three in `loadVoiceDedicated` (AutoTTS 897, 912, 928, 975,
+1118, 1156, 1167). So this is **parity, not our defect**, and it must not be
+changed on my own judgement.
+
+**What it means is the report.** "Use dedicated engines" assumes **one engine per
+language**. Put Hindi, Gujarati and Marathi all on Google TTS and the FIRST of
+them to load pins that engine's voice; every other language on that engine is
+skipped at this guard and speaks in the first one's voice **for the life of the
+process**, whatever the detector said. That is:
+- **deterministic** -- not a probability, which is why no amount of re-reading
+  detection could find it;
+- **order-independent in the way the owner described** -- whichever language
+  loads first is right and the other is always wrong, so swapping them just
+  swaps which one is broken;
+- **invisible in the log**, because the guard returned without writing a line.
+
+**The log line is added** (that is all that was changed -- no behaviour). It now
+prints what it is keeping and what it refused to load, so the next log the owner
+sends names this in one look.
+
+**THE OWNER'S LEVER, and the question to ask before changing anything:** turn
+**"Use dedicated engines" OFF**. It exists for one-engine-per-language setups;
+theirs is three languages on one engine, which is the case it cannot serve.
+
+**THE FIX, IF THEY WANT ONE, IS THEIRS TO ORDER.** The guard's intent is "a
+dedicated engine already serves its language, do not re-set it", and the defect
+is that it tests *ever loaded* instead of *already loaded with what we want* --
+which is precisely what the `*0 Do nothing` comparison twelve lines below already
+computes. Deleting the early return and letting that comparison decide would fix
+it, and would also make a genuinely dedicated engine re-check its voice on every
+switch. It is the service path, rule 5 governs, and this file records three
+regressions from exactly this shape of untested change. **Say the word.**
+
 ## THE FIRST UTTERANCE AFTER A LANGUAGE SWITCH WAS SLOW, AND IT IS `getVoice()` (owner, 2026-09-11)
 The owner's report is the most precise one this project has had, and it names the
 mechanism by itself:
