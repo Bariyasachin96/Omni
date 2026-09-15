@@ -1,0 +1,18 @@
+# WHAT GOES INTO THE SOURCE ARCHIVE PUBLISHED WITH EVERY BUILD.
+#
+# `git archive` is what the workflow uses to build EasyVoice-<n>-source.zip, and
+# it ships every TRACKED file at that exact commit -- so the archive is the build,
+# byte for byte, and build output, caches and anything gitignored can never leak
+# into it. Anything added to the repo is included automatically; only what is
+# named below is left out.
+#
+# autotts_reference/ is the ONE exclusion, and it is not this app's source. It is
+# AutoTTS's own APK (two copies, 11 MB each) plus its decompilation, kept in the
+# repo so a session can check behaviour against it. Including it would make the
+# archive 19.8 MB instead of 1.0 MB, 95% of it somebody else's app, and it would
+# put a third-party APK on a public download page -- which having it in the repo
+# for reference is not. Every file that compiles, tests, checks or documents Easy
+# Voice is IN.
+#
+# To ship it anyway, delete this line. Nothing else has to change.
+autotts_reference/ export-ignore

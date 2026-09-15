@@ -189,6 +189,59 @@ jobs:
           cp "$out/app-armeabi-v7a-release.apk"  "EasyVoice-${{ github.run_number }}-armeabi-v7a.apk"
           ls -l EasyVoice-${{ github.run_number }}*.apk
 
+      # THE EXACT SOURCE OF THIS BUILD, PUBLISHED BESIDE IT (owner, 2026-09-11:
+      # "har build ke sath pura jo latest build ka source code hai vah bhi a jana
+      # chahie").
+      #
+      # `git archive` is what makes this the build rather than a snapshot of
+      # something near it: it reads TRACKED files out of the commit that was just
+      # compiled, so build output, tools/.cache, Gradle's caches and everything
+      # gitignored are structurally incapable of getting in, and the archive is
+      # reproducible from the commit for as long as the repo exists. The one
+      # exclusion, autotts_reference/, is declared in .gitattributes with the
+      # reasoning beside it -- not here, so it cannot drift from the archive.
+      #
+      # GitHub already attaches its own "Source code (zip)" to a tag. This is
+      # still worth its own asset: it is NAMED after the build, so it sits beside
+      # the APKs under the same number, and it carries BUILD-INFO.txt stamping
+      # which run, commit and branch produced it -- which the auto-generated one
+      # cannot.
+      - name: Archive the source of this build
+        run: |
+          set -e
+          n=${{ github.run_number }}
+          cat > BUILD-INFO.txt <<INFO
+          Easy Voice - source of build #$n
+          Commit:   ${{ github.sha }}
+          Ref:      ${{ github.ref_name }}
+          Workflow: ${{ github.workflow }} run ${{ github.run_id }}
+          Built:    $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          This is every tracked file at that commit, straight out of git, so it
+          builds the APK published in the same release. Build it with:
+            ./gradlew assembleRelease -PevAbiSplit
+          INFO
+          git archive --format=zip -9 \
+            --prefix="EasyVoice-$n-source/" \
+            HEAD -o "EasyVoice-$n-source.zip"
+          # BUILD-INFO goes in with plain `zip` rather than git archive's own
+          # --add-file, which only exists from git 2.38. The runner image is far
+          # newer than that today, but a source archive is not worth making the
+          # publish step depend on a runner's git version, and appending to a zip
+          # is the same one command everywhere.
+          mkdir -p "EasyVoice-$n-source"
+          mv BUILD-INFO.txt "EasyVoice-$n-source/BUILD-INFO.txt"
+          zip -q -9 "EasyVoice-$n-source.zip" "EasyVoice-$n-source/BUILD-INFO.txt"
+          rm -rf "EasyVoice-$n-source"
+          ls -l "EasyVoice-$n-source.zip"
+          # A source archive that does not contain the app is worse than none at
+          # all, because nobody opens it until they need it. Assert the two things
+          # that would actually be missing if git archive ever changed under us.
+          unzip -Z1 "EasyVoice-$n-source.zip" | grep -q "EasyVoice-$n-source/app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt" \
+            || { echo "source archive is missing the service"; exit 1; }
+          unzip -Z1 "EasyVoice-$n-source.zip" | grep -q "EasyVoice-$n-source/app/src/main/cpp/tts_engine_core.cpp" \
+            || { echo "source archive is missing the native core"; exit 1; }
+
       - name: Publish APK to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
@@ -202,10 +255,16 @@ jobs:
             The two smaller files below are the same build with only one CPU's
             code in it -- `arm64-v8a` is the one for any phone from about 2015
             onwards, and it is roughly half the download.
+
+            **EasyVoice-${{ github.run_number }}-source.zip** is the complete
+            source this build was compiled from, taken straight out of the commit
+            above. It excludes only `autotts_reference/`, which is a third-party
+            app kept in the repo for comparison and is not part of Easy Voice.
           files: |
             EasyVoice-${{ github.run_number }}.apk
             EasyVoice-${{ github.run_number }}-arm64-v8a.apk
             EasyVoice-${{ github.run_number }}-armeabi-v7a.apk
+            EasyVoice-${{ github.run_number }}-source.zip
           make_latest: true
           fail_on_unmatched_files: true
         env:

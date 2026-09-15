@@ -67,7 +67,25 @@ PLUGIN=""; [ -f "$CACHE/compose-plugin.jar" ] && PLUGIN="-Xplugin=$CACHE/compose
 
 rm -rf "$WORK/src" "$WORK/out"; mkdir -p "$WORK/src"
 cp "$SRC"/*.kt "$WORK/src/"
-python3 "$ROOT/tools/check/genr.py" "$WORK/src" >/dev/null 2>&1
+# R.kt, NOT the directory. It read "$WORK/src" until 2026-09-15, and genr.py's
+# only argument is the DESTINATION FILE -- so open(dest,'w') raised
+# IsADirectoryError, the 2>/dev/null swallowed it, and NO R.kt was ever written.
+# This check therefore compiled all 74 sources with no R class at all: 45 kotlinc
+# errors instead of 18, 26 of them "unresolved reference 'R'" that the grep below
+# filters out BY NAME, which is exactly why nobody noticed.
+#
+# The filtered ones were never the risk. The cascade was: an unresolved R gives
+# every expression containing it an error type, and kotlinc then stops reporting
+# real diagnostics inside it -- one such casualty is visible today
+# (MainActivity.kt:408 "cannot infer type for type parameter 'T'"). An above-minSdk
+# call sitting inside an R-bearing expression would be swallowed the same way, and
+# swallowing those is the one thing this check exists to prevent.
+#
+# The `|| exit` is the other half. A checker whose setup can fail silently is not a
+# checker -- that lesson is written three times over in CLAUDE.md -- so the R.kt is
+# now required to exist rather than hoped for.
+python3 "$ROOT/tools/check/genr.py" "$WORK/src/R.kt" >/dev/null 2>&1
+[ -s "$WORK/src/R.kt" ] || { echo "minsdk-api  FAILED -- genr.py wrote no R.kt"; exit 1; }
 "$KOTLINC" -cp "$CP" -jvm-target 17 $PLUGIN "$WORK/src"/*.kt -nowarn -d "$WORK/out" 2>&1 \
   | grep ": error:" > "$WORK/err.txt"
 
