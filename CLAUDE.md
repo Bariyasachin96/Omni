@@ -7,6 +7,120 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## "USE DEDICATED ENGINES" WENT SILENT: A FLAG OUTLIVED THE CLIENT IT DESCRIBED (owner, 2026-09-15)
+*"kuchh karte-karte automatically jo TTS hai vah stop ho jata hai ... phir mujhe
+force stop karna padta hai"*, and *"yah dedicated engine wala jo hai na vah
+completely fix karo ... jaise hi maine on kiya tha to vah sabhi TTS bolna band ho
+gaya tha. Mere khyal se vah uska pattern sahi hai, mechanism sahi hai, per uska
+coding structure thoda gadbadi wala hai."*
+
+**The owner was right on every count, including that the pattern is fine and the
+structure is not.** The guard they suspected is untouched; what was wrong is the
+FIELD it reads.
+
+### EngineWrapper has two kinds of field, and five of them describe an OBJECT
+    pkg, state, restoreCount        describe the engine PACKAGE -- survive anything
+    voicesCache, currentVoice,      describe THE TextToSpeech OBJECT in `tts`
+    currentVoiceKnown,
+    audioAttrSet, localeSet
+
+A new `TextToSpeech` is a new binder connection with **empty `mParams`**, so
+replacing `tts` makes all five false at once. Two had already been caught this
+way -- `voicesCache` (2026-09-02) and `audioAttrSet` (2026-09-03, a recorded
+DELIBERATE DEPARTURE because AutoTTS leaves its `k0.h` stale too). **`localeSet`
+is the one that pass missed**, and it is the worst of the three.
+
+### WHY IT WAS SILENCE RATHER THAN A WRONG VOICE
+`loadVoiceDedicated` opens with `if (dedicated && wrapper.localeSet) return` --
+AutoTTS's `h0` inverted (noexc:1023), parity, and **it stays**. The damage is not
+the skipped language. It is that the guard returns **before any `setLanguage` or
+`setVoice`**, and those two calls are the only things in the app that can notice a
+client is dead, because their failure branch is the only caller of `restoreEngine`:
+
+| path | after a bad restore |
+|---|---|
+| `loadVoice`, dedicated **OFF** | calls `setLanguage`, it fails, `restoreEngine` runs again -- **self-healing** |
+| `loadVoiceDedicated`, **ON** | returns at the guard, calls nothing, notices nothing -- **wedged** |
+
+The wrapper sits at `state == 2` holding a client that can never speak; all three
+loaders keep selecting it (they all match `state == 2`); `onEngineProcessBack`
+cannot help because it only acts on `state == -1`. **Force-stopping the process is
+the only cure -- the report, symptom for symptom.**
+
+**And it explains "jaise hi maine on kiya tha".** Before the switch every wrapper
+already carries `localeSet == true` from the ordinary `loadVoice` path, so the
+moment dedicated engines goes ON that guard fires for EVERY engine and the
+self-healing above is disabled app-wide from that instant.
+
+**THE FIX is one line, and it goes in `forgetClientState()`**, not at the
+listener: that function's contract is already "the client was replaced" and all
+four assignment sites go through it, so the fifth field cannot be missed the way
+the fourth was. **`audioAttrSet` stays OUT of it deliberately** -- both listeners
+set it `true` on the NEW client immediately *before* assigning `tts`, so clearing
+it in there would undo the value just written and re-create the 2026-09-03 bug.
+
+### The second defect, found on the way: a queued shutdown killed the NEW client
+`EngineWrapper.stop()` and `shutdown()` read `tts` **inside** the queued runnable,
+so the field is read when the worker runs it, not when the method is called.
+`stopExec` is `ThreadPoolExecutor(1, 5, 60s, UNBOUNDED LinkedBlockingQueue)`, and
+an unbounded queue's `offer()` never fails, so `execute()` never reaches
+`addWorker` and the pool **can never grow past one** -- `maximumPoolSize = 5` is
+dead config and everything runs strictly FIFO on ONE thread.
+
+`restoreEngine` is the only site that reuses a wrapper: it queues `stop()` and
+`shutdown()`, builds a replacement, and the listener assigns the new client on the
+main looper. **One stop already ahead in that queue is enough** for the pending
+shutdown to read the field and shut down the brand-new client. Both methods
+capture the client at call time now.
+
+### HOW THIS WAS ARRIVED AT -- the first diagnosis was too broad and got corrected
+Three independent adversarial reviewers were asked to **refute** the claim that a
+state-2 wrapper with a dead client is unrecoverable. **Two refuted it and they
+were right**: on the ordinary `loadVoice` path the restore listener clears
+`voiceName` and `locale`, which forces the next load past its "Do nothing"
+short-circuit into `setLanguage`, which fails, which restores again. **That
+refutation is what located the real defect** -- the dedicated path is the one
+where that self-healing cannot run, and `localeSet` is why. The claim as first
+written would have produced a wider and worse change. **Ask to be refuted before
+changing the speaking path.**
+
+**ENFORCED:** `invariants.sh` **#28** fails the build if `tts` is assigned without
+`forgetClientState()` beside it, or if that function stops clearing all four of
+its fields. Negative-tested three ways in `selftest.sh`. Written up as
+`docs/INVARIANTS.md` **#30**.
+
+## THE SOURCE OF EVERY BUILD IS PUBLISHED WITH IT (owner, 2026-09-11)
+*"GitHub repository per har build ke sath pura jo latest build ka source code hai
+vah bhi a jana chahie."* Every release now carries **`EasyVoice-<n>-source.zip`**
+beside the three APKs, built with `git archive` from the commit that was just
+compiled -- so build output, `tools/.cache`, Gradle's caches and everything
+gitignored are **structurally incapable** of getting in, and the archive stays
+reproducible from the commit. It carries `BUILD-INFO.txt` (run number, commit,
+branch, time), and the step asserts the service and the native core are really
+inside before the release is published.
+
+**One exclusion, declared in `.gitattributes` with the reasoning beside it:**
+`autotts_reference/`. It is not this app's source -- it is AutoTTS's own APK (two
+copies, 11 MB each) plus its decompilation. Including it makes the archive
+**19.8 MB instead of 1.0 MB**, 95% of it somebody else's app, and puts a
+third-party APK on a public download page. **Deleting that one line ships it too;
+nothing else changes.**
+
+### Two things found in the repo while doing it
+- **`tools/check/minsdk-api.sh` had been compiling with NO R CLASS AT ALL.** It
+  passed `genr.py` a **directory** where the only argument is the destination
+  FILE, so `open(dest,'w')` raised `IsADirectoryError`, the `2>/dev/null` ate it,
+  and no `R.kt` was ever written. Measured: **45 kotlinc errors instead of 18**, 26
+  of them `unresolved reference 'R'` which the grep below filters **by name** --
+  which is why nobody noticed. The filtered ones were never the risk; the cascade
+  was (one casualty is visible today at `MainActivity.kt:408`). Its verdict is
+  unchanged, so the fix carries no risk; what it removes is the blindness. A
+  `[ -s R.kt ] || exit 1` beside it means the setup can no longer fail silently.
+- **A tracked file literally named `--out`** sat at the repo root -- `genr.py`'s
+  generated R class, whose own first line says *"do not commit"*, written to a
+  file named after the flag meant to introduce it. Harmless to the APK, but it
+  would have shipped in every source archive from now on. Deleted.
+
 ## MARATHI IN THE HINDI VOICE: DETECTION IS CLEAN, THE DEDICATED SWITCH IS NOT (owner, 2026-09-11)
 *"Marathi ke liye maine voice select kari hai, vah voice ki awaaz nahin a rahi
 hai, Hindi wali voice se awaaz a rahi hai ... Marathi pehle rakhun ya Hindi baad
