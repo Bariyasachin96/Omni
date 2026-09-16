@@ -88,18 +88,38 @@ demonstrating the voice, so the owner cannot test those voices at all. **That is
 win, and it is a real one.** For a language the table already has, "more accurate" does not
 apply -- a demo sentence has no accuracy dimension, it just has to be in the right language.
 
-### THE OWNER'S CALL, and the three shapes
-1. **leave it** -- 49 languages keep saying "sample text is missing";
-2. **ask the engine, keep the table as the fallback** -- AOSP's exact shape. Fixes all 49.
-   Costs an activity round-trip on the Test button (the accessibility risk above) and makes
-   `VoiceSetupActivity` carry an `ActivityResultLauncher`. **Does not delete anything.**
-3. **a generic fallback instead of the apology** -- one line, no new API, no window change:
-   any language with no entry speaks a default sentence in the nearest language we do have,
-   or AOSP's English default. Imperfect (an English sentence in a Xhosa voice) but it DOES
-   demonstrate the voice, which is the whole job of Test.
+### THE OWNER CHOSE SHAPE 2, AND IT IS SHIPPED (2026-09-16)
+*"Hamen kuchh aisa function banana chahie ... jo ki use direct TTS se hi vah text mange."*
+Done, in AOSP's exact shape: ask the engine, keep the table as the fallback.
 
-**Nothing beyond the dead-key cut was done, because 2 and 3 both change what the Test
-button says and neither can be tested in this container.** Say which.
+    EngineSample.kt          the cache + the intent (extras: language, country, variant,
+                             setPackage(engine) -- Settings' own four lines)
+    VoiceSetupActivity       the ActivityResultLauncher, because only an Activity can
+    VoiceRows.speakTest      a `sampleProvider` parameter, defaulted to null
+
+**`sampleProvider` answers three ways and the middle one is the whole design:** a
+non-empty string is the engine's sentence; `""` means asked-and-it-had-none, so the table
+answers; `null` means gone-to-ask, and `speakTest` returns **without speaking** until
+`retry` -- itself with the same arguments -- runs again once the result lands. Recursion
+is bounded at two because the provider writes the key before replaying, even for a null
+answer. **With no provider the method is byte for byte what it was**, which is what keeps
+all 29 `AccessibilityChecksTest` cases and every other caller unchanged.
+
+**IT IS CACHED PER ENGINE+LOCALE, and that is an ACCESSIBILITY decision rather than a
+performance one.** An activity round trip is a window change, and a screen reader speaks a
+window's title when a window appears -- this app spent three sessions making each screen
+introduce itself exactly once. Cached, the trip happens on the **first Test for a
+language** and never again for the life of the process; every later press is the instant,
+silent path it has always been. An engine that declines caches `""` and is never asked
+again; `ActivityNotFoundException` does the same, which is what AOSP's Settings catches.
+
+**THE ONE THING ONLY A DEVICE CAN ANSWER, stated rather than guessed.** The engine's
+`GET_SAMPLE_TEXT` activity is `Theme.NoDisplay` and finishes inside `onCreate`, so it
+never draws -- but whether that still costs one extra window announcement on the owner's
+phone cannot be measured in this container. `VoiceSetupActivity` overrides **no
+`onResume`**, so nothing rebuilds and focus is not reset, which removes the regression
+shape this file records three times. **If a Test press starts announcing the screen twice,
+that is this change** and the fix is one line: stop passing `::engineSample`.
 
 ## THE SECTION HEADER IS A QUIET LABEL NOW, NOT A FILLED BAR (owner, 2026-09-16)
 *"Replace all section headers with smaller, regular-weight, and neutral-colored

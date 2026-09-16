@@ -395,7 +395,9 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
 // without going back each time. testTtsProvider stays last so the existing
 // trailing-lambda call site still reads naturally.
 @Composable
-fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigate: (Int) -> Unit, testTtsProvider: () -> TextToSpeech?) {
+fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigate: (Int) -> Unit,
+                sampleProvider: ((String, Locale, () -> Unit) -> String?)? = null,
+                testTtsProvider: () -> TextToSpeech?) {
     val context = LocalContext.current
     val readingMode = remember { prefs.getReadingMode() }
     val entry = LangStore.entryAt(langIndex)
@@ -474,7 +476,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     // settings screen went down with it.
                     onClick = {
                         try {
-                            VoiceRows.speakTest(voiceRows, entry, selectedIso, testTtsProvider())
+                            VoiceRows.speakTest(voiceRows, entry, selectedIso, testTtsProvider(), sampleProvider)
                         } catch (_: Exception) {
                             Toast.makeText(context, "Test unknown error", Toast.LENGTH_SHORT).show()
                         }

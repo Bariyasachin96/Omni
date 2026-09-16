@@ -85,12 +85,40 @@ object VoiceRows {
         if (slotCount > 1) java.util.Arrays.sort(ordered, 1, slotCount - 1)
         return ordered.toList()
     }
-    fun speakTest(rows: List<EngineFinder.ScanVoice?>, entry: LangEntry, selectedIso: String, testClient: TextToSpeech?) {
+    // THE SAMPLE COMES FROM THE ENGINE FIRST NOW (owner, 2026-09-16). See
+    // EngineSample for why it is an activity round trip and why the table below
+    // still has to exist.
+    //
+    // `sampleProvider` answers three ways, and the middle one is what makes the
+    // window change happen at most once per language:
+    //     a non-empty string -> the engine's own sentence, speak it
+    //     ""                 -> asked already, the engine had none, use the table
+    //     null               -> it has gone to ASK; do not speak, it will call
+    //                           `retry` when the answer lands
+    // Passing no provider at all -- which every test and every caller that is not
+    // VoiceSetupActivity does -- is byte for byte the behaviour of this method
+    // before that date.
+    //
+    // `retry` is this same call with this same arguments, so the second pass
+    // finds the cache populated and speaks. It cannot loop: the provider always
+    // writes the key before replaying, even when the engine answered nothing.
+    fun speakTest(
+        rows: List<EngineFinder.ScanVoice?>,
+        entry: LangEntry,
+        selectedIso: String,
+        testClient: TextToSpeech?,
+        sampleProvider: ((String, Locale, () -> Unit) -> String?)? = null
+    ) {
         val row = rows.firstOrNull()
         if (testClient == null || row == null) return
         val voiceLocale = row.locale
         val qualityTag = entry.variant
-        val sample = SampleTexts.get(EngineFinder.iso3Of(voiceLocale))
+        val fromEngine = if (sampleProvider == null) "" else {
+            val retry = { speakTest(rows, entry, selectedIso, testClient, sampleProvider) }
+            sampleProvider(row.pkg, voiceLocale, retry) ?: return
+        }
+        val sample = if (fromEngine.isNotEmpty()) fromEngine
+                     else SampleTexts.get(EngineFinder.iso3Of(voiceLocale))
         val spoken = if (sample.isEmpty())
             "Sorry. Sample text for language " + (try { voiceLocale.getDisplayName(Locale("eng")) } catch (_: Exception) { selectedIso }) + " is missing."
         else "[EasyVoice:" + row.pkg + ":" + voiceLocale.toString() + ":" + qualityTag + "]" + sample

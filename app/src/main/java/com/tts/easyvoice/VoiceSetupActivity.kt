@@ -1,6 +1,10 @@
 package com.tts.easyvoice
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +14,15 @@ class VoiceSetupActivity : EvActivity() {
     // State now, not a local, so Previous/Next can move within this one screen.
     private var langIndex by mutableStateOf(-1)
     private var total by mutableStateOf(0)
+    // ASKING THE ENGINE FOR ITS OWN SAMPLE (owner, 2026-09-16). The whole
+    // reasoning is on EngineSample; what lives here is the one thing only an
+    // Activity can do, because ACTION_GET_SAMPLE_TEXT is an ACTIVITY action.
+    //
+    // `registerForActivityResult` has to run before the Activity is STARTED, so
+    // it is assigned in onCreate above setContent -- the documented place.
+    private var sampleLauncher: ActivityResultLauncher<Intent>? = null
+    private var pendingSampleKey: String? = null
+    private var pendingSampleRetry: (() -> Unit)? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // This screen persists in onPause, so it must not run with unloaded
@@ -18,6 +31,20 @@ class VoiceSetupActivity : EvActivity() {
         LangStore.ensureLoaded(this)
         val prefs = SharedPrefsManager(this)
         testTts = android.speech.tts.TextToSpeech(this, null, "com.tts.easyvoice")
+        sampleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val key = pendingSampleKey; pendingSampleKey = null
+            val retry = pendingSampleRetry; pendingSampleRetry = null
+            // getStringExtra unparcels the whole Bundle, and this one comes from
+            // ANOTHER app -- the same reason GetSampleText reads its own extra
+            // inside a try. A class this process cannot load is a
+            // BadParcelableException, and here it would land on the Test button.
+            val text = try { result.data?.getStringExtra("sampleText") } catch (_: Throwable) { null }
+            // "" is written on EVERY answered launch, including a null one, so a
+            // declining engine is asked once and never again. Only a launch that
+            // never happened leaves the key absent.
+            if (key != null) EngineSample.put(key, text ?: "")
+            try { retry?.invoke() } catch (_: Throwable) { }
+        }
         langIndex = intent.getIntExtra("lang_index", -1)
         val readingMode = prefs.getReadingMode()
         val modeInt = when (readingMode) { "dual" -> 1; "auto" -> 2; "google" -> 3; "mix" -> 4; "multilingual" -> 5; else -> 0 }
@@ -49,9 +76,38 @@ class VoiceSetupActivity : EvActivity() {
                             langIndex = target
                             applyTitle()
                         }
-                    }) { testTts }
+                    }, ::engineSample) { testTts }
                 }
             }
+        }
+    }
+    // The resolver VoiceRows.speakTest asks. Three answers, and the middle one is
+    // why the owner hears the round trip at most once per language:
+    //     ""    -> already asked, the engine had none: use the table
+    //     text  -> the engine's own sentence
+    //     null  -> gone to ask; speakTest returns without speaking and `retry`
+    //              runs it again the moment the result lands
+    //
+    // ActivityNotFoundException is caught because an engine need not declare the
+    // activity at all -- AOSP's own Settings catches exactly this -- and the
+    // empty string it then caches means that engine is never asked again.
+    private fun engineSample(pkg: String, locale: java.util.Locale, retry: () -> Unit): String? {
+        val key = EngineSample.key(pkg, locale)
+        val hit = EngineSample.cached(key)
+        if (hit != null) return hit
+        val launcher = sampleLauncher ?: return ""
+        // A launch already in flight: answer from the table rather than stacking
+        // a second one, which would lose the first key.
+        if (pendingSampleKey != null) return ""
+        return try {
+            pendingSampleKey = key
+            pendingSampleRetry = retry
+            launcher.launch(EngineSample.intentFor(pkg, locale))
+            null
+        } catch (ex: Throwable) {
+            if (ex is ActivityNotFoundException) EngineSample.put(key, "")
+            pendingSampleKey = null; pendingSampleRetry = null
+            ""
         }
     }
     // setTitle fires a window-state-changed event, which is what announces the
