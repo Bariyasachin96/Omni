@@ -92,7 +92,30 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // thread when an engine dies was silently disabled for exactly those
         // engines -- and a missed match here is the total failure this whole
         // field exists to prevent.
-        if (speakingPkg != pkg.replace("-","").replace("_","")) return
+        val normPkg = pkg.replace("-","").replace("_","")
+        // THE CACHED VOICE DESCRIBES A CONNECTION, AND THE CONNECTION IS GONE
+        // (2026-09-16). forgetClientState() ran only where `tts` was REPLACED, and
+        // a process death does not replace it -- the same object is still there,
+        // now dead. So currentVoice/currentVoiceKnown survived it, and loadVoice's
+        // "Do nothing!" short-circuit twenty lines into the method answered from
+        // that cache and RETURNED WITHOUT TOUCHING THE ENGINE. The utterance then
+        // spoke into a dead client.
+        //
+        // The 2026-09-11 caching change is what opened this. Before it, that test
+        // read `tts.voice` LIVE, and AOSP answers null on a client whose service
+        // connection is gone, so the short-circuit could not fire and the method
+        // fell through to setLanguage -- which failed, which called restoreEngine.
+        // Caching removed the app's only way to notice on the ordinary path.
+        //
+        // Clearing it HERE keeps the whole caching win: this runs on a process
+        // death, never on the speaking path. It also clears localeSet, so
+        // loadVoiceDedicated stops skipping the load for an engine that just died.
+        // Both callbacks that reach here are on the main looper, which is where
+        // enginePool is appended to, so this walk cannot tear.
+        for (index in 0 until enginePool.size) {
+            if (enginePool[index].pkg == normPkg) { enginePool[index].forgetClientState(); break }
+        }
+        if (speakingPkg != normPkg) return
         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Engine holding this utterance died: " + pkg)
         speakingPkg = null
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }

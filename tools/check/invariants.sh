@@ -328,6 +328,13 @@ paired=$(printf '%s\n' "$body" | grep -E '\.tts = ' | grep -c 'forgetClientState
 cleared=$(printf '%s\n' "$body" |
           sed -n '/fun forgetClientState()/,/^        }/p' |
           grep -cE 'voicesCache = null|currentVoice = null|currentVoiceKnown = true|localeSet = false' || true)
+# A PROCESS DEATH IS ALSO THE CLIENT GOING AWAY, even though `tts` still holds the
+# same (now dead) object. Without this the cached currentVoice survived the death and
+# loadVoice's "Do nothing!" short-circuit answered from it and never touched the
+# engine -- which the 2026-09-11 caching change introduced, because that test used to
+# be a LIVE tts.voice read that answers null on a dead connection.
+gone=$(printf '%s\n' "$body" | sed -n '/fun onEngineProcessGone/,/^    }/p' | grep -c 'forgetClientState()' || true)
+[ "$gone" -ge 1 ] || paired="$paired(onEngineProcessGone-does-not-forget)"
 if [ "$assigns" -gt 0 ] && [ "$assigns" = "$paired" ] && [ "$cleared" = 4 ]; then
   ok "#28 every replacement of a wrapper's TextToSpeech forgets the old client's state"
 else
