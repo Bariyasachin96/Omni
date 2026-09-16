@@ -1021,3 +1021,66 @@ on the main looper. With one stop already ahead in that queue, the pending
 shutdown reads the field and **shuts down the brand-new client**. Both methods
 capture the client at call time now, so they act on the client they were asked
 about.
+
+---
+
+## 31. An engine wrapper must never reach a state no recovery path can see
+*(`invariants.sh` #29, negative-tested three ways in `selftest.sh`)*
+
+The app has **exactly one** recovery path for a broken engine: `onEngineProcessBack`,
+which fires when our keep-alive binding reconnects and acts on `state == -1`. So
+`-1` must be what *"this wrapper has no usable client"* MEANS, at every site where
+that becomes true. Anywhere else, the wrapper is invisible to recovery and that
+engine is silent until the process is force-stopped.
+
+Three ways in were found on 2026-09-16, **all permanent**:
+
+| state reached | why nothing recovered it |
+|---|---|
+| **0** — a `TextToSpeech` constructor threw | `onEngineProcessBack` tests `-1`; `initAllEngines` runs once, from `onCreate` |
+| **2** with a dead client, `restoreCount == 10` | the cap refuses; `onStart` cannot reset it because a dead client never speaks |
+| any — `restoringIndex` stuck | `restoreEngine`'s first guard then refuses **every** engine, for ever |
+
+### The third one is the worst, and a comment was hiding it
+`restoreEngine`'s own note claimed no clock was needed because *"RestoreInitListener
+ALWAYS runs — every failure path in AOSP's `initTts` ends in `dispatchOnInit(ERROR)`"*.
+**That is false**, read from AOSP rather than recalled:
+
+    private boolean connectToEngine(String engine) {
+        boolean bound = connection.connect(engine);
+        if (!bound) { ...; return false; }
+        mConnectingServiceConnection = connection; return true;      // no dispatch
+    }
+    ... if (connectToEngine(defaultEngine)) { mCurrentEngine = ...; return SUCCESS; }
+
+`initTts` returns SUCCESS the moment `bindService` returns true and **dispatches
+nothing**; the dispatch happens later, from `Connection.onServiceConnected` →
+`SetupConnectionAsyncTask.onPostExecute`. Its `dispatchOnInit(ERROR)` is only the
+fall-through for *"no engine could be bound at all"*. So when the bind **succeeds**
+and the engine process never comes up — a Play Store update, exactly — `onInit`
+never fires, and `TextToSpeech` has no timeout of its own.
+
+`restoringIndex` is written in one place and cleared in two, both needing that
+callback. It therefore stayed set for ever, and every later restore of **every**
+engine answered `" -Restoring in progress..."`.
+
+### The fix is EngineFinder's own shape, in the second place it was needed
+`EngineFinder.startEngine` was repaired away from this exact shape on 2026-09-09
+(owner override). `restoreEngine` now uses the same three pieces and the same 30 s:
+a captured index, a one-shot `AtomicBoolean`, and a main-looper timeout that
+`shutdown()`s the abandoned client — **AOSP's own way to prevent the late callback**,
+since `shutdown()` while still connecting calls
+`mConnectingServiceConnection.disconnect()` — marks the wrapper `-1` and releases the
+slot. A callback that lands after the timeout releases its own client and returns
+**without** touching `restoringIndex`, which would otherwise belong to a newer restore.
+
+**No latency is added.** Nothing new waits; the timeout only stops abandoned work,
+and it can only fire on a path where speech is already impossible.
+
+### Two smaller holes closed with it
+- **`onBindingDied` never restored.** It did everything `onServiceDisconnected` does
+  except the restore, so a binding death — which is what an engine *update* produces —
+  left the wrapper at state 2 holding a client bound to a process that was gone.
+- **`restoreEngine` compared a NORMALISED `wrapper.pkg` against the RAW package**
+  `onServiceDisconnected` hands it. That is the identical defect fixed in
+  `onEngineProcessGone` on 2026-09-11, one line below it in the same callback.

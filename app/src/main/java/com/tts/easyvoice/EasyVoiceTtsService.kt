@@ -25,6 +25,11 @@ data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, 
 class EasyVoiceTtsService : TextToSpeechService() {
     private val enginePool = ArrayList<EngineWrapper>()
     @Volatile private var restoringIndex = -1
+    // The restore's bind timeout. Main looper, because that is where every other
+    // engine callback in this file is delivered and where EngineFinder posts its
+    // own. Only one restore is ever in flight (restoringIndex enforces that), so
+    // one handler with one pending message is the whole requirement.
+    private val restoreTimeoutHandler by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
     private val engineBinders = java.util.concurrent.ConcurrentHashMap<String, android.content.ServiceConnection>()
     private val keepAliveLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
     @Volatile var engineIndex = -1
@@ -839,6 +844,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     break
                 } catch (_: Exception) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex])
+                    // state = -1, NOT the 0 it was left at (2026-09-16). See the
+                    // note above: a state-0 wrapper is inert, but it is also
+                    // INVISIBLE TO EVERY RECOVERY PATH -- onEngineProcessBack acts
+                    // only on -1, and initAllEngines runs once from onCreate. So a
+                    // constructor that threw because the engine was mid-update left
+                    // that engine dead for the life of the process even after it
+                    // came back. -1 is what "this wrapper has no usable client"
+                    // already means, and it is what the listener's own failure path
+                    // writes; 0 now means only "the walk has not reached it yet",
+                    // which is what keeps onEngineProcessBack's -1 test correct.
+                    if (initializingIndex < enginePool.size) enginePool[initializingIndex].state = -1
                     initializingIndex++
                 }
             }
@@ -893,7 +909,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 enginePool.add(EngineWrapper(engineList[initializingIndex]))
                 bindEngineKeepAlive(engineList[initializingIndex])
                 val nextCell = arrayOfNulls<TextToSpeech>(1)
-                try { nextCell[0] = TextToSpeech(applicationContext, EngineInitListener(nextCell), engineList[initializingIndex]); break } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex]); initializingIndex++ }
+                try { nextCell[0] = TextToSpeech(applicationContext, EngineInitListener(nextCell), engineList[initializingIndex]); break } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex]); if (initializingIndex < enginePool.size) enginePool[initializingIndex].state = -1; initializingIndex++ }
             }
             if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)") }
             } catch (ex: Throwable) {
@@ -905,8 +921,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
         synchronized(this) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + pkg)
             if (restoringIndex != -1) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -Restoring in progress..."); return }
+            // NORMALISED, like every other pool lookup in this file (2026-09-16).
+            // EngineWrapper.pkg strips "-" and "_", and onServiceDisconnected hands
+            // this the RAW name out of engineList -- so for any engine package
+            // carrying either character the restore answered " -restore package
+            // name is not found" and the engine was never recovered. That is the
+            // SAME defect already fixed in onEngineProcessGone on 2026-09-11, one
+            // line below it in the same callback, and missed here.
+            val normPkg = pkg.replace("-","").replace("_","")
             var idx = -1
-            for (index in 0 until enginePool.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + enginePool[index].pkg); if (enginePool[index].pkg.equals(pkg, ignoreCase = true)) { idx = index; break } }
+            for (index in 0 until enginePool.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + enginePool[index].pkg); if (enginePool[index].pkg.equals(normPkg, ignoreCase = true)) { idx = index; break } }
             if (idx == -1) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -restore package name is not found"); return }
             val wrapper = enginePool[idx]
             // AutoTTS's k0.h() is `k == 0 || (elapsed > 3000ms && k < 10)` and
@@ -954,11 +978,64 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // 2026-09-10: only the listener's walk over engines 2..N was
             // guarded, and the FIRST engine was constructed bare. Both sites
             // are guarded now.)
+            //
+            // AND THE COMMENT ABOVE WAS ONLY HALF THE WEDGE (2026-09-16). The note
+            // twelve lines up says restoringIndex needs no clock because
+            // "RestoreInitListener ALWAYS runs -- every failure path in AOSP's
+            // initTts ends in dispatchOnInit(ERROR)". **THAT IS FALSE**, read from
+            // AOSP rather than recalled:
+            //
+            //     private boolean connectToEngine(String engine) {
+            //         boolean bound = connection.connect(engine);
+            //         if (!bound) { ...; return false; }
+            //         mConnectingServiceConnection = connection; return true;   // <-- no dispatch
+            //     }
+            //     ... if (connectToEngine(defaultEngine)) { mCurrentEngine = ...; return SUCCESS; }
+            //
+            // initTts returns SUCCESS the moment bindService returns true and
+            // dispatches NOTHING; the dispatch happens later, from
+            // Connection.onServiceConnected -> SetupConnectionAsyncTask.onPostExecute.
+            // Its dispatchOnInit(ERROR) is only the fall-through for "no engine
+            // could be bound at all". So when the bind SUCCEEDS but the engine
+            // process never actually comes up -- which is precisely a Play Store
+            // update -- onInit NEVER FIRES, and TextToSpeech has no timeout of its
+            // own anywhere.
+            //
+            // restoringIndex is written here and cleared in exactly two places, both
+            // of which need that callback. So it stayed >= 0 FOR EVER, and the guard
+            // at the top of this method then answered " -Restoring in progress..."
+            // to every restore of EVERY engine for the rest of the process. Total,
+            // permanent, and force-stopping the app is the only cure -- the owner's
+            // report, symptom for symptom.
+            //
+            // This is not a new mechanism: EngineFinder.startEngine was repaired
+            // away from this exact shape on 2026-09-09 (owner override, "properly
+            // sources ke through fix karo") and its 30 s per-engine timeout is the
+            // number reused here. shutdown() on the abandoned client is AOSP's own
+            // way to PREVENT the late callback -- while still connecting it calls
+            // mConnectingServiceConnection.disconnect(), after which
+            // onServiceConnected never arrives -- and the one-shot flag is the belt
+            // to that brace, for a callback already queued on the looper.
+            //
+            // NO LATENCY IS ADDED: nothing new waits. The timeout only stops
+            // abandoned work, and it fires on a path where speech is already
+            // impossible.
+            val cell = arrayOfNulls<TextToSpeech>(1)
+            val done = java.util.concurrent.atomic.AtomicBoolean(false)
             try {
-                val cell = arrayOfNulls<TextToSpeech>(1)
-                cell[0] = TextToSpeech(applicationContext, RestoreInitListener(cell), wrapper.pkg)
+                cell[0] = TextToSpeech(applicationContext, RestoreInitListener(cell, idx, done), wrapper.pkg)
+                restoreTimeoutHandler.postDelayed({
+                    if (!done.compareAndSet(false, true)) return@postDelayed
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                        "restore init never arrived for " + wrapper.pkg + " -- releasing the restore slot")
+                    try { cell[0]?.shutdown() } catch (_: Throwable) {}
+                    wrapper.state = -1
+                    wrapper.forgetClientState()
+                    restoringIndex = -1
+                }, 30000L)
             } catch (ex: Exception) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when restoring " + wrapper.pkg + ": " + ex.message)
+                done.set(true)
                 wrapper.state = -1
                 restoringIndex = -1
             }
@@ -999,19 +1076,39 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val normPkg = pkg.replace("-","").replace("_","")
         for (index in 0 until enginePool.size) {
             val wrapper = enginePool[index]
-            if (wrapper.pkg == normPkg && wrapper.state == -1) {
+            if (wrapper.pkg != normPkg) continue
+            // THE STREAK ENDS ON THE RECONNECT, WHATEVER THE STATE (2026-09-16).
+            // This reset used to sit inside the `state == -1` branch, so a wrapper
+            // that reached restoreCount == 10 while sitting at state 2 -- ten
+            // restores that each SUCCEEDED but never got to speak, which is what a
+            // repeatedly-bouncing engine produces -- could never be restored again:
+            // the cap refuses, onStart cannot fire because the client is dead, and
+            // nothing else zeroes the count. The engine's process demonstrably
+            // coming back is an EVENT, and it is the right one to end a failure
+            // streak on; it is the same reasoning onStart's reset already rests on.
+            wrapper.restoreCount = 0
+            if (wrapper.state == -1) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine is back, retrying: " + wrapper.pkg)
-                wrapper.restoreCount = 0
                 restoreEngine(wrapper.pkg)
-                return
             }
+            return
         }
     }
     // Its own client, for the reason written over EngineInitListener: the
-    // shared field was also written by the pool walk. restoringIndex itself is
-    // sound -- restoreEngine refuses a second restore while one is in flight and
-    // this listener always runs to clear it -- so only the client had to move.
-    inner class RestoreInitListener(private val cell: Array<TextToSpeech?>) : TextToSpeech.OnInitListener {
+    // shared field was also written by the pool walk.
+    //
+    // THIS COMMENT USED TO END "restoringIndex itself is sound -- restoreEngine
+    // refuses a second restore while one is in flight and this listener always
+    // runs to clear it". The second half was WRONG and it was the process-lifetime
+    // wedge: AOSP's initTts returns SUCCESS as soon as bindService does, without
+    // dispatching, so when the bind succeeds and the engine process never starts
+    // this listener never runs at all. The timeout in restoreEngine is what makes
+    // the sentence true now; read the note there before changing either.
+    inner class RestoreInitListener(
+        private val cell: Array<TextToSpeech?>,
+        private val idx: Int,
+        private val done: java.util.concurrent.atomic.AtomicBoolean
+    ) : TextToSpeech.OnInitListener {
         // try/finally ADDED 2026-09-11. `restoringIndex = -1` at the bottom is the
         // only thing that lets ANY engine be restored again -- restoreEngine's own
         // first guard answers " -Restoring in progress..." while it is set -- so an
@@ -1022,9 +1119,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // silent phone. The finally runs the same statement at the same point when
         // nothing throws.
         override fun onInit(status: Int) {
+            // ONE SHOT, AND THE INDEX IS CAPTURED (2026-09-16). Two reasons, both
+            // from the timeout above. A callback that arrives AFTER the timeout has
+            // already released the slot must touch nothing -- it would otherwise
+            // clear a restoringIndex belonging to a NEWER restore and hand a dead
+            // client to whatever wrapper that index now names -- so it releases its
+            // own client and returns without reaching the finally. And the index is
+            // the one this restore was started for rather than whatever
+            // restoringIndex happens to hold when the callback lands, which is the
+            // same fix EngineInitListener's shared-field defect needed on
+            // 2026-09-09.
+            if (!done.compareAndSet(false, true)) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Restore init arrived after the slot was released; discarding that client")
+                try { cell[0]?.shutdown() } catch (_: Throwable) {}
+                return
+            }
+            restoreTimeoutHandler.removeCallbacksAndMessages(null)
             try {
             val initializingTts = cell[0]
-            val restoreIdx = restoringIndex
+            val restoreIdx = idx
             if (restoreIdx >= 0 && restoreIdx < enginePool.size) {
                 val wrapper = enginePool[restoreIdx]
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Restore " + wrapper.pkg)
@@ -1082,7 +1195,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val conn = object : android.content.ServiceConnection {
                 override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-alive bound to " + name?.flattenToShortString()); onEngineProcessBack(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceConnected: " + ex.toString()) } }
                 override fun onServiceDisconnected(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine process died: " + name?.flattenToShortString()); onEngineProcessGone(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceDisconnected: " + ex.toString()) }; try { restoreEngine(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restore after disconnect: " + ex.toString()) } }
-                override fun onBindingDied(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onBindingDied: " + ex.toString()) } }
+                // restoreEngine ADDED 2026-09-16. This callback did everything
+                // onServiceDisconnected does EXCEPT the restore, so a binding death
+                // left the wrapper at state 2 holding a client bound to a process
+                // that is gone -- and state 2 is the one state onEngineProcessBack
+                // cannot recover. A binding death is exactly what a Play Store
+                // update of a TTS engine produces, which is the case the owner
+                // keeps hitting.
+                override fun onBindingDied(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onBindingDied: " + ex.toString()) }; try { restoreEngine(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restore after binding died: " + ex.toString()) } }
                 override fun onNullBinding(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Service returned null binding"); unbindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onNullBinding: " + ex.toString()) } }
             }
             val bound = try { bindService(intent, conn, android.content.Context.BIND_AUTO_CREATE or android.content.Context.BIND_IMPORTANT) } catch (_: Exception) { false }

@@ -104,6 +104,12 @@ run "#28 replace a client without forgetting its state" "#28" \
     "perl -0pi -e 's/wrapper\\.tts = initializingTts; wrapper\\.forgetClientState\\(\\)/wrapper.tts = initializingTts/' $K/EasyVoiceTtsService.kt"
 run "#28 stop clearing the voice cache" "#28" \
     "perl -0pi -e 's/            voicesCache = null\\n            currentVoice = null/            currentVoice = null/' $K/EasyVoiceTtsService.kt"
+run "#29 leave a failed construction at state 0" "#29" \
+    "perl -0pi -e 's/if \\(initializingIndex < enginePool\\.size\\) enginePool\\[initializingIndex\\]\\.state = -1\\n                    initializingIndex\\+\\+/initializingIndex++/' $K/EasyVoiceTtsService.kt"
+run "#29 remove the restore bind timeout" "#29" \
+    "perl -0pi -e 's/restoreTimeoutHandler\\.postDelayed\\(\\{/run({/' $K/EasyVoiceTtsService.kt"
+run "#29 gate the reconnect reset on state again" "#29" \
+    "perl -0pi -e 's/            wrapper\\.restoreCount = 0\\n            if \\(wrapper\\.state == -1\\) \\{/            if (wrapper.state == -1) {\\n                wrapper.restoreCount = 0/' $K/EasyVoiceTtsService.kt"
 run "#12 grow build.yml past the ceiling" "#12" \
     "head -c 500000 /dev/zero | tr '\\0' '#' >> .github/workflows/build.yml"
 run "put a CLD3 source back in CMakeLists" "a CLD3/protobuf build input" \

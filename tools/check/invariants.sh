@@ -334,6 +334,48 @@ else
   bad "#28 a wrapper's TextToSpeech is replaced without forgetClientState(), or that function stopped clearing all four fields ($paired/$assigns paired, $cleared/4 cleared)"
 fi
 
+# --- 29. every unusable engine wrapper must be REACHABLE BY RECOVERY -------
+# The app has exactly ONE recovery path for a broken engine -- onEngineProcessBack,
+# which fires on the keep-alive reconnect and acts on `state == -1`. So -1 must be
+# what "this wrapper has no usable client" MEANS, everywhere, or the wrapper is
+# invisible to it and that engine is silent until the app is force-stopped. Three
+# real ways in were found on 2026-09-16, all of them permanent:
+#
+#   a failed TextToSpeech construction left the wrapper at state 0
+#   restoreCount hit its cap while the wrapper sat at state 2
+#   restoringIndex was never cleared, so NO engine could be restored again
+#
+# The last one is the worst and was hidden behind a false claim in a comment: AOSP's
+# initTts returns SUCCESS as soon as bindService does, WITHOUT dispatching, so a
+# bind that succeeds against a process that never starts means onInit never fires.
+# The restore therefore needs the same bind timeout EngineFinder already has.
+fail29=""
+# Comments stripped AND the blank lines they leave behind removed -- otherwise a
+# long explanatory comment inside a catch pushes the assignment out of grep's -A
+# window and the check fails on a clean tree.
+svc=$(sed 's://.*::' $SERVICE | grep -v '^[[:space:]]*$')
+# every engine-construction catch marks the wrapper dead rather than leaving it at 0
+# -A2 because one of the two catches is a multi-line block, so the assignment is
+# not on the log line itself; grouping markers are stripped so the count is clean.
+inits=$(printf '%s\n' "$svc" | grep -c 'Error when initializing' || true)
+initsdead=$(printf '%s\n' "$svc" | grep -A2 'Error when initializing' | grep -c 'state = -1' || true)
+[ "$inits" = 2 ] && [ "$initsdead" = 2 ] || fail29="$fail29 construction-catch($initsdead/$inits marks state=-1);"
+# the restore slot is taken once and has more than one way to be given back
+takes=$(printf '%s\n' "$svc" | grep -c 'restoringIndex = idx' || true)
+frees=$(printf '%s\n' "$svc" | grep -c 'restoringIndex = -1' || true)
+[ "$takes" = 1 ] || fail29="$fail29 restoringIndex-taken-$takes-times;"
+[ "$frees" -ge 3 ] || fail29="$fail29 only-$frees-ways-to-release-the-restore-slot;"
+# and the bind that can never answer is bounded
+printf '%s\n' "$svc" | grep -q 'restoreTimeoutHandler.postDelayed' \
+  || fail29="$fail29 no-restore-bind-timeout;"
+# the reconnect ends the failure streak whatever state the wrapper is in
+printf '%s\n' "$svc" | sed -n '/fun onEngineProcessBack/,/^    }/p' |
+  grep -B2 'restoreCount = 0' | grep -q 'state == -1' \
+  && fail29="$fail29 restoreCount-reset-gated-on-state;"
+[ -z "$fail29" ] \
+  && ok "#29 every unusable engine wrapper can still be recovered" \
+  || bad "#29 an engine can reach a state no recovery path sees:$fail29"
+
 # --- 12. the workflow file must stay far under 512,000 bytes ---------------
 size=$(wc -c < .github/workflows/build.yml)
 [ "$size" -lt 400000 ] && ok "#12 build.yml is $size bytes" \
