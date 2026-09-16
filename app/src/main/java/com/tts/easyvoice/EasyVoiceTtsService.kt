@@ -387,10 +387,42 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // Called wherever `tts` is replaced. A new TextToSpeech is a new connection
         // with empty mParams, so getVoice() would answer null and the old engine's
         // Voice objects belong to the old connection.
+        //
+        // localeSet JOINED THIS SET ON 2026-09-16, AND IT IS THE "USE DEDICATED
+        // ENGINES" SILENCE (owner: "jaise hi maine on kiya tha to vah sabhi TTS
+        // bolna band ho gaya tha").
+        //
+        // localeSet means "setLanguage or setVoice has succeeded on the client
+        // currently in `tts`". Replace `tts` and that is simply no longer true --
+        // the new client has had neither call made on it. RestoreInitListener
+        // already clears voiceName, locale and audioAttrSet for exactly this
+        // reason; localeSet is the one field of that set the 2026-09-03 pass
+        // missed. Putting it HERE rather than at the listener is what stops it
+        // being missed again: this function's whole contract is "the client was
+        // replaced", and all four replacement sites go through it.
+        //
+        // WHY A STALE `true` IS FATAL RATHER THAN UNTIDY. loadVoiceDedicated's
+        // first act is `if (dedicated && localeSet) return` -- so with the switch
+        // ON, a wrapper carrying a stale true is never handed a language or a
+        // voice again, and, far worse, NEVER CALLS setLanguage OR setVoice AT
+        // ALL. Those two calls are the only things that can notice the client is
+        // dead, and their failure branch is the only thing that calls
+        // restoreEngine. So the ordinary loadVoice path heals itself after a bad
+        // restore -- it tries, fails, and restores again -- and the dedicated
+        // path cannot: it returns before it can discover anything. The engine
+        // stays at state 2 holding a client that can never speak, nothing in the
+        // app looks at it again, and only force-stopping the process clears it.
+        //
+        // AutoTTS leaves its k0.f stale here too, and its restore listener
+        // (noexc:2404-2406) clears only `e` and `d`. This is the same DELIBERATE
+        // DEPARTURE already taken for audioAttrSet on 2026-09-03, on the same
+        // reasoning and at the same site: a flag that describes a client must not
+        // outlive the client it describes.
         fun forgetClientState() {
             voicesCache = null
             currentVoice = null
             currentVoiceKnown = true
+            localeSet = false
         }
         fun voiceNow(): android.speech.tts.Voice? {
             if (currentVoiceKnown) return currentVoice
@@ -414,15 +446,44 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 java.util.concurrent.LinkedBlockingQueue<Runnable>(),
                 java.util.concurrent.ThreadFactory { runnable -> Thread(runnable, "TtsStop").apply { isDaemon = true } })
                 .apply { prestartCoreThread() }
+        // THE CLIENT IS CAPTURED HERE, NOT READ INSIDE THE RUNNABLE (2026-09-16).
+        //
+        // `tts!!` inside the lambda is a read of this wrapper's FIELD at the
+        // moment the worker runs it, which can be long after the call: stopExec
+        // is ThreadPoolExecutor(core 1, max 5, UNBOUNDED LinkedBlockingQueue),
+        // and an unbounded queue's offer() never fails, so execute() never
+        // reaches addWorker and the pool can never grow past one. maximumPoolSize
+        // = 5 is dead config -- every stop and shutdown for this engine runs
+        // strictly FIFO on ONE thread, behind whatever is already queued.
+        //
+        // restoreEngine is the site where that matters, because it is the only
+        // one that REUSES the wrapper: it queues stop() and shutdown() and then
+        // immediately builds a replacement client, and RestoreInitListener
+        // assigns `tts = <the new client>` on the main looper. If the queued
+        // shutdown has not run by then -- one stop already ahead of it in the
+        // queue is enough -- it reads the field and shuts down THE BRAND NEW
+        // CLIENT. The wrapper is then at state 2 holding an unbound client, which
+        // is the state the localeSet fix above describes.
+        //
+        // Capturing removes the window outright: these methods are asked to stop
+        // or shut down the client the wrapper holds NOW, and that is what they
+        // do. A null client is nothing to shut down, so there is no work to
+        // queue -- which is also what the old `tts!!` achieved, by throwing an
+        // NPE into its own catch and logging a failure that had not happened.
+        //
+        // initAllEngines and onDestroy were never exposed to this: neither
+        // reassigns the wrapper's client afterwards.
         fun stop() {
+            val client = tts ?: return
             stopExec.execute {
-                try { tts!!.stop() }
+                try { client.stop() }
                 catch (ex: Exception) { android.util.Log.w("EasyVoice", "Stop failed for " + pkg, ex) }
             }
         }
         fun shutdown() {
+            val client = tts ?: return
             stopExec.execute {
-                try { tts!!.shutdown() }
+                try { client.shutdown() }
                 catch (ex: Exception) { android.util.Log.w("EasyVoice", "Shutdown failed for " + pkg, ex) }
             }
         }
@@ -616,7 +677,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // in `if (!bl || !((k0)f.get(d)).f)`, which is `if (dedicated &&
         // localeSet) skip` written the other way round, and `localeSet` is
         // assigned at the SAME seven sites in both apps (three in loadVoice, one
-        // in loadVoiceOriginal, three here). So it is parity, not a defect.
+        // in loadVoiceOriginal, three here). So the guard itself is parity and
+        // stays.
+        //
+        // WHAT WAS A DEFECT WAS THE FLAG IT READS, and that is fixed upstream in
+        // forgetClientState() (2026-09-16) -- read the comment there before
+        // touching anything here. In short: restoring an engine replaces `tts`
+        // without clearing localeSet, so this guard would return for a client
+        // that had never had a language loaded into it, and -- because the guard
+        // returns BEFORE any setLanguage or setVoice -- nothing could ever
+        // discover that the client was dead, so the restoreEngine those failures
+        // trigger never ran either. The plain loadVoice path heals itself from a
+        // bad restore precisely because it does make those calls and does see
+        // them fail; this path could not, and that is why "Use dedicated
+        // engines" went permanently silent where the normal path only stuttered.
         //
         // What it MEANS is worth stating, because it is surprising and it
         // matches a real report: "Use dedicated engines" assumes one engine per

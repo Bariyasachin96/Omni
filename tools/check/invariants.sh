@@ -304,6 +304,36 @@ badtags=$(sed 's://.*::' $KT/*.kt |
   && ok "#14 every log tag is EasyVoiceLogger.TAG or AutoTTS's \"TTS\"" \
   || bad "#14 log call with a stray tag literal: $badtags"
 
+# --- 28. a client-describing flag must not outlive the client --------------
+# EngineWrapper carries five fields that describe THE TextToSpeech OBJECT in
+# `tts` rather than the engine package: voicesCache, currentVoice,
+# currentVoiceKnown, audioAttrSet and localeSet. Replace `tts` and every one of
+# them becomes a statement about a client that no longer exists.
+#
+# Each of the three that were missed cost a real bug. audioAttrSet stale-true
+# made "Force accessibility stream" dead on that engine for the life of the
+# process (2026-09-03). voicesCache stale meant the wrong voice list
+# (2026-09-02). localeSet stale-true was the worst: loadVoiceDedicated returns
+# on it BEFORE calling setLanguage or setVoice, so with "Use dedicated engines"
+# on, a restored engine was never given a language AND could never discover
+# that its client was dead -- the failure branch that calls restoreEngine was
+# unreachable. Permanent silence, clearable only by force-stopping (2026-09-16).
+#
+# The rule that prevents a fourth: `tts` is assigned NOWHERE without
+# forgetClientState() beside it, and forgetClientState() clears all of them.
+# Comments are stripped, since the prose above those sites names the fields.
+body=$(sed 's://.*::' $KT/EasyVoiceTtsService.kt)
+assigns=$(printf '%s\n' "$body" | grep -cE '\.tts = ' || true)
+paired=$(printf '%s\n' "$body" | grep -E '\.tts = ' | grep -c 'forgetClientState()' || true)
+cleared=$(printf '%s\n' "$body" |
+          sed -n '/fun forgetClientState()/,/^        }/p' |
+          grep -cE 'voicesCache = null|currentVoice = null|currentVoiceKnown = true|localeSet = false' || true)
+if [ "$assigns" -gt 0 ] && [ "$assigns" = "$paired" ] && [ "$cleared" = 4 ]; then
+  ok "#28 every replacement of a wrapper's TextToSpeech forgets the old client's state"
+else
+  bad "#28 a wrapper's TextToSpeech is replaced without forgetClientState(), or that function stopped clearing all four fields ($paired/$assigns paired, $cleared/4 cleared)"
+fi
+
 # --- 12. the workflow file must stay far under 512,000 bytes ---------------
 size=$(wc -c < .github/workflows/build.yml)
 [ "$size" -lt 400000 ] && ok "#12 build.yml is $size bytes" \

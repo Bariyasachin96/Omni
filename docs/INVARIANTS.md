@@ -930,3 +930,94 @@ it. Its catch is `Throwable`, `rotate()` is inside the guard rather than beside
 it, and `init()` — the first line of the service's `onCreate`, before
 `super.onCreate()` — is guarded too. A diagnostic that can break the thing it is
 diagnosing is worse than no diagnostic.
+
+---
+
+## 30. A flag that describes the `TextToSpeech` CLIENT must not outlive it
+*(`invariants.sh` #28, negative-tested three ways in `selftest.sh`)*
+
+`EngineWrapper` has two kinds of field. Some describe the **engine package** —
+`pkg`, `state`, `restoreCount` — and survive anything. Five describe **the
+`TextToSpeech` object currently in `tts`**:
+
+    voicesCache        the voice set marshalled out of THAT connection
+    currentVoice       what mParams[KEY_PARAM_VOICE_NAME] resolves to on it
+    currentVoiceKnown  whether we know the above without asking
+    audioAttrSet       our accessibility attributes are in ITS mParams
+    localeSet          setLanguage or setVoice has succeeded ON IT
+
+Replace `tts` and every one of those becomes a statement about an object that no
+longer exists. **A new `TextToSpeech` is a new binder connection with empty
+`mParams`**, so none of them can be carried over.
+
+**The rule, and it is one grep:** `tts` is assigned nowhere without
+`forgetClientState()` beside it, and `forgetClientState()` clears the four that
+belong to it. There are four assignment sites — both init listeners, both
+restore branches.
+
+**`audioAttrSet` is the deliberate exception, and the ORDER is why.** Both
+listeners set it to `true` — inside the `forceAccessibilityFlag` branch, on the
+new client — immediately *before* they assign `tts` and call
+`forgetClientState()`. Clearing it in there would therefore undo the value just
+written and make the force switch dead on that engine, which is the exact bug
+that clearing it was added to fix. It is reset at both listeners instead, and
+`RestoreInitListener` sets it `false` before the status branch so the failure
+path is covered too.
+
+### Each field that was missed cost a real bug, and they got worse
+- **`voicesCache`** (2026-09-02) — a stale list meant scanning the *old*
+  connection's `Voice` objects. Wrong voice.
+- **`audioAttrSet`** (2026-09-03) — stale `true` made the speak path skip
+  `setAudioAttributes` on a client that had none, so "Force accessibility
+  stream" was **dead on that engine for the life of the process**. AutoTTS
+  leaves its `k0.h` stale here as well; clearing it was a recorded DELIBERATE
+  DEPARTURE.
+- **`localeSet`** (2026-09-16) — the worst, and the reason this is a rule rather
+  than three separate fixes.
+
+### Why `localeSet` was permanent silence rather than a wrong voice
+`loadVoiceDedicated` opens with
+
+    if (dedicated && wrapper.localeSet) return
+
+which is AutoTTS's `h0` inverted (`if (!bl || !((k0)f.get(d)).f)`, noexc:1023)
+and **stays** — the guard is parity. What was wrong is that the restore listener
+cleared `voiceName`, `locale` and `audioAttrSet` and **not** `localeSet`, so a
+freshly restored client arrived claiming a language had already been loaded into
+it.
+
+The damage is not that the language is skipped. It is that the guard returns
+**before any `setLanguage` or `setVoice`** — and those two calls are the only
+things in the app that can notice a client is dead, because their failure branch
+is the only caller of `restoreEngine`. So:
+
+| path | after a bad restore |
+|---|---|
+| `loadVoice` (dedicated OFF) | calls `setLanguage`, it fails, `restoreEngine` runs again — **self-healing** |
+| `loadVoiceDedicated` (ON) | returns at the guard, calls nothing, notices nothing — **wedged** |
+
+The wrapper stays at `state == 2` holding a client that can never speak,
+`loadVoice*` keeps selecting it (they all match `state == 2`), and
+`onEngineProcessBack` cannot help because it only acts on `state == -1`. Only
+force-stopping the process clears it — which is exactly what the owner reported,
+symptom for symptom, on 2026-09-11 and again on 2026-09-15.
+
+**It also explains "as soon as I turned it ON".** Before the switch, every
+wrapper has `localeSet == true` from the ordinary `loadVoice` path. The moment
+dedicated engines goes on, that guard fires for *every* engine, so the
+self-healing check above is disabled app-wide from that instant.
+
+### The related lifetime bug fixed with it
+`EngineWrapper.stop()` and `shutdown()` used to read `tts` **inside** the queued
+runnable, i.e. when the worker ran it. `stopExec` is
+`ThreadPoolExecutor(1, 5, 60s, unbounded LinkedBlockingQueue)`, and an unbounded
+queue's `offer()` never fails, so `execute()` never reaches `addWorker` and the
+pool can never grow past one — `maximumPoolSize = 5` is dead config and every
+task runs strictly FIFO on **one** thread.
+
+`restoreEngine` is the only site that reuses a wrapper: it queues `stop()` and
+`shutdown()`, then builds a replacement, and the listener assigns the new client
+on the main looper. With one stop already ahead in that queue, the pending
+shutdown reads the field and **shuts down the brand-new client**. Both methods
+capture the client at call time now, so they act on the client they were asked
+about.
