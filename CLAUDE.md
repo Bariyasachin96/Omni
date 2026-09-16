@@ -7,6 +7,74 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE SECTION HEADER IS A QUIET LABEL NOW, NOT A FILLED BAR (owner, 2026-09-16)
+*"Replace all section headers with smaller, regular-weight, and neutral-colored
+titles that maintain their semantic heading structure for screen readers without
+being visually prominent ... redesigned to fit this clean, compact aesthetic."*
+
+UI carve-out, and **one component, so one edit covers every heading the owner
+named**: Modes, Set up voices, About, Text-to-Speech Settings, Advanced Synthesis
+Options, Keep-alive Mode, Persistence Options, Language Detection Options,
+Import/Export Configuration, Logging -- all ten go through `SectionHeader`, and so
+do the seven they did not name (Voices, `<language>` voices, Open source licenses,
+Languages, `<region>` languages, All languages, `<Mode>` settings).
+
+    was    Surface(primaryContainer) { Text titleMedium 16sp Medium onPrimaryContainer }
+    is     Text titleSmall 14sp Normal onSurfaceVariant, no fill at all
+
+**The semantics did not move.** It is still a plain `Text` carrying
+`Modifier.semantics { heading() }` and no `contentDescription` -- `invariants.sh`
+#18 still passes, and dropping the `Surface` makes it *more* exactly the shape
+INVARIANTS #18 and the Compose semantics page prescribe, not less.
+
+### `letterSpacing` is the only differentiator, and that is deliberate
+At 14sp Normal `onSurfaceVariant` a heading would be **pixel-identical to the
+`SettingDescription` directly beneath it** on the Advanced tab -- same size, same
+weight, same colour -- so the section structure would vanish for a sighted user
+while staying perfectly navigable for a blind one. Every other way to separate
+them (heavier weight, larger size, an accent colour, a rule above) is precisely
+the visual prominence the owner asked to be rid of. `letterSpacing = 0.5.sp` is
+**Material3's own `labelMedium`/`labelSmall` value**, not a number of ours, and it
+is purely visual: it changes the glyph advance and **not one character of the
+string**, so a screen reader announces exactly what it announced before.
+
+### Two things went with it, and one deliberately did not
+- **`VoiceScreen`'s "Experimental"** (was a hand-rolled `titleMedium` + `heading()`)
+  and **`ModesScreen`'s "Other options"** (a hand-rolled `bodyMedium`) now go
+  through `SectionHeader`. They are section headers in every respect and were only
+  ever separate because of the filled bar. Left alone, "Experimental" would have
+  become **the single loudest heading in the app** -- the exact prominence this
+  change removes.
+- **`LabeledRadioGroup`'s title STAYS a plain Text.** It is the accessible NAME of
+  a radio group, not a section header, and it is the only thing naming the group at
+  all; its labelling has been device-tested twice. Its comment used to justify
+  itself with "SectionHeader draws a filled bar", which is now false -- the comment
+  is corrected, the code is not. It sits one weight level ABOVE SectionHeader now,
+  which is the right hierarchy for a sub-heading inside a screen.
+- **The two removed headings of 2026-09-03 stay removed.** "Preferred languages"
+  and "Numbers, punctuation and emojis" were dropped because heading NAVIGATION
+  stopped on them before every group -- that is about traversal, not about the
+  look, so redrawing the component does not reopen it. Do not add them back.
+
+### The horizontal padding was wrong and the fill was hiding it
+It was **8.dp**; every other element in the app -- `SettingDescription`,
+`ActionButton`, `LabeledRadioGroup`, every `LanguageChoice` -- sits at **16**. With
+a full-width bar behind it nobody saw the half-indent; without one it is the first
+thing the eye lands on. Now 16 horizontal, **16 above and 4 below**: the space
+belongs to the break BETWEEN sections, not between a heading and the content it
+introduces. That is the compact part.
+
+**Contrast is not argued here.** `onSurfaceVariant` on the page is the pair
+`SettingDescription` already draws on every screen -- 8.88:1 light, 10.91:1 dark,
+against a floor of 4.5 -- and `AccessibilityChecksTest` runs ATF's
+`TextContrastCheck` over 29 screen states in **both** schemes on every CI run, and
+that job fails the build. The old filled bar's own 1.23 / 1.99 fill-vs-page ratio,
+carried in this file as an accepted non-issue, is simply gone with the fill.
+
+**The `Surface` import left `LanguagesActivity.kt` with it** -- it had no other
+user -- and `heading` left `VoiceScreen.kt`, which now has no hand-rolled heading
+of its own.
+
 ## THE LAST TWO AUDITS, DONE BY HAND (owner, 2026-09-16)
 *"agent per mat chhod do na yaar ... kabhi agent bahut limit kha jata hai, aap hi
 karo completely."* The concurrency and callback sweeps were killed twice by the

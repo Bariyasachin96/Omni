@@ -21,7 +21,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,7 +42,9 @@ import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.util.Locale
 class LanguagesActivity : EvActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,21 +103,54 @@ class LanguagesActivity : EvActivity() {
 //
 // DO NOT put it back without a report that the heading is genuinely unreachable
 // again, and check the insets first.
+//
+// THE LOOK IS A QUIET LABEL, NOT A BAR (owner, 2026-09-16): "smaller,
+// regular-weight, and neutral-colored titles that maintain their semantic
+// heading structure for screen readers without being visually prominent."
+// So the filled `primaryContainer` Surface is gone and what is left is one
+// plain Text. UI carve-out; nothing about the semantics moved.
+//
+//     was    titleMedium  16sp  Medium  onPrimaryContainer on a full-width fill
+//     is     titleSmall   14sp  Normal  onSurfaceVariant   on the page itself
+//
+// `letterSpacing` is the ONLY thing separating this from body text, and that is
+// deliberate: every other candidate -- a heavier weight, a larger size, an
+// accent colour, a rule above -- is the visual prominence the owner asked to be
+// rid of. It is Material3's own `labelMedium`/`labelSmall` value (0.5.sp), not
+// a number of ours, and it is purely visual: it changes the glyph advance and
+// not one character of the string, so a screen reader announces exactly what it
+// announced before. Without it a heading would be pixel-identical to the
+// SettingDescription directly beneath it on the Advanced tab -- same size, same
+// weight, same colour -- and the section structure would disappear for a
+// sighted user while staying perfectly navigable for a blind one.
+//
+// The horizontal padding is 16.dp and was 8.dp. Every other element in the app
+// -- SettingDescription, ActionButton, LabeledRadioGroup, every LanguageChoice
+// -- sits at 16, so the old 8 left the heading hanging half an indent to the
+// left of the content it names. Without the fill behind it that misalignment is
+// the thing the eye lands on, so it is corrected here rather than accepted.
+// 16 above and 4 below is the compact part: the space belongs to the break
+// BETWEEN sections, not between a heading and the content it introduces.
+//
+// Contrast is not argued: `onSurfaceVariant` on the page is the pair
+// SettingDescription already draws on every screen, measured at 8.88:1 light
+// and 10.91:1 dark against floors of 4.5, and `AccessibilityChecksTest` runs
+// ATF's TextContrastCheck over 29 screen states in BOTH schemes on every CI
+// run -- so this is checked by the build, not by this comment.
 @Composable
 fun SectionHeader(title: String) {
-    Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-    ) {
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-                .semantics { heading() }
-        )
-    }
+    Text(
+        text = title,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.titleSmall.copy(
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 0.5.sp
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
+            .semantics { heading() }
+    )
 }
 // One row, used by both groups. `position` is the row's index across the WHOLE
 // list, not within its group, so the announced position stays continuous.

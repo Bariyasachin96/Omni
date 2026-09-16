@@ -185,8 +185,12 @@ private fun LanguageChoice(
 // `title` is a real heading, so a screen reader can jump between the three
 // groups instead of swiping through twelve rows to find out which is which --
 // that was the other half of the request. It is a plain Text with heading()
-// rather than a SectionHeader, because SectionHeader draws a filled bar and
-// there is already one of those above these three.
+// rather than a SectionHeader, and it stays one: this is the accessible NAME of
+// a radio group, not a section header, and it is the only thing naming the
+// group at all. The original reason given here was that SectionHeader drew a
+// filled bar; that bar is gone as of 2026-09-16, so the reason is now the job
+// rather than the look. It sits one level BELOW SectionHeader in weight, which
+// is the hierarchy these two ranks should read in.
 //
 // A row is named by its OPTION ALONE -- "Auto language", not "Numbers, Auto
 // language". The first version carried the group name on every row, for
@@ -254,8 +258,10 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
     // It used to read "Numbers, punctuation and emojis". The three groups below
     // each carry their own heading already -- "Select language for reading
     // numbers / punctuations / emojis" are real headings via LabeledRadioGroup --
-    // so a filled bar on top of them was a second level of heading for the same
-    // content, and heading navigation stopped on it before every group.
+    // so a heading on top of them was a second level for the same content, and
+    // heading navigation stopped on it before every group. That is about the
+    // NAVIGATION, not the look, so the 2026-09-16 change to how a SectionHeader
+    // is drawn does not reopen it. Do not add one back.
     var numberMode by remember { mutableStateOf(EasyVoiceTtsService.numberModeInt) }
     var puncMode by remember { mutableStateOf(EasyVoiceTtsService.punctuationModeInt) }
     var emojiMode by remember { mutableStateOf(EasyVoiceTtsService.emojiModeInt) }
@@ -348,11 +354,11 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
             // google, which leaves it at the layout's gone. Same for ReadingSettings
             // above, which auto hides outright.
             if (mode != "google") {
-                Text(
-                    text = "Other options",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp).semantics { heading() }
-                )
+                // Through the one component, for the same reason "Experimental"
+                // is: it introduces a group of settings, so it is a section
+                // header, and a second hand-rolled heading style is how the two
+                // drift apart.
+                SectionHeader("Other options")
                 LocaleSpanRow()
             }
         }

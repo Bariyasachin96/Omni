@@ -36,7 +36,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -506,12 +505,12 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
-            Text(
-                text = "Experimental",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    .semantics { heading() }
-            )
+            // A section header in every respect, so it goes through the one
+            // component rather than repeating a style by hand. It used to be a
+            // titleMedium Text of its own, which after the 2026-09-16 header
+            // change would have left it the single loudest heading in the app --
+            // the exact prominence that change exists to remove.
+            SectionHeader("Experimental")
             SettingSwitch(
                 label = "Dedicated engines",
                 checked = dedicated,
