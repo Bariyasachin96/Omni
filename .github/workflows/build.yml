@@ -23,9 +23,12 @@ on:
 #   actions/checkout             v4 -> v7   no inputs passed here at all
 #   actions/setup-java           v4 -> v6   java-version and distribution unchanged
 #   actions/upload-artifact      v4 -> v7   name/path/retention-days/if-no-files-found
-#   android-actions/setup-android v3 -> v4  no inputs passed; the one real risk was
-#                                           the cmdline-tools path, closed by
-#                                           resolving sdkmanager from PATH above
+#   android-actions/setup-android v3 -> v4  the one real risk was the cmdline-tools
+#                                           path, closed by resolving sdkmanager
+#                                           from PATH. It takes ONE input now --
+#                                           `packages` -- because its default asks
+#                                           for a package Google has deleted; the
+#                                           reasoning is at the step itself.
 # reactivecircus/android-emulator-runner is ALREADY current at v2 (2.38.0) and is
 # deliberately untouched.
 jobs:
@@ -45,6 +48,24 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          # DROP THE DEAD `tools` PACKAGE. This input's default is
+          # `tools platform-tools` (the action's own action.yml), and Google has
+          # REMOVED `tools` from the SDK repository -- proven rather than
+          # inferred: repository2-3.xml today contains zero `path="tools"` and
+          # one `path="platform-tools"`. So the action ran `sdkmanager tools`,
+          # got "Warning: Failed to find package 'tools'", exited 1, and took
+          # BOTH jobs down at step 4 before a single line of ours ran. That is
+          # build 876, and build 875 passed on the identical pin five days
+          # earlier -- nothing in this repo changed, the SDK repository did.
+          #
+          # platform-tools stays because the emulator job needs adb. Everything
+          # else this build uses -- the NDK, CMake, build-tools, the platform --
+          # is installed by the next step, which resolves sdkmanager from PATH
+          # and therefore does not care that the runner image has moved
+          # cmdline-tools again (it is 20.0 now, not the 16.0 the v4 bump
+          # predicted).
+          packages: platform-tools
 
       - name: Install NDK and CMake
         run: |
@@ -325,6 +346,24 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          # DROP THE DEAD `tools` PACKAGE. This input's default is
+          # `tools platform-tools` (the action's own action.yml), and Google has
+          # REMOVED `tools` from the SDK repository -- proven rather than
+          # inferred: repository2-3.xml today contains zero `path="tools"` and
+          # one `path="platform-tools"`. So the action ran `sdkmanager tools`,
+          # got "Warning: Failed to find package 'tools'", exited 1, and took
+          # BOTH jobs down at step 4 before a single line of ours ran. That is
+          # build 876, and build 875 passed on the identical pin five days
+          # earlier -- nothing in this repo changed, the SDK repository did.
+          #
+          # platform-tools stays because the emulator job needs adb. Everything
+          # else this build uses -- the NDK, CMake, build-tools, the platform --
+          # is installed by the next step, which resolves sdkmanager from PATH
+          # and therefore does not care that the runner image has moved
+          # cmdline-tools again (it is 20.0 now, not the 16.0 the v4 bump
+          # predicted).
+          packages: platform-tools
 
       - name: Enable KVM
         run: |
