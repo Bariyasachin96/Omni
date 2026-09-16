@@ -7,6 +7,100 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE SAMPLE TEXT: 156 DEAD KEYS CUT, AND THE ENGINE-SAMPLE QUESTION ANSWERED (owner, 2026-09-16)
+*"yah GATE sample text wala ... vah sample text to har TTS ke paas rahata hi hai ... vah
+mere khyal se jyada accurate rahata hai, yah humne extra likh rakha hai ... yah sare
+classes nahin rakhne chahie."*
+
+**The owner's instinct is the PLATFORM'S OWN PATTERN, and it still does not let either
+class go.** Everything below is read from AOSP and from our own tree, not recalled.
+
+### The two classes do opposite jobs, and only one of them is a table
+- **`GetSampleText`** is an **exported engine component**: `<action
+  android:name="android.speech.tts.engine.GET_SAMPLE_TEXT">`, `Theme.NoDisplay`. Android
+  **Settings calls it to demo OUR engine**. It is the same class of surface as
+  `CheckVoiceData` -- the one this file already records as the place the UI carve-out does
+  **not** reach -- and deleting it makes us a non-conforming TTS engine. It is AutoTTS's
+  own `GetSampleText` byte for byte plus two crash guards. **It cannot go.**
+- **`SampleTexts`** is the table both it and the Test button read. It is `c3.f0`.
+
+### THE MEASUREMENT THAT MATTERED: 46% of that table could never be read
+Both callers pass a pure ISO3 -- `GetSampleText` uses `locale.isO3Language`,
+`VoiceRows.speakTest` uses `EngineFinder.iso3Of`, which returns `loc.isO3Language`. And
+that method's output length was **measured rather than assumed**: 1,257 calls over every
+entry of `Locale.getAvailableLocales()` and `Locale.getISOLanguages()` --
+
+    lengths seen {0, 3}      non-empty-but-not-3: 0      exceptions: 0
+
+    340 keys   184 iso3  REACHABLE
+               124 iso2  dead   ("gu", "mr", "ta", ...)
+                32 lang_COUNTRY dead ("eng_USA", "zho_TWN", "fr_BE", ...)
+
+So **156 entries, 46% of the file, could not be consulted by anything.** They came across
+with the rest of `f0`, whose key set ours matched at all 340 -- and **this file claimed we
+had deliberately dropped them, which was simply not true.** They are dropped now, 346
+lines to 214. Proven non-behavioural rather than argued: the 184 survivors are
+**byte-identical in key AND value** to the old table's iso3 subset, and a map entry whose
+key is never looked up is never consulted.
+
+### THE ENGINE-SAMPLE IDEA IS RIGHT, IS AOSP's OWN, AND MAKES THE CODE BIGGER
+`Settings/src/com/android/settings/tts/TextToSpeechSettings.java` does exactly what the
+owner described -- and then keeps its canned table anyway:
+
+    private void getSampleText() {
+        Intent intent = new Intent(TextToSpeech.Engine.ACTION_GET_SAMPLE_TEXT);
+        intent.putExtra("language", ...); putExtra("country", ...); putExtra("variant", ...);
+        intent.setPackage(currentEngine);
+        try { startActivityForResult(intent, GET_SAMPLE_TEXT); }
+        catch (ActivityNotFoundException ex) { Log.e(TAG, "Failed to get sample text ..."); }
+    }
+    private void onSampleTextReceived(int resultCode, Intent data) {
+        String sample = getDefaultSampleString();          // <-- ITS OWN CANNED TABLE FIRST
+        if (resultCode == LANG_AVAILABLE && data != null
+            && data.getStringExtra("sampleText") != null) sample = data.getStringExtra("sampleText");
+    }
+
+Four things follow, and each is from the source:
+- **it is an ACTIVITY.** `@SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)` on
+  `ACTION_GET_SAMPLE_TEXT`. Not a binder call -- `startActivityForResult` and a result
+  callback, i.e. a **window change on the Voice setup screen**, on the one button a blind
+  owner presses to hear a voice. This file records three regressions from exactly that
+  shape of untested change on exactly that kind of path.
+- **the answer is OPTIONAL.** The Javadoc says the result ***may*** contain
+  `EXTRA_SAMPLE_TEXT`, and Settings catches `ActivityNotFoundException`. **So the table has
+  to stay as the fallback** -- which is why this cannot be what removes it.
+- **AOSP hedges on the request side**: *"This is currently a hidden private API. The intent
+  extras and the intent action should be made public if we intend to make this a public
+  API. We fall back to using a canned set of strings if this doesn't work."*
+- **AutoTTS never fires it.** Grepped the whole decompile: two hits, its own answering
+  activity and the manifest. Its `<queries>` entry is so the activity resolves, not so it
+  can ask.
+
+**And the platform's own canned table is SIX languages** -- `eng fra deu ita spa kor` --
+plus `tts_default_sample_string` = *"This is an example of speech synthesis"*. AOSP leans
+on the engine and keeps a thin net; we lean on 184 entries and never ask. Neither is wrong.
+
+### WHAT IT WOULD ACTUALLY BUY, counted
+**49 of the 185 ISO3 codes a scanned voice can produce have no sample here** -- `pus`,
+`div`, `nav`, `nya`, `run`, `sag`, `srd`, `ssw`, `tso`, `twi`, `ven`, `zha` and the rest.
+Today each of those speaks **"Sorry. Sample text for language X is missing."** instead of
+demonstrating the voice, so the owner cannot test those voices at all. **That is the real
+win, and it is a real one.** For a language the table already has, "more accurate" does not
+apply -- a demo sentence has no accuracy dimension, it just has to be in the right language.
+
+### THE OWNER'S CALL, and the three shapes
+1. **leave it** -- 49 languages keep saying "sample text is missing";
+2. **ask the engine, keep the table as the fallback** -- AOSP's exact shape. Fixes all 49.
+   Costs an activity round-trip on the Test button (the accessibility risk above) and makes
+   `VoiceSetupActivity` carry an `ActivityResultLauncher`. **Does not delete anything.**
+3. **a generic fallback instead of the apology** -- one line, no new API, no window change:
+   any language with no entry speaks a default sentence in the nearest language we do have,
+   or AOSP's English default. Imperfect (an English sentence in a Xhosa voice) but it DOES
+   demonstrate the voice, which is the whole job of Test.
+
+**Nothing beyond the dead-key cut was done, because 2 and 3 both change what the Test
+button says and neither can be tested in this container.** Say which.
+
 ## THE SECTION HEADER IS A QUIET LABEL NOW, NOT A FILLED BAR (owner, 2026-09-16)
 *"Replace all section headers with smaller, regular-weight, and neutral-colored
 titles that maintain their semantic heading structure for screen readers without
@@ -7418,8 +7512,10 @@ the `"<want> vs <have>"` locale line, `"Check voice 1"`, `"Keep-live activated"`
 (`f.get(d).e()`), not a resolved preferred package — resolving one meant a whole
 `getEngine4Language` block in the log for every chunk that AutoTTS never emits.
 `c3.f0`'s sample-text table was compared key by key: **184 iso3 entries, identical**. Its
-other 156 entries are keyed by **iso2** and are unreachable — both callers pass an iso3 —
-so they are deliberately not carried.
+other 156 entries are keyed by **iso2** and are unreachable — both callers pass an iso3.
+**That last clause said they were "deliberately not carried" and it was FALSE until
+2026-09-16** — the key sets were identical at all 340. They are dropped now; see
+"THE SAMPLE TEXT" below.
 
 ## The DETECTOR lives in `libcld2.so`, and it was read there (2026-08-25)
 The user reported it from the device: **mix mode, non-Latin preferred language Hindi, and
