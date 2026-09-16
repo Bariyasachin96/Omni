@@ -7,6 +7,92 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE LANGUAGE SWITCH IS PREFETCHED NOW, AND ONE THING NEARLY BROKE IT (owner, 2026-09-16)
+*"ek text hai jismein alag-alag bhashaen hain ... alag-alag bhashaen read karne ke liye jo
+TTS change hote hain to vah time thoda lagata hai ... switching bahut fast honi chahie.
+Vah sahi tarike se research karke properly fix karo."*
+
+**THIS IS THE ONE IDEA THE 2026-09-11 `getVoice()` NOTE WROTE DOWN AND DID NOT TAKE**, on
+the grounds that it "does not address the reported case (a single-language utterance after
+a switch)" and needed asking first. The owner has now reported exactly the case it DOES
+address, and asked. So it is done.
+
+### WHERE THE TIME GOES, read out of AOSP rather than guessed
+The whole chain after chunk N's audio stops was serial:
+
+    onDone (binder) -> post to the MAIN LOOPER -> onLoadLanguage(N+1)
+      -> loadVoice -> setLanguage / setVoice -> speak()
+
+and **`TextToSpeech.setLanguage` is FOUR blocking binder round trips** (1606-1626):
+
+    service.isLanguageAvailable(...)
+    service.getDefaultVoiceNameFor(...)
+    service.loadVoice(...)
+    getVoice(service, voiceName)      <-- a FULL service.getVoices() marshal
+
+The fourth is the engine's **entire** voice set, hundreds of `Voice` objects for Google
+TTS, and AOSP's own comment says it exists only *"so #getLanguage will return the currently
+set voice locale"* -- which **nothing in this app reads** (swept: the only live read is
+`tts.voice`, and that is cached). It cannot be removed from inside the framework, so the
+only lever is WHEN it runs.
+
+**And the `*Default` path cannot avoid it.** Resolving the engine's own default voice
+ourselves would need `getDefaultVoiceNameFor`, which **`TextToSpeech` does not expose** --
+only `getDefaultVoice()`, which is the default locale's, not an arbitrary one's. Checked;
+rule 6 closes that door, exactly as the earlier note said.
+
+### SO THE LOAD MOVES TO `onStart`, AND AOSP's OWN CONTRACT IS WHAT MAKES IT SAFE
+Three facts from `TextToSpeechService.java`, each read at the line:
+- **`loadVoice` and `loadLanguage` enqueue at `QUEUE_ADD`** (1443, 1470). Only
+  `QUEUE_FLUSH` calls `stopForApp`. **Preparing an engine cannot stop an utterance already
+  playing on it**, let alone on another engine.
+- **`isLanguageAvailable` (1396) and `getDefaultVoiceNameFor` (1478) are plain binder
+  methods**, answered off the binder thread pool, never touching `SynthHandler`. They
+  answer while the engine is speaking.
+- so the whole four-call cost fits inside the time chunk N is being read.
+
+`prefetchNextLanguage` is posted from `onStart` -- **posted**, not run there, for the same
+reason `onDone` posts: it can construct or shut down a `TextToSpeech` and that must not
+happen inside an engine callback.
+
+**IT ONLY FIRES WHEN THE NEXT CHUNK IS ON A DIFFERENT ENGINE, and that gate is
+load-bearing.** `loadVoice` calls `restoreEngine` when `setLanguage` fails, and
+`restoreEngine` shuts the client down and builds a replacement -- on the engine speaking
+right now that would cut the current chunk off. A different engine cannot be the one
+speaking. Same-engine switches keep exactly the behaviour they had and are the cheap case
+anyway (the voice set is cached, the model is already in that process). **It is also
+precisely the owner's setup**: English on Eloquence, Hindi and Gujarati on Google.
+
+**The RESULT is remembered, not just the fact.** `loadOrPrefetched` answers from the
+prefetch only when it was for the same language, so `onDone`'s three branches keep every
+check they had -- including `LANG_NOT_SUPPORTED` and its release of the parked thread.
+
+### THE THING THAT NEARLY BROKE IT, and it is why this was researched before it was written
+**`engineIndex` is read by the empty-text flush**, not only by `speakChunk`. Prefetching
+moves `engineIndex` to the next chunk's engine while the current one is still speaking --
+so a TalkBack flush (an empty utterance, which is how it interrupts) landing in that window
+would have flushed **the engine that has not started** and the current phrase would have
+carried on. That is the identical defect the 2026-09-02 `isSpeaking()` note fixed,
+re-introduced from the other end, and a naive prefetch would have shipped it.
+
+So the flush **walks the pool** now, which is what our own `onStop()` has always done --
+same loop, same `state == 2 && listenerSet` test, and `speak("", QUEUE_FLUSH)` on an idle
+engine is the documented no-op that site already relies on. It is strictly more reliable
+than reading one index, which could already miss.
+
+### WHAT TO WATCH, stated rather than hidden
+This is the speaking path and **it cannot be tested in this container**; this file records
+three regressions from exactly that shape. What it can do at the wrong moment was walked
+one case at a time -- interrupt (harmless, the next utterance resets `engineIndex`), flush
+(the fix above), a failing prefetch (`restoreEngine` on an idle engine, which is what would
+have happened after `onDone` anyway), lock order (`this -> languages`, the order
+`onLoadLanguage` already uses, so `invariants.sh` #3 still passes).
+
+**The log now carries `prefetch <lang> on <pkg> = <result>`**, so the next log the owner
+sends says whether it is firing and for which engine. **To revert it is two lines**: drop
+the `chunkHandler.post { prefetchNextLanguage(pkg) }` in `onStart`. The flush change stands
+on its own and should stay either way.
+
 ## THE SAMPLE TEXT: 156 DEAD KEYS CUT, AND THE ENGINE-SAMPLE QUESTION ANSWERED (owner, 2026-09-16)
 *"yah GATE sample text wala ... vah sample text to har TTS ke paas rahata hi hai ... vah
 mere khyal se jyada accurate rahata hai, yah humne extra likh rakha hai ... yah sare

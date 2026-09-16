@@ -1900,8 +1900,26 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // speak runnable is no longer posted -- then R.clear().
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + false)
             synchronized(chunkQueue) { chunkQueue.clear() }
-            if (engineIndex >= 0 && engineIndex < enginePool.size) {
-                val wrapper = enginePool[engineIndex]
+            // THE POOL IS WALKED HERE NOW, NOT enginePool[engineIndex] (2026-09-16).
+            //
+            // Two reasons, and the second is what made it necessary.
+            //
+            // It is what our own onStop() has always done -- `while (index <
+            // enginePool.size)` over every wrapper in state 2 with listenerSet --
+            // and the two exist for the same job: end whatever is speaking. Reading
+            // one index was the weaker of the two and could already miss.
+            //
+            // And `engineIndex` now moves BEFORE the chunk it belongs to speaks,
+            // because the next chunk's language is loaded while the current one is
+            // still being read (see prefetchNextLanguage). Left as it was, a
+            // TalkBack flush landing in that window would have flushed the engine
+            // that has not started instead of the one speaking, and the previous
+            // phrase would have carried on -- the exact defect the 2026-09-02 note
+            // below describes, re-introduced by the other end.
+            var flushIdx = 0
+            while (flushIdx < enginePool.size) {
+                val wrapper = enginePool[flushIdx]
+                flushIdx++
                 // DELIBERATE DEPARTURE FROM AutoTTS -- the SAME one onStop carries,
                 // finished here on 2026-09-02 because it was left half-done.
                 //
@@ -2296,6 +2314,87 @@ class EasyVoiceTtsService : TextToSpeechService() {
             startAndFinish(callback)
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
         }
+        // THE NEXT CHUNK'S LANGUAGE IS LOADED WHILE THIS ONE IS STILL SPEAKING
+        // (owner, 2026-09-16: "alag-alag bhashaen read karne ke liye jo TTS change
+        // hote hain to vah time thoda lagata hai ... switching bahut fast honi
+        // chahie").
+        //
+        // WHERE THE TIME WENT, read out of AOSP rather than guessed. The whole
+        // chain after chunk N's audio stops was serial:
+        //     onDone (binder) -> post to the main looper -> onLoadLanguage(N+1)
+        //     -> loadVoice -> setLanguage/setVoice -> speak()
+        // and `TextToSpeech.setLanguage` is FOUR blocking binder round trips:
+        //     service.isLanguageAvailable(...)
+        //     service.getDefaultVoiceNameFor(...)
+        //     service.loadVoice(...)
+        //     getVoice(service, voiceName)   <-- a FULL service.getVoices() marshal
+        // The last one is the engine's entire voice set -- hundreds of Voice
+        // objects for Google TTS -- and it exists only so getLanguage() reports the
+        // right locale afterwards, which nothing in this app reads. It cannot be
+        // removed from inside the framework, so the only lever is WHEN it runs.
+        //
+        // IT IS SAFE TO RUN IT EARLY, and that is AOSP's own contract rather than a
+        // hope. TextToSpeechService.Stub.loadVoice and loadLanguage both enqueue at
+        // **QUEUE_ADD**; only QUEUE_FLUSH calls stopForApp. And isLanguageAvailable
+        // and getDefaultVoiceNameFor are plain binder methods answered off the
+        // binder thread pool, never touching SynthHandler. So nothing on this path
+        // can flush, stop or delay an utterance already playing -- on this engine or
+        // any other.
+        //
+        // IT ONLY RUNS WHEN THE NEXT CHUNK IS ON A DIFFERENT ENGINE, and that gate
+        // is load-bearing rather than an optimisation. loadVoice calls
+        // restoreEngine when setLanguage fails, and restoreEngine shuts the client
+        // down and builds a replacement -- on the engine that is speaking right now
+        // that would cut the current chunk off. A different engine cannot be the one
+        // speaking, so that cannot happen. Same-engine switches keep exactly the
+        // behaviour they had, and they are the cheap case anyway: the voice set is
+        // already cached and the model is already in that process.
+        //
+        // The result is REMEMBERED, not just the fact of loading, so onDone's three
+        // branches keep every check they had -- including LANG_NOT_SUPPORTED and its
+        // release of the parked thread. They ask `loadOrPrefetched`, which answers
+        // from the prefetch only when it was for the same language.
+        var prefetchedLang = ""
+        var prefetchedResult = 0
+        fun loadOrPrefetched(lang: String): Int {
+            if (prefetchedLang == lang) { val cached = prefetchedResult; prefetchedLang = ""; return cached }
+            prefetchedLang = ""
+            return onLoadLanguage(lang, "", "")
+        }
+        // Runs on the MAIN LOOPER, posted from onStart -- never on the binder thread
+        // the callback arrives on, for the same reason onDone posts: this can
+        // construct or shut down a TextToSpeech and that must not happen inside an
+        // engine callback.
+        fun prefetchNextLanguage(speakingPkg: String) {
+            if (myGeneration != synthesisGeneration) return
+            if (isStopped || isFlushed) return
+            if (prefetchedLang.isNotEmpty()) return
+            val next = synchronized(chunkQueue) { chunkQueue.firstOrNull()?.second } ?: return
+            // The same three branches onDone resolves the next language with, and
+            // they must stay the same three: this only decides WHEN the load runs.
+            val lang = if (modeInt == 1) when (next.typeCode) {
+                1 -> "eng"
+                2 -> dualLang
+                3 -> numberSpecificLang
+                4 -> puncSpecificLang
+                5 -> emojiSpecificLang
+                else -> ""
+            } else prefs.toIso3(next.lang)
+            if (lang.isEmpty()) return
+            val nextPkg = LangStore.engineFor(lang, modeInt)
+            if (nextPkg.isEmpty()) return
+            // wrapper.pkg is already stripped of - and _ by EngineWrapper, so the
+            // candidate is stripped the same way before they are compared.
+            if (nextPkg.replace("-", "").replace("_", "") == speakingPkg) return
+            try {
+                prefetchedResult = onLoadLanguage(lang, "", "")
+                prefetchedLang = lang
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "prefetch " + lang + " on " + nextPkg + " = " + prefetchedResult)
+            } catch (ex: Throwable) {
+                prefetchedLang = ""
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "prefetch failed for " + lang + ": " + ex.toString())
+            }
+        }
         fun speakChunk(first: Boolean) {
             // The one place that pops chunkQueue and speaks, and it is reached
             // from three threads: the synthesis thread for the first chunk, a
@@ -2399,6 +2498,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
                         if (id != expectedId) return
                         if (callback?.hasStarted() == false) { callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
+                        // The engine has begun audio, so the whole of this chunk is
+                        // now free time on every other engine. Posted rather than
+                        // run here: this is a binder callback.
+                        chunkHandler.post { prefetchNextLanguage(pkg) }
                     } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStart failed: " + ex.toString()) }
                 }
                 override fun onDone(id: String) {
@@ -2445,7 +2548,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 else -> ""
                             }
                             if (nextLang.isNotEmpty()) {
-                                val loadRes = onLoadLanguage(nextLang, "", "")
+                                val loadRes = loadOrPrefetched(nextLang)
                                 if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)
                                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #" + (if (next.typeCode == 1) 2 else 3))
@@ -2473,7 +2576,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             // re-detect above it, because .b() is never empty and
                             // never "unknown" for those chunks.
                             LangStore.engineFor(nextLang, modeInt)
-                            val loadRes = onLoadLanguage(nextLang, "", "")
+                            val loadRes = loadOrPrefetched(nextLang)
                             if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)
                                 // Same hole as the two guards above: this ends the
@@ -2485,7 +2588,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             }
                         } else {
                             val nextLang = prefs.toIso3(next.lang)
-                            val loadRes = onLoadLanguage(nextLang, "", "")
+                            val loadRes = loadOrPrefetched(nextLang)
                             if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)
                                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #4")
