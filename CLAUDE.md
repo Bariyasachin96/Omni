@@ -7,6 +7,65 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE LAST TWO AUDITS, DONE BY HAND (owner, 2026-09-16)
+*"agent per mat chhod do na yaar ... kabhi agent bahut limit kha jata hai, aap hi
+karo completely."* The concurrency and callback sweeps were killed twice by the
+usage limit, so they were done by reading the code instead. **Two defects, both
+fixed; four things checked and CLEAN; one hole left open on purpose.**
+
+### CLEAN -- do NOT re-audit these
+- **`onStop()` does NOT take the `this` monitor.** It takes `chunkQueue` then
+  `syncLock`. So even with a binder thread stuck inside `onLoadLanguage` holding
+  `this` across a blocking call into a wedged engine, the one thing that unparks
+  the synthesis thread can still run. That closes the worst deadlock shape.
+- **Holding `this` across binder calls is PARITY.** AutoTTS's own
+  `onLoadLanguage` is `synchronized (this)` (noexc:1478-1479). Not ours to change.
+- **`listenerSet` is never cleared and that is harmless.** It gates only
+  `wrapper.stop()` in `onStop` and the empty-text flush, and a stale `true` means
+  "stop one more engine", which is the safe direction. It is the one member of
+  the client-describing family that does NOT belong in `forgetClientState()`.
+- **`speakingPkg`'s lifetime is sound**: cleared at the top of every utterance,
+  set at the `speak()` site, cleared after the wait, cleared by the catch-all,
+  and cleared by `onEngineProcessGone` when it matches.
+
+### FIXED: a dead engine left its cached voice behind
+`forgetClientState()` ran only where `tts` was **replaced**. A process death does
+not replace it -- the same object sits there, now dead -- so `currentVoice`
+survived, `loadVoice`'s **"Do nothing!"** short-circuit answered from that cache,
+and the method **returned without touching the engine**. The utterance then spoke
+into a dead client.
+
+**The 2026-09-11 cache is what opened it**, which is what makes it ours: that test
+used to read `tts.voice` LIVE, and AOSP answers null once the connection is gone,
+so the short-circuit could not fire and the method fell through to `setLanguage`,
+which failed, which called `restoreEngine`. Caching removed the only way the
+ordinary path could notice. `onEngineProcessGone` clears it now -- that runs on a
+process death and never on the speaking path, so the caching win is untouched.
+`invariants.sh` #28 requires it.
+
+### THE ONE HOLE LEFT OPEN, AND IT IS THE OWNER'S CALL
+**Our own `onStop()` releases the wait while the stops it ordered are still only
+QUEUED.** `stopExec` is one thread; AOSP calls `stopForApp` **synchronously on the
+binder thread** before posting the next item, so the screen reader's NEXT utterance
+can already be speaking when that queued `stop()` finally runs -- and it stops
+*that* one, for which `stopImpl` dispatches **`onStop` and neither `onDone` nor
+`onError`**. Our listener's `onStop` is log-only, so that utterance's thread parks.
+
+It **recovers on the reader's next interrupt** (our `onStop()` override arrives on
+a binder thread and sets `isStopped`), so it costs an utterance rather than the
+process -- which is why it reads as "text skipped" rather than "dead".
+
+**The fix is one line and its precondition is now met**: releasing the wait here
+under `id == expectedId` is correct, because the id has carried the per-utterance
+generation since 2026-09-09 and a stale callback can no longer match it. **It is
+still not done.** The 2026-09-03 attempt at exactly this killed explore-by-touch
+outright, AutoTTS's listener is a bare log, and no log has shown the hang.
+
+**What was shipped instead is the diagnostic that settles it**, at zero risk: the
+listener's `onStop` now logs `mine=` and **`parked=`**. `parked=true` on a matching
+id **IS** the hang; anything else is a stale callback doing no harm. One line in
+the log the owner already shares decides whether to spend the fix.
+
 ## "USE DEDICATED ENGINES" WENT SILENT: A FLAG OUTLIVED THE CLIENT IT DESCRIBED (owner, 2026-09-15)
 *"kuchh karte-karte automatically jo TTS hai vah stop ho jata hai ... phir mujhe
 force stop karna padta hai"*, and *"yah dedicated engine wala jo hai na vah

@@ -2561,8 +2561,40 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // still NOT done, because AutoTTS's listener is a bare log and
                 // no log the owner has sent contains the hang -- only the
                 // interruption the id fixes. Do not add it on theory.
+                //
+                // THE LINE BELOW IS A DIAGNOSTIC, NOT A FIX (2026-09-16), and it is
+                // here because the hole above is REAL and reachable and the fix for
+                // it is the one change that has already broken this app once.
+                //
+                // How it is reached, without inventing anything: our own onStop()
+                // override QUEUES wrapper.stop() on the one stopExec thread and then
+                // releases the wait in its finally. AOSP calls stopForApp
+                // SYNCHRONOUSLY on the binder thread before posting the next item, so
+                // the screen reader's NEXT utterance can be speaking by the time that
+                // queued stop finally runs -- and it then stops THAT utterance, for
+                // which stopImpl dispatches onStop and NEITHER onDone NOR onError.
+                // Nothing else is coming, so that utterance's synthesis thread parks.
+                // It recovers on the reader's next interrupt, so it costs an utterance
+                // rather than the process, which is why it reads as "text skipped"
+                // rather than "dead".
+                //
+                // WHAT IS LOGGED IS THE ONE THING THAT TELLS THE TWO APART: whether
+                // the wait was still parked when this arrived. `parked=true` on a
+                // matching id IS the hang; anything else is a stale callback doing no
+                // harm. One line in the log the owner already shares settles it.
+                //
+                // THE FIX IS ONE LINE AND IT IS NOT MINE TO MAKE. Releasing the wait
+                // here under `id == expectedId` is correct now -- the id carries the
+                // per-utterance generation since 2026-09-09, so a stale callback
+                // cannot match it, which is exactly the precondition the note above
+                // sets. But the 2026-09-03 attempt at this killed explore-by-touch
+                // outright, AutoTTS's listener is a bare log, and no log has yet shown
+                // the hang. So it waits for that log, or for the owner's word.
                 override fun onStop(id: String, interrupted: Boolean) {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop " + id)
+                    val parked = !isStopped && !isFlushed
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                        "onStop " + id + " interrupted=" + interrupted +
+                        " mine=" + (id == expectedId) + " parked=" + parked)
                 }
             })
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())
