@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -51,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -66,17 +62,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-// How far a horizontal drag must travel before it counts as a tab swipe.
-//
-// It is stated in DP and converted with LocalDensity at the point of use,
-// because a draggable reports RAW PIXELS and a raw-pixel constant is a
-// different physical distance on every phone. The old 150f was about 50dp on an
-// xhdpi screen, 100dp on hdpi and 37dp on xxhdpi -- so the same flick changed
-// the tab on one device and not on another, and the cheapest device needed the
-// longest swipe. 48dp is Material's own minimum touch target, comfortably past
-// the ~8dp touch slop `draggable` has already absorbed before it reports
-// anything, so a wobble while scrolling vertically still cannot reach it.
-private val SWIPE_THRESHOLD = 48.dp
 class RequiredEnginesItem(val name: String, val pkg: String, installed: Boolean) {
     var installed by mutableStateOf(installed)
     var installing by mutableStateOf(false)
@@ -421,10 +406,6 @@ fun MainScreen(
     // Plain state instead of a PagerState. See the comment on the content Box
     // below for why the pager had to go.
     var currentPage by remember { mutableStateOf(0) }
-    var dragTotal by remember { mutableStateOf(0f) }
-    // dp -> px once per composition, with the library's own density rather than
-    // a hand-multiplied displayMetrics read.
-    val swipeThresholdPx = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }
     Scaffold(
         floatingActionButton = {
             // The selected mode's settings, in the corner rather than on the
@@ -588,6 +569,18 @@ fun MainScreen(
                 // half a declaration hands a reader a position out of a collection
                 // whose size it was never told.
                 actions = {
+                    // NOT DRAWN DURING THE SCAN (owner, 2026-09-17: "jab language
+                    // aur voice scan hota hai ... tab to koi tab vagaira kuchh
+                    // nahin aata to fir More option ka button kyon aata hai").
+                    //
+                    // They are right, and it is the rule the rest of this screen
+                    // already follows: the tab row is `if (!scanning)` and so are
+                    // both FABs. The scan screen is deliberately ONE thing -- a
+                    // headline and a polite live region naming the engine being
+                    // read -- and a control that leads somewhere else does not
+                    // belong on it. The bar was the only thing left ungated,
+                    // because it held nothing but a title until the menu was added.
+                    if (!scanning) {
                     var menuOpen by remember { mutableStateOf(false) }
                     Box {
                         IconButton(
@@ -620,6 +613,7 @@ fun MainScreen(
                                 modifier = Modifier.evControl("About Easy Voice", action = openAbout)
                             )
                         }
+                    }
                     }
                 },
                 // NO BACKGROUND BAR. Transparent rather than the background
@@ -769,22 +763,28 @@ fun MainScreen(
                 // still sees the two-finger swipe, because TalkBack forwards it as
                 // ordinary touch. The drag is accumulated and acted on once when it
                 // ends, so one flick moves exactly one tab.
+                // AND THERE IS NO SWIPE GESTURE HERE ANY MORE (owner,
+                // 2026-09-17: "swipe detect wala to hona hi nahin chahie, vah to
+                // uski koi jarurat hi nahin kyunki vah TalkBack ka kam hai").
+                //
+                // It was a Modifier.draggable that accumulated a horizontal drag
+                // and moved currentPage by one once it passed 48dp. It existed for
+                // a deliberate TWO-FINGER swipe, on the reasoning that TalkBack
+                // forwards a two-finger gesture through as ordinary touch. The
+                // owner's instruction is the wider rule they stated in the same
+                // message: where the screen reader already handles something, our
+                // code for it is dead weight and comes out. Moving between the
+                // three tabs is NAVIGATION, and navigation is the reader's job --
+                // the TabRow's tabs are real, labelled, role-Tab controls TalkBack
+                // reaches by ordinary swipe and activates by double tap.
+                //
+                // Gone with it: the SWIPE_THRESHOLD constant, `dragTotal`,
+                // `swipeThresholdPx`, and the draggable / rememberDraggableState /
+                // Orientation / LocalDensity imports. Nothing about how a tab is
+                // SELECTED changed -- currentPage is still ordinary state that the
+                // TabRow drives.
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .draggable(
-                            orientation = Orientation.Horizontal,
-                            state = rememberDraggableState { delta -> dragTotal += delta },
-                            onDragStarted = { dragTotal = 0f },
-                            onDragStopped = {
-                                if (dragTotal <= -swipeThresholdPx && currentPage < pageTitles.lastIndex) {
-                                    currentPage++
-                                } else if (dragTotal >= swipeThresholdPx && currentPage > 0) {
-                                    currentPage--
-                                }
-                                dragTotal = 0f
-                            }
-                        )
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     when (currentPage) {
                         0 -> ModesScreen(

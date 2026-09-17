@@ -1370,32 +1370,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     voiceLoc = LangStore.localeFor(autoIso3, modeInt)
                     enginePkg = LangStore.engineFor(autoIso3, modeInt)
                 }
-                // THE CONFIGURED ENGINE MAY SIMPLY NOT BE THERE ANY MORE (owner,
-                // 2026-09-17). Read the note on engineIsLive for why this exists and
-                // why it is a deliberate departure; in one line, without it a
-                // language whose engine has gone is silent for the life of the
-                // process even when another installed engine speaks it.
-                //
-                // The configured LOCALE is tried first so a replacement keeps the
-                // region -- an engine with hi_IN is preferred over one with only
-                // hi -- and the bare language is the second try.
-                if (enginePkg.isNotEmpty() && !engineIsLive(enginePkg)) {
-                    val configuredLocale = parseVoiceNameAsLocale(voiceLoc)
-                    var replacement = if (configuredLocale == null) "" else findLiveEngineForLocale(configuredLocale)
-                    if (replacement.isEmpty()) replacement = findLiveEngineForLocale(Locale(lang))
-                    if (replacement.isNotEmpty()) {
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
-                            "engine " + enginePkg + " is not available -- falling back to " + replacement + " for " + lang)
-                        enginePkg = replacement
-                    } else {
-                        // Worth a line of its own: it is the difference between "we
-                        // picked another engine" and "there is nothing on this phone
-                        // that can say this language", and the next log the owner
-                        // sends says which.
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
-                            "engine " + enginePkg + " is not available and no live engine speaks " + lang)
-                    }
-                }
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "engine: " + enginePkg + " voice " + voiceLoc + " variant " + variantOut)
                 try {
                     val loc = parseVoiceNameAsLocale(voiceLoc) ?: return@synchronized TextToSpeech.LANG_NOT_SUPPORTED
@@ -1455,77 +1429,30 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         } catch (_: Exception) { null }
     }
-    // ==========================================================================
-    //  A CONFIGURED ENGINE THAT IS NO LONGER THERE     OURS, not AutoTTS's
+    // THE ENGINE-GONE FALLBACK WAS HERE AND IS REMOVED (owner, 2026-09-17:
+    // "vah sahi tarike se hua nahin hai ... to usko code hata dena, uski jarurat
+    // nahin hai").
     //
-    //  Owner, 2026-09-17: "maan lijiye koi TTS band ho gaya jo humne configure kar
-    //  rakha hai, for example Google TTS ... maine Hindi ke liye configure kar
-    //  rakha hai but vah band ho gaya ... us time par us language ke liye koi
-    //  dusra TTS system mein available ho to vah set ho jaye automatically."
+    // It was `engineIsLive(pkg)` plus `findLiveEngineForLocale(locale)`, called
+    // from onLoadLanguage: when the configured engine was not in the pool at
+    // state 2, it searched voiceList for another LIVE engine speaking the same
+    // language and silently used that instead. It was a DELIBERATE DEPARTURE --
+    // AutoTTS's `d0` falls back only when the engine string is EMPTY, never when
+    // it names something absent -- and it did not do what the owner asked for on
+    // their device, so the departure is withdrawn and this path is AutoTTS's
+    // again.
     //
-    //  WHAT USED TO HAPPEN, and it is total rather than partial. A LangStore entry
-    //  keeps the package it was configured with. If that engine is uninstalled, is
-    //  mid-update, has had its voice data deleted or simply failed to initialise,
-    //  `engineFor` still answers that package, `loadVoice` finds no wrapper at
-    //  `state == 2` for it, `engineIndex` goes to -1 and the utterance ends through
-    //  `releaseWaitWithoutSpeaking`. The language is SILENT, for the life of the
-    //  process, even when another installed engine speaks it perfectly well.
-    //
-    //  AutoTTS DOES NOT DO THIS -- its `d0` falls back only when the engine string
-    //  is EMPTY, never when it names something absent -- so this is a DELIBERATE
-    //  DEPARTURE, asked for by name. It is the class the owner has overridden rule
-    //  5 for repeatedly: the outcome is no speech at all and only a force stop
-    //  clears it.
-    //
-    //  WHY IT IS SAFE: `engineIsLive` is a walk of the engine pool, which is a
-    //  handful of entries, and on the ordinary path -- the configured engine is
-    //  there -- it answers true and NOTHING else runs. The search below happens
-    //  only in the case that is already broken.
-    private fun engineIsLive(pkg: String): Boolean {
-        if (pkg.isEmpty()) return false
-        // The same normalisation loadVoice does, and it has to be the same: an
-        // EngineWrapper stores its package with "-" and "_" stripped, and comparing
-        // a raw name against it is exactly the defect that stopped
-        // onEngineProcessGone matching on 2026-09-11.
-        val normPkg = pkg.replace("-", "").replace("_", "")
-        for (index in 0 until enginePool.size) {
-            if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) return true
-        }
-        return false
-    }
-
-    //  findEngineForLocale's precedence -- exact locale, then language+country,
-    //  then language -- over only the engines that are actually LIVE.
-    //
-    //  It is a separate function rather than a flag on findEngineForLocale, because
-    //  that one is a byte-for-byte port of AutoTTS's `o0` and must stay one. Two
-    //  deliberate differences from it, both because this is ours:
-    //    * one pass keeping the best match so far, instead of three passes. Same
-    //      precedence, a third of the work.
-    //    * an unparseable entry is SKIPPED. `o0` answers "" and abandons the whole
-    //      search on one bad row, which is a quirk worth mirroring where parity
-    //      matters and worth not mirroring here, where the entire point is to find
-    //      something that works.
-    private fun findLiveEngineForLocale(locale: java.util.Locale): String {
-        val requestedIso3 = localeIso3(locale)
-        val requestedCountry = try { locale.isO3Country } catch (_: Exception) { "" }
-        val requestedVariant = locale.variant
-        var countryMatch = ""
-        var languageMatch = ""
-        for (index in 0 until voiceList.size) {
-            val parts = voiceList[index].split("#")
-            if (parts.size != 2 && parts.size != 3) continue
-            if (!engineIsLive(parts[0])) continue
-            val storedLocale = parseVoiceNameAsLocale(parts[1]) ?: continue
-            if (requestedIso3 != localeIso3(storedLocale)) continue
-            val storedCountryIso3 = try { storedLocale.isO3Country } catch (_: Exception) { "" }
-            if (requestedCountry == storedCountryIso3 && requestedVariant == storedLocale.variant) return parts[0]
-            if (requestedCountry == storedCountryIso3 && countryMatch.isEmpty()) countryMatch = parts[0]
-            if (languageMatch.isEmpty()) languageMatch = parts[0]
-        }
-        return if (countryMatch.isNotEmpty()) countryMatch else languageMatch
-    }
-
+    // DO NOT REINSTATE IT WITHOUT THE OWNER ASKING. The gap it aimed at is real
+    // and is written down so the next session does not rediscover it as a bug: a
+    // LangStore entry keeps the package it was configured with, so if that engine
+    // is uninstalled or mid-update, `engineFor` still answers it, `loadVoice`
+    // finds no wrapper at state 2, `engineIndex` goes to -1 and the utterance
+    // ends through `releaseWaitWithoutSpeaking`. That language stays silent until
+    // the engine is back or the configuration changes. THAT IS AutoTTS'S
+    // BEHAVIOUR TOO. Repairing it properly is a STORAGE change -- the stored
+    // entry re-pointed and persisted, which is what a fresh engine scan already
+    // does -- not a substitution made silently on the speaking path, which is
+    // what this was and is why it did not hold up.
     private fun findEngineForLocale(locale: java.util.Locale): String {
         val requestedIso3 = localeIso3(locale)
         val requestedCountry = try { locale.isO3Country } catch (_: Exception) { "" }

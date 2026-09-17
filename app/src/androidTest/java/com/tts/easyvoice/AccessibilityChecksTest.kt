@@ -372,6 +372,22 @@ class AccessibilityChecksTest {
         check(mainScreen(scanning = true, scanLine = "Checking your TTS engines"))
     }
 
+    // THE SCAN SCREEN OFFERS NOTHING BUT THE SCAN (owner, 2026-09-17: "jab
+    // language aur voice scan hota hai ... tab to koi tab vagaira kuchh nahin
+    // aata to fir More option ka button kyon aata hai").
+    //
+    // The tab row and both FABs were already gated on `!scanning`; the overflow
+    // menu was not, because the app bar held nothing but a title until the menu
+    // was added to it. This asserts the whole set is absent TOGETHER, so the next
+    // control added to that bar cannot quietly appear on the scan screen -- which
+    // is exactly how this one got there.
+    @Test
+    fun mainScreenScanningOffersNothingElse() {
+        themed(mainScreen(scanning = true, scanLine = "Checking your TTS engines"))
+        rule.onNodeWithContentDescription("More options").assertDoesNotExist()
+        rule.onNodeWithText("Main Settings").assertDoesNotExist()
+    }
+
     @Test
     fun mainScreenSettled() {
         check(mainScreen(scanning = false, scanLine = ""))
