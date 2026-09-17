@@ -746,6 +746,27 @@ same loop, same `state == 2 && listenerSet` test, and `speak("", QUEUE_FLUSH)` o
 engine is the documented no-op that site already relies on. It is strictly more reliable
 than reading one index, which could already miss.
 
+**NARROWED ON 2026-09-17, AND THE REASONING ABOVE IS WHY IT COULD BE.** The owner counted
+the cost: *"screen ko touch karne se stop hota hai vah to khud TalkBack ka function rehta
+hai na, to aap kyon is tarike ka kam karte ho ... do teen jagah pe aapne stop wala on stop
+wala laga rakha hai."* One explore-by-touch step ran BOTH walks -- `onStop()` stopping
+every engine, then this flush flushing every engine -- so roughly **2xN binder calls when
+exactly ONE engine was producing audio**, and every extra queued stop is another chance for
+one to run late and land on an utterance it does not own.
+
+Both now target **`speakingPkg`**, and that is the signal this whole note was reaching for.
+It is **not `engineIndex`** -- the defect above -- and it is **not `isSpeaking()`**, whose
+window is why the 2026-09-02 departure dropped it. `speakingPkg` is OUR OWN state, assigned
+immediately **before** `tts.speak()` at the speak site, so there is no window in which an
+engine is speaking and the field is empty. The empty-text branch needed a snapshot
+(`wasSpeakingPkg`), because the preamble clears `speakingPkg` before that branch runs --
+which is exactly why it had no way to tell one engine from another and walked them all.
+
+**The walk is still there as the FALLBACK**: when nothing recorded an engine, both sites do
+precisely what they did before. So the narrowing can only ever do LESS work and can never
+miss a stop the pool walk would have made. **Do not widen it back** without a log showing a
+stop that was needed and skipped.
+
 ### WHAT TO WATCH, stated rather than hidden
 This is the speaking path and **it cannot be tested in this container**; this file records
 three regressions from exactly that shape. What it can do at the wrong moment was walked
