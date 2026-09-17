@@ -474,9 +474,12 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                         }
                     }
                 }
+                // Standard size rather than full width (owner, 2026-09-17), the
+                // same change ActionButton took -- Test was the one remaining
+                // button in the app that stretched edge to edge.
                 EvButton(
                     "Test",
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     R.drawable.ic_play_arrow,
                     // 5.7.7.26 wrapped the Test click in a try/catch that toasts
                     // "Test unknown error". speakTest reaches into a TextToSpeech

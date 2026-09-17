@@ -7,6 +7,131 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ONE FOCUS STOP PER SETTING, STANDARD BUTTONS, AND AN ENGINE THAT CAN GO AWAY (owner, 2026-09-17)
+
+### THE REVIEW CAUGHT A HIGH-SEVERITY BUG I HAD JUST WRITTEN -- READ THIS ONE FIRST
+The overflow menu shipped behind `if (!compactHeight) TopAppBar(...)`, and that gate had been
+correct right up until the bar gained actions. `evIsCompactHeight()` is a window under 480dp,
+which is **an ordinary phone in LANDSCAPE and either half of a portrait split-screen** -- so on
+a rotated phone the bar was not composed, and with it went the app's **only** route to About
+and to the system TTS settings. No gesture, no swipe, no focus traversal; nothing on screen to
+say they existed. The build number and the version -- the two facts the owner is asked for when
+reporting a bug -- were unreachable.
+
+**`AccessibilityChecksTest` could not have caught it**: the emulator runs portrait, so
+`compactHeight` is false under every test. The bar is composed unconditionally now. Google's
+"decide whether to show the top app bar based on window size class" still holds for a bar that
+is only a title; it does not hold for one that is a destination.
+
+**THE METHOD LESSON, and it is the fourth time this shape has appeared here:** the change was
+correct about the mechanism and wrong about the consequence in a window shape nothing tests.
+An adversarial review found it in one pass. **Run one before shipping a change that moves where
+a control lives.**
+
+### THE DESCRIPTION IS PART OF THE SWITCH'S NAME NOW, WHICH REVERSES A DEVICE TEST
+*"TalkBack ka ek extra focus jata hai description ke liye ... uske sath hi vah description join
+kar do taki mujhe alag se description ke liye swipe na karna pade."*
+
+One focus stop per setting instead of two. `SettingSwitch` takes a `description`, appends it to
+the accessible name inside `evControl`, and the visible paragraph is silenced with
+`SettingDescription(text, spoken = false)` -- drawn, and out of the accessibility tree.
+
+**`clearAndSetSemantics`, not `hideFromAccessibility()`**, on that API's own advice: its KDoc
+says to use clearAndSetSemantics for content redundant with its parent and reserves
+hideFromAccessibility for content that is OCCLUDED.
+
+**ListItem's `supportingContent` STILL cannot be used**, which is why the folding happens in
+the NAME rather than in the row: `evControl` is `clearAndSetSemantics`, and clearing a node
+drops its whole subtree, so a description inside the row is visible and completely inaudible --
+the mechanism that made the Configuration menu unreachable in build 832.
+
+**THIS REVERSES A REJECTION THE OWNER MADE ON A DEVICE.** In the View era the same folding was
+tried and rejected, because TalkBack then read the whole paragraph before you could act. The
+complaint now is the opposite one, and the owner asked for it directly. **The revert is two
+arguments**: stop passing `description` to `SettingSwitch`, drop `spoken = false`.
+
+`spoken` defaults to **true** and that matters -- About and the Licenses screen use
+`SettingDescription` for text nothing else says, and silencing those would delete the version,
+the developer and the whole Apache notice for the one person this app is built for.
+
+### THE BUTTONS ARE STANDARD SIZE
+*"jo bhi bade-bade buttons hain ... vah buttons bilkul standard kar do."* `ActionButton` and
+the Voice screen's Test were `fillMaxWidth()`, so they stretched edge to edge and read as slabs.
+Material sizes a Button from its own content and padding, which is what standard means, and a
+wrap-content button is also the shape the 48dp minimum is specified against. **Nothing
+accessible moved** -- name, role, click action and minimum target all come from `EvButton`.
+
+**The `weight(1f)` PAIRS are deliberately left**: Share logs / Clear logs, Select all / Clear
+all, Previous / Next language. They are half-width rather than full, the side-by-side row is a
+shape the owner asked for by name on 2026-09-03, and they are not what "bade-bade" describes.
+Say the word if they should be wrap-content too.
+
+### AN ENGINE THAT IS NO LONGER THERE NOW FALLS BACK, AND IT IS A DEPARTURE
+*"maan lijiye koi TTS band ho gaya jo humne configure kar rakha hai ... us language ke liye koi
+dusra TTS system mein available ho to vah set ho jaye automatically."*
+
+**What used to happen is total, not partial.** A `LangStore` entry keeps the package it was
+configured with. If that engine is uninstalled, mid-update, has lost its voice data or failed
+to initialise, `engineFor` still answers it, `loadVoice` finds no wrapper at `state == 2`,
+`engineIndex` goes to -1 and the utterance ends through `releaseWaitWithoutSpeaking`. **That
+language is silent for the life of the process** even when another installed engine speaks it.
+
+**AutoTTS does not do this** -- its `d0` falls back only when the engine string is EMPTY, never
+when it names something absent -- so it is a **DELIBERATE DEPARTURE**, asked for by name, in
+the class the owner has overridden rule 5 for repeatedly: the outcome is no speech at all and
+only a force stop clears it.
+
+    engineIsLive(pkg)             a walk of the engine pool, same "-"/"_" normalisation
+                                  loadVoice uses -- comparing a RAW name against a wrapper's
+                                  is the exact defect that broke onEngineProcessGone
+    findLiveEngineForLocale(loc)  findEngineForLocale's precedence (exact -> language+country
+                                  -> language) over LIVE engines only
+
+**Why it is safe:** on the ordinary path the configured engine is live, `engineIsLive` answers
+true and **nothing else runs**. The search happens only in the case that is already broken.
+
+`findLiveEngineForLocale` is a SEPARATE function rather than a flag on `findEngineForLocale`,
+because that one is a byte-for-byte port of `o0` and must stay one. Two deliberate differences:
+one pass keeping the best match instead of three, and an unparseable row is **skipped** where
+`o0` abandons the whole search on it.
+
+**WHAT THIS DOES NOT DO, stated rather than implied:** it repairs the SPEAKING path, not the
+stored configuration. The Configuration screen still shows what was configured, and a scan is
+still what rewrites `LangStore`. If the owner wants the entry itself re-pointed and persisted,
+that is a storage change on top of this one -- say the word.
+
+### THE FOREGROUND SERVICE: TWO SILENT FAILURES, NOW LOGGED -- AND THE LEVER IS THE OWNER'S
+*"jab maine battery optimization ko off karke dekha to acche se chal raha tha ... mujhe lag raha
+hai ki yah foreground ki hi koi problem hai."*
+
+**The instinct is sound and the mechanism lines up.** Turning battery optimization off exempts a
+process from Doze, App Standby buckets and the cached-app freezer, and a foreground service is
+the app's only other defence against exactly those. So both point at the same place.
+
+**`startForegroundIfPossible` had TWO exits that said nothing**, and either one reproduces the
+report on its own:
+1. `if (!hasNotificationPermission()) return` -- on Android 13+ the switch is turned ON,
+   POST_NOTIFICATIONS is not granted, and the whole feature does nothing, with no line anywhere.
+2. `catch { error(ex.message ?: "") }` -- a null message logged an **empty string**. A TTS engine
+   is NOT on Android 12's exemption list for starting a foreground service from the background,
+   so `ForegroundServiceStartNotAllowedException` is a real outcome and it was arriving as a
+   blank line.
+
+Both are logged now, success included, **with no behaviour change** -- every branch does what it
+did. The next log the owner sends states which of the three happened.
+
+**WHAT WAS DELIBERATELY NOT DONE, and it needs the owner:** "Show persistent notification" is
+**OFF by default**, because AutoTTS's is, and it is the switch that starts the foreground
+service at all. Defaulting it ON is very likely the actual fix for this report -- and it puts a
+permanent notification on the owner's phone and needs POST_NOTIFICATIONS, so it is a product
+decision rather than a bug fix. **Do not flip it without being asked.**
+
+**AND NOTHING HERE WAS GUESSED ABOUT ANDROID 17.** `targetSdk` is 37 and rule 6 forbids
+inventing behaviour: the API-35 foreground-service timeout covers `dataSync` and
+`mediaProcessing` and not our `mediaPlayback`, which is the last change that can be stated from
+a source. If the log shows the service starting and speech still stopping, that is the next
+thing to research -- with the log in hand rather than from theory.
+
 ## THE TWO BUTTONS THAT NAVIGATE MOVED TO AN OVERFLOW MENU (owner, 2026-09-17)
 *"Add a 'More Options' menu at the top right, placing the 'Text to Speech Settings' and
 'About' buttons inside it. On the Advanced screen, completely remove the Import/Export

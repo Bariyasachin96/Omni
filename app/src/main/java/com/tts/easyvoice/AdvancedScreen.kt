@@ -37,26 +37,40 @@ import androidx.core.content.FileProvider
 
 // Material's list row owns the heights, padding and colours.
 //
-// THE DESCRIPTION STAYS A SEPARATE ELEMENT, and on 2026-09-17 that stopped
-// being a style preference and became a hard constraint. The owner asked to
-// "integrate descriptions directly with each option", and Material's own answer
-// to that is ListItem's `supportingContent` slot -- which would be the library
-// doing the work, and is exactly what this project prefers. It cannot be used
-// HERE, for a reason that is specific to this row:
+// THE DESCRIPTION IS PART OF THE SWITCH'S OWN NAME NOW (owner, 2026-09-17:
+// "TalkBack ka ek extra focus jata hai description ke liye ... uske sath hi vah
+// description join kar do taki mujhe alag se description ke liye swipe na karna
+// pade"). One focus stop per setting, not two.
 //
-//   `evControl` below is `clearAndSetSemantics`, and clearing a node drops its
-//   WHOLE SUBTREE from the accessibility tree -- that is the documented meaning
-//   of an empty `replacedChildren` (SemanticsNode.kt), and it is the same
-//   mechanism that once made the Configuration row's three-dot menu unreachable
-//   (build 832). A description moved into `supportingContent` would therefore
-//   be VISIBLE and completely INAUDIBLE: gone for the one person this app is
-//   built for. The View-era finding pointed the same way -- folding the
-//   paragraph into the row made TalkBack read it before you could act.
+// HOW: `description` is appended to the accessible name inside `evControl`, and
+// the visible paragraph beside the row is silenced with `clearAndSetSemantics`
+// so it stays on screen and stops being a second stop. That is the only shape
+// that works here -- ListItem's own `supportingContent` slot, which is Material's
+// answer and what this project would normally reach for, CANNOT be used:
+// `evControl` is `clearAndSetSemantics`, and clearing a node drops its WHOLE
+// SUBTREE from the accessibility tree (the documented meaning of an empty
+// `replacedChildren`, SemanticsNode.kt -- the same mechanism that made the
+// Configuration row's three-dot menu unreachable in build 832). A description
+// inside the row would be visible and completely inaudible.
 //
-// So the description is integrated VISUALLY instead, by spacing: see
-// SettingOption below, which renders a row and its description as one unit.
+// THIS REVERSES A DEVICE-TESTED REJECTION, so it is written down rather than
+// slipped in. In the View era the same folding was tried and the owner rejected
+// it, because TalkBack then read the whole paragraph before you could act. The
+// complaint now is the opposite one -- the extra swipe -- and the owner has
+// asked for it directly. If the paragraph starts getting in the way again, the
+// revert is to stop passing `description` here and to drop `spoken = false`
+// below: two arguments.
 @Composable
-fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+fun SettingSwitch(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    // Spoken as part of the row, never drawn by it. It sits BEFORE `onChange` so
+    // the trailing-lambda call sites keep working unchanged.
+    description: String = "",
+    onChange: (Boolean) -> Unit
+) {
+    val spokenName = if (description.isEmpty()) label else label + ". " + description
     ListItem(
         headlineContent = {
             // "a small, regular-weight light purple font for option labels"
@@ -93,7 +107,7 @@ fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onCh
         // be applied on top of the reset and the fake role child would be back.
         modifier = Modifier
             .evControl(
-                label,
+                spokenName,
                 Role.Switch,
                 enabled = enabled,
                 toggle = if (checked) ToggleableState.On else ToggleableState.Off,
@@ -108,18 +122,26 @@ fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onCh
     )
 }
 
-// Unchanged, and deliberately so: this is shared with the About screen, where
-// four of these run one under another as Build number / Version / Developer /
-// Copyright. Widening the gap here to bind a description to its option would
-// have spread those four facts out instead. The binding is done by
-// SettingOption below, which is the only place that needs it.
+// `spoken = false` draws the paragraph and takes it OUT of the accessibility
+// tree, for the one case where the text is already being said by the control
+// above it -- see SettingSwitch. It is `clearAndSetSemantics` rather than
+// `hideFromAccessibility()` on that API's own advice: its KDoc says to use
+// clearAndSetSemantics for content that is redundant with its parent, and
+// reserves hideFromAccessibility for content that is OCCLUDED.
+//
+// The default stays `true`, and that matters: About and the Licenses screen use
+// this for text that nothing else speaks -- the version, the developer, the
+// whole Apache notice -- and silencing those would delete them for the one
+// person this app is built for.
 @Composable
-fun SettingDescription(text: String) {
+fun SettingDescription(text: String, spoken: Boolean = true) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+        modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .then(if (spoken) Modifier else Modifier.clearAndSetSemantics { })
     )
 }
 
@@ -129,6 +151,14 @@ fun SettingDescription(text: String) {
 // everywhere or the grouping it creates is a lie. 12dp on top of
 // SettingDescription's own 4 makes 16 -- the same measure the section header
 // used to reserve above itself.
+// Said by the switch AND drawn under it, so it is one string rather than two
+// copies that can drift. It covers the Group size dropdown as well, which is why
+// it is not passed through SettingOption.
+private const val SMART_NUMBER_DESCRIPTION =
+    "Reads long numbers, like phone numbers and codes, in small groups of digits. " +
+    "A group size of one reads every digit on its own; two or three read them in " +
+    "pairs or threes, which is easier to follow for a long number."
+
 @Composable
 private fun OptionGap() {
     Spacer(modifier = Modifier.height(12.dp))
@@ -156,19 +186,32 @@ fun SettingOption(
     enabled: Boolean = true,
     onChange: (Boolean) -> Unit
 ) {
-    SettingSwitch(label, checked, enabled, onChange)
-    SettingDescription(description)
+    SettingSwitch(label, checked, enabled, description, onChange)
+    SettingDescription(description, spoken = false)
     OptionGap()
 }
 
-// A full-width EvButton. Kept as its own name because the Advanced tab's
-// sections read as a column of full-width actions and the width is part of that
-// layout, not of the button.
+// STANDARD SIZE, NOT FULL WIDTH (owner, 2026-09-17: "jo bhi bade-bade buttons
+// hain ... vah buttons bilkul standard kar do ... standard size rakh do").
+//
+// It was `fillMaxWidth()`, so every action on the Advanced tab stretched edge to
+// edge and read as a slab rather than a button. Material sizes a Button from its
+// own content plus its own padding, which is what "standard" means here, and a
+// wrap-content button is also the shape the touch-target minimum is specified
+// against. The 16dp horizontal padding stays -- it is the app's own measure and
+// what aligns this with every row above it.
+//
+// NOTHING ACCESSIBLE CHANGED. The name, the role, the click action and the 48dp
+// minimum all come from EvButton and are untouched; only the width is.
+//
+// Still its own name rather than a bare EvButton, because the Advanced tab's
+// actions share one padding and stating it in one place is what stops the next
+// one drifting.
 @Composable
 fun ActionButton(label: String, iconRes: Int, onClick: () -> Unit) {
     EvButton(
         label = label,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         iconRes = iconRes,
         onClick = onClick
     )
@@ -295,7 +338,11 @@ fun AdvancedScreen(
             // NOT a SettingOption: the Group size dropdown belongs to this
             // switch, so the switch, its description and the dropdown are one
             // group and the gap goes after the LAST of them.
-            SettingSwitch("Smart number reading", smartNumber) { picked ->
+            SettingSwitch(
+                "Smart number reading",
+                smartNumber,
+                description = SMART_NUMBER_DESCRIPTION
+            ) { picked ->
                 smartNumber = picked; EasyVoiceTtsService.smartNumberFlag = picked
             }
             // ONE DESCRIPTION FOR BOTH CONTROLS (owner, 2026-09-17: "provide a
@@ -305,7 +352,7 @@ fun AdvancedScreen(
             // second would appear and disappear with it, so what the sizes mean
             // would only ever be readable AFTER you had already turned the
             // feature on. Said once, here, it is there either way.
-            SettingDescription("Reads long numbers, like phone numbers and codes, in small groups of digits. A group size of one reads every digit on its own; two or three read them in pairs or threes, which is easier to follow for a long number.")
+            SettingDescription(SMART_NUMBER_DESCRIPTION, spoken = false)
             // c3.k:1101-1105 -- three entries, selection is f0 - 1.
             //
             // DRAWN ONLY WHILE THE SWITCH IS ON (owner, 2026-09-17:

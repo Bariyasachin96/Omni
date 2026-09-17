@@ -195,18 +195,53 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun isForegroundActive(): Boolean {
         return getSystemService(NotificationManager::class.java).activeNotifications.any { it.id == FOREGROUND_NOTIFICATION_ID }
     }
+    // IT COULD FAIL TWO WAYS WITHOUT SAYING SO, AND THAT IS WHY THE OWNER CANNOT
+    // TELL WHETHER THIS IS THEIR PROBLEM (owner, 2026-09-17: "jab maine battery
+    // optimization ko off karke dekha to acche se chal raha tha ... mujhe lag raha
+    // hai ki yah foreground ki hi koi problem hai").
+    //
+    // This is the app's ONLY defence against Doze, App Standby and the cached-app
+    // freezer -- which is exactly what turning battery optimization off exempts a
+    // process from, so the owner's observation and this method point at the same
+    // thing. And it had two silent exits:
+    //
+    //   1. `if (!hasNotificationPermission()) return` -- on Android 13+ the user
+    //      turns "Show persistent notification" ON, POST_NOTIFICATIONS is not
+    //      granted, and the whole feature does NOTHING with no line anywhere.
+    //   2. `catch { error(ex.message ?: "") }` -- a caught exception whose message
+    //      is null logged an EMPTY STRING, and even a non-null one arrived with no
+    //      word saying what had failed. A TTS engine is NOT on Android 12's
+    //      exemption list for starting a foreground service from the background,
+    //      so ForegroundServiceStartNotAllowedException is a real outcome here and
+    //      it was landing as a blank line.
+    //
+    // NO BEHAVIOUR CHANGES -- every branch does what it did. What changes is that
+    // the log the owner already shares now states which of the three happened, so
+    // the next one settles the foreground question instead of leaving it to
+    // theory. Whether this should be ON by default is the owner's call and is NOT
+    // decided here: the switch is off by default because AutoTTS's is.
     private fun startForegroundIfPossible() {
         try {
-            if (!hasNotificationPermission()) return
+            if (!hasNotificationPermission()) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                    "foreground service NOT started: notification permission is not granted")
+                return
+            }
             createNotificationChannel()
             if (Build.VERSION.SDK_INT >= 34) {
                 ServiceCompat.startForeground(this, FOREGROUND_NOTIFICATION_ID, buildNotification(),
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "foreground service started (mediaPlayback)")
                 return
             }
             startForeground(FOREGROUND_NOTIFICATION_ID, buildNotification())
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "foreground service started")
         } catch (ex: Exception) {
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "")
+            // The CLASS as well as the message: ForegroundServiceStartNotAllowedException
+            // is the one that names a background-start refusal, and it is the answer
+            // to the owner's question. `ex.toString()` carries both and is never
+            // empty, which `ex.message` can be.
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "foreground service refused: " + ex.toString())
         }
     }
     // THE ONE LISTENER BOTH PATHS USE. Below API 26 the focus is abandoned by
@@ -1305,6 +1340,32 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     voiceLoc = LangStore.localeFor(autoIso3, modeInt)
                     enginePkg = LangStore.engineFor(autoIso3, modeInt)
                 }
+                // THE CONFIGURED ENGINE MAY SIMPLY NOT BE THERE ANY MORE (owner,
+                // 2026-09-17). Read the note on engineIsLive for why this exists and
+                // why it is a deliberate departure; in one line, without it a
+                // language whose engine has gone is silent for the life of the
+                // process even when another installed engine speaks it.
+                //
+                // The configured LOCALE is tried first so a replacement keeps the
+                // region -- an engine with hi_IN is preferred over one with only
+                // hi -- and the bare language is the second try.
+                if (enginePkg.isNotEmpty() && !engineIsLive(enginePkg)) {
+                    val configuredLocale = parseVoiceNameAsLocale(voiceLoc)
+                    var replacement = if (configuredLocale == null) "" else findLiveEngineForLocale(configuredLocale)
+                    if (replacement.isEmpty()) replacement = findLiveEngineForLocale(Locale(lang))
+                    if (replacement.isNotEmpty()) {
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                            "engine " + enginePkg + " is not available -- falling back to " + replacement + " for " + lang)
+                        enginePkg = replacement
+                    } else {
+                        // Worth a line of its own: it is the difference between "we
+                        // picked another engine" and "there is nothing on this phone
+                        // that can say this language", and the next log the owner
+                        // sends says which.
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                            "engine " + enginePkg + " is not available and no live engine speaks " + lang)
+                    }
+                }
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "engine: " + enginePkg + " voice " + voiceLoc + " variant " + variantOut)
                 try {
                     val loc = parseVoiceNameAsLocale(voiceLoc) ?: return@synchronized TextToSpeech.LANG_NOT_SUPPORTED
@@ -1364,6 +1425,77 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         } catch (_: Exception) { null }
     }
+    // ==========================================================================
+    //  A CONFIGURED ENGINE THAT IS NO LONGER THERE     OURS, not AutoTTS's
+    //
+    //  Owner, 2026-09-17: "maan lijiye koi TTS band ho gaya jo humne configure kar
+    //  rakha hai, for example Google TTS ... maine Hindi ke liye configure kar
+    //  rakha hai but vah band ho gaya ... us time par us language ke liye koi
+    //  dusra TTS system mein available ho to vah set ho jaye automatically."
+    //
+    //  WHAT USED TO HAPPEN, and it is total rather than partial. A LangStore entry
+    //  keeps the package it was configured with. If that engine is uninstalled, is
+    //  mid-update, has had its voice data deleted or simply failed to initialise,
+    //  `engineFor` still answers that package, `loadVoice` finds no wrapper at
+    //  `state == 2` for it, `engineIndex` goes to -1 and the utterance ends through
+    //  `releaseWaitWithoutSpeaking`. The language is SILENT, for the life of the
+    //  process, even when another installed engine speaks it perfectly well.
+    //
+    //  AutoTTS DOES NOT DO THIS -- its `d0` falls back only when the engine string
+    //  is EMPTY, never when it names something absent -- so this is a DELIBERATE
+    //  DEPARTURE, asked for by name. It is the class the owner has overridden rule
+    //  5 for repeatedly: the outcome is no speech at all and only a force stop
+    //  clears it.
+    //
+    //  WHY IT IS SAFE: `engineIsLive` is a walk of the engine pool, which is a
+    //  handful of entries, and on the ordinary path -- the configured engine is
+    //  there -- it answers true and NOTHING else runs. The search below happens
+    //  only in the case that is already broken.
+    private fun engineIsLive(pkg: String): Boolean {
+        if (pkg.isEmpty()) return false
+        // The same normalisation loadVoice does, and it has to be the same: an
+        // EngineWrapper stores its package with "-" and "_" stripped, and comparing
+        // a raw name against it is exactly the defect that stopped
+        // onEngineProcessGone matching on 2026-09-11.
+        val normPkg = pkg.replace("-", "").replace("_", "")
+        for (index in 0 until enginePool.size) {
+            if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) return true
+        }
+        return false
+    }
+
+    //  findEngineForLocale's precedence -- exact locale, then language+country,
+    //  then language -- over only the engines that are actually LIVE.
+    //
+    //  It is a separate function rather than a flag on findEngineForLocale, because
+    //  that one is a byte-for-byte port of AutoTTS's `o0` and must stay one. Two
+    //  deliberate differences from it, both because this is ours:
+    //    * one pass keeping the best match so far, instead of three passes. Same
+    //      precedence, a third of the work.
+    //    * an unparseable entry is SKIPPED. `o0` answers "" and abandons the whole
+    //      search on one bad row, which is a quirk worth mirroring where parity
+    //      matters and worth not mirroring here, where the entire point is to find
+    //      something that works.
+    private fun findLiveEngineForLocale(locale: java.util.Locale): String {
+        val requestedIso3 = localeIso3(locale)
+        val requestedCountry = try { locale.isO3Country } catch (_: Exception) { "" }
+        val requestedVariant = locale.variant
+        var countryMatch = ""
+        var languageMatch = ""
+        for (index in 0 until voiceList.size) {
+            val parts = voiceList[index].split("#")
+            if (parts.size != 2 && parts.size != 3) continue
+            if (!engineIsLive(parts[0])) continue
+            val storedLocale = parseVoiceNameAsLocale(parts[1]) ?: continue
+            if (requestedIso3 != localeIso3(storedLocale)) continue
+            val storedCountryIso3 = try { storedLocale.isO3Country } catch (_: Exception) { "" }
+            if (requestedCountry == storedCountryIso3 && requestedVariant == storedLocale.variant) return parts[0]
+            if (requestedCountry == storedCountryIso3 && countryMatch.isEmpty()) countryMatch = parts[0]
+            if (languageMatch.isEmpty()) languageMatch = parts[0]
+        }
+        return if (countryMatch.isNotEmpty()) countryMatch else languageMatch
+    }
+
     private fun findEngineForLocale(locale: java.util.Locale): String {
         val requestedIso3 = localeIso3(locale)
         val requestedCountry = try { locale.isO3Country } catch (_: Exception) { "" }

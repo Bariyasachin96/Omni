@@ -425,9 +425,6 @@ fun MainScreen(
     // dp -> px once per composition, with the library's own density rather than
     // a hand-multiplied displayMetrics read.
     val swipeThresholdPx = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }
-    // Window size class, read once here and passed down as ordinary state --
-    // the layered approach the adaptive guidance asks for.
-    val compactHeight = evIsCompactHeight()
     Scaffold(
         floatingActionButton = {
             // The selected mode's settings, in the corner rather than on the
@@ -504,13 +501,33 @@ fun MainScreen(
             }
         },
         topBar = {
-            // Google's own worked example for compact height: "Decide whether to
-            // show the top app bar based on window size class." A phone or an
-            // open flippable in LANDSCAPE is medium width but compact height, and
-            // there the bar costs a fifth of the usable height to repeat a name
-            // the launcher already said. The screen title is not lost -- the
-            // pager still carries paneTitle "Easy Voice settings".
-            if (!compactHeight) TopAppBar(
+            // THE BAR IS ALWAYS COMPOSED NOW, AND DROPPING IT ON A SHORT WINDOW
+            // BECAME A REAL REGRESSION THE MOMENT IT GAINED ACTIONS (found in
+            // review, 2026-09-17, before it shipped).
+            //
+            // It used to read `if (!compactHeight) TopAppBar(...)`, on Google's
+            // own worked example for compact height -- "decide whether to show
+            // the top app bar based on window size class" -- and that was right
+            // while the bar held nothing but the app's name and a decorative
+            // icon. `evIsCompactHeight()` is a window shorter than 480dp, which
+            // is an ordinary phone IN LANDSCAPE and either half of a portrait
+            // split-screen.
+            //
+            // The overflow menu is now the app's ONLY route to About and to the
+            // system TTS settings -- grep AboutActivity and TTS_SETTINGS and both
+            // call sites are inside `actions` below. So on a rotated phone the
+            // bar vanished and took both destinations with it: no gesture, no
+            // swipe and no focus traversal could reach the build number and the
+            // version, which are the two facts the owner is asked for when they
+            // report a bug, and nothing on screen would have said they existed.
+            //
+            // AccessibilityChecksTest could not catch it either -- the emulator
+            // runs portrait, so `compactHeight` is false under every test.
+            //
+            // The guidance still holds for a bar that is only a title. It does
+            // not hold for one that is a destination. 64dp is what a short window
+            // now pays to keep two screens reachable.
+            TopAppBar(
                 // THE APP'S NAME IS THE ACCENT ON THE PAGE NOW, NOT A FILLED BAR
                 // (owner, 2026-09-17: "Style the 'Easy Voice' title with large
                 // font, bold weight, and the light purple accent color with no
