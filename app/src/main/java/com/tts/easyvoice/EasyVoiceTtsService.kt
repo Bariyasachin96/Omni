@@ -2839,18 +2839,50 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // matching id IS the hang; anything else is a stale callback doing no
                 // harm. One line in the log the owner already shares settles it.
                 //
-                // THE FIX IS ONE LINE AND IT IS NOT MINE TO MAKE. Releasing the wait
-                // here under `id == expectedId` is correct now -- the id carries the
-                // per-utterance generation since 2026-09-09, so a stale callback
-                // cannot match it, which is exactly the precondition the note above
-                // sets. But the 2026-09-03 attempt at this killed explore-by-touch
-                // outright, AutoTTS's listener is a bare log, and no log has yet shown
-                // the hang. So it waits for that log, or for the owner's word.
+                // THE OWNER GAVE THAT WORD ON 2026-09-17, so this releases the wait
+                // now. The note above said the fix waits "for that log, or for the
+                // owner's word", and the report is this symptom exactly: "bolte bolte
+                // atak jata hai ... bilkul freeze ho jata hai ... force stop karta hun
+                // fir tab shuru ho jata hai."
+                //
+                // FORCE STOP BEING THE CURE IS THE WHOLE DIAGNOSIS. Nothing is broken
+                // on disk and nothing retries -- a thread is parked, and it is the
+                // screen reader's ONE synthesis thread, so the device goes silent and
+                // stays silent until the process dies.
+                //
+                // THE PRECONDITION IS MET AND THAT IS WHAT MAKES THIS SAFE NOW. The
+                // 2026-09-03 attempt at this killed explore-by-touch outright, and the
+                // reason was NOT the guard -- it was the id. `expectedId` was
+                // "${utteranceId}_${chunkCounter}" where utteranceId is a static that
+                // is literally "null" when the caller sets no param, and chunkCounter
+                // resets to 1 per utterance, so two consecutive screen-reader
+                // utterances both spoke under "null_1": a stale callback matched the
+                // NEW listener and set isStopped on an utterance that had not spoken.
+                // Since 2026-09-09 the id carries synthesisGeneration, which is bumped
+                // once per onSynthesizeText and can never repeat, so `id == expectedId`
+                // finally means what it says.
+                //
+                // IT MIRRORS onError ABOVE, LINE FOR LINE -- same id guard, same
+                // release under syncLock, same conditional done() -- because both are
+                // AutoTTS's `O(cb, n)` shape: log, set the stopped flag, notify, and
+                // call done() only if the callback has already started.
+                //
+                // DELIBERATE DEPARTURE: AutoTTS's own listener onStop is a bare log
+                // (noexc:2770). This is the class the owner has overridden rule 5 for
+                // repeatedly -- the outcome is the whole device mute and only a force
+                // stop clears it.
+                //
+                // TO REVERT, delete from the `if (id != expectedId) return` down, and
+                // the diagnostic line above it goes back to doing the whole job.
                 override fun onStop(id: String, interrupted: Boolean) {
                     val parked = !isStopped && !isFlushed
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
                         "onStop " + id + " interrupted=" + interrupted +
                         " mine=" + (id == expectedId) + " parked=" + parked)
+                    if (id != expectedId) return
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #14")
+                    synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+                    if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
                 }
             })
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())
