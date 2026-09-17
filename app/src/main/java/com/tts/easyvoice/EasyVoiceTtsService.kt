@@ -1588,6 +1588,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // Read ONCE, before the walk below, so every engine in the pool is stamped
         // with the same answer even if a new utterance starts part-way through it.
         val stoppingGeneration = synthesisGeneration
+        // ONLY THE ENGINE THAT IS SPEAKING. Read at the top, once, so the walk
+        // below cannot see it change part-way through.
+        //
+        // Safe to read HERE specifically: AOSP runs stopForApp -> current.stop() ->
+        // stopImpl() -> this override SYNCHRONOUSLY on the binder thread, before the
+        // next item's runnable is posted, so the utterance that was speaking is
+        // still the current one and speakingPkg still names its engine.
+        val speakingNow = speakingPkg
         // Under the monitor the other four accesses already use. onStop runs on
         // a binder thread while speakChunk may be popping on the synthesis or
         // main thread, and a bare ArrayList.clear() against a concurrent
@@ -1635,6 +1643,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // no state query at all. TextToSpeech.stop() on an idle engine is a
             // documented no-op that returns SUCCESS, so asking unconditionally costs
             // one harmless binder call and closes the race.
+            // See the identical note on the empty-text flush: this walked EVERY
+            // engine and stopped all of them, on every interrupt, when exactly one
+            // was producing audio. speakingPkg is assigned immediately BEFORE
+            // tts.speak() so there is no window where an engine is speaking and
+            // this is empty -- which is what made isSpeaking() wrong and makes this
+            // right. When nothing recorded an engine the walk is exactly what it
+            // was, so this can only do LESS work, never miss a stop the old code
+            // would have made.
+            if (speakingNow != null && wrapper.pkg != speakingNow) { index++; continue }
             if (wrapper.state == 2 && wrapper.listenerSet) {
                 try {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling stop for " + wrapper.pkg)
@@ -2064,6 +2081,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         synchronized(syncLock) { isStopped = false; syncLock.notifyAll() }
         synchronized(syncLock) { isFlushed = false; syncLock.notifyAll() }
+        // SNAPSHOT BEFORE THE CLEAR, because the empty-text flush below needs to
+        // know which engine was speaking and this line is what destroys that.
+        // TalkBack interrupts with an EMPTY utterance, so that branch runs with
+        // speakingPkg already null and had no way to tell one engine from another
+        // -- which is why it walked the whole pool.
+        val wasSpeakingPkg = speakingPkg
         speakingPkg = null
         // THIS utterance's identity, for the rest of this method and for every
         // closure it creates. See the field for why the ++ needs no lock.
@@ -2120,6 +2143,33 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // dispatches no callback for it (dispatchOnSuccess only fires when
                 // the id is non-null). So asking unconditionally costs one binder
                 // call and closes the race.
+                // ONLY THE ENGINE THAT WAS SPEAKING (owner, 2026-09-17: "screen
+                // ko touch karne se stop hota hai vah to khud TalkBack ka function
+                // rehta hai na, to aap kyon is tarike ka kam karte ho ... do teen
+                // jagah pe aapne stop wala on stop wala laga rakha hai").
+                //
+                // This walked EVERY engine in the pool and flushed all of them, and
+                // our onStop() override did the same a moment earlier, so one
+                // explore-by-touch step cost roughly 2xN binder calls when exactly
+                // ONE engine was producing audio. Explore-by-touch is a continuous
+                // stream of those, and every extra queued stop is another chance
+                // for one to run late and land on an utterance it does not own.
+                //
+                // wasSpeakingPkg is the right signal and `isSpeaking()` was not:
+                // speakingPkg is OUR OWN state, assigned immediately BEFORE
+                // tts.speak() at the speak site, so unlike a binder query into the
+                // other app there is NO window where the engine is speaking and
+                // this is empty. That window is the whole reason the 2026-09-02
+                // departure dropped isSpeaking(), and this keeps that fix.
+                //
+                // It is also not `engineIndex`, which prefetchNextLanguage moves to
+                // the NEXT chunk's engine while the current one still speaks --
+                // that is the defect the pool walk was introduced to avoid.
+                //
+                // THE FALLBACK IS THE SAFETY NET: when nothing recorded an engine,
+                // the walk is exactly what it was. So this can only ever do LESS
+                // work, never miss something the old code would have caught.
+                if (wasSpeakingPkg != null && wrapper.pkg != wasSpeakingPkg) { continue }
                 if (wrapper.state == 2 && wrapper.listenerSet) {
                     try {
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling speak empty for " + wrapper.pkg)

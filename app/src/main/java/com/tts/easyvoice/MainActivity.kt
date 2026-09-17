@@ -9,6 +9,9 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -62,6 +66,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+// How far a horizontal drag must travel before it counts as a tab swipe.
+//
+// RESTORED 2026-09-17 at the owner's request -- "ye swiping wala aapne hataya
+// hai, vah fir se laga do yaar, tab jo hai vah swipe nahi ho rahi hai". It was
+// removed earlier the same day on their instruction that navigation is
+// TalkBack's job; they have tried it without and want the gesture back.
+//
+// Stated in DP and converted with LocalDensity at the point of use, because a
+// draggable reports RAW PIXELS and a raw-pixel constant is a different physical
+// distance on every phone. The old 150f was about 50dp on an xhdpi screen, 100dp
+// on hdpi and 37dp on xxhdpi, so the same flick changed the tab on one device
+// and not on another. 48dp is Material's own minimum touch target, comfortably
+// past the ~8dp touch slop `draggable` has already absorbed before it reports
+// anything, so a wobble while scrolling vertically cannot reach it.
+private val SWIPE_THRESHOLD = 48.dp
 class RequiredEnginesItem(val name: String, val pkg: String, installed: Boolean) {
     var installed by mutableStateOf(installed)
     var installing by mutableStateOf(false)
@@ -406,6 +425,10 @@ fun MainScreen(
     // Plain state instead of a PagerState. See the comment on the content Box
     // below for why the pager had to go.
     var currentPage by remember { mutableStateOf(0) }
+    var dragTotal by remember { mutableStateOf(0f) }
+    // dp -> px once per composition, with the library's own density rather than
+    // a hand-multiplied displayMetrics read.
+    val swipeThresholdPx = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }
     Scaffold(
         floatingActionButton = {
             // The selected mode's settings, in the corner rather than on the
@@ -763,28 +786,39 @@ fun MainScreen(
                 // still sees the two-finger swipe, because TalkBack forwards it as
                 // ordinary touch. The drag is accumulated and acted on once when it
                 // ends, so one flick moves exactly one tab.
-                // AND THERE IS NO SWIPE GESTURE HERE ANY MORE (owner,
-                // 2026-09-17: "swipe detect wala to hona hi nahin chahie, vah to
-                // uski koi jarurat hi nahin kyunki vah TalkBack ka kam hai").
+                // THE SWIPE IS BACK (owner, 2026-09-17: "ye swiping wala aapne
+                // hataya hai, vah fir se laga do yaar, tab jo hai vah swipe nahi
+                // ho rahi hai").
                 //
-                // It was a Modifier.draggable that accumulated a horizontal drag
-                // and moved currentPage by one once it passed 48dp. It existed for
-                // a deliberate TWO-FINGER swipe, on the reasoning that TalkBack
-                // forwards a two-finger gesture through as ordinary touch. The
-                // owner's instruction is the wider rule they stated in the same
-                // message: where the screen reader already handles something, our
-                // code for it is dead weight and comes out. Moving between the
-                // three tabs is NAVIGATION, and navigation is the reader's job --
-                // the TabRow's tabs are real, labelled, role-Tab controls TalkBack
-                // reaches by ordinary swipe and activates by double tap.
+                // It was removed earlier the same day on their instruction that
+                // moving between tabs is navigation and navigation is TalkBack's
+                // job. They have tried it without and want the gesture back, so it
+                // is back. The TabRow's tabs remain real role-Tab controls, so this
+                // is an ADDITIONAL way to move, not the only one.
                 //
-                // Gone with it: the SWIPE_THRESHOLD constant, `dragTotal`,
-                // `swipeThresholdPx`, and the draggable / rememberDraggableState /
-                // Orientation / LocalDensity imports. Nothing about how a tab is
-                // SELECTED changed -- currentPage is still ordinary state that the
-                // TabRow drives.
+                // Modifier.draggable adds NO semantics of its own -- unlike
+                // Modifier.scrollable -- so it does not make this node something
+                // TalkBack will auto-scroll, which is the whole reason the page is
+                // a Box and not a HorizontalPager (see the note above). It still
+                // sees the two-finger swipe, because TalkBack forwards that through
+                // as ordinary touch. The drag is accumulated and acted on once when
+                // it ends, so one flick moves exactly one tab.
                 Box(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .draggable(
+                            orientation = Orientation.Horizontal,
+                            state = rememberDraggableState { delta -> dragTotal += delta },
+                            onDragStarted = { dragTotal = 0f },
+                            onDragStopped = {
+                                if (dragTotal <= -swipeThresholdPx && currentPage < pageTitles.lastIndex) {
+                                    currentPage++
+                                } else if (dragTotal >= swipeThresholdPx && currentPage > 0) {
+                                    currentPage--
+                                }
+                                dragTotal = 0f
+                            }
+                        )
                 ) {
                     when (currentPage) {
                         0 -> ModesScreen(
