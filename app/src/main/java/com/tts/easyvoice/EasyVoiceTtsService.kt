@@ -178,6 +178,53 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (callback?.hasStarted() == false) callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
         if (callback?.hasFinished() == false) callback.done()
     }
+    // ==========================================================================
+    //  THE TWO WAYS AN UTTERANCE ENDS          AutoTTS O(cb,int) and r0(int)
+    //
+    //  Owner, 2026-09-17: "on stop wala bahut sari jagahon per ... on done on
+    //  event is sab chijen lagi hui hai ... call back yah thoda ek bar research
+    //  karke complete karo properly TTS ka jo properly jo system hota hai na
+    //  exactly A to Z."
+    //
+    //  THEY ARE RIGHT, AND THE COUNT IS THE PROOF. This file had NINETEEN places
+    //  that wrote `synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }`
+    //  by hand. AutoTTS has FOUR, and three of them are these two named functions
+    //  plus the empty-text flush:
+    //
+    //      O(cb, n)  noexc:300  "endSynthesis #n", set the flag, notify, and then
+    //                           done() ONLY if the callback has already started
+    //                           and has not finished
+    //      r0(n)     noexc:2250 "unlockSynthesis #n", set the flag, notify, and
+    //                           touch the callback NOT AT ALL
+    //
+    //  So AutoTTS funnels; we inlined. That is the whole of the owner's
+    //  complaint, and the repair is a REFACTOR WITH NO BEHAVIOUR CHANGE that
+    //  moves us TOWARDS AutoTTS rather than away: our sites already wrote the
+    //  identical log lines, in the identical order, with the identical guard --
+    //  they simply spelled the body out instead of calling the function.
+    //
+    //  Eight sites are now endSynthesis(): #2/#3, #4, #5, #6, #7, #8, #9, #14.
+    //  Two are unlockSynthesis(): #12 and #14.
+    //
+    //  WHAT DELIBERATELY DID NOT MOVE, because the body genuinely differs:
+    //    * our own onStop() override and the empty-text flush set BOTH flags --
+    //      that is AutoTTS's q0, a third shape;
+    //    * releaseWaitWithoutSpeaking and the onSynthesizeText catch-all call
+    //      startAndFinish (AutoTTS's N), which STARTS the callback if it never
+    //      started. O never starts one. They are not interchangeable;
+    //    * onEngineProcessGone releases on an event rather than at an exit.
+    //
+    //  `n` is a String, not an Int, because one site computes its own number
+    //  (`if (next.typeCode == 1) 2 else 3`), exactly as AutoTTS's caller does.
+    private fun endSynthesis(callback: SynthesisCallback?, n: String) {
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #" + n)
+        synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+        if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()
+    }
+    private fun unlockSynthesis(n: String) {
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis #" + n)
+        synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+    }
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, FOREGROUND_CHANNEL_ID)
             .setContentTitle("Easy Voice active")
@@ -2495,11 +2542,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val pair = synchronized(chunkQueue) { if (chunkQueue.isEmpty()) null else chunkQueue.removeAt(0) }
             if (pair == null) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "No more text to read.")
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #7")
-                synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                if (callback?.hasStarted() == false) return
-                if (callback?.hasFinished() == true) return
-                callback?.done()
+                // Was four lines with two early returns. Identical in all four
+                // cases -- null callback, not started, already finished, and
+                // started-and-unfinished -- because the block ends in `return`
+                // either way, so the guards' only effect was the done() call.
+                endSynthesis(callback, "7")
                 return
             }
             val (currentChunk, chunk) = pair
@@ -2640,9 +2687,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 val loadRes = loadOrPrefetched(nextLang)
                                 if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)
-                                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #" + (if (next.typeCode == 1) 2 else 3))
-                                    synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                                    if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()
+                                    endSynthesis(callback, if (next.typeCode == 1) "2" else "3")
                                     advance = false
                                 }
                             }
@@ -2680,9 +2725,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             val loadRes = loadOrPrefetched(nextLang)
                             if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)
-                                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #4")
-                                synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                                if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()
+                                endSynthesis(callback, "4")
                                 advance = false
                             }
                         }
@@ -2703,16 +2746,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 override fun onError(id: String) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id)
                     if (id != expectedId) return
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #8")
-                    synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                    if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
+                    endSynthesis(callback, "8")
                 }
                 override fun onError(id: String, errorCode: Int) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id + " code " + errorCode)
                     if (id != expectedId) return
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #9")
-                    synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                    if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
+                    endSynthesis(callback, "9")
                 }
                 // LOG ONLY, exactly as AutoTTS's listener does
                 // (decompiled_java_noexc/.../AutoTtsService.java:2770 is a bare
@@ -2816,9 +2855,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         "onStop " + id + " interrupted=" + interrupted +
                         " mine=" + (id == expectedId) + " parked=" + parked)
                     if (id != expectedId) return
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #14")
-                    synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                    if (callback?.hasStarted() == true && callback?.hasFinished() == false) { callback?.done() }
+                    endSynthesis(callback, "14")
                 }
             })
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())
@@ -2903,25 +2940,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Speaking failed!!!")
                         if (first) {
                             startAndFinish(callback)
-                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis #12")
-                            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+                            unlockSynthesis("12")
                         } else {
-                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #5")
-                            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                            if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()
+                            endSynthesis(callback, "5")
                         }
                     }
                 } catch (ex: Exception) {
                     if (first) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onSynthesis Error: " + ex.message)
                         startAndFinish(callback)
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis #14")
-                        synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+                        unlockSynthesis("14")
                     } else {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone Error: " + ex.message)
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #6")
-                        synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                        if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()
+                        endSynthesis(callback, "6")
                     }
                 }
             }
