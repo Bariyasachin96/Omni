@@ -26,9 +26,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -45,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -58,6 +62,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -269,9 +274,6 @@ class MainActivity : EvActivity() {
                         if (android.os.Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                             try { notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) {}
                         }
-                    },
-                    launchImportPicker = {
-                        try { importSettingsLauncher.launch(arrayOf("text/xml", "application/xml")) } catch (_: android.content.ActivityNotFoundException) { Toast.makeText(this, "No compatible file manager found on this device", Toast.LENGTH_LONG).show() }
                     }
                 )
                 if (dialogVisible) {
@@ -400,8 +402,7 @@ fun MainScreen(
     onLanguage: (Int) -> Unit,
     onDeleteConfiguration: (Int) -> Unit,
     onDisableLanguage: (Int) -> Unit,
-    requestNotificationPermission: () -> Unit,
-    launchImportPicker: () -> Unit
+    requestNotificationPermission: () -> Unit
 ) {
     val context = LocalContext.current
     val pageTitles = listOf("Main Settings", "Configuration", "Advanced")
@@ -510,7 +511,29 @@ fun MainScreen(
             // the launcher already said. The screen title is not lost -- the
             // pager still carries paneTitle "Easy Voice settings".
             if (!compactHeight) TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                // THE APP'S NAME IS THE ACCENT ON THE PAGE NOW, NOT A FILLED BAR
+                // (owner, 2026-09-17: "Style the 'Easy Voice' title with large
+                // font, bold weight, and the light purple accent color with no
+                // background bar").
+                //
+                // headlineSmall is Material's 24sp role -- the bar's own default
+                // is titleLarge at 22sp -- with Bold on top of it, and the colour
+                // is the scheme's `primary`, PaletteTokens.Primary80 #D0BCFF.
+                // Against the pitch-black page that measures 12.32:1, where the
+                // filled bar's white-on-#6750A4 was 6.44:1, so this is the more
+                // legible of the two as well as the quieter one.
+                //
+                // `fontWeight` is passed as its own argument rather than through
+                // `style.copy(...)`: Text takes it directly and it is one fewer
+                // TextStyle allocation per composition.
+                title = {
+                    Text(
+                        stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
                 navigationIcon = {
                     if (appIcon != null) {
                         Image(
@@ -520,9 +543,75 @@ fun MainScreen(
                         )
                     }
                 },
+                // MORE OPTIONS: the two buttons that NAVIGATE (owner, 2026-09-17).
+                //
+                // "About Easy Voice" and "TTS Settings" used to sit at the top of
+                // the Advanced tab, where they were the only two controls that
+                // opened another screen instead of changing a setting -- and a
+                // blind user had to swipe to the third tab and past its whole
+                // column to reach either. In the bar they are two stops from
+                // anywhere in the app, on every tab.
+                //
+                // THE SHAPE IS THE ONE THE CONFIGURATION ROW ALREADY USES, and it
+                // is copied rather than reinvented so the two menus behave
+                // identically: a Box so the menu anchors to the button, an
+                // IconButton named with a plain `semantics {}` block, and
+                // `evControl` on each item.
+                //
+                // The IconButton takes `semantics`, NOT `evControl`: its
+                // `Icon(contentDescription = null)` adds no semantics modifier at
+                // all, so the button has no semantics children, the delegate's
+                // `replacedChildren.isEmpty()` gate passes by itself and
+                // `android.widget.Button` already lands on the focused node.
+                // Clearing it would gain nothing and lose the ripple's own state.
+                //
+                // NO `listItem` ON THE TWO ITEMS, for the reason written out at
+                // the Configuration menu: nothing here publishes a CollectionInfo,
+                // and the delegate writes an item index with no cross-check, so
+                // half a declaration hands a reader a position out of a collection
+                // whose size it was never told.
+                actions = {
+                    var menuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(
+                            onClick = { menuOpen = true },
+                            modifier = Modifier.semantics { contentDescription = "More options" }
+                        ) {
+                            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null)
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            val openTtsSettings = {
+                                menuOpen = false
+                                try {
+                                    context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                } catch (_: android.content.ActivityNotFoundException) {
+                                    Toast.makeText(context, "TTS settings are not available on this device.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            val openAbout = {
+                                menuOpen = false
+                                context.startActivity(Intent(context, AboutActivity::class.java))
+                            }
+                            DropdownMenuItem(
+                                text = { Text("TTS Settings") },
+                                onClick = openTtsSettings,
+                                modifier = Modifier.evControl("TTS Settings", action = openTtsSettings)
+                            )
+                            DropdownMenuItem(
+                                text = { Text("About Easy Voice") },
+                                onClick = openAbout,
+                                modifier = Modifier.evControl("About Easy Voice", action = openAbout)
+                            )
+                        }
+                    }
+                },
+                // NO BACKGROUND BAR. Transparent rather than the background
+                // colour, so the bar cannot disagree with whatever is painted
+                // behind it if the scheme ever moves. The title states its own
+                // colour above, so titleContentColor is not set here as well --
+                // one place decides it.
                 colors = TopAppBarDefaults.topAppBarColors().copy(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = Color.Transparent
                 )
             )
         },
@@ -696,7 +785,7 @@ fun MainScreen(
                             }
                             ConfigurationScreen(page.first, page.second, onLanguage, onDeleteConfiguration, onDisableLanguage)
                         }
-                        else -> AdvancedScreen(prefs, modeRefresh, requestNotificationPermission, launchImportPicker)
+                        else -> AdvancedScreen(prefs, modeRefresh, requestNotificationPermission)
                     }
                 }
             }

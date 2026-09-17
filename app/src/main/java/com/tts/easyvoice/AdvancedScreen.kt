@@ -178,8 +178,7 @@ fun ActionButton(label: String, iconRes: Int, onClick: () -> Unit) {
 fun AdvancedScreen(
     prefs: SharedPrefsManager,
     refreshKey: Int,
-    requestNotificationPermission: () -> Unit,
-    launchImportPicker: () -> Unit
+    requestNotificationPermission: () -> Unit
 ) {
     val context = LocalContext.current
     // AutoTTS holds this checkbox (c3.k.D0) and re-runs setEnabled(K != 3) when
@@ -216,35 +215,20 @@ fun AdvancedScreen(
             // back. The other screens keep theirs -- only this one was asked
             // for.
             //
-            // The two descriptions under these first two buttons are gone too,
-            // by name ("excluding descriptions from the 'About' and
-            // 'Text-to-Speech Settings' buttons"). Both buttons say what they
-            // do, so the paragraph under each was restating the label.
+            // THE TWO BUTTONS THAT USED TO OPEN THIS SCREEN'S ONLY OTHER
+            // SCREENS ARE GONE FROM IT (owner, 2026-09-17): "About Easy Voice"
+            // and "TTS Settings" are in the app bar's "More options" menu now.
+            // Both NAVIGATE rather than change a setting, which is what an
+            // overflow menu is for and what everything left in this column is
+            // not. Their two descriptions went with them, by the owner's own
+            // instruction, and the headers above them were already gone.
             //
-            // The DuplicateSpeakableTextCheck note that used to sit here is
-            // spent with the header: nothing on this screen reads "About" any
-            // more except the one button, so there is no pair to collide. Its
-            // label stays "About Easy Voice" regardless -- it is the better
-            // name on its own.
-            ActionButton("About Easy Voice", R.drawable.ic_info) {
-                context.startActivity(Intent(context, AboutActivity::class.java))
-            }
-            ActionButton("TTS Settings", R.drawable.ic_record_voice) {
-                try {
-                    context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                } catch (_: android.content.ActivityNotFoundException) {
-                    Toast.makeText(context, "TTS settings are not available on this device.", Toast.LENGTH_SHORT).show()
-                }
-            }
-            OptionGap()
-            // THE ONE PARAGRAPH THAT INTRODUCES RATHER THAN DESCRIBES, and it
-            // is why it is still a bare SettingDescription instead of going
-            // through SettingOption. It belongs to the TWO switches below it,
-            // not to one of them -- and with "Advanced Synthesis Options" gone
-            // it is now the only thing that says why they exist. The OptionGap
-            // above separates it from the TTS Settings button, which the owner
-            // asked to leave undescribed, so it cannot be mistaken for that
-            // button's description.
+            // THE FIRST PARAGRAPH INTRODUCES RATHER THAN DESCRIBES, and it is
+            // why it is a bare SettingDescription instead of going through
+            // SettingOption. It belongs to the TWO switches below it, not to
+            // one of them -- and with "Advanced Synthesis Options" gone it is
+            // the only thing that says why they exist. Nothing sits above it
+            // now, so nothing can be mistaken for what it describes.
             SettingDescription("On some phones, such as Oppo, OnePlus and Realme, only one chosen app is allowed to use the accessibility audio stream. The two settings below get around that.")
             SettingOption(
                 "Remove audio attributes from synthesis request.",
@@ -309,81 +293,63 @@ fun AdvancedScreen(
                 enabled = !punctuationModeIsSpecific
             ) { picked -> punctuationInFlow = picked; EasyVoiceTtsService.punctuationInFlowFlag = picked }
             // NOT a SettingOption: the Group size dropdown belongs to this
-            // switch, so the switch, its description, the dropdown and the
-            // dropdown's own description are one group and the gap goes after
-            // the LAST of them.
+            // switch, so the switch, its description and the dropdown are one
+            // group and the gap goes after the LAST of them.
             SettingSwitch("Smart number reading", smartNumber) { picked ->
                 smartNumber = picked; EasyVoiceTtsService.smartNumberFlag = picked
             }
-            SettingDescription("Reads long numbers, like phone numbers and codes, in small groups of digits.")
-            // c3.k:1101-1105 -- three entries, selection is f0 - 1, and the whole
-            // control is greyed out while smart number reading is off.
-            LabeledDropdown(
-                label = "Group size",
-                options = listOf("1", "2", "3"),
-                selectedIndex = (if (groupSize in 1..3) groupSize else 1) - 1,
-                enabled = smartNumber
-            ) { picked ->
-                // AutoTtsService.f0 = getSelectedItemPosition() + 1
-                groupSize = picked + 1
-                EasyVoiceTtsService.smartNumberGroupSize = groupSize
+            // ONE DESCRIPTION FOR BOTH CONTROLS (owner, 2026-09-17: "provide a
+            // unified description for 'Smart Number Reading'"). There were two
+            // paragraphs, one under the switch and one under the dropdown --
+            // and with the dropdown now drawn only while the switch is ON, the
+            // second would appear and disappear with it, so what the sizes mean
+            // would only ever be readable AFTER you had already turned the
+            // feature on. Said once, here, it is there either way.
+            SettingDescription("Reads long numbers, like phone numbers and codes, in small groups of digits. A group size of one reads every digit on its own; two or three read them in pairs or threes, which is easier to follow for a long number.")
+            // c3.k:1101-1105 -- three entries, selection is f0 - 1.
+            //
+            // DRAWN ONLY WHILE THE SWITCH IS ON (owner, 2026-09-17:
+            // "conditionally display the 'Group Size' combo box only when
+            // toggled ON"). It used to be drawn always and merely greyed out,
+            // which is AutoTTS's own shape -- c3.k sets D0.setEnabled(e0) at
+            // build time and again from the switch's own listener -- so this is
+            // a UI departure under the carve-out, not a parity break. The int it
+            // writes and when it is persisted are untouched.
+            //
+            // WHAT IT COSTS A SCREEN READER, stated rather than skipped: a
+            // control that is not drawn cannot be reached to be told it is
+            // unavailable, where `disabled` at least announced itself as a
+            // disabled control. That is the trade the owner asked for, and the
+            // switch that brings it back is the row immediately above it.
+            // `smartNumber` is ordinary state, so flipping it recomposes and
+            // the row simply appears -- nothing is announced by hand, and
+            // nothing may be: INVARIANTS #5 bans the deprecated announcement
+            // API outright, and the check enforcing it greps for the name, so
+            // it cannot even be written in a comment.
+            if (smartNumber) {
+                LabeledDropdown(
+                    label = "Group size",
+                    options = listOf("1", "2", "3"),
+                    selectedIndex = (if (groupSize in 1..3) groupSize else 1) - 1
+                ) { picked ->
+                    // AutoTtsService.f0 = getSelectedItemPosition() + 1
+                    groupSize = picked + 1
+                    EasyVoiceTtsService.smartNumberGroupSize = groupSize
+                }
             }
-            SettingDescription("One reads every digit on its own. Two or three read them in pairs or threes, which is easier to follow for a long number.")
             OptionGap()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                EvButton("Import", Modifier.weight(1f), R.drawable.ic_file_download) { launchImportPicker() }
-                EvButton(
-                    "Export",
-                    Modifier.weight(1f),
-                    R.drawable.ic_file_upload,
-                    onClick = {
-                        if (!prefs.settingsXmlFile().exists()) {
-                            Toast.makeText(context, "Settings file not found", Toast.LENGTH_SHORT).show()
-                        } else {
-                            val exportFile = try { prefs.exportSettingsFile() } catch (ex: java.io.IOException) { ex.printStackTrace(); null }
-                            if (exportFile != null) {
-                                val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", exportFile)
-                                // ShareCompat.IntentBuilder is androidx's own API
-                                // for an ACTION_SEND, and it is what builds the
-                                // ClipData the URI grant is actually derived from
-                                // (migrateExtraStreamToClipData: setClipData, then
-                                // addFlags(FLAG_GRANT_READ_URI_PERMISSION)). The
-                                // framework does the same migration on its way out
-                                // of startActivity, and it walks into an
-                                // ACTION_CHOOSER's EXTRA_INTENT to do it -- so the
-                                // hand-built version was not broken -- but it
-                                // refuses once the extras have been parcelled, and
-                                // there is no reason to depend on that when the
-                                // library does it eagerly and in one line.
-                                context.startActivity(
-                                    ShareCompat.IntentBuilder(context)
-                                        .setType("text/xml")
-                                        .setStream(uri)
-                                        .setChooserTitle("Share Settings")
-                                        .createChooserIntent()
-                                )
-                            } else {
-                                // A BUTTON THAT DOES NOTHING IS THE WORST
-                                // OUTCOME HERE (2026-09-10). The copy can fail
-                                // for reasons that have nothing to do with the
-                                // settings file existing -- no space on the
-                                // cache partition is the realistic one -- and
-                                // the null branch used to fall out of the click
-                                // silently. The "file not found" branch above
-                                // already speaks; a sighted user would at least
-                                // see nothing happen, and a blind user cannot
-                                // tell that from the app having frozen.
-                                Toast.makeText(context, "Could not export the settings file", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                )
-            }
-            SettingDescription("Importing only checks that the engines you need are installed. You still have to make sure the individual voices are there.")
-            OptionGap()
+            // IMPORT AND EXPORT ARE GONE FROM THIS SCREEN (owner, 2026-09-17:
+            // "completely remove the Import/Export settings along with their
+            // descriptions"). The two buttons, the paragraph under them and the
+            // `launchImportPicker` parameter that fed them all went together.
+            //
+            // What is still in the tree and is now UNREACHABLE: the picker
+            // launcher and handleImportedSettingsFile in MainActivity, the
+            // RequiredEnginesDialog they raise, and SharedPrefsManager's
+            // exportSettingsFile / importSettingsXml / settingsXmlFile. Those
+            // are left alone deliberately -- the storage half is AutoTTS-
+            // mirrored code that rule 5 governs, and the dialog is covered by
+            // its own accessibility test. Say the word and they go too.
             SettingOption(
                 "Enable logging",
                 "Writes a log file that you can send along when you report a problem.",

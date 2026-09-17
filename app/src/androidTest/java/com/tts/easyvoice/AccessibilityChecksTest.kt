@@ -289,16 +289,28 @@ class AccessibilityChecksTest {
 
     @Test
     fun advancedTab() {
-        check { AdvancedScreen(prefs(), 0, { }, { }) }
+        check { AdvancedScreen(prefs(), 0, { }) }
     }
 
     // The About screen, added 2026-09-03. Its two link buttons were removed on
-    // 2026-09-10 at the owner's request, so it is now entirely text and the
-    // check that matters here is contrast -- of the heading bars, the title and
-    // every paragraph, in both colour schemes.
+    // 2026-09-10 at the owner's request; the licence block moved to its own
+    // screen on 2026-09-17, so what is left is the title, four facts and one
+    // button, and the checks that matter are the contrast of all of them and
+    // that the button has a name and a 48dp target, in both colour schemes.
     @Test
     fun aboutScreen() {
         check { AboutScreen() }
+    }
+
+    // The licence screen the View Licenses button opens (owner, 2026-09-17).
+    // Every screen in this app has a test, and this one is five paragraphs of
+    // verbatim Apache notice under one heading -- all of it onSurfaceVariant on
+    // the page, which is the pair this suite exists to keep honest. Without a
+    // test here the text would have moved out of aboutScreen's coverage and out
+    // of the run entirely.
+    @Test
+    fun licensesScreen() {
+        check { LicensesScreen() }
     }
 
     @Test
@@ -351,8 +363,7 @@ class AccessibilityChecksTest {
             onLanguage = { },
             onDeleteConfiguration = { },
             onDisableLanguage = { },
-            requestNotificationPermission = { },
-            launchImportPicker = { }
+            requestNotificationPermission = { }
         )
     }
 
@@ -364,6 +375,26 @@ class AccessibilityChecksTest {
     @Test
     fun mainScreenSettled() {
         check(mainScreen(scanning = false, scanLine = ""))
+    }
+
+    // THE "MORE OPTIONS" MENU, OPEN (owner, 2026-09-17). mainScreenSettled
+    // renders the app bar, so the three-dot button's own contrast and 48dp
+    // target are already measured -- but the MENU it opens is a Popup in its
+    // own window and nothing else in this suite draws it, exactly as
+    // configurationRowMenuOpen exists for the other menu in the app.
+    //
+    // It is worth its own test for a reason beyond coverage: a DropdownMenu
+    // draws on `surfaceContainer`, not on the page, so its two items are the
+    // only text in MainScreen measured against a different background. The
+    // click also proves the button is reachable BY ITS NAME in the merged tree,
+    // which is the exact assertion that caught evControl wrapping an
+    // interactive child in build 832.
+    @Test
+    fun mainScreenMoreOptionsMenuOpen() {
+        themed(mainScreen(scanning = false, scanLine = ""))
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("More options").performClick()
+        sweepSchemes()
     }
 
     // THE MODE SETTINGS FAB FOLLOWS THE SELECTED MODE (owner, 2026-09-09).
@@ -498,7 +529,7 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.punctuationInFlowFlag = true
         EasyVoiceTtsService.smartNumberFlag = true
         EasyVoiceTtsService.smartNumberGroupSize = 3
-        check { AdvancedScreen(prefs(), 0, { }, { }) }
+        check { AdvancedScreen(prefs(), 0, { }) }
     }
 
     // The one DISABLED control on that tab: "Read punctuation in flow with
@@ -509,7 +540,7 @@ class AccessibilityChecksTest {
     @Test
     fun advancedTabPunctuationLocked() {
         EasyVoiceTtsService.punctuationModeInt = 3
-        check { AdvancedScreen(prefs(), 0, { }, { }) }
+        check { AdvancedScreen(prefs(), 0, { }) }
     }
 
     // The filter ON. A selected FilterChip is drawn with

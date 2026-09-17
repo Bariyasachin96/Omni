@@ -7,6 +7,107 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE TWO BUTTONS THAT NAVIGATE MOVED TO AN OVERFLOW MENU (owner, 2026-09-17)
+*"Add a 'More Options' menu at the top right, placing the 'Text to Speech Settings' and
+'About' buttons inside it. On the Advanced screen, completely remove the Import/Export
+settings along with their descriptions, provide a unified description for 'Smart Number
+Reading', and conditionally display the 'Group Size' combo box only when toggled ON. Style
+the 'Easy Voice' title with large font, bold weight, and the light purple accent color with
+no background bar. In the 'About' screen, vertically stack the app name, version, build
+number, developer name, and copyright, followed by a dedicated 'View Licenses' button that
+displays all open-source license information."*
+
+All six, and **the line running through them is the same one**: the Advanced tab had become
+a column with two things in it that were not settings at all, and the About screen had one
+thing in it that was five paragraphs long. Each has moved to where it belongs.
+
+### THE MENU IS THE CONFIGURATION ROW'S OWN SHAPE, COPIED RATHER THAN REINVENTED
+`Box` -> `IconButton` -> `DropdownMenu` -> two `DropdownMenuItem`s, which is what
+`ConfigurationScreen` has drawn since 2026-09-04, so the two menus in the app behave
+identically and one set of decisions covers both:
+- **the IconButton takes a plain `semantics {}` block, NOT `evControl`**, and that is the
+  documented distinction rather than a shortcut: its `Icon(contentDescription = null)` adds
+  no semantics modifier at all, so the button has **no semantics children**, the delegate's
+  `replacedChildren.isEmpty()` gate passes by itself and `android.widget.Button` already
+  lands on the focused node. Clearing it would gain nothing;
+- **each ITEM takes `evControl(name, action = ...)`**, because a `DropdownMenuItem` has a
+  text child and therefore fails that gate;
+- **no `listItem` on either**, for the reason written out at the other menu: nothing here
+  publishes a `CollectionInfo`, and `setCollectionItemInfo` writes the developer property
+  with no cross-check, so half a declaration hands a reader a position out of a collection
+  whose size it was never told;
+- **`onClick` and `evControl`'s `action` are the same lambda and it fires ONCE either way.**
+  `clearAndSetSemantics` resets the configuration, so the item's own semantics `OnClick` is
+  replaced by ours and a screen reader's ACTION_CLICK runs it once; a finger goes through
+  the untouched `clickable` pointer input and runs it once. They are different routes to one
+  call, never two.
+
+**`mainScreenMoreOptionsMenuOpen` is the test**, and it exists for more than coverage: a
+`DropdownMenu` is a Popup drawing on **`surfaceContainer`**, so its two items are the only
+text in `MainScreen` measured against something other than the page. The click also proves
+the button is reachable **by its name in the MERGED tree**, which is the exact assertion
+that caught `evControl` wrapping an interactive child in build 832.
+
+### THE TITLE IS THE ACCENT NOW, AND IT IS THE MORE LEGIBLE OF THE TWO
+    was    titleLarge 22sp Normal, white-on-#6750A4 inside a filled bar      6.44:1
+    is     headlineSmall 24sp BOLD, primary #D0BCFF, containerColor Transparent  12.32:1
+
+So "quieter" and "more readable" are the same change here -- the fill was what held the
+ratio down. `Color.Transparent` rather than the background colour, so the bar cannot
+disagree with whatever is painted behind it if the scheme ever moves, and the title states
+its own colour on the `Text` so `titleContentColor` is not set as well: one place decides it.
+
+### THE ADVANCED SCREEN LOST WHAT WAS NEVER A SETTING
+- **About and TTS Settings** are gone from it. Both NAVIGATE, which is what an overflow menu
+  is for; and reaching either used to mean swiping to the third tab and past its whole
+  column. From the bar they are two stops from anywhere in the app.
+- **Import/Export is gone entirely**, buttons and paragraph, and the `launchImportPicker`
+  parameter went with it through `AdvancedScreen` and `MainScreen`. **What is now
+  UNREACHABLE and was deliberately LEFT**: the picker launcher and
+  `handleImportedSettingsFile` in `MainActivity`, the `RequiredEnginesDialog` they raise,
+  and `SharedPrefsManager`'s `exportSettingsFile` / `importSettingsXml` / `settingsXmlFile`.
+  The storage half is AutoTTS-mirrored code that **rule 5 governs**, and the dialog carries
+  its own accessibility test. **Say the word and they go too** -- it is a bigger, riskier
+  deletion than this request needed. Three drawables that really were orphaned by it
+  (`ic_file_download`, `ic_file_upload`, `ic_record_voice`) ARE deleted.
+- **Smart number reading has ONE description now.** There were two -- one under the switch,
+  one under the dropdown -- and with the dropdown drawn only while the switch is ON, the
+  second would appear and disappear with it, so what the group sizes mean would only ever be
+  readable **after** you had already turned the feature on. Said once under the switch, it is
+  there either way.
+
+### THE GROUP SIZE BOX IS HIDDEN RATHER THAN DISABLED, AND THAT COSTS SOMETHING
+`if (smartNumber) { LabeledDropdown(...) }` replaces `enabled = smartNumber`. **AutoTTS
+disables it** -- `c3.k` calls `D0.setEnabled(e0)` at build time and again from the switch's
+own listener -- so this is a **UI departure under the carve-out**, not a parity break; the
+int it writes and when it is persisted are untouched.
+
+**What it costs a screen reader, stated rather than skipped:** a control that is not drawn
+cannot be reached to be told it is unavailable, where `disabled` at least announced itself
+as a disabled control. The switch that brings it back is the row immediately above it, and
+`smartNumber` is ordinary state so flipping it simply recomposes -- **nothing is announced
+by hand, and nothing may be**: INVARIANTS #5 bans the deprecated announcement API, and the
+check enforcing it greps for the NAME, so it cannot even appear in a comment. (It fired on
+exactly that while this was being written.)
+
+### THE LICENCES ARE A SCREEN, AND THAT IS WHY IT IS AN ACTIVITY
+`LicensesActivity` / `LicensesScreen`, `android:label="Open source licenses"`, holding the
+block cut out of `AboutScreen` **verbatim** -- the heading, the proprietary-software
+sentence, the CLD2 entry, the AOSP entry and the two Apache paragraphs. The notice the app
+carries is byte for byte what it carried before.
+
+**An Activity rather than an expanding section, for the reason every other screen here is
+one:** a screen reader speaks a window's title when the window appears, so "Open source
+licenses" is announced on entry and the system back gesture leaves. An in-place disclosure
+announces nothing at all.
+
+**No obligation moves.** Apache 2.0 section 4(a) asks that recipients receive the licence and
+4(d) that a `NOTICE` be reproduced **if one exists** -- CLD2 has none (HTTP 404) -- and every
+word is still in the app, one tap away, with the licence's own URL written into its text.
+
+**On About itself only the ORDER changed besides:** Version now precedes Build number, which
+is the owner's own sequence, so the block reads from what the app IS down to who owns it.
+
 ## THE APP IS PITCH BLACK AND PURPLE NOW, AND IT FOLLOWS NOTHING (owner, 2026-09-17)
 *"Set a pure, pitch-black background across all screens. Remove background bars for all
 section headers, and use a small, regular-weight light purple font for option labels. For

@@ -49,6 +49,7 @@
             </intent-filter>
         </activity>
         <activity android:exported="false" android:label="About" android:name=".AboutActivity" android:theme="@style/AppTheme.NoActionBar" />
+        <activity android:exported="false" android:label="Open source licenses" android:name=".LicensesActivity" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:exported="false" android:label="Languages" android:name=".LanguagesActivity" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:exported="false" android:label="Mode settings" android:name=".ModeSettingsActivity" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:exported="false" android:label="Voice setup" android:name=".VoiceSetupActivity" android:theme="@style/AppTheme.NoActionBar" />
