@@ -288,7 +288,28 @@ class EasyVoiceTtsService : TextToSpeechService() {
             audioManager!!.requestAudioFocus(audioFocusListener,
                 AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
-        EasyVoiceLogger.debug("TTS", "Audio focus request: " + (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED))
+        // THE RAW CODE AS WELL AS THE BOOLEAN, AND ANDROID 17 IS WHY (2026-09-17).
+        //
+        // "Background audio hardening" on Android 17 applies to ALL apps whatever
+        // they target: the audio framework restricts background playback, FOCUS
+        // REQUESTS and volume APIs, and a call made outside a valid lifecycle
+        // "fails silently or returns AUDIOFOCUS_REQUEST_FAILED"
+        // (developer.android.com/about/versions/17/behavior-changes-all, Media).
+        // This request is made from onCreate, which runs when the system BINDS the
+        // engine -- in the background by definition -- so on Android 17 a denial
+        // here is expected rather than exceptional.
+        //
+        // It is harmless, and that is worth stating because it looks alarming in a
+        // log: Easy Voice never produces a sample. It hands text to another
+        // engine, and THAT engine holds the focus for the audio it plays. The
+        // request is AutoTTS's `l0()` carried over, not something the speech
+        // depends on.
+        //
+        // GRANTED is 1, FAILED is 0 and DELAYED is 2, and the boolean cannot tell
+        // the last two apart -- which is exactly the distinction that says whether
+        // Android 17 refused it or the system deferred it.
+        EasyVoiceLogger.debug("TTS", "Audio focus request: " +
+            (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) + " (code " + result + ")")
     }
     // Its own method on purpose, which is the shape Android's own guidance and
     // PackageInfoCompat's Api28Impl both use: the verifier only ever has to

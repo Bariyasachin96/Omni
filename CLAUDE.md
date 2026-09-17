@@ -7,6 +7,69 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ANDROID 17 AUDITED AT THE SOURCE, ITEM BY ITEM (owner, 2026-09-17)
+*"Android 17 ka pura support dena hai ... har device ke liye acche se compatible honi chahie ...
+sab kuchh acche se research karke completely is app ko complete karo."*
+
+`targetSdk` is **37 = Android 17**, so BOTH of Google's pages were read rather than recalled --
+`behavior-changes-17` (targeting) and `behavior-changes-all` (every app, whatever it targets) --
+and every entry on them was checked against this app. **The result is that the app is already
+compatible, and exactly ONE change touches it.** Written down item by item so this is not
+re-researched from scratch.
+
+### THE ONE THAT TOUCHES US: BACKGROUND AUDIO HARDENING (applies to ALL apps)
+> *"Audio framework enforces restrictions on background audio interactions (playback, audio
+> focus, volume APIs); calls fail silently or return `AUDIOFOCUS_REQUEST_FAILED` when app is
+> not in valid lifecycle."*
+
+`requestAudioFocus()` runs from **`onCreate`**, which fires when the system BINDS the engine --
+in the background by definition -- so on Android 17 a denial here is **expected rather than
+exceptional**.
+
+**AND IT IS HARMLESS, which is worth stating because it looks alarming in a log.** Easy Voice
+never produces a sample: it hands text to another engine and THAT engine holds the focus for
+the audio it plays. The request is AutoTTS's `l0()` carried over, not something the speech
+depends on. The targeting page adds that an app needs *"a foreground service with while-in-use
+capabilities"* to interact with audio in the background -- `mediaPlayback` IS such a type, and
+it is the service the notification switch starts, which is the same lever as everywhere else in
+this file.
+
+**What changed in the code is the LOG ONLY**: the raw result code sits beside the boolean now,
+because GRANTED is 1, **FAILED is 0 and DELAYED is 2** and a boolean cannot tell the last two
+apart -- which is the exact distinction between "Android 17 refused it" and "the system
+deferred it".
+
+### EVERY OTHER ENTRY, AND WHY IT DOES NOT APPLY -- do NOT re-audit these
+| change | verdict |
+|---|---|
+| Memory limit on RemoteViews Bitmaps/Icons | `buildNotification()` is `setContentTitle` + `setSmallIcon` + `setOngoing`. **No bitmap, no RemoteViews.** |
+| App memory limits (`MemoryLimiter:AnonSwap`) | the 6.4 MB per ABI is CLD2's `.rodata`, file-backed from the APK rather than anonymous. |
+| Lock-free `MessageQueue` -- breaks reflection on its privates | the app's ONLY reflection is `TextToSpeech.mCurrentEngine`, an instance field, read not written. |
+| Static final fields unmodifiable by reflection | already checked when targetSdk moved to 37; same single reflection. |
+| Safer Native DCL -- `System.load()` must be read-only | we use `System.loadLibrary()`, which loads from the APK's own read-only lib dir. |
+| BAL restrictions extended to `IntentSender` | **there is no PendingIntent anywhere in the app**, and the foreground notification sets no `contentIntent`. |
+| Large screens: orientation/resizability opt-out REMOVED | the manifest never declared `screenOrientation` or `resizeableActivity`, so there was no opt-out to lose. |
+| `ACCESS_LOCAL_NETWORK`, ECH, CT, cleartext deprecation | the app makes **no network call at all**. |
+| Restrict implicit URI grants (warning now, enforced in Android **18**) | **already future-proof.** Share logs goes through `ShareCompat.IntentBuilder`, which sets the ClipData and adds `FLAG_GRANT_READ_URI_PERMISSION` explicitly rather than relying on the implicit grant -- which is precisely what that change removes. This is the second time that choice has paid for itself. |
+| IME visibility not restored after rotation | the only text input is the Languages search field; nothing restores its keyboard today. |
+| Password hiding, SMS OTP, CP2/Contacts, keystore limits, cross-profile loopback, Bluetooth RFCOMM/re-pairing, touchpad pointer capture, `setContentCaptureEnabled` | none of these surfaces exists in this app. |
+| Accessibility: complex IME physical-keyboard typing (CJKV) | **additive API for accessibility SERVICES and IMEs.** Easy Voice is a TTS ENGINE; it is not affected, and there is nothing to adopt. |
+
+### WHAT THIS DOES *NOT* SETTLE, STATED PLAINLY
+The owner's report is that speech stops until battery optimization is turned off, and **Android
+17 did not turn out to be the explanation.** Background audio hardening is real and is on the
+page, but it hits a focus request this app does not need.
+
+So the standing answer is unchanged and it is the one in the foreground-service note above:
+**"Show persistent notification" is OFF by default and it is what starts the foreground service
+at all** -- and a foreground service is the app's only defence against Doze, the app-standby
+buckets and the cached-app freezer, which is exactly what a battery-optimization exemption
+turns off. The two silent failures in `startForegroundIfPossible` are logged now, and the raw
+audio-focus code is logged now. **The next log the owner sends is what decides it** -- read it
+for `foreground service started`, `foreground service refused`, `notification permission is not
+granted`, and the focus code -- rather than guessing at a platform change that the source says
+is not the cause.
+
 ## ONE FOCUS STOP PER SETTING, STANDARD BUTTONS, AND AN ENGINE THAT CAN GO AWAY (owner, 2026-09-17)
 
 ### THE REVIEW CAUGHT A HIGH-SEVERITY BUG I HAD JUST WRITTEN -- READ THIS ONE FIRST

@@ -331,6 +331,12 @@ fun LabeledDropdown(
 // change from current." That is the library doing what the owner asked for.
 //
 // Do not reintroduce a step size of ours here without the owner saying so.
+// Said by the switch AND drawn under it, so there is one string rather than two
+// copies that can drift apart.
+private const val DEDICATED_ENGINES_DESCRIPTION =
+    "Gives every voice its own engine. Only turn this on if each voice really " +
+    "does have an engine to itself and no other app is using it."
+
 private const val SLIDER_MIN = 10          // AutoTTS's own floor (c3.k.P1())
 private const val SLIDER_BUTTON_STEP = 5   // AutoTTS's I1/J1/K1/L1/M1/N1
 
@@ -476,10 +482,19 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                 }
                 // Standard size rather than full width (owner, 2026-09-17), the
                 // same change ActionButton took -- Test was the one remaining
-                // button in the app that stretched edge to edge.
+                // button in the app that stretched edge to edge -- and CENTRED in
+                // the column ("test button jo hai vah bilkul beecho-beech rahana
+                // chahie").
+                //
+                // `Modifier.align` is a ColumnScope member, so it is called on the
+                // scope and never imported: `import ...layout.align` is an
+                // unresolved reference, which is the scope-only import trap
+                // ktimports was taught to catch. It is also the reason this is not
+                // a Row with Arrangement.Center -- the scope already answers it
+                // with no extra layout node.
                 EvButton(
                     "Test",
-                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    Modifier.align(Alignment.CenterHorizontally).padding(horizontal = 16.dp, vertical = 8.dp),
                     R.drawable.ic_play_arrow,
                     // 5.7.7.26 wrapped the Test click in a try/catch that toasts
                     // "Test unknown error". speakTest reaches into a TextToSpeech
@@ -518,22 +533,26 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
-            // A section header in every respect, so it goes through the one
-            // component rather than repeating a style by hand. It used to be a
-            // titleMedium Text of its own, which after the 2026-09-16 header
-            // change would have left it the single loudest heading in the app --
-            // the exact prominence that change exists to remove.
-            SectionHeader("Experimental")
+            // THE "Experimental" HEADING IS GONE (owner, 2026-09-17: "experimental
+            // ki heading lagi hui hai ... vah heading hata deni chahie"). It named
+            // a section of exactly one switch, so heading navigation stopped on it
+            // to announce a group with a single member -- the same reason
+            // "Preferred languages" and "Numbers, punctuation and emojis" were
+            // dropped on 2026-09-03. The switch says what it is on its own.
+            //
+            // AND THE DESCRIPTION IS PART OF THE SWITCH'S NAME, the same merge the
+            // Advanced screen took: one focus stop per setting, no extra swipe for
+            // the paragraph. It was a bare `Text` here rather than a
+            // SettingDescription, which is also why it drew in `onSurface` while
+            // every other description in the app draws in `onSurfaceVariant` --
+            // going through the shared composable fixes that too.
             SettingSwitch(
                 label = "Dedicated engines",
                 checked = dedicated,
-                enabled = readingMode != "none" && readingMode != "google"
+                enabled = readingMode != "none" && readingMode != "google",
+                description = DEDICATED_ENGINES_DESCRIPTION
             ) { picked -> dedicated = picked; EasyVoiceTtsService.dedicatedEnginesFlag = picked }
-            Text(
-                text = "Gives every voice its own engine. Only turn this on if each voice really does have an engine to itself and no other app is using it.",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+            SettingDescription(DEDICATED_ENGINES_DESCRIPTION, spoken = false)
             // Move to the next or previous language without returning to the
             // Configuration list. Hidden entirely when there is only one
             // language, where both buttons could never do anything. At the ends
