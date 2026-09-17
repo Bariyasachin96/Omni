@@ -50,7 +50,7 @@ that keeps the verifier from ever having to resolve the class on an older device
 ### ANDROID 16 (API 36) -- ONE NEW THING, AND IT IS THE NATIVE LIBRARY
 | change | verdict |
 |---|---|
-| **16 KB page size compatibility mode** | **THE ONE TO KNOW ABOUT.** A 4 KB-aligned native library runs in a compatibility mode on 16 KB-page devices **and the system shows the user a dialog** -- which on a blind owner's phone is an unexplained interruption. This app ships `libeasyvoice_core.so` per ABI, so it is in scope. **NDK r28 and later align shared libraries to 16 KB by default and we build with r30** (`ndkVersion = "30.0.16248370"`), so it should already be native rather than compatibility mode. **THAT CANNOT BE VERIFIED IN THIS CONTAINER** -- there is no NDK here and the release APK is 403 through the egress proxy. One command on a downloaded APK settles it, and it is worth running once. |
+| **16 KB page size compatibility mode** | **MEASURED ON THE REAL APK AND IT PASSES** -- see the section below. |
 | **Predictive back: `onBackPressed` no longer called** | **swept: nothing in the app intercepts back.** No `onBackPressed`, no `OnBackPressedCallback`, no `KEYCODE_BACK`; the single `BackHandler` hit is a COMMENT describing what ExposedDropdownMenu does internally. `enableOnBackInvokedCallback="true"` is declared. |
 | **`announceForAccessibility` deprecated** | the app banned it in 2026-08-13 and **`invariants.sh` #5 fails the build on it** -- including, as this session found, on the word appearing in a comment. Ahead of the platform by a year. |
 | Edge-to-edge opt-out removed; large-screen orientation/resizability ignored | nothing to opt out of: no `screenOrientation`, no `resizeableActivity`, no aspect-ratio attrs. |
@@ -72,10 +72,32 @@ background-start refusal, caught and logged; **API 33** `POST_NOTIFICATIONS`, re
 switch is turned on; **API 34** mandatory `foregroundServiceType`, declared `mediaPlayback` with
 its matching permission and passed to `startForeground`.
 
-### THE ONE THING A DEVICE STILL HAS TO ANSWER
-Everything above is either read from Google's own page or swept mechanically over the tree. The
-single item that cannot be settled here is the **16 KB alignment of the shipped `.so`** -- NDK
-r30 says it is aligned, and only the built APK can prove it.
+### THE LAST OPEN ITEM IS CLOSED: 16 KB ALIGNMENT, MEASURED ON THE SHIPPED APK
+It was written up as "only the built APK can prove it" and then the repo went public, which made
+the release asset fetchable where it had always been 403 through the egress proxy. So it was
+measured rather than left open -- `EasyVoice-889-arm64-v8a.apk` downloaded, the `.so` extracted,
+and every PT_LOAD program header's `p_align` read straight out of the ELF:
+
+    arm64-v8a/libeasyvoice_core.so        p_align 16384 (16 KB)   OK
+    arm64-v8a/libandroidx.graphics.path.so p_align 16384 (16 KB)  OK
+
+**So the app loads natively on a 16 KB-page device** -- no compatibility mode, no system dialog
+at the owner. NDK r30's default did it; now it is proven instead of assumed.
+
+**`tools/check/native-pagesize.sh` makes it permanent.** It is NOT in `check-all.sh`, because it
+needs a built APK and there is no NDK in the dev container; run it against a release asset. It
+was negative-tested the way everything here has to be -- a copy of the library with its PT_LOAD
+`p_align` patched down to 4 KB was planted in the APK, and the check reported it and exited 1.
+
+**AND THE FIRST DRAFT OF THAT CHECK WAS WRONG, which is the part worth keeping.** It required
+16 KB of EVERY library and so reported `armeabi-v7a/libeasyvoice_core.so` (4 KB) as a defect.
+It is not one. Google's own page is explicit -- apps "must support 16 KB memory page sizes on
+**64-bit devices**", and its own verification step says *"if any **arm64-v8a or x86_64** shared
+libraries are UNALIGNED, you'll need to update the packaging for those libraries"*
+(developer.android.com/guide/practices/page-sizes). 16 KB pages exist only on 64-bit devices, so
+a 32-bit library can never be loaded on one. The check reports a 32-bit ELF as **n/a** now and
+never fails on it. **A real measurement found the checker's bug, not the app's** -- which is the
+same lesson as the `dash -n` workflow check that passed the very bug it was written for.
 
 ## ANDROID 17 AUDITED AT THE SOURCE, ITEM BY ITEM (owner, 2026-09-17)
 *"Android 17 ka pura support dena hai ... har device ke liye acche se compatible honi chahie ...

@@ -239,3 +239,19 @@ and that everything else was CFR noise.
 - **`blocks.py` and `gentree.py`.** They existed to edit and materialise
   `ci/generate.py`, which embedded every source file as a Python string literal.
   The sources are real files now, so both are gone; edit the file directly.
+
+## `check/native-pagesize.sh` -- 16 KB page size, against a built APK
+
+    tools/check/native-pagesize.sh EasyVoice-<n>-arm64-v8a.apk
+
+Reads every PT_LOAD `p_align` out of each `lib/*/*.so` and requires 16 KB on the
+**64-bit** ABIs. Android 16 runs a 4 KB-aligned 64-bit library in a compatibility
+mode and shows the user a dialog; on a blind owner's phone that is an
+unexplained interruption.
+
+It is deliberately NOT part of `check-all.sh`: it needs a built APK, and there is
+no NDK in the dev container. Run it when an APK is at hand -- the release assets
+are downloadable now the repository is public.
+
+32-bit ABIs are reported `n/a` and never fail: 16 KB pages exist only on 64-bit
+devices, so `armeabi-v7a` being 4 KB aligned is correct rather than a defect.
