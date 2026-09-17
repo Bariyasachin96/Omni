@@ -7,6 +7,117 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE CALLBACK MACHINE, READ A TO Z FROM AOSP -- AND THERE IS NO HOLE (owner, 2026-09-17)
+*"on stop wala bahut sari jagahon per ... on done on event is sab chijen lagi hui hai ...
+call back yah thoda ek bar research karke complete karo properly TTS ka jo properly jo
+system hota hai na exactly A to Z ekadam properly research karke vah lagao."*
+
+The owner called the mechanism **"tukke"** -- patches -- and they were right about the
+shape. This is the research they asked for, done against AOSP's own source rather than
+recalled, and it produced one refactor and one settled answer. **Do NOT re-derive this.**
+
+### THE COUNT IS THE COMPLAINT, AND IT WAS NINETEEN AGAINST FOUR
+This file had **19** places writing `synchronized(syncLock) { isStopped = true;
+syncLock.notifyAll() }` by hand. **AutoTTS has FOUR**, and three of those are two named
+functions plus the empty-text flush:
+
+    O(cb, n)   noexc:300   "endSynthesis #n", set the flag, notify, then done() ONLY if
+                           the callback has already started and has not finished
+    r0(n)      noexc:2250  "unlockSynthesis #n", set the flag, notify, and touch the
+                           callback NOT AT ALL
+    q0(...)    noexc:2238  the empty-text flush -- sets BOTH flags
+
+So AutoTTS funnels and we inlined. **Ten sites now go through `endSynthesis()` and
+`unlockSynthesis()`, which are those two functions with AutoTTS's own names, log lines
+and guard.** Nineteen becomes eight distinct sites, two of which are the helper bodies.
+Zero behaviour change -- our sites already wrote the identical log lines in the identical
+order; they spelled the body out instead of calling the function.
+
+**Three did NOT move and the difference is not cosmetic.** `releaseWaitWithoutSpeaking`,
+the `onDone` catch and the `onSynthesizeText` catch-all call **`startAndFinish`** --
+AutoTTS's `N` -- which **STARTS** a callback that never started. `O` never starts one.
+Those are the paths that exist precisely because nothing was spoken, so folding them in
+would change what the framework sees. Our `onStop()` override and the empty-text flush
+set BOTH flags (AutoTTS's `q0`); `onEngineProcessGone` releases on an event, not at an
+exit.
+
+### `stopImpl()` HAS TWO BRANCHES, AND THIS FILE ONLY EVER DESCRIBED THE OUTCOME
+Read at the line rather than recalled:
+
+    protected void stopImpl() {
+        AbstractSynthesisCallback synthesisCallback;
+        synchronized (this) { synthesisCallback = mSynthesisCallback; }
+        if (synthesisCallback != null) {
+            synthesisCallback.stop();
+            TextToSpeechService.this.onStop();      // <- OUR override, when synthesis STARTED
+        } else {
+            dispatchOnStop();                        // <- the LISTENER, when it never started
+        }
+    }
+
+So `stopImpl` itself dispatches **nothing** on the live branch -- the listener's `onStop`
+arrives from the PLAYBACK side instead (`PlaybackSynthesisCallback.stop()` ->
+`item.stop(STOPPED)` -> `SynthesisPlaybackQueueItem` -> `dispatcher.dispatchOnStop()`,
+verified 2026-09-09). The conclusion this file has carried for weeks -- **onStop, and
+neither onDone nor onError** -- is correct; only the mechanism was stated loosely.
+
+**And `stopForApp` really is synchronous where it matters.** `current.stop()` runs on the
+calling binder thread; only `endFlushingSpeechItems` is posted. So our `onStop()` override
+runs before the next item can play, which is what the generation guard relies on.
+
+### THE END-STATE TABLE: EVERY WAY AN UTTERANCE ENDS, AND WHAT WAKES THE PARKED THREAD
+`onSynthesizeText` parks the screen reader's ONE synthesis thread. If it is not woken the
+whole phone is mute until force-stop, so this table is the thing that matters most in the
+project. Every row verified against AOSP this pass:
+
+| how it ends | what AOSP does | what wakes us |
+|---|---|---|
+| TalkBack calls `stop()` / QUEUE_FLUSH | `stopForApp` -> `current.stop()` -> `stopImpl()` -> our `onStop()` | our override, in a **`finally`** |
+| TalkBack's process dies | `CallbackMap.onCallbackDied` -> `stopForApp` -> same | same |
+| our service destroyed | `SynthHandler.quit()` -> `current.stop()` -> same | same |
+| flushed BEFORE becoming current | `setCurrentSpeechItem` false -> `speechItem.stop()`, `mSynthesisCallback == null` | **nothing to wake** -- `onSynthesizeText` was never entered |
+| rejected by `isValid()` (>4000 chars) | `dispatchOnError(ERROR_INVALID_REQUEST)` before `play()` | same -- never entered |
+| downstream engine finishes | its `onDone` | the listener, under `id == expectedId` |
+| downstream engine errors | its `onError` | the listener, both overloads |
+| **downstream utterance stopped by something that is not us** | its `onStop`, and **neither onDone nor onError** | the listener's `onStop` -- **added 2026-09-17, this was the one open hole** |
+| downstream engine's PROCESS dies | **no callback at all** | `onEngineProcessGone`, off our own binding |
+| we never issue `speak()` | -- | `releaseWaitWithoutSpeaking`, three exits |
+| anything throws | -- | the `onSynthesizeText` catch-all |
+
+**THERE IS NO HOLE.** Every end-state has a reachable release, and the two rows that wake
+nothing are the two where the method was never entered, so nothing is parked. That is the
+A-to-Z answer; the mechanism is complete rather than patched.
+
+### THE SWIPE PATH IS ALREADY AT THE FLOOR, AND THE TWO CANDIDATES ARE BOTH PARITY
+*"swipe left to right ... jo element ke upar jo focus jata hai aur bolata hai ... bilkul
+jaldi ... turant hi bolate hain."* Measured and read rather than guessed. On the common
+case -- a short label in the SAME language as the previous utterance -- what runs is:
+
+    reloadLanguagesIfMissing      one lock, one boolean
+    isForegroundActive()          ONE BINDER CALL              <- see below
+    segmentation + detection      ~0.2 ms (harness-measured)
+    onLoadLanguage -> loadVoice   the "Do nothing!" short-circuit fires; `voiceNow()` is
+                                  cached since 2026-09-11, so **no binder call at all**
+    tts.speak()                   one binder call -- the point of the app
+
+So beyond the unavoidable `speak()` our overhead is **one extra binder call and about two
+tenths of a millisecond.** Two things looked like fat and both were refuted at the source:
+
+- **`isForegroundActive()` on every utterance** is a `getActiveNotifications()` binder call,
+  and because the notification switch is OFF by default the `else if (!flag && active)`
+  branch really does run every time. **It is exact parity**: AutoTTS's `onSynthesizeText`
+  carries the identical two-branch shape at **noexc:1548-1551**, calling its own `a0()`.
+- **log strings are built even when logging is off**, because `debug(tag, msg)` takes an
+  already-built String and the `if (!loggingEnabled) return` is inside `writeLine`. **Also
+  parity** -- AutoTTS builds a `StringBuilder` at each call site the same way, and it emits
+  the same lines, including the `"engine: "` line whose value comes from a real `Q(lang)`
+  call (noexc:1940-45).
+
+**Both are therefore the OWNER'S CALL, not ours**, and neither can be changed under rule 5
+without them saying so. The honest split to give them: our side is at the floor; what they
+hear is the downstream engine's own time-to-first-audio plus the second `TextToSpeech` hop,
+which is what this app IS.
+
 ## EVERY ANDROID FROM 24 TO 37, AUDITED FROM GOOGLE'S OWN PAGES (owner, 2026-09-17)
 *"har har ek version ke liye ... jitne bhi Android version support karta hai ... sab kuchh
 acche se research karke completely is app ko complete karo ... source se verify karke."*
