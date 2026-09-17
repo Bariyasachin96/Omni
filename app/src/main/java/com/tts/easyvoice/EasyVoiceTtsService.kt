@@ -613,9 +613,48 @@ class EasyVoiceTtsService : TextToSpeechService() {
         //
         // initAllEngines and onDestroy were never exposed to this: neither
         // reassigns the wrapper's client afterwards.
-        fun stop() {
+        // A STOP ORDERED FOR ONE UTTERANCE MUST NOT LAND ON THE NEXT ONE
+        // (owner, 2026-09-17: "explore by touch karte hain vahan per ... stop ho
+        // jata hai ... jahan per on stop do bar do teen bar ho raha hoga na usko
+        // sahi karo").
+        //
+        // stopExec is ONE thread, and our onStop() override queues here and then
+        // releases the wait in its finally. AOSP calls stopForApp SYNCHRONOUSLY on
+        // the binder thread before the next item can play, so the screen reader's
+        // NEXT utterance can already be speaking by the time this runnable finally
+        // runs -- and then it stops THAT one. The engine dispatches onStop for it,
+        // and that callback is not stale: it carries the LIVE utterance's id and
+        // matches its expectedId exactly.
+        //
+        // Explore-by-touch is a continuous stream of interrupts, so this fires
+        // constantly there, which is precisely where the owner sees it.
+        //
+        // THE LATE STOP IS REDUNDANT AS WELL AS HARMFUL, which is what makes
+        // skipping it correct rather than merely convenient: every speakChunk
+        // issues speak(..., QUEUE_FLUSH, ...), so the new utterance has ALREADY
+        // flushed whatever the old one left behind. There is nothing for the late
+        // stop to cancel except the wrong thing.
+        //
+        // NO CLOCK. The generation advancing IS the event -- if it has moved, a
+        // newer utterance owns the engine and this order is spent. `forGeneration
+        // < 0` means "unconditional", which is what the two shutdown callers
+        // (initAllEngines and restoreEngine) need, and they are unchanged.
+        //
+        // THE CORNER THIS LEAVES, stated rather than hidden: if the interrupt is
+        // followed by an utterance that resolves NO engine (engineIndex < 0), that
+        // generation never issues a speak, so nothing flushes the old audio and
+        // the skipped order is not replaced by anything. It needs the pool to be
+        // in the state where nothing can speak at all -- already the broken case
+        // -- and it is bounded by the reader's next interrupt.
+        fun stop(forGeneration: Int = -1) {
             val client = tts ?: return
             stopExec.execute {
+                if (forGeneration >= 0 && forGeneration != synthesisGeneration) {
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                        "stop for generation " + forGeneration + " is spent (now " +
+                        synthesisGeneration + ") -- skipping " + pkg)
+                    return@execute
+                }
                 try { client.stop() }
                 catch (ex: Exception) { android.util.Log.w("EasyVoice", "Stop failed for " + pkg, ex) }
             }
@@ -1546,6 +1585,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // onStop logs, then calls q0(TRUE), which logs and only then clears R.
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop calling!!!")
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + true)
+        // Read ONCE, before the walk below, so every engine in the pool is stamped
+        // with the same answer even if a new utterance starts part-way through it.
+        val stoppingGeneration = synthesisGeneration
         // Under the monitor the other four accesses already use. onStop runs on
         // a binder thread while speakChunk may be popping on the synthesis or
         // main thread, and a bare ArrayList.clear() against a concurrent
@@ -1597,7 +1639,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 try {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling stop for " + wrapper.pkg)
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stop " + utteranceId)
-                    wrapper.stop()
+                    // STAMPED WITH THE GENERATION THIS STOP IS FOR. Read the note on
+                    // EngineWrapper.stop: the queue is one thread, so without this a
+                    // stop ordered here can run after the reader's NEXT utterance has
+                    // started, and cut that one off instead of the one we meant.
+                    wrapper.stop(stoppingGeneration)
                 } catch (ex: Exception) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Stop failed for " + wrapper.pkg + "\n  " + ex.message)
                 }
@@ -2849,13 +2895,41 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 //
                 // TO REVERT, delete from the `if (id != expectedId) return` down, and
                 // the diagnostic line above it goes back to doing the whole job.
+                // LOG ONLY, AND IT IS BACK TO LOG ONLY (owner, 2026-09-17:
+                // "explore by touch karte hain vahan per ... stop ho jata hai ...
+                // vah problem fir se a gai hai").
+                //
+                // On 2026-09-17 this released the wait under `id == expectedId`,
+                // reasoning that the generation in the id made the guard finally
+                // mean what it says. The guard IS correct now. The change was
+                // still wrong, and the reason is worth keeping because the note
+                // that used to sit here described the mechanism and I shipped it
+                // anyway.
+                //
+                // The callback this fires on is NOT stale. Our own onStop()
+                // override QUEUES wrapper.stop() on the one stopExec thread and
+                // releases the wait immediately; the reader's NEXT utterance can
+                // already be speaking when that queued stop runs, so it stops the
+                // NEW one -- and the engine then dispatches onStop carrying the
+                // NEW utterance's id, which matches its expectedId exactly. The
+                // release therefore cut off a live utterance. Explore-by-touch is
+                // a continuous stream of interrupts, so it fired there constantly:
+                // the 2026-09-03 regression, reproduced from the other end.
+                //
+                // THE ROOT CAUSE IS FIXED WHERE IT BELONGS instead -- see
+                // EngineWrapper.stop, which now skips an order whose generation is
+                // spent. With the late stop gone, the spurious onStop is gone with
+                // it, and the utterance that used to park because nothing followed
+                // that stop is never stopped in the first place.
+                //
+                // So this is AutoTTS's shape again (its listener's onStop is a
+                // bare log, noexc:2770), and `parked=` still settles from the
+                // owner's own log whether anything is left to fix here at all.
                 override fun onStop(id: String, interrupted: Boolean) {
                     val parked = !isStopped && !isFlushed
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
                         "onStop " + id + " interrupted=" + interrupted +
                         " mine=" + (id == expectedId) + " parked=" + parked)
-                    if (id != expectedId) return
-                    endSynthesis(callback, "14")
                 }
             })
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())

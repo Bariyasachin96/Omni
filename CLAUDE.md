@@ -79,14 +79,55 @@ project. Every row verified against AOSP this pass:
 | rejected by `isValid()` (>4000 chars) | `dispatchOnError(ERROR_INVALID_REQUEST)` before `play()` | same -- never entered |
 | downstream engine finishes | its `onDone` | the listener, under `id == expectedId` |
 | downstream engine errors | its `onError` | the listener, both overloads |
-| **downstream utterance stopped by something that is not us** | its `onStop`, and **neither onDone nor onError** | the listener's `onStop` -- **added 2026-09-17, this was the one open hole** |
+| **downstream utterance stopped by something that is not us** | its `onStop`, and **neither onDone nor onError** | **nothing** -- and see below, because the cause was ours and is fixed at the source |
 | downstream engine's PROCESS dies | **no callback at all** | `onEngineProcessGone`, off our own binding |
 | we never issue `speak()` | -- | `releaseWaitWithoutSpeaking`, three exits |
 | anything throws | -- | the `onSynthesizeText` catch-all |
 
-**THERE IS NO HOLE.** Every end-state has a reachable release, and the two rows that wake
-nothing are the two where the method was never entered, so nothing is parked. That is the
-A-to-Z answer; the mechanism is complete rather than patched.
+**ONE ROW WAKES NOTHING, AND THE CAUSE TURNED OUT TO BE OURS.** Everything else has a
+reachable release, and the two rows where the method was never entered park nothing.
+
+### THE onStop RELEASE SHIPPED AND WAS REVERTED -- FOR THE SECOND TIME, AND THIS IS WHY
+On 2026-09-17 the listener's `onStop` was made to release the wait under
+`id == expectedId`, reasoning that the generation in the id had finally made that guard
+mean what it says. **The guard IS correct. The change was still wrong**, and the owner
+reported it within the day: *"explore by touch karte hain vahan per ... stop ho jata hai
+... vah problem fir se a gai hai."* That is the 2026-09-03 regression, reproduced from the
+other end.
+
+**THE CALLBACK IS NOT STALE, WHICH IS THE WHOLE POINT.** Our own `onStop()` override
+QUEUES `wrapper.stop()` on the **one** `stopExec` thread and then releases the wait in its
+`finally`. AOSP calls `stopForApp` synchronously on the binder thread, so the reader's
+NEXT utterance can already be speaking by the time that queued stop runs -- and it stops
+**that** one. The engine then dispatches `onStop` carrying the **new** utterance's id,
+which matches its `expectedId` exactly. So the release cut off a live utterance, every
+time, and explore-by-touch is a continuous stream of interrupts.
+
+**THE ROOT CAUSE IS FIXED WHERE IT BELONGS: `EngineWrapper.stop(forGeneration)`.** A stop
+order carries the generation it was issued for and the worker skips it when the generation
+has moved on. **No clock** -- the generation advancing IS the event. It is correct rather
+than merely convenient because the late stop is **redundant as well as harmful**: every
+`speakChunk` issues `speak(..., QUEUE_FLUSH, ...)`, so the new utterance has already
+flushed whatever the old one left. The two shutdown callers (`initAllEngines`,
+`restoreEngine`) pass nothing and are unconditional, as they must be.
+
+With the late stop gone, the utterance that used to park because nothing followed that
+stop **is never stopped in the first place**, so the hole closes from the other side and
+the listener's `onStop` is a bare log again -- AutoTTS's own shape (noexc:2770).
+
+**THE CORNER THIS LEAVES, stated rather than hidden:** if the interrupt is followed by an
+utterance that resolves NO engine (`engineIndex < 0`), the new generation never issues a
+`speak`, so nothing flushes the old audio and the skipped stop is not replaced by
+anything. That needs the engine pool to be in the state where nothing can speak at all,
+which is already the broken case, and it is bounded by the reader's next interrupt. It is
+written down so the next session recognises it rather than rediscovering it.
+
+**THE LESSON, and it is the fourth time this exact shape has cost a build.** The note that
+used to sit above that line described this mechanism in full -- "it then stops THAT
+utterance" -- and warned that the fix "is the one change that has already broken this app
+once". I read it, checked the id guard, found it sound, and shipped. **The id guard was
+never the question.** Judge a change on the speaking path by what it does when it fires at
+the moment it is DESIGNED to fire, not only by whether its guard is correct.
 
 ### THE SWIPE PATH IS ALREADY AT THE FLOOR, AND THE TWO CANDIDATES ARE BOTH PARITY
 *"swipe left to right ... jo element ke upar jo focus jata hai aur bolata hai ... bilkul
