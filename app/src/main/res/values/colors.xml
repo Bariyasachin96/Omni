@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The UI palette is Material 3's own: EasyVoiceTheme takes
-         lightColorScheme() / darkColorScheme() unmodified. This one colour is
-         the only thing that has to be repeated in XML, because the WINDOW is
-         painted before Compose draws its first frame and the framework cannot
-         read a Compose scheme.
+    <!-- THE WINDOW IS PITCH BLACK, IN EVERY SYSTEM MODE (owner, 2026-09-17:
+         "Set a pure, pitch-black background across all screens").
 
-         It is the LIGHT scheme's `background`, and the value is not chosen -
-         it is what the library resolves to: ColorLightTokens.Background =
-         PaletteTokens.Neutral98 = #FEF7FF. values-night/colors.xml carries the
-         dark scheme's, ColorDarkTokens.Background = Neutral6 = #141218. Keeping
-         them equal to the library is what makes the splash-to-Compose handover
-         a change of content rather than a flash of colour; if a future Compose
-         BOM moves those tokens, these two follow. -->
-    <color name="ev_background">#FFFEF7FF</color>
+         This one colour has to be repeated in XML because the WINDOW is painted
+         before Compose draws its first frame and the framework cannot read a
+         Compose ColorScheme. It has to equal EvColorScheme's `background` or the
+         splash-to-Compose handover is a flash of colour rather than a change of
+         content - so if one of them ever moves, move both.
+
+         The value is still not invented: #000000 is PaletteTokens.Neutral0, read
+         out of the pinned material3-android-1.4.0 jar's own bytecode, and it is
+         what ComposeTheme.kt passes to darkColorScheme(background = ...).
+
+         THERE IS NO values-night COPY ANY MORE. There was one, carrying the dark
+         scheme's Neutral6 #141218, from the 2026-09-08 pass when the app followed
+         the system. The app has one scheme again, so a night variant could only
+         ever hold the same value twice - and two copies of one colour is exactly
+         how a theme drifts. -->
+    <color name="ev_background">#FF000000</color>
 </resources>

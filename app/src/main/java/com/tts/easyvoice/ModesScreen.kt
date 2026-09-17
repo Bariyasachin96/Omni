@@ -239,9 +239,16 @@ private fun LabeledRadioGroup(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(selected = index == selectedIndex, onClick = null)
+                // An option label: small, regular weight, light purple
+                // (owner, 2026-09-17). It was bodyLarge, 16sp, in the body
+                // colour. `primary` here is PaletteTokens.Primary80 #D0BCFF at
+                // 12.32:1 on the black page. The GROUP's title above keeps
+                // titleSmall in onSurfaceVariant -- it is a heading naming the
+                // group, not one of the options.
                 Text(
                     text = options[index],
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 12.dp).clearAndSetSemantics { }
                 )
             }

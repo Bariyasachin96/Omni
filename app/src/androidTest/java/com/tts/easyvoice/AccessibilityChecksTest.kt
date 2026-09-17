@@ -157,14 +157,21 @@ class AccessibilityChecksTest {
     private fun entry(name: String, iso3: String, tag: String) =
         LangEntry(name, iso3, 100, 100, 100, "com.google.android.tts", tag, "*Default")
 
-    // EVERY SCREEN IS CHECKED IN BOTH SCHEMES, and that is the whole reason the
-    // scheme is a parameter of EasyVoiceTheme rather than a read of the system.
-    // The app follows the phone now, so a colour is only half-measured until it
-    // has been measured in light AND in dark -- and an emulator image is in
-    // exactly one of them, so leaving it to the device would have meant one of
-    // the two schemes never being rendered under ATF and nothing saying which.
-    // It is the same hole the reading mode and the Languages list layout each
-    // turned out to have.
+    // EVERY SCREEN IS STILL RENDERED TWICE THROUGH THE SCHEME PARAMETER, though
+    // since 2026-09-17 both passes resolve to the same pitch-black scheme.
+    //
+    // It was written when the app followed the phone, and a colour was only half
+    // measured until it had been measured in light AND in dark -- an emulator
+    // image is in exactly one of them, so leaving it to the device would have
+    // meant one scheme never being rendered under ATF with nothing saying which.
+    // That was the same hole the reading mode, the Languages list layout and the
+    // locale each turned out to have.
+    //
+    // It is kept rather than collapsed for two reasons. The sweep's assertion
+    // now pins the single black scheme, which is a real guard and needs both
+    // passes to make its point; and the day a second scheme comes back, every
+    // screen is already being rendered under both and only the assertion has to
+    // move. Read the note in sweepSchemes().
     //
     // setContent can only be called once per test, so the switch is a state
     // object the composition reads: flipping it recomposes the same tree into
@@ -197,24 +204,46 @@ class AccessibilityChecksTest {
         val dark = composedBackground
         rule.onRoot().tryPerformAccessibilityChecks()
 
-        // THE SWEEP HAS TO PROVE IT SWEPT. Without this the two passes could
-        // quietly be the same scheme twice -- if the flip ever stopped reaching
-        // the composition, every "light" measurement would be a second dark one
-        // and the run would still go green. That is the exact shape of the
-        // three bugs this suite has already had: the reading mode the device
-        // was choosing, the Languages list layout the image was choosing, and
-        // the locale. Each was closed by asserting the state actually rendered,
-        // and this is the same guard for the scheme.
+        // THE SWEEP HAS TO PROVE WHAT IT SWEPT, and on 2026-09-17 what it has to
+        // prove turned over completely.
         //
-        // It compares what the LIBRARY resolved, so it hard-codes no colour:
-        // lightColorScheme().background and darkColorScheme().background are
-        // different by construction, and if a future BOM changed that, this
-        // failing is the correct outcome rather than a silent half-measurement.
-        if (light == dark) {
+        // It used to assert `light != dark`, because the app followed the phone
+        // and the two passes really were two schemes; without that, a flip that
+        // stopped reaching the composition would have made every "light" check a
+        // second dark one and the run would still have gone green.
+        //
+        // The owner has since asked for a pure pitch-black background on every
+        // screen, so EasyVoiceTheme has ONE scheme and `darkTheme` resolves to
+        // the same colours either way. The old assertion would now fail all 29
+        // tests -- and it would be failing on the app being correct, which is the
+        // worst kind of red.
+        //
+        // So the guard asserts the new truth instead of being deleted, because
+        // the hole it was written for is still real: this sweep is the only
+        // place that can notice the theme quietly becoming something else. Two
+        // things have to hold, and each one catches a different regression:
+        //   * the two passes agree -- if a second scheme is ever reintroduced,
+        //     this fails and whoever did it has to come and update the sweep,
+        //     rather than half the run silently measuring an unintended palette;
+        //   * the colour really is pitch black -- so a theme edit that moved
+        //     `background` off #000000 is caught here even though every contrast
+        //     ratio in the app would still pass.
+        // Between them they say "the app is the one black scheme it is supposed
+        // to be", which is what these 29 checks are measuring against.
+        val black = androidx.compose.ui.graphics.Color.Black.value
+        if (light != dark) {
             throw AssertionError(
-                "The colour scheme did not change between the two passes -- both " +
-                    "ran with background " + light + ". Every 'light' check in " +
-                    "this run was a second dark check."
+                "EasyVoiceTheme resolved two different backgrounds (" + light +
+                    " and " + dark + "). The app is meant to have ONE pitch-black " +
+                    "scheme in every system mode. If a second scheme was added on " +
+                    "purpose, restore the light != dark assertion this replaced."
+            )
+        }
+        if (light != black) {
+            throw AssertionError(
+                "EasyVoiceTheme resolved background " + light + ", expected pitch " +
+                    "black " + black + ". The owner asked for a pure black background " +
+                    "on every screen (2026-09-17); see the palette note in ComposeTheme.kt."
             )
         }
     }

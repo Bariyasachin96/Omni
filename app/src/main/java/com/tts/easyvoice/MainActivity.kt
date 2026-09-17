@@ -470,10 +470,22 @@ fun MainScreen(
                 val settingsName =
                     if (modeTitle == null) "Mode settings" else modeTitle + " settings"
                 val openSettings = { onOpenModeSettings(readingMode) }
+                // BOTH FABs MOVED BACK TO THE CONTAINER PAIR (owner, 2026-09-17),
+                // which is also Material's own default for a FAB. They were
+                // pinned to `primary`/`onPrimary` because the BASELINE
+                // `primaryContainer` (#4F378B) measured 1.28:1 against the page
+                // and the FAB shipped effectively invisible -- the bug the first
+                // device test of the Compose migration found. The theme now sets
+                // `primaryContainer` to #6750A4, which is 3.26:1 against the
+                // black page with a 6.44:1 white label, so the reason for the
+                // override is gone and this is the same dark-purple-and-white
+                // every other button in the app draws. Stated rather than left
+                // to the default, so a future scheme change cannot make it
+                // invisible again without this line being read.
                 ExtendedFloatingActionButton(
                     onClick = openSettings,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.evControl(settingsName, Role.Button, action = openSettings),
                     icon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
                     text = { Text("Settings") }
@@ -482,8 +494,8 @@ fun MainScreen(
             if (!scanning && currentPage == 1 && showAddLanguage) {
                 ExtendedFloatingActionButton(
                     onClick = onAddLanguage,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.evControl("Add language", Role.Button, action = onAddLanguage),
                     icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
                     text = { Text("Add language") }

@@ -7,6 +7,131 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE APP IS PITCH BLACK AND PURPLE NOW, AND IT FOLLOWS NOTHING (owner, 2026-09-17)
+*"Set a pure, pitch-black background across all screens. Remove background bars for all
+section headers, and use a small, regular-weight light purple font for option labels. For
+buttons, use a dark purple background with white text. In the Advanced screen, remove all
+section headers, and integrate descriptions directly with each option, excluding descriptions
+from the 'About' and 'Text-to-Speech Settings' buttons."*
+
+**THIS REVERSES "THE THEME IS MATERIAL 3's OWN AND IT FOLLOWS THE SYSTEM" (2026-09-08).**
+That section is still an accurate record of what was measured; its *conclusion* is superseded.
+A light purple label is a light purple label on black and nothing at all on white, so the
+request only means one thing if there is **one** scheme. The app is black in every system
+mode, and the two window themes and the bar-icon style go back with it.
+
+### THE OWNER ASKED FOR THE LIBRARY TO BE SEARCHED FIRST, AND IT WAS -- IN THE JAR
+*"pahle to library aur open source se hi hamen pata karna chahie taki chijen hamen already
+mil jaye."* The pinned artifact itself was interrogated rather than the docs, which is the
+strongest possible source for the version this build actually ships:
+
+    unzip -l material3-android-1.4.0.jar | grep -iE "amoled|contrast|subheader"
+        -> NOTHING, across all 1,367 classes
+
+| asked for | already in the library? |
+|---|---|
+| pitch-black scheme | **no AMOLED/true-black factory, no contrast API** in 1.4.0. `darkColorScheme(background = ...)` is the hook, and `#000000` is `PaletteTokens.Neutral0` -- a Material TOKEN, not an invented hex |
+| section header with no bar | **no list-subheader composable exists.** M3 the *spec* has one; M3 *Compose* 1.4.0 does not. Our own `SectionHeader` stays, and was already barless since 2026-09-16 |
+| light purple option labels | **already `colorScheme.primary`** -- the dark scheme's primary IS `PaletteTokens.Primary80` `#D0BCFF`. Nothing to override; the labels are simply pointed at it, through `ListItemDefaults.colors(headlineColor = ...)` |
+| dark purple button, white text | **`ButtonDefaults.buttonColors`**, fed from `primaryContainer`/`onPrimaryContainer` |
+| a settings-screen library | **none from Google.** `androidx.preference` is 1.2.1 and View-only -- checked in Google Maven's own `group-index.xml` -- and adopting it would break `invariants.sh` **#26**, which fails the build on any `android.view.*` |
+
+`material3` **1.4.0 is still the latest stable** (1.5.0 is at alpha28), so there was nothing to
+upgrade to either.
+
+### THE PALETTE IS SIX ROLES, AND EVERY VALUE IS A MATERIAL TONE READ OUT OF BYTECODE
+`PaletteTokens` builds each tone with `Color(r, g, b)`, so `javap -c` over the pinned jar
+gives the exact values instead of a recalled hex:
+
+    background, surface          = Neutral0   #000000
+    primaryContainer             = Primary40  #6750A4   <- the dark purple
+    onPrimaryContainer           = Primary100 #FFFFFF
+    secondaryContainer           = Primary40            <- the selected filter chip
+    onSecondaryContainer         = Primary100
+
+**`primary` is NOT overridden** -- it is already `#D0BCFF`. And **`#6750A4` + `#FFFFFF` is
+Material's own `primary`/`onPrimary` pair out of the LIGHT baseline scheme**, so the button
+pairing is one the library ships and guarantees rather than two hexes chosen to look nice.
+
+| pair | ratio | floor |
+|---|---|---|
+| body text `#E6E0E9` on black | **16.20** | 4.5 |
+| option label `#D0BCFF` on black | **12.32** | 4.5 |
+| description / header `#CAC4D0` on black | **12.32** | 4.5 |
+| filled button + app bar, white on `#6750A4` | **6.44** | 4.5 |
+| button FILL `#6750A4` vs the page | **3.26** | 3.0 |
+| control outline `#938F99` on black | **6.63** | 3.0 |
+
+A pure black page is the easiest background in the palette to sit on, so this **improves**
+nearly every ratio the 2026-09-08 table recorded. The two still under 3.0 are the menu fill
+(1.29) and the divider (2.25) -- decoration, no ATF check exists for a fill against the page,
+and the menu is actually better separated than it was on `#141218` (about 1.09).
+
+**THE ONE THING THIS RULES OUT, and it is why `primary` stayed light.** Setting
+`primary = #6750A4` so Material's `Button` defaults to it would also repaint the **outlined**
+button's label, which is `primary` too -- `#6750A4` on black is **3.26:1**, fine for a fill and
+a **failure** for text, and ATF's `TextContrastCheck` fails the build on it. The filled button
+states its own colours instead.
+
+### THE DESCRIPTIONS COULD NOT USE THE LIBRARY'S OWN SLOT, AND THAT MATTERS
+Material's answer to "integrate the description with the option" is `ListItem`'s
+**`supportingContent`**, and it is the right call everywhere except here. `evControl` is
+`clearAndSetSemantics`, and **clearing a node drops its WHOLE SUBTREE** from the accessibility
+tree -- the same mechanism that made the Configuration row's three-dot menu unreachable in
+build 832. A description inside the row would be **visible and completely inaudible**: gone
+for the one person this app is built for.
+
+So the binding is **spacing**, expressed once as `SettingOption(label, description, ...)` --
+row, description, 16dp gap -- instead of a number repeated at thirteen call sites.
+`SettingDescription` itself is **unchanged**, because the About screen runs four of them in a
+row as Build number / Version / Developer / Copyright and widening that gap would have spread
+those facts out. The one paragraph that *introduces* two switches rather than describing one
+(the Oppo/OnePlus/Realme line) stays a bare `SettingDescription` with an `OptionGap()` above
+it, since "Advanced Synthesis Options" is gone and it is now the only thing saying why those
+two switches exist.
+
+### WHAT THE HEADER REMOVAL COSTS, STATED RATHER THAN BURIED
+The Advanced screen had **eight** heading stops and now has none. Heading navigation is how a
+TalkBack user jumps a long list instead of swiping through every control, so this is a real
+loss on the app's longest screen. **ATF has no check for a screen without headings**, so the
+CI gate will not notice it either way -- it is the owner's call and it was asked for by name.
+Reverting is putting the eight `SectionHeader` calls back. **Every other screen keeps its
+headings**; only this one was named.
+
+### THE SYSTEM BARS HAVE NOW FLIPPED TWICE -- READ THIS BEFORE FLIPPING THEM AGAIN
+The correct answer is decided entirely by whether the app follows the system:
+
+    before 2026-09-08   always dark    -> SystemBarStyle.dark(...) correct, auto() a bug
+    2026-09-08          follows system -> auto() correct, dark(...) a bug
+    2026-09-17          always BLACK   -> dark(...) correct again
+
+`enableEdgeToEdge()`'s bare default is `SystemBarStyle.auto(...)`, which picks the icon colour
+from **the system's** dark-mode setting. On a phone in light mode it would ask for DARK icons
+and draw them over our `#000000` bar: **the clock, battery and signal meter black on black.**
+`EvActivity` states `SystemBarStyle.dark(Color.TRANSPARENT)` for both bars, and
+`values/styles.xml` says the same for the first frame with both `windowLight*` flags false.
+`SystemBarStyle.dark(int)` is ordinary public API in the pinned activity **1.13.0** -- `javap`
+over that jar, not androidx-main, which is where it *is* deprecated.
+
+**`values-night/` IS DELETED.** Both files could now only hold the same value twice, and two
+copies of one colour is exactly how a theme drifts. `ev_background` is `#FF000000` and must
+stay equal to the scheme's `background` or the splash-to-Compose handover is a flash.
+
+### THE CI GATE HAD TO BE TOLD, AND IT WOULD HAVE FAILED ON THE APP BEING CORRECT
+`AccessibilityChecksTest.sweepSchemes()` asserted `light != dark` to prove the flip reached the
+composition. With one scheme by design **that assertion fails all 29 tests** -- red on the app
+being right, which is the worst kind. It now asserts the new truth instead of being deleted:
+the two passes must **agree**, and the colour must be **pitch black**. So reintroducing a
+second scheme fails here and has to be done deliberately, and a theme edit that moves
+`background` off `#000000` is caught even though every contrast ratio would still pass.
+
+### WHAT ONLY A DEVICE CAN ANSWER
+The colour work is measured and the CI job measures it again on every run, so the risk is not
+contrast. It is **how the option labels read at 14sp** -- the labels dropped from `bodyLarge`
+16sp to `bodyMedium` 14sp, which is the "small" the owner asked for, and only their eye can
+say whether it went too small. That is one word to change back: `bodyMedium` -> `bodyLarge` in
+`SettingSwitch`, `LanguageCheckRow`, `LabeledRadioGroup`, `LabeledDropdown` and `ValueSlider`.
+
 ## THE LANGUAGE SWITCH IS PREFETCHED NOW, AND ONE THING NEARLY BROKE IT (owner, 2026-09-16)
 *"ek text hai jismein alag-alag bhashaen hain ... alag-alag bhashaen read karne ke liye jo
 TTS change hote hain to vah time thoda lagata hai ... switching bahut fast honi chahie.

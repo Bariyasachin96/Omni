@@ -107,9 +107,14 @@ fun LabeledDropdown(
         // hideFromAccessibility(), whose own KDoc says to use
         // clearAndSetSemantics for content that is redundant with its parent --
         // leaves the text on screen and lets the button own the whole name.
+        // The visible label of an option: light purple, and already the small
+        // regular-weight bodyMedium role (owner, 2026-09-17). Only the colour
+        // moves. `primary` is PaletteTokens.Primary80 #D0BCFF, 12.32:1 on the
+        // black page.
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(top = 4.dp, bottom = 2.dp).clearAndSetSemantics { }
         )
         // THE MENU IS MATERIAL'S OWN NOW, not a Button plus a DropdownMenu wired
@@ -346,9 +351,12 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
     // The Slider below is already named `label`, so this heading was a second
     // node speaking "Speed" right before "Speed, 100 of 500" -- the same
     // duplicate-speakable-text problem as the dropdown label.
+    // Same option-label treatment as every other control (owner, 2026-09-17):
+    // already bodyMedium, so only the colour moves to `primary`.
     Text(
         text = label,
         style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(horizontal = 16.dp).clearAndSetSemantics { }
     )
     Row(

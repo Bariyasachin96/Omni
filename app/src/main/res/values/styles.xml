@@ -5,40 +5,44 @@
          through EasyVoiceTheme. The only job left for an XML theme is dressing
          the window before Compose's first frame: the background, so there is no
          flash, and the system bars. -->
-    <!-- THIS THEME IS THE LIGHT ONE, AND values-night/styles.xml IS THE DARK
-         ONE. The app follows the system now, so the window that is painted
-         BEFORE Compose draws has to follow it as well - otherwise a phone in
-         light mode opens on a dark rectangle and then swaps, which is a flash
-         rather than a handover.
+    <!-- THERE IS ONE WINDOW THEME AGAIN, AND IT IS DARK (owner, 2026-09-17).
 
-         The parent is the FRAMEWORK theme, not Theme.Material3 from
+         values-night/styles.xml is GONE. It existed from 2026-09-08, when the
+         app followed the system and the window painted before Compose had to
+         follow it too. The app is pitch black in every system mode now, so a
+         night variant would be a second copy of this one - and the whole reason
+         the earlier pass split them was that a light phone opening on a dark
+         rectangle is a flash. With one scheme there is nothing to flash between.
+
+         The parent is the FRAMEWORK dark theme, not Theme.Material3 from
          com.google.android.material: that View library and androidx.appcompat
          were pulled in for one line and are gone from the build, and the
          activities are ComponentActivity, which needs no AppCompat theme. Only
          android: attributes are set here, because colorPrimary and its family
          are Material Components attributes that do not exist outside that
-         library. Theme.Material.Light.NoActionBar and Theme.Material.NoActionBar
-         both exist in the framework - checked in AOSP's own
-         core/res/res/values/themes_material.xml, not recalled.
+         library. Theme.Material.NoActionBar exists in the framework - checked in
+         AOSP's own core/res/res/values/themes_material.xml, not recalled.
 
-         windowLightStatusBar is TRUE here and false at night: it asks for DARK
-         bar icons, which is what a light window needs.
-         windowLightNavigationBar says the same for the other bar and closes a
-         gap this theme used to have - it was never stated, so the navigation
-         bar's icons were left unspecified. It arrived in API 27 and minSdk is
-         24; an older device ignores an attribute it does not know.
+         BOTH windowLight* FLAGS ARE FALSE, and on a permanently black app that
+         is the whole point rather than a detail. They ask for LIGHT bar icons,
+         which is what a black window needs; leaving them true, or unstated,
+         puts dark icons on a black bar and the clock and the signal meter
+         disappear. windowLightNavigationBar arrived in API 27 and minSdk is 24;
+         an older device ignores an attribute it does not know. EvActivity states
+         the same thing at runtime with SystemBarStyle.dark - read the note there
+         for why the bare enableEdgeToEdge() default is wrong for this app again.
 
          statusBarColor / navigationBarColor are ignored from API 35, where the
          system draws every app edge to edge. They still matter below it, and
          only for the first frame, because EvActivity calls enableEdgeToEdge()
          and androidx makes both bars transparent at runtime. -->
-    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:colorBackground">@color/ev_background</item>
         <item name="android:windowBackground">@color/ev_background</item>
         <item name="android:statusBarColor">@color/ev_background</item>
         <item name="android:navigationBarColor">@color/ev_background</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
     <style name="AppTheme.NoActionBar" parent="@style/AppTheme" />
 

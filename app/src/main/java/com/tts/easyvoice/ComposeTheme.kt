@@ -1,5 +1,4 @@
 package com.tts.easyvoice
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -18,12 +18,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.Role
@@ -41,76 +41,137 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 
-// THE PALETTE IS THE LIBRARY'S, AND IT FOLLOWS THE SYSTEM (owner, 2026-09-08).
+// THE APP IS PITCH BLACK, AND THE PALETTE IS STILL THE LIBRARY'S (owner, 2026-09-17).
 //
-// This used to be one hand-built dark scheme with fourteen colours picked by
-// hand, and the app was dark whatever the phone was set to. Both halves of that
-// are gone: `lightColorScheme()` and `darkColorScheme()` are Material 3's own
-// baseline schemes, taken unmodified, and `isSystemInDarkTheme()` chooses
-// between them.
+//     "Set a pure, pitch-black background across all screens ... use a small,
+//      regular-weight light purple font for option labels. For buttons, use a
+//      dark purple background with white text."
 //
-// WHY UNMODIFIED, AND IT IS A MEASUREMENT RATHER THAN A PREFERENCE. Material 3
-// builds every scheme from tonal palettes, and the accessibility of a colour
-// PAIR is a property of the tone gap between them, not of the hue: a role and
-// its `on` role are placed far enough apart that the pair passes by
-// construction. Both baseline schemes were resolved from androidx's own
-// ColorLightTokens / ColorDarkTokens / PaletteTokens and every pair this app
-// actually draws was run through the WCAG formula:
+// THIS REVERSES THE 2026-09-08 DECISION recorded here, which took
+// `lightColorScheme()` / `darkColorScheme()` unmodified and let
+// `isSystemInDarkTheme()` choose between them. It has to reverse it: a light
+// purple label is a light purple label on black and nothing at all on white, so
+// the request only means one thing if there is ONE scheme. The app is therefore
+// black whatever the phone is set to, exactly as it was before 2026-09-08 --
+// and the two window themes and the bar-icon style go back with it. Do not
+// "restore" the system-following version without the owner asking.
 //
-//     pair                       LIGHT     DARK
-//     body text on the page      16.23     14.35
-//     text on a surface          16.23     14.35
-//     secondary text              8.88     10.91
-//     filled button label         6.44      7.71
-//     accent on the page          6.12     10.91
-//     outlined button label       6.12     10.91
-//     section header text        13.32      7.23
-//     control outline             4.33      5.87
-//     error text                  6.21     10.89
-//     text on a menu             14.85     12.57
+// THE OWNER'S OTHER INSTRUCTION WAS TO LOOK FOR THIS IN THE LIBRARY FIRST
+// ("pahle to library aur open source se hi hamen pata karna chahie"), so the
+// pinned material3-android-1.4.0 jar itself was searched rather than the docs:
 //
-// against floors of 4.5 for text and 3.0 for a UI component. Nothing is close.
-// Hand-picking a replacement could only make one of those worse, and it would
-// have to be done TWICE now that there are two schemes.
+//     unzip -l material3-android-1.4.0.jar | grep -iE "amoled|contrast|subheader"
+//         -> NOTHING. 1,367 classes and not one of them.
 //
-// FOUR PAIRS READ LOW AND ALL FOUR ARE CONTAINER FILLS, NOT TEXT -- the section
-// header bar (1.23 light / 1.99 dark on the page), the divider (1.62 / 1.99),
-// and the selected chip and switch track (1.23 / 2.00). They are low in
-// Google's own baseline, in both schemes, so "fixing" them means overriding the
-// library with numbers of ours -- the exact move this project has had to undo
-// before. They are also not carrying any information by colour alone:
-//   - the selected filter chip draws a CHECK icon when selected, so the state
-//     has a glyph;
-//   - a Switch is read by thumb position, and its unchecked track is outlined
-//     with `outline`, which measures 4.33 / 5.87 against the page;
-//   - the divider and the header bar are decoration; the heading text sitting
-//     on that bar is 13.32 / 7.23.
-// Google's own Accessibility Test Framework -- the engine the CI job runs --
-// checks TEXT against its background and IMAGES against theirs, and has no
-// check for a fill against the page at all.
+// So there is no shipped AMOLED scheme, no contrast-level API and no
+// list-subheader composable to lean on in this version; `androidx.preference`
+// is still View-only at 1.2.1 with no Compose form (checked in Google Maven's
+// own group-index.xml), and adopting it would break INVARIANTS #28, which fails
+// the build on any `android.view.*`. Nothing to adopt -- but the VALUES below
+// are all still the library's, and that is what stops this being a hand-picked
+// palette.
 //
-// DYNAMIC COLOUR IS DELIBERATELY NOT USED. `dynamicLightColorScheme` /
-// `dynamicDarkColorScheme` are in the pinned material3 (1.4.0) behind
-// @RequiresApi(S), and they would derive the palette from the user's wallpaper.
-// The tone gaps survive that, so it would not be unsafe -- but it makes the
-// app's colours different on every device, which means the accessibility job
-// would be measuring whatever the emulator's wallpaper happened to produce
-// instead of what the app ships. A fixed baseline is what makes that job's
-// result mean something. Say so if it should be turned on.
+// EVERY COLOUR IS A MATERIAL TONE, READ OUT OF THE JAR'S OWN BYTECODE.
+// `PaletteTokens` builds each tone with `Color(r, g, b)`, so `javap -c` over
+// the pinned artifact gives the exact values rather than a recalled hex:
+//
+//     PaletteTokens.Neutral0    #000000   <- the pitch black. It is a TOKEN.
+//     PaletteTokens.Primary80   #D0BCFF   <- the light purple
+//     PaletteTokens.Primary40   #6750A4   <- the dark purple
+//     PaletteTokens.Primary100  #FFFFFF   <- the white
+//
+// and two of those already sit where they are needed, which is why the override
+// list below is six roles rather than fourteen:
+//   * `primary` in the dark scheme IS Primary80. The "light purple" the owner
+//     asked for is the colour the library was already handing this app for
+//     accents, outlined-button labels, sliders, radios and switches. It is NOT
+//     overridden -- the option labels are simply pointed at it.
+//   * Primary40 + Primary100 is Material's own `primary`/`onPrimary` pair out
+//     of the LIGHT baseline scheme (ColorLightTokens, same javap run). So "dark
+//     purple background with white text" is a pairing the library ships and
+//     guarantees, not two hexes chosen to look nice together.
+//
+// MEASURED, against floors of 4.5 for text and 3.0 for a UI component:
+//
+//     pair                                               ratio   floor
+//     body text        onSurface  #E6E0E9 on black       16.20    4.5
+//     option label     primary    #D0BCFF on black       12.32    4.5
+//     description      onSurfaceVariant #CAC4D0 on black 12.32    4.5
+//     outlined label   primary    #D0BCFF on black       12.32    4.5
+//     FILLED BUTTON    white on #6750A4                   6.44    4.5
+//     app bar title    white on #6750A4                   6.44    4.5
+//     button FILL      #6750A4 against the page           3.26    3.0
+//     control outline  outline    #938F99 on black        6.63    3.0
+//     error text       error      #F2B8B5 on black       12.30    4.5
+//     menu text        #E6E0E9 on surfaceContainer       12.57    4.5
+//
+// Every one clears, and most of them clear by a wide margin -- a pure black
+// page is the easiest background in the palette to sit on, which is why this
+// change IMPROVES nearly every ratio the table above it used to record.
+//
+// THE ONE THING THIS RULES OUT, and it is why `primary` is not the dark purple.
+// The obvious way to get a dark purple button is to set `primary = #6750A4` and
+// let Material's `Button` default to it. That breaks the OUTLINED button, whose
+// label is also `primary`: #6750A4 on black is 3.26:1, which is fine for a fill
+// and a FAILURE for text. ATF's TextContrastCheck would catch it on the next CI
+// run. So `primary` stays the light purple and the filled button states its own
+// colours through `ButtonDefaults.buttonColors` -- the library's own hook. See
+// EvButton at the bottom of this file.
+//
+// TWO FILLS STILL READ BELOW 3.0 AND BOTH ARE DECORATION, unchanged in kind
+// from the note this replaces: the menu's `surfaceContainer` (1.29 against the
+// page) and the divider's `outlineVariant` (2.25). ATF checks TEXT against its
+// background and IMAGES against theirs and has NO check for a fill against the
+// page, the menu carries 12.57:1 text, and the divider carries nothing. The
+// menu is in fact better separated than it was -- on the old #141218 page that
+// same fill measured about 1.09.
+//
+// DYNAMIC COLOUR IS STILL DELIBERATELY NOT USED. `dynamicDarkColorScheme` is in
+// 1.4.0 behind @RequiresApi(S) and would derive the palette from the user's
+// wallpaper -- which is the opposite of a stated pitch-black theme, and it would
+// also mean the accessibility job measured whatever the emulator's wallpaper
+// produced instead of what the app ships.
+private val EvBlack = Color(0xFF000000)       // PaletteTokens.Neutral0
+private val EvDarkPurple = Color(0xFF6750A4)  // PaletteTokens.Primary40
+private val EvWhite = Color(0xFFFFFFFF)       // PaletteTokens.Primary100
+
+// Built once, at class-init: darkColorScheme() is an ordinary function, not a
+// composable, so there is no reason to rebuild 48 colours on every composition.
+private val EvColorScheme = darkColorScheme(
+    // The request, literally. Both roles, because `background` is what the
+    // Surface below paints and `surface` is what Scaffold, ListItem and every
+    // Material container default to -- leaving one of them at Neutral6 would
+    // put a #141218 rectangle on a #000000 page.
+    background = EvBlack,
+    surface = EvBlack,
+    // The button pair. `primaryContainer` is already what the top app bar draws
+    // (MainActivity), so the bar becomes dark purple with a white title from
+    // this one line, and EvButton reads the same pair.
+    primaryContainer = EvDarkPurple,
+    onPrimaryContainer = EvWhite,
+    // The selected filter chip on the Languages screen is the one other filled
+    // container the app draws, and Material gives it `secondaryContainer` /
+    // `onSecondaryContainer`. Left at the baseline it would be #4A4458 at
+    // 2.26:1 against a black page -- and a SELECTED chip's fill is its only
+    // boundary, because FilterChip sets selectedBorderColor to Transparent.
+    // Pointing it at the same pair makes it 3.26:1 with a 6.44:1 label, and
+    // keeps one purple in the app instead of two.
+    secondaryContainer = EvDarkPurple,
+    onSecondaryContainer = EvWhite,
+)
 
 @Composable
 fun EasyVoiceTheme(
-    // Named, with the system as the default, because that is the shape Compose
-    // itself uses for a theme -- and because it is what lets a test render a
-    // screen in a STATED scheme instead of whichever one the emulator image
-    // happens to be in. `isSystemInDarkTheme()` reads
-    // LocalConfiguration.uiMode & UI_MODE_NIGHT_MASK, so a change to the
-    // system setting recomposes the whole app on its own; nothing here listens
-    // for it by hand.
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // THE PARAMETER IS KEPT THOUGH BOTH VALUES NOW RESOLVE TO THE SAME SCHEME,
+    // and that is deliberate rather than a leftover. AccessibilityChecksTest
+    // renders every screen twice through it, and the day someone reintroduces a
+    // second scheme the sweep starts measuring both again with no test change.
+    // Its guard was updated to assert the single scheme rather than a
+    // difference -- read the note there before changing either.
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
+    MaterialTheme(colorScheme = EvColorScheme) {
         Surface(
             color = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onBackground,
@@ -499,6 +560,32 @@ fun EvButton(
     if (outlined) {
         OutlinedButton(onClick = onClick, modifier = described, enabled = enabled, content = body)
     } else {
-        Button(onClick = onClick, modifier = described, enabled = enabled, content = body)
+        // "For buttons, use a dark purple background with white text" (owner,
+        // 2026-09-17), through `ButtonDefaults.buttonColors` -- the library's
+        // own hook -- rather than a background drawn by hand.
+        //
+        // IT READS THE CONTAINER PAIR, NOT `primary`/`onPrimary`, and that is
+        // the whole reason the theme overrides `primaryContainer` instead of
+        // `primary`. Material's `Button` defaults to primary/onPrimary; making
+        // THOSE the dark purple would also repaint the OutlinedButton's label,
+        // which is `primary` too, and #6750A4 on a black page is 3.26:1 --
+        // fine for a fill, a failure for text, and ATF's TextContrastCheck
+        // fails the build on it. Here the pair is #6750A4 with #FFFFFF at
+        // 6.44:1, which is Material's own light-scheme primary/onPrimary.
+        //
+        // Only the two enabled colours are named: the disabled pair is left at
+        // ButtonDefaults' own onSurface-at-12%/38%, so a greyed-out button
+        // keeps Material's treatment instead of a dark purple that still looks
+        // pressable.
+        Button(
+            onClick = onClick,
+            modifier = described,
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ),
+            content = body
+        )
     }
 }

@@ -157,9 +157,24 @@ fun SectionHeader(title: String) {
 @Composable
 private fun LanguageCheckRow(label: String, checked: Boolean, position: Int, onToggle: (Boolean) -> Unit) {
     ListItem(
-        headlineContent = { Text(label, modifier = Modifier.clearAndSetSemantics { }) },
+        // Small, regular weight, light purple -- the same option-label
+        // treatment every other selectable option in the app carries
+        // (owner, 2026-09-17). bodyMedium is Material's 14sp Normal role and
+        // `primary` is PaletteTokens.Primary80 #D0BCFF, 12.32:1 on the black
+        // page. Through ListItemDefaults' own headlineColor hook rather than a
+        // colour on the Text, so the disabled treatment stays Material's.
+        headlineContent = {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clearAndSetSemantics { }
+            )
+        },
         leadingContent = { Checkbox(checked = checked, onCheckedChange = null) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        colors = ListItemDefaults.colors(
+            containerColor = Color.Transparent,
+            headlineColor = MaterialTheme.colorScheme.primary
+        ),
         modifier = Modifier
             // `toggleable` keeps the touch; evControl states the row on the
             // focused node so the Checkbox role is not left on a fake child, and

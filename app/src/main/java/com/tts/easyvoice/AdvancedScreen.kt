@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -33,16 +35,49 @@ import androidx.core.app.ShareCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 
-// Material's list row owns the heights, padding and colours. The description
-// stays a SEPARATE element rather than ListItem's supportingContent: folding a
-// paragraph into the row was tried in the View era and rejected on device,
-// because TalkBack then reads the whole paragraph before you can act.
+// Material's list row owns the heights, padding and colours.
+//
+// THE DESCRIPTION STAYS A SEPARATE ELEMENT, and on 2026-09-17 that stopped
+// being a style preference and became a hard constraint. The owner asked to
+// "integrate descriptions directly with each option", and Material's own answer
+// to that is ListItem's `supportingContent` slot -- which would be the library
+// doing the work, and is exactly what this project prefers. It cannot be used
+// HERE, for a reason that is specific to this row:
+//
+//   `evControl` below is `clearAndSetSemantics`, and clearing a node drops its
+//   WHOLE SUBTREE from the accessibility tree -- that is the documented meaning
+//   of an empty `replacedChildren` (SemanticsNode.kt), and it is the same
+//   mechanism that once made the Configuration row's three-dot menu unreachable
+//   (build 832). A description moved into `supportingContent` would therefore
+//   be VISIBLE and completely INAUDIBLE: gone for the one person this app is
+//   built for. The View-era finding pointed the same way -- folding the
+//   paragraph into the row made TalkBack read it before you could act.
+//
+// So the description is integrated VISUALLY instead, by spacing: see
+// SettingOption below, which renders a row and its description as one unit.
 @Composable
 fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     ListItem(
-        headlineContent = { Text(label, modifier = Modifier.clearAndSetSemantics { }) },
+        headlineContent = {
+            // "a small, regular-weight light purple font for option labels"
+            // (owner, 2026-09-17). bodyMedium is Material's 14sp Normal role --
+            // the label was bodyLarge, 16sp -- and the colour is the scheme's
+            // own `primary`, which in this theme is PaletteTokens.Primary80
+            // #D0BCFF at 12.32:1 on the black page. Set through
+            // ListItemDefaults.colors(headlineColor = ...) below rather than on
+            // the Text, because that is the slot's own hook and it keeps the
+            // disabled colour Material's.
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clearAndSetSemantics { }
+            )
+        },
         trailingContent = { Switch(checked = checked, enabled = enabled, onCheckedChange = null) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        colors = ListItemDefaults.colors(
+            containerColor = Color.Transparent,
+            headlineColor = MaterialTheme.colorScheme.primary
+        ),
         // `toggleable` still owns the touch: it is what makes a finger
         // anywhere on the row flip the switch, and it keeps Material's own
         // minimum target. `evControl` then states the row's whole accessible
@@ -73,6 +108,11 @@ fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onCh
     )
 }
 
+// Unchanged, and deliberately so: this is shared with the About screen, where
+// four of these run one under another as Build number / Version / Developer /
+// Copyright. Widening the gap here to bind a description to its option would
+// have spread those four facts out instead. The binding is done by
+// SettingOption below, which is the only place that needs it.
 @Composable
 fun SettingDescription(text: String) {
     Text(
@@ -81,6 +121,44 @@ fun SettingDescription(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
     )
+}
+
+// The gap that ends one option and starts the next. Named rather than repeated,
+// because with all eight section headers gone from this screen it is now the
+// ONLY thing separating one setting from the next, and it has to be the same
+// everywhere or the grouping it creates is a lie. 12dp on top of
+// SettingDescription's own 4 makes 16 -- the same measure the section header
+// used to reserve above itself.
+@Composable
+private fun OptionGap() {
+    Spacer(modifier = Modifier.height(12.dp))
+}
+
+// "INTEGRATE DESCRIPTIONS DIRECTLY WITH EACH OPTION" (owner, 2026-09-17), as
+// one composable rather than as spacing repeated at thirteen call sites.
+//
+// The option and the sentence that explains it are now a single call, so they
+// cannot drift apart, and the space that binds them -- 4dp to its own
+// description, 16dp to the next option -- is stated once here instead of being
+// a number every future row has to remember. With the section headers gone this
+// grouping is the only structure the screen has left.
+//
+// WHY THIS IS SPACING AND NOT ListItem's `supportingContent`, which is the
+// library's own answer and would otherwise be the right call: see the note on
+// SettingSwitch. In short, `evControl` clears the row's semantics subtree, so a
+// description inside the row would be visible and inaudible -- the description
+// has to stay a sibling to stay reachable.
+@Composable
+fun SettingOption(
+    label: String,
+    description: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onChange: (Boolean) -> Unit
+) {
+    SettingSwitch(label, checked, enabled, onChange)
+    SettingDescription(description)
+    OptionGap()
 }
 
 // A full-width EvButton. Kept as its own name because the Advanced tab's
@@ -123,18 +201,34 @@ fun AdvancedScreen(
     var loggingEnabled by remember { mutableStateOf(EasyVoiceLogger.isLoggingEnabled()) }
     ResponsiveContent {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-            // About sits FIRST, asked for on 2026-09-03. The header and the
-            // button deliberately carry DIFFERENT text: ATF's
-            // DuplicateSpeakableTextCheck warns when two elements share a
-            // speakable name and either one is clickable, which a header
-            // reading "About" above a button reading "About" is exactly.
-            SectionHeader("About")
+            // EVERY SECTION HEADER ON THIS SCREEN IS GONE (owner, 2026-09-17:
+            // "In the Advanced screen, remove all section headers"). There were
+            // eight -- About, Text-to-Speech Settings, Advanced Synthesis
+            // Options, Keep-alive Mode, Persistence Options, Language Detection
+            // Options, Import/Export Configuration, Logging.
+            //
+            // WHAT IT COSTS, stated rather than buried: this was the app's only
+            // screen with eight heading stops, and heading navigation is how a
+            // TalkBack user jumps a long list instead of swiping through every
+            // control. That is a real loss and it is the owner's call; ATF has
+            // no check for a screen without headings, so the CI gate will not
+            // notice it either way. Reverting is putting these eight calls
+            // back. The other screens keep theirs -- only this one was asked
+            // for.
+            //
+            // The two descriptions under these first two buttons are gone too,
+            // by name ("excluding descriptions from the 'About' and
+            // 'Text-to-Speech Settings' buttons"). Both buttons say what they
+            // do, so the paragraph under each was restating the label.
+            //
+            // The DuplicateSpeakableTextCheck note that used to sit here is
+            // spent with the header: nothing on this screen reads "About" any
+            // more except the one button, so there is no pair to collide. Its
+            // label stays "About Easy Voice" regardless -- it is the better
+            // name on its own.
             ActionButton("About Easy Voice", R.drawable.ic_info) {
                 context.startActivity(Intent(context, AboutActivity::class.java))
             }
-            SettingDescription("The app and developer details, and the open source licenses Easy Voice is built on.")
-
-            SectionHeader("Text-to-Speech Settings")
             ActionButton("TTS Settings", R.drawable.ic_record_voice) {
                 try {
                     context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -142,32 +236,40 @@ fun AdvancedScreen(
                     Toast.makeText(context, "TTS settings are not available on this device.", Toast.LENGTH_SHORT).show()
                 }
             }
-            SettingDescription("Takes you to Android's own text-to-speech settings.")
-
-            SectionHeader("Advanced Synthesis Options")
+            OptionGap()
+            // THE ONE PARAGRAPH THAT INTRODUCES RATHER THAN DESCRIBES, and it
+            // is why it is still a bare SettingDescription instead of going
+            // through SettingOption. It belongs to the TWO switches below it,
+            // not to one of them -- and with "Advanced Synthesis Options" gone
+            // it is now the only thing that says why they exist. The OptionGap
+            // above separates it from the TTS Settings button, which the owner
+            // asked to leave undescribed, so it cannot be mistaken for that
+            // button's description.
             SettingDescription("On some phones, such as Oppo, OnePlus and Realme, only one chosen app is allowed to use the accessibility audio stream. The two settings below get around that.")
-            SettingSwitch("Remove audio attributes from synthesis request.", stripAudioAttr) { picked ->
-                stripAudioAttr = picked; EasyVoiceTtsService.stripAudioAttrFlag = picked
-            }
-            SettingDescription("Sends synthesis requests to other TTS engines without any audio attributes. Easy Voice turns this on by itself if it hits an accessibility stream error.")
-            SettingSwitch("Force to use audio accessibility stream", forceAccessibility) { picked ->
-                forceAccessibility = picked; EasyVoiceTtsService.forceAccessibilityFlag = picked
-            }
-            SettingDescription("Sends the speech out on the accessibility audio stream.")
-
-            SectionHeader("Keep-alive Mode")
-            SettingSwitch("Keep alive", keepAlive) { picked ->
-                keepAlive = picked; EasyVoiceTtsService.keepAliveFlag = picked
-            }
-            SettingDescription("Feeds a little silence between phrases, so the system does not cut the speech off mid-sentence.")
-
-            SectionHeader("Persistence Options")
-            SettingSwitch("Show persistent notification", showNotification) { picked ->
+            SettingOption(
+                "Remove audio attributes from synthesis request.",
+                "Sends synthesis requests to other TTS engines without any audio attributes. Easy Voice turns this on by itself if it hits an accessibility stream error.",
+                stripAudioAttr
+            ) { picked -> stripAudioAttr = picked; EasyVoiceTtsService.stripAudioAttrFlag = picked }
+            SettingOption(
+                "Force to use audio accessibility stream",
+                "Sends the speech out on the accessibility audio stream.",
+                forceAccessibility
+            ) { picked -> forceAccessibility = picked; EasyVoiceTtsService.forceAccessibilityFlag = picked }
+            SettingOption(
+                "Keep alive",
+                "Feeds a little silence between phrases, so the system does not cut the speech off mid-sentence.",
+                keepAlive
+            ) { picked -> keepAlive = picked; EasyVoiceTtsService.keepAliveFlag = picked }
+            SettingOption(
+                "Show persistent notification",
+                "Keeps Easy Voice running in the foreground, so it carries on working under battery optimization and when the screen is off.",
+                showNotification
+            ) { picked ->
                 showNotification = picked
                 EasyVoiceTtsService.showNotificationFlag = picked
                 if (picked) requestNotificationPermission()
             }
-            SettingDescription("Keeps Easy Voice running in the foreground, so it carries on working under battery optimization and when the screen is off.")
             ActionButton("Disable battery optimization", R.drawable.ic_battery_alert) {
                 // ContextCompat.getSystemService, not getSystemService(String)
                 // plus an unchecked cast: the library overload is typed, so a
@@ -189,21 +291,27 @@ fun AdvancedScreen(
                 }
             }
             SettingDescription("Opens the system battery screen, where you can set Easy Voice and each of your TTS engines to Unrestricted.")
-
-            SectionHeader("Language Detection Options")
-            SettingSwitch("Disable advanced language detection", disableAdvanced) { picked ->
-                disableAdvanced = picked; EasyVoiceTtsService.disableAdvancedFlag = picked
-            }
-            SettingDescription("Falls back to the simpler detection, which is faster.")
-            SettingSwitch("Quick character read", quickCharacter) { picked ->
-                quickCharacter = picked; EasyVoiceTtsService.quickCharacterFlag = picked
-            }
-            SettingDescription("When the text is a single character, it is read in your preferred language instead of being detected.")
-            SettingSwitch("Read punctuation in flow with text", punctuationInFlow,
-                enabled = !punctuationModeIsSpecific) { picked ->
-                punctuationInFlow = picked; EasyVoiceTtsService.punctuationInFlowFlag = picked
-            }
-            SettingDescription("Reads punctuation as part of the sentence. Turn it off and punctuation is read on its own.")
+            OptionGap()
+            SettingOption(
+                "Disable advanced language detection",
+                "Falls back to the simpler detection, which is faster.",
+                disableAdvanced
+            ) { picked -> disableAdvanced = picked; EasyVoiceTtsService.disableAdvancedFlag = picked }
+            SettingOption(
+                "Quick character read",
+                "When the text is a single character, it is read in your preferred language instead of being detected.",
+                quickCharacter
+            ) { picked -> quickCharacter = picked; EasyVoiceTtsService.quickCharacterFlag = picked }
+            SettingOption(
+                "Read punctuation in flow with text",
+                "Reads punctuation as part of the sentence. Turn it off and punctuation is read on its own.",
+                punctuationInFlow,
+                enabled = !punctuationModeIsSpecific
+            ) { picked -> punctuationInFlow = picked; EasyVoiceTtsService.punctuationInFlowFlag = picked }
+            // NOT a SettingOption: the Group size dropdown belongs to this
+            // switch, so the switch, its description, the dropdown and the
+            // dropdown's own description are one group and the gap goes after
+            // the LAST of them.
             SettingSwitch("Smart number reading", smartNumber) { picked ->
                 smartNumber = picked; EasyVoiceTtsService.smartNumberFlag = picked
             }
@@ -221,7 +329,7 @@ fun AdvancedScreen(
                 EasyVoiceTtsService.smartNumberGroupSize = groupSize
             }
             SettingDescription("One reads every digit on its own. Two or three read them in pairs or threes, which is easier to follow for a long number.")
-            SectionHeader("Import/Export Configuration")
+            OptionGap()
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -275,14 +383,16 @@ fun AdvancedScreen(
                 )
             }
             SettingDescription("Importing only checks that the engines you need are installed. You still have to make sure the individual voices are there.")
-
-            SectionHeader("Logging")
-            SettingSwitch("Enable logging", loggingEnabled) { picked ->
+            OptionGap()
+            SettingOption(
+                "Enable logging",
+                "Writes a log file that you can send along when you report a problem.",
+                loggingEnabled
+            ) { picked ->
                 loggingEnabled = picked
                 prefs.setLoggingEnabled(picked)
                 EasyVoiceLogger.setLoggingEnabled(picked)
             }
-            SettingDescription("Writes a log file that you can send along when you report a problem.")
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
