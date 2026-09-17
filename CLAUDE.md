@@ -7,6 +7,76 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## EVERY ANDROID FROM 24 TO 37, AUDITED FROM GOOGLE'S OWN PAGES (owner, 2026-09-17)
+*"har har ek version ke liye ... jitne bhi Android version support karta hai ... sab kuchh
+acche se research karke completely is app ko complete karo ... source se verify karke."*
+
+`minSdk 24` and `targetSdk 37`, so the app has to work on **fourteen API levels**, and because
+targetSdk is 37 **every "apps targeting API N" change for N <= 37 applies cumulatively**. The
+earlier pass audited Android 17 only; this one closes 15 and 16, re-verifies the minSdk end, and
+writes the result down so it is not researched a fourth time.
+
+### THE minSdk END: ALL TEN GUARDS RE-READ, ALL CORRECT
+`tools/check/minsdk-api.sh` compiles the app against **API 24's own android.jar** and reports
+every symbol above it; `minsdk-allowlist.txt` is the record that a person reviewed each one.
+All ten were read at the line again:
+
+    PackageInfoFlags        x2   API 33   both behind if (SDK_INT >= 33)
+    longVersionCode              API 28   versionCode()'s branch
+    POST_NOTIFICATIONS      x2   API 33   hasNotificationPermission(), and MainActivity's request
+    FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK  API 29  used only at SDK_INT >= 34
+    NotificationChannel     x2   API 26   createNotificationChannel() returns below 26
+    AudioFocusRequest            API 26   requestAudioFocus26(), its own method
+    abandonAudioFocusRequest     API 26   abandonAudioFocus26(), its own method
+
+The whole app contains exactly **four** guard levels -- 26, 28, 33, 34 -- and nothing else above
+24 is touched. The API-26 and API-33 calls each live in **their own method**, which is the shape
+that keeps the verifier from ever having to resolve the class on an older device.
+
+### ANDROID 15 (API 35) -- TWO REAL ONES, AND ONE NEAR MISS WORTH THE NAME
+| change | verdict |
+|---|---|
+| **Audio focus request restrictions** | **APPLIES.** See the correction above -- this, not Android 17, is where it starts. |
+| **SequencedCollection: `List.removeFirst()`/`removeLast()`** | **THE NEAR MISS.** Compiled against `compileSdk 35+` these bind to the Java interface methods, which **do not exist below API 35**, so they are a hard `NoSuchMethodError` on **Android 14 and every version below it** -- which is most phones. We are `compileSdk 37`, `minSdk 24`, and the service pops a queue every chunk. **Swept: zero uses of `removeFirst`, `removeLast`, `first()` or `last()` anywhere.** `chunkQueue` uses `removeAt(0)` and `firstOrNull()`, which are API 1 and a Kotlin inline extension. Clean **by luck rather than by design, so do not "tidy" `removeAt(0)` into `removeFirst()`.** |
+| Edge-to-edge enforced, status/navigation bar colours disabled | already handled: `enableEdgeToEdge()` in EvActivity, `safeDrawing` padding in EasyVoiceTheme. `styles.xml` still sets the two bar colours and that is CORRECT -- they are ignored at 35+ and still do their job on 24-34. |
+| `Configuration.screenWidthDp` now includes system bars | **no read of it anywhere** -- the View-era `applyResponsiveWidth` went with the Compose migration; sizing is `currentWindowAdaptiveInfoV2()`. |
+| `elegantTextHeight` defaults true; TextView width/line-height changes | TextView only. The app has **no View at all** (INVARIANTS #26). |
+| dataSync / mediaProcessing 6-hour FGS timeout | our type is `mediaPlayback`, which is not timed out. |
+| BOOT_COMPLETED receivers barred from starting mediaPlayback FGS | **the app declares no BroadcastReceiver.** |
+| PendingIntent background-activity blocking, task-finish, arbitrary launches | **no PendingIntent anywhere**, and the notification sets no contentIntent. |
+| TLS 1.0/1.1, DND, String.format validation, Random.ints, Arrays.asList | no network, no DND, no `String.format`, no `Random`, no `Arrays.asList` on this path. |
+| Locale `iw`/`ji`/`in` no longer auto-converted | `IsoCodes` carries the three deprecated pairs EXPLICITLY (`iw`->heb, `id`->ind, `yi`->yid) rather than relying on the platform's conversion, so the behaviour is ours on every version. That was AutoTTS parity; it turns out to be version-proofing as well. |
+
+### ANDROID 16 (API 36) -- ONE NEW THING, AND IT IS THE NATIVE LIBRARY
+| change | verdict |
+|---|---|
+| **16 KB page size compatibility mode** | **THE ONE TO KNOW ABOUT.** A 4 KB-aligned native library runs in a compatibility mode on 16 KB-page devices **and the system shows the user a dialog** -- which on a blind owner's phone is an unexplained interruption. This app ships `libeasyvoice_core.so` per ABI, so it is in scope. **NDK r28 and later align shared libraries to 16 KB by default and we build with r30** (`ndkVersion = "30.0.16248370"`), so it should already be native rather than compatibility mode. **THAT CANNOT BE VERIFIED IN THIS CONTAINER** -- there is no NDK here and the release APK is 403 through the egress proxy. One command on a downloaded APK settles it, and it is worth running once. |
+| **Predictive back: `onBackPressed` no longer called** | **swept: nothing in the app intercepts back.** No `onBackPressed`, no `OnBackPressedCallback`, no `KEYCODE_BACK`; the single `BackHandler` hit is a COMMENT describing what ExposedDropdownMenu does internally. `enableOnBackInvokedCallback="true"` is declared. |
+| **`announceForAccessibility` deprecated** | the app banned it in 2026-08-13 and **`invariants.sh` #5 fails the build on it** -- including, as this session found, on the word appearing in a comment. Ahead of the platform by a year. |
+| Edge-to-edge opt-out removed; large-screen orientation/resizability ignored | nothing to opt out of: no `screenOrientation`, no `resizeableActivity`, no aspect-ratio attrs. |
+| `elegantTextHeight` disabled -- taller Arabic/Tamil/Myanmar/Telugu text | the app draws language names in **137 scripts**, so this is the app's real exposure. Swept for fixed heights that could clip: the ONLY `.height()` in the tree is a 12dp `Spacer` with no text in it. Every text container is intrinsic or `heightIn`. |
+| **ART internal changes -- non-SDK interfaces may break** | the app's ONE reflection is `TextToSpeech.mCurrentEngine` in EngineFinder. It is read, never written, inside `try/catch (Exception)` whose fallback is `expectedPkg` -- the value it would have got anyway. A non-SDK block throws `NoSuchFieldException`, which is an Exception, so it degrades rather than crashing. |
+| JobScheduler quotas, abandoned jobs | **no JobScheduler, no WorkManager, no jobs.** |
+| Ordered broadcast priority now per-process | no receivers. |
+| Themed app icons | `ic_launcher_monochrome.xml` already ships. |
+| Intent redirection, Bluetooth, CompanionDeviceManager, MediaStore | none of those surfaces exists here. |
+
+### ANDROID 26 TO 34 -- ALREADY CLOSED, WITH WHERE
+Not re-researched because each was closed against a source when it was found, and the record is
+in this file: **API 26** background limits and notification channels (the API-26 crash pair found
+by compiling against API 24's jar, 2026-09-10); **API 28** `FOREGROUND_SERVICE` permission,
+declared; **API 30** package visibility -- the `<queries>` block declares all four TTS intents
+(`TTS_SERVICE`, `INSTALL_TTS_DATA`, `CHECK_TTS_DATA`, `GET_SAMPLE_TEXT`) **plus**
+`QUERY_ALL_PACKAGES`, so engine discovery cannot be blinded by it; **API 31** foreground-service
+background-start refusal, caught and logged; **API 33** `POST_NOTIFICATIONS`, requested when the
+switch is turned on; **API 34** mandatory `foregroundServiceType`, declared `mediaPlayback` with
+its matching permission and passed to `startForeground`.
+
+### THE ONE THING A DEVICE STILL HAS TO ANSWER
+Everything above is either read from Google's own page or swept mechanically over the tree. The
+single item that cannot be settled here is the **16 KB alignment of the shipped `.so`** -- NDK
+r30 says it is aligned, and only the built APK can prove it.
+
 ## ANDROID 17 AUDITED AT THE SOURCE, ITEM BY ITEM (owner, 2026-09-17)
 *"Android 17 ka pura support dena hai ... har device ke liye acche se compatible honi chahie ...
 sab kuchh acche se research karke completely is app ko complete karo."*
@@ -17,7 +87,15 @@ and every entry on them was checked against this app. **The result is that the a
 compatible, and exactly ONE change touches it.** Written down item by item so this is not
 re-researched from scratch.
 
-### THE ONE THAT TOUCHES US: BACKGROUND AUDIO HARDENING (applies to ALL apps)
+### THE ONE THAT TOUCHES US: AUDIO FOCUS -- AND IT STARTS AT ANDROID 15, NOT 17
+**CORRECTED 2026-09-17, the same day it was first written wrong.** The note below said this
+arrived with Android 17. It did not. **Android 15 (API 35) "Audio focus request restrictions"**
+already says an app *"must be top app or running a foreground service to request audio focus"*
+and otherwise gets `AUDIOFOCUS_REQUEST_FAILED`. Android 17 HARDENS the same rule for every app
+whatever it targets. So this has been in force on the owner's phone **since Android 15**, which
+is the difference between "a change that is coming" and "a change that is already happening".
+
+### BACKGROUND AUDIO HARDENING (applies to ALL apps)
 > *"Audio framework enforces restrictions on background audio interactions (playback, audio
 > focus, volume APIs); calls fail silently or return `AUDIOFOCUS_REQUEST_FAILED` when app is
 > not in valid lifecycle."*

@@ -288,16 +288,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
             audioManager!!.requestAudioFocus(audioFocusListener,
                 AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
-        // THE RAW CODE AS WELL AS THE BOOLEAN, AND ANDROID 17 IS WHY (2026-09-17).
+        // THE RAW CODE AS WELL AS THE BOOLEAN, AND IT STARTS AT ANDROID 15 --
+        // NOT 17, WHICH IS WHAT THIS COMMENT SAID FIRST AND GOT WRONG.
         //
-        // "Background audio hardening" on Android 17 applies to ALL apps whatever
-        // they target: the audio framework restricts background playback, FOCUS
-        // REQUESTS and volume APIs, and a call made outside a valid lifecycle
-        // "fails silently or returns AUDIOFOCUS_REQUEST_FAILED"
-        // (developer.android.com/about/versions/17/behavior-changes-all, Media).
+        // Android 15 (API 35), "Audio focus request restrictions": an app "must be
+        // top app or running a foreground service to request audio focus", and
+        // otherwise the call returns AUDIOFOCUS_REQUEST_FAILED
+        // (developer.android.com/about/versions/15/behavior-changes-15, Camera and
+        // Media). Android 17 then HARDENS the same rule for every app whatever it
+        // targets -- "calls fail silently or return AUDIOFOCUS_REQUEST_FAILED when
+        // the app is not in valid lifecycle"
+        // (about/versions/17/behavior-changes-all, Media).
+        //
+        // The correction matters rather than being pedantry: this app targets 37
+        // but RUNS on everything from 24 up, and the restriction has been in force
+        // on the owner's phone since Android 15 rather than arriving with 17.
+        //
         // This request is made from onCreate, which runs when the system BINDS the
-        // engine -- in the background by definition -- so on Android 17 a denial
-        // here is expected rather than exceptional.
+        // engine -- in the background by definition -- so from Android 15 onward a
+        // denial here is expected rather than exceptional.
         //
         // It is harmless, and that is worth stating because it looks alarming in a
         // log: Easy Voice never produces a sample. It hands text to another
