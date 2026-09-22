@@ -170,30 +170,68 @@ dark one is **pitch black**, and the light one is **pure white**. **That last on
 this session fixed** -- while the theme was hardcoded, asking for light gave black back, and
 no check anywhere said so.
 
-## `dummy_ae_*` IS NOT IN THE APK AND WAS NEVER WRITTEN BY ANYONE (owner, 2026-09-22)
-*"yah faltu mein dummy vagaira pata nahin kya-kya aapane add kar diya extra ... already sab
-kuchh library se ham kuchh kar rahe hain to extra code likhane ki jarurat nahin."*
+## `dummy_ae_*` ARE THE HOLES LEFT BY DELETED RESOURCES (owner, 2026-09-22)
+*"yah faltu mein dummy vagaira pata nahin kya-kya aapane add kar diya extra"*, and when the
+first answer was not good enough: *"vah aap bol rahe the vah to sirf comment hai, but vah string
+mein likha hua aata hai ... yah sab chahie nahin, aisa kachra."*
 
-The instinct is right and the answer is that none of it is ours. Measured, three ways:
+**THE FIRST ANSWER WAS RIGHT THAT IT IS NOT OURS AND WRONG ABOUT WHAT IT IS, and the way it was
+wrong is the part worth keeping.** It said the rows were `@id` entries whose names the shrinker
+had stripped. That was inferred from two unnamed TYPE slots and never checked at the entry level.
+The resource table was then decoded properly -- every type, every entry, every key resolved
+against the key string pool -- and it says something different and simpler.
 
-- **`app/src/main/res/values/strings.xml` declares exactly ONE string**, `app_name`. The rest
-  of the file is the comment forbidding the `default_popup_window_title` override.
-- **`material3-android-1.4.0.aar` was downloaded and grepped: zero `dummy_ae`.** It does
-  contain `m3c_dialog` and the rest of the named entries in the same screenshot, so the aar
-  is the right place to have looked.
-- **The SHIPPED APK was downloaded from the Releases page and its `resources.arsc` extracted:
-  `dummy_ae` appears ZERO times.** The name is not in the file the phone installs.
+### THE DECODE, FROM THE SHIPPED APK'S OWN `resources.arsc`
+    package 0x7f, 12 types, 198 key names, and EVERY entry in every type has a REAL name
 
-So the viewer is **synthesising** that name for entries whose names are not in the table.
-Parsing the table confirms there are such entries: the package has **12 type slots, two of
-which have no name at all** (`?7` and `?11`), against **198 key names** -- `isShrinkResources`
-is on, and stripping names is what it does. The `false` in the value column is what an
-Android `@id` resource stores (a `TYPE_INT_BOOLEAN` of 0), and the hex numbering matches an
-entry index rather than anything a person would type.
+    type  5 'id'      111 entries   111 distinct names   indices 0x00..0x6e   (no gaps)
+    type  9 'string'   19 entries    19 distinct names   indices 0x00..0x60   <- 97 SLOTS, 19 USED
 
-**So those rows are evidence of the shrinker having REMOVED things, not of anything added.**
-There is nothing to delete, and nothing in our sources to stop writing. The one number worth
-keeping: our own `res/values/` is three files -- one string, one colour, two styles.
+**The string type owns 97 index slots and only 19 of them exist.** The other 78 were REMOVED by
+`isShrinkResources = true`. A resource id is `0x7f09<index>` and the surviving ones are already
+compiled into the dex, so the shrinker can delete an entry but can never renumber the ones after
+it. What is left is a hole.
+
+**The viewer invents a name for a hole**, and that is the whole phenomenon: it walks 0x00..0x60,
+finds no entry at 0x01, and prints `dummy_ae_1` with a value of `false`. The screenshot's numbers
+-- `dummy_ae_1`, `4`..`c` (2 and 3 skipped because those two slots ARE filled), then `25`..`30`
+-- are exactly the gaps in that range. The 19 that survive print their real names in the same
+list: `app_name`, `tab`, `template_percent`, `m3c_dropdown_menu_*`, `state_on`, `selected`.
+
+**PROVEN THREE WAYS THAT THE NAME IS NOT IN THE APK:** `dummy_ae` appears **zero** times in the
+whole APK as UTF-8, **zero** as UTF-16LE and **zero** as UTF-16BE. (The first pass searched only
+UTF-8, which would have missed a UTF-16 pool -- that is why the search was redone in every
+encoding before saying it again.)
+
+**SO THERE IS NOTHING TO DELETE.** Those rows are the ABSENCE of 78 resources. Deleting them
+means putting them back: turning `isShrinkResources` off restores all 78 with real androidx names
+and grows the APK. The 19 that remain are the ones the accessibility delegate speaks out of
+(`tab`, `switch_role`, `state_on`/`state_off`, `selected`/`not_selected`) and are load-bearing --
+that is recorded twice already, once from a shipped regression.
+
+### THE ONE REAL PIECE OF JUNK IN THERE, MEASURED, AND IT IS THE OWNER'S CALL
+Decoding the config chunks says where `resources.arsc` actually goes:
+
+    type  9 'string'   **86 locale configs   64,000 bytes**   <- 54% of the whole table
+    type 10 'style'      8 configs            2,228 bytes
+    type  5 'id'         1 config             2,304 bytes
+    everything else                          ~5,000 bytes
+    resources.arsc total                    119,384 bytes
+
+**Nineteen strings, carried in eighty-six languages.** That is androidx shipping "Tab", "Switch",
+"On", "Off" translated for every locale it supports. `androidResources.localeFilters` is the one
+legitimate lever -- verified against AGP 9.3.2's own DSL jar rather than the docs:
+
+    public interface ApplicationAndroidResources extends AndroidResources {
+        public abstract java.util.Set<java.lang.String> getLocaleFilters();
+    }
+
+so `androidResources { localeFilters += listOf("en") }`. It removes about 85/86 of that 64 KB.
+
+**IT DOES NOT REMOVE THE `dummy_ae` ROWS** -- the holes are in the index space and have nothing
+to do with locales -- and it costs something real: on a phone set to Hindi, TalkBack would
+announce this app's roles and states in ENGLISH. The app's own UI is English-only, so it is
+consistent, and it is still a change to what a person HEARS. **Not done; one line when asked.**
 
 ## THE CALLBACK MACHINE, READ A TO Z FROM AOSP -- AND THERE IS NO HOLE (owner, 2026-09-17)
 *"on stop wala bahut sari jagahon per ... on done on event is sab chijen lagi hui hai ...
