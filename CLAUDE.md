@@ -2377,6 +2377,20 @@ the script fails and says the wording has changed. Negative-tested both ways.
    are gitignored/ephemeral, so this rule is the durable record. If something genuinely needs
    the user's decision, ask it as one plain sentence in the reply — no tool, no cards. Same
    for `ShowOnboardingRolePicker` and anything else that renders an interactive prompt.
+10. **NEVER MONITOR ANYTHING, AND NEVER REPORT THAT SOMETHING IS READY (owner rule,
+    2026-09-22).** *"aap mat batana ready hokar ... aap kuchh bhi monitor mat karna aur aage
+    se bhi kuchh bhi monitor mat karna, main hi khud karunga, main khud dekh lunga."*
+    - **Push, trigger the build (rule 4), and STOP.** Do not poll the run, do not check its
+      conclusion, do not fetch the job log "just to see", and do not end a reply with "build
+      ready hone par bata dunga". The owner watches it themselves.
+    - **Create nothing that can wake this session up**: no `subscribe_pr_activity`, no
+      `send_later`, no `create_trigger` / Routine, no `Monitor`, no `/loop`, and no
+      background command left running to be read later.
+    - This is NOT limited to builds. It is a standing watch of ANYTHING.
+    - **The one exception is a failure the owner brings back.** When they send a log, a
+      screenshot or a red run, read it then — that is answering, not monitoring.
+    - Checked and cleared when this rule was written: zero Routines, zero PR subscriptions,
+      and one stuck background analysis process, killed.
 
 ## UI departures from AutoTTS (user decision, 2026-08-06)
 The user has taken the **user interface** out of the AutoTTS-parity rule: *"ab mere hisab se
