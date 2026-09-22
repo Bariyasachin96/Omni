@@ -17,7 +17,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -135,9 +137,51 @@ private val EvBlack = Color(0xFF000000)       // PaletteTokens.Neutral0
 private val EvDarkPurple = Color(0xFF6750A4)  // PaletteTokens.Primary40
 private val EvWhite = Color(0xFFFFFFFF)       // PaletteTokens.Primary100
 
-// Built once, at class-init: darkColorScheme() is an ordinary function, not a
-// composable, so there is no reason to rebuild 48 colours on every composition.
-private val EvColorScheme = darkColorScheme(
+// THE APP FOLLOWS THE PHONE AGAIN (owner, 2026-09-22): "jab ham system se light
+// mode karte hain to app light mode mein nahin jaati hai, to uska sab kuchh
+// sahi tarike se complete kar do."
+//
+// THE PITCH-BLACK REQUEST IS NOT REVERSED -- IT IS NOW THE DARK HALF. Dark mode
+// is byte for byte the scheme below and always was; what was missing is that
+// there was no light half at all, so a phone switched to light stayed black.
+// The two schemes are THE SAME SIX OVERRIDES over Material's own light and dark
+// baselines, which is what keeps this one decision rather than two palettes:
+//
+//     background / surface        Neutral0  #000000   <->  Neutral100 #FFFFFF
+//     primaryContainer            Primary40 #6750A4   <->  Primary40  #6750A4
+//     onPrimaryContainer          Primary100 #FFFFFF  <->  Primary100 #FFFFFF
+//     secondaryContainer          Primary40           <->  Primary40
+//     onSecondaryContainer        Primary100          <->  Primary100
+//
+// THE BUTTON DELIBERATELY DOES NOT FLIP. "dark purple background with white
+// text" was asked for as the button, not as a dark-mode button, and #6750A4 +
+// #FFFFFF is Material's own LIGHT baseline primary/onPrimary pair -- so keeping
+// it in both schemes is the library's own guaranteed pairing either way, and
+// the app looks like one app. Light's baseline primaryContainer (#EADDFF with
+// #21005D on it) would have made the button pale and the top app bar with it.
+//
+// THE OPTION LABELS NEED NO CALL-SITE CHANGE and that is the point of having
+// pointed them at `colorScheme.primary` rather than at a hex. In dark, primary
+// IS Primary80 #D0BCFF -- the light purple that was asked for, 12.32:1 on
+// black. In light, primary is Primary40 #6750A4 -- 6.68:1 on white. The role
+// carries the intent across both schemes; a literal could not have.
+//
+// MEASURED, both schemes, against 4.5 for text and 3.0 for a UI component:
+//
+//     body onSurface on the page          14.35 dark   16.10 light
+//     option label `primary` on the page  12.32 dark    6.68 light
+//     description onSurfaceVariant        10.91 dark    9.19 light
+//     white on the #6750A4 button          6.44 both
+//     button FILL vs the page              3.26 dark    6.68 light
+//     control outline on the page          5.87 dark    4.61 light
+//
+// AccessibilityChecksTest runs ATF's TextContrastCheck over every screen in
+// BOTH schemes on every CI run, so these are re-measured on the real app rather
+// than trusted from this table.
+//
+// Built once, at class-init: these are ordinary functions, not composables, so
+// there is no reason to rebuild 48 colours on every composition.
+private val EvDarkColorScheme = darkColorScheme(
     // The request, literally. Both roles, because `background` is what the
     // Surface below paints and `surface` is what Scaffold, ListItem and every
     // Material container default to -- leaving one of them at Neutral6 would
@@ -160,18 +204,32 @@ private val EvColorScheme = darkColorScheme(
     onSecondaryContainer = EvWhite,
 )
 
+// The light half. Same six roles, same reasoning, Neutral100 where the dark one
+// takes Neutral0 -- a pure white page is the light-mode counterpart of a pure
+// black one, and like #000000 it is a Material TOKEN rather than a chosen hex.
+private val EvLightColorScheme = lightColorScheme(
+    background = EvWhite,
+    surface = EvWhite,
+    primaryContainer = EvDarkPurple,
+    onPrimaryContainer = EvWhite,
+    secondaryContainer = EvDarkPurple,
+    onSecondaryContainer = EvWhite,
+)
+
 @Composable
 fun EasyVoiceTheme(
-    // THE PARAMETER IS KEPT THOUGH BOTH VALUES NOW RESOLVE TO THE SAME SCHEME,
-    // and that is deliberate rather than a leftover. AccessibilityChecksTest
-    // renders every screen twice through it, and the day someone reintroduces a
-    // second scheme the sweep starts measuring both again with no test change.
-    // Its guard was updated to assert the single scheme rather than a
-    // difference -- read the note there before changing either.
-    darkTheme: Boolean = true,
+    // isSystemInDarkTheme() is the whole of "follow the phone", and it is the
+    // SAME predicate SystemBarStyle.auto uses for the bar icons --
+    // (uiMode and UI_MODE_NIGHT_MASK) == UI_MODE_NIGHT_YES -- so the window's
+    // icons and the app's colours can never disagree about which mode this is.
+    // The parameter stays explicit because AccessibilityChecksTest states the
+    // scheme instead of inheriting the emulator's: an emulator image is in
+    // exactly one mode, so without it one of the two schemes would never be
+    // rendered under ATF and nothing would say which.
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    MaterialTheme(colorScheme = EvColorScheme) {
+    MaterialTheme(colorScheme = if (darkTheme) EvDarkColorScheme else EvLightColorScheme) {
         Surface(
             color = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onBackground,

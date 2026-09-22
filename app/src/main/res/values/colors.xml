@@ -1,22 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- THE WINDOW IS PITCH BLACK, IN EVERY SYSTEM MODE (owner, 2026-09-17:
-         "Set a pure, pitch-black background across all screens").
+    <!-- THE WINDOW COLOUR, AND IT FOLLOWS THE PHONE (owner, 2026-09-22: "jab ham
+         system se light mode karte hain to app light mode mein nahin jaati hai").
 
-         This one colour has to be repeated in XML because the WINDOW is painted
+         This colour has to be repeated in XML because the WINDOW is painted
          before Compose draws its first frame and the framework cannot read a
-         Compose ColorScheme. It has to equal EvColorScheme's `background` or the
+         Compose ColorScheme. It has to equal EvLightColorScheme's `background`,
+         and values-night/colors.xml has to equal EvDarkColorScheme's, or the
          splash-to-Compose handover is a flash of colour rather than a change of
-         content - so if one of them ever moves, move both.
+         content. If one of them ever moves, move both.
 
-         The value is still not invented: #000000 is PaletteTokens.Neutral0, read
-         out of the pinned material3-android-1.4.0 jar's own bytecode, and it is
-         what ComposeTheme.kt passes to darkColorScheme(background = ...).
+         Neither value is invented: #FFFFFF is PaletteTokens.Neutral100 and
+         #000000 is Neutral0, both read out of the pinned material3-android-1.4.0
+         jar's own bytecode.
 
-         THERE IS NO values-night COPY ANY MORE. There was one, carrying the dark
-         scheme's Neutral6 #141218, from the 2026-09-08 pass when the app followed
-         the system. The app has one scheme again, so a night variant could only
-         ever hold the same value twice - and two copies of one colour is exactly
-         how a theme drifts. -->
-    <color name="ev_background">#FF000000</color>
+         values-night/ IS BACK, and this is the third time it has come and gone.
+         It existed from 2026-09-08 when the app followed the system, went on
+         2026-09-17 when the app became black in every mode, and returns now for
+         the same reason it existed the first time: with two schemes, one file
+         cannot state both, and a light phone opening on a black rectangle is a
+         flash. -->
+    <color name="ev_background">#FFFFFFFF</color>
 </resources>

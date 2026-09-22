@@ -7,6 +7,194 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE ENGINE POOL WAS HOLDING A CLIENT BOUND TO US, AND IT RECURSED (owner, 2026-09-22)
+*"yah ek log file send kari hai ... ek phone mein problem a raha tha, matlab ki TTS ka
+kuchh issue hai, chal hi nahin raha hai."* The log is the whole diagnosis and it names the
+mechanism by itself.
+
+### WHAT THE LOG SAYS, COUNTED RATHER THAN SKIMMED
+`easy_voice.log`, 24,762 lines, and the timestamps span **1.644 seconds**. That is roughly
+15,000 lines a second. Reduced to distinct shapes it is **707 identical cycles** of
+
+    onLoadVoice eng -> onLoadLanguage: eng -> loadLanguage eng -> getVoice4Language eng
+      -> getEngine4Language eng -> eloquencetts -> LoadVoice ... -> found!
+      -> onGetVoices -> last eng eng -> Check voice 1 -> onGetVoices
+      -> onIsLanguageAvailable: eng USA -> onGetDefaultVoiceNameFor eng USA -> -eng
+      -> onGetVoices -> Set voice 3: eng_USA -> -success -> onLoadVoice eng -> ...
+
+and **`onSynthesizeText` does not appear once in the entire file.** Nothing was ever spoken;
+the service was spinning.
+
+**THE LINE THAT PROVES WHOSE VOICES ANSWERED IS `last eng eng`.** That is `loadVoice`
+printing `curLocale` and `curVoiceName` out of `wrapper.voiceNow()`, and a `Voice` **named
+`eng` with locale `eng`** is exactly what **our own `onGetVoices`** publishes -- it builds
+`Voice(names[i], Locale(names[i]), 400, 100, false, HashSet())` from iso3 codes. Eloquence
+answers `eng_USA` / `Locale("en","US")`. So `wrapper.tts` was a `TextToSpeech` bound to
+**com.tts.easyvoice** while `wrapper.pkg` still said `com.codefactoryglobal.eloquencetts`.
+
+**A BINDER CALL INSIDE ONE PROCESS RUNS ON THE CALLING THREAD**, so this is not two threads
+racing -- it is ONE stack: `loadVoice` -> `setLanguage` -> our own `onLoadVoice` ->
+`onLoadLanguage` -> `loadVoice` -> ... 707 levels deep in 1.6 seconds.
+
+### THE CAUSE IS IN AOSP AND IT IS TWO LINES
+Read at the line rather than recalled -- `TextToSpeech.java:761`:
+
+    public TextToSpeech(Context context, OnInitListener listener, String engine) {
+        this(context, listener, engine, null, true);     // <- useFallback = TRUE
+    }
+
+and `initTts()`:
+
+    // Step 1: Try connecting to the engine that was requested.
+    if (mRequestedEngine != null) {
+        if (mEnginesHelper.isEngineInstalled(mRequestedEngine)) {
+            if (connectToEngine(mRequestedEngine)) { mCurrentEngine = ...; return SUCCESS; }
+            else if (!mUseFallback) { ... return ERROR; }     // <- NOT TAKEN
+        } else if (!mUseFallback) { ... return ERROR; }       // <- NOT TAKEN
+    }
+    // Step 2: Try connecting to the user's default engine.
+    final String defaultEngine = getDefaultEngine();
+    if (defaultEngine != null && !defaultEngine.equals(mRequestedEngine)) {
+        if (connectToEngine(defaultEngine)) { mCurrentEngine = defaultEngine; return SUCCESS; }
+    }
+
+**The only public constructor that takes an engine name sets `useFallback = true`**, so an
+engine that is missing for a moment -- mid-update, or frozen by an OEM battery manager, which
+is this owner's phone exactly -- does not fail. It binds **the user's default engine** and
+reports **SUCCESS**. And Easy Voice IS the default engine on any phone where it is doing its
+job. AOSP's own comment three lines further down says there is no way to ask:
+
+> *"NOTE: The API currently does not allow the caller to query whether they are actually
+> connected to any engine."*
+
+### THREE CHANGES, AND THE THIRD IS A SECOND ROUTE INTO THE SAME HOLE
+1. **`EngineFinder.boundEngineOf(client, expectedPkg)`** -- the `mCurrentEngine` read that
+   `EngineFinder`'s scan has ALWAYS done, lifted out of its one call site into a named
+   function so the service can use it too. **The scan was already rejecting a fallen-back
+   client; the service's own engine pool was not.** That asymmetry is the whole defect.
+2. **Both init listeners now verify it.** A client bound to something other than the engine
+   asked for is shut down and the wrapper goes to `state = -1`, never 2 -- so `loadVoice*`
+   (which only ever matches 2) cannot select it, and `onEngineProcessBack` can still recover
+   it when the engine genuinely returns.
+3. **`EngineWrapper.rawPkg`, and `restoreEngine` constructs with it.** `pkg` is AutoTTS's
+   loose comparison key and strips `-` and `_`, so it is **not a package name**:
+   `com.x.my_tts` normalises to `com.x.mytts`, which is not installed. `restoreEngine` handed
+   that to the constructor, so for any engine with an underscore **every restore fell through
+   step 1 and bound Easy Voice.** Construct with `rawPkg`, compare with `pkg`.
+
+### AND A BACKSTOP THAT CANNOT BE BLOCKED
+`mCurrentEngine` is a non-SDK field. If a platform blocks the read, `boundEngineOf` answers
+"the engine we asked for" and the guard passes -- which is exactly what the code did before.
+So `loadVoice` is now a wrapper over `loadVoiceImpl` with a **thread-local re-entrancy
+flag**: a nested `loadVoice` on ONE thread can only be our own client calling back into us,
+because nothing in the file calls it from inside itself and every legitimate caller (the
+synthesis thread, the main looper inside `onDone`'s post, another app's binder thread)
+arrives on a stack of its own. Worst case the recursion is bounded at depth two.
+
+**DELIBERATE DEPARTURE.** AutoTTS uses the same constructor and carries the same hazard.
+This is the class the owner has overridden rule 5 for repeatedly -- the outcome is no speech
+at all and only a force stop clears it -- and here it is worse than silence: the service
+burns a core until it is wedged.
+
+**WHAT TO LOOK FOR IN THE NEXT LOG:** `asked for <pkg> and got a client bound to <other>`,
+`restore of <pkg> came back bound to <other>`, and `loadVoice re-entered on this thread`.
+Any of the three naming an engine means that engine could not be bound at that moment; the
+language goes silent rather than taking the phone down with it.
+
+## THE APP FOLLOWS THE SYSTEM AGAIN, AND PITCH BLACK IS NOW THE DARK HALF (owner, 2026-09-22)
+*"system dark mode system light mode -- yah system nahin hai, kyunki abhi dark to hai hi
+already. But ham jab system se light mode karte hain to app light mode mein nahin jaati hai,
+to uska sab kuchh sahi tarike se complete kar do."*
+
+**THE 2026-09-17 PITCH-BLACK REQUEST IS NOT REVERSED -- IT BECAME THE DARK HALF.** Dark mode
+is byte for byte the scheme that shipped then. What was missing is that there was no light
+half at all: `EasyVoiceTheme` took one `darkColorScheme` and `darkTheme` resolved to it
+either way, so a phone switched to light stayed black.
+
+**TWO SCHEMES, THE SAME SIX OVERRIDES**, which is what keeps this one decision rather than
+two palettes:
+
+    background / surface     Neutral0  #000000   <->  Neutral100 #FFFFFF
+    primaryContainer         Primary40 #6750A4   <->  Primary40  #6750A4
+    onPrimaryContainer       Primary100 #FFFFFF  <->  Primary100 #FFFFFF
+    secondaryContainer       Primary40           <->  Primary40
+    onSecondaryContainer     Primary100          <->  Primary100
+
+**The button deliberately does NOT flip.** "Dark purple background with white text" was asked
+for as *the button*, not as a dark-mode button, and `#6750A4` + `#FFFFFF` is Material's own
+LIGHT baseline `primary`/`onPrimary` pair -- so keeping it in both schemes is a pairing the
+library guarantees either way. Light's baseline `primaryContainer` (`#EADDFF` with `#21005D`)
+would have made the button and the top app bar pale.
+
+**THE OPTION LABELS NEEDED NO CALL-SITE CHANGE, and that is the payoff of pointing them at
+`colorScheme.primary` instead of a hex.** In dark, `primary` IS `Primary80 #D0BCFF` -- the
+light purple that was asked for, 12.32:1 on black. In light it is `Primary40 #6750A4` --
+6.68:1 on white. The ROLE carried the intent across; a literal could not have.
+
+| pair | dark | light | floor |
+|---|---|---|---|
+| body `onSurface` on the page | 14.35 | 16.10 | 4.5 |
+| option label `primary` on the page | 12.32 | 6.68 | 4.5 |
+| description `onSurfaceVariant` | 10.91 | 9.19 | 4.5 |
+| white on the `#6750A4` button | 6.44 | 6.44 | 4.5 |
+| button FILL vs the page | 3.26 | 6.68 | 3.0 |
+| control outline on the page | 5.87 | 4.61 | 3.0 |
+
+### THE SYSTEM BARS HAVE NOW FLIPPED **FOUR** TIMES -- READ THIS BEFORE A FIFTH
+The correct answer is decided entirely by whether the app follows the system:
+
+    before 2026-09-08   always dark    -> SystemBarStyle.dark(...) correct, auto() a bug
+    2026-09-08          follows system -> auto() correct, dark(...) a bug
+    2026-09-17          always BLACK   -> dark(...) correct again
+    2026-09-22          follows system -> auto() correct again
+
+So `EvActivity` is the **bare `enableEdgeToEdge()`** again, and that is not a shortcut: its
+defaults are `auto(TRANSPARENT, TRANSPARENT)` and `auto(DefaultLightScrim, DefaultDarkScrim)`,
+and `auto` picks the icon colour with `(uiMode and UI_MODE_NIGHT_MASK) == UI_MODE_NIGHT_YES`
+-- **the same predicate `isSystemInDarkTheme()` reads**, so the bar icons and the page behind
+them cannot disagree. Keeping `dark(...)` would have pinned LIGHT icons and put the clock,
+the battery and the signal meter white-on-white on a light phone. `DefaultLightScrim` also
+matters again now that the page can be pale, and stating `TRANSPARENT` by hand removed it.
+
+**`values-night/` IS BACK**, for the third time, and for the reason it existed the first
+time: with two schemes one file cannot state both, and a light phone opening on a black
+rectangle is a flash. `AppTheme` is split (framework light vs dark parent, both `windowLight*`
+flags true vs false); `AppTheme.NoActionBar` and `Theme.EasyVoice.Splash` stay defined **only**
+in `values/`, because they resolve `@style/AppTheme` and `@color/ev_background` per
+configuration -- so the night file carries one style and cannot drift.
+
+### THE CI GATE HAD TO BE TOLD, AGAIN, AND IT IS NOW THE GUARD THAT WOULD HAVE CAUGHT THIS
+`AccessibilityChecksTest.sweepSchemes()` asserted `light == dark && dark is black` for the
+five days the app had one scheme. It asserts three things now: the two passes **differ**, the
+dark one is **pitch black**, and the light one is **pure white**. **That last one is the bug
+this session fixed** -- while the theme was hardcoded, asking for light gave black back, and
+no check anywhere said so.
+
+## `dummy_ae_*` IS NOT IN THE APK AND WAS NEVER WRITTEN BY ANYONE (owner, 2026-09-22)
+*"yah faltu mein dummy vagaira pata nahin kya-kya aapane add kar diya extra ... already sab
+kuchh library se ham kuchh kar rahe hain to extra code likhane ki jarurat nahin."*
+
+The instinct is right and the answer is that none of it is ours. Measured, three ways:
+
+- **`app/src/main/res/values/strings.xml` declares exactly ONE string**, `app_name`. The rest
+  of the file is the comment forbidding the `default_popup_window_title` override.
+- **`material3-android-1.4.0.aar` was downloaded and grepped: zero `dummy_ae`.** It does
+  contain `m3c_dialog` and the rest of the named entries in the same screenshot, so the aar
+  is the right place to have looked.
+- **The SHIPPED APK was downloaded from the Releases page and its `resources.arsc` extracted:
+  `dummy_ae` appears ZERO times.** The name is not in the file the phone installs.
+
+So the viewer is **synthesising** that name for entries whose names are not in the table.
+Parsing the table confirms there are such entries: the package has **12 type slots, two of
+which have no name at all** (`?7` and `?11`), against **198 key names** -- `isShrinkResources`
+is on, and stripping names is what it does. The `false` in the value column is what an
+Android `@id` resource stores (a `TYPE_INT_BOOLEAN` of 0), and the hex numbering matches an
+entry index rather than anything a person would type.
+
+**So those rows are evidence of the shrinker having REMOVED things, not of anything added.**
+There is nothing to delete, and nothing in our sources to stop writing. The one number worth
+keeping: our own `res/values/` is three files -- one string, one colour, two styles.
+
 ## THE CALLBACK MACHINE, READ A TO Z FROM AOSP -- AND THERE IS NO HOLE (owner, 2026-09-17)
 *"on stop wala bahut sari jagahon per ... on done on event is sab chijen lagi hui hai ...
 call back yah thoda ek bar research karke complete karo properly TTS ka jo properly jo

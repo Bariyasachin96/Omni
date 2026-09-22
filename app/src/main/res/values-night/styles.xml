@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The dark half of the window theme. Read values/styles.xml first: it
+         carries the whole explanation, and it is the only one of the two that
+         defines AppTheme.NoActionBar and Theme.EasyVoice.Splash, which resolve
+         @style/AppTheme and @color/ev_background per configuration and so pick
+         this file up without a second copy.
+
+         Four attributes differ from the light one and nothing else: the parent
+         is the framework's dark theme, and both windowLight* flags are FALSE so
+         the bars get LIGHT icons over a black window. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorBackground">@color/ev_background</item>
+        <item name="android:windowBackground">@color/ev_background</item>
+        <item name="android:statusBarColor">@color/ev_background</item>
+        <item name="android:navigationBarColor">@color/ev_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The dark half. #000000 is PaletteTokens.Neutral0 and must stay equal to
+         EvDarkColorScheme's `background` - see values/colors.xml for why this
+         colour is stated in XML at all, and why there are two copies. -->
+    <color name="ev_background">#FF000000</color>
+</resources>

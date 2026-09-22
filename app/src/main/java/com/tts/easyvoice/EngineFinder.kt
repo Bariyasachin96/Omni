@@ -49,6 +49,44 @@ object EngineFinder {
     @Volatile private var scanGeneration = 0
     private fun isSelfEngine(pkg: String): Boolean =
         pkg.contains("easyvoice") || pkg.contains("multilingualtts")
+
+    // THE 3-ARG TextToSpeech CONSTRUCTOR SILENTLY FALLS BACK TO ANOTHER ENGINE,
+    // AND ON THIS APP'S OWN PHONE THAT OTHER ENGINE IS US. Read out of AOSP
+    // rather than recalled -- TextToSpeech.java:761 is
+    //
+    //     public TextToSpeech(Context context, OnInitListener listener, String engine) {
+    //         this(context, listener, engine, null, true);   // useFallback = TRUE
+    //     }
+    //
+    // and initTts() then reads, verbatim: step 1 tries the requested engine, and
+    // if it "is not installed" OR connectToEngine fails, `mUseFallback` being true
+    // means it FALLS THROUGH; step 2 is `connectToEngine(getDefaultEngine())`,
+    // which sets `mCurrentEngine = defaultEngine` and returns SUCCESS. AOSP's own
+    // comment sits three lines below it: "NOTE: The API currently does not allow
+    // the caller to query whether they are actually connected to any engine."
+    //
+    // Easy Voice IS the default engine on any phone where it is doing its job, so
+    // an engine that cannot bind for a moment -- mid-update, or frozen by an OEM
+    // battery manager -- hands back SUCCESS and a client bound to EASY VOICE while
+    // the caller still believes it holds that engine. Driving such a client calls
+    // straight back into our own service.
+    //
+    // There is no public getter for it, so `mCurrentEngine` is read reflectively.
+    // This is the app's ONE reflection, it is a READ and never a write, and it is
+    // wrapped: a non-SDK block throws NoSuchFieldException, which is an Exception,
+    // so it degrades to "assume we got the engine we asked for" -- exactly what
+    // every caller did before this function existed.
+    fun boundEngineOf(client: TextToSpeech?, expectedPkg: String): String {
+        if (client == null) return expectedPkg
+        return try {
+            val currentEngineField = client.javaClass.getDeclaredField("mCurrentEngine")
+            currentEngineField.isAccessible = true
+            currentEngineField.get(client)?.toString() ?: expectedPkg
+        } catch (ex: Exception) {
+            EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "Reflection failed", ex)
+            expectedPkg
+        }
+    }
     // `seen` is the caller's, so two overlapping scans cannot clear each
     // other's half-built set. It used to be an object-level HashMap that this
     // function cleared on entry, and nothing outside EngineFinder ever read it.
@@ -272,14 +310,7 @@ object EngineFinder {
                 } else {
                     val client = cell[0]
                     val expectedPkg = engines[myIndex].pkg
-                    val actualEngine = try {
-                        val currentEngineField = client!!.javaClass.getDeclaredField("mCurrentEngine")
-                        currentEngineField.isAccessible = true
-                        currentEngineField.get(client)?.toString() ?: expectedPkg
-                    } catch (ex: Exception) {
-                        EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "Reflection failed", ex)
-                        expectedPkg
-                    }
+                    val actualEngine = boundEngineOf(client, expectedPkg)
                     if (actualEngine == expectedPkg) {
                         try {
                             val engineVoices = client?.voices

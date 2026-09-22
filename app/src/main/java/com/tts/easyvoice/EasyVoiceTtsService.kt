@@ -481,6 +481,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // ==========================================================================
     inner class EngineWrapper(pkgName: String) {
         val pkg: String = pkgName.replace("-","").replace("_","")
+        // THE NAME AS ANDROID KNOWS IT, KEPT BESIDE THE NORMALISED ONE.
+        //
+        // `pkg` above is AutoTTS's own loose comparison key and every lookup in
+        // this file matches on it, so it must stay stripped. But it is NOT a
+        // package name any more: "_" is legal in an Android package and "com.x
+        // .my_tts" normalises to "com.x.mytts", which is not installed.
+        //
+        // restoreEngine used to hand `pkg` straight to the TextToSpeech
+        // constructor, and that is the SECOND way into the defect the init
+        // guards now catch: an engine name the system cannot resolve makes
+        // AOSP's initTts() fall through step 1 and bind the USER'S DEFAULT
+        // engine instead -- Easy Voice -- and report SUCCESS. So for any engine
+        // with an underscore in its package, every restore produced a client
+        // pointed back at us. Construct with this one; compare with the other.
+        val rawPkg: String = pkgName
         var tts: TextToSpeech? = null
         var state: Int = 0
         var locale: java.util.Locale? = null
@@ -673,7 +688,47 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  An empty package means "keep the last one". The "do nothing" short-circuit
     //  fires when the current voice already matches language, country and name.
     // ==========================================================================
+    // EngineWrapper.pkg strips "-" and "_", so every comparison against it must
+    // strip them too. Comparing a RAW package name against a wrapper's is the
+    // exact defect that made onEngineProcessGone unable to match its own engine.
+    private fun isSameEnginePkg(one: String, other: String): Boolean =
+        one.replace("-","").replace("_","") == other.replace("-","").replace("_","")
+
+    // THE BACKSTOP FOR THE SAME DEFECT, AND IT NEEDS NO REFLECTION.
+    //
+    // The cause is fixed where the client is accepted -- see the two init
+    // listeners and EngineFinder.boundEngineOf -- but that test is a read of a
+    // NON-SDK field, and a platform that blocks it makes boundEngineOf answer
+    // "the engine we asked for" and the guard pass. This one cannot be blocked.
+    //
+    // WHAT IT CATCHES, from the owner's log of 2026-09-21: 707 identical cycles
+    // in 1.644 seconds, and NOT ONE onSynthesizeText in the whole file. A wrapper
+    // labelled com.codefactoryglobal.eloquencetts was holding a client bound to
+    // Easy Voice, so loadVoice's setLanguage went into OUR OWN service -- and a
+    // binder call inside one process runs on the CALLING thread, so onLoadVoice ->
+    // onLoadLanguage -> loadVoice -> setLanguage recursed on one stack until the
+    // service was wedged. The line that proves whose voice list answered is
+    // `last eng eng`: a Voice NAMED "eng" with locale "eng" is what our own
+    // onGetVoices publishes and what no real engine publishes.
+    //
+    // A nested loadVoice on ONE thread can only be that. Nothing in this file
+    // calls loadVoice from inside loadVoice, and every legitimate caller -- the
+    // synthesis thread, the main looper inside onDone's post, and a binder thread
+    // from another app -- arrives on a stack of its own.
+    private val loadVoiceReentry = java.lang.ThreadLocal<Boolean>()
+
     private fun loadVoice(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
+        if (loadVoiceReentry.get() == true) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                "loadVoice re-entered on this thread for " + pkg +
+                " -- an engine client is bound back to Easy Voice; refusing")
+            return
+        }
+        loadVoiceReentry.set(true)
+        try { loadVoiceImpl(pkg, locale, variant, dedicated) } finally { loadVoiceReentry.set(false) }
+    }
+
+    private fun loadVoiceImpl(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "LoadVoice " + pkg + " " + locale + " " + variant)
         if (dedicated && modeInt != 3) { loadVoiceDedicated(pkg, locale, variant, dedicated); return }
         val normPkg = (if (pkg.isEmpty()) lastEnginePkg else { lastEnginePkg = pkg; pkg }).replace("-","").replace("_","")
@@ -1071,10 +1126,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (1)"); return }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init " + (if (initializingIndex < enginePool.size) enginePool[initializingIndex].pkg else ""))
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
-            if (status == TextToSpeech.SUCCESS) {
+            val wantedPkg = engineList[initializingIndex]
+            val boundPkg = if (status == TextToSpeech.SUCCESS) EngineFinder.boundEngineOf(initializingTts, wantedPkg) else wantedPkg
+            if (status == TextToSpeech.SUCCESS && !isSameEnginePkg(boundPkg, wantedPkg)) {
+                // AOSP HANDED US SOMEBODY ELSE'S ENGINE AND CALLED IT SUCCESS.
+                // See EngineFinder.boundEngineOf for the two AOSP lines that make
+                // this reachable; what it costs is in the note above onInit.
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                    "asked for " + wantedPkg + " and got a client bound to " + boundPkg + " -- refusing it")
+                try { initializingTts?.shutdown() } catch (_: Throwable) {}
+                if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = null; enginePool[initializingIndex].forgetClientState(); enginePool[initializingIndex].state = -1 }
+            } else if (status == TextToSpeech.SUCCESS) {
                 if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); if (initializingIndex < enginePool.size) enginePool[initializingIndex].audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                 if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].forgetClientState(); enginePool[initializingIndex].state = 2 }
-                if (engineList[initializingIndex] == "com.google.android.tts") googleEngineIndex = initializingIndex
+                if (wantedPkg == "com.google.android.tts") googleEngineIndex = initializingIndex
             } else {
                 if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].forgetClientState(); enginePool[initializingIndex].state = -1 }
             }
@@ -1197,7 +1262,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val cell = arrayOfNulls<TextToSpeech>(1)
             val done = java.util.concurrent.atomic.AtomicBoolean(false)
             try {
-                cell[0] = TextToSpeech(applicationContext, RestoreInitListener(cell, idx, done), wrapper.pkg)
+                cell[0] = TextToSpeech(applicationContext, RestoreInitListener(cell, idx, done), wrapper.rawPkg)
                 restoreTimeoutHandler.postDelayed({
                     if (!done.compareAndSet(false, true)) return@postDelayed
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG,
@@ -1328,7 +1393,23 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // forwarded bundle had its own attributes removed, so the engine
                 // fell back to STREAM_MUSIC. The switch was dead on that engine.
                 wrapper.audioAttrSet = false
-                if (status == TextToSpeech.SUCCESS) {
+                val restoredPkg = if (status == TextToSpeech.SUCCESS) EngineFinder.boundEngineOf(initializingTts, wrapper.rawPkg) else wrapper.rawPkg
+                if (status == TextToSpeech.SUCCESS && !isSameEnginePkg(restoredPkg, wrapper.rawPkg)) {
+                    // THE SAME AOSP FALLBACK AS THE INITIAL WALK, AND THIS IS THE
+                    // PATH THAT MAKES IT PERMANENT. A restore runs precisely when
+                    // an engine has just gone away, which is exactly the window in
+                    // which connectToEngine fails and step 2 hands back the default
+                    // engine instead -- so without this test every restore of a
+                    // temporarily missing engine would replace a dead client with a
+                    // client bound to Easy Voice, and the wrapper would go to
+                    // state 2 carrying it. -1 keeps onEngineProcessBack able to try
+                    // again when the engine really does come back.
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                        "restore of " + wrapper.pkg + " came back bound to " + restoredPkg + " -- refusing it")
+                    try { initializingTts?.shutdown() } catch (_: Throwable) {}
+                    wrapper.tts = null; wrapper.forgetClientState()
+                    wrapper.state = -1
+                } else if (status == TextToSpeech.SUCCESS) {
                     if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                     wrapper.tts = initializingTts; wrapper.forgetClientState()
                     wrapper.state = 2
