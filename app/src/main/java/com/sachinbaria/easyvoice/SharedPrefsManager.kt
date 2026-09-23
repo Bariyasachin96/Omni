@@ -61,6 +61,7 @@ class SharedPrefsManager(context: Context) {
     // migration that existing installs need on top of the default.
     fun isDisableAdvancedDetection(): Boolean = prefs.getBoolean("disable_advanced_detection", false)
     fun isKeepAliveMode(): Boolean = prefs.getBoolean("keep_alive_mode", false)
+    fun isEngineFallback(): Boolean = prefs.getBoolean("engine_fallback", false)
     fun isQuickCharacterReading(): Boolean = prefs.getBoolean("quick_character_reading", false)
     fun isPunctuationWithSentence(): Boolean = prefs.getBoolean("punctuation_with_sentence", true)
     fun isSmartNumberReading(): Boolean = prefs.getBoolean("smart_number_reading", false)

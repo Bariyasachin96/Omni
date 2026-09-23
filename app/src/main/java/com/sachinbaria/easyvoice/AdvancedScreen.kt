@@ -234,6 +234,7 @@ fun AdvancedScreen(
     var stripAudioAttr by remember { mutableStateOf(EasyVoiceTtsService.stripAudioAttrFlag) }
     var forceAccessibility by remember { mutableStateOf(EasyVoiceTtsService.forceAccessibilityFlag) }
     var keepAlive by remember { mutableStateOf(EasyVoiceTtsService.keepAliveFlag) }
+    var engineFallback by remember { mutableStateOf(EasyVoiceTtsService.engineFallbackFlag) }
     var showNotification by remember { mutableStateOf(EasyVoiceTtsService.showNotificationFlag) }
     var disableAdvanced by remember { mutableStateOf(EasyVoiceTtsService.disableAdvancedFlag) }
     var quickCharacter by remember { mutableStateOf(EasyVoiceTtsService.quickCharacterFlag) }
@@ -288,37 +289,14 @@ fun AdvancedScreen(
                 "Feeds a little silence between phrases, so the system does not cut the speech off mid-sentence.",
                 keepAlive
             ) { picked -> keepAlive = picked; EasyVoiceTtsService.keepAliveFlag = picked }
+            // OFF BY DEFAULT (owner, 2026-09-23: "yah optional rakho ... by
+            // default usko off rakho"). The switch is EasyVoiceTtsService's
+            // engineFallbackFlag; see switchToAlternative for what it turns on.
             SettingOption(
-                "Show persistent notification",
-                "Keeps Easy Voice running in the foreground, so it carries on working under battery optimization and when the screen is off.",
-                showNotification
-            ) { picked ->
-                showNotification = picked
-                EasyVoiceTtsService.showNotificationFlag = picked
-                if (picked) requestNotificationPermission()
-            }
-            ActionButton("Disable battery optimization", R.drawable.ic_battery_alert) {
-                // ContextCompat.getSystemService, not getSystemService(String)
-                // plus an unchecked cast: the library overload is typed, so a
-                // device that answers null for POWER_SERVICE is a null here
-                // rather than a ClassCastException on the next line.
-                val powerManager = ContextCompat.getSystemService(context, PowerManager::class.java)
-                if (powerManager == null || !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
-                    try {
-                        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                        Toast.makeText(context, "Set Easy Voice and each of your TTS engines to Unrestricted", Toast.LENGTH_LONG).show()
-                    } catch (_: Exception) {
-                        Toast.makeText(context, "Failed to open battery settings", Toast.LENGTH_LONG).show()
-                    }
-                } else {
-                    // Without this the button was completely silent whenever the
-                    // exemption was already granted -- nothing opened, nothing was
-                    // said -- which is indistinguishable from a broken button.
-                    Toast.makeText(context, "Battery optimization is already off for Easy Voice", Toast.LENGTH_LONG).show()
-                }
-            }
-            SettingDescription("Opens the system battery screen, where you can set Easy Voice and each of your TTS engines to Unrestricted.")
-            OptionGap()
+                "Use another TTS when one stops working",
+                "When the TTS set for a language stops working, the text is read with another TTS that speaks that language, and that TTS is set up for it.",
+                engineFallback
+            ) { picked -> engineFallback = picked; EasyVoiceTtsService.engineFallbackFlag = picked }
             SettingOption(
                 "Disable advanced language detection",
                 "Falls back to the simpler detection, which is faster.",
@@ -384,6 +362,41 @@ fun AdvancedScreen(
                     EasyVoiceTtsService.smartNumberGroupSize = groupSize
                 }
             }
+            OptionGap()
+            // THE LAST THREE ARE IN THE OWNER'S ORDER (2026-09-23: "persistent
+            // notification aur battery optimization wala ... last mein ...
+            // sabse last mein log wala, log ke upar battery wala, uske upar
+            // persistent notification").
+            SettingOption(
+                "Show persistent notification",
+                "Keeps Easy Voice running in the foreground, so it carries on working under battery optimization and when the screen is off.",
+                showNotification
+            ) { picked ->
+                showNotification = picked
+                EasyVoiceTtsService.showNotificationFlag = picked
+                if (picked) requestNotificationPermission()
+            }
+            ActionButton("Disable battery optimization", R.drawable.ic_battery_alert) {
+                // ContextCompat.getSystemService, not getSystemService(String)
+                // plus an unchecked cast: the library overload is typed, so a
+                // device that answers null for POWER_SERVICE is a null here
+                // rather than a ClassCastException on the next line.
+                val powerManager = ContextCompat.getSystemService(context, PowerManager::class.java)
+                if (powerManager == null || !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        Toast.makeText(context, "Set Easy Voice and each of your TTS engines to Unrestricted", Toast.LENGTH_LONG).show()
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Failed to open battery settings", Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    // Without this the button was completely silent whenever the
+                    // exemption was already granted -- nothing opened, nothing was
+                    // said -- which is indistinguishable from a broken button.
+                    Toast.makeText(context, "Battery optimization is already off for Easy Voice", Toast.LENGTH_LONG).show()
+                }
+            }
+            SettingDescription("Opens the system battery screen, where you can set Easy Voice and each of your TTS engines to Unrestricted.")
             OptionGap()
             // IMPORT AND EXPORT ARE GONE FROM THIS SCREEN (owner, 2026-09-17:
             // "completely remove the Import/Export settings along with their

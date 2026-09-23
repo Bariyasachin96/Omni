@@ -8,6 +8,23 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## LICENCES = WHAT WE USE + THE LICENCE; FALLBACK IS A SWITCH, OFF (owner, 2026-09-23, latest)
+- **The licences dialog** lists what the APK really contains, each with its official copyright
+  line(s) and "Apache License, Version 2.0", then the licence text (apache.org, verbatim, cut at
+  "END OF TERMS AND CONDITIONS"). Measured on build 902's own APK: AndroidX/Compose, Kotlin
+  stdlib, kotlinx.coroutines, CLD2 (in libeasyvoice_core.so), Material icons. kotlinx.serialization,
+  atomicfu, JSpecify and JetBrains annotations are on the classpath but leave nothing in the APK.
+  Copyright lines are COPIED: CLD2 file headers (2013, and 2014 for the three 0122 tables),
+  androidx's `.idea/copyright/AndroidCopyright.xml` (year is `$today.year`, so none given),
+  Kotlin's `license/COPYRIGHT_HEADER.txt`, coroutines' own LICENSE.txt. Material icons state no
+  copyright line. libc++ (Apache 2.0 + LLVM exception, which waives 4(a)) is not listed.
+- **"Use another TTS when one stops working"** is `EasyVoiceTtsService.engineFallbackFlag`, pref
+  `engine_fallback`, **default OFF**, on the Advanced tab after Keep alive. OFF gates all of it:
+  `switchToAlternative` and `retryChunkElsewhere` return at once, `handOver` ends the utterance
+  on the binder thread as before, and `EngineFinder.repointUninstalled` does nothing.
+- **Advanced tab ends with**: Show persistent notification, Disable battery optimization, then
+  logging last.
+
 ## NEW PACKAGE, VERSION 1.0, THE LICENCE ALONE, AND A TTS THAT STOPS HANDS OVER (owner, 2026-09-23, last)
 - **Package `com.sachinbaria.easyvoice`, versionName `1.0`.** Namespace, applicationId, both source
   trees, every `package` line, the seven JNI symbols (`Java_com_sachinbaria_easyvoice_...`) in the
@@ -18,7 +35,7 @@
   (the scan still skips it -- `isSelfEngine` matches "easyvoice"). `genr.py` now takes the package
   from the sources beside `R.kt` (else the gradle namespace), and `kotlin-typecheck.sh` extracts a
   pre-rename baseline from the old `com/tts/easyvoice` path.
-- **The licences dialog is the Apache License 2.0 text and nothing else.** For a binary only 4(a)
+- **~~The licences dialog is the Apache License 2.0 text and nothing else.~~ Superseded: see the section above.** For a binary only 4(a)
   applies (a copy of the licence); 4(b) and 4(c) are about source, and 4(d) needs a NOTICE file --
   none in any shipped jar/aar, HTTP 404 for CLD2, androidx, kotlinx.coroutines and
   material-design-icons, and Kotlin's `license/NOTICE.txt` says it is "for the Kotlin Compiler

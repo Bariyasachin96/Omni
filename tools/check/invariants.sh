@@ -85,7 +85,7 @@ stray=$(awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' $SERVICE |
 # SharedPrefsManager -- they read and write EasyVoiceTtsService.modeInt -- so
 # they are not listed. isLoggingEnabled is the one eager-persist flag (AutoTTS's
 # c3.p does the same) and is seeded from MainActivity on purpose.
-settings_readers='isStripAudioAttr|isForceAccessibilityStream|getPuncModeLang|getEmojiModeLang|getNumberModeLang|getPuncSpecificLang|getEmojiSpecificLang|getNumberSpecificLang|isShowNotification|isLocaleSpansEnabled|isDisableAdvancedDetection|isKeepAliveMode|isQuickCharacterReading|isPunctuationWithSentence|isSmartNumberReading|getSmartNumberGroupSize'
+settings_readers='isStripAudioAttr|isForceAccessibilityStream|getPuncModeLang|getEmojiModeLang|getNumberModeLang|getPuncSpecificLang|getEmojiSpecificLang|getNumberSpecificLang|isShowNotification|isLocaleSpansEnabled|isDisableAdvancedDetection|isKeepAliveMode|isQuickCharacterReading|isPunctuationWithSentence|isSmartNumberReading|getSmartNumberGroupSize|isEngineFallback'
 uiread=$(for f in $KT/*.kt; do
            case "$f" in
              */EasyVoiceTtsService.kt|*/SharedPrefsManager.kt) continue ;;

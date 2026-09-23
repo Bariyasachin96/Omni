@@ -141,6 +141,7 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.stripAudioAttrFlag = false
         EasyVoiceTtsService.forceAccessibilityFlag = false
         EasyVoiceTtsService.keepAliveFlag = false
+        EasyVoiceTtsService.engineFallbackFlag = false
         EasyVoiceTtsService.showNotificationFlag = false
         EasyVoiceTtsService.disableAdvancedFlag = false
         EasyVoiceTtsService.quickCharacterFlag = false
@@ -543,6 +544,7 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.stripAudioAttrFlag = true
         EasyVoiceTtsService.forceAccessibilityFlag = true
         EasyVoiceTtsService.keepAliveFlag = true
+        EasyVoiceTtsService.engineFallbackFlag = true
         EasyVoiceTtsService.showNotificationFlag = true
         EasyVoiceTtsService.disableAdvancedFlag = true
         EasyVoiceTtsService.quickCharacterFlag = true

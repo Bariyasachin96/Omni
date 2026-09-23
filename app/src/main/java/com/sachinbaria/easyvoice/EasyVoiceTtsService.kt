@@ -1837,6 +1837,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return true
     }
     private fun switchToAlternative(lang: String, excluded: Set<String>, setUp: Boolean, why: String): String? {
+        if (!engineFallbackFlag) return null
         try {
             val tried = HashSet<String>(excluded)
             fun usable(rawPkg: String): Boolean {
@@ -2329,6 +2330,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         stripAudioAttrFlag = prefs.isStripAudioAttr()
         forceAccessibilityFlag = prefs.isForceAccessibilityStream()
         keepAliveFlag = prefs.isKeepAliveMode()
+        engineFallbackFlag = prefs.isEngineFallback()
         showNotificationFlag = prefs.isShowNotification()
         disableAdvancedFlag = prefs.isDisableAdvancedDetection()
         quickCharacterFlag = prefs.isQuickCharacterReading()
@@ -3050,6 +3052,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val failedThisUtterance = HashSet<String>()
         lateinit var speakChunkRef: (Boolean) -> Unit
         fun retryChunkElsewhere(failedRawPkg: String, why: String): Boolean {
+            if (!engineFallbackFlag) return false
             if (myGeneration != synthesisGeneration || isStopped || isFlushed) return false
             if (bypassed) return false
             val pair = currentPair ?: return false
@@ -3333,7 +3336,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // would fail both the same way -- the chunk goes to another engine,
                 // posted off this binder callback because that may build a client.
                 fun handOver(code: Int, n: String) {
-                    if (code == -5 || code == -8) { endSynthesis(callback, n); return }
+                    // Switch OFF: straight to endSynthesis on this thread, which
+                    // is exactly what onError did before the hand-over existed.
+                    if (!engineFallbackFlag || code == -5 || code == -8) { endSynthesis(callback, n); return }
                     chunkHandler.post {
                         if (myGeneration != synthesisGeneration || isStopped || isFlushed) return@post
                         // Already handed over (its process died first, and that
@@ -3821,6 +3826,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @Volatile @JvmField var mixLatinLang = ""
         @Volatile @JvmField var mixNonLatinLang = ""
         @Volatile @JvmField var keepAliveFlag = false
+        // "Use another TTS when one stops working" (owner, 2026-09-23: "yah
+        // optional rakho ... by default off rakho"). Gates every automatic
+        // engine substitution: switchToAlternative, retryChunkElsewhere, the
+        // onError hand-over and the scan's repointUninstalled. OFF is the
+        // behaviour from before the feature -- the configured engine is kept.
+        @Volatile @JvmField var engineFallbackFlag = false
         @Volatile @JvmField var disableAdvancedFlag = true
         @Volatile @JvmField var quickCharacterFlag = false
     }

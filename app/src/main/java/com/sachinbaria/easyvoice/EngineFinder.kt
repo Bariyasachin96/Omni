@@ -187,6 +187,7 @@ object EngineFinder {
         return false
     }
     private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>) {
+        if (!EasyVoiceTtsService.engineFallbackFlag) return
         try {
             val prefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
             val editor = prefs.edit()
