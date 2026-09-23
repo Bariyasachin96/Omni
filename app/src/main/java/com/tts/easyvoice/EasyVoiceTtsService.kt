@@ -701,31 +701,97 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // NON-SDK field, and a platform that blocks it makes boundEngineOf answer
     // "the engine we asked for" and the guard pass. This one cannot be blocked.
     //
-    // WHAT IT CATCHES, from the owner's log of 2026-09-21: 707 identical cycles
-    // in 1.644 seconds, and NOT ONE onSynthesizeText in the whole file. A wrapper
-    // labelled com.codefactoryglobal.eloquencetts was holding a client bound to
-    // Easy Voice, so loadVoice's setLanguage went into OUR OWN service -- and a
-    // binder call inside one process runs on the CALLING thread, so onLoadVoice ->
-    // onLoadLanguage -> loadVoice -> setLanguage recursed on one stack until the
-    // service was wedged. The line that proves whose voice list answered is
-    // `last eng eng`: a Voice NAMED "eng" with locale "eng" is what our own
-    // onGetVoices publishes and what no real engine publishes.
+    // WHAT THE LOOP ACTUALLY IS -- CORRECTED 2026-09-23. The first version of this
+    // backstop refused a loadVoice that re-entered itself on one stack, on the
+    // belief that the 707 cycles in the owner's log (2026-09-21, 1.644 seconds,
+    // not one onSynthesizeText) were one call nesting 707 deep. THE LOG SAYS
+    // OTHERWISE, and it says so in one line:
     //
-    // A nested loadVoice on ONE thread can only be that. Nothing in this file
-    // calls loadVoice from inside loadVoice, and every legitimate caller -- the
-    // synthesis thread, the main looper inside onDone's post, and a binder thread
-    // from another app -- arrives on a stack of its own.
-    private val loadVoiceReentry = java.lang.ThreadLocal<Boolean>()
+    //     Set voice 3: eng_USA res = 0 ...
+    //      -success                       <- onLoadVoice RETURNS here
+    //     onLoadVoice eng                 <- and only THEN does the next one start
+    //
+    // Nested calls would print every "onLoadVoice" first and every "-success" at
+    // the unwind. So each cycle finishes before the next begins, and the reason is
+    // in AOSP: the Stub's loadVoice ENQUEUES a LoadVoiceItem on our own
+    // SynthHandler and returns (TextToSpeechService.java, `loadVoice` ->
+    // `enqueueSpeechItem(QUEUE_ADD, new LoadVoiceItem(...))`). The self-bound
+    // client's setLanguage therefore queued one more onLoadVoice for our own
+    // synthesis thread, every time, for ever. The old refusal could not fire on
+    // that -- its flag was cleared by the finally before the queued item ran.
+    //
+    // WHAT DOES RUN INLINE, and is the detector now. An in-process binder call is
+    // a direct Java call (Stub.asInterface answers queryLocalInterface, i.e. our
+    // own Stub object), so the part of setLanguage/setVoice that is NOT queued
+    // runs on the calling thread: isLanguageAvailable, getDefaultVoiceNameFor,
+    // the loadVoice binder method's onIsValidVoiceName, and getVoices. The log
+    // shows exactly those -- "onIsLanguageAvailable: eng USA",
+    // "onGetDefaultVoiceNameFor", "onGetVoices" -- inside one loadVoice, at one
+    // timestamp. For a REAL engine those four are answered in ANOTHER process and
+    // can never reach our overrides on this thread. So:
+    //
+    //     one of our engine-facing overrides runs while THIS thread is inside
+    //     loadVoiceImpl  <=>  the client loadVoice is driving is bound to us.
+    //
+    // Nothing in loadVoiceImpl, loadVoiceOriginal or loadVoiceDedicated calls
+    // those overrides directly -- onLoadLanguage asks onIsLanguageAvailable
+    // BEFORE it calls loadVoice, outside the flag -- which is what makes the
+    // equivalence exact rather than likely.
+    //
+    // THE ANSWER IS "NOT SUPPORTED", and that is what ends it at the source. A
+    // refused isLanguageAvailable makes setLanguage return LANG_NOT_SUPPORTED
+    // BEFORE it reaches the binder loadVoice, so no LoadVoiceItem is queued; and
+    // a negative result is exactly what loadVoice's own failure branch turns into
+    // restoreEngine(), which rebuilds the client from rawPkg. setVoice fails the
+    // same way through onIsValidVoiceName. The restore is bounded by
+    // restoringIndex and the k < 10 cap, so even an engine that stays missing
+    // costs at most ten rebuilds, and not a core.
+    private val insideLoadVoice = java.lang.ThreadLocal<Boolean>()
+
+    private fun calledFromOwnClient(what: String): Boolean {
+        if (insideLoadVoice.get() != true) return false
+        EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+            what + " was called from inside loadVoice on the same thread -- an engine " +
+            "client is bound back to Easy Voice; refusing it")
+        return true
+    }
 
     private fun loadVoice(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
-        if (loadVoiceReentry.get() == true) {
+        val outer = insideLoadVoice.get() == true
+        insideLoadVoice.set(true)
+        try { loadVoiceImpl(pkg, locale, variant, dedicated) } finally { if (!outer) insideLoadVoice.set(false) }
+    }
+
+    // A NEGATIVE setLanguage IS NOT ALWAYS A DEAD CLIENT (2026-09-23, read from
+    // AOSP's TextToSpeech.setLanguage). AutoTTS's f0 answers every failure with a
+    // restore (m0 -> k0.h), and we copied that. But the number says which failure
+    // it was, and exactly one of them is something a restore can fix:
+    //
+    //     -2  LANG_NOT_SUPPORTED  runAction's errorResult for setLanguage, i.e. the
+    //                             client is not connected -- or the engine refused
+    //     -1  LANG_MISSING_DATA   ONLY ever the engine's own isLanguageAvailable
+    //                             answer: setLanguage returns `result` unchanged
+    //                             when it is below LANG_AVAILABLE, and every other
+    //                             exit in the method is LANG_NOT_SUPPORTED
+    //
+    // So -1 means a LIVE engine, answering on a healthy connection, that has not
+    // downloaded that language's voice. Restoring it cannot bring the data back;
+    // what it does do is shut down the one client that engine has and bind a new
+    // one -- cutting off whatever else that engine is saying (Hindi, while this
+    // was Gujarati on the same Google TTS) and paying a bind plus an init. And
+    // onStart zeroes restoreCount whenever the engine speaks, so the k < 10 cap
+    // that bounds AutoTTS never runs out here: every attempt at that language
+    // tore the engine down again, for as long as the process lived.
+    //
+    // DELIBERATE DEPARTURE, and a narrow one: -2 and a null result (no client)
+    // restore exactly as before.
+    private fun setLanguageFailed(wrapper: EngineWrapper, locale: java.util.Locale, result: Int?) {
+        if (result == TextToSpeech.LANG_MISSING_DATA) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG,
-                "loadVoice re-entered on this thread for " + pkg +
-                " -- an engine client is bound back to Easy Voice; refusing")
+                wrapper.pkg + " has no voice data for " + locale + " -- engine kept, not restored")
             return
         }
-        loadVoiceReentry.set(true)
-        try { loadVoiceImpl(pkg, locale, variant, dedicated) } finally { loadVoiceReentry.set(false) }
+        restoreEngine(wrapper.pkg)
     }
 
     private fun loadVoiceImpl(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
@@ -804,7 +870,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (!localeMatches(locale, curLocale)) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + curLocale.toString())
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else restoreEngine(wrapper.pkg)
+                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else setLanguageFailed(wrapper, locale, setLangResult)
                 }
             } else if (effectiveVariant != curVoiceName) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Check voice 1")
@@ -867,7 +933,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 if (!matchedAVoice && !localeMatches(locale, curLocale)) {
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else restoreEngine(wrapper.pkg)
+                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else setLanguageFailed(wrapper, locale, setLangResult)
                 }
             }
             wrapper.locale = locale; wrapper.voiceName = effectiveVariant
@@ -889,7 +955,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (nullableIso3(wrapperLocale) == nullableIso3(locale) &&
                 (nullableIso3Country(wrapperLocale) == reqCountry || reqCountry.isEmpty())) return
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = "" } else restoreEngine(wrapper.pkg)
+            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = "" } else setLanguageFailed(wrapper, locale, setLangResult)
         } else { engineIndex = -1 }
     }
     private fun loadVoiceDedicated(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
@@ -985,7 +1051,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *1")
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + engineLocale)
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant } else restoreEngine(wrapper.pkg)
+            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant } else setLanguageFailed(wrapper, locale, setLangResult)
             return
         }
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *2")
@@ -1023,7 +1089,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         if (!localeMatches(locale, engineLocale)) {
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else restoreEngine(wrapper.pkg)
+            if (setLangResult != null && setLangResult >= 0) { wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else setLanguageFailed(wrapper, locale, setLangResult)
         }
     }
 
@@ -1505,6 +1571,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     override fun onIsLanguageAvailable(langCode: String?, countryCode: String?, variantName: String?): Int {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onIsLanguageAvailable: " + langCode + " " + countryCode + " " + variantName)
+        // Our own engine client, driven by loadVoice, is bound back to us -- see
+        // calledFromOwnClient. Refusing here is what stops setLanguage before it
+        // queues another onLoadVoice, and what hands loadVoice its restore.
+        if (calledFromOwnClient("onIsLanguageAvailable")) return TextToSpeech.LANG_NOT_SUPPORTED
         val raw = langCode ?: ""
         val result = if (LangStore.availableLanguagesFor(null, true).contains(raw)) TextToSpeech.LANG_AVAILABLE else TextToSpeech.LANG_NOT_SUPPORTED
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -res: " + result)
@@ -1566,11 +1636,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     override fun onGetDefaultVoiceNameFor(langCode: String?, countryCode: String?, variantName: String?): String {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onGetDefaultVoiceNameFor " + langCode + " " + countryCode + " " + variantName)
+        if (calledFromOwnClient("onGetDefaultVoiceNameFor")) return ""
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + langCode)
         return langCode ?: ""
     }
     override fun onGetVoices(): MutableList<Voice> {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onGetVoices")
+        if (calledFromOwnClient("onGetVoices")) return mutableListOf()
         val names = LangStore.availableLanguagesFor(null, true)
         val list = mutableListOf<Voice>()
         for (nameIdx in names.indices) {
@@ -1580,6 +1652,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     override fun onIsValidVoiceName(name: String?): Int {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onIsValidVoiceName " + name)
+        if (calledFromOwnClient("onIsValidVoiceName")) return TextToSpeech.ERROR
         val result = if (LangStore.availableLanguagesFor(null, true).contains(name)) TextToSpeech.SUCCESS else TextToSpeech.ERROR
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -res " + result)
         return result
@@ -2252,6 +2325,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // work, never miss something the old code would have caught.
                 if (wasSpeakingPkg != null && wrapper.pkg != wasSpeakingPkg) { continue }
                 if (wrapper.state == 2 && wrapper.listenerSet) {
+                    // A client re-bound to Easy Voice (see speakChunk) must not be
+                    // flushed: speak("") on it queues an EMPTY utterance for our
+                    // own synthesis thread, which lands right back in this branch
+                    // and flushes it again -- a loop with no audio in it at all.
+                    // Skipped rather than restored here; the next speak or
+                    // loadVoice on that engine restores it.
+                    val flushClient = wrapper.tts
+                    if (flushClient != null) {
+                        val flushBound = EngineFinder.boundEngineOf(flushClient, wrapper.rawPkg)
+                        if (!isSameEnginePkg(flushBound, wrapper.rawPkg)) {
+                            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "not flushing " + wrapper.rawPkg + ": its client is bound to " + flushBound)
+                            continue
+                        }
+                    }
                     try {
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling speak empty for " + wrapper.pkg)
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onSynthesizeText: " + utteranceId + " ''")
@@ -2758,6 +2845,46 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val tts = wrapper.tts ?: run {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex refers null tts.")
                 releaseWaitWithoutSpeaking("engine has no TextToSpeech")
+                return
+            }
+            // A CLIENT CAN BE RE-BOUND BEHIND OUR BACK, AND THIS IS THE ONLY PLACE
+            // THAT CAN SEE IT (2026-09-23, from AOSP's TextToSpeech.Connection).
+            //
+            //     } catch (RemoteException ex) {
+            //         Log.e(TAG, method + " failed", ex);
+            //         if (reconnect) { disconnect(); initTts(); }
+            //         return errorResult;
+            //     }
+            //
+            // Every ordinary client call -- speak, stop, setLanguage, setVoice,
+            // getVoices -- goes through runAction with reconnect = true. So a call
+            // that lands on an engine as its process dies (DeadObjectException, a
+            // RemoteException) makes the framework run initTts() AGAIN, with the
+            // same useFallback = true that the init listeners guard against -- and
+            // this time mInitListener is already null (dispatchOnInit clears it
+            // after the first init), so NO listener of ours hears about it. If the
+            // engine is not installed at that instant, which is what an update
+            // looks like, the client comes back bound to the default engine: Easy
+            // Voice. The wrapper still says state 2 and still names the engine.
+            //
+            // Speaking through that client is not a wrong voice, it is a hang: our
+            // own Stub enqueues the chunk on OUR SynthHandler, behind the very
+            // onSynthesizeText that is parked waiting for it. loadVoice's inline
+            // detector cannot help when the voice cache says "Do nothing!" and no
+            // setLanguage is made, so the check is here, on the client that is
+            // about to speak. One Field.get per chunk (the Field is cached in
+            // EngineFinder).
+            //
+            // The cure is the one every other failure on this path already uses:
+            // restoreEngine rebuilds the client from rawPkg, and this chunk ends
+            // through releaseWaitWithoutSpeaking so nothing is left parked.
+            val boundNow = EngineFinder.boundEngineOf(tts, wrapper.rawPkg)
+            if (!isSameEnginePkg(boundNow, wrapper.rawPkg)) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                    "client for " + wrapper.rawPkg + " is bound to " + boundNow +
+                    " -- restoring it instead of speaking")
+                try { restoreEngine(wrapper.pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restore after re-bind: " + ex.toString()) }
+                releaseWaitWithoutSpeaking("engine client re-bound to another engine")
                 return
             }
             // "Current engine: " logs the wrapper that is about to speak --

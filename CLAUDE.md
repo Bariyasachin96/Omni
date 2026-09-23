@@ -7,6 +7,112 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE AOSP PASS: THE LOOP WAS A QUEUE, AND THE FRAMEWORK RE-BINDS BEHIND OUR BACK (owner, 2026-09-23)
+*"sirf aapane auto TTS ka najriya dekha hai, baki aur bhi AOSP ke hoga ... ek bhi chij mat
+chhodo ... makkhan ki tarah TTS chalna chahie."* Done by hand. The eight-agent workflow died
+on the session limit, which is the case the owner asked to be handled this way. AOSP's
+`TextToSpeech`, `TextToSpeechService`, `PlaybackSynthesisCallback`,
+`SynthesisPlaybackQueueItem` and `BlockingAudioTrack` were read at the line. **Three defects,
+all on the path that silences the phone. Everything else checked is listed at the end so it is
+not redone.**
+
+### 1. LAST SESSION'S BACKSTOP WAS DEAD, AND THE LOG ITSELF SAYS WHY
+The section below claimed the 707 cycles were ONE STACK. The owner's log disproves it in
+three lines:
+
+    Set voice 3: eng_USA res = 0 android.speech.tts.TextToSpeech@d1a8f0c
+     -success                         <- the LAST line of onLoadVoice
+    onLoadVoice eng                   <- and only then does the next one begin
+
+Nested calls would print every `onLoadVoice` first and every `-success` at the unwind. The
+mechanism is in AOSP: the Stub's `loadVoice` **enqueues** a `LoadVoiceItem` on our
+`SynthHandler` and returns. So the self-bound client's `setLanguage` queued one more
+`onLoadVoice` for our own synthesis thread, every cycle, for ever. The thread-local flag was
+cleared by its `finally` before the queued item ran, so the refusal could never fire.
+
+**What DOES run inline, and is the detector now.** An in-process binder call is a direct Java
+call (`Stub.asInterface` answers `queryLocalInterface`), so the parts of `setLanguage` and
+`setVoice` that are not queued run on the calling thread: `isLanguageAvailable`,
+`getDefaultVoiceNameFor`, the Stub `loadVoice`'s `onIsValidVoiceName`, and `getVoices`. The
+log shows exactly those inside one `loadVoice`, at one timestamp. For a real engine those four
+calls are answered in another process. So **one of our engine-facing overrides running while
+this thread is inside `loadVoiceImpl` ⇔ the client is bound to us.** It is exact:
+`onLoadLanguage` asks `onIsLanguageAvailable` BEFORE `loadVoice`, outside the flag, and grep
+finds no other direct call. `calledFromOwnClient()` makes the four answer
+`LANG_NOT_SUPPORTED` / `""` / `ERROR` / empty. That stops `setLanguage` **before** it queues
+anything, and hands `loadVoice` the negative result its failure branch already turns into
+`restoreEngine`. **No reflection anywhere in it.**
+
+### 2. A SECOND ROUTE INTO THE SAME HOLE THAT NO LISTENER CAN SEE
+`TextToSpeech.Connection.runAction`, verbatim:
+
+    } catch (RemoteException ex) {
+        if (reconnect) { disconnect(); initTts(); }
+        return errorResult;
+
+`speak`, `stop`, `setLanguage`, `setVoice` and `getVoices` all run with `reconnect = true`. So a
+call that lands on an engine as its process dies re-runs `initTts()` with `useFallback = true`.
+**`mInitListener` is already null** (`dispatchOnInit` clears it after the first init), so NEITHER
+of our init listeners hears about it. With the engine mid-update, the client comes back bound
+to the default engine, i.e. us. If the voice cache then says "Do nothing!", no `setLanguage` is
+made, #1 cannot see it, and `speak` queues the chunk on OUR `SynthHandler` behind the
+`onSynthesizeText` that is parked waiting for it.
+
+**Closed at the speak site:** `speakChunk` checks `EngineFinder.boundEngineOf(tts,
+wrapper.rawPkg)` before every chunk. On a mismatch it calls `restoreEngine` and ends the chunk
+through `releaseWaitWithoutSpeaking`. **The empty-text flush skips such a client too**:
+`speak("")` on it queues an empty utterance for us, which flushes again. `boundEngineOf` now
+caches its `Field`, so a chunk costs one `Field.get`, and a blocked platform logs its stack
+trace once instead of once per chunk.
+
+**The reflection is NOT blocked today.** Read at the line: `@UnsupportedAppUsage private
+volatile String mCurrentEngine`, with **no `maxTargetSdk`**. That is the unsupported list,
+readable at any targetSdk.
+
+### 3. `setLanguage` = -1 NO LONGER TEARS DOWN A LIVE ENGINE
+AutoTTS's `f0` restores on any negative `setLanguage`, and so did we. AOSP gives the two
+values different meanings. **-2** is `runAction`'s error result for `setLanguage`: a dead
+client, or the engine refused. **-1** can only be the engine's own `isLanguageAvailable`
+answer, `LANG_MISSING_DATA`, passed through unchanged; every other exit in the method is -2.
+So -1 means a HEALTHY engine that has not downloaded that voice. A restore cannot fix that. It
+does shut down the only client that engine has, which cuts off its other languages (Hindi,
+while this was Gujarati on the same Google TTS). And **our `onStart` resets
+`restoreCount`**, so AutoTTS's `k < 10` cap never runs out: it tore the engine down again on
+every attempt for the life of the process. `setLanguageFailed()` now logs and keeps the engine
+on -1, and restores exactly as before on -2 and on null. **DELIBERATE DEPARTURE**, one value
+wide. `setVoice` is untouched: its -1 is `ERROR`, which is also the dead-client answer.
+
+### CHECKED AGAINST AOSP AND CLEAN -- do NOT re-audit
+- **The zero-sample playback path.** `callback.start()` creates a `SynthesisPlaybackQueueItem`,
+  whose `run()` builds a real `AudioTrack` on the `AudioPlaybackHandler` thread. With zero bytes
+  written, `waitAndRelease` stops it (`mBytesWritten < mAudioBufferSize`), `blockUntilDone`
+  returns at once (`mBytesWritten <= 0`), and it is released. That is one AudioTrack
+  create/release per utterance, off our thread and in parallel with the downstream audio. It is
+  AutoTTS parity and adds no latency to speech.
+- **`onGetDefaultVoiceNameFor` answering the bare iso3 is consistent.** `setLanguage` then
+  finds `Voice("eng", Locale("eng"))` through `getVoices`, and `Locale("eng").isO3Language` is
+  `eng`. The contract holds end to end.
+- **`onGetLanguage`'s one-element array reaches no modern client.** Only the Stub's
+  `getLanguage` returns it, and `TextToSpeech` stopped calling that at API 18. It reads
+  `mParams` instead.
+- **Both downstream bindings pass our importance on.** The clients use `BIND_AUTO_CREATE`,
+  and the keep-alive binding uses `BIND_AUTO_CREATE | BIND_IMPORTANT`, so the freezer cannot
+  take an engine while we are bound.
+- **The Stub's `loadVoice` / `loadLanguage` enqueue at `QUEUE_ADD` and never run inline.**
+  That is why #1 is a queue loop, and why prefetch cannot stop anything.
+
+### WHAT CANNOT BE DONE, stated so it is not attempted
+- **`TtsSpan`s are dropped** (`rawCharSeq.toString()`), exactly as AutoTTS drops them. The
+  chunks are cut from the NORMALISED text (whitespace collapse, fancy-letter fold, bidi strip),
+  so their offsets do not map back onto the original spans.
+- **`onRangeStart` cannot be forwarded.** `rangeStart` sets a frame marker on OUR AudioTrack,
+  which never plays a frame, so the marker would never fire.
+- **`synthesizeToFile` still gives an empty WAV.** Proxying it means one `start()` format per
+  utterance, and a multilingual utterance spans engines with different sample rates.
+- **The next-chunk hop still goes through the MAIN looper.** When the settings UI is busy it
+  competes, but no log has shown it and moving it is a threading change on the speaking path.
+  Ask first.
+
 ## THE ENGINE POOL WAS HOLDING A CLIENT BOUND TO US, AND IT RECURSED (owner, 2026-09-22)
 *"yah ek log file send kari hai ... ek phone mein problem a raha tha, matlab ki TTS ka
 kuchh issue hai, chal hi nahin raha hai."* The log is the whole diagnosis and it names the
@@ -32,9 +138,10 @@ printing `curLocale` and `curVoiceName` out of `wrapper.voiceNow()`, and a `Voic
 answers `eng_USA` / `Locale("en","US")`. So `wrapper.tts` was a `TextToSpeech` bound to
 **com.tts.easyvoice** while `wrapper.pkg` still said `com.codefactoryglobal.eloquencetts`.
 
-**A BINDER CALL INSIDE ONE PROCESS RUNS ON THE CALLING THREAD**, so this is not two threads
-racing -- it is ONE stack: `loadVoice` -> `setLanguage` -> our own `onLoadVoice` ->
-`onLoadLanguage` -> `loadVoice` -> ... 707 levels deep in 1.6 seconds.
+~~**It is ONE stack, 707 levels deep.**~~ **WRONG, corrected 2026-09-23 -- see the section
+above this one.** The log prints `-success` (the END of `onLoadVoice`) before every next
+`onLoadVoice eng`, so each cycle finishes before the next starts: it is a loop through our
+own `SynthHandler` queue, and the stack-recursion backstop described below could never fire.
 
 ### THE CAUSE IS IN AOSP AND IT IS TWO LINES
 Read at the line rather than recalled -- `TextToSpeech.java:761`:
@@ -82,14 +189,10 @@ job. AOSP's own comment three lines further down says there is no way to ask:
    that to the constructor, so for any engine with an underscore **every restore fell through
    step 1 and bound Easy Voice.** Construct with `rawPkg`, compare with `pkg`.
 
-### AND A BACKSTOP THAT CANNOT BE BLOCKED
-`mCurrentEngine` is a non-SDK field. If a platform blocks the read, `boundEngineOf` answers
-"the engine we asked for" and the guard passes -- which is exactly what the code did before.
-So `loadVoice` is now a wrapper over `loadVoiceImpl` with a **thread-local re-entrancy
-flag**: a nested `loadVoice` on ONE thread can only be our own client calling back into us,
-because nothing in the file calls it from inside itself and every legitimate caller (the
-synthesis thread, the main looper inside `onDone`'s post, another app's binder thread)
-arrives on a stack of its own. Worst case the recursion is bounded at depth two.
+### ~~AND A BACKSTOP THAT CANNOT BE BLOCKED~~ -- SHIPPED DEAD, REPLACED 2026-09-23
+It refused a `loadVoice` nested inside `loadVoice` on one thread. The loop never nests (see
+above), so it never fired. The replacement keeps the same thread-local flag and checks it
+where the self-bound client's calls DO run inline -- see the 2026-09-23 section.
 
 **DELIBERATE DEPARTURE.** AutoTTS uses the same constructor and carries the same hazard.
 This is the class the owner has overridden rule 5 for repeatedly -- the outcome is no speech
@@ -97,7 +200,9 @@ at all and only a force stop clears it -- and here it is worse than silence: the
 burns a core until it is wedged.
 
 **WHAT TO LOOK FOR IN THE NEXT LOG:** `asked for <pkg> and got a client bound to <other>`,
-`restore of <pkg> came back bound to <other>`, and `loadVoice re-entered on this thread`.
+`restore of <pkg> came back bound to <other>`, and (since 2026-09-23) `was called from
+inside loadVoice on the same thread`, `client for <pkg> is bound to <other>` and
+`not flushing <pkg>`.
 Any of the three naming an engine means that engine could not be bound at that moment; the
 language goes silent rather than taking the phone down with it.
 

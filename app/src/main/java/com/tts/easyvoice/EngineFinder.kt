@@ -76,14 +76,32 @@ object EngineFinder {
     // wrapped: a non-SDK block throws NoSuchFieldException, which is an Exception,
     // so it degrades to "assume we got the engine we asked for" -- exactly what
     // every caller did before this function existed.
-    fun boundEngineOf(client: TextToSpeech?, expectedPkg: String): String {
-        if (client == null) return expectedPkg
-        return try {
-            val currentEngineField = client.javaClass.getDeclaredField("mCurrentEngine")
-            currentEngineField.isAccessible = true
-            currentEngineField.get(client)?.toString() ?: expectedPkg
+    //
+    // IT IS NOT BLOCKED TODAY, and that was read rather than assumed: the field is
+    // `@UnsupportedAppUsage private volatile String mCurrentEngine` with NO
+    // maxTargetSdk, which is the "unsupported" list -- readable by an app at any
+    // targetSdk, with a logcat warning. Only a future platform moving it to
+    // "blocked" would make this answer expectedPkg.
+    //
+    // THE Field IS LOOKED UP ONCE (2026-09-23). The speak site now calls this for
+    // EVERY chunk (see speakChunk), so the lookup and setAccessible are paid once
+    // per process and a chunk costs one Field.get. It also means a platform that
+    // does block it logs the stack trace ONCE, not once per chunk into the file
+    // the owner shares.
+    private val currentEngineField: java.lang.reflect.Field? by lazy {
+        try {
+            TextToSpeech::class.java.getDeclaredField("mCurrentEngine").also { it.isAccessible = true }
         } catch (ex: Exception) {
             EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "Reflection failed", ex)
+            null
+        }
+    }
+    fun boundEngineOf(client: TextToSpeech?, expectedPkg: String): String {
+        if (client == null) return expectedPkg
+        val field = currentEngineField ?: return expectedPkg
+        return try {
+            field.get(client)?.toString() ?: expectedPkg
+        } catch (ex: Exception) {
             expectedPkg
         }
     }
