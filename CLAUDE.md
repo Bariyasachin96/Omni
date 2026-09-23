@@ -7,6 +7,36 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## GOOGLE'S VOICE STILL WENT FROM EVERY LANGUAGE: FOUR WRITERS, NOT THE SCAN (owner, 2026-09-23, later)
+*"vahan per dikhai de raha hai but ... uska voice sab ko to chala jata hai ... aisa kuchh karo
+ki vah jaaye hi na ... properly core check karo ... aur bhi TTS honge."* The scan fix below kept
+Google IN the list; the configuration was still being overwritten afterwards. Done by hand --
+the workflow's agents all died on the session limit.
+- **Voice setup wrote over the configuration.** `persistVoiceRows` writes `<iso3> = rows[0]`
+  on every persist, including before EVERY Previous/Next. Rows came only from the last scan and
+  were ordered only by weights, so when Google was not read (or a process was restored straight
+  onto that screen with no scan) another row was first and was written back -- walking the
+  languages with Next reassigned all of them. **`VoiceRows.pinConfigured` now makes the stored
+  configuration the first row**, and a configured voice the scan did not return is shown anyway,
+  labelled "(not found in the last scan)" (`ScanVoice.notFound`). Only picking a voice changes it.
+- **`persistEngines` with no scan in the process** wrote `engine_0 = "end"` and gave the running
+  service an empty list. It returns now when `lastScanEngines` is empty, like `persistVoiceList`.
+- **`finalizeScan` also keeps each language's own configured voice** for an unread engine, since
+  an older build had already emptied Google's `voice_N` history.
+- **The service:** the init walk copies its list (`walkList`) because the UI replaced
+  `engineList` under it; **every walk step has restoreEngine's 30 s watchdog** (one engine that
+  never answered left all later engines at state 0 for ever); and **"TTS is not ready" now calls
+  `recoverEngineNotReady`** -- restore a -1 wrapper (and re-bind keep-alive), or add a configured,
+  installed engine the pool never had. That utterance is still silent; the next one speaks.
+  `invariants.sh` #29 enforces all three, negative-tested.
+- **About:** Developer and copyright are **Sachin Baria** again (never remove the owner's name).
+  The licences dialog is the four copyright lines plus one Apache 2.0 sentence; the licence
+  text (4(a)) is in the app behind "Show license text".
+- **Updates:** only AGP 9.4.0 -> 9.4.1 was behind. Every other dependency, Gradle 9.7.1, NDK
+  30.0.16248370, CMake 4.1.2 and build-tools 37 are the latest stable (checked against
+  maven-metadata and repository2-3.xml). concurrent-futures stays 1.2.0 on purpose. The Android 17
+  behaviour pages list nothing beyond the 2026-09-17 audit, and no TTS class gained API after 34.
+
 ## GOOGLE KEPT VANISHING: ONE FAILED SCAN WIPED AN ENGINE (owner, 2026-09-23)
 *"Google baar-baar skip ho jata hai ... Google fir ismein dikhta hi nahin ... jo ham package
 name se TTS lete hain vah TTS chalte hi nahin hain."* Both symptoms had one cause in

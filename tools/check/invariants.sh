@@ -366,7 +366,15 @@ svc=$(sed 's://.*::' $SERVICE | grep -v '^[[:space:]]*$')
 # not on the log line itself; grouping markers are stripped so the count is clean.
 inits=$(printf '%s\n' "$svc" | grep -c 'Error when initializing' || true)
 initsdead=$(printf '%s\n' "$svc" | grep -A2 'Error when initializing' | grep -c 'state = -1' || true)
-[ "$inits" = 2 ] && [ "$initsdead" = 2 ] || fail29="$fail29 construction-catch($initsdead/$inits marks state=-1);"
+# (One site since 2026-09-23: the walk's two copies became startNextInitEngine.)
+[ "$inits" -ge 1 ] && [ "$initsdead" = "$inits" ] || fail29="$fail29 construction-catch($initsdead/$inits marks state=-1);"
+# the init walk is bounded too: engine N+1 is built inside engine N's onInit, so
+# an onInit that never arrives would leave every later engine at state 0
+printf '%s\n' "$svc" | grep -q 'initWalkHandler.postDelayed' \
+  || fail29="$fail29 no-init-walk-timeout;"
+# a configured engine that is not ready asks for itself back
+printf '%s\n' "$svc" | grep -q 'recoverEngineNotReady(if' \
+  || fail29="$fail29 no-speak-time-recovery;"
 # the restore slot is taken once and has more than one way to be given back
 takes=$(printf '%s\n' "$svc" | grep -c 'restoringIndex = idx' || true)
 frees=$(printf '%s\n' "$svc" | grep -c 'restoringIndex = -1' || true)

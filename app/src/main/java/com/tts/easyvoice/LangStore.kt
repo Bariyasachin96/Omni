@@ -420,6 +420,16 @@ object LangStore {
     }
     @JvmStatic
     fun persistEngines(ctx: Context) {
+        // NO SCAN IN THIS PROCESS, NOTHING TO WRITE (2026-09-23). lastScanEngines
+        // is filled only by a finished scan, and four screens persist in onPause
+        // without scanning -- Voice setup, Mode settings and Languages when
+        // Android restores the process straight onto them, and the main screen
+        // when it is left before its scan ends. Writing then put "end" at
+        // engine_0 and handed the running service an EMPTY engine list, so the
+        // next service start bound only the device language's engine and every
+        // other engine -- Google on the owner's phone -- was never bound again.
+        // persistVoiceList has always had this guard; this is the same one.
+        if (EngineFinder.lastScanEngines.isEmpty()) return
         synchronized(languages) {
             val editor = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0).edit()
             val newEngineList = ArrayList<String>()

@@ -140,6 +140,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
     var requestPitch = 1.0f
     @Volatile var requestParams: android.os.Bundle? = null
     var initializingIndex = 0
+    // THE WALK OWNS ITS LIST (2026-09-23). The walk below indexes a list by
+    // initializingIndex across many main-looper messages, and it used to index
+    // the companion's engineList -- which LangStore.persistEngines REPLACES from
+    // the settings screens in this same process. A scan finishing mid-walk
+    // swapped the list under it, so the next step constructed the wrong engine
+    // at the wrong index, or ran off the end and left every later engine at
+    // state 0 for the life of the process. The walk takes a copy and reads
+    // only that.
+    private var walkList: ArrayList<String> = ArrayList()
+    private val initWalkHandler = android.os.Handler(android.os.Looper.getMainLooper())
     // TRUE only once setIsoMap has actually reached the native side. It used to
     // be the emptiness of a scratch HashMap, and that was wrong twice -- see
     // initIsoMaps.
@@ -937,7 +947,53 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
             }
             wrapper.locale = locale; wrapper.voiceName = effectiveVariant
-        } else { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1 }
+        } else { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
+    }
+    // THE CONFIGURED ENGINE IS NOT READY: ASK FOR IT BACK (2026-09-23, owner:
+    // "Google ... uska voice sab ko chala jata hai ... aisa kuchh karo ki vah
+    // jaaye hi na"). "TTS is not ready" used to be the end of it: the utterance
+    // was released unspoken and nothing tried again. A wrapper that reached -1
+    // could only come back through onEngineProcessBack, which needs the
+    // keep-alive binding to connect -- and when that bindService itself failed
+    // (engine mid-update, the one case the owner keeps hitting) no callback is
+    // ever delivered. An engine the scan found AFTER this service started was
+    // never in the pool at all. Either way every language configured on it
+    // stayed silent until the process died.
+    //
+    // A language asking for its engine IS the event. So:
+    //   state -1      -> restoreEngine, with its own cap, in-flight guard and
+    //                    30 s timeout; the keep-alive binding is retried too;
+    //   not in pool   -> added (only once the init walk has finished, so the
+    //                    walk's indices cannot move) and restored the same way;
+    //   state 0 or 2  -> nothing: the walk has not reached it, or it is fine.
+    // This utterance is still released unspoken, as before; the next one finds
+    // the engine back. No clock, and nothing on the healthy path runs.
+    // It runs on the main looper, which is where the pool is grown and the walk
+    // runs; the callers are the synthesis and binder threads.
+    private fun recoverEngineNotReady(rawPkg: String) { onMainThread { recoverEngineNotReadyMain(rawPkg) } }
+    private fun recoverEngineNotReadyMain(rawPkg: String) {
+        try {
+            if (rawPkg.isEmpty() || rawPkg.equals("disable", true) || rawPkg == packageName) return
+            val normPkg = rawPkg.replace("-","").replace("_","")
+            var wrapper: EngineWrapper? = null
+            for (index in 0 until enginePool.size) { if (enginePool[index].pkg.equals(normPkg, true)) { wrapper = enginePool[index]; break } }
+            if (wrapper == null) {
+                if (initializingIndex < walkList.size) return
+                val installed = try { packageManager.resolveService(android.content.Intent("android.intent.action.TTS_SERVICE").setPackage(rawPkg), 0) != null } catch (_: Exception) { false }
+                if (!installed) return
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, rawPkg + " is configured but was not in the engine pool -- adding it")
+                val added = EngineWrapper(rawPkg)
+                added.state = -1
+                enginePool.add(added)
+                wrapper = added
+            }
+            if (wrapper.state != -1) return
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, wrapper.pkg + " is not ready -- restoring it")
+            bindEngineKeepAlive(wrapper.rawPkg)
+            restoreEngine(wrapper.pkg)
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "recoverEngineNotReady: " + ex.toString())
+        }
     }
     private fun loadVoiceOriginal(pkg: String, locale: java.util.Locale) {
         val normPkg = (if (pkg.isEmpty()) lastEnginePkg else { lastEnginePkg = pkg; pkg }).replace("-","").replace("_","")
@@ -956,7 +1012,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 (nullableIso3Country(wrapperLocale) == reqCountry || reqCountry.isEmpty())) return
             val setLangResult = wrapper.tts?.setLanguage(locale)
             if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = "" } else setLanguageFailed(wrapper, locale, setLangResult)
-        } else { engineIndex = -1 }
+        } else { engineIndex = -1; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
     }
     private fun loadVoiceDedicated(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadVoice_Secondary " + pkg + " " + locale + " " + variant)
@@ -965,7 +1021,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " current engine: " + normPkg)
         var idx = -1
         for (index in 0 until enginePool.size) { if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " found!"); idx = index; break } }
-        if (idx == -1) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; return }
+        if (idx == -1) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg); return }
         val previousEngineIndex = engineIndex
         engineIndex = idx
         val wrapper = enginePool[idx]
@@ -1130,30 +1186,62 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // the pool at state 0 is inert: loadVoice* only ever matches
             // state == 2 and onEngineProcessBack only acts on state == -1, which
             // is already true of the listener's failure path.
-            while (initializingIndex < engineList.size) {
-                enginePool.add(EngineWrapper(engineList[initializingIndex]))
-                bindEngineKeepAlive(engineList[initializingIndex])
-                val cell = arrayOfNulls<TextToSpeech>(1)
-                try {
-                    cell[0] = TextToSpeech(applicationContext, EngineInitListener(cell), engineList[initializingIndex])
-                    break
-                } catch (_: Exception) {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex])
-                    // state = -1, NOT the 0 it was left at (2026-09-16). See the
-                    // note above: a state-0 wrapper is inert, but it is also
-                    // INVISIBLE TO EVERY RECOVERY PATH -- onEngineProcessBack acts
-                    // only on -1, and initAllEngines runs once from onCreate. So a
-                    // constructor that threw because the engine was mid-update left
-                    // that engine dead for the life of the process even after it
-                    // came back. -1 is what "this wrapper has no usable client"
-                    // already means, and it is what the listener's own failure path
-                    // writes; 0 now means only "the walk has not reached it yet",
-                    // which is what keeps onEngineProcessBack's -1 test correct.
-                    if (initializingIndex < enginePool.size) enginePool[initializingIndex].state = -1
-                    initializingIndex++
-                }
+            walkList = ArrayList(engineList)
+            startNextInitEngine()
+        }
+    }
+    // One step of the walk: construct the client for walkList[initializingIndex],
+    // skipping (at state -1) any engine whose constructor throws.
+    //
+    // state = -1, NOT the 0 it was left at (2026-09-16). See the
+    // note above: a state-0 wrapper is inert, but it is also
+    // INVISIBLE TO EVERY RECOVERY PATH -- onEngineProcessBack acts
+    // only on -1, and initAllEngines runs once from onCreate. So a
+    // constructor that threw because the engine was mid-update left
+    // that engine dead for the life of the process even after it
+    // came back. -1 is what "this wrapper has no usable client"
+    // already means, and it is what the listener's own failure path
+    // writes; 0 now means only "the walk has not reached it yet",
+    // which is what keeps onEngineProcessBack's -1 test correct.
+    //
+    // AND EVERY STEP HAS A 30 s WATCHDOG NOW (2026-09-23, owner: "aur bhi TTS
+    // honge, aise to nahin jaane chahie"). Engine N+1 is constructed ONLY inside
+    // engine N's onInit, and AOSP's initTts dispatches nothing when the bind
+    // succeeds but the engine process never comes up -- the case already written
+    // up in restoreEngine. So one engine that never answered left EVERY engine
+    // after it at state 0 for the life of the process: all their languages
+    // silent, and nothing able to recover them, because onEngineProcessBack acts
+    // only on -1. The watchdog is restoreEngine's own, same number, same
+    // mechanism: shutdown() on the abandoned client prevents the late callback,
+    // and the one-shot flag discards one already queued. That engine goes to -1,
+    // where the reconnect and the speak-time recovery can still bring it back,
+    // and the walk moves on. Nothing new waits on the healthy path.
+    private fun startNextInitEngine() {
+        while (initializingIndex < walkList.size) {
+            val myIndex = initializingIndex
+            val enginePkg = walkList[myIndex]
+            enginePool.add(EngineWrapper(enginePkg))
+            bindEngineKeepAlive(enginePkg)
+            val cell = arrayOfNulls<TextToSpeech>(1)
+            val done = java.util.concurrent.atomic.AtomicBoolean(false)
+            try {
+                cell[0] = TextToSpeech(applicationContext, EngineInitListener(cell, myIndex, done), enginePkg)
+                initWalkHandler.postDelayed({
+                    if (!done.compareAndSet(false, true)) return@postDelayed
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, "init never arrived for " + enginePkg + " -- marking it not ready and moving on")
+                    try { cell[0]?.shutdown() } catch (_: Throwable) {}
+                    if (myIndex < enginePool.size) { enginePool[myIndex].tts = null; enginePool[myIndex].forgetClientState(); enginePool[myIndex].state = -1 }
+                    if (initializingIndex == myIndex) { initializingIndex = myIndex + 1; startNextInitEngine() }
+                }, 30000L)
+                return
+            } catch (_: Exception) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + enginePkg)
+                done.set(true)
+                if (myIndex < enginePool.size) enginePool[myIndex].state = -1
+                initializingIndex++
             }
         }
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)")
     }
     // onInit IS NOT ALWAYS ON THE MAIN THREAD, and both listeners below assume
     // it is (2026-09-23, read from AOSP main). The public
@@ -1202,7 +1290,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // constructor has long returned and cell[0] is set; on the inline ERROR path
     // cell[0] is still null, and storing null there is strictly better than
     // storing some other engine's client on a wrapper we are marking dead.
-    inner class EngineInitListener(private val cell: Array<TextToSpeech?>) : TextToSpeech.OnInitListener {
+    inner class EngineInitListener(
+        private val cell: Array<TextToSpeech?>,
+        private val myIndex: Int,
+        private val done: java.util.concurrent.atomic.AtomicBoolean
+    ) : TextToSpeech.OnInitListener {
         // Guarded 2026-09-11 for the same two reasons as RestoreInitListener: this
         // is the main looper, so an escape is a process death, and it is also the
         // only thing that advances the pool walk -- every engine after the one that
@@ -1210,12 +1302,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // would answer "TTS is not ready" for the life of the process.
         override fun onInit(status: Int) { onMainThread { handleInit(status) } }
         private fun handleInit(status: Int) {
+            // One shot: an onInit that lands after the watchdog gave up on this
+            // engine belongs to a step the walk has already left.
+            if (!done.compareAndSet(false, true)) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init arrived after the walk moved on; discarding that client")
+                try { cell[0]?.shutdown() } catch (_: Throwable) {}
+                return
+            }
             try {
             val initializingTts = cell[0]
-            if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (1)"); return }
+            if (myIndex != initializingIndex || initializingIndex >= walkList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (1)"); return }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init " + (if (initializingIndex < enginePool.size) enginePool[initializingIndex].pkg else ""))
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
-            val wantedPkg = engineList[initializingIndex]
+            val wantedPkg = walkList[initializingIndex]
             val boundPkg = if (status == TextToSpeech.SUCCESS) EngineFinder.boundEngineOf(initializingTts, wantedPkg) else wantedPkg
             if (status == TextToSpeech.SUCCESS && !isSameEnginePkg(boundPkg, wantedPkg)) {
                 // AOSP HANDED US SOMEBODY ELSE'S ENGINE AND CALLED IT SUCCESS.
@@ -1233,13 +1332,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (initializingIndex < enginePool.size) { enginePool[initializingIndex].tts = initializingTts; enginePool[initializingIndex].forgetClientState(); enginePool[initializingIndex].state = -1 }
             }
             initializingIndex++
-            while (initializingIndex < engineList.size) {
-                enginePool.add(EngineWrapper(engineList[initializingIndex]))
-                bindEngineKeepAlive(engineList[initializingIndex])
-                val nextCell = arrayOfNulls<TextToSpeech>(1)
-                try { nextCell[0] = TextToSpeech(applicationContext, EngineInitListener(nextCell), engineList[initializingIndex]); break } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + engineList[initializingIndex]); if (initializingIndex < enginePool.size) enginePool[initializingIndex].state = -1; initializingIndex++ }
-            }
-            if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)") }
+            startNextInitEngine()
             } catch (ex: Throwable) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Engine init failed: " + ex.toString())
             }

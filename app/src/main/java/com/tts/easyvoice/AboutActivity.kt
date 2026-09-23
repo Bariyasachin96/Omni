@@ -91,10 +91,12 @@ fun AboutScreen() {
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
             )
-            // Owner, 2026-09-23: the developer's name and the build number are
-            // not wanted here, so only the version and the copyright remain.
+            // Owner, 2026-09-23 (second message): the owner's name belongs on
+            // the Developer line and in the copyright -- "main uska owner hun".
+            // The build number stays off, as asked the first time.
             SettingDescription("Version: " + versionName)
-            SettingDescription("Copyright \u00a9 2026 Easy Voice. All rights reserved.")
+            SettingDescription("Developer: Sachin Baria")
+            SettingDescription("Copyright \u00a9 2026 Sachin Baria. All rights reserved.")
             // A DIALOG, not a screen (owner, 2026-09-23: "licence ki activity
             // hatao ... ek dialog rakho"). A dialog is its own window, so a
             // screen reader still speaks its title when it opens, and back or the
@@ -105,27 +107,34 @@ fun AboutScreen() {
     if (showLicenses) LicensesDialog { showLicenses = false }
 }
 
-// WHAT THE APP USES, AND THE LICENCE THEY COME UNDER -- nothing else (owner,
-// 2026-09-23). Every component below is Apache 2.0, read off each project's own
-// licence, so one copy of that licence serves all of them; it is shipped in the
-// APK as res/raw/apache_license_2_0.txt, taken byte for byte from
-// apache.org/licenses/LICENSE-2.0.txt. That copy is what Apache 2.0 section 4(a)
-// asks a redistributor to give. CLD2 has no NOTICE file (HTTP 404), so 4(d) adds
-// nothing to it.
+// ONLY WHAT THE LICENCE REQUIRES (owner, 2026-09-23: "itna bada dialog kyon
+// ... jo jaruri hai vahi chij rakho ... sab kuchh legal karo").
+//
+// Every component the app ships is Apache 2.0, read off each project's own
+// licence, and Apache 2.0 section 4 asks a binary redistributor for exactly two
+// things that apply here: (a) give recipients a copy of the licence, and
+// (c) keep the copyright notices. CLD2 has no NOTICE file (HTTP 404), so (d)
+// adds nothing, and (b) is about modified SOURCE files, which we do not ship.
+// So the dialog is the four copyright lines and one sentence naming the
+// licence. The copy of the licence that 4(a) asks for is still IN the app --
+// res/raw/apache_license_2_0.txt, byte for byte from apache.org -- but it is
+// folded behind one button rather than printed by default, which is what made
+// the dialog eleven kilobytes long. The NDK's libc++ is Apache 2.0 WITH the LLVM
+// exception, which waives 4(a), 4(b) and 4(d) for code compiled into a binary,
+// so it needs no line here.
 private val THIRD_PARTY = listOf(
-    "Compact Language Detector 2 (CLD2). Copyright 2013, 2014 Google Inc.",
-    "AndroidX and Jetpack Compose libraries. Copyright The Android Open Source Project.",
-    "Kotlin standard library and kotlinx.coroutines. Copyright JetBrains s.r.o. and Kotlin Programming Language contributors.",
+    "CLD2 (Compact Language Detector 2). Copyright 2013, 2014 Google Inc.",
+    "AndroidX and Jetpack Compose. Copyright The Android Open Source Project.",
+    "Kotlin standard library and kotlinx.coroutines. Copyright JetBrains s.r.o.",
     "Material Design icons. Copyright Google LLC."
 )
 
 @Composable
 fun LicensesDialog(onClose: () -> Unit) {
     val context = LocalContext.current
-    // Paragraphs split on blank lines, so a screen reader can move through the
-    // licence a paragraph at a time instead of meeting one 11 KB block.
-    val licenceParagraphs = remember {
-        try {
+    var showText by remember { mutableStateOf(false) }
+    val licenceParagraphs = remember(showText) {
+        if (!showText) emptyList() else try {
             context.resources.openRawResource(R.raw.apache_license_2_0).bufferedReader().use { it.readText() }
                 .split(Regex("\\n\\s*\\n")).map { it.trim() }.filter { it.isNotEmpty() }
         } catch (_: Exception) { emptyList() }
@@ -135,12 +144,17 @@ fun LicensesDialog(onClose: () -> Unit) {
         title = { Text("Open source licenses", modifier = Modifier.semantics { heading() }) },
         text = {
             // Material3's AlertDialog does not scroll its text slot, so the
-            // column scrolls itself.
+            // column scrolls itself -- it only matters once the text is open.
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text("Used under the Apache License, Version 2.0:", style = MaterialTheme.typography.bodyMedium)
                 for (line in THIRD_PARTY) {
-                    Text(line, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    Text(line, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
                 }
+                Text("All are used under the Apache License, Version 2.0.", style = MaterialTheme.typography.bodyMedium)
+                EvButton(
+                    label = if (showText) "Hide license text" else "Show license text",
+                    modifier = Modifier.padding(top = 8.dp),
+                    outlined = true
+                ) { showText = !showText }
                 for (paragraph in licenceParagraphs) {
                     Text(paragraph, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
                 }

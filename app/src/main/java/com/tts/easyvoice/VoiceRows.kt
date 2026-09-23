@@ -8,7 +8,8 @@ object VoiceRows {
     fun label(row: EngineFinder.ScanVoice?): String {
         if (row == null) return "*Disabled"
         val abbreviated = abbreviateEngineName(row.engineName)
-        return if (row.locale.country.isNotEmpty()) abbreviated + ", " + row.locale.getDisplayCountry() else abbreviated
+        val base = if (row.locale.country.isNotEmpty()) abbreviated + ", " + row.locale.getDisplayCountry() else abbreviated
+        return if (row.notFound) base + " (not found in the last scan)" else base
     }
     fun load(context: Context, readingMode: String, selectedIso: String): List<EngineFinder.ScanVoice?> {
         if (selectedIso.isEmpty()) { LangStore.currentVoiceRows = emptyList(); return emptyList() }
@@ -49,10 +50,60 @@ object VoiceRows {
             val orderB = voiceOrder(voiceKey(rowB, selectedIso))
             if (orderA != orderB) orderA - orderB else tieBreakLabel(rowA).compareTo(tieBreakLabel(rowB), ignoreCase = true)
         })
-        LangStore.currentVoiceRows = sorted
+        val stored = try { rawPrefs.getString(selectedIso, "") ?: "" } catch (_: Exception) { "" }
+        val pinned = pinConfigured(context, sorted, stored, selectedIso, readingMode)
+        LangStore.currentVoiceRows = pinned
         var weightIdx = 0
-        while (weightIdx < sorted.size) { EngineFinder.voiceWeights[voiceKey(sorted[weightIdx], selectedIso)] = weightIdx; weightIdx++ }
-        return sorted
+        while (weightIdx < pinned.size) { EngineFinder.voiceWeights[voiceKey(pinned[weightIdx], selectedIso)] = weightIdx; weightIdx++ }
+        return pinned
+    }
+    // THE CONFIGURED VOICE IS ALWAYS THE FIRST ROW (2026-09-23, owner: "Google
+    // ... uska voice sab ko chala jata hai ... aisa kuchh karo ki vah jaaye hi
+    // na").
+    //
+    // The first row IS the selection: the screen shows it as the chosen voice,
+    // and LangStore.persistVoiceRows writes it back as "<iso3> = <pkg>#<locale>"
+    // on every persist -- every onPause, and before EVERY Previous/Next on Voice
+    // setup. The rows were built only from what the last scan could read and
+    // ordered only by the stored weights, so whenever the configured engine was
+    // not read (Google failing a scan, a process restored straight onto this
+    // screen with no scan in it) or its weight was missing, some other row came
+    // first and was written over the configuration. Walking the languages with
+    // Next did that to every one of them in a row -- all of Google's languages
+    // reassigned or disabled without the owner touching anything.
+    //
+    // So the stored configuration decides the first row: the matching row is
+    // moved up, and a configured voice the scan did not return is shown anyway,
+    // marked as not found. Persisting then writes back exactly what was stored.
+    // Only picking a different voice (moveToFront) changes the configuration.
+    // With nothing configured the weight order stands, as before.
+    private fun pinConfigured(context: Context, rows: List<EngineFinder.ScanVoice?>, stored: String, selectedIso: String,
+                              readingMode: String): List<EngineFinder.ScanVoice?> {
+        val parts = stored.split("#")
+        if (parts.size < 2 || parts[0].isEmpty()) return rows
+        val out = ArrayList<EngineFinder.ScanVoice?>(rows)
+        if (parts[0].equals("disable", true)) {
+            val at = out.indexOf(null)
+            if (at > 0) out.add(0, out.removeAt(at))
+            return out
+        }
+        if (readingMode == "google" && !parts[0].equals("com.google.android.tts", true)) return rows
+        val at = out.indexOfFirst { it != null && it.pkg == parts[0] && it.locale.toString() == parts[1] }
+        if (at == 0) return rows
+        if (at > 0) { out.add(0, out.removeAt(at)); return out }
+        val locale = EngineFinder.parseStoredLocale(parts[1])
+        if (EngineFinder.iso3Of(locale) != selectedIso) return rows
+        val engineName = EngineFinder.lastScanVoices.firstOrNull { it.pkg == parts[0] }?.engineName
+            ?: try {
+                val pm = context.packageManager
+                pm.getApplicationLabel(pm.getApplicationInfo(parts[0], 0)).toString()
+            } catch (_: Exception) { EngineFinder.friendlyName(parts[0]) }
+        val variants = arrayListOf("*Default")
+        val savedVariant = try { context.getSharedPreferences("easy_voice_settings", Context.MODE_PRIVATE)
+            .getString(selectedIso + "_variant", "*Default") ?: "*Default" } catch (_: Exception) { "*Default" }
+        if (savedVariant.isNotEmpty() && savedVariant != "*Default") variants.add(savedVariant)
+        out.add(0, EngineFinder.ScanVoice(parts[0], engineName, locale, variants, notFound = true))
+        return out
     }
     fun moveToFront(rows: List<EngineFinder.ScanVoice?>, position: Int, selectedIso: String, entry: LangEntry): List<EngineFinder.ScanVoice?> {
         val reordered = ArrayList<EngineFinder.ScanVoice?>(rows)

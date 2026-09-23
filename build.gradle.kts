@@ -38,7 +38,8 @@ plugins {
     // touch the build, because this file's own recorded lesson is that a change
     // which can only be tested by a thirteen-minute CI run must never be stacked
     // with another.
-    id("com.android.application") version "9.4.0" apply false
+    // 9.4.1 (2026-09-23): a patch release on the same line, same Gradle floor.
+    id("com.android.application") version "9.4.1" apply false
     // Ships with Kotlin, so it must match the Kotlin version exactly.
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.20" apply false
 }

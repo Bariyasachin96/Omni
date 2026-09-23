@@ -131,7 +131,21 @@ object EngineFinder {
         }
         return list
     }
-    data class ScanVoice(val pkg: String, val engineName: String, val locale: Locale, val variants: ArrayList<String>)
+    // `notFound` marks a voice that is only here because a language is CONFIGURED
+    // on it: the engine could not be read this time, but the configuration is
+    // the user's and is shown rather than silently replaced (2026-09-23).
+    data class ScanVoice(val pkg: String, val engineName: String, val locale: Locale, val variants: ArrayList<String>,
+                         val notFound: Boolean = false)
+    // "pkg#locale" -> the Locale it names, the inverse of how voice_N and the
+    // per-language key are written.
+    @JvmStatic fun parseStoredLocale(tag: String): Locale {
+        val localeParts = tag.split("_")
+        return when (localeParts.size) {
+            1 -> Locale(localeParts[0])
+            2 -> Locale(localeParts[0], localeParts[1])
+            else -> Locale(localeParts[0], localeParts[1], localeParts.drop(2).joinToString("_"))
+        }
+    }
     // Compiled ONCE rather than per call -- see LangStore.COMBINING_MARKS for
     // the measurement. Both files strip combining marks the same way and both
     // did it inside a comparator.
@@ -227,14 +241,24 @@ object EngineFinder {
                         voiceIdx++
                         val parts = key.split("#")
                         if (parts.size < 2 || parts[0] != failedPkg) continue
-                        val localeParts = parts[1].split("_")
-                        val loc = when (localeParts.size) {
-                            1 -> Locale(localeParts[0])
-                            2 -> Locale(localeParts[0], localeParts[1])
-                            else -> Locale(localeParts[0], localeParts[1], localeParts.drop(2).joinToString("_"))
-                        }
-                        keptVoices.add(ScanVoice(failedPkg, label, loc, arrayListOf("*Default")))
+                        keptVoices.add(ScanVoice(failedPkg, label, parseStoredLocale(parts[1]), arrayListOf("*Default")))
                     }
+                }
+                // THE CONFIGURATION IS THE LAST RECORD AND IT IS KEPT TOO. voice_N
+                // is rewritten by every persist, so a build that once dropped an
+                // engine from the scan left it with no voice_N history at all --
+                // and then this engine contributed nothing, its languages lost the
+                // voice, and the owner heard Google "go away" for every language
+                // configured on it. Each language's own "<pkg>#<locale>" key names
+                // the voice it was set up with, so that voice is kept as well.
+                val prefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
+                for ((key, value) in prefs.all) {
+                    if (key.length != 3 || value !is String) continue
+                    val parts = value.split("#")
+                    if (parts.size < 2 || parts[0] != failedPkg || parts[1].isEmpty()) continue
+                    val loc = parseStoredLocale(parts[1])
+                    if (keptVoices.any { it.pkg == failedPkg && it.locale.toString() == loc.toString() }) continue
+                    keptVoices.add(ScanVoice(failedPkg, label, loc, arrayListOf("*Default")))
                 }
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan could not read " + failedPkg + "; keeping it with " +
                     keptVoices.count { it.pkg == failedPkg } + " voices from before")

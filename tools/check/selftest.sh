@@ -105,7 +105,11 @@ run "#28 replace a client without forgetting its state" "#28" \
 run "#28 stop clearing the voice cache" "#28" \
     "perl -0pi -e 's/            voicesCache = null\\n            currentVoice = null/            currentVoice = null/' $K/EasyVoiceTtsService.kt"
 run "#29 leave a failed construction at state 0" "#29" \
-    "perl -0pi -e 's/if \\(initializingIndex < enginePool\\.size\\) enginePool\\[initializingIndex\\]\\.state = -1\\n                    initializingIndex\\+\\+/initializingIndex++/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/if \\(myIndex < enginePool\\.size\\) enginePool\\[myIndex\\]\\.state = -1\\n                initializingIndex\\+\\+/initializingIndex++/' $K/EasyVoiceTtsService.kt"
+run "#29 remove the init walk timeout" "#29" \
+    "perl -0pi -e 's/initWalkHandler\\.postDelayed\\(\\{/run({/' $K/EasyVoiceTtsService.kt"
+run "#29 drop the speak-time recovery" "#29" \
+    "perl -0pi -e 's/; recoverEngineNotReady\\(if \\(pkg\\.isEmpty\\(\\)\\) lastEnginePkg else pkg\\)//g' $K/EasyVoiceTtsService.kt"
 run "#29 remove the restore bind timeout" "#29" \
     "perl -0pi -e 's/restoreTimeoutHandler\\.postDelayed\\(\\{/run({/' $K/EasyVoiceTtsService.kt"
 run "#29 gate the reconnect reset on state again" "#29" \
