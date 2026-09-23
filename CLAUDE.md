@@ -8,6 +8,24 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## JNI: NO LIBRARY FITS; THE HAND-WRITTEN PART FOLLOWS ANDROID'S JNI TIPS NOW (owner, 2026-09-23, latest)
+*"jni function ko handle karne ke liye bhi kuchh library hoti hogi."* Checked, and none fits:
+**fbjni** needs C++ exceptions and RTTI (we build `-fno-exceptions -fno-rtti`) and ships its own
+`.so`; **libnativehelper** (`ScopedUtfChars`, `JNIHelp`) is AOSP-internal, not NDK public API;
+jni.hpp-style wrappers throw. The surface is 7 entry points and ~40 `env->` calls. Done instead,
+per developer.android.com/training/articles/perf-jni:
+- `jstringToStd` reads with **`GetStringUTFLength` + `GetStringUTFRegion`** (no VM allocation,
+  nothing to release, no OOM-null); same modified UTF-8 bytes.
+- **Every** jstring read goes through it: `normalizeFancy` and `detectLanguageFull`'s two
+  fallback strings used to keep making JNI calls with an exception pending, which JNI forbids.
+- `java/lang/String` is a **global ref cached once** (`stringClassRef(env)`, filled from the new
+  `JNI_OnLoad`) instead of `FindClass` per `nativeGetLanguages` call. It takes a `JNIEnv*` so the
+  harness slicer drops it.
+- Verified: segmenter/normaliser/scriptfamily/langcodes identical, latency + devanagari (real JVM,
+  real JNI symbols) pass, and a local NDK 30 `externalNativeBuildRelease` exports all 8 symbols.
+- **Not done: `RegisterNatives`.** The tips recommend it, but it would change every symbol the two
+  real-JNI harnesses call; ask first.
+
 ## BACKUP TTS SCANS AT THE MOMENT IT FAILS; THE APP'S OWN CODE HAS A BASELINE PROFILE (owner, 2026-09-23, latest)
 *"backup TTS ... Hindi padhta hun to kuchh awaaz nahin ... use time per kuchh scan nahin hota ...
 profile dekho ... missing dependency bhi milegi."*

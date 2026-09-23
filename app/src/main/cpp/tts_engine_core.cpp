@@ -13,7 +13,29 @@
 #include "compact_lang_det.h"
 #include "encodings.h"
 #include "compact_lang_det_impl.h"
-JNIEXPORT jint JNI_OnLoad(JavaVM*, void*) {
+// java.lang.String, looked up ONCE. Android's JNI tips: "cache the IDs in
+// JNI_OnLoad" -- FindClass is a class-loader lookup, and nativeGetLanguages
+// ran it on every call. Held as a global ref, because a local one dies with the
+// call. A function taking JNIEnv* rather than a bare global, so the desktop
+// harnesses' slicer (which drops anything that takes a JNIEnv*) drops it too.
+// The first caller fills it; JNI_OnLoad is that caller on a device.
+static jclass stringClassRef(JNIEnv* env) {
+    static std::mutex lock;
+    static jclass cached = nullptr;
+    std::lock_guard<std::mutex> guard(lock);
+    if (!cached) {
+        jclass local = env->FindClass("java/lang/String");
+        if (!local) return nullptr;                 // exception pending
+        cached = static_cast<jclass>(env->NewGlobalRef(local));
+        env->DeleteLocalRef(local);
+    }
+    return cached;
+}
+JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
+    JNIEnv* env = nullptr;
+    if (vm && vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) == JNI_OK && env) {
+        if (!stringClassRef(env)) env->ExceptionClear();
+    }
     return JNI_VERSION_1_6;
 }
 
@@ -1237,10 +1259,18 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
 static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
     out.clear();
     if(!value) return true;
-    const char* chars = env->GetStringUTFChars(value, nullptr);
-    if(!chars) return false;            // OOM pending -- make no further JNI call
-    out.assign(chars);
-    env->ReleaseStringUTFChars(value, chars);
+    // GetStringUTFRegion, not GetStringUTFChars (2026-09-23). Android's JNI
+    // tips recommend it for exactly this: it copies into OUR buffer, so the VM
+    // allocates nothing, there is nothing to release, and the OOM-null answer
+    // the old call could give is gone. The bytes are the same modified UTF-8
+    // (U+0000 as C0 80, which the span code relies on).
+    jsize units = env->GetStringLength(value);
+    jsize bytes = env->GetStringUTFLength(value);
+    if(env->ExceptionCheck()) return false;
+    out.resize((size_t)bytes + 1);
+    env->GetStringUTFRegion(value, 0, units, &out[0]);
+    if(env->ExceptionCheck()) { out.clear(); return false; }
+    out.resize((size_t)bytes);
     return true;
 }
 
@@ -1758,8 +1788,8 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv* env,
         for(jsize i=0;i<count && codes.size()<64;i++){
             jstring jLang = (jstring)env->GetObjectArrayElement(jLangs, i);
             if(!jLang) continue;
-            const char* langC = env->GetStringUTFChars(jLang, nullptr);
-            if(!langC){ env->DeleteLocalRef(jLang); return; }   // OOM pending
+            std::string langC;
+            if(!jstringToStd(env, jLang, langC)){ env->DeleteLocalRef(jLang); return; }   // exception pending
             {
                 // 0x6535f4: `sub x8, x0, #0x8 / cmn x8, #0x7 / b.lo <skip>`,
                 // i.e. a code is kept only when 1 <= strlen <= 7 -- it has to
@@ -1773,7 +1803,6 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv* env,
                         if(one[at] >= 'A' && one[at] <= 'Z') one[at] = (char)(one[at] | 0x20);
                     codes.push_back(one);
                 }
-                env->ReleaseStringUTFChars(jLang, langC);
             }
             env->DeleteLocalRef(jLang);
         }
@@ -1850,8 +1879,12 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
     // already answers "UNKNOWN".
     if(!chars) return nullptr;
     int textLen = (int)env->GetStringLength(jText);
-    const char* latC = jLat?env->GetStringUTFChars(jLat,nullptr):nullptr; std::string latinFallback(latC?latC:""); if(latC) env->ReleaseStringUTFChars(jLat,latC);
-    const char* nlC = jNonLat?env->GetStringUTFChars(jNonLat,nullptr):nullptr; std::string nonLatinFallback(nlC?nlC:""); if(nlC) env->ReleaseStringUTFChars(jNonLat,nlC);
+    // Through jstringToStd like every other read: the old inline form went on
+    // making JNI calls with an OutOfMemoryError pending, which JNI forbids.
+    std::string latinFallback, nonLatinFallback;
+    if(!jstringToStd(env, jLat, latinFallback) || !jstringToStd(env, jNonLat, nonLatinFallback)){
+        env->ReleaseStringChars(jText, chars); return nullptr;
+    }
     bool disableAdvanced = (jDisableAdv==JNI_TRUE);
     std::unordered_set<std::string> okIso3, enabled;
     { std::lock_guard<std::mutex> lock(detectSetMutex); okIso3 = detectOkIso3Set; enabled = enabledLangSet; }
@@ -1897,9 +1930,8 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv* env, jclass, jstring jText){
     if(!jText) return env->NewStringUTF("");
-    const char* chars = env->GetStringUTFChars(jText, nullptr);
-    std::string text(chars ? chars : "");
-    if(chars) env->ReleaseStringUTFChars(jText, chars);
+    std::string text;
+    if(!jstringToStd(env, jText, text)) return nullptr;      // exception pending
     return env->NewStringUTF(normalizeFancyText(text).c_str());
 }
 
@@ -1911,7 +1943,8 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv* env, j
 // ==========================================================================
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
-    jclass stringClass=env->FindClass("java/lang/String");
+    jclass stringClass = stringClassRef(env);
+    if(!stringClass) return nullptr;                          // exception pending
     if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
     std::string text;
     if(!jstringToStd(env, jText, text)) return nullptr;      // OOM pending
