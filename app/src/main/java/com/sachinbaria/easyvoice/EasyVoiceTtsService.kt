@@ -356,7 +356,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // whole of Guava in. The platform AudioFocusRequest below IS the current
     // API, so it stays.
     private fun requestAudioFocus() {
-        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        // ContextCompat.getSystemService is androidx's typed lookup: a device that
+        // has no audio service answers null here instead of the NPE that
+        // `getSystemService(AUDIO_SERVICE) as AudioManager` threw on the cast.
+        val manager = ContextCompat.getSystemService(this, AudioManager::class.java)
+        if (manager == null) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Audio focus request: no AudioManager on this device"); return }
+        audioManager = manager
         val result = if (Build.VERSION.SDK_INT >= 26) requestAudioFocus26()
         else {
             @Suppress("DEPRECATION")
@@ -412,11 +417,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return audioManager!!.requestAudioFocus(focusRequest)
     }
     private fun abandonAudioFocus() {
+        if (audioManager == null) return
         if (Build.VERSION.SDK_INT >= 26) abandonAudioFocus26()
         else { @Suppress("DEPRECATION") audioManager!!.abandonAudioFocus(audioFocusListener) }
     }
     private fun abandonAudioFocus26() {
-        audioManager!!.abandonAudioFocusRequest(audioFocusRequest!!)
+        val request = audioFocusRequest ?: return
+        audioManager?.abandonAudioFocusRequest(request)
     }
 
     // ==========================================================================
@@ -820,6 +827,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // restore exactly as before.
     private fun setLanguageFailed(wrapper: EngineWrapper, locale: java.util.Locale, result: Int?) {
         voiceLoadFailed = true
+        // WHAT THE ENGINE ITSELF SAID (2026-09-23, owner's log: Google TTS set up,
+        // "hi_IN vs zxx", restore refused, and not one onStart from Google in a
+        // minute). The failure branch never recorded the code or why, so the log
+        // could not tell a dead client from an engine that answers but has no
+        // voices. AOSP's TextToSpeech.setLanguage returns LANG_NOT_SUPPORTED not
+        // only when isLanguageAvailable says so, but also when the engine's
+        // getDefaultVoiceNameFor is empty or its getVoices() does not contain that
+        // name -- which is exactly an engine that says the language is there and
+        // lists no voices. Asked only here, on a path that has already failed.
+        try {
+            val client = wrapper.tts
+            val available = try { client?.isLanguageAvailable(locale) } catch (_: Exception) { null }
+            val voices = try { client?.voices } catch (_: Exception) { null }
+            val forLang = voices?.count { v -> try { v.locale.isO3Language == locale.isO3Language } catch (_: Exception) { false } }
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, wrapper.rawPkg + " setLanguage(" + locale + ") = " + result +
+                "; engine says isLanguageAvailable = " + available +
+                ", voices = " + (voices?.size?.toString() ?: "null (no connection)") +
+                (if (forLang != null) ", for this language = " + forLang else ""))
+        } catch (_: Throwable) {}
         if (result == TextToSpeech.LANG_MISSING_DATA) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG,
                 wrapper.pkg + " has no voice data for " + locale + " -- engine kept, not restored")

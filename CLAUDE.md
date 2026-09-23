@@ -8,6 +8,27 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## GOOGLE TTS ANSWERS BUT HAS NO VOICES: THE OWNER'S LOG, READ (2026-09-23, latest)
+*"Google TTS already setup hai per fir bhi nahin kar raha hai ... bilkul bolna hi band ho jata hai."*
+One minute of log, 88 utterances, mix mode. Counted, not skimmed:
+- **Eloquence (English) spoke every time.** Every Hindi/Gujarati chunk on Google went
+  `hi_IN vs zxx` -> `setLanguage` failed (not -1, so no "no voice data" line) -> `restoreTts` ->
+  `-restore is not applicable!` (restoreCount already 10 before the log began) -> `speak()`
+  returned SUCCESS -> **no onStart, no onError, no onDone from Google, ever** (7 of 7).
+- **The scan, with FRESH clients, got SUCCESS from Google and 0 voices, twice** ("no voices
+  yet", retried, "keeping it with 81 voices from before"). AutoTTS and evvdroid the same.
+- AOSP `setLanguage` returns LANG_NOT_SUPPORTED when the engine's `getDefaultVoiceNameFor` is
+  empty or its `getVoices()` lacks that name. A live Google that lists no voices is exactly
+  that. **So the fault is inside Google TTS on the phone (no voice data / stuck), not a dead
+  client of ours** -- `speak` could not have returned SUCCESS through a dead client.
+- Recovery needs no restore: `curLocale` stays zxx, so every utterance calls `setLanguage`
+  again, and the moment Google lists its voices it works. Backup TTS is OFF (owner's choice).
+- **Shipped, log-only:** `setLanguageFailed` now logs the code plus Google's own
+  `isLanguageAvailable` and voice count (`<pkg> setLanguage(x) = -2; engine says ...`), and the
+  scan says whether getVoices was null (connection lost) or 0 voices, and logs the second
+  failure. Library swap: `ContextCompat.getSystemService(AudioManager)` instead of the `as` cast;
+  abandon is null-safe. **The next log decides it** -- read the `engine says` line.
+
 ## THE REAL BUILD RUNS HERE NOW; LIBRARIES OVER HAND-WRITTEN CODE; ZERO WARNINGS (owner, 2026-09-23, latest)
 *"jo nahin kiya hai vah bhi update kar hi lo ... dependency humne khud likhi hai ... usko hatakar jo
 already hai vah kar do ... Kt programming language ... sara logic update kar do."*

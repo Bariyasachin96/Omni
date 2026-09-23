@@ -426,7 +426,10 @@ object EngineFinder {
             // them. The 30 s timeout does NOT retry: an engine that hung once
             // would cost the scan another 30 s.
             fun retryOrFail(why: String): Boolean {
-                if (!retried.add(myIndex)) { failed.add(myIndex); return false }
+                if (!retried.add(myIndex)) {
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed again (" + why + ")")
+                    failed.add(myIndex); return false
+                }
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed (" + why + "), retrying once")
                 release()
                 startEngine("(retry)")
@@ -450,8 +453,15 @@ object EngineFinder {
                     val actualEngine = boundEngineOf(client, expectedPkg)
                     if (actualEngine == expectedPkg) {
                         var added = 0
+                        // null and empty are different failures and the log said
+                        // "no voices yet" for both: null is TextToSpeech.getVoices'
+                        // error result (no connection, or the call threw), empty is
+                        // the engine itself answering with no voices.
+                        var noVoicesWhy = "no voices yet"
                         try {
                             val engineVoices = client?.voices
+                            noVoicesWhy = if (engineVoices == null) "no voices yet: getVoices gave null, connection lost"
+                                          else "no voices yet: the engine listed 0 voices"
                             if (engineVoices != null) for (voice in engineVoices) {
                                 val scannedVoiceName = voice.name ?: ""
                                 if (scannedVoiceName.isEmpty()) continue
@@ -464,7 +474,7 @@ object EngineFinder {
                                 addVoiceToMatchingEntry(voiceEntries, loc, expectedPkg, scannedVoiceName)
                             }
                         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
-                        if (added == 0 && retryOrFail("no voices yet")) return
+                        if (added == 0 && retryOrFail(noVoicesWhy)) return
                         if (added == 0) failed.add(myIndex) else succeeded.add(myIndex)
                     } else {
                         if (retryOrFail("bound to " + actualEngine)) return
