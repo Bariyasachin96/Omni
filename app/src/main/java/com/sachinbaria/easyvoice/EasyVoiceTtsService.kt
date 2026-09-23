@@ -1,7 +1,5 @@
 package com.sachinbaria.easyvoice
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
@@ -16,8 +14,12 @@ import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
 import android.text.SpannableString
 import android.text.style.LocaleSpan
+import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.pm.PackageInfoCompat
 import java.nio.ByteBuffer
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -34,6 +36,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private val keepAliveLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
     @Volatile var engineIndex = -1
     private lateinit var prefs: SharedPrefsManager
+    // java.lang.Object on purpose: wait() and notifyAll() are ITS methods and
+    // kotlin.Any does not expose them, so this is the one place the compiler's
+    // "use kotlin.Any" advice does not apply.
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private val syncLock = Object()
     @Volatile private var isStopped = false
     @Volatile private var isFlushed = false
@@ -171,23 +177,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // ==========================================================================
     //  FOREGROUND NOTIFICATION AND AUDIO FOCUS
     // ==========================================================================
-    // NotificationChannel is API 26 and minSdk is 24, so this is the SECOND
-    // NoClassDefFoundError the API-24 compile found. It is less severe than the
-    // audio-focus one only because "Show persistent notification" is off by
-    // default -- with it on, an Android 7 phone crashed here instead.
-    //
-    // Below 26 there is no channel to create and none is needed:
-    // NotificationCompat.Builder takes the channel id on every level and simply
-    // ignores it under 26, and startForeground has never required one there.
-    // AutoTTS makes the same unguarded call and does not need the guard; its
-    // own minSdk is at least 26. See requestAudioFocus for the same split.
+    // THE CHANNEL COMES FROM androidx.core NOW (owner, 2026-09-23: a library
+    // rather than code written by hand). NotificationChannel is API 26 against
+    // minSdk 24 -- the second of the two Android 7 crashes found on 2026-09-10 --
+    // and NotificationChannelCompat carries that check itself: below 26
+    // createNotificationChannel does nothing, which is what the hand-written
+    // guard and its separate API-26 method did. Its defaults were read in the
+    // core 1.19.0 source and are the platform's own (the default notification
+    // sound, no lights, no vibration, badge on), so the channel is unchanged.
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < 26) return
-        createNotificationChannel26()
-    }
-    private fun createNotificationChannel26() {
-        val channel = NotificationChannel(FOREGROUND_CHANNEL_ID, "TTS Engine", NotificationManager.IMPORTANCE_LOW)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        val channel = NotificationChannelCompat.Builder(FOREGROUND_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
+            .setName("TTS Engine")
+            .build()
+        NotificationManagerCompat.from(this).createNotificationChannel(channel)
     }
     private fun startAndFinish(callback: SynthesisCallback?) {
         if (callback?.hasStarted() == false) callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
@@ -234,7 +236,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun endSynthesis(callback: SynthesisCallback?, n: String) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #" + n)
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-        if (callback?.hasStarted() == true && callback?.hasFinished() == false) callback?.done()
+        if (callback?.hasStarted() == true && !callback.hasFinished()) callback.done()
     }
     private fun unlockSynthesis(n: String) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis #" + n)
@@ -248,14 +250,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
             .build()
     }
     private fun hasNotificationPermission(): Boolean {
+        // The permission only exists from 33; below it notifications need none.
         if (Build.VERSION.SDK_INT >= 33) {
-            return checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            return ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         }
         return true
     }
     private fun isForegroundActive(): Boolean {
-        return getSystemService(NotificationManager::class.java).activeNotifications.any { it.id == FOREGROUND_NOTIFICATION_ID }
+        return NotificationManagerCompat.from(this).activeNotifications.any { it.id == FOREGROUND_NOTIFICATION_ID }
     }
     // IT COULD FAIL TWO WAYS WITHOUT SAYING SO, AND THAT IS WHY THE OWNER CANNOT
     // TELL WHETHER THIS IS THEIR PROBLEM (owner, 2026-09-17: "jab maine battery
@@ -290,14 +293,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 return
             }
             createNotificationChannel()
-            if (Build.VERSION.SDK_INT >= 34) {
-                ServiceCompat.startForeground(this, FOREGROUND_NOTIFICATION_ID, buildNotification(),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "foreground service started (mediaPlayback)")
-                return
-            }
-            startForeground(FOREGROUND_NOTIFICATION_ID, buildNotification())
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "foreground service started")
+            // ONE CALL FOR EVERY API LEVEL: ServiceCompat picks the platform
+            // overload itself -- the typed one on 29+, the plain one below -- so
+            // the hand-written >= 34 branch is gone. On 29-33 it now passes the
+            // type too, which is the type the manifest already declares, so the
+            // service starts exactly as it did.
+            ServiceCompat.startForeground(this, FOREGROUND_NOTIFICATION_ID, buildNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "foreground service started (mediaPlayback)")
         } catch (ex: Exception) {
             // The CLASS as well as the message: ForegroundServiceStartNotAllowedException
             // is the one that names a background-start refusal, and it is the answer
@@ -342,6 +345,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // itself falls back to: Engine.DEFAULT_STREAM is STREAM_MUSIC, and
     // AudioOutputParams.createFromParamsBundle builds exactly that pairing when
     // no attributes are supplied.
+    // NO LIBRARY HERE, and that was checked rather than assumed (owner,
+    // 2026-09-23: a library over code written by hand wherever one exists).
+    // androidx.media's AudioManagerCompat does this exact split, and in 1.8.0
+    // -- the latest -- every one of its audio classes is @Deprecated
+    // ("androidx.media is deprecated. Please migrate to androidx.media3"); it
+    // also added 23,868 bytes of dex, measured with R8, and below API 26 asks
+    // on STREAM_ACCESSIBILITY, a stream Android 7 does not have. Media3's
+    // replacement lives in media3-common, which is @UnstableApi and pulls the
+    // whole of Guava in. The platform AudioFocusRequest below IS the current
+    // API, so it stays.
     private fun requestAudioFocus() {
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         val result = if (Build.VERSION.SDK_INT >= 26) requestAudioFocus26()
@@ -481,9 +494,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         android.util.Log.e("VersionUtils", "Error getting version name", ex); "Unknown"
     }
     private fun versionCode(): Long = try {
-        val info = ownPackageInfo()
-        if (Build.VERSION.SDK_INT >= 28) info.longVersionCode
-        else { @Suppress("DEPRECATION") info.versionCode.toLong() }
+        PackageInfoCompat.getLongVersionCode(ownPackageInfo())
     } catch (ex: android.content.pm.PackageManager.NameNotFoundException) {
         android.util.Log.e("VersionUtils", "Error getting version code", ex); -1L
     }
@@ -828,7 +839,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             engineIndex = idx
             val wrapper = enginePool[idx]
             if (variant.isEmpty() && wrapper.voiceName.isNotEmpty()) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Load voice original"); loadVoiceOriginal(normPkg, locale); return }
-            var curLocale = java.util.Locale("zxx")
+            var curLocale = localeOf("zxx")
             var curVoiceName = ""
             if (wrapper.voiceName.isNotEmpty()) {
                 // voiceNow(), not `wrapper.tts!!.voice` -- see the field for why that
@@ -1084,7 +1095,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // voice-set marshal, and this path runs on every language change when
         // "Use dedicated engines" is on.
         val engineVoice = wrapper.voiceNow()
-        val engineLocale = engineVoice?.locale ?: java.util.Locale("zxx")
+        val engineLocale = engineVoice?.locale ?: localeOf("zxx")
         val engineName = engineVoice?.name ?: ""
         if (previousEngineIndex == engineIndex && engineVoice != null) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Engine Variant " + engineName)
@@ -1745,7 +1756,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         if (lastEnginePkg != enginePkg) lastEnginePkg = enginePkg
                         if (voiceLoadFailed) switchToAlternative(lang, setOf(normPkg(enginePkg)), !walkPending(enginePkg), enginePkg + " could not load " + lang)
                     } else {
-                        val langOnly = Locale(lang)
+                        val langOnly = localeOf(lang)
                         val foundPkg = findEngineForLocale(langOnly)
                         loadVoice(foundPkg, langOnly, variantOut, dedicatedEnginesFlag)
                         if (voiceLoadFailed) switchToAlternative(lang, setOf(normPkg(foundPkg)), !walkPending(foundPkg), foundPkg + " could not load " + lang)
@@ -1779,7 +1790,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val names = LangStore.availableLanguagesFor(null, true)
         val list = mutableListOf<Voice>()
         for (nameIdx in names.indices) {
-            list.add(Voice(names[nameIdx], Locale(names[nameIdx]), 400, 100, false, HashSet<String>()))
+            list.add(Voice(names[nameIdx], localeOf(names[nameIdx]), 400, 100, false, HashSet<String>()))
         }
         return list
     }
@@ -1795,9 +1806,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return try {
             val parts = voiceName.split("_")
             when (parts.size) {
-                1 -> java.util.Locale(parts[0])
-                2 -> java.util.Locale(parts[0], parts[1])
-                3 -> if (parts[2].isEmpty()) java.util.Locale(parts[0], parts[1]) else java.util.Locale(parts[0], parts[1], parts[2])
+                1 -> localeOf(parts[0])
+                2 -> localeOf(parts[0], parts[1])
+                3 -> if (parts[2].isEmpty()) localeOf(parts[0], parts[1]) else localeOf(parts[0], parts[1], parts[2])
                 else -> null
             }
         } catch (_: Exception) { null }
@@ -1879,9 +1890,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
             for (wrapper in ArrayList(enginePool)) {
                 if (!usable(wrapper.rawPkg)) continue
                 val client = liveWrapper(wrapper.rawPkg)?.tts ?: continue
-                val answer = try { client.isLanguageAvailable(Locale(lang)) } catch (_: Exception) { TextToSpeech.LANG_NOT_SUPPORTED }
+                val answer = try { client.isLanguageAvailable(localeOf(lang)) } catch (_: Exception) { TextToSpeech.LANG_NOT_SUPPORTED }
                 if (answer < TextToSpeech.LANG_AVAILABLE) { tried.add(wrapper.pkg); continue }
-                take(wrapper.rawPkg, Locale(lang))?.let { return it }
+                take(wrapper.rawPkg, localeOf(lang))?.let { return it }
             }
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- no other working engine speaks " + lang)
         } catch (ex: Throwable) {
@@ -2627,7 +2638,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     forcedEng     = innerParts[1]
                     forcedLoc     = innerParts[2]
                     forcedVariant = innerParts[3]
-                    requestedLang      = localeIso3(parseVoiceNameAsLocale(forcedLoc) ?: java.util.Locale(""))
+                    requestedLang      = localeIso3(parseVoiceNameAsLocale(forcedLoc) ?: localeOf(""))
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "FIXED: " + forcedEng + " " + forcedLoc + " " + forcedVariant)
                 }
                 val stripped = splitParts[1]
@@ -2637,9 +2648,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     else try {
                         val localeParts = loc.split("_")
                         val locale: Locale = when (localeParts.size) {
-                            1 -> Locale(localeParts[0])
-                            2 -> Locale(localeParts[0], localeParts[1])
-                            else -> if (localeParts[2].isNotEmpty()) Locale(localeParts[0], localeParts[1], localeParts[2]) else Locale(localeParts[0], localeParts[1])
+                            1 -> localeOf(localeParts[0])
+                            2 -> localeOf(localeParts[0], localeParts[1])
+                            else -> if (localeParts[2].isNotEmpty()) localeOf(localeParts[0], localeParts[1], localeParts[2]) else localeOf(localeParts[0], localeParts[1])
                         }
                         val iso3 = locale.getISO3Language()
                         when {
@@ -3113,7 +3124,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // of all places: the user changes a voice and presses Test before
             // anything has been persisted.
             if (bypassed && (chunk.forcedEngine != null || chunk.forcedLocale != null)) {
-                val forcedLocale = parseVoiceNameAsLocale(chunk.forcedLocale ?: "") ?: Locale("")
+                val forcedLocale = parseVoiceNameAsLocale(chunk.forcedLocale ?: "") ?: localeOf("")
                 loadVoice(chunk.forcedEngine ?: "", forcedLocale, chunk.forcedVariant ?: "", false)
             }
             if (engineIndex < 0 || engineIndex >= enginePool.size) {
@@ -3220,7 +3231,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         wrapper.restoreCount = 0
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
                         if (id != expectedId) return
-                        if (callback?.hasStarted() == false) { callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
+                        if (callback?.hasStarted() == false) { callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
                         // The engine has begun audio, so the whole of this chunk is
                         // now free time on every other engine. Posted rather than
                         // run here: this is a binder callback.
@@ -3350,6 +3361,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         if (!moved) endSynthesis(callback, n)
                     }
                 }
+                @Deprecated("Deprecated in Java")
                 override fun onError(id: String) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id)
                     if (id != expectedId) return

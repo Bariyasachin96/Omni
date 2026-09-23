@@ -1,50 +1,39 @@
 #!/usr/bin/env bash
 # Fetch the things the local checks need, into tools/.cache (gitignored).
 #
-#   android.jar   a real Android API jar, so kotlinc actually type-checks the
-#                 android.* call sites instead of silently treating every one of
-#                 them as an unresolved symbol. Without it kotlinc checks
-#                 NOTHING at those call sites -- that is how a wrong trailing
-#                 lambda once reached CI.
-#   kotlinc       the Kotlin compiler, pinned to the version the app is built
-#                 with (see app/build.gradle.kts).
-#   compose-plugin.jar
-#                 the Compose compiler plugin, so kotlinc applies Compose's OWN
-#                 rules. Without it "a @Composable called from an ordinary
-#                 function" compiles clean locally -- and every screen in this
-#                 app is Compose.
-#   m2/lib/*.jar  the androidx / Compose / Material3 classpath, resolved from
-#                 app/build.gradle.kts by tools/fetch-deps.py. Without it every
-#                 Compose call site is unresolved and therefore unchecked --
-#                 which is how the missing @ExperimentalMaterial3Api opt-in
-#                 reached CI and failed build 827.
+#   gradle-<v>/    the SAME Gradle CI uses (the version is read out of build.yml)
+#   android-sdk/   command-line tools, the compileSdk platform and build-tools,
+#                  so that Gradle and AGP can build the app here exactly as CI
+#                  does. tools/check/gradle-compile.sh compiles the app and its
+#                  instrumented tests with them.
+#   kotlinc, compose-plugin.jar, androidx-classpath.txt
+#                  what tools/check/minsdk-api.sh needs to compile the app
+#                  against minSdk's own android.jar. The classpath is written BY
+#                  GRADLE (tools/check/classpath.init.gradle.kts), so it is the
+#                  one the app really resolves.
 #
-# ANDROID.JAR COMES FROM ONE OF TWO PLACES, AND THE DIFFERENCE MATTERS.
-# The real SDK platform lives on dl.google.com, which is Google Maven's host and
-# is NOT in a cloud environment's "Trusted" allow-list. If it is reachable this
-# fetches API 37 -- the app's own compileSdk, so android.* resolves completely.
-# If it is not, it falls back to API 15 from Maven Central, which is old on
-# purpose: the resulting noise is constant and cancels out in the baseline diff
-# that tools/check/kotlin-typecheck.sh judges by.
+# THE HAND-BUILT IMITATION IS GONE (owner, 2026-09-23). This used to fetch an
+# API 37 android.jar and resolve androidx with tools/fetch-deps.py, a resolver
+# of our own, for tools/check/kotlin-typecheck.sh, a bare kotlinc run. The real
+# build is reachable now, so the real build is what checks the code.
 #
-# A 403 or a refused tunnel from the proxy is an egress-policy denial and is NOT
-# to be routed around with a mirror. The fallback exists so the checks still run;
-# to get the full jar, raise the environment's network access (see CLAUDE.md).
+# dl.google.com and services.gradle.org must be reachable (the environment's
+# network access must allow them). A 403 from the proxy is an egress-policy
+# denial and is NOT to be routed around with a mirror; the Gradle check then
+# says SKIPPED instead of passing.
 #
-# Everything else the checks use (python3, javac, g++) is expected on PATH.
+# Everything else the checks use (python3, java 17+, g++) is expected on PATH.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE="$ROOT/tools/.cache"
 KOTLIN_VERSION=2.4.20
 
-# The SDK platform whose android.jar we want, and the release of it. Both are
-# read off dl.google.com's own repository2-3.xml, not guessed: the package is
-# `platforms;android-37.0` and its one archive is this zip.
-SDK_PLATFORM_ZIP=platform-37.0_r02.zip
-SDK_PLATFORM_DIR=android-37.0
-SDK_URL="https://dl.google.com/android/repository/$SDK_PLATFORM_ZIP"
-FALLBACK_JAR_URL=https://repo1.maven.org/maven2/com/google/android/android/4.1.1.4/android-4.1.1.4.jar
+# Gradle, the SDK packages and the command-line tools, all read from the files
+# that already state them, so this cannot drift from what CI builds with.
+GRADLE_VERSION=$(grep -oE "gradle-version: '[0-9.]+'" "$ROOT/.github/workflows/build.yml" | head -1 | grep -oE "[0-9.]+")
+COMPILE_SDK=$(grep -oE '^\s*compileSdk\s*=\s*[0-9]+' "$ROOT/app/build.gradle.kts" | grep -oE '[0-9]+$')
+BUILD_TOOLS=$(grep -oE 'build-tools;[0-9.]+' "$ROOT/.github/workflows/build.yml" | head -1 | cut -d';' -f2)
 KOTLINC_URL="https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
 
 # THE NON-EMBEDDABLE PLUGIN, AND THE DIFFERENCE IS NOT cosmetic. The
@@ -81,22 +70,41 @@ fetch() {
   return 1
 }
 
-# ---------------------------------------------------------------- android.jar
-if [ -f "$CACHE/android.jar" ]; then
-  echo "android.jar    already present ($(cat "$CACHE/android.jar.source" 2>/dev/null || echo 'source unknown'))"
+# --------------------------------------------------------------------- gradle
+if [ -x "$CACHE/gradle-$GRADLE_VERSION/bin/gradle" ]; then
+  echo "gradle         $GRADLE_VERSION already present"
 else
-  if fetch "$SDK_URL" "$CACHE/platform.zip"; then
-    unzip -q -o -j "$CACHE/platform.zip" "$SDK_PLATFORM_DIR/android.jar" -d "$CACHE"
-    rm -f "$CACHE/platform.zip"
-    echo "API 37 (dl.google.com, $SDK_PLATFORM_ZIP)" > "$CACHE/android.jar.source"
-    echo "android.jar    ok, API 37 from dl.google.com ($(wc -c < "$CACHE/android.jar") bytes)"
-  else
-    echo "android.jar    dl.google.com unreachable -- egress policy, not an error."
-    echo "               falling back to API 15 from Maven Central."
-    fetch "$FALLBACK_JAR_URL" "$CACHE/android.jar" || { echo "android.jar unavailable"; exit 1; }
-    echo "API 15 (Maven Central fallback -- dl.google.com was unreachable)" > "$CACHE/android.jar.source"
-    echo "android.jar    ok, API 15 ($(wc -c < "$CACHE/android.jar") bytes)"
-  fi
+  echo "gradle         downloading $GRADLE_VERSION..."
+  fetch "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip" "$CACHE/gradle.zip" \
+    || { echo "gradle unavailable"; exit 1; }
+  unzip -q -o "$CACHE/gradle.zip" -d "$CACHE" && rm -f "$CACHE/gradle.zip"
+  echo "gradle         ok"
+fi
+
+# ---------------------------------------------------------------- android sdk
+SDK="$CACHE/android-sdk"
+SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+if [ ! -x "$SDKMANAGER" ]; then
+  echo "sdk tools      downloading..."
+  fetch https://dl.google.com/android/repository/repository2-3.xml "$CACHE/repo.xml" \
+    || { echo "dl.google.com unreachable"; exit 1; }
+  TOOLS_ZIP=$(grep -oE 'commandlinetools-linux-[0-9]+_latest\.zip' "$CACHE/repo.xml" | sort -V | tail -1)
+  rm -f "$CACHE/repo.xml"
+  fetch "https://dl.google.com/android/repository/$TOOLS_ZIP" "$CACHE/tools.zip" \
+    || { echo "sdk tools unavailable"; exit 1; }
+  mkdir -p "$SDK/cmdline-tools" && rm -rf "$SDK/cmdline-tools/latest" "$SDK/cmdline-tools/cmdline-tools"
+  unzip -q -o "$CACHE/tools.zip" -d "$SDK/cmdline-tools" && rm -f "$CACHE/tools.zip"
+  mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+fi
+if [ -d "$SDK/platforms/android-$COMPILE_SDK.0" ] || [ -d "$SDK/platforms/android-$COMPILE_SDK" ]; then
+  echo "sdk packages   already present"
+else
+  yes 2>/dev/null | "$SDKMANAGER" --sdk_root="$SDK" --licenses >/dev/null 2>&1 || true
+  # The platform package is `android-37.0` in the current repository, and older
+  # ones used `android-37`; ask for the first and fall back to the second.
+  "$SDKMANAGER" --sdk_root="$SDK" "platforms;android-$COMPILE_SDK.0" "build-tools;$BUILD_TOOLS" >/dev/null 2>&1 \
+    || "$SDKMANAGER" --sdk_root="$SDK" "platforms;android-$COMPILE_SDK" "build-tools;$BUILD_TOOLS" >/dev/null
+  echo "sdk packages   ok (platform $COMPILE_SDK, build-tools $BUILD_TOOLS)"
 fi
 
 # ------------------------------------------------------------------- kotlinc
@@ -122,14 +130,14 @@ else
 fi
 
 # --------------------------------------------------------- androidx classpath
-if [ -s "$CACHE/androidx-classpath.txt" ]; then
-  echo "androidx cp    already present ($(wc -l < "$CACHE/androidx-classpath.txt") jars)"
-elif python3 "$ROOT/tools/fetch-deps.py" "$CACHE/androidx-classpath.txt"; then
-  echo "androidx cp    ok ($(wc -l < "$CACHE/androidx-classpath.txt") jars)"
+# Written by Gradle, from the app's real debugCompileClasspath. Always rewritten,
+# because it is cheap and a stale one is exactly the defect it replaced.
+if (cd "$ROOT" && ANDROID_HOME="$SDK" "$CACHE/gradle-$GRADLE_VERSION/bin/gradle" --no-daemon -q \
+      -I tools/check/classpath.init.gradle.kts -PevOut="$CACHE/androidx-classpath.txt" :app:evClasspath) >/dev/null 2>&1; then
+  echo "androidx cp    ok ($(wc -l < "$CACHE/androidx-classpath.txt") jars, from Gradle)"
 else
   rm -f "$CACHE/androidx-classpath.txt"
-  echo "androidx cp    Google Maven unreachable -- egress policy, not an error."
-  echo "               kotlin-typecheck.sh will run WITHOUT androidx and say so."
+  echo "androidx cp    Gradle could not resolve it -- rerun (Maven Central rate-limits)."
 fi
 
 echo

@@ -18,7 +18,7 @@ class GetSampleText : Activity() {
         val langExtra = try { intent?.getStringExtra("language") } catch (ex: Throwable) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "GetSampleText extra unreadable: " + ex.toString()); null
         }
-        val locale = if (langExtra != null) Locale(langExtra) else Locale.getDefault()
+        val locale = if (langExtra != null) localeOf(langExtra) else Locale.getDefault()
         // isO3Language THROWS MissingResourceException for a language with no
         // three-letter code -- measured, not assumed: Locale("xx").isO3Language
         // is "Couldn't find 3-letter language code for xx". This activity is
@@ -29,7 +29,7 @@ class GetSampleText : Activity() {
         // the fallback is the sentence the screen already shows for a language
         // it has no sample for. A valid code behaves exactly as before.
         val sample = try { SampleTexts.get(locale.isO3Language) } catch (_: Exception) { "" }
-        val text = if (sample.isEmpty()) "Sorry. Sample text for language ${locale.getDisplayName(Locale("eng"))} is missing." else sample
+        val text = if (sample.isEmpty()) "Sorry. Sample text for language ${locale.getDisplayName(localeOf("eng"))} is missing." else sample
         val data = Intent()
         data.putExtra("sampleText", text)
         setResult(TextToSpeech.LANG_AVAILABLE, data)

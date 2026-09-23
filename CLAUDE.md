@@ -8,7 +8,51 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## NO LICENCE SECTION AT ALL; EVERY LIBRARY ON ITS LATEST STABLE (owner, 2026-09-23, latest)
+## THE REAL BUILD RUNS HERE NOW; LIBRARIES OVER HAND-WRITTEN CODE; ZERO WARNINGS (owner, 2026-09-23, latest)
+*"jo nahin kiya hai vah bhi update kar hi lo ... dependency humne khud likhi hai ... usko hatakar jo
+already hai vah kar do ... Kt programming language ... sara logic update kar do."*
+- **Kotlin 2.4.20 IS the latest stable** (Maven Central: 2.5.0 is only Beta1 on this date). Not
+  moved to a beta, same rule as lifecycle alpha. What "update the logic" produced instead: the
+  real compiler's warnings, all fixed -- **0 warnings in app AND androidTest.**
+  - `localeOf()` in `Locales.kt` is now the ONLY way the app builds a Locale: `Locale.of` at
+    `SDK_INT >= 36` (api-versions.xml: since 36), the deprecated constructor below. Same object
+    either way. minsdk allowlist has `Locales.kt:of`.
+  - `syncLock` stays `java.lang.Object` (wait/notifyAll) with `@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")`.
+  - unnecessary `?.` after smart casts removed; `onError(String)` override marked `@Deprecated`.
+  - the test uses `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` (v1 deprecated in
+    ui-test 1.12; same return type; every state change already waits with waitForIdle/onNode).
+- **androidx.core replaced hand-written platform code**: `NotificationChannelCompat` +
+  `NotificationManagerCompat.createNotificationChannel` (the API-26 guard and method are gone),
+  `NotificationManagerCompat.activeNotifications`, ONE `ServiceCompat.startForeground` call for
+  every API level (it passes the manifest's mediaPlayback type on 29+), `PackageInfoCompat.
+  getLongVersionCode`, `ContextCompat.checkSelfPermission`. Defaults read in core 1.19.0's source.
+- **Audio focus deliberately stays on the platform `AudioFocusRequest`.** Tried and measured:
+  androidx.media 1.8.0's AudioManagerCompat/AudioFocusRequestCompat/AudioAttributesCompat are ALL
+  `@Deprecated` ("migrate to media3"), cost +23,868 bytes of R8 dex, and below 26 ask on
+  STREAM_ACCESSIBILITY which Android 7 lacks. Media3's version is `@UnstableApi` in media3-common,
+  which pulls all of Guava. Do not re-add either.
+- **androidx.tracing 2.0.2** (a major): javap shows Trace/TraceKt keep every 1.3.0 member, so the
+  1.x callers (startup-runtime, androidx.test) still link; the androidTest graph resolves it.
+- **proguard-rules.pro lost rules the libraries already ship**: the coroutines `volatile` keep
+  (in the jar's META-INF r8 rules) and six blanket `-dontwarn`s. Proven by running the REAL R8
+  (full mode) locally with them gone: success, no missing classes. Dex 2,399,648 bytes.
+- **THE HAND-WRITTEN BUILD IMITATION IS GONE.** `tools/fetch-deps.py` (it followed every version
+  it met, not Gradle's selected ones, so transition/dynamicanimation/legacy-support were on the
+  local classpath though the app has none) and `tools/check/kotlin-typecheck.sh` are deleted.
+  `tools/bootstrap.sh` installs **Gradle (version from build.yml) + Android SDK cmdline-tools,
+  platform 37, build-tools 37** into `tools/.cache` (AGP then fetched NDK 30 itself), and
+  `tools/check/gradle-compile.sh` compiles app + androidTest with the real build; any error or
+  warning fails it (negative-tested both). `minsdk-api.sh` keeps kotlinc against API 24's jar, on a
+  classpath written by Gradle (`tools/check/classpath.init.gradle.kts`, `:app:evClasspath`).
+  Locally runnable now: `ANDROID_HOME=tools/.cache/android-sdk tools/.cache/gradle-9.7.1/bin/gradle
+  :app:minifyReleaseWithR8` etc. Maven Central 429s are normal; retry.
+- **Re-checked latest the same day:** AGP 9.4.1, Gradle 9.7.1, NDK 30.0.16248370, CMake 4.1.2,
+  build-tools 37.0.0, coroutines 1.11.0, and the GitHub Actions (read with `git ls-remote`):
+  checkout v7.0.1, setup-java v6.0.1, upload-artifact v7.0.1, setup-android v4.0.4, gradle v6.3.0,
+  action-gh-release v3.0.3, emulator-runner v2.38.0 -- all on the majors we pin.
+  `platforms;android-37.2` exists (a minor SDK); compileSdk stays 37, no TTS API is in it.
+
+## NO LICENCE SECTION AT ALL; EVERY LIBRARY ON ITS LATEST STABLE (owner, 2026-09-23)
 - **Everything licence-related is GONE from the app**: the About screen's "View Licenses"
   button, `LicensesDialog`, `res/raw/apache_license_2_0.txt`, `ic_info.xml` (only that button
   used it) and the `licensesDialog` accessibility test. Owner: *"licence ke related kuchh bhi
@@ -29,8 +73,7 @@
   resolve, and graphics-path 1.1.0's `.so` is 16 KB aligned on every ABI. **Same major only:
   androidx.tracing stays 1.x (1.3.0)** -- 2.0.x is a major bump and startup-runtime/androidx.test
   are 1.x callers. `concurrent-futures` went 1.2.0 -> **1.3.0** (the test graph's `requires 1.2.0`
-  accepts it; its module constrains `-ktx` to 1.3.0 too). `tools/fetch-deps.py` reads the
-  constraint lines as roots, so the local type-check classpath follows them.
+  accepts it; its module constrains `-ktx` to 1.3.0 too). The local classpath now comes from Gradle itself.
 - **Already latest, re-checked the same day:** Kotlin 2.4.20, AGP 9.4.1, Gradle 9.7.1, NDK
   30.0.16248370, CMake 4.1.2, build-tools 37.0.0, platform 37, Compose BOM 2026.09.00 (ui
   1.12.1, material3 1.4.0), core 1.19.0, lifecycle 2.11.0, activity 1.13.0, splashscreen 1.2.0,

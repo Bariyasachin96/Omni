@@ -9,7 +9,7 @@ object IsoCodes {
     private val toIso2Map = HashMap<String, String>(320)
     init {
         for (iso2 in Locale.getISOLanguages()) {
-            val iso3 = try { Locale(iso2).isO3Language } catch (_: Exception) { "" }
+            val iso3 = try { localeOf(iso2).isO3Language } catch (_: Exception) { "" }
             if (iso3.isEmpty()) continue
             toIso3Map[iso2] = iso3
             if (!toIso2Map.containsKey(iso3)) toIso2Map[iso3] = iso2

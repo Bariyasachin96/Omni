@@ -5,7 +5,12 @@ import androidx.annotation.RequiresApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+// The v2 rule (compose ui-test 1.12): the v1 one is deprecated and v2 is its
+// named replacement. Same return type, so nothing below changed. v2 queues
+// coroutines on a StandardTestDispatcher instead of running them at once, and
+// every test here already waits for that -- each state change is followed by
+// rule.waitForIdle() or by an onNode lookup, which synchronises.
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -82,21 +87,21 @@ class AccessibilityChecksTest {
         // no country it is the other way round. Neither is a choice we
         // were making. en_US is stated, `languagesListUngrouped` states
         // the other, and each asserts which branch it got.
-        Locale.setDefault(Locale("en", "US"))
+        Locale.setDefault(localeOf("en", "US"))
         LangStore.ensureLoaded(context)
 
         EngineFinder.lastScanVoices = listOf(
             EngineFinder.ScanVoice(
                 "com.google.android.tts", "Google Speech Services",
-                Locale("en", "US"), arrayListOf("*Default")
+                localeOf("en", "US"), arrayListOf("*Default")
             ),
             EngineFinder.ScanVoice(
                 "com.google.android.tts", "Google Speech Services",
-                Locale("hi", "IN"), arrayListOf("*Default")
+                localeOf("hi", "IN"), arrayListOf("*Default")
             ),
             EngineFinder.ScanVoice(
                 "com.google.android.tts", "Google Speech Services",
-                Locale("gu", "IN"), arrayListOf("*Default")
+                localeOf("gu", "IN"), arrayListOf("*Default")
             )
         )
         EngineFinder.lastScanEngines = listOf("com.google.android.tts")
@@ -613,7 +618,7 @@ class AccessibilityChecksTest {
     // without a region gets it.
     @Test
     fun languagesListUngrouped() {
-        Locale.setDefault(Locale("en"))
+        Locale.setDefault(localeOf("en"))
         check { LanguagesScreen(prefs()) }
         rule.onNodeWithText("All languages").assertDoesNotExist()
     }

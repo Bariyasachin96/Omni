@@ -1,23 +1,21 @@
 #!/usr/bin/env bash
 # Every static check, in the order that fails cheapest first.
 #
-#   tools/check-all.sh [baseline-ref-for-the-kotlin-typecheck]
+#   tools/check-all.sh
 #
-# Run this before every push. It takes about two minutes, almost all of it the
-# Kotlin type-check, and it has caught things CI would only have found four
-# minutes later -- or, in the case of a wrong trailing lambda, would have found
-# only after the owner reported the app misbehaving.
+# Run this before every push (after tools/bootstrap.sh once per container). It
+# takes a few minutes, most of it the real Gradle compile, and it has caught
+# things CI would only have found thirteen minutes later.
 #
-# It does NOT build the app. The NDK, CMake, R8 and the APK are CI's job. What
-# this proves is that the sources are well-formed, that our own names resolve to
-# something with the right signature, that the XML references exist, and that no
-# NEW Kotlin type error appeared against a baseline commit.
+# The last step compiles the app AND its instrumented tests with the same
+# Gradle, AGP, Kotlin and Compose plugin CI uses, and fails on any error or
+# compiler warning. It does not package an APK; the native build and the
+# emulator run stay CI's job.
 #
 # The behavioural proofs are separate and slower -- tools/verify/*/run.sh.
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-BASE=${1:-HEAD}
 cd "$ROOT"
 
 fail=0
@@ -36,7 +34,7 @@ step "invariants"              bash    tools/check/invariants.sh
 step "c++ syntax"              bash    tools/check/cpp-syntax.sh
 step "minSdk API usage"        bash    tools/check/minsdk-api.sh
 step "workflow shell"          bash    tools/check/workflow-shell.sh
-step "kotlin type-check vs $BASE" bash tools/check/kotlin-typecheck.sh "$BASE"
+step "gradle compile (app + androidTest)" bash tools/check/gradle-compile.sh
 
 echo
 if [ "$fail" = 0 ]; then

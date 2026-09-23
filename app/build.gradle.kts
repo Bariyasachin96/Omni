@@ -261,9 +261,14 @@ dependencies {
     // raising the app to the newest stable is also what keeps a test library
     // from ever asking for more than the app has.
     //
-    // SAME MAJOR VERSION ONLY. androidx.tracing has a 2.0.x, and a major version
-    // is allowed to break binary compatibility with the 1.x callers inside
-    // startup-runtime and androidx.test, so it moves to 1.3.0, the last 1.x.
+    // androidx.tracing IS ON 2.0.2, A MAJOR VERSION, AND THAT WAS CHECKED BEFORE
+    // IT WENT IN (owner, 2026-09-23: "jo nahin kiya hai vah bhi update kar hi
+    // lo"). A major version may break the 1.x callers inside startup-runtime and
+    // androidx.test, so the two jars were compared with javap: androidx.tracing.
+    // Trace and TraceKt in 2.0.2 carry every 1.3.0 member unchanged (plus a
+    // setCounter(String, long) and a TAG), so those callers still link. Its
+    // aar says minSdk 23; it needs annotation 1.10.0, collection 1.6.0 and
+    // coroutines 1.9.0, all at or below what the app resolves.
     // Where one member of a family is named (savedstate, navigationevent,
     // window, vectordrawable), the library's own constraints bring the rest of
     // the family to the same version.
@@ -282,7 +287,7 @@ dependencies {
         implementation("androidx.savedstate:savedstate-compose:1.5.0")
         implementation("androidx.savedstate:savedstate-ktx:1.5.0")
         implementation("androidx.startup:startup-runtime:1.2.0")
-        implementation("androidx.tracing:tracing:1.3.0")
+        implementation("androidx.tracing:tracing:2.0.2")
         implementation("androidx.vectordrawable:vectordrawable:1.2.0")
         implementation("androidx.vectordrawable:vectordrawable-animated:1.2.0")
         implementation("androidx.versionedparcelable:versionedparcelable:1.2.1")

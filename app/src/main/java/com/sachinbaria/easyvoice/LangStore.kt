@@ -506,7 +506,7 @@ object LangStore {
     }
     @JvmStatic
     fun voiceRowKey(row: EngineFinder.ScanVoice?): String =
-        if (row == null) "Disable#" + java.util.Locale(currentVoiceIso).toString() else row.pkg + "#" + row.locale.toString()
+        if (row == null) "Disable#" + localeOf(currentVoiceIso).toString() else row.pkg + "#" + row.locale.toString()
     @JvmStatic
     fun persistVoiceRows(ctx: Context) {
         val sharedPrefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)

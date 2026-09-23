@@ -141,9 +141,9 @@ object EngineFinder {
     @JvmStatic fun parseStoredLocale(tag: String): Locale {
         val localeParts = tag.split("_")
         return when (localeParts.size) {
-            1 -> Locale(localeParts[0])
-            2 -> Locale(localeParts[0], localeParts[1])
-            else -> Locale(localeParts[0], localeParts[1], localeParts.drop(2).joinToString("_"))
+            1 -> localeOf(localeParts[0])
+            2 -> localeOf(localeParts[0], localeParts[1])
+            else -> localeOf(localeParts[0], localeParts[1], localeParts.drop(2).joinToString("_"))
         }
     }
     // Compiled ONCE rather than per call -- see LangStore.COMBINING_MARKS for
@@ -169,9 +169,9 @@ object EngineFinder {
     @JvmStatic fun normalizeLocale(loc: Locale?): Locale? {
         if (loc == null) return null
         val wantLangIso3 = iso3Of(loc); val wantCountryIso3 = iso3CountryOf(loc); val voice = loc.variant
-        if (voice.isNotEmpty()) return Locale(wantLangIso3, wantCountryIso3, voice)
-        if (wantCountryIso3.isNotEmpty()) return Locale(wantLangIso3, wantCountryIso3)
-        return Locale(wantLangIso3)
+        if (voice.isNotEmpty()) return localeOf(wantLangIso3, wantCountryIso3, voice)
+        if (wantCountryIso3.isNotEmpty()) return localeOf(wantLangIso3, wantCountryIso3)
+        return localeOf(wantLangIso3)
     }
     @JvmStatic fun addVoiceToMatchingEntry(list: ArrayList<ScanVoice>, loc: Locale, pkg: String, voiceName: String): Boolean {
         val wantLang = iso3Of(loc)

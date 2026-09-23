@@ -4,7 +4,7 @@ import android.speech.tts.TextToSpeech
 import java.util.Locale
 object VoiceRows {
     private fun voiceKey(row: EngineFinder.ScanVoice?, selectedIso: String): String =
-        if (row == null) "Disable#" + Locale(selectedIso).toString() else row.pkg + "#" + row.locale.toString()
+        if (row == null) "Disable#" + localeOf(selectedIso).toString() else row.pkg + "#" + row.locale.toString()
     fun label(row: EngineFinder.ScanVoice?): String {
         if (row == null) return "*Disabled"
         val abbreviated = abbreviateEngineName(row.engineName)
@@ -173,7 +173,7 @@ object VoiceRows {
         val sample = if (fromEngine.isNotEmpty()) fromEngine
                      else SampleTexts.get(EngineFinder.iso3Of(voiceLocale))
         val spoken = if (sample.isEmpty())
-            "Sorry. Sample text for language " + (try { voiceLocale.getDisplayName(Locale("eng")) } catch (_: Exception) { selectedIso }) + " is missing."
+            "Sorry. Sample text for language " + (try { voiceLocale.getDisplayName(localeOf("eng")) } catch (_: Exception) { selectedIso }) + " is missing."
         else "[EasyVoice:" + row.pkg + ":" + voiceLocale.toString() + ":" + qualityTag + "]" + sample
         testClient.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "EasyVoice_Test")
     }

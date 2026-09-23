@@ -10,11 +10,11 @@
 #   NotificationChannel  API 26, called whenever "Show persistent notification"
 #                        was on
 #
-# Neither is a compile error normally, because kotlin-typecheck.sh uses API 37's
-# android.jar -- the compileSdk -- where both resolve fine. Neither is caught by
-# a try/catch either: a missing class is an Error, not an Exception. And Android
-# Lint's NewApi, which is the usual answer, needs Gradle and the SDK, and this
-# container has neither.
+# Neither is a compile error normally, because the real build compiles against
+# API 37 -- the compileSdk -- where both resolve fine. Neither is caught by a
+# try/catch either: a missing class is an Error, not an Exception. The classpath
+# comes from Gradle itself (tools/bootstrap.sh writes androidx-classpath.txt
+# through tools/check/classpath.init.gradle.kts).
 #
 # HOW IT IS JUDGED. Every hit here is a call ABOVE minSdk, which is fine when it
 # sits behind a Build.VERSION.SDK_INT guard and fatal when it does not -- and no
@@ -50,9 +50,8 @@ PY
   [ -n "$ZIP" ] || { echo "minsdk-api  SKIPPED -- no platform package for android-$MIN"; exit 0; }
   curl -sSf -m 600 -o "$WORK/p.zip" "https://dl.google.com/android/repository/$ZIP" || {
       echo "minsdk-api  SKIPPED -- could not fetch $ZIP"; exit 0; }
-  # Into a scratch dir, NEVER straight into $CACHE: the extracted file is called
-  # android.jar and would land on top of the API 37 one kotlin-typecheck.sh uses.
-  # (It did, once, and the next check-all reported "no android.jar".)
+  # Into a scratch dir, never straight into $CACHE: the extracted file is called
+  # android.jar and must not be mistaken for anything else there.
   rm -rf "$WORK/x" && mkdir -p "$WORK/x"
   unzip -q -o -j "$WORK/p.zip" "*/android.jar" -d "$WORK/x" && mv "$WORK/x/android.jar" "$JAR"
 fi

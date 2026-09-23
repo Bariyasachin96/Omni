@@ -5,7 +5,7 @@ class SharedPrefsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("easy_voice_settings", Context.MODE_PRIVATE)
     private val appCtx: Context = context.applicationContext
     fun toIso3(lang: String): String {
-        val iso3 = if (lang.length != 2) lang else try { java.util.Locale(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
+        val iso3 = if (lang.length != 2) lang else try { localeOf(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
         return when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
     }
     fun getLanguageList(): List<String> {

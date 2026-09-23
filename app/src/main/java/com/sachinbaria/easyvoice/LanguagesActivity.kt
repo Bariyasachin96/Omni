@@ -236,7 +236,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
     // de-duplicates on getDisplayLanguage(), so en_US and en_IN are one row.
     val deviceCountry = remember { Locale.getDefault().country }
     val regionName = remember(deviceCountry) {
-        if (deviceCountry.isEmpty()) "" else Locale("", deviceCountry).displayCountry
+        if (deviceCountry.isEmpty()) "" else localeOf("", deviceCountry).displayCountry
     }
     val regionLangs = remember(deviceCountry) {
         val out = HashSet<String>()

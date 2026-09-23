@@ -29,21 +29,6 @@
 -keepclassmembers class com.sachinbaria.easyvoice.EasyVoiceTtsService {
     native <methods>;
 }
-# kotlinx-coroutines ships this as a consumer rule; repeated so the
-# build does not depend on the library carrying it. Checked against 1.11.0
-# (2026-09-23), still the newest release: kotlinx-coroutines-core-jvm is a
-# JAR, and its META-INF/com.android.tools/r8/coroutines.pro carries this same
-# line plus 1.11.0's new keeps for the ReadonlySharedFlow / ReadonlyStateFlow
-# job fields (the shareIn/stateIn GC fix). R8 reads those from the jar, so
-# nothing needs copying here; the app itself uses coroutines only through
-# Compose (LaunchedEffect, rememberCoroutineScope).
--keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
--dontwarn kotlinx.coroutines.**
--dontwarn javax.annotation.**
--dontwarn javax.naming.**
--dontwarn org.checkerframework.**
--dontwarn com.google.auto.value.**
--dontwarn com.google.errorprone.annotations.**
 
 # --------------------------------------------------- Kotlin null checks
 # Every public Kotlin function with a non-null parameter compiles to a

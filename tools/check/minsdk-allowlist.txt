@@ -7,13 +7,13 @@
 
 AboutActivity.kt:PackageInfoFlags                    # API 33, if (SDK_INT >= 33)
 EasyVoiceTtsService.kt:PackageInfoFlags              # API 33, ownPackageInfo()'s branch
-EasyVoiceTtsService.kt:longVersionCode               # API 28, versionCode()'s branch
 EasyVoiceTtsService.kt:POST_NOTIFICATIONS            # API 33, hasNotificationPermission()
 MainActivity.kt:POST_NOTIFICATIONS                   # API 33, guarded at both sites
-EasyVoiceTtsService.kt:FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK  # API 29, used at SDK_INT >= 34
-EasyVoiceTtsService.kt:NotificationChannel           # API 26, createNotificationChannel26()
-EasyVoiceTtsService.kt:createNotificationChannel     # API 26, same method
+EasyVoiceTtsService.kt:FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK  # API 29, a static final int the
+                                                     # compiler inlines, handed to ServiceCompat,
+                                                     # which only passes it on at 29+
 EasyVoiceTtsService.kt:AudioFocusRequest             # API 26, requestAudioFocus26() -- and the
                                                      # field's TYPE, which is resolved lazily and
                                                      # never touched on the pre-26 path
 EasyVoiceTtsService.kt:abandonAudioFocusRequest      # API 26, abandonAudioFocus26()
+Locales.kt:of                                        # API 36, Locale.of, only at SDK_INT >= 36
