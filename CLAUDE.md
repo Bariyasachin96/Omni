@@ -8,6 +8,24 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## A LIVE ENGINE IS NOT RESTORED, AND EVERY ENGINE STARTS AT ONCE (owner, 2026-09-23, latest)
+*"force stop karta hun to Google mar jata hai ... find karna chahie ki TTS mar kyon jaate hain
+... phone restart ke bad jaldi bolata nahin."* The logging-only answer below was not enough.
+- **`setLanguageFailed` keeps a client that is still connected to its own engine** (AOSP:
+  `getVoices()`'s runAction error result is null; a connected engine answers a Set, even empty)
+  and bound to it (`boundEngineOf`). A cold Google (after reboot / after force-stopping us)
+  answers -2 until its voices load; restoring it built a new session again and again during
+  its start-up and burned the 10-restore cap, after which it was never retried. Now the client
+  is kept and the next utterance simply calls setLanguage again. Dead or re-bound-to-us clients
+  still restore. Log: `is connected and answering -- kept, not restored`.
+- **Startup constructs every engine's client at once** (`startNextInitEngine`), not engine N+1
+  inside engine N's onInit. Each already had its own cell/index/one-shot flag/30 s watchdog;
+  the pool is filled up front so no index moves. `initializingIndex` now COUNTS finished inits
+  (`initFinished()`), which keeps `walkPending`/`recoverEngineNotReady` meaning "walk still
+  running". A language no longer waits for every engine ahead of it after a reboot.
+- Segmentation was NOT swapped for a library (ICU BreakIterator etc.): `buildMixChunks` is
+  proven identical to AutoTTS's `d0.t` over 163,296 cases; a library would change the voice.
+
 ## GOOGLE TTS ANSWERS BUT HAS NO VOICES: THE OWNER'S LOG, READ (2026-09-23, latest)
 *"Google TTS already setup hai per fir bhi nahin kar raha hai ... bilkul bolna hi band ho jata hai."*
 One minute of log, 88 utterances, mix mode. Counted, not skimmed:
