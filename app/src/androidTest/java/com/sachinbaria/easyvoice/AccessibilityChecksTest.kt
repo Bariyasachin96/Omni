@@ -301,21 +301,13 @@ class AccessibilityChecksTest {
         check { AdvancedScreen(prefs(), 0, { }) }
     }
 
-    // The About screen, added 2026-09-03. Its two link buttons were removed on
-    // 2026-09-10 at the owner's request; the licence block moved to its own
-    // dialog on 2026-09-23, so what is left is the title, two facts and one
-    // button, and the checks that matter are the contrast of all of them and
-    // that the button has a name and a 48dp target, in both colour schemes.
+    // The About screen, added 2026-09-03. Its two link buttons went on
+    // 2026-09-10 and the licence button and dialog on 2026-09-23, both at the
+    // owner's request, so what is left is the heading, the title and three
+    // facts, and the check that matters is their contrast in both schemes.
     @Test
     fun aboutScreen() {
         check { AboutScreen() }
-    }
-
-    // The licences are a DIALOG now (owner, 2026-09-23), drawn on the dialog
-    // surface rather than the page, so they get their own contrast check.
-    @Test
-    fun licensesDialog() {
-        check { LicensesDialog { } }
     }
 
     @Test

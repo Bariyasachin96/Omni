@@ -8,27 +8,39 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## LICENCE = NAMES + THE TEXT; "BACKUP TTS" SWITCH, OFF; libeasyvoice.so (owner, 2026-09-23, latest)
-- **The licences dialog is two things only**: the names of what the APK ships under Apache 2.0
-  (CLD2, Android Jetpack (AndroidX), Jetpack Compose, Kotlin Standard Library,
-  kotlinx.coroutines, Material Design Icons -- one text block, one focus stop), then the licence
-  text (apache.org, verbatim, cut at "END OF TERMS AND CONDITIONS"). No copyright lines and no
-  per-item licence name: for a binary Apache 2.0 asks only 4(a), a copy of the licence (owner:
-  *"licence wale section mein bahut bada kachra ... jo jaruri hai sirf vahi"*). The list was
-  measured on build 902's own APK; kotlinx.serialization, atomicfu, JSpecify and JetBrains
-  annotations leave nothing in it, and libc++'s LLVM exception waives 4(a).
-- **"Backup TTS"** ("If a TTS stops working, another TTS for that language takes over.") is
-  `EasyVoiceTtsService.engineFallbackFlag`, pref `engine_fallback`, **default OFF**, after Keep
-  alive. OFF gates all of it: `switchToAlternative` and `retryChunkElsewhere` return at once,
-  `handOver` ends the utterance on the binder thread as before, `EngineFinder.repointUninstalled`
-  does nothing.
-- **Advanced tab ends with**: Show persistent notification, Disable battery optimization, logging.
-- **The native library is `libeasyvoice.so`** (CMake target `easyvoice`,
-  `System.loadLibrary("easyvoice")`); it was `libeasyvoice_core.so`. The source file keeps its
-  name, `tts_engine_core.cpp`. `tools/verify/latency/sources.py` skips the new target token.
+## NO LICENCE SECTION AT ALL; EVERY LIBRARY ON ITS LATEST STABLE (owner, 2026-09-23, latest)
+- **Everything licence-related is GONE from the app**: the About screen's "View Licenses"
+  button, `LicensesDialog`, `res/raw/apache_license_2_0.txt`, `ic_info.xml` (only that button
+  used it) and the `licensesDialog` accessibility test. Owner: *"licence ke related kuchh bhi
+  chijen nahin rakhni hai ... jab rakhni hogi to main bata dunga"*. **Do not add any of it back
+  until the owner asks.** About is now: heading, "Easy Voice", Version, Developer, Copyright.
+- **kotlinx.coroutines was already on 1.11.0, the newest release** (maven-metadata `<release>`
+  1.11.0, no 1.11.1/1.12 on Maven Central, and the GitHub CHANGES.md tops out at 1.11.0). Its
+  1.11.0 changes were read: the one API deprecation (`CoroutineDispatcher` as a context key) does
+  not touch us -- the app uses coroutines only through Compose (`LaunchedEffect`,
+  `rememberCoroutineScope`, `coroutineContext[MotionDurationScale]`). The jar ships its own R8
+  rules (`META-INF/com.android.tools/r8/coroutines.pro`, including 1.11.0's new
+  ReadonlySharedFlow/StateFlow job keeps); `proguard-rules.pro` now says so.
+- **The transitive libraries were the ones behind.** Read from build 903's own META-INF
+  `*.version` files and compared with maven-metadata: 21 were older than their latest stable.
+  They are raised with a `constraints {}` block in `app/build.gradle.kts` (a constraint only
+  raises a module already in the graph, never adds one). Each new release's module + AAR
+  manifest was read first: minSdk <= 23 everywhere, nothing it needs is newer than what we
+  resolve, and graphics-path 1.1.0's `.so` is 16 KB aligned on every ABI. **Same major only:
+  androidx.tracing stays 1.x (1.3.0)** -- 2.0.x is a major bump and startup-runtime/androidx.test
+  are 1.x callers. `concurrent-futures` went 1.2.0 -> **1.3.0** (the test graph's `requires 1.2.0`
+  accepts it; its module constrains `-ktx` to 1.3.0 too). `tools/fetch-deps.py` reads the
+  constraint lines as roots, so the local type-check classpath follows them.
+- **Already latest, re-checked the same day:** Kotlin 2.4.20, AGP 9.4.1, Gradle 9.7.1, NDK
+  30.0.16248370, CMake 4.1.2, build-tools 37.0.0, platform 37, Compose BOM 2026.09.00 (ui
+  1.12.1, material3 1.4.0), core 1.19.0, lifecycle 2.11.0, activity 1.13.0, splashscreen 1.2.0,
+  adaptive 1.3.0, test junit 1.3.0 / runner 1.7.0. The GitHub Actions could not be re-read
+  (other repos answer 403 in this session); they float within the majors set on 2026-09-10.
+- Kept from before: **"Backup TTS"** switch (`engineFallbackFlag`, default OFF), Advanced tab
+  ending with notification, battery, logging, and the native library **`libeasyvoice.so`**.
 - **Build 903's universal APK did not install on the owner's phone ("package appears to be
-  invalid"); the arm64 one did.** Both verify with apksigner (v2, same key), zipalign and aapt2,
-  and the manifest is identical to build 900's but for the package. The owner said to leave it.
+  invalid"); the arm64 one did.** Both verify with apksigner (v2, same key), zipalign and aapt2.
+  The owner said to leave it.
 
 ## NEW PACKAGE, VERSION 1.0, THE LICENCE ALONE, AND A TTS THAT STOPS HANDS OVER (owner, 2026-09-23, last)
 - **Package `com.sachinbaria.easyvoice`, versionName `1.0`.** Namespace, applicationId, both source

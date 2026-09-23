@@ -209,20 +209,20 @@ dependencies {
     // has taken it knowingly in exchange for being current.
     implementation("androidx.core:core-splashscreen:1.2.0")
     // ALIGNS THE APP WITH THE androidTest CLASSPATH -- one of the two halves of
-    // the accessibility job's dependency failure, and it attacks the ERROR rather
-    // than the question of which version bump first surfaced it (three answers to
-    // that were wrong: AGP 9.4.0, android.dependency.useConstraints, and Gradle
-    // 9.7.1 -- all reverted, all still red).
+    // the accessibility job's old dependency failure. The app used to resolve
+    // concurrent-futures 1.1.0 (via profileinstaller) while androidx.test:core
+    // 1.7.0 pulls concurrent-futures-ktx 1.2.0 -> concurrent-futures 1.2.0, and
+    // AGP's consistent resolution pins the test classpath to whatever the app
+    // resolved, as `strictly`. Declaring it here makes that pin a version the
+    // test graph can accept.
     //
-    // Measured with tools/fetch-deps.py: the app resolves concurrent-futures
-    // 1.1.0 (via profileinstaller), while androidx.test:core:1.7.0 pulls
-    // concurrent-futures-ktx:1.2.0 -> concurrent-futures:1.2.0. AGP's consistent
-    // resolution then pins the test classpath to `strictly 1.1.0` and the two
-    // cannot both be satisfied. Declaring 1.2.0 here makes the app resolve 1.2.0,
-    // so the constraint becomes `strictly 1.2.0` -- which is exactly what the test
-    // graph asks for. It is also the newer version, which is the direction this
-    // project takes anyway.
-    implementation("androidx.concurrent:concurrent-futures:1.2.0")
+    // 1.3.0 NOW, the latest stable (owner, 2026-09-23: "baki aur bhi chijen jo
+    // hogi vah bhi update kar do"). The test graph asks for 1.2.0 as a plain
+    // `requires`, which 1.3.0 satisfies; 1.3.0's own module constrains
+    // concurrent-futures-ktx to 1.3.0, so the test side moves with it. Its
+    // runtime needs are annotation 1.8.1, listenablefuture 1.0 and jspecify --
+    // nothing the app does not already carry.
+    implementation("androidx.concurrent:concurrent-futures:1.3.0")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -237,6 +237,60 @@ dependencies {
     // Only the `adaptive` artifact: adaptive-layout and adaptive-navigation are
     // the pane scaffolds, and we deliberately have no two-pane layout.
     implementation("androidx.compose.material3.adaptive:adaptive:1.3.0")
+
+    // THE LIBRARIES NOTHING HERE DECLARES, RAISED TO THEIR LATEST STABLE (owner,
+    // 2026-09-23: "baki aur bhi chijen jo hogi vah bhi update kar do ... properly
+    // research karke update"). Every direct dependency above was already current;
+    // these are the ones Compose, activity, core and splashscreen pull in, and
+    // Gradle had settled them on whatever the oldest requester asked for.
+    //
+    // The list is what build 903's own APK carries -- read from its META-INF
+    // *.version files, not guessed from the graph -- compared with each
+    // artifact's maven-metadata.xml. For every one of them the new release's
+    // own Gradle module and AAR manifest were read before it went in:
+    //   * minSdk is 23 or lower for all of them (ours is 24);
+    //   * nothing they require is newer than what the app already resolves
+    //     (Compose runtime 1.11.x, lifecycle 2.9.x, coroutines 1.9.0, Kotlin
+    //     stdlib 2.3.20 at most -- we are on 1.12.1 / 2.11.0 / 1.11.0 / 2.4.20);
+    //   * graphics-path is the one with a native library, and 1.1.0's
+    //     libandroidx.graphics.path.so is 16 KB aligned on every ABI.
+    //
+    // CONSTRAINTS, NOT DEPENDENCIES: a constraint only raises a module that is
+    // already in the graph and never adds one, so nothing new reaches the APK.
+    // And since AGP pins the androidTest classpath to what the app resolves,
+    // raising the app to the newest stable is also what keeps a test library
+    // from ever asking for more than the app has.
+    //
+    // SAME MAJOR VERSION ONLY. androidx.tracing has a 2.0.x, and a major version
+    // is allowed to break binary compatibility with the 1.x callers inside
+    // startup-runtime and androidx.test, so it moves to 1.3.0, the last 1.x.
+    // Where one member of a family is named (savedstate, navigationevent,
+    // window, vectordrawable), the library's own constraints bring the rest of
+    // the family to the same version.
+    constraints {
+        implementation("androidx.annotation:annotation-experimental:1.6.0")
+        implementation("androidx.appcompat:appcompat-resources:1.8.0")
+        implementation("androidx.autofill:autofill:1.3.0")
+        implementation("androidx.collection:collection:1.6.0")
+        implementation("androidx.customview:customview-poolingcontainer:1.1.0")
+        implementation("androidx.emoji2:emoji2:1.6.0")
+        implementation("androidx.graphics:graphics-path:1.1.0")
+        implementation("androidx.navigationevent:navigationevent:1.1.2")
+        implementation("androidx.navigationevent:navigationevent-compose:1.1.2")
+        implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+        implementation("androidx.savedstate:savedstate:1.5.0")
+        implementation("androidx.savedstate:savedstate-compose:1.5.0")
+        implementation("androidx.savedstate:savedstate-ktx:1.5.0")
+        implementation("androidx.startup:startup-runtime:1.2.0")
+        implementation("androidx.tracing:tracing:1.3.0")
+        implementation("androidx.vectordrawable:vectordrawable:1.2.0")
+        implementation("androidx.vectordrawable:vectordrawable-animated:1.2.0")
+        implementation("androidx.versionedparcelable:versionedparcelable:1.2.1")
+        implementation("androidx.window:window:1.5.1")
+        implementation("androidx.window:window-core:1.5.1")
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+        implementation("org.jspecify:jspecify:1.0.1")
+    }
 
     // Accessibility checks, run against the real screens on a real emulator.
     // enableAccessibilityChecks() drives Google's Accessibility Test Framework
