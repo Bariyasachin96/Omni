@@ -302,7 +302,7 @@ class AccessibilityChecksTest {
 
     // The About screen, added 2026-09-03. Its two link buttons were removed on
     // 2026-09-10 at the owner's request; the licence block moved to its own
-    // screen on 2026-09-17, so what is left is the title, four facts and one
+    // dialog on 2026-09-23, so what is left is the title, two facts and one
     // button, and the checks that matter are the contrast of all of them and
     // that the button has a name and a 48dp target, in both colour schemes.
     @Test
@@ -310,15 +310,11 @@ class AccessibilityChecksTest {
         check { AboutScreen() }
     }
 
-    // The licence screen the View Licenses button opens (owner, 2026-09-17).
-    // Every screen in this app has a test, and this one is five paragraphs of
-    // verbatim Apache notice under one heading -- all of it onSurfaceVariant on
-    // the page, which is the pair this suite exists to keep honest. Without a
-    // test here the text would have moved out of aboutScreen's coverage and out
-    // of the run entirely.
+    // The licences are a DIALOG now (owner, 2026-09-23), drawn on the dialog
+    // surface rather than the page, so they get their own contrast check.
     @Test
-    fun licensesScreen() {
-        check { LicensesScreen() }
+    fun licensesDialog() {
+        check { LicensesDialog { } }
     }
 
     @Test

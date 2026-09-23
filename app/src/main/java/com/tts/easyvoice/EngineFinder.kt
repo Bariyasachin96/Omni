@@ -184,6 +184,8 @@ object EngineFinder {
         val displayNames = HashMap<String, String>()
         val voiceEntries = ArrayList<ScanVoice>()
         val failed = HashSet<Int>()
+        val retried = HashSet<Int>()
+        val succeeded = HashSet<Int>()
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
         var index = 0
         fun finalizeScan() {
@@ -196,14 +198,52 @@ object EngineFinder {
             // is shared, and clearing it wholesale cancelled the OTHER scan's
             // watchdog too.
             myTimeout[0]?.let { globalTimeoutHandler.removeCallbacks(it) }
-            val remaining = ArrayList(engines)
-            val removedPkgs = ArrayList<String>()
-            for (failedIdx in failed.distinct().sortedDescending()) {
-                if (failedIdx >= remaining.size) continue
-                removedPkgs.add(remaining[failedIdx].pkg)
-                remaining.removeAt(failedIdx)
+            // A FAILED ENGINE IS STILL INSTALLED -- it came out of this scan's
+            // own queryIntentServices -- so it stays in the engine list and keeps
+            // the voices it had (2026-09-23). Dropping it is what made Google
+            // vanish from the list and fall silent after one bad attempt: the
+            // persisted engine list lost it, so the service never bound it again.
+            // Its voices come from the previous scan in this process, or, in a
+            // fresh process, from the voice_N entries the last good scan saved.
+            // An engine with nothing on record simply contributes nothing, which
+            // is what happened before.
+            // Every engine this scan did not read successfully counts, not just
+            // the ones in `failed`: the probe failing, or the 180 s watchdog
+            // firing, finalizes with engines the walk never reached, and those
+            // used to be saved with no voices at all -- the whole list wiped.
+            val notRead = engines.indices.filter { !succeeded.contains(it) }
+                .map { engines[it].pkg }.filter { !isSelfEngine(it) }.distinct()
+            val keptVoices = ArrayList<ScanVoice>()
+            for (failedPkg in notRead) {
+                val label = engines.firstOrNull { it.pkg == failedPkg }?.name ?: failedPkg
+                val previous = lastScanVoices.filter { it.pkg == failedPkg }
+                if (previous.isNotEmpty()) { keptVoices.addAll(previous) }
+                else {
+                    val stored = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
+                    var voiceIdx = 0
+                    while (true) {
+                        val key = stored.getString("voice_$voiceIdx", "") ?: ""
+                        if (key.isEmpty()) break
+                        voiceIdx++
+                        val parts = key.split("#")
+                        if (parts.size < 2 || parts[0] != failedPkg) continue
+                        val localeParts = parts[1].split("_")
+                        val loc = when (localeParts.size) {
+                            1 -> Locale(localeParts[0])
+                            2 -> Locale(localeParts[0], localeParts[1])
+                            else -> Locale(localeParts[0], localeParts[1], localeParts.drop(2).joinToString("_"))
+                        }
+                        keptVoices.add(ScanVoice(failedPkg, label, loc, arrayListOf("*Default")))
+                    }
+                }
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan could not read " + failedPkg + "; keeping it with " +
+                    keptVoices.count { it.pkg == failedPkg } + " voices from before")
             }
-            val surviving = remaining.map { it.pkg }
+            for (kept in keptVoices) {
+                val code = iso3Of(kept.locale)
+                if (code.isNotEmpty() && langs.add(code)) displayNames[code] = try { kept.locale.displayLanguage } catch (_: Exception) { code }
+            }
+            val surviving = engines.map { it.pkg }.filter { !isSelfEngine(it) }
             val collator = java.text.Collator.getInstance()
             // COMBINING_MARKS is compiled once at class init -- see the note on it.
             // This lambda runs inside the Collator comparator, so it was compiling a
@@ -211,7 +251,7 @@ object EngineFinder {
             fun sortKey(code: String) = java.text.Normalizer.normalize(displayNames[code] ?: code, java.text.Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
             val sorted = langs.sortedWith { leftCode, rightCode -> collator.compare(sortKey(leftCode), sortKey(rightCode)) }
             val orderedLangs: Set<String> = LinkedHashSet(sorted)
-            lastScanVoices = voiceEntries.filter { !removedPkgs.contains(it.pkg) }
+            lastScanVoices = voiceEntries.filter { !notRead.contains(it.pkg) } + keptVoices
             lastScanEngines = surviving
             val modeInt = EasyVoiceTtsService.modeInt
             val required = LangStore.requiredLangs(modeInt,
@@ -313,23 +353,43 @@ object EngineFinder {
             }
             mainHandler.postDelayed(timeout, 30000L)
 
-            val listener = TextToSpeech.OnInitListener { status ->
+            // ONE RETRY, then give up on THIS scan only (2026-09-23, owner:
+            // "Google baar-baar skip ho jata hai ... Google fir ismein dikhta hi
+            // nahin hai"). A single failed attempt used to drop the engine from
+            // the scan, and finalizeScan then PERSISTED the list without it: its
+            // languages vanished and, through persistEngines, the service stopped
+            // binding it at all, so every language configured on it went silent
+            // until some later scan happened to succeed. The causes are all
+            // transient -- an engine mid-update or frozen, the system session
+            // answering ERROR, or an engine that reports SUCCESS before its voice
+            // list is loaded and hands back no voices. One fresh bind clears
+            // them. The 30 s timeout does NOT retry: an engine that hung once
+            // would cost the scan another 30 s.
+            fun retryOrFail(why: String): Boolean {
+                if (!retried.add(myIndex)) { failed.add(myIndex); return false }
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed (" + why + "), retrying once")
+                release()
+                startEngine("(retry)")
+                return true
+            }
+            fun onInitMain(status: Int) {
                 if (handled) {
                     // A callback that beat the unbind. It belongs to an engine the
                     // walk has already left, so it must not touch `failed` and must
                     // not advance the walk -- just let its client go.
                     release()
-                    return@OnInitListener
+                    return
                 }
                 handled = true
                 mainHandler.removeCallbacks(timeout)
                 if (status != TextToSpeech.SUCCESS) {
-                    failed.add(myIndex)
+                    if (retryOrFail("init status " + status)) return
                 } else {
                     val client = cell[0]
                     val expectedPkg = engines[myIndex].pkg
                     val actualEngine = boundEngineOf(client, expectedPkg)
                     if (actualEngine == expectedPkg) {
+                        var added = 0
                         try {
                             val engineVoices = client?.voices
                             if (engineVoices != null) for (voice in engineVoices) {
@@ -338,17 +398,29 @@ object EngineFinder {
                                 val loc = voice.locale ?: continue
                                 val code = iso3Of(loc)
                                 if (code.isNotEmpty() && langs.add(code)) displayNames[code] = try { loc.displayLanguage } catch (_: Exception) { code }
+                                added++
                                 if (addVoiceToMatchingEntry(voiceEntries, loc, expectedPkg, scannedVoiceName)) continue
                                 voiceEntries.add(ScanVoice(expectedPkg, engines[myIndex].name, loc, arrayListOf("*Default")))
                                 addVoiceToMatchingEntry(voiceEntries, loc, expectedPkg, scannedVoiceName)
                             }
                         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
+                        if (added == 0 && retryOrFail("no voices yet")) return
+                        if (added == 0) failed.add(myIndex) else succeeded.add(myIndex)
                     } else {
-                        failed.add(myIndex)
+                        if (retryOrFail("bound to " + actualEngine)) return
                     }
                     release()
                 }
                 scanNextEngine()
+            }
+            // ERROR arrives on a BINDER thread: every client here connects through
+            // SystemConnection, whose ITextToSpeechSessionCallback.onError calls
+            // dispatchOnInit inline. Everything above is main-thread state
+            // (`handled`, `failed`, the walk, the next constructor, the progress
+            // line), so it is handed to the main looper -- inline when already there.
+            val listener = TextToSpeech.OnInitListener { status ->
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) onInitMain(status)
+                else mainHandler.post { onInitMain(status) }
             }
 
             onProgress?.invoke("Scanning $pkg... $suffix")
@@ -385,8 +457,7 @@ object EngineFinder {
                 if (!handled) {
                     handled = true
                     mainHandler.removeCallbacks(timeout)
-                    failed.add(myIndex)
-                    scanNextEngine()
+                    if (!retryOrFail("constructor threw")) scanNextEngine()
                 }
             }
         }
@@ -416,7 +487,10 @@ object EngineFinder {
             finalizeScan()
         }
         try {
-            probe[0] = TextToSpeech(ctx, { status ->
+            // Same binder-thread ERROR as the engine listeners, and here it was a
+            // crash rather than a race: probeFailed() shows a Toast, and
+            // Toast.makeText throws on a thread with no Looper.
+            fun onProbeInit(status: Int) {
                 if (status == TextToSpeech.SUCCESS && probe[0] != null) {
                     for (engineInfo in probe[0]!!.engines) {
                         val name = engineInfo.name
@@ -429,6 +503,10 @@ object EngineFinder {
                 } else {
                     probeFailed()
                 }
+            }
+            probe[0] = TextToSpeech(ctx, { status ->
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) onProbeInit(status)
+                else mainHandler.post { onProbeInit(status) }
             }, "com.tts.easyvoice")
         } catch (ex: Exception) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize probe\n" + ex.message)

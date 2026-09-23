@@ -138,5 +138,15 @@ target_link_libraries(easyvoice_core ${log-lib})
 # supplied by clang's own driver below API 28 (Linux.cpp:288) and minSdk is 24,
 # so passing it changes nothing; --exclude-libs,ALL, --hash-style=gnu,
 # --as-needed and -z nostart-stop-gc each measured zero or noise.
+#
+# 16 KB PAGES ARE STATED, NOT INHERITED (owner, 2026-09-23). NDK r28 and later
+# already align every PT_LOAD segment to 16 KB, and the shipped arm64 library was
+# measured at p_align 16384 -- but that was the NDK's default doing it. Google's
+# own page (developer.android.com/guide/practices/page-sizes) gives these two
+# flags as the way to make it explicit, so a future NDK or toolchain change
+# cannot quietly drop the app back to 4 KB and into compatibility mode on a
+# 16 KB device. On the 32-bit ABI they cost nothing but a little padding.
+# tools/check/native-pagesize.sh verifies the built APK.
 target_link_options(easyvoice_core PRIVATE
-    "-Wl,--gc-sections" "-Wl,--strip-all" "-Wl,--icf=safe" "-flto=thin")
+    "-Wl,--gc-sections" "-Wl,--strip-all" "-Wl,--icf=safe" "-flto=thin"
+    "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")

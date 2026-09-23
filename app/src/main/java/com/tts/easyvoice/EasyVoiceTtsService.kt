@@ -1155,6 +1155,28 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         }
     }
+    // onInit IS NOT ALWAYS ON THE MAIN THREAD, and both listeners below assume
+    // it is (2026-09-23, read from AOSP main). The public
+    // TextToSpeech(Context, OnInitListener, String) constructor passes
+    // isSystem = TRUE, so every client connects through SystemConnection: the
+    // system's TextToSpeechManagerService binds the engine for us and answers
+    // over ITextToSpeechSessionCallback. A SUCCESS still arrives on the main
+    // thread (SetupConnectionAsyncTask.onPostExecute), but
+    //
+    //     public void onError(String errorInfo) { ... dispatchOnInit(ERROR); }
+    //
+    // runs on the BINDER thread that callback lands on, and dispatchOnInit calls
+    // the listener inline when there is no executor. So an engine that could not
+    // be bound -- mid-update, frozen, missing -- ran these listeners on a binder
+    // thread, where they grow enginePool (a plain ArrayList the main thread also
+    // walks), step initializingIndex, and construct the NEXT engine's client
+    // while the main thread may be doing the same. Everything they touch is
+    // main-thread state, so they are moved onto it. On the main thread already,
+    // nothing changes: the body runs inline exactly as before.
+    private val initHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private fun onMainThread(block: () -> Unit) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) block() else initHandler.post { block() }
+    }
     // EACH INIT OWNS ITS CLIENT, and the shared field it replaces was a real
     // cross-engine bug (2026-09-09). `initializingTts` was ONE field written by
     // the pool walk here AND by restoreEngine, and read back by both listeners
@@ -1186,7 +1208,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // only thing that advances the pool walk -- every engine after the one that
         // threw would never be initialised, and every language on those engines
         // would answer "TTS is not ready" for the life of the process.
-        override fun onInit(status: Int) {
+        override fun onInit(status: Int) { onMainThread { handleInit(status) } }
+        private fun handleInit(status: Int) {
             try {
             val initializingTts = cell[0]
             if (initializingIndex >= engineList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (1)"); return }
@@ -1423,7 +1446,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // the main looper, where an escape is also a process death and therefore a
         // silent phone. The finally runs the same statement at the same point when
         // nothing throws.
-        override fun onInit(status: Int) {
+        override fun onInit(status: Int) { onMainThread { handleInit(status) } }
+        private fun handleInit(status: Int) {
             // ONE SHOT, AND THE INDEX IS CAPTURED (2026-09-16). Two reasons, both
             // from the timeout above. A callback that arrives AFTER the timeout has
             // already released the slot must touch nothing -- it would otherwise

@@ -7,6 +7,36 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## GOOGLE KEPT VANISHING: ONE FAILED SCAN WIPED AN ENGINE (owner, 2026-09-23)
+*"Google baar-baar skip ho jata hai ... Google fir ismein dikhta hi nahin ... jo ham package
+name se TTS lete hain vah TTS chalte hi nahin hain."* Both symptoms had one cause in
+`EngineFinder.scanLanguages`: an engine that failed ONE attempt (ERROR, bound to another
+engine, or SUCCESS with an empty voice list) was dropped, and `finalizeScan` then PERSISTED
+the result -- its languages vanished, and `persistEngines` removed it from `engine_N`, so the
+service never bound it again and every language configured on it was silent.
+- **One retry** on ERROR / wrong binding / no voices / constructor throw. Not on the 30 s
+  timeout (a hung engine would cost another 30 s).
+- **An engine that is still not read keeps its place and its previous voices** -- from
+  `lastScanVoices` in this process, else rebuilt from the saved `voice_N` keys. That covers
+  the probe failing and the 180 s watchdog too, which used to save an EMPTY list.
+- **Init listeners hop to the main thread.** Read from AOSP main: the public 3-arg
+  constructor passes `isSystem = true`, so every client connects through `SystemConnection`
+  (the system's TextToSpeechManagerService binds the engine). SUCCESS still arrives on main
+  via `onPostExecute`, but `onError` -> `dispatchOnInit(ERROR)` runs on a BINDER thread.
+  The scan listener, the probe (its Toast throws off a looper) and the service's
+  `EngineInitListener` / `RestoreInitListener` all assumed main.
+- **There were NO recent framework changes to adopt.** `TextToSpeech.java`,
+  `TextToSpeechService.java` and `TtsEngines.java` are byte-identical in android-15.0.0_r1,
+  android-16.0.0_r1 and main (diffed 2026-09-23). Gitiles history needs a login.
+
+**Also that day:** licences are a DIALOG on About (the Activity is deleted), listing only
+what the app uses -- CLD2, AndroidX/Compose, Kotlin stdlib + coroutines, Material icons --
+plus the full Apache 2.0 text from `res/raw/apache_license_2_0.txt`
+(apache.org, byte for byte). The proprietary sentence, the Developer line and Build number
+are gone, and the copyright no longer names a person. 16 KB alignment is now stated with
+`-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384` rather than inherited from the
+NDK default. The five CLD3 history sections were cut from this file.
+
 ## THE AOSP PASS: THE LOOP WAS A QUEUE, AND THE FRAMEWORK RE-BINDS BEHIND OUR BACK (owner, 2026-09-23)
 *"sirf aapane auto TTS ka najriya dekha hai, baki aur bhi AOSP ke hoga ... ek bhi chij mat
 chhodo ... makkhan ki tarah TTS chalna chahie."* Done by hand. The eight-agent workflow died
@@ -1835,8 +1865,11 @@ harnesses that existed only for it, `tools/verify/cld3span/` and
 **Why, in one line the owner earned by testing it for days:** CLD3 reads short
 Devanagari at about 50%, a coin toss, and is wrong in both directions; CLD2 scores
 24 of 25 on the same corpus at every length. The measurements that killed every
-attempted fix are kept below under the three CLD3 report sections — read them before
-ever proposing to bring it back.
+attempted fix used to be kept here in five long sections; they were cut on 2026-09-23 at
+the owner's request (*"cld3 ka jyada description nahin chahie"*). The one-line verdict: below
+about 80 bytes CLD3 is a coin toss between Hindi and Marathi and no threshold, re-rank,
+padding or fallback fixes that, while CLD2 scored 24 of 25 on the same corpus. The full
+record is in git history before commit that date.
 
 **Two things got better on the way out, both measured, neither of them the point:**
 - the detection path is now **12x faster on long text** — the latency harness reads
@@ -2928,86 +2961,6 @@ start, and nothing overlaps. That is AutoTTS's architecture too. **Do not "optim
 theory** — ask for a log of the actual slow message first, with logging on, and measure
 `onDone` to `speak 2:` against `speak 2:` to the next `onStart`.
 
-## Detection speed: CLD3 is 5x CLD2, and that is the whole story (measured 2026-09-01)
-The owner asked for language detection to be made as fast as possible, and pointed at eSpeak
-NG's source as a place to learn from. Both were done properly: an instruction-level profile
-of our own pipeline, and a read of eSpeak's synthesis loop. **Read the numbers before
-changing anything here again.**
-
-**`tools/verify/latency/run.sh` now times BOTH detectors.** It had only ever measured CLD2,
-which hid the arm the owner may actually be running:
-
-| paragraphs | chars | chunks | segment | **CLD2** | **CLD3** |
-|---|---|---|---|---|---|
-| 10 | 1,758 | 29 | 0.1 ms | 0.1 ms | **2.5 ms** |
-| 30 | 5,310 | 81 | 0.3 ms | 1.1 ms | **6.6 ms** |
-| 60 | 10,620 | 161 | 0.6 ms | 2.6 ms | **8.6 ms** |
-
-**So the Advanced tab's "Use CLD3" switch costs about 5x**, and on a phone (an order of
-magnitude slower than this container) that is tens of milliseconds before the first word of a
-long text. With CLD2 it is single-digit milliseconds. That switch is the one real lever on
-detection speed, and it belongs to the owner.
-
-**Where the time goes, from `valgrind --tool=callgrind` over the whole harness — not from
-reading the code and guessing:**
-- `SparseReluProductPlusBias` is **40.67% of every instruction the program executes**. That
-  is CLD3's hidden layer. Nothing else is within an order of magnitude of it.
-- **294 spans produce 464 net evaluations.** `FindTopNMostFreqLangs` runs 294 times (once per
-  span) and `FindLanguageOfValidUTF8` 464 times, so **58% of spans pay the net twice**: the
-  hinted top-3 loop finds no candidate the user has enabled, and `cld3DetectRaw` falls through
-  to `FindLanguage`. `SparseReluProductPlusBias` runs 928 times = two layers per evaluation.
-- CLD2 for the same 294 spans: `ExtDetectLanguageSummary` 294 calls, and its whole cost
-  (`DocTote::Sort`, `GetOneScriptSpan`, `GetOctaHits`, `GetQuadHits`, the UTF8 scanners) is
-  about 2.5M instructions — **beaten by our own segmenter**, where `buildMixChunks` alone is
-  1.58M.
-
-**The obvious halving was investigated and REJECTED, and the reasoning is recorded so it is
-not re-attempted casually.** For a text containing exactly one script span,
-`FindTopNMostFreqLangs(t, 3)[0]` and `FindLanguage(t)` evaluate the net on byte-identical
-text: `FindLanguage` concatenates the lowered script spans and squeezes the result, TopN
-squeezes each span, and with one span those are the same bytes through the same
-`CheapSqueezeInplace(ptr, len, 0)` into the same `SelectTextGivenBeginAndSize` (TopN's
-`SelectTextGivenScriptSpan` is a one-line delegate to it). So the second run looks redundant.
-**It was not taken, for two reasons.** The single-span condition cannot be tested from
-outside CLD3's public API, and TopN reports `probability = prob_sum / byte_sum`, i.e.
-`(p * n) / n` in float, which is not guaranteed to be bit-identical to `p` -- and
-`is_reliable` is `probability >= 0.7f`, so a span sitting on the threshold could flip.
-Trading a proven detector for a 37% saving on a switch the owner can turn off for a 5%
-saving is the wrong trade, and "behaviourally equivalent" is a forbidden justification here.
-CLD3 is vendored by a CI `git clone`, so it cannot be patched either.
-
-**One change was made, and it is provably dead work, not an optimisation of behaviour.**
-`cld3DetectRaw` built its `hinted` set -- a comma split plus an `unordered_set` of up to 64
-`std::string`s -- on **every** call, including the window site where `useHints` is false and
-the set is unreachable behind `useHints && !hinted.empty()`. The window site runs once per
-64-character window in auto mode, so a long utterance rebuilt and discarded that list hundreds
-of times. It is now built only when `useHints` is true. Proven by
-`tools/verify/cld3span/run.sh` (all cases pass) and `tools/verify/segmenter/run.sh`
-(identical over 163,296 cases).
-
-**eSpeak NG, read rather than recalled** (`raw.githubusercontent.com/espeak-ng/espeak-ng/master`;
-`codeload.github.com` is 403 from this proxy, so files were fetched one at a time):
-- `src/libespeak-ng/speech.c` `Synthesize()` is **clause at a time**. `SpeakNextClause(0)`
-  reads ONE clause, `WavegenFill()` fills `outbuf`, and `synth_callback(outbuf, length, ...)`
-  hands that buffer out **immediately**; the next clause is only read once the current one has
-  finished generating. `outbuf_size` is derived from a millisecond buffer length, so audio
-  starts flowing after tens of milliseconds rather than after the whole text.
-- `src/libespeak-ng/fifo.c` is a command queue with a dedicated `say_thread`, so in async mode
-  `espeak_Synth` enqueues and returns and the caller never blocks.
-- **What that teaches, and why it does not transfer.** eSpeak never precomputes the whole
-  text; we build every chunk and detect every language before `speakChunk(true)`. But that
-  entire precompute is the "segment + CLD2" column above -- **1.4 ms for 30 paragraphs** --
-  so making it lazy would save 1.4 ms and diverge from AutoTTS, which builds its list up
-  front too. eSpeak's other lesson, streaming the first buffer early, cannot apply at all:
-  eSpeak IS a synthesiser and owns its samples, while we are a proxy that calls
-  `TextToSpeech.speak()` on another engine and never touches audio. There is no `outbuf` here
-  to hand out sooner.
-
-**So what is left is the engine switch, not detection.** We wait for `onDone` of chunk N
-before asking engine N+1 to start, and `onLoadLanguage` on that path does binder calls into
-another app's TTS service. That is AutoTTS's architecture as well. Measure it from a device
-log -- `onDone` to `speak 2:`, and `speak 2:` to the next `onStart` -- before touching it.
-
 ## Runs 795-797 went red on DISK, not on anything we wrote (fixed 2026-09-01)
 The owner reported failing builds. **The APK was fine every time** -- `build-795`, `build-796`
 and `build-797` are all on the Releases page, published by the `build` job, which passed. What
@@ -3110,184 +3063,6 @@ process. We call `TextToSpeech.speak()` on another app and wait for its audio. T
 what this app IS, and it is AutoTTS's architecture too. The two 50 ms `postDelayed` calls
 were already removed on 2026-08-12; the owner's own logs show start-to-first-speak at a
 median of 8-12 ms on our side. Everything beyond that belongs to the target engine.
-
-## CLD3 calls Hindi "Marathi", and it is the MODEL, not our plumbing (2026-09-02)
-The owner reported it precisely: *"CLD2 bahut acche se read kar raha hai, CLD3 mein gadbadi
-hai"*, and named the sentence. Their log (`id: 614`, mixed mode, enabled = eng on Eloquence +
-guj/hin/**mar** on Google) reads:
-
-    जहाँ 𝙌𝙪𝙖𝙡𝙞𝙩𝙮 और 𝙌𝙪𝙖𝙣𝙩𝙞𝙩𝙮 दोनों मिलें  en dash  वही असली चैनल होता है!”
-
-and the chunks it produced were
-
-    1 जहाँ            hin  ok        5 दोनों मिलें        hin  ok
-    2 Quality         eng  ok        6 en dash           eng  ok
-    3 और              hin  ok        7 वही असली चैनल...   mar  WRONG
-    4 Quantity        eng  ok
-
-so the tail switched to `mr-in-x-mrc-local` mid-sentence. (Note chunks 2 and 4: the
-maths-bold-italic 𝙌𝙪𝙖𝙡𝙞𝙩𝙮 normalised to "Quality" correctly, so `clsCLD2.a` is fine.)
-
-**Reproduced against the real detectors, not argued.** A probe through
-`tools/verify/cld3span/` with the owner's exact enabled set `{en, gu, hi, mr}`:
-
-    TAIL  CLD2 -> hi
-    TAIL  CLD3 -> mr
-
-and CLD3's own numbers for that chunk:
-
-    0  mr   p=0.712  reliable=1  proportion=1.000
-    1  und  p=0.000  reliable=0
-    2  und  p=0.000  reliable=0
-    FindLanguage: mr p=0.712 reliable=1
-
-**Hindi is not in CLD3's top-3 at all.** There is no better candidate to prefer, so this
-cannot be fixed by reordering, by the reliability gate (0.712 clears CLD3's own 0.7
-threshold, if only just) or by the script check (Marathi IS Devanagari, script 4, same as the
-span). Our CLD3 arm is doing exactly what the design table above prescribes.
-
-**Why CLD2 gets it right, and why that is luck rather than skill.** `setLanguageHints` keeps
-a per-script hint only where **exactly one** enabled language uses that script. Hindi and
-Marathi are both Devanagari, so `matched[4] == 2` and `scriptLanguageHint[4]` goes back to
-UNKNOWN -- CLD2 runs unguided and its own model happens to answer `hi`.
-`scriptLanguageFallback[4]` is HINDI purely because `kScriptLangPairs` lists
-`{4, HINDI}` before `{4, MARATHI}`.
-
-**Three fixes were considered and all REJECTED. Do not implement them later.**
-- raise the reliability bar above 0.712 -- arbitrary, and rejects many correct answers;
-- override CLD3 with the per-script fallback whenever two enabled languages share a script --
-  that is every Hindi+Marathi, every Russian+Ukrainian, every Chinese+Japanese user, and it
-  would make a genuine Marathi sentence read as Hindi. It destroys CLD3 for exactly the
-  people who need it;
-- prefer the table-order language among close candidates -- there are no close candidates.
-
-**The owner then asked, reasonably, whether CLD3 could simply be made to behave like CLD2.
-That was researched properly and the answer is NO. Here is the evidence, so it is never
-re-opened on a hunch.**
-
-`FindLanguageOfValidUTF8` computes the FULL 109-language score vector
-(`network_.ComputeFinalScores(features, &scores)`), takes the argmax and discards the rest;
-both it and `GetLanguageName` are **private**. A diagnostic build of
-`tools/verify/cld3span/` with `#define private public` peeked at that distribution for the
-failing chunk:
-
-    0  mr   p=0.99991
-    1  hi   p=0.00006      <- sixteen thousand times less likely
-    2  is   p=0.00003
-
-**CLD3 is 99.99% certain it is Marathi.** There is no close second, so there is nothing to
-tie-break, no threshold to tune and no candidate to re-rank. Any rule that produced Hindi
-here would have to ignore the model outright -- and would then read genuine, unambiguous
-Marathi as Hindi too. At that point CLD3 is not being used at all; it is the per-script
-fallback table with extra steps and five times the cost.
-
-(The 0.712 that `FindTopNMostFreqLangs` reports is the AGGREGATED figure,
-`prob_sum / byte_sum` across script spans; the raw softmax is 0.99991. Do not confuse them.)
-
-**And the speed premise is backwards, which matters because it is why the owner wanted to
-keep CLD3.** Measured 2026-09-01, 30 paragraphs: **CLD2 1.1 ms, CLD3 6.6 ms**. CLD3 is
-about **5x SLOWER**, not faster -- `SparseReluProductPlusBias` is 40.67% of all instructions.
-
-**What DOES fix it, with no code change, and it is the owner's lever:** untick **Marathi**
-in the Languages screen. Then `mr` is not in the hint list, `isHinted` rejects it, and the
-per-script fallback resolves Devanagari to Hindi, because `kScriptLangPairs` lists
-`{4, HINDI}` before `{4, MARATHI}`. Verified both ways and now asserted permanently in
-`tools/verify/cld3span/run.sh`:
-
-    Hindi tail, CLD2, mr also enabled   -> hi
-    Hindi tail, CLD3, mr also enabled   -> mr
-    Hindi tail, CLD3, mr NOT enabled    -> hi
-    Hindi tail, CLD2, mr NOT enabled    -> hi
-
-**The owner's next idea was Unicode**: CLD2 does better, AutoTTS uses Unicode well, so
-something Unicode-shaped must be missing from the CLD3 path. Checked, and there is no gap:
-- the fancy-letter normaliser (`clsCLD2.a`) is **proven** identical over all 1,114,112 code
-  points and runs before both detectors, in `buildMixChunks` and `detectLanguageRuns` alike;
-- at the span site **both arms get the same bytes** -- `text[start .. start+detectBytes]`;
-- AutoTTS's genuinely Unicode-driven fallback, `a.e(cp, n.f)`, belongs to `clsCLD2.d`, the
-  auto/Google WINDOW path, and ours is proven equal there over 1,114,112 code points x 45
-  enabled sets. Mixed mode uses the per-script fallback instead, which we also have.
-The failing text is plain Devanagari that is valid in both languages -- no character in it
-distinguishes Hindi from Marathi, so no Unicode rule could.
-
-**One idea from that line of thinking WAS promising and was measured, then rejected.** We
-build CLD3 with `NNetLanguageIdentifier(0, 1024)` while its own default minimum is
-`kMinNumBytesToConsider = 140`; below the minimum it returns `Result()` = "und", which our
-span site folds to `"un"` and resolves through the per-script fallback. Raising it looked
-like a clean fix. Measured across thresholds:
-
-    text                  bytes  min=0  min=40  min=60  min=80
-    hindi tail (the bug)     56  mr     mr      und     und
-    real marathi            112  mr     mr      mr      mr
-    short marathi            41  mr     mr      und     und
-
-At `min = 60` the reported sentence is fixed **and 41-byte Marathi breaks**, becoming "und"
-and then Hindi. **Both detectors get short Marathi right today**, so that trade is one
-sentence gained for a whole language's short phrases lost. **Do not raise `min_num_bytes`.**
-
-**Measured at the span site with the owner's exact set `{en, gu, hi, mr}`, the two detectors
-AGREE on five of six realistic cases** -- real Marathi, short Marathi, short Hindi, short
-English and short Gujarati all match; only the reported Hindi tail differs. Those agreements
-are now asserted in `tools/verify/cld3span/run.sh` so a future change cannot quietly break
-Marathi while chasing this sentence.
-
-### THE FIX (owner request, reaffirmed twice: it must be fixed INSIDE CLD3)
-The owner rejected two of my proposals outright and was right both times. First, telling
-them to untick Marathi: *"kisi ko char language detect karni hai to vah to enable rakhega
-na, to vah to galat tarika hai"* -- enabling the languages you read is correct usage, not a
-misconfiguration. Second, and this one I had already started writing: routing shared-script
-spans to CLD2 under the CLD3 switch. *"Agar user ne CLD3 enable kara hai to CLD3 hi chalna
-chahiye."* Reverted before it went anywhere. **There is no CLD2 anywhere in the CLD3 path.**
-
-**What the measurement finally showed, and it was in an earlier probe I had not chased:**
-
-    the 56-byte tail alone                             -> mr  p=0.712
-    the same tail WITH the utterance's Devanagari       -> hi  p=1.0000
-    the same, doubled                                   -> hi  p=1.0000
-
-Same model, same enabled set, same span. **Only the amount of text changed.** CLD3 is not
-broken; it is being asked with too little text -- and the app is what makes it too little.
-`buildMixChunks` cuts an utterance into per-script chunks BEFORE detection, so one Devanagari
-sentence reaches the detector as four fragments of 3 to 56 bytes. CLD2's n-gram tables
-tolerate that; a neural net does not.
-
-**So the span is widened before it is detected, and only in the CLD3 arm.**
-- `buildMixChunks` stores the whole normalised utterance in `detectContextText` -- the same
-  bytes the chunks are substrings of, which is why the staleness guard is a plain
-  `context.find(span)`. It is refused when it does not match, which is what keeps the
-  auto/Google aggregate detector (which never runs the chunk builder) from picking up a
-  context left over from an earlier utterance.
-- At the span site, a span **shorter than CLD3's own `kMinNumBytesToConsider` (140)** is
-  detected against the utterance's text **in that span's script**. 140 is CLD3's number, not
-  one of ours; we construct the identifier with 0 precisely so short spans still get an
-  answer instead of "und".
-- The extractor matches ASCII letters directly (the scanner classifies those in its own
-  `& 0x5F` fast path and never asks `classifyScript`) and everything else through
-  `classifyScript`, the same ladder the span boundaries were drawn with. Spaces are kept so
-  n-grams do not run together; digits and punctuation are dropped.
-- **The span still gets the answer. Only the evidence is wider.** CLD2's arm is untouched.
-
-**Where the store lives is load-bearing:** immediately above `buildMixChunks`, not beside the
-language-hint tables where the rest of the detector state sits, because
-`tools/verify/make_core_inc.py` slices the core `--until buildMixChunks` for the segmenter
-harness. Anything the chunk builder calls must be defined above it or that harness stops
-linking. It did, once.
-
-**Proven, not asserted.** `tools/verify/cld3span/run.sh` now runs the real sequence --
-`processDirect` first, then per-chunk detection, exactly as the app does:
-
-    THE BUG: Hindi tail after processDirect, CLD3   -> hi     (was mr)
-    Hindi tail after processDirect, CLD2            -> hi
-    Marathi still Marathi after widening, CLD3      -> mr
-    Marathi still Marathi after widening, CLD2      -> mr
-
-and the direct-call cases above them are kept, so the raw detector behaviour without context
-stays documented. Every other harness re-run clean: segmenter **identical over 163,296
-cases**, normaliser identical over 1,114,112 code points, script family identical over 15
-sets x 1,114,112 code points.
-
-**CLD2 is still the faster switch** (1.1 ms vs 6.6 ms per 30 paragraphs) and is untouched by
-all of this.
 
 ## THE MID-USE SILENCE: three exits that ended an utterance without waking the wait (2026-09-03)
 Owner: *"beech-beech mein kabhi kabhar chalte chalte bilkul TTS ruk jata hai ...
@@ -7307,226 +7082,6 @@ sent so far. They were found by reading the wait and the restore guard, not from
 log, which is why the watchdog is written to be impossible to trigger during
 healthy speech rather than tuned against a trace.
 
-## The SECOND CLD3 report: it was never the model, it was the squeeze (2026-09-02)
-The owner sent a fresh log and said the problem was still there — *"kuchh chijon ke
-liye to fix hua hai but kis chij ke liye abhi bhi fix nahin hua hai … Usi direction
-ko"*. Correct on both counts. The log toggles the CLD3 switch mid-session (ids 924
-Unchecked → 926 Checked), so the same utterance is routed twice, and the engine
-column hides it because Hindi, Gujarati and Marathi all sit on Google TTS. Read the
-`loadLanguage` line, not the engine:
-
-    किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत Text box Compose message
-      ids 910-916  (CLD2)  chunk 1 -> hin      chunk 2 -> eng
-      ids 951-959  (CLD3)  chunk 1 -> mar      chunk 2 -> eng
-
-**The widening from the previous fix cannot touch this one.** That Devanagari chunk
-IS all the Devanagari in the utterance — 130 bytes, under CLD3's own 140 — so
-`sameScriptContextText` returns the same bytes and the widening is a no-op. Right
-direction, different cause.
-
-**And the model is not wrong.** Feeding the raw bytes straight to the network:
-
-    hi p=0.992561      ne p=0.006406      mr p=0.000844
-
-What the network is handed is not those bytes. `FindLanguage` lowers the text with
-CLD2's ScriptScanner and then runs `CLD2::CheapSqueezeInplace` on it:
-
-    cleaned  (131 B)  किसी दूसरी भाषा में हो रही किसी दूसरी भाषा बातचीत
-    squeezed  (75 B)  किसी दूसरी भाषा भाषा बातचीत          ->  mr p=0.913
-
-`"किसी दूसरी भाषा"` occurs twice, the squeezer drops the 48-byte chunk it can
-predict, and a third of the sentence is deleted before detection. **CLD2 never does
-this to a short text** — `compact_lang_det_impl.cc:1867` squeezes a span only when
-`2048 < scriptspan.text_bytes`, and even then only if `CheapSqueezeTriggerTest`
-agrees. CLD3 calls it unconditionally, in **both** entry points. So the switch did
-not only change detector, it silently changed the text. That is the whole defect,
-and it is inside CLD3 exactly as the owner insisted.
-
-**The fix** is `cld3FindLanguageGated` / `cld3TopNGated` in `tts_engine_core.cpp`:
-CLD3's own two functions mirrored statement for statement, with the squeeze gated
-by CLD2's own 2048-byte threshold. Reaching the pipeline without the squeeze needs
-two private members, so the include is wrapped in `#define private public` — CLD3
-is a CI `git clone`, so patching it is not an option. **Namespace trap:** CLD3
-carries its own copy of CLD2's span code, so it is `chrome_lang_id::CLD2::…`, not
-the top-level `CLD2::…`, and `CheapSqueezeInplace` needs
-`#include "script_span/text_processing.h"` on top of what the CLD3 header pulls in.
-
-**Measured over 608 distinct strings** (every phrase spoken in both device logs plus
-the app's own literals): the stock squeeze removes text from **9** and changes the
-answer on **4** — `mr 0.913 → hi 0.989`, `mr 0.526 → hi 0.814`,
-`"Text box Compose message"` doubled `ja 0.784 → en unreliable`, and a Samoan
-sentence `hu 0.861 → sm 1.000`. Nothing gets worse. The Japanese one is the same
-bug on Latin text and was found while measuring the fix.
-
-**Speed, measured rather than assumed.** `tools/verify/latency` repeats three fixed
-paragraphs, so at 60 paragraphs each appears twenty times — the pathological case
-the squeeze exists for, and nothing like real text (9 of 608). There:
-
-    gate only, no widening        6.6 ms      (stock was 8.6 ms)
-    gate + the widening fix      47.3 ms
-
-so the cost is the **widening**, and it grew only because the squeeze used to
-collapse the widened evidence into nothing. `onSynthesizeText` can never receive
-more than 4000 characters, so the real ceiling is the 20-paragraph row at
-**8.7 ms**; a typical screen-reader utterance is under a millisecond. CLD2 is
-untouched and still the faster switch. (The write-up that lived in
-`docs/INVARIANTS.md` #25 went with CLD3; this section is what is left of it.)
-
-**Do not raise `min_num_bytes`, do not route to CLD2, do not touch the enabled
-list** — all three were measured and rejected earlier and none of them was ever the
-cause.
-
-## THE THIRD CLD3 REPORT: this one is the MODEL, and there is no fix to write (2026-09-02)
-Owner, with Marathi enabled this time so the case is genuinely exercised:
-*"cld3 ab natak karne laga hai kahin kahin per … bina title wali batchit aur nai
-chat wala jo button hai."* Two Gemini labels, spoken by the **Marathi** voice under
-CLD3 and by the **Hindi** voice under CLD2:
-
-    "नई चैट"                   17 bytes    ids 4590, 4592, 4594, 4618, 4620
-    "बिना टाइटल वाली बातचीत"    61 bytes    ids 4603, 4605, 4607
-
-**Unlike the previous two reports there is NO defect on our side.** All three
-suspects were checked and cleared, and that is the point of this section -- do not
-re-investigate them:
-- **the hint list is right.** Marathi really is enabled (`getEngine4Language mar`
-  lists eng/guj/hin/mar), so `isHinted` accepts `mr` and the per-script fallback
-  correctly does not fire. Nothing to fix.
-- **the squeeze gate is irrelevant.** 17 bytes is a single 48-byte chunk;
-  `CheapSqueeze` removes nothing.
-- **the widening has nothing to widen to.** Neither utterance carries any other
-  Devanagari, so `sameScriptContextText` returns the same bytes. Verified through
-  the real `processDirect` sequence in the harness, not argued.
-
-**It is the model, and its own softmax says so:**
-
-    "नई चैट"                  mr 0.9640   vi 0.0343   hi 0.0015
-    "बिना टाइटल वाली बातचीत"    mr 0.9992   hi 0.0006   ne 0.0001
-
-Hindi is 600 to 1600 times less likely. There is no close second to prefer, no
-threshold that separates these from the correct answers, and nothing to re-rank.
-
-**AND IT IS NOT A BIAS TOWARDS MARATHI -- that framing is wrong and it matters.**
-Measured over 16 real UI labels, nine Hindi from the owner's own log and seven
-Marathi of the same kinds, at the current `min_num_bytes = 0`: **four are wrong,
-two in each direction**, and one Marathi label (`मायक्रोफोन`) is answered **Nepali**.
-CLD3 is simply unusable on Devanagari below its own `kMinNumBytesToConsider`.
-
-**Raising that minimum was measured again, with the widening now in place, and it
-still fails.** It only trades the errors over:
-
-| `min_num_bytes` | 0 | 40 | 60 | 80 | 140 |
-|---|---|---|---|---|---|
-| Hindi labels wrong | 2 | 1 | 1 | **0** | **0** |
-| Marathi labels wrong | 2 | 3 | 5 | 5 | 6 |
-
-The total never improves, because below the threshold every Devanagari span falls
-to the per-script fallback, and `kScriptLangPairs` lists `{4, HINDI}` first -- so
-"raise the minimum" means "read all short Devanagari as Hindi", which is perfect
-for this owner and broken for a Marathi one. **Do not raise it.**
-
-**Everything else was already measured and rejected in the earlier rounds** -- a
-higher reliability bar, a shared-script override, table-order re-ranking, and
-routing to CLD2 under the CLD3 switch (which the owner refused outright). Each one
-makes some other user worse. **There is no code change that fixes this**, and
-writing one anyway would be the jugaad the owner has twice told us not to write.
-
-**What is true and worth telling the owner plainly:** CLD2 reads short Devanagari
-correctly, CLD3 does not, and choosing between them is the switch they already
-have. CLD2 is also five times faster. CLD3 earns its place on longer text, which is
-where a neural detector beats n-grams.
-
-The whole measurement is now permanent in `tools/verify/cld3span/run.sh` -- the two
-failing labels in both detectors, the same pair through the real `processDirect`
-sequence, **and three neighbours from the same log that both detectors get right**
-(`साइडबार बंद करें`, `चैट खोजें`, `मोबाइल पर कैनवा का उपयोग`). Those three are the guard: they
-are what stops a future "fix" from routing every short Devanagari span to Hindi and
-declaring the problem solved.
-
-## The two shipped CLD3 fixes were RE-TESTED under suspicion, and three more ideas died (2026-09-02)
-The owner suspected the fix itself: *"jo fix kiya hai vah valid nahin hai … shayad
-aapne galat fix kar diya hai … jahan se fix kiya hai vahan se aap hata dena."* That
-is a fair challenge and it was answered by measurement, not by argument. **A 25-item
-corpus** — the owner's own Hindi labels from the device logs plus Marathi labels of
-the same kinds — was run at the REAL span site with the core in three states:
-
-| core state | CLD3 wrong |
-|---|---|
-| both fixes removed | **6** of 24 |
-| widening + squeeze gate (shipped) | **5** of 24 |
-
-**So the shipped fixes are not wrong.** They fix one case (the 130-byte repeated
-sentence, which the squeeze was mutilating) and break nothing. They stay. What they
-are is **insufficient**, which is a different thing and is what the owner is feeling.
-
-**Three further ideas were then implemented and measured, and ALL THREE MADE IT
-WORSE. Do not try them again; the numbers are here so nobody has to.**
-
-**1. Decline below CLD3's own minimum and let the user's preference decide.**
-The most promising idea by far, because it needs no invented number (CLD3's own
-`kMinNumBytesToConsider = 140`) and no invented fallback: `IsoCodes.toIso3("un")` is
-null, so `languageForDetectedRun` already falls to `run.latin ? P : Q`, the user's
-own **"Preferred language for Latin / non-Latin text"**. A Hindi reader has set that
-to Hindi and a Marathi reader to Marathi, so each would be answered in their own
-language exactly where the model cannot tell them apart. Measured what each reader
-actually HEARS, sweeping the threshold:
-
-| decline below | Hindi reader | Marathi reader | both |
-|---|---|---|---|
-| 0 (today) | **76%** | **76%** | **76%** |
-| 20 | 80% | 72% | 76% |
-| 40 | 72% | 64% | 68% |
-| 80 | 64% | 48% | 56% |
-| 140 | 64% | 44% | 54% |
-
-**Today's behaviour is the best row.** The user's stated preference is a weaker prior
-than even a coin-toss detector, because it is right only for the language they read
-most and wrong for every other one they enabled. Reverted.
-
-**2. Pad short text by repeating it until it reaches CLD3's minimum.** It looked
-right — one earlier probe showed a 56-byte tail answered correctly when doubled, and
-with the squeeze gate in place the repetition now survives to the network. Measured
-over the same corpus:
-
-| pad to | Hindi | Marathi | combined |
-|---|---|---|---|
-| no padding | 67% | 80% | **72%** |
-| 140 bytes | 53% | 60% | 56% |
-| 300 bytes | 53% | 60% | 56% |
-| 700 bytes | 47% | 60% | 52% |
-
-That one doubling was luck, not an effect. Reverted.
-
-**3. Constrain the answer to the enabled languages OF THAT SCRIPT**, using the full
-109-language softmax we already reach through `#define private public`. Not even
-implemented, because the distribution settles it: for `नई चैट` the enabled Devanagari
-languages are {hi, mr} and the model gives **mr 0.9640, hi 0.0015**; for the real
-Marathi `नवीन चॅट` it answers **hi**. The ordering itself is wrong, so constraining
-the choice cannot help.
-
-**WHY NONE OF THIS CAN WORK, in one measurement.** Twelve real Hindi and Marathi
-sentences were cut to rising byte prefixes and put through `FindLanguage`:
-
-| bytes | Hindi right | Marathi right | combined |
-|---|---|---|---|
-| ≤20 | 33% | 67% | **50%** |
-| ≤40 | 50% | 50% | **50%** |
-| ≤60 | 50% | 83% | **67%** |
-| ≤80 | 83% | 100% | **92%** |
-| ≥100 | 100% | 100% | **100%** |
-
-**Below about 80 bytes CLD3 is a coin toss between the two, in both directions.**
-Above 100 it is perfect. There is no threshold, no re-rank, no fallback and no
-padding that turns a coin toss into an answer — every one of those only decides
-*which* way to be wrong. **CLD2 scores 24 of 25 on the same corpus at every length**,
-because n-gram tables degrade gracefully on short text and a neural net does not.
-
-**So the honest position, and it should be stated plainly rather than worked around:
-CLD3 cannot read short Devanagari, and no code in this app can make it.** What the
-app can do is what it already does — let the owner choose the detector. For UI labels
-and button names, which is what a screen reader mostly speaks, **CLD2 is the correct
-switch, and it is also five times faster**. CLD3 earns its place on long text, where
-it is 100% and where a neural detector genuinely beats n-grams.
-
 ## The verify harnesses could pass on a STALE binary (found and fixed 2026-09-02)
 `tools/verify/cld3span/run.sh` and `tools/verify/latency/run.sh` compile through a
 `compile()` helper that ends in `echo "$obj"`, so the function returned **0 however
@@ -8324,14 +7879,6 @@ disable_advanced_detection **true**, quick_character_reading false, punctuation_
 **true**, smart_number_reading false; and `number/punc/emoji_specific_language` each fall back to
 `n.e(Locale.getDefault())` when empty. Ours matches all of it.
 
-## ~~CLD3 (user decision, 2026-07-29)~~ — SUPERSEDED, see "CLD3 IS GONE" at the top
-This section used to say the Advanced-tab row **"Use CLD3 (neural language
-detection)"** was an EasyVoice-only feature that **must NOT be removed**, and that
-wherever CLD2 detects, the switch must be able to put CLD3 there instead. **The
-owner reversed that on 2026-09-02 and CLD3 is gone, A to Z.** The paragraph is kept
-only so a future session that remembers the old rule finds the reversal instead of
-the rule. Do not act on it.
-
 ## How to Trigger Build
 ```
 mcp__github__actions_run_trigger → run_workflow
@@ -8532,45 +8079,6 @@ rebuild; ours starts fresh every time the Activity is created, so it already mat
   same in `onRowToggled`.
 - `c3.k.K2(...)` **always returns true** on every path, so `if (!K2(x)) continue` never
   skips anything. Do not try to reproduce it as a real test.
-
-## CLD3 audited A to Z against CLD2 (2026-08-21) — one real gap, fixed
-The standing rule for the CLD3 row is **"wherever CLD2 makes a detection, the switch must
-be able to put CLD3 there instead"**. This is that audit, with the 5.7.7.26 additions in
-place. **Checked and clean — do not re-derive:**
-
-- **Two** detection sites exist in the native code and **both** have a CLD3 arm:
-  `detectWindowLang` (behind `detectLanguageFull`) and `emitScriptSpan` inside
-  `nativeGetLanguages`.
-- Every Kotlin caller passes `useCld3Flag`: `detectLanguageFull`, `detectLanguageRuns` and
-  the new `detectLanguageAggregate`. **`processDirect` voids the flag on purpose** —
-  `buildMixChunks` segments and merges, it never detects; its chunks are detected back in
-  Kotlin.
-- Reliability is symmetric: CLD2 returns `"UNKNOWN"` when `!reliable`, the CLD3 arm returns
-  `"UNKNOWN"` when `!is_reliable`.
-- **Hints are mirrored.** CLD2 gets `CLDHints`; CLD3 has no hints API, so `cld3DetectRaw`
-  asks `FindTopNMostFreqLangs(text, 3)` and keeps the first reliable candidate whose base
-  tag is in the same hint list.
-- **The romanised filter is complete.** CLD3's model emits exactly six `-Latn` tags —
-  `zh ru bg hi el ja` — and `isRomanisedTag` lists exactly those six. Counted from
-  `task_context_params.cc`'s `kLanguageNames`, 109 entries.
-- **The whole CLD3 vocabulary maps.** All 109 tags were run through a Java copy of
-  `IsoCodes.toIso3`, built the same way from `Locale.getISOLanguages()` plus the
-  terminological and no-iso2 tables. **108 map; only `"und"` does not.**
-- All five 5.7.7.26 additions are detector-agnostic (normaliser, danda, digit grouping,
-  clock-time guard, `':'`) or pass the flag (the aggregate detector).
-
-**THE GAP.** CLD2 says `"un"` for undetermined, CLD3 says **`"und"`**
-(`NNetLanguageIdentifier::kUnknown[] = "und"`). Nothing normalised between them, so under
-CLD3 `emitScriptSpan` wrote `"und"` into the span — and the new aggregate detector filters
-unknown with `key.startsWith("un|")`, which **`"und|1"` does not match** (third character is
-`d`). An undetermined span therefore counted as a real language and **could win the
-aggregate** — exactly what `clsCLD2.f`'s two-candidate scan exists to prevent, and only on
-the CLD3 side.
-
-**Fixed at the boundary, one place.** `cld3DetectRaw` already returns `""` for a romanised
-tag and both callers already treat `""` as CLD2's own unknown (`"UNKNOWN"` for
-`detectWindowLang`, `"un"` for `emitScriptSpan`), so `"und"` returns `""` too. Keep any
-future CLD3 tag folding there rather than at the call sites.
 
 ## The 5.7.7.18 → 5.7.7.26 sweep is COMPLETE (2026-08-21) — do not redo it
 5.7.7.18 was re-decompiled with the **same** CFR flags as 5.7.7.26 (standard for the tree,
