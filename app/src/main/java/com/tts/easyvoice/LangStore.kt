@@ -17,6 +17,9 @@ object LangStore {
     @JvmStatic val languages: java.util.ArrayList<LangEntry> = java.util.ArrayList()
     @JvmStatic var currentVoiceIso: String = ""
     @JvmStatic var currentVoiceRows: List<EngineFinder.ScanVoice?> = emptyList()
+    // True only once the user has PICKED a voice for currentVoiceIso on this
+    // screen (VoiceRows.moveToFront). VoiceRows.load clears it.
+    @JvmStatic var currentVoiceChosen: Boolean = false
     @JvmStatic
     fun loadLanguages(ctx: Context) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadLanguages")
@@ -511,7 +514,18 @@ object LangStore {
             val editor = sharedPrefs.edit()
             val key = voiceRowKey(row)
             editor.putString(key, index.toString())
-            if (index == 0) editor.putString(if (row == null) currentVoiceIso else EngineFinder.iso3Of(row.locale), key)
+            // THE LANGUAGE'S OWN KEY IS WRITTEN ONLY ON A CHOICE (2026-09-23).
+            // This ran on every persist -- every onPause, every Previous/Next --
+            // so merely opening Voice setup wrote whatever row happened to be
+            // first over the configuration: in Google mode the rows are Google's
+            // alone, so a language set up on any other engine was rewritten to
+            // Google; with Google unread, the other way round. Now it is written
+            // when the user picked a voice here, or when nothing was stored yet
+            // (the first-use default AutoTTS relies on). The order weights above
+            // are still written every time; they only sort the list.
+            val ownKey = if (row == null) currentVoiceIso else EngineFinder.iso3Of(row.locale)
+            if (index == 0 && (currentVoiceChosen || (sharedPrefs.getString(ownKey, "") ?: "").isEmpty()))
+                editor.putString(ownKey, key)
             editor.commit()
             index++
         }

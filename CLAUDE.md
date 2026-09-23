@@ -19,6 +19,9 @@ the workflow's agents all died on the session limit.
   languages with Next reassigned all of them. **`VoiceRows.pinConfigured` now makes the stored
   configuration the first row**, and a configured voice the scan did not return is shown anyway,
   labelled "(not found in the last scan)" (`ScanVoice.notFound`). Only picking a voice changes it.
+  **And `persistVoiceRows` writes the `<iso3>` key only when `LangStore.currentVoiceChosen`**
+  (set by `moveToFront`, cleared by `load`) or nothing is stored yet -- Google mode lists only
+  Google's voices, so just opening the screen there rewrote other engines' languages to Google.
 - **`persistEngines` with no scan in the process** wrote `engine_0 = "end"` and gave the running
   service an empty list. It returns now when `lastScanEngines` is empty, like `persistVoiceList`.
 - **`finalizeScan` also keeps each language's own configured voice** for an unread engine, since

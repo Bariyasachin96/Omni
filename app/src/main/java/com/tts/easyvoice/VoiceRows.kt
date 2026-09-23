@@ -14,6 +14,7 @@ object VoiceRows {
     fun load(context: Context, readingMode: String, selectedIso: String): List<EngineFinder.ScanVoice?> {
         if (selectedIso.isEmpty()) { LangStore.currentVoiceRows = emptyList(); return emptyList() }
         LangStore.currentVoiceIso = selectedIso
+        LangStore.currentVoiceChosen = false
         val rawPrefs = context.getSharedPreferences("easy_voice_settings", Context.MODE_PRIVATE)
         fun voiceOrder(key: String): Int {
             val cached = EngineFinder.voiceWeights[key]
@@ -110,6 +111,7 @@ object VoiceRows {
         val picked = reordered.removeAt(position)
         reordered.add(0, picked)
         LangStore.currentVoiceRows = reordered
+        LangStore.currentVoiceChosen = true
         var weightIdx = 0
         while (weightIdx < reordered.size) { EngineFinder.voiceWeights[voiceKey(reordered[weightIdx], selectedIso)] = weightIdx; weightIdx++ }
         if (picked != null) { entry.enginePkg = picked.pkg; entry.localeTag = picked.locale.toString() }
