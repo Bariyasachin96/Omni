@@ -1956,6 +1956,28 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (answer < TextToSpeech.LANG_AVAILABLE) { tried.add(wrapper.pkg); continue }
                 take(wrapper.rawPkg, localeOf(lang))?.let { return it }
             }
+            // 3. SCAN NOW (2026-09-23, owner: "Hindi padhta hun to kuchh awaaz nahin
+            // ... use time per kuchh scan nahin hota ... dusra TTS nahin bolta").
+            // Steps 1 and 2 only knew the engines of the LAST scan and the ones
+            // already live in the pool; an engine installed on the phone that the
+            // pool never held, or that sits there not ready, was never asked. The
+            // system's own list of TTS services is read now, and every such
+            // engine is brought up (recoverEngineNotReady adds it to the pool and
+            // restores it). A bind is asynchronous, so THIS chunk cannot wait for
+            // it; the next one finds it live and step 2 asks it for the language.
+            val started = ArrayList<String>()
+            val installed = try {
+                packageManager.queryIntentServices(android.content.Intent("android.intent.action.TTS_SERVICE"), 0)
+                    .mapNotNull { it.serviceInfo?.packageName }.distinct()
+            } catch (_: Exception) { emptyList() }
+            for (rawPkg in installed) {
+                if (!usable(rawPkg)) continue
+                if (liveWrapper(rawPkg) != null) continue
+                recoverEngineNotReady(rawPkg)
+                started.add(rawPkg)
+            }
+            if (started.isNotEmpty()) EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                "bringing up " + started.joinToString(", ") + " to look for " + lang + " on the next chunk")
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- no other working engine speaks " + lang)
         } catch (ex: Throwable) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "switchToAlternative: " + ex.toString())

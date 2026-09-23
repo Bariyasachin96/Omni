@@ -1,0 +1,15 @@
+# Baseline profile for Easy Voice's own code.
+#
+# The Compose, Material3 and androidx libraries already ship their own rules and
+# AGP merges them in (about 3,000 lines); until now nothing covered this app's
+# classes, so every one of them ran interpreted/JIT on a cold start -- which is
+# exactly the moment after a reboot or a force stop when the screen reader binds
+# the TTS service and waits for its first word. With these rules the ART profile
+# the APK ships makes the install-time and background dexopt compile them ahead of
+# time (androidx.profileinstaller writes it for sideloaded installs too).
+#
+# Wildcards are the documented form (AGP expands them, and rewrites them through
+# the R8 mapping, in expandReleaseArtProfileWildcards). H = hot, S = startup,
+# P = post-startup; the class line makes the class part of the startup image.
+HSPLcom/sachinbaria/easyvoice/**->**(**)**
+Lcom/sachinbaria/easyvoice/**;

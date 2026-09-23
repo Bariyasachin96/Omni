@@ -8,6 +8,23 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## BACKUP TTS SCANS AT THE MOMENT IT FAILS; THE APP'S OWN CODE HAS A BASELINE PROFILE (owner, 2026-09-23, latest)
+*"backup TTS ... Hindi padhta hun to kuchh awaaz nahin ... use time per kuchh scan nahin hota ...
+profile dekho ... missing dependency bhi milegi."*
+- **`switchToAlternative` step 3**: after the last scan's voices (1) and the live pool (2),
+  it reads the system's installed TTS services (`queryIntentServices(TTS_SERVICE)`) and brings
+  up every usable one that is not live (`recoverEngineNotReady`: added to the pool / restored).
+  Binding is async, so the current chunk still cannot wait; the next one finds it live and step
+  2 asks it. Log: `bringing up <pkgs> to look for <lang> on the next chunk`.
+- **Still undetectable without a clock** (owner banned timeouts): an engine that ACCEPTS speak()
+  and never calls back. Fallback fires on setLanguage failure, onError, speak failing, re-bind
+  and process death; a silent accept gives no event. Need a log with Backup TTS ON to go further.
+- **`app/src/main/baseline-prof.txt`** (`HSPLcom/sachinbaria/easyvoice/**->**(**)**` + class
+  rule): the libraries' ~3,000 rules were merged but nothing covered our own classes. Verified in
+  `r8_art_profile/.../baseline-prof.txt` after a local `minifyReleaseWithR8`: the service and
+  activities are there, the rest under R8's names. `profileinstaller:1.4.1` declared directly
+  (was only transitive) so sideloaded installs get the profile.
+
 ## A LIVE ENGINE IS NOT RESTORED, AND EVERY ENGINE STARTS AT ONCE (owner, 2026-09-23, latest)
 *"force stop karta hun to Google mar jata hai ... find karna chahie ki TTS mar kyon jaate hain
 ... phone restart ke bad jaldi bolata nahin."* The logging-only answer below was not enough.

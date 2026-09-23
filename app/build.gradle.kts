@@ -208,6 +208,11 @@ dependencies {
     // AppCompat artifact in this project. That is the whole price, and the owner
     // has taken it knowingly in exchange for being current.
     implementation("androidx.core:core-splashscreen:1.2.0")
+    // Installs the ART profile (app/src/main/baseline-prof.txt plus the libraries'
+    // own) on sideloaded installs too, where Play's cloud profiles never arrive --
+    // which is how this app is installed. It was already in the graph through
+    // Compose; declared so the profile does not depend on that.
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     // ALIGNS THE APP WITH THE androidTest CLASSPATH -- one of the two halves of
     // the accessibility job's old dependency failure. The app used to resolve
     // concurrent-futures 1.1.0 (via profileinstaller) while androidx.test:core
