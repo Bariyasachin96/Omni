@@ -26,16 +26,21 @@
   cut after "END OF TERMS AND CONDITIONS" (the appendix is instructions, not terms). The copyright
   lines, component list and "Show license text" button are gone. About still says Developer and
   copyright **Sachin Baria**.
-- **A configured TTS that does not work hands the language to another** (`useAlternativeEngine`,
-  called from `onLoadLanguage` when `voiceLoadFailed`: no live client, or setLanguage failed incl.
-  missing voice data). The first live engine in scan order (`voiceList`) that speaks the language
-  speaks it. **The configuration is re-pointed (`setUpAlternative`) only when the engine is really
-  gone** -- not resolvable as a TTS service (uninstalled/disabled) or ten restores failed; a
-  hiccup speaks with the alternative and keeps the configuration, because rewriting it on a
-  hiccup is exactly how Google used to vanish. Google mode never persists. **At scan time**
-  `EngineFinder.repointUninstalled` moves every language whose engine is no longer installed to
-  the first scanned voice for it. Log lines: `is not working for <lang> -- speaking with`,
-  `is now set up on`, `is not installed any more`, `no other working engine speaks`.
+- **A TTS that stops working hands its language over AT THAT MOMENT, and the setting changes
+  then too** (owner, same day, correcting the first version: *"usi time per ... app kholne per
+  nahin ... settings bhi update ho jaani chahie"*). `switchToAlternative(lang, excluded, setUp, why)`
+  searches the last scan's `voiceList` in scan order, then asks every live engine
+  `isLanguageAvailable` right now; the first that loads the language wins and `setUpAlternative`
+  writes `<iso3> = pkg#locale` + `_variant = *Default` at once. It runs (a) from `onLoadLanguage`
+  when `voiceLoadFailed` (no live client, or setLanguage failed incl. missing data), and (b) from
+  the speak path via `retryChunkElsewhere`, which puts the SAME chunk back at the head of the queue
+  and speaks it on the new engine: on `onError` (except -5 output and -8 invalid request), on
+  `speak()` failing or throwing, on the client being re-bound elsewhere, on no client, and on the
+  engine's process dying (`retryOnEngineDeath`). Engines that failed this utterance are excluded,
+  so it ends; the id gets `_r<n>` so a late callback cannot match. **Not persisted** in Google mode,
+  or while the startup walk has not reached the configured engine yet (`walkPending`) -- that is not
+  a failure. Scan time still moves languages off uninstalled engines (`repointUninstalled`). Log:
+  `-- speaking <lang> with <pkg>`, `<lang> is now set up on`, `no other working engine speaks`.
 
 ## GOOGLE'S VOICE STILL WENT FROM EVERY LANGUAGE: FOUR WRITERS, NOT THE SCAN (owner, 2026-09-23, later)
 *"vahan per dikhai de raha hai but ... uska voice sab ko to chala jata hai ... aisa kuchh karo

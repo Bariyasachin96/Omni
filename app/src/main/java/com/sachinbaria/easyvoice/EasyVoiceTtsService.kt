@@ -81,6 +81,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // connection callback can tell "the engine I am waiting on died" from "some
     // other engine in the pool died". Cleared when the utterance ends.
     @Volatile private var speakingPkg: String? = null
+    // The live utterance's "say this chunk on another engine", so the death of
+    // the engine holding it hands the chunk over instead of only ending it.
+    @Volatile private var retryOnEngineDeath: ((String) -> Boolean)? = null
     // Called from a ServiceConnection callback on the main thread. Ends the
     // utterance the dead engine was holding; does nothing for any other engine.
     private fun onEngineProcessGone(pkg: String) {
@@ -118,6 +121,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (speakingPkg != normPkg) return
         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Engine holding this utterance died: " + pkg)
         speakingPkg = null
+        val retry = retryOnEngineDeath
+        if (retry != null && retry(pkg)) return
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
     }
     // `appCtx` USED TO SIT HERE AND IT LEAKED THE WHOLE SERVICE (2026-09-10).
@@ -1738,12 +1743,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     if (localeIso3(loc) == lang) {
                         loadVoice(enginePkg, loc, variantOut, dedicatedEnginesFlag)
                         if (lastEnginePkg != enginePkg) lastEnginePkg = enginePkg
-                        if (voiceLoadFailed) useAlternativeEngine(lang, enginePkg)
+                        if (voiceLoadFailed) switchToAlternative(lang, setOf(normPkg(enginePkg)), !walkPending(enginePkg), enginePkg + " could not load " + lang)
                     } else {
                         val langOnly = Locale(lang)
                         val foundPkg = findEngineForLocale(langOnly)
                         loadVoice(foundPkg, langOnly, variantOut, dedicatedEnginesFlag)
-                        if (voiceLoadFailed) useAlternativeEngine(lang, foundPkg)
+                        if (voiceLoadFailed) switchToAlternative(lang, setOf(normPkg(foundPkg)), !walkPending(foundPkg), foundPkg + " could not load " + lang)
                     }
                 } catch (ex: Throwable) {
                     // Silent until 2026-09-11, and this is the one place a "wrong
@@ -1797,81 +1802,91 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         } catch (_: Exception) { null }
     }
-    // A CONFIGURED ENGINE THAT DOES NOT WORK HANDS THE LANGUAGE TO ANOTHER ONE
-    // (owner, 2026-09-23: "koi TTS band ho gaya ... jo configure kar rakha hai ...
-    // system mein jo TTS available ho usko scan karke ... jo pahle mil jaaye
-    // scanning mein vah setup ho jaaye"). DELIBERATE DEPARTURE -- AutoTTS's d0
-    // stays on the configured engine and says nothing -- asked for by name.
+    // A TTS THAT STOPS WORKING HANDS ITS LANGUAGE TO ANOTHER ONE, AT THAT MOMENT
+    // (owner, 2026-09-23: "achanak se vahan per kuchh TTS ki awaaz nahin a rahi
+    // hai ... Google TTS nahin chal raha hai to automatically scan karen aur use
+    // language ke liye jo bhi TTS available ho pahle ... vah setup ho jana
+    // chahie usi time per ... aur settings bhi update ho jaani chahie"). DELIBERATE
+    // DEPARTURE -- AutoTTS stays on the configured engine and says nothing.
     //
-    // WHEN: onLoadLanguage's own load just failed -- the engine had no live
-    // client (never initialised, died, refused a fallen-back binding, or is
-    // missing from the pool), or setLanguage failed, including the engine
-    // answering that it has no voice data for this language.
+    // Called from two places, both at the moment of failure: onLoadLanguage, when
+    // its load could not put the language on its engine (no live client, or
+    // setLanguage failed -- including "no voice data"), and the speak path, when
+    // the engine fails the chunk it was given (onError, speak() failing, its
+    // process dying, its client re-bound elsewhere). The speak path then says the
+    // same chunk again on the engine chosen here.
     //
-    // WHICH: the voices the last scan saved (voice_N), in scan order -- the first
-    // one in this language on an engine that is live right now. "First found in
-    // scanning" is the owner's rule. Engines that are not live are asked to come
-    // back (recoverEngineNotReady) and skipped for this utterance. Easy Voice
-    // itself is never a candidate, and the load is plain rather than dedicated so
-    // the alternative really is switched to this language.
+    // THE SCAN, DONE THEN AND THERE: first the voices the last full scan saved
+    // (voice_N, in scan order -- "jo pahle mil jaaye scanning mein"), then every
+    // engine that is live right now, asked directly with isLanguageAvailable. An
+    // engine that is not live is asked to come back and skipped for this chunk.
+    // Easy Voice itself and every engine already failed for this chunk are
+    // skipped, so the search always ends.
     //
-    // SETTING IT UP: the language's configuration is re-pointed to the
-    // alternative ONLY when the configured engine is really gone -- no longer
-    // installed or disabled, or ten restores in a row have failed. Anything short
-    // of that (an engine mid-update, one the walk has not reached yet, a restore
-    // in flight) speaks with the alternative and leaves the configuration alone,
-    // because rewriting it on a hiccup is exactly how Google's configuration used
-    // to vanish from every language. Google mode (3) never persists: its engine is
-    // fixed at Google.
-    private fun useAlternativeEngine(lang: String, failedPkg: String) {
-        try {
-            val failedNorm = failedPkg.replace("-", "").replace("_", "")
-            val exact = ArrayList<Pair<String, Locale>>()
-            for (index in 0 until voiceList.size) {
-                val parts = voiceList[index].split("#")
-                if (parts.size < 2) continue
-                val pkg = parts[0]
-                if (pkg.isEmpty() || pkg.replace("-", "").replace("_", "") == failedNorm) continue
-                if (pkg == packageName || pkg.contains("easyvoice")) continue
-                val loc = parseVoiceNameAsLocale(parts[1]) ?: continue
-                if (localeIso3(loc) != lang) continue
-                if (exact.none { it.first == pkg }) exact.add(Pair(pkg, loc))
-            }
-            for ((pkg, loc) in exact) {
-                val normPkg = pkg.replace("-", "").replace("_", "")
-                var live = false
-                for (index in 0 until enginePool.size) {
-                    val wrapper = enginePool[index]
-                    if (wrapper.pkg == normPkg && wrapper.state == 2 && wrapper.tts != null) { live = true; break }
-                }
-                if (!live) { recoverEngineNotReady(pkg); continue }
-                loadVoice(pkg, loc, "", false)
-                if (voiceLoadFailed || engineIndex < 0) continue
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG,
-                    failedPkg + " is not working for " + lang + " -- speaking with " + pkg + " " + loc)
-                if (modeInt != 3 && engineIsGone(failedPkg)) setUpAlternative(lang, pkg, loc)
-                return
-            }
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "no other working engine speaks " + lang)
-        } catch (ex: Throwable) {
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "useAlternativeEngine: " + ex.toString())
-        }
-    }
-    // Really gone, as opposed to not ready this moment: no TTS service under that
-    // package any more (uninstalled, or disabled -- resolveService does not return
-    // a disabled component), or its restores have run out.
-    private fun engineIsGone(rawPkg: String): Boolean {
-        if (rawPkg.isEmpty() || rawPkg.equals("disable", true)) return false
-        val installed = try {
-            packageManager.resolveService(android.content.Intent("android.intent.action.TTS_SERVICE").setPackage(rawPkg), 0) != null
-        } catch (_: Exception) { true }
-        if (!installed) return true
-        val normPkg = rawPkg.replace("-", "").replace("_", "")
+    // THE SETTING IS UPDATED AT ONCE (setUpAlternative) -- except in Google mode,
+    // whose engine is fixed, and while the startup walk has simply not reached
+    // the configured engine yet, which is not a failure.
+    private fun normPkg(pkg: String): String = pkg.replace("-", "").replace("_", "")
+    private fun walkPending(rawPkg: String): Boolean {
+        if (initializingIndex >= walkList.size) return false
+        val norm = normPkg(rawPkg)
         for (index in 0 until enginePool.size) {
             val wrapper = enginePool[index]
-            if (wrapper.pkg == normPkg) return wrapper.state == -1 && wrapper.restoreCount >= 10
+            if (wrapper.pkg == norm) return wrapper.state == 0
         }
-        return false
+        return true
+    }
+    private fun switchToAlternative(lang: String, excluded: Set<String>, setUp: Boolean, why: String): String? {
+        try {
+            val tried = HashSet<String>(excluded)
+            fun usable(rawPkg: String): Boolean {
+                val norm = normPkg(rawPkg)
+                if (rawPkg.isEmpty() || tried.contains(norm)) return false
+                if (rawPkg == packageName || rawPkg.contains("easyvoice")) return false
+                return true
+            }
+            fun liveWrapper(rawPkg: String): EngineWrapper? {
+                val norm = normPkg(rawPkg)
+                for (index in 0 until enginePool.size) {
+                    val wrapper = enginePool[index]
+                    if (wrapper.pkg != norm) continue
+                    val client = wrapper.tts ?: return null
+                    if (wrapper.state != 2) return null
+                    if (!isSameEnginePkg(EngineFinder.boundEngineOf(client, wrapper.rawPkg), wrapper.rawPkg)) return null
+                    return wrapper
+                }
+                return null
+            }
+            fun take(rawPkg: String, loc: Locale): String? {
+                tried.add(normPkg(rawPkg))
+                loadVoice(rawPkg, loc, "", false)
+                if (voiceLoadFailed || engineIndex < 0) return null
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- speaking " + lang + " with " + rawPkg + " " + loc)
+                if (setUp && modeInt != 3) setUpAlternative(lang, rawPkg, loc)
+                return rawPkg
+            }
+            // 1. the last full scan, in its own order
+            for (entry in ArrayList(voiceList)) {
+                val parts = entry.split("#")
+                if (parts.size < 2 || !usable(parts[0])) continue
+                val loc = parseVoiceNameAsLocale(parts[1]) ?: continue
+                if (localeIso3(loc) != lang) continue
+                if (liveWrapper(parts[0]) == null) { tried.add(normPkg(parts[0])); recoverEngineNotReady(parts[0]); continue }
+                take(parts[0], loc)?.let { return it }
+            }
+            // 2. every live engine, asked now
+            for (wrapper in ArrayList(enginePool)) {
+                if (!usable(wrapper.rawPkg)) continue
+                val client = liveWrapper(wrapper.rawPkg)?.tts ?: continue
+                val answer = try { client.isLanguageAvailable(Locale(lang)) } catch (_: Exception) { TextToSpeech.LANG_NOT_SUPPORTED }
+                if (answer < TextToSpeech.LANG_AVAILABLE) { tried.add(wrapper.pkg); continue }
+                take(wrapper.rawPkg, Locale(lang))?.let { return it }
+            }
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- no other working engine speaks " + lang)
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "switchToAlternative: " + ex.toString())
+        }
+        return null
     }
     // The same write the Voice setup screen makes when a voice is picked there:
     // "<iso3>" = "<pkg>#<locale>", and the variant back to the engine's default,
@@ -3019,6 +3034,41 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "prefetch failed for " + lang + ": " + ex.toString())
             }
         }
+        // THE CHUNK BEING SPOKEN, KEPT SO A FAILING ENGINE CAN HAND IT OVER (owner,
+        // 2026-09-23: "usi dauran ... turant usi kshan per"). When the engine the
+        // chunk went to fails it -- onError, speak() failing, its process dying,
+        // its client re-bound elsewhere, or no client at all -- the same chunk is
+        // put back at the head of the queue and spoken again on the engine
+        // switchToAlternative chooses, which also updates the setting. Every
+        // engine that failed this utterance is excluded from the search, so it
+        // always ends; the id gets a retry suffix, so a late callback from the
+        // failed engine cannot match the new attempt.
+        var currentPair: Pair<Int, TextChunk>? = null
+        var currentPairFirst = false
+        var currentPairLang = ""
+        var retryCount = 0
+        val failedThisUtterance = HashSet<String>()
+        lateinit var speakChunkRef: (Boolean) -> Unit
+        fun retryChunkElsewhere(failedRawPkg: String, why: String): Boolean {
+            if (myGeneration != synthesisGeneration || isStopped || isFlushed) return false
+            if (bypassed) return false
+            val pair = currentPair ?: return false
+            if (currentPairLang.isEmpty() || failedRawPkg.isEmpty()) return false
+            failedThisUtterance.add(normPkg(failedRawPkg))
+            synchronized(this) {
+                switchToAlternative(currentPairLang, failedThisUtterance, !walkPending(failedRawPkg), why)
+            } ?: return false
+            retryCount++
+            synchronized(chunkQueue) { chunkQueue.add(0, pair) }
+            speakChunkRef(currentPairFirst)
+            return true
+        }
+        val retryOnDeath: (String) -> Boolean = { rawPkg ->
+            try { retryChunkElsewhere(rawPkg, rawPkg + " died while speaking") } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "retry after engine death: " + ex.toString()); false
+            }
+        }
+        retryOnEngineDeath = retryOnDeath
         fun speakChunk(first: Boolean) {
             // The one place that pops chunkQueue and speaks, and it is reached
             // from three threads: the synthesis thread for the first chunk, a
@@ -3044,6 +3094,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 else -> "eng"
             } else prefs.toIso3(chunk.lang)
             val chunkText = chunk.text
+            currentPair = pair
+            currentPairFirst = first
+            currentPairLang = effectiveLang
             // AutoTTS's bypass branch runs f0 only when the prefix actually
             // carried an engine or a locale, and hands the parsed fields
             // straight through:
@@ -3062,12 +3115,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             if (engineIndex < 0 || engineIndex >= enginePool.size) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex out of range.")
+                if (retryChunkElsewhere(LangStore.engineFor(effectiveLang, modeInt), "no engine could take " + effectiveLang)) return
                 releaseWaitWithoutSpeaking("engine index out of range")
                 return
             }
             val wrapper = enginePool[engineIndex]
             val tts = wrapper.tts ?: run {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex refers null tts.")
+                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " has no client")) return
                 releaseWaitWithoutSpeaking("engine has no TextToSpeech")
                 return
             }
@@ -3108,6 +3163,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     "client for " + wrapper.rawPkg + " is bound to " + boundNow +
                     " -- restoring it instead of speaking")
                 try { restoreEngine(wrapper.pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restore after re-bind: " + ex.toString()) }
+                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " is not reachable")) return
                 releaseWaitWithoutSpeaking("engine client re-bound to another engine")
                 return
             }
@@ -3149,7 +3205,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // Params.mUtteranceId, which is protected final on a PRIVATE class of
             // the framework; and every dispatchOn* sends getUtteranceId(). An
             // engine implementation overrides onSynthesizeText, never those.
-            val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}"
+            val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}" + (if (retryCount > 0) "_r$retryCount" else "")
             val chunkHandler = android.os.Handler(android.os.Looper.getMainLooper())
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String) {
@@ -3271,15 +3327,33 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         try { startAndFinish(callback) } catch (_: Throwable) {}
                     }
                 }
+                // The engine could not say this chunk. Unless the failure is not
+                // the engine's -- ERROR_OUTPUT (-5) is the audio device, and
+                // ERROR_INVALID_REQUEST (-8) the request itself, and another engine
+                // would fail both the same way -- the chunk goes to another engine,
+                // posted off this binder callback because that may build a client.
+                fun handOver(code: Int, n: String) {
+                    if (code == -5 || code == -8) { endSynthesis(callback, n); return }
+                    chunkHandler.post {
+                        if (myGeneration != synthesisGeneration || isStopped || isFlushed) return@post
+                        // Already handed over (its process died first, and that
+                        // path moved the chunk): the chunk is someone else's now.
+                        if (speakingPkg != wrapper.pkg) return@post
+                        val moved = try { retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " failed with error " + code) } catch (ex: Throwable) {
+                            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "retry after error: " + ex.toString()); false
+                        }
+                        if (!moved) endSynthesis(callback, n)
+                    }
+                }
                 override fun onError(id: String) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id)
                     if (id != expectedId) return
-                    endSynthesis(callback, "8")
+                    handOver(TextToSpeech.ERROR, "8")
                 }
                 override fun onError(id: String, errorCode: Int) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onError " + id + " code " + errorCode)
                     if (id != expectedId) return
-                    endSynthesis(callback, "9")
+                    handOver(errorCode, "9")
                 }
                 // LOG ONLY, exactly as AutoTTS's listener does
                 // (decompiled_java_noexc/.../AutoTtsService.java:2770 is a bare
@@ -3494,7 +3568,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     val speakResult = tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)
                     if (speakResult != 0) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Speaking failed!!!")
-                        if (first) {
+                        if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " refused to speak")) {
+                            // the chunk is being spoken elsewhere
+                        } else if (first) {
                             startAndFinish(callback)
                             unlockSynthesis("12")
                         } else {
@@ -3502,7 +3578,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         }
                     }
                 } catch (ex: Exception) {
-                    if (first) {
+                    if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " threw on speak")) {
+                        // the chunk is being spoken elsewhere
+                    } else if (first) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onSynthesis Error: " + ex.message)
                         startAndFinish(callback)
                         unlockSynthesis("14")
@@ -3514,6 +3592,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             speakRunnable.run()
         }
+        speakChunkRef = { isFirst -> speakChunk(isFirst) }
         speakChunk(true)
         if (keepAliveFlag) {
             // AutoTTS logs this immediately before k0(callback), and spells it
@@ -3543,6 +3622,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         }
         speakingPkg = null
+        if (retryOnEngineDeath === retryOnDeath) retryOnEngineDeath = null
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onSynthesizeText ended")
         startAndFinish(callback)
     }
