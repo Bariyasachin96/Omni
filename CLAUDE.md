@@ -8,22 +8,27 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## LICENCES = WHAT WE USE + THE LICENCE; FALLBACK IS A SWITCH, OFF (owner, 2026-09-23, latest)
-- **The licences dialog** lists what the APK really contains, each with its official copyright
-  line(s) and "Apache License, Version 2.0", then the licence text (apache.org, verbatim, cut at
-  "END OF TERMS AND CONDITIONS"). Measured on build 902's own APK: AndroidX/Compose, Kotlin
-  stdlib, kotlinx.coroutines, CLD2 (in libeasyvoice_core.so), Material icons. kotlinx.serialization,
-  atomicfu, JSpecify and JetBrains annotations are on the classpath but leave nothing in the APK.
-  Copyright lines are COPIED: CLD2 file headers (2013, and 2014 for the three 0122 tables),
-  androidx's `.idea/copyright/AndroidCopyright.xml` (year is `$today.year`, so none given),
-  Kotlin's `license/COPYRIGHT_HEADER.txt`, coroutines' own LICENSE.txt. Material icons state no
-  copyright line. libc++ (Apache 2.0 + LLVM exception, which waives 4(a)) is not listed.
-- **"Use another TTS when one stops working"** is `EasyVoiceTtsService.engineFallbackFlag`, pref
-  `engine_fallback`, **default OFF**, on the Advanced tab after Keep alive. OFF gates all of it:
-  `switchToAlternative` and `retryChunkElsewhere` return at once, `handOver` ends the utterance
-  on the binder thread as before, and `EngineFinder.repointUninstalled` does nothing.
-- **Advanced tab ends with**: Show persistent notification, Disable battery optimization, then
-  logging last.
+## LICENCE = NAMES + THE TEXT; "BACKUP TTS" SWITCH, OFF; libeasyvoice.so (owner, 2026-09-23, latest)
+- **The licences dialog is two things only**: the names of what the APK ships under Apache 2.0
+  (CLD2, Android Jetpack (AndroidX), Jetpack Compose, Kotlin Standard Library,
+  kotlinx.coroutines, Material Design Icons -- one text block, one focus stop), then the licence
+  text (apache.org, verbatim, cut at "END OF TERMS AND CONDITIONS"). No copyright lines and no
+  per-item licence name: for a binary Apache 2.0 asks only 4(a), a copy of the licence (owner:
+  *"licence wale section mein bahut bada kachra ... jo jaruri hai sirf vahi"*). The list was
+  measured on build 902's own APK; kotlinx.serialization, atomicfu, JSpecify and JetBrains
+  annotations leave nothing in it, and libc++'s LLVM exception waives 4(a).
+- **"Backup TTS"** ("If a TTS stops working, another TTS for that language takes over.") is
+  `EasyVoiceTtsService.engineFallbackFlag`, pref `engine_fallback`, **default OFF**, after Keep
+  alive. OFF gates all of it: `switchToAlternative` and `retryChunkElsewhere` return at once,
+  `handOver` ends the utterance on the binder thread as before, `EngineFinder.repointUninstalled`
+  does nothing.
+- **Advanced tab ends with**: Show persistent notification, Disable battery optimization, logging.
+- **The native library is `libeasyvoice.so`** (CMake target `easyvoice`,
+  `System.loadLibrary("easyvoice")`); it was `libeasyvoice_core.so`. The source file keeps its
+  name, `tts_engine_core.cpp`. `tools/verify/latency/sources.py` skips the new target token.
+- **Build 903's universal APK did not install on the owner's phone ("package appears to be
+  invalid"); the arm64 one did.** Both verify with apksigner (v2, same key), zipalign and aapt2,
+  and the manifest is identical to build 900's but for the package. The owner said to leave it.
 
 ## NEW PACKAGE, VERSION 1.0, THE LICENCE ALONE, AND A TTS THAT STOPS HANDS OVER (owner, 2026-09-23, last)
 - **Package `com.sachinbaria.easyvoice`, versionName `1.0`.** Namespace, applicationId, both source

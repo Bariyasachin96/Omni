@@ -84,55 +84,33 @@ fun AboutScreen() {
     if (showLicenses) LicensesDialog { showLicenses = false }
 }
 
-// WHAT THE APP USES, UNDER WHICH LICENCE, AND THEN THE LICENCE ITSELF (owner,
-// 2026-09-23: "pahle yah likho kya-kya use kiya hai aur uske kis licence ke
-// andar aata hai aur phir licence ki copy ... jo officially documented hai vahi
-// likhna hai, khud se nahin likhna hai").
+// THE LICENCE, AND ABOVE IT ONLY WHAT IS USED UNDER IT (owner, 2026-09-23:
+// "sirf licence ki copy rakhni hai ... aur copy se upar jo bhi us licence ke
+// andar aata hai bus sirf vahi").
 //
-// THE LIST IS WHAT THE SHIPPED APK CONTAINS, measured on build 902's own APK
-// rather than read off the dependency graph: androidx's META-INF version files
-// and its bundled LICENSE.txt, kotlinx_coroutines_*.version, the kotlin/*
-// builtins, CLD2 inside libeasyvoice_core.so, and the Material icons copied into
-// res/drawable. kotlinx.serialization, atomicfu, JSpecify and the JetBrains
-// annotations are on the resolved classpath and leave nothing in the APK, so
-// they are not listed. Every POM involved declares Apache 2.0, so one licence
-// text covers the whole list.
+// Everything third-party in the APK is under the Apache License 2.0 -- measured
+// on build 902's own APK, not read off the dependency graph: androidx's META-INF
+// version files, kotlinx_coroutines_*.version, the kotlin/* builtins, CLD2
+// inside the native library, and the Material icons copied into res/drawable.
+// kotlinx.serialization, atomicfu, JSpecify and the JetBrains annotations are on
+// the classpath and leave nothing in the APK, so they are not named. The NDK's
+// libc++ is Apache 2.0 WITH the LLVM exception, which waives the licence-copy
+// requirement for compiled code, so it is not named either.
 //
-// EVERY COPYRIGHT LINE IS COPIED, NOT WRITTEN:
-//   CLD2        the headers of the 24 files CMakeLists compiles -- 21 say 2013,
-//               the three full quadgram tables say 2014; both lines as written
-//   AndroidX    androidx-main .idea/copyright/AndroidCopyright.xml, whose year
-//               is $today.year, so the line is given without one
-//   Kotlin      JetBrains/kotlin license/COPYRIGHT_HEADER.txt
-//   coroutines  the copyright line in kotlinx.coroutines' own LICENSE.txt
-//   icons       google/material-design-icons states no copyright line; its
-//               README gives the licence and asks for attribution on About
+// For a binary, Apache 2.0 asks for one thing: 4(a), a copy of the licence.
+// 4(b) and 4(c) are about source; 4(d) needs a NOTICE file and none of these
+// ships one. So no copyright lines are shown -- they are not required here.
 //
-// THE LICENCE TEXT is res/raw/apache_license_2_0.txt, apache.org's file byte for
-// byte up to "END OF TERMS AND CONDITIONS". What follows that line in the
-// original is the appendix telling authors how to apply the licence to their
-// own files -- instructions, not terms. For a binary only section 4(a) applies
-// (give the recipient a copy of the licence); none of these projects ships a
-// NOTICE file, so 4(d) asks for nothing more. The NDK's libc++, linked
-// statically, is Apache 2.0 WITH the LLVM exception, which waives 4(a), 4(b)
-// and 4(d) for compiled code, which is why it is not listed.
-private val THIRD_PARTY = listOf(
-    "Compact Language Detector 2 (CLD2)" to listOf(
-        "Copyright 2013 Google Inc. All Rights Reserved.",
-        "Copyright 2014 Google Inc. All Rights Reserved."
-    ),
-    "Android Jetpack (AndroidX) and Jetpack Compose" to listOf(
-        "Copyright The Android Open Source Project"
-    ),
-    "Kotlin Standard Library" to listOf(
-        "Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors."
-    ),
-    "kotlinx.coroutines" to listOf(
-        "Copyright 2000-2020 JetBrains s.r.o. and Kotlin Programming Language contributors."
-    ),
-    "Material Design Icons" to emptyList()
+// res/raw/apache_license_2_0.txt is apache.org's file byte for byte up to "END
+// OF TERMS AND CONDITIONS"; the appendix after it is instructions for authors.
+private val APACHE_COMPONENTS = listOf(
+    "Compact Language Detector 2 (CLD2)",
+    "Android Jetpack (AndroidX)",
+    "Jetpack Compose",
+    "Kotlin Standard Library",
+    "kotlinx.coroutines",
+    "Material Design Icons"
 )
-private const val LICENSE_NAME = "Apache License, Version 2.0"
 
 @Composable
 fun LicensesDialog(onClose: () -> Unit) {
@@ -152,19 +130,11 @@ fun LicensesDialog(onClose: () -> Unit) {
             // Material3's AlertDialog does not scroll its text slot, so the
             // column scrolls itself.
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                // One focus stop per component: its name, its copyright lines
-                // and its licence are read together.
-                for ((name, copyrights) in THIRD_PARTY) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).semantics(mergeDescendants = true) { }) {
-                        Text(name, style = MaterialTheme.typography.titleSmall)
-                        for (line in copyrights) Text(line, style = MaterialTheme.typography.bodySmall)
-                        Text(LICENSE_NAME, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
+                // The names, one per line, as one focus stop.
                 Text(
-                    LICENSE_NAME,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).semantics { heading() }
+                    APACHE_COMPONENTS.joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
                 for (paragraph in licenceParagraphs) {
                     Text(paragraph, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 12.dp))

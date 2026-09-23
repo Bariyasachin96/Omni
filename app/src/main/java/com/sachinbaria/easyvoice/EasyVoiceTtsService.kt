@@ -3681,11 +3681,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
         //
         // System.loadLibrary is safe where it is, and that was verified too: the
         // companion's init block compiles INTO EasyVoiceTtsService.<clinit>
-        // (javap shows the ldc "easyvoice_core" + invokestatic System.loadLibrary
+        // (javap shows the ldc "easyvoice" + invokestatic System.loadLibrary
         // right there), so touching any of these statics initialises the class
         // and loads the library first. It is not left to the companion being
         // touched separately.
-        init { System.loadLibrary("easyvoice_core") }
+        init { System.loadLibrary("easyvoice") }
 
         @JvmStatic external fun processDirect(
             buffer: java.nio.ByteBuffer, length: Int,
@@ -3826,7 +3826,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @Volatile @JvmField var mixLatinLang = ""
         @Volatile @JvmField var mixNonLatinLang = ""
         @Volatile @JvmField var keepAliveFlag = false
-        // "Use another TTS when one stops working" (owner, 2026-09-23: "yah
+        // "Backup TTS" (owner, 2026-09-23: "yah
         // optional rakho ... by default off rakho"). Gates every automatic
         // engine substitution: switchToAlternative, retryChunkElsewhere, the
         // onError hand-over and the scan's repointUninstalled. OFF is the

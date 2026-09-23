@@ -53,7 +53,7 @@ project("easyvoice_native")
 # for compile.sh's and nothing else.
 
 set(CLD2_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cld2_src/internal)
-add_library(easyvoice_core SHARED
+add_library(easyvoice SHARED
     tts_engine_core.cpp
     ${CLD2_DIR}/cldutil.cc
     ${CLD2_DIR}/cldutil_shared.cc
@@ -80,9 +80,9 @@ add_library(easyvoice_core SHARED
     ${CLD2_DIR}/cld2_generated_distinctocta0122.cc
     ${CLD2_DIR}/cld_generated_score_quad_octa_0122.cc
 )
-target_include_directories(easyvoice_core PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
+target_include_directories(easyvoice PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
 find_library(log-lib log)
-target_link_libraries(easyvoice_core ${log-lib})
+target_link_libraries(easyvoice ${log-lib})
 # --gc-sections is the LINKER half of -ffunction-sections/-fdata-sections in
 # build.gradle.kts. Without it those two compile flags do nothing at all.
 #
@@ -147,6 +147,6 @@ target_link_libraries(easyvoice_core ${log-lib})
 # cannot quietly drop the app back to 4 KB and into compatibility mode on a
 # 16 KB device. On the 32-bit ABI they cost nothing but a little padding.
 # tools/check/native-pagesize.sh verifies the built APK.
-target_link_options(easyvoice_core PRIVATE
+target_link_options(easyvoice PRIVATE
     "-Wl,--gc-sections" "-Wl,--strip-all" "-Wl,--icf=safe" "-flto=thin"
     "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")

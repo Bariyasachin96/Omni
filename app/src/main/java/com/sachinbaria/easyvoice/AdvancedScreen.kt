@@ -293,8 +293,8 @@ fun AdvancedScreen(
             // default usko off rakho"). The switch is EasyVoiceTtsService's
             // engineFallbackFlag; see switchToAlternative for what it turns on.
             SettingOption(
-                "Use another TTS when one stops working",
-                "When the TTS set for a language stops working, the text is read with another TTS that speaks that language, and that TTS is set up for it.",
+                "Backup TTS",
+                "If a TTS stops working, another TTS for that language takes over.",
                 engineFallback
             ) { picked -> engineFallback = picked; EasyVoiceTtsService.engineFallbackFlag = picked }
             SettingOption(

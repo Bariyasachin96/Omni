@@ -30,7 +30,7 @@ def sources(cpp_dir):
     }
     out = []
     for token in body.split():
-        if token in ('add_library(', 'easyvoice_core', 'SHARED'):
+        if token in ('add_library(', 'easyvoice', 'SHARED'):
             continue
         # CMake builds this one with file(GLOB ...) and then filters out tests.
         path = re.sub(r'\$\{(\w+)\}',
