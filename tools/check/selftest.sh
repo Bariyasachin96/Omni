@@ -24,7 +24,7 @@ set -u
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-invariant-selftest
-K=app/src/main/java/com/tts/easyvoice
+K=app/src/main/java/com/sachinbaria/easyvoice
 
 rm -rf "$WORK"
 cp -r "$ROOT" "$WORK"

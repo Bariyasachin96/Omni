@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement

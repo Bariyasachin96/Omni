@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 // The two modes that are NEVER drawn as a row, and therefore never get a
 // settings button either (owner, 2026-09-09). "none" because the owner had it
 // removed outright, "google" because AutoTTS's own radio is

@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

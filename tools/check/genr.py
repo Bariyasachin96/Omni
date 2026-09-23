@@ -120,12 +120,32 @@ def render(package, table):
     return '\n'.join(lines) + '\n'
 
 
+def package_for(dest):
+    """The package the R class must live in: the one the sources beside it
+    declare, so a baseline tree from before a package rename still compiles
+    against its own R. Falls back to the namespace in app/build.gradle.kts."""
+    import re
+    if dest:
+        folder = os.path.dirname(os.path.abspath(dest))
+        for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+            if name.endswith('.kt') and name != 'R.kt':
+                m = re.match(r'package\s+([\w.]+)', open(os.path.join(folder, name), encoding='utf-8').read())
+                if m:
+                    return m.group(1)
+    gradle = os.path.join(evpaths.repo_root(), 'app', 'build.gradle.kts')
+    if os.path.exists(gradle):
+        m = re.search(r'namespace\s*=\s*"([\w.]+)"', open(gradle, encoding='utf-8').read())
+        if m:
+            return m.group(1)
+    return 'com.sachinbaria.easyvoice'
+
+
 def main():
     dest = sys.argv[1] if len(sys.argv) > 1 else None
     table = collect(evpaths.main_dir())
     if table is None:
         return 1
-    text = render('com.tts.easyvoice', table)
+    text = render(package_for(dest), table)
     if dest:
         open(dest, 'w', encoding='utf-8').write(text)
         print('genr: %d types, %d resources -> %s'

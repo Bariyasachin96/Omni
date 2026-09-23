@@ -60,7 +60,8 @@ fi
 echo "compose plugin: $([ -n "$PLUGIN" ] && echo on || echo "OFF -- run tools/bootstrap.sh")"
 echo "classpath: $MODE  ($(cat "$CACHE/android.jar.source" 2>/dev/null || echo 'android.jar source unknown')$([ "$MODE" = FULL ] && echo ", $(wc -l < "$CACHE/androidx-classpath.txt") androidx jars"))"
 
-PKG=app/src/main/java/com/tts/easyvoice
+PKG=app/src/main/java/com/sachinbaria/easyvoice
+OLD_PKG=app/src/main/java/com/tts/easyvoice
 RES=app/src/main/res
 
 # grab <ref|WORKTREE> <destdir> -> populates <destdir>/app/src/...
@@ -76,6 +77,15 @@ grab() {
   fi
   if (cd "$ROOT" && git cat-file -e "$ref:$PKG/EasyVoiceTtsService.kt" 2>/dev/null); then
     (cd "$ROOT" && git archive "$ref" "$PKG" "$RES") | tar -x -C "$dest"
+    return
+  fi
+  # Before 2026-09-23 the package was com.tts.easyvoice. A baseline from then
+  # is extracted from the old directory and moved to where $PKG says, so the
+  # compile below finds it; its own `package` lines are left as they were.
+  if (cd "$ROOT" && git cat-file -e "$ref:$OLD_PKG/EasyVoiceTtsService.kt" 2>/dev/null); then
+    (cd "$ROOT" && git archive "$ref" "$OLD_PKG" "$RES") | tar -x -C "$dest"
+    mkdir -p "$dest/$(dirname "$PKG")"
+    mv "$dest/$OLD_PKG" "$dest/$PKG"
     return
   fi
   # Before 2026-08-26 there were no source files: the tree was written out by a

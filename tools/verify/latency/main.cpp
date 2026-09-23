@@ -16,14 +16,14 @@
 #include <vector>
 
 extern "C" {
-JNIEXPORT void JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
-JNIEXPORT void JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
-JNIEXPORT jobjectArray JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv*, jclass, jstring);
-JNIEXPORT jstring JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv*, jclass, jstring);
-JNIEXPORT jstring JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_processDirect(
+JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
+JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv*, jclass, jstring);
+JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv*, jclass, jstring);
+JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
-JNIEXPORT jstring JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_detectLanguageFull(
+JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
     JNIEnv*, jclass, jstring, jstring, jstring, jboolean, jboolean);
 }
 
@@ -74,8 +74,8 @@ int main(){
 
     const std::vector<std::string> iso2 = {"en","gu","hi","mr"};
     const std::vector<std::string> iso3 = {"eng","guj","hin","mar"};
-    Java_com_tts_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(iso2));
-    Java_com_tts_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr(iso3), arr(iso2));
+    Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(iso2));
+    Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr(iso3), arr(iso2));
 
     printf("%-12s %8s %8s %10s %10s %12s %10s\n",
            "paragraphs", "chars", "chunks", "segment", "detect", "fold+detect", "TOTAL");
@@ -85,7 +85,7 @@ int main(){
         // 1. segmentation, exactly as the mix branch calls it
         jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
         const double s0 = nowMs();
-        jstring packed = Java_com_tts_easyvoice_EasyVoiceTtsService_processDirect(
+        jstring packed = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
             env, nullptr, buf, (jint)text.size(),
             env->NewStringUTF("eng"), env->NewStringUTF("guj"), env->NewStringUTF("mix"),
             0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"),
@@ -126,11 +126,11 @@ int main(){
                 if (c.empty()) continue;
                 jstring js = env->NewStringUTF(c.c_str());
                 if (withFold) {
-                    jstring folded = Java_com_tts_easyvoice_EasyVoiceTtsService_normalizeFancy(env, nullptr, js);
+                    jstring folded = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(env, nullptr, js);
                     env->DeleteLocalRef(js);
                     js = folded;
                 }
-                jobjectArray got = Java_com_tts_easyvoice_EasyVoiceTtsService_nativeGetLanguages(env, nullptr, js);
+                jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(env, nullptr, js);
                 (void)got;
                 env->DeleteLocalRef(js);
             }

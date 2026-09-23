@@ -26,10 +26,10 @@
 #include "cld2_src/public/encodings.h"
 
 extern "C" {
-JNIEXPORT void JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
-JNIEXPORT void JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
-JNIEXPORT jobjectArray JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv*, jclass, jstring);
-JNIEXPORT jstring JNICALL Java_com_tts_easyvoice_EasyVoiceTtsService_processDirect(
+JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
+JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv*, jclass, jstring);
+JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
 }
@@ -55,15 +55,15 @@ struct Lang { const char* iso2; const char* iso3; };
 static void enable(const std::vector<Lang>& set){
     std::vector<std::string> iso2, iso3;
     for (auto& l : set) { iso2.push_back(l.iso2); iso3.push_back(l.iso3); }
-    Java_com_tts_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr(iso3), arr(iso2));
-    Java_com_tts_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(iso2));
+    Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr(iso3), arr(iso2));
+    Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(iso2));
 }
 
 // What the app answers for the WHOLE text: one span per script run, so a
 // single-language sentence gives one span and that span's language is the voice.
 static std::string appAnswer(const std::string& text){
     jstring js = env->NewStringUTF(text.c_str());
-    jobjectArray got = Java_com_tts_easyvoice_EasyVoiceTtsService_nativeGetLanguages(env, nullptr, js);
+    jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(env, nullptr, js);
     if (!got) return "<null>";
     jsize n = env->GetArrayLength(got);
     // triples: lang, isLatin, text -- take the language of the LONGEST span
@@ -103,7 +103,7 @@ static void mixChunks(const std::string& text, const char* latin, const char* no
                       std::vector<std::string>& out){
     out.clear();
     jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
-    jstring js = Java_com_tts_easyvoice_EasyVoiceTtsService_processDirect(
+    jstring js = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
         env, nullptr, buf, (jint)text.size(),
         env->NewStringUTF(latin), env->NewStringUTF(nonLatin), env->NewStringUTF("mix"),
         0, env->NewStringUTF(""), 0, env->NewStringUTF(""), 0, env->NewStringUTF(""),

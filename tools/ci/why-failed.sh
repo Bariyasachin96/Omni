@@ -45,7 +45,7 @@ if grep -qE 'AccessibilityViewCheckException|AccessibilityCheck|accessibility ch
   say "REAL: an ACCESSIBILITY CHECK FAILED. This is a defect in the app, not the
   pipeline. Do NOT add continue-on-error. The uploaded HTML report names the
   exact node and the exact check."
-  grep -m 20 -E 'AccessibilityViewCheckException|Check|at com.tts.easyvoice' "$LOG" || true
+  grep -m 20 -E 'AccessibilityViewCheckException|Check|at com.sachinbaria.easyvoice' "$LOG" || true
   exit 0
 fi
 

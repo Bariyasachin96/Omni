@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -766,8 +766,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return true
     }
 
+    // Set when the load just made could not put the language on its engine: the
+    // engine had no live client ("TTS is not ready"), or setLanguage failed. Read
+    // by onLoadLanguage straight after its own loadVoice, on the same thread and
+    // under the same monitor, to decide whether to use another engine.
+    @Volatile private var voiceLoadFailed = false
+
     private fun loadVoice(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
         val outer = insideLoadVoice.get() == true
+        if (!outer) voiceLoadFailed = false
         insideLoadVoice.set(true)
         try { loadVoiceImpl(pkg, locale, variant, dedicated) } finally { if (!outer) insideLoadVoice.set(false) }
     }
@@ -796,6 +803,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // DELIBERATE DEPARTURE, and a narrow one: -2 and a null result (no client)
     // restore exactly as before.
     private fun setLanguageFailed(wrapper: EngineWrapper, locale: java.util.Locale, result: Int?) {
+        voiceLoadFailed = true
         if (result == TextToSpeech.LANG_MISSING_DATA) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG,
                 wrapper.pkg + " has no voice data for " + locale + " -- engine kept, not restored")
@@ -947,7 +955,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
             }
             wrapper.locale = locale; wrapper.voiceName = effectiveVariant
-        } else { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
+        } else { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; voiceLoadFailed = true; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
     }
     // THE CONFIGURED ENGINE IS NOT READY: ASK FOR IT BACK (2026-09-23, owner:
     // "Google ... uska voice sab ko chala jata hai ... aisa kuchh karo ki vah
@@ -1012,7 +1020,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 (nullableIso3Country(wrapperLocale) == reqCountry || reqCountry.isEmpty())) return
             val setLangResult = wrapper.tts?.setLanguage(locale)
             if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = "" } else setLanguageFailed(wrapper, locale, setLangResult)
-        } else { engineIndex = -1; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
+        } else { engineIndex = -1; voiceLoadFailed = true; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
     }
     private fun loadVoiceDedicated(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadVoice_Secondary " + pkg + " " + locale + " " + variant)
@@ -1021,7 +1029,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " current engine: " + normPkg)
         var idx = -1
         for (index in 0 until enginePool.size) { if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " found!"); idx = index; break } }
-        if (idx == -1) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg); return }
+        if (idx == -1) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; voiceLoadFailed = true; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg); return }
         val previousEngineIndex = engineIndex
         engineIndex = idx
         val wrapper = enginePool[idx]
@@ -1730,9 +1738,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     if (localeIso3(loc) == lang) {
                         loadVoice(enginePkg, loc, variantOut, dedicatedEnginesFlag)
                         if (lastEnginePkg != enginePkg) lastEnginePkg = enginePkg
+                        if (voiceLoadFailed) useAlternativeEngine(lang, enginePkg)
                     } else {
                         val langOnly = Locale(lang)
-                        loadVoice(findEngineForLocale(langOnly), langOnly, variantOut, dedicatedEnginesFlag)
+                        val foundPkg = findEngineForLocale(langOnly)
+                        loadVoice(foundPkg, langOnly, variantOut, dedicatedEnginesFlag)
+                        if (voiceLoadFailed) useAlternativeEngine(lang, foundPkg)
                     }
                 } catch (ex: Throwable) {
                     // Silent until 2026-09-11, and this is the one place a "wrong
@@ -1785,6 +1796,102 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 else -> null
             }
         } catch (_: Exception) { null }
+    }
+    // A CONFIGURED ENGINE THAT DOES NOT WORK HANDS THE LANGUAGE TO ANOTHER ONE
+    // (owner, 2026-09-23: "koi TTS band ho gaya ... jo configure kar rakha hai ...
+    // system mein jo TTS available ho usko scan karke ... jo pahle mil jaaye
+    // scanning mein vah setup ho jaaye"). DELIBERATE DEPARTURE -- AutoTTS's d0
+    // stays on the configured engine and says nothing -- asked for by name.
+    //
+    // WHEN: onLoadLanguage's own load just failed -- the engine had no live
+    // client (never initialised, died, refused a fallen-back binding, or is
+    // missing from the pool), or setLanguage failed, including the engine
+    // answering that it has no voice data for this language.
+    //
+    // WHICH: the voices the last scan saved (voice_N), in scan order -- the first
+    // one in this language on an engine that is live right now. "First found in
+    // scanning" is the owner's rule. Engines that are not live are asked to come
+    // back (recoverEngineNotReady) and skipped for this utterance. Easy Voice
+    // itself is never a candidate, and the load is plain rather than dedicated so
+    // the alternative really is switched to this language.
+    //
+    // SETTING IT UP: the language's configuration is re-pointed to the
+    // alternative ONLY when the configured engine is really gone -- no longer
+    // installed or disabled, or ten restores in a row have failed. Anything short
+    // of that (an engine mid-update, one the walk has not reached yet, a restore
+    // in flight) speaks with the alternative and leaves the configuration alone,
+    // because rewriting it on a hiccup is exactly how Google's configuration used
+    // to vanish from every language. Google mode (3) never persists: its engine is
+    // fixed at Google.
+    private fun useAlternativeEngine(lang: String, failedPkg: String) {
+        try {
+            val failedNorm = failedPkg.replace("-", "").replace("_", "")
+            val exact = ArrayList<Pair<String, Locale>>()
+            for (index in 0 until voiceList.size) {
+                val parts = voiceList[index].split("#")
+                if (parts.size < 2) continue
+                val pkg = parts[0]
+                if (pkg.isEmpty() || pkg.replace("-", "").replace("_", "") == failedNorm) continue
+                if (pkg == packageName || pkg.contains("easyvoice")) continue
+                val loc = parseVoiceNameAsLocale(parts[1]) ?: continue
+                if (localeIso3(loc) != lang) continue
+                if (exact.none { it.first == pkg }) exact.add(Pair(pkg, loc))
+            }
+            for ((pkg, loc) in exact) {
+                val normPkg = pkg.replace("-", "").replace("_", "")
+                var live = false
+                for (index in 0 until enginePool.size) {
+                    val wrapper = enginePool[index]
+                    if (wrapper.pkg == normPkg && wrapper.state == 2 && wrapper.tts != null) { live = true; break }
+                }
+                if (!live) { recoverEngineNotReady(pkg); continue }
+                loadVoice(pkg, loc, "", false)
+                if (voiceLoadFailed || engineIndex < 0) continue
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                    failedPkg + " is not working for " + lang + " -- speaking with " + pkg + " " + loc)
+                if (modeInt != 3 && engineIsGone(failedPkg)) setUpAlternative(lang, pkg, loc)
+                return
+            }
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "no other working engine speaks " + lang)
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "useAlternativeEngine: " + ex.toString())
+        }
+    }
+    // Really gone, as opposed to not ready this moment: no TTS service under that
+    // package any more (uninstalled, or disabled -- resolveService does not return
+    // a disabled component), or its restores have run out.
+    private fun engineIsGone(rawPkg: String): Boolean {
+        if (rawPkg.isEmpty() || rawPkg.equals("disable", true)) return false
+        val installed = try {
+            packageManager.resolveService(android.content.Intent("android.intent.action.TTS_SERVICE").setPackage(rawPkg), 0) != null
+        } catch (_: Exception) { true }
+        if (!installed) return true
+        val normPkg = rawPkg.replace("-", "").replace("_", "")
+        for (index in 0 until enginePool.size) {
+            val wrapper = enginePool[index]
+            if (wrapper.pkg == normPkg) return wrapper.state == -1 && wrapper.restoreCount >= 10
+        }
+        return false
+    }
+    // The same write the Voice setup screen makes when a voice is picked there:
+    // "<iso3>" = "<pkg>#<locale>", and the variant back to the engine's default,
+    // because a variant name belongs to the engine it came from. The in-memory
+    // entry is updated under the list monitor (this -> languages, the order
+    // onLoadLanguage already uses), so the very next utterance routes to it.
+    private fun setUpAlternative(lang: String, pkg: String, loc: Locale) {
+        synchronized(LangStore.languages) {
+            for (entry in LangStore.languages) {
+                if (entry.iso3 != lang) continue
+                entry.enginePkg = pkg
+                entry.localeTag = loc.toString()
+                entry.variant = "*Default"
+            }
+        }
+        getSharedPreferences("easy_voice_settings", 0).edit()
+            .putString(lang, pkg + "#" + loc.toString())
+            .putString(lang + "_variant", "*Default")
+            .apply()
+        EasyVoiceLogger.error(EasyVoiceLogger.TAG, lang + " is now set up on " + pkg + " " + loc)
     }
     // THE ENGINE-GONE FALLBACK WAS HERE AND IS REMOVED (owner, 2026-09-17:
     // "vah sahi tarike se hua nahin hai ... to usko code hata dena, uski jarurat

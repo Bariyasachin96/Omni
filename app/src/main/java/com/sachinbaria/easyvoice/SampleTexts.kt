@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 // The sample sentence the Test button speaks, and the one our own engine hands
 // back to whoever fires ACTION_GET_SAMPLE_TEXT at us. It is `c3.f0`.
 //

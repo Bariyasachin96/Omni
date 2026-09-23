@@ -3,11 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 android {
-    namespace = "com.tts.easyvoice"
+    namespace = "com.sachinbaria.easyvoice"
     compileSdk = 37
     ndkVersion = "30.0.16248370"
     defaultConfig {
-        applicationId = "com.tts.easyvoice"
+        applicationId = "com.sachinbaria.easyvoice"
         // minSdk STAYS 24. It is the oldest Android this app will install on,
         // and raising it is the one number here that takes phones away -- at 37
         // it would install on almost nothing. compileSdk and targetSdk are what
@@ -34,7 +34,7 @@ android {
         // it comes from the workflow's run number; EV_BUILD_NUMBER is set on
         // the Gradle step and falls back to 1 for a local build.
         versionCode = (System.getenv("EV_BUILD_NUMBER") ?: "1").toInt()
-        versionName = "16.0"
+        versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {

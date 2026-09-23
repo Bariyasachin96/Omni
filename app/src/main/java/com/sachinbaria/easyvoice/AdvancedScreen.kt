@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Intent
 import android.os.PowerManager
 import android.provider.Settings

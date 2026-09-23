@@ -25,7 +25,7 @@
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 CACHE="$ROOT/tools/.cache"
-SRC="$ROOT/app/src/main/java/com/tts/easyvoice"
+SRC="$ROOT/app/src/main/java/com/sachinbaria/easyvoice"
 ALLOW="$ROOT/tools/check/minsdk-allowlist.txt"
 WORK=${TMPDIR:-/tmp}/ev-minsdk
 

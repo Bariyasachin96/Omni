@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi

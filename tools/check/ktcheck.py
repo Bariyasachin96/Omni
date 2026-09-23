@@ -42,7 +42,7 @@ def check(name, raw):
         problems.append('line %d: %r never closed' % (line_no, ch))
 
     # 3. the package line must survive every splice
-    if not raw.startswith('package com.tts.easyvoice\n'):
+    if not raw.startswith('package com.sachinbaria.easyvoice\n'):
         problems.append('missing or misplaced package declaration')
 
     # 4. an empty or near-empty file means a block was swallowed

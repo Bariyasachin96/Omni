@@ -15,7 +15,7 @@ hunting a bug, find the stage it belongs to and go straight there.
 ## The one entry point
 
 `EasyVoiceTtsService.onSynthesizeText(request, callback)` —
-`app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt`
+`app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceTtsService.kt`
 
 Android calls this on a synthesis thread with the text and a callback that wants
 PCM. Everything else in this document happens inside it or is called from it.
@@ -190,7 +190,7 @@ this repository). It holds, roughly in file order:
 | Java emulation | `javaStringHash`, `javaHashSetOrder` — Android's `HashSet` order is part of the behaviour |
 | detectors | `detectWindowLang`, `emitScriptSpan` |
 | hints | `setLanguageHints`, `rebuildScriptLanguageTables`, `kScriptLangPairs` |
-| JNI | the `Java_com_tts_easyvoice_NativeEngine_*` entry points |
+| JNI | the `Java_com_sachinbaria_easyvoice_NativeEngine_*` entry points |
 
 ---
 

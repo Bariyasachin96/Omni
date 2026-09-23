@@ -258,7 +258,7 @@ jobs:
           # A source archive that does not contain the app is worse than none at
           # all, because nobody opens it until they need it. Assert the two things
           # that would actually be missing if git archive ever changed under us.
-          unzip -Z1 "EasyVoice-$n-source.zip" | grep -q "EasyVoice-$n-source/app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt" \
+          unzip -Z1 "EasyVoice-$n-source.zip" | grep -q "EasyVoice-$n-source/app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceTtsService.kt" \
             || { echo "source archive is missing the service"; exit 1; }
           unzip -Z1 "EasyVoice-$n-source.zip" | grep -q "EasyVoice-$n-source/app/src/main/cpp/tts_engine_core.cpp" \
             || { echo "source archive is missing the native core"; exit 1; }

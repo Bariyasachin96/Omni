@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -107,34 +107,33 @@ fun AboutScreen() {
     if (showLicenses) LicensesDialog { showLicenses = false }
 }
 
-// ONLY WHAT THE LICENCE REQUIRES (owner, 2026-09-23: "itna bada dialog kyon
-// ... jo jaruri hai vahi chij rakho ... sab kuchh legal karo").
+// ONLY WHAT THE LICENCE REQUIRES, AND NOTHING ELSE (owner, 2026-09-23: "jo
+// Apache 2.0 usmein aata hai vahi dalo, baki extra nahin").
 //
-// Every component the app ships is Apache 2.0, read off each project's own
-// licence, and Apache 2.0 section 4 asks a binary redistributor for exactly two
-// things that apply here: (a) give recipients a copy of the licence, and
-// (c) keep the copyright notices. CLD2 has no NOTICE file (HTTP 404), so (d)
-// adds nothing, and (b) is about modified SOURCE files, which we do not ship.
-// So the dialog is the four copyright lines and one sentence naming the
-// licence. The copy of the licence that 4(a) asks for is still IN the app --
-// res/raw/apache_license_2_0.txt, byte for byte from apache.org -- but it is
-// folded behind one button rather than printed by default, which is what made
-// the dialog eleven kilobytes long. The NDK's libc++ is Apache 2.0 WITH the LLVM
-// exception, which waives 4(a), 4(b) and 4(d) for code compiled into a binary,
-// so it needs no line here.
-private val THIRD_PARTY = listOf(
-    "CLD2 (Compact Language Detector 2). Copyright 2013, 2014 Google Inc.",
-    "AndroidX and Jetpack Compose. Copyright The Android Open Source Project.",
-    "Kotlin standard library and kotlinx.coroutines. Copyright JetBrains s.r.o.",
-    "Material Design icons. Copyright Google LLC."
-)
-
+// Everything third-party in the APK is Apache 2.0: CLD2, AndroidX / Compose,
+// the Kotlin standard library and kotlinx.coroutines, the Material icons. For a
+// BINARY, section 4 asks for exactly one thing -- 4(a), a copy of the License.
+// 4(b) is about modified source files and 4(c) says "in the Source form", so
+// neither applies to an APK; 4(d) applies only to a work that ships a NOTICE
+// file, and none of these does. Checked, not assumed: no NOTICE inside any of
+// the jars and aars the build resolves, and HTTP 404 for a NOTICE in the CLD2,
+// androidx, kotlinx.coroutines and material-design-icons repositories. The
+// Kotlin repo's license/NOTICE.txt is headed "in this case for the Kotlin
+// Compiler distribution", which the app does not ship. The NDK's libc++ is
+// Apache 2.0 WITH the LLVM exception, which waives 4(a), 4(b) and 4(d) for code
+// compiled into a binary.
+//
+// So the dialog is the licence itself: res/raw/apache_license_2_0.txt, taken
+// from apache.org and cut after "END OF TERMS AND CONDITIONS". What follows
+// that line in the original is the appendix telling authors how to apply the
+// licence to their own files -- instructions, not terms.
 @Composable
 fun LicensesDialog(onClose: () -> Unit) {
     val context = LocalContext.current
-    var showText by remember { mutableStateOf(false) }
-    val licenceParagraphs = remember(showText) {
-        if (!showText) emptyList() else try {
+    // Paragraphs split on blank lines, so a screen reader moves through the
+    // licence a paragraph at a time instead of meeting one 10 KB block.
+    val licenceParagraphs = remember {
+        try {
             context.resources.openRawResource(R.raw.apache_license_2_0).bufferedReader().use { it.readText() }
                 .split(Regex("\\n\\s*\\n")).map { it.trim() }.filter { it.isNotEmpty() }
         } catch (_: Exception) { emptyList() }
@@ -144,19 +143,10 @@ fun LicensesDialog(onClose: () -> Unit) {
         title = { Text("Open source licenses", modifier = Modifier.semantics { heading() }) },
         text = {
             // Material3's AlertDialog does not scroll its text slot, so the
-            // column scrolls itself -- it only matters once the text is open.
+            // column scrolls itself.
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                for (line in THIRD_PARTY) {
-                    Text(line, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
-                }
-                Text("All are used under the Apache License, Version 2.0.", style = MaterialTheme.typography.bodyMedium)
-                EvButton(
-                    label = if (showText) "Hide license text" else "Show license text",
-                    modifier = Modifier.padding(top = 8.dp),
-                    outlined = true
-                ) { showText = !showText }
                 for (paragraph in licenceParagraphs) {
-                    Text(paragraph, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
+                    Text(paragraph, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 12.dp))
                 }
             }
         },

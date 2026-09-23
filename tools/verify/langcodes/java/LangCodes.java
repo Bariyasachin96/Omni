@@ -6,7 +6,7 @@ import java.util.regex.*;
 // Prove that every language code CLD2's FULL build can return is resolved the
 // same way by us and by AutoTTS.
 //
-// The tables are read out of app/src/main/java/com/tts/easyvoice/IsoCodes.kt at
+// The tables are read out of app/src/main/java/com/sachinbaria/easyvoice/IsoCodes.kt at
 // run time, so this cannot pass against a stale copy: change the Kotlin and this
 // changes with it.
 //

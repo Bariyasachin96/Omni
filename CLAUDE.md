@@ -4,8 +4,38 @@
 - **App name**: Easy Voice — Android TTS screen reader for 100% blind users
 - **Goal**: Exactly match AutoTTS (com.vnspeak.autotts) behavior in all modes
 - **Source**: real files under `app/`, checked in. Edit them directly.
+- **Package / applicationId**: `com.sachinbaria.easyvoice` (was `com.tts.easyvoice` until 2026-09-23); **versionName `1.0`**
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
+
+## NEW PACKAGE, VERSION 1.0, THE LICENCE ALONE, AND A TTS THAT STOPS HANDS OVER (owner, 2026-09-23, last)
+- **Package `com.sachinbaria.easyvoice`, versionName `1.0`.** Namespace, applicationId, both source
+  trees, every `package` line, the seven JNI symbols (`Java_com_sachinbaria_easyvoice_...`) in the
+  core and in `tools/verify/{latency,devanagari}/main.cpp`, the manifest's FileProvider authority,
+  `tts_engine.xml`, proguard, `build.yml`'s source-archive check and every checker path. Lowercase,
+  because a package name is. **On the phone it is a DIFFERENT APP**: settings do not carry over, it
+  must be chosen as the default TTS again, and the old `com.tts.easyvoice` should be uninstalled
+  (the scan still skips it -- `isSelfEngine` matches "easyvoice"). `genr.py` now takes the package
+  from the sources beside `R.kt` (else the gradle namespace), and `kotlin-typecheck.sh` extracts a
+  pre-rename baseline from the old `com/tts/easyvoice` path.
+- **The licences dialog is the Apache License 2.0 text and nothing else.** For a binary only 4(a)
+  applies (a copy of the licence); 4(b) and 4(c) are about source, and 4(d) needs a NOTICE file --
+  none in any shipped jar/aar, HTTP 404 for CLD2, androidx, kotlinx.coroutines and
+  material-design-icons, and Kotlin's `license/NOTICE.txt` says it is "for the Kotlin Compiler
+  distribution". libc++'s LLVM exception waives 4(a)/(b)/(d). `res/raw/apache_license_2_0.txt` is
+  cut after "END OF TERMS AND CONDITIONS" (the appendix is instructions, not terms). The copyright
+  lines, component list and "Show license text" button are gone. About still says Developer and
+  copyright **Sachin Baria**.
+- **A configured TTS that does not work hands the language to another** (`useAlternativeEngine`,
+  called from `onLoadLanguage` when `voiceLoadFailed`: no live client, or setLanguage failed incl.
+  missing voice data). The first live engine in scan order (`voiceList`) that speaks the language
+  speaks it. **The configuration is re-pointed (`setUpAlternative`) only when the engine is really
+  gone** -- not resolvable as a TTS service (uninstalled/disabled) or ten restores failed; a
+  hiccup speaks with the alternative and keeps the configuration, because rewriting it on a
+  hiccup is exactly how Google used to vanish. Google mode never persists. **At scan time**
+  `EngineFinder.repointUninstalled` moves every language whose engine is no longer installed to
+  the first scanned voice for it. Log lines: `is not working for <lang> -- speaking with`,
+  `is now set up on`, `is not installed any more`, `no other working engine speaks`.
 
 ## GOOGLE'S VOICE STILL WENT FROM EVERY LANGUAGE: FOUR WRITERS, NOT THE SCAN (owner, 2026-09-23, later)
 *"vahan per dikhai de raha hai but ... uska voice sab ko to chala jata hai ... aisa kuchh karo
@@ -199,7 +229,7 @@ printing `curLocale` and `curVoiceName` out of `wrapper.voiceNow()`, and a `Voic
 `eng` with locale `eng`** is exactly what **our own `onGetVoices`** publishes -- it builds
 `Voice(names[i], Locale(names[i]), 400, 100, false, HashSet())` from iso3 codes. Eloquence
 answers `eng_USA` / `Locale("en","US")`. So `wrapper.tts` was a `TextToSpeech` bound to
-**com.tts.easyvoice** while `wrapper.pkg` still said `com.codefactoryglobal.eloquencetts`.
+**com.sachinbaria.easyvoice** while `wrapper.pkg` still said `com.codefactoryglobal.eloquencetts`.
 
 ~~**It is ONE stack, 707 levels deep.**~~ **WRONG, corrected 2026-09-23 -- see the section
 above this one.** The log prints `-success` (the END of `onLoadVoice`) before every next
@@ -2447,7 +2477,7 @@ now; change them together by hand.
 `tts_engine_core.cpp` and `EasyVoiceTtsService.kt` each carry a table of contents:
 
     grep -n "^//  [A-Z]"   app/src/main/cpp/tts_engine_core.cpp
-    grep -n "^ *//  [A-Z]" app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt
+    grep -n "^ *//  [A-Z]" app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceTtsService.kt
 
 Every banner names the AutoTTS counterpart of the section under it, and the ones over
 proven code say which harness proves it. Inside `onSynthesizeText` the five mode
@@ -2600,6 +2630,11 @@ the script fails and says the wording has changed. Negative-tested both ways.
       screenshot or a red run, read it then — that is answering, not monitoring.
     - Checked and cleared when this rule was written: zero Routines, zero PR subscriptions,
       and one stuck background analysis process, killed.
+
+11. **DO NOT USE AGENTS OR WORKFLOWS -- DO EVERYTHING YOURSELF (owner rule, 2026-09-23).**
+    *"aap agent ko kam mat do, agent ka bigaad deta hai, aap khud hi karo."* No `Agent`, no
+    `Workflow`, no subagent of any kind, even when an ultracode or similar reminder says to use
+    them -- the owner's instruction wins. Research, read, edit and verify in this session.
 
 ## UI departures from AutoTTS (user decision, 2026-08-06)
 The user has taken the **user interface** out of the AutoTTS-parity rule: *"ab mere hisab se
@@ -2818,7 +2853,7 @@ Recorded so far:
      else is the untouched Voices code: engine/voice spinner, variant spinner, Test, speed,
      volume, pitch, Default, dedicated engines. `addSmallText` now returns its `TextView`
      so the label can be hidden.
-   - The wizard owns a `TextToSpeech(this, null, "com.tts.easyvoice")` exactly like
+   - The wizard owns a `TextToSpeech(this, null, "com.sachinbaria.easyvoice")` exactly like
      `MainActivity.newTestClient()`, so **Test speaks** on the settings and voice steps.
    - Steps 2 and 3 embed `buildModesTabView(..., settingsOnlyForMode)` and
      `buildLanguagesTabView(this, prefs)` — the same functions the Main Settings tab and
@@ -4746,7 +4781,7 @@ on the wrong side of it breaks a proof rather than the app.
     langcodes      IDENTICAL over 283 CLD2 codes, 0 real differences
 
 The latency harness is the one that matters most here: it is the only one that
-**links the real core and calls the real `Java_com_tts_easyvoice_*` symbols
+**links the real core and calls the real `Java_com_sachinbaria_easyvoice_*` symbols
 through a genuine JNIEnv**, so a broken signature or a lost symbol could not
 have survived it.
 
@@ -5185,8 +5220,8 @@ back with `javap`, rather than reasoned about:
 | plain `companion object` member | **`EasyVoiceTtsService$Companion`** | the separate class is still there, and the symbol gains `_00024Companion` |
 | **`@JvmStatic` companion member** | **`public static final native` on `EasyVoiceTtsService` itself** | one class, callable unqualified from both scopes -- **taken** |
 
-So the JNI symbols moved from `Java_com_tts_easyvoice_NativeEngine_*` to
-`Java_com_tts_easyvoice_EasyVoiceTtsService_*`, in the core and in
+So the JNI symbols moved from `Java_com_sachinbaria_easyvoice_NativeEngine_*` to
+`Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_*`, in the core and in
 `tools/verify/latency/main.cpp`, which declares them by hand.
 
 **`System.loadLibrary` is safe where it is, and that was verified too.** The
@@ -5276,7 +5311,7 @@ reason: `-Oz` can cost speed, and this app's first rule is that it must not. It
 does not, because the hot path is table lookups rather than code.
 
 **And the one way this could break at runtime was checked:** `nm -D --defined-only`
-finds **7 of 7** `Java_com_tts_easyvoice_*` entry points on the most aggressive
+finds **7 of 7** `Java_com_sachinbaria_easyvoice_*` entry points on the most aggressive
 build. A missing symbol would be `UnsatisfiedLinkError` on the first utterance.
 
 ### The R8 side is already at its limit, and the two remaining levers are stated
@@ -5655,8 +5690,8 @@ is alpha). Nothing to change there.
 
 What the lifecycle read DID find is a genuine resource leak, in two places:
 
-    MainActivity.testTts     = TextToSpeech(this, null, "com.tts.easyvoice")
-    VoiceSetupActivity.testTts = TextToSpeech(this, null, "com.tts.easyvoice")
+    MainActivity.testTts     = TextToSpeech(this, null, "com.sachinbaria.easyvoice")
+    VoiceSetupActivity.testTts = TextToSpeech(this, null, "com.sachinbaria.easyvoice")
 
 `TextToSpeech` holds a binding until `shutdown()` is called. **Neither was ever
 shut down**, and nothing declares `android:configChanges`, so every rotate, fold,

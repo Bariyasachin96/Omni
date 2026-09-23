@@ -13,7 +13,7 @@ which is deliberately different.
 
 | path | what |
 |---|---|
-| `app/src/main/java/com/tts/easyvoice/` | the service, the settings screens, the storage |
+| `app/src/main/java/com/sachinbaria/easyvoice/` | the service, the settings screens, the storage |
 | `app/src/main/cpp/tts_engine_core.cpp` | the segmenter, the script classifier and the CLD2 wrapper |
 | `docs/` | how it works, what it maps to, and the rules that must hold |
 | `tools/` | the checks and the two proof harnesses |

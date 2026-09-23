@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Intent
 import java.util.Locale
 // THE SAMPLE SENTENCE COMES FROM THE ENGINE NOW (owner, 2026-09-16):

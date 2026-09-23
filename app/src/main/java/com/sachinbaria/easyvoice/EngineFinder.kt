@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Context
 import android.content.Intent
 import android.speech.tts.TextToSpeech
@@ -186,6 +186,31 @@ object EngineFinder {
         }
         return false
     }
+    private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>) {
+        try {
+            val prefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
+            val editor = prefs.edit()
+            var changed = false
+            for ((key, value) in prefs.all) {
+                if (key.length != 3 || value !is String) continue
+                val parts = value.split("#")
+                if (parts.size < 2 || parts[0].isEmpty() || parts[0].equals("disable", true) || isSelfEngine(parts[0])) continue
+                val installed = try {
+                    ctx.packageManager.resolveService(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE).setPackage(parts[0]), 0) != null
+                } catch (_: Exception) { true }
+                if (installed) continue
+                val replacement = voices.firstOrNull { !isSelfEngine(it.pkg) && it.pkg != parts[0] && iso3Of(it.locale) == key } ?: continue
+                editor.putString(key, replacement.pkg + "#" + replacement.locale.toString())
+                editor.putString(key + "_variant", "*Default")
+                changed = true
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, parts[0] + " is not installed any more -- " + key +
+                    " is now set up on " + replacement.pkg + " " + replacement.locale)
+            }
+            if (changed) editor.commit()
+        } catch (ex: Exception) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "repointUninstalled: " + ex.toString())
+        }
+    }
     fun scanLanguages(ctx: Context, onProgress: ((String) -> Unit)? = null, onResult: (Set<String>) -> Unit) {
         val engines = ArrayList<EngineInfo>()
         val seen = HashMap<String, EngineInfo>()
@@ -277,6 +302,16 @@ object EngineFinder {
             val orderedLangs: Set<String> = LinkedHashSet(sorted)
             lastScanVoices = voiceEntries.filter { !notRead.contains(it.pkg) } + keptVoices
             lastScanEngines = surviving
+            // A LANGUAGE WHOSE ENGINE IS NO LONGER INSTALLED MOVES TO THE FIRST ONE
+            // THIS SCAN FOUND FOR IT (owner, 2026-09-23: "system mein jo TTS
+            // available ho usko scan karke ... jo pahle mil jaaye scanning mein vah
+            // setup ho jaaye"). Only an engine the package manager no longer
+            // resolves as a TTS service -- uninstalled or disabled -- counts: one
+            // that is installed but could not be read this time keeps its place
+            // (above), because moving languages off an engine that merely hiccuped
+            // is how Google's configuration used to vanish. The service does the
+            // same at speaking time for an engine that dies while it runs.
+            repointUninstalled(ctx, lastScanVoices)
             val modeInt = EasyVoiceTtsService.modeInt
             val required = LangStore.requiredLangs(modeInt,
                 EasyVoiceTtsService.autoLang,
@@ -531,7 +566,7 @@ object EngineFinder {
             probe[0] = TextToSpeech(ctx, { status ->
                 if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) onProbeInit(status)
                 else mainHandler.post { onProbeInit(status) }
-            }, "com.tts.easyvoice")
+            }, "com.sachinbaria.easyvoice")
         } catch (ex: Exception) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize probe\n" + ex.message)
             probeFailed()

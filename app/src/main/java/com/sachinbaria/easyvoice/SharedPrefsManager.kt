@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Context
 import android.content.SharedPreferences
 class SharedPrefsManager(context: Context) {

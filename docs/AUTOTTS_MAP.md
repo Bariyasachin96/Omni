@@ -31,7 +31,7 @@ The letters are also **not** guessable from position. Read the return expression
 
 ## Service — `com/vnspeak/autotts/AutoTtsService.java`
 
-Ours: `app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt`
+Ours: `app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceTtsService.kt`
 
 | AutoTTS | Easy Voice | Status |
 |---|---|---|
@@ -172,7 +172,7 @@ family member is picked. `javaHashSetOrder` reproduces it, and it must model
 
 ## Settings store — `c3/n.java`
 
-Ours: `app/src/main/java/com/tts/easyvoice/LangStore.kt`
+Ours: `app/src/main/java/com/sachinbaria/easyvoice/LangStore.kt`
 
 | AutoTTS | Easy Voice |
 |---|---|

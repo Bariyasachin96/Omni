@@ -19,7 +19,7 @@ set -u
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$ROOT"
-KT=app/src/main/java/com/tts/easyvoice
+KT=app/src/main/java/com/sachinbaria/easyvoice
 SERVICE=$KT/EasyVoiceTtsService.kt
 CPP=app/src/main/cpp/tts_engine_core.cpp
 
@@ -170,8 +170,8 @@ n=$(sed 's://.*::' $KT/*.kt | grep -A 25 "DropdownMenu(" | grep -c "LazyColumn\|
 # res/xml/ (tts_engine, provider_paths and data_extraction_rules are each
 # required by a platform component that reads them, not by us).
 layoutdirs=$(ls -d app/src/main/res/layout* 2>/dev/null | wc -l)
-uisrc="$KT/*.kt app/src/androidTest/java/com/tts/easyvoice/*.kt"
-viewrefs=$(sed 's://.*::' $KT/*.kt app/src/androidTest/java/com/tts/easyvoice/*.kt 2>/dev/null \
+uisrc="$KT/*.kt app/src/androidTest/java/com/sachinbaria/easyvoice/*.kt"
+viewrefs=$(sed 's://.*::' $KT/*.kt app/src/androidTest/java/com/sachinbaria/easyvoice/*.kt 2>/dev/null \
   | grep -oE "setContentView\(|findViewById|LayoutInflater|AndroidView\(|ComposeView|android\.view\.[A-Za-z]+|android\.widget\.[A-Za-z]+" \
   | grep -v "android\.widget\.Toast" | wc -l)
 if [ "$layoutdirs" = 0 ] && [ "$viewrefs" = 0 ]; then

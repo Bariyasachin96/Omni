@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -109,7 +109,7 @@ class MainActivity : EvActivity() {
         // The scan can finish more than once in one Activity, and each finish
         // used to drop the previous client on the floor.
         try { testTts?.shutdown() } catch (_: Exception) { }
-        testTts = android.speech.tts.TextToSpeech(this, null, "com.tts.easyvoice")
+        testTts = android.speech.tts.TextToSpeech(this, null, "com.sachinbaria.easyvoice")
     }
     private var scanning by mutableStateOf(true)
     private var scanLine by mutableStateOf("Checking your TTS engines")

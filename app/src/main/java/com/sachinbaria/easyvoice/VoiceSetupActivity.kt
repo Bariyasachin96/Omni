@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
@@ -30,7 +30,7 @@ class VoiceSetupActivity : EvActivity() {
         // whenever anything is already loaded -- see LangStore.ensureLoaded.
         LangStore.ensureLoaded(this)
         val prefs = SharedPrefsManager(this)
-        testTts = android.speech.tts.TextToSpeech(this, null, "com.tts.easyvoice")
+        testTts = android.speech.tts.TextToSpeech(this, null, "com.sachinbaria.easyvoice")
         sampleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val key = pendingSampleKey; pendingSampleKey = null
             val retry = pendingSampleRetry; pendingSampleRetry = null

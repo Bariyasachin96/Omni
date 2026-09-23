@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import java.util.Locale

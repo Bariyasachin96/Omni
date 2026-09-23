@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Context
 fun abbreviateEngineName(name: String): String {
     val parts = name.split(" ").dropLastWhile { it.isEmpty() }

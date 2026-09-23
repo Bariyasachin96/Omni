@@ -1,4 +1,4 @@
-package com.tts.easyvoice
+package com.sachinbaria.easyvoice
 import android.content.Context
 class LangEntry(
     @JvmField var displayName: String,
@@ -438,7 +438,7 @@ object LangStore {
             val newEngineList = ArrayList<String>()
             var index = 0
             for (pkg in EngineFinder.lastScanEngines) {
-                if (pkg == "com.tts.easyvoice") continue
+                if (pkg == "com.sachinbaria.easyvoice") continue
                 editor.putString("engine_$index", pkg)
                 newEngineList.add(pkg)
                 index++

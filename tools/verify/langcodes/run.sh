@@ -33,7 +33,7 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 HERE="$ROOT/tools/verify/langcodes"
 CORE="$ROOT/app/src/main/cpp/tts_engine_core.cpp"
-ISO="$ROOT/app/src/main/java/com/tts/easyvoice/IsoCodes.kt"
+ISO="$ROOT/app/src/main/java/com/sachinbaria/easyvoice/IsoCodes.kt"
 
 echo "1/3  fingerprinting the native toIso3()"
 body=$(awk '/^static std::string toIso3\(const std::string& lang\)\{/,/^\}/' "$CORE" | tr -d ' \t\n')

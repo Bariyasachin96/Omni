@@ -124,7 +124,7 @@ every setting into a static once and the synthesis path re-reads nothing.
 `SHUTDOWN` banners:
 
     awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' \
-      app/src/main/java/com/tts/easyvoice/EasyVoiceTtsService.kt |
+      app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceTtsService.kt |
       grep -o "prefs\.[a-zA-Z]*" | sort -u
 
 That must print **`prefs.toIso3` and nothing else** — it is a pure string

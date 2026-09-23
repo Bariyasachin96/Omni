@@ -15,7 +15,7 @@
 -renamesourcefileattribute SourceFile
 
 # ------------------------------------------------------------ keeps
-# JNI resolves by symbol name (Java_com_tts_easyvoice_EasyVoiceTtsService_*),
+# JNI resolves by symbol name (Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_*),
 # so these native methods must keep theirs. They are @JvmStatic members of the
 # service's companion, which puts them on EasyVoiceTtsService itself -- there is
 # deliberately no NativeEngine class any more (owner, 2026-09-09), because a
@@ -26,7 +26,7 @@
 #
 # The service itself is already kept by the manifest, so this rule is only about
 # the METHOD names.
--keepclassmembers class com.tts.easyvoice.EasyVoiceTtsService {
+-keepclassmembers class com.sachinbaria.easyvoice.EasyVoiceTtsService {
     native <methods>;
 }
 # kotlinx-coroutines ships this as a consumer rule; repeated so the

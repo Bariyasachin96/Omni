@@ -12,8 +12,8 @@ you want to point one at a tree somewhere else (an old commit exported with
 import os
 import sys
 
-KOTLIN_PACKAGE = os.path.join('app', 'src', 'main', 'java', 'com', 'tts', 'easyvoice')
-ANDROID_TEST_PACKAGE = os.path.join('app', 'src', 'androidTest', 'java', 'com', 'tts', 'easyvoice')
+KOTLIN_PACKAGE = os.path.join('app', 'src', 'main', 'java', 'com', 'sachinbaria', 'easyvoice')
+ANDROID_TEST_PACKAGE = os.path.join('app', 'src', 'androidTest', 'java', 'com', 'sachinbaria', 'easyvoice')
 MAIN = os.path.join('app', 'src', 'main')
 CPP = os.path.join('app', 'src', 'main', 'cpp')
 
