@@ -147,7 +147,9 @@ android {
         debug { isMinifyEnabled = false }
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    buildFeatures { compose = true }
+    // buildConfig: the About screen reads BuildConfig.VERSION_NAME instead of
+    // asking PackageManager for the app's own version at run time.
+    buildFeatures { compose = true; buildConfig = true }
     packaging {
         resources { excludes.add("**/libc++_shared.so") }
         jniLibs { useLegacyPackaging = true }

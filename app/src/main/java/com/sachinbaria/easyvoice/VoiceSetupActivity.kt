@@ -38,7 +38,7 @@ class VoiceSetupActivity : EvActivity() {
             // ANOTHER app -- the same reason GetSampleText reads its own extra
             // inside a try. A class this process cannot load is a
             // BadParcelableException, and here it would land on the Test button.
-            val text = try { result.data?.getStringExtra("sampleText") } catch (_: Throwable) { null }
+            val text = try { result.data?.getStringExtra(android.speech.tts.TextToSpeech.Engine.EXTRA_SAMPLE_TEXT) } catch (_: Throwable) { null }
             // "" is written on EVERY answered launch, including a null one, so a
             // declining engine is asked once and never again. Only a launch that
             // never happened leaves the key absent.

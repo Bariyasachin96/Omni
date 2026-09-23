@@ -349,13 +349,20 @@ fi
 # real ways in were found on 2026-09-16, all of them permanent:
 #
 #   a failed TextToSpeech construction left the wrapper at state 0
-#   restoreCount hit its cap while the wrapper sat at state 2
-#   restoringIndex was never cleared, so NO engine could be restored again
+#   the old ten-try cap ran out while the wrapper sat at state 2
+#   the old global restore slot was never cleared, so NO engine could be restored
 #
-# The last one is the worst and was hidden behind a false claim in a comment: AOSP's
-# initTts returns SUCCESS as soon as bindService does, WITHOUT dispatching, so a
-# bind that succeeds against a process that never starts means onInit never fires.
-# The restore therefore needs the same bind timeout EngineFinder already has.
+# The last one was hidden behind a false claim in a comment: AOSP's initTts returns
+# SUCCESS as soon as bindService does, WITHOUT dispatching, so a bind that succeeds
+# against a process that never starts means onInit never fires. The restore
+# therefore needs the same bind timeout EngineFinder already has.
+#
+# Since 2026-09-23 the restore is ONE PER EPISODE, per engine (owner: "restore wala
+# baar-baar try mat karaya karo"): `restoring` is taken once and given back on every
+# way out, `restoreSpent` is handed back by the process coming back whatever the
+# wrapper's state, a death marks the wrapper -1 and waits instead of restoring from
+# the death callback (the restore it made there was always made a second time from
+# onServiceConnected).
 fail29=""
 # Comments stripped AND the blank lines they leave behind removed -- otherwise a
 # long explanatory comment inside a catch pushes the assignment out of grep's -A
@@ -370,23 +377,33 @@ initsdead=$(printf '%s\n' "$svc" | grep -A2 'Error when initializing' | grep -c 
 [ "$inits" -ge 1 ] && [ "$initsdead" = "$inits" ] || fail29="$fail29 construction-catch($initsdead/$inits marks state=-1);"
 # every startup init is bounded too: an onInit that never arrives would leave
 # that engine at state 0, invisible to every recovery path
-printf '%s\n' "$svc" | grep -q 'initWalkHandler.postDelayed' \
+printf '%s\n' "$svc" | sed -n '/fun startNextInitEngine/,/^    }/p' | grep -q 'mainHandler.postDelayed' \
   || fail29="$fail29 no-init-walk-timeout;"
 # a configured engine that is not ready asks for itself back
 printf '%s\n' "$svc" | grep -q 'recoverEngineNotReady(if' \
   || fail29="$fail29 no-speak-time-recovery;"
-# the restore slot is taken once and has more than one way to be given back
-takes=$(printf '%s\n' "$svc" | grep -c 'restoringIndex = idx' || true)
-frees=$(printf '%s\n' "$svc" | grep -c 'restoringIndex = -1' || true)
-[ "$takes" = 1 ] || fail29="$fail29 restoringIndex-taken-$takes-times;"
-[ "$frees" -ge 3 ] || fail29="$fail29 only-$frees-ways-to-release-the-restore-slot;"
+# a restore is taken once and has every way out giving it back: the watchdog,
+# the constructor's catch and the listener's finally
+takes=$(printf '%s\n' "$svc" | grep -c 'wrapper.restoring = true' || true)
+frees=$(printf '%s\n' "$svc" | sed -n '/fun restoreEngineMain/,/^    }/p' | grep -c 'wrapper.restoring = false' || true)
+[ "$takes" = 1 ] || fail29="$fail29 restoring-taken-$takes-times;"
+[ "$frees" -ge 2 ] || fail29="$fail29 watchdog-or-constructor-catch-keeps-the-restore($frees);"
+printf '%s\n' "$svc" | sed -n '/inner class RestoreInitListener/,/^    }/p' | grep -A1 'finally {' | grep -q 'restoring = false' \
+  || fail29="$fail29 the-listener-does-not-give-the-restore-back-in-finally;"
 # and the bind that can never answer is bounded
-printf '%s\n' "$svc" | grep -q 'restoreTimeoutHandler.postDelayed' \
+printf '%s\n' "$svc" | grep -q 'mainHandler.postDelayed(watchdog' \
   || fail29="$fail29 no-restore-bind-timeout;"
-# the reconnect ends the failure streak whatever state the wrapper is in
-printf '%s\n' "$svc" | sed -n '/fun onEngineProcessBack/,/^    }/p' |
-  grep -B2 'restoreCount = 0' | grep -q 'state == -1' \
-  && fail29="$fail29 restoreCount-reset-gated-on-state;"
+# the process coming back hands the restore back whatever state the wrapper is in
+back=$(printf '%s\n' "$svc" | sed -n '/fun onEngineProcessBack/,/^    }/p')
+printf '%s\n' "$back" | grep -q 'restoreSpent = false' || fail29="$fail29 reconnect-does-not-hand-the-restore-back;"
+printf '%s\n' "$back" | grep -B2 'restoreSpent = false' | grep -q 'state == -1' \
+  && fail29="$fail29 restore-handed-back-only-at-state-1;"
+# a process death takes the wrapper out of use (-1), so recovery can see it ...
+printf '%s\n' "$svc" | sed -n '/fun onEngineProcessGone/,/^    }/p' | grep -q 'state = -1' \
+  || fail29="$fail29 a-dead-process-leaves-its-wrapper-selectable;"
+# ... and the death callbacks themselves never restore: that is onServiceConnected's
+printf '%s\n' "$svc" | grep -E 'override fun (onServiceDisconnected|onBindingDied)' | grep -q 'restoreEngine(' \
+  && fail29="$fail29 a-death-callback-restores;"
 [ -z "$fail29" ] \
   && ok "#29 every unusable engine wrapper can still be recovered" \
   || bad "#29 an engine can reach a state no recovery path sees:$fail29"

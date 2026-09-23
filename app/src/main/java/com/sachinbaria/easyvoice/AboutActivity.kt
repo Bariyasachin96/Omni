@@ -9,9 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 // About -- an Easy Voice screen with no AutoTTS counterpart, asked for on
@@ -36,22 +34,13 @@ class AboutActivity : EvActivity() {
     }
 }
 
-// Version comes from PackageManager, so it is this build's real number rather
-// than a literal that goes stale.
+// Version comes from the build itself -- BuildConfig.VERSION_NAME is the
+// versionName in app/build.gradle.kts, written by AGP at compile time -- so it
+// is this build's real value with no PackageManager call and no API-33 branch
+// (it used to read its own PackageInfo, which needs PackageInfoFlags on 33+).
 @Composable
 fun AboutScreen() {
-    val context = LocalContext.current
-    val versionName = remember {
-        try {
-            val info: android.content.pm.PackageInfo = if (android.os.Build.VERSION.SDK_INT >= 33)
-                context.packageManager.getPackageInfo(context.packageName,
-                    android.content.pm.PackageManager.PackageInfoFlags.of(0L))
-            else { @Suppress("DEPRECATION") context.packageManager.getPackageInfo(context.packageName, 0) }
-            info.versionName ?: ""
-        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-            ""
-        }
-    }
+    val versionName = BuildConfig.VERSION_NAME
     ResponsiveContent {
         Column(
             modifier = Modifier.fillMaxWidth()

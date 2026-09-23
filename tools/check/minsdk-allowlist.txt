@@ -5,7 +5,6 @@
 #
 # Reviewed 2026-09-10, when this check was written and found two real crashes.
 
-AboutActivity.kt:PackageInfoFlags                    # API 33, if (SDK_INT >= 33)
 EasyVoiceTtsService.kt:PackageInfoFlags              # API 33, ownPackageInfo()'s branch
 EasyVoiceTtsService.kt:POST_NOTIFICATIONS            # API 33, hasNotificationPermission()
 MainActivity.kt:POST_NOTIFICATIONS                   # API 33, guarded at both sites

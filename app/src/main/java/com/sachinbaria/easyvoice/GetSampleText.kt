@@ -31,7 +31,7 @@ class GetSampleText : Activity() {
         val sample = try { SampleTexts.get(locale.isO3Language) } catch (_: Exception) { "" }
         val text = if (sample.isEmpty()) "Sorry. Sample text for language ${locale.getDisplayName(localeOf("eng"))} is missing." else sample
         val data = Intent()
-        data.putExtra("sampleText", text)
+        data.putExtra(TextToSpeech.Engine.EXTRA_SAMPLE_TEXT, text)
         setResult(TextToSpeech.LANG_AVAILABLE, data)
         finish()
     }

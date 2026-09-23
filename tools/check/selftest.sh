@@ -107,13 +107,19 @@ run "#28 stop clearing the voice cache" "#28" \
 run "#29 leave a failed construction at state 0" "#29" \
     "perl -0pi -e 's/if \\(myIndex < enginePool\\.size\\) enginePool\\[myIndex\\]\\.state = -1\\n                    initFinished\\(\\)/initFinished()/' $K/EasyVoiceTtsService.kt"
 run "#29 remove the init walk timeout" "#29" \
-    "perl -0pi -e 's/initWalkHandler\\.postDelayed\\(\\{/run({/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/mainHandler\\.postDelayed\\(\\{/run({/' $K/EasyVoiceTtsService.kt"
 run "#29 drop the speak-time recovery" "#29" \
     "perl -0pi -e 's/; recoverEngineNotReady\\(if \\(pkg\\.isEmpty\\(\\)\\) lastEnginePkg else pkg\\)//g' $K/EasyVoiceTtsService.kt"
 run "#29 remove the restore bind timeout" "#29" \
-    "perl -0pi -e 's/restoreTimeoutHandler\\.postDelayed\\(\\{/run({/' $K/EasyVoiceTtsService.kt"
-run "#29 gate the reconnect reset on state again" "#29" \
-    "perl -0pi -e 's/            wrapper\\.restoreCount = 0\\n            if \\(wrapper\\.state == -1\\) \\{/            if (wrapper.state == -1) {\\n                wrapper.restoreCount = 0/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/mainHandler\\.postDelayed\\(watchdog, 30000L\\)/watchdog.hashCode()/' $K/EasyVoiceTtsService.kt"
+run "#29 gate the reconnect hand-back on state again" "#29" \
+    "perl -0pi -e 's/        wrapper\\.restoreSpent = false\\n        if \\(wrapper\\.state == -1\\) restoreEngine/        if (wrapper.state == -1) wrapper.restoreSpent = false\\n        if (wrapper.state == -1) restoreEngine/' $K/EasyVoiceTtsService.kt"
+run "#29 restore from the death callback again" "#29" \
+    "perl -0pi -e 's/onEngineProcessGone\\(pkg\\) \\} catch/onEngineProcessGone(pkg); restoreEngine(pkg, pkg) } catch/' $K/EasyVoiceTtsService.kt"
+run "#29 leave a dead process's wrapper selectable" "#29" \
+    "perl -0pi -e 's/            if \\(dead\\.state == 2\\) dead\\.state = -1\\n//' $K/EasyVoiceTtsService.kt"
+run "#29 never give a restore back in the listener" "#29" \
+    "perl -0pi -e 's/            \\} finally \\{\\n                wrapper\\.restoring = false\\n            \\}/            }/' $K/EasyVoiceTtsService.kt"
 run "#12 grow build.yml past the ceiling" "#12" \
     "head -c 500000 /dev/zero | tr '\\0' '#' >> .github/workflows/build.yml"
 run "put a CLD3 source back in CMakeLists" "a CLD3/protobuf build input" \

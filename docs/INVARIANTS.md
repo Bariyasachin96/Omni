@@ -937,7 +937,7 @@ diagnosing is worse than no diagnostic.
 *(`invariants.sh` #28, negative-tested three ways in `selftest.sh`)*
 
 `EngineWrapper` has two kinds of field. Some describe the **engine package** —
-`pkg`, `state`, `restoreCount` — and survive anything. Five describe **the
+`pkg`, `state`, and the restore flags — and survive anything. Five describe **the
 `TextToSpeech` object currently in `tts`**:
 
     voicesCache        the voice set marshalled out of THAT connection
@@ -1025,7 +1025,7 @@ about.
 ---
 
 ## 31. An engine wrapper must never reach a state no recovery path can see
-*(`invariants.sh` #29, negative-tested three ways in `selftest.sh`)*
+*(`invariants.sh` #29, negative-tested eight ways in `selftest.sh`)*
 
 The app has **exactly one** recovery path for a broken engine: `onEngineProcessBack`,
 which fires when our keep-alive binding reconnects and acts on `state == -1`. So
@@ -1038,8 +1038,8 @@ Three ways in were found on 2026-09-16, **all permanent**:
 | state reached | why nothing recovered it |
 |---|---|
 | **0** — a `TextToSpeech` constructor threw | `onEngineProcessBack` tests `-1`; `initAllEngines` runs once, from `onCreate` |
-| **2** with a dead client, `restoreCount == 10` | the cap refuses; `onStart` cannot reset it because a dead client never speaks |
-| any — `restoringIndex` stuck | `restoreEngine`'s first guard then refuses **every** engine, for ever |
+| **2** with a dead client, the ten-try cap spent | the cap refuses; `onStart` cannot reset it because a dead client never speaks |
+| any — the global restore slot stuck | `restoreEngine`'s first guard then refuses **every** engine, for ever |
 
 ### The third one is the worst, and a comment was hiding it
 `restoreEngine`'s own note claimed no clock was needed because *"RestoreInitListener
@@ -1078,9 +1078,28 @@ slot. A callback that lands after the timeout releases its own client and return
 and it can only fire on a path where speech is already impossible.
 
 ### Two smaller holes closed with it
-- **`onBindingDied` never restored.** It did everything `onServiceDisconnected` does
-  except the restore, so a binding death — which is what an engine *update* produces —
-  left the wrapper at state 2 holding a client bound to a process that was gone.
+- **`onBindingDied` left the wrapper at state 2** holding a client bound to a process
+  that was gone — which is what an engine *update* produces. (Since 2026-09-23 no
+  death callback restores; `onEngineProcessGone` takes the wrapper to `-1`, and the
+  restore is made from `onEngineProcessBack` — see the next section.)
 - **`restoreEngine` compared a NORMALISED `wrapper.pkg` against the RAW package**
   `onServiceDisconnected` hands it. That is the identical defect fixed in
   `onEngineProcessGone` on 2026-09-11, one line below it in the same callback.
+
+### 2026-09-23: one restore per episode, per engine, and only on an event
+Owner: *"restore wala baar-baar try mat karaya karo, is vajah se hi problem ho rahi
+hai ... ek bar mein sab restore ho jaaye."* The global slot (`restoringIndex`) and the
+ten-try cap (`restoreCount`) are gone. Each wrapper carries three flags:
+
+| flag | meaning | cleared by |
+|---|---|---|
+| `restoring` | a restore of this engine is in flight (state 1) | the watchdog, the constructor's catch, the listener's `finally` |
+| `restoreSpent` | this episode's one restore is used | `onStart` (it spoke), `onEngineProcessBack` (process back), `packageReceiver` (installed/updated), `engineAnswered` (the scan reached it) |
+| `processGone` | the keep-alive binding saw the process die | `onEngineProcessBack` |
+
+Read from AOSP (`TextToSpeechManagerPerUserService`): on an engine death the system's
+session calls `onDisconnected` and then sets `mCallback = null`, so a dead client never
+reconnects. One restore per death is needed, and exactly one. The death callbacks
+therefore never restore (the old code restored there AND again from
+`onServiceConnected`); they mark `-1` and wait. Every engine restores in parallel.
+`invariants.sh` #29 checks each of those rules and `selftest.sh` breaks each one.

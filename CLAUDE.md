@@ -8,6 +8,47 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## RESTORE IS ONCE PER EPISODE, PER ENGINE, ON AN EVENT; ONE ASYNC MAIN HANDLER (owner, 2026-09-23, latest)
+*"restore wala baar-baar try mat karaya karo, is vajah se hi problem ho rahi hai ... ek bar mein
+sab restore ho jaaye ... har kona chhan maro ... double double chijen ... library se."*
+- **AOSP read first** (`TextToSpeechManagerPerUserService`): on an engine death the system session
+  calls `onDisconnected` then `mCallback = null`, so a dead client NEVER reconnects -- one restore
+  per death is needed, and one is enough. Also read: a system broadcast reaches a NOT_EXPORTED
+  receiver (`ActivityManager.checkComponentPermission`: "system server get to do everything").
+- **Gone:** global `restoringIndex` (one engine at a time), `restoreCount` + the 10-cap (refilled by
+  onStart/reconnect, so it tore a failing engine down on every utterance), and the restores made
+  FROM the death callbacks (they were repeated from onServiceConnected; a bind to a service pending
+  restart only waits anyway).
+- **Now, per EngineWrapper:** `restoring` (in flight, state **1** so loaders skip it),
+  `restoreSpent` (one per episode), `processGone` (keep-alive saw the death). `restoreEngine(pkg, why)`
+  runs on the main looper and refuses with a log line when restoring / spent / process down.
+  The restore is handed back ONLY by events: `onStart` (it spoke), `onEngineProcessBack` (keep-alive
+  reconnect), `packageReceiver` (ACTION_PACKAGE_ADDED/REPLACED/CHANGED, `ContextCompat.registerReceiver`
+  NOT_EXPORTED, rebinds a missing/dead keep-alive), `engineAnswered` (EngineFinder's scan read the
+  engine's voices; companion WeakReference to the service). Engines restore in parallel; each has
+  its own 30 s watchdog Runnable removed by identity.
+- **Death:** `onEngineProcessGone` marks the wrapper -1 + `processGone`, no restore; the reconnect
+  restores once. `clientIsDead(wrapper, why)` is the one path for a dead client found while
+  speaking (setLanguage/setVoice with no connection, client re-bound elsewhere): -1, shut the client
+  down at once (releases the manager session), ask for the restore. `setVoiceFailed` keeps a live
+  client like `setLanguageFailed`. speakChunk no longer speaks into a wrapper whose state != 2.
+  `recoverEngineNotReady` binds the keep-alive if missing and only ASKS for the restore.
+- **setLanguageFailed marshals the voice set once, not per chunk:** -1 is kept without asking;
+  a refusal already proven live is remembered in `refusedLocale` (cleared by forgetClientState).
+- **Library / duplicates:** the service's three main-looper Handlers plus one new Handler PER CHUNK
+  are one `HandlerCompat.createAsync(mainLooper)` (async: UI drawing's sync barrier in this same
+  process no longer delays the next-chunk hop); 9 inline `replace("-","").replace("_","")` are
+  `normPkg()`; `"android.intent.action.TTS_SERVICE"` / `"sampleText"` are
+  `TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE` / `EXTRA_SAMPLE_TEXT`; About reads
+  `BuildConfig.VERSION_NAME` (`buildFeatures.buildConfig = true`) instead of PackageManager with an
+  API-33 branch. `minsdk-api.sh` generates a BuildConfig stub like R; `ktimports` knows it.
+  onDestroy shuts down every client the pool holds and no restore starts after it.
+- **No new dependency was needed**: everything used is androidx.core already on the classpath.
+  `invariants.sh` #29 rewritten for the new rules, `selftest.sh` breaks each (8 ways, all caught).
+- **What to look for in the next log:** `restoreTts <pkg> (<why>)`, `... restored once already --
+  waiting for it to come back`, `... its process is down -- restoring it when it is back`,
+  `<pkg> restored`, `Package <pkg>: ...`, `is not ready (state N)`.
+
 ## JNI: NO LIBRARY FITS; THE HAND-WRITTEN PART FOLLOWS ANDROID'S JNI TIPS NOW (owner, 2026-09-23, latest)
 *"jni function ko handle karne ke liye bhi kuchh library hoti hogi."* Checked, and none fits:
 **fbjni** needs C++ exceptions and RTTI (we build `-fno-exceptions -fno-rtti`) and ships its own
@@ -43,14 +84,14 @@ profile dekho ... missing dependency bhi milegi."*
   activities are there, the rest under R8's names. `profileinstaller:1.4.1` declared directly
   (was only transitive) so sideloaded installs get the profile.
 
-## A LIVE ENGINE IS NOT RESTORED, AND EVERY ENGINE STARTS AT ONCE (owner, 2026-09-23, latest)
+## A LIVE ENGINE IS NOT RESTORED, AND EVERY ENGINE STARTS AT ONCE (owner, 2026-09-23)
 *"force stop karta hun to Google mar jata hai ... find karna chahie ki TTS mar kyon jaate hain
 ... phone restart ke bad jaldi bolata nahin."* The logging-only answer below was not enough.
 - **`setLanguageFailed` keeps a client that is still connected to its own engine** (AOSP:
   `getVoices()`'s runAction error result is null; a connected engine answers a Set, even empty)
   and bound to it (`boundEngineOf`). A cold Google (after reboot / after force-stopping us)
   answers -2 until its voices load; restoring it built a new session again and again during
-  its start-up and burned the 10-restore cap, after which it was never retried. Now the client
+  its start-up and burned the 10-restore cap (the cap itself is gone since the section above). Now the client
   is kept and the next utterance simply calls setLanguage again. Dead or re-bound-to-us clients
   still restore. Log: `is connected and answering -- kept, not restored`.
 - **Startup constructs every engine's client at once** (`startNextInitEngine`), not engine N+1

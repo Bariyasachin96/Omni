@@ -475,7 +475,7 @@ object EngineFinder {
                             }
                         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
                         if (added == 0 && retryOrFail(noVoicesWhy)) return
-                        if (added == 0) failed.add(myIndex) else succeeded.add(myIndex)
+                        if (added == 0) failed.add(myIndex) else { succeeded.add(myIndex); EasyVoiceTtsService.engineAnswered(expectedPkg) }
                     } else {
                         if (retryOrFail("bound to " + actualEngine)) return
                     }

@@ -99,7 +99,7 @@ def main():
             name = m.group(1)
             if (name in imported or name in local or name in module_types
                     or name in BUILTINS or name in ANDROID_INHERITED
-                    or name in COMPOSE_SCOPE_MEMBERS or name == 'R'):
+                    or name in COMPOSE_SCOPE_MEMBERS or name in ('R', 'BuildConfig')):
                 continue
             line = code[:m.start()].count('\n') + 1
             problems.append((f, line, name, lines[line - 1].strip()[:90]))
