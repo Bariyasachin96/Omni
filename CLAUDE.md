@@ -8,6 +8,34 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## FEWER VERSION BRANCHES, IMPORT/EXPORT GONE, TROUBLESHOOT SPEAKS OF LANGUAGES (owner, 2026-09-24, latest)
+*"jitna ho sake utna system API ... import export ki jarurat nahin ... Android version wale naam
+... troubleshoot mein voice nahin, language batana hai ... download screen nahin khul sakti to kuchh
+nahin ... kaun-kaun se TTS ka battery optimization on hai ya off."*
+- **Import/Export code deleted** (was unreachable since 2026-09-17): MainActivity's picker, dialog,
+  restart and install polling, `RequiredEnginesItem`/`RequiredEnginesDialog` + its test,
+  SharedPrefsManager's `settingsXmlFile/exportSettingsFile/importSettingsXml/
+  getReferencedEnginePackagesFromXml`, the `cache/shared` FileProvider path, `ic_get_app`.
+  `QUERY_ALL_PACKAGES` KEPT: Troubleshoot still asks `getApplicationInfo` about configured engines
+  that may no longer be TTS services (invisible to `<queries>`).
+- **Version branches removed where one call does it**: `localeOf` is the (Java-19-deprecated,
+  suppressed) `Locale(l,c,v)` on every Android -- same object as `Locale.of`; MainActivity asks for
+  POST_NOTIFICATIONS only when `NotificationManagerCompat.areNotificationsEnabled()` is false.
+  **Kept, because minSdk 24 has no one call for them**: audio focus (O; androidx.media is
+  deprecated), the service's `hasNotificationPermission` (TIRAMISU; areNotificationsEnabled would
+  stop the foreground service below 33 when the user muted notifications), Troubleshoot's
+  `isBackgroundRestricted` (P, no compat).
+- **`callback.start(16000, PCM_16BIT, 1)` is REQUIRED and is now written once (`startCallback`)**:
+  AOSP PlaybackSynthesisCallback -- without start() there is no onBeginSynthesis/onStart for the
+  screen reader, done() returns ERROR ("done() was called before start() call"), and the
+  keep-alive's audioAvailable refuses. The numbers only declare a format for audio never written.
+  The notification channel's name is `R.string.app_name`, not a literal.
+- **Troubleshoot**: "Working. It speaks N languages: ..." (distinct iso3 from `lastScanVoices`),
+  never a voice count; "Download languages" appears ONLY when `resolveActivity(ACTION_INSTALL_TTS_DATA
+  .setPackage(pkg))` finds one; every engine gets "Battery optimization: on/off"
+  (`PowerManager.isIgnoringBatteryOptimizations(pkg)`) with the battery list as the fix; onResume
+  rebuilds the whole report from the stored scan inputs so those lines update after a fix.
+
 ## NO PACKAGE NAME IS HARD-CODED; MISSING VOICE DATA OPENS THE ENGINE'S INSTALLER (owner, 2026-09-24, latest)
 *"kisi bhi TTS ka package name likhane ki jarurat nahin ... package name change hote rahte hain ...
 pura system sahi uthao ... voice ka data download na ho ... scanning ke time per download ho jana

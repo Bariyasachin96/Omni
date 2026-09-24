@@ -334,8 +334,8 @@ class AccessibilityChecksTest {
                     "Check finished. 1 engine is working, 1 needs attention.",
                     listOf("Hindi moved from Old engine to Speech Services by Google"),
                     listOf(
-                        TroubleshootFinding("Speech Services by Google", true, listOf("Working. 81 voices.")),
-                        TroubleshootFinding("Eloquence", false, listOf("Not working: it has no voices installed."), listOf(fix))
+                        TroubleshootFinding("Speech Services by Google", true, listOf("Working. It speaks 2 languages: Gujarati, Hindi.", "Battery optimization: off. Android will not stop it to save battery.")),
+                        TroubleshootFinding("Eloquence", false, listOf("Not working: it has no languages installed.", "Battery optimization: on. Android can stop it in the background, and speech in its languages can stop with it. Set it to Unrestricted."), listOf(fix))
                     )
                 ),
                 onRunAgain = { }, onFix = { }
@@ -715,21 +715,5 @@ class AccessibilityChecksTest {
     @Test
     fun voiceSetupNoLanguage() {
         check { VoiceScreen(prefs(), 99, 1, { }) { null } }
-    }
-
-    // Both rows: one engine installed, one not, so the "Install" button and the
-    // green "Installed" label are both on screen. Apply is disabled while
-    // anything is missing, and a disabled control still has to be labelled.
-    @Test
-    fun requiredEnginesDialog() {
-        check {
-            RequiredEnginesDialog(
-                items = listOf(
-                    RequiredEnginesItem("Google Speech Services", "com.google.android.tts", true),
-                    RequiredEnginesItem("Samsung Text-to-Speech", "com.samsung.SMT", false)
-                ),
-                onInstall = { }, onApply = { }, onCancel = { }
-            )
-        }
     }
 }

@@ -209,12 +209,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // sound, no lights, no vibration, badge on), so the channel is unchanged.
     private fun createNotificationChannel() {
         val channel = NotificationChannelCompat.Builder(FOREGROUND_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
-            .setName("TTS Engine")
+            .setName(getString(R.string.app_name))
             .build()
         NotificationManagerCompat.from(this).createNotificationChannel(channel)
     }
-    private fun startAndFinish(callback: SynthesisCallback?) {
+    // THE ONE PLACE the callback is started. Easy Voice produces no audio of its
+    // own, but AOSP needs start() before anything else: it is what dispatches
+    // onBeginSynthesis and queues the item whose playback sends the screen
+    // reader its onStart, and without it done() logs "done() was called before
+    // start() call" and returns ERROR (PlaybackSynthesisCallback, read at the
+    // line), and the keep-alive's audioAvailable() refuses every buffer. The
+    // format is only a declaration for audio we never write (or, for the
+    // keep-alive, for silence), so it is the plainest one the API accepts:
+    // 16 kHz, 16-bit PCM, mono. The framework has no named constant for a
+    // sample rate or a channel count.
+    private fun startCallback(callback: SynthesisCallback?) {
         if (callback?.hasStarted() == false) callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
+    }
+    private fun startAndFinish(callback: SynthesisCallback?) {
+        startCallback(callback)
         if (callback?.hasFinished() == false) callback.done()
     }
     // ==========================================================================
@@ -3492,7 +3505,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         wrapper.restoreSpent = false
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
                         if (id != expectedId) return
-                        if (callback?.hasStarted() == false) { callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1) }
+                        startCallback(callback)
                         // The engine has begun audio, so the whole of this chunk is
                         // now free time on every other engine. Posted rather than
                         // run here: this is a binder callback.
@@ -3878,7 +3891,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // AutoTTS logs this immediately before k0(callback), and spells it
             // "Keep-live", not "Keep-alive".
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-live activated")
-            callback?.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
+            startCallback(callback)
             val silenceBuf = ByteArray(32)
             val maxBuf = callback?.maxBufferSize ?: silenceBuf.size
             keepAlive@ while (!isStopped) {

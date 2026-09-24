@@ -59,8 +59,10 @@ import androidx.core.os.HandlerCompat
 //      the user opened to diagnose, never on the speaking path. The service then
 //      replaces its client for that engine once.
 //   4. What cannot be repaired by an app is reported with the system's own
-//      screen for it: no voice data -> the engine's INSTALL_TTS_DATA activity
-//      (what Android's TTS settings open); turned off or restricted -> its app
+//      screen for it: a language not downloaded -> the engine's
+//      INSTALL_TTS_DATA activity, only when the engine has one (the system is
+//      asked to resolve it); each engine's battery optimization, on or off,
+//      asked of PowerManager; turned off or restricted -> its app
 //      info; not installed -> the Play Store; battery optimisation -> the
 //      system list; Easy Voice not the preferred engine -> the TTS settings.
 // ==========================================================================
@@ -105,15 +107,23 @@ class TroubleshootActivity : EvActivity() {
         runChecks()
     }
 
-    // Coming back from a system screen (battery, TTS settings, app info): the
-    // checks that read system state are cheap and are read again, so the report
-    // says whether the fix took without a whole new run.
+    // Coming back from a system screen (battery, TTS settings, app info): every
+    // line that reads system state -- the preferred engine, Easy Voice's and each
+    // engine's battery optimization, which installer exists -- is read again, so
+    // the report says whether the fix took without a whole new run.
     override fun onResume() {
         super.onResume()
-        val shown = result ?: return
-        if (working) return
-        result = shown.copy(findings = systemFindings() + shown.findings.filter { it.title !in SYSTEM_TITLES })
+        if (working || result == null) return
+        val inputs = lastInputs ?: return
+        result = buildResult(inputs.reports, inputs.repaired, inputs.speechProblems)
     }
+
+    private class ReportInputs(
+        val reports: List<EngineFinder.EngineReport>,
+        val repaired: List<String>,
+        val speechProblems: Map<String, String>
+    )
+    private var lastInputs: ReportInputs? = null
 
     override fun onDestroy() {
         generation++
@@ -151,6 +161,7 @@ class TroubleshootActivity : EvActivity() {
         releaseTestClients()
         working = true
         result = null
+        lastInputs = null
         progress = "Reading every voice engine on this phone"
         EngineFinder.scanLanguages(
             this,
@@ -266,9 +277,42 @@ class TroubleshootActivity : EvActivity() {
         TroubleshootFix("Battery optimization settings", Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
     private fun ttsSettingsFix() =
         TroubleshootFix("TTS Settings", Intent(TTS_SETTINGS_ACTION))
+    // Asked of PowerManager, which answers for ANY package, not only our own.
     private fun ignoresBatteryOptimization(pkg: String): Boolean {
         val power = ContextCompat.getSystemService(this, PowerManager::class.java) ?: return true
         return try { power.isIgnoringBatteryOptimizations(pkg) } catch (_: Exception) { true }
+    }
+    // The engine's own "install voice data" screen, but only when the engine
+    // really has one: the system is asked to resolve the intent, and an engine
+    // that declares no such activity gets no download line and no button,
+    // because there would be nothing for the button to open.
+    private fun installDataFix(pkg: String): TroubleshootFix? {
+        val intent = Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(pkg)
+        val found = try { packageManager.resolveActivity(intent, 0) } catch (_: Exception) { null }
+        return if (found != null) TroubleshootFix("Download languages", intent) else null
+    }
+    // The languages an engine speaks, from the voices the scan just read, as
+    // names ("Hindi, Gujarati") -- a language counts once however many voices
+    // it has.
+    private fun languagesOf(pkg: String): List<String> =
+        EngineFinder.lastScanVoices.asSequence()
+            .filter { it.pkg == pkg && !it.notFound }
+            .map { EngineFinder.iso3Of(it.locale) }
+            .filter { it != "zxx" }
+            .distinct()
+            .map { EngineFinder.languageName(it) }
+            .distinct()
+            .sortedWith(java.text.Collator.getInstance())
+            .toList()
+    // One line per engine saying where it stands with battery optimization, and
+    // the system list as the fix when it is on.
+    private fun addBatteryStatus(pkg: String, lines: MutableList<String>, fixes: MutableList<TroubleshootFix>) {
+        if (ignoresBatteryOptimization(pkg)) {
+            lines.add("Battery optimization: off. Android will not stop it to save battery.")
+        } else {
+            lines.add("Battery optimization: on. Android can stop it in the background, and speech in its languages can stop with it. Set it to Unrestricted.")
+            fixes.add(batteryFix())
+        }
     }
 
     private fun systemFindings(): List<TroubleshootFinding> {
@@ -284,7 +328,7 @@ class TroubleshootActivity : EvActivity() {
         if (restricted || !ignoresBatteryOptimization(packageName)) {
             val lines = ArrayList<String>()
             if (restricted) lines.add("Background use is restricted for Easy Voice, so Android can stop it while you use the phone.")
-            else lines.add("Battery optimization is on for Easy Voice. If speech stops by itself, set Easy Voice to Unrestricted.")
+            else lines.add("Battery optimization: on for Easy Voice. Android can stop it in the background, and speech stops with it. Set Easy Voice to Unrestricted.")
             out.add(TroubleshootFinding(TITLE_BATTERY, false, lines,
                 if (restricted) listOf(appInfo(packageName)) else listOf(batteryFix())))
         }
@@ -298,8 +342,8 @@ class TroubleshootActivity : EvActivity() {
 
     private fun readableProblem(problem: String): String = when {
         problem.startsWith("init status") -> "it refused to start"
-        problem.contains("listed 0 voices") -> "it has no voices installed"
-        problem.contains("connection lost") -> "it stopped answering while its voices were being read"
+        problem.contains("listed 0 voices") -> "it has no languages installed"
+        problem.contains("connection lost") -> "it stopped answering while its languages were being read"
         problem.startsWith("bound to") -> "Android connected to another engine instead of it"
         problem == "constructor threw" -> "Android could not start it"
         else -> problem
@@ -312,6 +356,17 @@ class TroubleshootActivity : EvActivity() {
         speechProblems: Map<String, String>
     ) {
         if (myGeneration != generation) return
+        lastInputs = ReportInputs(reports, repaired, speechProblems)
+        result = buildResult(reports, repaired, speechProblems)
+        working = false
+        releaseTestClients()
+    }
+
+    private fun buildResult(
+        reports: List<EngineFinder.EngineReport>,
+        repaired: List<String>,
+        speechProblems: Map<String, String>
+    ): TroubleshootResult {
         val configured = configuredEngines()
         val findings = ArrayList<TroubleshootFinding>(systemFindings())
         val engineFindings = ArrayList<TroubleshootFinding>()
@@ -321,43 +376,45 @@ class TroubleshootActivity : EvActivity() {
         for (report in reports) {
             reported.add(report.pkg)
             val label = EngineFinder.engineLabel(this, report.pkg)
-            val languages = configured[report.pkg].orEmpty()
+            val setUp = configured[report.pkg].orEmpty()
             val lines = ArrayList<String>()
             val fixes = ArrayList<TroubleshootFix>()
             val problem = if (report.problem.isNotEmpty()) readableProblem(report.problem) else speechProblems[report.pkg]
+            val installer = installDataFix(report.pkg)
             if (problem == null) {
                 workingCount++
-                lines.add("Working. " + report.voices + (if (report.voices == 1) " voice." else " voices."))
-                // Working, but a language set up on it has no voice data on the
-                // phone (the engine answered LANG_MISSING_DATA during the scan).
+                val spoken = languagesOf(report.pkg)
+                lines.add(when (spoken.size) {
+                    0 -> "Working."
+                    1 -> "Working. It speaks " + spoken[0] + "."
+                    else -> "Working. It speaks " + spoken.size + " languages: " + spoken.joinToString(", ") + "."
+                })
+                // A language set up on it whose data is not on the phone yet (the
+                // engine answered LANG_MISSING_DATA during the scan). Said only
+                // when the engine has a download screen to open.
                 val missing = EngineFinder.lastMissingData[report.pkg].orEmpty()
-                if (missing.isNotEmpty()) {
-                    lines.add("Voice data is not downloaded for: " + missing.joinToString(", ") { EngineFinder.languageName(it) } + ".")
-                    fixes.add(TroubleshootFix("Install voice data",
-                        Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(report.pkg)))
+                if (missing.isNotEmpty() && installer != null) {
+                    lines.add("Not downloaded yet: " + missing.joinToString(", ") { EngineFinder.languageName(it) } + ".")
+                    fixes.add(installer)
                 }
             } else {
                 broken++
                 lines.add("Not working: " + problem + ".")
-                if (report.voices == 0 && report.problem.isNotEmpty()) {
-                    lines.add("Install or download its voice data, then run this check again.")
-                    fixes.add(TroubleshootFix("Install voice data",
-                        Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(report.pkg)))
+                if (report.voices == 0 && report.problem.isNotEmpty() && installer != null) {
+                    lines.add("Download its languages, then run this check again.")
+                    fixes.add(installer)
                 } else {
                     lines.add("Open its app info and choose Force stop, then run this check again. If it still fails, update the engine.")
                 }
                 fixes.add(appInfo(report.pkg))
-                if (!ignoresBatteryOptimization(report.pkg)) {
-                    lines.add("Battery optimization is on for it, which can stop it in the background.")
-                    fixes.add(batteryFix())
-                }
             }
-            if (languages.isNotEmpty()) lines.add("Languages set up on it: " + languages.joinToString(", ") + ".")
+            addBatteryStatus(report.pkg, lines, fixes)
+            if (setUp.isNotEmpty()) lines.add("Languages set up on it in Easy Voice: " + setUp.joinToString(", ") + ".")
             engineFindings.add(TroubleshootFinding(label, problem == null, lines, fixes))
         }
         // Engines a language is set up on that the scan did not find at all:
         // uninstalled, turned off, or no longer a TTS engine.
-        for ((pkg, languages) in configured) {
+        for ((pkg, setUp) in configured) {
             if (pkg in reported) continue
             broken++
             val label = EngineFinder.engineLabel(this, pkg)
@@ -378,7 +435,8 @@ class TroubleshootActivity : EvActivity() {
                     fixes.add(appInfo(pkg))
                 }
             }
-            lines.add("Languages set up on it: " + languages.joinToString(", ") + ".")
+            if (appInfo != null) addBatteryStatus(pkg, lines, fixes)
+            lines.add("Languages set up on it in Easy Voice: " + setUp.joinToString(", ") + ".")
             engineFindings.add(TroubleshootFinding(label, false, lines, fixes))
         }
         findings.addAll(engineFindings.sortedBy { it.ok })
@@ -387,9 +445,7 @@ class TroubleshootActivity : EvActivity() {
         if (broken > 0) summary.append(", ").append(broken).append(if (broken == 1) " needs attention" else " need attention")
         summary.append(".")
         if (reports.isEmpty()) summary.append(" No voice engine answered. Install a voice engine, such as Speech Services by Google.")
-        result = TroubleshootResult(summary.toString(), repaired, findings)
-        working = false
-        releaseTestClients()
+        return TroubleshootResult(summary.toString(), repaired, findings)
     }
 
     companion object {
@@ -398,7 +454,6 @@ class TroubleshootActivity : EvActivity() {
         const val TTS_SETTINGS_ACTION = "com.android.settings.TTS_SETTINGS"
         const val TITLE_PREFERRED = "Preferred engine"
         const val TITLE_BATTERY = "Easy Voice in the background"
-        val SYSTEM_TITLES = setOf(TITLE_PREFERRED, TITLE_BATTERY)
     }
 }
 

@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
-import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.Orientation
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -32,7 +29,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -42,10 +38,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,7 +60,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 // How far a horizontal drag must travel before it counts as a tab swipe.
 //
 // RESTORED 2026-09-17 at the owner's request -- "ye swiping wala aapne hataya
@@ -81,10 +75,6 @@ import androidx.compose.ui.window.DialogProperties
 // past the ~8dp touch slop `draggable` has already absorbed before it reports
 // anything, so a wobble while scrolling vertically cannot reach it.
 private val SWIPE_THRESHOLD = 48.dp
-class RequiredEnginesItem(val name: String, val pkg: String, installed: Boolean) {
-    var installed by mutableStateOf(installed)
-    var installing by mutableStateOf(false)
-}
 class MainActivity : EvActivity() {
     // The Test button's own client. AutoTTS's NewSettingsActivity creates two of
     // these and shuts down NEITHER -- its whole onDestroy is
@@ -114,9 +104,6 @@ class MainActivity : EvActivity() {
     private var scanning by mutableStateOf(true)
     private var scanLine by mutableStateOf("Checking your TTS engines")
     private var modeRefresh by mutableStateOf(0)
-    private val dialogItems = mutableStateListOf<RequiredEnginesItem>()
-    private var dialogVisible by mutableStateOf(false)
-    private var pendingImportXml: String = ""
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             EasyVoiceLogger.debug("TTS", "Notification permission granted")
@@ -124,73 +111,10 @@ class MainActivity : EvActivity() {
             EasyVoiceLogger.debug("TTS", "Notification permission denied")
         }
     }
-    private val importSettingsLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> handleImportedSettingsFile(uri) }
-    private fun restartAfterImport() {
-        try {
-            val intent = packageManager.getLaunchIntentForPackage(packageName)
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                startActivity(intent)
-                android.os.Process.killProcess(android.os.Process.myPid())
-                System.exit(0)
-            }
-        } catch (_: Exception) {}
-    }
-    private var pendingInstallItem: RequiredEnginesItem? = null
     private fun isRequiredLanguage(prefs: SharedPrefsManager, iso3: String): Boolean =
         LangStore.requiredLangs(modeIntOf(prefs.getReadingMode()),
             EasyVoiceTtsService.autoLang, EasyVoiceTtsService.dualLang,
             EasyVoiceTtsService.mixLatinLang, EasyVoiceTtsService.mixNonLatinLang).contains(iso3)
-    private fun isPackageInstalled(pkg: String): Boolean = try { packageManager.getPackageInfo(pkg, 0); true } catch (_: Exception) { false }
-    private fun isPackageInstalledWithActivities(pkg: String): Boolean = try { packageManager.getPackageInfo(pkg, android.content.pm.PackageManager.GET_ACTIVITIES); true } catch (_: Exception) { false }
-    private fun openPlayStoreFor(pkg: String) {
-        try {
-            val marketIntent = Intent(Intent.ACTION_VIEW, "market://details?id=$pkg".toUri())
-            marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(marketIntent)
-        } catch (_: android.content.ActivityNotFoundException) {
-            try {
-                val webIntent = Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=$pkg".toUri())
-                webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(webIntent)
-            } catch (_: android.content.ActivityNotFoundException) {
-                Toast.makeText(this, "Cannot open Play Store", Toast.LENGTH_SHORT).show()
-                pendingInstallItem?.installing = false
-                pendingInstallItem = null
-            }
-        }
-    }
-    private fun checkPendingInstall() {
-        val item = pendingInstallItem
-        if (item != null) {
-            val installed = isPackageInstalledWithActivities(item.pkg)
-            item.installed = installed
-            item.installing = false
-            if (!installed) Toast.makeText(this, "Package not installed. Please try again.", Toast.LENGTH_SHORT).show()
-            pendingInstallItem = null
-        }
-    }
-    private fun handleImportedSettingsFile(uri: android.net.Uri?) {
-        if (uri == null) return
-        val prefsManager = SharedPrefsManager(this)
-        try {
-            println("importSettings")
-            val xml = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
-            val pkgs = prefsManager.getReferencedEnginePackagesFromXml(xml)
-            if (pkgs.isEmpty()) {
-                Toast.makeText(this, "Could not read that settings file.", Toast.LENGTH_LONG).show()
-                return
-            }
-            dialogItems.clear()
-            for (pkg in pkgs) {
-                val engineLabel = EngineFinder.engineLabel(this, pkg)
-                println("- " + pkg + " : " + engineLabel)
-                dialogItems.add(RequiredEnginesItem(engineLabel, pkg, isPackageInstalled(pkg)))
-            }
-            pendingImportXml = xml
-            dialogVisible = true
-        } catch (_: Exception) { Toast.makeText(this, "Could not read that settings file.", Toast.LENGTH_LONG).show() }
-    }
     override fun onCreate(savedInstanceState: Bundle?) {
         // Swaps the splash theme for AppTheme.NoActionBar. It has to run before
         // super.onCreate, which is where the window theme is read. There is no
@@ -270,31 +194,17 @@ class MainActivity : EvActivity() {
                         }
                     },
                     requestNotificationPermission = {
-                        // ContextCompat.checkSelfPermission is the library form
-                        // of the same check. The SDK_INT guard stays beside it
-                        // and is doing a different job: POST_NOTIFICATIONS only
-                        // EXISTS from 33, and below that the permission is not a
-                        // runtime one, so there is nothing to ask for.
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        // NotificationManagerCompat answers the question for
+                        // every Android version with one call: from 33 it is
+                        // false until POST_NOTIFICATIONS is granted, and below
+                        // 33 there is no permission to ask for, so it is true
+                        // unless the user blocked notifications themselves --
+                        // no version branch needed.
+                        if (!androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) {
                             try { notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) {}
                         }
                     }
                 )
-                if (dialogVisible) {
-                    RequiredEnginesDialog(
-                        items = dialogItems,
-                        onInstall = { item ->
-                            item.installing = true
-                            pendingInstallItem = item
-                            openPlayStoreFor(item.pkg)
-                        },
-                        onApply = {
-                            dialogVisible = false
-                            try { prefs.importSettingsXml(pendingImportXml); restartAfterImport() } catch (ex: Exception) { ex.printStackTrace() }
-                        },
-                        onCancel = { dialogVisible = false }
-                    )
-                }
             }
         }
         EngineFinder.scanLanguages(this, { line -> runOnUiThread { scanLine = line } }) { newTestClient(); runOnUiThread {
@@ -308,7 +218,6 @@ class MainActivity : EvActivity() {
     override fun onResume() {
         super.onResume()
         modeRefresh++
-        if (pendingInstallItem != null) checkPendingInstall()
     }
     override fun onDestroy() {
         EngineFinder.cancelGlobalTimeout()
@@ -317,76 +226,6 @@ class MainActivity : EvActivity() {
         testTts = null
         super.onDestroy()
     }
-}
-@Composable
-fun RequiredEnginesDialog(
-    items: List<RequiredEnginesItem>,
-    onInstall: (RequiredEnginesItem) -> Unit,
-    onApply: () -> Unit,
-    onCancel: () -> Unit
-) {
-    var allInstalled = true
-    for (item in items) if (!item.installed) allInstalled = false
-    AlertDialog(
-        onDismissRequest = { },
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
-        // A dialog is a screen too. Material3 does not mark its title slot as a
-        // heading, so it was the one screen-sized surface with nothing to jump to.
-        title = { Text("Required TTS engines", modifier = Modifier.semantics { heading() }) },
-        text = {
-            // Material3's AlertDialog does not scroll its text slot -- it only
-            // gives it Modifier.weight(weight = 1f, fill = false) -- so with
-            // several missing engines at a large font scale this list was
-            // clipped with no way to reach the rest. No nested-scroll conflict,
-            // precisely because M3 adds none of its own.
-            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                for (item in items) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = item.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = if (item.installed) "Installed" else "Not installed",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (item.installed) LocalContentColor.current
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
-                        )
-                        if (!item.installed) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            val installLabel = if (item.installing) "Installing..." else "Install"
-                            // The visible label is "Install"; the accessible
-                            // name adds the engine, because a column of
-                            // identically named buttons is what
-                            // DuplicateSpeakableTextCheck flags. WCAG 2.5.3 is
-                            // satisfied because the name still CONTAINS the
-                            // visible label.
-                            EvButton(
-                                label = installLabel + " " + item.name,
-                                iconRes = R.drawable.ic_get_app,
-                                enabled = !item.installing
-                            ) { onInstall(item) }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            EvButton("Apply", iconRes = R.drawable.ic_check, enabled = allInstalled, onClick = onApply)
-        },
-        // Outlined, not filled: Apply is the action this dialog is FOR, and the
-        // Material emphasis ladder puts the filled style above the outlined one.
-        // It used to be a TextButton, which is a step lower again and carried an
-        // icon anyway; outlined keeps the icon looking deliberate.
-        dismissButton = {
-            EvButton("Cancel", iconRes = R.drawable.ic_close, outlined = true, onClick = onCancel)
-        }
-    )
 }
 // Scaffold is Material's screen skeleton: it places the app bar and the bottom
 // bar and hands the content the padding they occupy. TopAppBar replaces the

@@ -26,9 +26,7 @@ object VoiceRows {
             // setup screen's composition, so they are a crash on a screen the
             // owner opens once per language.
             //
-            // The way a wrong type gets in is Import: importSettingsXml writes
-            // whatever TYPE the XML tag says, so one bad entry in a settings file
-            // the user picked is enough. 1000 is what a MISSING key already
+            // 1000 is what a MISSING key already
             // answers -- "unranked" -- so a corrupt entry now sorts last instead
             // of taking the screen down, and valid data behaves exactly as before.
             val storedWeight = try {

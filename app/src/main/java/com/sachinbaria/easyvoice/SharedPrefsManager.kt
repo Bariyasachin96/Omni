@@ -4,7 +4,6 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 class SharedPrefsManager(context: Context) {
     private val prefs: SharedPreferences = LangStore.prefs(context)
-    private val appCtx: Context = context.applicationContext
     fun toIso3(lang: String): String {
         val iso3 = if (lang.length != 2) lang else try { localeOf(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
         return when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
@@ -72,77 +71,4 @@ class SharedPrefsManager(context: Context) {
     fun isLoggingEnabled(): Boolean = prefs.getBoolean("logging_enabled", false)
 
     fun setLoggingEnabled(value: Boolean) = prefs.edit { putBoolean("logging_enabled", value) }
-    fun settingsXmlFile(): java.io.File = java.io.File(appCtx.applicationInfo.dataDir, "shared_prefs/easy_voice_settings.xml")
-    fun exportSettingsFile(): java.io.File {
-        val src = settingsXmlFile()
-        val dir = java.io.File(appCtx.cacheDir, "shared"); dir.mkdirs()
-        val file = java.io.File(dir, "easy_voice_settings.xml")
-        src.inputStream().use { input -> file.outputStream().use { out -> input.copyTo(out, 1024) } }
-        return file
-    }
-    fun importSettingsXml(xml: String): Boolean {
-        try {
-            val editor = prefs.edit()
-            editor.clear()
-            val parser = org.xmlpull.v1.XmlPullParserFactory.newInstance().newPullParser()
-            parser.setInput(java.io.StringReader(xml))
-            var event = parser.eventType
-            while (event != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
-                if (event == org.xmlpull.v1.XmlPullParser.START_TAG) {
-                    val tag = parser.name
-                    val name = parser.getAttributeValue(null, "name")
-                    if (name != null) {
-                        when (tag) {
-                            "float" -> editor.putFloat(name, parser.getAttributeValue(null, "value").toFloat())
-                            "boolean" -> editor.putBoolean(name, "true" == parser.getAttributeValue(null, "value"))
-                            "long" -> editor.putLong(name, parser.getAttributeValue(null, "value").toLong())
-                            "int" -> editor.putInt(name, parser.getAttributeValue(null, "value").toInt())
-                            "string" -> editor.putString(name, parser.nextText())
-                        }
-                    }
-                }
-                event = parser.next()
-            }
-            editor.commit()
-            return true
-        } catch (ex: Throwable) {
-            ex.printStackTrace()
-            return false
-        }
-    }
-    fun getReferencedEnginePackagesFromXml(xml: String): Set<String> {
-        println("getActiveEnginePackages")
-        val disabled = HashSet<String>()
-        val engines = HashMap<String, String>()
-        try {
-            val parser = org.xmlpull.v1.XmlPullParserFactory.newInstance().newPullParser()
-            parser.setInput(java.io.StringReader(xml))
-            var event = parser.eventType
-            while (event != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
-                if (event == org.xmlpull.v1.XmlPullParser.START_TAG) {
-                    val tag = parser.name
-                    val name = parser.getAttributeValue(null, "name")
-                    if (name != null) {
-                        if (tag == "boolean" && name.endsWith("_disabled")) {
-                            if ("true" == parser.getAttributeValue(null, "value")) disabled.add(name.substring(0, name.length - 9))
-                        } else if (tag == "string" && name.length == 3 && name.all { it.isLetter() }) {
-                            val value = parser.nextText()
-                            if (value != null && value.contains("#")) engines[name] = value
-                        }
-                    }
-                }
-                event = parser.next()
-            }
-        } catch (ex: Exception) { ex.printStackTrace() }
-        val out = HashSet<String>()
-        for ((lang, value) in engines) {
-            println("- " + lang + " " + value)
-            if (lang in disabled) continue
-            val enginePkg = value.split("#")[0]
-            if (enginePkg.isEmpty() || enginePkg.equals("disable", ignoreCase = true)) continue
-            println(" -> " + enginePkg)
-            out.add(enginePkg)
-        }
-        return out
-    }
 }

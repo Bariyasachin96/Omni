@@ -398,18 +398,8 @@ fun AdvancedScreen(
             }
             SettingDescription("Opens the system battery screen, where you can set Easy Voice and each of your TTS engines to Unrestricted.")
             OptionGap()
-            // IMPORT AND EXPORT ARE GONE FROM THIS SCREEN (owner, 2026-09-17:
-            // "completely remove the Import/Export settings along with their
-            // descriptions"). The two buttons, the paragraph under them and the
-            // `launchImportPicker` parameter that fed them all went together.
-            //
-            // What is still in the tree and is now UNREACHABLE: the picker
-            // launcher and handleImportedSettingsFile in MainActivity, the
-            // RequiredEnginesDialog they raise, and SharedPrefsManager's
-            // exportSettingsFile / importSettingsXml / settingsXmlFile. Those
-            // are left alone deliberately -- the storage half is AutoTTS-
-            // mirrored code that rule 5 governs, and the dialog is covered by
-            // its own accessibility test. Say the word and they go too.
+            // Import and Export are gone (owner, 2026-09-17), and on 2026-09-24
+            // the unreachable code behind them went too.
             SettingOption(
                 "Enable logging",
                 "Writes a log file that you can send along when you report a problem.",
@@ -433,7 +423,7 @@ fun AdvancedScreen(
                             Toast.makeText(context, "No log file to share", Toast.LENGTH_SHORT).show()
                         } else {
                             val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", logFile)
-                            // Same library builder as Export above.
+                            // ShareCompat.IntentBuilder sets the ClipData and the URI grant.
                             // createChooserIntent() rather than startChooser(),
                             // only so the FLAG_ACTIVITY_NEW_TASK this path has
                             // always carried survives -- startChooser() would
