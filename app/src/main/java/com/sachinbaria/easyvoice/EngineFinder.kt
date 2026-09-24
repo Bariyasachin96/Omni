@@ -222,7 +222,7 @@ object EngineFinder {
     @Volatile @JvmStatic var lastScanVoices: List<ScanVoice> = emptyList()
     @Volatile @JvmStatic var lastScanEngines: List<String> = emptyList()
     @JvmStatic val voiceWeights: HashMap<String, Int> = HashMap()
-    private val globalTimeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val globalTimeoutHandler = androidx.core.os.HandlerCompat.createAsync(android.os.Looper.getMainLooper())
     // MainActivity.onDestroy calls this. It clears the handler wholesale, which
     // on a rotation is harmless -- onDestroy runs BEFORE the next onCreate, so
     // there is no newer scan to hit -- and in the rare order where a live scan
@@ -328,7 +328,7 @@ object EngineFinder {
         // LANG_MISSING_DATA for, or "" when it listed no voices at all.
         val missingData = LinkedHashMap<String, ArrayList<String>>()
         val problems = HashMap<Int, String>()
-        val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        val mainHandler = androidx.core.os.HandlerCompat.createAsync(android.os.Looper.getMainLooper())
         var index = 0
         fun finalizeScan() {
             // A superseded scan writes NOTHING. Without this the older scan
@@ -628,7 +628,7 @@ object EngineFinder {
             // (`handled`, `failed`, the walk, the next constructor, the progress
             // line), so it is handed to the main looper -- inline when already there.
             val listener = TextToSpeech.OnInitListener { status ->
-                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) onInitMain(status)
+                if (android.os.Looper.getMainLooper().isCurrentThread) onInitMain(status)
                 else mainHandler.post { onInitMain(status) }
             }
 
@@ -714,7 +714,7 @@ object EngineFinder {
                 }
             }
             probe[0] = TextToSpeech(ctx, { status ->
-                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) onProbeInit(status)
+                if (android.os.Looper.getMainLooper().isCurrentThread) onProbeInit(status)
                 else mainHandler.post { onProbeInit(status) }
             }, BuildConfig.APPLICATION_ID)
         } catch (ex: Exception) {

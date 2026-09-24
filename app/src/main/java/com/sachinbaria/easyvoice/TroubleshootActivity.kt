@@ -239,7 +239,7 @@ class TroubleshootActivity : EvActivity() {
         }
         try {
             cell[0] = TextToSpeech(applicationContext, { status ->
-                if (Looper.myLooper() == Looper.getMainLooper()) onInitMain(status) else handler.post { onInitMain(status) }
+                if (Looper.getMainLooper().isCurrentThread) onInitMain(status) else handler.post { onInitMain(status) }
             }, pkg)
             cell[0]?.let { testClients.add(it) }
             handler.postDelayed(timeout, 20000L)
@@ -312,6 +312,10 @@ class TroubleshootActivity : EvActivity() {
         } else {
             lines.add("Battery optimization: on. Android can stop it in the background, and speech in its languages can stop with it. Set it to Unrestricted.")
             fixes.add(batteryFix())
+            // From Android 12 the per-app choice (Unrestricted / Optimized /
+            // Restricted) lives on the app's own info page, under Battery; the
+            // list above is kept because older phones and some OEMs only have that.
+            if (fixes.none { it.label == "App info" }) fixes.add(appInfo(pkg))
         }
     }
 

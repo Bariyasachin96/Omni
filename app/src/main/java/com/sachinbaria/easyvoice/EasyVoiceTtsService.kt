@@ -1461,7 +1461,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // main-thread state, so they are moved onto it. On the main thread already,
     // nothing changes: the body runs inline exactly as before.
     private fun onMainThread(block: () -> Unit) {
-        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) block() else mainHandler.post { block() }
+        if (android.os.Looper.getMainLooper().isCurrentThread) block() else mainHandler.post { block() }
     }
     // EACH INIT OWNS ITS CLIENT, and the shared field it replaces was a real
     // cross-engine bug (2026-09-09). `initializingTts` was ONE field written by

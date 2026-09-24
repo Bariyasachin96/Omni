@@ -35,6 +35,12 @@ nahin ... kaun-kaun se TTS ka battery optimization on hai ya off."*
   .setPackage(pkg))` finds one; every engine gets "Battery optimization: on/off"
   (`PowerManager.isIgnoringBatteryOptimizations(pkg)`) with the battery list as the fix; onResume
   rebuilds the whole report from the stored scan inputs so those lines update after a fix.
+- **Second pass, same day:** every `Looper.myLooper() == Looper.getMainLooper()` is the framework's
+  `Looper.getMainLooper().isCurrentThread` (API 23); EngineFinder's two main-looper Handlers are
+  `HandlerCompat.createAsync` like the service's; an engine with battery optimization on gets its
+  App info (Android 12+ keeps Unrestricted there) beside the battery list. Checked and kept: the
+  TTS_DEFAULT_SYNTH read (Settings.Secure is the system's own source), the GET_SAMPLE_TEXT extras
+  (no public constant), the troubleshoot worker Thread (stopExec must not be delayed behind it).
 
 ## NO PACKAGE NAME IS HARD-CODED; MISSING VOICE DATA OPENS THE ENGINE'S INSTALLER (owner, 2026-09-24, latest)
 *"kisi bhi TTS ka package name likhane ki jarurat nahin ... package name change hote rahte hain ...
