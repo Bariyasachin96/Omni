@@ -52,6 +52,7 @@
         <activity android:exported="false" android:label="Languages" android:name=".LanguagesActivity" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:exported="false" android:label="Mode settings" android:name=".ModeSettingsActivity" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:exported="false" android:label="Voice setup" android:name=".VoiceSetupActivity" android:theme="@style/AppTheme.NoActionBar" />
+        <activity android:exported="false" android:label="Troubleshoot voice engines" android:name=".TroubleshootActivity" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:exported="true" android:name=".MainActivity" android:theme="@style/Theme.EasyVoice.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -315,6 +315,34 @@ class AccessibilityChecksTest {
         check { AboutScreen() }
     }
 
+    // Both states of the troubleshooter: the polite progress line while it
+    // runs, and a report with a working engine, a broken one with its fix
+    // buttons, and the automatic-repairs section.
+    @Test
+    fun troubleshootRunning() {
+        check { TroubleshootScreen(working = true, progress = "Reading Speech Services by Google", result = null, onRunAgain = { }, onFix = { }) }
+    }
+
+    @Test
+    fun troubleshootReport() {
+        val fix = TroubleshootFix("App info", android.content.Intent())
+        check {
+            TroubleshootScreen(
+                working = false,
+                progress = "",
+                result = TroubleshootResult(
+                    "Check finished. 1 engine is working, 1 needs attention.",
+                    listOf("Hindi moved from Old engine to Speech Services by Google"),
+                    listOf(
+                        TroubleshootFinding("Speech Services by Google", true, listOf("Working. 81 voices.")),
+                        TroubleshootFinding("Eloquence", false, listOf("Not working: it has no voices installed."), listOf(fix))
+                    )
+                ),
+                onRunAgain = { }, onFix = { }
+            )
+        }
+    }
+
     @Test
     fun configurationTab() {
         check {

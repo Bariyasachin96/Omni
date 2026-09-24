@@ -109,7 +109,7 @@ class MainActivity : EvActivity() {
         // The scan can finish more than once in one Activity, and each finish
         // used to drop the previous client on the floor.
         try { testTts?.shutdown() } catch (_: Exception) { }
-        testTts = android.speech.tts.TextToSpeech(this, null, "com.sachinbaria.easyvoice")
+        testTts = android.speech.tts.TextToSpeech(this, null, BuildConfig.APPLICATION_ID)
     }
     private var scanning by mutableStateOf(true)
     private var scanLine by mutableStateOf("Checking your TTS engines")
@@ -616,7 +616,7 @@ fun MainScreen(
                             val openTtsSettings = {
                                 menuOpen = false
                                 try {
-                                    context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                    context.startActivity(Intent(TroubleshootActivity.TTS_SETTINGS_ACTION).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                                 } catch (_: android.content.ActivityNotFoundException) {
                                     Toast.makeText(context, "TTS settings are not available on this device.", Toast.LENGTH_SHORT).show()
                                 }
@@ -625,10 +625,21 @@ fun MainScreen(
                                 menuOpen = false
                                 context.startActivity(Intent(context, AboutActivity::class.java))
                             }
+                            // Its own screen, for the reason every screen here is one:
+                            // the window title announces it, and back leaves it.
+                            val openTroubleshoot = {
+                                menuOpen = false
+                                context.startActivity(Intent(context, TroubleshootActivity::class.java))
+                            }
                             DropdownMenuItem(
                                 text = { Text("TTS Settings") },
                                 onClick = openTtsSettings,
                                 modifier = Modifier.evControl("TTS Settings", action = openTtsSettings)
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Troubleshoot voice engines") },
+                                onClick = openTroubleshoot,
+                                modifier = Modifier.evControl("Troubleshoot voice engines", action = openTroubleshoot)
                             )
                             DropdownMenuItem(
                                 text = { Text("About Easy Voice") },

@@ -217,7 +217,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
         LangStore.replaceAll(LangStore.rebuildFromScan(context, false, modeInt, required, EngineFinder.lastScanVoices))
         // s0(), as c3/k.java:1299 does after rebuilding for this same screen.
         EasyVoiceTtsService.pushLanguageSets()
-        val pkgFilter = if (readingMode == "google") "com.google.android.tts" else null
+        val pkgFilter = if (readingMode == "google") LangStore.GOOGLE_TTS else null
         val loadedLabels = LangStore.languageLabelsFor(pkgFilter)
         val loadedCodes = LangStore.languageCodesFor(pkgFilter)
         val loadedChecked = LangStore.checkedStatesFor(pkgFilter, modeInt, EasyVoiceTtsService.autoLang,

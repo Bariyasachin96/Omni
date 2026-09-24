@@ -160,7 +160,7 @@ private const val SMART_NUMBER_DESCRIPTION =
     "pairs or threes, which is easier to follow for a long number."
 
 @Composable
-private fun OptionGap() {
+fun OptionGap() {
     Spacer(modifier = Modifier.height(12.dp))
 }
 

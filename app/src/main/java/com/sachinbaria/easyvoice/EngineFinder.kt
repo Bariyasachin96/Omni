@@ -5,6 +5,9 @@ import android.speech.tts.TextToSpeech
 import java.util.Locale
 object EngineFinder {
     data class EngineInfo(val pkg: String, val name: String) { override fun toString() = name }
+    // What one scan learned about one engine, for the Troubleshoot screen.
+    // `problem` is empty when the engine answered with voices.
+    data class EngineReport(val pkg: String, val label: String, val voices: Int, val problem: String)
     private val engineNames = mapOf(
         "com.google.android.tts" to "Google Text-to-Speech", "com.google.android.tts.speechpack.eng" to "Google TTS - English",
         "com.samsung.SMT" to "Samsung Text-to-Speech", "com.samsung.android.ttssmt" to "Samsung TTS", "com.samsung.smt" to "Samsung TTS Engine",
@@ -213,8 +216,12 @@ object EngineFinder {
         }
         return false
     }
-    private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>) {
-        if (!EasyVoiceTtsService.engineFallbackFlag) return
+    // `always` is the Troubleshoot screen: the user asked for broken setups to be
+    // repaired, so an engine that is gone moves its languages whether or not
+    // Backup TTS is on. Returns one line per language moved.
+    private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>, always: Boolean = false): List<String> {
+        val moved = ArrayList<String>()
+        if (!always && !EasyVoiceTtsService.engineFallbackFlag) return moved
         try {
             val prefs = LangStore.prefs(ctx)
             val editor = prefs.edit()
@@ -231,6 +238,7 @@ object EngineFinder {
                 editor.putString(key, replacement.pkg + "#" + replacement.locale.toString())
                 editor.putString(key + "_variant", "*Default")
                 changed = true
+                moved.add(languageName(key) + " moved from " + engineLabel(ctx, parts[0]) + " to " + engineLabel(ctx, replacement.pkg))
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, parts[0] + " is not installed any more -- " + key +
                     " is now set up on " + replacement.pkg + " " + replacement.locale)
             }
@@ -238,8 +246,17 @@ object EngineFinder {
         } catch (ex: Exception) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "repointUninstalled: " + ex.toString())
         }
+        return moved
     }
-    fun scanLanguages(ctx: Context, onProgress: ((String) -> Unit)? = null, onResult: (Set<String>) -> Unit) {
+    @JvmStatic fun languageName(iso3: String): String =
+        try { localeOf(iso3).displayLanguage.ifEmpty { iso3 } } catch (_: Exception) { iso3 }
+    fun scanLanguages(
+        ctx: Context,
+        onProgress: ((String) -> Unit)? = null,
+        repair: Boolean = false,
+        onReport: ((List<EngineReport>, List<String>) -> Unit)? = null,
+        onResult: (Set<String>) -> Unit
+    ) {
         val engines = ArrayList<EngineInfo>()
         val seen = HashMap<String, EngineInfo>()
         val myGeneration = ++scanGeneration
@@ -253,6 +270,9 @@ object EngineFinder {
         val failed = HashSet<Int>()
         val retried = HashSet<Int>()
         val succeeded = HashSet<Int>()
+        // Per engine index, for onReport: voices read, and why it was not read.
+        val voiceCounts = HashMap<Int, Int>()
+        val problems = HashMap<Int, String>()
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
         var index = 0
         fun finalizeScan() {
@@ -339,7 +359,7 @@ object EngineFinder {
             // (above), because moving languages off an engine that merely hiccuped
             // is how Google's configuration used to vanish. The service does the
             // same at speaking time for an engine that dies while it runs.
-            repointUninstalled(ctx, lastScanVoices)
+            val moved = repointUninstalled(ctx, lastScanVoices, repair)
             val modeInt = EasyVoiceTtsService.modeInt
             val required = LangStore.requiredLangs(modeInt,
                 EasyVoiceTtsService.autoLang,
@@ -353,6 +373,19 @@ object EngineFinder {
             // detector keeps hinting at whatever the list held before the scan,
             // which on a first run is nothing at all.
             EasyVoiceTtsService.pushLanguageSets()
+            if (onReport != null) {
+                val reports = ArrayList<EngineReport>()
+                val reported = HashSet<String>()
+                for (engineIdx in engines.indices) {
+                    val info = engines[engineIdx]
+                    if (isSelfEngine(info.pkg) || !reported.add(info.pkg)) continue
+                    val count = voiceCounts[engineIdx] ?: 0
+                    val problem = if (succeeded.contains(engineIdx)) ""
+                                  else problems[engineIdx] ?: "it was not reached before the scan ended"
+                    reports.add(EngineReport(info.pkg, info.name, count, problem))
+                }
+                onReport(reports, moved)
+            }
             onResult(orderedLangs)
         }
         val globalTimeout = Runnable { finalizeScan() }
@@ -436,6 +469,7 @@ object EngineFinder {
                 handled = true
                 release()
                 failed.add(myIndex)
+                problems[myIndex] = "it did not answer within 30 seconds"
                 scanNextEngine()
             }
             mainHandler.postDelayed(timeout, 30000L)
@@ -455,6 +489,7 @@ object EngineFinder {
             fun retryOrFail(why: String): Boolean {
                 if (!retried.add(myIndex)) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed again (" + why + ")")
+                    problems[myIndex] = why
                     failed.add(myIndex); return false
                 }
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed (" + why + "), retrying once")
@@ -502,6 +537,7 @@ object EngineFinder {
                             }
                         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
                         if (added == 0 && retryOrFail(noVoicesWhy)) return
+                        voiceCounts[myIndex] = added
                         if (added == 0) failed.add(myIndex) else { succeeded.add(myIndex); EasyVoiceTtsService.engineAnswered(expectedPkg) }
                     } else {
                         if (retryOrFail("bound to " + actualEngine)) return
@@ -604,7 +640,7 @@ object EngineFinder {
             probe[0] = TextToSpeech(ctx, { status ->
                 if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) onProbeInit(status)
                 else mainHandler.post { onProbeInit(status) }
-            }, "com.sachinbaria.easyvoice")
+            }, BuildConfig.APPLICATION_ID)
         } catch (ex: Exception) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize probe\n" + ex.message)
             probeFailed()

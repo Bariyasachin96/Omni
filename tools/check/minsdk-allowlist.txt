@@ -15,3 +15,4 @@ EasyVoiceTtsService.kt:AudioFocusRequest             # API 26, requestAudioFocus
                                                      # never touched on the pre-26 path
 EasyVoiceTtsService.kt:abandonAudioFocusRequest      # API 26, abandonAudioFocus26()
 Locales.kt:of                                        # API 36, Locale.of, only at SDK_INT >= 36
+TroubleshootActivity.kt:isBackgroundRestricted  # API 28, only at SDK_INT >= 28 in systemFindings()

@@ -30,7 +30,7 @@ class VoiceSetupActivity : EvActivity() {
         // whenever anything is already loaded -- see LangStore.ensureLoaded.
         LangStore.ensureLoaded(this)
         val prefs = SharedPrefsManager(this)
-        testTts = android.speech.tts.TextToSpeech(this, null, "com.sachinbaria.easyvoice")
+        testTts = android.speech.tts.TextToSpeech(this, null, BuildConfig.APPLICATION_ID)
         sampleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val key = pendingSampleKey; pendingSampleKey = null
             val retry = pendingSampleRetry; pendingSampleRetry = null

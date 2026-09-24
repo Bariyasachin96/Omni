@@ -23,6 +23,9 @@ object LangStore {
     // name whichever Context asks (ContextImpl caches it per package and file),
     // so routing every site through here changes no read and no write.
     const val PREFS_FILE = "easy_voice_settings"
+    // Google's TTS engine, which Google mode is built on. One name for the
+    // fourteen places that used to spell it out.
+    const val GOOGLE_TTS = "com.google.android.tts"
     @JvmStatic
     fun prefs(ctx: Context): SharedPreferences =
         ctx.applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
@@ -193,7 +196,7 @@ object LangStore {
             val name = scanVoice.locale.getDisplayLanguage()
             val iso3 = EngineFinder.iso3Of(scanVoice.locale)
             val pkg = scanVoice.pkg
-            if (modeInt == 3 && !pkg.equals("com.google.android.tts", true)) continue
+            if (modeInt == 3 && !pkg.equals(GOOGLE_TTS, true)) continue
             if (!seenNames.contains(name)) {
                 seenNames.add(name)
                 val entry = LangEntry(name, iso3, 100, 100, 100, "", "", "*Default")
@@ -352,7 +355,7 @@ object LangStore {
         val sharedPrefs = prefs(ctx)
         var index = sharedPrefs.getInt("auto_mode", 3)
         if (index == 3) {
-            val googleInstalled = try { ctx.packageManager.getPackageInfo("com.google.android.tts", 0); true } catch (_: Exception) { false }
+            val googleInstalled = try { ctx.packageManager.getPackageInfo(GOOGLE_TTS, 0); true } catch (_: Exception) { false }
             if (!googleInstalled) index = 0
         }
         EasyVoiceTtsService.modeInt = index
@@ -451,7 +454,7 @@ object LangStore {
             prefs(ctx).edit(commit = true) {
                 var index = 0
                 for (pkg in EngineFinder.lastScanEngines) {
-                    if (pkg == "com.sachinbaria.easyvoice") continue
+                    if (pkg == BuildConfig.APPLICATION_ID) continue
                     putString("engine_$index", pkg)
                     newEngineList.add(pkg)
                     index++
@@ -565,7 +568,7 @@ object LangStore {
     @JvmStatic
     fun engineFor(lang: String, modeInt: Int): String {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "getEngine4Language " + lang)
-        if (modeInt == 3) return "com.google.android.tts"
+        if (modeInt == 3) return GOOGLE_TTS
         synchronized(languages) {
             var index = 0
             while (index < languages.size) {

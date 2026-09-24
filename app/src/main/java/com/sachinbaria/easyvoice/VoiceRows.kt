@@ -38,7 +38,7 @@ object VoiceRows {
             return storedWeight
         }
         val allVoices = EngineFinder.lastScanVoices.filter { EngineFinder.iso3Of(it.locale) == selectedIso }
-        val filtered = if (readingMode == "google") allVoices.filter { it.pkg.equals("com.google.android.tts", true) } else allVoices
+        val filtered = if (readingMode == "google") allVoices.filter { it.pkg.equals(LangStore.GOOGLE_TTS, true) } else allVoices
         val rows = ArrayList<EngineFinder.ScanVoice?>(filtered)
         val autoModeC = EasyVoiceTtsService.autoLang
         val mixLatinIso3 = EasyVoiceTtsService.mixLatinLang
@@ -88,7 +88,7 @@ object VoiceRows {
             if (at > 0) out.add(0, out.removeAt(at))
             return out
         }
-        if (readingMode == "google" && !parts[0].equals("com.google.android.tts", true)) return rows
+        if (readingMode == "google" && !parts[0].equals(LangStore.GOOGLE_TTS, true)) return rows
         val at = out.indexOfFirst { it != null && it.pkg == parts[0] && it.locale.toString() == parts[1] }
         if (at == 0) return rows
         if (at > 0) { out.add(0, out.removeAt(at)); return out }

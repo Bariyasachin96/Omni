@@ -8,6 +8,34 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## TROUBLESHOOT VOICE ENGINES, IN MORE OPTIONS (owner, 2026-09-24, latest)
+*"troubleshoot voice engine naam ka ek option ... jo bhi TTS work nahin karte honge ... scan karke
+sab kuchh sahi ho jaega aur automatically kaam karne lag jaega."* `TroubleshootActivity`
+(label "Troubleshoot voice engines"), opened from the overflow menu below TTS Settings.
+- **Automatic repair:** (1) `EngineFinder.scanLanguages(repair = true, onReport = ...)` -- fresh
+  client per engine, voices read, `engineAnswered` hands restores back; languages on an
+  UNINSTALLED engine move even with Backup TTS off (`repointUninstalled(always)`), lists saved.
+  (2) `EasyVoiceTtsService.troubleshootEngines()`: adds engines the pool never had, clears
+  `restoreSpent`, rebinds missing/dead keep-alives, restores every -1, and asks each state-2
+  client OFF the main thread (getVoices null / boundEngineOf mismatch) -- only a dead one is
+  replaced, a live engine is never torn down. (3) every answering engine gets a SILENT
+  `synthesizeToFile` test sentence; no onDone/onError in 20 s = "accepts text, never finishes"
+  (the one failure the speaking path cannot see), and `engineUnresponsive` replaces our client.
+  The 20 s is a diagnostic screen's clock, never the speaking path's.
+- **Reported with the system's own screen:** not preferred engine (Settings.Secure.TTS_DEFAULT_SYNTH)
+  -> TTS settings; Easy Voice background-restricted (API 28, allowlisted) / battery optimised ->
+  app info / battery list; engine with no voices -> its ACTION_INSTALL_TTS_DATA; broken engine ->
+  app info (+ battery note); configured engine not installed -> Play Store (web fallback);
+  turned off -> app info. Each engine lists the languages set up on it. Run again; onResume
+  re-reads the system findings. Two AccessibilityChecksTest cases cover both states.
+- **Deliberately NOT automatic:** moving languages off an engine that is INSTALLED but failing.
+  That is how Google's configuration used to vanish on a cold start; it stays the user's choice.
+- **Library/magic sweep, same day:** `LangStore.GOOGLE_TTS` replaced 14 literal Google package
+  names; `BuildConfig.APPLICATION_ID` replaced the 4 literal own-package names; onError's -5/-8 ->
+  `TextToSpeech.ERROR_OUTPUT` / `ERROR_INVALID_REQUEST`; one `TTS_SETTINGS_ACTION`. Checked and left:
+  EngineFinder's two main-looper Handlers (cancelGlobalTimeout clears one wholesale, so merging
+  would cancel per-engine timeouts); the GET_SAMPLE_TEXT extras and @hide param keys (no public constant).
+
 ## SAME BEHAVIOUR, WRITTEN WITH THE LIBRARY (owner, 2026-09-24, latest)
 *"jo chijen auto TTS jaisi hai vah badal nahin sakte, but uske jaisa to kar sakte hain ... library
 se ho gaye to accurate aur achcha hoga."* The rule this sets: AutoTTS-mirrored BEHAVIOUR stays,

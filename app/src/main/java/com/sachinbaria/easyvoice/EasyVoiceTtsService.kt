@@ -1510,7 +1510,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             } else if (status == TextToSpeech.SUCCESS) {
                 if (forceAccessibilityFlag) { try { initializingTts?.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                 wrapper.tts = initializingTts; wrapper.forgetClientState(); wrapper.state = 2
-                if (wantedPkg == "com.google.android.tts") googleEngineIndex = myIndex
+                if (wantedPkg == LangStore.GOOGLE_TTS) googleEngineIndex = myIndex
             } else {
                 wrapper.tts = initializingTts; wrapper.forgetClientState(); wrapper.state = -1
             }
@@ -1672,6 +1672,87 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val wrapper = wrapperFor(rawPkg) ?: return@onMainThread
             wrapper.restoreSpent = false
             if (wrapper.state == -1) restoreEngine(wrapper.pkg, "the scan reached it")
+        }
+    }
+    // TROUBLESHOOT VOICE ENGINES (owner, 2026-09-24: "jo bhi voice engine kaam
+    // nahin karte honge ... scan karke sab kuchh sahi ho jaega aur automatically
+    // kaam karne lag jaega"). The user asked for it from the More options menu,
+    // so this is the one place a restore is made on request rather than on an
+    // event -- and it is still made through restoreEngine, once per engine,
+    // never on a live one:
+    //   - an engine the persisted list names but the pool never had is added,
+    //     at -1, so the restore below brings it up;
+    //   - every episode's spent restore is handed back, and a missing or dead
+    //     keep-alive binding is made again (it is what reports the next death);
+    //   - a wrapper at -1 is restored now;
+    //   - a wrapper at 2 is ASKED, off the main thread, whether it is still
+    //     connected to its own engine: getVoices() answers null through a dead
+    //     connection (runAction's error result) and boundEngineOf names the
+    //     engine the client really holds. Only a client that fails one of the
+    //     two is replaced -- a live engine is never torn down, which is the
+    //     2026-09-23 rule that kept a cold Google alive.
+    private fun troubleshootEngines() {
+        onMainThread {
+            if (destroyed) return@onMainThread
+            try {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Troubleshoot: checking every engine")
+                if (initializingIndex >= walkList.size) {
+                    for (rawPkg in ArrayList(engineList)) {
+                        if (rawPkg == packageName || wrapperFor(rawPkg) != null) continue
+                        EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Troubleshoot: " + rawPkg + " was not in the engine pool -- adding it")
+                        enginePool.add(EngineWrapper(rawPkg).also { it.state = -1 })
+                    }
+                }
+                val live = ArrayList<Pair<EngineWrapper, TextToSpeech>>()
+                for (index in 0 until enginePool.size) {
+                    val wrapper = enginePool[index]
+                    wrapper.restoreSpent = false
+                    if (wrapper.processGone || !engineBinders.containsKey(wrapper.rawPkg)) {
+                        unbindEngineKeepAlive(wrapper.rawPkg)
+                        bindEngineKeepAlive(wrapper.rawPkg)
+                    }
+                    val client = wrapper.tts
+                    if (wrapper.state == -1) {
+                        wrapper.processGone = false
+                        restoreEngine(wrapper.pkg, "troubleshoot")
+                    } else if (wrapper.state == 2 && client != null) {
+                        live.add(wrapper to client)
+                    }
+                }
+                if (live.isEmpty()) return@onMainThread
+                // Binder calls into other apps: never on the main thread, where
+                // one wedged engine would freeze the settings screen.
+                Thread({
+                    for ((wrapper, client) in live) {
+                        val bound = EngineFinder.boundEngineOf(client, wrapper.rawPkg)
+                        val voices = try { client.voices } catch (_: Throwable) { null }
+                        val why = when {
+                            !isSameEnginePkg(bound, wrapper.rawPkg) -> "troubleshoot: its client is bound to " + bound
+                            voices == null -> "troubleshoot: its client lost the connection"
+                            else -> null
+                        }
+                        if (why == null) {
+                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Troubleshoot: " + wrapper.pkg + " is connected, " + voices!!.size + " voices")
+                            continue
+                        }
+                        onMainThread { if (wrapper.tts === client) clientIsDead(wrapper, why) }
+                    }
+                }, "EvTroubleshoot").apply { isDaemon = true }.start()
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "troubleshootEngines: " + ex.toString())
+            }
+        }
+    }
+    // The troubleshooter's own test client asked this engine to synthesise a
+    // sentence and it never finished -- the one failure nothing on the speaking
+    // path can see, because an engine that accepts speak() and then says nothing
+    // raises no event. Our client for it is replaced once; if the engine itself
+    // is stuck, the report tells the user what to do next.
+    private fun onEngineUnresponsive(rawPkg: String) {
+        onMainThread {
+            val wrapper = wrapperFor(rawPkg) ?: return@onMainThread
+            wrapper.restoreSpent = false
+            if (wrapper.state == 2) clientIsDead(wrapper, "troubleshoot: it accepted text and never finished")
         }
     }
     // THE ENGINE'S PACKAGE WAS INSTALLED, UPDATED OR CHANGED. An update kills
@@ -2350,8 +2431,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (defaultEngine.isNotEmpty() && defaultEngine != "Disable") {
                 rebuiltEngineList.add(0, defaultEngine)
             }
-            if (rebuiltEngineList.isEmpty() && (try { packageManager.getPackageInfo("com.google.android.tts", 0); true } catch (_: Exception) { false })) {
-                rebuiltEngineList.add("com.google.android.tts")
+            if (rebuiltEngineList.isEmpty() && (try { packageManager.getPackageInfo(LangStore.GOOGLE_TTS, 0); true } catch (_: Exception) { false })) {
+                rebuiltEngineList.add(LangStore.GOOGLE_TTS)
             }
             engineList = rebuiltEngineList
         }
@@ -3066,7 +3147,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             startAndFinish(callback)
             return
         }
-        if (forceGoogle && !bypassed) { chunks.forEach { it.forcedEngine = "com.google.android.tts" } }
+        if (forceGoogle && !bypassed) { chunks.forEach { it.forcedEngine = LangStore.GOOGLE_TTS } }
         val firstChunkParamLang = when (readingMode) {
             "dual" -> prefs.toIso3(requestedLang.ifEmpty { latinFallback })
             "auto", "google" -> if (chunks.isNotEmpty()) prefs.toIso3(chunks[chunks.size - 1].lang) else ""
@@ -3523,7 +3604,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 fun handOver(code: Int, n: String) {
                     // Switch OFF: straight to endSynthesis on this thread, which
                     // is exactly what onError did before the hand-over existed.
-                    if (!engineFallbackFlag || code == -5 || code == -8) { endSynthesis(callback, n); return }
+                    if (!engineFallbackFlag || code == TextToSpeech.ERROR_OUTPUT || code == TextToSpeech.ERROR_INVALID_REQUEST) { endSynthesis(callback, n); return }
                     mainHandler.post {
                         if (myGeneration != synthesisGeneration || isStopped || isFlushed) return@post
                         // Already handed over (its process died first, and that
@@ -3863,6 +3944,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @Volatile private var running: java.lang.ref.WeakReference<EasyVoiceTtsService>? = null
         @JvmStatic fun engineAnswered(rawPkg: String) {
             try { running?.get()?.onEngineAnswered(rawPkg) } catch (_: Throwable) {}
+        }
+        // The Troubleshoot screen (TroubleshootActivity). Both are no-ops when the
+        // service is not running -- the troubleshooter's scan binds it first.
+        @JvmStatic fun troubleshootEngines(): Boolean {
+            val service = running?.get() ?: return false
+            try { service.troubleshootEngines() } catch (_: Throwable) {}
+            return true
+        }
+        @JvmStatic fun engineUnresponsive(rawPkg: String) {
+            try { running?.get()?.onEngineUnresponsive(rawPkg) } catch (_: Throwable) {}
         }
         // THE NATIVE METHODS LIVE HERE, NOT IN A CLASS OF THEIR OWN (owner,
         // 2026-09-09: "vah sari native method aa jaaye, alag se class na bane").
