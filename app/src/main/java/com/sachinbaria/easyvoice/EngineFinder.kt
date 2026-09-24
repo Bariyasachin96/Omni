@@ -72,6 +72,13 @@ object EngineFinder {
     // at once over the same fields. That is our refactor's bug, not AutoTTS's,
     // which is what makes fixing it right rather than a rule 5 departure.
     @Volatile private var scanGeneration = 0
+    // A scan is walking the engines right now. The service's background scan
+    // (EasyVoiceTtsService.scanInBackground) never starts while one is, because a
+    // newer scan supersedes the older one and the older one's caller -- the main
+    // screen's progress page, the Troubleshoot screen -- would then never hear
+    // back. Set when a scan starts, cleared by the newest scan's finalize.
+    @Volatile @JvmStatic var scanRunning = false
+        private set
     // OURS, ASKED OF THE SYSTEM: our own package, or any package signed with our
     // own certificate -- an older install of this app under its previous package
     // name is one, and a package-name fragment could never say so reliably.
@@ -299,12 +306,37 @@ object EngineFinder {
         for ((pkg, langs) in missing) EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Voice data missing on " + pkg +
             (if (langs.isEmpty()) " (no voices)" else " for " + langs.joinToString(",")))
     }
+    // The engines the last saved scan found, from every place they are kept.
+    private fun previousEngines(ctx: Context): LinkedHashSet<String> {
+        val out = LinkedHashSet<String>(lastScanEngines)
+        out.addAll(EasyVoiceTtsService.engineList)
+        try {
+            val prefs = LangStore.prefs(ctx)
+            var engineIdx = 0
+            while (true) {
+                val pkg = prefs.getString("engine_$engineIdx", "") ?: ""
+                if (pkg.isEmpty() || pkg == "end") break
+                out.add(pkg)
+                engineIdx++
+            }
+        } catch (_: Exception) {}
+        return out
+    }
+    private fun isInstalled(ctx: Context, pkg: String): Boolean =
+        try { ctx.packageManager.getApplicationInfo(pkg, 0); true } catch (_: Exception) { false }
     @JvmStatic fun languageName(iso3: String): String =
         try { localeOf(iso3).displayLanguage.ifEmpty { iso3 } } catch (_: Exception) { iso3 }
+    // `quiet` is the service's own scan, run in the background with no screen:
+    // nothing is shown (the probe's failure Toast is the only thing the scan ever
+    // shows), and the probe is skipped -- the installed engines come from the
+    // package manager's own TTS-service query, which with QUERY_ALL_PACKAGES sees
+    // every engine the probe's TextToSpeech.getEngines() would (that method asks
+    // the package manager the same question).
     fun scanLanguages(
         ctx: Context,
         onProgress: ((String) -> Unit)? = null,
         repair: Boolean = false,
+        quiet: Boolean = false,
         onReport: ((List<EngineReport>, List<String>) -> Unit)? = null,
         onResult: (Set<String>) -> Unit
     ) {
@@ -312,6 +344,7 @@ object EngineFinder {
         val engines = ArrayList<EngineInfo>()
         val seen = HashMap<String, EngineInfo>()
         val myGeneration = ++scanGeneration
+        scanRunning = true
         // This scan's own 180 s watchdog, so finalize cancels exactly that one.
         // A cell rather than a val because finalizeScan is declared above it.
         val myTimeout = arrayOfNulls<Runnable>(1)
@@ -330,12 +363,35 @@ object EngineFinder {
         val problems = HashMap<Int, String>()
         val mainHandler = androidx.core.os.HandlerCompat.createAsync(android.os.Looper.getMainLooper())
         var index = 0
+        // ONCE. The 180 s watchdog finalizes a scan whose walk is still going, and
+        // the walk used to reach its own end later and finalize a second time --
+        // saving again and calling the caller back twice.
+        var finalized = false
         fun finalizeScan() {
             // A superseded scan writes NOTHING. Without this the older scan
             // still reached here and did languages.clear() + rebuildFromScan() +
             // persistAll() with its own half-finished engine list, which is
             // exactly why the count differed on every open.
-            if (myGeneration != scanGeneration) return
+            if (myGeneration != scanGeneration || finalized) return
+            finalized = true
+            scanRunning = false
+            // AN ENGINE THE SYSTEM DID NOT LIST THIS TIME BUT THAT IS STILL
+            // INSTALLED KEEPS ITS PLACE (2026-09-24, owner: "TTS mis ho jata hai
+            // ... uske voice delete ho jaate hain"). During an update the package
+            // is briefly not a TTS service at all, so queryIntentServices leaves it
+            // out -- and a scan that ran then (the background scan can, now) saved
+            // the lists without it: its voices gone, its languages dropped from
+            // the language list, and the service no longer binding it. It is
+            // added here as an engine this scan could not read, which keeps the
+            // voices it had exactly as a failed read does. Only a package that is
+            // really gone -- the package manager has no such app -- is dropped.
+            val listed = engines.map { it.pkg }.toHashSet()
+            for (pkg in previousEngines(ctx)) {
+                if (pkg in listed || isSelfEngine(pkg) || !isInstalled(ctx, pkg)) continue
+                listed.add(pkg)
+                engines.add(EngineInfo(pkg, engineLabel(ctx, pkg)))
+                problems[engines.size - 1] = "Android does not list it as a voice engine right now"
+            }
             // removeCallbacks, NOT removeCallbacksAndMessages(null): the handler
             // is shared, and clearing it wholesale cancelled the OTHER scan's
             // watchdog too.
@@ -429,6 +485,9 @@ object EngineFinder {
             // which on a first run is nothing at all.
             EasyVoiceTtsService.pushLanguageSets()
             recordMissingVoiceData(missingData)
+            // The running service binds any engine this scan found that its pool
+            // does not have yet, and runs a scan it had to put off.
+            EasyVoiceTtsService.scanFinished()
             if (onReport != null) {
                 val reports = ArrayList<EngineReport>()
                 val reported = HashSet<String>()
@@ -453,7 +512,7 @@ object EngineFinder {
             // Stop dead once a newer scan has started: this one can no longer
             // publish anything, and carrying on only fights the new scan for the
             // progress line and keeps engines binding for nothing.
-            if (myGeneration != scanGeneration) return
+            if (myGeneration != scanGeneration || finalized) return
             index++
             while (index < engines.size && isSelfEngine(engines[index].pkg)) index++
             if (index >= engines.size) {
@@ -670,10 +729,19 @@ object EngineFinder {
                 }
             }
         }
+        // An empty engine list -- a phone with no other TTS engine -- finalizes at
+        // once. It used to index engines[0] and throw on the main thread.
         fun scanFirstEngine() {
             index = 0
+            while (index < engines.size && isSelfEngine(engines[index].pkg)) index++
+            if (index >= engines.size) {
+                globalTimeoutHandler.removeCallbacks(globalTimeout)
+                finalizeScan()
+                return
+            }
             startEngine("(3)")
         }
+        if (quiet) { scanFirstEngine(); return }
         val probe = arrayOfNulls<TextToSpeech>(1)
         // THE PROBE IS GUARDED AND RELEASED ON BOTH PATHS (2026-09-10).
         // AutoTTS's C0() calls this constructor bare too (NewSettingsActivity:402)
@@ -692,7 +760,9 @@ object EngineFinder {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "")
             }
             probe[0] = null
-            android.widget.Toast.makeText(ctx, "Easy Voice: init new engine failed.", android.widget.Toast.LENGTH_LONG).show()
+            try {
+                android.widget.Toast.makeText(ctx, "Easy Voice: init new engine failed.", android.widget.Toast.LENGTH_LONG).show()
+            } catch (_: Exception) {}
             finalizeScan()
         }
         try {

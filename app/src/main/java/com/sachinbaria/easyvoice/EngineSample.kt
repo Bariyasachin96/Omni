@@ -50,12 +50,58 @@ object EngineSample {
     // Javadoc lists -- language, country, variant -- and `setPackage` is what
     // aims it at the engine that will actually speak, rather than at whichever
     // engine the system would resolve. Both are copied from Settings.
+    //
+    // TWO-LETTER CODES, as Settings sends (2026-09-24, owner: "Vocalizer ... Hindi
+    // ke liye configure ... test button ... English ke liye bol raha hai"). Settings
+    // passes the voice's Locale.getLanguage()/getCountry(), which for the locales
+    // Android builds are "hi" / "IN". Some engines name their voices with
+    // three-letter locales ("hin" / "IND"), and passing those back unchanged asked
+    // the engine for a language it does not recognise under that spelling -- and
+    // an engine that does not recognise the request answers with its default
+    // sentence, which is English. So the codes are turned into the two-letter
+    // form first; a code with no two-letter form is sent as it is.
     @JvmStatic fun intentFor(pkg: String, locale: Locale): Intent {
         val intent = Intent(android.speech.tts.TextToSpeech.Engine.ACTION_GET_SAMPLE_TEXT)
-        intent.putExtra("language", locale.language)
-        intent.putExtra("country", locale.country)
+        intent.putExtra("language", IsoCodes.toIso2(EngineFinder.iso3Of(locale)) ?: locale.language)
+        intent.putExtra("country", countryIso2(locale.country))
         intent.putExtra("variant", locale.variant)
         intent.setPackage(pkg)
         return intent
+    }
+    private fun countryIso2(country: String): String {
+        if (country.length != 3) return country
+        return try {
+            Locale.getISOCountries().firstOrNull { localeOf("", it).isO3Country.equals(country, true) } ?: country
+        } catch (_: Exception) { country }
+    }
+    // THE ENGINE'S SENTENCE IS USED ONLY WHEN IT IS WRITTEN IN THE LANGUAGE'S OWN
+    // SCRIPT. An engine that does not know the language it was asked for can still
+    // answer LANG_AVAILABLE with its default sentence, and the owner then heard
+    // the Hindi voice read English. The table's own sample for the language says
+    // which script to expect (Devanagari for Hindi, Latin for French); the
+    // engine's text must be mostly in that script, counted with the platform's
+    // Character.UnicodeScript. The Han, kana and Hangul scripts count as one, since
+    // Japanese mixes them and either can lead. With no table sample there is
+    // nothing to compare against, and the engine's sentence is taken as it is.
+    // Not caught: an English sentence for another Latin-script language -- the
+    // script cannot tell those apart.
+    @JvmStatic fun fitsLanguage(text: String, locale: Locale): Boolean {
+        val expected = dominantScript(SampleTexts.get(EngineFinder.iso3Of(locale))) ?: return true
+        return dominantScript(text) == expected
+    }
+    private fun dominantScript(text: String): Character.UnicodeScript? {
+        val counts = HashMap<Character.UnicodeScript, Int>()
+        var offset = 0
+        while (offset < text.length) {
+            val cp = text.codePointAt(offset)
+            offset += Character.charCount(cp)
+            var script = try { Character.UnicodeScript.of(cp) } catch (_: Exception) { continue }
+            if (script == Character.UnicodeScript.COMMON || script == Character.UnicodeScript.INHERITED ||
+                script == Character.UnicodeScript.UNKNOWN) continue
+            if (script == Character.UnicodeScript.HIRAGANA || script == Character.UnicodeScript.KATAKANA ||
+                script == Character.UnicodeScript.HANGUL || script == Character.UnicodeScript.BOPOMOFO) script = Character.UnicodeScript.HAN
+            counts[script] = (counts[script] ?: 0) + 1
+        }
+        return counts.maxByOrNull { it.value }?.key
     }
 }

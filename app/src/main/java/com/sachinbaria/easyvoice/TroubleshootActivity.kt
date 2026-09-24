@@ -10,6 +10,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,7 +29,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
+import androidx.core.content.PackageManagerCompat
+import androidx.core.content.UnusedAppRestrictionsConstants
 import androidx.core.net.toUri
 import androidx.core.os.HandlerCompat
 
@@ -65,9 +70,23 @@ import androidx.core.os.HandlerCompat
 //      asked of PowerManager; turned off or restricted -> its app
 //      info; not installed -> the Play Store; battery optimisation -> the
 //      system list; Easy Voice not the preferred engine -> the TTS settings.
+//   5. EVERYTHING EASY VOICE NEEDS TO KEEP RUNNING, in one place (owner,
+//      2026-09-24: "auto start wala bhi button ... jo permission ki need rahti
+//      hai ... taki background mein acche se work karen"): battery
+//      optimization, background restriction, "Pause app activity if unused"
+//      (androidx PackageManagerCompat), the persistent notification that makes
+//      it a foreground service, and the phone maker's own Auto-start list when
+//      this phone has one.
 // ==========================================================================
 
-data class TroubleshootFix(val label: String, val intent: Intent)
+// A fix opens a system screen (`intent`; `forResult` when the screen must be
+// started for a result), or does something in the app (`action`).
+data class TroubleshootFix(
+    val label: String,
+    val intent: Intent? = null,
+    val forResult: Boolean = false,
+    val action: (() -> Unit)? = null
+)
 data class TroubleshootFinding(
     val title: String,
     val ok: Boolean,
@@ -89,6 +108,13 @@ class TroubleshootActivity : EvActivity() {
     // run (or from a destroyed screen) touches nothing.
     private var generation = 0
     private val testClients = ArrayList<TextToSpeech>()
+    // The unused-app screen has to be started for a result (IntentCompat's own
+    // documentation: the Play Store backport answers only startActivityForResult).
+    private val fixLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { refreshReport() }
+    // "Pause app activity if unused", read asynchronously: the answer is a
+    // ListenableFuture, and on Android 6 to 10 it comes from the Play Store.
+    private var unusedRestrictions = UnusedAppRestrictionsConstants.FEATURE_NOT_AVAILABLE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,6 +130,7 @@ class TroubleshootActivity : EvActivity() {
                 )
             }
         }
+        readUnusedRestrictions()
         runChecks()
     }
 
@@ -113,9 +140,24 @@ class TroubleshootActivity : EvActivity() {
     // the report says whether the fix took without a whole new run.
     override fun onResume() {
         super.onResume()
+        readUnusedRestrictions()
+        refreshReport()
+    }
+
+    private fun refreshReport() {
         if (working || result == null) return
         val inputs = lastInputs ?: return
         result = buildResult(inputs.reports, inputs.repaired, inputs.speechProblems)
+    }
+
+    private fun readUnusedRestrictions() {
+        try {
+            val future = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
+            future.addListener({
+                val status = try { future.get() } catch (_: Exception) { UnusedAppRestrictionsConstants.ERROR }
+                if (status != unusedRestrictions) { unusedRestrictions = status; refreshReport() }
+            }, ContextCompat.getMainExecutor(this))
+        } catch (_: Exception) {}
     }
 
     private class ReportInputs(
@@ -138,11 +180,18 @@ class TroubleshootActivity : EvActivity() {
     }
 
     private fun openFix(fix: TroubleshootFix) {
+        val action = fix.action
+        if (action != null) {
+            try { action() } catch (_: Exception) {}
+            refreshReport()
+            return
+        }
+        val intent = fix.intent ?: return
         try {
-            startActivity(fix.intent)
+            if (fix.forResult) fixLauncher.launch(intent) else startActivity(intent)
         } catch (_: Exception) {
             // No Play Store app: the same page on the web, as MainActivity does.
-            val data = fix.intent.data
+            val data = intent.data
             if (data != null && data.scheme == "market") {
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, ("https://play.google.com/store/apps/details?id=" + data.getQueryParameter("id")).toUri()))
@@ -289,7 +338,7 @@ class TroubleshootActivity : EvActivity() {
     private fun installDataFix(pkg: String): TroubleshootFix? {
         val intent = Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(pkg)
         val found = try { packageManager.resolveActivity(intent, 0) } catch (_: Exception) { null }
-        return if (found != null) TroubleshootFix("Download languages", intent) else null
+        return if (found != null) TroubleshootFix("Download voice data", intent) else null
     }
     // The languages an engine speaks, from the voices the scan just read, as
     // names ("Hindi, Gujarati") -- a language counts once however many voices
@@ -328,15 +377,109 @@ class TroubleshootActivity : EvActivity() {
                     ", so screen readers are not speaking through Easy Voice. Choose Easy Voice as the preferred engine."),
                 listOf(ttsSettingsFix())))
         }
-        val restricted = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && isBackgroundRestricted()
-        if (restricted || !ignoresBatteryOptimization(packageName)) {
-            val lines = ArrayList<String>()
-            if (restricted) lines.add("Background use is restricted for Easy Voice, so Android can stop it while you use the phone.")
-            else lines.add("Battery optimization: on for Easy Voice. Android can stop it in the background, and speech stops with it. Set Easy Voice to Unrestricted.")
-            out.add(TroubleshootFinding(TITLE_BATTERY, false, lines,
-                if (restricted) listOf(appInfo(packageName)) else listOf(batteryFix())))
-        }
+        out.add(backgroundFinding())
         return out
+    }
+
+    // Everything that decides whether Easy Voice keeps running, and starts again
+    // after a restart or a RAM clear, each with the system's own screen for it.
+    private fun backgroundFinding(): TroubleshootFinding {
+        val lines = ArrayList<String>()
+        val fixes = ArrayList<TroubleshootFix>()
+        var ok = true
+        val restricted = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && isBackgroundRestricted()
+        when {
+            restricted -> {
+                ok = false
+                lines.add("Background use is restricted for Easy Voice, so Android can stop it while you use the phone. Allow background use in its app info.")
+                fixes.add(appInfo(packageName))
+            }
+            !ignoresBatteryOptimization(packageName) -> {
+                ok = false
+                lines.add("Battery optimization: on for Easy Voice. Android can stop it in the background, and speech stops with it. Set Easy Voice to Unrestricted.")
+                fixes.add(batteryFix())
+            }
+            else -> lines.add("Battery optimization: off for Easy Voice.")
+        }
+        // "Pause app activity if unused" (Android 11 and later, and the Play Store's
+        // backport on 6 to 10): an app not opened for a few months loses its
+        // permissions and is stopped -- and a voice engine is used without ever
+        // being opened.
+        when (unusedRestrictions) {
+            UnusedAppRestrictionsConstants.API_30_BACKPORT, UnusedAppRestrictionsConstants.API_30,
+            UnusedAppRestrictionsConstants.API_31 -> {
+                ok = false
+                lines.add("Pause app activity if unused: on. When Easy Voice has not been opened for a few months, Android can take its permissions away and stop it. Turn this off.")
+                fixes.add(TroubleshootFix("Unused app settings",
+                    IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName), forResult = true))
+            }
+            UnusedAppRestrictionsConstants.DISABLED -> lines.add("Pause app activity if unused: off.")
+        }
+        // The persistent notification is what runs Easy Voice as a foreground
+        // service, the one kind of app Android does not stop to free memory. The
+        // switch is the user's (Advanced tab); this offers to turn it on. From
+        // Android 13 it also needs notifications to be allowed.
+        val blocked = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+            !NotificationManagerCompat.from(this).areNotificationsEnabled()
+        when {
+            !EasyVoiceTtsService.showNotificationFlag -> {
+                ok = false
+                lines.add("Persistent notification: off. With it on, Easy Voice runs as a foreground service, which Android does not stop to free memory.")
+                fixes.add(TroubleshootFix("Turn on persistent notification", action = { turnOnNotification() }))
+            }
+            blocked -> {
+                ok = false
+                lines.add("Persistent notification: on, but notifications are not allowed for Easy Voice, so it cannot run as a foreground service. Allow its notifications.")
+                fixes.add(notificationSettingsFix())
+            }
+            else -> lines.add("Persistent notification: on.")
+        }
+        // THE PHONE MAKER'S OWN AUTO-START LIST. Android has no API for it: on
+        // Xiaomi, Oppo, Realme, Vivo, Huawei, Asus and others an app not on that
+        // list is not started by the system after a restart or a RAM clear -- not
+        // even when a screen reader asks for its voice -- so Easy Voice stays
+        // stopped until it is opened. Whether Easy Voice is on the list cannot be
+        // read by any app, so the screen is offered whenever this phone has one.
+        val autoStart = autoStartFix()
+        if (autoStart != null) {
+            lines.add("Auto-start: this phone keeps its own list of apps that may start by themselves. After a restart or when memory is cleared, Easy Voice starts again only if it is allowed there. Turn Easy Voice on in that list.")
+            fixes.add(autoStart)
+        }
+        return TroubleshootFinding(TITLE_BATTERY, ok, lines, fixes)
+    }
+
+    private fun turnOnNotification() {
+        EasyVoiceTtsService.showNotificationFlag = true
+        LangStore.persistFlags(this)
+        // Same request as the Advanced tab's switch: NotificationManagerCompat
+        // answers for every Android version, and below 13 there is nothing to ask.
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+            try { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) {}
+        }
+        Toast.makeText(this, "Persistent notification is on. It starts with the next thing Easy Voice speaks.", Toast.LENGTH_LONG).show()
+    }
+
+    // The app's own notification page from Android 8, its app info before that.
+    private fun notificationSettingsFix(): TroubleshootFix =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+            TroubleshootFix("Notification settings", Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+        else appInfo(packageName)
+
+    // The first Auto-start screen this phone really has. The component list is the
+    // one the AutoStarter library keeps (judemanutd/AutoStarter 1.1.0,
+    // AutoStartPermissionHelper) -- read from its source, not guessed. The library
+    // itself is not used: it picks the screen by Build.BRAND, which misses the
+    // same screens on sister brands (Realme and OnePlus run Oppo's ColorOS,
+    // iQOO is Vivo), and it has not been updated since 2021. Here every screen is
+    // asked of the package manager instead, and only one that exists and may be
+    // opened by another app (exported) gets a button.
+    private fun autoStartFix(): TroubleshootFix? {
+        for ((pkg, cls) in AUTO_START_SCREENS) {
+            val intent = Intent().setComponent(android.content.ComponentName(pkg, cls))
+            val found = try { packageManager.resolveActivity(intent, 0) } catch (_: Exception) { null }
+            if (found?.activityInfo?.exported == true) return TroubleshootFix("Auto-start settings", intent)
+        }
+        return null
     }
 
     private fun isBackgroundRestricted(): Boolean {
@@ -399,17 +542,21 @@ class TroubleshootActivity : EvActivity() {
                 val missing = EngineFinder.lastMissingData[report.pkg].orEmpty()
                 if (missing.isNotEmpty() && installer != null) {
                     lines.add("Not downloaded yet: " + missing.joinToString(", ") { EngineFinder.languageName(it) } + ".")
-                    fixes.add(installer)
                 }
+                // Every engine that has a voice-data screen gets its button, working
+                // or not, so more languages can be downloaded from here (owner,
+                // 2026-09-24: "voice data ke liye koi button nahin ... jiske pass
+                // hai vah aana chahie").
+                if (installer != null) fixes.add(installer)
             } else {
                 broken++
                 lines.add("Not working: " + problem + ".")
                 if (report.voices == 0 && report.problem.isNotEmpty() && installer != null) {
-                    lines.add("Download its languages, then run this check again.")
-                    fixes.add(installer)
+                    lines.add("Download its voice data, then run this check again.")
                 } else {
                     lines.add("Open its app info and choose Force stop, then run this check again. If it still fails, update the engine.")
                 }
+                if (installer != null) fixes.add(installer)
                 fixes.add(appInfo(report.pkg))
             }
             addBatteryStatus(report.pkg, lines, fixes)
@@ -458,6 +605,28 @@ class TroubleshootActivity : EvActivity() {
         const val TTS_SETTINGS_ACTION = "com.android.settings.TTS_SETTINGS"
         const val TITLE_PREFERRED = "Preferred engine"
         const val TITLE_BATTERY = "Easy Voice in the background"
+        // OEM Auto-start screens, package to activity, in AutoStarter 1.1.0's
+        // order: Xiaomi, Letv, Asus (two), Huawei and Honor (two), Oppo (three),
+        // Vivo (three), Nokia, Samsung (three), OnePlus.
+        private val AUTO_START_SCREENS = listOf(
+            "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
+            "com.letv.android.letvsafe" to "com.letv.android.letvsafe.AutobootManageActivity",
+            "com.asus.mobilemanager" to "com.asus.mobilemanager.powersaver.PowerSaverSettings",
+            "com.asus.mobilemanager" to "com.asus.mobilemanager.autostart.AutoStartActivity",
+            "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+            "com.huawei.systemmanager" to "com.huawei.systemmanager.optimize.process.ProtectActivity",
+            "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+            "com.oppo.safe" to "com.oppo.safe.permission.startup.StartupAppListActivity",
+            "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
+            "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity",
+            "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+            "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager",
+            "com.evenwell.powersaving.g3" to "com.evenwell.powersaving.g3.exception.PowerSaverExceptionActivity",
+            "com.samsung.android.lool" to "com.samsung.android.sm.ui.battery.BatteryActivity",
+            "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.usage.CheckableAppListActivity",
+            "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
+            "com.oneplus.security" to "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity"
+        )
     }
 }
 

@@ -191,6 +191,12 @@ dependencies {
     // current stable rather than removed, so the resolved versions are stated
     // in one place instead of being whatever the transitive graph settles on.
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    // ProcessLifecycleOwner: "is any of the app's screens showing?" for the whole
+    // process. The service's background engine scan waits for the screens to
+    // close (the Languages screen's rows must not move under it). It was already
+    // in the APK -- emoji2 pulls it in at runtime and androidx.startup's
+    // InitializationProvider starts it -- and is declared now that the app calls it.
+    implementation("androidx.lifecycle:lifecycle-process:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     // The app-opening splash. From API 31 the platform shows one for every app

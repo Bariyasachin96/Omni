@@ -538,6 +538,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // bindings: an engine's package being installed or updated, and the
         // settings scan reaching an engine. Its own step, like the five above.
         try { registerPackageReceiver() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "registerPackageReceiver failed: " + ex.toString()) }
+        // Tells the background scan when the app's screens close. onCreate runs on
+        // the main thread, which is where a Lifecycle may be observed.
+        try {
+            androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(screensClosedObserver)
+            screensObserved = true
+        } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "screen observer failed: " + ex.toString()) }
         running = java.lang.ref.WeakReference(this)
     }
     // THE VERSION IN THAT LOG LINE COMES FROM THE BUILD (2026-09-24). It used to be
@@ -1436,12 +1442,112 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
             }
         }
-        if (count == 0) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)")
+        if (count == 0) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)"); startupScan() }
     }
     private fun initFinished() {
         initializingIndex++
-        if (initializingIndex == walkList.size) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)")
+        if (initializingIndex == walkList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)"); startupScan() }
     }
+
+    // ==========================================================================
+    //  THE BACKGROUND SCAN (owner, 2026-09-24: "background mein scanning nahin ho
+    //  rahi hai, vah tabhi scan ho rahi hai jab app open hoti hai ... jaise hi RAM
+    //  clear ho jaaye to automatically scanning shuru ho jaani chahie")
+    //
+    //  The engine scan used to run only when the settings app was opened. The
+    //  service is what the system starts on its own -- a screen reader binds the
+    //  preferred engine at boot, and binds it again after its process was killed
+    //  (a RAM clear) -- so the service's own start is the event that means "the
+    //  phone came back", and the scan now runs from it:
+    //    * once per process, when the startup walk has finished (every engine
+    //      then has a warm client of ours, so the scan's fresh clients bind fast);
+    //    * when a TTS engine is installed, updated, turned on or off, or removed
+    //      (packageReceiver);
+    //  quietly (EngineFinder's `quiet`: no probe, nothing on screen). A finished
+    //  scan saves the engine, voice and language lists, hands every engine that
+    //  answered its restore back (engineAnswered), and onScanFinished binds any
+    //  engine the pool did not have.
+    //
+    //  NEVER while the app's own screens are showing (ProcessLifecycleOwner): the
+    //  main screen scans on every open anyway, and a background scan that rebuilt
+    //  the language list under the Languages screen would move its rows. Nor
+    //  while another scan runs -- a newer scan supersedes the older one, whose
+    //  screen would then never finish. A scan put off for either reason is run
+    //  when the screens close (onStop below) or when that scan finishes. No clock:
+    //  every trigger is an event.
+    //
+    //  WHAT IT CANNOT DO, stated: if the phone's maker does not let Easy Voice start
+    //  by itself (Auto-start on Xiaomi, Oppo, Realme, Vivo, Huawei and others),
+    //  the system never starts the service after a restart or a RAM clear, and
+    //  nothing inside the app can run. The Troubleshoot screen shows that
+    //  setting's page when this phone has one.
+    // ==========================================================================
+    private fun startupScan() {
+        if (startupScanDone) return
+        startupScanDone = true
+        scanInBackground("the service started", queueIfBusy = false)
+    }
+    // Put off until the screens close or the running scan ends.
+    private var rescanWanted = false
+    private fun appOnScreen(): Boolean = try {
+        androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+    } catch (_: Throwable) { false }
+    private fun scanInBackground(why: String, queueIfBusy: Boolean) {
+        onMainThread {
+            if (destroyed) return@onMainThread
+            try {
+                if (EngineFinder.scanRunning) {
+                    if (queueIfBusy) rescanWanted = true
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan (" + why + "): a scan is already running" + if (queueIfBusy) " -- scanning again after it" else "")
+                    return@onMainThread
+                }
+                if (appOnScreen()) {
+                    if (queueIfBusy) rescanWanted = true
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan (" + why + "): the app is open" + if (queueIfBusy) " -- scanning when it closes" else ", and it scans itself")
+                    return@onMainThread
+                }
+                rescanWanted = false
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Background scan: " + why)
+                EngineFinder.scanLanguages(applicationContext, quiet = true) { langs ->
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan finished: " + langs.size + " languages")
+                }
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "scanInBackground: " + ex.toString())
+            }
+        }
+    }
+    // Any scan -- this one, the main screen's or Troubleshoot's -- has saved a new
+    // engine list. An engine in it that the pool never had (installed after the
+    // service started) is added and brought up, the way recoverEngineNotReady
+    // adds a configured one; the walk's own engines are left to it while it runs.
+    private fun onScanFinished() {
+        onMainThread {
+            if (destroyed) return@onMainThread
+            try {
+                if (initializingIndex >= walkList.size) {
+                    for (rawPkg in ArrayList(engineList)) {
+                        if (rawPkg == packageName || EngineFinder.isSelfEngine(rawPkg) || wrapperFor(rawPkg) != null) continue
+                        EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan found " + rawPkg + ", which the engine pool did not have -- adding it")
+                        val added = EngineWrapper(rawPkg)
+                        added.state = -1
+                        enginePool.add(added)
+                        bindEngineKeepAlive(rawPkg)
+                        restoreEngine(added.pkg, "the scan found it")
+                    }
+                }
+                if (rescanWanted && !appOnScreen()) scanInBackground("a change arrived during the last scan", queueIfBusy = true)
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onScanFinished: " + ex.toString())
+            }
+        }
+    }
+    // The app's screens all closed: run a scan that was put off for them.
+    private val screensClosedObserver = object : androidx.lifecycle.DefaultLifecycleObserver {
+        override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
+            if (rescanWanted) scanInBackground("a change arrived while the app was open", queueIfBusy = true)
+        }
+    }
+    @Volatile private var screensObserved = false
     // onInit IS NOT ALWAYS ON THE MAIN THREAD, and both listeners below assume
     // it is (2026-09-23, read from AOSP main). The public
     // TextToSpeech(Context, OnInitListener, String) constructor passes
@@ -1787,6 +1893,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // An engine installed, updated or turned on can change which one
                 // is the phone's built-in engine; ask again.
                 EngineFinder.refreshBuiltInEngine()
+                // A TTS ENGINE CHANGED, SO THE VOICE LISTS ARE READ AGAIN. The
+                // halves of an update (REMOVED and ADDED while replacing) are
+                // skipped; REPLACED follows them. A removed package is known only
+                // by our own list, since the system no longer resolves it.
+                val replacing = intent.getBooleanExtra(android.content.Intent.EXTRA_REPLACING, false)
+                val isEngine = !EngineFinder.isSelfEngine(changed) && when (intent.action) {
+                    android.content.Intent.ACTION_PACKAGE_REMOVED -> !replacing && engineList.contains(changed)
+                    android.content.Intent.ACTION_PACKAGE_ADDED -> !replacing && isTtsEngine(changed)
+                    else -> isTtsEngine(changed)
+                }
+                if (isEngine) scanInBackground("package " + changed + ": " + intent.action?.substringAfterLast('_')?.lowercase(), queueIfBusy = true)
+                if (intent.action == android.content.Intent.ACTION_PACKAGE_REMOVED) return
                 val wrapper = wrapperFor(changed) ?: return
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Package " + changed + ": " + intent.action)
                 wrapper.restoreSpent = false
@@ -1803,11 +1921,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
     }
     @Volatile private var packageReceiverRegistered = false
+    private fun isTtsEngine(pkg: String): Boolean = try {
+        packageManager.resolveService(android.content.Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE).setPackage(pkg), 0) != null
+    } catch (_: Exception) { false }
     private fun registerPackageReceiver() {
         val filter = android.content.IntentFilter()
         filter.addAction(android.content.Intent.ACTION_PACKAGE_ADDED)
         filter.addAction(android.content.Intent.ACTION_PACKAGE_REPLACED)
         filter.addAction(android.content.Intent.ACTION_PACKAGE_CHANGED)
+        filter.addAction(android.content.Intent.ACTION_PACKAGE_REMOVED)
         filter.addDataScheme("package")
         ContextCompat.registerReceiver(this, packageReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         packageReceiverRegistered = true
@@ -3942,6 +4064,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { for (index in 0 until enginePool.size) enginePool[index].shutdown() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "engine shutdown: " + ex.toString()) }
         try { unbindAllEngineKeepAlive() } catch (_: Throwable) {}
         try { if (packageReceiverRegistered) { packageReceiverRegistered = false; unregisterReceiver(packageReceiver) } } catch (_: Throwable) {}
+        try { if (screensObserved) { screensObserved = false; androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.removeObserver(screensClosedObserver) } } catch (_: Throwable) {}
         try { mainHandler.removeCallbacksAndMessages(null) } catch (_: Throwable) {}
         if (running?.get() === this) running = null
         super.onDestroy()
@@ -3974,6 +4097,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @JvmStatic fun engineUnresponsive(rawPkg: String) {
             try { running?.get()?.onEngineUnresponsive(rawPkg) } catch (_: Throwable) {}
         }
+        // Every scan ends here, whichever screen or service started it.
+        @JvmStatic fun scanFinished() {
+            try { running?.get()?.onScanFinished() } catch (_: Throwable) {}
+        }
+        // Once per PROCESS, not per service instance: the system may destroy and
+        // recreate the service while the process lives, and the lists the scan
+        // saved are still in it.
+        @Volatile private var startupScanDone = false
         // THE NATIVE METHODS LIVE HERE, NOT IN A CLASS OF THEIR OWN (owner,
         // 2026-09-09: "vah sari native method aa jaaye, alag se class na bane").
         // They used to sit in a `NativeEngine` object, which survived R8 as its

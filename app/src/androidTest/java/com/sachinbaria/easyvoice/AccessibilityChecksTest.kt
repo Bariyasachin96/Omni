@@ -334,7 +334,14 @@ class AccessibilityChecksTest {
                     "Check finished. 1 engine is working, 1 needs attention.",
                     listOf("Hindi moved from Old engine to Speech Services by Google"),
                     listOf(
-                        TroubleshootFinding("Speech Services by Google", true, listOf("Working. It speaks 2 languages: Gujarati, Hindi.", "Battery optimization: off. Android will not stop it to save battery.")),
+                        TroubleshootFinding("Easy Voice in the background", false,
+                            listOf("Battery optimization: off for Easy Voice.",
+                                "Persistent notification: off. With it on, Easy Voice runs as a foreground service, which Android does not stop to free memory.",
+                                "Auto-start: this phone keeps its own list of apps that may start by themselves. After a restart or when memory is cleared, Easy Voice starts again only if it is allowed there. Turn Easy Voice on in that list."),
+                            listOf(TroubleshootFix("Turn on persistent notification", action = { }),
+                                TroubleshootFix("Auto-start settings", android.content.Intent()))),
+                        TroubleshootFinding("Speech Services by Google", true, listOf("Working. It speaks 2 languages: Gujarati, Hindi.", "Battery optimization: off. Android will not stop it to save battery."),
+                            listOf(TroubleshootFix("Download voice data", android.content.Intent()))),
                         TroubleshootFinding("Eloquence", false, listOf("Not working: it has no languages installed.", "Battery optimization: on. Android can stop it in the background, and speech in its languages can stop with it. Set it to Unrestricted."), listOf(fix))
                     )
                 ),

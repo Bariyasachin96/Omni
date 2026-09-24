@@ -23,6 +23,7 @@ class VoiceSetupActivity : EvActivity() {
     private var sampleLauncher: ActivityResultLauncher<Intent>? = null
     private var pendingSampleKey: String? = null
     private var pendingSampleRetry: (() -> Unit)? = null
+    private var pendingSampleLocale: java.util.Locale? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // This screen persists in onPause, so it must not run with unloaded
@@ -34,11 +35,20 @@ class VoiceSetupActivity : EvActivity() {
         sampleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val key = pendingSampleKey; pendingSampleKey = null
             val retry = pendingSampleRetry; pendingSampleRetry = null
+            val locale = pendingSampleLocale; pendingSampleLocale = null
             // getStringExtra unparcels the whole Bundle, and this one comes from
             // ANOTHER app -- the same reason GetSampleText reads its own extra
             // inside a try. A class this process cannot load is a
             // BadParcelableException, and here it would land on the Test button.
-            val text = try { result.data?.getStringExtra(android.speech.tts.TextToSpeech.Engine.EXTRA_SAMPLE_TEXT) } catch (_: Throwable) { null }
+            //
+            // Only a LANG_AVAILABLE answer counts, as in Android's own Settings
+            // (TextToSpeechSettings.onSampleTextReceived); and only a sentence in
+            // the language's own script (EngineSample.fitsLanguage) -- an engine
+            // that did not recognise the language answered with its English one.
+            val offered = if (result.resultCode != android.speech.tts.TextToSpeech.LANG_AVAILABLE) null
+                else try { result.data?.getStringExtra(android.speech.tts.TextToSpeech.Engine.EXTRA_SAMPLE_TEXT) } catch (_: Throwable) { null }
+            val text = offered?.takeIf { locale == null || EngineSample.fitsLanguage(it, locale) }
+            if (offered != null && text == null) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Sample from " + key + " is not in " + locale + "'s script -- using the built-in one")
             // "" is written on EVERY answered launch, including a null one, so a
             // declining engine is asked once and never again. Only a launch that
             // never happened leaves the key absent.
@@ -102,11 +112,12 @@ class VoiceSetupActivity : EvActivity() {
         return try {
             pendingSampleKey = key
             pendingSampleRetry = retry
+            pendingSampleLocale = locale
             launcher.launch(EngineSample.intentFor(pkg, locale))
             null
         } catch (ex: Throwable) {
             if (ex is ActivityNotFoundException) EngineSample.put(key, "")
-            pendingSampleKey = null; pendingSampleRetry = null
+            pendingSampleKey = null; pendingSampleRetry = null; pendingSampleLocale = null
             ""
         }
     }

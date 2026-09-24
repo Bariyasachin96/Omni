@@ -8,7 +8,50 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## FEWER VERSION BRANCHES, IMPORT/EXPORT GONE, TROUBLESHOOT SPEAKS OF LANGUAGES (owner, 2026-09-24, latest)
+## BACKGROUND SCAN FROM THE SERVICE, AUTO-START IN TROUBLESHOOT, TEST SAMPLE IN THE RIGHT SCRIPT (owner, 2026-09-24, latest)
+*"troubleshoot mein auto start wala bhi button ... background mein scanning nahin ho rahi ... RAM clear ho
+jaaye to automatically scanning shuru ho jaani chahie ... voice data ke liye koi button nahin ... Vocalizer
+Hindi ... test button ... English bol raha hai."*
+- **Background scan** (`EasyVoiceTtsService.scanInBackground`, `EngineFinder.scanLanguages(quiet = true)`:
+  no probe, no Toast). Runs once per PROCESS when the startup walk finishes (`startupScan` from
+  `initFinished` / `count == 0`) -- the service start IS the "phone came back" event: a screen reader binds
+  the preferred engine at boot and again after a RAM clear. Also on a TTS engine's package
+  ADDED/REPLACED/CHANGED/REMOVED (update halves with EXTRA_REPLACING skipped). Never while one of the app's
+  screens shows (`ProcessLifecycleOwner`, `androidx.lifecycle:lifecycle-process:2.11.0` now declared -- it
+  was already in the APK via emoji2) and never while another scan runs (`EngineFinder.scanRunning`; a newer
+  scan supersedes the older and its screen would never finish). A put-off package scan runs on the
+  process ON_STOP or when the running scan ends (`rescanWanted`). Every scan ends in
+  `EasyVoiceTtsService.scanFinished()` -> `onScanFinished` adds engines the pool never had (-1, keep-alive,
+  restore). **Cannot help** when the OEM blocks auto-start: then the system never starts the service.
+- **The scan no longer drops an engine the system did not list but that is still installed**
+  (mid-update): `finalizeScan` adds every previous engine (`lastScanEngines`, `engineList`, `engine_N`) that
+  `getApplicationInfo` still finds, as an engine it could not read -- voices kept, place kept. Only an
+  uninstalled package is dropped. This is one real way "voices deleted" happened. `finalized` makes a scan
+  finalize ONCE (the 180 s watchdog used to finalize a scan whose walk later finalized again), and an empty
+  engine list finalizes at once instead of indexing `engines[0]`.
+- **Troubleshoot "Easy Voice in the background" is always shown**, one line each: battery optimization /
+  background restriction; "Pause app activity if unused" (`PackageManagerCompat.getUnusedAppRestrictionsStatus`,
+  a ListenableFuture read with the main executor; fix `IntentCompat.createManageUnusedAppRestrictionsIntent`
+  launched FOR RESULT, as its docs require); persistent notification (off -> "Turn on persistent
+  notification" action: flag, `persistFlags`, POST_NOTIFICATIONS request; on but blocked on 33+ ->
+  `ACTION_APP_NOTIFICATION_SETTINGS`, app info below 26); **Auto-start** when this phone has the screen.
+  `TroubleshootFix` has `intent` / `forResult` / `action`.
+- **Auto-start table = AutoStarter 1.1.0's components** (Xiaomi, Letv, Asus, Huawei/Honor, Oppo, Vivo,
+  Nokia, Samsung, OnePlus), read from its source; **the library is NOT used**: it picks by `Build.BRAND`
+  (misses Realme/iQOO/OnePlus-on-ColorOS), last release 2021, pulls deprecated
+  kotlin-android-extensions-runtime, MIT notice. Each component is resolved through the package manager and
+  offered only if it exists and is `exported`. Its on/off state cannot be read by any app.
+- **"Download voice data"** (was "Download languages") on EVERY engine whose `ACTION_INSTALL_TTS_DATA`
+  resolves, working or broken; the "Not downloaded yet" line stays scan-driven.
+- **Test sample** (`EngineSample`): extras are two-letter (`IsoCodes.toIso2`, country via
+  `Locale.getISOCountries`) as Settings sends; the answer counts only at `resultCode == LANG_AVAILABLE`
+  (AOSP `onSampleTextReceived`) and only if its dominant `Character.UnicodeScript` matches the table
+  sample's (Han/kana/Hangul one group; no table sample -> accepted). Vocalizer answered its English
+  sentence for Hindi. Cannot catch English for another LATIN-script language.
+- **C++ libraries asked about:** the NDK has no TTS, package-manager, battery or notification API, so none
+  of this can move to native code; the native core stays detection/segmentation only.
+
+## FEWER VERSION BRANCHES, IMPORT/EXPORT GONE, TROUBLESHOOT SPEAKS OF LANGUAGES (owner, 2026-09-24)
 *"jitna ho sake utna system API ... import export ki jarurat nahin ... Android version wale naam
 ... troubleshoot mein voice nahin, language batana hai ... download screen nahin khul sakti to kuchh
 nahin ... kaun-kaun se TTS ka battery optimization on hai ya off."*
