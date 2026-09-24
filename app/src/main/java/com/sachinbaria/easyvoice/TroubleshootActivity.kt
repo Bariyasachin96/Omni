@@ -3,7 +3,6 @@ package com.sachinbaria.easyvoice
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Looper
 import android.os.PowerManager
@@ -119,23 +118,6 @@ object SystemScreens {
         TroubleshootFix("App info", Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, ("package:" + pkg).toUri()))
     fun batteryList() =
         TroubleshootFix("Battery optimization settings", Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-    // THE ONE-TAP DIALOG, "Allow app to always run in background?", when Android
-    // will show it for this package. Read in AOSP Settings'
-    // RequestIgnoreBatteryOptimizations: it closes at once unless the package it
-    // is asked about HOLDS REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (Easy Voice
-    // declares it; an engine may), so that is asked of the package manager
-    // first, and the dialog must also resolve. Otherwise null, and the caller
-    // offers the system list.
-    fun batteryRequest(ctx: Context, pkg: String): Intent? {
-        val pm = ctx.packageManager
-        val holds = try {
-            pm.checkPermission(android.Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg) == PackageManager.PERMISSION_GRANTED
-        } catch (_: Exception) { false }
-        if (!holds) return null
-        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, ("package:" + pkg).toUri())
-        val found = try { pm.resolveActivity(intent, 0) } catch (_: Exception) { null }
-        return if (found != null) intent else null
-    }
     // Asked of PowerManager, which answers for ANY package, not only our own.
     fun ignoresBatteryOptimization(ctx: Context, pkg: String): Boolean {
         val power = ContextCompat.getSystemService(ctx, PowerManager::class.java) ?: return true
@@ -446,16 +428,14 @@ class TroubleshootActivity : EvActivity() {
             .filter { it != "zxx" }
             .distinct()
             .count()
-    // An engine's battery line: off, or on with the most direct way to turn it
-    // off -- the one-tap dialog when Android offers it for that engine, else the
-    // system list and the engine's App info (Android 12+ keeps Unrestricted there).
+    // An engine's battery line: off, or on with the system list and the
+    // engine's App info (Android 12+ keeps Unrestricted there). Not the one-tap
+    // ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS dialog: it needs a permission
+    // Google Play restricts (owner, 2026-09-24).
     private fun batteryItem(pkg: String): TroubleshootItem {
         if (SystemScreens.ignoresBatteryOptimization(this, pkg)) return TroubleshootItem("Battery optimization: off.")
-        val direct = SystemScreens.batteryRequest(this, pkg)
-        return if (direct != null) TroubleshootItem("Battery optimization: on. Turn it off.",
-                listOf(TroubleshootFix("Turn off battery optimization", direct)))
-            else TroubleshootItem("Battery optimization: on. Set it to Unrestricted.",
-                listOf(SystemScreens.batteryList(), SystemScreens.appInfo(pkg)))
+        return TroubleshootItem("Battery optimization: on. Set it to Unrestricted.",
+            listOf(SystemScreens.batteryList(), SystemScreens.appInfo(pkg)))
     }
 
     private fun systemFindings(): List<TroubleshootFinding> {

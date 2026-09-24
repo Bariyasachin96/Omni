@@ -79,7 +79,21 @@ android {
                     "-fno-unwind-tables", "-fno-asynchronous-unwind-tables",
                     "-flto=thin",
                 )
-                arguments += listOf("-DANDROID_STL=c++_static")
+                // THE FLAGS ABOVE WERE NEVER IN EFFECT UNTIL 2026-09-24. AGP builds
+                // the release library as CMake's RelWithDebInfo, and CMake puts
+                // CMAKE_CXX_FLAGS_RELWITHDEBINFO ("-O2 -g -DNDEBUG") AFTER
+                // CMAKE_CXX_FLAGS on every compile line, so the last -O and -g won:
+                // the shipped library was -O2 with debug info, not -Oz -g0. Read
+                // off the real compile_commands.json, not assumed. The per-config
+                // flags are now only -DNDEBUG, which keeps what was there (asserts
+                // off) and lets the flags above decide the optimisation.
+                arguments += listOf(
+                    "-DANDROID_STL=c++_static",
+                    "-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-DNDEBUG",
+                    "-DCMAKE_C_FLAGS_RELWITHDEBINFO=-DNDEBUG",
+                    "-DCMAKE_CXX_FLAGS_RELEASE=-DNDEBUG",
+                    "-DCMAKE_C_FLAGS_RELEASE=-DNDEBUG",
+                )
             }
         }
         ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
@@ -153,6 +167,19 @@ android {
     packaging {
         resources { excludes.add("**/libc++_shared.so") }
         jniLibs { useLegacyPackaging = true }
+    }
+}
+// THE KOTLIN COMPILER, STATED (2026-09-24). Nothing set it before: the JVM
+// target was whatever AGP derived from compileOptions (17, read off the class
+// files), and a warning passed the CI build and was caught only by
+// tools/check/gradle-compile.sh on a machine that ran it. The target is written
+// here beside compileOptions so the two cannot drift, and any compiler warning
+// in app or androidTest code now fails the build itself -- the code stands at
+// zero warnings, so this changes nothing today and stops the next one.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        allWarningsAsErrors.set(true)
     }
 }
 // THE OTHER HALF OF THE SAME FAILURE: com.google.guava:listenablefuture.

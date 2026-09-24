@@ -8,6 +8,29 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## BATTERY DIALOG REVERTED; RESTORE WAITS FOR A LIVE PROCESS; NATIVE FLAGS REALLY APPLY (owner, 2026-09-24, latest)
+*"Agar Google mana kar sakta hai to aapko yah karna hi nahin chahie tha ... purana wala ... restore wala ...
+properly research ... compiler ki properly settings sahi nahin hai."*
+- **The one-tap battery dialog is GONE** (Play restricts REQUEST_IGNORE_BATTERY_OPTIMIZATIONS): the permission
+  left the manifest, `SystemScreens.batteryRequest` is deleted, Advanced opens the battery list as before and
+  Troubleshoot offers the list + App info. **Do not bring it back.**
+- **Restore, read in AOSP** (`TextToSpeechManagerPerUserService`, `ServiceConnector.Impl`: the system session
+  gives up after 30 s with `onError`; `SystemConnection.disconnect()` does nothing while still connecting).
+  The hole: a restore made while the engine's process was NOT up (keep-alive still connecting, or its bind
+  failed mid-update) failed, spent the episode's one restore, and no event gave it back -- silent until the app
+  was opened. Now: the keep-alive binding keeps the engine's IBinder (`engineServiceBinders`), and
+  `restoreEngineMain` restores only when `isBinderAlive()` (local, no IPC); otherwise `processGone` + bind and
+  its `onServiceConnected` restores (not spent). A failed restore goes through `restoreFailed`: process not up
+  -> wait for it; an event that arrived mid-restore (`restoreWanted`, set by `rearmRestore`, the ONE hand-back
+  used by process-back / scan / package events) -> one more restore; else wait for the next event. Still one
+  restore per episode, no clock on the speaking path. `invariants.sh` #29 + selftest updated (new negative test).
+- **Native compiler flags were never in effect.** AGP builds release as CMake `RelWithDebInfo`, whose
+  `-O2 -g -DNDEBUG` comes AFTER `CMAKE_CXX_FLAGS` on every compile line (read off compile_commands.json), so
+  the library shipped -O2 with debug info. `-DCMAKE_{C,CXX}_FLAGS_{RELWITHDEBINFO,RELEASE}=-DNDEBUG` now let
+  `-Oz -g0` win: arm64 .so 6,706,928 -> 6,662,064; 8 JNI exports; four harnesses IDENTICAL under the flags.
+- **Kotlin compiler stated**: `kotlin { compilerOptions { jvmTarget = 17; allWarningsAsErrors = true } }` --
+  CI now fails on a warning too. gradle.properties' stale "Gradle held at 9.5.0" note removed; -Xmx3072m.
+
 ## TROUBLESHOOT: ONLY ENGINES WITH A VOICE, ONE BUTTON PER PERMISSION; SCAN OFF THE MAIN THREAD (owner, 2026-09-24, latest)
 *"jis TTS ke pass voice hai sirf vahi aane chahie ... hamare jaise TTS nahin aane chahie ... jo bhi permission
 jaruri hoti hai vah permissions ke buttons ... package name se scan ... library se verify ... background aur
@@ -25,7 +48,7 @@ foreground mein acche se."*
   "Easy Voice permissions": background restricted, battery optimization, pause-if-unused, persistent
   notification, notifications, auto-start (text now says "Easy Voice and each voice engine": MIUI-style
   auto-start also blocks other apps binding an engine). `SystemScreens` holds every system screen.
-- **Battery: the one-tap system dialog** (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), manifest now
+- **~~Battery: the one-tap system dialog~~ REVERTED the same day, see above** (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), manifest now
   declares `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (normal permission). AOSP Settings'
   RequestIgnoreBatteryOptimizations shows it only if the TARGET package holds that permission, so for an
   engine it is offered only when `checkPermission(..., pkg)` is granted, else the list + App info. The

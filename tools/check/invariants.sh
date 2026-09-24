@@ -394,10 +394,15 @@ printf '%s\n' "$svc" | sed -n '/inner class RestoreInitListener/,/^    }/p' | gr
 printf '%s\n' "$svc" | grep -q 'mainHandler.postDelayed(watchdog' \
   || fail29="$fail29 no-restore-bind-timeout;"
 # the process coming back hands the restore back whatever state the wrapper is in
+# (through rearmRestore, the one hand-back, which clears restoreSpent before it
+# looks at the state and remembers an event that arrives mid-restore)
 back=$(printf '%s\n' "$svc" | sed -n '/fun onEngineProcessBack/,/^    }/p')
-printf '%s\n' "$back" | grep -q 'restoreSpent = false' || fail29="$fail29 reconnect-does-not-hand-the-restore-back;"
-printf '%s\n' "$back" | grep -B2 'restoreSpent = false' | grep -q 'state == -1' \
+printf '%s\n' "$back" | grep -q 'rearmRestore(' || fail29="$fail29 reconnect-does-not-hand-the-restore-back;"
+rearm=$(printf '%s\n' "$svc" | sed -n '/private fun rearmRestore/,/^    }/p')
+printf '%s\n' "$rearm" | grep -q 'restoreSpent = false' || fail29="$fail29 reconnect-does-not-hand-the-restore-back;"
+printf '%s\n' "$rearm" | grep -B2 'restoreSpent = false' | grep -q 'state == -1' \
   && fail29="$fail29 restore-handed-back-only-at-state-1;"
+printf '%s\n' "$rearm" | grep -q 'restoreWanted = true' || fail29="$fail29 event-during-restore-is-dropped;"
 # a process death takes the wrapper out of use (-1), so recovery can see it ...
 printf '%s\n' "$svc" | sed -n '/fun onEngineProcessGone/,/^    }/p' | grep -q 'state = -1' \
   || fail29="$fail29 a-dead-process-leaves-its-wrapper-selectable;"

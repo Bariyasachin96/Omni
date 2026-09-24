@@ -385,12 +385,6 @@ fun AdvancedScreen(
                 // rather than a ClassCastException on the next line.
                 val powerManager = ContextCompat.getSystemService(context, PowerManager::class.java)
                 if (powerManager == null || !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
-                    // Android's one-tap dialog for Easy Voice when it is offered
-                    // (SystemScreens.batteryRequest); else the system list.
-                    val direct = SystemScreens.batteryRequest(context, context.packageName)
-                    if (direct != null) {
-                        try { context.startActivity(direct); return@ActionButton } catch (_: Exception) {}
-                    }
                     try {
                         context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                         Toast.makeText(context, "Set Easy Voice and each of your TTS engines to Unrestricted", Toast.LENGTH_LONG).show()

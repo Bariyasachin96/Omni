@@ -113,7 +113,9 @@ run "#29 drop the speak-time recovery" "#29" \
 run "#29 remove the restore bind timeout" "#29" \
     "perl -0pi -e 's/mainHandler\\.postDelayed\\(watchdog, 30000L\\)/watchdog.hashCode()/' $K/EasyVoiceTtsService.kt"
 run "#29 gate the reconnect hand-back on state again" "#29" \
-    "perl -0pi -e 's/        wrapper\\.restoreSpent = false\\n        if \\(wrapper\\.state == -1\\) restoreEngine/        if (wrapper.state == -1) wrapper.restoreSpent = false\\n        if (wrapper.state == -1) restoreEngine/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/        wrapper\\.restoreSpent = false\\n        if \\(wrapper\\.restoring\\)/        if (wrapper.state == -1) wrapper.restoreSpent = false\\n        if (wrapper.restoring)/' $K/EasyVoiceTtsService.kt"
+run "#29 drop an event that arrives mid-restore" "#29" \
+    "perl -0pi -e 's/\\{ wrapper\\.restoreWanted = true; return \\}/{ return }/' $K/EasyVoiceTtsService.kt"
 run "#29 restore from the death callback again" "#29" \
     "perl -0pi -e 's/onEngineProcessGone\\(pkg\\) \\} catch/onEngineProcessGone(pkg); restoreEngine(pkg, pkg) } catch/' $K/EasyVoiceTtsService.kt"
 run "#29 leave a dead process's wrapper selectable" "#29" \

@@ -12,11 +12,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Lets Troubleshoot and the Advanced tab ask Android to stop battery
-         optimization for Easy Voice with one system dialog
-         (Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS). A normal
-         permission: declared, it is granted. -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
