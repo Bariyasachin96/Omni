@@ -334,15 +334,23 @@ class AccessibilityChecksTest {
                     "Done. 1 working, 1 need attention.",
                     listOf("Hindi moved from Old engine to Speech Services by Google"),
                     listOf(
-                        TroubleshootFinding("Easy Voice in the background", false,
-                            listOf("Battery optimization: off.",
-                                "Persistent notification: off. Turn it on to keep Easy Voice running.",
-                                "Auto-start: allow Easy Voice, so it starts again after a restart or Clear all."),
-                            listOf(TroubleshootFix("Turn on persistent notification", action = { }),
-                                TroubleshootFix("Auto-start settings", android.content.Intent()))),
-                        TroubleshootFinding("Speech Services by Google", true, listOf("Working. 2 languages.", "Battery optimization: off."),
-                            listOf(TroubleshootFix("Download voice data", android.content.Intent()))),
-                        TroubleshootFinding("Eloquence", false, listOf("Not working: no languages installed.", "Battery optimization: on. Set it to Unrestricted."), listOf(fix))
+                        TroubleshootFinding("Easy Voice permissions", false, listOf(
+                            TroubleshootItem("Battery optimization: on. Turn it off.",
+                                listOf(TroubleshootFix("Turn off battery optimization", android.content.Intent()))),
+                            TroubleshootItem("Persistent notification: off. Turn it on to keep Easy Voice running.",
+                                listOf(TroubleshootFix("Turn on persistent notification", action = { }))),
+                            TroubleshootItem("Notifications: allowed."),
+                            TroubleshootItem("Auto-start: allow Easy Voice and each voice engine, so they start again after a restart or Clear all.",
+                                listOf(TroubleshootFix("Auto-start settings", android.content.Intent()))))),
+                        TroubleshootFinding("Speech Services by Google", true, listOf(
+                            TroubleshootItem("Working. 2 languages."),
+                            TroubleshootItem("More languages can be downloaded.", listOf(TroubleshootFix("Download voice data", android.content.Intent()))),
+                            TroubleshootItem("Battery optimization: off."))),
+                        TroubleshootFinding("Eloquence", false, listOf(
+                            TroubleshootItem("Not working: stopped answering. Force stop it in App info, then run again.", listOf(fix)),
+                            TroubleshootItem("Battery optimization: on. Set it to Unrestricted.",
+                                listOf(TroubleshootFix("Battery optimization settings", android.content.Intent()))),
+                            TroubleshootItem("Set up for: English.")))
                     )
                 ),
                 onRunAgain = { }, onFix = { }

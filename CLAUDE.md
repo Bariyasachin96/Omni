@@ -8,7 +8,50 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## TROUBLESHOOT WORDING SHORT; CLEAR ALL READ IN AOSP; SMALL FILES MERGED; C++ RESEARCHED (owner, 2026-09-24, latest)
+## TROUBLESHOOT: ONLY ENGINES WITH A VOICE, ONE BUTTON PER PERMISSION; SCAN OFF THE MAIN THREAD (owner, 2026-09-24, latest)
+*"jis TTS ke pass voice hai sirf vahi aane chahie ... hamare jaise TTS nahin aane chahie ... jo bhi permission
+jaruri hoti hai vah permissions ke buttons ... package name se scan ... library se verify ... background aur
+foreground mein acche se."*
+- **Troubleshoot lists only engines with a voice of their own.** Left out: an engine that never listed a
+  voice (`languageCount == 0`, which counts kept voices too), and one whose `synthesizeToFile` test file has
+  NO SOUND -- a proxy (Easy Voice, AutoTTS) speaks through another engine and the framework's
+  FileSynthesisCallback writes a 44-byte WAV header and nothing (or zero-sample keep-alive silence). Measured
+  by any non-zero byte after the header (`wroteSound`), not guessed from voice names. Kept anyway when one
+  of the user's languages is set up on it ("no voice of its own. Set these languages up on another engine").
+  A silent engine is remembered per package + `PackageInfoCompat.getLongVersionCode` for the process, so a
+  proxy does not speak the test sentence aloud on every run.
+- **Findings are items now** (`TroubleshootItem(text, fixes)`): each line has its buttons right under it,
+  a line that is fine has none; `dedupe` keeps one button per label per finding. Section
+  "Easy Voice permissions": background restricted, battery optimization, pause-if-unused, persistent
+  notification, notifications, auto-start (text now says "Easy Voice and each voice engine": MIUI-style
+  auto-start also blocks other apps binding an engine). `SystemScreens` holds every system screen.
+- **Battery: the one-tap system dialog** (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), manifest now
+  declares `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (normal permission). AOSP Settings'
+  RequestIgnoreBatteryOptimizations shows it only if the TARGET package holds that permission, so for an
+  engine it is offered only when `checkPermission(..., pkg)` is granted, else the list + App info. The
+  Advanced tab's button uses it too. **Play policy**: direct exemption only "unless the core function of the
+  app is adversely affected" (accessibility is not in Google's example table) -- stated to the owner.
+- **Notifications**: `ActivityCompat.shouldShowRequestPermissionRationale` false after a denial -> the
+  app's notification page. **The foreground service no longer needs POST_NOTIFICATIONS** (Android's page:
+  "Apps don't need to request the POST_NOTIFICATIONS permission in order to launch a foreground service"):
+  `hasNotificationPermission` gate removed; `foregroundStarted` instance flag beside AutoTTS's a0() check.
+  **Switching "Show persistent notification" on starts it at once** (`applyForegroundSetting` ->
+  `startService` while the screen shows -> `onStartCommand` -> startForeground, which Android allows for an
+  app on screen); off -> stopForeground on the running instance, `stopSelf(startId)`.
+- **Engine discovery in ONE place** (`EngineFinder.installedEngines` / `isTtsEngine`, shaped after AOSP
+  TtsEngines: service label, system flag, priority; union of MATCH_ALL / GET_META_DATA / 0 as B0 did, query
+  order kept). Replaced three queryIntentServices and three `resolveService != null` copies (service
+  keep-alive bind keeps its own resolveService: it needs the component). `repointUninstalled` treats "PM
+  could not be asked" as installed (`whenUnknown = true`). `EngineFinder.forget(pkg)` clears the label and
+  signature caches on every package broadcast.
+- **Scan robustness:** clients use `ctx.applicationContext` (API 24-30 bind with the given context; the
+  main screen closing/rotating mid-scan used to unbind every engine being read). `getVoices` and
+  `isLanguageAvailable` run on `EngineFinder.engineCalls` (cached daemon pool), with the 30 s timeout still
+  armed -- on the main thread a wedged engine froze the screen AND the timeout meant to skip it.
+  `shutdownLater` (shutdown takes the same mStartLock). Troubleshoot's test does setLanguage /
+  synthesizeToFile there too.
+
+## TROUBLESHOOT WORDING SHORT; CLEAR ALL READ IN AOSP; SMALL FILES MERGED; C++ RESEARCHED (owner, 2026-09-24)
 - **Troubleshoot text is short and plain** (owner: "bahut lamba ... AI generated lag raha hai ... speak shabd
   mat use karo ... sirf itni language"). Engines say "Working. N languages." (`languageCount`, no names);
   summary "Done. N working, M need attention."; every line is "Thing: state. Action." Keep it that way.

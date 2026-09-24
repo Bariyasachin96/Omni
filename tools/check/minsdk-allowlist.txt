@@ -5,7 +5,6 @@
 #
 # Reviewed 2026-09-10, when this check was written and found two real crashes.
 
-EasyVoiceTtsService.kt:POST_NOTIFICATIONS            # API 33, hasNotificationPermission()
 MainActivity.kt:POST_NOTIFICATIONS                   # API 33, a String constant inlined; asked for only
                                                      # when NotificationManagerCompat says notifications are off
 EasyVoiceTtsService.kt:FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK  # API 29, a static final int the
@@ -24,6 +23,6 @@ TroubleshootActivity.kt:putExtra                     # the same line: kotlinc ca
                                                      # unresolved argument; Intent.putExtra itself is API 1
 TroubleshootActivity.kt:O                            # Build.VERSION_CODES, inlined ints (see below)
 TroubleshootActivity.kt:TIRAMISU
-EasyVoiceTtsService.kt:TIRAMISU                      # Build.VERSION_CODES.* are static final ints the
+# Build.VERSION_CODES.* are static final ints the
 EasyVoiceTtsService.kt:O                             # compiler inlines (33 / 26 / 36 / 28): the name is
 TroubleshootActivity.kt:P                            # so nothing is resolved at runtime on API 24

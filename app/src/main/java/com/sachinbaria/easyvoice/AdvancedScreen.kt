@@ -374,6 +374,8 @@ fun AdvancedScreen(
             ) { picked ->
                 showNotification = picked
                 EasyVoiceTtsService.showNotificationFlag = picked
+                // Now, while this screen shows, not at the next utterance.
+                EasyVoiceTtsService.applyForegroundSetting(context)
                 if (picked) requestNotificationPermission()
             }
             ActionButton("Disable battery optimization", R.drawable.ic_battery_alert) {
@@ -383,6 +385,12 @@ fun AdvancedScreen(
                 // rather than a ClassCastException on the next line.
                 val powerManager = ContextCompat.getSystemService(context, PowerManager::class.java)
                 if (powerManager == null || !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+                    // Android's one-tap dialog for Easy Voice when it is offered
+                    // (SystemScreens.batteryRequest); else the system list.
+                    val direct = SystemScreens.batteryRequest(context, context.packageName)
+                    if (direct != null) {
+                        try { context.startActivity(direct); return@ActionButton } catch (_: Exception) {}
+                    }
                     try {
                         context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                         Toast.makeText(context, "Set Easy Voice and each of your TTS engines to Unrestricted", Toast.LENGTH_LONG).show()
@@ -396,7 +404,7 @@ fun AdvancedScreen(
                     Toast.makeText(context, "Battery optimization is already off for Easy Voice", Toast.LENGTH_LONG).show()
                 }
             }
-            SettingDescription("Opens the system battery screen, where you can set Easy Voice and each of your TTS engines to Unrestricted.")
+            SettingDescription("Turns battery optimization off for Easy Voice. Troubleshoot voice engines shows it for each voice engine.")
             OptionGap()
             // Import and Export are gone (owner, 2026-09-17), and on 2026-09-24
             // the unreachable code behind them went too.

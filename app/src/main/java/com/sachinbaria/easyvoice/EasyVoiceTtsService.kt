@@ -296,62 +296,54 @@ class EasyVoiceTtsService : TextToSpeechService() {
             .setOngoing(true)
             .build()
     }
-    private fun hasNotificationPermission(): Boolean {
-        // The permission only exists from 33; below it notifications need none.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-        }
-        return true
-    }
+    // Only for the log: from Android 13 notifications need POST_NOTIFICATIONS to
+    // SHOW. The foreground service does not need it (below).
+    private fun notificationsShown(): Boolean = NotificationManagerCompat.from(this).areNotificationsEnabled()
+    // True while THIS instance runs in the foreground. Only this service starts
+    // and stops its foreground state, so the flag is exact; the notification
+    // check beside it (AutoTTS's a0()) cannot see a notification the user has
+    // blocked, and would ask for startForeground again on every utterance.
+    @Volatile private var foregroundStarted = false
     private fun isForegroundActive(): Boolean {
+        if (foregroundStarted) return true
         return NotificationManagerCompat.from(this).activeNotifications.any { it.id == FOREGROUND_NOTIFICATION_ID }
     }
-    // IT COULD FAIL TWO WAYS WITHOUT SAYING SO, AND THAT IS WHY THE OWNER CANNOT
-    // TELL WHETHER THIS IS THEIR PROBLEM (owner, 2026-09-17: "jab maine battery
-    // optimization ko off karke dekha to acche se chal raha tha ... mujhe lag raha
-    // hai ki yah foreground ki hi koi problem hai").
+    private fun stopForegroundNow() {
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        foregroundStarted = false
+    }
+    // THE FOREGROUND SERVICE NO LONGER WAITS FOR THE NOTIFICATION PERMISSION
+    // (2026-09-24). It used to return at once when POST_NOTIFICATIONS was not
+    // granted, so on Android 13+ a user who switched "Show persistent
+    // notification" on and then said "Don't allow" got nothing at all: no
+    // foreground service, and Android free to stop Easy Voice again. Android's
+    // own page says otherwise, verbatim: "Apps don't need to request the
+    // POST_NOTIFICATIONS permission in order to launch a foreground service.
+    // However, apps must include a notification" -- which is still passed. With
+    // the permission off the notification is kept out of the drawer (the app is
+    // listed in the Task Manager instead) and the service is foreground all the
+    // same. developer.android.com/develop/ui/views/notifications/notification-permission
     //
-    // This is the app's ONLY defence against Doze, App Standby and the cached-app
-    // freezer -- which is exactly what turning battery optimization off exempts a
-    // process from, so the owner's observation and this method point at the same
-    // thing. And it had two silent exits:
-    //
-    //   1. `if (!hasNotificationPermission()) return` -- on Android 13+ the user
-    //      turns "Show persistent notification" ON, POST_NOTIFICATIONS is not
-    //      granted, and the whole feature does NOTHING with no line anywhere.
-    //   2. `catch { error(ex.message ?: "") }` -- a caught exception whose message
-    //      is null logged an EMPTY STRING, and even a non-null one arrived with no
-    //      word saying what had failed. A TTS engine is NOT on Android 12's
-    //      exemption list for starting a foreground service from the background,
-    //      so ForegroundServiceStartNotAllowedException is a real outcome here and
-    //      it was landing as a blank line.
-    //
-    // NO BEHAVIOUR CHANGES -- every branch does what it did. What changes is that
-    // the log the owner already shares now states which of the three happened, so
-    // the next one settles the foreground question instead of leaving it to
-    // theory. Whether this should be ON by default is the owner's call and is NOT
-    // decided here: the switch is off by default because AutoTTS's is.
+    // A refusal is still logged by class and message: a TTS engine is NOT on
+    // Android 12's exemption list for starting a foreground service from the
+    // background, so ForegroundServiceStartNotAllowedException is a real outcome
+    // when this runs from an utterance. The app's own screens start it while
+    // they are showing instead (onStartCommand), which Android allows.
     private fun startForegroundIfPossible() {
         try {
-            if (!hasNotificationPermission()) {
+            if (!notificationsShown()) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
-                    "foreground service NOT started: notification permission is not granted")
-                return
+                    "notifications are off: the foreground service runs, its notification is not shown")
             }
             createNotificationChannel()
             // ONE CALL FOR EVERY API LEVEL: ServiceCompat picks the platform
-            // overload itself -- the typed one on 29+, the plain one below -- so
-            // the hand-written >= 34 branch is gone. On 29-33 it now passes the
-            // type too, which is the type the manifest already declares, so the
-            // service starts exactly as it did.
+            // overload itself -- the typed one on 29+, the plain one below.
             ServiceCompat.startForeground(this, FOREGROUND_NOTIFICATION_ID, buildNotification(),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            foregroundStarted = true
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "foreground service started (mediaPlayback)")
         } catch (ex: Exception) {
-            // The CLASS as well as the message: ForegroundServiceStartNotAllowedException
-            // is the one that names a background-start refusal, and it is the answer
-            // to the owner's question. `ex.toString()` carries both and is never
+            // `ex.toString()` carries the class and the message and is never
             // empty, which `ex.message` can be.
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "foreground service refused: " + ex.toString())
         }
@@ -553,7 +545,28 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // BuildConfig.VERSION_NAME / VERSION_CODE are written by AGP from the same
     // versionName / versionCode in app/build.gradle.kts, so the line prints the
     // same two values, the way the About screen already reads them.
-    override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int = START_STICKY
+    // "SHOW PERSISTENT NOTIFICATION" TAKES EFFECT THE MOMENT IT IS SWITCHED ON
+    // (2026-09-24). It used to wait for the next utterance, which is in the
+    // background, where Android 12+ may refuse a foreground start -- so the one
+    // setting that keeps Easy Voice alive through Clear all and battery
+    // optimization could stay off without a word. The app's screens now send a
+    // start (applyForegroundSetting) while they are showing, and Android lets an
+    // app on screen start its foreground service. Switched off, the foreground
+    // is dropped and the start undone: the service lives on only as long as the
+    // system keeps it bound, as it always did.
+    override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int {
+        try {
+            if (showNotificationFlag) {
+                if (!isForegroundActive()) startForegroundIfPossible()
+            } else {
+                if (isForegroundActive()) stopForegroundNow()
+                stopSelf(startId)
+            }
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStartCommand: " + ex.toString())
+        }
+        return START_STICKY
+    }
     override fun onTaskRemoved(rootIntent: android.content.Intent?) { super.onTaskRemoved(rootIntent) }
 
     // ==========================================================================
@@ -1166,8 +1179,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             for (index in 0 until enginePool.size) { if (enginePool[index].pkg.equals(normPkg, true)) { wrapper = enginePool[index]; break } }
             if (wrapper == null) {
                 if (initializingIndex < walkList.size) return
-                val installed = try { packageManager.resolveService(android.content.Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE).setPackage(rawPkg), 0) != null } catch (_: Exception) { false }
-                if (!installed) return
+                if (!EngineFinder.isTtsEngine(this, rawPkg)) return
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, rawPkg + " is configured but was not in the engine pool -- adding it")
                 val added = EngineWrapper(rawPkg)
                 added.state = -1
@@ -1890,6 +1902,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
             try {
                 val changed = intent?.data?.schemeSpecificPart ?: return
+                // Its name and whether it is ours are asked again, not remembered.
+                EngineFinder.forget(changed)
                 // An engine installed, updated or turned on can change which one
                 // is the phone's built-in engine; ask again.
                 EngineFinder.refreshBuiltInEngine()
@@ -1921,9 +1935,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
     }
     @Volatile private var packageReceiverRegistered = false
-    private fun isTtsEngine(pkg: String): Boolean = try {
-        packageManager.resolveService(android.content.Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE).setPackage(pkg), 0) != null
-    } catch (_: Exception) { false }
+    private fun isTtsEngine(pkg: String): Boolean = EngineFinder.isTtsEngine(this, pkg)
     private fun registerPackageReceiver() {
         val filter = android.content.IntentFilter()
         filter.addAction(android.content.Intent.ACTION_PACKAGE_ADDED)
@@ -2269,10 +2281,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // restores it). A bind is asynchronous, so THIS chunk cannot wait for
             // it; the next one finds it live and step 2 asks it for the language.
             val started = ArrayList<String>()
-            val installed = try {
-                packageManager.queryIntentServices(android.content.Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0)
-                    .mapNotNull { it.serviceInfo?.packageName }.distinct()
-            } catch (_: Exception) { emptyList() }
+            val installed = EngineFinder.installedEngines(this).map { it.pkg }
             for (rawPkg in installed) {
                 if (!usable(rawPkg)) continue
                 if (liveWrapper(rawPkg) != null) continue
@@ -2864,13 +2873,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (showNotificationFlag && !isForegroundActive()) {
             startForegroundIfPossible()
         } else if (!showNotificationFlag && isForegroundActive()) {
-            // ServiceCompat, not the deprecated int overload (2026-09-11). The
-            // owner's standing instruction is that anything androidx already does
-            // comes from androidx; ServiceCompat.stopForeground is that API, and
-            // STOP_FOREGROUND_REMOVE is the same value 1 this passed by hand, so
-            // the behaviour is identical on every level. ServiceCompat is already
-            // imported for startForeground.
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            // ServiceCompat.stopForeground with STOP_FOREGROUND_REMOVE, the value
+            // 1 this once passed by hand.
+            stopForegroundNow()
         }
         synchronized(syncLock) { isStopped = false; syncLock.notifyAll() }
         synchronized(syncLock) { isFlushed = false; syncLock.notifyAll() }
@@ -4055,7 +4060,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // abandonAudioFocus dereferences audioManager!! and audioFocusRequest!!,
         // both null if requestAudioFocus failed at startup -- skipped the pool
         // walk that follows.
-        try { ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "stopForeground: " + ex.toString()) }
+        try { stopForegroundNow() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "stopForeground: " + ex.toString()) }
         try { abandonAudioFocus() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "abandonAudioFocus: " + ex.toString()) }
         // Every client the pool still holds, not only the ready ones: a wrapper
         // at -1 can still hold the client that failed, and shutdown() is what
@@ -4096,6 +4101,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         @JvmStatic fun engineUnresponsive(rawPkg: String) {
             try { running?.get()?.onEngineUnresponsive(rawPkg) } catch (_: Throwable) {}
+        }
+        // "Show persistent notification" was switched, on one of the app's own
+        // screens (the Advanced tab, Troubleshoot). ON: a start is sent while the
+        // screen shows, so the foreground service begins now rather than on the
+        // next utterance in the background (see onStartCommand). OFF: only a
+        // running service is told, so switching it off never creates one just to
+        // stop it again.
+        @JvmStatic fun applyForegroundSetting(ctx: android.content.Context) {
+            try {
+                if (showNotificationFlag) ctx.startService(android.content.Intent(ctx, EasyVoiceTtsService::class.java))
+                else running?.get()?.let { service -> service.onMainThread { if (service.isForegroundActive()) service.stopForegroundNow() } }
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "applyForegroundSetting: " + ex.toString())
+            }
         }
         // Every scan ends here, whichever screen or service started it.
         @JvmStatic fun scanFinished() {
