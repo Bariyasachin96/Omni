@@ -26,6 +26,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import android.os.Bundle
+import androidx.activity.compose.setContent
 fun modeIntOf(mode: String): Int =
     when (mode) { "dual" -> 1; "auto" -> 2; "google" -> 3; "mix" -> 4; "multilingual" -> 5; else -> 0 }
 // The mode list offers exactly four: Dual, Auto, Mixed, Multilingual. "None" is
@@ -369,5 +371,47 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
                 LocaleSpanRow()
             }
         }
+    }
+}
+
+// The two modes that are NEVER drawn as a row, and therefore never get a
+// settings button either (owner, 2026-09-09). "none" because the owner had it
+// removed outright, "google" because AutoTTS's own radio is
+// android:visibility="gone" in fragment_modes.xml and setVisibility is never
+// called on it anywhere -- so that mode is not offered there either. Both still
+// EXIST in the store and in the service; only the UI refuses to show them.
+//
+// One list, read by ModesScreen's row loop and by MainScreen's settings FAB, so
+// the button cannot outlive the row it belongs to.
+val HIDDEN_MODES = setOf("none", "google")
+val modeRowSpecs = listOf(
+    Triple("dual", "Dual languages", "Reads Latin words in English and seamlessly switches to your secondary language for non-Latin text. Choose that language in Settings."),
+    Triple("auto", "Auto language detect", "Auto-detects the full sentence language and applies the ideal reading voice."),
+    Triple("google", "Google TTS", "The same as Auto, except it only uses Google's voices."),
+    Triple("mix", "Mixed mode", "Intelligently splits and reads mixed-script text, switching voices for each language segment."),
+    Triple("multilingual", "Multilingual mode (experimental)", "Analyzes and reads complex multi-language text using the most accurate voice for each specific language.")
+)
+
+class ModeSettingsActivity : EvActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // This screen persists in onPause, so it must not run with unloaded
+        // statics: Android can restore it alone into a fresh process. No-op
+        // whenever anything is already loaded -- see LangStore.ensureLoaded.
+        LangStore.ensureLoaded(this)
+        val prefs = SharedPrefsManager(this)
+        val mode = intent.getStringExtra("mode") ?: prefs.getReadingMode()
+        // NO setTitle HERE ANY MORE. The window already has a title from the
+        // manifest ("Mode settings"), and a screen reader speaks a window's
+        // title when the window appears; changing it during onCreate produced a
+        // SECOND window-state-changed event and therefore a second
+        // announcement, which is the doubling the owner reported on 2026-09-04.
+        // The mode's own name is not lost -- it is the screen's first heading,
+        // "<Mode> settings", which is where the reader lands.
+        setContent { EasyVoiceTheme { ModeSettingsScreen(prefs, mode) } }
+    }
+    override fun onPause() {
+        LangStore.persistAll(this)
+        super.onPause()
     }
 }

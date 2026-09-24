@@ -211,12 +211,12 @@ class TroubleshootActivity : EvActivity() {
         working = true
         result = null
         lastInputs = null
-        progress = "Reading every voice engine on this phone"
+        progress = "Checking voice engines"
         EngineFinder.scanLanguages(
             this,
             onProgress = { line ->
                 val pkg = line.removePrefix("Scanning ").substringBefore("...")
-                runOnUiThread { if (myGeneration == generation) progress = "Reading " + EngineFinder.engineLabel(this, pkg) }
+                runOnUiThread { if (myGeneration == generation) progress = "Checking " + EngineFinder.engineLabel(this, pkg) }
             },
             repair = true,
             onReport = { reports, moved ->
@@ -228,12 +228,12 @@ class TroubleshootActivity : EvActivity() {
     private fun afterScan(myGeneration: Int, reports: List<EngineFinder.EngineReport>, moved: List<String>) {
         val repaired = ArrayList<String>(moved)
         if (EasyVoiceTtsService.troubleshootEngines()) {
-            repaired.add("Easy Voice restarted every voice engine that had stopped responding")
+            repaired.add("Restarted engines that had stopped")
         }
         val toTest = reports.filter { it.problem.isEmpty() }
         val speechProblems = HashMap<String, String>()
         if (toTest.isEmpty()) { report(myGeneration, reports, repaired, speechProblems); return }
-        progress = "Testing each engine with a short sentence"
+        progress = "Testing engines"
         var remaining = toTest.size
         for (report in toTest) {
             testEngine(myGeneration, report.pkg) { problem ->
@@ -264,12 +264,12 @@ class TroubleshootActivity : EvActivity() {
             try { file.delete() } catch (_: Exception) {}
             if (myGeneration == generation) onDone(problem)
         }
-        timeout = Runnable { finishTest("it accepted a test sentence and never finished it") }
+        timeout = Runnable { finishTest("no answer to a test") }
         fun onInitMain(status: Int) {
             if (finished) return
             val client = cell[0]
-            if (status != TextToSpeech.SUCCESS || client == null) { finishTest("it refused to start"); return }
-            if (EngineFinder.boundEngineOf(client, pkg) != pkg) { finishTest("Android connected to another engine instead of it"); return }
+            if (status != TextToSpeech.SUCCESS || client == null) { finishTest("did not start"); return }
+            if (EngineFinder.boundEngineOf(client, pkg) != pkg) { finishTest("connected to another engine"); return }
             val locale = configuredLocaleFor(pkg)
             val iso3 = if (locale != null && client.setLanguage(locale) >= TextToSpeech.LANG_AVAILABLE) EngineFinder.iso3Of(locale)
                        else EngineFinder.iso3Of(try { client.voice?.locale } catch (_: Exception) { null })
@@ -278,13 +278,13 @@ class TroubleshootActivity : EvActivity() {
                 override fun onStart(utteranceId: String?) {}
                 override fun onDone(utteranceId: String?) { handler.post { finishTest(null) } }
                 @Deprecated("Deprecated in Java")
-                override fun onError(utteranceId: String?) { handler.post { finishTest("it failed on a test sentence") } }
+                override fun onError(utteranceId: String?) { handler.post { finishTest("test failed") } }
                 override fun onError(utteranceId: String?, errorCode: Int) {
-                    handler.post { finishTest("it failed on a test sentence (error " + errorCode + ")") }
+                    handler.post { finishTest("test failed (error " + errorCode + ")") }
                 }
             })
             val queued = try { client.synthesizeToFile(sentence, Bundle(), file, "ev_troubleshoot") } catch (_: Exception) { TextToSpeech.ERROR }
-            if (queued != TextToSpeech.SUCCESS) finishTest("it refused a test sentence")
+            if (queued != TextToSpeech.SUCCESS) finishTest("test refused")
         }
         try {
             cell[0] = TextToSpeech(applicationContext, { status ->
@@ -293,7 +293,7 @@ class TroubleshootActivity : EvActivity() {
             cell[0]?.let { testClients.add(it) }
             handler.postDelayed(timeout, 20000L)
         } catch (_: Exception) {
-            finishTest("Android could not start it")
+            finishTest("could not start")
         }
     }
 
@@ -340,26 +340,22 @@ class TroubleshootActivity : EvActivity() {
         val found = try { packageManager.resolveActivity(intent, 0) } catch (_: Exception) { null }
         return if (found != null) TroubleshootFix("Download voice data", intent) else null
     }
-    // The languages an engine speaks, from the voices the scan just read, as
-    // names ("Hindi, Gujarati") -- a language counts once however many voices
-    // it has.
-    private fun languagesOf(pkg: String): List<String> =
+    // How many languages the engine has voices for, from the scan just made. The
+    // report gives the number only (owner, 2026-09-24: no list of names).
+    private fun languageCount(pkg: String): Int =
         EngineFinder.lastScanVoices.asSequence()
             .filter { it.pkg == pkg && !it.notFound }
             .map { EngineFinder.iso3Of(it.locale) }
             .filter { it != "zxx" }
             .distinct()
-            .map { EngineFinder.languageName(it) }
-            .distinct()
-            .sortedWith(java.text.Collator.getInstance())
-            .toList()
+            .count()
     // One line per engine saying where it stands with battery optimization, and
     // the system list as the fix when it is on.
     private fun addBatteryStatus(pkg: String, lines: MutableList<String>, fixes: MutableList<TroubleshootFix>) {
         if (ignoresBatteryOptimization(pkg)) {
-            lines.add("Battery optimization: off. Android will not stop it to save battery.")
+            lines.add("Battery optimization: off.")
         } else {
-            lines.add("Battery optimization: on. Android can stop it in the background, and speech in its languages can stop with it. Set it to Unrestricted.")
+            lines.add("Battery optimization: on. Set it to Unrestricted.")
             fixes.add(batteryFix())
             // From Android 12 the per-app choice (Unrestricted / Optimized /
             // Restricted) lives on the app's own info page, under Battery; the
@@ -373,8 +369,7 @@ class TroubleshootActivity : EvActivity() {
         val preferred = try { Settings.Secure.getString(contentResolver, Settings.Secure.TTS_DEFAULT_SYNTH) } catch (_: Exception) { null }
         if (preferred != null && preferred != packageName) {
             out.add(TroubleshootFinding(TITLE_PREFERRED, false,
-                listOf("The phone's preferred engine is " + EngineFinder.engineLabel(this, preferred) +
-                    ", so screen readers are not speaking through Easy Voice. Choose Easy Voice as the preferred engine."),
+                listOf("Preferred engine: " + EngineFinder.engineLabel(this, preferred) + ". Choose Easy Voice."),
                 listOf(ttsSettingsFix())))
         }
         out.add(backgroundFinding())
@@ -391,15 +386,15 @@ class TroubleshootActivity : EvActivity() {
         when {
             restricted -> {
                 ok = false
-                lines.add("Background use is restricted for Easy Voice, so Android can stop it while you use the phone. Allow background use in its app info.")
+                lines.add("Background use: restricted. Allow it in App info.")
                 fixes.add(appInfo(packageName))
             }
             !ignoresBatteryOptimization(packageName) -> {
                 ok = false
-                lines.add("Battery optimization: on for Easy Voice. Android can stop it in the background, and speech stops with it. Set Easy Voice to Unrestricted.")
+                lines.add("Battery optimization: on. Set Easy Voice to Unrestricted.")
                 fixes.add(batteryFix())
             }
-            else -> lines.add("Battery optimization: off for Easy Voice.")
+            else -> lines.add("Battery optimization: off.")
         }
         // "Pause app activity if unused" (Android 11 and later, and the Play Store's
         // backport on 6 to 10): an app not opened for a few months loses its
@@ -409,7 +404,7 @@ class TroubleshootActivity : EvActivity() {
             UnusedAppRestrictionsConstants.API_30_BACKPORT, UnusedAppRestrictionsConstants.API_30,
             UnusedAppRestrictionsConstants.API_31 -> {
                 ok = false
-                lines.add("Pause app activity if unused: on. When Easy Voice has not been opened for a few months, Android can take its permissions away and stop it. Turn this off.")
+                lines.add("Pause app activity if unused: on. Turn it off.")
                 fixes.add(TroubleshootFix("Unused app settings",
                     IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName), forResult = true))
             }
@@ -424,12 +419,12 @@ class TroubleshootActivity : EvActivity() {
         when {
             !EasyVoiceTtsService.showNotificationFlag -> {
                 ok = false
-                lines.add("Persistent notification: off. With it on, Easy Voice runs as a foreground service, which Android does not stop to free memory.")
+                lines.add("Persistent notification: off. Turn it on to keep Easy Voice running.")
                 fixes.add(TroubleshootFix("Turn on persistent notification", action = { turnOnNotification() }))
             }
             blocked -> {
                 ok = false
-                lines.add("Persistent notification: on, but notifications are not allowed for Easy Voice, so it cannot run as a foreground service. Allow its notifications.")
+                lines.add("Persistent notification: on, but notifications are blocked. Allow them.")
                 fixes.add(notificationSettingsFix())
             }
             else -> lines.add("Persistent notification: on.")
@@ -442,7 +437,7 @@ class TroubleshootActivity : EvActivity() {
         // read by any app, so the screen is offered whenever this phone has one.
         val autoStart = autoStartFix()
         if (autoStart != null) {
-            lines.add("Auto-start: this phone keeps its own list of apps that may start by themselves. After a restart or when memory is cleared, Easy Voice starts again only if it is allowed there. Turn Easy Voice on in that list.")
+            lines.add("Auto-start: allow Easy Voice, so it starts again after a restart or Clear all.")
             fixes.add(autoStart)
         }
         return TroubleshootFinding(TITLE_BATTERY, ok, lines, fixes)
@@ -456,7 +451,7 @@ class TroubleshootActivity : EvActivity() {
         if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
             try { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) {}
         }
-        Toast.makeText(this, "Persistent notification is on. It starts with the next thing Easy Voice speaks.", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "Persistent notification is on.", Toast.LENGTH_LONG).show()
     }
 
     // The app's own notification page from Android 8, its app info before that.
@@ -488,11 +483,11 @@ class TroubleshootActivity : EvActivity() {
     }
 
     private fun readableProblem(problem: String): String = when {
-        problem.startsWith("init status") -> "it refused to start"
-        problem.contains("listed 0 voices") -> "it has no languages installed"
-        problem.contains("connection lost") -> "it stopped answering while its languages were being read"
-        problem.startsWith("bound to") -> "Android connected to another engine instead of it"
-        problem == "constructor threw" -> "Android could not start it"
+        problem.startsWith("init status") -> "did not start"
+        problem.contains("listed 0 voices") -> "no languages installed"
+        problem.contains("connection lost") -> "stopped answering"
+        problem.startsWith("bound to") -> "connected to another engine"
+        problem == "constructor threw" -> "could not start"
         else -> problem
     }
 
@@ -530,18 +525,18 @@ class TroubleshootActivity : EvActivity() {
             val installer = installDataFix(report.pkg)
             if (problem == null) {
                 workingCount++
-                val spoken = languagesOf(report.pkg)
-                lines.add(when (spoken.size) {
+                val count = languageCount(report.pkg)
+                lines.add(when (count) {
                     0 -> "Working."
-                    1 -> "Working. It speaks " + spoken[0] + "."
-                    else -> "Working. It speaks " + spoken.size + " languages: " + spoken.joinToString(", ") + "."
+                    1 -> "Working. 1 language."
+                    else -> "Working. $count languages."
                 })
                 // A language set up on it whose data is not on the phone yet (the
                 // engine answered LANG_MISSING_DATA during the scan). Said only
                 // when the engine has a download screen to open.
                 val missing = EngineFinder.lastMissingData[report.pkg].orEmpty()
                 if (missing.isNotEmpty() && installer != null) {
-                    lines.add("Not downloaded yet: " + missing.joinToString(", ") { EngineFinder.languageName(it) } + ".")
+                    lines.add("Not downloaded: " + missing.joinToString(", ") { EngineFinder.languageName(it) } + ".")
                 }
                 // Every engine that has a voice-data screen gets its button, working
                 // or not, so more languages can be downloaded from here (owner,
@@ -552,15 +547,15 @@ class TroubleshootActivity : EvActivity() {
                 broken++
                 lines.add("Not working: " + problem + ".")
                 if (report.voices == 0 && report.problem.isNotEmpty() && installer != null) {
-                    lines.add("Download its voice data, then run this check again.")
+                    lines.add("Download its voice data, then run again.")
                 } else {
-                    lines.add("Open its app info and choose Force stop, then run this check again. If it still fails, update the engine.")
+                    lines.add("Force stop it in App info, then run again.")
                 }
                 if (installer != null) fixes.add(installer)
                 fixes.add(appInfo(report.pkg))
             }
             addBatteryStatus(report.pkg, lines, fixes)
-            if (setUp.isNotEmpty()) lines.add("Languages set up on it in Easy Voice: " + setUp.joinToString(", ") + ".")
+            if (setUp.isNotEmpty()) lines.add("Set up for: " + setUp.joinToString(", ") + ".")
             engineFindings.add(TroubleshootFinding(label, problem == null, lines, fixes))
         }
         // Engines a language is set up on that the scan did not find at all:
@@ -574,28 +569,28 @@ class TroubleshootActivity : EvActivity() {
             val fixes = ArrayList<TroubleshootFix>()
             when {
                 appInfo == null -> {
-                    lines.add("Not installed. Install it again, or choose another voice for these languages.")
+                    lines.add("Not installed.")
                     fixes.add(TroubleshootFix("Open in Play Store", Intent(Intent.ACTION_VIEW, ("market://details?id=" + pkg).toUri())))
                 }
                 !appInfo.enabled -> {
-                    lines.add("It is turned off. Turn it on in its app info.")
+                    lines.add("Turned off. Turn it on in App info.")
                     fixes.add(appInfo(pkg))
                 }
                 else -> {
-                    lines.add("It is installed but no longer offers a voice engine. Update it, or choose another voice for these languages.")
+                    lines.add("No longer a voice engine. Update it.")
                     fixes.add(appInfo(pkg))
                 }
             }
             if (appInfo != null) addBatteryStatus(pkg, lines, fixes)
-            lines.add("Languages set up on it in Easy Voice: " + setUp.joinToString(", ") + ".")
+            lines.add("Set up for: " + setUp.joinToString(", ") + ".")
             engineFindings.add(TroubleshootFinding(label, false, lines, fixes))
         }
         findings.addAll(engineFindings.sortedBy { it.ok })
-        val summary = StringBuilder("Check finished. ")
-        summary.append(workingCount).append(if (workingCount == 1) " engine is working" else " engines are working")
-        if (broken > 0) summary.append(", ").append(broken).append(if (broken == 1) " needs attention" else " need attention")
+        val summary = StringBuilder("Done. ")
+        summary.append(workingCount).append(" working")
+        if (broken > 0) summary.append(", ").append(broken).append(" need attention")
         summary.append(".")
-        if (reports.isEmpty()) summary.append(" No voice engine answered. Install a voice engine, such as Speech Services by Google.")
+        if (reports.isEmpty()) summary.append(" No voice engine found.")
         return TroubleshootResult(summary.toString(), repaired, findings)
     }
 

@@ -2,6 +2,7 @@ package com.sachinbaria.easyvoice
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import java.util.Locale
+import android.content.Intent
 object VoiceRows {
     private fun voiceKey(row: EngineFinder.ScanVoice?, selectedIso: String): String =
         if (row == null) "Disable#" + localeOf(selectedIso).toString() else row.pkg + "#" + row.locale.toString()
@@ -171,4 +172,177 @@ object VoiceRows {
         else "[EasyVoice:" + row.pkg + ":" + voiceLocale.toString() + ":" + qualityTag + "]" + sample
         testClient.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "EasyVoice_Test")
     }
+}
+
+// THE SAMPLE SENTENCE COMES FROM THE ENGINE NOW (owner, 2026-09-16):
+// "har TTS ke paas vah sample text rahata hi hai ... hamen alag se likhne ki
+// jarurat nahin hai."
+//
+// They are right, and it is the PLATFORM'S OWN PATTERN: Android Settings does
+// exactly this in `TextToSpeechSettings.getSampleText()` -- fire
+// ACTION_GET_SAMPLE_TEXT at the engine, read EXTRA_SAMPLE_TEXT off the result.
+//
+// THREE THINGS FROM THE AOSP SOURCE DECIDE THE SHAPE, and each is why this file
+// is bigger than "ask the engine":
+//
+//  1. IT IS AN ACTIVITY, NOT A BINDER CALL. `ACTION_GET_SAMPLE_TEXT` carries
+//     `@SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)`, so the only way to
+//     read it is startActivityForResult and a result callback. There is no
+//     background API and no method on TextToSpeech -- checked, not assumed.
+//  2. THE ANSWER IS OPTIONAL. The Javadoc says the result *may* contain
+//     EXTRA_SAMPLE_TEXT, and Settings catches ActivityNotFoundException, because
+//     an engine need not declare the activity at all. So `SampleTexts` STAYS as
+//     the fallback -- asking the engine cannot delete it, and Settings keeps its
+//     own canned table for the same reason.
+//  3. AOSP hedges on the request side: "This is currently a hidden private API.
+//     The intent extras and the intent action should be made public if we intend
+//     to make this a public API. We fall back to using a canned set of strings if
+//     this doesn't work." The extras below are the ones its own Javadoc documents
+//     and the ones Settings sends.
+//
+// WHY IT IS CACHED, and this is the accessibility decision rather than a
+// performance one. An activity round trip is a WINDOW CHANGE, and a screen
+// reader speaks a window's title when a window appears -- this app has spent
+// three sessions making each screen introduce itself exactly once. Caching per
+// engine+locale means the round trip happens on the FIRST Test for a language
+// and never again for the life of the process: every later press is byte for
+// byte the instant, silent path it is today.
+//
+// An empty string is cached deliberately and means "asked, the engine had
+// nothing" -- so a language whose engine declines is not re-asked on every
+// press. Only a genuine failure to launch leaves the key absent.
+object EngineSample {
+    private val cache = HashMap<String, String>()
+    @JvmStatic fun key(pkg: String, locale: Locale): String = pkg + "|" + locale.toString()
+    // null  = never asked, ask now
+    // ""    = asked, engine gave nothing -> use SampleTexts
+    // other = the engine's own sentence
+    @JvmStatic @Synchronized fun cached(key: String): String? = cache[key]
+    @JvmStatic @Synchronized fun put(key: String, text: String) { cache[key] = text }
+    // The three extras are what TextToSpeech.Engine.ACTION_GET_SAMPLE_TEXT's own
+    // Javadoc lists -- language, country, variant -- and `setPackage` is what
+    // aims it at the engine that will actually speak, rather than at whichever
+    // engine the system would resolve. Both are copied from Settings.
+    //
+    // TWO-LETTER CODES, as Settings sends (2026-09-24, owner: "Vocalizer ... Hindi
+    // ke liye configure ... test button ... English ke liye bol raha hai"). Settings
+    // passes the voice's Locale.getLanguage()/getCountry(), which for the locales
+    // Android builds are "hi" / "IN". Some engines name their voices with
+    // three-letter locales ("hin" / "IND"), and passing those back unchanged asked
+    // the engine for a language it does not recognise under that spelling -- and
+    // an engine that does not recognise the request answers with its default
+    // sentence, which is English. So the codes are turned into the two-letter
+    // form first; a code with no two-letter form is sent as it is.
+    @JvmStatic fun intentFor(pkg: String, locale: Locale): Intent {
+        val intent = Intent(android.speech.tts.TextToSpeech.Engine.ACTION_GET_SAMPLE_TEXT)
+        intent.putExtra("language", IsoCodes.toIso2(EngineFinder.iso3Of(locale)) ?: locale.language)
+        intent.putExtra("country", countryIso2(locale.country))
+        intent.putExtra("variant", locale.variant)
+        intent.setPackage(pkg)
+        return intent
+    }
+    private fun countryIso2(country: String): String {
+        if (country.length != 3) return country
+        return try {
+            Locale.getISOCountries().firstOrNull { localeOf("", it).isO3Country.equals(country, true) } ?: country
+        } catch (_: Exception) { country }
+    }
+    // THE ENGINE'S SENTENCE IS USED ONLY WHEN IT IS WRITTEN IN THE LANGUAGE'S OWN
+    // SCRIPT. An engine that does not know the language it was asked for can still
+    // answer LANG_AVAILABLE with its default sentence, and the owner then heard
+    // the Hindi voice read English. The table's own sample for the language says
+    // which script to expect (Devanagari for Hindi, Latin for French); the
+    // engine's text must be mostly in that script, counted with the platform's
+    // Character.UnicodeScript. The Han, kana and Hangul scripts count as one, since
+    // Japanese mixes them and either can lead. With no table sample there is
+    // nothing to compare against, and the engine's sentence is taken as it is.
+    // Not caught: an English sentence for another Latin-script language -- the
+    // script cannot tell those apart.
+    @JvmStatic fun fitsLanguage(text: String, locale: Locale): Boolean {
+        val expected = dominantScript(SampleTexts.get(EngineFinder.iso3Of(locale))) ?: return true
+        return dominantScript(text) == expected
+    }
+    private fun dominantScript(text: String): Character.UnicodeScript? {
+        val counts = HashMap<Character.UnicodeScript, Int>()
+        var offset = 0
+        while (offset < text.length) {
+            val cp = text.codePointAt(offset)
+            offset += Character.charCount(cp)
+            var script = try { Character.UnicodeScript.of(cp) } catch (_: Exception) { continue }
+            if (script == Character.UnicodeScript.COMMON || script == Character.UnicodeScript.INHERITED ||
+                script == Character.UnicodeScript.UNKNOWN) continue
+            if (script == Character.UnicodeScript.HIRAGANA || script == Character.UnicodeScript.KATAKANA ||
+                script == Character.UnicodeScript.HANGUL || script == Character.UnicodeScript.BOPOMOFO) script = Character.UnicodeScript.HAN
+            counts[script] = (counts[script] ?: 0) + 1
+        }
+        return counts.maxByOrNull { it.value }?.key
+    }
+}
+
+fun abbreviateEngineName(name: String): String {
+    val parts = name.split(" ").dropLastWhile { it.isEmpty() }
+    if (parts.size < 2) return name
+    val headBuf = StringBuilder(parts[0])
+    val tailBuf = StringBuilder(parts[parts.size - 1])
+    var headIdx = 1
+    var tailIdx = parts.size - 2
+    var best = "$headBuf ... $tailBuf"
+    while (headIdx < tailIdx) {
+        if (best.length > 15) return best
+        val candidate = "$headBuf ... $tailBuf"
+        if (candidate.length > 15) return if (candidate.length >= 20) best else candidate
+        if (parts[headIdx].length < parts[tailIdx].length) { headBuf.append(" ").append(parts[headIdx]); headIdx++ }
+        else { tailBuf.insert(0, parts[tailIdx] + " "); tailIdx-- }
+        best = candidate
+    }
+    return if (name.length >= 15) best else name
+}
+fun voiceLanguageLabels(context: Context, modeInt: Int): List<String> {
+    val autoIso3 = EasyVoiceTtsService.autoLang
+    val dualIso3 = EasyVoiceTtsService.dualLang
+    val mixLatinIso3 = EasyVoiceTtsService.mixLatinLang
+    val mixNonLatinIso3 = EasyVoiceTtsService.mixNonLatinLang
+    val required = LangStore.requiredLangs(modeInt, autoIso3, dualIso3, mixLatinIso3, mixNonLatinIso3)
+    LangStore.persistLanguages(context)
+    LangStore.replaceAll(
+        if (modeInt == 1) LangStore.dualLangList(context, dualIso3, EngineFinder.lastScanVoices)
+        else LangStore.rebuildFromScan(context, true, modeInt, required, EngineFinder.lastScanVoices)
+    )
+    // c3.k.Y2 rebuilds the list the same way and finishes with s0().
+    EasyVoiceTtsService.pushLanguageSets()
+    return when (modeInt) {
+        2, 4, 5 -> LangStore.availableLanguagesFor(null, false)
+        3 -> LangStore.availableLanguagesFor(EngineFinder.builtInEngine, false)
+        else -> LangStore.dualLanguageLabels(dualIso3)
+    }
+}
+// Parallel to voiceLanguageLabels: same order, same filters, one entry per
+// label -- the chosen engine's package, or "" when none was chosen.
+// LangEntry.enginePkg is written ONLY by VoiceRows.moveToFront, i.e. only when
+// the user actually picks a voice, so it is exactly the "did I set this
+// language up" signal. The two branches mirror availableLanguagesFor and
+// dualLanguageLabels line for line, so the lists cannot drift out of step.
+fun voiceLanguageEngines(modeInt: Int): List<String> {
+    val out = ArrayList<String>()
+    val dualIso3 = EasyVoiceTtsService.dualLang
+    val pkgFilter = if (modeInt == 3) EngineFinder.builtInEngine else null
+    // Under the list's own monitor, like every walk inside LangStore. This one
+    // is on the main thread and the writer it races is the SYNTHESIS thread
+    // inside reloadLanguagesIfMissing, so an indexed walk here could read a size
+    // that a replaceAll had already shrunk. See LangStore.replaceAll.
+    synchronized(LangStore.languages) {
+        var index = 0
+        while (index < LangStore.languages.size) {
+            val entry = LangStore.languages[index]
+            index++
+            if (modeInt == 2 || modeInt == 3 || modeInt == 4 || modeInt == 5) {
+                if (pkgFilter != null && !entry.enginePkgs.contains(pkgFilter) || entry.disabled) continue
+            } else {
+                if (!entry.iso3.equals("eng", true) && !entry.iso3.equals(dualIso3, true)) continue
+            }
+            val pkg = entry.enginePkg
+            out.add(if (pkg.isNotEmpty() && !pkg.equals("disable", true)) pkg else "")
+        }
+    }
+    return out
 }

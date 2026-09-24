@@ -208,8 +208,8 @@ Ours: `app/src/main/java/com/sachinbaria/easyvoice/LangStore.kt`
 | `c3/u.java` / `c3/v.java` | the required-engines dialog | UI carve-out |
 | `c3/k.java` | `ModesScreen`, `AdvancedScreen`, `LanguagesActivity`, `VoiceScreen`, `ConfigurationScreen`, `VoiceRows` | UI carve-out — layout differs on purpose |
 | `NewSettingsActivity` | `MainActivity.kt` | UI carve-out |
-| `CheckVoiceData` | `CheckVoiceData.kt` | verified, result codes included |
-| `GetSampleText` | `GetSampleText.kt` | verified, result codes included |
+| `CheckVoiceData` | `EngineActivities.kt` | verified, result codes included |
+| `GetSampleText` | `EngineActivities.kt` | verified, result codes included |
 | `c3/l0.java`, `AutoTtsService.h0`/`m0`/`K`/`Y`/`n0` | **not ported** | licence and signature checks — deliberate carve-out |
 
 ---

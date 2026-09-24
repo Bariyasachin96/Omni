@@ -20,7 +20,7 @@ DECL_RE = re.compile(r'\b(?:class|object|interface|enum\s+class|annotation\s+cla
 CONST_RE = re.compile(r'\b(?:val|var)\s+([A-Z]\w*)\b')
 FUN_RE = re.compile(r'\bfun\s+(?:<[^>]*>\s*)?([A-Z]\w*)\s*\(')
 # A capitalised TOP-LEVEL val/var -- SCREAMING_SNAKE is Kotlin's own convention
-# for one, so HIDDEN_MODES in TabViews.kt looks exactly like an unimported type
+# for one, so HIDDEN_MODES in ModesScreen.kt looks exactly like an unimported type
 # to the scan below. Anchored at column 0 on purpose: CONST_RE matches every
 # `val X` including locals and class properties, and adding those module-wide
 # would suppress real findings rather than one false one.

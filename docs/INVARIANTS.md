@@ -38,7 +38,7 @@ detector hinting at the previous list.
 
 Every hit must have a `pushLanguageSets()` next to it. The six current sites are
 `EngineFinder`'s scan completion, `LanguagesActivity`'s `loaded` block,
-`ModesScreen.rebuildLanguagesFor`, `LanguagesVoicesViews.voiceLanguageLabels`,
+`ModesScreen.rebuildLanguagesFor`, `VoiceRows.kt voiceLanguageLabels`,
 and the service's `loadAllSettings` and `reloadLanguagesIfMissing`.
 `LangStore.loadLanguages` is exempt: it is not a rebuild site of its own, and
 both of its callers push.

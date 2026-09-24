@@ -8,7 +8,31 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## BACKGROUND SCAN FROM THE SERVICE, AUTO-START IN TROUBLESHOOT, TEST SAMPLE IN THE RIGHT SCRIPT (owner, 2026-09-24, latest)
+## TROUBLESHOOT WORDING SHORT; CLEAR ALL READ IN AOSP; SMALL FILES MERGED; C++ RESEARCHED (owner, 2026-09-24, latest)
+- **Troubleshoot text is short and plain** (owner: "bahut lamba ... AI generated lag raha hai ... speak shabd
+  mat use karo ... sirf itni language"). Engines say "Working. N languages." (`languageCount`, no names);
+  summary "Done. N working, M need attention."; every line is "Thing: state. Action." Keep it that way.
+- **Clear all, read in AOSP main** (`ActivityTaskSupervisor.killTaskProcessesIfPossible`): removing our
+  task from recents kills our process UNLESS it `hasForegroundServices()`. The restart is then
+  `ActiveServices.scheduleServiceRestartLocked`: 1 s first, x4 if restarted within 60 s, spaced **10 s
+  apart from every other restarting service** (`SERVICE_MIN_RESTART_TIME_BETWEEN`) plus 10/20/30 s under
+  memory pressure (`mExtraServiceRestartDelayOnMemPressure`). Clear all kills many apps at once, so we
+  queue behind them: that is the "minutes". Only FLAG_PERSISTENT (system apps) skip it. **No library or
+  dependency changes this** (WorkManager/Alarm are deferred further). The one app-side lever is the
+  foreground service = "Show persistent notification" ON; still OFF by default, owner's call.
+  (`excludeFromRecents` would also keep AOSP's Clear all off us, but hides the app from recents.)
+- **Files merged, no behaviour change:** Locales.kt -> IsoCodes.kt; TabViews.kt + ModeSettingsActivity ->
+  ModesScreen.kt; EngineSample + LanguagesVoicesViews -> VoiceRows.kt; CheckVoiceData + GetSampleText ->
+  EngineActivities.kt (both stay separate classes: the manifest names them).
+- **C++ researched, from NDK 30's own headers and libandroid.so exports:** no TTS, power/battery,
+  package, notification or job API in the NDK; `APermissionManager` (API 31) only checks. libnativehelper
+  in the NDK is a 6-symbol stub (no JNIHelp). Embeddable synthesizers: sherpa-onnx (Apache-2.0, ready
+  Android TTS engines; 1.13.8: Hindi 4 voices, Gujarati 1, no Marathi) but its Piper voices build
+  eSpeak NG (GPL-3.0); eSpeak NG (GPL-3.0, hi/gu/mr/...); Flite CMU Indic (BSD-like). Detection: fastText
+  lid.176 (code MIT, model CC-BY-SA-3.0, 917 KB), Android `TextClassifier.detectLanguage` (API 29). Not
+  adopted; a built-in backup voice is the owner's decision.
+
+## BACKGROUND SCAN FROM THE SERVICE, AUTO-START IN TROUBLESHOOT, TEST SAMPLE IN THE RIGHT SCRIPT (owner, 2026-09-24)
 *"troubleshoot mein auto start wala bhi button ... background mein scanning nahin ho rahi ... RAM clear ho
 jaaye to automatically scanning shuru ho jaani chahie ... voice data ke liye koi button nahin ... Vocalizer
 Hindi ... test button ... English bol raha hai."*

@@ -207,7 +207,7 @@ for a layout that suits a screen reader instead. It is Jetpack Compose:
 | `LanguagesActivity.kt` | the language list |
 | `ConfigurationScreen.kt` | Configuration settings — the per-language list |
 | `VoiceScreen.kt`, `VoiceRows.kt`, `VoiceSetupActivity.kt` | the per-language voice screen |
-| `ModeSettingsActivity.kt` | one mode's settings on its own screen |
+| `ModesScreen.kt` (ModeSettingsActivity) | one mode's settings on its own screen |
 | `ComposeTheme.kt` | the accessible dark palette |
 
 The accessibility rules these screens must keep are INVARIANTS #5 to #11.
