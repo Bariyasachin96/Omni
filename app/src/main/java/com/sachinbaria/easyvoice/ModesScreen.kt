@@ -320,7 +320,7 @@ fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
             var codeIdx = 0
             while (codeIdx < LangStore.languages.size) { loadedCodes.add(LangStore.languages[codeIdx].iso3); codeIdx++ }
         }
-        val loadedLabels = LangStore.languageLabelsFor(if (mode == "google") LangStore.GOOGLE_TTS else null)
+        val loadedLabels = LangStore.languageLabelsFor(if (mode == "google") EngineFinder.builtInEngine else null)
         Pair(loadedCodes, loadedLabels)
     }
     val codes = loaded.first

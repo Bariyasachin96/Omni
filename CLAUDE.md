@@ -8,6 +8,27 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## NO PACKAGE NAME IS HARD-CODED; MISSING VOICE DATA OPENS THE ENGINE'S INSTALLER (owner, 2026-09-24, latest)
+*"kisi bhi TTS ka package name likhane ki jarurat nahin ... package name change hote rahte hain ...
+pura system sahi uthao ... voice ka data download na ho ... scanning ke time per download ho jana
+chahie."*
+- **Google mode's engine is `EngineFinder.builtInEngine`**, asked of the system: installed TTS
+  services from the SYSTEM IMAGE (FLAG_SYSTEM / UPDATED_SYSTEM_APP), highest intent-filter
+  priority first -- AOSP TtsEngines' own ranking. Not ours. Empty = "Google not installed"
+  (loadMode drops mode 3 to 0 then). Refreshed by `EngineFinder.attach(ctx)` (service onCreate,
+  loadMode, every scan) and by the service's packageReceiver. **Caveat, stated:** on a phone
+  whose built-in engine is not Google's (e.g. Samsung's TTS ranked first), Google mode uses that.
+- **Ours = `isSelfEngine`**: own `BuildConfig.APPLICATION_ID`, or any package with the same signing
+  certificate (`checkSignatures`, cached) -- the old `com.tts.easyvoice` install is caught by
+  that. The `"easyvoice"`/`"multilingualtts"` substrings are gone.
+- **The 40-entry engine-name table (AutoTTS `c3.v`) is gone**: names are Android's `loadLabel`,
+  else built from the package (`friendlyName`). FileProvider authority is `${applicationId}`.
+- **Voice data**: the scan asks each engine `isLanguageAvailable` for every language set up on
+  it; `LANG_MISSING_DATA` (or an engine that lists 0 voices after its retry) opens that engine's
+  `ACTION_INSTALL_TTS_DATA` installer -- only from an Activity, once per engine per process
+  (`requestVoiceData`). An app cannot download another app's voices itself; this is the door.
+  Troubleshoot lists `lastMissingData` per engine with an "Install voice data" button.
+
 ## TROUBLESHOOT VOICE ENGINES, IN MORE OPTIONS (owner, 2026-09-24, latest)
 *"troubleshoot voice engine naam ka ek option ... jo bhi TTS work nahin karte honge ... scan karke
 sab kuchh sahi ho jaega aur automatically kaam karne lag jaega."* `TroubleshootActivity`

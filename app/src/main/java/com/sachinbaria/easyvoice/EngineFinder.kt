@@ -8,34 +8,33 @@ object EngineFinder {
     // What one scan learned about one engine, for the Troubleshoot screen.
     // `problem` is empty when the engine answered with voices.
     data class EngineReport(val pkg: String, val label: String, val voices: Int, val problem: String)
-    private val engineNames = mapOf(
-        "com.google.android.tts" to "Google Text-to-Speech", "com.google.android.tts.speechpack.eng" to "Google TTS - English",
-        "com.samsung.SMT" to "Samsung Text-to-Speech", "com.samsung.android.ttssmt" to "Samsung TTS", "com.samsung.smt" to "Samsung TTS Engine",
-        "com.huawei.hiai.speech.tts" to "Huawei Text-to-Speech", "com.huawei.tts" to "Huawei TTS",
-        "com.xiaomi.mibrain.speech" to "Xiaomi Text-to-Speech", "com.miui.voiceassist" to "Mi Voice Assistant TTS",
-        "com.acapelagroup.android.tts" to "Acapela TTS Voices", "com.cereproc.android.tts" to "CereProc Text-to-Speech", "com.cereproc.CerePlay" to "CerePlay Text-to-Speech",
-        "com.ivona.tts" to "IVONA Text-to-Speech", "com.ivona.tts.hq" to "IVONA Text-to-Speech HQ", "com.ivona.tts.oem" to "IVONA TTS OEM",
-        "es.codefactory.vocalizertts" to "Vocalizer TTS", "com.nuance.tts" to "Nuance Vocalizer", "com.nuance.vocalizer" to "Nuance Vocalizer TTS",
-        "com.reecedunn.espeak" to "eSpeak TTS", "com.googlecode.eyesfree.espeak" to "eSpeak TTS (Eyes-Free)", "rhzmr.espeak" to "eSpeak TTS",
-        "com.github.olga_yakovleva.rhvoice.android" to "RHVoice", "com.svox.classic" to "SVOX Classic TTS", "com.svox.pico" to "Pico TTS",
-        "edu.cmu.cs.speech.tts.flite" to "Flite TTS",
-        "com.hear2read.tts.kannada" to "Hear2Read Kannada", "com.hear2read.tts.telugu" to "Hear2Read Telugu", "com.hear2read.tts.punjabi" to "Hear2Read Punjabi",
-        "com.hear2read.tts.tamil" to "Hear2Read Tamil", "com.hear2read.tts.gujarati" to "Hear2Read Gujarati", "com.hear2read.tts.marathi" to "Hear2Read Marathi",
-        "com.hear2read.tts.malayalam" to "Hear2Read Malayalam", "com.hear2read.tts.sanskrit" to "Hear2Read Sanskrit", "com.hear2read.tts.assamese" to "Hear2Read Assamese", "com.hear2read.tts.hindi" to "Hear2Read Hindi",
-        "ru.yandex.speechkit.tts" to "Yandex SpeechKit TTS", "bg.bultreebank.speechlab" to "SpeechLab TTS", "io.github.aholab.ahotts" to "AhoTTS",
-        "com.k2fsa.sherpa.onnx.tts.engine" to "Sherpa TTS", "com.amazon.tts" to "Amazon Text-to-Speech", "com.lge.tts" to "LG Text-to-Speech", "com.htc.tts" to "HTC Text-to-Speech",
-        "com.voiceforge.tts" to "VoiceForge TTS", "jp.kddilabs.n2tts" to "N2 TTS", "com.speech.tts.engine" to "Speech TTS Engine", "com.nirenr.talkman" to "Jieshuo+"
-    )
-    // THE ENGINE'S OWN NAME, AS ANDROID GIVES IT (2026-09-24). The table above
-    // is AutoTTS's c3.v written out by hand, and the scan never used it: it
+    // NO PACKAGE NAME IS WRITTEN IN THIS APP (owner, 2026-09-24: "kisi bhi TTS ka
+    // package name likhane ki jarurat nahin ... package name change hote rahte
+    // hain ... pura system sahi uthao"). The table of forty engine packages that
+    // sat here (AutoTTS's c3.v) is gone: an engine is named by Android's own
+    // label for its TTS service, and a package that is not installed at all is
+    // named from the package itself (friendlyName). "Which engine is ours" and
+    // "which engine is the phone's built-in one" are asked of the system too --
+    // see isSelfEngine and builtInEngine below.
+    //
+    // The application context, for the two questions above that need the
+    // package manager from places that have no Context (LangStore.engineFor runs
+    // on binder threads). The APPLICATION context only -- never an Activity or
+    // the Service, which is what the 2026-09-10 appCtx leak held.
+    @Volatile private var appContext: Context? = null
+    @JvmStatic fun attach(ctx: Context) {
+        if (appContext == null) appContext = ctx.applicationContext
+        refreshBuiltInEngine()
+    }
+    // THE ENGINE'S OWN NAME, AS ANDROID GIVES IT (2026-09-24). The scan has always
     // names every engine with resolveInfo.loadLabel -- the label of the engine's
     // TTS service, the same name Android's own TTS settings list it under. So
     // the Voice setup screen named an engine one way and the Configuration list
     // another, and an engine newer than the table got a name built from its
     // package. This answers what Android answers: the last scan's label, else
     // the installed service's own label (cached; a label changes only with an
-    // update), and the table only for a package that is not installed at all --
-    // an imported configuration can name one.
+    // update), and for a package that is not installed at all -- an imported
+    // configuration can name one -- a name built from the package itself.
     private val labelCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     @JvmStatic
     fun engineLabel(ctx: Context, pkg: String?): String {
@@ -52,7 +51,6 @@ object EngineFinder {
     }
     fun friendlyName(pkg: String?): String {
         if (pkg == null) return "Unknown"
-        engineNames[pkg]?.let { return it }
         if (pkg.isEmpty()) return "Unknown"
         val parts = pkg.split(".")
         val start = if (parts.size > 1 && parts[0].lowercase(Locale.getDefault()) in setOf("com", "org", "net", "io", "ru", "jp")) 1 else 0
@@ -74,8 +72,49 @@ object EngineFinder {
     // at once over the same fields. That is our refactor's bug, not AutoTTS's,
     // which is what makes fixing it right rather than a rule 5 departure.
     @Volatile private var scanGeneration = 0
-    private fun isSelfEngine(pkg: String): Boolean =
-        pkg.contains("easyvoice") || pkg.contains("multilingualtts")
+    // OURS, ASKED OF THE SYSTEM: our own package, or any package signed with our
+    // own certificate -- an older install of this app under its previous package
+    // name is one, and a package-name fragment could never say so reliably.
+    // PackageManager.checkSignatures compares the signing certificates; the
+    // answer is cached per package, since a certificate changes only with a
+    // reinstall.
+    private val selfCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    @JvmStatic fun isSelfEngine(pkg: String): Boolean {
+        if (pkg == BuildConfig.APPLICATION_ID) return true
+        if (pkg.isEmpty()) return false
+        selfCache[pkg]?.let { return it }
+        val ctx = appContext ?: return false
+        val same = try {
+            ctx.packageManager.checkSignatures(BuildConfig.APPLICATION_ID, pkg) == android.content.pm.PackageManager.SIGNATURE_MATCH
+        } catch (_: Exception) { false }
+        selfCache[pkg] = same
+        return same
+    }
+    // THE PHONE'S BUILT-IN ENGINE, which is what "Google TTS" mode reads with.
+    // It used to be one package name written into the app. It is now what AOSP
+    // itself ranks first: TtsEngines.getEngines() sorts installed engines with
+    // EngineInfoComparator -- engines in the SYSTEM IMAGE first, then by the
+    // intent filter's priority -- and the framework falls back to the head of
+    // that list when nothing else is chosen. Ours is never it. Empty when the
+    // phone has no built-in engine, which is where "Google installed" used to be
+    // false. Recomputed on attach, on every scan and on a package change.
+    @Volatile @JvmStatic var builtInEngine: String = ""
+        private set
+    @JvmStatic fun refreshBuiltInEngine() {
+        val ctx = appContext ?: return
+        builtInEngine = try {
+            val pm = ctx.packageManager
+            pm.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), android.content.pm.PackageManager.MATCH_ALL)
+                .mapNotNull { info -> info.serviceInfo?.let { info to it } }
+                .filter { (_, service) -> !isSelfEngine(service.packageName) }
+                .filter { (_, service) ->
+                    val flags = service.applicationInfo?.flags ?: 0
+                    flags and (android.content.pm.ApplicationInfo.FLAG_SYSTEM or android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                }
+                .sortedByDescending { (info, _) -> info.priority }
+                .firstOrNull()?.second?.packageName ?: ""
+        } catch (_: Exception) { builtInEngine }
+    }
 
     // THE 3-ARG TextToSpeech CONSTRUCTOR SILENTLY FALLS BACK TO ANOTHER ENGINE,
     // AND ON THIS APP'S OWN PHONE THAT OTHER ENGINE IS US. Read out of AOSP
@@ -151,7 +190,7 @@ object EngineFinder {
             for (resolveList in lists) for (resolveInfo in resolveList) {
                 val serviceInfo = resolveInfo.serviceInfo ?: continue
                 val pkg = serviceInfo.packageName
-                if (pkg.contains("easyvoice") || seen.containsKey(pkg)) continue
+                if (isSelfEngine(pkg) || seen.containsKey(pkg)) continue
                 val info = EngineInfo(pkg, resolveInfo.loadLabel(pkgManager).toString())
                 seen[pkg] = info
                 list.add(info)
@@ -248,6 +287,32 @@ object EngineFinder {
         }
         return moved
     }
+    // THE DOWNLOAD IS THE ENGINE'S OWN, and asking for it is Android's own
+    // mechanism: TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA, sent to that engine,
+    // opens the engine's voice-data installer -- what Android's TTS settings do
+    // for an engine that reports missing data. An app cannot download another
+    // app's voices itself; this is the door it has. It opens only from an
+    // Activity the user has in front of them (the settings screen or the
+    // troubleshooter, never the service), and once per engine per process, so
+    // a declined download is not asked again on every open.
+    private val voiceDataAsked = java.util.Collections.synchronizedSet(HashSet<String>())
+    @JvmStatic val lastMissingData: MutableMap<String, List<String>> = java.util.concurrent.ConcurrentHashMap()
+    private fun requestVoiceData(ctx: Context, missing: Map<String, List<String>>) {
+        lastMissingData.clear()
+        lastMissingData.putAll(missing)
+        val activity = ctx as? android.app.Activity ?: return
+        if (activity.isFinishing) return
+        for ((pkg, langs) in missing) {
+            if (!voiceDataAsked.add(pkg)) continue
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Voice data missing on " + pkg +
+                (if (langs.isEmpty()) " (no voices)" else " for " + langs.joinToString(",")) + " -- opening its installer")
+            try {
+                activity.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(pkg))
+            } catch (ex: Exception) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "No voice-data installer in " + pkg + ": " + ex.toString())
+            }
+        }
+    }
     @JvmStatic fun languageName(iso3: String): String =
         try { localeOf(iso3).displayLanguage.ifEmpty { iso3 } } catch (_: Exception) { iso3 }
     fun scanLanguages(
@@ -257,6 +322,7 @@ object EngineFinder {
         onReport: ((List<EngineReport>, List<String>) -> Unit)? = null,
         onResult: (Set<String>) -> Unit
     ) {
+        attach(ctx)
         val engines = ArrayList<EngineInfo>()
         val seen = HashMap<String, EngineInfo>()
         val myGeneration = ++scanGeneration
@@ -272,6 +338,9 @@ object EngineFinder {
         val succeeded = HashSet<Int>()
         // Per engine index, for onReport: voices read, and why it was not read.
         val voiceCounts = HashMap<Int, Int>()
+        // Per engine package: the configured languages it answered
+        // LANG_MISSING_DATA for, or "" when it listed no voices at all.
+        val missingData = LinkedHashMap<String, ArrayList<String>>()
         val problems = HashMap<Int, String>()
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
         var index = 0
@@ -373,6 +442,7 @@ object EngineFinder {
             // detector keeps hinting at whatever the list held before the scan,
             // which on a first run is nothing at all.
             EasyVoiceTtsService.pushLanguageSets()
+            requestVoiceData(ctx, missingData)
             if (onReport != null) {
                 val reports = ArrayList<EngineReport>()
                 val reported = HashSet<String>()
@@ -538,6 +608,28 @@ object EngineFinder {
                         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
                         if (added == 0 && retryOrFail(noVoicesWhy)) return
                         voiceCounts[myIndex] = added
+                        // VOICE DATA THAT IS NOT DOWNLOADED (owner, 2026-09-24: "voice ka
+                        // data download na ho ... download karne ka jo already system
+                        // rahata hai ... scanning ke time per ... download ho jana
+                        // chahie"). LANG_MISSING_DATA is the engine's own answer for
+                        // "I support this language and its data is not on the phone"
+                        // (AOSP: setLanguage passes it through unchanged). Asked here,
+                        // on the fresh client the scan already holds, for every
+                        // language set up on this engine; an engine that lists no
+                        // voices at all needs its data too.
+                        try {
+                            if (client != null) {
+                                for ((key, value) in LangStore.prefs(ctx).all) {
+                                    if (key.length != 3 || value !is String) continue
+                                    val parts = value.split("#")
+                                    if (parts.size < 2 || parts[0] != expectedPkg || parts[1].isEmpty()) continue
+                                    if (client.isLanguageAvailable(parseStoredLocale(parts[1])) == TextToSpeech.LANG_MISSING_DATA) {
+                                        missingData.getOrPut(expectedPkg) { ArrayList() }.add(key)
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                        if (added == 0 && retried.contains(myIndex)) missingData.getOrPut(expectedPkg) { ArrayList() }
                         if (added == 0) failed.add(myIndex) else { succeeded.add(myIndex); EasyVoiceTtsService.engineAnswered(expectedPkg) }
                     } else {
                         if (retryOrFail("bound to " + actualEngine)) return
@@ -627,7 +719,7 @@ object EngineFinder {
                 if (status == TextToSpeech.SUCCESS && probe[0] != null) {
                     for (engineInfo in probe[0]!!.engines) {
                         val name = engineInfo.name
-                        if (seen.containsKey(name) || name.contains("easyvoice")) continue
+                        if (seen.containsKey(name) || isSelfEngine(name)) continue
                         engines.add(EngineInfo(name, engineInfo.label))
                     }
                     probe[0]!!.shutdown()

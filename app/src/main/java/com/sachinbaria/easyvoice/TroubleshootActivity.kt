@@ -328,6 +328,14 @@ class TroubleshootActivity : EvActivity() {
             if (problem == null) {
                 workingCount++
                 lines.add("Working. " + report.voices + (if (report.voices == 1) " voice." else " voices."))
+                // Working, but a language set up on it has no voice data on the
+                // phone (the engine answered LANG_MISSING_DATA during the scan).
+                val missing = EngineFinder.lastMissingData[report.pkg].orEmpty()
+                if (missing.isNotEmpty()) {
+                    lines.add("Voice data is not downloaded for: " + missing.joinToString(", ") { EngineFinder.languageName(it) } + ".")
+                    fixes.add(TroubleshootFix("Install voice data",
+                        Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(report.pkg)))
+                }
             } else {
                 broken++
                 lines.add("Not working: " + problem + ".")

@@ -464,6 +464,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // ==========================================================================
     override fun onCreate() {
         EasyVoiceLogger.init(this)
+        // Which installed engine is the phone's built-in one, and which are ours,
+        // are asked of the package manager -- see EngineFinder.attach.
+        try { EngineFinder.attach(this) } catch (_: Throwable) {}
         prefs = SharedPrefsManager(this)
         EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())
         // AutoTtsService.onCreate opens with c3.a0.c/c3.a0.b, so every log a
@@ -1510,7 +1513,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             } else if (status == TextToSpeech.SUCCESS) {
                 if (forceAccessibilityFlag) { try { initializingTts?.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                 wrapper.tts = initializingTts; wrapper.forgetClientState(); wrapper.state = 2
-                if (wantedPkg == LangStore.GOOGLE_TTS) googleEngineIndex = myIndex
+                if (wantedPkg == EngineFinder.builtInEngine) googleEngineIndex = myIndex
             } else {
                 wrapper.tts = initializingTts; wrapper.forgetClientState(); wrapper.state = -1
             }
@@ -1768,6 +1771,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
             try {
                 val changed = intent?.data?.schemeSpecificPart ?: return
+                // An engine installed, updated or turned on can change which one
+                // is the phone's built-in engine; ask again.
+                EngineFinder.refreshBuiltInEngine()
                 val wrapper = wrapperFor(changed) ?: return
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Package " + changed + ": " + intent.action)
                 wrapper.restoreSpent = false
@@ -2078,7 +2084,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             fun usable(rawPkg: String): Boolean {
                 val norm = normPkg(rawPkg)
                 if (rawPkg.isEmpty() || tried.contains(norm)) return false
-                if (rawPkg == packageName || rawPkg.contains("easyvoice")) return false
+                if (rawPkg == packageName || EngineFinder.isSelfEngine(rawPkg)) return false
                 return true
             }
             fun liveWrapper(rawPkg: String): EngineWrapper? {
@@ -2431,8 +2437,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (defaultEngine.isNotEmpty() && defaultEngine != "Disable") {
                 rebuiltEngineList.add(0, defaultEngine)
             }
-            if (rebuiltEngineList.isEmpty() && (try { packageManager.getPackageInfo(LangStore.GOOGLE_TTS, 0); true } catch (_: Exception) { false })) {
-                rebuiltEngineList.add(LangStore.GOOGLE_TTS)
+            if (rebuiltEngineList.isEmpty() && EngineFinder.builtInEngine.isNotEmpty()) {
+                rebuiltEngineList.add(EngineFinder.builtInEngine)
             }
             engineList = rebuiltEngineList
         }
@@ -3147,7 +3153,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             startAndFinish(callback)
             return
         }
-        if (forceGoogle && !bypassed) { chunks.forEach { it.forcedEngine = LangStore.GOOGLE_TTS } }
+        if (forceGoogle && !bypassed) { chunks.forEach { it.forcedEngine = EngineFinder.builtInEngine } }
         val firstChunkParamLang = when (readingMode) {
             "dual" -> prefs.toIso3(requestedLang.ifEmpty { latinFallback })
             "auto", "google" -> if (chunks.isNotEmpty()) prefs.toIso3(chunks[chunks.size - 1].lang) else ""

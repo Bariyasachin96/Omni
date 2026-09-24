@@ -33,7 +33,7 @@ fun voiceLanguageLabels(context: Context, modeInt: Int): List<String> {
     EasyVoiceTtsService.pushLanguageSets()
     return when (modeInt) {
         2, 4, 5 -> LangStore.availableLanguagesFor(null, false)
-        3 -> LangStore.availableLanguagesFor(LangStore.GOOGLE_TTS, false)
+        3 -> LangStore.availableLanguagesFor(EngineFinder.builtInEngine, false)
         else -> LangStore.dualLanguageLabels(dualIso3)
     }
 }
@@ -46,7 +46,7 @@ fun voiceLanguageLabels(context: Context, modeInt: Int): List<String> {
 fun voiceLanguageEngines(modeInt: Int): List<String> {
     val out = ArrayList<String>()
     val dualIso3 = EasyVoiceTtsService.dualLang
-    val pkgFilter = if (modeInt == 3) LangStore.GOOGLE_TTS else null
+    val pkgFilter = if (modeInt == 3) EngineFinder.builtInEngine else null
     // Under the list's own monitor, like every walk inside LangStore. This one
     // is on the main thread and the writer it races is the SYNTHESIS thread
     // inside reloadLanguagesIfMissing, so an indexed walk here could read a size
