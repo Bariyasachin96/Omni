@@ -18,5 +18,5 @@ import java.util.Locale
 // stored voice keys and the engine matching all compare the same objects they
 // compared before.
 fun localeOf(language: String, country: String = "", variant: String = ""): Locale =
-    if (Build.VERSION.SDK_INT >= 36) Locale.of(language, country, variant)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) Locale.of(language, country, variant)
     else @Suppress("DEPRECATION") Locale(language, country, variant)

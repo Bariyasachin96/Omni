@@ -24,10 +24,14 @@ chahie."*
 - **The 40-entry engine-name table (AutoTTS `c3.v`) is gone**: names are Android's `loadLabel`,
   else built from the package (`friendlyName`). FileProvider authority is `${applicationId}`.
 - **Voice data**: the scan asks each engine `isLanguageAvailable` for every language set up on
-  it; `LANG_MISSING_DATA` (or an engine that lists 0 voices after its retry) opens that engine's
-  `ACTION_INSTALL_TTS_DATA` installer -- only from an Activity, once per engine per process
-  (`requestVoiceData`). An app cannot download another app's voices itself; this is the door.
-  Troubleshoot lists `lastMissingData` per engine with an "Install voice data" button.
+  it; `LANG_MISSING_DATA` (or an engine that lists 0 voices after its retry) is RECORDED in
+  `lastMissingData` and logged -- **the scan opens nothing** (owner reversed the auto-open the
+  same day: *"download screen nahin khul jaani chahie"*). Troubleshoot lists it per engine with
+  an "Install voice data" button, the only place the engine's `ACTION_INSTALL_TTS_DATA` opens.
+- **SDK checks name the framework's own constants**: `Build.VERSION_CODES.O/P/TIRAMISU/BAKLAVA`
+  instead of 26/28/33/36 (inlined ints; allowlisted in minsdk). Left as numbers on purpose:
+  `callback.start(16000, ENCODING_PCM_16BIT, 1)` (sample rate and channel COUNT have no
+  constant) and the reading-mode ints 0-5 (ours, not the framework's).
 
 ## TROUBLESHOOT VOICE ENGINES, IN MORE OPTIONS (owner, 2026-09-24, latest)
 *"troubleshoot voice engine naam ka ek option ... jo bhi TTS work nahin karte honge ... scan karke

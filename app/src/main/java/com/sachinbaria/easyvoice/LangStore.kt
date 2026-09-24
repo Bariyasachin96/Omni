@@ -380,6 +380,10 @@ object LangStore {
     // cannot do that: if anything is loaded, this returns immediately.
     @JvmStatic
     fun ensureLoaded(ctx: Context) {
+        // Every screen reaches here, so every screen knows which engines are
+        // the phone's built-in one and ours, even when the statics were loaded
+        // earlier by another path.
+        EngineFinder.attach(ctx)
         if (EasyVoiceTtsService.autoLang.isNotEmpty()) return
         loadModeLangs(ctx)
         loadMode(ctx)

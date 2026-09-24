@@ -280,7 +280,7 @@ class TroubleshootActivity : EvActivity() {
                     ", so screen readers are not speaking through Easy Voice. Choose Easy Voice as the preferred engine."),
                 listOf(ttsSettingsFix())))
         }
-        val restricted = android.os.Build.VERSION.SDK_INT >= 28 && isBackgroundRestricted()
+        val restricted = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && isBackgroundRestricted()
         if (restricted || !ignoresBatteryOptimization(packageName)) {
             val lines = ArrayList<String>()
             if (restricted) lines.add("Background use is restricted for Easy Voice, so Android can stop it while you use the phone.")

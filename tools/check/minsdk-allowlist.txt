@@ -16,3 +16,8 @@ EasyVoiceTtsService.kt:AudioFocusRequest             # API 26, requestAudioFocus
 EasyVoiceTtsService.kt:abandonAudioFocusRequest      # API 26, abandonAudioFocus26()
 Locales.kt:of                                        # API 36, Locale.of, only at SDK_INT >= 36
 TroubleshootActivity.kt:isBackgroundRestricted  # API 28, only at SDK_INT >= 28 in systemFindings()
+EasyVoiceTtsService.kt:TIRAMISU                      # Build.VERSION_CODES.* are static final ints the
+EasyVoiceTtsService.kt:O                             # compiler inlines (33 / 26 / 36 / 28): the name is
+Locales.kt:BAKLAVA                                   # the framework's own, the bytecode is the number,
+TroubleshootActivity.kt:P                            # so nothing is resolved at runtime on API 24
+MainActivity.kt:TIRAMISU

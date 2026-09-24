@@ -285,7 +285,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     private fun hasNotificationPermission(): Boolean {
         // The permission only exists from 33; below it notifications need none.
-        if (Build.VERSION.SDK_INT >= 33) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         }
@@ -396,7 +396,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val manager = ContextCompat.getSystemService(this, AudioManager::class.java)
         if (manager == null) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Audio focus request: no AudioManager on this device"); return }
         audioManager = manager
-        val result = if (Build.VERSION.SDK_INT >= 26) requestAudioFocus26()
+        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) requestAudioFocus26()
         else {
             @Suppress("DEPRECATION")
             audioManager!!.requestAudioFocus(audioFocusListener,
@@ -448,7 +448,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     private fun abandonAudioFocus() {
         if (audioManager == null) return
-        if (Build.VERSION.SDK_INT >= 26) abandonAudioFocus26()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) abandonAudioFocus26()
         else { @Suppress("DEPRECATION") audioManager!!.abandonAudioFocus(audioFocusListener) }
     }
     private fun abandonAudioFocus26() {

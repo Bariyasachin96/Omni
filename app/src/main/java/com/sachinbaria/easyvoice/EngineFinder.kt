@@ -287,31 +287,17 @@ object EngineFinder {
         }
         return moved
     }
-    // THE DOWNLOAD IS THE ENGINE'S OWN, and asking for it is Android's own
-    // mechanism: TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA, sent to that engine,
-    // opens the engine's voice-data installer -- what Android's TTS settings do
-    // for an engine that reports missing data. An app cannot download another
-    // app's voices itself; this is the door it has. It opens only from an
-    // Activity the user has in front of them (the settings screen or the
-    // troubleshooter, never the service), and once per engine per process, so
-    // a declined download is not asked again on every open.
-    private val voiceDataAsked = java.util.Collections.synchronizedSet(HashSet<String>())
+    // WHICH ENGINES ANSWERED LANG_MISSING_DATA IN THE LAST SCAN, per package (an
+    // empty list = the engine listed no voices at all). Recorded only: the scan
+    // opens NOTHING on its own (owner, 2026-09-24: "download screen nahin khul
+    // jaani chahie"). The Troubleshoot screen shows it with an "Install voice
+    // data" button, so the engine's installer opens only when the user asks.
     @JvmStatic val lastMissingData: MutableMap<String, List<String>> = java.util.concurrent.ConcurrentHashMap()
-    private fun requestVoiceData(ctx: Context, missing: Map<String, List<String>>) {
+    private fun recordMissingVoiceData(missing: Map<String, List<String>>) {
         lastMissingData.clear()
         lastMissingData.putAll(missing)
-        val activity = ctx as? android.app.Activity ?: return
-        if (activity.isFinishing) return
-        for ((pkg, langs) in missing) {
-            if (!voiceDataAsked.add(pkg)) continue
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Voice data missing on " + pkg +
-                (if (langs.isEmpty()) " (no voices)" else " for " + langs.joinToString(",")) + " -- opening its installer")
-            try {
-                activity.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(pkg))
-            } catch (ex: Exception) {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "No voice-data installer in " + pkg + ": " + ex.toString())
-            }
-        }
+        for ((pkg, langs) in missing) EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Voice data missing on " + pkg +
+            (if (langs.isEmpty()) " (no voices)" else " for " + langs.joinToString(",")))
     }
     @JvmStatic fun languageName(iso3: String): String =
         try { localeOf(iso3).displayLanguage.ifEmpty { iso3 } } catch (_: Exception) { iso3 }
@@ -442,7 +428,7 @@ object EngineFinder {
             // detector keeps hinting at whatever the list held before the scan,
             // which on a first run is nothing at all.
             EasyVoiceTtsService.pushLanguageSets()
-            requestVoiceData(ctx, missingData)
+            recordMissingVoiceData(missingData)
             if (onReport != null) {
                 val reports = ArrayList<EngineReport>()
                 val reported = HashSet<String>()
@@ -608,10 +594,8 @@ object EngineFinder {
                         } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
                         if (added == 0 && retryOrFail(noVoicesWhy)) return
                         voiceCounts[myIndex] = added
-                        // VOICE DATA THAT IS NOT DOWNLOADED (owner, 2026-09-24: "voice ka
-                        // data download na ho ... download karne ka jo already system
-                        // rahata hai ... scanning ke time per ... download ho jana
-                        // chahie"). LANG_MISSING_DATA is the engine's own answer for
+                        // VOICE DATA THAT IS NOT DOWNLOADED, RECORDED FOR TROUBLESHOOT.
+                        // LANG_MISSING_DATA is the engine's own answer for
                         // "I support this language and its data is not on the phone"
                         // (AOSP: setLanguage passes it through unchanged). Asked here,
                         // on the fresh client the scan already holds, for every
