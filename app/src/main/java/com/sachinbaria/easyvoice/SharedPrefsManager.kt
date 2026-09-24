@@ -1,8 +1,9 @@
 package com.sachinbaria.easyvoice
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 class SharedPrefsManager(context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("easy_voice_settings", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = LangStore.prefs(context)
     private val appCtx: Context = context.applicationContext
     fun toIso3(lang: String): String {
         val iso3 = if (lang.length != 2) lang else try { localeOf(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
@@ -20,17 +21,17 @@ class SharedPrefsManager(context: Context) {
         return out
     }
     fun setScannedLangs(iso3: Set<String>) {
-        val editor = prefs.edit()
-        var index = 0
-        for (langCode in iso3) { editor.putString("language_$index", langCode); index++ }
-        editor.putString("language_$index", "")
-        editor.apply()
+        prefs.edit {
+            var index = 0
+            for (langCode in iso3) { putString("language_$index", langCode); index++ }
+            putString("language_$index", "")
+        }
     }
     fun getScannedLangs(): Set<String> {
         val legacy = prefs.getString("scanned_langs_iso3", "") ?: ""
         if (legacy.isNotEmpty() && getLanguageList().isEmpty()) {
             setScannedLangs(legacy.split(",").filter { it.isNotBlank() }.map { toIso3(it) }.toHashSet())
-            prefs.edit().remove("scanned_langs_iso3").apply()
+            prefs.edit { remove("scanned_langs_iso3") }
         }
         return getLanguageList().map { toIso3(it) }.toHashSet()
     }
@@ -70,7 +71,7 @@ class SharedPrefsManager(context: Context) {
     fun getSmartNumberGroupSize(): Int = prefs.getInt("smart_number_reading_group_size", 1)
     fun isLoggingEnabled(): Boolean = prefs.getBoolean("logging_enabled", false)
 
-    fun setLoggingEnabled(value: Boolean) = prefs.edit().putBoolean("logging_enabled", value).apply()
+    fun setLoggingEnabled(value: Boolean) = prefs.edit { putBoolean("logging_enabled", value) }
     fun settingsXmlFile(): java.io.File = java.io.File(appCtx.applicationInfo.dataDir, "shared_prefs/easy_voice_settings.xml")
     fun exportSettingsFile(): java.io.File {
         val src = settingsXmlFile()

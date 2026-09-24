@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionItemInfo
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 // nesting a second one inside a pager page would fight the first for placement.
 @Composable
 fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage: (Int) -> Unit, onDeleteConfiguration: (Int) -> Unit, onDisable: (Int) -> Unit) {
+    val context = LocalContext.current
     ResponsiveContent {
         // The heading and the instruction sit ABOVE the list, not inside it.
         // A LazyColumn publishes collectionInfo covering everything it holds,
@@ -70,7 +72,7 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                     // Naming the engine answers both at once: whether it is set
                     // up, and which engine is doing the speaking.
                     val enginePkg = engines.getOrElse(index) { "" }
-                    val status = if (enginePkg.isEmpty()) "Not set up" else EngineFinder.friendlyName(enginePkg)
+                    val status = if (enginePkg.isEmpty()) "Not set up" else EngineFinder.engineLabel(context, enginePkg)
                     // Replaces the long press. A hidden gesture is a poor way to
                     // reach anything destructive; a named button is discoverable
                     // by everyone and gets its own focus stop.

@@ -19,7 +19,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.pm.PackageInfoCompat
+import androidx.core.content.edit
 import java.nio.ByteBuffer
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -264,10 +264,22 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis #" + n)
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
     }
+    // USAGE_ASSISTANCE_ACCESSIBILITY + CONTENT_TYPE_SPEECH, built ONCE (2026-09-24).
+    // The same attributes were built four times over -- the focus request and the
+    // three places that install them on an engine client -- and three of those
+    // spelled the constants as 11 and 1 (a leftover from an API-15 check jar that
+    // had no AudioAttributes; the values were right). AudioAttributes is
+    // immutable, so one instance serves every caller.
+    private val accessibilitySpeech: AudioAttributes by lazy {
+        AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+    }
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, FOREGROUND_CHANNEL_ID)
             .setContentTitle("Easy Voice active")
-            .setSmallIcon(17301540)
+            .setSmallIcon(android.R.drawable.ic_media_play)
             .setOngoing(true)
             .build()
     }
@@ -427,12 +439,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // resolve AudioFocusRequest when this method is entered, and on API 24 it
     // never is.
     private fun requestAudioFocus26(): Int {
-        val attrs = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-            .build()
         val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(attrs)
+            .setAudioAttributes(accessibilitySpeech)
             .setOnAudioFocusChangeListener(audioFocusListener)
             .build()
         audioFocusRequest = focusRequest
@@ -461,7 +469,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // AutoTtsService.onCreate opens with c3.a0.c/c3.a0.b, so every log a
         // user shares names the build it came from -- "Unknown" and -1 are the
         // values a0 answers with when PackageManager cannot find the package.
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onCreate Version Name: " + versionName() + " Version Code: " + versionCode())
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onCreate Version Name: " + BuildConfig.VERSION_NAME + " Version Code: " + BuildConfig.VERSION_CODE)
         super.onCreate()
         // THE `!!` HERE WAS A CRASH, AND THE OWNER OVERRODE THE PARITY DEFENCE
         // (2026-09-10). It was `ex.message!!`, which is AutoTTS's own
@@ -516,22 +524,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { registerPackageReceiver() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "registerPackageReceiver failed: " + ex.toString()) }
         running = java.lang.ref.WeakReference(this)
     }
-    // c3.a0.a / c3.a0.c / c3.a0.b, down to the logcat tag they report a miss
-    // under and the API level at which a0.a switches overloads.
-    private fun ownPackageInfo(): android.content.pm.PackageInfo =
-        if (Build.VERSION.SDK_INT >= 33)
-            packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0L))
-        else { @Suppress("DEPRECATION") packageManager.getPackageInfo(packageName, 0) }
-    private fun versionName(): String = try {
-        ownPackageInfo().versionName ?: "Unknown"
-    } catch (ex: android.content.pm.PackageManager.NameNotFoundException) {
-        android.util.Log.e("VersionUtils", "Error getting version name", ex); "Unknown"
-    }
-    private fun versionCode(): Long = try {
-        PackageInfoCompat.getLongVersionCode(ownPackageInfo())
-    } catch (ex: android.content.pm.PackageManager.NameNotFoundException) {
-        android.util.Log.e("VersionUtils", "Error getting version code", ex); -1L
-    }
+    // THE VERSION IN THAT LOG LINE COMES FROM THE BUILD (2026-09-24). It used to be
+    // c3.a0.a/b/c ported: ask PackageManager for our OWN PackageInfo -- a binder
+    // call, and an API-33 branch for PackageInfoFlags -- with "Unknown" / -1 for
+    // a lookup that cannot fail for the package asking about itself.
+    // BuildConfig.VERSION_NAME / VERSION_CODE are written by AGP from the same
+    // versionName / versionCode in app/build.gradle.kts, so the line prints the
+    // same two values, the way the About screen already reads them.
     override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int = START_STICKY
     override fun onTaskRemoved(rootIntent: android.content.Intent?) { super.onTaskRemoved(rootIntent) }
 
@@ -1039,7 +1038,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (!localeMatches(locale, curLocale)) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + curLocale.toString())
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else setLanguageFailed(wrapper, locale, setLangResult)
+                    if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else setLanguageFailed(wrapper, locale, setLangResult)
                 }
             } else if (effectiveVariant != curVoiceName) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Check voice 1")
@@ -1089,7 +1088,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     for (voiceObj in list) {
                         if (voiceObj.name.equals(effectiveVariant, ignoreCase = true)) {
                             val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
-                            if (setVoiceResult != null && setVoiceResult >= 0) { wrapper.localeSet = true; wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult) } else setVoiceFailed(wrapper, voiceObj, setVoiceResult)
+                            if (setVoiceResult != null && setVoiceResult >= TextToSpeech.SUCCESS) { wrapper.localeSet = true; wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult) } else setVoiceFailed(wrapper, voiceObj, setVoiceResult)
                             return true
                         }
                     }
@@ -1102,7 +1101,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 if (!matchedAVoice && !localeMatches(locale, curLocale)) {
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else setLanguageFailed(wrapper, locale, setLangResult)
+                    if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else setLanguageFailed(wrapper, locale, setLangResult)
                 }
             }
             wrapper.locale = locale; wrapper.voiceName = effectiveVariant
@@ -1176,7 +1175,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (nullableIso3(wrapperLocale) == nullableIso3(locale) &&
                 (nullableIso3Country(wrapperLocale) == reqCountry || reqCountry.isEmpty())) return
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = "" } else setLanguageFailed(wrapper, locale, setLangResult)
+            if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = "" } else setLanguageFailed(wrapper, locale, setLangResult)
         } else { engineIndex = -1; voiceLoadFailed = true; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
     }
     private fun loadVoiceDedicated(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
@@ -1272,7 +1271,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *1")
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + engineLocale)
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant } else setLanguageFailed(wrapper, locale, setLangResult)
+            if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant } else setLanguageFailed(wrapper, locale, setLangResult)
             return
         }
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *2")
@@ -1298,7 +1297,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             for (voiceObj in voices) {
                 if (!voiceObj.name.equals(effectiveVariant, ignoreCase = true)) continue
                 val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
-                if (setVoiceResult != null && setVoiceResult >= 0) {
+                if (setVoiceResult != null && setVoiceResult >= TextToSpeech.SUCCESS) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name)
                     wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true
                     wrapper.locale = voiceObj.locale; wrapper.voiceName = effectiveVariant; wrapper.localeSet = true
@@ -1310,7 +1309,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         if (!localeMatches(locale, engineLocale)) {
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= 0) { wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else setLanguageFailed(wrapper, locale, setLangResult)
+            if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else setLanguageFailed(wrapper, locale, setLangResult)
         }
     }
 
@@ -1509,7 +1508,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 try { initializingTts?.shutdown() } catch (_: Throwable) {}
                 wrapper.tts = null; wrapper.forgetClientState(); wrapper.state = -1
             } else if (status == TextToSpeech.SUCCESS) {
-                if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
+                if (forceAccessibilityFlag) { try { initializingTts?.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                 wrapper.tts = initializingTts; wrapper.forgetClientState(); wrapper.state = 2
                 if (wantedPkg == "com.google.android.tts") googleEngineIndex = myIndex
             } else {
@@ -1758,7 +1757,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     wrapper.tts = null; wrapper.forgetClientState()
                     wrapper.state = -1
                 } else if (status == TextToSpeech.SUCCESS) {
-                    if (forceAccessibilityFlag) { try { val audioAttributes = android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build(); initializingTts?.setAudioAttributes(audioAttributes); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
+                    if (forceAccessibilityFlag) { try { initializingTts?.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                     wrapper.tts = initializingTts; wrapper.forgetClientState()
                     wrapper.state = 2
                     wrapper.voiceName = ""
@@ -1934,7 +1933,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val names = LangStore.availableLanguagesFor(null, true)
         val list = mutableListOf<Voice>()
         for (nameIdx in names.indices) {
-            list.add(Voice(names[nameIdx], localeOf(names[nameIdx]), 400, 100, false, HashSet<String>()))
+            list.add(Voice(names[nameIdx], localeOf(names[nameIdx]), Voice.QUALITY_HIGH, Voice.LATENCY_VERY_LOW, false, HashSet<String>()))
         }
         return list
     }
@@ -2080,10 +2079,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 entry.variant = "*Default"
             }
         }
-        getSharedPreferences("easy_voice_settings", 0).edit()
-            .putString(lang, pkg + "#" + loc.toString())
-            .putString(lang + "_variant", "*Default")
-            .apply()
+        LangStore.prefs(this).edit {
+            putString(lang, pkg + "#" + loc.toString())
+            putString(lang + "_variant", "*Default")
+        }
         EasyVoiceLogger.error(EasyVoiceLogger.TAG, lang + " is now set up on " + pkg + " " + loc)
     }
     // THE ENGINE-GONE FALLBACK WAS HERE AND IS REMOVED (owner, 2026-09-17:
@@ -2361,7 +2360,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         synchronized(this) {
             if (!voiceList.isEmpty()) return
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "LoadVoices")
-            val sharedPrefs = getApplicationContext().getSharedPreferences("easy_voice_settings", 0)
+            val sharedPrefs = LangStore.prefs(this)
             var index = 0
             while (true) {
                 val voice = sharedPrefs.getString("voice_$index", "") ?: ""
@@ -2669,7 +2668,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         requestPitch = (request?.pitch ?: 100) / 100.0f
         requestParams = request?.params
         requestVolume = requestParams?.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0f) ?: 0f; if (requestVolume == 0f) requestVolume = 1.0f
-        utteranceId = (request?.params?.getString("utteranceId")).toString()
+        utteranceId = (request?.params?.getString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID)).toString()
         if (rawText.trim().isEmpty()) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Speak text is empty")
             // q0 logs before it touches anything: "stopAllTts <flag>", then
@@ -3683,7 +3682,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())
             params.remove("pitch"); params.remove("rate")
             params.remove("language"); params.remove("country")
-            params.remove("variant"); params.remove("voiceName"); params.remove("utteranceId")
+            params.remove("variant"); params.remove("voiceName"); params.remove(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID)
             // "Force to use audio accessibility stream" DID NOT WORK whenever
             // the screen reader supplied its own audio attributes, and that is
             // most of the time. Traced through AOSP rather than guessed:
@@ -3708,11 +3707,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // Engine.DEFAULT_STREAM (STREAM_MUSIC) + CONTENT_TYPE_SPEECH, force
             // so our USAGE_ASSISTANCE_ACCESSIBILITY survives.
             //
-            // The two constants below are checked against AOSP AudioAttributes:
-            // USAGE_ASSISTANCE_ACCESSIBILITY = 11 (line 186), CONTENT_TYPE_SPEECH
-            // = 1 (line 92). They are written as numbers only because the API-15
-            // check jar has no AudioAttributes at all; the values are right.
-            if (isStripAudioAttr || isForceAccessibility) { params.remove("streamType"); params.remove("audioAttributes") }
+            // The keys: KEY_PARAM_STREAM, KEY_PARAM_UTTERANCE_ID and
+            // KEY_PARAM_VOLUME are public in TextToSpeech.Engine and are used by
+            // name. "pitch", "rate", "language", "country", "variant",
+            // "voiceName" and "audioAttributes" are the SAME class's @hide keys --
+            // not in the SDK (read from API 37's android.jar with javap) -- so
+            // they stay as the literal strings AOSP itself defines them as.
+            if (isStripAudioAttr || isForceAccessibility) { params.remove(TextToSpeech.Engine.KEY_PARAM_STREAM); params.remove("audioAttributes") }
             // ...and turning the switch back OFF has to undo it, which is the
             // other half of the same AOSP fact and is NOT free. DELIBERATE
             // DEPARTURE (owner request, 2026-09-03).
@@ -3737,13 +3738,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // = STREAM_MUSIC = 3).setContentType(CONTENT_TYPE_SPEECH = 1)`.
             // Inert unless this wrapper really is carrying our attributes.
             if (!isForceAccessibility && wrapper.audioAttrSet && !params.containsKey("audioAttributes")) {
-                try { params.putParcelable("audioAttributes", android.media.AudioAttributes.Builder().setLegacyStreamType(params.getInt("streamType", 3)).setContentType(1).build()) } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
+                try { params.putParcelable("audioAttributes", AudioAttributes.Builder().setLegacyStreamType(params.getInt(TextToSpeech.Engine.KEY_PARAM_STREAM, TextToSpeech.Engine.DEFAULT_STREAM)).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()) } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
             }
             if (finalVolume != 0f) { params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, finalVolume) }
             if (isStopped || isFlushed) return
             wrapper.listenerSet = true
             if (isForceAccessibility && !wrapper.audioAttrSet) {
-                try { tts.setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(11).setContentType(1).build()); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
+                try { tts.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
             }
             if (first) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Current engine: " + pkg)

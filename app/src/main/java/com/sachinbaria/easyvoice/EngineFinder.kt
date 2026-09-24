@@ -23,6 +23,30 @@ object EngineFinder {
         "com.k2fsa.sherpa.onnx.tts.engine" to "Sherpa TTS", "com.amazon.tts" to "Amazon Text-to-Speech", "com.lge.tts" to "LG Text-to-Speech", "com.htc.tts" to "HTC Text-to-Speech",
         "com.voiceforge.tts" to "VoiceForge TTS", "jp.kddilabs.n2tts" to "N2 TTS", "com.speech.tts.engine" to "Speech TTS Engine", "com.nirenr.talkman" to "Jieshuo+"
     )
+    // THE ENGINE'S OWN NAME, AS ANDROID GIVES IT (2026-09-24). The table above
+    // is AutoTTS's c3.v written out by hand, and the scan never used it: it
+    // names every engine with resolveInfo.loadLabel -- the label of the engine's
+    // TTS service, the same name Android's own TTS settings list it under. So
+    // the Voice setup screen named an engine one way and the Configuration list
+    // another, and an engine newer than the table got a name built from its
+    // package. This answers what Android answers: the last scan's label, else
+    // the installed service's own label (cached; a label changes only with an
+    // update), and the table only for a package that is not installed at all --
+    // an imported configuration can name one.
+    private val labelCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    @JvmStatic
+    fun engineLabel(ctx: Context, pkg: String?): String {
+        if (pkg.isNullOrEmpty()) return friendlyName(pkg)
+        lastScanVoices.firstOrNull { it.pkg == pkg }?.engineName?.takeIf { it.isNotBlank() }?.let { return it }
+        labelCache[pkg]?.let { return it }
+        val label = try {
+            val pm = ctx.packageManager
+            pm.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE).setPackage(pkg), 0)
+                .firstOrNull()?.loadLabel(pm)?.toString()?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) { null }
+        if (label != null) { labelCache[pkg] = label; return label }
+        return friendlyName(pkg)
+    }
     fun friendlyName(pkg: String?): String {
         if (pkg == null) return "Unknown"
         engineNames[pkg]?.let { return it }
@@ -113,9 +137,12 @@ object EngineFinder {
         val intent = Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE)
         val list = mutableListOf<EngineInfo>()
         try {
+            // AutoTTS's B0() passes these as the numbers 131072, 128 and 0; they
+            // are PackageManager's own MATCH_ALL, GET_META_DATA and no flags, the
+            // same values by name.
             val lists = listOf(
-                pkgManager.queryIntentServices(intent, 131072),
-                pkgManager.queryIntentServices(intent, 128),
+                pkgManager.queryIntentServices(intent, android.content.pm.PackageManager.MATCH_ALL),
+                pkgManager.queryIntentServices(intent, android.content.pm.PackageManager.GET_META_DATA),
                 pkgManager.queryIntentServices(intent, 0)
             )
             for (resolveList in lists) for (resolveInfo in resolveList) {
@@ -189,7 +216,7 @@ object EngineFinder {
     private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>) {
         if (!EasyVoiceTtsService.engineFallbackFlag) return
         try {
-            val prefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
+            val prefs = LangStore.prefs(ctx)
             val editor = prefs.edit()
             var changed = false
             for ((key, value) in prefs.all) {
@@ -259,7 +286,7 @@ object EngineFinder {
                 val previous = lastScanVoices.filter { it.pkg == failedPkg }
                 if (previous.isNotEmpty()) { keptVoices.addAll(previous) }
                 else {
-                    val stored = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
+                    val stored = LangStore.prefs(ctx)
                     var voiceIdx = 0
                     while (true) {
                         val key = stored.getString("voice_$voiceIdx", "") ?: ""
@@ -277,7 +304,7 @@ object EngineFinder {
                 // voice, and the owner heard Google "go away" for every language
                 // configured on it. Each language's own "<pkg>#<locale>" key names
                 // the voice it was set up with, so that voice is kept as well.
-                val prefs = ctx.applicationContext.getSharedPreferences("easy_voice_settings", 0)
+                val prefs = LangStore.prefs(ctx)
                 for ((key, value) in prefs.all) {
                     if (key.length != 3 || value !is String) continue
                     val parts = value.split("#")

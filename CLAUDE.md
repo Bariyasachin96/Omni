@@ -8,7 +8,46 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## RESTORE IS ONCE PER EPISODE, PER ENGINE, ON AN EVENT; ONE ASYNC MAIN HANDLER (owner, 2026-09-23, latest)
+## SAME BEHAVIOUR, WRITTEN WITH THE LIBRARY (owner, 2026-09-24, latest)
+*"jo chijen auto TTS jaisi hai vah badal nahin sakte, but uske jaisa to kar sakte hain ... library
+se ho gaye to accurate aur achcha hoga."* The rule this sets: AutoTTS-mirrored BEHAVIOUR stays,
+but where a library or the framework already names or does the same thing, use it. Every swap
+below produces the same values, reads and writes as before (verified: check-all, selftest, real
+R8 full mode; dex 2,402,440 bytes).
+- **One settings opener**: `LangStore.prefs(ctx)` (`PREFS_FILE`, `Context.MODE_PRIVATE`) replaced
+  24 hand-written `getSharedPreferences("easy_voice_settings", 0)` in five files. Same instance
+  (ContextImpl caches per package+file).
+- **core-ktx `edit(commit = …) { }`** at every simple write (LangStore's persists, clearConfiguration,
+  persistVoiceRows, setUpAlternative, SharedPrefsManager). It expands to edit -> puts -> commit/apply,
+  i.e. the same code. **Left alone:** `repointUninstalled` (`if (changed) commit()` -- the KTX form
+  would write every time) and the unreachable `importSettingsXml`.
+- **Framework constants for magic numbers**: `setUsage(11)/setContentType(1)` -> one shared
+  `accessibilitySpeech` AudioAttributes (was built four times); `setLegacyStreamType(...,3)` ->
+  `Engine.KEY_PARAM_STREAM`/`DEFAULT_STREAM`; `"utteranceId"`/`"streamType"` -> `KEY_PARAM_*`
+  (the other keys -- pitch, rate, language, country, variant, voiceName, audioAttributes -- are
+  @hide, read from API 37's android.jar, so they stay literals); `setSmallIcon(17301540)` ->
+  `android.R.drawable.ic_media_play`; `Voice(..., 400, 100, ...)` -> `QUALITY_HIGH`,
+  `LATENCY_VERY_LOW`; `queryIntentServices(..., 131072 / 128)` -> `MATCH_ALL` / `GET_META_DATA`;
+  `getPackageInfo(pkg, 1)` -> `GET_ACTIVITIES`; `setLanguage/setVoice >= 0` -> `>= LANG_AVAILABLE`
+  / `>= SUCCESS`.
+- **The service's version log reads `BuildConfig`** (no PackageManager call, no API-33 branch; the
+  minsdk allowlist lost `EasyVoiceTtsService.kt:PackageInfoFlags`, 7 -> 6).
+- **Engine names come from Android** (`EngineFinder.engineLabel(ctx, pkg)`): the last scan's label,
+  else the installed TTS service's own `loadLabel` (cached), and AutoTTS's `c3.v` table only for a
+  package that is not installed. The scan always used `loadLabel`, so Voice setup and the
+  Configuration list named the same engine differently; now they agree. VoiceRows' not-found row
+  and the import dialog use it too.
+- **Checked and deliberately NOT swapped** (behaviour would change): `hasNotificationPermission` ->
+  `areNotificationsEnabled` (below 33 it reflects the user toggle); the Google-installed checks ->
+  `resolveService` (differs for a disabled package); `stopExec` -> `newSingleThreadExecutor`
+  (loses the owner's prestarted thread); the logger -> `java.util.logging` (different file format);
+  `IsoCodes`/`parseStoredLocale`/the native core (harness-proven AutoTTS ports). No public constant
+  exists for `"com.android.settings.TTS_SETTINGS"` or the GET_SAMPLE_TEXT extras.
+- **Still unreachable, left for the owner**: Import/Export (`importSettingsLauncher`,
+  `handleImportedSettingsFile`, `exportSettingsFile`, `importSettingsXml`) -- no UI calls them since
+  2026-09-17.
+
+## RESTORE IS ONCE PER EPISODE, PER ENGINE, ON AN EVENT; ONE ASYNC MAIN HANDLER (owner, 2026-09-23)
 *"restore wala baar-baar try mat karaya karo, is vajah se hi problem ho rahi hai ... ek bar mein
 sab restore ho jaaye ... har kona chhan maro ... double double chijen ... library se."*
 - **AOSP read first** (`TextToSpeechManagerPerUserService`): on an engine death the system session

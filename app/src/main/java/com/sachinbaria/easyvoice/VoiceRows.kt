@@ -15,7 +15,7 @@ object VoiceRows {
         if (selectedIso.isEmpty()) { LangStore.currentVoiceRows = emptyList(); return emptyList() }
         LangStore.currentVoiceIso = selectedIso
         LangStore.currentVoiceChosen = false
-        val rawPrefs = context.getSharedPreferences("easy_voice_settings", Context.MODE_PRIVATE)
+        val rawPrefs = LangStore.prefs(context)
         fun voiceOrder(key: String): Int {
             val cached = EngineFinder.voiceWeights[key]
             if (cached != null) return cached
@@ -94,13 +94,9 @@ object VoiceRows {
         if (at > 0) { out.add(0, out.removeAt(at)); return out }
         val locale = EngineFinder.parseStoredLocale(parts[1])
         if (EngineFinder.iso3Of(locale) != selectedIso) return rows
-        val engineName = EngineFinder.lastScanVoices.firstOrNull { it.pkg == parts[0] }?.engineName
-            ?: try {
-                val pm = context.packageManager
-                pm.getApplicationLabel(pm.getApplicationInfo(parts[0], 0)).toString()
-            } catch (_: Exception) { EngineFinder.friendlyName(parts[0]) }
+        val engineName = EngineFinder.engineLabel(context, parts[0])
         val variants = arrayListOf("*Default")
-        val savedVariant = try { context.getSharedPreferences("easy_voice_settings", Context.MODE_PRIVATE)
+        val savedVariant = try { LangStore.prefs(context)
             .getString(selectedIso + "_variant", "*Default") ?: "*Default" } catch (_: Exception) { "*Default" }
         if (savedVariant.isNotEmpty() && savedVariant != "*Default") variants.add(savedVariant)
         out.add(0, EngineFinder.ScanVoice(parts[0], engineName, locale, variants, notFound = true))

@@ -142,7 +142,7 @@ class MainActivity : EvActivity() {
             EasyVoiceTtsService.autoLang, EasyVoiceTtsService.dualLang,
             EasyVoiceTtsService.mixLatinLang, EasyVoiceTtsService.mixNonLatinLang).contains(iso3)
     private fun isPackageInstalled(pkg: String): Boolean = try { packageManager.getPackageInfo(pkg, 0); true } catch (_: Exception) { false }
-    private fun isPackageInstalledWithActivities(pkg: String): Boolean = try { packageManager.getPackageInfo(pkg, 1); true } catch (_: Exception) { false }
+    private fun isPackageInstalledWithActivities(pkg: String): Boolean = try { packageManager.getPackageInfo(pkg, android.content.pm.PackageManager.GET_ACTIVITIES); true } catch (_: Exception) { false }
     private fun openPlayStoreFor(pkg: String) {
         try {
             val marketIntent = Intent(Intent.ACTION_VIEW, "market://details?id=$pkg".toUri())
@@ -183,7 +183,7 @@ class MainActivity : EvActivity() {
             }
             dialogItems.clear()
             for (pkg in pkgs) {
-                val engineLabel = EngineFinder.friendlyName(pkg)
+                val engineLabel = EngineFinder.engineLabel(this, pkg)
                 println("- " + pkg + " : " + engineLabel)
                 dialogItems.add(RequiredEnginesItem(engineLabel, pkg, isPackageInstalled(pkg)))
             }

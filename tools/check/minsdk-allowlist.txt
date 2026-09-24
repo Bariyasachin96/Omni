@@ -5,7 +5,6 @@
 #
 # Reviewed 2026-09-10, when this check was written and found two real crashes.
 
-EasyVoiceTtsService.kt:PackageInfoFlags              # API 33, ownPackageInfo()'s branch
 EasyVoiceTtsService.kt:POST_NOTIFICATIONS            # API 33, hasNotificationPermission()
 MainActivity.kt:POST_NOTIFICATIONS                   # API 33, guarded at both sites
 EasyVoiceTtsService.kt:FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK  # API 29, a static final int the
