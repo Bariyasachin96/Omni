@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -173,7 +174,7 @@ private fun LanguageChoice(
     initialIso3: String,
     onPick: (String) -> Unit
 ) {
-    var index by remember { mutableStateOf(LangStore.indexOf(initialIso3)) }
+    var index by remember { mutableIntStateOf(LangStore.indexOf(initialIso3)) }
     LabeledDropdown(label, labels, index) { picked ->
         index = picked
         if (picked >= 0 && picked < codes.size) onPick(codes[picked])
@@ -272,9 +273,9 @@ private fun ReadingSettings(codes: List<String>, labels: List<String>) {
     // heading navigation stopped on it before every group. That is about the
     // NAVIGATION, not the look, so the 2026-09-16 change to how a SectionHeader
     // is drawn does not reopen it. Do not add one back.
-    var numberMode by remember { mutableStateOf(EasyVoiceTtsService.numberModeInt) }
-    var puncMode by remember { mutableStateOf(EasyVoiceTtsService.punctuationModeInt) }
-    var emojiMode by remember { mutableStateOf(EasyVoiceTtsService.emojiModeInt) }
+    var numberMode by remember { mutableIntStateOf(EasyVoiceTtsService.numberModeInt) }
+    var puncMode by remember { mutableIntStateOf(EasyVoiceTtsService.punctuationModeInt) }
+    var emojiMode by remember { mutableIntStateOf(EasyVoiceTtsService.emojiModeInt) }
     LabeledRadioGroup("Select language for reading numbers", modeOptions, numberMode) { picked ->
         numberMode = picked
         EasyVoiceTtsService.numberModeInt = picked

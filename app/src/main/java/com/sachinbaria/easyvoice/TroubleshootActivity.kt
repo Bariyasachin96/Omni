@@ -114,8 +114,10 @@ data class TroubleshootResult(
 
 // THE SYSTEM'S OWN SCREENS, IN ONE PLACE, each as direct as Android allows.
 object SystemScreens {
+    // Uri.fromParts is the framework's own builder for this URI, the one
+    // Settings' documentation uses, rather than a string joined by hand.
     fun appInfo(pkg: String) =
-        TroubleshootFix("App info", Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, ("package:" + pkg).toUri()))
+        TroubleshootFix("App info", Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", pkg, null)))
     fun batteryList() =
         TroubleshootFix("Battery optimization settings", Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
     // Asked of PowerManager, which answers for ANY package, not only our own.

@@ -509,7 +509,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // (`c3.n.a.d("AutoTTS", exception2.getMessage())`, no requireNonNull),
         // so this is not even a shape AutoTTS lacks; it is the one of its two
         // spellings that does not crash.
-        try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { android.util.Log.e("EasyVoice", ex.message ?: ex.toString()) }
+        // Through the app's one logger, as AutoTTS's p0() writes it through its
+        // own (c3.n.a.d): logcat as before, and the shared log file as well.
+        try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: ex.toString()) }
         // EVERY STEP IS GUARDED SEPARATELY (2026-09-11), and this is the most
         // catastrophic failure in the whole app: a throw anywhere in onCreate
         // leaves the TTS service dead, the phone with no voice at all, and
@@ -1919,8 +1921,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 if (live.isEmpty()) return@onMainThread
                 // Binder calls into other apps: never on the main thread, where
-                // one wedged engine would freeze the settings screen.
-                Thread({
+                // one wedged engine would freeze the settings screen. On the
+                // app's one pool for exactly that (EngineFinder.engineCalls, a
+                // cached daemon pool from java.util.concurrent) rather than a
+                // hand-made Thread of its own.
+                EngineFinder.engineCalls.execute {
                     for ((wrapper, client) in live) {
                         val bound = EngineFinder.boundEngineOf(client, wrapper.rawPkg)
                         val voices = try { client.voices } catch (_: Throwable) { null }
@@ -1935,7 +1940,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         }
                         onMainThread { if (wrapper.tts === client) clientIsDead(wrapper, why) }
                     }
-                }, "EvTroubleshoot").apply { isDaemon = true }.start()
+                }
             } catch (ex: Throwable) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "troubleshootEngines: " + ex.toString())
             }
@@ -2932,7 +2937,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try {
             onSynthesizeTextImpl(request, callback)
         } catch (ex: Throwable) {
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onSynthesizeText failed: " + ex.toString() + "\n" + android.util.Log.getStackTraceString(ex))
+            EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "onSynthesizeText failed: " + ex.toString(), ex)
             speakingPkg = null
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
             try { startAndFinish(callback) } catch (_: Throwable) {}

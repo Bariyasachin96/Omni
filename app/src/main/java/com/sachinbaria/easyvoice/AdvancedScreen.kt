@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -227,7 +228,7 @@ fun AdvancedScreen(
     var quickCharacter by remember { mutableStateOf(EasyVoiceTtsService.quickCharacterFlag) }
     var punctuationInFlow by remember { mutableStateOf(EasyVoiceTtsService.punctuationInFlowFlag) }
     var smartNumber by remember { mutableStateOf(EasyVoiceTtsService.smartNumberFlag) }
-    var groupSize by remember { mutableStateOf(EasyVoiceTtsService.smartNumberGroupSize) }
+    var groupSize by remember { mutableIntStateOf(EasyVoiceTtsService.smartNumberGroupSize) }
     var loggingEnabled by remember { mutableStateOf(EasyVoiceLogger.isLoggingEnabled()) }
     ResponsiveContent {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {

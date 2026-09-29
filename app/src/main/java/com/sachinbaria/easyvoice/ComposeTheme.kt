@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -564,19 +566,26 @@ fun EvButton(
     onClick: () -> Unit,
 ) {
     val described = modifier.semantics { contentDescription = label }
+    // MATERIAL'S OWN RECIPE FOR A BUTTON WITH AN ICON (owner, 2026-09-29: the
+    // library's values, not numbers of ours): the icon at ButtonDefaults.IconSize,
+    // ButtonDefaults.IconSpacing between it and the label, and the button's
+    // ButtonWithIconContentPadding. It used to be a 24dp icon with an 8dp end
+    // padding written here by hand.
+    val padding = if (iconRes != 0) ButtonDefaults.ButtonWithIconContentPadding else ButtonDefaults.ContentPadding
     val body: @Composable RowScope.() -> Unit = {
         if (iconRes != 0) {
             Icon(
                 painterResource(iconRes),
                 contentDescription = null,
-                modifier = Modifier.padding(end = 8.dp)
+                modifier = Modifier.size(ButtonDefaults.IconSize)
             )
+            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
         }
         // Silenced: the name is already on the button itself.
         Text(label, modifier = Modifier.clearAndSetSemantics { })
     }
     if (outlined) {
-        OutlinedButton(onClick = onClick, modifier = described, enabled = enabled, content = body)
+        OutlinedButton(onClick = onClick, modifier = described, enabled = enabled, contentPadding = padding, content = body)
     } else {
         // "For buttons, use a dark purple background with white text" (owner,
         // 2026-09-17), through `ButtonDefaults.buttonColors` -- the library's
@@ -603,6 +612,7 @@ fun EvButton(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ),
+            contentPadding = padding,
             content = body
         )
     }

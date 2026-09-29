@@ -39,8 +39,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -102,7 +105,7 @@ class MainActivity : EvActivity() {
     }
     private var scanning by mutableStateOf(true)
     private var scanLine by mutableStateOf("Checking your TTS engines")
-    private var modeRefresh by mutableStateOf(0)
+    private var modeRefresh by mutableIntStateOf(0)
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             EasyVoiceLogger.debug("TTS", "Notification permission granted")
@@ -261,9 +264,11 @@ fun MainScreen(
     var readingMode by remember(modeRefresh) { mutableStateOf(prefs.getReadingMode()) }
     val showAddLanguage = readingMode != "none" && readingMode != "dual"
     // Plain state instead of a PagerState. See the comment on the content Box
-    // below for why the pager had to go.
-    var currentPage by remember { mutableStateOf(0) }
-    var dragTotal by remember { mutableStateOf(0f) }
+    // below for why the pager had to go. rememberSaveable, Compose's own way to
+    // keep UI state through a rotation, a theme or font change and a process
+    // restore: the tab you were on is the tab you come back to.
+    var currentPage by rememberSaveable { mutableIntStateOf(0) }
+    var dragTotal by remember { mutableFloatStateOf(0f) }
     // dp -> px once per composition, with the library's own density rather than
     // a hand-multiplied displayMetrics read.
     val swipeThresholdPx = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }

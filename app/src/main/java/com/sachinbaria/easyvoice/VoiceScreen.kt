@@ -12,15 +12,18 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -148,7 +151,7 @@ fun LabeledDropdown(
         // Held here rather than inside the menu so the measured position
         // survives the menu closing and reopening.
         val menuScroll = rememberScrollState()
-        var selectedTop by remember(options, selectedIndex) { mutableStateOf(-1) }
+        var selectedTop by remember(options, selectedIndex) { mutableIntStateOf(-1) }
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { wanted: Boolean -> if (enabled) expanded = wanted },
@@ -165,7 +168,11 @@ fun LabeledDropdown(
                     .fillMaxWidth()
             ) {
                 Text(text = selectedText, modifier = Modifier.weight(1f).clearAndSetSemantics { })
-                Icon(painterResource(R.drawable.ic_arrow_drop_down), contentDescription = null)
+                // Material's own dropdown arrow (owner, 2026-09-29: the library's
+                // piece, not a copy of it). It is the same ArrowDropDown glyph,
+                // and it turns over while the menu is open. No description of
+                // its own: the button already says what it is.
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
             }
             ExposedDropdownMenu(
                 expanded = expanded,
@@ -365,12 +372,20 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedButton(
+        // MATERIAL'S ICON BUTTON, not a text button holding a "-" (owner,
+        // 2026-09-29: components, not hand-made ones). The glyph is Material's
+        // own "remove" icon, taken verbatim from google/material-design-icons.
+        //
+        // The name goes on the BUTTON and the icon stays without one, which is
+        // the pattern every icon button in this app uses and why: an Icon with
+        // no description adds no semantics node, so the button has no children,
+        // and the delegate puts both the Button role and the name on the node a
+        // screen reader focuses -- for TalkBack and for a reader that looks only
+        // at that node. (A text child is what used to keep the role off it.)
+        OutlinedIconButton(
             onClick = { step(value - SLIDER_BUTTON_STEP) },
-            // The button is the control; the name, "Decrease <label>", is
-            // the one thing added.
             modifier = Modifier.semantics { contentDescription = "Decrease " + lowered }
-        ) { Text("-", modifier = Modifier.clearAndSetSemantics { }) }
+        ) { Icon(painterResource(R.drawable.ic_remove), contentDescription = null) }
         Slider(
             value = value.toFloat(),
             // roundToInt, not toInt, and then the same clamp P1() applies: the
@@ -387,12 +402,10 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
                 stateDescription = value.toString() + " of " + maxValue
             }
         )
-        OutlinedButton(
+        OutlinedIconButton(
             onClick = { step(value + SLIDER_BUTTON_STEP) },
-            // The button is the control; the name, "Increase <label>", is
-            // the one thing added.
             modifier = Modifier.semantics { contentDescription = "Increase " + lowered }
-        ) { Text("+", modifier = Modifier.clearAndSetSemantics { }) }
+        ) { Icon(painterResource(R.drawable.ic_add), contentDescription = null) }
     }
 }
 
@@ -422,12 +435,12 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
     }
     val selectedIso = entry.iso3
     var voiceRows by remember { mutableStateOf(VoiceRows.load(context, readingMode, selectedIso)) }
-    var voiceIndex by remember { mutableStateOf(0) }
+    var voiceIndex by remember { mutableIntStateOf(0) }
     var variantOptions by remember { mutableStateOf(VoiceRows.variantsFor(voiceRows, entry)) }
-    var variantIndex by remember { mutableStateOf(0) }
-    var speed by remember { mutableStateOf(entry.speed) }
-    var volume by remember { mutableStateOf(entry.volume) }
-    var pitch by remember { mutableStateOf(entry.pitch) }
+    var variantIndex by remember { mutableIntStateOf(0) }
+    var speed by remember { mutableIntStateOf(entry.speed) }
+    var volume by remember { mutableIntStateOf(entry.volume) }
+    var pitch by remember { mutableIntStateOf(entry.pitch) }
     var dedicated by remember { mutableStateOf(EasyVoiceTtsService.dedicatedEnginesFlag) }
     val voiceLabels = voiceRows.map { VoiceRows.label(it) }
     // Name the heading after the language you opened. It used to read the

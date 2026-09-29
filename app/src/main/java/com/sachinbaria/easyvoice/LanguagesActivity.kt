@@ -15,6 +15,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -230,8 +232,10 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
     val labels = loaded.first
     val codes = loaded.second
     val checked = remember { mutableStateListOf<Boolean>().also { it.addAll(loaded.third) } }
-    var query by remember { mutableStateOf("") }
-    var showSelectedOnly by remember { mutableStateOf(false) }
+    // Saveable: what was typed and the filter survive a rotation or a font
+    // change, the way Compose keeps UI state itself.
+    var query by rememberSaveable { mutableStateOf("") }
+    var showSelectedOnly by rememberSaveable { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     // The region comes from the device, not from the scan: Locale.getDefault()
     // is whatever the user has set. Which languages belong to it has to come
@@ -384,15 +388,20 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                         haptic.toggled(showSelectedOnly)
                     },
                     label = { Text("My languages", modifier = Modifier.clearAndSetSemantics { }) },
-                    leadingIcon = {
-                        if (showSelectedOnly) {
+                    // Material's own shape for a filter chip: the check only while
+                    // it is selected, at the chip's own icon size, and NO icon
+                    // slot at all otherwise -- an empty slot still reserves the
+                    // icon's padding, which is what the lambda-that-draws-nothing
+                    // used to do.
+                    leadingIcon = if (showSelectedOnly) {
+                        {
                             Icon(
                                 painterResource(R.drawable.ic_check),
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
                             )
                         }
-                    },
+                    } else null,
                     // FilterChip itself sets Role.Checkbox, the selected state and
                     // the click; the delegate turns that state into "Selected" /
                     // "Not selected" from androidx's own strings, which is why the

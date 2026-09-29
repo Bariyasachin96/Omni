@@ -7,13 +7,13 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 class VoiceSetupActivity : EvActivity() {
     private var testTts: android.speech.tts.TextToSpeech? = null
     // State now, not a local, so Previous/Next can move within this one screen.
-    private var langIndex by mutableStateOf(-1)
-    private var total by mutableStateOf(0)
+    private var langIndex by mutableIntStateOf(-1)
+    private var total by mutableIntStateOf(0)
     // ASKING THE ENGINE FOR ITS OWN SAMPLE (owner, 2026-09-16). The whole
     // reasoning is on EngineSample; what lives here is the one thing only an
     // Activity can do, because ACTION_GET_SAMPLE_TEXT is an ACTIVITY action.

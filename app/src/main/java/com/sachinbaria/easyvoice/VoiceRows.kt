@@ -6,10 +6,17 @@ import android.content.Intent
 object VoiceRows {
     private fun voiceKey(row: EngineFinder.ScanVoice?, selectedIso: String): String =
         if (row == null) "Disable#" + localeOf(selectedIso).toString() else row.pkg + "#" + row.locale.toString()
+    // THE ENGINE'S WHOLE NAME (owner, 2026-09-29: the component's way, not a
+    // hand-made one). This used to be abbreviateEngineName's "Speech ...
+    // Google" -- AutoTTS cut the name by hand because its Spinner row was one
+    // line wide. Compose's Text wraps a long label by itself, so the name is
+    // shown and read whole, with no "..." for a screen reader to speak.
+    // abbreviateEngineName still breaks ties in the ORDER below, so the rows
+    // come out in exactly the order they always did.
     fun label(row: EngineFinder.ScanVoice?): String {
         if (row == null) return "*Disabled"
-        val abbreviated = abbreviateEngineName(row.engineName)
-        val base = if (row.locale.country.isNotEmpty()) abbreviated + ", " + row.locale.getDisplayCountry() else abbreviated
+        val name = row.engineName
+        val base = if (row.locale.country.isNotEmpty()) name + ", " + row.locale.getDisplayCountry() else name
         return if (row.notFound) base + " (not found in the last scan)" else base
     }
     fun load(context: Context, readingMode: String, selectedIso: String): List<EngineFinder.ScanVoice?> {

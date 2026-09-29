@@ -8,7 +8,38 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## STATES COME FROM THE COMPONENTS; THE SYSTEM'S HAPTIC TICK ON TOGGLES (owner, 2026-09-29, latest)
+## THE WHOLE-APP SWEEP: LIBRARY PIECES WHERE WE HAD HAND-MADE ONES (owner, 2026-09-29, latest)
+*"aur bhi kuchh components rah gaya ho user interface mein ... user interface ke alava kuchh aur chijon mein
+bhi ... manually kahin per likha hai ... puri app ki baat kar raha hun."* Swept by hand (rule 11). Changed:
+- **UI:** dropdown arrow = `ExposedDropdownMenuDefaults.TrailingIcon(expanded)` (Material's ArrowDropDown,
+  turns over while open; `ic_arrow_drop_down.xml` deleted). Slider -/+ = `OutlinedIconButton` + Material
+  `remove`/`add` icons (`ic_remove.xml` verbatim from google/material-design-icons); name on the button, icon
+  without one, so role AND name land on the focused node for every reader. `EvButton` uses Material's
+  button-with-icon recipe: `ButtonDefaults.IconSize` (18dp), `IconSpacing`, `ButtonWithIconContentPadding`
+  (was a 24dp icon + hand 8dp). FilterChip: `FilterChipDefaults.IconSize`, and `leadingIcon = null` when not
+  selected (an empty lambda still reserved the icon padding). Int/Float states are `mutableIntStateOf` /
+  `mutableFloatStateOf` (Compose's own primitive holders). `rememberSaveable` for the tab, the Languages search
+  text and the "My languages" filter: they survive rotation / font / theme change. Voice labels show the
+  engine's WHOLE name (`abbreviateEngineName`'s "Speech ... Google" was AutoTTS cutting for a one-line
+  Spinner; Compose's Text wraps) -- the abbreviation still breaks sort ties, so row ORDER is unchanged.
+- **Non-UI:** the service's troubleshoot check runs on `EngineFinder.engineCalls` (not a raw Thread);
+  `onSynthesizeText`'s catch-all uses the logger's own `errorWithStack`; the `onCreate` foreground failure goes
+  through `EasyVoiceLogger` (logcat + the shared file) instead of raw `Log.e`; App info uses
+  `Uri.fromParts("package", pkg, null)`. **Manifest `android:extractNativeLibs` removed**: AGP writes it from
+  `packaging.jniLibs.useLegacyPackaging = true` -- measured: the freshly merged release manifest still says
+  `extractNativeLibs="true"` and is byte-identical to the packaged one built WITH the attribute.
+- **Deliberately NOT changed, with the reason:** the hand-written NAMES (INVARIANTS #7). Read in Compose
+  UI 1.12.1's delegate: a merging node with children still gets neither `text` nor `contentDescription` on
+  the focused node, so the owner's non-TalkBack reader needs them (it said "button, button, button" without).
+  IconButtons keep name-on-button / icon-without-one (moving it onto the Icon adds a child and takes the role
+  off the focused node). The slider's "N of max" (library fallback is a wrong percentage). `SectionHeader`
+  (M3 1.4.0 has no subheader). The dropdown anchor stays a Button, not the sample's read-only TextField
+  (that would expose it as an edit box). Storage/`IsoCodes`/detection/speaking path (AutoTTS-proven),
+  `stopExec`, `syncLock` wait/notify (AutoTTS `o.wait()`, flags read in many places), the logger's own
+  format, `installedEngines` (`TextToSpeech.getEngines()` needs a bound client; `TtsEngines` is @hide),
+  `checkSignatures`, the auto-start table.
+
+## STATES COME FROM THE COMPONENTS; THE SYSTEM'S HAPTIC TICK ON TOGGLES (owner, 2026-09-29)
 *"not selected selected switch on switch off ... manually kyon karna hai jab components available hai ... system
 mein halka sa haptic hota hai ... jo system mein set ho vaisa hi."* (The "corrupted APK" of the same week was a bad
 download on the owner's side, now fixed by them; nothing in the build was wrong.)
