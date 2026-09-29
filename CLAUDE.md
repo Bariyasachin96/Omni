@@ -8,7 +8,34 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## BATTERY DIALOG REVERTED; RESTORE WAITS FOR A LIVE PROCESS; NATIVE FLAGS REALLY APPLY (owner, 2026-09-24, latest)
+## STATES COME FROM THE COMPONENTS; THE SYSTEM'S HAPTIC TICK ON TOGGLES (owner, 2026-09-29, latest)
+*"not selected selected switch on switch off ... manually kyon karna hai jab components available hai ... system
+mein halka sa haptic hota hai ... jo system mein set ho vaisa hi."* (The "corrupted APK" of the same week was a bad
+download on the owner's side, now fixed by them; nothing in the build was wrong.)
+- **`evControl` is GONE.** It cleared each control's semantics and declared the role, the on/off or selected state
+  and the click again by hand. Now `toggleable` / `selectable` / `Button` / `Tab` / `FilterChip` /
+  `menuAnchor` supply all three (read in androidx Clickable.kt, Toggleable.kt, ExposedDropdownMenu.kt). The spoken
+  words ("On", "Off", "Selected", "Not selected", "Switch", "Tab") are androidx's own string resources, which is why
+  they appear in an APK resource viewer; `strings.xml` holds only app_name.
+- **Still ours, none of it a state:** the NAME (`semantics { contentDescription }` + the label Text silenced,
+  INVARIANTS #7), `collectionItemInfo` on list/menu rows (no component sets it), and the slider's "100 of 500"
+  (the library's only fallback is a percentage, and 100 on Speed is the normal rate, not 20 percent).
+- **Removed as hand-written states:** the dropdown anchor's "Expanded"/"Collapsed" (material3 states them only
+  for SecondaryEditable; ours is PrimaryNotEditable), and `selected` on dropdown items (DropdownMenuItem has none in
+  1.4.0; it made 136 languages say "Not selected"; the anchor already names the chosen one).
+- **Cost, stated to the owner:** the role word reaches a reader only through Compose's fake role child again, which
+  TalkBack walks. A reader that looks only at the focused node may again not say "button"/"switch" -- the 2026-09-03
+  report evControl was written for. If the owner's other reader goes quiet on roles, this is why.
+- **Haptics = `LocalHapticFeedback` + `HapticFeedback.toggled(on)` in ComposeTheme.kt.** Compose maps the type to
+  HapticFeedbackConstants and calls `ViewCompat.performHapticFeedback(view, constant)` with NO flags, so the OEM's
+  own pattern plays and the system touch-feedback setting is obeyed; no VIBRATE permission. Below API 34
+  HapticFeedbackConstantsCompat falls back (TOGGLE_ON -> CONTEXT_CLICK, TOGGLE_OFF -> CLOCK_TICK). Where:
+  ToggleOn/ToggleOff on every Switch (SettingSwitch), the language checkboxes, the "My languages" chip, and a radio
+  being chosen (only when the choice changes); SegmentTick on picking a different dropdown item. Nothing else ticks
+  (buttons, tabs, sliders). Fired from the component's own onValueChange/onClick, so a double tap ticks too.
+  Material3 Switch and foundation toggleable give no haptic of their own (read in their sources).
+
+## BATTERY DIALOG REVERTED; RESTORE WAITS FOR A LIVE PROCESS; NATIVE FLAGS REALLY APPLY (owner, 2026-09-24)
 *"Agar Google mana kar sakta hai to aapko yah karna hi nahin chahie tha ... purana wala ... restore wala ...
 properly research ... compiler ki properly settings sahi nahin hai."*
 - **The one-tap battery dialog is GONE** (Play restricts REQUEST_IGNORE_BATTERY_OPTIMIZATIONS): the permission

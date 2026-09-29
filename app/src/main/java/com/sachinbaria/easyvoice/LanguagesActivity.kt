@@ -35,7 +35,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
@@ -156,6 +156,7 @@ fun SectionHeader(title: String) {
 // list, not within its group, so the announced position stays continuous.
 @Composable
 private fun LanguageCheckRow(label: String, checked: Boolean, position: Int, onToggle: (Boolean) -> Unit) {
+    val haptic = LocalHapticFeedback.current
     ListItem(
         // Small, regular weight, light purple -- the same option-label
         // treatment every other selectable option in the app carries
@@ -176,20 +177,21 @@ private fun LanguageCheckRow(label: String, checked: Boolean, position: Int, onT
             headlineColor = MaterialTheme.colorScheme.primary
         ),
         modifier = Modifier
-            // `toggleable` keeps the touch; evControl states the row on the
-            // focused node so the Checkbox role is not left on a fake child, and
-            // it is FIRST because the configuration is built tailToHead and a
-            // clearing node resets it. The collection position is declared by
-            // hand because the section headings are `item {}` entries and a
-            // LazyColumn counts everything it holds.
-            .evControl(
-                label,
-                Role.Checkbox,
-                toggle = if (checked) ToggleableState.On else ToggleableState.Off,
-                listItem = CollectionItemInfo(position, 1, 0, 1),
-                action = { onToggle(!checked) }
+            // `toggleable` is the control: the touch, the Checkbox role, the
+            // checked state and the click (owner, 2026-09-29: components, not
+            // states written by hand). Added: the NAME (INVARIANTS #7) and the
+            // row's position -- declared here because the section headings are
+            // `item {}` entries and a LazyColumn counts everything it holds, and
+            // because no component sets a position on a lazy item.
+            .semantics {
+                contentDescription = label
+                collectionItemInfo = CollectionItemInfo(position, 1, 0, 1)
+            }
+            .toggleable(
+                value = checked,
+                role = Role.Checkbox,
+                onValueChange = { picked -> haptic.toggled(picked); onToggle(picked) }
             )
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onToggle)
     )
 }
 @Composable
@@ -230,6 +232,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
     val checked = remember { mutableStateListOf<Boolean>().also { it.addAll(loaded.third) } }
     var query by remember { mutableStateOf("") }
     var showSelectedOnly by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
     // The region comes from the device, not from the scan: Locale.getDefault()
     // is whatever the user has set. Which languages belong to it has to come
     // from the voices, because LangEntry has no country -- rebuildFromScan
@@ -376,8 +379,11 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                 // right everywhere, 2026-09-02.)
                 FilterChip(
                     selected = showSelectedOnly,
-                    onClick = { showSelectedOnly = !showSelectedOnly },
-                    label = { Text("My languages") },
+                    onClick = {
+                        showSelectedOnly = !showSelectedOnly
+                        haptic.toggled(showSelectedOnly)
+                    },
+                    label = { Text("My languages", modifier = Modifier.clearAndSetSemantics { }) },
                     leadingIcon = {
                         if (showSelectedOnly) {
                             Icon(
@@ -387,16 +393,11 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                             )
                         }
                     },
-                    // Role.Checkbox is what FilterChip itself sets; `isSelected`
-                    // is what makes the delegate say "Selected"/"Not selected"
-                    // from its own string resources, and it is why the label is
-                    // allowed to stay free of a state word.
-                    modifier = Modifier.weight(1f).evControl(
-                        "My languages",
-                        Role.Checkbox,
-                        isSelected = showSelectedOnly,
-                        action = { showSelectedOnly = !showSelectedOnly }
-                    )
+                    // FilterChip itself sets Role.Checkbox, the selected state and
+                    // the click; the delegate turns that state into "Selected" /
+                    // "Not selected" from androidx's own strings, which is why the
+                    // label stays free of a state word. Only the name is added.
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "My languages" }
                 )
             }
             OutlinedTextField(

@@ -105,21 +105,17 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                 // collectionInfo Column here -- the owner asked for
                                 // less position noise, not more.
                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                    // The click is the item's own; the name is the one
+                                    // thing added (INVARIANTS #7).
                                     DropdownMenuItem(
-                                        text = { Text("Delete configuration") },
+                                        text = { Text("Delete configuration", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDeleteConfiguration(index) },
-                                        modifier = Modifier.evControl(
-                                            "Delete configuration",
-                                            action = { menuOpen = false; onDeleteConfiguration(index) }
-                                        )
+                                        modifier = Modifier.semantics { contentDescription = "Delete configuration" }
                                     )
                                     DropdownMenuItem(
-                                        text = { Text("Disable language") },
+                                        text = { Text("Disable language", modifier = Modifier.clearAndSetSemantics { }) },
                                         onClick = { menuOpen = false; onDisable(index) },
-                                        modifier = Modifier.evControl(
-                                            "Disable language",
-                                            action = { menuOpen = false; onDisable(index) }
-                                        )
+                                        modifier = Modifier.semantics { contentDescription = "Disable language" }
                                     )
                                 }
                             }
@@ -159,14 +155,14 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                         // "More actions for English (eng)" in the MERGED tree, and that
                         // run was green.
                         //
-                        // WHAT DID break it, and the rule that follows: `evControl`
-                        // (= `clearAndSetSemantics`) on this row. Clearing a node drops
-                        // its WHOLE SUBTREE from the accessibility tree, so the IconButton
-                        // vanished and took Delete configuration and Disable language with
-                        // it. Builds 832 and 833 failed that same test on exactly this.
-                        // NEVER put `evControl` on a node that contains an interactive
-                        // child; a plain `semantics {}` block adds without clearing, which
-                        // is what this row uses.
+                        // WHAT DID break it, and the rule that follows: the old
+                        // `evControl` (= `clearAndSetSemantics`) on this row. Clearing a
+                        // node drops its WHOLE SUBTREE from the accessibility tree, so the
+                        // IconButton vanished and took Delete configuration and Disable
+                        // language with it. Builds 832 and 833 failed that same test on
+                        // exactly this. NEVER put `clearAndSetSemantics` on a node that
+                        // contains an interactive child; a plain `semantics {}` block adds
+                        // without clearing, which is what this row uses.
                         modifier = Modifier
                             .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
                             .semantics {

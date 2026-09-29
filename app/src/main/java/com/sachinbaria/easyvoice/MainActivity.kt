@@ -51,7 +51,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -327,9 +326,12 @@ fun MainScreen(
                     onClick = openSettings,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.evControl(settingsName, Role.Button, action = openSettings),
+                    // The FAB is the button -- role and click are its own. The
+                    // name is longer than the visible word, "<Mode> settings",
+                    // so it is stated and the short label is silenced.
+                    modifier = Modifier.semantics { contentDescription = settingsName },
                     icon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
-                    text = { Text("Settings") }
+                    text = { Text("Settings", modifier = Modifier.clearAndSetSemantics { }) }
                 )
             }
             if (!scanning && currentPage == 1 && showAddLanguage) {
@@ -337,9 +339,9 @@ fun MainScreen(
                     onClick = onAddLanguage,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.evControl("Add language", Role.Button, action = onAddLanguage),
+                    modifier = Modifier.semantics { contentDescription = "Add language" },
                     icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-                    text = { Text("Add language") }
+                    text = { Text("Add language", modifier = Modifier.clearAndSetSemantics { }) }
                 )
             }
         },
@@ -415,15 +417,15 @@ fun MainScreen(
                 // THE SHAPE IS THE ONE THE CONFIGURATION ROW ALREADY USES, and it
                 // is copied rather than reinvented so the two menus behave
                 // identically: a Box so the menu anchors to the button, an
-                // IconButton named with a plain `semantics {}` block, and
-                // `evControl` on each item.
+                // IconButton named with a plain `semantics {}` block, and each
+                // item named the same way (INVARIANTS #7). The click is the
+                // item's own.
                 //
-                // The IconButton takes `semantics`, NOT `evControl`: its
-                // `Icon(contentDescription = null)` adds no semantics modifier at
-                // all, so the button has no semantics children, the delegate's
-                // `replacedChildren.isEmpty()` gate passes by itself and
-                // `android.widget.Button` already lands on the focused node.
-                // Clearing it would gain nothing and lose the ripple's own state.
+                // The IconButton's `Icon(contentDescription = null)` adds no
+                // semantics modifier at all, so the button has no semantics
+                // children, the delegate's `replacedChildren.isEmpty()` gate
+                // passes by itself and `android.widget.Button` lands on the
+                // focused node on its own.
                 //
                 // NO `listItem` ON THE TWO ITEMS, for the reason written out at
                 // the Configuration menu: nothing here publishes a CollectionInfo,
@@ -471,19 +473,19 @@ fun MainScreen(
                                 context.startActivity(Intent(context, TroubleshootActivity::class.java))
                             }
                             DropdownMenuItem(
-                                text = { Text("TTS Settings") },
+                                text = { Text("TTS Settings", modifier = Modifier.clearAndSetSemantics { }) },
                                 onClick = openTtsSettings,
-                                modifier = Modifier.evControl("TTS Settings", action = openTtsSettings)
+                                modifier = Modifier.semantics { contentDescription = "TTS Settings" }
                             )
                             DropdownMenuItem(
-                                text = { Text("Troubleshoot voice engines") },
+                                text = { Text("Troubleshoot voice engines", modifier = Modifier.clearAndSetSemantics { }) },
                                 onClick = openTroubleshoot,
-                                modifier = Modifier.evControl("Troubleshoot voice engines", action = openTroubleshoot)
+                                modifier = Modifier.semantics { contentDescription = "Troubleshoot voice engines" }
                             )
                             DropdownMenuItem(
-                                text = { Text("About Easy Voice") },
+                                text = { Text("About Easy Voice", modifier = Modifier.clearAndSetSemantics { }) },
                                 onClick = openAbout,
-                                modifier = Modifier.evControl("About Easy Voice", action = openAbout)
+                                modifier = Modifier.semantics { contentDescription = "About Easy Voice" }
                             )
                         }
                     }
@@ -510,52 +512,23 @@ fun MainScreen(
                         Tab(
                             selected = currentPage == index,
                             onClick = { currentPage = index },
-                            text = { Text(pageTitles[index]) },
+                            text = { Text(pageTitles[index], modifier = Modifier.clearAndSetSemantics { }) },
                             icon = { Icon(painterResource(pageIcons[index]), contentDescription = null) },
-                            // THE TAB ROLE NOW REACHES THE FOCUSED NODE. Material
-                            // sets `role = Role.Tab` on a node that merges a text
-                            // child, so the delegate's gate sent its
-                            // `roleDescription = "Tab"` to a fake child only, and a
-                            // reader that does not walk those said nothing at all.
-                            // A class name could not rescue it either -- Role.Tab
-                            // has no legacy class, and `android.app.ActionBar$Tab`
-                            // was tried on device and not recognised. Clearing the
-                            // node is what opens the gate, and then the library
-                            // writes its own "Tab" onto the node in focus.
-                            //
-                            // `isSelected` also earns the position back for free:
-                            // the delegate turns Selected + Role.Tab into
-                            // `info.isSelected`, which is how a reader says which
-                            // tab is current.
+                            // Role.Tab, the selected state and the click are the
+                            // Tab's own (owner, 2026-09-29: components, not states
+                            // written by hand -- they used to be declared again in
+                            // `evControl`). Only the NAME is added (INVARIANTS #7).
                             //
                             // THE NAME IS THE TITLE ALONE -- no ", N of M" (owner,
                             // 2026-09-09: *"yah thoda double hai ... jo already
                             // TalkBack announce karti chijen hain vah rakhni hi
-                            // nahin hai"*). They were right, and the library says
-                            // so: `PrimaryTabRow` applies `Modifier.selectableGroup()`
-                            // (TabRow.kt:401) and every `Tab` sets `Selected`
-                            // (Tab.kt:177), so `setCollectionInfo` derives a
-                            // CollectionInfo from the group and `setCollectionItemInfo`
-                            // derives this tab's index from its selected siblings
-                            // (CollectionInfo.android.kt) -- the delegate announces
-                            // "1 of 2" on its own, onto the FOCUSED node, so a reader
-                            // that walks no fake children still gets it.
-                            //
-                            // The comment that used to sit here justified the suffix
-                            // with the owner's device on 2026-08-13. That test was
-                            // real and it is not evidence any more: the app was
-                            // Views and `TabLayout` then. `PrimaryTabRow`, `evControl`
-                            // and this delegate path all arrived afterwards, and the
-                            // mechanism changed without the justification following
-                            // it. Do not put the suffix back on the strength of that
-                            // date; if the position ever goes silent again, check
-                            // `selectableGroup` first.
-                            modifier = Modifier.evControl(
-                                pageTitles[index],
-                                Role.Tab,
-                                isSelected = currentPage == index,
-                                action = { currentPage = index }
-                            )
+                            // nahin hai"*). `PrimaryTabRow` applies
+                            // `Modifier.selectableGroup()` (TabRow.kt:401) and every
+                            // `Tab` sets `Selected` (Tab.kt:177), so the delegate
+                            // derives "1 of 3" by itself (CollectionInfo.android.kt).
+                            // If the position ever goes silent, check
+                            // `selectableGroup` first; do not put a suffix back.
+                            modifier = Modifier.semantics { contentDescription = pageTitles[index] }
                         )
                     }
                 }

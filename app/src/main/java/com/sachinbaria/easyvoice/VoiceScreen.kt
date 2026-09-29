@@ -28,15 +28,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionInfo
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -88,6 +88,7 @@ fun LabeledDropdown(
     onSelect: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
     val selectedText = if (selectedIndex >= 0 && selectedIndex < options.size) options[selectedIndex] else ""
     // "Select language for reading numbers:" -> "Select language for reading numbers"
     // so the name does not read as "... numbers colon, comma, Auto language".
@@ -136,13 +137,14 @@ fun LabeledDropdown(
         // Initial pass and toggles the menu itself, so a real onClick here would
         // toggle a second time and the menu would open and shut in one tap.
         //
-        // The two semantics that stay are the two the library does NOT set for a
-        // PrimaryNotEditable anchor, checked in ExposedDropdownMenu.kt rather
-        // than assumed -- `Modifier.expandable` applies stateDescription and
-        // contentDescription only on the SecondaryEditable branch:
-        //   * contentDescription, because this node merges its children and
-        //     therefore carries no name of its own (INVARIANTS #7);
-        //   * stateDescription, so expanded/collapsed is still spoken.
+        // The NAME is the one thing added (INVARIANTS #7): this node merges its
+        // children and carries no name of its own. There is NO "Expanded" /
+        // "Collapsed" any more (owner, 2026-09-29: states from components, not
+        // by hand). `Modifier.expandable` states them only on the
+        // SecondaryEditable branch (ExposedDropdownMenu.kt); for this
+        // PrimaryNotEditable anchor the library sets the DropdownList role and
+        // the click, and the menu that opens is its own window, which a screen
+        // reader announces as it appears.
         // Held here rather than inside the menu so the measured position
         // survives the menu closing and reopening.
         val menuScroll = rememberScrollState()
@@ -155,24 +157,14 @@ fun LabeledDropdown(
             OutlinedButton(
                 onClick = { },
                 enabled = enabled,
-                // evControl FIRST: `menuAnchor` carries semantics of its own
-                // (Modifier.expandable sets role and an onClick), and the
-                // configuration is built tailToHead, so only the head-most
-                // clearing node survives. menuAnchor still sits before
-                // fillMaxWidth, which is what decides the anchor's measured
-                // width, so the layout is untouched.
+                // menuAnchor sits before fillMaxWidth, which is what decides the
+                // anchor's measured width.
                 modifier = Modifier
-                    .evControl(
-                        labelName + ", " + selectedText,
-                        Role.DropdownList,
-                        enabled = enabled,
-                        state = if (expanded) "Expanded" else "Collapsed",
-                        action = { expanded = !expanded }
-                    )
+                    .semantics { contentDescription = labelName + ", " + selectedText }
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
                     .fillMaxWidth()
             ) {
-                Text(text = selectedText, modifier = Modifier.weight(1f))
+                Text(text = selectedText, modifier = Modifier.weight(1f).clearAndSetSemantics { })
                 Icon(painterResource(R.drawable.ic_arrow_drop_down), contentDescription = null)
             }
             ExposedDropdownMenu(
@@ -254,8 +246,12 @@ fun LabeledDropdown(
                     // with a semantics node counts -- it is there to stop the label
                     // being announced twice. The visible text is untouched.
                     DropdownMenuItem(
-                        text = { Text(options[index]) },
-                        onClick = { onSelect(index); expanded = false },
+                        text = { Text(options[index], modifier = Modifier.clearAndSetSemantics { }) },
+                        onClick = {
+                            // "Items in a list" -- SegmentTick's own KDoc.
+                            if (index != selectedIndex) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                            onSelect(index); expanded = false
+                        },
                         trailingIcon = {
                             if (index == selectedIndex) {
                                 Icon(painterResource(R.drawable.ic_check), contentDescription = null)
@@ -271,18 +267,18 @@ fun LabeledDropdown(
                                     Modifier
                                 }
                             )
-                            // No role: DropdownMenuItem sets none of its own, so
-                            // there is nothing to restate. The state goes in
-                            // `selected`, never in the name -- Google's
-                            // Accessibility Scanner flagged exactly that once:
-                            // "This item's content description, \"English (eng),
-                            // Selected\", contains the state \"selected\"."
-                            .evControl(
-                                options[index],
-                                isSelected = index == selectedIndex,
-                                listItem = CollectionItemInfo(index, 1, 0, 1),
-                                action = { onSelect(index); expanded = false }
-                            )
+                            // The click is DropdownMenuItem's own. Added: the name
+                            // and the position in the list, neither of which a
+                            // component supplies here. NO selected state: a
+                            // material3 1.4.0 DropdownMenuItem has none, and
+                            // writing one by hand made every other language say
+                            // "Not selected" (owner, 2026-09-29). The anchor
+                            // already says which language is chosen, and the
+                            // menu opens scrolled to it.
+                            .semantics {
+                                contentDescription = options[index]
+                                collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
+                            }
                     )
                 }
             }
@@ -371,12 +367,10 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
     ) {
         OutlinedButton(
             onClick = { step(value - SLIDER_BUTTON_STEP) },
-            modifier = Modifier.evControl(
-                "Decrease " + lowered,
-                Role.Button,
-                action = { step(value - SLIDER_BUTTON_STEP) }
-            )
-        ) { Text("-") }
+            // The button is the control; the name, "Decrease <label>", is
+            // the one thing added.
+            modifier = Modifier.semantics { contentDescription = "Decrease " + lowered }
+        ) { Text("-", modifier = Modifier.clearAndSetSemantics { }) }
         Slider(
             value = value.toFloat(),
             // roundToInt, not toInt, and then the same clamp P1() applies: the
@@ -395,12 +389,10 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
         )
         OutlinedButton(
             onClick = { step(value + SLIDER_BUTTON_STEP) },
-            modifier = Modifier.evControl(
-                "Increase " + lowered,
-                Role.Button,
-                action = { step(value + SLIDER_BUTTON_STEP) }
-            )
-        ) { Text("+") }
+            // The button is the control; the name, "Increase <label>", is
+            // the one thing added.
+            modifier = Modifier.semantics { contentDescription = "Increase " + lowered }
+        ) { Text("+", modifier = Modifier.clearAndSetSemantics { }) }
     }
 }
 

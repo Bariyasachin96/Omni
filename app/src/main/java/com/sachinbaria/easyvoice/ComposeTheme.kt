@@ -27,18 +27,11 @@ import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.CollectionItemInfo
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
@@ -388,118 +381,91 @@ fun animationsEnabled(): Boolean {
 }
 
 // ==========================================================================
-//  evControl: THE ROLE ON THE FOCUSED NODE ITSELF, FOR EVERY SCREEN READER
+//  ROLE, STATE AND CLICK COME FROM THE COMPONENTS, NEVER FROM US
 //
-//  Owner, 2026-09-03 and again on 2026-09-04 ("jo asali hal hai vah complete kar
-//  hi do"): TalkBack says "button" and "tab", their other reader says only the
-//  label. This modifier is the fix, and it is one line at each control instead
-//  of a class name bolted on beside a role that is already there.
+//  Owner, 2026-09-29: "not selected, selected, switch on, switch off ... manually
+//  kyon karna hai jab components available hai ... jis chij ke liye components
+//  available hai vah components use karo."
 //
-//  WHY THE ROLE WAS NOT REACHING THEM. The delegate writes a role only under
+//  `evControl` used to live here. It was `clearAndSetSemantics` followed by the
+//  control's role, its on/off or selected state and its click action, all
+//  declared a second time by hand -- a copy of what `toggleable`, `selectable`,
+//  `Button`, `Tab` and `FilterChip` already declare. It is GONE, and each control
+//  takes those three from its own component (read in androidx's Clickable.kt,
+//  Toggleable.kt and ExposedDropdownMenu.kt):
 //
-//      if (semanticsNode.isFake || semanticsNode.replacedChildren.isEmpty())
-//          if (role == Role.Tab)    info.roleDescription = "Tab"
-//          else if (role == Switch) info.roleDescription = "Switch"
-//          else                     info.className = role.toLegacyClassName()
+//    Modifier.toggleable(value, role = Switch/Checkbox, onValueChange)
+//        role, ToggleableState, onClick, disabled, and one merged focus stop
+//    Modifier.selectable(selected, role = RadioButton, onClick)
+//        role, Selected, onClick, disabled, one merged focus stop
+//    Button / OutlinedButton / ExtendedFloatingActionButton    Role.Button, click
+//    Tab                                                       Role.Tab, Selected
+//    FilterChip                                                Role.Checkbox, Selected
+//    menuAnchor(PrimaryNotEditable)                            Role.DropdownList, click
 //
-//  and a Material control with a text label always has a semantics child, so it
-//  fails that gate. Its role goes instead to a FAKE ROLE CHILD that Compose
-//  emits (`SemanticsNode.emitFakeNodes`) and hands to the service as a separate
-//  virtual node. TalkBack walks those children. A reader that reads only the
-//  focused node finds nothing, which is exactly what the owner reported.
+//  The words a reader speaks for those states -- "On", "Off", "Selected", "Not
+//  selected", "Switch", "Tab" -- are androidx's own string resources (state_on,
+//  state_off, selected, not_selected, switch_role, tab). That is why they show up
+//  in a resource viewer of the APK. None of them is ours: `strings.xml` holds one
+//  string, app_name.
 //
-//  WHAT THIS DOES, and every step of it is the library's own behaviour:
-//    * `clearAndSetSemantics` makes this node's configuration exactly what we
-//      declare. `replacedChildren` is then EMPTY for it -- that is the documented
-//      contract of the property: "node marked as clearAndSetSemantics will not
-//      have children" (SemanticsNode.kt) -- so the gate above PASSES and the role
-//      lands on the real, focused node.
-//    * `emitFakeNodes` cannot fire either: it is guarded by
-//      `unmergedConfig.isMergingSemanticsOfDescendants`, and a cleared config
-//      does not merge. So there is exactly ONE node carrying the role, and the
-//      "button button" doubling of 2026-09-03 is structurally impossible here.
-//    * the label goes on as `contentDescription`, which the delegate assigns
-//      whenever the node does not merge descendants -- so the inner Text is no
-//      longer read a second time and no longer needs silencing.
+//  WHAT IS STILL OURS, and none of it is a state:
+//    * the NAME, as `Modifier.semantics { contentDescription = ... }` with the
+//      visible Text silenced (INVARIANTS #7). A merged node with children carries
+//      no name of its own for a reader that looks only at the focused node --
+//      the "button, button, button" of 2026-08-19. It ADDS without clearing, so
+//      the component's role, state and click stay the component's.
+//    * `collectionItemInfo` on a list row. No component sets it on a lazy item
+//      or a menu item, so a row's position in its list has no other source.
+//    * the slider's "100 of 500". The library's only fallback is a percentage,
+//      and 100 on Speed is the engine's normal rate, not "20 percent".
 //
-//  WHY IT IS SAFE, stated because getting it wrong leaves a blind user unable to
-//  press anything, and that is the exact failure this file has already caused
-//  once:
-//    * `clearAndSetSemantics` touches SEMANTICS ONLY. The component's own
-//      `clickable` pointer input is untouched, so a finger on the screen still
-//      activates the real Material control, with its ripple and its state.
-//    * for a screen reader the activation path is `ACTION_CLICK`, and we declare
-//      it here: `onClick { action(); true }` puts `SemanticsActions.OnClick` in
-//      the cleared configuration and the delegate turns that into
-//      `info.addAction(ACTION_CLICK)`. The old bug this file warns about was
-//      declaring `onClick(label, action = null)` -- a LABEL with no action, which
-//      replaced the real action with nothing. `action` is required here for
-//      anything the user can press, so that shape cannot be written by accident.
-//    * `enabled = false` adds `disabled()`, which is what the delegate's
-//      `semanticsNode.enabled()` test reads before it will add the click action
-//      at all. Without it a greyed-out control would still offer activation.
+//  WHAT THIS GIVES BACK, stated plainly: the role word now reaches a reader
+//  through the component's own fake role child, which TalkBack walks. A reader
+//  that looks only at the focused node may again not say "button" or "switch"
+//  -- the report of 2026-09-03 that `evControl` was written for. If the owner's
+//  other screen reader goes quiet on roles again, this is why.
 //
-//  STATE IS THE LIBRARY'S TOO, not a string we invent:
-//    * `toggle` + `Role.Switch` makes the delegate say "On"/"Off" from its own
-//      `R.string.state_on` / `state_off`;
-//    * `isSelected` on anything that is not a Tab makes it say
-//      "Selected"/"Not selected" from `R.string.selected` / `not_selected`;
-//    * a selected Tab or RadioButton is deliberately NOT clickable -- the
-//      delegate drops ACTION_CLICK for exactly those two roles when selected,
-//      because a chosen tab cannot be chosen again. That happens on its own.
+//  THE DROPDOWN'S "Expanded"/"Collapsed" WENT TOO. material3's
+//  `Modifier.expandable` states them only for a SecondaryEditable anchor; for a
+//  PrimaryNotEditable one -- ours -- it sets the DropdownList role and the click
+//  and nothing else. The menu that opens is its own window, and a screen reader
+//  announces a window as it appears.
+// ==========================================================================
+
+// ==========================================================================
+//  THE SYSTEM'S OWN HAPTIC TICK WHEN SOMETHING TURNS ON OR OFF (owner, 2026-09-29)
 //
-//  NEVER WRAP A NODE THAT CONTAINS AN INTERACTIVE CHILD. This is the one way to
-//  do real damage with it, and it was done once: clearing a node drops its WHOLE
-//  SUBTREE from the accessibility tree -- that is what an empty `replacedChildren`
-//  means -- so anything focusable inside it simply stops existing for a screen
-//  reader. On every control here the subtree is a label and an icon and losing it
-//  is the point. The Configuration list row is the exception: its trailingContent
-//  is a real three-dot IconButton, and wrapping the row made "More actions for
-//  <language>" unreachable, taking Delete configuration and Disable language with
-//  it. Build 832's accessibility job is what caught it --
-//  `AccessibilityChecksTest.configurationRowMenuOpen` could no longer find that
-//  button in the merged tree while the unmerged tree still had it, which is the
-//  exact signature of this mistake. That row uses a plain `semantics {}` block
-//  instead, which adds without clearing.
+//  "Android mein koi switch on off karte hain ... halka sa haptic hota hai ...
+//  vah system se ... jo system mein set ho vaisa hi."
 //
-//  A child passed `onCheckedChange = null` or `onClick = null` is NOT interactive
-//  -- that is the whole point of the Material row pattern -- so the Switch inside
-//  `SettingSwitch`, the Checkbox inside `LanguageCheckRow` and the RadioButton
-//  inside the mode rows are all safe. (The mode row used to carry a "Settings"
-//  button too, safe for a different reason -- it was a SIBLING of the cleared
-//  Row, not inside it. It moved to the FAB on 2026-09-09, so the mode row now
-//  has nothing in it but the RadioButton and its label.)
+//  This is Compose's own `LocalHapticFeedback`, not a vibrator of ours. Read at
+//  the source (PlatformHapticFeedback.android.kt): every HapticFeedbackType maps
+//  to a platform HapticFeedbackConstants value and goes out through
+//  `ViewCompat.performHapticFeedback(view, constant)` with NO flags, so:
+//    * the feel is the phone's own -- the OEM decides what TOGGLE_ON feels like;
+//    * the user's setting is obeyed. Android's haptics guide: "All haptic
+//      feedback methods respect the user's touch feedback settings by default",
+//      and performHapticFeedback honours Settings.System.HAPTIC_FEEDBACK_ENABLED.
+//      Touch feedback off in Settings means nothing happens here either;
+//    * no VIBRATE permission is needed, so the manifest does not change.
+//  Below Android 14, which has no TOGGLE_ON / TOGGLE_OFF,
+//  HapticFeedbackConstantsCompat falls back to CONTEXT_CLICK / CLOCK_TICK. That
+//  is androidx's choice, not ours.
 //
-//  WHAT IT IS NOT FOR: anything whose semantics the library already puts on the
-//  focused node without help. An `IconButton` is the clearest case -- its
-//  `Icon(contentDescription = null)` adds NO semantics modifier, so the button
-//  has no semantics children, the gate passes by itself and the class name is
-//  already right. A `Slider` is another: `info.className = "android.widget.
-//  SeekBar"` is set from ProgressBarRangeInfo with no gate at all. Do not wrap
-//  those; there is nothing to gain and a state to lose.
-fun Modifier.evControl(
-    name: String,
-    controlRole: Role? = null,
-    enabled: Boolean = true,
-    state: String? = null,
-    toggle: ToggleableState? = null,
-    isSelected: Boolean? = null,
-    listItem: CollectionItemInfo? = null,
-    action: (() -> Unit)? = null,
-): Modifier = this.clearAndSetSemantics {
-    contentDescription = name
-    // Null for a control the library gives no Role of its own -- a dropdown menu
-    // item is the case here. It still gets the name, the position in the list
-    // and the click action on the focused node; it simply has no role to state,
-    // and inventing one would be a class name bolted on again.
-    if (controlRole != null) role = controlRole
-    if (!enabled) disabled()
-    if (state != null) stateDescription = state
-    if (toggle != null) toggleableState = toggle
-    if (isSelected != null) selected = isSelected
-    if (listItem != null) collectionItemInfo = listItem
-    if (action != null) onClick { action(); true }
-}
+//  WHICH TYPE WHERE, by each type's own KDoc:
+//    ToggleOn / ToggleOff  "toggled a switch or button into the on / off
+//                          position": every Switch, the language checkboxes, the
+//                          "My languages" chip, and a radio button being chosen
+//    SegmentTick           "switching between a series of potential choices, for
+//                          example items in a list": picking a dropdown item
+//  Nothing else ticks -- not plain buttons, not tabs, not the sliders, which
+//  would buzz on every value through a drag.
+//
+//  It is called from the component's own onValueChange / onClick, so a finger
+//  and a screen reader's double tap feel the same tick.
+fun HapticFeedback.toggled(on: Boolean) =
+    performHapticFeedback(if (on) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
 
 // ==========================================================================
 //  THE ROLE AND THE NON-TALKBACK READER: THE RECORD, NOW THAT THE APP CARRIES
@@ -554,15 +520,11 @@ fun Modifier.evControl(
 //         disabled state. That is the bug that once made the Configuration rows
 //         unopenable.
 //
-//  5. The one shape that WOULD put a button's role on the focused node for every
-//     reader is a wrapper whose semantics are cleared and re-declared by hand
-//     (`clearAndSetSemantics { contentDescription; role = Role.Button;
-//     onClick {...} }` on a Box AROUND the Button, where the reset is harmless
-//     because the config being reset is the Box's own). It is written down here
-//     rather than shipped: it re-declares the click action for every button in
-//     the app, it cannot be tested in this container, and if it is wrong a blind
-//     user cannot press anything. That is the owner's call to make, not a change
-//     to slip in.
+//  5. The one shape that DOES put the role on the focused node for every reader
+//     is clearing the node and declaring role, state and click again by hand.
+//     That was shipped as `evControl` on 2026-09-04 and removed on 2026-09-29,
+//     because the owner wants those three from the components, not written by
+//     us. See the section above.
 // ==========================================================================
 
 // ==========================================================================
@@ -580,10 +542,10 @@ fun Modifier.evControl(
 //  repeating `.semantics { contentDescription = ... }` and each silencing its
 //  own label with `clearAndSetSemantics`.
 //
-//  It is a Material3 `Button` or `OutlinedButton` and nothing else; the only
-//  thing added is `evControl`, which is what puts the role on the focused node
-//  for a reader that does not walk Compose's fake children. See evControl above
-//  for why that is safe and what it does NOT apply to.
+//  It is a Material3 `Button` or `OutlinedButton` and nothing else. The Button
+//  itself declares the role, the click action and the disabled state; the only
+//  thing added here is the NAME on the focused node (INVARIANTS #7), with the
+//  label Text silenced so it is not read twice.
 //
 //  `outlined = true` is the Material emphasis ladder, not decoration: the spec
 //  orders the styles elevated > filled > filled tonal > outlined > text, so a
@@ -601,7 +563,7 @@ fun EvButton(
     outlined: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val described = modifier.evControl(label, Role.Button, enabled = enabled, action = onClick)
+    val described = modifier.semantics { contentDescription = label }
     val body: @Composable RowScope.() -> Unit = {
         if (iconRes != 0) {
             Icon(
@@ -610,10 +572,8 @@ fun EvButton(
                 modifier = Modifier.padding(end = 8.dp)
             )
         }
-        // No `clearAndSetSemantics` here any more, and that is the point: the
-        // button's own configuration is cleared, so this Text is already out of
-        // the accessibility tree and cannot be read a second time.
-        Text(label)
+        // Silenced: the name is already on the button itself.
+        Text(label, modifier = Modifier.clearAndSetSemantics { })
     }
     if (outlined) {
         OutlinedButton(onClick = onClick, modifier = described, enabled = enabled, content = body)

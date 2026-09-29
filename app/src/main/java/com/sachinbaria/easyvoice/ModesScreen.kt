@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -84,6 +85,7 @@ fun ModesScreen(
 ) {
     val context = LocalContext.current
     var selectedMode by remember { mutableStateOf(shownMode(prefs.getReadingMode())) }
+    val haptic = LocalHapticFeedback.current
     LaunchedEffect(refreshKey) {
         val mode = shownMode(prefs.getReadingMode())
         selectedMode = mode
@@ -115,6 +117,10 @@ fun ModesScreen(
                 // the same, for the same reason, and that is the intent.
                 if (mode in HIDDEN_MODES) continue
                 val pick = {
+                    // The system's toggle tick, only when the choice really
+                    // changes -- picking the radio that is already on turns
+                    // nothing on.
+                    if (mode != selectedMode) haptic.toggled(true)
                     selectedMode = mode
                     prefs.setReadingMode(mode)
                     rebuildLanguagesFor(context, modeIntOf(mode))
@@ -126,20 +132,14 @@ fun ModesScreen(
                 // line with, and a wrapper with a single child would only add a
                 // layout node.
                 //
-                // `selectable` keeps the touch and the exclusive group;
-                // evControl states the row on the focused node so a reader that
-                // does not walk Compose's fake children still hears "radio
-                // button, selected". It is FIRST because the configuration is
-                // built tailToHead and a clearing node resets it, so only the
-                // head-most one survives.
+                // `selectable` is the control: the touch, the RadioButton role,
+                // the selected state and the click, inside the selectableGroup
+                // above that gives the position (owner, 2026-09-29: components,
+                // not states written by hand). Only the NAME is added
+                // (INVARIANTS #7), with a block that adds without clearing.
                 Row(
                     modifier = Modifier
-                        .evControl(
-                            spec.second,
-                            Role.RadioButton,
-                            isSelected = mode == selectedMode,
-                            action = pick
-                        )
+                        .semantics { contentDescription = spec.second }
                         .fillMaxWidth()
                         .selectable(
                             selected = mode == selectedMode,
@@ -216,6 +216,7 @@ private fun LabeledRadioGroup(
     selectedIndex: Int,
     onSelect: (Int) -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
         Text(
             text = title,
@@ -224,18 +225,18 @@ private fun LabeledRadioGroup(
         )
         for (index in options.indices) {
             Row(
+                // Role, selected state and click are `selectable`'s; the name is
+                // the one thing added, as on the mode rows.
                 modifier = Modifier
-                    .evControl(
-                        options[index],
-                        Role.RadioButton,
-                        isSelected = index == selectedIndex,
-                        action = { onSelect(index) }
-                    )
+                    .semantics { contentDescription = options[index] }
                     .fillMaxWidth()
                     .selectable(
                         selected = index == selectedIndex,
                         role = Role.RadioButton,
-                        onClick = { onSelect(index) }
+                        onClick = {
+                            if (index != selectedIndex) haptic.toggled(true)
+                            onSelect(index)
+                        }
                     )
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically

@@ -28,8 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.core.content.ContextCompat
@@ -42,16 +44,14 @@ import androidx.core.content.FileProvider
 // description join kar do taki mujhe alag se description ke liye swipe na karna
 // pade"). One focus stop per setting, not two.
 //
-// HOW: `description` is appended to the accessible name inside `evControl`, and
-// the visible paragraph beside the row is silenced with `clearAndSetSemantics`
-// so it stays on screen and stops being a second stop. That is the only shape
-// that works here -- ListItem's own `supportingContent` slot, which is Material's
-// answer and what this project would normally reach for, CANNOT be used:
-// `evControl` is `clearAndSetSemantics`, and clearing a node drops its WHOLE
-// SUBTREE from the accessibility tree (the documented meaning of an empty
-// `replacedChildren`, SemanticsNode.kt -- the same mechanism that made the
-// Configuration row's three-dot menu unreachable in build 832). A description
-// inside the row would be visible and completely inaudible.
+// HOW: `description` is appended to the row's accessible name, and the visible
+// paragraph beside the row is silenced with `clearAndSetSemantics` so it stays
+// on screen and stops being a second stop.
+//
+// THE SWITCH ROLE, ON/OFF AND THE CLICK ARE `toggleable`'s OWN (owner,
+// 2026-09-29: "jis chij ke liye components available hai vah components use
+// karo"). They used to be declared a second time by hand in `evControl`; that
+// is gone. See the note in ComposeTheme.kt.
 //
 // THIS REVERSES A DEVICE-TESTED REJECTION, so it is written down rather than
 // slipped in. In the View era the same folding was tried and the owner rejected
@@ -71,6 +71,7 @@ fun SettingSwitch(
     onChange: (Boolean) -> Unit
 ) {
     val spokenName = if (description.isEmpty()) label else label + ". " + description
+    val haptic = LocalHapticFeedback.current
     ListItem(
         headlineContent = {
             // "a small, regular-weight light purple font for option labels"
@@ -92,32 +93,21 @@ fun SettingSwitch(
             containerColor = Color.Transparent,
             headlineColor = MaterialTheme.colorScheme.primary
         ),
-        // `toggleable` still owns the touch: it is what makes a finger
-        // anywhere on the row flip the switch, and it keeps Material's own
-        // minimum target. `evControl` then states the row's whole accessible
-        // identity on the focused node -- name, Switch role, on/off, and the
-        // activation action a screen reader uses -- so the role no longer lives
-        // only on a fake child. Passing the SAME `onChange(!checked)` means both
-        // routes do exactly one thing.
-        // ORDER IS LOAD-BEARING: evControl comes FIRST. Compose builds the node
-        // configuration with `nodes.tailToHead`, and a clearing node RESETS what
-        // has been collected so far, so the clearing modifier only wins if it is
-        // the LAST one visited -- which is the one nearest the HEAD, i.e. first
-        // in the chain we write. Written the other way round, `toggleable` would
-        // be applied on top of the reset and the fake role child would be back.
+        // `toggleable` is the whole control: the touch anywhere on the row,
+        // Material's minimum target, the Switch role, the on/off state, the
+        // disabled state and the click a screen reader sends. The one thing
+        // added is the NAME (INVARIANTS #7), with a plain `semantics` block
+        // that adds without clearing, so all of that stays toggleable's.
+        //
+        // The system's own toggle tick, from the same onValueChange a finger
+        // and a double tap both reach -- see HapticFeedback.toggled.
         modifier = Modifier
-            .evControl(
-                spokenName,
-                Role.Switch,
-                enabled = enabled,
-                toggle = if (checked) ToggleableState.On else ToggleableState.Off,
-                action = { onChange(!checked) }
-            )
+            .semantics { contentDescription = spokenName }
             .toggleable(
                 value = checked,
                 enabled = enabled,
                 role = Role.Switch,
-                onValueChange = onChange
+                onValueChange = { picked -> haptic.toggled(picked); onChange(picked) }
             )
     )
 }
@@ -173,11 +163,8 @@ fun OptionGap() {
 // a number every future row has to remember. With the section headers gone this
 // grouping is the only structure the screen has left.
 //
-// WHY THIS IS SPACING AND NOT ListItem's `supportingContent`, which is the
-// library's own answer and would otherwise be the right call: see the note on
-// SettingSwitch. In short, `evControl` clears the row's semantics subtree, so a
-// description inside the row would be visible and inaudible -- the description
-// has to stay a sibling to stay reachable.
+// The description is drawn as a sibling under the row, as it always has been;
+// the row's accessible name already carries it, so the sibling is silenced.
 @Composable
 fun SettingOption(
     label: String,
