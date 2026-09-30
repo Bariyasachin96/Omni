@@ -8,6 +8,18 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ONE JNI CROSSING INSTEAD OF TWO PER CHUNK: MEASURED, NO GAIN, NOT KEPT (owner, 2026-09-30)
+*"Ek Bar Kiya Ja sakta hai to kitna Fark padta hai ... donon ko test karo ... jo fast Hai Vahi Rakhna."*
+Built `nativeFoldAndDetect` (normalizeFancy + nativeGetLanguages in one call, the folded text never
+round-tripping through a Java String) and timed it from Java against the two calls, through the real
+core + CLD2 as a shared library, alternating order per round, 15 rounds, 4.5M calls. Equality was proven
+first (1,768 texts and words, ART string behaviour: 0 differ). Median ns per chunk, old vs new:
+short screen-reader texts -O2 2385/2366, 2360/2388; -Oz (the app's flags) **2758/2939**; stress corpus
+-O2 6609/5964, 6125/5824; -Oz **6837/7116**. So the difference is tens to a few hundred NANOSECONDS,
+flips sign between runs, and under the app's real flags the new path was slower. The old two-call path
+stays; the code and its harness were removed. **Do not redo this** -- the JNI crossing is not where any
+latency is (see LATENCY below; the downstream engine's binder calls and time-to-first-audio are).
+
 ## EVERY CONTROL IS ONE ACCESSIBILITY NODE, STILL FROM THE COMPONENTS (owner, 2026-09-30, latest)
 *"jaldi-jaldi swipe ... automatic scroll ... Puri item Sahi tarike se bolata tha ... koi screen reader ...
 button button ... components use karo ... but properly accessible karo Sabhi screen reader ke sath."*
