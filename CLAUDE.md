@@ -8,6 +8,22 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE ONE-CALL DETECTOR HAD THREE HOLES, NOW CLOSED (owner, 2026-09-30, latest)
+*"Si plus plus mein jo function banaya tha usmein koi na koi to kami hai thodi si."* Found and fixed:
+- **Everything after a U+0000 was lost.** `NewStringUTF(s.c_str())` stops at a raw 0x00 byte, and the core
+  makes one two ways: `appendCodepointUtf8` (the fold) and processDirect's buffer (Kotlin fills it with REAL
+  UTF-8). Measured through the real core: `"plain\0after nul"` came back from `nativeFoldAndDetect` as 5 code
+  points, now 15. **`newJavaString(env, s)` is the only way the core returns a string now**: a 0x00 becomes
+  C0 80 (modified UTF-8 of U+0000). Used by processDirect, nativeGetLanguage and every array element.
+- **`toJavaStringArray` made a JNI call with an exception pending and held up to 385 local refs.** Each
+  element is null-checked (OOM), `DeleteLocalRef`'d after `SetObjectArrayElement`, and the array is dropped on
+  failure.
+- **The Kotlin fallback lost the chunk.** `foldAndDetect`'s catch answered `arrayOf(text)` -- no span, so the
+  mix/multilingual loops added nothing and that chunk was never spoken. It now answers ONE `"un"` span
+  (latin from the first code point), i.e. the preferred language, and logs the throw.
+- Harnesses after: segmenter IDENTICAL 163,296, normaliser/scriptfamily/langcodes IDENTICAL, stress 0 wrong,
+  devanagari 17/17, gradle-compile 0/0. (processDirect still drops a U+0000 inside a chunk -- unspoken anyway.)
+
 ## TROUBLESHOOT IS GONE; THE NEW DETECT CALL IS THE ONLY ONE; DESCRIPTIONS SEPARATE AGAIN; SCAN DOUBLES REMOVED (owner, 2026-09-30, latest)
 *"naya function hi chahie ... purana function nahin chahie ... description alag-alag chahie jo pahle tha ...
 troubleshoot wala sab kuchh hata do ... scanning, package scanning, restore ... koi chijen double double nahin honi chahie."*

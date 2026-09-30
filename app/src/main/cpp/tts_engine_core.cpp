@@ -1256,6 +1256,24 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
 //  A null jstring is NOT a failure: it is an empty string, which is what every
 //  guarded site here already treated it as.
 // ==========================================================================
+// std::string -> jstring WITHOUT losing anything after a U+0000 (2026-09-30).
+// NewStringUTF reads a C string, so a raw 0x00 byte ends it: everything after
+// it was silently dropped. Two ways one gets here: the Kotlin side fills
+// processDirect's buffer with REAL UTF-8, where U+0000 is one 0x00 byte, and
+// the fold rebuilds text through appendCodepointUtf8, which writes 0x00 too.
+// JNI's modified UTF-8 spells U+0000 as C0 80, so that is what it becomes; the
+// Java string then holds the same U+0000 the caller sent. A function taking
+// JNIEnv*, so the desktop slicer drops it with the entry points.
+static jstring newJavaString(JNIEnv* env, const std::string& s){
+    if(s.find('\0') == std::string::npos) return env->NewStringUTF(s.c_str());
+    std::string m;
+    m.reserve(s.size() + 8);
+    for(char c : s){
+        if(c == '\0'){ m += (char)0xC0; m += (char)0x80; }
+        else m += c;
+    }
+    return env->NewStringUTF(m.c_str());
+}
 static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
     out.clear();
     if(!value) return true;
@@ -1347,7 +1365,7 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection, true);
         for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text); if(i+1 < chunks.size()) result += "\x1E"; }
     }
-    return env->NewStringUTF(result.c_str());
+    return newJavaString(env, result);
 }
 
 // ==========================================================================
@@ -1921,7 +1939,7 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
     }
     env->ReleaseStringChars(jText, chars);
     std::string out = result + "\x01" + log;
-    return env->NewStringUTF(out.c_str());
+    return newJavaString(env, out);
 }
 // ==========================================================================
 //  JNI: nativeFoldAndDetect    libcld2.so getLanguageSpans 0x65392c
@@ -2210,10 +2228,22 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
     }
     return flat;
 }
+// Every element is checked and released (2026-09-30). NewStringUTF can fail
+// with an OutOfMemoryError pending, and JNI forbids the next call
+// (SetObjectArrayElement) while one is; CheckJNI aborts the process on it.
+// And each jstring is a LOCAL reference that lives until the native method
+// returns -- up to 385 of them here (the folded text + 128 spans x 3) -- so it
+// is dropped as soon as the array holds it.
 static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat){
     jobjectArray arr=env->NewObjectArray((jsize)flat.size(), stringClass, nullptr);
     if(!arr) return nullptr;                                  // OOM pending
-    for(jsize i=0;i<(jsize)flat.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(flat[i].c_str()));
+    for(jsize i=0;i<(jsize)flat.size();i++){
+        jstring element = newJavaString(env, flat[(size_t)i]);
+        if(!element){ env->DeleteLocalRef(arr); return nullptr; }   // exception pending
+        env->SetObjectArrayElement(arr, i, element);
+        env->DeleteLocalRef(element);
+        if(env->ExceptionCheck()){ env->DeleteLocalRef(arr); return nullptr; }
+    }
     return arr;
 }
 // clsCLD2.e / clsCLD2.f's first two steps in ONE crossing (owner, 2026-09-30):

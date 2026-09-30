@@ -2705,10 +2705,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     // nativeFoldAndDetect: element 0 is the folded text, the triples follow.
     // It is the only route to the span detector (owner, 2026-09-30: no second
-    // path). If it throws, the text goes on unfolded with no spans, so the
-    // caller falls back to the preferred language instead of losing the chunk.
+    // path). If it throws, the text goes on unfolded as ONE "un" span, so the
+    // caller reads it in the preferred language (Latin when its first code
+    // point is Latin/Common/Inherited, as the detector's script-0 rule does).
+    // Answering the folded text alone -- the first version -- gave the mix and
+    // multilingual loops no span at all, and that chunk was never spoken.
     private fun foldAndDetect(text: String): Array<String> =
-        try { nativeFoldAndDetect(text, quickCharacterFlag) } catch (_: Throwable) { arrayOf(text) }
+        try { nativeFoldAndDetect(text, quickCharacterFlag) } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "nativeFoldAndDetect failed: $ex")
+            if (text.isEmpty()) arrayOf(text)
+            else arrayOf(text, "un", if (isLatinCommonInherited(text.codePointAt(0))) "1" else "0", text)
+        }
     private fun isLatinCommonInherited(codePoint: Int): Boolean {
         val script = Character.UnicodeScript.of(codePoint)
         return script == Character.UnicodeScript.LATIN ||
