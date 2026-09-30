@@ -81,6 +81,8 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/langcodes/run.sh        # ~5 s,    283 CLD2 language codes
     tools/verify/autottslog/run.sh <auto_tts.log>   # replays a REAL AutoTTS log through our core,
                                          #   chunk by chunk and language by language
+    tools/verify/autottslog/run.sh --stress      # 80 emoji and mixed-script texts (stress.txt):
+                                         #   nothing lost, no emoji cut in two, valid UTF-8
 
 The first three build **AutoTTS's own code** from `autotts_reference/` alongside
 ours, run both over the same inputs, and diff. A failure prints the exact case.

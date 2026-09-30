@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Replays an AutoTTS log through the real native core; see main.cpp.
+#   run.sh <auto_tts.log>        compare with what AutoTTS spoke
+#   run.sh --stress [file]       emoji and mixed-text corpus (stress.txt), no log needed
 set -euo pipefail
-LOG=${1:?usage: run.sh <auto_tts.log>}
+LOG=${1:?usage: run.sh <auto_tts.log> | run.sh --stress [file]}
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$HERE/../../.." && pwd)
 CPP="$ROOT/app/src/main/cpp"
@@ -27,9 +29,13 @@ compile() {
   fi
   echo "$obj"
 }
-CASES="$WORK/cases.txt"; python3 "$HERE/extract.py" "$LOG" > "$CASES"
+if [ "$LOG" = "--stress" ]; then
+  CASES=""; STRESS=${2:-$HERE/stress.txt}
+else
+  CASES="$WORK/cases.txt"; python3 "$HERE/extract.py" "$LOG" > "$CASES"
+fi
 objs=""
 for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do objs="$objs $(compile "$f")"; done
 g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp" || exit 1
 g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs -L"$JH/lib/server" -ljvm -lpthread -Wl,-rpath,"$JH/lib/server"
-"$WORK/probe" "$CASES"
+if [ -n "$CASES" ]; then "$WORK/probe" "$CASES"; else "$WORK/probe" --stress "$STRESS"; fi

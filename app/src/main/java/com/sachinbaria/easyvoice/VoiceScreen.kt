@@ -184,7 +184,7 @@ fun LabeledDropdown(
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
                     .fillMaxWidth()
             ) {
-                Text(text = selectedText, modifier = Modifier.weight(1f).clearAndSetSemantics { })
+                SilentText(selectedText, modifier = Modifier.weight(1f))
                 // Material's own dropdown arrow (owner, 2026-09-29: the library's
                 // piece, not a copy of it). It is the same ArrowDropDown glyph,
                 // and it turns over while the menu is open. No description of
@@ -270,7 +270,7 @@ fun LabeledDropdown(
                     // with a semantics node counts -- it is there to stop the label
                     // being announced twice. The visible text is untouched.
                     DropdownMenuItem(
-                        text = { Text(options[index], modifier = Modifier.clearAndSetSemantics { }) },
+                        text = { SilentText(options[index]) },
                         onClick = {
                             // "Items in a list" -- SegmentTick's own KDoc.
                             if (index != selectedIndex) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)

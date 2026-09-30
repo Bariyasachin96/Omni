@@ -139,14 +139,17 @@ fun ModesScreen(
                 // not states written by hand). Only the NAME is added
                 // (INVARIANTS #7), with a block that adds without clearing.
                 Row(
+                    // The name goes LAST, as a clearing node, so the row keeps no
+                    // children and the role, state and name land on one node
+                    // -- see SettingSwitch in AdvancedScreen.kt.
                     modifier = Modifier
-                        .semantics { contentDescription = spec.second }
                         .fillMaxWidth()
                         .selectable(
                             selected = mode == selectedMode,
                             role = Role.RadioButton,
                             onClick = pick
                         )
+                        .clearAndSetSemantics { contentDescription = spec.second }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -229,7 +232,6 @@ private fun LabeledRadioGroup(
                 // Role, selected state and click are `selectable`'s; the name is
                 // the one thing added, as on the mode rows.
                 modifier = Modifier
-                    .semantics { contentDescription = options[index] }
                     .fillMaxWidth()
                     .selectable(
                         selected = index == selectedIndex,
@@ -239,6 +241,7 @@ private fun LabeledRadioGroup(
                             onSelect(index)
                         }
                     )
+                    .clearAndSetSemantics { contentDescription = options[index] }
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

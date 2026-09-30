@@ -1,0 +1,86 @@
+# Texts for run.sh --stress. One per line; \t and \n are escapes. Written for
+# this harness, no real messages. Add a line whenever a text misbehaves.
+Good morning 🌞 have a nice day 😊
+नमस्ते 🙏 आप कैसे हैं? 😀
+કેમ છો 😃 મજામાં?
+Meeting at 10:30 बजे 📅 with રાજ
+👨‍👩‍👧‍👦 family photo
+👩🏽‍💻 coding all night
+🏳️‍🌈 flag and 🏴‍☠️ pirate
+🇮🇳🇺🇸🇬🇧 India USA UK
+भारत 🇮🇳 जय हिन्द
+ગુજરાત 🇮🇳 જય જય ગરવી ગુજરાત
+Press 1️⃣ then #️⃣ then *️⃣
+👍🏻👍🏼👍🏽👍🏾👍🏿 ok
+❤️ love ♥️ ☺️ smile
+# KNOWN, and AutoTTS does exactly the same (segmenter harness, 2026-09-30): a tag
+# flag (England, Scotland) after Latin text is cut between the black flag and its
+# invisible tag characters, because d0.t types the tags as non-Latin. Left as
+# AutoTTS has it; the owner decides. The text was:
+#   🏴󠁧󠁢󠁥󠁮󠁧󠁿 England and 🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland
+😂😂😂
+🔥
+🙏🏽
+Hello😊नमस्ते😊કેમ😊
+Call 98250 12345 now 📞
+₹1,250.50 का बिल 💰
+OTP 483920 है, किसी को मत बताना 🔒
+25% off 🎉 sirf aaj
+2026-09-30
+3:45 PM ⏰ और 12:05:30 बजे
+𝐇𝐞𝐥𝐥𝐨 𝓦𝓸𝓻𝓵𝓭 ①②③ Ｔｅｓｔ
+‎मार्क‏ test ‪abc‬ end
+السلام عليكم 🌙 رمضان مبارك
+你好 世界 🀄 再见
+Привет мир 🐻 пока
+こんにちは 🍣 さようなら
+안녕하세요 🇰🇷 감사합니다
+สวัสดีครับ 🐘
+வணக்கம் 🌺 நன்றி
+নমস্কার 🐟 ধন্যবাদ
+a b c d　e
+ 123 Hello
+one\ttwo\tthree 🎵
+line one\nline two 👋
+Wait... what?! 😱 — really??
+https://example.com/path?x=1 👈 yahan dekho
+mail me at raj@example.com ✉️
+© ® ™ ☎ ✈ ☀ ☂
+राम। 🙏 श्याम॥ सीता।
+∑ ∞ ≈ √2 π
+🏻 alone and ‍ alone
+Ctrl+C / Ctrl+V 👍
+#हिन्दी #Gujarati #love❤️
+🤦‍♂️🤷‍♀️🙆🏼‍♂️🧑‍🤝‍🧑
+👨🏾‍❤️‍💋‍👨🏻 kiss
+🧑🏿‍🦽 wheelchair 🦯 cane 🦮 guide dog
+😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗☺️😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔
+Battery 15% 🔋 charge karo
+Train 12951 at platform 3 🚆 11:40 पर
+मेरा नंबर 9876543210 है 📱
+મારો નંબર ૯૮૭૬૫૪૩૨૧૦ છે
+٠١٢٣٤٥٦٧٨٩ عربي
+１２３ full width
+Price: $19.99 🤑 or €17,50
+😊 starts with emoji
+ends with emoji 😊
+Hindi में English mixed है 😄 and ગુજરાતી પણ
+नमस्ते👋🏾दोस्त
+ok👌🏻👌🏻
+🎂 Happy Birthday रमेश भाई 🎉🎁🎈
+ odd separators  here
+Loading..... ⏳⏳⏳
+🔴🟠🟡🟢🔵🟣⚫⚪🟤
+🫠🫡🫥🫶🏽 new emoji
+Mr. Sharma, Dr. Patel & Co. 🏥
+A1B2C3 😎 code
+जय श्री कृष्ण 🙏🙏🙏
+WhatsApp पर मिलते हैं 💬 ok bye 👋
+🇮🇳
+🇮🇳🇮🇳🇮🇳
+🇮 half flag
+यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। यह एक लंबा अनुच्छेद है 😊 जिसमें हिंदी, English words और ગુજરાતી શબ્દો 🇮🇳 मिले हुए हैं। 
+Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧. Emoji 👨‍👩‍👧‍👦 in a long English paragraph with numbers 12345 and flags 🇬🇧.
+😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊
+👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦
+🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳🇮🇳

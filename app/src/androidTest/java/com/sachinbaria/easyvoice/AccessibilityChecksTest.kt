@@ -4,7 +4,9 @@ import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsSelected
@@ -201,7 +203,45 @@ class AccessibilityChecksTest {
         }
     }
 
+    // EVERY CONTROL IS ONE NODE (owner, 2026-09-30: "Sabhi screen reader ke
+    // sath ... jaldi-jaldi swipe ... Puri item Sahi tarike se bolata tha").
+    // A clickable node with semantics CHILDREN is the shape that broke it: its
+    // role and name then reach a reader only through Compose's fake child nodes
+    // (SemanticsNode.emitFakeNodes), the delegate puts neither on the focused
+    // node, and a fast swipe or another reader gets half the control or the
+    // role twice. So in the UNMERGED tree every node a reader can press must
+    // have no children and must carry its own name. Text fields are left out:
+    // their label and icons are children by design, and the field is named by
+    // its label.
+    private fun assertEveryControlIsOneNode() {
+        rule.waitForIdle()
+        val pressable = rule.onAllNodes(
+            SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick)
+                .and(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText)),
+            useUnmergedTree = true
+        ).fetchSemanticsNodes()
+        val wrong = pressable.mapNotNull { node ->
+            val name = node.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString()
+            when {
+                node.children.isNotEmpty() ->
+                    "'" + name + "' has " + node.children.size + " semantics children"
+                name.isNullOrEmpty() -> "a control (role " +
+                    node.config.getOrNull(SemanticsProperties.Role) + ") has no name of its own"
+                else -> null
+            }
+        }
+        if (wrong.isNotEmpty()) {
+            throw AssertionError(
+                "Controls that are not ONE node, so a screen reader cannot read them " +
+                    "whole: " + wrong.joinToString("; ") + ". Draw a label inside a " +
+                    "component with SilentText, and put a row's name in a clearing " +
+                    "node AFTER toggleable/selectable/clickable (ComposeTheme.kt)."
+            )
+        }
+    }
+
     private fun sweepSchemes() {
+        assertEveryControlIsOneNode()
         darkScheme.value = false
         rule.waitForIdle()
         val light = composedBackground

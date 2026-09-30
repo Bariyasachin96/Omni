@@ -185,15 +185,19 @@ private fun LanguageCheckRow(label: String, checked: Boolean, position: Int, onT
             // row's position -- declared here because the section headings are
             // `item {}` entries and a LazyColumn counts everything it holds, and
             // because no component sets a position on a lazy item.
-            .semantics {
-                contentDescription = label
-                collectionItemInfo = CollectionItemInfo(position, 1, 0, 1)
-            }
+            //
+            // Both go LAST, as a clearing node, so the row has no children and
+            // the Checkbox role, state and name all land on the one focused
+            // node -- see SettingSwitch in AdvancedScreen.kt.
             .toggleable(
                 value = checked,
                 role = Role.Checkbox,
                 onValueChange = { picked -> haptic.toggled(picked); onToggle(picked) }
             )
+            .clearAndSetSemantics {
+                contentDescription = label
+                collectionItemInfo = CollectionItemInfo(position, 1, 0, 1)
+            }
     )
 }
 @Composable
@@ -387,7 +391,7 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                         showSelectedOnly = !showSelectedOnly
                         haptic.toggled(showSelectedOnly)
                     },
-                    label = { Text("My languages", modifier = Modifier.clearAndSetSemantics { }) },
+                    label = { SilentText("My languages") },
                     // Material's own shape for a filter chip: the check only while
                     // it is selected, at the chip's own icon size, and NO icon
                     // slot at all otherwise -- an empty slot still reserves the

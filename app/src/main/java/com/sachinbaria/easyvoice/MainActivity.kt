@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -335,9 +336,7 @@ fun MainScreen(
                     // name is longer than the visible word, "<Mode> settings",
                     // so it is stated and the short label is silenced.
                     modifier = Modifier.semantics { contentDescription = settingsName },
-                    icon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
-                    text = { Text("Settings", modifier = Modifier.clearAndSetSemantics { }) }
-                )
+                ) { FabLabel(R.drawable.ic_settings, "Settings") }
             }
             if (!scanning && currentPage == 1 && showAddLanguage) {
                 ExtendedFloatingActionButton(
@@ -345,9 +344,7 @@ fun MainScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.semantics { contentDescription = "Add language" },
-                    icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-                    text = { Text("Add language", modifier = Modifier.clearAndSetSemantics { }) }
-                )
+                ) { FabLabel(R.drawable.ic_add, "Add language") }
             }
         },
         topBar = {
@@ -478,17 +475,17 @@ fun MainScreen(
                                 context.startActivity(Intent(context, TroubleshootActivity::class.java))
                             }
                             DropdownMenuItem(
-                                text = { Text("TTS Settings", modifier = Modifier.clearAndSetSemantics { }) },
+                                text = { SilentText("TTS Settings") },
                                 onClick = openTtsSettings,
                                 modifier = Modifier.semantics { contentDescription = "TTS Settings" }
                             )
                             DropdownMenuItem(
-                                text = { Text("Troubleshoot voice engines", modifier = Modifier.clearAndSetSemantics { }) },
+                                text = { SilentText("Troubleshoot voice engines") },
                                 onClick = openTroubleshoot,
                                 modifier = Modifier.semantics { contentDescription = "Troubleshoot voice engines" }
                             )
                             DropdownMenuItem(
-                                text = { Text("About Easy Voice", modifier = Modifier.clearAndSetSemantics { }) },
+                                text = { SilentText("About Easy Voice") },
                                 onClick = openAbout,
                                 modifier = Modifier.semantics { contentDescription = "About Easy Voice" }
                             )
@@ -517,7 +514,7 @@ fun MainScreen(
                         Tab(
                             selected = currentPage == index,
                             onClick = { currentPage = index },
-                            text = { Text(pageTitles[index], modifier = Modifier.clearAndSetSemantics { }) },
+                            text = { SilentText(pageTitles[index]) },
                             icon = { Icon(painterResource(pageIcons[index]), contentDescription = null) },
                             // Role.Tab, the selected state and the click are the
                             // Tab's own (owner, 2026-09-29: components, not states
@@ -670,4 +667,20 @@ fun MainScreen(
             }
         }
     }
+}
+
+// THE FAB'S ICON AND LABEL, through Material's CONTENT overload of
+// ExtendedFloatingActionButton (owner, 2026-09-30: every reader, fast swipes
+// read in full). The icon + text overload wraps its label in its own
+// `Row(Modifier.clearAndSetSemantics {})` (material3 1.4.0,
+// FloatingActionButton.kt), which is a semantics CHILD of the button -- so the
+// button's role and name went to fake child nodes, not to the node a reader
+// focuses. Here the icon has no description and the label is only drawn, so
+// the FAB has no children and is ONE node. 12dp between them is Material's
+// ExtendedFabEndIconPadding, private in that file.
+@Composable
+private fun FabLabel(iconRes: Int, label: String) {
+    Icon(painterResource(iconRes), contentDescription = null)
+    Spacer(Modifier.width(12.dp))
+    SilentText(label)
 }

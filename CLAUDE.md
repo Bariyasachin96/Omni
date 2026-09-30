@@ -8,6 +8,35 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## EVERY CONTROL IS ONE ACCESSIBILITY NODE, STILL FROM THE COMPONENTS (owner, 2026-09-30, latest)
+*"jaldi-jaldi swipe ... automatic scroll ... Puri item Sahi tarike se bolata tha ... koi screen reader ...
+button button ... components use karo ... but properly accessible karo Sabhi screen reader ke sath."*
+- **Cause, read in Compose UI 1.12.1:** every `Text`, `clearAndSetSemantics { }` included, is a layout node WITH a
+  semantics node. A Button/Tab/Chip/menu item/row holding one has children, so `SemanticsNode.emitFakeNodes` hangs
+  the role and our name on FAKE child nodes and the delegate puts neither on the focused node (gate:
+  `replacedChildren.isEmpty()`). Since evControl went (2026-09-29) that is what fast swipes, auto-scroll and the
+  second reader met. Nothing is re-declared by hand now either -- the fix removes the CHILDREN, not the component's
+  semantics.
+- **Inside a Material component: `SilentText`** (ComposeTheme.kt) draws the label with Compose's own
+  `rememberTextMeasurer` + `drawText` and adds no semantics node; colour/style resolve like M3 Text; baselines are
+  published (Tab uses them with an icon). Used in EvButton, the Tabs, the FilterChip, every DropdownMenuItem and the
+  dropdown anchor. Only for words the control's name already says.
+- **Our own rows: the name goes LAST, as `clearAndSetSemantics`**, after `toggleable`/`selectable`/`clickable`.
+  Semantics are merged tail to head, so a clearing node at the TAIL resets nothing of ours and the component, head-ward,
+  still writes role, state and click on top; the clear drops the children. SettingSwitch, LanguageCheckRow, both radio
+  rows. **Never clear a node that CONTAINS an interactive child** -- so the Configuration row and its three-dot
+  IconButton are SIBLINGS in a Row now (they were parent and child).
+- **The FABs use Material's CONTENT overload** (`FabLabel`, MainActivity.kt): the icon+text overload wraps its label in
+  its own `Row(Modifier.clearAndSetSemantics {})` (material3 1.4.0 FloatingActionButton.kt), itself a child.
+- **Enforced:** `AccessibilityChecksTest.assertEveryControlIsOneNode()` runs in every `sweepSchemes()`: every node
+  with OnClick (text fields excepted) must have NO semantics children and its own name.
+- **Text processing stress** (`tools/verify/autottslog/run.sh --stress`, `stress.txt`, 80 texts: ZWJ families, skin
+  tones, keycaps, flags, tag flags, VS16, emoji-only, 300-emoji runs, Hindi/Gujarati/Arabic/CJK/Thai/Tamil, fancy
+  letters, bidi, odd whitespace, numbers/phones/times/prices, the 1024-byte window): nothing lost or added, no emoji
+  cut, valid UTF-8. **0 wrong.** It found one harness bug (its chunk decoder) and ONE real split: a tag flag
+  (England/Scotland) after Latin text is cut between the black flag and its tag characters -- **AutoTTS's d0.t does
+  exactly the same** (segmenter harness), so it is left, owner's call.
+
 ## A REAL AutoTTS LOG, REPLAYED THROUGH OUR CORE; THE DROPDOWN STATES THE GUIDELINE REQUIRES (owner, 2026-09-30, latest)
 *"accessibility ki guidelines padhani chahie thi ... auto TTS ka log ... khud process karke dekhna ki auto TTS kis
 tarike se process kar raha hai ... hamare mein kya kami hai."*

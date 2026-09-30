@@ -14,6 +14,7 @@
 // smart number reading at group size 2 ("83201" is spoken "83 20 1"). Every
 // other detected language has no engine and falls back by script.
 #include <jni.h>
+#include <cstdint>
 #include <cstdio>
 #include <algorithm>
 #include <cstring>
@@ -79,11 +80,15 @@ static std::string unesc(const std::string& s){
     }
     return o;
 }
-// decodeChunkText's inverse of packField: \x1D escapes \x1D, \x1E, \x1F
+// decodeChunkText, the inverse of packField: \x1D then '0'/'1'/'2' stands for
+// \x1D / \x1E / \x1F (the harness used to keep the marker digit itself; the
+// stress corpus caught it).
 static std::string decodeChunk(const std::string& s){
     std::string o;
     for (size_t i = 0; i < s.size(); i++) {
-        if (s[i] == '\x1D' && i + 1 < s.size()) { o += s[++i]; } else o += s[i];
+        if (s[i] == '\x1D' && i + 1 < s.size() && s[i + 1] >= '0' && s[i + 1] <= '2') {
+            o += s[i + 1] == '0' ? '\x1D' : s[i + 1] == '1' ? '\x1E' : '\x1F'; i++;
+        } else o += s[i];
     }
     return o;
 }
@@ -144,6 +149,83 @@ static std::vector<Chunk> ours(const std::string& text){
     return out;
 }
 
+// ---- STRESS MODE (owner, 2026-09-30: "bahut sari alag-alag emojis aur
+// alag-alag text ... test karke"). One text per line of a corpus, run down the
+// same real mixed path, and three things must hold for every one of them:
+//   1. NOTHING IS LOST OR INVENTED: the chunks, with all whitespace taken out,
+//      are exactly the input after the core's own folding (normalizeFancy) and
+//      bidi-control strip, with all whitespace taken out. Smart-number spacing
+//      only adds spaces, so it passes; a dropped emoji, a doubled digit or a
+//      mangled byte does not.
+//   2. NO EMOJI IS CUT IN TWO: no chunk starts with a joiner, a variation
+//      selector, a skin tone, a keycap mark or a tag character, none ends with
+//      a ZWJ, and no flag's two regional indicators land in different chunks.
+//      A cut sequence is spoken as two broken pieces by two engines.
+//   3. every chunk is valid UTF-8 and has a language.
+static std::vector<uint32_t> cps(const std::string& s){
+    std::vector<uint32_t> o; size_t i = 0;
+    while (i < s.size()) {
+        unsigned char c = s[i]; uint32_t cp; int n;
+        if (c < 0x80) { cp = c; n = 1; } else if ((c >> 5) == 6) { cp = c & 31; n = 2; }
+        else if ((c >> 4) == 14) { cp = c & 15; n = 3; } else if ((c >> 3) == 30) { cp = c & 7; n = 4; }
+        else return {0xFFFFFFFF};
+        if (i + n > s.size()) return {0xFFFFFFFF};
+        for (int k = 1; k < n; k++) { unsigned char d = s[i + k]; if ((d >> 6) != 2) return {0xFFFFFFFF}; cp = (cp << 6) | (d & 63); }
+        o.push_back(cp); i += n;
+    }
+    return o;
+}
+static bool isSpace(uint32_t c){
+    return c == 0x20 || (c >= 9 && c <= 13) || (c >= 0x1C && c <= 0x1F) || c == 0x85 || c == 0xA0
+        || c == 0x1680 || (c >= 0x2000 && c <= 0x200A) || c == 0x2028 || c == 0x2029 || c == 0x202F
+        || c == 0x205F || c == 0x3000 || c == 0xFEFF;
+}
+static bool isBidi(uint32_t c){
+    return c == 0x200E || c == 0x200F || (c >= 0x202A && c <= 0x202E) || (c >= 0x2066 && c <= 0x2069) || c == 0x061C;
+}
+static bool continuesEmoji(uint32_t c){
+    return c == 0x200D || c == 0xFE0F || c == 0xFE0E || (c >= 0x1F3FB && c <= 0x1F3FF) || c == 0x20E3
+        || (c >= 0xE0020 && c <= 0xE007F);
+}
+static bool isRI(uint32_t c){ return c >= 0x1F1E6 && c <= 0x1F1FF; }
+static int stress(const char* path){
+    std::ifstream in(path); std::string line; int n = 0, bad = 0, chunks = 0;
+    while (std::getline(in, line)) {
+        if (line.empty() || line.rfind("# ", 0) == 0) continue;
+        std::string text = unesc(line); n++;
+        std::vector<Chunk> got = ours(text);
+        chunks += (int)got.size();
+        std::vector<std::string> why;
+        std::string folded = S(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(env, nullptr, J(text)));
+        std::vector<uint32_t> want, have;
+        for (uint32_t c : cps(folded)) if (!isSpace(c) && !isBidi(c)) want.push_back(c);
+        int riRun = 0;
+        for (size_t i = 0; i < got.size(); i++) {
+            std::vector<uint32_t> c = cps(got[i].text);
+            if (!c.empty() && c[0] == 0xFFFFFFFF) { why.push_back("chunk " + std::to_string(i) + " is not valid UTF-8"); continue; }
+            if (got[i].lang.size() != 3) why.push_back("chunk " + std::to_string(i) + " has language '" + got[i].lang + "'");
+            std::vector<uint32_t> ink; for (uint32_t x : c) if (!isSpace(x)) ink.push_back(x);
+            if (i > 0 && !ink.empty() && continuesEmoji(ink[0]))
+                why.push_back("chunk " + std::to_string(i) + " starts inside an emoji sequence");
+            if (i > 0 && !ink.empty() && isRI(ink[0]) && riRun % 2 == 1)
+                why.push_back("a flag is split before chunk " + std::to_string(i));
+            if (!ink.empty() && ink.back() == 0x200D && i + 1 < got.size())
+                why.push_back("chunk " + std::to_string(i) + " ends on a zero-width joiner");
+            for (uint32_t x : ink) { have.push_back(x); riRun = isRI(x) ? riRun + 1 : 0; }
+            if (!c.empty() && isSpace(c.back())) riRun = 0;
+        }
+        if (want != have) why.push_back("the chunks do not add up to the text (something lost, added or changed)");
+        if (!why.empty()) {
+            bad++;
+            printf("BAD: %s\n", text.c_str());
+            for (auto& w : why) printf("   %s\n", w.c_str());
+            for (auto& c : got) printf("   %s |%s|\n", c.lang.c_str(), c.text.c_str());
+        }
+    }
+    printf("\n%d texts, %d chunks: %d wrong\n", n, chunks, bad);
+    return bad ? 1 : 0;
+}
+
 int main(int argc, char** argv){
     JavaVM* vm; JavaVMInitArgs a{}; a.version = JNI_VERSION_1_8;
     JNI_CreateJavaVM(&vm, (void**)&env, &a);
@@ -154,6 +236,7 @@ int main(int argc, char** argv){
     env->functions = &artFns;
     Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr({"hin","eng","guj"}), arr({"hi","en","gu"}));
     Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr({"hi","en","gu"}));
+    if (argc > 2 && std::string(argv[1]) == "--stress") return stress(argv[2]);
     std::ifstream in(argv[1]);
     std::string line, text; std::vector<Chunk> want;
     int cases = 0, bad = 0, chunks = 0;

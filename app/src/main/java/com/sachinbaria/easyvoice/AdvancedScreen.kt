@@ -32,7 +32,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.core.content.ContextCompat
@@ -97,19 +96,27 @@ fun SettingSwitch(
         // `toggleable` is the whole control: the touch anywhere on the row,
         // Material's minimum target, the Switch role, the on/off state, the
         // disabled state and the click a screen reader sends. The one thing
-        // added is the NAME (INVARIANTS #7), with a plain `semantics` block
-        // that adds without clearing, so all of that stays toggleable's.
+        // added is the NAME (INVARIANTS #7).
+        //
+        // THE NAME GOES LAST in the chain, as `clearAndSetSemantics` (owner,
+        // 2026-09-30: every reader, and fast swipes read in full). Semantics
+        // are collected tail to head, so a clearing node at the TAIL resets
+        // only what is tail-ward of it -- nothing of ours -- and `toggleable`,
+        // head-ward, still writes its own role, state and click on top. What
+        // the clear removes is the row's CHILDREN (label, switch), and with no
+        // children Compose emits no fake role/name nodes and puts the role and
+        // the name on the one node a reader focuses.
         //
         // The system's own toggle tick, from the same onValueChange a finger
         // and a double tap both reach -- see HapticFeedback.toggled.
         modifier = Modifier
-            .semantics { contentDescription = spokenName }
             .toggleable(
                 value = checked,
                 enabled = enabled,
                 role = Role.Switch,
                 onValueChange = { picked -> haptic.toggled(picked); onChange(picked) }
             )
+            .clearAndSetSemantics { contentDescription = spokenName }
     )
 }
 

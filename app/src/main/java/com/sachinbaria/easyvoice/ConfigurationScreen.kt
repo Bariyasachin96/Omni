@@ -3,6 +3,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
@@ -77,99 +79,77 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                     // reach anything destructive; a named button is discoverable
                     // by everyone and gets its own focus stop.
                     var menuOpen by remember { mutableStateOf(false) }
-                    ListItem(
-                        headlineContent = { Text(labels[index], modifier = Modifier.clearAndSetSemantics { }) },
-                        supportingContent = { Text(status, modifier = Modifier.clearAndSetSemantics { }) },
-                        trailingContent = {
-                            Box {
-                                IconButton(
-                                    onClick = { menuOpen = true },
-                                    modifier = Modifier.semantics {
-                                        contentDescription = "More actions for " + labels[index]
-                                    }
-                                ) {
-                                    Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null)
+                    // TWO SIBLINGS, NOT A ROW WITH A BUTTON INSIDE IT (owner,
+                    // 2026-09-30: every reader, fast swipes read in full). The
+                    // language row and its three-dot button used to be parent and
+                    // child, so the row had a semantics child and its name reached
+                    // a reader only through a fake child node. Side by side, the
+                    // row can drop its own children (the two Texts) with a clearing
+                    // node at the TAIL of its chain -- `clickable`, head-ward of
+                    // it, still writes its own click on top -- and the IconButton
+                    // stays its own focus stop beside it, as before.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ListItem(
+                            headlineContent = { Text(labels[index]) },
+                            supportingContent = { Text(status) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            // A LIST ITEM, not a button: `clickable(onClickLabel)`
+                            // leaves `role` null on purpose. The LazyColumn
+                            // publishes its own CollectionInfo, and Compose sets
+                            // `collectionItemInfo` on no lazy item by itself, so
+                            // the row's position is declared here.
+                            //
+                            // NEVER put the clearing node on anything that CONTAINS
+                            // an interactive child: clearing drops the whole
+                            // subtree, which is how builds 832 and 833 lost the
+                            // three-dot menu. That is why the button is a sibling.
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
+                                .clearAndSetSemantics {
+                                    contentDescription = labels[index] + ", " + status
+                                    collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
                                 }
-                                // NO `listItem` ON THESE TWO (owner, 2026-09-09).
-                                // They used to carry CollectionItemInfo(0/1) with
-                                // NOTHING publishing the matching CollectionInfo --
-                                // this menu's content is a bare Column, unlike the
-                                // language dropdown in VoiceScreen, which declares
-                                // both. The delegate writes an item index for a
-                                // collection whose size it was never told
-                                // (CollectionInfo.android.kt sets item info from the
-                                // developer property with no cross-check), so a
-                                // reader was given a position out of nowhere on a
-                                // two-line action menu. Removing the half-declaration
-                                // is the fix; do not "complete" it by adding a
-                                // collectionInfo Column here -- the owner asked for
-                                // less position noise, not more.
-                                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                    // The click is the item's own; the name is the one
-                                    // thing added (INVARIANTS #7).
-                                    DropdownMenuItem(
-                                        text = { Text("Delete configuration", modifier = Modifier.clearAndSetSemantics { }) },
-                                        onClick = { menuOpen = false; onDeleteConfiguration(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Delete configuration" }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Disable language", modifier = Modifier.clearAndSetSemantics { }) },
-                                        onClick = { menuOpen = false; onDisable(index) },
-                                        modifier = Modifier.semantics { contentDescription = "Disable language" }
-                                    )
+                        )
+                        Box(modifier = Modifier.padding(end = 8.dp)) {
+                            IconButton(
+                                onClick = { menuOpen = true },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "More actions for " + labels[index]
                                 }
+                            ) {
+                                Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null)
                             }
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        // THIS ROW IS A LIST ITEM AND IS ANNOUNCED AS ONE, not as a
-                        // button. `Modifier.clickable(onClickLabel = ...)` leaves `role`
-                        // null on purpose: a Role here would make Compose emit a fake
-                        // role child and the row would be called a button again.
-                        //
-                        // The LazyColumn publishes its own `CollectionInfo`
-                        // (LazyLayoutSemanticState: `CollectionInfo(rowCount =
-                        // totalItemsCount, columnCount = 1)`), and Compose sets
-                        // `collectionItemInfo` on NO lazy item by itself, so the per-row
-                        // half is declared here. The delegate assigns it with NO gate, so
-                        // it reaches the FOCUSED node and a reader can say the row's
-                        // position in the list.
-                        //
-                        // THE THREE-DOT BUTTON IN trailingContent STAYS REACHABLE, and
-                        // this was checked at the source rather than assumed, because I
-                        // once claimed the opposite and was wrong. From the delegate:
-                        //
-                        //   private fun isScreenReaderFocusable(node, ...): Boolean {
-                        //       if (node.isHidden || isInMergingHiddenSubtree) return false
-                        //       // If the node explicitly merges its descendants, we map it
-                        //       // directly to the merging algorithm on the a11y side.
-                        //       if (node.unmergedConfig.isMergingSemanticsOfDescendants)
-                        //           return true
-                        //
-                        // An `IconButton` merges its own descendants, so it is its own
-                        // focus stop no matter what its parent row carries, and
-                        // `collectionItemInfo` is not consulted anywhere in that function.
-                        // `setCollectionItemInfo` likewise only writes
-                        // `info.setCollectionItemInfo(...)` on this one node and touches
-                        // nothing about children. Build 834's accessibility job proves it
-                        // on a real emulator: `configurationRowMenuOpen` finds and clicks
-                        // "More actions for English (eng)" in the MERGED tree, and that
-                        // run was green.
-                        //
-                        // WHAT DID break it, and the rule that follows: the old
-                        // `evControl` (= `clearAndSetSemantics`) on this row. Clearing a
-                        // node drops its WHOLE SUBTREE from the accessibility tree, so the
-                        // IconButton vanished and took Delete configuration and Disable
-                        // language with it. Builds 832 and 833 failed that same test on
-                        // exactly this. NEVER put `clearAndSetSemantics` on a node that
-                        // contains an interactive child; a plain `semantics {}` block adds
-                        // without clearing, which is what this row uses.
-                        modifier = Modifier
-                            .clickable(onClickLabel = "Set up this voice") { onLanguage(index) }
-                            .semantics {
-                                contentDescription = labels[index] + ", " + status
-                                collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
-                            }
-                    )
+                            // NO `listItem` ON THESE TWO (owner, 2026-09-09).
+                            // They used to carry CollectionItemInfo(0/1) with
+                            // NOTHING publishing the matching CollectionInfo --
+                            // this menu's content is a bare Column, unlike the
+                            // language dropdown in VoiceScreen, which declares
+                            // both. The delegate writes an item index for a
+                            // collection whose size it was never told
+                            // (CollectionInfo.android.kt sets item info from the
+                            // developer property with no cross-check), so a
+                            // reader was given a position out of nowhere on a
+                            // two-line action menu. Removing the half-declaration
+                            // is the fix; do not "complete" it by adding a
+                            // collectionInfo Column here -- the owner asked for
+                            // less position noise, not more.
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                // The click is the item's own; the name is the one
+                                // thing added (INVARIANTS #7).
+                                DropdownMenuItem(
+                                    text = { SilentText("Delete configuration") },
+                                    onClick = { menuOpen = false; onDeleteConfiguration(index) },
+                                    modifier = Modifier.semantics { contentDescription = "Delete configuration" }
+                                )
+                                DropdownMenuItem(
+                                    text = { SilentText("Disable language") },
+                                    onClick = { menuOpen = false; onDisable(index) },
+                                    modifier = Modifier.semantics { contentDescription = "Disable language" }
+                                )
+                        }
+                    }
+                    }
                 }
             }
         }

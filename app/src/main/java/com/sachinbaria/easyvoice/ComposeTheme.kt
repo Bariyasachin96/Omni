@@ -17,6 +17,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.LastBaseline
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
+import kotlin.math.roundToInt
 import androidx.compose.material3.Surface
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -31,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -530,6 +543,76 @@ fun HapticFeedback.toggled(on: Boolean) =
 // ==========================================================================
 
 // ==========================================================================
+//  SilentText: a label that is DRAWN and adds nothing to the semantics tree
+//
+//  Owner, 2026-09-30: "components use karo ... but properly accessible karo
+//  Sabhi screen reader ke sath", after fast swiping stopped reading items in
+//  full and another reader said "button button".
+//
+//  Why a Material Button, Tab, FilterChip, DropdownMenuItem or FAB did that,
+//  read in Compose UI 1.12.1: every `Text` -- `clearAndSetSemantics { }`
+//  included -- is a layout node WITH a semantics node. So the merging control
+//  has children, and then (a) `SemanticsNode.emitFakeNodes` hangs the role and
+//  our contentDescription on two FAKE child nodes, and (b) the accessibility
+//  delegate puts neither the class name nor the contentDescription on the node
+//  the reader is focused on (its gate is `replacedChildren.isEmpty()`). TalkBack
+//  walks the fakes, and during a fast swipe or an auto-scroll it sometimes read
+//  the fake instead of the whole control; a reader that walks them differently
+//  said the role twice; one that looks only at the focused node heard nothing.
+//
+//  This draws the label with Compose's own TextMeasurer and drawText, so the
+//  control has NO semantics children: the component's own role, state and
+//  click land on the ONE focused node, together with the name the caller puts
+//  on it. Nothing is re-declared by hand -- the component still owns all of it.
+//  Colour and style resolve exactly as Material's Text does (explicit colour,
+//  else the style's, else LocalContentColor), and the text follows the font
+//  scale because the style is in sp. Measured with the parent's width, so it
+//  wraps like Text; drawn by measuring again at the laid-out width, which is a
+//  TextMeasurer cache hit. Baselines are published so Material layouts that
+//  align on them still can.
+//
+//  USE IT ONLY INSIDE A CONTROL THAT CARRIES THE SAME WORDS AS ITS NAME. Text
+//  that nothing else speaks must stay a Text.
+// ==========================================================================
+@Composable
+fun SilentText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = LocalTextStyle.current,
+    color: Color = Color.Unspecified,
+) {
+    val measurer = rememberTextMeasurer()
+    val drawnColor = color.takeOrElse { style.color.takeOrElse { LocalContentColor.current } }
+    val drawnStyle = style.merge(TextStyle(color = drawnColor))
+    Layout(
+        content = {},
+        modifier = modifier.drawBehind {
+            drawText(
+                measurer.measure(
+                    text, drawnStyle,
+                    constraints = Constraints(maxWidth = size.width.roundToInt()),
+                    layoutDirection = layoutDirection, density = this
+                )
+            )
+        }
+    ) { _, constraints ->
+        val laid = measurer.measure(
+            text, drawnStyle,
+            constraints = Constraints(maxWidth = constraints.maxWidth),
+            layoutDirection = layoutDirection, density = this
+        )
+        layout(
+            constraints.constrainWidth(laid.size.width),
+            constraints.constrainHeight(laid.size.height),
+            mapOf(
+                FirstBaseline to laid.firstBaseline.roundToInt(),
+                LastBaseline to laid.lastBaseline.roundToInt()
+            )
+        ) {}
+    }
+}
+
+// ==========================================================================
 //  EvButton: ONE button type, used everywhere there is a button
 //
 //  Owner, 2026-09-04: "jo action button diye gaye hain ... vah sahi tarike se
@@ -581,8 +664,9 @@ fun EvButton(
             )
             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
         }
-        // Silenced: the name is already on the button itself.
-        Text(label, modifier = Modifier.clearAndSetSemantics { })
+        // Drawn only: the name is on the button itself, and a Text here would
+        // give the button a semantics child -- see SilentText.
+        SilentText(label)
     }
     if (outlined) {
         OutlinedButton(onClick = onClick, modifier = described, enabled = enabled, contentPadding = padding, content = body)
