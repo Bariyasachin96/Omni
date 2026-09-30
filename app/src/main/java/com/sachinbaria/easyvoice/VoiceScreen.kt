@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -140,14 +141,27 @@ fun LabeledDropdown(
         // Initial pass and toggles the menu itself, so a real onClick here would
         // toggle a second time and the menu would open and shut in one tap.
         //
-        // The NAME is the one thing added (INVARIANTS #7): this node merges its
-        // children and carries no name of its own. There is NO "Expanded" /
-        // "Collapsed" any more (owner, 2026-09-29: states from components, not
-        // by hand). `Modifier.expandable` states them only on the
-        // SecondaryEditable branch (ExposedDropdownMenu.kt); for this
-        // PrimaryNotEditable anchor the library sets the DropdownList role and
-        // the click, and the menu that opens is its own window, which a screen
-        // reader announces as it appears.
+        // Two things are added, and both are what the accessibility guideline
+        // REQUIRES of a dropdown (owner, 2026-09-30: "accessibility ki guideline
+        // padhakar hi karna chahie tha"):
+        //   * the NAME (INVARIANTS #7): this node merges its children and
+        //     carries no name of its own;
+        //   * the EXPANDED / COLLAPSED state. W3C's combobox pattern: "When the
+        //     combobox popup is not visible, the element with role combobox has
+        //     aria-expanded set to false. When the popup element is visible,
+        //     aria-expanded is set to true." Compose has no expanded property,
+        //     and material3 1.4.0's own `Modifier.expandable` answers this with
+        //     `stateDescription = if (expanded) expandedDescription else
+        //     collapsedDescription` -- the words "Expanded" / "Collapsed" -- but
+        //     only on its SecondaryEditable branch; for this PrimaryNotEditable
+        //     anchor it sets the DropdownList role and the click and states
+        //     nothing. So the library's own line is written here, with the
+        //     library's own words. (Its string resources are private to the aar
+        //     -- public.txt is empty -- so the words are spelled out.)
+        // The 2026-09-29 removal of this state was wrong: a component that
+        // does not supply a state the guideline requires is not a reason to
+        // leave the state out. What made TalkBack say it twice on 2026-09-03 was
+        // the expand/collapse ACTIONS beside it, and those stay gone.
         // Held here rather than inside the menu so the measured position
         // survives the menu closing and reopening.
         val menuScroll = rememberScrollState()
@@ -163,7 +177,10 @@ fun LabeledDropdown(
                 // menuAnchor sits before fillMaxWidth, which is what decides the
                 // anchor's measured width.
                 modifier = Modifier
-                    .semantics { contentDescription = labelName + ", " + selectedText }
+                    .semantics {
+                        contentDescription = labelName + ", " + selectedText
+                        stateDescription = if (expanded) "Expanded" else "Collapsed"
+                    }
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
                     .fillMaxWidth()
             ) {
@@ -274,17 +291,27 @@ fun LabeledDropdown(
                                     Modifier
                                 }
                             )
-                            // The click is DropdownMenuItem's own. Added: the name
-                            // and the position in the list, neither of which a
-                            // component supplies here. NO selected state: a
-                            // material3 1.4.0 DropdownMenuItem has none, and
-                            // writing one by hand made every other language say
-                            // "Not selected" (owner, 2026-09-29). The anchor
-                            // already says which language is chosen, and the
-                            // menu opens scrolled to it.
+                            // The click is DropdownMenuItem's own. Added: the name,
+                            // the position in the list, and SELECTED on the one
+                            // item that is chosen.
+                            //
+                            // The chosen item carries a check icon, so the choice
+                            // is shown on screen; W3C's combobox and listbox
+                            // patterns require that an option "visually indicated
+                            // as the currently selected value" has aria-selected
+                            // set to true. Without it the check mark told a blind
+                            // user nothing. material3 1.4.0's DropdownMenuItem has
+                            // no selected parameter, so it is declared here.
+                            //
+                            // ONLY on the chosen item, and never `false` on the
+                            // others: `selected = false` makes the delegate say
+                            // "Not selected" on all 136 other languages (the
+                            // 2026-09-29 complaint). An item with no Selected
+                            // property says nothing about selection at all.
                             .semantics {
                                 contentDescription = options[index]
                                 collectionItemInfo = CollectionItemInfo(index, 1, 0, 1)
+                                if (index == selectedIndex) selected = true
                             }
                     )
                 }

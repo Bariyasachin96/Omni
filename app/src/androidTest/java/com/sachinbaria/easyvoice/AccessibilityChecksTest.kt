@@ -4,6 +4,10 @@ import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasSetTextAction
 // The v2 rule (compose ui-test 1.12): the v1 one is deprecated and v2 is its
 // named replacement. Same return type, so nothing below changed. v2 queues
@@ -499,7 +503,16 @@ class AccessibilityChecksTest {
     fun languageDropdownOpen() {
         themed { ModeSettingsScreen(prefs(), "dual") }
         rule.enableAccessibilityChecks()
-        rule.onNodeWithContentDescription("Select secondary language, Hindi (hin)").performClick()
+        val anchor = rule.onNodeWithContentDescription("Select secondary language, Hindi (hin)")
+        // The combobox states required by W3C's pattern: collapsed while shut,
+        // expanded while open, and SELECTED on the one option shown as chosen
+        // -- with nothing on the others, so they do not say "Not selected".
+        anchor.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Collapsed"))
+        anchor.performClick()
+        anchor.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Expanded"))
+        rule.onNodeWithContentDescription("Hindi (hin)").assertIsSelected()
+        rule.onNodeWithContentDescription("Gujarati (guj)")
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Selected))
         // Acting on an item is what puts the OPEN menu through the checks.
         rule.onNodeWithContentDescription("Gujarati (guj)").performClick()
         sweepSchemes()

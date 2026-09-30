@@ -79,6 +79,8 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/scriptfamily/run.sh     # ~3 min,  15 language sets x 1,114,112 code points
     tools/verify/normalizer/run.sh       # ~20 s,   1,114,112 code points, 1,062 mappings
     tools/verify/langcodes/run.sh        # ~5 s,    283 CLD2 language codes
+    tools/verify/autottslog/run.sh <auto_tts.log>   # replays a REAL AutoTTS log through our core,
+                                         #   chunk by chunk and language by language
 
 The first three build **AutoTTS's own code** from `autotts_reference/` alongside
 ours, run both over the same inputs, and diff. A failure prints the exact case.

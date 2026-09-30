@@ -8,6 +8,34 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## A REAL AutoTTS LOG, REPLAYED THROUGH OUR CORE; THE DROPDOWN STATES THE GUIDELINE REQUIRES (owner, 2026-09-30, latest)
+*"accessibility ki guidelines padhani chahie thi ... auto TTS ka log ... khud process karke dekhna ki auto TTS kis
+tarike se process kar raha hai ... hamare mein kya kami hai."*
+- **`tools/verify/autottslog/run.sh <auto_tts.log>`**: `extract.py` turns an AutoTTS log into cases (each `Speak:`
+  text, then every `speak N:` chunk with the language `loadLanguage` loaded for it); `main.cpp` runs the same text
+  down OUR real mixed path (processDirect -> normalizeFancy -> nativeGetLanguages -> languageForDetectedRun) and
+  compares. Only the prefix AutoTTS reached is compared (a screen reader cuts utterances off). **The owner's
+  2026-09-25 log: 250 utterances, 251 chunks, 0 differ.** Settings read OFF the log: mixed, Latin eng / non-Latin guj,
+  `updateLanguage2LetterCodes [hi, en, gu]`, smart numbers ON at group 2 (`83201` spoken `83 20 1`) -- with smart
+  numbers off the harness reports that phone line, which is its negative test. **Do not commit the log**: it holds
+  the owner's contacts and a phone number.
+- **Harness trap: HotSpot is not ART.** HotSpot's NewStringUTF/GetStringUTF* speak MODIFIED UTF-8 and mangled every
+  emoji (and cut the span short); ART reads/writes a supplementary character as real 4-byte UTF-8, which the core is
+  written for. `main.cpp` swaps those three JNI functions for ART-behaving ones. Any new real-JNI harness that sees
+  emoji needs the same.
+- **Also seen in the log and already ours:** Keep-alive ON (`Keep-live activated`), the empty-text flush
+  (`calling speak empty for`), `updateLanguage2LetterCodes` = s0. The 50 ms before the first `speak` is AutoTTS's
+  postDelayed, removed on purpose (2026-08-12).
+- **Dropdown, per W3C's combobox/listbox patterns** (read from w3c/aria-practices on GitHub; m3.material.io is
+  JS-only): the anchor states `Expanded`/`Collapsed` (aria-expanded) and the option shown with the check mark is
+  `selected = true` (aria-selected). **The 2026-09-29 removal of both was wrong**: a component that does not supply a
+  REQUIRED state is not a reason to drop it. material3's own `Modifier.expandable` writes exactly
+  `stateDescription = if (expanded) "Expanded" else "Collapsed"` for SecondaryEditable; our PrimaryNotEditable gets
+  nothing, so that line is ours (its string resources are private: the aar's public.txt is empty). `selected` is set
+  ONLY on the chosen item, never `false` elsewhere, so the other 136 do not say "Not selected".
+  `languageDropdownOpen` asserts all three. The three-dot menu buttons are left without expanded (W3C: optional for a
+  menu button).
+
 ## THE WHOLE-APP SWEEP: LIBRARY PIECES WHERE WE HAD HAND-MADE ONES (owner, 2026-09-29, latest)
 *"aur bhi kuchh components rah gaya ho user interface mein ... user interface ke alava kuchh aur chijon mein
 bhi ... manually kahin per likha hai ... puri app ki baat kar raha hun."* Swept by hand (rule 11). Changed:
