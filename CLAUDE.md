@@ -8,17 +8,26 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## ONE JNI CROSSING INSTEAD OF TWO PER CHUNK: MEASURED, NO GAIN, NOT KEPT (owner, 2026-09-30)
-*"Ek Bar Kiya Ja sakta hai to kitna Fark padta hai ... donon ko test karo ... jo fast Hai Vahi Rakhna."*
-Built `nativeFoldAndDetect` (normalizeFancy + nativeGetLanguages in one call, the folded text never
-round-tripping through a Java String) and timed it from Java against the two calls, through the real
-core + CLD2 as a shared library, alternating order per round, 15 rounds, 4.5M calls. Equality was proven
-first (1,768 texts and words, ART string behaviour: 0 differ). Median ns per chunk, old vs new:
-short screen-reader texts -O2 2385/2366, 2360/2388; -Oz (the app's flags) **2758/2939**; stress corpus
--O2 6609/5964, 6125/5824; -Oz **6837/7116**. So the difference is tens to a few hundred NANOSECONDS,
-flips sign between runs, and under the app's real flags the new path was slower. The old two-call path
-stays; the code and its harness were removed. **Do not redo this** -- the JNI crossing is not where any
-latency is (see LATENCY below; the downstream engine's binder calls and time-to-first-audio are).
+## ONE JNI CROSSING PER CHUNK, AND NO NOTIFICATION IPC PER UTTERANCE (owner, 2026-09-30, latest)
+*"naya wala Tarika fast hai ... vah Tarika kar do aur ... Bulane Mein der lagti hai ... usko bhi Sahi kar do."*
+- **`nativeFoldAndDetect(text, singleStops)`** replaces `normalizeFancy` + `nativeGetLanguages(folded)` in
+  `detectLanguageRuns` / `detectLanguageAggregate`: element 0 is the folded text, the triples follow; with
+  `singleStops` (= quickCharacterFlag) and a one-UTF-16-unit fold, no spans are computed. Both JNI entry points now
+  share `languageSpansFlat` (no JNIEnv) + `toJavaStringArray`. `foldAndDetect()` falls back to the two old calls if
+  it throws, so a failure behaves exactly as before. **Measured before it was chosen** (Java through the real core +
+  CLD2, alternating order, 25 rounds): tens to a few hundred NANOSECONDS either way, sign flipping between runs; the
+  owner chose it anyway, which is their call. **Proven equal**: `tools/verify/foldanddetect/run.sh`, 1,768 texts and
+  words x quick on/off under ART's string behaviour, 0 differ; negative test (spans from the unfolded text) = 14
+  differ. Segmenter IDENTICAL 163,296, stress 0 wrong, gradle-compile 0/0, NDK 30 arm64 .so exports 8 `Java_*`.
+- **The notification IPC per utterance is gone.** With "Show persistent notification" OFF (the default),
+  `onSynthesizeTextImpl`'s `else if (!showNotificationFlag && isForegroundActive())` asked
+  `getActiveNotifications()` over binder on EVERY utterance, because `foregroundStarted` is false there. It tests
+  `foregroundStarted` alone now: only this service starts its foreground state and a new instance starts without
+  it. The ON branch still uses `isForegroundActive()` (it short-circuits on the flag once started). This was
+  AutoTTS a0() parity, recorded as the owner's call; the owner has now made it.
+- **What is still the delay and cannot be ours:** the downstream engine -- `setLanguage` at `*Default` is 4 binder
+  round trips inside AOSP, and the engine's own time to first audio. Everything on our side is measured under a
+  millisecond.
 
 ## EVERY CONTROL IS ONE ACCESSIBILITY NODE, STILL FROM THE COMPONENTS (owner, 2026-09-30, latest)
 *"jaldi-jaldi swipe ... automatic scroll ... Puri item Sahi tarike se bolata tha ... koi screen reader ...

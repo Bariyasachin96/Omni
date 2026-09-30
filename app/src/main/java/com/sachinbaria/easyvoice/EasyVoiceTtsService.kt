@@ -2720,13 +2720,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // clsCLD2.e folds first and only then measures the length. A lone
         // maths-bold letter is two UTF-16 units, so testing the raw text would
         // miss the single-character case that folding creates.
-        val folded = try { normalizeFancy(text) } catch (_: Throwable) { text }
+        // One trip into the core does both steps, the fold and the spans
+        // (owner, 2026-09-30): element 0 is the folded text, the triples follow.
+        val flat = foldAndDetect(text)
+        val folded = flat[0]
         if (quickCharacterFlag && folded.length == 1) {
             runs.add(DetectedRun("un", isLatinCommonInherited(folded.codePointAt(0)), folded))
             return runs
         }
-        val flat = try { nativeGetLanguages(folded) } catch (_: Throwable) { return runs }
-        var index = 0
+        var index = 1
         while (index + 2 < flat.size) {
             runs.add(DetectedRun(flat[index], flat[index + 1] == "1", flat[index + 2]))
             index += 3
@@ -2739,19 +2741,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // separate best-so-far candidates below are for.
     private fun detectLanguageAggregate(text: String): String {
         if (text.isEmpty()) return "un"
-        val folded = try { normalizeFancy(text) } catch (_: Throwable) { text }
-        if (quickCharacterFlag && folded.length == 1) return "un"
-        val flat = try { nativeGetLanguages(folded) } catch (_: Throwable) { return "un" }
-        if (flat.size < 3) return "un"
+        val flat = foldAndDetect(text)
+        if (quickCharacterFlag && flat[0].length == 1) return "un"
+        if (flat.size < 4) return "un"
         // One triple means one span, so there is nothing to weigh up.
-        if (flat.size == 3) return flat[0]
+        if (flat.size == 4) return flat[1]
         // A plain HashMap, as clsCLD2.f uses: both best-so-far scans below
         // replace only on a strict >, so an exact tie is settled by whichever
         // entry entrySet() yields first, and that is HashMap's bucket order --
         // not insertion order. Kotlin's HashMap is java.util.HashMap, so the
         // same keys inserted in the same order iterate in the same sequence.
         val totals = HashMap<String, Int>()
-        var index = 0
+        var index = 1
         while (index + 2 < flat.size) {
             val key = flat[index] + "|" + flat[index + 1]
             totals[key] = (totals[key] ?: 0) + flat[index + 2].length
@@ -2768,6 +2769,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         val winner = bestReal ?: bestAny ?: return "un"
         return winner.substring(0, winner.indexOf('|'))
+    }
+    // nativeFoldAndDetect, with the two separate calls as the answer when it
+    // throws, so a failure behaves exactly as before: a failed fold keeps the
+    // raw text, a failed detect gives no spans.
+    private fun foldAndDetect(text: String): Array<String> {
+        try { return nativeFoldAndDetect(text, quickCharacterFlag) } catch (_: Throwable) {}
+        val folded = try { normalizeFancy(text) } catch (_: Throwable) { text }
+        if (quickCharacterFlag && folded.length == 1) return arrayOf(folded)
+        val spans = try { nativeGetLanguages(folded) } catch (_: Throwable) { return arrayOf(folded) }
+        return arrayOf(folded) + spans
     }
     private fun isLatinCommonInherited(codePoint: Int): Boolean {
         val script = Character.UnicodeScript.of(codePoint)
@@ -2948,7 +2959,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         reloadLanguagesIfMissing()
         if (showNotificationFlag && !isForegroundActive()) {
             startForegroundIfPossible()
-        } else if (!showNotificationFlag && isForegroundActive()) {
+        } else if (!showNotificationFlag && foregroundStarted) {
+            // The flag, not isForegroundActive(): with the switch OFF (the
+            // default) that asked the notification service over binder on EVERY
+            // utterance (owner, 2026-09-30: "bulane mein der"). Only this service
+            // starts its foreground state and a new instance starts without it,
+            // so the flag alone is exact.
             // ServiceCompat.stopForeground with STOP_FOREGROUND_REMOVE, the value
             // 1 this once passed by hand.
             stopForegroundNow()
@@ -4240,6 +4256,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             disableAdvancedDetection: Boolean
         ): String
         @JvmStatic external fun nativeGetLanguages(text: String): Array<String>
+        @JvmStatic external fun nativeFoldAndDetect(text: String, singleStops: Boolean): Array<String>
         // clsCLD2.b: decorated Latin letters folded back to ASCII.
         @JvmStatic external fun normalizeFancy(text: String): String
         @JvmStatic external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)

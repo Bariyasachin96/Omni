@@ -1941,13 +1941,10 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv* env, j
 //  emoji -- answers "un" with latin = TRUE and never reaches a detector. That
 //  is why a bare number is read in the LATIN preferred language.
 // ==========================================================================
-extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
-    jclass stringClass = stringClassRef(env);
-    if(!stringClass) return nullptr;                          // exception pending
-    if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
-    std::string text;
-    if(!jstringToStd(env, jText, text)) return nullptr;      // OOM pending
+// The span walk itself, with no JNI in it, so nativeGetLanguages and
+// nativeFoldAndDetect run the SAME code. Returns lang, latin flag, text
+// triples, flattened, exactly as the JNI array carries them.
+static std::vector<std::string> languageSpansFlat(const std::string& text){
     struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
     std::vector<ScriptSpan> spans;
     const int kMaxSpans = 128;
@@ -2224,7 +2221,48 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv* en
         flat.push_back(span.latin ? "1" : "0");
         flat.push_back(text.substr(span.offset, (size_t)spanBytes));
     }
+    return flat;
+}
+static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat){
     jobjectArray arr=env->NewObjectArray((jsize)flat.size(), stringClass, nullptr);
+    if(!arr) return nullptr;                                  // OOM pending
     for(jsize i=0;i<(jsize)flat.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(flat[i].c_str()));
     return arr;
+}
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
+    jclass stringClass = stringClassRef(env);
+    if(!stringClass) return nullptr;                          // exception pending
+    if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
+    std::string text;
+    if(!jstringToStd(env, jText, text)) return nullptr;      // OOM pending
+    return toJavaStringArray(env, stringClass, languageSpansFlat(text));
+}
+// clsCLD2.e / clsCLD2.f's first two steps in ONE crossing (owner, 2026-09-30):
+// fold the text (clsCLD2.b), then ask for its spans. Element 0 is the folded
+// text, because the quick-character test measures it; the triples follow. When
+// the folded text is a single UTF-16 unit and `singleStops` is set, the spans
+// are not computed, because the caller answers that case without them.
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv* env, jclass, jstring jText, jboolean singleStops){
+    jclass stringClass = stringClassRef(env);
+    if(!stringClass) return nullptr;
+    std::string text;
+    if(jText && !jstringToStd(env, jText, text)) return nullptr;
+    std::string folded = normalizeFancyText(text);
+    // UTF-16 length of the folded text: one unit below U+10000, two above.
+    // Only "is it exactly one" matters here.
+    int units = 0;
+    for(size_t k=0; k<folded.size() && units<2; k++){
+        unsigned char b=(unsigned char)folded[k];
+        if((b & 0xC0) == 0x80) continue;
+        units += (b >= 0xF0) ? 2 : 1;
+    }
+    std::vector<std::string> flat;
+    flat.push_back(folded);
+    if(!(singleStops && units == 1)){
+        std::vector<std::string> spans = languageSpansFlat(folded);
+        flat.insert(flat.end(), spans.begin(), spans.end());
+    }
+    return toJavaStringArray(env, stringClass, flat);
 }
