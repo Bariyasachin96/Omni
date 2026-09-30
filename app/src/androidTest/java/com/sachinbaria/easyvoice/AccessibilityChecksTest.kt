@@ -220,11 +220,17 @@ class AccessibilityChecksTest {
                 .and(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText)),
             useUnmergedTree = true
         ).fetchSemanticsNodes()
+        // `children` in the unmerged tree still lists what a clearing node
+        // dropped; the accessibility delegate reads `replacedChildren`, which is
+        // EMPTY for a node whose config clears (SemanticsNode.getChildren, Compose
+        // UI 1.12.1). So a cleared row has no children as far as a reader goes.
         val wrong = pressable.mapNotNull { node ->
             val name = node.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString()
+            val kids = if (node.config.isClearingSemantics) emptyList() else node.children
             when {
-                node.children.isNotEmpty() ->
-                    "'" + name + "' has " + node.children.size + " semantics children"
+                kids.isNotEmpty() ->
+                    "'" + name + "' has " + kids.size + " semantics children (" +
+                        kids.joinToString { k -> k.config.joinToString { e -> e.key.name } } + ")"
                 name.isNullOrEmpty() -> "a control (role " +
                     node.config.getOrNull(SemanticsProperties.Role) + ") has no name of its own"
                 else -> null

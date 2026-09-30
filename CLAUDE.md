@@ -29,7 +29,13 @@ button button ... components use karo ... but properly accessible karo Sabhi scr
 - **The FABs use Material's CONTENT overload** (`FabLabel`, MainActivity.kt): the icon+text overload wraps its label in
   its own `Row(Modifier.clearAndSetSemantics {})` (material3 1.4.0 FloatingActionButton.kt), itself a child.
 - **Enforced:** `AccessibilityChecksTest.assertEveryControlIsOneNode()` runs in every `sweepSchemes()`: every node
-  with OnClick (text fields excepted) must have NO semantics children and its own name.
+  with OnClick (text fields excepted) must have NO semantics children and its own name. **It counts what the
+  delegate counts** (build 925 went red on this): `SemanticsNode.children` in the unmerged tree still lists what a
+  clearing node dropped, while the delegate reads `replacedChildren`, empty when `config.isClearingSemantics`. So a
+  cleared row counts as zero children. The failure message names each child's semantics keys.
+- **`graphicsLayer` IS a semantics node** (`GraphicsLayerModifier.kt`, ui 1.12.1), so anything Material animates with
+  a fade (AnimatedVisibility) is a child. Build 925 found the one real case: the SELECTED "My languages" chip, whose
+  `leadingIcon` Material fades in. The check icon now sits in the chip's `label` slot beside the SilentText.
 - **Text processing stress** (`tools/verify/autottslog/run.sh --stress`, `stress.txt`, 80 texts: ZWJ families, skin
   tones, keycaps, flags, tag flags, VS16, emoji-only, 300-emoji runs, Hindi/Gujarati/Arabic/CJK/Thai/Tamil, fancy
   letters, bidi, odd whitespace, numbers/phones/times/prices, the 1024-byte window): nothing lost or added, no emoji

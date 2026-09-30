@@ -4,6 +4,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -391,21 +393,27 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
                         showSelectedOnly = !showSelectedOnly
                         haptic.toggled(showSelectedOnly)
                     },
-                    label = { SilentText("My languages") },
-                    // Material's own shape for a filter chip: the check only while
-                    // it is selected, at the chip's own icon size, and NO icon
-                    // slot at all otherwise -- an empty slot still reserves the
-                    // icon's padding, which is what the lambda-that-draws-nothing
-                    // used to do.
-                    leadingIcon = if (showSelectedOnly) {
-                        {
+                    // THE CHECK SITS IN THE LABEL SLOT, not in `leadingIcon`
+                    // (2026-09-30). Material animates `leadingIcon` in and out with
+                    // AnimatedVisibility, whose fade is a `graphicsLayer` -- and
+                    // graphicsLayer is a semantics node (GraphicsLayerModifier.kt,
+                    // Compose UI 1.12.1). So a SELECTED chip had a semantics child,
+                    // its role and name went to fake child nodes, and a reader that
+                    // looks only at the focused node lost both. The label slot is a
+                    // plain Row: the icon (no description, no semantics) and the
+                    // drawn label add nothing, and the chip stays ONE node. Same
+                    // icon, same size, Material's 8dp label spacing.
+                    label = {
+                        if (showSelectedOnly) {
                             Icon(
                                 painterResource(R.drawable.ic_check),
                                 contentDescription = null,
                                 modifier = Modifier.size(FilterChipDefaults.IconSize)
                             )
+                            Spacer(Modifier.width(8.dp))
                         }
-                    } else null,
+                        SilentText("My languages")
+                    },
                     // FilterChip itself sets Role.Checkbox, the selected state and
                     // the click; the delegate turns that state into "Selected" /
                     // "Not selected" from androidx's own strings, which is why the
