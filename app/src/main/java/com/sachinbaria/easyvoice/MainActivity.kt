@@ -3,9 +3,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
@@ -41,7 +38,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -108,14 +104,8 @@ class MainActivity : EvActivity() {
         try { testTts?.shutdown() } catch (_: Exception) { }
         testTts = android.speech.tts.TextToSpeech(this, null, BuildConfig.APPLICATION_ID)
     }
-    // THE STARTUP SCAN LIVES IN A ViewModel (androidx.lifecycle), not in the
-    // Activity. A ViewModel is kept across a configuration change -- rotation,
-    // fold, font or theme change -- and cleared only when the screen really
-    // finishes, which is exactly the lifetime a scan has. So turning the phone
-    // neither starts a second scan nor loses the one running: the new Activity
-    // reads the same `scanning` and `scanLine` (2026-09-30, owner: "phone
-    // ghumane wala ... usko hatao ... library aur modules use karo").
-    private val scan: ScanModel by viewModels()
+    private var scanning by mutableStateOf(true)
+    private var scanLine by mutableStateOf("Checking your TTS engines")
     private var modeRefresh by mutableIntStateOf(0)
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
@@ -142,15 +132,10 @@ class MainActivity : EvActivity() {
         EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())
         setContent {
             EasyVoiceTheme {
-                // The Test button's client, made once the scan has finished:
-                // straight away for a screen recreated after the scan (the
-                // ViewModel already says it is done), and at the finish for a
-                // fresh one. Compose's own effect keyed on the state.
-                LaunchedEffect(scan.scanning) { if (!scan.scanning) newTestClient() }
                 MainScreen(
                     prefs = prefs,
-                    scanning = scan.scanning,
-                    scanLine = scan.scanLine,
+                    scanning = scanning,
+                    scanLine = scanLine,
                     modeRefresh = modeRefresh,
                     // core-ktx's Drawable.toBitmap, not a hand-rolled
                     // Bitmap + Canvas. It does two things the hand-rolled
@@ -225,6 +210,9 @@ class MainActivity : EvActivity() {
                 )
             }
         }
+        EngineFinder.scanLanguages(this, { line -> runOnUiThread { scanLine = line } }) { newTestClient(); runOnUiThread {
+            scanning = false
+        } }
     }
     override fun onPause() {
         LangStore.persistAll(this)
@@ -683,25 +671,4 @@ private fun FabLabel(iconRes: Int, label: String) {
     Icon(painterResource(iconRes), contentDescription = null)
     Spacer(Modifier.width(12.dp))
     SilentText(label)
-}
-
-// The startup scan's owner (see MainActivity.scan). It starts the scan once,
-// when the ViewModel is created, with the application context -- the scan
-// already hangs its engine clients off the application, and a ViewModel must
-// not hold an Activity. The two values the screen shows are Compose state, so
-// the screen redraws when they change; the scan's callbacks may arrive off the
-// main thread, so they are moved onto it with viewModelScope (Dispatchers.Main).
-// Nothing is cancelled in onCleared: a scan outlives the screen by design and
-// still saves its lists when the user backs out.
-class ScanModel(app: android.app.Application) : androidx.lifecycle.AndroidViewModel(app) {
-    var scanning by mutableStateOf(true)
-        private set
-    var scanLine by mutableStateOf("Checking your TTS engines")
-        private set
-    init {
-        EngineFinder.scanLanguages(app, { line -> onMain { scanLine = line } }) { onMain { scanning = false } }
-    }
-    private fun onMain(block: () -> Unit) {
-        viewModelScope.launch { block() }
-    }
 }

@@ -224,10 +224,6 @@ dependencies {
     // in the APK -- emoji2 pulls it in at runtime and androidx.startup's
     // InitializationProvider starts it -- and is declared now that the app calls it.
     implementation("androidx.lifecycle:lifecycle-process:2.11.0")
-    // ViewModel + viewModelScope: the main screen's engine scan lives in one,
-    // so a rotation keeps the running scan instead of starting another.
-    // activity-compose already pulls it in; declared because the app uses it.
-    implementation("androidx.lifecycle:lifecycle-viewmodel:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     // The app-opening splash. From API 31 the platform shows one for every app

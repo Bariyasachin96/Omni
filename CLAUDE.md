@@ -27,13 +27,11 @@ troubleshoot wala sab kuchh hata do ... scanning, package scanning, restore ... 
   queues a second scan when that scan has not reached the engine yet (`EngineFinder.runningScanWillRead`,
   `scanPending`) or the package was removed -- finalize now DROPS every engine that is no longer installed (read or
   not; before, a failed read of an uninstalled engine kept its old voices). (3) an update's ADDED(replacing) no
-  longer rebinds and re-arms the restore; REPLACED does, once. (4) a rotation reuses the scan this process just
-  finished instead of walking every engine again; a real open still scans. **Superseded the same day by
-  a ViewModel** (owner: *"phone ghumane wala ... usko hatao ... library aur modules use karo"*):
-  `ScanModel : AndroidViewModel` in MainActivity.kt owns the startup scan (`lifecycle-viewmodel:2.11.0`
-  declared), started once with the application context; a rotation keeps the SAME scan, mid-scan too.
-  `scanFinishedInProcess` and `EngineFinder.cancelGlobalTimeout` are gone -- the latter wiped every
-  scan's watchdogs (the service's background scan included) whenever the main screen was destroyed.
+  longer rebinds and re-arms the restore; REPLACED does, once. (4) ~~rotation reuses the finished scan~~ **REMOVED, owner:** *"phone ghumane wale ki chijen
+  ... jarurat hai hi nahin ... usko hatao"* -- a ViewModel was tried (18a0ef3) and reverted too; the main
+  screen scans in every onCreate, rotation included, as AutoTTS does. Do not add rotation handling back.
+  Kept: `EngineFinder.cancelGlobalTimeout` is GONE -- it cleared every scan's watchdogs (the service's
+  background scan too) whenever the main screen closed.
 - Restore reviewed and left as it is: one per episode, handed back only by events; no double found.
 
 ## ONE JNI CROSSING PER CHUNK, AND NO NOTIFICATION IPC PER UTTERANCE (owner, 2026-09-30, latest)
