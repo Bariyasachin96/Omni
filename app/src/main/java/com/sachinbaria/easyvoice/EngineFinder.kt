@@ -164,9 +164,6 @@ object EngineFinder {
     // for one of them needs no second scan: this one will read it as it is now.
     private val scanPending: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     @JvmStatic fun runningScanWillRead(pkg: String): Boolean = scanRunning && scanPending.contains(pkg)
-    // A scan has finished and saved its lists in this process.
-    @Volatile @JvmStatic var scanFinishedInProcess = false
-        private set
     // OURS, ASKED OF THE SYSTEM: our own package, or any package signed with our
     // own certificate -- an older install of this app under its previous package
     // name is one, and a package-name fragment could never say so reliably.
@@ -302,7 +299,6 @@ object EngineFinder {
     // does lose its 180 s watchdog, the scan still finishes: the per-engine
     // 30 s timeout is what actually advances scanNextEngine, and the generation
     // guard is what decides who may publish.
-    @JvmStatic fun cancelGlobalTimeout() { globalTimeoutHandler.removeCallbacksAndMessages(null) }
     @JvmStatic fun iso3Of(loc: Locale?): String = if (loc == null) "zxx" else try {
         val code = loc.isO3Language
         if (code == "cmn" || code == "lzh" || code == "gan" || code == "hak") "zho" else code
@@ -405,7 +401,6 @@ object EngineFinder {
             finalized = true
             scanRunning = false
             scanPending.clear()
-            scanFinishedInProcess = true
             // AN ENGINE THE SYSTEM DID NOT LIST THIS TIME BUT THAT IS STILL
             // INSTALLED KEEPS ITS PLACE (2026-09-24, owner: "TTS mis ho jata hai
             // ... uske voice delete ho jaate hain"). During an update the package
