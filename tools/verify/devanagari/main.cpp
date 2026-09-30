@@ -8,7 +8,7 @@
 //
 // So this links the REAL tts_engine_core.cpp with CLD2 and a genuine JNIEnv,
 // pushes a real enabled set through setLanguageHints/setDetectSets exactly as
-// pushLanguageSets does, and asks nativeGetLanguages what each span gets. It
+// pushLanguageSets does, and asks nativeFoldAndDetect what each span gets. It
 // also calls CLD2 DIRECTLY with the same hints so the summary, the top three
 // and their percentages are printed beside the answer -- which is the only way
 // to tell "the detector was wrong" from "our filter dropped a right answer".
@@ -28,7 +28,7 @@
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
-JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv*, jclass, jstring);
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
 JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
@@ -63,12 +63,12 @@ static void enable(const std::vector<Lang>& set){
 // single-language sentence gives one span and that span's language is the voice.
 static std::string appAnswer(const std::string& text){
     jstring js = env->NewStringUTF(text.c_str());
-    jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(env, nullptr, js);
+    jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(env, nullptr, js, JNI_FALSE);
     if (!got) return "<null>";
     jsize n = env->GetArrayLength(got);
     // triples: lang, isLatin, text -- take the language of the LONGEST span
     std::string best; size_t bestLen = 0;
-    for (jsize i = 0; i + 2 < n; i += 3) {
+    for (jsize i = 1; i + 2 < n; i += 3) {
         std::string lang = str((jstring)env->GetObjectArrayElement(got, i));
         std::string txt  = str((jstring)env->GetObjectArrayElement(got, i + 2));
         if (txt.size() >= bestLen) { bestLen = txt.size(); best = lang; }

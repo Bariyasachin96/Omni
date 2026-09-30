@@ -8,13 +8,35 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## TROUBLESHOOT IS GONE; THE NEW DETECT CALL IS THE ONLY ONE; DESCRIPTIONS SEPARATE AGAIN; SCAN DOUBLES REMOVED (owner, 2026-09-30, latest)
+*"naya function hi chahie ... purana function nahin chahie ... description alag-alag chahie jo pahle tha ...
+troubleshoot wala sab kuchh hata do ... scanning, package scanning, restore ... koi chijen double double nahin honi chahie."*
+- **`nativeFoldAndDetect` is the ONLY route.** The JNI exports `normalizeFancy` and `nativeGetLanguages` are deleted;
+  `foldAndDetect()` on a throw answers `arrayOf(text)` (no spans), never the old path. `tools/verify/foldanddetect/`
+  is deleted (nothing left to compare against); latency, autottslog and devanagari harnesses call the new function.
+- **A switch and its description are two focus stops again** (`SettingSwitch(label, ...)` then
+  `SettingDescription(text)`), which reverses 2026-09-17's folding. `SettingDescription` has no `spoken` flag now.
+- **Troubleshoot removed entirely**: `TroubleshootActivity.kt` (and `SystemScreens`), its manifest entry, the menu
+  item, the service's `troubleshootEngines`/`engineUnresponsive`, the scan's `repair`/`onReport`/`EngineReport`,
+  `lastMissingData` and the per-language `isLanguageAvailable` calls the scan made only for it, both androidTest
+  cases, the allowlist lines. TTS Settings in the menu uses the literal action. **The sections below that describe
+  Troubleshoot are history.**
+- **Scan doubles removed:** (1) the PROBE is gone -- the non-quiet scan bound a TextToSpeech to OUR OWN service only
+  to call getEngines(), the same package-manager question `getEngines(ctx)` already asked, and its failure finalized
+  the scan with no engine read; the `quiet` flag went with it. (2) a package event during a running scan no longer
+  queues a second scan when that scan has not reached the engine yet (`EngineFinder.runningScanWillRead`,
+  `scanPending`) or the package was removed -- finalize now DROPS every engine that is no longer installed (read or
+  not; before, a failed read of an uninstalled engine kept its old voices). (3) an update's ADDED(replacing) no
+  longer rebinds and re-arms the restore; REPLACED does, once. (4) a rotation reuses the scan this process just
+  finished (`scanFinishedInProcess`) instead of walking every engine again; a real open still scans.
+- Restore reviewed and left as it is: one per episode, handed back only by events; no double found.
+
 ## ONE JNI CROSSING PER CHUNK, AND NO NOTIFICATION IPC PER UTTERANCE (owner, 2026-09-30, latest)
 *"naya wala Tarika fast hai ... vah Tarika kar do aur ... Bulane Mein der lagti hai ... usko bhi Sahi kar do."*
 - **`nativeFoldAndDetect(text, singleStops)`** replaces `normalizeFancy` + `nativeGetLanguages(folded)` in
   `detectLanguageRuns` / `detectLanguageAggregate`: element 0 is the folded text, the triples follow; with
   `singleStops` (= quickCharacterFlag) and a one-UTF-16-unit fold, no spans are computed. Both JNI entry points now
-  share `languageSpansFlat` (no JNIEnv) + `toJavaStringArray`. `foldAndDetect()` falls back to the two old calls if
-  it throws, so a failure behaves exactly as before. **Measured before it was chosen** (Java through the real core +
+  share `languageSpansFlat` (no JNIEnv) + `toJavaStringArray`. (fallback removed the same day, see above). **Measured before it was chosen** (Java through the real core +
   CLD2, alternating order, 25 rounds): tens to a few hundred NANOSECONDS either way, sign flipping between runs; the
   owner chose it anyway, which is their call. **Proven equal**: `tools/verify/foldanddetect/run.sh`, 1,768 texts and
   words x quick on/off under ART's string behaviour, 0 differ; negative test (spans from the unfolded text) = 14

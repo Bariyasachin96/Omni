@@ -5,9 +5,6 @@ import android.speech.tts.TextToSpeech
 import java.util.Locale
 object EngineFinder {
     data class EngineInfo(val pkg: String, val name: String) { override fun toString() = name }
-    // What one scan learned about one engine, for the Troubleshoot screen.
-    // `problem` is empty when the engine answered with voices.
-    data class EngineReport(val pkg: String, val label: String, val voices: Int, val problem: String)
     // NO PACKAGE NAME IS WRITTEN IN THIS APP (owner, 2026-09-24: "kisi bhi TTS ka
     // package name likhane ki jarurat nahin ... package name change hote rahte
     // hain ... pura system sahi uthao"). The table of forty engine packages that
@@ -128,11 +125,6 @@ object EngineFinder {
     // only its own thread, and every other engine is still read.
     @JvmStatic val engineCalls: java.util.concurrent.ExecutorService =
         java.util.concurrent.Executors.newCachedThreadPool { runnable -> Thread(runnable, "EngineCall").apply { isDaemon = true } }
-    // What an engine answered the scan, read on engineCalls: its voices (null is
-    // TextToSpeech.getVoices' own error result -- no connection, or the call
-    // threw), and the languages set up on it whose data it says is not on the
-    // phone (LANG_MISSING_DATA, the engine's own answer).
-    private class EngineRead(val voices: Set<android.speech.tts.Voice>?, val missing: List<String>)
     @JvmStatic fun shutdownLater(client: TextToSpeech?) {
         if (client == null) return
         try { engineCalls.execute { try { client.shutdown() } catch (_: Exception) {} } }
@@ -164,9 +156,16 @@ object EngineFinder {
     // A scan is walking the engines right now. The service's background scan
     // (EasyVoiceTtsService.scanInBackground) never starts while one is, because a
     // newer scan supersedes the older one and the older one's caller -- the main
-    // screen's progress page, the Troubleshoot screen -- would then never hear
+    // screen's progress page -- would then never hear
     // back. Set when a scan starts, cleared by the newest scan's finalize.
     @Volatile @JvmStatic var scanRunning = false
+        private set
+    // The engines the running scan has NOT started reading yet. A package event
+    // for one of them needs no second scan: this one will read it as it is now.
+    private val scanPending: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    @JvmStatic fun runningScanWillRead(pkg: String): Boolean = scanRunning && scanPending.contains(pkg)
+    // A scan has finished and saved its lists in this process.
+    @Volatile @JvmStatic var scanFinishedInProcess = false
         private set
     // OURS, ASKED OF THE SYSTEM: our own package, or any package signed with our
     // own certificate -- an older install of this app under its previous package
@@ -329,12 +328,9 @@ object EngineFinder {
         }
         return false
     }
-    // `always` is the Troubleshoot screen: the user asked for broken setups to be
-    // repaired, so an engine that is gone moves its languages whether or not
-    // Backup TTS is on. Returns one line per language moved.
-    private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>, always: Boolean = false): List<String> {
-        val moved = ArrayList<String>()
-        if (!always && !EasyVoiceTtsService.engineFallbackFlag) return moved
+    // Only with Backup TTS on (engineFallbackFlag).
+    private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>) {
+        if (!EasyVoiceTtsService.engineFallbackFlag) return
         try {
             val prefs = LangStore.prefs(ctx)
             val editor = prefs.edit()
@@ -348,7 +344,6 @@ object EngineFinder {
                 editor.putString(key, replacement.pkg + "#" + replacement.locale.toString())
                 editor.putString(key + "_variant", "*Default")
                 changed = true
-                moved.add(languageName(key) + " moved from " + engineLabel(ctx, parts[0]) + " to " + engineLabel(ctx, replacement.pkg))
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, parts[0] + " is not installed any more -- " + key +
                     " is now set up on " + replacement.pkg + " " + replacement.locale)
             }
@@ -356,19 +351,6 @@ object EngineFinder {
         } catch (ex: Exception) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "repointUninstalled: " + ex.toString())
         }
-        return moved
-    }
-    // WHICH ENGINES ANSWERED LANG_MISSING_DATA IN THE LAST SCAN, per package (an
-    // empty list = the engine listed no voices at all). Recorded only: the scan
-    // opens NOTHING on its own (owner, 2026-09-24: "download screen nahin khul
-    // jaani chahie"). The Troubleshoot screen shows it with an "Install voice
-    // data" button, so the engine's installer opens only when the user asks.
-    @JvmStatic val lastMissingData: MutableMap<String, List<String>> = java.util.concurrent.ConcurrentHashMap()
-    private fun recordMissingVoiceData(missing: Map<String, List<String>>) {
-        lastMissingData.clear()
-        lastMissingData.putAll(missing)
-        for ((pkg, langs) in missing) EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Voice data missing on " + pkg +
-            (if (langs.isEmpty()) " (no voices)" else " for " + langs.joinToString(",")))
     }
     // The engines the last saved scan found, from every place they are kept.
     private fun previousEngines(ctx: Context): LinkedHashSet<String> {
@@ -386,22 +368,11 @@ object EngineFinder {
         } catch (_: Exception) {}
         return out
     }
-    private fun isInstalled(ctx: Context, pkg: String): Boolean =
+    @JvmStatic fun isInstalled(ctx: Context, pkg: String): Boolean =
         try { ctx.packageManager.getApplicationInfo(pkg, 0); true } catch (_: Exception) { false }
-    @JvmStatic fun languageName(iso3: String): String =
-        try { localeOf(iso3).displayLanguage.ifEmpty { iso3 } } catch (_: Exception) { iso3 }
-    // `quiet` is the service's own scan, run in the background with no screen:
-    // nothing is shown (the probe's failure Toast is the only thing the scan ever
-    // shows), and the probe is skipped -- the installed engines come from the
-    // package manager's own TTS-service query, which with QUERY_ALL_PACKAGES sees
-    // every engine the probe's TextToSpeech.getEngines() would (that method asks
-    // the package manager the same question).
     fun scanLanguages(
         ctx: Context,
         onProgress: ((String) -> Unit)? = null,
-        repair: Boolean = false,
-        quiet: Boolean = false,
-        onReport: ((List<EngineReport>, List<String>) -> Unit)? = null,
         onResult: (Set<String>) -> Unit
     ) {
         attach(ctx)
@@ -419,12 +390,6 @@ object EngineFinder {
         val failed = HashSet<Int>()
         val retried = HashSet<Int>()
         val succeeded = HashSet<Int>()
-        // Per engine index, for onReport: voices read, and why it was not read.
-        val voiceCounts = HashMap<Int, Int>()
-        // Per engine package: the configured languages it answered
-        // LANG_MISSING_DATA for, or "" when it listed no voices at all.
-        val missingData = LinkedHashMap<String, ArrayList<String>>()
-        val problems = HashMap<Int, String>()
         val mainHandler = androidx.core.os.HandlerCompat.createAsync(android.os.Looper.getMainLooper())
         var index = 0
         // ONCE. The 180 s watchdog finalizes a scan whose walk is still going, and
@@ -439,6 +404,8 @@ object EngineFinder {
             if (myGeneration != scanGeneration || finalized) return
             finalized = true
             scanRunning = false
+            scanPending.clear()
+            scanFinishedInProcess = true
             // AN ENGINE THE SYSTEM DID NOT LIST THIS TIME BUT THAT IS STILL
             // INSTALLED KEEPS ITS PLACE (2026-09-24, owner: "TTS mis ho jata hai
             // ... uske voice delete ho jaate hain"). During an update the package
@@ -454,7 +421,6 @@ object EngineFinder {
                 if (pkg in listed || isSelfEngine(pkg) || !isInstalled(ctx, pkg)) continue
                 listed.add(pkg)
                 engines.add(EngineInfo(pkg, engineLabel(ctx, pkg)))
-                problems[engines.size - 1] = "Android does not list it as a voice engine right now"
             }
             // removeCallbacks, NOT removeCallbacksAndMessages(null): the handler
             // is shared, and clearing it wholesale cancelled the OTHER scan's
@@ -470,11 +436,17 @@ object EngineFinder {
             // An engine with nothing on record simply contributes nothing, which
             // is what happened before.
             // Every engine this scan did not read successfully counts, not just
-            // the ones in `failed`: the probe failing, or the 180 s watchdog
-            // firing, finalizes with engines the walk never reached, and those
+            // the ones in `failed`: the 180 s watchdog firing finalizes with
+            // engines the walk never reached, and those
             // used to be saved with no voices at all -- the whole list wiped.
+            // AN ENGINE UNINSTALLED WHILE THE SCAN RAN IS DROPPED HERE, whether it
+            // was read or not: its voices are not kept from before, and none it
+            // answered earlier in this scan survive either. This is what lets a
+            // package REMOVED mid-scan be left to this scan instead of a second one.
+            val gone = engines.map { it.pkg }.filter { !isSelfEngine(it) && !isInstalled(ctx, it) }.toHashSet()
+            for (pkg in gone) EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan: " + pkg + " is not installed any more -- dropping it")
             val notRead = engines.indices.filter { !succeeded.contains(it) }
-                .map { engines[it].pkg }.filter { !isSelfEngine(it) }.distinct()
+                .map { engines[it].pkg }.filter { !isSelfEngine(it) && it !in gone }.distinct()
             val keptVoices = ArrayList<ScanVoice>()
             for (failedPkg in notRead) {
                 val label = engines.firstOrNull { it.pkg == failedPkg }?.name ?: failedPkg
@@ -515,7 +487,7 @@ object EngineFinder {
                 val code = iso3Of(kept.locale)
                 if (code.isNotEmpty() && langs.add(code)) displayNames[code] = try { kept.locale.displayLanguage } catch (_: Exception) { code }
             }
-            val surviving = engines.map { it.pkg }.filter { !isSelfEngine(it) }
+            val surviving = engines.map { it.pkg }.filter { !isSelfEngine(it) && it !in gone }.distinct()
             val collator = java.text.Collator.getInstance()
             // COMBINING_MARKS is compiled once at class init -- see the note on it.
             // This lambda runs inside the Collator comparator, so it was compiling a
@@ -523,7 +495,7 @@ object EngineFinder {
             fun sortKey(code: String) = java.text.Normalizer.normalize(displayNames[code] ?: code, java.text.Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
             val sorted = langs.sortedWith { leftCode, rightCode -> collator.compare(sortKey(leftCode), sortKey(rightCode)) }
             val orderedLangs: Set<String> = LinkedHashSet(sorted)
-            lastScanVoices = voiceEntries.filter { !notRead.contains(it.pkg) } + keptVoices
+            lastScanVoices = voiceEntries.filter { !notRead.contains(it.pkg) && it.pkg !in gone } + keptVoices
             lastScanEngines = surviving
             // A LANGUAGE WHOSE ENGINE IS NO LONGER INSTALLED MOVES TO THE FIRST ONE
             // THIS SCAN FOUND FOR IT (owner, 2026-09-23: "system mein jo TTS
@@ -534,7 +506,7 @@ object EngineFinder {
             // (above), because moving languages off an engine that merely hiccuped
             // is how Google's configuration used to vanish. The service does the
             // same at speaking time for an engine that dies while it runs.
-            val moved = repointUninstalled(ctx, lastScanVoices, repair)
+            repointUninstalled(ctx, lastScanVoices)
             val modeInt = EasyVoiceTtsService.modeInt
             val required = LangStore.requiredLangs(modeInt,
                 EasyVoiceTtsService.autoLang,
@@ -548,29 +520,17 @@ object EngineFinder {
             // detector keeps hinting at whatever the list held before the scan,
             // which on a first run is nothing at all.
             EasyVoiceTtsService.pushLanguageSets()
-            recordMissingVoiceData(missingData)
             // The running service binds any engine this scan found that its pool
             // does not have yet, and runs a scan it had to put off.
             EasyVoiceTtsService.scanFinished()
-            if (onReport != null) {
-                val reports = ArrayList<EngineReport>()
-                val reported = HashSet<String>()
-                for (engineIdx in engines.indices) {
-                    val info = engines[engineIdx]
-                    if (isSelfEngine(info.pkg) || !reported.add(info.pkg)) continue
-                    val count = voiceCounts[engineIdx] ?: 0
-                    val problem = if (succeeded.contains(engineIdx)) ""
-                                  else problems[engineIdx] ?: "it was not reached before the scan ended"
-                    reports.add(EngineReport(info.pkg, info.name, count, problem))
-                }
-                onReport(reports, moved)
-            }
             onResult(orderedLangs)
         }
         val globalTimeout = Runnable { finalizeScan() }
         myTimeout[0] = globalTimeout
         globalTimeoutHandler.postDelayed(globalTimeout, 180000L)
         engines.addAll(getEngines(ctx, seen))
+        scanPending.clear()
+        for (info in engines) if (!isSelfEngine(info.pkg)) scanPending.add(info.pkg)
         lateinit var startEngine: (String) -> Unit
         fun scanNextEngine() {
             // Stop dead once a newer scan has started: this one can no longer
@@ -633,6 +593,7 @@ object EngineFinder {
         startEngine = { suffix ->
             val myIndex = index
             val pkg = engines[myIndex].pkg
+            if (myGeneration == scanGeneration) scanPending.remove(pkg)
             val cell = arrayOfNulls<TextToSpeech>(1)
             var handled = false
 
@@ -657,7 +618,6 @@ object EngineFinder {
                 handled = true
                 release()
                 failed.add(myIndex)
-                problems[myIndex] = "it did not answer within 30 seconds"
                 scanNextEngine()
             }
             mainHandler.postDelayed(timeout, 30000L)
@@ -677,7 +637,6 @@ object EngineFinder {
             fun retryOrFail(why: String): Boolean {
                 if (!retried.add(myIndex)) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed again (" + why + ")")
-                    problems[myIndex] = why
                     failed.add(myIndex); return false
                 }
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed (" + why + "), retrying once")
@@ -685,13 +644,12 @@ object EngineFinder {
                 startEngine("(retry)")
                 return true
             }
-            fun applyRead(read: EngineRead) {
+            fun applyRead(engineVoices: Set<android.speech.tts.Voice>?) {
                 // The 30 s timeout got there first: it already released the client
                 // and moved the walk on.
                 if (!takeOver()) return
                 val expectedPkg = engines[myIndex].pkg
                 var added = 0
-                val engineVoices = read.voices
                 // null and empty are different failures and the log said "no
                 // voices yet" for both.
                 val noVoicesWhy = if (engineVoices == null) "no voices yet: getVoices gave null, connection lost"
@@ -710,11 +668,6 @@ object EngineFinder {
                     }
                 } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: "") }
                 if (added == 0 && retryOrFail(noVoicesWhy)) return
-                voiceCounts[myIndex] = added
-                // VOICE DATA THAT IS NOT DOWNLOADED, RECORDED FOR TROUBLESHOOT; an
-                // engine that lists no voices at all needs its data too.
-                if (read.missing.isNotEmpty()) missingData.getOrPut(expectedPkg) { ArrayList() }.addAll(read.missing)
-                if (added == 0 && retried.contains(myIndex)) missingData.getOrPut(expectedPkg) { ArrayList() }
                 if (added == 0) failed.add(myIndex) else { succeeded.add(myIndex); EasyVoiceTtsService.engineAnswered(expectedPkg) }
                 release()
                 scanNextEngine()
@@ -744,17 +697,6 @@ object EngineFinder {
                     scanNextEngine()
                     return
                 }
-                // The locales set up on this engine, read here from the settings;
-                // the engine is asked about them on engineCalls.
-                val configured = ArrayList<Pair<String, Locale>>()
-                try {
-                    for ((key, value) in LangStore.prefs(ctx).all) {
-                        if (key.length != 3 || value !is String) continue
-                        val parts = value.split("#")
-                        if (parts.size < 2 || parts[0] != expectedPkg || parts[1].isEmpty()) continue
-                        configured.add(key to parseStoredLocale(parts[1]))
-                    }
-                } catch (_: Exception) {}
                 // THE TIMEOUT STAYS ARMED while the engine is read: a wedged engine
                 // answers getVoices never, and the walk must still move on.
                 try {
@@ -762,17 +704,12 @@ object EngineFinder {
                         val voices = try { client.voices } catch (ex: Exception) {
                             EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: ""); null
                         }
-                        val missing = ArrayList<String>()
-                        for ((key, loc) in configured) {
-                            val answer = try { client.isLanguageAvailable(loc) } catch (_: Exception) { TextToSpeech.LANG_NOT_SUPPORTED }
-                            if (answer == TextToSpeech.LANG_MISSING_DATA) missing.add(key)
-                        }
-                        mainHandler.post { applyRead(EngineRead(voices, missing)) }
+                        mainHandler.post { applyRead(voices) }
                     }
                 } catch (ex: Exception) {
                     // The pool refused the job (never, for an unbounded cached pool);
                     // treat it like a failed read rather than stall the walk.
-                    applyRead(EngineRead(null, emptyList()))
+                    applyRead(null)
                 }
             }
             // ERROR arrives on a BINDER thread: every client here connects through
@@ -820,53 +757,13 @@ object EngineFinder {
             }
             startEngine("(3)")
         }
-        if (quiet) { scanFirstEngine(); return }
-        val probe = arrayOfNulls<TextToSpeech>(1)
-        // THE PROBE IS GUARDED AND RELEASED ON BOTH PATHS (2026-09-10).
-        // AutoTTS's C0() calls this constructor bare too (NewSettingsActivity:402)
-        // and shuts its client down on neither path -- the same two defects as
-        // the first-engine step above, on the ONE line that runs before anything
-        // else in every app open. A throw here crashes MainActivity outright;
-        // and on the ERROR path the client stayed bound to our own service for
-        // the life of the process. Shutting it down inside its own onInit is
-        // AOSP's own mechanism: shutdown() while still connecting calls
-        // mConnectingServiceConnection.disconnect(), which is unbindService.
-        //
-        // The recovery is the one the ERROR branch already had, so nothing on
-        // the happy path moves.
-        fun probeFailed() {
-            shutdownLater(probe[0])
-            probe[0] = null
-            try {
-                android.widget.Toast.makeText(ctx, "Easy Voice: init new engine failed.", android.widget.Toast.LENGTH_LONG).show()
-            } catch (_: Exception) {}
-            finalizeScan()
-        }
-        try {
-            // Same binder-thread ERROR as the engine listeners, and here it was a
-            // crash rather than a race: probeFailed() shows a Toast, and
-            // Toast.makeText throws on a thread with no Looper.
-            fun onProbeInit(status: Int) {
-                if (status == TextToSpeech.SUCCESS && probe[0] != null) {
-                    for (engineInfo in probe[0]!!.engines) {
-                        val name = engineInfo.name
-                        if (seen.containsKey(name) || isSelfEngine(name)) continue
-                        engines.add(EngineInfo(name, engineInfo.label))
-                    }
-                    shutdownLater(probe[0])
-                    probe[0] = null
-                    scanFirstEngine()
-                } else {
-                    probeFailed()
-                }
-            }
-            probe[0] = TextToSpeech(ctx.applicationContext, { status ->
-                if (android.os.Looper.getMainLooper().isCurrentThread) onProbeInit(status)
-                else mainHandler.post { onProbeInit(status) }
-            }, BuildConfig.APPLICATION_ID)
-        } catch (ex: Exception) {
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Error when initialize probe\n" + ex.message)
-            probeFailed()
-        }
+        // THE ENGINE LIST IS THE PACKAGE MANAGER'S, ONCE (2026-09-30, owner: "koi
+        // chijen double double nahin honi chahie"). A second list used to be
+        // asked for first: a TextToSpeech bound to OUR OWN service, only to call
+        // getEngines() -- which asks the package manager the same TTS-service
+        // question getEngines(ctx) above already asked, with QUERY_ALL_PACKAGES.
+        // It cost a bind of Easy Voice on every open, and when it failed the
+        // whole scan finalized having read no engine at all.
+        scanFirstEngine()
     }
 }

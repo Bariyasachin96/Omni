@@ -4,7 +4,7 @@
 // extract.py turns the log into cases: the utterance text, then each
 // `speak N:` chunk AutoTTS logged with the language it loaded for it. Here the
 // same text goes down Easy Voice's real MIXED path -- processDirect
-// (buildMixChunks), then normalizeFancy + nativeGetLanguages on every chunk of
+// (buildMixChunks), then nativeFoldAndDetect on every chunk of
 // type 0/1/2, then languageForDetectedRun's rule -- and the two lists are
 // compared. A screen reader often cuts an utterance off, so AutoTTS's list can
 // be a PREFIX of the full split; only that prefix is compared.
@@ -25,8 +25,7 @@
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
-JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv*, jclass, jstring);
-JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv*, jclass, jstring);
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
 JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
@@ -137,10 +136,9 @@ static std::vector<Chunk> ours(const std::string& text){
         int type = atoi(one.substr(0, f1).c_str());
         std::string t = decodeChunk(one.substr(f3 + 1));
         if (type >= 3) { out.push_back({one.substr(f2 + 1, f3 - f2 - 1), t}); continue; }
-        std::string folded = S(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(env, nullptr, J(t)));
-        jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(env, nullptr, J(folded));
+        jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(env, nullptr, J(t), JNI_FALSE);
         jsize n = got ? env->GetArrayLength(got) : 0;
-        for (jsize i = 0; i + 2 < n; i += 3) {
+        for (jsize i = 1; i + 2 < n; i += 3) {
             std::string l = S((jstring)env->GetObjectArrayElement(got, i));
             bool latin = S((jstring)env->GetObjectArrayElement(got, i + 1)) == "1";
             out.push_back({resolve(l, latin), S((jstring)env->GetObjectArrayElement(got, i + 2))});
@@ -196,7 +194,7 @@ static int stress(const char* path){
         std::vector<Chunk> got = ours(text);
         chunks += (int)got.size();
         std::vector<std::string> why;
-        std::string folded = S(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(env, nullptr, J(text)));
+        std::string folded = S((jstring)env->GetObjectArrayElement(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(env, nullptr, J(text), JNI_FALSE), 0));
         std::vector<uint32_t> want, have;
         for (uint32_t c : cps(folded)) if (!isSpace(c) && !isBidi(c)) want.push_back(c);
         int riRun = 0;

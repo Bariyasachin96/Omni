@@ -83,8 +83,6 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
                                          #   chunk by chunk and language by language
     tools/verify/autottslog/run.sh --stress      # 80 emoji and mixed-script texts (stress.txt):
                                          #   nothing lost, no emoji cut in two, valid UTF-8
-    tools/verify/foldanddetect/run.sh    # nativeFoldAndDetect == normalizeFancy + nativeGetLanguages,
-                                         #   every text and word, quick-char off and on
 
 The first three build **AutoTTS's own code** from `autotts_reference/` alongside
 ours, run both over the same inputs, and diff. A failure prints the exact case.

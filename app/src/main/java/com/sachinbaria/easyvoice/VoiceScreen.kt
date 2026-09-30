@@ -572,19 +572,17 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
             // "Preferred languages" and "Numbers, punctuation and emojis" were
             // dropped on 2026-09-03. The switch says what it is on its own.
             //
-            // AND THE DESCRIPTION IS PART OF THE SWITCH'S NAME, the same merge the
-            // Advanced screen took: one focus stop per setting, no extra swipe for
-            // the paragraph. It was a bare `Text` here rather than a
+            // The description is its own focus stop, as on the Advanced screen.
+            // It was a bare `Text` here rather than a
             // SettingDescription, which is also why it drew in `onSurface` while
             // every other description in the app draws in `onSurfaceVariant` --
             // going through the shared composable fixes that too.
             SettingSwitch(
                 label = "Dedicated engines",
                 checked = dedicated,
-                enabled = readingMode != "none" && readingMode != "google",
-                description = DEDICATED_ENGINES_DESCRIPTION
+                enabled = readingMode != "none" && readingMode != "google"
             ) { picked -> dedicated = picked; EasyVoiceTtsService.dedicatedEnginesFlag = picked }
-            SettingDescription(DEDICATED_ENGINES_DESCRIPTION, spoken = false)
+            SettingDescription(DEDICATED_ENGINES_DESCRIPTION)
             // Move to the next or previous language without returning to the
             // Configuration list. Hidden entirely when there is only one
             // language, where both buttons could never do anything. At the ends

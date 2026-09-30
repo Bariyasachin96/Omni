@@ -1489,7 +1489,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //      then has a warm client of ours, so the scan's fresh clients bind fast);
     //    * when a TTS engine is installed, updated, turned on or off, or removed
     //      (packageReceiver);
-    //  quietly (EngineFinder's `quiet`: no probe, nothing on screen). A finished
+    //  quietly (no screen, nothing shown). A finished
     //  scan saves the engine, voice and language lists, hands every engine that
     //  answered its restore back (engineAnswered), and onScanFinished binds any
     //  engine the pool did not have.
@@ -1505,8 +1505,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  WHAT IT CANNOT DO, stated: if the phone's maker does not let Easy Voice start
     //  by itself (Auto-start on Xiaomi, Oppo, Realme, Vivo, Huawei and others),
     //  the system never starts the service after a restart or a RAM clear, and
-    //  nothing inside the app can run. The Troubleshoot screen shows that
-    //  setting's page when this phone has one.
+    //  nothing inside the app can run.
     // ==========================================================================
     private fun startupScan() {
         if (startupScanDone) return
@@ -1518,12 +1517,24 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun appOnScreen(): Boolean = try {
         androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
     } catch (_: Throwable) { false }
-    private fun scanInBackground(why: String, queueIfBusy: Boolean) {
+    // `pkg` is the engine a package event named. A scan that is running and has
+    // NOT reached that engine yet will read it as it is now, so a second scan
+    // after it would read the same thing twice: it is queued only when the
+    // running scan already read the engine (or never had it in its list). A
+    // package REMOVED mid-scan needs no second scan at all -- the running scan's
+    // finalize drops every engine that is no longer installed.
+    private fun scanInBackground(why: String, queueIfBusy: Boolean, pkg: String? = null) {
         onMainThread {
             if (destroyed) return@onMainThread
             try {
                 if (EngineFinder.scanRunning) {
-                    if (queueIfBusy) rescanWanted = true
+                    val coveredByRunningScan = pkg != null &&
+                        (EngineFinder.runningScanWillRead(pkg) || !EngineFinder.isInstalled(applicationContext, pkg))
+                    if (queueIfBusy && !coveredByRunningScan) rescanWanted = true
+                    if (coveredByRunningScan) {
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan (" + why + "): the running scan covers it")
+                        return@onMainThread
+                    }
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan (" + why + "): a scan is already running" + if (queueIfBusy) " -- scanning again after it" else "")
                     return@onMainThread
                 }
@@ -1534,7 +1545,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 rescanWanted = false
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Background scan: " + why)
-                EngineFinder.scanLanguages(applicationContext, quiet = true) { langs ->
+                EngineFinder.scanLanguages(applicationContext) { langs ->
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan finished: " + langs.size + " languages")
                 }
             } catch (ex: Throwable) {
@@ -1542,7 +1553,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         }
     }
-    // Any scan -- this one, the main screen's or Troubleshoot's -- has saved a new
+    // Any scan -- this one or the main screen's -- has saved a new
     // engine list. An engine in it that the pool never had (installed after the
     // service started) is added and brought up, the way recoverEngineNotReady
     // adds a configured one; the walk's own engines are left to it while it runs.
@@ -1825,7 +1836,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //     missing): the failure is the process, not the engine, so it waits for
     //     the binding to report the process back (processGone), which restores.
     // Otherwise the process is up and refused a client: the next event -- the
-    // engine speaks, its package changes, a scan reads it, Troubleshoot -- gives
+    // engine speaks, its package changes, a scan reads it -- gives
     // the restore back.
     private fun restoreFailed(wrapper: EngineWrapper, why: String) {
         if (destroyed) return
@@ -1874,90 +1885,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
             rearmRestore(wrapper, "the scan reached it")
         }
     }
-    // TROUBLESHOOT VOICE ENGINES (owner, 2026-09-24: "jo bhi voice engine kaam
-    // nahin karte honge ... scan karke sab kuchh sahi ho jaega aur automatically
-    // kaam karne lag jaega"). The user asked for it from the More options menu,
-    // so this is the one place a restore is made on request rather than on an
-    // event -- and it is still made through restoreEngine, once per engine,
-    // never on a live one:
-    //   - an engine the persisted list names but the pool never had is added,
-    //     at -1, so the restore below brings it up;
-    //   - every episode's spent restore is handed back, and a missing or dead
-    //     keep-alive binding is made again (it is what reports the next death);
-    //   - a wrapper at -1 is restored now;
-    //   - a wrapper at 2 is ASKED, off the main thread, whether it is still
-    //     connected to its own engine: getVoices() answers null through a dead
-    //     connection (runAction's error result) and boundEngineOf names the
-    //     engine the client really holds. Only a client that fails one of the
-    //     two is replaced -- a live engine is never torn down, which is the
-    //     2026-09-23 rule that kept a cold Google alive.
-    private fun troubleshootEngines() {
-        onMainThread {
-            if (destroyed) return@onMainThread
-            try {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Troubleshoot: checking every engine")
-                if (initializingIndex >= walkList.size) {
-                    for (rawPkg in ArrayList(engineList)) {
-                        if (rawPkg == packageName || wrapperFor(rawPkg) != null) continue
-                        EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Troubleshoot: " + rawPkg + " was not in the engine pool -- adding it")
-                        enginePool.add(EngineWrapper(rawPkg).also { it.state = -1 })
-                    }
-                }
-                val live = ArrayList<Pair<EngineWrapper, TextToSpeech>>()
-                for (index in 0 until enginePool.size) {
-                    val wrapper = enginePool[index]
-                    wrapper.restoreSpent = false
-                    if (wrapper.processGone || !engineBinders.containsKey(wrapper.rawPkg)) {
-                        unbindEngineKeepAlive(wrapper.rawPkg)
-                        bindEngineKeepAlive(wrapper.rawPkg)
-                    }
-                    val client = wrapper.tts
-                    if (wrapper.state == -1) {
-                        wrapper.processGone = false
-                        restoreEngine(wrapper.pkg, "troubleshoot")
-                    } else if (wrapper.state == 2 && client != null) {
-                        live.add(wrapper to client)
-                    }
-                }
-                if (live.isEmpty()) return@onMainThread
-                // Binder calls into other apps: never on the main thread, where
-                // one wedged engine would freeze the settings screen. On the
-                // app's one pool for exactly that (EngineFinder.engineCalls, a
-                // cached daemon pool from java.util.concurrent) rather than a
-                // hand-made Thread of its own.
-                EngineFinder.engineCalls.execute {
-                    for ((wrapper, client) in live) {
-                        val bound = EngineFinder.boundEngineOf(client, wrapper.rawPkg)
-                        val voices = try { client.voices } catch (_: Throwable) { null }
-                        val why = when {
-                            !isSameEnginePkg(bound, wrapper.rawPkg) -> "troubleshoot: its client is bound to " + bound
-                            voices == null -> "troubleshoot: its client lost the connection"
-                            else -> null
-                        }
-                        if (why == null) {
-                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Troubleshoot: " + wrapper.pkg + " is connected, " + voices!!.size + " voices")
-                            continue
-                        }
-                        onMainThread { if (wrapper.tts === client) clientIsDead(wrapper, why) }
-                    }
-                }
-            } catch (ex: Throwable) {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "troubleshootEngines: " + ex.toString())
-            }
-        }
-    }
-    // The troubleshooter's own test client asked this engine to synthesise a
-    // sentence and it never finished -- the one failure nothing on the speaking
-    // path can see, because an engine that accepts speak() and then says nothing
-    // raises no event. Our client for it is replaced once; if the engine itself
-    // is stuck, the report tells the user what to do next.
-    private fun onEngineUnresponsive(rawPkg: String) {
-        onMainThread {
-            val wrapper = wrapperFor(rawPkg) ?: return@onMainThread
-            wrapper.restoreSpent = false
-            if (wrapper.state == 2) clientIsDead(wrapper, "troubleshoot: it accepted text and never finished")
-        }
-    }
     // THE ENGINE'S PACKAGE WAS INSTALLED, UPDATED OR CHANGED. An update kills
     // the engine's process and the keep-alive's re-bind in onBindingDied can
     // fail while the package is being replaced -- after which no binding exists
@@ -1986,11 +1913,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     android.content.Intent.ACTION_PACKAGE_ADDED -> !replacing && isTtsEngine(changed)
                     else -> isTtsEngine(changed)
                 }
-                if (isEngine) scanInBackground("package " + changed + ": " + intent.action?.substringAfterLast('_')?.lowercase(), queueIfBusy = true)
+                if (isEngine) scanInBackground("package " + changed + ": " + intent.action?.substringAfterLast('_')?.lowercase(), queueIfBusy = true, pkg = changed)
                 if (intent.action == android.content.Intent.ACTION_PACKAGE_REMOVED) return
+                // ONE REBIND PER UPDATE (2026-09-30, "koi chijen double double
+                // nahin honi chahie"). An update sends ADDED(replacing) and then
+                // REPLACED; both used to unbind and bind the keep-alive and ask for
+                // the restore, the second while the first bind was still
+                // connecting. The ADDED half is skipped here as the scan above
+                // already skips it; REPLACED does the work.
+                if (intent.action == android.content.Intent.ACTION_PACKAGE_ADDED && replacing) return
                 val wrapper = wrapperFor(changed) ?: return
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Package " + changed + ": " + intent.action)
-                wrapper.restoreSpent = false
                 // A live binding reports the process itself; only a missing or
                 // dead one is made again, and its connect event does the rest.
                 if (wrapper.processGone || !engineBinders.containsKey(wrapper.rawPkg)) {
@@ -2770,16 +2703,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val winner = bestReal ?: bestAny ?: return "un"
         return winner.substring(0, winner.indexOf('|'))
     }
-    // nativeFoldAndDetect, with the two separate calls as the answer when it
-    // throws, so a failure behaves exactly as before: a failed fold keeps the
-    // raw text, a failed detect gives no spans.
-    private fun foldAndDetect(text: String): Array<String> {
-        try { return nativeFoldAndDetect(text, quickCharacterFlag) } catch (_: Throwable) {}
-        val folded = try { normalizeFancy(text) } catch (_: Throwable) { text }
-        if (quickCharacterFlag && folded.length == 1) return arrayOf(folded)
-        val spans = try { nativeGetLanguages(folded) } catch (_: Throwable) { return arrayOf(folded) }
-        return arrayOf(folded) + spans
-    }
+    // nativeFoldAndDetect: element 0 is the folded text, the triples follow.
+    // It is the only route to the span detector (owner, 2026-09-30: no second
+    // path). If it throws, the text goes on unfolded with no spans, so the
+    // caller falls back to the preferred language instead of losing the chunk.
+    private fun foldAndDetect(text: String): Array<String> =
+        try { nativeFoldAndDetect(text, quickCharacterFlag) } catch (_: Throwable) { arrayOf(text) }
     private fun isLatinCommonInherited(codePoint: Int): Boolean {
         val script = Character.UnicodeScript.of(codePoint)
         return script == Character.UnicodeScript.LATIN ||
@@ -4184,18 +4113,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @JvmStatic fun engineAnswered(rawPkg: String) {
             try { running?.get()?.onEngineAnswered(rawPkg) } catch (_: Throwable) {}
         }
-        // The Troubleshoot screen (TroubleshootActivity). Both are no-ops when the
-        // service is not running -- the troubleshooter's scan binds it first.
-        @JvmStatic fun troubleshootEngines(): Boolean {
-            val service = running?.get() ?: return false
-            try { service.troubleshootEngines() } catch (_: Throwable) {}
-            return true
-        }
-        @JvmStatic fun engineUnresponsive(rawPkg: String) {
-            try { running?.get()?.onEngineUnresponsive(rawPkg) } catch (_: Throwable) {}
-        }
         // "Show persistent notification" was switched, on one of the app's own
-        // screens (the Advanced tab, Troubleshoot). ON: a start is sent while the
+        // screen (the Advanced tab). ON: a start is sent while the
         // screen shows, so the foreground service begins now rather than on the
         // next utterance in the background (see onStartCommand). OFF: only a
         // running service is told, so switching it off never creates one just to
@@ -4255,10 +4174,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             neutralDefault: String, neutralType: Int,
             disableAdvancedDetection: Boolean
         ): String
-        @JvmStatic external fun nativeGetLanguages(text: String): Array<String>
+        // clsCLD2.b's fold, then the span detector, in one call.
         @JvmStatic external fun nativeFoldAndDetect(text: String, singleStops: Boolean): Array<String>
-        // clsCLD2.b: decorated Latin letters folded back to ASCII.
-        @JvmStatic external fun normalizeFancy(text: String): String
         @JvmStatic external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)
         @JvmStatic external fun setLanguageHints(langs: Array<String>)
         @JvmStatic external fun setDetectSets(detectOkIso3: Array<String>, enabledLangs: Array<String>)

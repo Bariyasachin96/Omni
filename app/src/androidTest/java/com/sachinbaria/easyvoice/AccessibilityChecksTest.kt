@@ -365,49 +365,6 @@ class AccessibilityChecksTest {
         check { AboutScreen() }
     }
 
-    // Both states of the troubleshooter: the polite progress line while it
-    // runs, and a report with a working engine, a broken one with its fix
-    // buttons, and the automatic-repairs section.
-    @Test
-    fun troubleshootRunning() {
-        check { TroubleshootScreen(working = true, progress = "Checking Speech Services by Google", result = null, onRunAgain = { }, onFix = { }) }
-    }
-
-    @Test
-    fun troubleshootReport() {
-        val fix = TroubleshootFix("App info", android.content.Intent())
-        check {
-            TroubleshootScreen(
-                working = false,
-                progress = "",
-                result = TroubleshootResult(
-                    "Done. 1 working, 1 need attention.",
-                    listOf("Hindi moved from Old engine to Speech Services by Google"),
-                    listOf(
-                        TroubleshootFinding("Easy Voice permissions", false, listOf(
-                            TroubleshootItem("Battery optimization: on. Turn it off.",
-                                listOf(TroubleshootFix("Turn off battery optimization", android.content.Intent()))),
-                            TroubleshootItem("Persistent notification: off. Turn it on to keep Easy Voice running.",
-                                listOf(TroubleshootFix("Turn on persistent notification", action = { }))),
-                            TroubleshootItem("Notifications: allowed."),
-                            TroubleshootItem("Auto-start: allow Easy Voice and each voice engine, so they start again after a restart or Clear all.",
-                                listOf(TroubleshootFix("Auto-start settings", android.content.Intent()))))),
-                        TroubleshootFinding("Speech Services by Google", true, listOf(
-                            TroubleshootItem("Working. 2 languages."),
-                            TroubleshootItem("More languages can be downloaded.", listOf(TroubleshootFix("Download voice data", android.content.Intent()))),
-                            TroubleshootItem("Battery optimization: off."))),
-                        TroubleshootFinding("Eloquence", false, listOf(
-                            TroubleshootItem("Not working: stopped answering. Force stop it in App info, then run again.", listOf(fix)),
-                            TroubleshootItem("Battery optimization: on. Set it to Unrestricted.",
-                                listOf(TroubleshootFix("Battery optimization settings", android.content.Intent()))),
-                            TroubleshootItem("Set up for: English.")))
-                    )
-                ),
-                onRunAgain = { }, onFix = { }
-            )
-        }
-    }
-
     @Test
     fun configurationTab() {
         check {

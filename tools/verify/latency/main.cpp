@@ -18,8 +18,7 @@
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
-JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv*, jclass, jstring);
-JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv*, jclass, jstring);
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
 JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
@@ -117,20 +116,16 @@ int main(){
         // 2. one detection per chunk, which is what detectLanguageRuns does.
         // There is one detector now: CLD3 was removed on 2026-09-02 and this
         // used to carry a second column for it.
-        // detectLanguageRuns calls normalizeFancy AND THEN nativeGetLanguages for
-        // every chunk, so both are timed -- measuring only the detector hid a
-        // whole second JNI round trip per chunk.
+        // detectLanguageRuns calls nativeFoldAndDetect once per chunk (fold +
+        // spans in one crossing). Both columns time that call; they are two
+        // runs of the same work, so their difference is the run-to-run noise.
         auto detectAll = [&](bool withFold) -> double {
             const double t0 = nowMs();
             for (const std::string& c : chunkTexts) {
                 if (c.empty()) continue;
                 jstring js = env->NewStringUTF(c.c_str());
-                if (withFold) {
-                    jstring folded = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(env, nullptr, js);
-                    env->DeleteLocalRef(js);
-                    js = folded;
-                }
-                jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(env, nullptr, js);
+                jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(env, nullptr, js, JNI_FALSE);
+                (void)withFold;
                 (void)got;
                 env->DeleteLocalRef(js);
             }

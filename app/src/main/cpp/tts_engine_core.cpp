@@ -1923,27 +1923,14 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
     std::string out = result + "\x01" + log;
     return env->NewStringUTF(out.c_str());
 }
-// clsCLD2.b, for the Kotlin side. clsCLD2.e and the new clsCLD2.f both call
-// it before anything else, and e()'s quick-character test measures the
-// NORMALISED string, so the fold has to be visible there rather than hidden
-// inside nativeGetLanguages.
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_normalizeFancy(JNIEnv* env, jclass, jstring jText){
-    if(!jText) return env->NewStringUTF("");
-    std::string text;
-    if(!jstringToStd(env, jText, text)) return nullptr;      // exception pending
-    return env->NewStringUTF(normalizeFancyText(text).c_str());
-}
-
 // ==========================================================================
-//  JNI: nativeGetLanguages     libcld2.so getLanguageSpans 0x65392c
+//  JNI: nativeFoldAndDetect    libcld2.so getLanguageSpans 0x65392c
 //  Script 0 -- a run with nothing classified: digits, punctuation, spaces,
 //  emoji -- answers "un" with latin = TRUE and never reaches a detector. That
 //  is why a bare number is read in the LATIN preferred language.
 // ==========================================================================
-// The span walk itself, with no JNI in it, so nativeGetLanguages and
-// nativeFoldAndDetect run the SAME code. Returns lang, latin flag, text
-// triples, flattened, exactly as the JNI array carries them.
+// The span walk itself, with no JNI in it. Returns lang, latin flag, text
+// triples, flattened, exactly as nativeFoldAndDetect's array carries them.
 static std::vector<std::string> languageSpansFlat(const std::string& text){
     struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
     std::vector<ScriptSpan> spans;
@@ -2229,17 +2216,10 @@ static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std
     for(jsize i=0;i<(jsize)flat.size();i++) env->SetObjectArrayElement(arr,i,env->NewStringUTF(flat[i].c_str()));
     return arr;
 }
-extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeGetLanguages(JNIEnv* env, jclass, jstring jText){
-    jclass stringClass = stringClassRef(env);
-    if(!stringClass) return nullptr;                          // exception pending
-    if(!jText) return env->NewObjectArray(0, stringClass, nullptr);
-    std::string text;
-    if(!jstringToStd(env, jText, text)) return nullptr;      // OOM pending
-    return toJavaStringArray(env, stringClass, languageSpansFlat(text));
-}
 // clsCLD2.e / clsCLD2.f's first two steps in ONE crossing (owner, 2026-09-30):
-// fold the text (clsCLD2.b), then ask for its spans. Element 0 is the folded
+// fold the text (clsCLD2.b), then find its spans. It is the ONLY way the app
+// reaches the span detector; the separate normalizeFancy / nativeGetLanguages
+// entry points were removed at the owner's request. Element 0 is the folded
 // text, because the quick-character test measures it; the triples follow. When
 // the folded text is a single UTF-16 unit and `singleStops` is set, the spans
 // are not computed, because the caller answers that case without them.

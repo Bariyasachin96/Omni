@@ -39,38 +39,23 @@ import androidx.core.content.FileProvider
 
 // Material's list row owns the heights, padding and colours.
 //
-// THE DESCRIPTION IS PART OF THE SWITCH'S OWN NAME NOW (owner, 2026-09-17:
-// "TalkBack ka ek extra focus jata hai description ke liye ... uske sath hi vah
-// description join kar do taki mujhe alag se description ke liye swipe na karna
-// pade"). One focus stop per setting, not two.
-//
-// HOW: `description` is appended to the row's accessible name, and the visible
-// paragraph beside the row is silenced with `clearAndSetSemantics` so it stays
-// on screen and stops being a second stop.
-//
 // THE SWITCH ROLE, ON/OFF AND THE CLICK ARE `toggleable`'s OWN (owner,
 // 2026-09-29: "jis chij ke liye components available hai vah components use
 // karo"). They used to be declared a second time by hand in `evControl`; that
 // is gone. See the note in ComposeTheme.kt.
 //
-// THIS REVERSES A DEVICE-TESTED REJECTION, so it is written down rather than
-// slipped in. In the View era the same folding was tried and the owner rejected
-// it, because TalkBack then read the whole paragraph before you could act. The
-// complaint now is the opposite one -- the extra swipe -- and the owner has
-// asked for it directly. If the paragraph starts getting in the way again, the
-// revert is to stop passing `description` here and to drop `spoken = false`
-// below: two arguments.
+// THE DESCRIPTION IS ITS OWN FOCUS STOP AGAIN (owner, 2026-09-30: "vah
+// alag-alag chahie jo pahle tha"). On 2026-09-17 it was folded into the
+// switch's name so one swipe said both; the owner has asked for the earlier
+// shape back: the switch says its label, the paragraph under it is read on the
+// next swipe. Do not fold them together again without the owner asking.
 @Composable
 fun SettingSwitch(
     label: String,
     checked: Boolean,
     enabled: Boolean = true,
-    // Spoken as part of the row, never drawn by it. It sits BEFORE `onChange` so
-    // the trailing-lambda call sites keep working unchanged.
-    description: String = "",
     onChange: (Boolean) -> Unit
 ) {
-    val spokenName = if (description.isEmpty()) label else label + ". " + description
     val haptic = LocalHapticFeedback.current
     ListItem(
         headlineContent = {
@@ -116,30 +101,19 @@ fun SettingSwitch(
                 role = Role.Switch,
                 onValueChange = { picked -> haptic.toggled(picked); onChange(picked) }
             )
-            .clearAndSetSemantics { contentDescription = spokenName }
+            .clearAndSetSemantics { contentDescription = label }
     )
 }
 
-// `spoken = false` draws the paragraph and takes it OUT of the accessibility
-// tree, for the one case where the text is already being said by the control
-// above it -- see SettingSwitch. It is `clearAndSetSemantics` rather than
-// `hideFromAccessibility()` on that API's own advice: its KDoc says to use
-// clearAndSetSemantics for content that is redundant with its parent, and
-// reserves hideFromAccessibility for content that is OCCLUDED.
-//
-// The default stays `true`, and that matters: About and the Licenses screen use
-// this for text that nothing else speaks -- the version, the developer, the
-// whole Apache notice -- and silencing those would delete them for the one
-// person this app is built for.
+// A description is read on its own swipe, after the control it explains.
 @Composable
-fun SettingDescription(text: String, spoken: Boolean = true) {
+fun SettingDescription(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .then(if (spoken) Modifier else Modifier.clearAndSetSemantics { })
     )
 }
 
@@ -149,8 +123,7 @@ fun SettingDescription(text: String, spoken: Boolean = true) {
 // everywhere or the grouping it creates is a lie. 12dp on top of
 // SettingDescription's own 4 makes 16 -- the same measure the section header
 // used to reserve above itself.
-// Said by the switch AND drawn under it, so it is one string rather than two
-// copies that can drift. It covers the Group size dropdown as well, which is why
+// One string, drawn once under the switch. It covers the Group size dropdown as well, which is why
 // it is not passed through SettingOption.
 private const val SMART_NUMBER_DESCRIPTION =
     "Reads long numbers, like phone numbers and codes, in small groups of digits. " +
@@ -171,8 +144,7 @@ fun OptionGap() {
 // a number every future row has to remember. With the section headers gone this
 // grouping is the only structure the screen has left.
 //
-// The description is drawn as a sibling under the row, as it always has been;
-// the row's accessible name already carries it, so the sibling is silenced.
+// The description is drawn as a sibling under the row and read on its own swipe.
 @Composable
 fun SettingOption(
     label: String,
@@ -181,8 +153,8 @@ fun SettingOption(
     enabled: Boolean = true,
     onChange: (Boolean) -> Unit
 ) {
-    SettingSwitch(label, checked, enabled, description, onChange)
-    SettingDescription(description, spoken = false)
+    SettingSwitch(label, checked, enabled, onChange)
+    SettingDescription(description)
     OptionGap()
 }
 
@@ -313,8 +285,7 @@ fun AdvancedScreen(
             // group and the gap goes after the LAST of them.
             SettingSwitch(
                 "Smart number reading",
-                smartNumber,
-                description = SMART_NUMBER_DESCRIPTION
+                smartNumber
             ) { picked ->
                 smartNumber = picked; EasyVoiceTtsService.smartNumberFlag = picked
             }
@@ -325,7 +296,7 @@ fun AdvancedScreen(
             // second would appear and disappear with it, so what the sizes mean
             // would only ever be readable AFTER you had already turned the
             // feature on. Said once, here, it is there either way.
-            SettingDescription(SMART_NUMBER_DESCRIPTION, spoken = false)
+            SettingDescription(SMART_NUMBER_DESCRIPTION)
             // c3.k:1101-1105 -- three entries, selection is f0 - 1.
             //
             // DRAWN ONLY WHILE THE SWITCH IS ON (owner, 2026-09-17:
@@ -393,7 +364,7 @@ fun AdvancedScreen(
                     Toast.makeText(context, "Battery optimization is already off for Easy Voice", Toast.LENGTH_LONG).show()
                 }
             }
-            SettingDescription("Turns battery optimization off for Easy Voice. Troubleshoot voice engines shows it for each voice engine.")
+            SettingDescription("Turns battery optimization off for Easy Voice. Set each voice engine to Unrestricted as well.")
             OptionGap()
             // Import and Export are gone (owner, 2026-09-17), and on 2026-09-24
             // the unreachable code behind them went too.

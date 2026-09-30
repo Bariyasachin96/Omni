@@ -210,9 +210,21 @@ class MainActivity : EvActivity() {
                 )
             }
         }
-        EngineFinder.scanLanguages(this, { line -> runOnUiThread { scanLine = line } }) { newTestClient(); runOnUiThread {
+        // A ROTATION IS NOT A NEW OPEN (2026-09-30, "koi chijen double double
+        // nahin honi chahie"). Turning the phone recreates this screen, and it
+        // used to walk every engine again -- 30 s each at worst -- for lists this
+        // process had just saved. When the screen is only being recreated and
+        // a scan has already finished here, the saved lists are used. A real
+        // open (no saved state), or a recreate while a scan is still running,
+        // scans as before.
+        if (savedInstanceState != null && EngineFinder.scanFinishedInProcess && !EngineFinder.scanRunning) {
             scanning = false
-        } }
+            newTestClient()
+        } else {
+            EngineFinder.scanLanguages(this, { line -> runOnUiThread { scanLine = line } }) { newTestClient(); runOnUiThread {
+                scanning = false
+            } }
+        }
     }
     override fun onPause() {
         LangStore.persistAll(this)
@@ -459,7 +471,7 @@ fun MainScreen(
                             val openTtsSettings = {
                                 menuOpen = false
                                 try {
-                                    context.startActivity(Intent(TroubleshootActivity.TTS_SETTINGS_ACTION).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                    context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                                 } catch (_: android.content.ActivityNotFoundException) {
                                     Toast.makeText(context, "TTS settings are not available on this device.", Toast.LENGTH_SHORT).show()
                                 }
@@ -468,21 +480,10 @@ fun MainScreen(
                                 menuOpen = false
                                 context.startActivity(Intent(context, AboutActivity::class.java))
                             }
-                            // Its own screen, for the reason every screen here is one:
-                            // the window title announces it, and back leaves it.
-                            val openTroubleshoot = {
-                                menuOpen = false
-                                context.startActivity(Intent(context, TroubleshootActivity::class.java))
-                            }
                             DropdownMenuItem(
                                 text = { SilentText("TTS Settings") },
                                 onClick = openTtsSettings,
                                 modifier = Modifier.semantics { contentDescription = "TTS Settings" }
-                            )
-                            DropdownMenuItem(
-                                text = { SilentText("Troubleshoot voice engines") },
-                                onClick = openTroubleshoot,
-                                modifier = Modifier.semantics { contentDescription = "Troubleshoot voice engines" }
                             )
                             DropdownMenuItem(
                                 text = { SilentText("About Easy Voice") },
