@@ -6,7 +6,18 @@
 #   tools/check/native-exports.sh <app.apk>
 set -euo pipefail
 apk=${1:?usage: native-exports.sh <apk>}
-NM=$(command -v llvm-nm || ls "${ANDROID_HOME:-tools/.cache/android-sdk}"/ndk/*/toolchains/llvm/prebuilt/*/bin/llvm-nm tools/.cache/android-sdk/ndk/*/toolchains/llvm/prebuilt/*/bin/llvm-nm 2>/dev/null | head -1)
+# Find llvm-nm without `ls glob | head`: on CI tools/.cache does not exist, ls
+# exits 2, and under pipefail + set -e that killed the script with no message
+# (build 946). A plain loop over the globs cannot fail.
+NM=$(command -v llvm-nm || true)
+if [ -z "$NM" ]; then
+  for c in "${ANDROID_HOME:-/nonexistent}"/ndk/*/toolchains/llvm/prebuilt/*/bin/llvm-nm \
+           tools/.cache/android-sdk/ndk/*/toolchains/llvm/prebuilt/*/bin/llvm-nm; do
+    [ -x "$c" ] && { NM=$c; break; }
+  done
+fi
+[ -n "$NM" ] || { echo "FAIL llvm-nm not found (PATH, \$ANDROID_HOME/ndk, tools/.cache)"; exit 1; }
+echo "using $NM"
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 unzip -q -o "$apk" 'lib/*/libeasyvoice.so' -d "$work"
 fail=0; n=0
