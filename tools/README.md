@@ -90,6 +90,10 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/persist/run.sh          # persist* write the same prefs, never under the list lock
     tools/verify/sortkeys/run.sh         # sortedByName == fold-per-comparison order, 13 locales
     tools/verify/uilists/run.sh          # Voice setup row order + Languages filter == before
+    tools/verify/enginefinder/run.sh     # built-in engine asked once, no labels; scan label map
+    tools/verify/voicelist/run.sh        # voice list split once; findEngineForLocale == before
+    tools/verify/rebuild/run.sh          # rebuildFromScan with HashSet/maps == before
+    tools/verify/runlang/run.sh          # a detected run's iso3 memoised per utterance == before
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

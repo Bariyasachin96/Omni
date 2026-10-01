@@ -19,9 +19,18 @@ object EngineFinder {
     // on binder threads). The APPLICATION context only -- never an Activity or
     // the Service, which is what the 2026-09-10 appCtx leak held.
     @Volatile private var appContext: Context? = null
+    // ASKED ONCE, NOT ON EVERY SCREEN (owner, 2026-10-01). Every screen's
+    // onCreate, the service's onCreate and loadMode all came through here, and
+    // each one re-asked the package manager three times for every engine AND
+    // loaded every engine's label -- another app's resources, on the main
+    // thread -- although nothing about the engines had changed. The answer can
+    // only change when a package changes (the service's receiver refreshes it)
+    // or a scan runs (scanLanguages refreshes it), so attach asks only the
+    // first time in this process.
+    @Volatile private var builtInKnown = false
     @JvmStatic fun attach(ctx: Context) {
         if (appContext == null) appContext = ctx.applicationContext
-        refreshBuiltInEngine()
+        if (!builtInKnown) refreshBuiltInEngine()
     }
     // THE ENGINE'S OWN NAME, AS ANDROID GIVES IT (2026-09-24). The scan has always
     // names every engine with resolveInfo.loadLabel -- the label of the engine's
@@ -33,10 +42,27 @@ object EngineFinder {
     // update), and for a package that is not installed at all -- an imported
     // configuration can name one -- a name built from the package itself.
     private val labelCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    // The last scan's label for a package: the FIRST voice of that package in
+    // lastScanVoices, as `firstOrNull { it.pkg == pkg }` gave it -- but looked
+    // up in a map built once per scan result, instead of walking every scanned
+    // voice for every row of the Configuration list on every recomposition
+    // (owner, 2026-10-01). A new scan result is a new list, which rebuilds it.
+    @Volatile private var scanLabels: Pair<List<ScanVoice>, Map<String, String>>? = null
+    private fun scanLabelOf(pkg: String): String? {
+        val voices = lastScanVoices
+        var cached = scanLabels
+        if (cached == null || cached.first !== voices) {
+            val map = HashMap<String, String>()
+            for (voice in voices) if (!map.containsKey(voice.pkg)) map[voice.pkg] = voice.engineName
+            cached = Pair(voices, map)
+            scanLabels = cached
+        }
+        return cached.second[pkg]
+    }
     @JvmStatic
     fun engineLabel(ctx: Context, pkg: String?): String {
         if (pkg.isNullOrEmpty()) return friendlyName(pkg)
-        lastScanVoices.firstOrNull { it.pkg == pkg }?.engineName?.takeIf { it.isNotBlank() }?.let { return it }
+        scanLabelOf(pkg)?.takeIf { it.isNotBlank() }?.let { return it }
         labelCache[pkg]?.let { return it }
         val label = installedEngines(ctx, pkg).firstOrNull()?.label?.takeIf { it.isNotBlank() }
         if (label != null) { labelCache[pkg] = label; return label }
@@ -73,12 +99,15 @@ object EngineFinder {
     // ==========================================================================
     data class EngineService(val pkg: String, val label: String, val system: Boolean, val priority: Int)
     @JvmStatic
-    fun installedEngines(ctx: Context, onlyPkg: String? = null): List<EngineService> =
-        queryEngines(ctx, onlyPkg) ?: emptyList()
+    fun installedEngines(ctx: Context, onlyPkg: String? = null, withLabels: Boolean = true): List<EngineService> =
+        queryEngines(ctx, onlyPkg, withLabels) ?: emptyList()
     // Null only when the package manager could not be asked at all (every query
     // threw), which callers that would otherwise MOVE a configuration read as
     // "unknown", never as "not installed".
-    private fun queryEngines(ctx: Context, onlyPkg: String?): List<EngineService>? {
+    // withLabels = false leaves `label` empty: loadLabel opens the ENGINE's own
+    // resources, which is the slow part of this question, and only callers
+    // that show a name need it.
+    private fun queryEngines(ctx: Context, onlyPkg: String?, withLabels: Boolean = true): List<EngineService>? {
         val out = ArrayList<EngineService>()
         val seen = HashSet<String>()
         var answered = false
@@ -93,7 +122,7 @@ object EngineFinder {
                     val appFlags = service.applicationInfo?.flags ?: 0
                     out.add(EngineService(
                         service.packageName,
-                        try { resolveInfo.loadLabel(pm).toString() } catch (_: Exception) { "" },
+                        if (!withLabels) "" else try { resolveInfo.loadLabel(pm).toString() } catch (_: Exception) { "" },
                         appFlags and (android.content.pm.ApplicationInfo.FLAG_SYSTEM or android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
                         resolveInfo.priority))
                 }
@@ -109,7 +138,7 @@ object EngineFinder {
     // `whenUnknown` is the answer if the package manager could not be asked.
     @JvmStatic fun isTtsEngine(ctx: Context, pkg: String, whenUnknown: Boolean = false): Boolean {
         if (pkg.isEmpty()) return false
-        val found = queryEngines(ctx, pkg) ?: return whenUnknown
+        val found = queryEngines(ctx, pkg, withLabels = false) ?: return whenUnknown
         return found.isNotEmpty()
     }
 
@@ -189,17 +218,21 @@ object EngineFinder {
     // intent filter's priority -- and the framework falls back to the head of
     // that list when nothing else is chosen. Ours is never it. Empty when the
     // phone has no built-in engine, which is where "Google installed" used to be
-    // false. Recomputed on attach, on every scan and on a package change.
+    // false. Asked on the first attach, on every scan and on a package change.
     @Volatile @JvmStatic var builtInEngine: String = ""
         private set
     @JvmStatic fun refreshBuiltInEngine() {
         val ctx = appContext ?: return
-        builtInEngine = try {
-            installedEngines(ctx)
+        try {
+            // null = the package manager could not be asked at all: the answer
+            // stays what it was, and the next attach asks again.
+            val engines = queryEngines(ctx, null, withLabels = false) ?: return
+            builtInEngine = engines
                 .filter { it.system && !isSelfEngine(it.pkg) }
                 .sortedByDescending { it.priority }
                 .firstOrNull()?.pkg ?: ""
-        } catch (_: Exception) { builtInEngine }
+            builtInKnown = true
+        } catch (_: Exception) { }
     }
 
     // THE 3-ARG TextToSpeech CONSTRUCTOR SILENTLY FALLS BACK TO ANOTHER ENGINE,
@@ -368,6 +401,8 @@ object EngineFinder {
         onResult: (Set<String>) -> Unit
     ) {
         attach(ctx)
+        // A scan is one of the two moments the built-in engine is asked again.
+        if (builtInKnown) refreshBuiltInEngine()
         val engines = ArrayList<EngineInfo>()
         val seen = HashMap<String, EngineInfo>()
         val myGeneration = ++scanGeneration

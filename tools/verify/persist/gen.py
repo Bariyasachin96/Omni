@@ -21,19 +21,21 @@ def lift(path, name):
                 j += 1
         j += 1
     return text[i:j+1]
-FUNS = ["persistLanguages", "persistDisabled", "persistEngines", "persistVoiceList", "persistVoiceRows", "voiceRowKey"]
+FUNS = ["persistLanguages", "persistDisabled", "persistEngines", "persistVoiceList", "persistVoiceRows", "voiceRowKey",
+        "persistAll", "persistModeLangs", "persistMode", "persistFlags"]
+HELPERS = ["putLanguages", "putEngines", "putVoiceList", "putModeLangs", "putMode", "putFlags", "putVoiceRows"]
 def body(path):
     text = open(path, encoding="utf-8").read()
     parts = []
     m = re.search(r"^[ \t]*private class Persisted\(.*$", text, re.M)
     if m: parts.append(m.group(0).strip().replace("private ", ""))
-    names = FUNS + (["snapshot"] if "fun snapshot(" in text else [])
+    names = FUNS + (["snapshot"] if "fun snapshot(" in text else []) + [h for h in HELPERS if ("fun " + h + "(") in text]
     for n in names:
         if n == "voiceRowKey":
             m = re.search(r"fun voiceRowKey\(.*\n.*\n", text)
             parts.append(m.group(0)); continue
         parts.append(lift(path, n))
-    return "\n".join(parts)
+    return "\n".join(parts).replace("SharedPreferences.Editor", "Prefs.Ed").replace("SharedPreferences", "Prefs")
 with open(out, "w", encoding="utf-8") as f:
     f.write('@file:Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE", "NAME_SHADOWING", "unused")\n')
     f.write("object OldP {\n val languages get() = Lists.languages\n" + body(old_ls) + "\n}\n")

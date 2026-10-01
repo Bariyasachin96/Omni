@@ -1052,10 +1052,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             var effectiveVariant = variant
             run {
-                for (index in 0 until voiceList.size) {
-                    val parts = voiceList[index].split("#")
-                    if (parts.size < 2 || parts[0] != normPkg || parts[1] != locale.toString()) continue
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "voice: " + voiceList[index] }
+                val voices = voiceEntries()
+                val localeTag = locale.toString()
+                for (index in voices.indices) {
+                    val parts = voices[index].parts
+                    if (parts.size < 2 || parts[0] != normPkg || parts[1] != localeTag) continue
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "voice: " + voices[index].raw }
                     // THE LAST TWO UNSYNCHRONIZED WALKS OF LangStore.languages WERE
                     // HERE AND IN loadVoiceDedicated (2026-09-11), and they were the
                     // two on the SPEAKING path -- the one place this hole costs a
@@ -1312,9 +1314,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         var effectiveVariant = variant
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Searching " + normPkg + " " + locale }
         run {
-            for (index in 0 until voiceList.size) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " *" + voiceList[index] }
-                val parts = voiceList[index].split("#")
+            val voices = voiceEntries()
+            for (index in voices.indices) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " *" + voices[index].raw }
+                val parts = voices[index].parts
                 if (parts.size < 2 || parts[0] != normPkg) continue
                 // Same fix as loadVoice's walk above, and the same reason.
                 var langIdx = 0
@@ -2254,6 +2257,33 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -res " + result }
         return result
     }
+    // THE VOICE LIST, SPLIT ONCE (owner, 2026-10-01). loadVoice, loadVoiceDedicated,
+    // findEngineForLocale and switchToAlternative each walked voiceList -- every
+    // voice of every engine, hundreds -- calling split("#") on every entry, and
+    // findEngineForLocale walked it THREE times, building a Locale and its ISO
+    // codes for every entry each time. That ran on the main looper between two
+    // chunks. Each entry is now split once, and its Locale and ISO codes are
+    // worked out the first time something asks, for as long as the list lasts.
+    // A new list (persistVoiceList assigns one) or a grown one (loadVoiceList
+    // appends to the empty list it starts from) is parsed again. The answers are
+    // the ones split / parseVoiceNameAsLocale / localeIso3 / isO3Country give:
+    // tools/verify/voicelist/run.sh.
+    private inner class VoiceEntry(val raw: String) {
+        val parts: List<String> = raw.split("#")
+        val storedLocale: java.util.Locale? by lazy { parseVoiceNameAsLocale(parts[1]) }
+        val storedIso3: String by lazy { storedLocale?.let { localeIso3(it) } ?: "" }
+        val storedCountry: String by lazy { storedLocale?.let { try { it.isO3Country } catch (_: Exception) { "" } } ?: "" }
+    }
+    @Volatile private var parsedVoices: Pair<ArrayList<String>, List<VoiceEntry>>? = null
+    private fun voiceEntries(): List<VoiceEntry> {
+        val list = voiceList
+        val cached = parsedVoices
+        if (cached != null && cached.first === list && cached.second.size == list.size) return cached.second
+        val parsed = ArrayList<VoiceEntry>(list.size)
+        for (index in 0 until list.size) parsed.add(VoiceEntry(list[index]))
+        parsedVoices = Pair(list, parsed)
+        return parsed
+    }
     private fun parseVoiceNameAsLocale(voiceName: String?): java.util.Locale? {
         if (voiceName == null) return null
         return try {
@@ -2331,10 +2361,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 return rawPkg
             }
             // 1. the last full scan, in its own order
-            for (entry in ArrayList(voiceList)) {
-                val parts = entry.split("#")
+            for (voice in voiceEntries()) {
+                val parts = voice.parts
                 if (parts.size < 2 || !usable(parts[0])) continue
-                val loc = parseVoiceNameAsLocale(parts[1]) ?: continue
+                val loc = voice.storedLocale ?: continue
                 if (localeIso3(loc) != lang) continue
                 if (liveWrapper(parts[0]) == null) { tried.add(normPkg(parts[0])); recoverEngineNotReady(parts[0]); continue }
                 take(parts[0], loc)?.let { return it }
@@ -2357,7 +2387,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // restores it). A bind is asynchronous, so THIS chunk cannot wait for
             // it; the next one finds it live and step 2 asks it for the language.
             val started = ArrayList<String>()
-            val installed = EngineFinder.installedEngines(this).map { it.pkg }
+            val installed = EngineFinder.installedEngines(this, withLabels = false).map { it.pkg }
             for (rawPkg in installed) {
                 if (!usable(rawPkg)) continue
                 if (liveWrapper(rawPkg) != null) continue
@@ -2420,25 +2450,24 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val requestedIso3 = localeIso3(locale)
         val requestedCountry = try { locale.isO3Country } catch (_: Exception) { "" }
         val requestedVariant = locale.variant
-        for (index in 0 until voiceList.size) {
-            val parts = voiceList[index].split("#")
+        val voices = voiceEntries()
+        for (voice in voices) {
+            val parts = voice.parts
             if (parts.size != 2 && parts.size != 3) continue
-            val storedLocale = parseVoiceNameAsLocale(parts[1]) ?: return ""
-            val storedCountryIso3 = try { storedLocale.isO3Country } catch (_: Exception) { "" }
-            if (requestedIso3 == localeIso3(storedLocale) && requestedCountry == storedCountryIso3 && requestedVariant == storedLocale.variant) return parts[0]
+            val storedLocale = voice.storedLocale ?: return ""
+            if (requestedIso3 == voice.storedIso3 && requestedCountry == voice.storedCountry && requestedVariant == storedLocale.variant) return parts[0]
         }
-        for (index in 0 until voiceList.size) {
-            val parts = voiceList[index].split("#")
+        for (voice in voices) {
+            val parts = voice.parts
             if (parts.size != 2 && parts.size != 3) continue
-            val storedLocale = parseVoiceNameAsLocale(parts[1]) ?: return ""
-            val storedCountryIso3 = try { storedLocale.isO3Country } catch (_: Exception) { "" }
-            if (requestedIso3 == localeIso3(storedLocale) && requestedCountry == storedCountryIso3) return parts[0]
+            voice.storedLocale ?: return ""
+            if (requestedIso3 == voice.storedIso3 && requestedCountry == voice.storedCountry) return parts[0]
         }
-        for (index in 0 until voiceList.size) {
-            val parts = voiceList[index].split("#")
+        for (voice in voices) {
+            val parts = voice.parts
             if (parts.size != 2 && parts.size != 3) continue
-            val storedLocale = parseVoiceNameAsLocale(parts[1]) ?: return ""
-            if (requestedIso3 == localeIso3(storedLocale)) return parts[0]
+            voice.storedLocale ?: return ""
+            if (requestedIso3 == voice.storedIso3) return parts[0]
         }
         return ""
     }
@@ -2816,6 +2845,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return script == Character.UnicodeScript.LATIN ||
             script == Character.UnicodeScript.COMMON ||
             script == Character.UnicodeScript.INHERITED
+    }
+    // A detected run's final iso3, as the mix and multilingual loops add it:
+    // prefs.toIso3(languageForDetectedRun(...)). The answer depends only on the
+    // run's language and latin flag within one utterance, so with a `memo` it is
+    // worked out once per (language, latin) instead of once per run -- each
+    // time an ISO conversion and a walk of the language list (owner,
+    // 2026-10-01). While logging is on the callers pass no memo, so the log
+    // keeps every getEngine4Language block it had.
+    private fun detectedLangOf(run: DetectedRun, latinFallback: String, nonLatinFallback: String, memo: HashMap<String, String>?): String {
+        if (memo == null) return prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))
+        return memo.getOrPut(run.lang + if (run.latin) "|1" else "|0") {
+            prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))
+        }
     }
     private fun languageForDetectedRun(run: DetectedRun, latinFallback: String, nonLatinFallback: String): String {
         val byScript = if (run.latin) latinFallback else nonLatinFallback
@@ -3209,6 +3251,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 val disableAdvancedDetection = disableAdvancedFlag
                 val quick = quickCharacterFlag
                 val autoModeF = prefs.toIso3(autoLang)
+                val runLangMemo = if (EasyVoiceLogger.isLoggingEnabled()) null else HashMap<String, String>()
+                // The three specific languages are the same for every span of
+                // this utterance; converted once, not once per span.
+                val numberSpecific = normalizeLangCode(numberSpecificLang)
+                val puncSpecific = normalizeLangCode(puncSpecificLang)
+                val emojiSpecific = normalizeLangCode(emojiSpecificLang)
                 for (spanChunk in localeChunks) {
                     if (isFlushed) break
                     if (!spanChunk.lang.equals("unknown", ignoreCase = true) && spanChunk.lang != "") {
@@ -3218,9 +3266,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         val chunkOutput = processDirect(
                             spanChunk.text,
                             latinFallback, nonLatinFallback, "mix",
-                            numberModeInt, normalizeLangCode(numberSpecificLang),
-                            punctuationModeInt, normalizeLangCode(puncSpecificLang),
-                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
+                            numberModeInt, numberSpecific,
+                            punctuationModeInt, puncSpecific,
+                            emojiModeInt, emojiSpecific, punctuationInFlowFlag, smartNumberFlag,
                             smartNumberGroupSize,
                             neutralDefault, neutralType, disableAdvancedDetection, true, quick
                         )
@@ -3239,7 +3287,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                     chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))
                                 } else {
                                     for (run in detectedRunsOf(parts, quick)) {
-                                        chunks.add(TextChunk(run.text, prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))))
+                                        chunks.add(TextChunk(run.text, detectedLangOf(run, latinFallback, nonLatinFallback, runLangMemo)))
                                     }
                                 }
                             }
@@ -3273,6 +3321,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
                 val disableAdvancedDetection = disableAdvancedFlag
                 val quick = quickCharacterFlag
+                val runLangMemo = if (EasyVoiceLogger.isLoggingEnabled()) null else HashMap<String, String>()
+                val numberSpecific = normalizeLangCode(numberSpecificLang)
+                val puncSpecific = normalizeLangCode(puncSpecificLang)
+                val emojiSpecific = normalizeLangCode(emojiSpecificLang)
                 for (spanChunk in localeChunks) {
                     if (isFlushed) break
                     if (!spanChunk.lang.equals("unknown", ignoreCase = true) && spanChunk.lang.isNotEmpty() && hasEngineForLang(spanChunk.lang)) {
@@ -3281,9 +3333,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         val chunkOutput = processDirect(
                             spanChunk.text,
                             latinFallback, nonLatinFallback, "mix",
-                            numberModeInt, normalizeLangCode(numberSpecificLang),
-                            punctuationModeInt, normalizeLangCode(puncSpecificLang),
-                            emojiModeInt, normalizeLangCode(emojiSpecificLang), punctuationInFlowFlag, smartNumberFlag,
+                            numberModeInt, numberSpecific,
+                            punctuationModeInt, puncSpecific,
+                            emojiModeInt, emojiSpecific, punctuationInFlowFlag, smartNumberFlag,
                             smartNumberGroupSize,
                             neutralDefault, neutralType, disableAdvancedDetection, true, quick
                         )
@@ -3295,7 +3347,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))
                             } else {
                                 for (run in detectedRunsOf(parts, quick)) {
-                                    chunks.add(TextChunk(run.text, prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))))
+                                    chunks.add(TextChunk(run.text, detectedLangOf(run, latinFallback, nonLatinFallback, runLangMemo)))
                                 }
                             }
                         }

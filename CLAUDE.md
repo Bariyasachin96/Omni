@@ -8,6 +8,39 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE KOTLIN SWEEP: SIX MORE, ONE DECLINED ON PURPOSE (owner, 2026-10-01, latest)
+*"Sub complete but Sab Kuchh behtarin karna ... jo best Ho test Karke complete karna."*
+- **1 EngineFinder.attach asks once.** Every screen's onCreate, the service's onCreate and loadMode re-ran
+  refreshBuiltInEngine: 3 package-manager queries + loadLabel (another app's resources) for EVERY engine, on the
+  main thread. Now attach asks only the first time (`builtInKnown`); a scan and the package receiver refresh it;
+  the built-in engine, isTtsEngine and switchToAlternative's list query WITHOUT labels (`withLabels = false`); a PM
+  that cannot be asked keeps the old answer and is asked again. `tools/verify/enginefinder/run.sh`: 256,869 cases
+  IDENTICAL; loadLabel calls 521,891 -> 20,791, queries 613,572 -> 467,115. Negatives caught (last voice wins,
+  attach never asks, system filter lost). Gap stated: a package change while the service is NOT running is
+  picked up at the next scan (main screen open), not at the next screen open.
+- **2 The service's voiceList is split once** (`VoiceEntry`: parts + lazy Locale / iso3 / country;
+  `voiceEntries()` reparses on a new or grown list). loadVoice, loadVoiceDedicated, findEngineForLocale (three
+  walks, a Locale per entry per walk) and switchToAlternative use it. `tools/verify/voicelist/run.sh`: 3,790,442
+  cases IDENTICAL; negatives caught.
+- **3 persistAll is ONE commit** (was 7, every onPause and every Voice setup Previous/Next): the parts are
+  `put*` helpers into one editor; standalone persist* unchanged. persist harness now covers persistAll and the
+  mode/flag persists: IDENTICAL, commits 324,728 -> 110,003; negatives caught.
+- **4 engineLabel** looks the scan's label up in a map built once per scan result (was a walk of every scanned
+  voice per Configuration row per recomposition). In the enginefinder harness.
+- **5 rebuildFromScan**: HashSet for seen names, first-entry-per-iso3 map, one display-name/ISO lookup per
+  language subtag. `tools/verify/rebuild/run.sh`: IDENTICAL under 4 default locales; negative caught. (Two names
+  sharing an iso3 read the same `_disabled`, so a filtered entry in the map is unobservable -- shown, not assumed.)
+- **7 Per utterance (mix/multilingual):** `detectedLangOf` memoises a run's iso3 per (lang, latin) while logging
+  is OFF (on: every run as before, log unchanged); the three specific languages are normalised once per
+  utterance. `tools/verify/runlang/run.sh`: IDENTICAL; negative (latin dropped from key) caught.
+- **6 NOT done, measured:** SilentText's draw-time measure is a TextMeasurer cache hit after the first frame, and
+  reusing the layout result would move RTL/centred labels (paragraph width differs). No real saving.
+- **8 NOT done, on purpose:** moving the next-chunk step / prefetch off the main looper. Those steps, the error
+  hand-over and the engine-death retry are serialised ONLY by all running on main (no locks on currentPair,
+  prefetch, retryCount); a second thread would race them on the speaking path. 1-3 removed the main-thread work
+  that competed with them instead.
+- Re-run: all Kotlin harnesses IDENTICAL, oldnew 0 differ, check-all 0/0, selftest EVERY CHECK FIRES.
+
 ## NINE MORE LOADS REMOVED, EACH PROVEN (owner, 2026-10-01, latest)
 *"ek se no complete test Karke properli Sahi tarike se karna 1 se lekar 9: Tak Puri Sabhi chijen."*
 - **1** `persistLanguages/Disabled/Engines/VoiceList` commit OUTSIDE `synchronized(languages)` (a `snapshot()` is

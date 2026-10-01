@@ -6,6 +6,13 @@ class Context
 object BuildConfig { const val APPLICATION_ID = "com.sachinbaria.easyvoice" }
 object EasyVoiceTtsService {
     var engineList: List<String> = emptyList(); var voiceList: List<String> = emptyList(); var dedicatedEnginesFlag = false
+    var autoLang = "eng"; var dualLang = "hin"; var mixLatinLang = "eng"; var mixNonLatinLang = "guj"
+    var numberModeInt = 0; var punctuationModeInt = 1; var emojiModeInt = 2
+    var numberSpecificLang = "eng"; var puncSpecificLang = "hin"; var emojiSpecificLang = "guj"
+    var modeInt = 4; var localeSpansFlag = false
+    var stripAudioAttrFlag = false; var forceAccessibilityFlag = true; var keepAliveFlag = false; var engineFallbackFlag = true
+    var showNotificationFlag = false; var disableAdvancedFlag = false; var quickCharacterFlag = true; var punctuationInFlowFlag = true
+    var smartNumberFlag = false; var smartNumberGroupSize = 2
 }
 object EngineFinder {
     class ScanVoice(val pkg: String, val locale: java.util.Locale)
@@ -53,6 +60,8 @@ fun main() {
         EngineFinder.lastScanEngines = List(rnd.nextInt(5)) { pkgs[rnd.nextInt(pkgs.size)] }
         EngineFinder.lastScanVoices = List(rnd.nextInt(6)) { EngineFinder.ScanVoice(pkgs[rnd.nextInt(pkgs.size)], locs[rnd.nextInt(locs.size)]) }
         EasyVoiceTtsService.dedicatedEnginesFlag = rnd.nextBoolean()
+        EasyVoiceTtsService.modeInt = rnd.nextInt(6); EasyVoiceTtsService.autoLang = isos[rnd.nextInt(isos.size)]
+        EasyVoiceTtsService.quickCharacterFlag = rnd.nextBoolean(); EasyVoiceTtsService.smartNumberGroupSize = 1 + rnd.nextInt(3)
         currentVoiceRows = List(rnd.nextInt(8)) { if (rnd.nextInt(5) == 0) null else EngineFinder.ScanVoice(pkgs[rnd.nextInt(pkgs.size)], locs[rnd.nextInt(locs.size)]) }
         currentVoiceIso = isos[rnd.nextInt(isos.size)]
         currentVoiceChosen = rnd.nextBoolean()
@@ -64,7 +73,8 @@ fun main() {
             { o -> if (o === OldP) OldP.persistDisabled(ctx) else NewP.persistDisabled(ctx) },
             { o -> if (o === OldP) OldP.persistEngines(ctx) else NewP.persistEngines(ctx) },
             { o -> if (o === OldP) OldP.persistVoiceList(ctx) else NewP.persistVoiceList(ctx) },
-            { o -> if (o === OldP) OldP.persistVoiceRows(ctx) else NewP.persistVoiceRows(ctx) })
+            { o -> if (o === OldP) OldP.persistVoiceRows(ctx) else NewP.persistVoiceRows(ctx) },
+            { o -> if (o === OldP) OldP.persistAll(ctx) else NewP.persistAll(ctx) })
         for ((i, r) in runs.withIndex()) {
             cases++
             EasyVoiceTtsService.engineList = emptyList(); EasyVoiceTtsService.voiceList = emptyList()
