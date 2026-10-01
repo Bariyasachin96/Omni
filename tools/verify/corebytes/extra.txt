@@ -1,0 +1,7 @@
+# corebytes extras: fancy letters inside every kind of chunk, so a fold that is
+# skipped or done twice shows up in the fold and span fields
+𝐇𝐞𝐥𝐥𝐨 नमस्ते 𝓦𝓸𝓻𝓵𝓭 123 😀
+Ｔｅｓｔ ①②③ ⓐⓑⓒ ¹²³ ℂℕℤ गुजराती ભાષા
+𝐂𝐚𝐥𝐥 9876543210 𝐚𝐭 10:30, ₹ 45,000 मोबाइल नंबर 98765 43210
+ꜰᴀɴᴄʏ ꜱᴍᴀʟʟ ᴄᴀᴘꜱ and 𝔉𝔯𝔞𝔨𝔱𝔲𝔯 then हिंदी
+𝟏𝟐𝟑 𝟗𝟖𝟕𝟔𝟓 phone 𝟗𝟖𝟕𝟔𝟓𝟒𝟑𝟐𝟏𝟎

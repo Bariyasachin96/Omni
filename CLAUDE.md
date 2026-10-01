@@ -8,6 +8,31 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## FOUR C++ LOADS REMOVED FROM THE SEGMENTER, PROVEN BYTE FOR BYTE (owner, 2026-10-01, latest)
+*"1 2 3 4 jo hai pahle vah Charon complete karo test Karke."* From a callgrind profile of the native core
+(705-byte mixed text: segmentation ~64 us, detection ~367 us, most of the latter inside CLD2 itself).
+- **1 `wholeSegmentKind` is gone.** It re-read every chunk to say all-number / punctuation / emoji, and the Kotlin
+  never reads `parts[1]` (it branches on the resolved type). `ChunkResult` lost `kind`; the record still carries
+  "0" in that slot so the layout is unchanged.
+- **2 processDirect's chunks are not folded twice.** They are pieces of the text buildMixChunks already folded
+  (cut at code-point boundaries, plus respaceDigits' ASCII spaces), and f(f(c)) == f(c) for all 1,114,112 code
+  points (`tools/verify/corebytes/foldtwice.cpp`: 1062 change, 0 change again). `foldAndSpansFlat(..., true)`
+  only there; nativeFoldAndDetect and detectWindowOrSpans still fold.
+- **3 runs are appended whole**: the whitespace collapse, the bidi strip (which now copies nothing when the
+  text has no bidi control) and the Latin/non-Latin buffer (a contiguous stretch, cut once) no longer append one
+  code point at a time.
+- **4 fewer allocations**: segs/merged/result `reserve`, both merges `std::move` their text, splitByPunct moves
+  its pieces (the TYPE is computed first -- a braced list evaluates left to right, moving first empties it).
+- **Proof `tools/verify/corebytes/run.sh [ref] [--mask-kind]`** (new): the real JNI entry points of the ref's
+  core and the working tree's, same 270-odd texts x 8 enabled sets x 8 mode triples x quick x smart off/1/2/3 x
+  punctuation-in-flow x neutral type, plus detectWindowOrSpans and nativeFoldAndDetect: **890,848 cases, 3,164,448
+  records, 0 differ** (kind masked). Also: segmenter IDENTICAL 163,296, oldnew 0, onecall 0, stress 0,
+  devanagari 17/17, normaliser/scriptfamily/langcodes IDENTICAL. Negatives caught: fold skipped where the text was
+  not folded (416), last collapse run dropped (875,520), bidi stretch off by one (9,216), splitByPunct moved
+  before typed (452,928), buffer start not moved and moved text read again (segmenter differs; the first one makes
+  corebytes' output explode, so it is checked there). Measured: segmentation 39 -> 27 us, detection ~5-10% less.
+- Still open from the list (owner's choice later): 5-12 small ones, and 13 a CLD2 answer cache.
+
 ## TALKBACK'S "THREE TIMES" IS ITS OWN CODE; THE BACKGROUND SCAN NOW NEVER DROPS OR DOUBLES A CHANGE (owner, 2026-10-01, latest)
 *"talk back teen bar wala ... Google TTS per chala jata hai ... aisa nahin hona chahie ... scanning or restore
 ... background aur foreground mein ... chhote mote gap."*

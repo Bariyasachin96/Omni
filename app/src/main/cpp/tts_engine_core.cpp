@@ -442,7 +442,12 @@ inline bool isEmoji(int codePoint) {
 // ==========================================================================
 //  SHARED STATE AND FORWARD DECLARATIONS
 // ==========================================================================
-struct ChunkResult { std::string lang; std::string text; int type; int kind; };
+// No "kind" any more (owner, 2026-10-01): a second pass over every chunk used
+// to work out whether it was all number / punctuation / emoji, and nothing read
+// the answer -- the Kotlin branches on the TYPE d0.t resolved (parts[0]) and
+// never on parts[1]. The field stays in each record as "0" so the record
+// layout does not change.
+struct ChunkResult { std::string lang; std::string text; int type; };
 // The two sets are held as IMMUTABLE shared snapshots (owner, 2026-10-01):
 // detectWindowed used to COPY both hash sets under the mutex on every call --
 // every utterance in auto and Google mode. Now setDetectSets swaps in new
@@ -794,41 +799,6 @@ static std::string respaceDigits(const std::string& text, int groupSize){
     }
     return out;
 }
-static bool cpIsNumericCore(int codePoint);
-static bool cpIsAsciiPunct(int codePoint);
-static bool cpIsPosixPunct(int codePoint);
-static bool cpIsGeneralPunct(int codePoint);
-static bool cpIsPosixSpace(int codePoint);
-static int emojiRunLengthAt(const std::string& text, int offset);
-static int wholeSegmentKind(const std::string& text){
-    bool allNumber = true, allPunct = true, allEmoji = true, sawDigit = false, sawAny = false;
-    bool emojiRun = false;
-    size_t at = 0;
-    while(at < text.size()){
-        int cpLen = 0;
-        int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
-        sawAny = true;
-        bool posixSpace = cpIsPosixSpace(codePoint);
-        bool asciiPunct = cpIsAsciiPunct(codePoint);
-        bool generalPunct = cpIsGeneralPunct(codePoint);
-        bool currencyish = cpIsNumericCore(codePoint) && !(codePoint >= '0' && codePoint <= '9');
-        if(codePoint >= '0' && codePoint <= '9') sawDigit = true;
-        else if(!(cpIsPosixPunct(codePoint) || generalPunct || posixSpace || currencyish)) allNumber = false;
-        if(!(asciiPunct || generalPunct || posixSpace)) allPunct = false;
-        if(allEmoji){
-            int emojiLen = emojiRunLengthAt(text, at);
-            if(emojiLen <= 0) allEmoji = false;
-            else { emojiRun = true; if(emojiLen > cpLen){ at += emojiLen; continue; } }
-        }
-        at += cpLen;
-    }
-    if(!sawAny) return 0;
-    if(allNumber && sawDigit) return 3;
-    if(allPunct) return 4;
-    if(allEmoji) return 5;
-    return 0;
-}
-
 // ==========================================================================
 //  CODE-POINT PREDICATES
 //  Note two pairs that look mergeable and are not: cpIsAsciiPunct EXCLUDES
@@ -972,15 +942,18 @@ static void splitByPunct(const std::string& text, std::vector<TextSegment>& out)
         }
         if(runStart != prev){
             std::string piece = text.substr(prev, runStart - prev);
-            out.push_back({piece, segmentTypeOf(piece), ""});
+            int pieceType = segmentTypeOf(piece);
+            out.push_back({std::move(piece), pieceType, ""});
         }
         std::string run = text.substr(runStart, at - runStart);
-        out.push_back({run, segmentTypeOf(run), ""});
+        int runType = segmentTypeOf(run);
+        out.push_back({std::move(run), runType, ""});
         prev = at;
     }
     if(prev < len){
         std::string piece = text.substr(prev);
-        out.push_back({piece, segmentTypeOf(piece), ""});
+        int pieceType = segmentTypeOf(piece);
+        out.push_back({std::move(piece), pieceType, ""});
     }
 }
 static bool matchNumberRun(const std::string& text, int start, int& matchEnd){
@@ -1065,7 +1038,7 @@ struct ReadingModes {
 static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
     std::vector<ChunkResult> result;
     std::string fullText;
-    for (auto& sentence : sentences) { if (!sentence.empty()) fullText += sentence + " "; }
+    for (auto& sentence : sentences) { if (!sentence.empty()) { fullText += sentence; fullText += ' '; } }
     if (fullText.empty()) return result;
     {
         {
@@ -1079,17 +1052,27 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
             return (codePoint >= 0x09 && codePoint <= 0x0D) || codePoint == 0x20 ||
                    codePoint == 0x00A0 || codePoint == 0x2007 || codePoint == 0x202F || codePoint == 0xFEFF;
         };
+        // A run of non-space code points is copied in ONE append when it ends
+        // (owner, 2026-10-01); the bytes are the ones the per-code-point
+        // append copied, in the same order.
         std::string collapsed; collapsed.reserve(fullText.size());
         bool prevWs = false;
-        int collapsePos = 0, collapseLen = (int)fullText.size();
+        int collapsePos = 0, collapseLen = (int)fullText.size(), keepFrom = -1;
         while (collapsePos < collapseLen) {
             int cpLen = 0;
             int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[collapsePos], cpLen);
             if (cpLen <= 0) cpLen = 1;
-            if (isUnicodeWs(codePoint)) { if (!prevWs) collapsed += ' '; prevWs = true; }
-            else { collapsed.append(fullText, collapsePos, (size_t)cpLen); prevWs = false; }
+            if (isUnicodeWs(codePoint)) {
+                if (keepFrom >= 0) { collapsed.append(fullText, (size_t)keepFrom, (size_t)(collapsePos - keepFrom)); keepFrom = -1; }
+                if (!prevWs) collapsed += ' ';
+                prevWs = true;
+            } else {
+                if (keepFrom < 0) keepFrom = collapsePos;
+                prevWs = false;
+            }
             collapsePos += cpLen;
         }
+        if (keepFrom >= 0) collapsed.append(fullText, (size_t)keepFrom, (size_t)(collapseLen - keepFrom));
         fullText = std::move(collapsed);
     }
     // c3.d0.t: d0.q(clsCLD2.b(text.replaceAll(...).replaceAll(...))). The
@@ -1098,30 +1081,43 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     fullText = normalizeFancyText(fullText);
     if (fullText.empty()) return result;
     {
-        // append(str, pos, n) copies the same bytes substr(pos, n) would, without
-        // building a temporary string per code point (owner, 2026-10-01).
-        std::string clean; clean.reserve(fullText.size());
-        int bytePos = 0, byteLen = (int)fullText.size();
+        // The bidi controls are cut out and everything between them is copied
+        // in ONE append per stretch (owner, 2026-10-01). Most texts carry
+        // none, and then nothing is copied at all.
+        std::string clean;
+        bool cut = false;
+        int bytePos = 0, byteLen = (int)fullText.size(), keepFrom = 0;
         while (bytePos < byteLen) {
             int cpLen = 0;
             int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[bytePos], cpLen);
             if (codePoint == 0x061C || codePoint == 0x200E || codePoint == 0x200F ||
-                (codePoint >= 0x202A && codePoint <= 0x202E)) { bytePos += cpLen; continue; }
-            clean.append(fullText, (size_t)bytePos, (size_t)cpLen);
+                (codePoint >= 0x202A && codePoint <= 0x202E)) {
+                if (!cut) { clean.reserve(fullText.size()); cut = true; }
+                clean.append(fullText, (size_t)keepFrom, (size_t)(bytePos - keepFrom));
+                bytePos += cpLen;
+                keepFrom = bytePos;
+                continue;
+            }
             bytePos += cpLen;
         }
-        fullText = std::move(clean);
+        if (cut) {
+            if (keepFrom < byteLen) clean.append(fullText, (size_t)keepFrom, (size_t)(byteLen - keepFrom));
+            fullText = std::move(clean);
+        }
     }
     if (fullText.empty()) return result;
     std::vector<TextSegment> segs;
+    segs.reserve(fullText.size() / 8 + 4);
     {
-        std::string buf;
-        int bufKind = -1;
-        auto flushBuf = [&]() {
-            if (buf.empty()) return;
+        // The Latin / non-Latin buffer is always one contiguous stretch of
+        // fullText, so it is cut out once when it ends instead of being built
+        // a code point at a time (owner, 2026-10-01).
+        int bufStart = 0, bufKind = -1;
+        auto flushBuf = [&](int bufEnd) {
+            if (bufKind == -1 || bufEnd <= bufStart) return;
+            std::string buf = fullText.substr((size_t)bufStart, (size_t)(bufEnd - bufStart));
             if (bufKind == 1) splitByEmoji(buf, segs);
             else splitByNumber(buf, segs);
-            buf.clear(); bufKind = -1;
         };
         int len = (int)fullText.size(), i = 0;
         while (i < len) {
@@ -1134,17 +1130,18 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
                             (codePoint >= 0x2C60 && codePoint <= 0x2C7F) ||
                             (codePoint >= 0xA720 && codePoint <= 0xA7FF);
             int kind = latRange ? 0 : 1;
-            if (bufKind == -1 || bufKind == kind) { buf.append(fullText, (size_t)i, (size_t)cpLen); bufKind = kind; }
-            else { flushBuf(); buf.assign(fullText, (size_t)i, (size_t)cpLen); bufKind = kind; }
+            if (bufKind != -1 && bufKind != kind) { flushBuf(i); bufStart = i; }
+            bufKind = kind;
             i += cpLen;
         }
-        flushBuf();
+        flushBuf(len);
     }
     {
         std::vector<TextSegment> mergedSegs;
+        mergedSegs.reserve(segs.size());
         int segIdx = 0, segCount = (int)segs.size();
         while (segIdx < segCount) {
-            std::string runText = segs[segIdx].text;
+            std::string runText = std::move(segs[segIdx].text);
             int runType = segs[segIdx].type;
             int runEnd = segIdx + 1;
             while (runEnd < segCount && segs[runEnd].type != -1 &&
@@ -1152,7 +1149,7 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
                 runText += segs[runEnd].text;
                 runEnd++;
             }
-            mergedSegs.push_back({runText, runType, ""});
+            mergedSegs.push_back({std::move(runText), runType, ""});
             segIdx = runEnd;
         }
         segs = std::move(mergedSegs);
@@ -1231,12 +1228,13 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     }
     bool punctuationApart = (modes.punctuationMode != 0 && !modes.punctuationInFlow);
     int mergePos = 0, segTotal = (int)segs.size();
+    result.reserve(segs.size());
     while (mergePos < segTotal) {
-        std::string runText = segs[mergePos].text;
+        std::string runText = std::move(segs[mergePos].text);
         int runType = segs[mergePos].type;
         std::string runLang = segs[mergePos].lang.empty() ? latinFallback : segs[mergePos].lang;
         if (punctuationApart && originalTypes[mergePos] == 4) {
-            result.push_back({runLang, runText, runType, wholeSegmentKind(runText)});
+            result.push_back({std::move(runLang), std::move(runText), runType});
             mergePos++;
             continue;
         }
@@ -1246,7 +1244,7 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
             runText += segs[mergePos].text;
             mergePos++;
         }
-        result.push_back({runLang, runText, runType, wholeSegmentKind(runText)});
+        result.push_back({std::move(runLang), std::move(runText), runType});
     }
     return result;
 }
@@ -1314,7 +1312,7 @@ static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
 
 // Defined beside nativeFoldAndDetect, which shares it; processDirect uses it
 // to carry each chunk's spans in the same crossing.
-static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops);
+static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded = false);
 static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat);
 // String.getBytes(UTF_8), byte for byte (owner, 2026-10-01): the Kotlin side
 // used to encode the text, copy it into a direct ByteBuffer and hand THAT over
@@ -1404,7 +1402,7 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
         size_t n = 4 + (extra ? extra->size() : 0);
         flat.push_back(std::to_string(n));
         flat.push_back(std::to_string(chunk.type));
-        flat.push_back(std::to_string(chunk.kind));
+        flat.push_back("0");                       // the retired kind field
         flat.push_back(chunk.lang);
         flat.push_back(chunk.text);
         if (extra) flat.insert(flat.end(), extra->begin(), extra->end());
@@ -1419,7 +1417,7 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
             // folded text, then lang / latin / text triples. An empty chunk
             // carries nothing, because the caller answers it before detecting.
             if (detect && chunks[i].type >= 0 && chunks[i].type <= 2 && !chunks[i].text.empty()) {
-                std::vector<std::string> spans = foldAndSpansFlat(chunks[i].text, singleStops);
+                std::vector<std::string> spans = foldAndSpansFlat(chunks[i].text, singleStops, true);
                 addRecord(chunks[i], &spans);
             } else addRecord(chunks[i], nullptr);
         }
@@ -2358,8 +2356,16 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
 // lang / latin / text triples follow. With `singleStops` and a fold that is a
 // single UTF-16 unit the spans are not computed, because the caller answers
 // that case without them. Shared by nativeFoldAndDetect and processDirect.
-static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops){
-    std::string folded = normalizeFancyText(text);
+//
+// `alreadyFolded` (owner, 2026-10-01): processDirect's chunks are pieces of the
+// text buildMixChunks has ALREADY folded, cut at code-point boundaries, plus the
+// ASCII spaces respaceDigits adds. The fold maps code point by code point and
+// f(f(c)) == f(c) for all 1,114,112 code points (corebytes/foldtwice.cpp), so
+// folding such a chunk again cannot change it; it only cost a scan and a copy.
+static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded){
+    std::string foldedCopy;
+    if(!alreadyFolded) foldedCopy = normalizeFancyText(text);
+    const std::string& folded = alreadyFolded ? text : foldedCopy;
     // UTF-16 length of the folded text: one unit below U+10000, two above.
     // Only "is it exactly one" matters here.
     int units = 0;
