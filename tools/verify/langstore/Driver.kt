@@ -8,8 +8,12 @@ object Lists {
 object EngineFinder { var builtInEngine = "com.google.android.tts" }
 object EasyVoiceLogger {
     const val TAG = "t"
-    fun debug(tag: String, msg: String) {}
-    inline fun debug(tag: String, msg: () -> String) {}
+    var on = false
+    val lines = ArrayList<String>()
+    var lambdasRun = 0
+    fun isLoggingEnabled() = on
+    fun debug(tag: String, msg: String) { if (on) lines.add(msg) }
+    fun debug(tag: String, msg: () -> String) { if (on) { lambdasRun++; lines.add(msg()) } }
     fun error(tag: String, msg: String) {}
 }
 class Voice(val name: String, val locale: java.util.Locale, q: Int, l: Int, n: Boolean, f: Set<String>) {
@@ -43,6 +47,15 @@ fun main() {
             val p = NewLS.voiceParamsFor(lang)
             val q = intArrayOf(OldLS.speedFor(lang), OldLS.pitchFor(lang), OldLS.volumeFor(lang))
             if (!p.contentEquals(q)) { bad++; if (bad < 5) println("DIFF params $lang") }
+            // #5: engineFor answers and logs exactly what the old one did, with
+            // logging on and off.
+            for (on in listOf(false, true)) {
+                EasyVoiceLogger.on = on
+                EasyVoiceLogger.lines.clear(); val oe = OldLS.engineFor(lang, mode); val ol = ArrayList(EasyVoiceLogger.lines)
+                EasyVoiceLogger.lines.clear(); val ne = NewLS.engineFor(lang, mode); val nl = ArrayList(EasyVoiceLogger.lines)
+                if (oe != ne || ol != nl) { bad++; if (bad < 5) println("DIFF engineFor $lang/$mode log=$on: $oe/$ne $ol vs $nl") }
+            }
+            EasyVoiceLogger.on = false
             val a = NewLS.isAvailable(lang); val b = OldLS.availableLanguagesFor(null, true).contains(lang)
             if (a != b) { bad++; if (bad < 5) println("DIFF available $lang") }
         }

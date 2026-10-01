@@ -285,10 +285,6 @@ object EngineFinder {
             else -> localeOf(localeParts[0], localeParts[1], localeParts.drop(2).joinToString("_"))
         }
     }
-    // Compiled ONCE rather than per call -- see LangStore.COMBINING_MARKS for
-    // the measurement. Both files strip combining marks the same way and both
-    // did it inside a comparator.
-    private val COMBINING_MARKS = "\\p{M}".toRegex()
     @Volatile @JvmStatic var lastScanVoices: List<ScanVoice> = emptyList()
     @Volatile @JvmStatic var lastScanEngines: List<String> = emptyList()
     @JvmStatic val voiceWeights: HashMap<String, Int> = HashMap()
@@ -483,12 +479,8 @@ object EngineFinder {
                 if (code.isNotEmpty() && langs.add(code)) displayNames[code] = try { kept.locale.displayLanguage } catch (_: Exception) { code }
             }
             val surviving = engines.map { it.pkg }.filter { !isSelfEngine(it) && it !in gone }.distinct()
-            val collator = java.text.Collator.getInstance()
-            // COMBINING_MARKS is compiled once at class init -- see the note on it.
-            // This lambda runs inside the Collator comparator, so it was compiling a
-            // Pattern per comparison over every scanned language.
-            fun sortKey(code: String) = java.text.Normalizer.normalize(displayNames[code] ?: code, java.text.Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
-            val sorted = langs.sortedWith { leftCode, rightCode -> collator.compare(sortKey(leftCode), sortKey(rightCode)) }
+            // Each name is folded once (LangStore.sortedByName), not twice per comparison.
+            val sorted = LangStore.sortedByName(langs) { displayNames[it] ?: it }
             val orderedLangs: Set<String> = LinkedHashSet(sorted)
             lastScanVoices = voiceEntries.filter { !notRead.contains(it.pkg) && it.pkg !in gone } + keptVoices
             lastScanEngines = surviving

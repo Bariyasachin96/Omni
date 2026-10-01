@@ -87,6 +87,9 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/langstore/run.sh [ref]  # one-walk LangStore answers + detect-set push logic + onGetVoices cache
     tools/verify/restore/run.sh          # the service's restore state machine, lifted, 6 scenarios
     tools/verify/toiso3/run.sh           # cached toIso3 == uncached, 4 threads
+    tools/verify/persist/run.sh          # persist* write the same prefs, never under the list lock
+    tools/verify/sortkeys/run.sh         # sortedByName == fold-per-comparison order, 13 locales
+    tools/verify/uilists/run.sh          # Voice setup row order + Languages filter == before
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

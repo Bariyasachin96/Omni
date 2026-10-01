@@ -35,7 +35,7 @@ def cls(path, name):
     j = text.index("\n}\n", i)
     return text[i:j+2]
 OLD = ["engineFor", "localeFor", "variantFor", "speedFor", "volumeFor", "pitchFor", "availableLanguagesFor"]
-NEW = ["isAvailable", "voiceParamsFor", "voiceTargetFor", "replaceAll"]
+NEW = ["isAvailable", "voiceParamsFor", "voiceTargetFor", "replaceAll", "engineFor"]
 SVC = ["refillEnabledIso2", "detectOkIso3", "pushDetectSetsOnly", "pushLanguageSets", "sendDetectSets", "onGetVoices"]
 with open(out, "w", encoding="utf-8") as f:
     f.write('@file:Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE", "NAME_SHADOWING", "unused")\n')

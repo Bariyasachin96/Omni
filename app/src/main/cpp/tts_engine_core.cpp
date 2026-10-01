@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <stdint.h>
 #include <mutex>
+#include <memory>
 #include <algorithm>
 #include <limits>
 #include "compact_lang_det.h"
@@ -442,9 +443,16 @@ inline bool isEmoji(int codePoint) {
 //  SHARED STATE AND FORWARD DECLARATIONS
 // ==========================================================================
 struct ChunkResult { std::string lang; std::string text; int type; int kind; };
+// The two sets are held as IMMUTABLE shared snapshots (owner, 2026-10-01):
+// detectWindowed used to COPY both hash sets under the mutex on every call --
+// every utterance in auto and Google mode. Now setDetectSets swaps in new
+// pointers and a reader takes two refcounted pointers; nobody ever changes a
+// set in place, so a snapshot read outside the mutex is exactly the copy it
+// used to make.
+typedef std::shared_ptr<const std::unordered_set<std::string>> LangSetPtr;
 static std::mutex detectSetMutex;
-static std::unordered_set<std::string> detectOkIso3Set;
-static std::unordered_set<std::string> enabledLangSet;
+static LangSetPtr detectOkIso3Set = std::make_shared<const std::unordered_set<std::string>>();
+static LangSetPtr enabledLangSet = std::make_shared<const std::unordered_set<std::string>>();
 // activeSmartNumberKeywords calls this 1,288 lines before it is defined.
 static std::string currentLanguageHints();
 
@@ -512,7 +520,17 @@ static const int smartNumberKeywordRows = 53;
 static std::mutex smartNumberMutex;
 static std::vector<std::string> smartNumberActive;
 static bool smartNumberCacheValid = false;
-static std::vector<std::string> activeSmartNumberKeywords(){
+// The cache is checked FIRST (owner, 2026-10-01): this ran for every number in
+// every utterance with smart numbers on, and each call joined the hint list
+// under its mutex and copied the whole keyword vector out, although the answer
+// never changes once built. The table is written once, under the mutex, and
+// never again, so a reference to it stays valid. The hint list is still read
+// outside smartNumberMutex, so no lock is ever taken while holding it.
+static const std::vector<std::string>& activeSmartNumberKeywords(){
+    {
+        std::lock_guard<std::mutex> lock(smartNumberMutex);
+        if(smartNumberCacheValid) return smartNumberActive;
+    }
     std::string hints = currentLanguageHints();
     std::lock_guard<std::mutex> lock(smartNumberMutex);
     if(smartNumberCacheValid) return smartNumberActive;
@@ -531,9 +549,9 @@ static std::vector<std::string> activeSmartNumberKeywords(){
         if(tag != "*" && enabled.find(tag) == enabled.end()) continue;
         for(int col = 1; smartNumberKeywords[row][col]; col++) collected.push_back(smartNumberKeywords[row][col]);
     }
-    smartNumberActive = collected;
+    smartNumberActive = std::move(collected);
     smartNumberCacheValid = true;
-    return collected;
+    return smartNumberActive;
 }
 static bool isNonLetterInsideLetterBlock(int codePoint){
     if(codePoint >= 0x0300 && codePoint <= 0x036F) return true;
@@ -1080,17 +1098,19 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     fullText = normalizeFancyText(fullText);
     if (fullText.empty()) return result;
     {
-        std::string clean;
+        // append(str, pos, n) copies the same bytes substr(pos, n) would, without
+        // building a temporary string per code point (owner, 2026-10-01).
+        std::string clean; clean.reserve(fullText.size());
         int bytePos = 0, byteLen = (int)fullText.size();
         while (bytePos < byteLen) {
             int cpLen = 0;
             int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[bytePos], cpLen);
             if (codePoint == 0x061C || codePoint == 0x200E || codePoint == 0x200F ||
                 (codePoint >= 0x202A && codePoint <= 0x202E)) { bytePos += cpLen; continue; }
-            clean += fullText.substr(bytePos, cpLen);
+            clean.append(fullText, (size_t)bytePos, (size_t)cpLen);
             bytePos += cpLen;
         }
-        fullText = clean;
+        fullText = std::move(clean);
     }
     if (fullText.empty()) return result;
     std::vector<TextSegment> segs;
@@ -1114,8 +1134,8 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
                             (codePoint >= 0x2C60 && codePoint <= 0x2C7F) ||
                             (codePoint >= 0xA720 && codePoint <= 0xA7FF);
             int kind = latRange ? 0 : 1;
-            if (bufKind == -1 || bufKind == kind) { buf += fullText.substr(i, cpLen); bufKind = kind; }
-            else { flushBuf(); buf = fullText.substr(i, cpLen); bufKind = kind; }
+            if (bufKind == -1 || bufKind == kind) { buf.append(fullText, (size_t)i, (size_t)cpLen); bufKind = kind; }
+            else { flushBuf(); buf.assign(fullText, (size_t)i, (size_t)cpLen); bufKind = kind; }
             i += cpLen;
         }
         flushBuf();
@@ -1140,7 +1160,7 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     if (segs.empty()) return result;
     (void)disableAdvancedDetection;
     if (modes.smartNumber) {
-        std::vector<std::string> keywords = activeSmartNumberKeywords();
+        const std::vector<std::string>& keywords = activeSmartNumberKeywords();
         for (int segPos = 0; segPos < (int)segs.size(); segPos++) {
             if (segs[segPos].type != 3) continue;
             const std::string& numberText = segs[segPos].text;
@@ -1516,29 +1536,37 @@ static std::string pickFamilyLangArr(const char* const (&arr)[N], const std::uno
     return pickFamilyLang(arr[0], rest, enabled);
 }
 static std::string familyLangForCpFiltered(int codePoint, const std::unordered_set<std::string>& enabled){
-    bool hasLatin  = anyLangEnabled(enabled, FAMILY_LATIN);
-    bool hasCyrillic = anyLangEnabled(enabled, FAMILY_CYRILLIC);
-    bool hasArabic = anyLangEnabled(enabled, FAMILY_ARABIC);
-    bool hasThaana = enabled.count("dv") > 0;
-    bool hasDevanagari = anyLangEnabled(enabled, FAMILY_DEVANAGARI);
-    bool hasCjk = anyLangEnabled(enabled, FAMILY_CJK);
-    bool hasGreek = enabled.count("el") || enabled.count("grc") || enabled.count("pnt");
-    bool hasBengali = enabled.count("bn") || enabled.count("as") || enabled.count("mni");
-    bool hasThai = enabled.count("th") || enabled.count("nod") || enabled.count("sou") || enabled.count("tts");
-    bool hasHangul = enabled.count("ko") > 0;
-    bool hasKana = enabled.count("ja") || enabled.count("ain");
-    bool hasHebrew = enabled.count("he") || enabled.count("yi") || enabled.count("lad");
-    bool hasArmenian = enabled.count("hy") > 0;
-    bool hasGeorgian = enabled.count("ka") || enabled.count("xmf") || enabled.count("lzz");
-    bool hasEthiopic = anyLangEnabled(enabled, FAMILY_ETHIOPIC);
-    bool hasSouthIndic = enabled.count("pa") || enabled.count("gu") || enabled.count("or") || enabled.count("ta") ||
-                enabled.count("te") || enabled.count("kn") || enabled.count("ml") || enabled.count("si") || enabled.count("tcy");
-    bool hasSeAsian = enabled.count("lo") || enabled.count("hnx") || enabled.count("bo") || enabled.count("dz") ||
-                enabled.count("my") || enabled.count("shn") || enabled.count("kar") || enabled.count("mnw") || enabled.count("km");
-    bool hasMongolian = enabled.count("mn") || enabled.count("mnc") || enabled.count("xal");
+    auto hasLatin = [&]() -> bool { return anyLangEnabled(enabled, FAMILY_LATIN); };
+    auto hasCyrillic = [&]() -> bool { return anyLangEnabled(enabled, FAMILY_CYRILLIC); };
+    auto hasArabic = [&]() -> bool { return anyLangEnabled(enabled, FAMILY_ARABIC); };
+    auto hasThaana = [&]() -> bool { return enabled.count("dv") > 0; };
+    auto hasDevanagari = [&]() -> bool { return anyLangEnabled(enabled, FAMILY_DEVANAGARI); };
+    auto hasCjk = [&]() -> bool { return anyLangEnabled(enabled, FAMILY_CJK); };
+    auto hasGreek = [&]() -> bool { return enabled.count("el") || enabled.count("grc") || enabled.count("pnt"); };
+    auto hasBengali = [&]() -> bool { return enabled.count("bn") || enabled.count("as") || enabled.count("mni"); };
+    auto hasThai = [&]() -> bool { return enabled.count("th") || enabled.count("nod") || enabled.count("sou") || enabled.count("tts"); };
+    auto hasHangul = [&]() -> bool { return enabled.count("ko") > 0; };
+    auto hasKana = [&]() -> bool { return enabled.count("ja") || enabled.count("ain"); };
+    auto hasHebrew = [&]() -> bool { return enabled.count("he") || enabled.count("yi") || enabled.count("lad"); };
+    auto hasArmenian = [&]() -> bool { return enabled.count("hy") > 0; };
+    auto hasGeorgian = [&]() -> bool { return enabled.count("ka") || enabled.count("xmf") || enabled.count("lzz"); };
+    auto hasEthiopic = [&]() -> bool { return anyLangEnabled(enabled, FAMILY_ETHIOPIC); };
+    auto hasSouthIndic = [&]() -> bool { return enabled.count("pa") || enabled.count("gu") || enabled.count("or") || enabled.count("ta") ||
+                enabled.count("te") || enabled.count("kn") || enabled.count("ml") || enabled.count("si") || enabled.count("tcy"); };
+    auto hasSeAsian = [&]() -> bool { return enabled.count("lo") || enabled.count("hnx") || enabled.count("bo") || enabled.count("dz") ||
+                enabled.count("my") || enabled.count("shn") || enabled.count("kar") || enabled.count("mnw") || enabled.count("km"); };
+    auto hasMongolian = [&]() -> bool { return enabled.count("mn") || enabled.count("mnc") || enabled.count("xal"); };
     if(codePoint>=48 && codePoint<=57) return pickFamilyLangArr(FAMILY_DIGIT, enabled);
     if((codePoint>=32&&codePoint<=47)||(codePoint>=58&&codePoint<=64)||(codePoint>=91&&codePoint<=96)||(codePoint>=123&&codePoint<=126)||(codePoint>=8192&&codePoint<=8303)) return "";
-    if(hasLatin){
+    // The 18 gates are asked LAZILY (owner, 2026-10-01): each was a handful of
+    // hash lookups, all 18 computed on every call although a code point reaches
+    // one or two of them. Every test below now checks the code point's range
+    // FIRST and the gate second; both are pure, so swapping the && only skips
+    // work. The Latin block's ranges are exactly 65-90, 97-122, 192-591 and
+    // 7840-7929 (every code point listed inside it falls in those), so outside
+    // them the block could never return and the gate is not asked.
+    // PROVEN: tools/verify/scriptfamily/run.sh, every code point x 15 sets.
+    if(((codePoint>=65&&codePoint<=90)||(codePoint>=97&&codePoint<=122)||(codePoint>=192&&codePoint<=591)||(codePoint>=7840&&codePoint<=7929)) && hasLatin()){
         if(codePoint==192||codePoint==194||codePoint==199||codePoint==200||codePoint==201||codePoint==202||codePoint==203||codePoint==206||codePoint==207||codePoint==212||codePoint==217||
            codePoint==219||codePoint==224||codePoint==226||codePoint==231||codePoint==232||codePoint==233||codePoint==234||codePoint==235||codePoint==238||codePoint==239||codePoint==244||
            codePoint==249||codePoint==251||codePoint==338||codePoint==339) return pickFamilyLang("fr", {"ca","oc"}, enabled);
@@ -1554,8 +1582,8 @@ static std::string familyLangForCpFiltered(int codePoint, const std::unordered_s
         if((codePoint>=65&&codePoint<=90)||(codePoint>=97&&codePoint<=122)) return pickFamilyLangArr(FAMILY_LATIN, enabled);
         if((codePoint>=192&&codePoint<=255)||(codePoint>=256&&codePoint<=591)) return pickFamilyLangArr(FAMILY_LATIN, enabled);
     }
-    if(hasGreek && ((codePoint>=880&&codePoint<=1023)||(codePoint>=7936&&codePoint<=8191))) return pickFamilyLang("el", {"grc","pnt"}, enabled);
-    if(hasCyrillic && ((codePoint>=1024&&codePoint<=1279)||(codePoint>=1280&&codePoint<=1327))){
+    if(((codePoint>=880&&codePoint<=1023)||(codePoint>=7936&&codePoint<=8191)) && hasGreek()) return pickFamilyLang("el", {"grc","pnt"}, enabled);
+    if(((codePoint>=1024&&codePoint<=1279)||(codePoint>=1280&&codePoint<=1327)) && hasCyrillic()){
         if(codePoint==1028||codePoint==1108||codePoint==1030||codePoint==1110||codePoint==1031||codePoint==1111||codePoint==1168||codePoint==1169) return pickFamilyLang("uk", {}, enabled);
         if(codePoint==1026||codePoint==1106||codePoint==1032||codePoint==1112||codePoint==1033||codePoint==1113||codePoint==1034||codePoint==1114||codePoint==1035||codePoint==1115||
            codePoint==1039||codePoint==1119) return pickFamilyLang("sr", {"bs","hr"}, enabled);
@@ -1565,9 +1593,9 @@ static std::string familyLangForCpFiltered(int codePoint, const std::unordered_s
         if(codePoint==1025||codePoint==1105||codePoint==1069||codePoint==1101||codePoint==1067||codePoint==1099) return pickFamilyLang("ru", {"be"}, enabled);
         return pickFamilyLangArr(FAMILY_CYRILLIC, enabled);
     }
-    if(hasArmenian && ((codePoint>=1328&&codePoint<=1423)||(codePoint>=64256&&codePoint<=64279))) return pickFamilyLang("hy", {}, enabled);
-    if(hasHebrew && ((codePoint>=1424&&codePoint<=1535)||(codePoint>=64285&&codePoint<=64335))) return pickFamilyLang("he", {"yi","lad"}, enabled);
-    if(hasArabic && ((codePoint>=1536&&codePoint<=1791)||(codePoint>=1872&&codePoint<=1919)||(codePoint>=2208&&codePoint<=2303)||(codePoint>=64336&&codePoint<=65023)||(codePoint>=65136&&codePoint<=65279))){
+    if(((codePoint>=1328&&codePoint<=1423)||(codePoint>=64256&&codePoint<=64279)) && hasArmenian()) return pickFamilyLang("hy", {}, enabled);
+    if(((codePoint>=1424&&codePoint<=1535)||(codePoint>=64285&&codePoint<=64335)) && hasHebrew()) return pickFamilyLang("he", {"yi","lad"}, enabled);
+    if(((codePoint>=1536&&codePoint<=1791)||(codePoint>=1872&&codePoint<=1919)||(codePoint>=2208&&codePoint<=2303)||(codePoint>=64336&&codePoint<=65023)||(codePoint>=65136&&codePoint<=65279)) && hasArabic()){
         if(codePoint==1657||codePoint==1672||codePoint==1681||codePoint==1729||codePoint==1746) return pickFamilyLang("ur", {"pa"}, enabled);
         if(codePoint==1665||codePoint==1669||codePoint==1673||codePoint==1683||codePoint==1686||codePoint==1690||codePoint==1724||codePoint==1744) return pickFamilyLang("ps", {}, enabled);
         if(codePoint>=1658&&codePoint<=1661) return pickFamilyLang("sd", {}, enabled);
@@ -1576,16 +1604,16 @@ static std::string familyLangForCpFiltered(int codePoint, const std::unordered_s
         if(codePoint==1662||codePoint==1670||codePoint==1688||codePoint==1711) return pickFamilyLangArr(FAMILY_PERSIAN, enabled);
         return pickFamilyLang("ar", {}, enabled);
     }
-    if(hasThaana && codePoint>=1920 && codePoint<=1983) return "dv";
-    if(hasDevanagari && ((codePoint>=2304&&codePoint<=2431)||(codePoint>=43232&&codePoint<=43263))){
+    if(codePoint>=1920 && codePoint<=1983 && hasThaana()) return "dv";
+    if(((codePoint>=2304&&codePoint<=2431)||(codePoint>=43232&&codePoint<=43263)) && hasDevanagari()){
         if(codePoint!=2355) return pickFamilyLangArr(FAMILY_DEVANAGARI, enabled);
         return pickFamilyLang("mr", {"kok"}, enabled);
     }
-    if(hasBengali && codePoint>=2432 && codePoint<=2559){
+    if(codePoint>=2432 && codePoint<=2559 && hasBengali()){
         if(codePoint==2544||codePoint==2545) return pickFamilyLang("as", {}, enabled);
         return pickFamilyLang("bn", {"as","mni"}, enabled);
     }
-    if(hasSouthIndic){
+    if(codePoint>=2560 && codePoint<=3583 && hasSouthIndic()){
         if(codePoint>=2560&&codePoint<=2687) return pickFamilyLang("pa", {}, enabled);
         if(codePoint>=2688&&codePoint<=2815) return pickFamilyLang("gu", {}, enabled);
         if(codePoint>=2816&&codePoint<=2943) return pickFamilyLang("or", {}, enabled);
@@ -1595,26 +1623,26 @@ static std::string familyLangForCpFiltered(int codePoint, const std::unordered_s
         if(codePoint>=3328&&codePoint<=3455) return pickFamilyLang("ml", {}, enabled);
         if(codePoint>=3456&&codePoint<=3583) return pickFamilyLang("si", {}, enabled);
     }
-    if(hasThai && codePoint>=3584 && codePoint<=3711) return pickFamilyLang("th", {"nod","sou","tts"}, enabled);
-    if(hasSeAsian){
+    if(codePoint>=3584 && codePoint<=3711 && hasThai()) return pickFamilyLang("th", {"nod","sou","tts"}, enabled);
+    if(((codePoint>=3712&&codePoint<=4255)||(codePoint>=43616&&codePoint<=43647)||(codePoint>=6016&&codePoint<=6143)||(codePoint>=6624&&codePoint<=6655)) && hasSeAsian()){
         if(codePoint>=3712&&codePoint<=3839) return pickFamilyLang("lo", {"hnx"}, enabled);
         if(codePoint>=3840&&codePoint<=4095) return pickFamilyLang("bo", {"dz"}, enabled);
         if((codePoint>=4096&&codePoint<=4255)||(codePoint>=43616&&codePoint<=43647)) return pickFamilyLang("my", {"shn","kar","mnw"}, enabled);
         if((codePoint>=6016&&codePoint<=6143)||(codePoint>=6624&&codePoint<=6655)) return pickFamilyLang("km", {}, enabled);
     }
-    if(hasGeorgian && ((codePoint>=4256&&codePoint<=4351)||(codePoint>=11520&&codePoint<=11567))) return pickFamilyLang("ka", {"xmf","lzz"}, enabled);
-    if(hasHangul && ((codePoint>=4352&&codePoint<=4607)||(codePoint>=12592&&codePoint<=12687)||(codePoint>=43360&&codePoint<=43391)||(codePoint>=44032&&codePoint<=55215)||(codePoint>=55216&&codePoint<=55295)))
+    if(((codePoint>=4256&&codePoint<=4351)||(codePoint>=11520&&codePoint<=11567)) && hasGeorgian()) return pickFamilyLang("ka", {"xmf","lzz"}, enabled);
+    if(((codePoint>=4352&&codePoint<=4607)||(codePoint>=12592&&codePoint<=12687)||(codePoint>=43360&&codePoint<=43391)||(codePoint>=44032&&codePoint<=55215)||(codePoint>=55216&&codePoint<=55295)) && hasHangul())
         return pickFamilyLang("ko", {}, enabled);
-    if(hasEthiopic && ((codePoint>=4608&&codePoint<=4991)||(codePoint>=4992&&codePoint<=5023)||(codePoint>=11648&&codePoint<=11743))) return pickFamilyLangArr(FAMILY_ETHIOPIC, enabled);
-    if(hasMongolian && ((codePoint>=6144&&codePoint<=6319)||(codePoint>=71264&&codePoint<=71295))) return pickFamilyLang("mn", {"mnc","xal"}, enabled);
-    if(hasCjk && codePoint>=12288 && codePoint<=12351) return pickFamilyLangArr(FAMILY_CJK, enabled);
-    if(hasKana){
+    if(((codePoint>=4608&&codePoint<=4991)||(codePoint>=4992&&codePoint<=5023)||(codePoint>=11648&&codePoint<=11743)) && hasEthiopic()) return pickFamilyLangArr(FAMILY_ETHIOPIC, enabled);
+    if(((codePoint>=6144&&codePoint<=6319)||(codePoint>=71264&&codePoint<=71295)) && hasMongolian()) return pickFamilyLang("mn", {"mnc","xal"}, enabled);
+    if(codePoint>=12288 && codePoint<=12351 && hasCjk()) return pickFamilyLangArr(FAMILY_CJK, enabled);
+    if(((codePoint>=12352&&codePoint<=12543)||(codePoint>=12784&&codePoint<=12799)||(codePoint>=110592&&codePoint<=110959)) && hasKana()){
         if((codePoint>=12352&&codePoint<=12447)||(codePoint>=110592&&codePoint<=110847)||(codePoint>=110848&&codePoint<=110895)) return pickFamilyLang("ja", {}, enabled);
         if((codePoint>=12448&&codePoint<=12543)||(codePoint>=12784&&codePoint<=12799)||(codePoint>=110896&&codePoint<=110959)) return pickFamilyLang("ja", {"ain"}, enabled);
     }
-    if(hasCjk && ((codePoint>=19968&&codePoint<=40959)||(codePoint>=13312&&codePoint<=19903)||(codePoint>=131072&&codePoint<=173791)||(codePoint>=173824&&codePoint<=177983)||
+    if(((codePoint>=19968&&codePoint<=40959)||(codePoint>=13312&&codePoint<=19903)||(codePoint>=131072&&codePoint<=173791)||(codePoint>=173824&&codePoint<=177983)||
                (codePoint>=177984&&codePoint<=178207)||(codePoint>=178208&&codePoint<=183983)||(codePoint>=183984&&codePoint<=191471)||
-               (codePoint>=196608&&codePoint<=201551)||(codePoint>=201552&&codePoint<=205743)))
+               (codePoint>=196608&&codePoint<=201551)||(codePoint>=201552&&codePoint<=205743)) && hasCjk())
         return pickFamilyLangArr(FAMILY_CJK, enabled);
     return "";
 }
@@ -1722,9 +1750,10 @@ static std::string familyLangForCp(int codePoint, const std::unordered_set<std::
 }
 static std::string scriptLangForCpFiltered(int codePoint, const std::unordered_set<std::string>& enabled,
                                        const std::unordered_set<std::string>& okIso3, std::string* logBuf){
-    char hex[16]; snprintf(hex,sizeof(hex),"%x",codePoint);
     std::string res = enabled.empty() ? familyLangForCp(codePoint, okIso3) : familyLangForCpFiltered(codePoint, enabled);
-    if(logBuf) *logBuf += std::string("[SCRIPT] a.e cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n";
+    // The hex is formatted only when there is a log to put it in.
+    if(logBuf){ char hex[16]; snprintf(hex,sizeof(hex),"%x",codePoint);
+        *logBuf += std::string("[SCRIPT] a.e cp=U+")+hex+" → "+(res.empty()?"null":res)+"\n"; }
     return res;
 }
 
@@ -1757,15 +1786,34 @@ static std::string detectWindowLang(const std::string& utf8Text){
 //  language uses that script; the fallback is the first one that does.
 // ==========================================================================
 static std::mutex languageHintMutex;
-static std::string languageHintList;
 // AutoTTS's native setLanguageHints (0x653588) keeps the codes lowercased and
 // at most 64 of them, and then derives two per-script tables that
 // getLanguageSpans steers CLD2 with. Both are 40 entries -- the script codes it
 // dispatches on stop at 39 -- and both start as UNKNOWN_LANGUAGE.
 static const int kScriptHintSlots = 40;
-static std::vector<std::string> languageHintCodes;
-static int scriptLanguageHint[kScriptHintSlots];
-static int scriptLanguageFallback[kScriptHintSlots];
+// ONE IMMUTABLE SNAPSHOT (owner, 2026-10-01). The list, the codes and the two
+// tables used to be separate statics behind languageHintMutex, and the span
+// detector took that mutex three to five times PER SPAN -- one of them copying
+// the whole code vector -- to read them. setLanguageHints now builds a new
+// HintState and swaps the pointer; nothing changes a HintState after that, so
+// a reader takes the mutex once, keeps a refcounted pointer, and reads freely.
+struct HintState {
+    std::string list;                         // the comma list, = languageHintList
+    std::vector<std::string> codes;           // = languageHintCodes
+    int hint[kScriptHintSlots];               // = scriptLanguageHint
+    int fallback[kScriptHintSlots];           // = scriptLanguageFallback
+};
+typedef std::shared_ptr<const HintState> HintStatePtr;
+static HintStatePtr emptyHintState(){
+    std::shared_ptr<HintState> state = std::make_shared<HintState>();
+    for(int slot=0; slot<kScriptHintSlots; slot++){ state->hint[slot] = 0; state->fallback[slot] = 0; }
+    return state;
+}
+static HintStatePtr g_hintState = emptyHintState();
+static HintStatePtr currentHintState(){
+    std::lock_guard<std::mutex> lock(languageHintMutex);
+    return g_hintState;
+}
 // The static table at 0x62f924: 48 {script, candidate language} pairs, in file
 // order, because the order is what decides which candidate becomes the
 // fallback. Only the six scripts CLD2 is ever asked about appear.
@@ -1789,8 +1837,12 @@ static const struct { int script; CLD2::Language lang; } kScriptLangPairs[48] = 
     { 1, CLD2::SLOVAK},   { 1, CLD2::CROATIAN},   { 1, CLD2::MALAY},
     { 1, CLD2::TAGALOG},  { 1, CLD2::SWAHILI},    { 1, CLD2::AFRIKAANS}
 };
-// Caller holds languageHintMutex. This is the second half of setLanguageHints.
-static void rebuildScriptLanguageTables(){
+// This is the second half of setLanguageHints, run on a HintState nobody else
+// can see yet.
+static void rebuildScriptLanguageTables(HintState& state){
+    const std::vector<std::string>& languageHintCodes = state.codes;
+    int* scriptLanguageHint = state.hint;
+    int* scriptLanguageFallback = state.fallback;
     for(int slot=0; slot<kScriptHintSlots; slot++){
         scriptLanguageHint[slot] = CLD2::UNKNOWN_LANGUAGE;
         scriptLanguageFallback[slot] = CLD2::UNKNOWN_LANGUAGE;
@@ -1819,22 +1871,15 @@ static void rebuildScriptLanguageTables(){
         if(matched[slot] != 1) scriptLanguageHint[slot] = CLD2::UNKNOWN_LANGUAGE;
 }
 static std::string currentLanguageHints(){
-    std::lock_guard<std::mutex> lock(languageHintMutex);
-    return languageHintList;
+    return currentHintState()->list;
 }
-static std::vector<std::string> currentLanguageHintCodes(){
-    std::lock_guard<std::mutex> lock(languageHintMutex);
-    return languageHintCodes;
-}
-static int currentScriptLanguageHint(int script){
-    std::lock_guard<std::mutex> lock(languageHintMutex);
+static int scriptLanguageHintOf(const HintState& state, int script){
     if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
-    return scriptLanguageHint[script];
+    return state.hint[script];
 }
-static int currentScriptLanguageFallback(int script){
-    std::lock_guard<std::mutex> lock(languageHintMutex);
+static int scriptLanguageFallbackOf(const HintState& state, int script){
     if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
-    return scriptLanguageFallback[script];
+    return state.fallback[script];
 }
 
 // ==========================================================================
@@ -1873,10 +1918,12 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv* env,
     // than which detector runs.
     std::string joined;
     for(size_t at=0; at<codes.size(); at++){ if(at) joined += ","; joined += codes[at]; }
+    std::shared_ptr<HintState> state = std::make_shared<HintState>();
+    state->list = joined;
+    state->codes = codes;
+    rebuildScriptLanguageTables(*state);
     std::lock_guard<std::mutex> lock(languageHintMutex);
-    languageHintList = joined;
-    languageHintCodes = codes;
-    rebuildScriptLanguageTables();
+    g_hintState = std::move(state);
 }
 // Answers false on an allocation failure rather than inserting a std::string
 // built from a null pointer -- see jstringToStd. setDetectSets runs this over
@@ -1922,9 +1969,11 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv* env, jc
     // against a set that does not match the language list it came from.
     if(!jStringArrayToSet(env, jDetectOk, ok)) return;
     if(!jStringArrayToSet(env, jEnabled, enabled)) return;
+    LangSetPtr okPtr = std::make_shared<const std::unordered_set<std::string>>(std::move(ok));
+    LangSetPtr enabledPtr = std::make_shared<const std::unordered_set<std::string>>(std::move(enabled));
     std::lock_guard<std::mutex> lock(detectSetMutex);
-    detectOkIso3Set = std::move(ok);
-    enabledLangSet = std::move(enabled);
+    detectOkIso3Set = std::move(okPtr);
+    enabledLangSet = std::move(enabledPtr);
 }
 // clsCLD2.d's windowed detect over UTF-16 text, with no JNI in it: 64-unit
 // windows, the first reliable answer that is an enabled language (or any
@@ -1934,8 +1983,10 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv* env, jc
 static std::string detectWindowed(const jchar* chars, int textLen,
         const std::string& latinFallback, const std::string& nonLatinFallback,
         bool disableAdvanced, std::string* logBuf){
-    std::unordered_set<std::string> okIso3, enabled;
-    { std::lock_guard<std::mutex> lock(detectSetMutex); okIso3 = detectOkIso3Set; enabled = enabledLangSet; }
+    LangSetPtr okPtr, enabledPtr;
+    { std::lock_guard<std::mutex> lock(detectSetMutex); okPtr = detectOkIso3Set; enabledPtr = enabledLangSet; }
+    const std::unordered_set<std::string>& okIso3 = *okPtr;
+    const std::unordered_set<std::string>& enabled = *enabledPtr;
     std::string result = "UNKNOWN"; bool done=false;
     int winStart=0;
     while(winStart<textLen && !done){
@@ -2104,6 +2155,9 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
         "am",
         "ko"
     };
+    // One snapshot of the hints for the whole text (see HintState).
+    const HintStatePtr hintState = currentHintState();
+    const std::vector<std::string>& hintCodes = hintState->codes;
     auto emitScriptSpan = [&](int start, int len, int script) {
         if (len < 1) return;
         if (start < 0 || start + len > (int)text.size()) return;
@@ -2155,8 +2209,8 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
             // engine check first.
             lang = "un";
             latin = true;
-            if(!currentLanguageHintCodes().empty()){
-                const int latinFallback = currentScriptLanguageFallback(1);
+            if(!hintCodes.empty()){
+                const int latinFallback = scriptLanguageFallbackOf(*hintState, 1);
                 if(latinFallback != CLD2::UNKNOWN_LANGUAGE){
                     const char* latinFallbackCode = CLD2::LanguageCode((CLD2::Language)latinFallback);
                     if(latinFallbackCode) lang = latinFallbackCode;
@@ -2174,7 +2228,6 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
             // language enabled, and otherwise fall back to the one language
             // this script implies -- is what decides the voice for the span,
             // more often than the detector itself does.
-            const std::vector<std::string> hintCodes = currentLanguageHintCodes();
             auto isHinted = [&](const std::string& candidate) -> bool {
                 if(candidate.empty()) return false;
                 for(size_t at=0; at<hintCodes.size(); at++)
@@ -2182,7 +2235,7 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
                 return false;
             };
             auto scriptFallbackCode = [&]() -> std::string {
-                const int fallback = currentScriptLanguageFallback(script);
+                const int fallback = scriptLanguageFallbackOf(*hintState, script);
                 if(fallback == CLD2::UNKNOWN_LANGUAGE) return "";
                 const char* fallbackCode = CLD2::LanguageCode((CLD2::Language)fallback);
                 return fallbackCode ? std::string(fallbackCode) : std::string();
@@ -2192,7 +2245,7 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
             // it then filters the answer against the hint list -- see
             // 0x65400c (the two NULL pointers), 0x654030 (the table read)
             // and 0x654098 onwards (the filter).
-            const int scriptHint = currentScriptLanguageHint(script);
+            const int scriptHint = scriptLanguageHintOf(*hintState, script);
             CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING,
                                     hintCodes.empty() ? CLD2::UNKNOWN_LANGUAGE
                                                       : (CLD2::Language)scriptHint};

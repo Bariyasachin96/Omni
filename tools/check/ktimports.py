@@ -6,7 +6,7 @@ SRC = evpaths.kotlin_dir()
 
 BUILTINS = set('''
 String Int Long Float Double Boolean Char Byte Short Unit Any Nothing Array List MutableList
-Set MutableSet Map MutableMap Pair Triple Comparable Comparator Iterable Iterator Sequence
+Set MutableSet Map MutableMap Pair Triple Comparable Comparator Iterable Iterator Sequence Collection
 Exception Throwable RuntimeException IllegalStateException IllegalArgumentException
 InterruptedException IndexOutOfBoundsException NumberFormatException UnsupportedOperationException
 ArrayList HashMap HashSet LinkedHashMap LinkedHashSet Object Runnable Thread Regex CharSequence
@@ -94,6 +94,9 @@ def main():
         imported = {m.rsplit('.', 1)[-1]
                     for m in re.findall(r'^import\s+([\w.]+)', code, re.M)}
         local = declared_types(code) | set(CONST_RE.findall(code)) | set(FUN_RE.findall(code))
+        # a generic function's own type parameters: fun <T> f(...), fun <K, V> g(...)
+        for params in re.findall(r'\bfun\s*<([^>]*)>', code):
+            local |= set(re.findall(r'(?:^|,)\s*(?:reified\s+)?([A-Z]\w*)', params))
         lines = sources[f].split('\n')
         for m in re.finditer(r'(?<![\w.$"@])([A-Z]\w*)\b', code):
             name = m.group(1)

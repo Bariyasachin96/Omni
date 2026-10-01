@@ -52,11 +52,18 @@ object VoiceRows {
         if (readingMode == "auto" && selectedIso != autoModeC) rows.add(null)
         if ((readingMode == "mix" || readingMode == "multilingual") && selectedIso != mixLatinIso3 && selectedIso != mixNonLatinIso3) rows.add(null)
         fun tieBreakLabel(row: EngineFinder.ScanVoice?): String = if (row == null) "*Disabled" else abbreviateEngineName(row.engineName)
-        val sorted = rows.sortedWith(Comparator { rowA, rowB ->
-            val orderA = voiceOrder(voiceKey(rowA, selectedIso))
-            val orderB = voiceOrder(voiceKey(rowB, selectedIso))
-            if (orderA != orderB) orderA - orderB else tieBreakLabel(rowA).compareTo(tieBreakLabel(rowB), ignoreCase = true)
-        })
+        // Each row's weight and tie-break label are worked out ONCE (owner,
+        // 2026-10-01); the comparator used to rebuild both keys, look both
+        // weights up and abbreviate both engine names on every comparison. Same
+        // stable sort, same two keys, so the same order
+        // (tools/verify/voicerows/run.sh). A single row is never compared, so
+        // it is not looked up either -- as before.
+        val sorted = if (rows.size < 2) ArrayList(rows) else {
+            val keyed = rows.map { row -> Triple(voiceOrder(voiceKey(row, selectedIso)), tieBreakLabel(row), row) }
+            keyed.sortedWith(Comparator { a, b ->
+                if (a.first != b.first) a.first - b.first else a.second.compareTo(b.second, ignoreCase = true)
+            }).map { it.third }
+        }
         val stored = try { rawPrefs.getString(selectedIso, "") ?: "" } catch (_: Exception) { "" }
         val pinned = pinConfigured(context, sorted, stored, selectedIso, readingMode)
         LangStore.currentVoiceRows = pinned

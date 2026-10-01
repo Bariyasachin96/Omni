@@ -129,20 +129,37 @@ object LangStore {
     // throw rather than answer null. Under the monitor it cannot.
     @JvmStatic
     fun entryAt(index: Int): LangEntry? = synchronized(languages) { languages.getOrNull(index) }
+    // THE DISK WRITE HAPPENS OUTSIDE THE LIST MONITOR (owner, 2026-10-01).
+    // `languages` is the leaf lock the service's binder and synthesis threads
+    // take on every utterance (engineFor, voiceParamsFor, onGetVoices), and
+    // edit(commit = true) is a SYNCHRONOUS write to flash. Holding the monitor
+    // across it made the next utterance wait for the settings screen's onPause
+    // write. The values are copied under the monitor and written after it, in
+    // the same order, so the file is byte for byte what it was
+    // (tools/verify/persist/run.sh).
+    private class Persisted(val iso3: String, val speed: Int, val volume: Int, val pitch: Int, val variant: String, val disabled: Boolean)
+    private fun snapshot(): List<Persisted> = synchronized(languages) {
+        val out = ArrayList<Persisted>(languages.size)
+        var index = 0
+        while (index < languages.size) {
+            val entry = languages[index]; index++
+            out.add(Persisted(entry.iso3, entry.speed, entry.volume, entry.pitch, entry.variant, entry.disabled))
+        }
+        out
+    }
     @JvmStatic
     fun persistLanguages(ctx: Context) {
-        synchronized(languages) {
-            prefs(ctx).edit(commit = true) {
-                for (index in languages.indices) {
-                    val entry = languages[index]
-                    putString("language_$index", entry.iso3)
-                    putInt(entry.iso3 + "_speed", entry.speed)
-                    putInt(entry.iso3 + "_volume", entry.volume)
-                    putInt(entry.iso3 + "_pitch", entry.pitch)
-                    putString(entry.iso3 + "_variant", entry.variant)
-                }
-                putString("language_${languages.size}", "")
+        val list = snapshot()
+        prefs(ctx).edit(commit = true) {
+            for (index in list.indices) {
+                val entry = list[index]
+                putString("language_$index", entry.iso3)
+                putInt(entry.iso3 + "_speed", entry.speed)
+                putInt(entry.iso3 + "_volume", entry.volume)
+                putInt(entry.iso3 + "_pitch", entry.pitch)
+                putString(entry.iso3 + "_variant", entry.variant)
             }
+            putString("language_${list.size}", "")
         }
     }
     // Everything "set up" means for one language, undone: the chosen voice, the
@@ -167,11 +184,10 @@ object LangStore {
     }
     @JvmStatic
     fun persistDisabled(ctx: Context) {
-        synchronized(languages) {
-            prefs(ctx).edit(commit = true) {
-                var index = 0
-                while (index < languages.size) { val entry = languages[index]; index++; putBoolean(entry.iso3 + "_disabled", entry.disabled) }
-            }
+        val list = snapshot()
+        prefs(ctx).edit(commit = true) {
+            var index = 0
+            while (index < list.size) { val entry = list[index]; index++; putBoolean(entry.iso3 + "_disabled", entry.disabled) }
         }
     }
     @JvmStatic
@@ -197,6 +213,18 @@ object LangStore {
     private val COMBINING_MARKS = "\\p{M}".toRegex()
     private fun sortKey(text: String): String =
         java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
+    // EACH NAME IS FOLDED ONCE, NOT ONCE PER COMPARISON (owner, 2026-10-01).
+    // The comparator used to run Normalizer + the regex on BOTH sides of every
+    // comparison: about 2,000 folds for ~137 languages, at every rebuild and at
+    // the end of every scan. The fold is a pure function of the name, and the
+    // sort is the same stable TimSort with the same Collator.compare on the same
+    // folded strings, so the order is identical (tools/verify/sortkeys/run.sh).
+    @JvmStatic
+    fun <T> sortedByName(items: Collection<T>, name: (T) -> String): List<T> {
+        val collator = java.text.Collator.getInstance()
+        val keyed = items.map { Pair(sortKey(name(it)), it) }
+        return keyed.sortedWith { left, right -> collator.compare(left.first, right.first) }.map { it.second }
+    }
     @JvmStatic
     @Synchronized
     fun rebuildFromScan(ctx: Context, onlyEnabled: Boolean, modeInt: Int, required: List<String>,
@@ -242,8 +270,8 @@ object LangStore {
                 for (existing in out) if (existing.iso3.equals(iso3, true)) { existing.enginePkgs.add(pkg); break }
             }
         }
-        val collator = java.text.Collator.getInstance()
-        java.util.Collections.sort(out) { left, right -> collator.compare(sortKey(left.displayName), sortKey(right.displayName)) }
+        val sorted = sortedByName(out) { it.displayName }
+        out.clear(); out.addAll(sorted)
         if (changed) persistDisabled(ctx)
         return out
     }
@@ -272,8 +300,8 @@ object LangStore {
             }
             out.add(entry)
         }
-        val collator = java.text.Collator.getInstance()
-        java.util.Collections.sort(out) { left, right -> collator.compare(sortKey(left.displayName), sortKey(right.displayName)) }
+        val sorted = sortedByName(out) { it.displayName }
+        out.clear(); out.addAll(sorted)
         return out
     }
     @JvmStatic
@@ -466,38 +494,36 @@ object LangStore {
         // other engine -- Google on the owner's phone -- was never bound again.
         // persistVoiceList has always had this guard; this is the same one.
         if (EngineFinder.lastScanEngines.isEmpty()) return
-        synchronized(languages) {
-            val newEngineList = ArrayList<String>()
-            prefs(ctx).edit(commit = true) {
-                var index = 0
-                for (pkg in EngineFinder.lastScanEngines) {
-                    if (pkg == BuildConfig.APPLICATION_ID) continue
-                    putString("engine_$index", pkg)
-                    newEngineList.add(pkg)
-                    index++
-                }
-                putString("engine_$index", "end")
+        // Nothing here reads `languages`; the monitor only made the service
+        // wait for the commit.
+        val newEngineList = ArrayList<String>()
+        prefs(ctx).edit(commit = true) {
+            var index = 0
+            for (pkg in EngineFinder.lastScanEngines) {
+                if (pkg == BuildConfig.APPLICATION_ID) continue
+                putString("engine_$index", pkg)
+                newEngineList.add(pkg)
+                index++
             }
-            EasyVoiceTtsService.engineList = newEngineList
+            putString("engine_$index", "end")
         }
+        EasyVoiceTtsService.engineList = newEngineList
     }
     @JvmStatic
     fun persistVoiceList(ctx: Context) {
-        synchronized(languages) {
-            val voices = EngineFinder.lastScanVoices
-            if (voices.isEmpty()) return
-            val newVoiceList = ArrayList<String>()
-            prefs(ctx).edit(commit = true) {
-                for (index in voices.indices) {
-                    val key = voices[index].pkg + "#" + voices[index].locale.toString()
-                    putString("voice_$index", key)
-                    newVoiceList.add(key)
-                }
-                putString("voice_" + voices.size, "")
-                putBoolean("dedicated_engines", EasyVoiceTtsService.dedicatedEnginesFlag)
+        val voices = EngineFinder.lastScanVoices
+        if (voices.isEmpty()) return
+        val newVoiceList = ArrayList<String>()
+        prefs(ctx).edit(commit = true) {
+            for (index in voices.indices) {
+                val key = voices[index].pkg + "#" + voices[index].locale.toString()
+                putString("voice_$index", key)
+                newVoiceList.add(key)
             }
-            EasyVoiceTtsService.voiceList = newVoiceList
+            putString("voice_" + voices.size, "")
+            putBoolean("dedicated_engines", EasyVoiceTtsService.dedicatedEnginesFlag)
         }
+        EasyVoiceTtsService.voiceList = newVoiceList
     }
     @JvmStatic
     fun persistModeLangs(ctx: Context) {
@@ -542,9 +568,16 @@ object LangStore {
     @JvmStatic
     fun persistVoiceRows(ctx: Context) {
         val sharedPrefs = prefs(ctx)
+        // ONE COMMIT FOR ALL ROWS (owner, 2026-10-01). This was one synchronous
+        // disk write PER ROW -- dozens on a language with many voices, on the
+        // main thread, on every Previous/Next. The only read below
+        // (sharedPrefs.getString(ownKey)) happens at index 0, before any write,
+        // so collecting the puts and committing once leaves the same file.
+        val rows = currentVoiceRows
+        val editor = sharedPrefs.edit()
         var index = 0
-        while (index < currentVoiceRows.size) {
-            val row = currentVoiceRows[index]
+        while (index < rows.size) {
+            val row = rows[index]
             val key = voiceRowKey(row)
             // THE LANGUAGE'S OWN KEY IS WRITTEN ONLY ON A CHOICE (2026-09-23).
             // This ran on every persist -- every onPause, every Previous/Next --
@@ -558,12 +591,11 @@ object LangStore {
             // the list.
             val ownKey = if (row == null) currentVoiceIso else EngineFinder.iso3Of(row.locale)
             val writeOwn = index == 0 && (currentVoiceChosen || (sharedPrefs.getString(ownKey, "") ?: "").isEmpty())
-            sharedPrefs.edit(commit = true) {
-                putString(key, index.toString())
-                if (writeOwn) putString(ownKey, key)
-            }
+            editor.putString(key, index.toString())
+            if (writeOwn) editor.putString(ownKey, key)
             index++
         }
+        if (rows.isNotEmpty()) editor.commit()
     }
     @JvmStatic
     fun persistAll(ctx: Context) {
@@ -586,12 +618,16 @@ object LangStore {
     fun engineFor(lang: String, modeInt: Int): String {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "getEngine4Language " + lang }
         if (modeInt == 3) return EngineFinder.builtInEngine
+        // The per-entry test below decides only whether to LOG the entry, so it
+        // is not evaluated at all while logging is off (owner, 2026-10-01): it
+        // was a case-insensitive compare per language per call, for nothing.
+        val logging = EasyVoiceLogger.isLoggingEnabled()
         synchronized(languages) {
             var index = 0
             while (index < languages.size) {
                 val entry = languages[index]
                 index++
-                if (entry.enginePkg.isNotEmpty() && !entry.enginePkg.equals("disable", true) && !entry.disabled) EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "- " + entry.iso3 + " " + entry.enginePkg }
+                if (logging && entry.enginePkg.isNotEmpty() && !entry.enginePkg.equals("disable", true) && !entry.disabled) EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "- " + entry.iso3 + " " + entry.enginePkg }
                 if (lang == entry.iso3) {
                     if (entry.disabled) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " res1 Disable" }; return "Disable" }
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " res " + entry.enginePkg }

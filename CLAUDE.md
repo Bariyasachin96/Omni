@@ -8,6 +8,34 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## NINE MORE LOADS REMOVED, EACH PROVEN (owner, 2026-10-01, latest)
+*"ek se no complete test Karke properli Sahi tarike se karna 1 se lekar 9: Tak Puri Sabhi chijen."*
+- **1** `persistLanguages/Disabled/Engines/VoiceList` commit OUTSIDE `synchronized(languages)` (a `snapshot()` is
+  copied under it); `persistVoiceRows` is ONE commit for all rows (was one per row). `tools/verify/persist/run.sh`:
+  100,000 cases, same prefs map + engineList/voiceList; commits 142,710 -> 90,259, under the lock 72,765 -> 0.
+  Negatives caught: snapshot drops disabled, commit back under the lock, own-key read at every row, put order.
+- **2** `LangStore.sortedByName` folds each name ONCE (rebuildFromScan, dualLangList, EngineFinder.finalizeScan);
+  EngineFinder's COMBINING_MARKS went. `tools/verify/sortkeys/run.sh`: 10,400 sorts, 13 default locales, IDENTICAL;
+  negative (unfolded) caught.
+- **3** detect sets are `shared_ptr<const unordered_set>` snapshots; `detectWindowed` no longer copies both sets.
+- **4** language hints are ONE immutable `HintState` (list, codes, hint[40], fallback[40]) swapped by
+  setLanguageHints; span detection takes one snapshot per text instead of 3-5 mutex trips per span.
+- **5** `engineFor`'s log-only per-entry test runs only while logging is on (langstore harness now compares
+  engineFor's answer AND log lines with logging off/on: IDENTICAL; negative `!logging` caught).
+- **6** `activeSmartNumberKeywords` checks its cache first and returns a const reference (hints read outside
+  smartNumberMutex, double-checked).
+- **7** buildMixChunks appends with `append/assign(str,pos,n)` instead of substr temporaries.
+- **8** `familyLangForCpFiltered`'s 18 gates are lazy lambdas, asked AFTER the code-point range (Latin block =
+  65-90, 97-122, 192-591, 7840-7929); the `[SCRIPT]` hex is formatted only with a log.
+- **9** Languages filter lowers labels once (`remember(labels)`) and the query once; Voice setup computes each row's
+  weight and tie-break label once (a single row is still never looked up). `tools/verify/uilists/run.sh`: 45,000
+  cases IDENTICAL; negative caught.
+- Native proof for 3/4/6/7/8: segmenter IDENTICAL 163,296 (also under -Oz/LTO flags), scriptfamily IDENTICAL,
+  oldnew 0 differ (negatives: fallback slot 2 = 15,576; ok/enabled swapped = 1,625), onecall 0, stress 0,
+  devanagari 17/17, normaliser/langcodes IDENTICAL; segmenter negatives (assign 0 bytes, cache inverted) caught.
+  Local NDK 30 externalNativeBuildRelease: arm64 .so builds, 6 `Java_*` exports. check-all 0/0 (ktimports learned
+  `Collection` and `fun <T>` type params, negative-tested), selftest EVERY CHECK FIRES.
+
 ## ITEMS 6-9 DONE; THE AFTER-AN-UPDATE SILENCE: THREE HOLES IN RESTORE (owner, 2026-10-01, latest)
 *"6 se 9 wala bhi complete kar do test karke ... application ko update karta hun ... tab kam nahin karta."*
 - **6** `SharedPrefsManager.toIso3` caches answers (ConcurrentHashMap, cap 512, `toIso3Uncached` is the old body).

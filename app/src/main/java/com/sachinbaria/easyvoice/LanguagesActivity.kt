@@ -287,9 +287,13 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
         }
         if (hit) LangStore.persistDisabled(context)
     }
+    // Lowered ONCE (owner, 2026-10-01): this filter runs on every recomposition
+    // -- every keystroke and every tick -- and lowered all ~137 labels AND the
+    // query again for each row. Same Locale, same strings, same answer.
+    val lowerLabels = remember(labels) { labels.map { it.lowercase(Locale.getDefault()) } }
+    val lowerQuery = query.lowercase(Locale.getDefault())
     val visibleIdx = labels.indices.filter { index ->
-        val matches = query.isEmpty() || labels[index].lowercase(Locale.getDefault())
-            .contains(query.lowercase(Locale.getDefault()))
+        val matches = query.isEmpty() || lowerLabels[index].contains(lowerQuery)
         val selected = if (showSelectedOnly) (index < checked.size && checked[index]) else true
         matches && selected
     }
