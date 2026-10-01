@@ -12,6 +12,7 @@
 #include <jni.h>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -19,11 +20,9 @@ extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
 JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
-JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-    JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+    JNIEnv*, jclass, jstring, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean, jboolean);
-JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
-    JNIEnv*, jclass, jstring, jstring, jstring, jboolean, jboolean);
 }
 
 static JNIEnv* env = nullptr;
@@ -82,35 +81,29 @@ int main(){
         const std::string text = buildText(p);
 
         // 1. segmentation, exactly as the mix branch calls it
-        jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
+        jstring buf = env->NewStringUTF(text.c_str());
         const double s0 = nowMs();
-        jstring packed = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-            env, nullptr, buf, (jint)text.size(),
+        jobjectArray packed = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+            env, nullptr, buf,
             env->NewStringUTF("eng"), env->NewStringUTF("guj"), env->NewStringUTF("mix"),
             0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"),
             JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF("eng"), 1, JNI_TRUE, JNI_FALSE, JNI_FALSE);
         const double segMs = nowMs() - s0;
 
-        const char* pc = env->GetStringUTFChars(packed, nullptr);
-        std::string packedStr(pc ? pc : "");
-        env->ReleaseStringUTFChars(packed, pc);
-
-        // split records on 0x1E, take field 3 (the text) of each
+        // records: a field count, then type / kind / lang / text [...]
         std::vector<std::string> chunkTexts;
-        size_t at = 0;
-        while (at < packedStr.size()) {
-            size_t end = packedStr.find('\x1E', at);
-            if (end == std::string::npos) end = packedStr.size();
-            std::string rec = packedStr.substr(at, end - at);
-            at = end + 1;
-            int field = 0; size_t fs = 0;
-            for (size_t i = 0; i <= rec.size(); i++) {
-                if (i == rec.size() || rec[i] == '\x1F') {
-                    if (field == 3) chunkTexts.push_back(rec.substr(fs, i - fs));
-                    field++; fs = i + 1;
-                }
+        jsize total = packed ? env->GetArrayLength(packed) : 0;
+        for (jsize at = 0; at < total;) {
+            jstring cs = (jstring)env->GetObjectArrayElement(packed, at);
+            const char* cc = env->GetStringUTFChars(cs, nullptr);
+            int n = atoi(cc); env->ReleaseStringUTFChars(cs, cc);
+            if (n >= 4) {
+                jstring ts = (jstring)env->GetObjectArrayElement(packed, at + 4);
+                const char* tc = env->GetStringUTFChars(ts, nullptr);
+                chunkTexts.push_back(tc ? tc : "");
+                env->ReleaseStringUTFChars(ts, tc);
             }
-            if (field > 3 && chunkTexts.empty()) {}
+            at += 1 + n;
         }
 
         // 2. one detection per chunk, which is what detectLanguageRuns does.
@@ -136,8 +129,8 @@ int main(){
         // 3. the same work in ONE crossing (2026-10-01): processDirect with
         // detect on carries each chunk's fold and spans in its own record.
         const double o0 = nowMs();
-        jstring one = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-            env, nullptr, buf, (jint)text.size(),
+        jobjectArray one = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+            env, nullptr, buf,
             env->NewStringUTF("eng"), env->NewStringUTF("guj"), env->NewStringUTF("mix"),
             0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"),
             JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF("eng"), 1, JNI_TRUE, JNI_TRUE, JNI_FALSE);

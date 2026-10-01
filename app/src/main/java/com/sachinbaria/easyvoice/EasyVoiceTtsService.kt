@@ -20,7 +20,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
-import java.nio.ByteBuffer
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null)
@@ -2519,20 +2518,32 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  detectLanguageAggregate the most-text-wins fallback. They are hinted
     //  DIFFERENTLY in the native half -- see docs/AUTOTTS_MAP.md.
     // ==========================================================================
-    private fun detectLanguage(text: String, latinFallback: String, nonLatinFallback: String): String {
-        if (text.isEmpty()) return "UNKNOWN"
-        if (text.length == 1 && quickCharacterFlag) return "UNKNOWN"
+    // Auto and Google mode: clsCLD2.d's windowed answer and, when that is
+    // unknown, clsCLD2.f's (5.7.7.26's third step). ONE crossing does both
+    // (owner, 2026-10-01): detectWindowOrSpans answers the windowed result and,
+    // only when it is unknown, the fold and spans clsCLD2.f weighs up -- the
+    // same thing nativeFoldAndDetect would have answered for this text. The
+    // two early answers (empty text, a lone character under quick read) are
+    // clsCLD2.d's own, made here without the core, exactly as before.
+    private fun detectWindowThenAggregate(text: String, latinFallback: String, nonLatinFallback: String): String {
+        if (text.isEmpty()) return detectLanguageAggregate(text)
+        val quick = quickCharacterFlag
+        if (text.length == 1 && quick) return detectLanguageAggregate(text)
         try {
             initIsoMaps()
-            val out = detectLanguageFull(text, latinFallback, nonLatinFallback, disableAdvancedFlag, EasyVoiceLogger.isLoggingEnabled())
-            val markerIdx = out.indexOf('\u0001')
+            val out = detectWindowOrSpans(text, latinFallback, nonLatinFallback, disableAdvancedFlag,
+                EasyVoiceLogger.isLoggingEnabled(), quick)
+            val head = out[0]
+            val markerIdx = head.indexOf('\u0001')
+            var lang = head
             if (markerIdx >= 0) {
-                if (markerIdx + 1 < out.length) for (line in out.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)
-                return out.substring(0, markerIdx)
+                if (markerIdx + 1 < head.length) for (line in head.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)
+                lang = head.substring(0, markerIdx)
             }
-            return out
+            if (!lang.equals("unknown", ignoreCase = true)) return lang
+            if (out.size >= 2) return aggregateOf(out.asList(), 1, quick)
         } catch (_: Throwable) {  }
-        return "UNKNOWN"
+        return detectLanguageAggregate(text)
     }
     // THE "ALREADY DONE" FLAG USED TO BE SET BEFORE THE WORK, AND THE MAP IT
     // TESTED WAS A PLAIN HashMap WRITTEN FROM TWO THREADS (2026-09-11).
@@ -2624,27 +2635,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun refreshEnabledLangs() {
         pushDetectSetsOnly()
     }
-    // The other half of processDirect's packField: U+001D, U+001E and U+001F
-    // are escaped there because they double as the field and record separators
-    // and can legitimately occur in the text.
-    private fun decodeChunkText(field: String): String {
-        if (field.indexOf('\u001D') < 0) return field
-        val out = StringBuilder(field.length)
+    // processDirect's answer, one record at a time: each record is the number
+    // of fields that follow, then the fields (type, kind, lang, text and, for a
+    // detected chunk, its fold and spans). A count that runs past the end ends
+    // the walk rather than reading what is not there.
+    private fun recordsOf(flat: Array<String>): List<List<String>> {
+        val records = ArrayList<List<String>>()
         var at = 0
-        while (at < field.length) {
-            val ch = field[at]
-            if (ch == '\u001D' && at + 1 < field.length) {
-                val marker = field[at + 1]
-                if (marker == '0' || marker == '1' || marker == '2') {
-                    out.append(if (marker == '0') '\u001D' else if (marker == '1') '\u001E' else '\u001F')
-                    at += 2
-                    continue
-                }
-            }
-            out.append(ch)
-            at++
+        while (at < flat.size) {
+            val n = flat[at].toIntOrNull() ?: break
+            if (n < 0 || at + 1 + n > flat.size) break
+            records.add(flat.asList().subList(at + 1, at + 1 + n))
+            at += 1 + n
         }
-        return out.toString()
+        return records
     }
     private class DetectedRun(val lang: String, val latin: Boolean, val text: String)
     private fun detectLanguageRuns(text: String): List<DetectedRun> {
@@ -2681,11 +2685,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // without them -- the empty chunk, which the core skips -- is detected here
     // as before, and detectLanguageRuns answers an empty text without the core.
     private fun detectedRunsOf(parts: List<String>, quick: Boolean): List<DetectedRun> {
-        val text = decodeChunkText(parts[3])
+        val text = parts[3]
         if (parts.size < 5 || text.isEmpty()) return detectLanguageRuns(text)
-        val flat = ArrayList<String>(parts.size - 4)
-        for (k in 4 until parts.size) flat.add(decodeChunkText(parts[k]))
-        return runsFromFlat(flat, 0, quick)
+        return runsFromFlat(parts, 4, quick)
     }
     // AutoTTS 5.7.7.26 clsCLD2.f. Ask for every span the detector can see, add up
     // how much text each language covers, and take the biggest -- except that a
@@ -2693,18 +2695,24 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // separate best-so-far candidates below are for.
     private fun detectLanguageAggregate(text: String): String {
         if (text.isEmpty()) return "un"
-        val flat = foldAndDetect(text)
-        if (quickCharacterFlag && flat[0].length == 1) return "un"
-        if (flat.size < 4) return "un"
+        return aggregateOf(foldAndDetect(text).asList(), 0, quickCharacterFlag)
+    }
+    // clsCLD2.f's weighing, over a fold-and-detect answer whose element `first`
+    // is the folded text -- nativeFoldAndDetect's array, or the tail of
+    // detectWindowOrSpans's.
+    private fun aggregateOf(flat: List<String>, first: Int, quick: Boolean): String {
+        if (quick && flat[first].length == 1) return "un"
+        val size = flat.size - first
+        if (size < 4) return "un"
         // One triple means one span, so there is nothing to weigh up.
-        if (flat.size == 4) return flat[1]
+        if (size == 4) return flat[first + 1]
         // A plain HashMap, as clsCLD2.f uses: both best-so-far scans below
         // replace only on a strict >, so an exact tie is settled by whichever
         // entry entrySet() yields first, and that is HashMap's bucket order --
         // not insertion order. Kotlin's HashMap is java.util.HashMap, so the
         // same keys inserted in the same order iterate in the same sequence.
         val totals = HashMap<String, Int>()
-        var index = 1
+        var index = first + 1
         while (index + 2 < flat.size) {
             val key = flat[index] + "|" + flat[index + 1]
             totals[key] = (totals[key] ?: 0) + flat[index + 2].length
@@ -3140,11 +3148,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         val resolved = if (hasEngineForLang(spanChunk.lang)) spanChunk.lang else autoModeF
                         chunks.add(TextChunk(spanChunk.text, resolved))
                     } else {
-                        val textBytes = spanChunk.text.toByteArray(Charsets.UTF_8)
-                        val textBuffer = ByteBuffer.allocateDirect(textBytes.size)
-                        textBuffer.put(textBytes); textBuffer.position(0)
                         val chunkOutput = processDirect(
-                            textBuffer, textBytes.size,
+                            spanChunk.text,
                             latinFallback, nonLatinFallback, "mix",
                             numberModeInt, normalizeLangCode(numberSpecificLang),
                             punctuationModeInt, normalizeLangCode(puncSpecificLang),
@@ -3152,8 +3157,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             smartNumberGroupSize,
                             neutralDefault, neutralType, disableAdvancedDetection, true, quick
                         )
-                        for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
-                            val parts = chunkStr.split('\u001F')
+                        for (parts in recordsOf(chunkOutput)) {
                             if (parts.size >= 4) {
                                 // AutoTTS branches on the type d0.t RESOLVED, never on what
                                 // the text looks like. A type of 3, 4 or 5 survives only when
@@ -3165,7 +3169,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 // non-Latin run and is detected together with it.
                                 val spanMixType = parts[0].toIntOrNull() ?: 0
                                 if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {
-                                    chunks.add(TextChunk(decodeChunkText(parts[3]), prefs.toIso3(normalizeLangCode(parts[2]))))
+                                    chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))
                                 } else {
                                     for (run in detectedRunsOf(parts, quick)) {
                                         chunks.add(TextChunk(run.text, prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))))
@@ -3207,11 +3211,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     if (!spanChunk.lang.equals("unknown", ignoreCase = true) && spanChunk.lang.isNotEmpty() && hasEngineForLang(spanChunk.lang)) {
                         chunks.add(TextChunk(spanChunk.text, spanChunk.lang))
                     } else {
-                        val textBytes = spanChunk.text.toByteArray(Charsets.UTF_8)
-                        val textBuffer = ByteBuffer.allocateDirect(textBytes.size)
-                        textBuffer.put(textBytes); textBuffer.position(0)
                         val chunkOutput = processDirect(
-                            textBuffer, textBytes.size,
+                            spanChunk.text,
                             latinFallback, nonLatinFallback, "mix",
                             numberModeInt, normalizeLangCode(numberSpecificLang),
                             punctuationModeInt, normalizeLangCode(puncSpecificLang),
@@ -3219,13 +3220,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             smartNumberGroupSize,
                             neutralDefault, neutralType, disableAdvancedDetection, true, quick
                         )
-                        for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
-                            val parts = chunkStr.split('\u001F')
+                        for (parts in recordsOf(chunkOutput)) {
                             if (parts.size < 4) continue
                             // Same branch as mixed above, and for the same reason.
                             val spanMixType = parts[0].toIntOrNull() ?: 0
                             if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {
-                                chunks.add(TextChunk(decodeChunkText(parts[3]), prefs.toIso3(normalizeLangCode(parts[2]))))
+                                chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))
                             } else {
                                 for (run in detectedRunsOf(parts, quick)) {
                                     chunks.add(TextChunk(run.text, prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))))
@@ -3253,14 +3253,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
             "dual" -> {
                 run {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Dual mode")
-                    val textBytes = trimmedText.toByteArray(Charsets.UTF_8)
-                    val textBuffer = ByteBuffer.allocateDirect(textBytes.size)
-                    textBuffer.put(textBytes); textBuffer.position(0)
                     val neutralType = if (localeIso3() == prefs.toIso3(dualLang)) 2 else 1
                     val neutralDefault = requestedLang.ifEmpty { latinFallback }
                     val disableAdvancedDetection = disableAdvancedFlag
                     val chunkOutput = processDirect(
-                        textBuffer, textBytes.size,
+                        trimmedText,
                         latinFallback, nonLatinFallback, "dual",
                         numberModeInt, normalizeLangCode(numberSpecificLang),
                         punctuationModeInt, normalizeLangCode(puncSpecificLang),
@@ -3268,11 +3265,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         smartNumberGroupSize,
                         neutralDefault, neutralType, disableAdvancedDetection, false, false
                     )
-                    for (chunkStr in chunkOutput.split('\u001E').filter { it.isNotBlank() }) {
-                        val parts = chunkStr.split('\u001F', limit = 4)
+                    for (parts in recordsOf(chunkOutput)) {
                         if (parts.size == 4) {
                             val resolved = normalizeLangCode(parts[2])
-                            chunks.add(TextChunk(decodeChunkText(parts[3]), resolved, typeCode = parts[0].toIntOrNull() ?: 0))
+                            chunks.add(TextChunk(parts[3], resolved, typeCode = parts[0].toIntOrNull() ?: 0))
                         }
                     }
                     val segmenterEmpty = chunks.isEmpty()
@@ -3307,15 +3303,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 for (spanChunk in localeChunks) {
                     if (isFlushed) break
                     val detected = if (spanChunk.lang.equals("unknown", ignoreCase = true)) {
-                        var rawDetected = detectLanguage(spanChunk.text, latinFallback, nonLatinFallback)
                         // 5.7.7.26 adds a third step here: when the span carries no
                         // language of its own AND the main detector still says
-                        // unknown, the aggregate detector gets a turn. It costs
-                        // nothing on ordinary text, because it only runs once both
-                        // earlier answers have failed.
-                        if (rawDetected.equals("unknown", ignoreCase = true)) {
-                            rawDetected = detectLanguageAggregate(spanChunk.text)
-                        }
+                        // unknown, the aggregate detector gets a turn. Both are in
+                        // detectWindowThenAggregate, in one crossing.
+                        val rawDetected = detectWindowThenAggregate(spanChunk.text, latinFallback, nonLatinFallback)
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Cld2: " + rawDetected + " '" + spanChunk.text + "'")
                         if (rawDetected.length > 2) rawDetected.substring(0, 2) else rawDetected
                     } else spanChunk.lang
@@ -4192,7 +4184,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         init { System.loadLibrary("easyvoice") }
 
         @JvmStatic external fun processDirect(
-            buffer: java.nio.ByteBuffer, length: Int,
+            text: String,
             latinFallback: String, nonLatinFallback: String,
             mode: String,
             numberMode: Int, numberSpecific: String,
@@ -4201,14 +4193,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
             smartNumberGroupSize: Int,
             neutralDefault: String, neutralType: Int,
             disableAdvancedDetection: Boolean, detect: Boolean, singleStops: Boolean
-        ): String
+        ): Array<String>
         // clsCLD2.b's fold, then the span detector, in one call.
         @JvmStatic external fun nativeFoldAndDetect(text: String, singleStops: Boolean): Array<String>
         @JvmStatic external fun setIsoMap(iso2: Array<String>, iso3: Array<String>)
         @JvmStatic external fun setLanguageHints(langs: Array<String>)
         @JvmStatic external fun setDetectSets(detectOkIso3: Array<String>, enabledLangs: Array<String>)
-        @JvmStatic external fun detectLanguageFull(text: String, latinFallback: String, nonLatinFallback: String,
-            disableAdvancedDetection: Boolean, wantLog: Boolean): String
+        // clsCLD2.d's windowed detect and, only when it answers unknown, the fold
+        // and spans clsCLD2.f weighs up -- one crossing (owner, 2026-10-01).
+        @JvmStatic external fun detectWindowOrSpans(text: String, latinFallback: String, nonLatinFallback: String,
+            disableAdvancedDetection: Boolean, wantLog: Boolean, singleStops: Boolean): Array<String>
 
         // AutoTtsService.s0, "updateLanguage2LetterCodes". It rebuilds the enabled
         // two-letter set from the language list and pushes it to the detector:

@@ -110,7 +110,7 @@ The text is walked code point by code point, each classified into a script by
   then **filtered** against the enabled languages, falling back to the script's
   own language.
 
-**Per 64-character window** — `detectLanguageFull` → `detectWindowLang`, used by
+**Per 64-character window** — `detectWindowOrSpans` → `detectWindowed` → `detectWindowLang`, used by
 auto and Google mode. Here the detector gets **no hints and no filter**; the
 caller decides what to do with an answer the user has not enabled, falling back
 to the script family.

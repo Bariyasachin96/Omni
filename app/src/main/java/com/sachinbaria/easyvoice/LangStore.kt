@@ -398,7 +398,7 @@ object LangStore {
     // Do not "restore" it to true.
     //
     // What the flag actually gates, read from the native window detector: with
-    // it ON, detectLanguageFull takes the detector's first reliable answer and
+    // it ON, detectWindowOrSpans (detectWindowed) takes the detector's first reliable answer and
     // stops -- no check that the language is one the user enabled, and no
     // script-family fallback. With it OFF, the answer must be in the enabled
     // set, and if it is not, a.e(cp, n.f) resolves the window by its script

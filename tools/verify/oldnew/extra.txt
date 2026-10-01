@@ -1,0 +1,15 @@
+# Lines for the old-core vs new-core proof only. \uXXXX is ONE UTF-16 unit, so
+# a surrogate with no partner can be written; the old Kotlin's toByteArray
+# turned one into '?', and the new core's encoder must do the same.
+lone high \uD800 in the middle
+\uDC00 lone low at the start
+trailing lone high \uD83D
+नमस्ते \uDE00 बीच में
+pair \uD83D\uDE00 written as escapes
+NUL \0 then text
+record sep \u001E inside and unit sep \u001F and escape \u001D here
+\u001D0\u001D1\u001D2 the old escape markers themselves
+\u001E
+x
+अ
+😀

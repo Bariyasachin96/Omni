@@ -26,8 +26,8 @@ extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
 JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
-JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-    JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+    JNIEnv*, jclass, jstring, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean, jboolean);
 }
 
@@ -79,17 +79,20 @@ static std::string unesc(const std::string& s){
     }
     return o;
 }
-// decodeChunkText, the inverse of packField: \x1D then '0'/'1'/'2' stands for
-// \x1D / \x1E / \x1F (the harness used to keep the marker digit itself; the
-// stress corpus caught it).
-static std::string decodeChunk(const std::string& s){
-    std::string o;
-    for (size_t i = 0; i < s.size(); i++) {
-        if (s[i] == '\x1D' && i + 1 < s.size() && s[i + 1] >= '0' && s[i + 1] <= '2') {
-            o += s[i + 1] == '0' ? '\x1D' : s[i + 1] == '1' ? '\x1E' : '\x1F'; i++;
-        } else o += s[i];
+// processDirect's answer: per record, a field count, then the fields
+// (type, kind, lang, text and, for a detected chunk, its fold and spans).
+static std::vector<std::vector<std::string>> records(jobjectArray a){
+    std::vector<std::vector<std::string>> out;
+    jsize total = a ? env->GetArrayLength(a) : 0;
+    for (jsize at = 0; at < total;) {
+        int n = atoi(S((jstring)env->GetObjectArrayElement(a, at)).c_str());
+        if (n < 0 || at + 1 + n > total) break;
+        std::vector<std::string> f;
+        for (int k = 1; k <= n; k++) f.push_back(S((jstring)env->GetObjectArrayElement(a, at + k)));
+        out.push_back(f);
+        at += 1 + n;
     }
-    return o;
+    return out;
 }
 struct Chunk { std::string lang, text; };
 
@@ -122,20 +125,14 @@ static std::string resolve(const std::string& lang, bool latin){
 static bool smart = true; static int group = 2;   // what the log shows: "83201" -> "83 20 1"
 static std::vector<Chunk> ours(const std::string& text){
     std::vector<Chunk> out;
-    jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
-    std::string packed = S(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-        env, nullptr, buf, (jint)text.size(), J("eng"), J("guj"), J("mix"),
+    auto recs = records(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+        env, nullptr, J(text), J("eng"), J("guj"), J("mix"),
         0, J(""), 0, J(""), 0, J(""), JNI_TRUE, smart ? JNI_TRUE : JNI_FALSE, group, J("eng"), 1, JNI_FALSE, JNI_FALSE, JNI_FALSE));
-    size_t at = 0;
-    while (at < packed.size()) {
-        size_t rec = packed.find('\x1E', at);
-        std::string one = packed.substr(at, rec == std::string::npos ? std::string::npos : rec - at);
-        at = rec == std::string::npos ? packed.size() : rec + 1;
-        size_t f1 = one.find('\x1F'), f2 = one.find('\x1F', f1 + 1), f3 = one.find('\x1F', f2 + 1);
-        if (f1 == std::string::npos || f2 == std::string::npos || f3 == std::string::npos) continue;
-        int type = atoi(one.substr(0, f1).c_str());
-        std::string t = decodeChunk(one.substr(f3 + 1));
-        if (type >= 3) { out.push_back({one.substr(f2 + 1, f3 - f2 - 1), t}); continue; }
+    for (auto& one : recs) {
+        if (one.size() < 4) continue;
+        int type = atoi(one[0].c_str());
+        const std::string& t = one[3];
+        if (type >= 3) { out.push_back({one[2], t}); continue; }
         jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(env, nullptr, J(t), JNI_FALSE);
         jsize n = got ? env->GetArrayLength(got) : 0;
         for (jsize i = 1; i + 2 < n; i += 3) {
@@ -233,20 +230,9 @@ static int stress(const char* path){
 // enabled-language sets x quick-character on/off x smart numbers on/off x the
 // number/punctuation/emoji mode ints, and every record is compared field for
 // field -- the four base fields too, so turning detect on cannot move a chunk.
-static std::vector<std::string> splitUS(const std::string& rec){
-    std::vector<std::string> f; size_t p = 0;
-    for (;;) { size_t q = rec.find('\x1F', p); if (q == std::string::npos) { f.push_back(rec.substr(p)); break; } f.push_back(rec.substr(p, q - p)); p = q + 1; }
-    return f;
-}
-static std::vector<std::string> splitRS(const std::string& all){
-    std::vector<std::string> r; size_t p = 0;
-    while (p < all.size()) { size_t q = all.find('\x1E', p); if (q == std::string::npos) q = all.size(); r.push_back(all.substr(p, q - p)); p = q + 1; }
-    return r;
-}
-static std::string packedOf(const std::string& text, int nm, int pm, int em, bool smartOn, bool quick, bool detect){
-    jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
-    return S(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-        env, nullptr, buf, (jint)text.size(), J("eng"), J("hin"), J("mix"),
+static std::vector<std::vector<std::string>> recsOf(const std::string& text, int nm, int pm, int em, bool smartOn, bool quick, bool detect){
+    return records(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+        env, nullptr, J(text), J("eng"), J("hin"), J("mix"),
         nm, J("eng"), pm, J("hin"), em, J("guj"), JNI_TRUE, smartOn ? JNI_TRUE : JNI_FALSE, 2, J("eng"), 1, JNI_FALSE,
         detect ? JNI_TRUE : JNI_FALSE, quick ? JNI_TRUE : JNI_FALSE));
 }
@@ -265,19 +251,19 @@ static int onecall(const char* path){
         Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(set));
         for (auto& text : texts) for (auto& m : modes) for (int quick = 0; quick < 2; quick++) for (int sm = 0; sm < 2; sm++) {
             env->PushLocalFrame(512);
-            std::vector<std::string> oldR = splitRS(packedOf(text, m[0], m[1], m[2], sm, quick, false));
-            std::vector<std::string> newR = splitRS(packedOf(text, m[0], m[1], m[2], sm, quick, true));
+            auto oldR = recsOf(text, m[0], m[1], m[2], sm, quick, false);
+            auto newR = recsOf(text, m[0], m[1], m[2], sm, quick, true);
             std::string why;
             if (oldR.size() != newR.size()) why = "record count " + std::to_string(oldR.size()) + " vs " + std::to_string(newR.size());
             for (size_t i = 0; why.empty() && i < oldR.size(); i++) {
                 records++;
-                std::vector<std::string> o = splitUS(oldR[i]), n = splitUS(newR[i]);
+                const std::vector<std::string>& o = oldR[i]; const std::vector<std::string>& n = newR[i];
                 if (o.size() != 4) { why = "old record has " + std::to_string(o.size()) + " fields"; break; }
                 if (n.size() < 4) { why = "new record has " + std::to_string(n.size()) + " fields"; break; }
                 for (int k = 0; k < 4 && why.empty(); k++) if (o[k] != n[k]) why = "record " + std::to_string(i) + " field " + std::to_string(k) + " moved";
                 if (!why.empty()) break;
                 int type = atoi(o[0].c_str());
-                std::string t = decodeChunk(o[3]);
+                std::string t = o[3];
                 std::vector<std::string> want;
                 if (type >= 0 && type <= 2 && !t.empty()) {
                     detected++;
@@ -287,7 +273,7 @@ static int onecall(const char* path){
                     env->DeleteLocalRef(got);
                 }
                 std::vector<std::string> have;
-                for (size_t k = 4; k < n.size(); k++) have.push_back(decodeChunk(n[k]));
+                for (size_t k = 4; k < n.size(); k++) have.push_back(n[k]);
                 if (want != have) why = "record " + std::to_string(i) + ": spans differ (" + std::to_string(want.size()) + " vs " + std::to_string(have.size()) + " fields)";
             }
             if (!why.empty()) {

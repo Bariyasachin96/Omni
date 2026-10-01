@@ -19,6 +19,7 @@
 // covers.
 #include <jni.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -29,8 +30,8 @@ extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
 JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
-JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-    JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
+JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+    JNIEnv*, jclass, jstring, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean, jboolean);
 }
 
@@ -102,25 +103,21 @@ static std::string cldDetail(const std::string& text, CLD2::Language scriptHint)
 static void mixChunks(const std::string& text, const char* latin, const char* nonLatin,
                       std::vector<std::string>& out){
     out.clear();
-    jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
-    jstring js = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-        env, nullptr, buf, (jint)text.size(),
+    jobjectArray js = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+        env, nullptr, env->NewStringUTF(text.c_str()),
         env->NewStringUTF(latin), env->NewStringUTF(nonLatin), env->NewStringUTF("mix"),
         0, env->NewStringUTF(""), 0, env->NewStringUTF(""), 0, env->NewStringUTF(""),
         JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF(latin), 1, JNI_FALSE, JNI_FALSE, JNI_FALSE);
     if (!js) return;
-    std::string packed = str(js);
-    size_t at = 0;
-    while (at < packed.size()) {
-        size_t rec = packed.find('\x1E', at);
-        std::string one = packed.substr(at, rec == std::string::npos ? std::string::npos : rec - at);
-        at = (rec == std::string::npos) ? packed.size() : rec + 1;
-        // type \x1F kind \x1F lang \x1F text -- we want the text
-        size_t f1 = one.find('\x1F'); if (f1 == std::string::npos) continue;
-        size_t f2 = one.find('\x1F', f1 + 1); if (f2 == std::string::npos) continue;
-        size_t f3 = one.find('\x1F', f2 + 1); if (f3 == std::string::npos) continue;
-        std::string t = one.substr(f3 + 1);
-        if (!t.empty()) out.push_back(t);
+    // records: a field count, then type / kind / lang / text -- we want the text
+    jsize total = env->GetArrayLength(js);
+    for (jsize at = 0; at < total;) {
+        int n = atoi(str((jstring)env->GetObjectArrayElement(js, at)).c_str());
+        if (n >= 4) {
+            std::string t = str((jstring)env->GetObjectArrayElement(js, at + 4));
+            if (!t.empty()) out.push_back(t);
+        }
+        at += 1 + n;
     }
 }
 

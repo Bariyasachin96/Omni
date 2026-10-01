@@ -8,12 +8,36 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE OTHER THREE: AUTO MODE IN ONE CROSSING, NO BYTE BUFFER, AN ARRAY INSTEAD OF A PACKED STRING (owner, 2026-10-01, latest)
+*"Jo baki teenon rahe the usko bhi test karke complete kar do ... paanchon ke pure sab kuchh check kar lena."*
+- **#2 auto/Google mode crosses once.** `detectLanguageFull` is GONE; `detectWindowOrSpans(text, lat, nonLat,
+  disableAdv, wantLog, singleStops)` answers `[windowed result + \x01 + log]` and, ONLY when that result is
+  "unknown" (any case), the fold + lang/latin/text triples nativeFoldAndDetect would give for the same text. C++:
+  `detectWindowed` (no JNI) + `isUnknownWord`. Kotlin: `detectWindowThenAggregate` replaces `detectLanguage` + the
+  `if unknown -> detectLanguageAggregate` lines; `aggregateOf(flat, first, quick)` is clsCLD2.f's weighing, shared.
+  The two early answers (empty, lone char under quick) and a throw still go the old way (`detectLanguageAggregate`).
+- **#4 processDirect takes the String.** No `toByteArray` + `ByteBuffer.allocateDirect` + `put`; the core reads
+  UTF-16 with `GetStringRegion` and `javaUtf8Bytes` is String.getBytes(UTF_8) byte for byte: U+0000 = 0x00,
+  supplementary = 4 bytes, a lone surrogate = '?'.
+- **#5 processDirect answers Array<String>**: per record a field count, then type/kind/lang/text[/fold+spans]. Kotlin
+  `recordsOf`; `packField`, `decodeChunkText` and the \x1E/\x1F splitting are gone.
+- **Proof: `tools/verify/oldnew/run.sh`** builds the core of `ae274b9` (before these three) AND the working tree's,
+  feeds both the same 282 texts (stress + segmenter TEXTS + `extra.txt`: lone surrogates, U+0000, the old separators)
+  x 8 enabled sets x mix(6 mode triples x quick x smart) / dual / auto(disableAdv x quick), then runs EACH VERSION'S
+  OWN KOTLIN (lifted function by function by `gen.py`, natives stubbed with that build's answers) and compares what
+  would be spoken, the auto answer and its log lines: **90,240 cases, 265,632 chunks, 3,937 aggregate fallbacks, 0
+  differ.** Negative tests caught: lone surrogate as 3 bytes (576), kind/lang swapped (39,584), last record dropped
+  (80,640), emoji as two 3-byte halves (24,480), aggregate index off (51,416), log lines dropped (8,960). NOT caught,
+  because they change nothing observable: U+0000 as C0 80 into processDirect, and spans computed despite singleStops
+  (aggregateOf answers "un" before reading them). All other harnesses re-run IDENTICAL / 0 wrong, check-all 0/0,
+  selftest EVERY CHECK FIRES, NDK 30 arm64 .so exports exactly the 6 `Java_*` Kotlin declares.
+
 ## ONE CROSSING PER SPAN, DETECT SETS ONLY WHEN THEY CHANGE, U+0000 KEPT (owner, 2026-10-01, latest)
 *"number one or number 3 donon complete kar dijiye ... jo ek chij chhod di thi vah bhi ... pahle test kariye."*
 - **#1 processDirect detects too.** Two new params `detect, singleStops`. In mix/multilingual (`detect = true`,
   `singleStops` = the `quick` local read ONCE per utterance) every non-empty type-0/1/2 record carries, after its four
-  fields, exactly what `nativeFoldAndDetect` answers for that chunk: folded text, then lang/latin/text triples, each
-  `packField`-escaped. Shared helper `foldAndSpansFlat` (C++); Kotlin `detectedRunsOf(parts, quick)` / `runsFromFlat`
+  fields, exactly what `nativeFoldAndDetect` answers for that chunk: folded text, then lang/latin/text triples
+  (packed and escaped then; array elements since the section above). Shared helper `foldAndSpansFlat` (C++); Kotlin `detectedRunsOf(parts, quick)` / `runsFromFlat`
   (one reader for both carriers). Split with NO limit now. Dual passes `false, false`. A record without fields (empty
   chunk) falls back to `detectLanguageRuns`, which answers empty without the core.
 - **#3 setDetectSets only when the sets change** (`sendDetectSets`, compared as SETS -- the core stores

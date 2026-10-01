@@ -122,7 +122,7 @@ Ours: `tts_engine_core.cpp` plus the Kotlin wrappers in `EasyVoiceTtsService.kt`
 | `clsCLD2.a(int)` | `normalizeFancyCodepoint` | proven — full code-point sweep |
 | `clsCLD2.b(String)` | `normalizeFancyText`, exposed as `NativeEngine.normalizeFancy` | proven |
 | `clsCLD2.c(String)` | `firstValidCodePointU16` | verified |
-| `clsCLD2.d(...)` | `detectLanguageFull` (C++), called by `detectLanguage` (Kotlin) | verified |
+| `clsCLD2.d(...)` | `detectWindowed` (C++, JNI `detectWindowOrSpans`), called by `detectWindowThenAggregate` (Kotlin) | verified |
 | `clsCLD2.e(...)` | `detectLanguageRuns` (Kotlin) over `nativeGetLanguages` | verified |
 | `clsCLD2.f(...)` | `detectLanguageAggregate` (Kotlin) | verified |
 | `clsCLD2.g(String)` | `isLatinCommonInherited` | verified |
@@ -290,7 +290,7 @@ down so it is not re-derived.
 | pref | `getBoolean("disable_advanced_detection", true)` | same key, same default |
 | label | `"Disable advanced language detection"` | same string |
 | binding | `setChecked(b0)` / `b0 = bl` — **direct, not inverted** | `SettingSwitch(label, disableAdvanced)` / `disableAdvancedFlag = picked` |
-| where it is read | **exactly two places, both inside `clsCLD2.d`** | `detectLanguageFull`, which is `clsCLD2.d` |
+| where it is read | **exactly two places, both inside `clsCLD2.d`** | `detectWindowed`, which is `clsCLD2.d` |
 
 **What the flag actually does**, from `clsCLD2.d`:
 

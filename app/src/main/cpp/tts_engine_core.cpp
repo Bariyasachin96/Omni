@@ -1239,7 +1239,7 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
 //  used the result without looking: `std::string(chars)` on a null pointer is
 //  undefined behaviour, which on a phone means SIGSEGV and the whole process
 //  gone, taking the voice with it. Several other sites in the same file DID
-//  check (setLanguageHints, normalizeFancy, detectLanguageFull's two
+//  check (setLanguageHints, normalizeFancy, detectWindowOrSpans' two
 //  fallbacks), so this was our own inconsistency rather than a decision.
 //
 //  It matters most where it is hottest: processDirect reads SEVEN strings and
@@ -1295,16 +1295,46 @@ static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
 // Defined beside nativeFoldAndDetect, which shares it; processDirect uses it
 // to carry each chunk's spans in the same crossing.
 static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops);
+static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat);
+// String.getBytes(UTF_8), byte for byte (owner, 2026-10-01): the Kotlin side
+// used to encode the text, copy it into a direct ByteBuffer and hand THAT over
+// -- two copies and two allocations per span. It hands the String now, and this
+// is the same encoder: real UTF-8, U+0000 as one 0x00, a supplementary
+// character as four bytes, and a surrogate with no partner as '?', which is
+// what the JDK and Android's libcore write for malformed input.
+static std::string javaUtf8Bytes(const jchar* units, int len){
+    std::string out; out.reserve((size_t)len*3);
+    int j=0;
+    while(j<len){
+        int c=(int)units[j];
+        if(c>=0xD800&&c<=0xDBFF){
+            if(j+1<len&&units[j+1]>=0xDC00&&units[j+1]<=0xDFFF){
+                c=0x10000+((c-0xD800)<<10)+(((int)units[j+1])-0xDC00); j+=2;
+                out+=(char)(0xF0|(c>>18)); out+=(char)(0x80|((c>>12)&0x3F)); out+=(char)(0x80|((c>>6)&0x3F)); out+=(char)(0x80|(c&0x3F));
+                continue;
+            }
+            out+='?'; j++; continue;
+        }
+        if(c>=0xDC00&&c<=0xDFFF){ out+='?'; j++; continue; }
+        j++;
+        if(c<0x80) out+=(char)c;
+        else if(c<0x800){ out+=(char)(0xC0|(c>>6)); out+=(char)(0x80|(c&0x3F)); }
+        else { out+=(char)(0xE0|(c>>12)); out+=(char)(0x80|((c>>6)&0x3F)); out+=(char)(0x80|(c&0x3F)); }
+    }
+    return out;
+}
 // ==========================================================================
 //  JNI: processDirect
-//  Packs the chunk list as  type US kind US lang US text, with records
-//  joined by RS -- US is U+001F, RS is U+001E. Both, and U+001D which is
-//  the escape, are escaped inside the text: they can occur in it, and an
-//  unescaped U+001E once cost the rest of the utterance.
+//  Answers the chunk list as a String array (owner, 2026-10-01): for each
+//  chunk, the number of fields that follow, then type, kind, lang, text and,
+//  for a detected chunk, its fold and spans. Each field is its own element,
+//  so nothing has to be escaped or split: the old packed string needed
+//  U+001D/U+001E/U+001F escaped inside the text, and an unescaped U+001E once
+//  cost the rest of the utterance.
 // ==========================================================================
-extern "C" JNIEXPORT jstring JNICALL
+extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
-    JNIEnv* env, jobject, jobject directBuffer, jint length,
+    JNIEnv* env, jclass, jstring jText,
     jstring jLat, jstring jNonLat, jstring jMode,
     jint jNumberMode, jstring jNumberSpecific,
     jint jPunctuationMode, jstring jPunctuationSpecific,
@@ -1313,10 +1343,15 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection,
     jboolean jDetect, jboolean jSingleStops)
 {
-    if(!directBuffer||length<=0) return env->NewStringUTF("");
-    void* buf=env->GetDirectBufferAddress(directBuffer);
-    if(!buf) return env->NewStringUTF("");
-    std::string rawInput((const char*)buf,(size_t)length);
+    jclass stringClass = stringClassRef(env);
+    if(!stringClass) return nullptr;
+    std::vector<std::string> flat;
+    int textLen = jText ? (int)env->GetStringLength(jText) : 0;
+    if(textLen<=0) return toJavaStringArray(env, stringClass, flat);
+    std::vector<jchar> units((size_t)textLen);
+    env->GetStringRegion(jText, 0, textLen, units.data());
+    if(env->ExceptionCheck()) return nullptr;
+    std::string rawInput = javaUtf8Bytes(units.data(), textLen);
     std::string latinFallback, nonLatinFallback, mode;
     if(!jstringToStd(env,jLat,latinFallback)) return nullptr;
     if(!jstringToStd(env,jNonLat,nonLatinFallback)) return nullptr;
@@ -1345,31 +1380,18 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     std::vector<std::string> processed{rawInput};
     bool detect = (jDetect == JNI_TRUE);
     bool singleStops = (jSingleStops == JNI_TRUE);
-    // The chunk list is packed as  type \x1F kind \x1F lang \x1F text, with
-    // records joined by \x1E. Those two characters can occur in the text
-    // itself: they are Character.isWhitespace, but AutoTTS's collapse is
-    // replaceAll("\\s+", " ") and Java's \\s is only [ \\t\\n\\x0B\\f\\r], so
-    // a U+001E survives the collapse there and here alike. Unescaped, it split
-    // one record into two and the Kotlin dropped the half with three fields --
-    // everything after it went unspoken. U+001D is the escape and is escaped
-    // too; the language and the two integers can never contain any of them.
-    auto packField = [](const std::string& in){
-        std::string out;
-        out.reserve(in.size());
-        for (size_t at = 0; at < in.size(); at++) {
-            char ch = in[at];
-            if (ch == '\x1D') { out += "\x1D""0"; }
-            else if (ch == '\x1E') { out += "\x1D""1"; }
-            else if (ch == '\x1F') { out += "\x1D""2"; }
-            else out += ch;
-        }
-        return out;
+    auto addRecord = [&flat](const ChunkResult& chunk, const std::vector<std::string>* extra){
+        size_t n = 4 + (extra ? extra->size() : 0);
+        flat.push_back(std::to_string(n));
+        flat.push_back(std::to_string(chunk.type));
+        flat.push_back(std::to_string(chunk.kind));
+        flat.push_back(chunk.lang);
+        flat.push_back(chunk.text);
+        if (extra) flat.insert(flat.end(), extra->begin(), extra->end());
     };
-    std::string result;
     if (mode == "mix") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection);
         for(size_t i=0; i<chunks.size(); i++){
-            result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text);
             // ONE CROSSING FOR THE WHOLE SPAN (owner, 2026-10-01). A chunk of
             // type 0, 1 or 2 is the one the caller hands to clsCLD2.e, so its
             // fold and its language spans ride in the same record -- exactly
@@ -1377,16 +1399,15 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
             // folded text, then lang / latin / text triples. An empty chunk
             // carries nothing, because the caller answers it before detecting.
             if (detect && chunks[i].type >= 0 && chunks[i].type <= 2 && !chunks[i].text.empty()) {
-                for (const std::string& field : foldAndSpansFlat(chunks[i].text, singleStops))
-                    result += "\x1F" + packField(field);
-            }
-            if(i+1 < chunks.size()) result += "\x1E";
+                std::vector<std::string> spans = foldAndSpansFlat(chunks[i].text, singleStops);
+                addRecord(chunks[i], &spans);
+            } else addRecord(chunks[i], nullptr);
         }
     } else if (mode == "dual") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection, true);
-        for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text); if(i+1 < chunks.size()) result += "\x1E"; }
+        for(size_t i=0; i<chunks.size(); i++) addRecord(chunks[i], nullptr);
     }
-    return newJavaString(env, result);
+    return toJavaStringArray(env, stringClass, flat);
 }
 
 // ==========================================================================
@@ -1905,29 +1926,16 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv* env, jc
     detectOkIso3Set = std::move(ok);
     enabledLangSet = std::move(enabled);
 }
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
-    JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
-    jboolean jDisableAdv, jboolean jWantLog)
-{
-    if(!jText) return env->NewStringUTF("UNKNOWN\x01");
-    const jchar* chars = env->GetStringChars(jText, nullptr);
-    // Unguarded, this was `utf16to8(chars+winStart, ...)` on a null pointer,
-    // and ReleaseStringChars(jText, nullptr) at the bottom. Returning nullptr
-    // hands the pending OutOfMemoryError to detectLanguage's catch, which
-    // already answers "UNKNOWN".
-    if(!chars) return nullptr;
-    int textLen = (int)env->GetStringLength(jText);
-    // Through jstringToStd like every other read: the old inline form went on
-    // making JNI calls with an OutOfMemoryError pending, which JNI forbids.
-    std::string latinFallback, nonLatinFallback;
-    if(!jstringToStd(env, jLat, latinFallback) || !jstringToStd(env, jNonLat, nonLatinFallback)){
-        env->ReleaseStringChars(jText, chars); return nullptr;
-    }
-    bool disableAdvanced = (jDisableAdv==JNI_TRUE);
+// clsCLD2.d's windowed detect over UTF-16 text, with no JNI in it: 64-unit
+// windows, the first reliable answer that is an enabled language (or any
+// answer with advanced detection disabled), else the script family of the
+// window's first letter, else the whole text's. Answers the language, or
+// "UNKNOWN". logBuf, when set, collects the [CLD2] lines.
+static std::string detectWindowed(const jchar* chars, int textLen,
+        const std::string& latinFallback, const std::string& nonLatinFallback,
+        bool disableAdvanced, std::string* logBuf){
     std::unordered_set<std::string> okIso3, enabled;
     { std::lock_guard<std::mutex> lock(detectSetMutex); okIso3 = detectOkIso3Set; enabled = enabledLangSet; }
-    std::string log; std::string* logBuf = (jWantLog==JNI_TRUE) ? &log : nullptr;
     std::string result = "UNKNOWN"; bool done=false;
     int winStart=0;
     while(winStart<textLen && !done){
@@ -1958,9 +1966,53 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
             if(!scriptLang.empty()) result=scriptLang;
         }
     }
-    env->ReleaseStringChars(jText, chars);
-    std::string out = result + "\x01" + log;
-    return newJavaString(env, out);
+    return result;
+}
+static bool isUnknownWord(const std::string& s){
+    static const char* w = "unknown";
+    if(s.size() != 7) return false;
+    for(size_t k=0;k<7;k++){ char c=s[k]; if(c>='A'&&c<='Z') c=(char)(c-'A'+'a'); if(c!=w[k]) return false; }
+    return true;
+}
+// ==========================================================================
+//  JNI: detectWindowOrSpans    clsCLD2.d, then clsCLD2.f's input, ONE crossing
+//  (owner, 2026-10-01). Auto and Google mode ask the windowed detector first
+//  and, only when it answers unknown, the aggregate detector -- which needs the
+//  fold and the spans of the same text. Element 0 is the windowed answer, a
+//  \x01, then the log lines; when that answer is unknown, the fold and the
+//  lang / latin / text triples follow, exactly what nativeFoldAndDetect answers
+//  for the same text. Any other answer is a one-element array.
+// ==========================================================================
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
+    JNIEnv* env, jclass, jstring jText, jstring jLat, jstring jNonLat,
+    jboolean jDisableAdv, jboolean jWantLog, jboolean jSingleStops)
+{
+    jclass stringClass = stringClassRef(env);
+    if(!stringClass) return nullptr;
+    std::string latinFallback, nonLatinFallback;
+    if(!jstringToStd(env, jLat, latinFallback) || !jstringToStd(env, jNonLat, nonLatinFallback)) return nullptr;
+    std::string log; std::string* logBuf = (jWantLog==JNI_TRUE) ? &log : nullptr;
+    std::string result = "UNKNOWN";
+    if(jText){
+        int textLen = (int)env->GetStringLength(jText);
+        // GetStringRegion into OUR buffer: nothing to release, no OOM-null.
+        std::vector<jchar> units((size_t)textLen + 1);
+        if(textLen > 0) env->GetStringRegion(jText, 0, textLen, units.data());
+        if(env->ExceptionCheck()) return nullptr;
+        result = detectWindowed(units.data(), textLen, latinFallback, nonLatinFallback, jDisableAdv==JNI_TRUE, logBuf);
+    }
+    std::vector<std::string> flat;
+    flat.push_back(result + "\x01" + log);
+    if(isUnknownWord(result)){
+        // The fold reads the text the way nativeFoldAndDetect does, so the two
+        // carriers cannot disagree.
+        std::string text;
+        if(jText && !jstringToStd(env, jText, text)) return nullptr;
+        std::vector<std::string> spans = foldAndSpansFlat(text, jSingleStops == JNI_TRUE);
+        flat.insert(flat.end(), spans.begin(), spans.end());
+    }
+    return toJavaStringArray(env, stringClass, flat);
 }
 // ==========================================================================
 //  JNI: nativeFoldAndDetect    libcld2.so getLanguageSpans 0x65392c
