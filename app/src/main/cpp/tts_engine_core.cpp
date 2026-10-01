@@ -1292,6 +1292,9 @@ static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
     return true;
 }
 
+// Defined beside nativeFoldAndDetect, which shares it; processDirect uses it
+// to carry each chunk's spans in the same crossing.
+static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops);
 // ==========================================================================
 //  JNI: processDirect
 //  Packs the chunk list as  type US kind US lang US text, with records
@@ -1307,7 +1310,8 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     jint jPunctuationMode, jstring jPunctuationSpecific,
     jint jEmojiMode, jstring jEmojiSpecific, jboolean jPunctuationInFlow, jboolean jSmartNumber,
     jint jSmartNumberGroupSize,
-    jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection)
+    jstring jNeutralDefault, jint jNeutralType, jboolean jDisableAdvancedDetection,
+    jboolean jDetect, jboolean jSingleStops)
 {
     if(!directBuffer||length<=0) return env->NewStringUTF("");
     void* buf=env->GetDirectBufferAddress(directBuffer);
@@ -1331,12 +1335,16 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     if(!jstringToStd(env,jNeutralDefault,neutralDefault)) return nullptr;
     int neutralType = (int)jNeutralType;
     bool disableAdvancedDetection = (jDisableAdvancedDetection == JNI_TRUE);
-    std::vector<std::string> sentences;
-    size_t start=0, end=rawInput.find('\0');
-    while(end!=std::string::npos){ sentences.push_back(rawInput.substr(start,end-start)); start=end+1; end=rawInput.find('\0',start); }
-    if(start<rawInput.size()) sentences.push_back(rawInput.substr(start));
-    std::vector<std::string> processed; processed.reserve(sentences.size());
-    for(auto& sentence: sentences){ processed.push_back(sentence); }
+    // ONE sentence, the whole buffer (2026-10-01). It used to be split on 0x00,
+    // a vestige: the Kotlin side fills this buffer with ONE span's real UTF-8 and
+    // never puts a separator in it, so the only 0x00 that can arrive is a U+0000
+    // in the text itself -- and buildMixChunks joins sentences with " ", so that
+    // character became a space and was gone. AutoTTS's d0.t keeps U+0000 (Java's
+    // \\s does not match it); buildMixChunks fed it whole agrees with d0.t on 192
+    // U+0000 cases (segmenter harness, dual/mixed/multilingual x 4 mode ints).
+    std::vector<std::string> processed{rawInput};
+    bool detect = (jDetect == JNI_TRUE);
+    bool singleStops = (jSingleStops == JNI_TRUE);
     // The chunk list is packed as  type \x1F kind \x1F lang \x1F text, with
     // records joined by \x1E. Those two characters can occur in the text
     // itself: they are Character.isWhitespace, but AutoTTS's collapse is
@@ -1360,7 +1368,20 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     std::string result;
     if (mode == "mix") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection);
-        for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text); if(i+1 < chunks.size()) result += "\x1E"; }
+        for(size_t i=0; i<chunks.size(); i++){
+            result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text);
+            // ONE CROSSING FOR THE WHOLE SPAN (owner, 2026-10-01). A chunk of
+            // type 0, 1 or 2 is the one the caller hands to clsCLD2.e, so its
+            // fold and its language spans ride in the same record -- exactly
+            // what nativeFoldAndDetect answers for it, field for field: the
+            // folded text, then lang / latin / text triples. An empty chunk
+            // carries nothing, because the caller answers it before detecting.
+            if (detect && chunks[i].type >= 0 && chunks[i].type <= 2 && !chunks[i].text.empty()) {
+                for (const std::string& field : foldAndSpansFlat(chunks[i].text, singleStops))
+                    result += "\x1F" + packField(field);
+            }
+            if(i+1 < chunks.size()) result += "\x1E";
+        }
     } else if (mode == "dual") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection, true);
         for(size_t i=0; i<chunks.size(); i++){ result += std::to_string(chunks[i].type) + "\x1F" + std::to_string(chunks[i].kind) + "\x1F" + chunks[i].lang + "\x1F" + packField(chunks[i].text); if(i+1 < chunks.size()) result += "\x1E"; }
@@ -2228,6 +2249,28 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
     }
     return flat;
 }
+// The fold, then the spans of the folded text: element 0 is the folded text,
+// lang / latin / text triples follow. With `singleStops` and a fold that is a
+// single UTF-16 unit the spans are not computed, because the caller answers
+// that case without them. Shared by nativeFoldAndDetect and processDirect.
+static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops){
+    std::string folded = normalizeFancyText(text);
+    // UTF-16 length of the folded text: one unit below U+10000, two above.
+    // Only "is it exactly one" matters here.
+    int units = 0;
+    for(size_t k=0; k<folded.size() && units<2; k++){
+        unsigned char b=(unsigned char)folded[k];
+        if((b & 0xC0) == 0x80) continue;
+        units += (b >= 0xF0) ? 2 : 1;
+    }
+    std::vector<std::string> flat;
+    flat.push_back(folded);
+    if(!(singleStops && units == 1)){
+        std::vector<std::string> spans = languageSpansFlat(folded);
+        flat.insert(flat.end(), spans.begin(), spans.end());
+    }
+    return flat;
+}
 // Every element is checked and released (2026-09-30). NewStringUTF can fail
 // with an OutOfMemoryError pending, and JNI forbids the next call
 // (SetObjectArrayElement) while one is; CheckJNI aborts the process on it.
@@ -2259,20 +2302,5 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv* e
     if(!stringClass) return nullptr;
     std::string text;
     if(jText && !jstringToStd(env, jText, text)) return nullptr;
-    std::string folded = normalizeFancyText(text);
-    // UTF-16 length of the folded text: one unit below U+10000, two above.
-    // Only "is it exactly one" matters here.
-    int units = 0;
-    for(size_t k=0; k<folded.size() && units<2; k++){
-        unsigned char b=(unsigned char)folded[k];
-        if((b & 0xC0) == 0x80) continue;
-        units += (b >= 0xF0) ? 2 : 1;
-    }
-    std::vector<std::string> flat;
-    flat.push_back(folded);
-    if(!(singleStops && units == 1)){
-        std::vector<std::string> spans = languageSpansFlat(folded);
-        flat.insert(flat.end(), spans.begin(), spans.end());
-    }
-    return toJavaStringArray(env, stringClass, flat);
+    return toJavaStringArray(env, stringClass, foldAndSpansFlat(text, singleStops == JNI_TRUE));
 }

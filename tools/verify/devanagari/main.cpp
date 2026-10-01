@@ -31,7 +31,7 @@ JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDet
 JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
 JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
-    jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
+    jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean, jboolean);
 }
 
 static JNIEnv* env = nullptr;
@@ -107,7 +107,7 @@ static void mixChunks(const std::string& text, const char* latin, const char* no
         env, nullptr, buf, (jint)text.size(),
         env->NewStringUTF(latin), env->NewStringUTF(nonLatin), env->NewStringUTF("mix"),
         0, env->NewStringUTF(""), 0, env->NewStringUTF(""), 0, env->NewStringUTF(""),
-        JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF(latin), 1, JNI_FALSE);
+        JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF(latin), 1, JNI_FALSE, JNI_FALSE, JNI_FALSE);
     if (!js) return;
     std::string packed = str(js);
     size_t at = 0;

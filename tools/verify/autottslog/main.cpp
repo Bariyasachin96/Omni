@@ -28,7 +28,7 @@ JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDet
 JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
 JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
-    jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
+    jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean, jboolean);
 }
 
 static JNIEnv* env = nullptr;
@@ -74,7 +74,7 @@ static std::string unesc(const std::string& s){
     for (size_t i = 0; i < s.size(); i++) {
         if (s[i] == '\\' && i + 1 < s.size()) {
             char n = s[++i];
-            o += n == 't' ? '\t' : n == 'n' ? '\n' : n;
+            o += n == 't' ? '\t' : n == 'n' ? '\n' : n == '0' ? '\0' : n;
         } else o += s[i];
     }
     return o;
@@ -125,7 +125,7 @@ static std::vector<Chunk> ours(const std::string& text){
     jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
     std::string packed = S(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
         env, nullptr, buf, (jint)text.size(), J("eng"), J("guj"), J("mix"),
-        0, J(""), 0, J(""), 0, J(""), JNI_TRUE, smart ? JNI_TRUE : JNI_FALSE, group, J("eng"), 1, JNI_FALSE));
+        0, J(""), 0, J(""), 0, J(""), JNI_TRUE, smart ? JNI_TRUE : JNI_FALSE, group, J("eng"), 1, JNI_FALSE, JNI_FALSE, JNI_FALSE));
     size_t at = 0;
     while (at < packed.size()) {
         size_t rec = packed.find('\x1E', at);
@@ -224,6 +224,82 @@ static int stress(const char* path){
     return bad ? 1 : 0;
 }
 
+
+// ---- ONE-CALL MODE (owner, 2026-10-01: "pahle test kariye"). processDirect
+// with detect on carries each type-0/1/2 chunk's fold and spans in its own
+// record. That must be EXACTLY what the old two-step path produced: the same
+// processDirect with detect off, then nativeFoldAndDetect on each such chunk.
+// Both run in this one binary through the same core, over a corpus of texts x
+// enabled-language sets x quick-character on/off x smart numbers on/off x the
+// number/punctuation/emoji mode ints, and every record is compared field for
+// field -- the four base fields too, so turning detect on cannot move a chunk.
+static std::vector<std::string> splitUS(const std::string& rec){
+    std::vector<std::string> f; size_t p = 0;
+    for (;;) { size_t q = rec.find('\x1F', p); if (q == std::string::npos) { f.push_back(rec.substr(p)); break; } f.push_back(rec.substr(p, q - p)); p = q + 1; }
+    return f;
+}
+static std::vector<std::string> splitRS(const std::string& all){
+    std::vector<std::string> r; size_t p = 0;
+    while (p < all.size()) { size_t q = all.find('\x1E', p); if (q == std::string::npos) q = all.size(); r.push_back(all.substr(p, q - p)); p = q + 1; }
+    return r;
+}
+static std::string packedOf(const std::string& text, int nm, int pm, int em, bool smartOn, bool quick, bool detect){
+    jobject buf = env->NewDirectByteBuffer((void*)text.data(), (jlong)text.size());
+    return S(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+        env, nullptr, buf, (jint)text.size(), J("eng"), J("hin"), J("mix"),
+        nm, J("eng"), pm, J("hin"), em, J("guj"), JNI_TRUE, smartOn ? JNI_TRUE : JNI_FALSE, 2, J("eng"), 1, JNI_FALSE,
+        detect ? JNI_TRUE : JNI_FALSE, quick ? JNI_TRUE : JNI_FALSE));
+}
+static int onecall(const char* path){
+    std::vector<std::string> texts;
+    { std::ifstream in(path); std::string line; while (std::getline(in, line)) texts.push_back(unesc(line)); }
+    const std::vector<std::vector<std::string>> sets2 = {
+        {"hi","en","gu"}, {"en","hi","mr"}, {"en","ru","uk"}, {"en","ar","ur","fa"},
+        {"zh","ja","ko","th"}, {}, {"en"}, {"en","hi","ar","zh","ru","gu","ta","bn"} };
+    const int modes[][3] = {{0,0,0},{1,1,1},{2,2,2},{3,3,3},{0,3,1},{2,0,3}};
+    long records = 0, detected = 0, bad = 0;
+    for (auto& set : sets2) {
+        std::vector<std::string> iso3;
+        for (auto& c : set) iso3.push_back(c == "hi" ? "hin" : c == "en" ? "eng" : c == "gu" ? "guj" : c == "mr" ? "mar" : c);
+        Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr(iso3), arr(set));
+        Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(set));
+        for (auto& text : texts) for (auto& m : modes) for (int quick = 0; quick < 2; quick++) for (int sm = 0; sm < 2; sm++) {
+            env->PushLocalFrame(512);
+            std::vector<std::string> oldR = splitRS(packedOf(text, m[0], m[1], m[2], sm, quick, false));
+            std::vector<std::string> newR = splitRS(packedOf(text, m[0], m[1], m[2], sm, quick, true));
+            std::string why;
+            if (oldR.size() != newR.size()) why = "record count " + std::to_string(oldR.size()) + " vs " + std::to_string(newR.size());
+            for (size_t i = 0; why.empty() && i < oldR.size(); i++) {
+                records++;
+                std::vector<std::string> o = splitUS(oldR[i]), n = splitUS(newR[i]);
+                if (o.size() != 4) { why = "old record has " + std::to_string(o.size()) + " fields"; break; }
+                if (n.size() < 4) { why = "new record has " + std::to_string(n.size()) + " fields"; break; }
+                for (int k = 0; k < 4 && why.empty(); k++) if (o[k] != n[k]) why = "record " + std::to_string(i) + " field " + std::to_string(k) + " moved";
+                if (!why.empty()) break;
+                int type = atoi(o[0].c_str());
+                std::string t = decodeChunk(o[3]);
+                std::vector<std::string> want;
+                if (type >= 0 && type <= 2 && !t.empty()) {
+                    detected++;
+                    jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(env, nullptr, J(t), quick ? JNI_TRUE : JNI_FALSE);
+                    jsize cnt = got ? env->GetArrayLength(got) : 0;
+                    for (jsize j = 0; j < cnt; j++) want.push_back(S((jstring)env->GetObjectArrayElement(got, j)));
+                    env->DeleteLocalRef(got);
+                }
+                std::vector<std::string> have;
+                for (size_t k = 4; k < n.size(); k++) have.push_back(decodeChunk(n[k]));
+                if (want != have) why = "record " + std::to_string(i) + ": spans differ (" + std::to_string(want.size()) + " vs " + std::to_string(have.size()) + " fields)";
+            }
+            if (!why.empty()) {
+                if (++bad <= 10) printf("DIFF [%s] quick=%d smart=%d modes=%d%d%d: %s\n   %s\n",
+                    set.empty() ? "-" : set[0].c_str(), quick, sm, m[0], m[1], m[2], why.c_str(), text.c_str());
+            }
+            env->PopLocalFrame(nullptr);
+        }
+    }
+    printf("\n%zu texts, %ld records, %ld detected chunks compared: %ld differ\n", texts.size(), records, detected, bad);
+    return bad ? 1 : 0;
+}
 int main(int argc, char** argv){
     JavaVM* vm; JavaVMInitArgs a{}; a.version = JNI_VERSION_1_8;
     JNI_CreateJavaVM(&vm, (void**)&env, &a);
@@ -235,6 +311,7 @@ int main(int argc, char** argv){
     Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr({"hin","eng","guj"}), arr({"hi","en","gu"}));
     Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr({"hi","en","gu"}));
     if (argc > 2 && std::string(argv[1]) == "--stress") return stress(argv[2]);
+    if (argc > 2 && std::string(argv[1]) == "--onecall") return onecall(argv[2]);
     std::ifstream in(argv[1]);
     std::string line, text; std::vector<Chunk> want;
     int cases = 0, bad = 0, chunks = 0;

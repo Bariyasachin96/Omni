@@ -21,7 +21,7 @@ JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDet
 JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv*, jclass, jstring, jboolean);
 JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jobject, jint, jstring, jstring, jstring, jint, jstring, jint, jstring,
-    jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean);
+    jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean, jboolean);
 JNIEXPORT jstring JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectLanguageFull(
     JNIEnv*, jclass, jstring, jstring, jstring, jboolean, jboolean);
 }
@@ -76,8 +76,8 @@ int main(){
     Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(iso2));
     Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr(iso3), arr(iso2));
 
-    printf("%-12s %8s %8s %10s %10s %12s %10s\n",
-           "paragraphs", "chars", "chunks", "segment", "detect", "fold+detect", "TOTAL");
+    printf("%-12s %8s %8s %10s %10s %10s %10s\n",
+           "paragraphs", "chars", "chunks", "segment", "detect", "TWO-STEP", "ONE CALL");
     for (int p : {1, 2, 3, 5, 10, 20, 30, 60}) {
         const std::string text = buildText(p);
 
@@ -88,7 +88,7 @@ int main(){
             env, nullptr, buf, (jint)text.size(),
             env->NewStringUTF("eng"), env->NewStringUTF("guj"), env->NewStringUTF("mix"),
             0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"),
-            JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF("eng"), 1, JNI_TRUE);
+            JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF("eng"), 1, JNI_TRUE, JNI_FALSE, JNI_FALSE);
         const double segMs = nowMs() - s0;
 
         const char* pc = env->GetStringUTFChars(packed, nullptr);
@@ -131,11 +131,21 @@ int main(){
             }
             return nowMs() - t0;
         };
-        const double detOnly = detectAll(false);
-        const double detMs   = detectAll(true);
+        const double detMs = detectAll(true);
 
-        printf("%-12d %8zu %8zu %10.2f %10.2f %12.2f %10.2f\n",
-               p, text.size(), chunkTexts.size(), segMs, detOnly, detMs, segMs + detMs);
+        // 3. the same work in ONE crossing (2026-10-01): processDirect with
+        // detect on carries each chunk's fold and spans in its own record.
+        const double o0 = nowMs();
+        jstring one = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
+            env, nullptr, buf, (jint)text.size(),
+            env->NewStringUTF("eng"), env->NewStringUTF("guj"), env->NewStringUTF("mix"),
+            0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"), 0, env->NewStringUTF("eng"),
+            JNI_TRUE, JNI_FALSE, 1, env->NewStringUTF("eng"), 1, JNI_TRUE, JNI_TRUE, JNI_FALSE);
+        const double oneMs = nowMs() - o0;
+        (void)one;
+
+        printf("%-12d %8zu %8zu %10.2f %10.2f %10.2f %10.2f\n",
+               p, text.size(), chunkTexts.size(), segMs, detMs, segMs + detMs, oneMs);
     }
     vm->DestroyJavaVM();
     return 0;

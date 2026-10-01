@@ -8,6 +8,25 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ONE CROSSING PER SPAN, DETECT SETS ONLY WHEN THEY CHANGE, U+0000 KEPT (owner, 2026-10-01, latest)
+*"number one or number 3 donon complete kar dijiye ... jo ek chij chhod di thi vah bhi ... pahle test kariye."*
+- **#1 processDirect detects too.** Two new params `detect, singleStops`. In mix/multilingual (`detect = true`,
+  `singleStops` = the `quick` local read ONCE per utterance) every non-empty type-0/1/2 record carries, after its four
+  fields, exactly what `nativeFoldAndDetect` answers for that chunk: folded text, then lang/latin/text triples, each
+  `packField`-escaped. Shared helper `foldAndSpansFlat` (C++); Kotlin `detectedRunsOf(parts, quick)` / `runsFromFlat`
+  (one reader for both carriers). Split with NO limit now. Dual passes `false, false`. A record without fields (empty
+  chunk) falls back to `detectLanguageRuns`, which answers empty without the core.
+- **#3 setDetectSets only when the sets change** (`sendDetectSets`, compared as SETS -- the core stores
+  unordered_sets; a throw is not remembered). `pushLanguageSets` (= s0) always sends and records it.
+- **The left-over: processDirect split its buffer on 0x00** (vestige; Kotlin never puts a separator there), so a U+0000
+  became a space. It is ONE sentence now. buildMixChunks fed U+0000 whole == d0.t on 192 cases (segmenter harness,
+  dual/mixed/multilingual x 4 mode ints).
+- **Proof: `tools/verify/autottslog/run.sh --onecall`** -- same binary, old two-step path vs one call, 270 texts
+  (stress.txt + the segmenter's TEXTS) x 8 enabled sets x 6 mode triples x quick x smart: **171,360 records, 115,680
+  detected chunks, 0 differ**. Negative tests caught: singleStops ignored (3,312), a latin flag dropped (38,464),
+  type 0 not detected (3,648). stress.txt gained `\0` escape + two U+0000 lines: 0 wrong; the old split put back = 2
+  wrong. Latency harness has a ONE CALL column (desktop JVM: within noise; the saving is the per-chunk ART crossing).
+
 ## THE ONE-CALL DETECTOR HAD THREE HOLES, NOW CLOSED (owner, 2026-09-30, latest)
 *"Si plus plus mein jo function banaya tha usmein koi na koi to kami hai thodi si."* Found and fixed:
 - **Everything after a U+0000 was lost.** `NewStringUTF(s.c_str())` stops at a raw 0x00 byte, and the core

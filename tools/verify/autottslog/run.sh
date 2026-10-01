@@ -2,6 +2,7 @@
 # Replays an AutoTTS log through the real native core; see main.cpp.
 #   run.sh <auto_tts.log>        compare with what AutoTTS spoke
 #   run.sh --stress [file]       emoji and mixed-text corpus (stress.txt), no log needed
+#   run.sh --onecall             processDirect's one-crossing spans == the old two-step path
 set -euo pipefail
 LOG=${1:?usage: run.sh <auto_tts.log> | run.sh --stress [file]}
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -29,13 +30,27 @@ compile() {
   fi
   echo "$obj"
 }
+if [ "$LOG" = "--onecall" ]; then
+  # The corpus: stress.txt, plus every text the segmenter proof uses.
+  mkdir -p "$WORK"; CORPUS="$WORK/onecall.txt"
+  grep -v '^# ' "$HERE/stress.txt" | grep -v '^$' > "$CORPUS"
+  python3 - "$ROOT/tools/verify/segmenter/gen_cases.py" >> "$CORPUS" <<'PY'
+import sys
+src = open(sys.argv[1], encoding="utf-8").read()
+g = {}
+exec(src[:src.index("\nout=[]")], g)
+for t in g["TEXTS"]:
+    sys.stdout.write(t.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n") + "\n")
+PY
+fi
 if [ "$LOG" = "--stress" ]; then
   CASES=""; STRESS=${2:-$HERE/stress.txt}
-else
+elif [ "$LOG" != "--onecall" ]; then
   CASES="$WORK/cases.txt"; python3 "$HERE/extract.py" "$LOG" > "$CASES"
 fi
 objs=""
 for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do objs="$objs $(compile "$f")"; done
 g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp" || exit 1
 g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs -L"$JH/lib/server" -ljvm -lpthread -Wl,-rpath,"$JH/lib/server"
+if [ "$LOG" = "--onecall" ]; then exec "$WORK/probe" --onecall "$CORPUS"; fi
 if [ -n "$CASES" ]; then "$WORK/probe" "$CASES"; else "$WORK/probe" --stress "$STRESS"; fi
