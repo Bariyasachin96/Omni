@@ -324,6 +324,7 @@ class XSvc(val run: Run) : Svc {
     val speakHandler = SimHandler(SerialQueue(run, 0.3))
     val enginePool = ArrayList<EngineWrapper>()
     @Volatile var engineIndex = -1
+    val mayAwaitEngine = ThreadLocal<Boolean>()
     val syncLock = Object()
     @Volatile var isStopped = false
     @Volatile var isFlushed = false

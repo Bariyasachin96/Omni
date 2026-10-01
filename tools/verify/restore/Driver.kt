@@ -49,6 +49,8 @@ class Svc {
     var destroyed = false
     val binds = ArrayList<String>()
     fun bindEngineKeepAlive(pkg: String) { binds.add(pkg) }
+    // the cold-start waiter is woken here (2026-10-01); nothing waits in this harness
+    fun engineSettled() {}
     var scanned = 0
     fun startupScan() { scanned++ }
     inner class EngineWrapper(pkgName: String) {

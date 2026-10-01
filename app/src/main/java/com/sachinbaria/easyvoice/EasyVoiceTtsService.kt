@@ -59,6 +59,62 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private val engineServiceBinders = java.util.concurrent.ConcurrentHashMap<String, android.os.IBinder>()
     private fun engineProcessUp(rawPkg: String): Boolean =
         try { engineServiceBinders[rawPkg]?.isBinderAlive == true } catch (_: Throwable) { false }
+    // ==========================================================================
+    //  A CHUNK WAITS FOR ITS ENGINE TO FINISH STARTING (owner, 2026-10-01:
+    //  "package se jo scan ... restore ... kuchh to problem ho rahi hai ...
+    //  start aur close ... koi gap"). After every cold start of this process --
+    //  boot, Clear all, a memory kill, an update -- the screen reader binds us
+    //  and speaks AT ONCE, while every engine's client is still being built
+    //  (state 0) or restored (state 1). loadVoice only takes state 2, so those
+    //  first utterances found "TTS is not ready" and were dropped in silence,
+    //  which is exactly the moment a blind user needs to hear where they are.
+    //  Now the synthesis thread (the first chunk) and the speak thread (a next
+    //  chunk) WAIT for that one engine to settle instead.
+    //
+    //  NO NEW CLOCK. The wait ends only on events that already exist: the
+    //  engine's init or restore answering (initFinished / the restore listener
+    //  call engineSettled), the 30 s init and restore watchdogs that are already
+    //  there (they settle the state too), an interrupt (onStop sets isStopped and
+    //  notifies syncLock), the next utterance (a new generation), and onDestroy.
+    //  It waits on syncLock, which every one of those already notifies.
+    //
+    //  ONLY where a wait is safe: a thread that set mayAwaitEngine (the
+    //  synthesis thread inside onSynthesizeText, the speak thread inside its
+    //  next-chunk load), never the main thread (the init callbacks run there),
+    //  and with no other lock held -- it is called BEFORE onLoadLanguage takes
+    //  `this`. AOSP's queued LoadLanguageItems run on the synthesis thread
+    //  outside onSynthesizeText, where an interrupt does not reach our onStop,
+    //  so they do not wait.
+    // ==========================================================================
+    private val mayAwaitEngine = java.lang.ThreadLocal<Boolean>()
+    private fun engineSettled() { synchronized(syncLock) { syncLock.notifyAll() } }
+    private fun awaitEngineStarting(langCode: String?) {
+        if (mayAwaitEngine.get() != true || langCode.isNullOrEmpty()) return
+        if (android.os.Looper.getMainLooper().isCurrentThread) return
+        val rawPkg = try { LangStore.engineFor(prefs.toIso3(langCode.lowercase()), modeInt) } catch (_: Throwable) { "" }
+        if (rawPkg.isEmpty() || rawPkg.equals("disable", true)) return
+        val norm = normPkg(rawPkg)
+        val generation = synthesisGeneration
+        var waitedSince = 0L
+        synchronized(syncLock) {
+            while (!destroyed && generation == synthesisGeneration && !isStopped && !isFlushed) {
+                var settling = false
+                try {
+                    for (index in 0 until enginePool.size) {
+                        val wrapper = enginePool[index]
+                        if (wrapper.pkg == norm) { settling = wrapper.state == 0 || wrapper.state == 1; break }
+                    }
+                } catch (_: Throwable) { settling = false }
+                if (!settling) break
+                if (waitedSince == 0L) {
+                    waitedSince = android.os.SystemClock.uptimeMillis()
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, rawPkg + " is still starting -- waiting for it")
+                }
+                try { syncLock.wait() } catch (_: InterruptedException) { break }
+            }
+        }
+        if (waitedSince != 0L) EasyVoiceLogger.error(EasyVoiceLogger.TAG, rawPkg + " waited " + (android.os.SystemClock.uptimeMillis() - waitedSince) + " ms")
+    }
     private val keepAliveLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
     @Volatile var engineIndex = -1
     private lateinit var prefs: SharedPrefsManager
@@ -1530,6 +1586,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "afterStartupFailure: " + ex.toString()) }
     }
     private fun initFinished() {
+        engineSettled()
         initializingIndex++
         if (initializingIndex == walkList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "All tts engines have been initialized. (2)" }; startupScan() }
     }
@@ -1876,6 +1933,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 wrapper.tts = null; wrapper.forgetClientState()
                 wrapper.state = -1
                 wrapper.restoring = false
+                engineSettled()
                 restoreFailed(wrapper, "no answer in 30 s")
             }
             try {
@@ -1891,6 +1949,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 done.set(true)
                 wrapper.state = -1
                 wrapper.restoring = false
+                engineSettled()
                 restoreFailed(wrapper, "the client could not be built")
             }
         } catch (ex: Throwable) {
@@ -2087,6 +2146,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 failure = "init threw " + ex.javaClass.simpleName
             } finally {
                 wrapper.restoring = false
+                engineSettled()
             }
             if (failure != null) restoreFailed(wrapper, failure)
         }
@@ -2181,6 +2241,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return result
     }
     override fun onLoadLanguage(langCode: String?, countryCode: String?, variantName: String?): Int {
+        awaitEngineStarting(langCode)
         return synchronized(this) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onLoadLanguage: " + langCode + " " + countryCode + " " + variantName }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "loadLanguage " + langCode + " " + countryCode + " " + variantName }
@@ -3053,6 +3114,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // idempotent -- startAndFinish tests hasStarted/hasFinished, and the wait
     // below rechecks isStopped -- so the normal ending is unaffected.
     override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
+        mayAwaitEngine.set(true)
         try {
             onSynthesizeTextImpl(request, callback)
         } catch (ex: Throwable) {
@@ -3060,6 +3122,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             speakingPkg = null
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
             try { startAndFinish(callback) } catch (_: Throwable) {}
+        } finally {
+            mayAwaitEngine.set(false)
         }
     }
     private fun onSynthesizeTextImpl(request: SynthesisRequest?, callback: SynthesisCallback?) {
@@ -3607,10 +3671,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // from the prefetch only when it was for the same language.
         var prefetchedLang = ""
         var prefetchedResult = 0
+        // A prefetch that ran while the engine was still starting found no
+        // client (engineIndex -1). Its answer is not reused: the chunk loads
+        // again, now able to wait for that engine, instead of being dropped.
+        var prefetchedReady = false
         fun loadOrPrefetched(lang: String): Int {
-            if (prefetchedLang == lang) { val cached = prefetchedResult; prefetchedLang = ""; return cached }
+            if (prefetchedLang == lang && prefetchedReady) { val cached = prefetchedResult; prefetchedLang = ""; return cached }
             prefetchedLang = ""
-            return onLoadLanguage(lang, "", "")
+            mayAwaitEngine.set(true)
+            try { return onLoadLanguage(lang, "", "") } finally { mayAwaitEngine.set(false) }
         }
         // Runs on the SPEAK THREAD, posted from onStart -- never on the binder thread
         // the callback arrives on, for the same reason onDone posts: this can
@@ -3636,6 +3705,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (nextPkg.isEmpty()) return
             try {
                 prefetchedResult = onLoadLanguage(lang, "", "")
+                prefetchedReady = engineIndex >= 0
                 prefetchedLang = lang
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "prefetch " + lang + " on " + nextPkg + " = " + prefetchedResult }
             } catch (ex: Throwable) {
@@ -4491,6 +4561,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // at -1 can still hold the client that failed, and shutdown() is what
         // releases its session with the system's TTS manager.
         destroyed = true
+        try { engineSettled() } catch (_: Throwable) {}
         try { for (index in 0 until enginePool.size) enginePool[index].shutdown() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "engine shutdown: " + ex.toString()) }
         try { unbindAllEngineKeepAlive() } catch (_: Throwable) {}
         try { if (packageReceiverRegistered) { packageReceiverRegistered = false; unregisterReceiver(packageReceiver) } } catch (_: Throwable) {}

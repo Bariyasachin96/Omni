@@ -8,6 +8,31 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## AFTER A COLD START THE FIRST UTTERANCE WAITS FOR ITS ENGINE INSTEAD OF BEING DROPPED (owner, 2026-10-01, latest)
+*"package se jo scan ... blind ... restore ... kuchh to problem ho rahi hai ... TTS select karte hain vahan se lekar
+puri app start aur close ... koi gap ... overload ... required dependency."*
+- **The gap:** after every cold start of our process (boot, Clear all, memory kill, an update of us) the screen reader
+  binds and speaks AT ONCE while each engine's client is still being built (state 0) or restored (state 1). loadVoice
+  takes only state 2, so those utterances hit "TTS is not ready" and were dropped silently. A prefetch made in that
+  window also cached the failure (engineIndex -1), so the next chunk was dropped too.
+- **Fix (`awaitEngineStarting`, top of onLoadLanguage, BEFORE `synchronized(this)`):** on a thread that set
+  `mayAwaitEngine` (the synthesis thread inside onSynthesizeText; the speak thread inside loadOrPrefetched's load),
+  never on main, it waits on `syncLock` while the language's engine is 0 or 1. Ends ONLY on existing events: init /
+  restore answering (`engineSettled()` from initFinished, the restore listener's finally, the restore watchdog and
+  constructor catch -- the 30 s watchdogs that already exist bound it), interrupt (onStop sets isStopped/isFlushed and
+  notifies syncLock), a new utterance (generation), onDestroy. No new clock. AOSP's queued LoadLanguageItems do not
+  wait (an interrupt does not reach our onStop there). `prefetchedReady`: a prefetch that found no client is not reused.
+- **Proof `tools/verify/coldstart/run.sh`** (the lifted real functions, real threads): 413 cases incl. 400 random
+  histories -- ALL PASS (never returns early, never hangs). Negatives caught: no notify (hangs), interrupt ignored,
+  restore state not waited for, gate removed, generation ignored. Also re-run: speakpipe 200,000 scenarios 0 differ /
+  0 hangs, restore ALL PASS (driver got an `engineSettled` stub), prefetch 400,000 0 differ, scansched 0/0,
+  check-all 0/0, selftest EVERY CHECK FIRES.
+- **Read and left as they are (no defect found):** keep-alive bind/rebind on death, force-stop and update
+  (onBindingDied rebinds; REPLACED rearms), restore once per episode, the package receiver, the owed-scan count.
+  **Noted, not changed:** the startup background scan binds a second client per engine right after the walk, which
+  competes with the first utterances (owner's own 2026-09-24 request; no clock allowed to defer it). **No dependency
+  is missing**: everything used is androidx already on the classpath.
+
 ## ITEMS 5-13: A CLD2 ANSWER CACHE AND EIGHT SMALLER LOADS, EACH PROVEN (owner, 2026-10-01, latest)
 *"Baki Jo 5 se 13 tak ki jo chijen Hain vah bhi complete kar hi dijiye theek hai test Karke."*
 - **13 CLD2 answer cache** (`Cld2Cache`, thread_local, 256 entries per table, cleared when full): span answers
