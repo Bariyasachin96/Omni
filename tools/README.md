@@ -96,6 +96,7 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/runlang/run.sh          # a detected run's iso3 memoised per utterance == before
     tools/verify/prefetch/run.sh         # loading the next language while the SAME engine speaks == loading it after
     tools/verify/speakpipe/run.sh        # the whole speak loop, last commit vs working tree, on a simulated AOSP engine
+    tools/verify/scansched/run.sh        # background-scan scheduling: no change left unscanned, no needless scan
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

@@ -1566,56 +1566,63 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  the system never starts the service after a restart or a RAM clear, and
     //  nothing inside the app can run.
     // ==========================================================================
+    // The startup scan. The process starting is the first change EngineFinder
+    // counts, so it is owed until the first scan of this process finishes -- the
+    // main screen's, if the app was opened first, or this one.
     private fun startupScan() {
         if (startupScanDone) return
         startupScanDone = true
-        scanInBackground("the service started", queueIfBusy = false)
+        tryOwedScan("the service started")
     }
-    // Put off until the screens close or the running scan ends.
-    private var rescanWanted = false
     private fun appOnScreen(): Boolean = try {
         androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
     } catch (_: Throwable) { false }
-    // `pkg` is the engine a package event named. A scan that is running and has
-    // NOT reached that engine yet will read it as it is now, so a second scan
-    // after it would read the same thing twice: it is queued only when the
-    // running scan already read the engine (or never had it in its list). A
-    // package REMOVED mid-scan needs no second scan at all -- the running scan's
-    // finalize drops every engine that is no longer installed.
-    private fun scanInBackground(why: String, queueIfBusy: Boolean, pkg: String? = null) {
+    // A package event that needs the engines read again. One the running scan
+    // will read anyway (it has not reached that engine yet, or the package is
+    // gone and its finalize drops it) owes nothing; any other is numbered, and
+    // the first scan to START after it covers it -- the main screen's or ours.
+    private fun requestScan(why: String, pkg: String) {
         onMainThread {
             if (destroyed) return@onMainThread
             try {
+                if (EngineFinder.scanRunning &&
+                    (EngineFinder.runningScanWillRead(pkg) || !EngineFinder.isInstalled(applicationContext, pkg))) {
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): the running scan covers it" }
+                    return@onMainThread
+                }
+                EngineFinder.changeSeq.incrementAndGet()
+                tryOwedScan(why)
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "requestScan: " + ex.toString())
+            }
+        }
+    }
+    // Starts a scan only when one is owed, none is running and none of the app's
+    // screens is open (the main screen scans for itself). A running scan ending
+    // and the app's screens closing both come back here, so an owed scan is never
+    // dropped -- it waits -- and one already covered is never run twice.
+    private fun tryOwedScan(why: String) {
+        onMainThread {
+            if (destroyed) return@onMainThread
+            try {
+                if (!EngineFinder.scanOwed()) return@onMainThread
                 if (EngineFinder.scanRunning) {
-                    val coveredByRunningScan = pkg != null &&
-                        (EngineFinder.runningScanWillRead(pkg) || !EngineFinder.isInstalled(applicationContext, pkg))
-                    if (queueIfBusy && !coveredByRunningScan) rescanWanted = true
-                    if (coveredByRunningScan) {
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): the running scan covers it" }
-                        return@onMainThread
-                    }
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): a scan is already running" + if (queueIfBusy) " -- scanning again after it" else "" }
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): a scan is already running -- scanning again after it if it does not cover this" }
                     return@onMainThread
                 }
                 if (appOnScreen()) {
-                    if (queueIfBusy) rescanWanted = true
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): the app is open" + if (queueIfBusy) " -- scanning when it closes" else ", and it scans itself" }
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): the app is open -- scanning when it closes unless it scans first" }
                     return@onMainThread
                 }
-                rescanWanted = false
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Background scan: " + why)
                 EngineFinder.scanLanguages(applicationContext) { langs ->
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan finished: " + langs.size + " languages" }
                 }
             } catch (ex: Throwable) {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "scanInBackground: " + ex.toString())
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "tryOwedScan: " + ex.toString())
             }
         }
     }
-    // Any scan -- this one or the main screen's -- has saved a new
-    // engine list. An engine in it that the pool never had (installed after the
-    // service started) is added and brought up, the way recoverEngineNotReady
-    // adds a configured one; the walk's own engines are left to it while it runs.
     private fun onScanFinished() {
         onMainThread {
             if (destroyed) return@onMainThread
@@ -1631,16 +1638,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         restoreEngine(added.pkg, "the scan found it")
                     }
                 }
-                if (rescanWanted && !appOnScreen()) scanInBackground("a change arrived during the last scan", queueIfBusy = true)
+                tryOwedScan("a change arrived during the last scan")
             } catch (ex: Throwable) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onScanFinished: " + ex.toString())
             }
         }
     }
-    // The app's screens all closed: run a scan that was put off for them.
     private val screensClosedObserver = object : androidx.lifecycle.DefaultLifecycleObserver {
         override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
-            if (rescanWanted) scanInBackground("a change arrived while the app was open", queueIfBusy = true)
+            tryOwedScan("a change arrived while the app was open")
         }
     }
     @Volatile private var screensObserved = false
@@ -1980,7 +1986,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     android.content.Intent.ACTION_PACKAGE_ADDED -> !replacing && isTtsEngine(changed)
                     else -> isTtsEngine(changed)
                 }
-                if (isEngine) scanInBackground("package " + changed + ": " + intent.action?.substringAfterLast('_')?.lowercase(), queueIfBusy = true, pkg = changed)
+                if (isEngine) requestScan("package " + changed + ": " + intent.action?.substringAfterLast('_')?.lowercase(), changed)
                 if (intent.action == android.content.Intent.ACTION_PACKAGE_REMOVED) return
                 // ONE REBIND PER UPDATE (2026-09-30, "koi chijen double double
                 // nahin honi chahie"). An update sends ADDED(replacing) and then

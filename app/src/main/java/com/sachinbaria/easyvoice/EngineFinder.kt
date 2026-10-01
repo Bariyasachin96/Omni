@@ -183,7 +183,7 @@ object EngineFinder {
     // which is what makes fixing it right rather than a rule 5 departure.
     @Volatile private var scanGeneration = 0
     // A scan is walking the engines right now. The service's background scan
-    // (EasyVoiceTtsService.scanInBackground) never starts while one is, because a
+    // (EasyVoiceTtsService.tryOwedScan) never starts while one is, because a
     // newer scan supersedes the older one and the older one's caller -- the main
     // screen's progress page -- would then never hear
     // back. Set when a scan starts, cleared by the newest scan's finalize.
@@ -193,6 +193,18 @@ object EngineFinder {
     // for one of them needs no second scan: this one will read it as it is now.
     private val scanPending: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     @JvmStatic fun runningScanWillRead(pkg: String): Boolean = scanRunning && scanPending.contains(pkg)
+    // WHAT A SCAN STILL OWES (owner, 2026-10-01: "scanning ... background aur
+    // foreground mein ... chhote mote gap"). Every change that needs the engines
+    // read again -- the process starting, a TTS engine installed, updated or
+    // removed -- takes the next number here; a scan covers every change numbered
+    // up to the value it saw when it started. So a scan is owed exactly while
+    // changeSeq > coveredSeq, whoever's scan it is (the main screen's or the
+    // service's). It starts at 1 with nothing covered: the process starting is
+    // the first change, and the first scan to finish in it covers that.
+    @JvmStatic val changeSeq = java.util.concurrent.atomic.AtomicLong(1)
+    @Volatile @JvmStatic var coveredSeq = 0L
+        private set
+    @JvmStatic fun scanOwed(): Boolean = changeSeq.get() > coveredSeq
     // OURS, ASKED OF THE SYSTEM: our own package, or any package signed with our
     // own certificate -- an older install of this app under its previous package
     // name is one, and a package-name fragment could never say so reliably.
@@ -406,6 +418,7 @@ object EngineFinder {
         val engines = ArrayList<EngineInfo>()
         val seen = HashMap<String, EngineInfo>()
         val myGeneration = ++scanGeneration
+        val startSeq = changeSeq.get()
         scanRunning = true
         // This scan's own 180 s watchdog, so finalize cancels exactly that one.
         // A cell rather than a val because finalizeScan is declared above it.
@@ -431,6 +444,7 @@ object EngineFinder {
             if (myGeneration != scanGeneration || finalized) return
             finalized = true
             scanRunning = false
+            if (startSeq > coveredSeq) coveredSeq = startSeq
             scanPending.clear()
             // AN ENGINE THE SYSTEM DID NOT LIST THIS TIME BUT THAT IS STILL
             // INSTALLED KEEPS ITS PLACE (2026-09-24, owner: "TTS mis ho jata hai

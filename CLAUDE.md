@@ -8,6 +8,32 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## TALKBACK'S "THREE TIMES" IS ITS OWN CODE; THE BACKGROUND SCAN NOW NEVER DROPS OR DOUBLES A CHANGE (owner, 2026-10-01, latest)
+*"talk back teen bar wala ... Google TTS per chala jata hai ... aisa nahin hona chahie ... scanning or restore
+... background aur foreground mein ... chhote mote gap."*
+- **TalkBack (read in google/talkback `FailoverTextToSpeech`, `MAX_TTS_FAILURES = 3`):** `attemptTtsFailover` runs
+  ONLY when TalkBack's own `tts.speak()` returns ERROR / throws, or a new client's init fails -- i.e. Easy Voice's
+  process is not reachable (being updated, killed by Clear all / memory, crashed, or still starting). Our
+  `onError`/`onStop` NEVER count (they only decide `success` for resetting the counter). After 3 such failures it
+  moves to the next installed engine and stays there until `TTS_DEFAULT_SYNTH` changes, the media mounts, or
+  TalkBack itself restarts (`updateDefaultEngine` at its start). Not changeable from our app. Levers: "Show
+  persistent notification" ON (Clear all / memory kills skip a foreground service); after an update, TalkBack
+  off/on. **Corrected while reading AOSP:** a bind while our restart is pending does NOT wait --
+  `ActiveServices.bindServiceLocked` calls `unscheduleServiceRestartLocked` ("BIND SERVICE WHILE RESTART PENDING"),
+  so TalkBack's re-bind starts us at once; the window is our cold start, not the restart delay.
+- **Background scan scheduling is a COUNT now** (`EngineFinder.changeSeq` / `coveredSeq` / `scanOwed()`): every
+  change that needs a scan takes the next number (the process start is #1); a scan covers everything numbered up to
+  the value it saw when it STARTED, whoever's scan it is. Service: `requestScan(why, pkg)` (package events; a change
+  the running scan will read anyway owes nothing) and `tryOwedScan(why)` (walk finished, a scan finished, the app's
+  screens closed): starts only when owed, no scan running, no app screen open. Replaces `scanInBackground` +
+  `rescanWanted`, which (a) DROPPED the startup scan when the service started while a non-scanning screen (e.g. Voice
+  setup) was open, and (b) scanned again after the app closed even when the main screen's scan had already covered
+  the change. Proof `tools/verify/scansched/run.sh` (the REAL functions of the last commit and the working tree,
+  200,000 random histories): old 142 changes never scanned, 26,846 needless scans; new 0 / 0, and 0 scans started
+  while the app was open or over a running scan. Negatives caught: observer not asking, no count bump, onScanFinished
+  not asking (gaps); app check and running check removed (intrusive scans).
+- Restore reviewed again with the restore harness: ALL SCENARIOS PASS; no new gap found by reading.
+
 ## THE NEXT CHUNK IS QUEUED AHEAD, THE SPEAK STEPS HAVE THEIR OWN THREAD, AND A STOP NO LONGER LEAVES OLD AUDIO PLAYING (owner, 2026-10-01, latest)
 *"court mein jo donon chijen ... properli test ... simulator bhi aap banaa sakte hain ... complete karke kariye."*
 This replaces the "2 NOT done" and "8 NOT done, on purpose" decisions below.
