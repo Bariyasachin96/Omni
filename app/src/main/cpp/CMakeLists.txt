@@ -134,10 +134,22 @@ target_link_libraries(easyvoice ${log-lib})
 # -flto=thin must appear at link as well as at compile; see the measurement
 # table beside cppFlags in build.gradle.kts.
 #
-# NOT added, and each for a measured reason: --pack-dyn-relocs is ALREADY
-# supplied by clang's own driver below API 28 (Linux.cpp:288) and minSdk is 24,
-# so passing it changes nothing; --exclude-libs,ALL, --hash-style=gnu,
-# --as-needed and -z nostart-stop-gc each measured zero or noise.
+# THE EXPORT LIST AND PACKED RELOCATIONS (owner, 2026-10-01). The note that
+# used to sit here said --pack-dyn-relocs and --exclude-libs,ALL "measured zero".
+# That was measured on a HOST link, and the shipped APK said otherwise: build
+# 945's arm64 libeasyvoice.so exported 698 dynamic symbols -- almost all of the
+# static libc++ the NDK links in -- and carried 3,485 relocations as plain
+# 24-byte RELA. An exported symbol is a root --gc-sections must keep, so all
+# that libc++ code stayed. exports.map now exports ONLY Java_* and JNI_OnLoad
+# (the JNI names the VM resolves; nothing uses RegisterNatives), and
+# --pack-dyn-relocs=android packs the relocations (API 23+, minSdk is 24).
+# Measured on the real NDK 30 build, arm64:
+#     exported symbols       698 -> 7
+#     .text            171,904 -> 122,612     .eh_frame 23,940 -> 8,536
+#     .so raw        6,667,704 -> 6,450,712   gzipped 4,821,154 -> 4,772,860
+# .rodata (CLD2's tables) is unchanged, which is the point: nothing the
+# detector reads moved. tools/check/native-exports.sh guards the count.
+# Still not added: --hash-style=gnu, --as-needed, -z nostart-stop-gc.
 #
 # 16 KB PAGES ARE STATED, NOT INHERITED (owner, 2026-09-23). NDK r28 and later
 # already align every PT_LOAD segment to 16 KB, and the shipped arm64 library was
@@ -149,4 +161,8 @@ target_link_libraries(easyvoice ${log-lib})
 # tools/check/native-pagesize.sh verifies the built APK.
 target_link_options(easyvoice PRIVATE
     "-Wl,--gc-sections" "-Wl,--strip-all" "-Wl,--icf=safe" "-flto=thin"
-    "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")
+    "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384"
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
+    "-Wl,--exclude-libs,ALL" "-Wl,--pack-dyn-relocs=android")
+set_target_properties(easyvoice PROPERTIES
+    LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/exports.map")

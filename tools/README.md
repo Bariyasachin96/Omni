@@ -182,8 +182,10 @@ and that everything else was CFR noise.
   The sources are real files now, so both are gone; edit the file directly.
 
 ## `check/native-pagesize.sh` -- 16 KB page size, against a built APK
+    tools/check/native-exports.sh <apk>  # libeasyvoice.so exports only Java_* and JNI_OnLoad (CI runs it)
 
     tools/check/native-pagesize.sh EasyVoice-<n>-arm64-v8a.apk
+    tools/check/native-exports.sh <apk>  # libeasyvoice.so exports only Java_* and JNI_OnLoad (CI runs it)
 
 Reads every PT_LOAD `p_align` out of each `lib/*/*.so` and requires 16 KB on the
 **64-bit** ABIs. Android 16 runs a 4 KB-aligned 64-bit library in a compatibility

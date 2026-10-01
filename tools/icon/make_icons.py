@@ -76,8 +76,8 @@ fg.paste(badge.resize((inner, inner), Image.LANCZOS), ((ADAPT - inner) // 2,) * 
 
 nod = os.path.join(RES, "drawable-nodpi")
 os.makedirs(nod, exist_ok=True)
-bg.save(os.path.join(nod, "ic_launcher_art_bg.png"), optimize=True)
-fg.save(os.path.join(nod, "ic_launcher_art_fg.png"), optimize=True)
+bg.save(os.path.join(nod, "ic_launcher_art_bg.webp"), "WEBP", lossless=True, quality=100, method=6, exact=True)
+fg.save(os.path.join(nod, "ic_launcher_art_fg.webp"), "WEBP", lossless=True, quality=100, method=6, exact=True)
 
 # --- 4. legacy mipmaps, full bleed, square and round -------------------------
 for folder, dp in (("mipmap-mdpi", 48), ("mipmap-hdpi", 72), ("mipmap-xhdpi", 96),
@@ -85,11 +85,11 @@ for folder, dp in (("mipmap-mdpi", 48), ("mipmap-hdpi", 72), ("mipmap-xhdpi", 96
     d = os.path.join(RES, folder)
     os.makedirs(d, exist_ok=True)
     flat = badge.resize((dp, dp), Image.LANCZOS)
-    flat.save(os.path.join(d, "ic_launcher.png"), optimize=True)
+    flat.save(os.path.join(d, "ic_launcher.webp"), "WEBP", lossless=True, quality=100, method=6, exact=True)
     mask = Image.new("L", (dp * 4, dp * 4), 0)
     ImageDraw.Draw(mask).ellipse((0, 0, dp * 4 - 1, dp * 4 - 1), fill=255)
     rnd = flat.convert("RGBA")
     rnd.putalpha(mask.resize((dp, dp), Image.LANCZOS))
-    rnd.save(os.path.join(d, "ic_launcher_round.png"), optimize=True)
+    rnd.save(os.path.join(d, "ic_launcher_round.webp"), "WEBP", lossless=True, quality=100, method=6, exact=True)
 
 print("written")

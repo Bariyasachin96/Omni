@@ -210,6 +210,12 @@ jobs:
           cp "$out/app-armeabi-v7a-release.apk"  "EasyVoice-${{ github.run_number }}-armeabi-v7a.apk"
           ls -l EasyVoice-${{ github.run_number }}*.apk
 
+      # The native library must export only Java_* and JNI_OnLoad; build 945
+      # exported 698 libc++ symbols, which kept dead code in every APK. Checked
+      # BEFORE publishing so a regression cannot reach the Releases page.
+      - name: Check native exports
+        run: bash tools/check/native-exports.sh "EasyVoice-${{ github.run_number }}.apk"
+
       # THE EXACT SOURCE OF THIS BUILD, PUBLISHED BESIDE IT (owner, 2026-09-11:
       # "har build ke sath pura jo latest build ka source code hai vah bhi a jana
       # chahie").

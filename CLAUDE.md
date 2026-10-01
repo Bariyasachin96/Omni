@@ -8,6 +8,28 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE NATIVE LIBRARY EXPORTED 698 SYMBOLS; ICONS ARE LOSSLESS WEBP (owner, 2026-10-01, latest)
+*"application ki size bahut jyada hai ... native side ... R8 jaisa ... kuchh delete bhi na ho ... ho sake to kar bhi dena."*
+Measured on the SHIPPED build 945 APK this time, not on a host link -- which is what the 2026-09-09 pass did, and
+why it said `--exclude-libs` / `--pack-dyn-relocs` "measured zero". On the real NDK 30 output they did not:
+- **arm64 libeasyvoice.so exported 698 dynamic symbols** (the static libc++), so --gc-sections had to keep that code,
+  and **3,485 relocations were plain RELA**. `app/src/main/cpp/exports.map` (version script: only `Java_*` and
+  `JNI_OnLoad`; nothing uses RegisterNatives) + `--exclude-libs,ALL` + `--pack-dyn-relocs=android` (API 23+, minSdk 24):
+  exports 698 -> 7, .text 171,904 -> 122,612, .eh_frame 23,940 -> 8,536, .so 6,667,704 -> 6,450,712 (gz -48 KB).
+  `.rodata` (CLD2 tables) unchanged -- nothing the detector reads moved.
+- **12 launcher PNGs -> lossless WebP** (`exact=True`, method 6), each decoded back and compared RGBA byte for byte:
+  ALL IDENTICAL, 316,040 -> 214,516 bytes (stored uncompressed in the APK, so the saving is real). API 18+ reads them.
+  `tools/icon/make_icons.py` now writes .webp.
+- **Local release build (throwaway key), APK:** arm64 6,577,097 -> 6,438,313; armeabi-v7a 6,551,965 -> 6,417,205;
+  universal 11,388,808 -> 11,204,520.
+- **Guard:** `tools/check/native-exports.sh <apk>` (only Java_*/JNI_OnLoad exported, >= 6 Java_, JNI_OnLoad kept),
+  run in CI before publishing ("Check native exports"). Negative: build 945's APK -> FAIL 691 extra. Its first draft
+  had the `nm | grep -q` + pipefail SIGPIPE trap (false "lost JNI_OnLoad"); it reads into a variable now.
+- **What is left is the tables**, 4.78 MB of the 6.44 MB arm64 APK; they ARE the detection. The only further native
+  lever is pre-compressing them (xz) and inflating at first run: ~550 KB per ABI, at the cost of ~6 MB extra storage
+  or dirty RAM, first-run decode, and a failure mode where detection has no tables. Not done. META-INF/*.version
+  (~25 KB) kept: they are what the dependency audits read.
+
 ## AFTER A COLD START THE FIRST UTTERANCE WAITS FOR ITS ENGINE INSTEAD OF BEING DROPPED (owner, 2026-10-01, latest)
 *"package se jo scan ... blind ... restore ... kuchh to problem ho rahi hai ... TTS select karte hain vahan se lekar
 puri app start aur close ... koi gap ... overload ... required dependency."*
