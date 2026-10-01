@@ -8,6 +8,21 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ITEMS 2-5 OF THE SPEED LIST: MEASURED, NOT DONE (owner, 2026-10-01, latest)
+*"345 teenon dekh lo ... test karke ... sahi result aata hai to use kar do."* Do not re-research these.
+- **2 (queue the next same-engine, same-language chunk with QUEUE_ADD): NOT done, owner agreed to leave it.** The owner's
+  real log is 250 utterances / 251 chunks, so it almost never fires. It also makes the interrupt corner worse: when
+  `EngineWrapper.stop(forGeneration)` is skipped and the next utterance goes to a DIFFERENT engine, the old engine
+  would play the queued chunk too (two voices). An ahead chunk that errors at once, or dies with its engine, also
+  needs extra hand-over code.
+- **3 (cache the parsed locale in onLoadLanguage): NOT done.** split + Locale + isO3Language measured at ~0.3 us per
+  call (desktop JVM), against milliseconds of setLanguage binder calls. No audible saving.
+- **4 (per-engine package replace in loadVoice): ALREADY GONE.** loadVoiceImpl normalises the asked package once
+  (~13 ns) and compares against `EngineWrapper.pkg`, which is stored normalised.
+- **5 (reuse the listener / params Bundle per chunk): NOT done.** The Bundle copy plus 7 removes is ~0.2 us, and
+  utterances are almost always one chunk. The listener cannot be shared: each one carries its chunk's expectedId,
+  which is the stale-callback guard.
+
 ## THE NEXT LANGUAGE LOADS WHILE THE SAME ENGINE IS STILL SPEAKING (owner, 2026-10-01, latest)
 *"pahla wala complete karte hain ... pahle test karo ... pura sem result Milta Hai ... problem mile to mat karna."*
 - **prefetchNextLanguage no longer stops at a different engine.** Hindi -> Gujarati on ONE engine paid setLanguage's
