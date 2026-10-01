@@ -83,6 +83,8 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
                                          #   chunk by chunk and language by language
     tools/verify/autottslog/run.sh --stress      # 80 emoji and mixed-script texts (stress.txt):
                                          #   nothing lost, no emoji cut in two, valid UTF-8
+    tools/verify/logger/run.sh [ref]     # old vs new EasyVoiceLogger, files byte for byte
+    tools/verify/langstore/run.sh [ref]  # one-walk LangStore answers + detect-set push logic
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

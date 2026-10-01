@@ -12,7 +12,7 @@ object EasyVoiceLogger {
     private const val MAX_LOG_BYTES = 2L * 1024L * 1024L
     private val timestampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     private var logFile: File? = null
-    @Volatile private var loggingEnabled = false
+    @PublishedApi @Volatile internal var loggingOn = false
     // ---- THE WRITER IS HELD OPEN -------------------------------------------
     // AutoTTS's c3.p.h opens the file, writes one line and closes it again, for
     // EVERY line, and calls exists() + length() before each one. That is five
@@ -47,10 +47,10 @@ object EasyVoiceLogger {
         writtenBytes = 0L
     }
     fun setLoggingEnabled(enabled: Boolean) {
-        loggingEnabled = enabled
+        loggingOn = enabled
         if (!enabled) closeWriter()
     }
-    fun isLoggingEnabled(): Boolean = loggingEnabled
+    fun isLoggingEnabled(): Boolean = loggingOn
     // @Synchronized, and it is the same monitor writeLine takes. `logFile` is a
     // plain field written here on the MAIN thread and read by writeLine on the
     // synthesis and binder threads, so without a common lock there is no
@@ -77,22 +77,25 @@ object EasyVoiceLogger {
             Log.e("TtsLogger", "Failed to open the log directory", ex)
         }
     }
-    @Synchronized private fun writeLine(level: String, tag: String, msg: String) {
+    // EVERY LINE USED TO ASK THE FILESYSTEM TWICE (owner, 2026-10-01: "extra
+    // process"). rotate() ran before each line and called exists() + length(),
+    // two stat calls, although the size is already counted here -- and the
+    // count was in CHARACTERS, so for Hindi or Gujarati it was too small and
+    // only the stat could see the file pass the cap. It counts BYTES now,
+    // exactly as UTF-8 writes them, so rotate() is asked only when the writer
+    // is opened or the count says the cap is reached: the same moments the old
+    // stat answered yes. The line is joined with + instead of String.format,
+    // which built a Formatter per line for the same four %s. The file is
+    // byte-identical (tools/verify/logger, old vs new logger, random lines
+    // with Hindi, emoji and lone surrogates, rotation and clear()).
+    @PublishedApi @Synchronized internal fun writeLine(level: String, tag: String, msg: String) {
         when (level) { "E" -> Log.e(tag, msg); "W" -> Log.w(tag, msg) }
-        if (!loggingEnabled) return
+        if (!loggingOn) return
         val file = logFile ?: return
-        // The rotation test is the in-memory count, not two stat calls. It is
-        // only ever a lower bound on the real size -- it is seeded from
-        // file.length() when the writer opens -- so the file cannot grow past
-        // the cap without this noticing.
         if (writer != null && writtenBytes >= MAX_LOG_BYTES) closeWriter()
         val line = try {
-            // rotate() moved INSIDE the guard on 2026-09-11: it calls exists(),
-            // length(), delete() and renameTo(), every one of which can throw
-            // SecurityException, and it sat outside the try. Same for the
-            // formatting.
-            rotate(file)
-            String.format("%s [%s] %s: %s", timestampFormat.format(Date()), level, tag, msg)
+            if (writer == null) rotate(file)
+            timestampFormat.format(Date()) + " [" + level + "] " + tag + ": " + msg
         } catch (ex: Throwable) {
             Log.e("TtsLogger", "Failed to prepare a log line", ex)
             closeWriter()
@@ -107,21 +110,33 @@ object EasyVoiceLogger {
             }
             out.write(line)
             out.newLine()
-            // Per line, so nothing a caller has logged is lost if the process
-            // dies. This is one write syscall; the open and the close are what
-            // were costing the time.
             out.flush()
-            writtenBytes += line.length + 1
+            writtenBytes += utf8Length(line) + LINE_SEPARATOR_BYTES
         } catch (ex: Throwable) {
-            // Throwable, not IOException (2026-09-11). writeLine is reached from
-            // every thread in the app, including from inside the catch blocks that
-            // exist to stop a failure ending an utterance -- so a throw escaping
-            // the logger would defeat the very guard that called it. A diagnostic
-            // that can break the thing it is diagnosing is worse than no
-            // diagnostic. Logcat still gets the reason.
             Log.e("TtsLogger", "Failed to write log", ex)
             try { closeWriter() } catch (_: Throwable) {}
         }
+    }
+    private val LINE_SEPARATOR_BYTES = utf8Length(System.lineSeparator())
+    // Bytes UTF-8 writes for `text`: a surrogate pair is four, a surrogate with
+    // no partner is the one '?' the encoder puts in its place.
+    private fun utf8Length(text: String): Long {
+        var bytes = 0L
+        var index = 0
+        while (index < text.length) {
+            val ch = text[index]
+            if (Character.isHighSurrogate(ch) && index + 1 < text.length && Character.isLowSurrogate(text[index + 1])) {
+                bytes += 4; index += 2; continue
+            }
+            bytes += when {
+                ch.code < 0x80 -> 1
+                ch.code < 0x800 -> 2
+                Character.isSurrogate(ch) -> 1
+                else -> 3
+            }
+            index++
+        }
+        return bytes
     }
     private fun rotate(file: File) {
         if (!file.exists() || file.length() < MAX_LOG_BYTES) return
@@ -131,7 +146,14 @@ object EasyVoiceLogger {
         for (idx in 2 downTo 1) { val src = File(parent, "easy_voice.log.$idx"); if (src.exists()) src.renameTo(File(parent, "easy_voice.log.${idx + 1}")) }
         file.renameTo(File(parent, "easy_voice.log.1"))
     }
-    fun debug(tag: String, msg: String) = writeLine("D", tag, msg)
+    // THE MESSAGE IS BUILT ONLY WHEN IT WILL BE WRITTEN (owner, 2026-10-01).
+    // debug(tag, "x " + y) built its string at every call site -- about 150 of
+    // them on the speaking path -- and only then found logging switched off.
+    // Inline with a lambda, the text is not even joined when logging is off and
+    // no lambda object is allocated either. Every message expression was
+    // checked when the call sites moved: none has a side effect (the one call
+    // inside, LangStore.engineFor in the "engine: " line, only logs).
+    inline fun debug(tag: String, msg: () -> String) { if (loggingOn) writeLine("D", tag, msg()) }
     fun error(tag: String, msg: String) = writeLine("E", tag, msg)
     fun errorWithStack(tag: String, msg: String, throwable: Throwable) = writeLine("E", tag, msg + "\n" + Log.getStackTraceString(throwable))
     fun shareFileOrNull(): File? {

@@ -109,9 +109,9 @@ class MainActivity : EvActivity() {
     private var modeRefresh by mutableIntStateOf(0)
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
-            EasyVoiceLogger.debug("TTS", "Notification permission granted")
+            EasyVoiceLogger.debug("TTS") { "Notification permission granted" }
         } else {
-            EasyVoiceLogger.debug("TTS", "Notification permission denied")
+            EasyVoiceLogger.debug("TTS") { "Notification permission denied" }
         }
     }
     private fun isRequiredLanguage(prefs: SharedPrefsManager, iso3: String): Boolean =

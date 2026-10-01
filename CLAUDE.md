@@ -8,6 +8,40 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## EXTRA WORK REMOVED, FIVE ITEMS (owner, 2026-10-01, latest)
+*"van se lekar 5 tak complete kar do ... test karke."* From a sweep of the speaking path; each one proven.
+- **1. Logger: no stat per line.** `rotate()` (exists + length) ran before EVERY line although the size is counted;
+  the count was CHARACTERS, so Hindi under-counted. Now `utf8Length` counts BYTES (pair 4, lone surrogate 1 = the
+  encoder's '?', separator from `System.lineSeparator()`), `rotate()` runs only when the writer opens or the count
+  hits the cap, and the line is joined with `+` instead of `String.format`. Measured: 10.6 -> 6.2 us/line here.
+  Proof `tools/verify/logger/run.sh`: the logger of 99393a3 vs the new one, fake clock, 1500-byte cap, 5 seeds x
+  4000 ops (Hindi, emoji, lone surrogates, clear, logging off/on): all four files IDENTICAL. Negative: chars not
+  bytes, emoji as 2, separator changed, lone surrogate as 0 -- caught. Over-counting is self-correcting BY DESIGN
+  (the reopen stats the real file), so "lone surrogate as 3" changes nothing, correctly.
+- **2. `EasyVoiceLogger.debug(tag) { msg }` is inline with a lambda**: the message is not built while logging is off.
+  All 147 call sites moved mechanically (the expression text unchanged); none has a side effect (the one call,
+  `LangStore.engineFor` in "engine: ", only logs). `loggingOn` / `writeLine` are `@PublishedApi internal`
+  (`loggingEnabled` as a name clashed with `setLoggingEnabled` on the JVM). The logger harness asserts the lambda
+  runs only while logging is on (negative caught). `error()` is unchanged: it always goes to logcat.
+- **3. The detect sets are not even BUILT unless the list changed.** `LangEntry.iso3 / enginePkg / disabled` are
+  properties whose setters bump `LangStore.listVersion` (AtomicLong), and `replaceAll` bumps it. pushDetectSetsOnly
+  reads the version first and returns if it equals `pushedListVersion`, recorded only when `sendDetectSets` says the
+  core holds the sets (a throw resets it, so it retries). pushLanguageSets records it too.
+- **4. One walk instead of three**: `LangStore.voiceParamsFor(lang)` = speed, pitch, volume per chunk;
+  `voiceTargetFor(lang, mode)` = locale, engine, variant in onLoadLanguage, used ONLY while logging is off -- with
+  logging on the three old logging walks run so the log is unchanged. Engine keeps its own rule (first iso3 match,
+  "Disable" if disabled); locale/variant from the first match with a usable engine; mode 3 = lang / builtInEngine.
+- **5. `LangStore.isAvailable(name)`** replaces `availableLanguagesFor(null, true).contains(..)` in
+  onIsLanguageAvailable and onIsValidVoiceName (no list built).
+- Proof for 3-5: `tools/verify/langstore/run.sh` lifts the old LangStore walks (99393a3) and the new functions +
+  the service's push logic from the real files: 1,100,000 cases IDENTICAL (20k random lists x langs x modes, and
+  200k utterances of random setter/replace/throw steps checked against the truth). Negatives caught: engine from
+  first usable entry, pitch/volume swapped, disabled ignored, disabled setter not bumping, replaceAll not bumping,
+  failed push remembered. Also re-run: check-all 0/0, selftest EVERY CHECK FIRES, oldnew 0 differ, stress 0 wrong,
+  onecall 0 differ, devanagari 17/17, segmenter IDENTICAL.
+- **Not done (owner chose 1-5):** 6 Locale-based toIso3 via the table, 7 the discarded engineFor in mix onDone,
+  8 voice list cache, 9 small ones.
+
 ## THE OTHER THREE: AUTO MODE IN ONE CROSSING, NO BYTE BUFFER, AN ARRAY INSTEAD OF A PACKED STRING (owner, 2026-10-01, latest)
 *"Jo baki teenon rahe the usko bhi test karke complete kar do ... paanchon ke pure sab kuchh check kar lena."*
 - **#2 auto/Google mode crosses once.** `detectLanguageFull` is GONE; `detectWindowOrSpans(text, lat, nonLat,

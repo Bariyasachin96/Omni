@@ -4,15 +4,26 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 class LangEntry(
     @JvmField var displayName: String,
-    @JvmField var iso3: String,
+    iso3: String,
     @JvmField var speed: Int,
     @JvmField var volume: Int,
     @JvmField var pitch: Int,
-    @JvmField var enginePkg: String,
+    enginePkg: String,
     @JvmField var localeTag: String,
     @JvmField var variant: String
 ) {
-    @JvmField var disabled: Boolean = false
+    // The three fields the detector's language sets are built from. Writing
+    // any of them moves LangStore.listVersion, so the per-utterance push can
+    // tell "nothing changed" without walking the list (owner, 2026-10-01).
+    // A setter rather than a bump at each call site: the list is edited from
+    // the UI, the scan and the loaders, and a site that forgot would leave the
+    // detector on old sets.
+    var iso3: String = iso3
+        set(value) { field = value; LangStore.listVersion.incrementAndGet() }
+    var enginePkg: String = enginePkg
+        set(value) { field = value; LangStore.listVersion.incrementAndGet() }
+    var disabled: Boolean = false
+        set(value) { field = value; LangStore.listVersion.incrementAndGet() }
     @JvmField val enginePkgs: java.util.LinkedHashSet<String> = java.util.LinkedHashSet()
 }
 object LangStore {
@@ -34,7 +45,7 @@ object LangStore {
     @JvmStatic var currentVoiceChosen: Boolean = false
     @JvmStatic
     fun loadLanguages(ctx: Context) {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadLanguages")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "loadLanguages" }
         val parsed = ArrayList<LangEntry>()
         val sharedPrefs = prefs(ctx)
         // e0() reads language_0 upward and stops at the FIRST empty key. There
@@ -70,7 +81,7 @@ object LangStore {
             val entry = LangEntry("", iso, speed, volume, pitch, engine, locale, variant)
             entry.disabled = sharedPrefs.getBoolean(iso + "_disabled", false)
             parsed.add(entry)
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - " + iso + " " + engine + " " + locale + " " + variant)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " - " + iso + " " + engine + " " + locale + " " + variant }
             index++
         }
         replaceAll(parsed)
@@ -107,7 +118,12 @@ object LangStore {
             languages.clear()
             languages.addAll(fresh)
         }
+        listVersion.incrementAndGet()
     }
+    // Moves whenever the list is replaced or an entry's iso3, engine or
+    // disabled flag is written (LangEntry's setters). Only ever compared for
+    // equality, so a lost race between two writers still leaves it changed.
+    @JvmField val listVersion = java.util.concurrent.atomic.AtomicLong()
     // getOrNull is `if (index in 0..lastIndex) get(index) else null` -- two
     // steps against a list another thread can replace between them, so it can
     // throw rather than answer null. Under the monitor it cannot.
@@ -568,37 +584,37 @@ object LangStore {
     }
     @JvmStatic
     fun engineFor(lang: String, modeInt: Int): String {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "getEngine4Language " + lang)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "getEngine4Language " + lang }
         if (modeInt == 3) return EngineFinder.builtInEngine
         synchronized(languages) {
             var index = 0
             while (index < languages.size) {
                 val entry = languages[index]
                 index++
-                if (entry.enginePkg.isNotEmpty() && !entry.enginePkg.equals("disable", true) && !entry.disabled) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "- " + entry.iso3 + " " + entry.enginePkg)
+                if (entry.enginePkg.isNotEmpty() && !entry.enginePkg.equals("disable", true) && !entry.disabled) EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "- " + entry.iso3 + " " + entry.enginePkg }
                 if (lang == entry.iso3) {
-                    if (entry.disabled) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " res1 Disable"); return "Disable" }
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " res " + entry.enginePkg)
+                    if (entry.disabled) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " res1 Disable" }; return "Disable" }
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " res " + entry.enginePkg }
                     return entry.enginePkg
                 }
             }
         }
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " res ''")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " res ''" }
         return ""
     }
     @JvmStatic
     fun localeFor(lang: String, modeInt: Int): String {
         synchronized(languages) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "getVoice4Language " + lang)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "getVoice4Language " + lang }
             if (modeInt == 3) return lang
             var index = 0
             while (index < languages.size) {
                 val entry = languages[index]
                 index++
                 if (entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true) || entry.disabled) continue
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + entry.iso3 + " -> " + entry.localeTag)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -" + entry.iso3 + " -> " + entry.localeTag }
                 if (lang != entry.iso3) continue
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Found " + entry.localeTag)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Found " + entry.localeTag }
                 return entry.localeTag
             }
             return ""
@@ -607,16 +623,16 @@ object LangStore {
     @JvmStatic
     fun variantFor(lang: String, modeInt: Int): String {
         synchronized(languages) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "getVariant4Language " + lang)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "getVariant4Language " + lang }
             if (modeInt == 3) return lang
             var index = 0
             while (index < languages.size) {
                 val entry = languages[index]
                 index++
                 if (entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true) || entry.disabled) continue
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + entry.iso3 + " -> " + entry.variant)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -" + entry.iso3 + " -> " + entry.variant }
                 if (lang != entry.iso3) continue
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Found " + entry.variant)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Found " + entry.variant }
                 return entry.variant
             }
             return ""
@@ -625,4 +641,59 @@ object LangStore {
     @JvmStatic fun speedFor(lang: String): Int = synchronized(languages) { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return@synchronized entry.speed }; return@synchronized 100 }
     @JvmStatic fun volumeFor(lang: String): Int = synchronized(languages) { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return@synchronized entry.volume }; return@synchronized 100 }
     @JvmStatic fun pitchFor(lang: String): Int = synchronized(languages) { var index = 0; while (index < languages.size) { val entry = languages[index]; index++; if (lang == entry.iso3) return@synchronized entry.pitch }; return@synchronized 100 }
+    // onIsLanguageAvailable / onIsValidVoiceName's question, answered without
+    // building the list: availableLanguagesFor(null, true).contains(name) made
+    // a fresh ArrayList of every enabled iso3 on each call, and a screen
+    // reader's one language change asks it two or three times (owner,
+    // 2026-10-01). Same test: an entry that is not disabled, iso3 equal.
+    @JvmStatic
+    fun isAvailable(name: String?): Boolean = synchronized(languages) {
+        var index = 0
+        while (index < languages.size) {
+            val entry = languages[index]
+            index++
+            if (!entry.disabled && entry.iso3 == name) return@synchronized true
+        }
+        return@synchronized false
+    }
+    // speedFor, pitchFor and volumeFor in one walk: the first entry whose iso3
+    // is `lang`, else 100 each -- exactly what the three separate walks give.
+    // Order: speed, pitch, volume.
+    @JvmStatic
+    fun voiceParamsFor(lang: String): IntArray = synchronized(languages) {
+        var index = 0
+        while (index < languages.size) {
+            val entry = languages[index]
+            index++
+            if (lang == entry.iso3) return@synchronized intArrayOf(entry.speed, entry.pitch, entry.volume)
+        }
+        return@synchronized intArrayOf(100, 100, 100)
+    }
+    // localeFor, engineFor and variantFor in one walk, without their log lines
+    // (onLoadLanguage calls the three logging ones while logging is on, so the
+    // log stays what it was). Each keeps its own rule: the engine is the FIRST
+    // entry with that iso3 ("Disable" if it is disabled), while locale and
+    // variant come from the first entry that also has a usable engine.
+    // Order: locale, engine, variant.
+    @JvmStatic
+    fun voiceTargetFor(lang: String, modeInt: Int): Array<String> {
+        if (modeInt == 3) return arrayOf(lang, EngineFinder.builtInEngine, lang)
+        synchronized(languages) {
+            var engine: String? = null
+            var locale: String? = null
+            var variant: String? = null
+            var index = 0
+            while (index < languages.size && (engine == null || locale == null)) {
+                val entry = languages[index]
+                index++
+                if (lang != entry.iso3) continue
+                if (engine == null) engine = if (entry.disabled) "Disable" else entry.enginePkg
+                if (locale == null && !(entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true) || entry.disabled)) {
+                    locale = entry.localeTag
+                    variant = entry.variant
+                }
+            }
+            return arrayOf(locale ?: "", engine ?: "", variant ?: "")
+        }
+    }
 }

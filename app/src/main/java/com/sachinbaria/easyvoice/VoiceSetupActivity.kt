@@ -48,7 +48,7 @@ class VoiceSetupActivity : EvActivity() {
             val offered = if (result.resultCode != android.speech.tts.TextToSpeech.LANG_AVAILABLE) null
                 else try { result.data?.getStringExtra(android.speech.tts.TextToSpeech.Engine.EXTRA_SAMPLE_TEXT) } catch (_: Throwable) { null }
             val text = offered?.takeIf { locale == null || EngineSample.fitsLanguage(it, locale) }
-            if (offered != null && text == null) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Sample from " + key + " is not in " + locale + "'s script -- using the built-in one")
+            if (offered != null && text == null) EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Sample from " + key + " is not in " + locale + "'s script -- using the built-in one" }
             // "" is written on EVERY answered launch, including a null one, so a
             // declining engine is asked once and never again. Only a launch that
             // never happened leaves the key absent.

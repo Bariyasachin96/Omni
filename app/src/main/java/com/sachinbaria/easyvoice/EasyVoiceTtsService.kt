@@ -276,12 +276,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  `n` is a String, not an Int, because one site computes its own number
     //  (`if (next.typeCode == 1) 2 else 3`), exactly as AutoTTS's caller does.
     private fun endSynthesis(callback: SynthesisCallback?, n: String) {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #" + n)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "endSynthesis #" + n }
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
         if (callback?.hasStarted() == true && !callback.hasFinished()) callback.done()
     }
     private fun unlockSynthesis(n: String) {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis #" + n)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "unlockSynthesis #" + n }
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
     }
     // USAGE_ASSISTANCE_ACCESSIBILITY + CONTENT_TYPE_SPEECH, built ONCE (2026-09-24).
@@ -339,8 +339,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun startForegroundIfPossible() {
         try {
             if (!notificationsShown()) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
-                    "notifications are off: the foreground service runs, its notification is not shown")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) {
+                    "notifications are off: the foreground service runs, its notification is not shown" }
             }
             createNotificationChannel()
             // ONE CALL FOR EVERY API LEVEL: ServiceCompat picks the platform
@@ -348,7 +348,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             ServiceCompat.startForeground(this, FOREGROUND_NOTIFICATION_ID, buildNotification(),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
             foregroundStarted = true
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "foreground service started (mediaPlayback)")
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "foreground service started (mediaPlayback)" }
         } catch (ex: Exception) {
             // `ex.toString()` carries the class and the message and is never
             // empty, which `ex.message` can be.
@@ -359,9 +359,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // handing this same object back, so it has to outlive the request.
     private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
-            -2 -> EasyVoiceLogger.debug("TTS", "Audio focus lost temporarily")
-            -1 -> EasyVoiceLogger.debug("TTS", "Audio focus lost")
-            1 -> EasyVoiceLogger.debug("TTS", "Audio focus gained")
+            -2 -> EasyVoiceLogger.debug("TTS") { "Audio focus lost temporarily" }
+            -1 -> EasyVoiceLogger.debug("TTS") { "Audio focus lost" }
+            1 -> EasyVoiceLogger.debug("TTS") { "Audio focus gained" }
         }
     }
 
@@ -443,8 +443,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // GRANTED is 1, FAILED is 0 and DELAYED is 2, and the boolean cannot tell
         // the last two apart -- which is exactly the distinction that says whether
         // Android 17 refused it or the system deferred it.
-        EasyVoiceLogger.debug("TTS", "Audio focus request: " +
-            (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) + " (code " + result + ")")
+        EasyVoiceLogger.debug("TTS") { "Audio focus request: " +
+            (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) + " (code " + result + ")" }
     }
     // Its own method on purpose, which is the shape Android's own guidance and
     // PackageInfoCompat's Api28Impl both use: the verifier only ever has to
@@ -484,7 +484,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // AutoTtsService.onCreate opens with c3.a0.c/c3.a0.b, so every log a
         // user shares names the build it came from -- "Unknown" and -1 are the
         // values a0 answers with when PackageManager cannot find the package.
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onCreate Version Name: " + BuildConfig.VERSION_NAME + " Version Code: " + BuildConfig.VERSION_CODE)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onCreate Version Name: " + BuildConfig.VERSION_NAME + " Version Code: " + BuildConfig.VERSION_CODE }
         super.onCreate()
         // THE `!!` HERE WAS A CRASH, AND THE OWNER OVERRODE THE PARITY DEFENCE
         // (2026-09-10). It was `ex.message!!`, which is AutoTTS's own
@@ -786,9 +786,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val client = tts ?: return
             stopExec.execute {
                 if (forGeneration >= 0 && forGeneration != synthesisGeneration) {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) {
                         "stop for generation " + forGeneration + " is spent (now " +
-                        synthesisGeneration + ") -- skipping " + pkg)
+                        synthesisGeneration + ") -- skipping " + pkg }
                     return@execute
                 }
                 try { client.stop() }
@@ -1011,16 +1011,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
 
     private fun loadVoiceImpl(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "LoadVoice " + pkg + " " + locale + " " + variant)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "LoadVoice " + pkg + " " + locale + " " + variant }
         if (dedicated && modeInt != 3) { loadVoiceDedicated(pkg, locale, variant, dedicated); return }
         val normPkg = normPkg(if (pkg.isEmpty()) lastEnginePkg else { lastEnginePkg = pkg; pkg })
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " current engine: " + normPkg)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " current engine: " + normPkg }
         var idx = -1
-        for (index in 0 until enginePool.size) { if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " found!"); idx = index; break } }
+        for (index in 0 until enginePool.size) { if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " found!" }; idx = index; break } }
         if (idx != -1) {
             engineIndex = idx
             val wrapper = enginePool[idx]
-            if (variant.isEmpty() && wrapper.voiceName.isNotEmpty()) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Load voice original"); loadVoiceOriginal(normPkg, locale); return }
+            if (variant.isEmpty() && wrapper.voiceName.isNotEmpty()) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Load voice original" }; loadVoiceOriginal(normPkg, locale); return }
             var curLocale = localeOf("zxx")
             var curVoiceName = ""
             if (wrapper.voiceName.isNotEmpty()) {
@@ -1035,13 +1035,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (curVoice != null) {
                     curLocale = curVoice.locale
                     curVoiceName = curVoice.name
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " last " + curLocale + " " + curVoiceName)
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " last " + curLocale + " " + curVoiceName }
                     val curCountry = try { curLocale.isO3Country } catch (_: Exception) { "" }
                     val reqCountry = try { locale.isO3Country } catch (_: Exception) { "" }
                     if (localeIso3(curLocale) == localeIso3(locale) &&
                         (curCountry == reqCountry || reqCountry == "") &&
                         curVoiceName == variant) {
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Do nothing!"); return
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Do nothing!" }; return
                     }
                 }
             }
@@ -1050,7 +1050,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 for (index in 0 until voiceList.size) {
                     val parts = voiceList[index].split("#")
                     if (parts.size < 2 || parts[0] != normPkg || parts[1] != locale.toString()) continue
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "voice: " + voiceList[index])
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "voice: " + voiceList[index] }
                     // THE LAST TWO UNSYNCHRONIZED WALKS OF LangStore.languages WERE
                     // HERE AND IN loadVoiceDedicated (2026-09-11), and they were the
                     // two on the SPEAKING path -- the one place this hole costs a
@@ -1081,15 +1081,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     break
                 }
             }
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " variant " + effectiveVariant)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " variant " + effectiveVariant }
             if (effectiveVariant == "*Default") {
                 if (!localeMatches(locale, curLocale)) {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + curLocale.toString())
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { locale.toString() + " vs " + curLocale.toString() }
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 1") } else setLanguageFailed(wrapper, locale, setLangResult)
+                    if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Set voice 1" } } else setLanguageFailed(wrapper, locale, setLangResult)
                 }
             } else if (effectiveVariant != curVoiceName) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Check voice 1")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Check voice 1" }
                 // f0 leaves the voice loop with `break block32` only when a voice
                 // MATCHED the variant -- success or failure. A list that holds no
                 // voice by that name falls straight through to the setLanguage
@@ -1136,7 +1136,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     for (voiceObj in list) {
                         if (voiceObj.name.equals(effectiveVariant, ignoreCase = true)) {
                             val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
-                            if (setVoiceResult != null && setVoiceResult >= TextToSpeech.SUCCESS) { wrapper.localeSet = true; wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult) } else setVoiceFailed(wrapper, voiceObj, setVoiceResult)
+                            if (setVoiceResult != null && setVoiceResult >= TextToSpeech.SUCCESS) { wrapper.localeSet = true; wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Set voice 2: " + voiceObj.name + " res=" + setVoiceResult } } else setVoiceFailed(wrapper, voiceObj, setVoiceResult)
                             return true
                         }
                     }
@@ -1149,7 +1149,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 if (!matchedAVoice && !localeMatches(locale, curLocale)) {
                     val setLangResult = wrapper.tts?.setLanguage(locale)
-                    if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString()) } else setLanguageFailed(wrapper, locale, setLangResult)
+                    if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString() } } else setLanguageFailed(wrapper, locale, setLangResult)
                 }
             }
             wrapper.locale = locale; wrapper.voiceName = effectiveVariant
@@ -1226,12 +1226,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         } else { engineIndex = -1; voiceLoadFailed = true; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg) }
     }
     private fun loadVoiceDedicated(pkg: String, locale: java.util.Locale, variant: String, dedicated: Boolean) {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadVoice_Secondary " + pkg + " " + locale + " " + variant)
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Current Engine " + lastEnginePkg)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "loadVoice_Secondary " + pkg + " " + locale + " " + variant }
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Current Engine " + lastEnginePkg }
         val normPkg = normPkg(if (pkg.isEmpty()) lastEnginePkg else { lastEnginePkg = pkg; pkg })
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " current engine: " + normPkg)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " current engine: " + normPkg }
         var idx = -1
-        for (index in 0 until enginePool.size) { if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " found!"); idx = index; break } }
+        for (index in 0 until enginePool.size) { if (enginePool[index].pkg == normPkg && enginePool[index].state == 2) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " found!" }; idx = index; break } }
         if (idx == -1) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "TTS is not ready"); engineIndex = -1; voiceLoadFailed = true; recoverEngineNotReady(if (pkg.isEmpty()) lastEnginePkg else pkg); return }
         val previousEngineIndex = engineIndex
         engineIndex = idx
@@ -1273,9 +1273,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // path that can silently keep the wrong voice left no trace at all, so
         // no log the owner sends could ever name it.
         if (dedicated && wrapper.localeSet) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) {
                 " *dedicated: keeping " + wrapper.voiceName + " on " + wrapper.pkg +
-                ", not loading " + locale.toString() + " " + variant)
+                ", not loading " + locale.toString() + " " + variant }
             return
         }
         // voiceNow(), for the reason written on the field: `tts.voice` is a full
@@ -1285,18 +1285,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val engineLocale = engineVoice?.locale ?: localeOf("zxx")
         val engineName = engineVoice?.name ?: ""
         if (previousEngineIndex == engineIndex && engineVoice != null) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Engine Variant " + engineName)
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Engine Locale " + engineLocale)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Engine Variant " + engineName }
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Engine Locale " + engineLocale }
             if (localeMatches(locale, engineLocale) &&
                 (engineName == variant || variant == "*Default" || variant.isEmpty())) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *0 Do nothing"); return
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " *0 Do nothing" }; return
             }
         }
         var effectiveVariant = variant
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Searching " + normPkg + " " + locale)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Searching " + normPkg + " " + locale }
         run {
             for (index in 0 until voiceList.size) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *" + voiceList[index])
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " *" + voiceList[index] }
                 val parts = voiceList[index].split("#")
                 if (parts.size < 2 || parts[0] != normPkg) continue
                 // Same fix as loadVoice's walk above, and the same reason.
@@ -1304,7 +1304,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 while (true) {
                     val entry = LangStore.entryAt(langIdx) ?: break
                     langIdx++
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "  -" + entry.enginePkg + " " + entry.localeTag + " " + entry.variant)
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "  -" + entry.enginePkg + " " + entry.localeTag + " " + entry.variant }
                     if (entry.enginePkg != normPkg || !localeMatches(locale, parseVoiceNameAsLocale(entry.localeTag)) || entry.variant.isEmpty()) continue
                     effectiveVariant = entry.variant
                     break
@@ -1312,22 +1312,22 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 break
             }
         }
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Variant " + effectiveVariant)
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Locale " + locale)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Variant " + effectiveVariant }
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Locale " + locale }
         if ((effectiveVariant == "*Default" || effectiveVariant.isEmpty()) && !localeMatches(locale, engineLocale)) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *1")
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, locale.toString() + " vs " + engineLocale)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " *1" }
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { locale.toString() + " vs " + engineLocale }
             val setLangResult = wrapper.tts?.setLanguage(locale)
             if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant } else setLanguageFailed(wrapper, locale, setLangResult)
             return
         }
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *2")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " *2" }
         if (engineVoice != null) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Engine Variant " + engineName)
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " Engine Locale " + engineLocale)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Engine Variant " + engineName }
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " Engine Locale " + engineLocale }
             if (localeMatches(locale, engineLocale) &&
                 (engineName == effectiveVariant || effectiveVariant == "*Default" || effectiveVariant.isEmpty())) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " *2.1 Do nothing"); return
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " *2.1 Do nothing" }; return
             }
         }
         // CACHED, as loadVoice's scan already is (2026-09-11). This read was left
@@ -1345,7 +1345,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 if (!voiceObj.name.equals(effectiveVariant, ignoreCase = true)) continue
                 val setVoiceResult = try { wrapper.tts?.setVoice(voiceObj) } catch (_: Exception) { null }
                 if (setVoiceResult != null && setVoiceResult >= TextToSpeech.SUCCESS) {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 2: " + voiceObj.name)
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Set voice 2: " + voiceObj.name }
                     wrapper.currentVoice = voiceObj; wrapper.currentVoiceKnown = true
                     wrapper.locale = voiceObj.locale; wrapper.voiceName = effectiveVariant; wrapper.localeSet = true
                     return
@@ -1356,7 +1356,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         if (!localeMatches(locale, engineLocale)) {
             val setLangResult = wrapper.tts?.setLanguage(locale)
-            if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Set voice 3") } else setLanguageFailed(wrapper, locale, setLangResult)
+            if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.currentVoiceKnown = false; wrapper.locale = locale; wrapper.voiceName = locale.variant; wrapper.localeSet = true; EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Set voice 3" } } else setLanguageFailed(wrapper, locale, setLangResult)
         }
     }
 
@@ -1365,7 +1365,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // ==========================================================================
     private fun initAllEngines() {
         synchronized(this) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "initAllTTS")
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "initAllTTS" }
             var index = 0
             while (index < enginePool.size) {
                 try {
@@ -1460,18 +1460,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     initFinished()
                 }, 30000L)
             } catch (_: Exception) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Error when initializing " + enginePkg)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Error when initializing " + enginePkg }
                 if (done.compareAndSet(false, true)) {
                     if (myIndex < enginePool.size) enginePool[myIndex].state = -1
                     initFinished()
                 }
             }
         }
-        if (count == 0) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)"); startupScan() }
+        if (count == 0) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "All tts engines have been initialized. (2)" }; startupScan() }
     }
     private fun initFinished() {
         initializingIndex++
-        if (initializingIndex == walkList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "All tts engines have been initialized. (2)"); startupScan() }
+        if (initializingIndex == walkList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "All tts engines have been initialized. (2)" }; startupScan() }
     }
 
     // ==========================================================================
@@ -1531,21 +1531,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         (EngineFinder.runningScanWillRead(pkg) || !EngineFinder.isInstalled(applicationContext, pkg))
                     if (queueIfBusy && !coveredByRunningScan) rescanWanted = true
                     if (coveredByRunningScan) {
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan (" + why + "): the running scan covers it")
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): the running scan covers it" }
                         return@onMainThread
                     }
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan (" + why + "): a scan is already running" + if (queueIfBusy) " -- scanning again after it" else "")
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): a scan is already running" + if (queueIfBusy) " -- scanning again after it" else "" }
                     return@onMainThread
                 }
                 if (appOnScreen()) {
                     if (queueIfBusy) rescanWanted = true
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan (" + why + "): the app is open" + if (queueIfBusy) " -- scanning when it closes" else ", and it scans itself")
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan (" + why + "): the app is open" + if (queueIfBusy) " -- scanning when it closes" else ", and it scans itself" }
                     return@onMainThread
                 }
                 rescanWanted = false
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Background scan: " + why)
                 EngineFinder.scanLanguages(applicationContext) { langs ->
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Background scan finished: " + langs.size + " languages")
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan finished: " + langs.size + " languages" }
                 }
             } catch (ex: Throwable) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "scanInBackground: " + ex.toString())
@@ -1645,7 +1645,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // One shot: an onInit that lands after the watchdog gave up on this
             // engine belongs to a step the walk has already left.
             if (!done.compareAndSet(false, true)) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init arrived after the walk moved on; discarding that client")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Init arrived after the walk moved on; discarding that client" }
                 try { cell[0]?.shutdown() } catch (_: Throwable) {}
                 return
             }
@@ -1653,8 +1653,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val initializingTts = cell[0]
             if (myIndex >= walkList.size || myIndex >= enginePool.size) { initFinished(); return }
             val wrapper = enginePool[myIndex]
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Init " + wrapper.pkg)
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Init " + wrapper.pkg }
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "res " + status }
             val wantedPkg = walkList[myIndex]
             val boundPkg = if (status == TextToSpeech.SUCCESS) EngineFinder.boundEngineOf(initializingTts, wantedPkg) else wantedPkg
             if (status == TextToSpeech.SUCCESS && !isSameEnginePkg(boundPkg, wantedPkg)) {
@@ -1749,15 +1749,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // NORMALISED, like every other pool lookup in this file (2026-09-16):
             // the keep-alive callbacks hand over the RAW name out of engineList.
             val wrapper = wrapperFor(pkg)
-            if (wrapper == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + pkg + ": not in the engine pool"); return }
-            if (wrapper.restoring) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + wrapper.pkg + " (" + why + "): already being restored"); return }
-            if (wrapper.restoreSpent) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + wrapper.pkg + " (" + why + "): restored once already -- waiting for it to come back"); return }
+            if (wrapper == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + pkg + ": not in the engine pool" }; return }
+            if (wrapper.restoring) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): already being restored" }; return }
+            if (wrapper.restoreSpent) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): restored once already -- waiting for it to come back" }; return }
             if (wrapper.processGone) {
                 // Waiting needs a binding that can report the return. One that
                 // is missing (its bind failed mid-update) is made again here;
                 // if that fails too, the package receiver reports the install.
                 bindEngineKeepAlive(wrapper.rawPkg)
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + wrapper.pkg + " (" + why + "): its process is down -- restoring it when it is back")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): its process is down -- restoring it when it is back" }
                 return
             }
             // ONLY INTO A PROCESS THAT IS UP (2026-09-24). The keep-alive binding
@@ -1772,7 +1772,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (!engineProcessUp(wrapper.rawPkg)) {
                 wrapper.processGone = true
                 bindEngineKeepAlive(wrapper.rawPkg)
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "restoreTts " + wrapper.pkg + " (" + why + "): its process is not up yet -- restoring it when it is")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): its process is not up yet -- restoring it when it is" }
                 return
             }
             wrapper.restoring = true
@@ -1963,7 +1963,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // ONE SHOT. A callback that arrives after the watchdog gave this
             // client up must touch nothing -- it releases its own client.
             if (!done.compareAndSet(false, true)) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Restore init arrived after it was given up; discarding that client")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Restore init arrived after it was given up; discarding that client" }
                 try { cell[0]?.shutdown() } catch (_: Throwable) {}
                 return
             }
@@ -1972,8 +1972,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             var failure: String? = null
             try {
                 val initializingTts = cell[0]
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Restore " + wrapper.pkg)
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "res " + status)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Restore " + wrapper.pkg }
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "res " + status }
                 // DELIBERATE DEPARTURE (owner request, 2026-09-03). Audio
                 // attributes live in the client's mParams, and this is a brand new
                 // client, so whatever the old one carried is gone. AutoTTS never
@@ -2027,7 +2027,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try {
             val intent = android.content.Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE).setPackage(pkg)
             val resolveInfo = packageManager.resolveService(intent, 0)
-            if (resolveInfo == null || resolveInfo.serviceInfo == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "No TTS service found in " + pkg); return }
+            if (resolveInfo == null || resolveInfo.serviceInfo == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "No TTS service found in " + pkg }; return }
             intent.component = android.content.ComponentName(resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name)
             // ALL FOUR ARE GUARDED (2026-09-11). Android delivers every
             // ServiceConnection callback on the MAIN LOOPER, so an escape from any
@@ -2041,15 +2041,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // the wrapper dead and waits; onServiceConnected -- the process is back
             // -- is where the one restore of that episode is made. See restoreEngine.
             val conn = object : android.content.ServiceConnection {
-                override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-alive bound to " + name?.flattenToShortString()); if (service != null) engineServiceBinders[pkg] = service; onEngineProcessBack(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceConnected: " + ex.toString()) } }
-                override fun onServiceDisconnected(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Engine process died: " + name?.flattenToShortString()); engineServiceBinders.remove(pkg); onEngineProcessGone(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceDisconnected: " + ex.toString()) } }
+                override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Keep-alive bound to " + name?.flattenToShortString() }; if (service != null) engineServiceBinders[pkg] = service; onEngineProcessBack(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceConnected: " + ex.toString()) } }
+                override fun onServiceDisconnected(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Engine process died: " + name?.flattenToShortString() }; engineServiceBinders.remove(pkg); onEngineProcessGone(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onServiceDisconnected: " + ex.toString()) } }
                 // A binding death is what a Play Store update or a force stop of
                 // the engine produces. onEngineProcessGone takes the wrapper to -1
                 // (state 2 over a dead process was the one state recovery could not
                 // see, 2026-09-16), and the fresh binding reports the return. If
                 // the fresh bind fails mid-update, packageReceiver reports it.
-                override fun onBindingDied(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Binding died: " + name?.flattenToShortString()); engineServiceBinders.remove(pkg); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onBindingDied: " + ex.toString()) } }
-                override fun onNullBinding(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Service returned null binding"); unbindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onNullBinding: " + ex.toString()) } }
+                override fun onBindingDied(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Binding died: " + name?.flattenToShortString() }; engineServiceBinders.remove(pkg); onEngineProcessGone(pkg); unbindEngineKeepAlive(pkg); bindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onBindingDied: " + ex.toString()) } }
+                override fun onNullBinding(name: android.content.ComponentName?) { try { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Service returned null binding" }; unbindEngineKeepAlive(pkg) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onNullBinding: " + ex.toString()) } }
             }
             val bound = try { bindService(intent, conn, android.content.Context.BIND_AUTO_CREATE or android.content.Context.BIND_IMPORTANT) } catch (_: Exception) { false }
             if (bound) {
@@ -2070,9 +2070,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // can run for days, until the context is destroyed and logcat
                 // says "ServiceConnection ... leaked".
                 try { unbindService(conn) } catch (_: Exception) {}
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "bindService failed for " + pkg)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "bindService failed for " + pkg }
             }
-        } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "bindService failed for " + pkg) }
+        } catch (_: Exception) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "bindService failed for " + pkg } }
         }
     }
     private fun unbindEngineKeepAlive(pkg: String) {
@@ -2090,28 +2090,28 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  of AutoTTS's d0 are unreachable and must not be ported. See AUTOTTS_MAP.
     // ==========================================================================
     override fun onGetLanguage(): Array<String> {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onGetLanguage")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onGetLanguage" }
         val iso3 = localeIso3()
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + iso3)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -" + iso3 }
         return arrayOf(iso3)
     }
     override fun onIsLanguageAvailable(langCode: String?, countryCode: String?, variantName: String?): Int {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onIsLanguageAvailable: " + langCode + " " + countryCode + " " + variantName)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onIsLanguageAvailable: " + langCode + " " + countryCode + " " + variantName }
         // Our own engine client, driven by loadVoice, is bound back to us -- see
         // calledFromOwnClient. Refusing here is what stops setLanguage before it
         // queues another onLoadVoice, and what hands loadVoice its restore.
         if (calledFromOwnClient("onIsLanguageAvailable")) return TextToSpeech.LANG_NOT_SUPPORTED
         val raw = langCode ?: ""
-        val result = if (LangStore.availableLanguagesFor(null, true).contains(raw)) TextToSpeech.LANG_AVAILABLE else TextToSpeech.LANG_NOT_SUPPORTED
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -res: " + result)
+        val result = if (LangStore.isAvailable(raw)) TextToSpeech.LANG_AVAILABLE else TextToSpeech.LANG_NOT_SUPPORTED
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -res: " + result }
         return result
     }
     override fun onLoadLanguage(langCode: String?, countryCode: String?, variantName: String?): Int {
         return synchronized(this) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onLoadLanguage: " + langCode + " " + countryCode + " " + variantName)
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "loadLanguage " + langCode + " " + countryCode + " " + variantName)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onLoadLanguage: " + langCode + " " + countryCode + " " + variantName }
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "loadLanguage " + langCode + " " + countryCode + " " + variantName }
             val result = onIsLanguageAvailable(langCode, countryCode, variantName)
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " isLanguageAvailable = " + result)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " isLanguageAvailable = " + result }
             // There used to be a `&& ::prefs.isInitialized` here. It was ours, not
             // AutoTTS's, and it could only ever do harm: if it had been false this
             // method would have reported the language available and loaded no voice
@@ -2126,14 +2126,32 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 val lang = prefs.toIso3(langCode.lowercase())
                 val variantOrEmpty = variantName ?: ""
                 val autoIso3 = prefs.toIso3(autoLang)
-                var voiceLoc = LangStore.localeFor(lang, modeInt)
-                var enginePkg = LangStore.engineFor(lang, modeInt)
-                val variantOut = if (variantOrEmpty.isEmpty()) LangStore.variantFor(lang, modeInt) else variantOrEmpty
-                if (enginePkg.isEmpty()) {
-                    voiceLoc = LangStore.localeFor(autoIso3, modeInt)
-                    enginePkg = LangStore.engineFor(autoIso3, modeInt)
+                var voiceLoc: String
+                var enginePkg: String
+                val variantOut: String
+                if (EasyVoiceLogger.isLoggingEnabled()) {
+                    // The three walks that write AutoTTS's log lines, in their order.
+                    voiceLoc = LangStore.localeFor(lang, modeInt)
+                    enginePkg = LangStore.engineFor(lang, modeInt)
+                    variantOut = if (variantOrEmpty.isEmpty()) LangStore.variantFor(lang, modeInt) else variantOrEmpty
+                    if (enginePkg.isEmpty()) {
+                        voiceLoc = LangStore.localeFor(autoIso3, modeInt)
+                        enginePkg = LangStore.engineFor(autoIso3, modeInt)
+                    }
+                } else {
+                    // Logging off: the same three answers from ONE walk
+                    // (owner, 2026-10-01). tools/verify/langstore proves it.
+                    val target = LangStore.voiceTargetFor(lang, modeInt)
+                    voiceLoc = target[0]
+                    enginePkg = target[1]
+                    variantOut = if (variantOrEmpty.isEmpty()) target[2] else variantOrEmpty
+                    if (enginePkg.isEmpty()) {
+                        val auto = LangStore.voiceTargetFor(autoIso3, modeInt)
+                        voiceLoc = auto[0]
+                        enginePkg = auto[1]
+                    }
                 }
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "engine: " + enginePkg + " voice " + voiceLoc + " variant " + variantOut)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "engine: " + enginePkg + " voice " + voiceLoc + " variant " + variantOut }
                 try {
                     val loc = parseVoiceNameAsLocale(voiceLoc) ?: return@synchronized TextToSpeech.LANG_NOT_SUPPORTED
                     if (localeIso3(loc) == lang) {
@@ -2164,13 +2182,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
     }
     override fun onGetDefaultVoiceNameFor(langCode: String?, countryCode: String?, variantName: String?): String {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onGetDefaultVoiceNameFor " + langCode + " " + countryCode + " " + variantName)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onGetDefaultVoiceNameFor " + langCode + " " + countryCode + " " + variantName }
         if (calledFromOwnClient("onGetDefaultVoiceNameFor")) return ""
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + langCode)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -" + langCode }
         return langCode ?: ""
     }
     override fun onGetVoices(): MutableList<Voice> {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onGetVoices")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onGetVoices" }
         if (calledFromOwnClient("onGetVoices")) return mutableListOf()
         val names = LangStore.availableLanguagesFor(null, true)
         val list = mutableListOf<Voice>()
@@ -2180,10 +2198,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return list
     }
     override fun onIsValidVoiceName(name: String?): Int {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onIsValidVoiceName " + name)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onIsValidVoiceName " + name }
         if (calledFromOwnClient("onIsValidVoiceName")) return TextToSpeech.ERROR
-        val result = if (LangStore.availableLanguagesFor(null, true).contains(name)) TextToSpeech.SUCCESS else TextToSpeech.ERROR
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -res " + result)
+        val result = if (LangStore.isAvailable(name)) TextToSpeech.SUCCESS else TextToSpeech.ERROR
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -res " + result }
         return result
     }
     private fun parseVoiceNameAsLocale(voiceName: String?): java.util.Locale? {
@@ -2375,25 +2393,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return ""
     }
     override fun onLoadVoice(name: String?): Int {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onLoadVoice " + name)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onLoadVoice " + name }
         lastLoadedVoiceName = name ?: ""
         val locale = parseVoiceNameAsLocale(name)
-        if (locale == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -error"); return TextToSpeech.ERROR }
+        if (locale == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -error" }; return TextToSpeech.ERROR }
         val iso3Lang = localeIso3(locale)
         val iso3Country = try { locale.isO3Country } catch (_: Exception) { "" }
         val loadRes = onLoadLanguage(iso3Lang, iso3Country, locale.variant)
         if (loadRes != TextToSpeech.LANG_AVAILABLE &&
             loadRes != TextToSpeech.LANG_COUNTRY_AVAILABLE &&
             loadRes != TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -error"); return TextToSpeech.ERROR
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -error" }; return TextToSpeech.ERROR
         }
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -success")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -success" }
         return TextToSpeech.SUCCESS
     }
     override fun onStop() {
         // onStop logs, then calls q0(TRUE), which logs and only then clears R.
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStop calling!!!")
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + true)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onStop calling!!!" }
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "stopAllTts " + true }
         // Read ONCE, before the walk below, so every engine in the pool is stamped
         // with the same answer even if a new utterance starts part-way through it.
         val stoppingGeneration = synthesisGeneration
@@ -2463,8 +2481,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (speakingNow != null && wrapper.pkg != speakingNow) { index++; continue }
             if (wrapper.state == 2 && wrapper.listenerSet) {
                 try {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling stop for " + wrapper.pkg)
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stop " + utteranceId)
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " - calling stop for " + wrapper.pkg }
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "stop " + utteranceId }
                     // STAMPED WITH THE GENERATION THIS STOP IS FOR. Read the note on
                     // EngineWrapper.stop: the queue is one thread, so without this a
                     // stop ordered here can run after the reader's NEXT utterance has
@@ -2537,7 +2555,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val markerIdx = head.indexOf('\u0001')
             var lang = head
             if (markerIdx >= 0) {
-                if (markerIdx + 1 < head.length) for (line in head.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, line)
+                if (markerIdx + 1 < head.length) for (line in head.substring(markerIdx + 1).split('\n')) if (line.isNotEmpty()) EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { line }
                 lang = head.substring(0, markerIdx)
             }
             if (!lang.equals("unknown", ignoreCase = true)) return lang
@@ -2610,12 +2628,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun loadVoiceList() {
         synchronized(this) {
             if (!voiceList.isEmpty()) return
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "LoadVoices")
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "LoadVoices" }
             val sharedPrefs = LangStore.prefs(this)
             var index = 0
             while (true) {
                 val voice = sharedPrefs.getString("voice_$index", "") ?: ""
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " -" + voice)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -" + voice }
                 if (voice.isEmpty()) {
                     dedicatedEnginesFlag = sharedPrefs.getBoolean("dedicated_engines", false)
                     return
@@ -2859,7 +2877,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             !languagesLoaded || LangStore.languages.isEmpty()
         }
         if (!missing) return
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "languages missing at point of use - reloading")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "languages missing at point of use - reloading" }
         synchronized(this) { LangStore.loadLanguages(applicationContext) }
         // e0() ends with s0(); this is that.
         pushLanguageSets()
@@ -2918,7 +2936,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
     }
     private fun onSynthesizeTextImpl(request: SynthesisRequest?, callback: SynthesisCallback?) {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "\n-------------------------------\nonSynthesizeText")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "\n-------------------------------\nonSynthesizeText" }
         reloadLanguagesIfMissing()
         if (showNotificationFlag && !isForegroundActive()) {
             startForegroundIfPossible()
@@ -2952,11 +2970,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
         requestVolume = requestParams?.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0f) ?: 0f; if (requestVolume == 0f) requestVolume = 1.0f
         utteranceId = (request?.params?.getString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID)).toString()
         if (rawText.trim().isEmpty()) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Speak text is empty")
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Speak text is empty" }
             // q0 logs before it touches anything: "stopAllTts <flag>", then
             // removeCallbacks(u) -- which has no counterpart here, because the
             // speak runnable is no longer posted -- then R.clear().
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "stopAllTts " + false)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "stopAllTts " + false }
             synchronized(chunkQueue) { chunkQueue.clear() }
             // THE POOL IS WALKED HERE NOW, NOT enginePool[engineIndex] (2026-09-16).
             //
@@ -3039,12 +3057,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         }
                     }
                     try {
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " - calling speak empty for " + wrapper.pkg)
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onSynthesizeText: " + utteranceId + " ''")
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "speak " + utteranceId)
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " - calling speak empty for " + wrapper.pkg }
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onSynthesizeText: " + utteranceId + " ''" }
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "speak " + utteranceId }
                         wrapper.tts?.speak("", TextToSpeech.QUEUE_FLUSH, null, null)
                     } catch (ex: Exception) {
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Speaking failed for " + wrapper.pkg + "\n " + ex.message)
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Speaking failed for " + wrapper.pkg + "\n " + ex.message }
                     }
                 }
             }
@@ -3070,7 +3088,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         refreshEnabledLangs()
         val chunks = mutableListOf<TextChunk>()
         val trimmedText = rawText.trim()
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Speak: " + trimmedText + " id: " + utteranceId)
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Speak: " + trimmedText + " id: " + utteranceId }
         var requestedLang = request?.language ?: ""
         val bypassPrefix = trimmedText.length >= 11 && trimmedText.substring(0, 11) == "[EasyVoice:"
         var bypassed = false
@@ -3086,7 +3104,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     forcedLoc     = innerParts[2]
                     forcedVariant = innerParts[3]
                     requestedLang      = localeIso3(parseVoiceNameAsLocale(forcedLoc) ?: localeOf(""))
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "FIXED: " + forcedEng + " " + forcedLoc + " " + forcedVariant)
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "FIXED: " + forcedEng + " " + forcedLoc + " " + forcedVariant }
                 }
                 val stripped = splitParts[1]
                 val baseLang: String = run {
@@ -3135,7 +3153,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             //  branch: MIXED               spans, then segment, then detect each run
             // ==========================================================================
             "mix" -> {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Mixed mode")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Mixed mode" }
                 val localeChunks = splitByLocaleSpans(rawCharSeq)
                 val neutralType = if (localeIso3() == prefs.toIso3(nonLatinFallback)) 2 else 1
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
@@ -3181,8 +3199,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 if (chunks.isNotEmpty()) {
                     val firstLang = prefs.toIso3(chunks[0].lang)
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "language: " + firstLang)
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "engine: " + LangStore.engineFor(firstLang, modeInt))
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "language: " + firstLang }
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "engine: " + LangStore.engineFor(firstLang, modeInt) }
                     if (!preflightLanguage(firstLang)) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG,
                             // 5.7.7.26 fixed AutoTTS's "Languge" typo at seven of its
@@ -3200,7 +3218,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             //  branch: MULTILINGUAL        as mixed, but a locale span with an engine wins
             // ==========================================================================
             "multilingual" -> {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Multilingual mode")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Multilingual mode" }
                 val localeChunks = splitByLocaleSpans(rawCharSeq)
                 val neutralType = if (localeIso3() == prefs.toIso3(nonLatinFallback)) 2 else 1
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
@@ -3252,7 +3270,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // ==========================================================================
             "dual" -> {
                 run {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Dual mode")
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Dual mode" }
                     val neutralType = if (localeIso3() == prefs.toIso3(dualLang)) 2 else 1
                     val neutralDefault = requestedLang.ifEmpty { latinFallback }
                     val disableAdvancedDetection = disableAdvancedFlag
@@ -3285,7 +3303,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             else -> ""
                         }
                         if (preflight.isNotEmpty()) {
-                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "language: " + preflight)
+                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "language: " + preflight }
                             if (!preflightLanguage(preflight)) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG,
                                     "Language is not supported: " + preflight + ", text: " + chunks[0].text)
@@ -3298,7 +3316,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             else -> {
                 val autoModeF = prefs.toIso3(autoLang)
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Auto mode || Google mode")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Auto mode || Google mode" }
                 val localeChunks = splitByLocaleSpans(rawCharSeq)
                 for (spanChunk in localeChunks) {
                     if (isFlushed) break
@@ -3308,7 +3326,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // unknown, the aggregate detector gets a turn. Both are in
                         // detectWindowThenAggregate, in one crossing.
                         val rawDetected = detectWindowThenAggregate(spanChunk.text, latinFallback, nonLatinFallback)
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Cld2: " + rawDetected + " '" + spanChunk.text + "'")
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Cld2: " + rawDetected + " '" + spanChunk.text + "'" }
                         if (rawDetected.length > 2) rawDetected.substring(0, 2) else rawDetected
                     } else spanChunk.lang
                     var resolved = IsoCodes.toIso3(detected) ?: autoModeF
@@ -3318,7 +3336,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 if (chunks.isNotEmpty()) {
                     val firstLoad = onLoadLanguage(chunks[0].lang, "", "")
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "load " + firstLoad)
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "load " + firstLoad }
                     if (firstLoad == TextToSpeech.LANG_MISSING_DATA || firstLoad == TextToSpeech.LANG_NOT_SUPPORTED) {
                         // The second surviving "Languge" -- see the mix branch above.
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG,
@@ -3346,7 +3364,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (!firstChunkForced && (bypassed || effectiveMode == "none")) {
                 val requestLang = request?.language ?: ""
                 val firstLangLoad = onLoadLanguage(requestLang, request?.country ?: "", request?.variant ?: "")
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "load " + firstLangLoad)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "load " + firstLangLoad }
                 if (firstLangLoad == TextToSpeech.LANG_NOT_SUPPORTED || firstLangLoad == TextToSpeech.LANG_MISSING_DATA) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language is not supported: " + requestLang + ", text: " + chunks[0].text)
                     startAndFinish(callback)
@@ -3395,7 +3413,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // where `return` only leaves speakChunk. The hang is our refactor's, not
         // AutoTTS's, which is why fixing it is not a parity break.
         fun releaseWaitWithoutSpeaking(why: String) {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unlockSynthesis: " + why)
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "unlockSynthesis: " + why }
             startAndFinish(callback)
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
         }
@@ -3474,7 +3492,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             try {
                 prefetchedResult = onLoadLanguage(lang, "", "")
                 prefetchedLang = lang
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "prefetch " + lang + " on " + nextPkg + " = " + prefetchedResult)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "prefetch " + lang + " on " + nextPkg + " = " + prefetchedResult }
             } catch (ex: Throwable) {
                 prefetchedLang = ""
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "prefetch failed for " + lang + ": " + ex.toString())
@@ -3526,7 +3544,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (isStopped || isFlushed) return
             val pair = synchronized(chunkQueue) { if (chunkQueue.isEmpty()) null else chunkQueue.removeAt(0) }
             if (pair == null) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "No more text to read.")
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "No more text to read." }
                 // Was four lines with two early returns. Identical in all four
                 // cases -- null callback, not started, already finished, and
                 // started-and-unfinished -- because the block ends in `return`
@@ -3632,9 +3650,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // chunk, which AutoTTS never emits at this point.
             val pkg = wrapper.pkg
             val paramLang = if (first && firstChunkParamLang.isNotEmpty()) firstChunkParamLang else effectiveLang
-            val appRate   = LangStore.speedFor(paramLang)  / 100.0f
-            val appPitch  = LangStore.pitchFor(paramLang)  / 100.0f
-            val appVolume = LangStore.volumeFor(paramLang) / 100.0f
+            // One walk for all three (owner, 2026-10-01): speed, pitch, volume.
+            val voiceParams = LangStore.voiceParamsFor(paramLang)
+            val appRate   = voiceParams[0] / 100.0f
+            val appPitch  = voiceParams[1] / 100.0f
+            val appVolume = voiceParams[2] / 100.0f
             val finalRate   = sysRate  * appRate
             val finalPitch  = sysPitch * appPitch
             val finalVolume = requestVolume * appVolume
@@ -3671,7 +3691,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     // True whichever utterance it belongs to, so it is not gated.
                     try {
                         wrapper.restoreSpent = false
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onStart " + id)
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onStart " + id }
                         if (id != expectedId) return
                         startCallback(callback)
                         // The engine has begun audio, so the whole of this chunk is
@@ -3681,7 +3701,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStart failed: " + ex.toString()) }
                 }
                 override fun onDone(id: String) {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onDone " + id)
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onDone " + id }
                     // STALE CALLBACK. setOnUtteranceProgressListener stores ONE
                     // volatile listener per TextToSpeech and the framework reads
                     // it at dispatch time, so a callback for the utterance we
@@ -3772,7 +3792,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         if (advance) speakChunk(false)
                         } catch (ex: Throwable) {
                             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone Error: " + ex.toString())
-                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "endSynthesis #6")
+                            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "endSynthesis #6" }
                             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
                             try { startAndFinish(callback) } catch (_: Throwable) {}
                         }
@@ -3942,9 +3962,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // owner's own log whether anything is left to fix here at all.
                 override fun onStop(id: String, interrupted: Boolean) {
                     val parked = !isStopped && !isFlushed
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG,
+                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) {
                         "onStop " + id + " interrupted=" + interrupted +
-                        " mine=" + (id == expectedId) + " parked=" + parked)
+                        " mine=" + (id == expectedId) + " parked=" + parked }
                 }
             })
             val params = android.os.Bundle(requestParams ?: android.os.Bundle())
@@ -4015,11 +4035,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 try { tts.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
             }
             if (first) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Current engine: " + pkg)
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, expectedId)
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "speak 1: " + chunkText)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Current engine: " + pkg }
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { expectedId }
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "speak 1: " + chunkText }
             } else {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "speak 2: " + chunkText)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "speak 2: " + chunkText }
             }
             val speakRunnable = Runnable {
                 try {
@@ -4058,7 +4078,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (keepAliveFlag) {
             // AutoTTS logs this immediately before k0(callback), and spells it
             // "Keep-live", not "Keep-alive".
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "Keep-live activated")
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Keep-live activated" }
             startCallback(callback)
             val silenceBuf = ByteArray(32)
             val maxBuf = callback?.maxBufferSize ?: silenceBuf.size
@@ -4084,7 +4104,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         speakingPkg = null
         if (retryOnEngineDeath === retryOnDeath) retryOnEngineDeath = null
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onSynthesizeText ended")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onSynthesizeText ended" }
         startAndFinish(callback)
     }
 
@@ -4092,7 +4112,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  SHUTDOWN
     // ==========================================================================
     override fun onDestroy() {
-        EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "onDestroy")
+        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onDestroy" }
         // Each step on its own, for the same reason onCreate's five are: they are
         // independent, and a failure in one must not skip the others. Shutting the
         // engine clients down and releasing the bindings is what stops this
@@ -4220,11 +4240,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // native detector running on the hints it was given at process start.
         @JvmStatic
         fun pushLanguageSets(): HashSet<String> {
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "updateLanguage2LetterCodes")
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "updateLanguage2LetterCodes" }
+            val version = LangStore.listVersion.get()
             val enabledSet = refillEnabledIso2(true)
-            sendDetectSets(detectOkIso3(), enabledSet, always = true)
+            if (sendDetectSets(detectOkIso3(), enabledSet, always = true)) {
+                synchronized(sentDetectLock) { pushedListVersion = version }
+            }
             try { setLanguageHints(enabledSet.toTypedArray()) } catch (_: Throwable) {}
-            EasyVoiceLogger.debug(EasyVoiceLogger.TAG, " " + enabledSet.toString())
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " " + enabledSet.toString() }
             return enabledSet
         }
         // c3.n.f: ONE HashSet for the life of the process, cleared and refilled
@@ -4245,7 +4268,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     if (entry.disabled || entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true)) continue
                     val iso2 = IsoCodes.toIso2(entry.iso3)
                     if (iso2 != null) { if (!ordered.contains(iso2)) ordered.add(iso2) }
-                    else if (logUnmapped) EasyVoiceLogger.debug(EasyVoiceLogger.TAG, "unmapped language code: " + entry.iso3)
+                    else if (logUnmapped) EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "unmapped language code: " + entry.iso3 }
                 }
                 enabledIso2.clear()
                 enabledIso2.addAll(ordered)
@@ -4268,11 +4291,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // reads c3.n.c and c3.n.f live from Java, ours lives in C++ and has to be
         // told, so the sets are refreshed per utterance. The HINTS are not
         // refreshed here, and that distinction matters -- see pushLanguageSets.
+        // NOT EVEN BUILT when the list has not changed (owner, 2026-10-01):
+        // the sets come only from entries' iso3 / engine / disabled and from
+        // which entries are in the list, and LangStore.listVersion moves on
+        // every one of those writes. Read BEFORE the walk, so a change during
+        // it leaves the recorded version behind and the next utterance builds
+        // again. Recorded only when the core holds the sets (sendDetectSets
+        // true), so a push that threw is retried.
         @JvmStatic
-        fun pushDetectSetsOnly(): HashSet<String> {
+        fun pushDetectSetsOnly() {
+            val version = LangStore.listVersion.get()
+            synchronized(sentDetectLock) { if (version == pushedListVersion) return }
             val enabledSet = refillEnabledIso2(false)
-            sendDetectSets(detectOkIso3(), enabledSet, always = false)
-            return enabledSet
+            if (sendDetectSets(detectOkIso3(), enabledSet, always = false)) {
+                synchronized(sentDetectLock) { pushedListVersion = version }
+            }
         }
         // WHAT THE CORE HOLDS NOW (owner, 2026-10-01: "jab badle tabhi bhejo").
         // The per-utterance push marshalled both arrays across JNI and rebuilt
@@ -4286,18 +4319,23 @@ class EasyVoiceTtsService : TextToSpeechService() {
         private val sentDetectLock = Any()
         private var sentDetectOk: Set<String>? = null
         private var sentEnabled: Set<String>? = null
-        private fun sendDetectSets(detectOk: List<String>, enabled: Set<String>, always: Boolean) {
+        private var pushedListVersion = -1L
+        // True when the core now holds these sets (already did, or just sent).
+        private fun sendDetectSets(detectOk: List<String>, enabled: Set<String>, always: Boolean): Boolean {
             val okNow = HashSet(detectOk)
             val enabledNow = HashSet(enabled)
             synchronized(sentDetectLock) {
-                if (!always && okNow == sentDetectOk && enabledNow == sentEnabled) return
+                if (!always && okNow == sentDetectOk && enabledNow == sentEnabled) return true
                 try {
                     setDetectSets(okNow.toTypedArray(), enabledNow.toTypedArray())
                     sentDetectOk = okNow
                     sentEnabled = enabledNow
+                    return true
                 } catch (_: Throwable) {
                     sentDetectOk = null
                     sentEnabled = null
+                    pushedListVersion = -1L
+                    return false
                 }
             }
         }

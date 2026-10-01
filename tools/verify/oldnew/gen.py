@@ -46,6 +46,7 @@ STUBS = '''
         var sink: ArrayList<String>? = null
         fun isLoggingEnabled() = true
         fun debug(tag: String, m: String) { sink?.add(m) }
+        inline fun debug(tag: String, m: () -> String) { sink?.add(m()) }
         fun error(tag: String, m: String) { sink?.add("E " + m) }
     }
     fun initIsoMaps() {}
