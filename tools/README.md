@@ -94,6 +94,7 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/voicelist/run.sh        # voice list split once; findEngineForLocale == before
     tools/verify/rebuild/run.sh          # rebuildFromScan with HashSet/maps == before
     tools/verify/runlang/run.sh          # a detected run's iso3 memoised per utterance == before
+    tools/verify/prefetch/run.sh         # loading the next language while the SAME engine speaks == loading it after
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

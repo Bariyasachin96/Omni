@@ -3545,14 +3545,23 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // can flush, stop or delay an utterance already playing -- on this engine or
         // any other.
         //
-        // IT ONLY RUNS WHEN THE NEXT CHUNK IS ON A DIFFERENT ENGINE, and that gate
-        // is load-bearing rather than an optimisation. loadVoice calls
-        // restoreEngine when setLanguage fails, and restoreEngine shuts the client
-        // down and builds a replacement -- on the engine that is speaking right now
-        // that would cut the current chunk off. A different engine cannot be the one
-        // speaking, so that cannot happen. Same-engine switches keep exactly the
-        // behaviour they had, and they are the cheap case anyway: the voice set is
-        // already cached and the model is already in that process.
+        // IT RUNS ON THE ENGINE THAT IS SPEAKING TOO (owner, 2026-10-01: Hindi and
+        // Gujarati both on one engine paid the four calls after every switch). It
+        // used to stop at a different engine, because loadVoice restored the
+        // engine whenever setLanguage failed and a restore shuts the client down,
+        // which would have cut the chunk it was playing. That is no longer so:
+        // setLanguageFailed / setVoiceFailed KEEP a client that is connected and
+        // bound to its own engine, and only clientIsDead shuts one down -- when
+        // getVoices answers null (no connection) or the client was re-bound, i.e.
+        // the engine is already gone and so is the chunk it was playing. And
+        // speakChunk never speaks through a re-bound client, so "playing and
+        // re-bound" cannot happen. Proof: tools/verify/prefetch/run.sh lifts the
+        // whole loadVoice family and runs it in the old order and this one against
+        // an AOSP-shaped engine: 200,000 scenarios x logging off/on, every chunk
+        // spoken with the same engine, language and voice, none cut, every
+        // wrapper / restore / recover the same. Negative tests: an engine that
+        // applied a load to the playing utterance, and setLanguageFailed shutting
+        // a live client down, are both caught.
         //
         // The result is REMEMBERED, not just the fact of loading, so onDone's three
         // branches keep every check they had -- including LANG_NOT_SUPPORTED and its
@@ -3569,7 +3578,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // the callback arrives on, for the same reason onDone posts: this can
         // construct or shut down a TextToSpeech and that must not happen inside an
         // engine callback.
-        fun prefetchNextLanguage(speakingPkg: String) {
+        fun prefetchNextLanguage() {
             if (myGeneration != synthesisGeneration) return
             if (isStopped || isFlushed) return
             if (prefetchedLang.isNotEmpty()) return
@@ -3587,9 +3596,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (lang.isEmpty()) return
             val nextPkg = LangStore.engineFor(lang, modeInt)
             if (nextPkg.isEmpty()) return
-            // wrapper.pkg is already stripped of - and _ by EngineWrapper, so the
-            // candidate is stripped the same way before they are compared.
-            if (normPkg(nextPkg) == speakingPkg) return
             try {
                 prefetchedResult = onLoadLanguage(lang, "", "")
                 prefetchedLang = lang
@@ -3796,9 +3802,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         if (id != expectedId) return
                         startCallback(callback)
                         // The engine has begun audio, so the whole of this chunk is
-                        // now free time on every other engine. Posted rather than
-                        // run here: this is a binder callback.
-                        mainHandler.post { prefetchNextLanguage(pkg) }
+                        // free time to load the next one, on this engine or any
+                        // other. Posted rather than run here: this is a binder callback.
+                        mainHandler.post { prefetchNextLanguage() }
                     } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStart failed: " + ex.toString()) }
                 }
                 override fun onDone(id: String) {

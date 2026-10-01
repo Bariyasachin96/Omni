@@ -8,6 +8,24 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE NEXT LANGUAGE LOADS WHILE THE SAME ENGINE IS STILL SPEAKING (owner, 2026-10-01, latest)
+*"pahla wala complete karte hain ... pahle test karo ... pura sem result Milta Hai ... problem mile to mat karna."*
+- **prefetchNextLanguage no longer stops at a different engine.** Hindi -> Gujarati on ONE engine paid setLanguage's
+  4 binder calls (one a full getVoices marshal) AFTER the chunk ended; now they run while it plays. Engine-neutral.
+- **Why the old gate can go:** it existed because a failed setLanguage restored the engine (shutdown = the playing
+  chunk cut). Now setLanguageFailed/setVoiceFailed KEEP a connected client; only clientIsDead shuts one down, and
+  that needs getVoices == null or a re-bound client, i.e. an engine that is already gone (speakChunk never speaks
+  through a re-bound client).
+- **Proof `tools/verify/prefetch/run.sh`:** lifts loadVoice, loadVoiceImpl/Original/Dedicated, setLanguageFailed,
+  setVoiceFailed, clientIsDead, voiceEntries, EngineWrapper verbatim; AOSP-shaped fake engine (loads only touch the
+  client's params, a dead engine answers -2/null/-1, only stop/shutdown reach the playing chunk); old order vs new:
+  **400,000 cases (200k scenarios x logging off/on), 0 differ** in engine/language/voice per chunk, cuts, wrappers,
+  restores, recovers; 859,284 binder calls moved into playing time. Negatives caught: an engine that applies a load
+  to the playing utterance (17,814), setLanguageFailed shutting a live client (5,618). A first draft that re-bound a
+  LIVE engine showed cuts -- unrealistic (re-bind only follows a death), so death and re-bind come together.
+- **Not covered, stated:** an engine whose own onIsLanguageAvailable is not thread-safe while it synthesizes
+  (AOSP documents these as callable from multiple threads). check-all 0/0, selftest EVERY CHECK FIRES.
+
 ## THE KOTLIN SWEEP: SIX MORE, ONE DECLINED ON PURPOSE (owner, 2026-10-01, latest)
 *"Sub complete but Sab Kuchh behtarin karna ... jo best Ho test Karke complete karna."*
 - **1 EngineFinder.attach asks once.** Every screen's onCreate, the service's onCreate and loadMode re-ran
@@ -1942,7 +1960,7 @@ Three facts from `TextToSpeechService.java`, each read at the line:
 reason `onDone` posts: it can construct or shut down a `TextToSpeech` and that must not
 happen inside an engine callback.
 
-**IT ONLY FIRES WHEN THE NEXT CHUNK IS ON A DIFFERENT ENGINE, and that gate is
+**(SUPERSEDED 2026-10-01: the gate is gone, see the top section.) IT ONLY FIRES WHEN THE NEXT CHUNK IS ON A DIFFERENT ENGINE, and that gate is
 load-bearing.** `loadVoice` calls `restoreEngine` when `setLanguage` fails, and
 `restoreEngine` shuts the client down and builds a replacement -- on the engine speaking
 right now that would cut the current chunk off. A different engine cannot be the one
