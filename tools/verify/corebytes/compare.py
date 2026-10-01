@@ -21,7 +21,7 @@ for i, (o, n) in enumerate(itertools.zip_longest(oldf, newf, fillvalue=None)):
         print(f"line count differs from line {i}"); bad += 1; break
     o = o.rstrip("\n"); n = n.rstrip("\n")
     if not o.startswith(("P\t", "Q\t")):
-        if o.startswith("A\t"): cases += 1
+        if o.startswith(("A\t", "H\t")): cases += 1
         if o != n:
             bad += 1
             if bad <= 10: print(f"line {i} differs:\n  old {o[:300]}\n  new {n[:300]}")
@@ -34,6 +34,14 @@ for i, (o, n) in enumerate(itertools.zip_longest(oldf, newf, fillvalue=None)):
         orr = records(of); nr = records(nf)
     except Exception as e:
         bad += 1; print(f"line {i}: cannot parse records ({e})"); continue
+    # processDirect sends a record's fold, and a span covering all of it, as ""
+    # (2026-10-01): expanded back the way runsFromFlat reads them, on both
+    # sides, so a "" in the wrong place still shows up as a difference.
+    for r in orr + nr:
+        if len(r) > 4:
+            if r[4] == "": r[4] = r[3]
+            for k in range(7, len(r), 3):
+                if r[k] == "": r[k] = r[4]
     if mask:
         for a, b in zip(orr, nr):
             if len(a) >= 2 and len(b) >= 2 and a[1] != b[1]: kind_diff += 1

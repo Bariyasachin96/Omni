@@ -2793,16 +2793,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // text, lang / latin / text triples follow. One reader for both carriers --
     // nativeFoldAndDetect's array and processDirect's record -- so the two
     // cannot read the same answer two ways.
-    private fun runsFromFlat(flat: List<String>, first: Int, quick: Boolean): List<DetectedRun> {
+    // `sameAs` (processDirect records only, owner 2026-10-01): the core sends
+    // the fold, and a span covering the whole fold, as "" there, because both
+    // are the record's own text; a real fold or span text is never empty.
+    private fun runsFromFlat(flat: List<String>, first: Int, quick: Boolean, sameAs: String? = null): List<DetectedRun> {
         val runs = ArrayList<DetectedRun>()
-        val folded = flat[first]
+        val folded = if (sameAs != null && flat[first].isEmpty()) sameAs else flat[first]
         if (quick && folded.length == 1) {
             runs.add(DetectedRun("un", isLatinCommonInherited(folded.codePointAt(0)), folded))
             return runs
         }
         var index = first + 1
         while (index + 2 < flat.size) {
-            runs.add(DetectedRun(flat[index], flat[index + 1] == "1", flat[index + 2]))
+            val spanText = flat[index + 2]
+            runs.add(DetectedRun(flat[index], flat[index + 1] == "1", if (sameAs != null && spanText.isEmpty()) folded else spanText))
             index += 3
         }
         return runs
@@ -2815,7 +2819,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun detectedRunsOf(parts: List<String>, quick: Boolean): List<DetectedRun> {
         val text = parts[3]
         if (parts.size < 5 || text.isEmpty()) return detectLanguageRuns(text)
-        return runsFromFlat(parts, 4, quick)
+        return runsFromFlat(parts, 4, quick, text)
     }
     // AutoTTS 5.7.7.26 clsCLD2.f. Ask for every span the detector can see, add up
     // how much text each language covers, and take the biggest -- except that a

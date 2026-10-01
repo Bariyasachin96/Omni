@@ -179,5 +179,30 @@ int main(int argc, char** argv){
             env->PopLocalFrame(nullptr);
         }
     }
+    // THE SAME TEXT UNDER EVERY HINT SET, BACK TO BACK (2026-10-01): the CLD2
+    // answer cache keys a span by its bytes and drops its span table whenever
+    // the hint state changes. The pass above changes hints only between whole
+    // corpus sweeps, by which time the cache has long been refilled, so a cache
+    // that kept answers across a hint change would go unseen there. Here each
+    // text is detected under all eight sets in a row, twice round.
+    for (size_t ti = 0; ti < texts.size(); ti++) {
+        env->PushLocalFrame(1024);
+        jstring text = U(texts[ti]);
+        for (int round = 0; round < 2; round++) for (size_t si = 0; si < sets2.size(); si++) {
+            auto& set = sets2[si];
+            std::vector<std::string> iso3;
+            for (auto& c : set) iso3.push_back(c == "hi" ? "hin" : c == "en" ? "eng" : c == "gu" ? "guj" : c == "mr" ? "mar" : c);
+            Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(env, nullptr, arr(iso3), arr(set));
+            Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(env, nullptr, arr(set));
+            env->PushLocalFrame(64);
+            jobjectArray fold = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(env, nullptr, text, JNI_FALSE);
+            jobjectArray win = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
+                env, nullptr, text, J("eng"), J("hin"), JNI_FALSE, JNI_TRUE, JNI_FALSE);
+            printf("H\t%ld\t%s\t\\X\t%s\n", id, EA(fold).c_str(), EA(win).c_str());
+            id++;
+            env->PopLocalFrame(nullptr);
+        }
+        env->PopLocalFrame(nullptr);
+    }
     return 0;
 }

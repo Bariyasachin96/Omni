@@ -274,6 +274,10 @@ static int onecall(const char* path){
                 }
                 std::vector<std::string> have;
                 for (size_t k = 4; k < n.size(); k++) have.push_back(n[k]);
+                // processDirect sends the fold and a whole-text span as "" (they
+                // are the record's text); read them back as runsFromFlat does.
+                if (!have.empty() && have[0].empty()) have[0] = n[3];
+                for (size_t k = 3; k < have.size(); k += 3) if (have[k].empty()) have[k] = have[0];
                 if (want != have) why = "record " + std::to_string(i) + ": spans differ (" + std::to_string(want.size()) + " vs " + std::to_string(have.size()) + " fields)";
             }
             if (!why.empty()) {

@@ -8,6 +8,35 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ITEMS 5-13: A CLD2 ANSWER CACHE AND EIGHT SMALLER LOADS, EACH PROVEN (owner, 2026-10-01, latest)
+*"Baki Jo 5 se 13 tak ki jo chijen Hain vah bhi complete kar hi dijiye theek hai test Karke."*
+- **13 CLD2 answer cache** (`Cld2Cache`, thread_local, 256 entries per table, cleared when full): span answers
+  keyed by script + span bytes, the span table dropped whenever the hint state pointer changes; window answers
+  (auto/Google `detectWindowLang`) keyed by the window bytes (no hints there). CLD2 keeps no state between calls.
+  Measured on a 705-byte mixed text: 215 -> 30 us for a repeated label, ~49 us when only the first span is new.
+- **5** splitByPunct types a punctuation run while scanning it (0 if all Java whitespace, else 4) instead of
+  segmentTypeOf; **6** `emojiRunLengthFrom` takes the code point the caller already decoded; **7**
+  `needsFancyFold` lets buildMixChunks / foldAndSpansFlat keep their own string instead of a copy; **8** smart
+  numbers measure each context piece once and join once (was re-measuring and front-inserting each step), and
+  `keywordMatchesAnywhere` runs once per keyword; **9** `isLetterCodepoint` answers ASCII first and checks the
+  exception list only from U+0300; **11** detectWindowOrSpans builds the aggregate's text from the UTF-16 units it
+  already read (`utf16to8` = ART's modified UTF-8: pair 4 bytes, lone surrogate 3, U+0000 C0 80 -- what
+  jstringToStd gets) instead of a second JNI read; **12** toIso3 copies once, span strings are moved out.
+- **10 nothing crosses JNI twice**: in processDirect's detected records the fold (always the record's text since
+  item 2) and a span covering the whole text go as "". Kotlin `runsFromFlat(..., sameAs = text)` reads "" back as
+  the text; only processDirect records pass sameAs (a real fold/span text is never empty).
+- **Proof:** corebytes (now also every text under all 8 hint sets back to back, twice round, for the cache):
+  **895,440 cases, 0 differ**; `corebytes/sweeps.cpp`: isLetterCodepoint 0 of 1,114,112, punct-run typing 0 of
+  22,499 runs; segmenter IDENTICAL 163,296; oldnew 0 (real Kotlin of both); onecall 0 (decoder expands ""); stress
+  0; devanagari 17/17; normaliser/scriptfamily IDENTICAL; langcodes IDENTICAL (toIso3 fingerprint updated, change
+  is copy-only, mirror unchanged). Negatives caught: window cache key cut (28), cache kept across a hint change
+  (152, only after the back-to-back pass was added -- the first run missed it), punct run always 4, smart window
+  short, fold skipped where needed (416), span "" when not whole (11,264), Kotlin ignoring "" span (50,944) / fold
+  (51,456), auto text with U+0000 as NUL (34). NOT caught, and equivalent by construction: the cache key without
+  the script -- a span's script is a function of its bytes (its classified chars all share one script), so the
+  script is kept in the key only as a guard.
+- check-all 0/0, selftest EVERY CHECK FIRES.
+
 ## FOUR C++ LOADS REMOVED FROM THE SEGMENTER, PROVEN BYTE FOR BYTE (owner, 2026-10-01, latest)
 *"1 2 3 4 jo hai pahle vah Charon complete karo test Karke."* From a callgrind profile of the native core
 (705-byte mixed text: segmentation ~64 us, detection ~367 us, most of the latter inside CLD2 itself).
@@ -31,7 +60,7 @@
   not folded (416), last collapse run dropped (875,520), bidi stretch off by one (9,216), splitByPunct moved
   before typed (452,928), buffer start not moved and moved text read again (segmenter differs; the first one makes
   corebytes' output explode, so it is checked there). Measured: segmentation 39 -> 27 us, detection ~5-10% less.
-- Still open from the list (owner's choice later): 5-12 small ones, and 13 a CLD2 answer cache.
+- Items 5-13 followed the same day (section above).
 
 ## TALKBACK'S "THREE TIMES" IS ITS OWN CODE; THE BACKGROUND SCAN NOW NEVER DROPS OR DOUBLES A CHANGE (owner, 2026-10-01, latest)
 *"talk back teen bar wala ... Google TTS per chala jata hai ... aisa nahin hona chahie ... scanning or restore

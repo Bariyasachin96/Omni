@@ -396,18 +396,23 @@ static bool isFancyTrigger(int cp){
         || cp == 0xA730 || cp == 0xA731;                   // 42800, 42801
 }
 
-static std::string normalizeFancyText(const std::string& text){
-    bool found = false;
+// Does the text hold anything the fold would change? Split out (owner,
+// 2026-10-01) so a caller can keep its own string when the answer is no,
+// instead of getting a copy of it back from normalizeFancyText.
+static bool needsFancyFold(const std::string& text){
     for(int at = 0; at < (int)text.size(); ){
         int cpLen = 0;
         int cp = utf8ToCodepoint((const unsigned char*)text.data() + at, cpLen);
         if(cpLen <= 0) cpLen = 1;
-        if(isFancyTrigger(cp)){ found = true; break; }
+        if(isFancyTrigger(cp)) return true;
         at += cpLen;
     }
+    return false;
+}
+static std::string normalizeFancyText(const std::string& text){
     // The fast path matters: b() returns the ORIGINAL string when there is
     // nothing to fold, so ordinary text is never rebuilt.
-    if(!found) return text;
+    if(!needsFancyFold(text)) return text;
     std::string out;
     out.reserve(text.size());
     for(int at = 0; at < (int)text.size(); ){
@@ -613,7 +618,11 @@ static bool isNonLetterInsideLetterBlock(int codePoint){
     return false;
 }
 static bool isLetterCodepoint(int codePoint){
-    if(isNonLetterInsideLetterBlock(codePoint)) return false;
+    // ASCII first, and the exception list only where it has entries -- its
+    // first range starts at U+0300 (owner, 2026-10-01; swept over every code
+    // point against the old order in corebytes/sweeps.cpp).
+    if(codePoint < 0x80) return (codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A);
+    if(codePoint >= 0x0300 && isNonLetterInsideLetterBlock(codePoint)) return false;
     if(codePoint == 0x00AA || codePoint == 0x00B5 || codePoint == 0x00BA) return true;
     return (codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A)||
            (codePoint>=0xC0&&codePoint<=0xD6)||(codePoint>=0xD8&&codePoint<=0xF6)||(codePoint>=0xF8&&codePoint<=0x24F)||
@@ -654,8 +663,10 @@ static bool contextHasKeyword(const std::string& text, const std::vector<std::st
     if(text.empty()) return false;
     for(const std::string& keyword : keywords){
         size_t at = text.find(keyword);
+        if(at == std::string::npos) continue;
+        // Decided by the keyword's first code point alone, so once per keyword.
+        if(keywordMatchesAnywhere(keyword)) return true;
         while(at != std::string::npos){
-            if(keywordMatchesAnywhere(keyword)) return true;
             int before = codepointBefore(text, at);
             bool openBefore = (before < 0) || !isLetterCodepoint(before);
             size_t after = at + keyword.size();
@@ -828,11 +839,10 @@ static bool cpIsJavaSpace(int codePoint){
            codePoint == 0x205F || codePoint == 0x3000 || codePoint == 0x2028 || codePoint == 0x2029;
 }
 static bool cpIsEmojiRunChar(int codePoint){ return isEmoji(codePoint) || codePoint == 0x200D; }
-static int emojiRunLengthAt(const std::string& text, int offset){
+// The caller has usually decoded the code point at `offset` already; this
+// takes it rather than decoding it again (owner, 2026-10-01).
+static int emojiRunLengthFrom(const std::string& text, int offset, int codePoint, int cpLen){
     int len = (int)text.size();
-    if(offset >= len) return 0;
-    int cpLen = 0;
-    int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + offset, cpLen);
     if(codePoint == 0x23 || codePoint == 0x2A || (codePoint >= 0x30 && codePoint <= 0x39)){
         int at = offset + cpLen;
         if(at < len){
@@ -845,6 +855,12 @@ static int emojiRunLengthAt(const std::string& text, int offset){
     }
     if(cpIsEmojiRunChar(codePoint)) return cpLen;
     return 0;
+}
+static int emojiRunLengthAt(const std::string& text, int offset){
+    if(offset >= (int)text.size()) return 0;
+    int cpLen = 0;
+    int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + offset, cpLen);
+    return emojiRunLengthFrom(text, offset, codePoint, cpLen);
 }
 static bool cpIsLetterOrDigitForNumberEdge(int codePoint){
     return (codePoint >= '0' && codePoint <= '9') || isLetterCodepoint(codePoint);
@@ -913,7 +929,7 @@ static int segmentTypeOf(const std::string& text){
         if(codePoint >= '0' && codePoint <= '9') sawDigit = true;
         else if(!(cpIsNumericCore(codePoint) || cpIsGeneralPunct(codePoint) || cpIsPosixPunct(codePoint) || cpIsPosixSpace(codePoint))) allNumber = false;
         if(allEmoji){
-            int emojiLen = emojiRunLengthAt(text, at);
+            int emojiLen = emojiRunLengthFrom(text, at, codePoint, cpLen);
             if(emojiLen <= 0) allEmoji = false;
             else if(emojiLen > cpLen){ at += emojiLen; continue; }
         }
@@ -934,10 +950,15 @@ static void splitByPunct(const std::string& text, std::vector<TextSegment>& out)
         int codePoint = codepointAtOffset(text, at, cpLen);
         if(!cpIsPunctRun(codePoint)){ at += cpLen; continue; }
         int runStart = at;
+        // Every code point of the run passes cpIsPunctRun, so segmentTypeOf
+        // would answer 0 if all are Java whitespace and 4 otherwise: worked out
+        // here instead of reading the run again (owner, 2026-10-01).
+        bool runAllSpace = true;
         while(at < len){
             int nextLen = 0;
             int nextCp = codepointAtOffset(text, at, nextLen);
             if(!cpIsPunctRun(nextCp)) break;
+            if(!cpIsJavaSpace(nextCp)) runAllSpace = false;
             at += nextLen;
         }
         if(runStart != prev){
@@ -946,7 +967,7 @@ static void splitByPunct(const std::string& text, std::vector<TextSegment>& out)
             out.push_back({std::move(piece), pieceType, ""});
         }
         std::string run = text.substr(runStart, at - runStart);
-        int runType = segmentTypeOf(run);
+        int runType = runAllSpace ? 0 : 4;
         out.push_back({std::move(run), runType, ""});
         prev = at;
     }
@@ -1006,8 +1027,9 @@ static void splitByEmoji(const std::string& text, std::vector<TextSegment>& out)
     int at = 0, len = (int)text.size(), prev = 0;
     while(at < len){
         int cpLen = 0;
-        int startLen = emojiRunLengthAt(text, at);
-        if(startLen <= 0){ codepointAtOffset(text, at, cpLen); at += cpLen; continue; }
+        int codePoint = codepointAtOffset(text, at, cpLen);
+        int startLen = emojiRunLengthFrom(text, at, codePoint, cpLen);
+        if(startLen <= 0){ at += cpLen; continue; }
         int runStart = at;
         while(at < len){
             int nextLen = emojiRunLengthAt(text, at);
@@ -1078,7 +1100,7 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
     // c3.d0.t: d0.q(clsCLD2.b(text.replaceAll(...).replaceAll(...))). The
     // whitespace collapse above is the two replaceAll calls, the bidi strip
     // below is q(), and this is clsCLD2.b sitting between them.
-    fullText = normalizeFancyText(fullText);
+    if (needsFancyFold(fullText)) fullText = normalizeFancyText(fullText);
     if (fullText.empty()) return result;
     {
         // The bidi controls are cut out and everything between them is copied
@@ -1163,14 +1185,23 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
             const std::string& numberText = segs[segPos].text;
             bool respace = isPhoneShaped(numberText);
             if (!respace && !keywords.empty() && hasEnoughDigits(numberText)) {
+                // Every segment is whole code points, so the UTF-16 length of
+                // the joined context is the sum of the pieces' lengths: each
+                // piece is measured once and the context joined once, instead
+                // of re-measuring (and front-inserting into) the growing
+                // string on every step (owner, 2026-10-01).
+                int beforeUnits = 0, firstBack = segPos;
+                while (firstBack > 0 && beforeUnits < 48) { firstBack--; beforeUnits += utf16LengthOf(segs[firstBack].text); }
                 std::string before;
-                for (int backIdx = segPos - 1; backIdx >= 0 && utf16LengthOf(before) < 48; backIdx--)
-                    before.insert(0, segs[backIdx].text);
-                if (utf16LengthOf(before) > 48) before = lastUtf16Units(before, 48);
+                for (int backIdx = firstBack; backIdx < segPos; backIdx++) before += segs[backIdx].text;
+                if (beforeUnits > 48) before = lastUtf16Units(before, 48);
+                int afterUnits = 0, nextIdx = segPos + 1;
                 std::string after;
-                for (int nextIdx = segPos + 1; nextIdx < (int)segs.size() && utf16LengthOf(after) < 24; nextIdx++)
+                for (; nextIdx < (int)segs.size() && afterUnits < 24; nextIdx++) {
                     after += segs[nextIdx].text;
-                if (utf16LengthOf(after) > 24) after = firstUtf16Units(after, 24);
+                    afterUnits += utf16LengthOf(segs[nextIdx].text);
+                }
+                if (afterUnits > 24) after = firstUtf16Units(after, 24);
                 respace = contextHasKeyword(lowerCaseRoot(before), keywords) ||
                           contextHasKeyword(lowerCaseRoot(after), keywords);
             }
@@ -1418,6 +1449,14 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
             // carries nothing, because the caller answers it before detecting.
             if (detect && chunks[i].type >= 0 && chunks[i].type <= 2 && !chunks[i].text.empty()) {
                 std::vector<std::string> spans = foldAndSpansFlat(chunks[i].text, singleStops, true);
+                // Nothing is sent twice (owner, 2026-10-01): the fold IS the
+                // chunk's text here (see foldAndSpansFlat's alreadyFolded), and a
+                // span covering all of it is that text again, so both go as ""
+                // -- one Java string fewer each. A real fold or span text is
+                // never empty, so "" cannot be mistaken; runsFromFlat reads it
+                // back as the record's text.
+                spans[0].clear();
+                for (size_t k = 3; k < spans.size(); k += 3) if (spans[k] == chunks[i].text) spans[k].clear();
                 addRecord(chunks[i], &spans);
             } else addRecord(chunks[i], nullptr);
         }
@@ -1436,9 +1475,8 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
 // ==========================================================================
 static std::unordered_map<std::string,std::string> g_iso2to3;
 static std::string toIso3(const std::string& lang){
-    std::string normalised = lang;
-    size_t cut = normalised.find_first_of("-_");
-    if (cut != std::string::npos) normalised = normalised.substr(0, cut);
+    // One copy: the part before any '-' / '_' (owner, 2026-10-01).
+    std::string normalised(lang, 0, lang.find_first_of("-_"));
     for (char& ch : normalised) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
     std::string iso3 = normalised;
     if (normalised.size()==2){ auto found=g_iso2to3.find(normalised); if(found!=g_iso2to3.end() && !found->second.empty()) iso3=found->second; }
@@ -1760,7 +1798,35 @@ static std::string scriptLangForCpFiltered(int codePoint, const std::unordered_s
 //  CLD2 is the only detector. The CLD3 arm that used to sit beside it was
 //  removed on 2026-09-02 at the owner's instruction -- see CLAUDE.md.
 // ==========================================================================
+// ==========================================================================
+//  CLD2 ANSWER CACHE (owner, 2026-10-01)
+//  A screen reader says the same short labels again and again ("Settings",
+//  "Back", a contact's name), and each one cost a full CLD2 call. CLD2 keeps no
+//  state between calls, so for the same bytes it gives the same answer; the
+//  span answer also depends on the script and on the hint state, so a span
+//  entry is keyed by script + bytes and the whole span table is dropped when
+//  the hint state changes (the pointer is kept, so it cannot be reused). One
+//  cache per thread: no lock, and nothing shared. At most kCld2CacheMax
+//  entries each, cleared when full.
+// ==========================================================================
+struct Cld2Cache {
+    std::shared_ptr<const void> spanHints;                      // the HintState the span entries belong to
+    std::unordered_map<std::string, std::string> spans;         // script byte + span bytes -> language
+    std::unordered_map<std::string, std::string> windows;       // window bytes -> detectWindowLang's answer
+};
+static const size_t kCld2CacheMax = 256;
+static Cld2Cache& cld2Cache(){ static thread_local Cld2Cache cache; return cache; }
+static std::string detectWindowLangUncached(const std::string& utf8Text);
 static std::string detectWindowLang(const std::string& utf8Text){
+    Cld2Cache& cache = cld2Cache();
+    auto hit = cache.windows.find(utf8Text);
+    if(hit != cache.windows.end()) return hit->second;
+    std::string answer = detectWindowLangUncached(utf8Text);
+    if(cache.windows.size() >= kCld2CacheMax) cache.windows.clear();
+    cache.windows.emplace(utf8Text, answer);
+    return answer;
+}
+static std::string detectWindowLangUncached(const std::string& utf8Text){
     // getLanguage (0x6523c8), which is what clsCLD2.d calls per 64-character
     // window. It passes no content-language hint, an EMPTY tld hint rather than
     // a null one, encoding_hint 0 (ISO_8859_1, not UNKNOWN_ENCODING), and
@@ -2043,10 +2109,12 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
     if(!jstringToStd(env, jLat, latinFallback) || !jstringToStd(env, jNonLat, nonLatinFallback)) return nullptr;
     std::string log; std::string* logBuf = (jWantLog==JNI_TRUE) ? &log : nullptr;
     std::string result = "UNKNOWN";
+    std::vector<jchar> units(1);
+    int textLen = 0;
     if(jText){
-        int textLen = (int)env->GetStringLength(jText);
+        textLen = (int)env->GetStringLength(jText);
         // GetStringRegion into OUR buffer: nothing to release, no OOM-null.
-        std::vector<jchar> units((size_t)textLen + 1);
+        units.resize((size_t)textLen + 1);
         if(textLen > 0) env->GetStringRegion(jText, 0, textLen, units.data());
         if(env->ExceptionCheck()) return nullptr;
         result = detectWindowed(units.data(), textLen, latinFallback, nonLatinFallback, jDisableAdv==JNI_TRUE, logBuf);
@@ -2055,9 +2123,12 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
     flat.push_back(result + "\x01" + log);
     if(isUnknownWord(result)){
         // The fold reads the text the way nativeFoldAndDetect does, so the two
-        // carriers cannot disagree.
-        std::string text;
-        if(jText && !jstringToStd(env, jText, text)) return nullptr;
+        // carriers cannot disagree. It is made from the UTF-16 units already
+        // read (owner, 2026-10-01) rather than read from Java a second time:
+        // utf16to8 writes exactly ART's modified UTF-8 -- a pair as 4 bytes, a
+        // lone surrogate as 3, U+0000 as C0 80 -- which is what
+        // GetStringUTFRegion (jstringToStd) answers.
+        std::string text = utf16to8(units.data(), textLen);
         std::vector<std::string> spans = foldAndSpansFlat(text, jSingleStops == JNI_TRUE);
         flat.insert(flat.end(), spans.begin(), spans.end());
     }
@@ -2222,6 +2293,17 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
                 detectBytes = 1024;
                 while (detectBytes > 0 && ((unsigned char)text[start + detectBytes] & 0xC0) == 0x80) detectBytes--;
             }
+            // What follows depends on the script, these bytes and the hint
+            // state, and nothing else: answered from the cache when it can be.
+            Cld2Cache& cache = cld2Cache();
+            if(cache.spanHints != hintState){ cache.spans.clear(); cache.spanHints = hintState; }
+            std::string cacheKey;
+            cacheKey.reserve((size_t)detectBytes + 1);
+            cacheKey += (char)script;
+            cacheKey.append(text, (size_t)start, (size_t)detectBytes);
+            auto cached = cache.spans.find(cacheKey);
+            if(cached != cache.spans.end()) lang = cached->second;
+            else {
             // What these two do -- keep an answer only if the user has that
             // language enabled, and otherwise fall back to the one language
             // this script implies -- is what decides the voice for the span,
@@ -2282,6 +2364,9 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
                     if(!fallbackCode.empty()) lang = fallbackCode;
                 }
             }
+            if(cache.spans.size() >= kCld2CacheMax) cache.spans.clear();
+            cache.spans.emplace(std::move(cacheKey), lang);
+            }
         }
         if (!spans.empty()
             && spans.back().offset + spans.back().bytes == start
@@ -2334,9 +2419,10 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
         emitScriptSpan(spanStart, textLen - spanStart, curScript);
     }
     std::vector<std::string> flat;
+    flat.reserve(spans.size() * 3);
     const int textBytesTotal = (int)text.size();
     for(size_t scriptIdx=0; scriptIdx<spans.size(); scriptIdx++){
-        const ScriptSpan& span = spans[scriptIdx];
+        ScriptSpan& span = spans[scriptIdx];
         // nativeGetLanguages CLAMPS rather than dropping (0x652f8c): a negative
         // offset or one past the end is skipped, and an overlong span is cut to
         // what is left of the text. Neither can happen -- the loop only emits
@@ -2346,7 +2432,7 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
         int spanBytes = span.bytes;
         if(span.offset + spanBytes > textBytesTotal) spanBytes = textBytesTotal - span.offset;
         if(spanBytes < 1) continue;
-        flat.push_back(span.lang);
+        flat.push_back(std::move(span.lang));
         flat.push_back(span.latin ? "1" : "0");
         flat.push_back(text.substr(span.offset, (size_t)spanBytes));
     }
@@ -2363,9 +2449,11 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
 // f(f(c)) == f(c) for all 1,114,112 code points (corebytes/foldtwice.cpp), so
 // folding such a chunk again cannot change it; it only cost a scan and a copy.
 static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded){
+    // Text with nothing to fold is used as it is, not copied (owner, 2026-10-01).
     std::string foldedCopy;
-    if(!alreadyFolded) foldedCopy = normalizeFancyText(text);
-    const std::string& folded = alreadyFolded ? text : foldedCopy;
+    bool fold = !alreadyFolded && needsFancyFold(text);
+    if(fold) foldedCopy = normalizeFancyText(text);
+    const std::string& folded = fold ? foldedCopy : text;
     // UTF-16 length of the folded text: one unit below U+10000, two above.
     // Only "is it exactly one" matters here.
     int units = 0;
