@@ -4,9 +4,20 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 class SharedPrefsManager(context: Context) {
     private val prefs: SharedPreferences = LangStore.prefs(context)
-    fun toIso3(lang: String): String {
-        val iso3 = if (lang.length != 2) lang else try { localeOf(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
-        return when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
+    // Called several times per chunk with the same few codes. A code's answer
+    // never changes within a process (Locale's ISO tables are fixed), so it is
+    // remembered: a two-letter code built a Locale and looked it up every time
+    // (owner, 2026-10-01). Same function, same answers -- tools/verify/toiso3.
+    // Capped: a client could send endless odd codes, and past 512 the answer
+    // is simply computed as before.
+    fun toIso3(lang: String): String =
+        toIso3Cache[lang] ?: toIso3Uncached(lang).also { if (toIso3Cache.size < 512) toIso3Cache[lang] = it }
+    companion object {
+        private val toIso3Cache = java.util.concurrent.ConcurrentHashMap<String, String>()
+        fun toIso3Uncached(lang: String): String {
+            val iso3 = if (lang.length != 2) lang else try { localeOf(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
+            return when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
+        }
     }
     fun getLanguageList(): List<String> {
         val out = mutableListOf<String>()

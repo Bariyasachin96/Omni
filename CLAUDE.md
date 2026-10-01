@@ -8,6 +8,26 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ITEMS 6-9 DONE; THE AFTER-AN-UPDATE SILENCE: THREE HOLES IN RESTORE (owner, 2026-10-01, latest)
+*"6 se 9 wala bhi complete kar do test karke ... application ko update karta hun ... tab kam nahin karta."*
+- **6** `SharedPrefsManager.toIso3` caches answers (ConcurrentHashMap, cap 512, `toIso3Uncached` is the old body).
+  Proof `tools/verify/toiso3/run.sh`: 800,000 calls, 1517 codes, 4 threads IDENTICAL; negative (lowercased key) caught.
+- **7** the discarded `LangStore.engineFor` in mix/multilingual onDone runs only while logging is on (it only logs).
+- **8** `onGetVoices` caches its list keyed by `LangStore.listVersion`; each caller gets a copy. langstore harness
+  checks it after every step (IDENTICAL); negative (never invalidate) = 199,996 differ.
+- **9** the two syncLock resets are one block; text trimmed once; `localeIso3` uses `when`, no list.
+- **Restore, read by hand (no device here, no KVM):** (a) a startup init that failed AFTER the keep-alive's
+  "process back" had already fired left the engine at -1 until an utterance needed it -> `afterStartupFailure`:
+  restore now if the process is up, else processGone + bind (its connect restores). Called from the init
+  listener's failures, the 30 s init watchdog and the constructor catch. (b) a restore that failed with the
+  process UP waited for an event that might never come -> `recoverEngineNotReadyMain` gives ONE more restore
+  per episode when a language needs it (`needRetryUsed`, cleared by `rearmRestore`). (c) the init listener's
+  catch could skip `initFinished` -> `finished` flag. Proof `tools/verify/restore/run.sh` (lifted functions,
+  fake TTS/handler/binder): 6 scenarios PASS; 4 negatives caught. selftest's two #29 patterns updated.
+- **TalkBack itself (read in google/talkback FailoverTextToSpeech):** after we are updated its client to us is
+  dead; on 3 speak failures it moves to the next installed engine (e.g. Google) until TTS_DEFAULT_SYNTH changes.
+  Not ours to fix. **Next step: a log with logging ON taken right after an update.**
+
 ## EXTRA WORK REMOVED, FIVE ITEMS (owner, 2026-10-01, latest)
 *"van se lekar 5 tak complete kar do ... test karke."* From a sweep of the speaking path; each one proven.
 - **1. Logger: no stat per line.** `rotate()` (exists + length) ran before EVERY line although the size is counted;

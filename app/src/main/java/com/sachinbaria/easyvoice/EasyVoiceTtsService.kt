@@ -627,6 +627,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
         //                 restore was in flight; if that restore fails, it is
         //                 made once more instead of the event being lost
         @Volatile var restoreWanted: Boolean = false
+        //   needRetryUsed  the one extra restore a language may ask for after a
+        //                  restore FAILED with the engine's process up has been
+        //                  used. Given back with the restore by every event
+        //                  (rearmRestore), so it is at most two per episode.
+        @Volatile var needRetryUsed: Boolean = false
         // The last locale this client refused while provably live (see
         // setLanguageFailed). Describes the client, so forgetClientState clears it.
         @Volatile var refusedLocale: String? = null
@@ -1201,6 +1206,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             if (wrapper.state != -1) return
             bindEngineKeepAlive(wrapper.rawPkg)
+            // A RESTORE THAT FAILED WITH THE PROCESS UP WAITED FOR AN EVENT THAT
+            // MAY NEVER COME (owner, 2026-10-01: "update karta hun ... tab kaam
+            // nahin karta"). Nothing else hands the restore back when the engine
+            // simply answered badly once -- no death, no package event, no scan
+            // while the app stays closed -- so the language stayed silent until
+            // the app was opened. A language asking for the engine now gets ONE
+            // more restore per episode (needRetryUsed), never one per utterance.
+            if (wrapper.restoreSpent && !wrapper.restoring && !wrapper.needRetryUsed) {
+                wrapper.needRetryUsed = true
+                wrapper.restoreSpent = false
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restoreTts " + wrapper.pkg + ": its last restore failed and a language needs it -- one more")
+            }
             restoreEngine(wrapper.pkg, "not ready when a language asked for it")
         } catch (ex: Throwable) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "recoverEngineNotReady: " + ex.toString())
@@ -1456,18 +1473,33 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     if (!done.compareAndSet(false, true)) return@postDelayed
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "init never arrived for " + enginePkg + " -- marking it not ready")
                     try { cell[0]?.shutdown() } catch (_: Throwable) {}
-                    if (myIndex < enginePool.size) { enginePool[myIndex].tts = null; enginePool[myIndex].forgetClientState(); enginePool[myIndex].state = -1 }
+                    if (myIndex < enginePool.size) { enginePool[myIndex].tts = null; enginePool[myIndex].forgetClientState(); enginePool[myIndex].state = -1; afterStartupFailure(enginePool[myIndex], "its first start never answered") }
                     initFinished()
                 }, 30000L)
             } catch (_: Exception) {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Error when initializing " + enginePkg }
                 if (done.compareAndSet(false, true)) {
                     if (myIndex < enginePool.size) enginePool[myIndex].state = -1
+                    if (myIndex < enginePool.size) afterStartupFailure(enginePool[myIndex], "its client could not be built")
                     initFinished()
                 }
             }
         }
         if (count == 0) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "All tts engines have been initialized. (2)" }; startupScan() }
+    }
+    // A FIRST START THAT FAILED IS RESTORED AT ONCE (owner, 2026-10-01: "update
+    // karta hun ... tab kaam nahin karta"). The keep-alive bind is made just
+    // before the client, so its "process is back" usually arrives while the
+    // init is still pending (state 0) and finds nothing to restore; when the
+    // init then fails, no event was left and the engine waited for the first
+    // utterance that needed it -- which was spoken by nobody. This is that
+    // episode's ONE restore: now if the process is up, else when it is.
+    private fun afterStartupFailure(wrapper: EngineWrapper, why: String) {
+        try {
+            if (destroyed) return
+            if (engineProcessUp(wrapper.rawPkg)) restoreEngine(wrapper.pkg, why)
+            else { wrapper.processGone = true; bindEngineKeepAlive(wrapper.rawPkg); EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): restoring it when its process is up" } }
+        } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "afterStartupFailure: " + ex.toString()) }
     }
     private fun initFinished() {
         initializingIndex++
@@ -1649,6 +1681,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 try { cell[0]?.shutdown() } catch (_: Throwable) {}
                 return
             }
+            var finished = false
             try {
             val initializingTts = cell[0]
             if (myIndex >= walkList.size || myIndex >= enginePool.size) { initFinished(); return }
@@ -1665,16 +1698,22 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     "asked for " + wantedPkg + " and got a client bound to " + boundPkg + " -- refusing it")
                 try { initializingTts?.shutdown() } catch (_: Throwable) {}
                 wrapper.tts = null; wrapper.forgetClientState(); wrapper.state = -1
+                afterStartupFailure(wrapper, "its first start came back bound to " + boundPkg)
             } else if (status == TextToSpeech.SUCCESS) {
                 if (forceAccessibilityFlag) { try { initializingTts?.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) } }
                 wrapper.tts = initializingTts; wrapper.forgetClientState(); wrapper.state = 2
                 if (wantedPkg == EngineFinder.builtInEngine) googleEngineIndex = myIndex
             } else {
                 wrapper.tts = initializingTts; wrapper.forgetClientState(); wrapper.state = -1
+                afterStartupFailure(wrapper, "its first start answered " + status)
             }
+            finished = true
             initFinished()
             } catch (ex: Throwable) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Engine init failed: " + ex.toString())
+                // The walk must still end, or walkPending stays true for the life
+                // of the process and the startup scan never runs.
+                if (!finished) { finished = true; try { initFinished() } catch (_: Throwable) {} }
             }
         }
     }
@@ -1858,6 +1897,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // the event is remembered (restoreFailed answers it) instead of dropped.
     private fun rearmRestore(wrapper: EngineWrapper, why: String) {
         wrapper.restoreSpent = false
+        wrapper.needRetryUsed = false
         if (wrapper.restoring) { wrapper.restoreWanted = true; return }
         if (wrapper.state == -1) restoreEngine(wrapper.pkg, why)
     }
@@ -2190,13 +2230,23 @@ class EasyVoiceTtsService : TextToSpeechService() {
     override fun onGetVoices(): MutableList<Voice> {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onGetVoices" }
         if (calledFromOwnClient("onGetVoices")) return mutableListOf()
+        // Built once per language-list version (owner, 2026-10-01): a screen
+        // reader's every setLanguage asks for the whole list, and it was rebuilt
+        // -- one Voice and one Locale per language -- each time. The names come
+        // only from iso3 and disabled, and LangStore.listVersion moves on every
+        // write to either. A Voice is immutable; each caller gets its own list.
+        val version = LangStore.listVersion.get()
+        val cached = serviceVoices
+        if (cached != null && cached.first == version) return ArrayList(cached.second)
         val names = LangStore.availableLanguagesFor(null, true)
         val list = mutableListOf<Voice>()
         for (nameIdx in names.indices) {
             list.add(Voice(names[nameIdx], localeOf(names[nameIdx]), Voice.QUALITY_HIGH, Voice.LATENCY_VERY_LOW, false, HashSet<String>()))
         }
+        serviceVoices = Pair(version, ArrayList(list))
         return list
     }
+    @Volatile private var serviceVoices: Pair<Long, List<Voice>>? = null
     override fun onIsValidVoiceName(name: String?): Int {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onIsValidVoiceName " + name }
         if (calledFromOwnClient("onIsValidVoiceName")) return TextToSpeech.ERROR
@@ -2834,7 +2884,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun localeIso3(locale: java.util.Locale = java.util.Locale.getDefault()): String {
         return try {
             val iso3 = locale.isO3Language
-            if (iso3 in listOf("cmn", "lzh", "gan", "hak")) "zho" else iso3
+            when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
         } catch (_: Exception) { "zxx" }
     }
     private fun localeMatches(requested: java.util.Locale?, candidate: java.util.Locale?): Boolean {
@@ -2950,8 +3000,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // 1 this once passed by hand.
             stopForegroundNow()
         }
-        synchronized(syncLock) { isStopped = false; syncLock.notifyAll() }
-        synchronized(syncLock) { isFlushed = false; syncLock.notifyAll() }
+        synchronized(syncLock) { isStopped = false; isFlushed = false; syncLock.notifyAll() }
         // SNAPSHOT BEFORE THE CLEAR, because the empty-text flush below needs to
         // know which engine was speaking and this line is what destroys that.
         // TalkBack interrupts with an EMPTY utterance, so that branch runs with
@@ -2969,7 +3018,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         requestParams = request?.params
         requestVolume = requestParams?.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0f) ?: 0f; if (requestVolume == 0f) requestVolume = 1.0f
         utteranceId = (request?.params?.getString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID)).toString()
-        if (rawText.trim().isEmpty()) {
+        val trimmedText = rawText.trim()
+        if (trimmedText.isEmpty()) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Speak text is empty" }
             // q0 logs before it touches anything: "stopAllTts <flag>", then
             // removeCallbacks(u) -- which has no counterpart here, because the
@@ -3087,7 +3137,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
         initIsoMaps()
         refreshEnabledLangs()
         val chunks = mutableListOf<TextChunk>()
-        val trimmedText = rawText.trim()
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Speak: " + trimmedText + " id: " + utteranceId }
         var requestedLang = request?.language ?: ""
         val bypassPrefix = trimmedText.length >= 11 && trimmedText.substring(0, 11) == "[EasyVoice:"
@@ -3769,7 +3818,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             // the language is used unchanged. The same -1 kills the
                             // re-detect above it, because .b() is never empty and
                             // never "unknown" for those chunks.
-                            LangStore.engineFor(nextLang, modeInt)
+                            // Its one effect is its log lines (the answer feeds only the
+                            // dead fallback above), so the walk runs only while logging
+                            // is on (owner, 2026-10-01).
+                            if (EasyVoiceLogger.isLoggingEnabled()) LangStore.engineFor(nextLang, modeInt)
                             val loadRes = loadOrPrefetched(nextLang)
                             if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)

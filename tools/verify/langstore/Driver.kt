@@ -3,6 +3,7 @@
 object Lists {
     val languages = ArrayList<LangEntry>()
     val listVersion = java.util.concurrent.atomic.AtomicLong()
+    fun availableLanguagesFor(pkg: String?, iso3Only: Boolean) = OldLS.availableLanguagesFor(pkg, iso3Only)
 }
 object EngineFinder { var builtInEngine = "com.google.android.tts" }
 object EasyVoiceLogger {
@@ -11,6 +12,10 @@ object EasyVoiceLogger {
     inline fun debug(tag: String, msg: () -> String) {}
     fun error(tag: String, msg: String) {}
 }
+class Voice(val name: String, val locale: java.util.Locale, q: Int, l: Int, n: Boolean, f: Set<String>) {
+    companion object { const val QUALITY_HIGH = 400; const val LATENCY_VERY_LOW = 100 }
+}
+fun localeOf(l: String, c: String = "", v: String = "") = java.util.Locale(l, c, v)
 object IsoCodes {
     private val m = mapOf("eng" to "en", "hin" to "hi", "guj" to "gu", "mar" to "mr", "ara" to "ar", "zho" to "zh", "rus" to "ru")
     fun toIso2(t: String?): String? = m[t]
@@ -69,6 +74,9 @@ fun main() {
         utterances++
         if (Svc.sends != sendsBefore || Svc.pushedListVersion != before) builds++
         cases++
+        // #8: the cached voice list names exactly what a fresh build names.
+        val names = Svc.onGetVoices().map { it.name }
+        if (names != OldLS.availableLanguagesFor(null, true)) { bad++; if (bad < 10) println("DIFF voices after step $it") }
         if (Svc.failNext) return@repeat
         if (Svc.pushedListVersion == -1L) return@repeat   // a push threw: retried next utterance
         if (Svc.coreOk != truthOk() || Svc.coreEnabled != truthEn()) { bad++; if (bad < 10) println("DIFF sets after step $it") }

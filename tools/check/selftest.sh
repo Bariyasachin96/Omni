@@ -105,7 +105,7 @@ run "#28 replace a client without forgetting its state" "#28" \
 run "#28 stop clearing the voice cache" "#28" \
     "perl -0pi -e 's/            voicesCache = null\\n            currentVoice = null/            currentVoice = null/' $K/EasyVoiceTtsService.kt"
 run "#29 leave a failed construction at state 0" "#29" \
-    "perl -0pi -e 's/if \\(myIndex < enginePool\\.size\\) enginePool\\[myIndex\\]\\.state = -1\\n                    initFinished\\(\\)/initFinished()/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/if \\(myIndex < enginePool\\.size\\) enginePool\\[myIndex\\]\\.state = -1\\n                    if \\(myIndex < enginePool\\.size\\) afterStartupFailure\\(enginePool\\[myIndex\\], \"its client could not be built\"\\)\\n                    initFinished\\(\\)/initFinished()/' $K/EasyVoiceTtsService.kt"
 run "#29 remove the init walk timeout" "#29" \
     "perl -0pi -e 's/mainHandler\\.postDelayed\\(\\{/run({/' $K/EasyVoiceTtsService.kt"
 run "#29 drop the speak-time recovery" "#29" \
@@ -113,7 +113,7 @@ run "#29 drop the speak-time recovery" "#29" \
 run "#29 remove the restore bind timeout" "#29" \
     "perl -0pi -e 's/mainHandler\\.postDelayed\\(watchdog, 30000L\\)/watchdog.hashCode()/' $K/EasyVoiceTtsService.kt"
 run "#29 gate the reconnect hand-back on state again" "#29" \
-    "perl -0pi -e 's/        wrapper\\.restoreSpent = false\\n        if \\(wrapper\\.restoring\\)/        if (wrapper.state == -1) wrapper.restoreSpent = false\\n        if (wrapper.restoring)/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/        wrapper\\.restoreSpent = false\\n        wrapper\\.needRetryUsed = false\\n        if \\(wrapper\\.restoring\\)/        if (wrapper.state == -1) wrapper.restoreSpent = false\\n        wrapper.needRetryUsed = false\\n        if (wrapper.restoring)/' $K/EasyVoiceTtsService.kt"
 run "#29 drop an event that arrives mid-restore" "#29" \
     "perl -0pi -e 's/\\{ wrapper\\.restoreWanted = true; return \\}/{ return }/' $K/EasyVoiceTtsService.kt"
 run "#29 restore from the death callback again" "#29" \
