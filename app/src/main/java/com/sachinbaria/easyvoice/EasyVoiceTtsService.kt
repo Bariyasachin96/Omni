@@ -41,6 +41,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // posts; the only thing that changes is that UI drawing can no longer delay
     // speech.
     private val mainHandler: android.os.Handler = androidx.core.os.HandlerCompat.createAsync(android.os.Looper.getMainLooper())
+    // THE SPEAK THREAD (owner, 2026-10-01). Every step of an utterance after its
+    // first chunk -- the next chunk, the prefetch, the chunk queued ahead, the
+    // hand-over after an error or an engine's death -- runs here, one at a time,
+    // as it used to on the main looper. Those steps share currentPair, the queue
+    // and the queued chunk without locks, so they must stay on ONE thread; this
+    // one does nothing else, so the settings screens, a restore or a scan on the
+    // main thread can no longer hold the next chunk up.
+    private val speakThread = android.os.HandlerThread("EasyVoiceSpeak", android.os.Process.THREAD_PRIORITY_AUDIO).also { it.start() }
+    private val speakHandler: android.os.Handler = androidx.core.os.HandlerCompat.createAsync(speakThread.looper)
     private val engineBinders = java.util.concurrent.ConcurrentHashMap<String, android.content.ServiceConnection>()
     // The engine's own IBinder, as the keep-alive binding received it in
     // onServiceConnected; removed when that binding reports a death or is
@@ -787,17 +796,33 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // the skipped order is not replaced by anything. It needs the pool to be
         // in the state where nothing can speak at all -- already the broken case
         // -- and it is bounded by the reader's next interrupt.
+        // The newest utterance that flushed this engine (speak QUEUE_FLUSH, or the
+        // empty-text flush), written under speakLock together with that call.
+        @Volatile var flushedGeneration: Int = -1
+        val speakLock = Any()
         fun stop(forGeneration: Int = -1) {
             val client = tts ?: return
             stopExec.execute {
-                if (forGeneration >= 0 && forGeneration != synthesisGeneration) {
-                    EasyVoiceLogger.debug(EasyVoiceLogger.TAG) {
-                        "stop for generation " + forGeneration + " is spent (now " +
-                        synthesisGeneration + ") -- skipping " + pkg }
-                    return@execute
+                // A stop ordered for an older utterance runs only if no newer
+                // utterance has flushed this engine since (owner, 2026-10-01).
+                // If one has, that flush already ended the old audio, and the stop
+                // would cut the NEW utterance -- the explore-by-touch regression of
+                // 2026-09-17. If none has -- the new utterance has not reached this
+                // engine yet, or speaks on another one -- the old audio is still
+                // playing, and skipping the stop (as the old test
+                // `forGeneration != synthesisGeneration` did) left it playing over
+                // the new utterance. Under speakLock, so a flush cannot slip in
+                // between the test and the stop.
+                synchronized(speakLock) {
+                    if (forGeneration >= 0 && flushedGeneration > forGeneration) {
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) {
+                            "stop for generation " + forGeneration + " is spent (flushed by " +
+                            flushedGeneration + ") -- skipping " + pkg }
+                        return@execute
+                    }
+                    try { client.stop() }
+                    catch (ex: Exception) { android.util.Log.w("EasyVoice", "Stop failed for " + pkg, ex) }
                 }
-                try { client.stop() }
-                catch (ex: Exception) { android.util.Log.w("EasyVoice", "Stop failed for " + pkg, ex) }
             }
         }
         fun shutdown() {
@@ -3152,7 +3177,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " - calling speak empty for " + wrapper.pkg }
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onSynthesizeText: " + utteranceId + " ''" }
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "speak " + utteranceId }
-                        wrapper.tts?.speak("", TextToSpeech.QUEUE_FLUSH, null, null)
+                        synchronized(wrapper.speakLock) {
+                            wrapper.flushedGeneration = myGeneration
+                            wrapper.tts?.speak("", TextToSpeech.QUEUE_FLUSH, null, null)
+                        }
                     } catch (ex: Exception) {
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Speaking failed for " + wrapper.pkg + "\n " + ex.message }
                     }
@@ -3484,7 +3512,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         //  THE SPEAK LOOP
         //  Rate, pitch and volume are each the system request times the per-language
         //  setting. onDone arrives on a BINDER thread and posts the next chunk to the
-        //  main thread, because the next step may create or shut down a TextToSpeech.
+        //  speak thread, because the next step may create or shut down a TextToSpeech.
         // ==========================================================================
         // DELIBERATE DEPARTURE, and the fix for "beech mein TTS ruk jata hai,
         // force stop karne ke baad phir chalta hai" (owner, 2026-09-03).
@@ -3574,7 +3602,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             prefetchedLang = ""
             return onLoadLanguage(lang, "", "")
         }
-        // Runs on the MAIN LOOPER, posted from onStart -- never on the binder thread
+        // Runs on the SPEAK THREAD, posted from onStart -- never on the binder thread
         // the callback arrives on, for the same reason onDone posts: this can
         // construct or shut down a TextToSpeech and that must not happen inside an
         // engine callback.
@@ -3635,162 +3663,173 @@ class EasyVoiceTtsService : TextToSpeechService() {
             speakChunkRef(currentPairFirst)
             return true
         }
-        val retryOnDeath: (String) -> Boolean = { rawPkg ->
-            try { retryChunkElsewhere(rawPkg, rawPkg + " died while speaking") } catch (ex: Throwable) {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "retry after engine death: " + ex.toString()); false
+        // ==========================================================================
+        //  THE NEXT CHUNK, ALREADY IN THE ENGINE'S QUEUE (owner, 2026-10-01: "court
+        //  mein jo donon chijen ... properli test ... simulator bhi aap banaa sakte
+        //  hain ... complete karke kariye").
+        //
+        //  When the next chunk goes to the SAME engine that is speaking now, it is
+        //  handed to that engine with QUEUE_ADD while this one plays, instead of
+        //  after onDone. AOSP's TextToSpeechService runs a queued item's synthesis
+        //  while the one before it is still playing (its playback queue holds about
+        //  half a second of audio), so the engine's own time to first audio -- and
+        //  our onDone -> post -> speak round trip -- is no longer a gap between the
+        //  chunks. The request is built exactly as speakChunk would build it then:
+        //  the client's rate and pitch live in its mParams, which speak() copies,
+        //  so setting them for the next chunk does not touch the one playing.
+        //
+        //  It is done only when onDone would have spoken it with nothing in
+        //  between: the language it needs is already loaded by the prefetch (with
+        //  an answer that is not "not supported"), that load put engineIndex on the
+        //  engine now speaking, and the client is live and bound to it. Anything
+        //  else is left to onDone, as before.
+        //
+        //  EVERY WAY BACK:
+        //  - onDone of the chunk in front: the queued one becomes the current one
+        //    (promote) -- its listener alone on the client, as speakChunk leaves it.
+        //  - the chunk in front FAILS (onError): the queued one is stopped at once
+        //    and taken back (cancelAhead) before the error is handled, so the error
+        //    path sees exactly the queue it saw before.
+        //  - the engine DIES: the queued one died with it; taken back, then the
+        //    retry as before.
+        //  - the queued one fails before its turn (an engine can report an error
+        //    without starting): held, and handled when the chunk in front is done.
+        //  - an interrupt flushes the engine, which takes both.
+        //  tools/verify/speakpipe/run.sh drives the real code against an
+        //  AOSP-shaped engine and compares it with the code before this.
+        // ==========================================================================
+        class AheadChunk(val pair: Pair<Int, TextChunk>, val wrapper: EngineWrapper, val lang: String,
+                         val savedCounter: Int, val savedPrefetchLang: String, val savedPrefetchResult: Int) {
+            lateinit var listener: UtteranceProgressListener
+            var handOver: (Int, String) -> Unit = { _, _ -> }
+            @Volatile var takenBack = false
+            private var promoted = false
+            private var failure: Pair<Int, String>? = null
+            @Synchronized fun deferFailure(code: Int, n: String): Boolean {
+                if (promoted) return false
+                failure = Pair(code, n); return true
             }
+            @Synchronized fun takeTurn(): Pair<Int, String>? { promoted = true; return failure }
+        }
+        val ahead = java.util.concurrent.atomic.AtomicReference<AheadChunk?>(null)
+        var currentListener: UtteranceProgressListener? = null
+        lateinit var queueNextAheadRef: () -> Unit
+        // Puts the queued chunk back where it was, as if it had never been queued:
+        // at the head of chunkQueue, with the counter and the prefetch it used.
+        fun cancelAhead(stopEngine: Boolean) {
+            val queued = ahead.getAndSet(null) ?: return
+            queued.takenBack = true
+            if (stopEngine) {
+                try { queued.wrapper.tts?.stop() } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "stop of the queued chunk: " + ex.toString()) }
+            }
+            try { queued.wrapper.tts?.setOnUtteranceProgressListener(currentListener) } catch (_: Exception) {}
+            synchronized(chunkQueue) { chunkQueue.add(0, queued.pair) }
+            chunkCounter = queued.savedCounter
+            prefetchedLang = queued.savedPrefetchLang
+            prefetchedResult = queued.savedPrefetchResult
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "queued chunk taken back: " + queued.pair.second.text }
+        }
+        fun promote(queued: AheadChunk) {
+            if (!ahead.compareAndSet(queued, null)) return
+            val failure = queued.takeTurn()
+            try { queued.wrapper.tts?.setOnUtteranceProgressListener(queued.listener) } catch (_: Exception) {}
+            currentPair = queued.pair
+            currentPairFirst = false
+            currentPairLang = queued.lang
+            currentListener = queued.listener
+            if (failure != null) queued.handOver(failure.first, failure.second)
+        }
+        // The engine's process died while this utterance held it. Run on the speak
+        // thread with every other step of this utterance (they share currentPair,
+        // the queue and the chunk queued ahead, none of which is locked); the
+        // answer is therefore always "handled here", and when no other engine can
+        // take the chunk the wait is released here, as onEngineProcessGone did.
+        val retryOnDeath: (String) -> Boolean = { rawPkg ->
+            speakHandler.post {
+                if (myGeneration != synthesisGeneration) return@post
+                val moved = try {
+                    cancelAhead(false)
+                    retryChunkElsewhere(rawPkg, rawPkg + " died while speaking")
+                } catch (ex: Throwable) {
+                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, "retry after engine death: " + ex.toString()); false
+                }
+                if (!moved) synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+            }
+            true
         }
         retryOnEngineDeath = retryOnDeath
-        fun speakChunk(first: Boolean) {
-            // The one place that pops chunkQueue and speaks, and it is reached
-            // from three threads: the synthesis thread for the first chunk, a
-            // binder thread when onDone finds no next chunk, and the main looper
-            // for every chunk after the first. Once this utterance has ended the
-            // queue belongs to the next one, so a late caller must not pop it.
-            if (myGeneration != synthesisGeneration) return
-            if (isStopped || isFlushed) return
-            val pair = synchronized(chunkQueue) { if (chunkQueue.isEmpty()) null else chunkQueue.removeAt(0) }
-            if (pair == null) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "No more text to read." }
-                // Was four lines with two early returns. Identical in all four
-                // cases -- null callback, not started, already finished, and
-                // started-and-unfinished -- because the block ends in `return`
-                // either way, so the guards' only effect was the done() call.
-                endSynthesis(callback, "7")
-                return
+        // The bundle handed to speak(), the same for the chunk queued ahead.
+        fun buildParams(wrapper: EngineWrapper, finalVolume: Float): android.os.Bundle {
+            val params = android.os.Bundle(requestParams ?: android.os.Bundle())
+            params.remove("pitch"); params.remove("rate")
+            params.remove("language"); params.remove("country")
+            params.remove("variant"); params.remove("voiceName"); params.remove(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID)
+            // "Force to use audio accessibility stream" DID NOT WORK whenever
+            // the screen reader supplied its own audio attributes, and that is
+            // most of the time. Traced through AOSP rather than guessed:
+            //
+            //   TextToSpeech.setAudioAttributes() stores the attributes in the
+            //   client's own mParams (TextToSpeech.java:1522), and speak() then
+            //   merges them with the bundle we hand it:
+            //       Bundle bundle = new Bundle(mParams);
+            //       bundle.putAll(params);          // TextToSpeech.getParams()
+            //   mParams is the BASE and our bundle OVERWRITES it. The bundle we
+            //   forward is a copy of the caller's request params, so TalkBack's
+            //   own KEY_PARAM_AUDIO_ATTRIBUTES landed on top of the accessibility
+            //   attributes this switch had just set, and the downstream engine's
+            //   TextToSpeechService.AudioOutputParams.createFromParamsBundle read
+            //   the caller's, never ours. The switch was silently a no-op.
+            //
+            // So forcing the accessibility stream means clearing the caller's
+            // attributes out of the forwarded bundle too -- exactly what the
+            // strip option already does -- and letting mParams through. The two
+            // switches share this line because they need the same removal for
+            // opposite reasons: strip so the engine falls back to
+            // Engine.DEFAULT_STREAM (STREAM_MUSIC) + CONTENT_TYPE_SPEECH, force
+            // so our USAGE_ASSISTANCE_ACCESSIBILITY survives.
+            //
+            // The keys: KEY_PARAM_STREAM, KEY_PARAM_UTTERANCE_ID and
+            // KEY_PARAM_VOLUME are public in TextToSpeech.Engine and are used by
+            // name. "pitch", "rate", "language", "country", "variant",
+            // "voiceName" and "audioAttributes" are the SAME class's @hide keys --
+            // not in the SDK (read from API 37's android.jar with javap) -- so
+            // they stay as the literal strings AOSP itself defines them as.
+            if (isStripAudioAttr || isForceAccessibility) { params.remove(TextToSpeech.Engine.KEY_PARAM_STREAM); params.remove("audioAttributes") }
+            // ...and turning the switch back OFF has to undo it, which is the
+            // other half of the same AOSP fact and is NOT free. DELIBERATE
+            // DEPARTURE (owner request, 2026-09-03).
+            //
+            // setAudioAttributes writes into the client's mParams and there is
+            // no way to take it back out: TextToSpeech.java:1522 answers ERROR
+            // for a null argument and leaves mParams untouched, and mParams
+            // lives as long as the TextToSpeech object. So an engine that was
+            // ever spoken to with the force switch on keeps
+            // USAGE_ASSISTANCE_ACCESSIBILITY in its mParams for the life of the
+            // process, and getParams() hands it downstream whenever the merged
+            // bundle carries no attributes of its own -- either because the
+            // strip switch just removed the caller's, or because the caller
+            // never set any. The user turns the switch off and still hears the
+            // accessibility routing.
+            //
+            // Overwriting the key is the only way to beat mParams in that
+            // merge, so we put back exactly what AOSP itself would have built
+            // had the key been absent: TextToSpeechService's
+            // AudioOutputParams.createFromParamsBundle falls back to
+            // `setLegacyStreamType(KEY_PARAM_STREAM, default Engine.DEFAULT_STREAM
+            // = STREAM_MUSIC = 3).setContentType(CONTENT_TYPE_SPEECH = 1)`.
+            // Inert unless this wrapper really is carrying our attributes.
+            if (!isForceAccessibility && wrapper.audioAttrSet && !params.containsKey("audioAttributes")) {
+                try { params.putParcelable("audioAttributes", AudioAttributes.Builder().setLegacyStreamType(params.getInt(TextToSpeech.Engine.KEY_PARAM_STREAM, TextToSpeech.Engine.DEFAULT_STREAM)).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()) } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
             }
-            val (currentChunk, chunk) = pair
-            val effectiveLang = if (modeInt == 1) when (chunk.typeCode) {
-                2 -> prefs.toIso3(dualLang)
-                3, 4, 5 -> prefs.toIso3(chunk.lang)
-                else -> "eng"
-            } else prefs.toIso3(chunk.lang)
-            val chunkText = chunk.text
-            currentPair = pair
-            currentPairFirst = first
-            currentPairLang = effectiveLang
-            // AutoTTS's bypass branch runs f0 only when the prefix actually
-            // carried an engine or a locale, and hands the parsed fields
-            // straight through:
-            //     if (!engine.isEmpty() || !locale.isEmpty())
-            //         f0(engine, j0(locale), variant, false);
-            // An empty engine means "keep the last one" inside loadVoice, and
-            // j0("") is Locale(""). Ours used to substitute the resolved engine
-            // and, with no locale in the prefix, read one back out of
-            // SharedPreferences -- a runtime pref read, which is exactly what
-            // the settings-live-in-statics rule forbids, and on the Test button
-            // of all places: the user changes a voice and presses Test before
-            // anything has been persisted.
-            if (bypassed && (chunk.forcedEngine != null || chunk.forcedLocale != null)) {
-                val forcedLocale = parseVoiceNameAsLocale(chunk.forcedLocale ?: "") ?: localeOf("")
-                loadVoice(chunk.forcedEngine ?: "", forcedLocale, chunk.forcedVariant ?: "", false)
-            }
-            if (engineIndex < 0 || engineIndex >= enginePool.size) {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex out of range.")
-                if (retryChunkElsewhere(LangStore.engineFor(effectiveLang, modeInt), "no engine could take " + effectiveLang)) return
-                releaseWaitWithoutSpeaking("engine index out of range")
-                return
-            }
-            val wrapper = enginePool[engineIndex]
-            val tts = wrapper.tts ?: run {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex refers null tts.")
-                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " has no client")) return
-                releaseWaitWithoutSpeaking("engine has no TextToSpeech")
-                return
-            }
-            // A client this utterance's own load just found dead (clientIsDead
-            // sets -1 at once), or one being restored (1), is not spoken into:
-            // speak() on it can only fail, one binder call later.
-            if (wrapper.state != 2) {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, wrapper.rawPkg + " is not ready (state " + wrapper.state + ")")
-                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " is not ready")) return
-                releaseWaitWithoutSpeaking("engine is not ready")
-                return
-            }
-            // A CLIENT CAN BE RE-BOUND BEHIND OUR BACK, AND THIS IS THE ONLY PLACE
-            // THAT CAN SEE IT (2026-09-23, from AOSP's TextToSpeech.Connection).
-            //
-            //     } catch (RemoteException ex) {
-            //         Log.e(TAG, method + " failed", ex);
-            //         if (reconnect) { disconnect(); initTts(); }
-            //         return errorResult;
-            //     }
-            //
-            // Every ordinary client call -- speak, stop, setLanguage, setVoice,
-            // getVoices -- goes through runAction with reconnect = true. So a call
-            // that lands on an engine as its process dies (DeadObjectException, a
-            // RemoteException) makes the framework run initTts() AGAIN, with the
-            // same useFallback = true that the init listeners guard against -- and
-            // this time mInitListener is already null (dispatchOnInit clears it
-            // after the first init), so NO listener of ours hears about it. If the
-            // engine is not installed at that instant, which is what an update
-            // looks like, the client comes back bound to the default engine: Easy
-            // Voice. The wrapper still says state 2 and still names the engine.
-            //
-            // Speaking through that client is not a wrong voice, it is a hang: our
-            // own Stub enqueues the chunk on OUR SynthHandler, behind the very
-            // onSynthesizeText that is parked waiting for it. loadVoice's inline
-            // detector cannot help when the voice cache says "Do nothing!" and no
-            // setLanguage is made, so the check is here, on the client that is
-            // about to speak. One Field.get per chunk (the Field is cached in
-            // EngineFinder).
-            //
-            // The cure is the one every other failure on this path already uses:
-            // clientIsDead takes the wrapper out of use and asks for the engine's
-            // one restore, and this chunk ends through releaseWaitWithoutSpeaking
-            // (or goes to another engine) so nothing is left parked.
-            val boundNow = EngineFinder.boundEngineOf(tts, wrapper.rawPkg)
-            if (!isSameEnginePkg(boundNow, wrapper.rawPkg)) {
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG,
-                    "client for " + wrapper.rawPkg + " is bound to " + boundNow +
-                    " -- not speaking through it")
-                try { clientIsDead(wrapper, "its client was re-bound to " + boundNow) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restore after re-bind: " + ex.toString()) }
-                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " is not reachable")) return
-                releaseWaitWithoutSpeaking("engine client re-bound to another engine")
-                return
-            }
-            // "Current engine: " logs the wrapper that is about to speak --
-            // AutoTTS reads f.get(d).e() here, the engine actually selected, not
-            // the one the language asked for. Resolving a "preferred" package
-            // instead meant a whole getEngine4Language block (the header, one
-            // line per enabled language, and the result) in the log for every
-            // chunk, which AutoTTS never emits at this point.
-            val pkg = wrapper.pkg
-            val paramLang = if (first && firstChunkParamLang.isNotEmpty()) firstChunkParamLang else effectiveLang
-            // One walk for all three (owner, 2026-10-01): speed, pitch, volume.
-            val voiceParams = LangStore.voiceParamsFor(paramLang)
-            val appRate   = voiceParams[0] / 100.0f
-            val appPitch  = voiceParams[1] / 100.0f
-            val appVolume = voiceParams[2] / 100.0f
-            val finalRate   = sysRate  * appRate
-            val finalPitch  = sysPitch * appPitch
-            val finalVolume = requestVolume * appVolume
-            tts.setSpeechRate(finalRate); tts.setPitch(finalPitch)
-            if (currentChunk == 1) chunkCounter = 1
-            // THE UTTERANCE ID IS NOW UNIQUE, AND IT WAS NOT (owner, 2026-09-09:
-            // "speech interruption ka problem").
-            //
-            // It used to be "${utteranceId}_${chunkCounter}", and neither half
-            // separates one utterance from the next: `utteranceId` is a static
-            // read from the caller's params and is literally the string "null"
-            // whenever the caller sets none, and `chunkCounter` is reset to 1 for
-            // every utterance by the line above -- so two consecutive
-            // screen-reader utterances, which are one chunk each, both spoke
-            // under the id "null_1".
-            //
-            // That is why the 2026-09-03 attempt to drop stale callbacks with
-            // `id != expectedId` broke explore-by-touch instead of fixing it: the
-            // check was right and the id was not. The generation makes the id
-            // genuinely unique, and the guards below then mean what they say.
-            //
-            // The framework hands this string back verbatim and cannot alter it:
-            // TextToSpeech.speak() passes it as its own AIDL argument, not inside
-            // params; TextToSpeechService stores it in UtteranceSpeechItemWith-
-            // Params.mUtteranceId, which is protected final on a PRIVATE class of
-            // the framework; and every dispatchOn* sends getUtteranceId(). An
-            // engine implementation overrides onSynthesizeText, never those.
-            val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}" + (if (retryCount > 0) "_r$retryCount" else "")
-            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            if (finalVolume != 0f) { params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, finalVolume) }
+            return params
+        }
+        // ONE CHUNK'S LISTENER. It used to be built inline in speakChunk; it is a
+        // function now because the chunk queued AHEAD (below) needs the very same
+        // listener, built the very same way. `mine` is that ahead chunk, or null.
+        fun makeListener(wrapper: EngineWrapper, expectedId: String, mine: AheadChunk?): UtteranceProgressListener =
+            object : UtteranceProgressListener() {
+                init { mine?.handOver = { code, n -> handOver(code, n) } }
                 override fun onStart(id: String) {
                     // The engine really spoke, so its episode is over and its
                     // one restore is handed back: an event that means exactly
@@ -3804,7 +3843,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // The engine has begun audio, so the whole of this chunk is
                         // free time to load the next one, on this engine or any
                         // other. Posted rather than run here: this is a binder callback.
-                        mainHandler.post { prefetchNextLanguage() }
+                        // Then the next chunk, if it goes to this same engine, is handed
+                        // to it now with QUEUE_ADD, so it starts the moment this one ends.
+                        // Not for a queued chunk that was taken back: it started only
+                        // because the chunk in front failed, and it is spoken again later.
+                        speakHandler.post {
+                            if (mine != null && mine.takenBack) return@post
+                            prefetchNextLanguage(); queueNextAheadRef()
+                        }
                     } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStart failed: " + ex.toString()) }
                 }
                 override fun onDone(id: String) {
@@ -3822,23 +3868,27 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     // THE BINDER-THREAD HALF IS GUARDED TOO (2026-09-11). This is
                     // the engine's own oneway callback, so an escape is logged by
                     // Binder.execTransact and does NOT crash -- it just stops. And
-                    // stopping here is the hang: speakChunk(false) below is what
-                    // ends the utterance when the queue is empty, and
-                    // mainHandler.post is what starts the next chunk, so losing
+                    // stopping here is the hang: the post below is what ends the
+                    // utterance when the queue is empty and what starts the next
+                    // chunk, so losing
                     // either leaves the synthesis thread parked with no callback
                     // left to come.
                     try {
-                    val next = synchronized(chunkQueue) { chunkQueue.firstOrNull()?.second }
-                    if (next == null) { speakChunk(false); return }
-                    mainHandler.post {
+                    speakHandler.post {
                         try {
                         // Posted while THIS utterance was live; it runs on the
-                        // main looper, which is neither the synthesis thread nor
+                        // speak thread, which is neither the synthesis thread nor
                         // the binder thread, so an interrupt in between means it
                         // arrives after the utterance ended and the next one has
                         // already refilled chunkQueue. The id check above cannot
                         // see that -- it was true when we posted.
                         if (myGeneration != synthesisGeneration) return@post
+                        // The next chunk is already in this engine's queue (and
+                        // starting now): it only becomes the current one.
+                        val queued = ahead.get()
+                        if (queued != null) { promote(queued); return@post }
+                        val next = synchronized(chunkQueue) { chunkQueue.firstOrNull()?.second }
+                        if (next == null) { speakChunkRef(false); return@post }
                         chunkCounter++
                         var advance = true
                         if (modeInt == 1) {
@@ -3899,7 +3949,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 advance = false
                             }
                         }
-                        if (advance) speakChunk(false)
+                        if (advance) speakChunkRef(false)
                         } catch (ex: Throwable) {
                             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone Error: " + ex.toString())
                             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "endSynthesis #6" }
@@ -3919,11 +3969,30 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 // would fail both the same way -- the chunk goes to another engine,
                 // posted off this binder callback because that may build a client.
                 fun handOver(code: Int, n: String) {
+                    // This chunk is the one queued AHEAD and failed before its
+                    // turn: it is acted on when the chunk in front of it is done,
+                    // which is when it would have been spoken and failed before.
+                    if (mine != null && mine.deferFailure(code, n)) return
+                    // A chunk queued ahead behind this failed one must not play:
+                    // stop it now, from this thread, before it can start.
+                    val queued = ahead.get()
+                    if (queued != null && queued.wrapper === wrapper) {
+                        try { wrapper.tts?.stop() } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "stop of the queued chunk: " + ex.toString()) }
+                    }
                     // Switch OFF: straight to endSynthesis on this thread, which
                     // is exactly what onError did before the hand-over existed.
-                    if (!engineFallbackFlag || code == TextToSpeech.ERROR_OUTPUT || code == TextToSpeech.ERROR_INVALID_REQUEST) { endSynthesis(callback, n); return }
-                    mainHandler.post {
+                    if (!engineFallbackFlag || code == TextToSpeech.ERROR_OUTPUT || code == TextToSpeech.ERROR_INVALID_REQUEST) {
+                        if (queued == null) { endSynthesis(callback, n); return }
+                        speakHandler.post {
+                            if (myGeneration != synthesisGeneration) return@post
+                            cancelAhead(true)
+                            endSynthesis(callback, n)
+                        }
+                        return
+                    }
+                    speakHandler.post {
                         if (myGeneration != synthesisGeneration || isStopped || isFlushed) return@post
+                        cancelAhead(true)
                         // Already handed over (its process died first, and that
                         // path moved the chunk): the chunk is someone else's now.
                         if (speakingPkg != wrapper.pkg) return@post
@@ -4076,69 +4145,238 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         "onStop " + id + " interrupted=" + interrupted +
                         " mine=" + (id == expectedId) + " parked=" + parked }
                 }
-            })
-            val params = android.os.Bundle(requestParams ?: android.os.Bundle())
-            params.remove("pitch"); params.remove("rate")
-            params.remove("language"); params.remove("country")
-            params.remove("variant"); params.remove("voiceName"); params.remove(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID)
-            // "Force to use audio accessibility stream" DID NOT WORK whenever
-            // the screen reader supplied its own audio attributes, and that is
-            // most of the time. Traced through AOSP rather than guessed:
-            //
-            //   TextToSpeech.setAudioAttributes() stores the attributes in the
-            //   client's own mParams (TextToSpeech.java:1522), and speak() then
-            //   merges them with the bundle we hand it:
-            //       Bundle bundle = new Bundle(mParams);
-            //       bundle.putAll(params);          // TextToSpeech.getParams()
-            //   mParams is the BASE and our bundle OVERWRITES it. The bundle we
-            //   forward is a copy of the caller's request params, so TalkBack's
-            //   own KEY_PARAM_AUDIO_ATTRIBUTES landed on top of the accessibility
-            //   attributes this switch had just set, and the downstream engine's
-            //   TextToSpeechService.AudioOutputParams.createFromParamsBundle read
-            //   the caller's, never ours. The switch was silently a no-op.
-            //
-            // So forcing the accessibility stream means clearing the caller's
-            // attributes out of the forwarded bundle too -- exactly what the
-            // strip option already does -- and letting mParams through. The two
-            // switches share this line because they need the same removal for
-            // opposite reasons: strip so the engine falls back to
-            // Engine.DEFAULT_STREAM (STREAM_MUSIC) + CONTENT_TYPE_SPEECH, force
-            // so our USAGE_ASSISTANCE_ACCESSIBILITY survives.
-            //
-            // The keys: KEY_PARAM_STREAM, KEY_PARAM_UTTERANCE_ID and
-            // KEY_PARAM_VOLUME are public in TextToSpeech.Engine and are used by
-            // name. "pitch", "rate", "language", "country", "variant",
-            // "voiceName" and "audioAttributes" are the SAME class's @hide keys --
-            // not in the SDK (read from API 37's android.jar with javap) -- so
-            // they stay as the literal strings AOSP itself defines them as.
-            if (isStripAudioAttr || isForceAccessibility) { params.remove(TextToSpeech.Engine.KEY_PARAM_STREAM); params.remove("audioAttributes") }
-            // ...and turning the switch back OFF has to undo it, which is the
-            // other half of the same AOSP fact and is NOT free. DELIBERATE
-            // DEPARTURE (owner request, 2026-09-03).
-            //
-            // setAudioAttributes writes into the client's mParams and there is
-            // no way to take it back out: TextToSpeech.java:1522 answers ERROR
-            // for a null argument and leaves mParams untouched, and mParams
-            // lives as long as the TextToSpeech object. So an engine that was
-            // ever spoken to with the force switch on keeps
-            // USAGE_ASSISTANCE_ACCESSIBILITY in its mParams for the life of the
-            // process, and getParams() hands it downstream whenever the merged
-            // bundle carries no attributes of its own -- either because the
-            // strip switch just removed the caller's, or because the caller
-            // never set any. The user turns the switch off and still hears the
-            // accessibility routing.
-            //
-            // Overwriting the key is the only way to beat mParams in that
-            // merge, so we put back exactly what AOSP itself would have built
-            // had the key been absent: TextToSpeechService's
-            // AudioOutputParams.createFromParamsBundle falls back to
-            // `setLegacyStreamType(KEY_PARAM_STREAM, default Engine.DEFAULT_STREAM
-            // = STREAM_MUSIC = 3).setContentType(CONTENT_TYPE_SPEECH = 1)`.
-            // Inert unless this wrapper really is carrying our attributes.
-            if (!isForceAccessibility && wrapper.audioAttrSet && !params.containsKey("audioAttributes")) {
-                try { params.putParcelable("audioAttributes", AudioAttributes.Builder().setLegacyStreamType(params.getInt(TextToSpeech.Engine.KEY_PARAM_STREAM, TextToSpeech.Engine.DEFAULT_STREAM)).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()) } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
             }
-            if (finalVolume != 0f) { params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, finalVolume) }
+        fun queueNextAhead() {
+            if (myGeneration != synthesisGeneration || isStopped || isFlushed) return
+            if (bypassed || ahead.get() != null) return
+            val current = currentListener ?: return
+            val pair = synchronized(chunkQueue) { chunkQueue.firstOrNull() } ?: return
+            val next = pair.second
+            // The language onDone would load for it, by the same three branches.
+            val loadLang = if (modeInt == 1) when (next.typeCode) {
+                1 -> "eng"
+                2 -> dualLang
+                3 -> numberSpecificLang
+                4 -> puncSpecificLang
+                5 -> emojiSpecificLang
+                else -> ""
+            } else prefs.toIso3(next.lang)
+            if (loadLang.isNotEmpty()) {
+                if (prefetchedLang != loadLang) return
+                if (prefetchedResult == TextToSpeech.LANG_NOT_SUPPORTED || prefetchedResult == TextToSpeech.LANG_MISSING_DATA) return
+            }
+            val index = engineIndex
+            if (index < 0 || index >= enginePool.size) return
+            val wrapper = enginePool[index]
+            if (wrapper.pkg != speakingPkg) return
+            val tts = wrapper.tts ?: return
+            if (wrapper.state != 2) return
+            if (!isSameEnginePkg(EngineFinder.boundEngineOf(tts, wrapper.rawPkg), wrapper.rawPkg)) return
+            // From here on, what onDone's step and speakChunk(false) do, in order.
+            val savedCounter = chunkCounter
+            val savedLang = prefetchedLang
+            val savedResult = prefetchedResult
+            synchronized(chunkQueue) {
+                if (chunkQueue.firstOrNull() !== pair) return
+                chunkQueue.removeAt(0)
+            }
+            if (loadLang.isNotEmpty()) prefetchedLang = ""
+            chunkCounter++
+            val chunk = pair.second
+            val effectiveLang = if (modeInt == 1) when (chunk.typeCode) {
+                2 -> prefs.toIso3(dualLang)
+                3, 4, 5 -> prefs.toIso3(chunk.lang)
+                else -> "eng"
+            } else prefs.toIso3(chunk.lang)
+            val voiceParams = LangStore.voiceParamsFor(effectiveLang)
+            val finalRate   = sysRate  * (voiceParams[0] / 100.0f)
+            val finalPitch  = sysPitch * (voiceParams[1] / 100.0f)
+            val finalVolume = requestVolume * (voiceParams[2] / 100.0f)
+            tts.setSpeechRate(finalRate); tts.setPitch(finalPitch)
+            val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}" + (if (retryCount > 0) "_r$retryCount" else "")
+            val queued = AheadChunk(pair, wrapper, effectiveLang, savedCounter, savedLang, savedResult)
+            val listener = makeListener(wrapper, expectedId, queued)
+            queued.listener = listener
+            // Until the chunk in front is done the client carries both listeners:
+            // the queued chunk's id goes to its own, everything else to the one
+            // that was there -- exactly what that one received before.
+            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                fun route(id: String?): UtteranceProgressListener = if (id == expectedId) listener else current
+                override fun onStart(id: String) { route(id).onStart(id) }
+                override fun onDone(id: String) { route(id).onDone(id) }
+                @Deprecated("Deprecated in Java")
+                override fun onError(id: String) { @Suppress("DEPRECATION") route(id).onError(id) }
+                override fun onError(id: String, errorCode: Int) { route(id).onError(id, errorCode) }
+                override fun onStop(id: String, interrupted: Boolean) { route(id).onStop(id, interrupted) }
+            })
+            val params = buildParams(wrapper, finalVolume)
+            wrapper.listenerSet = true
+            if (isForceAccessibility && !wrapper.audioAttrSet) {
+                try { tts.setAudioAttributes(accessibilitySpeech); wrapper.audioAttrSet = true } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.toString()) }
+            }
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "speak 2: " + chunk.text }
+            ahead.set(queued)
+            val accepted = try { tts.speak(chunk.text, TextToSpeech.QUEUE_ADD, params, expectedId) == TextToSpeech.SUCCESS } catch (ex: Exception) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "queueing the next chunk: " + ex.toString()); false
+            }
+            if (!accepted) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "the engine did not take the next chunk ahead -- it waits its turn"); cancelAhead(false) }
+        }
+        queueNextAheadRef = { queueNextAhead() }
+        fun speakChunk(first: Boolean) {
+            // The one place that pops chunkQueue and speaks, and it is reached
+            // from two threads: the synthesis thread for the first chunk, and the
+            // speak thread for every chunk after it (and for the end). Once this utterance has ended the
+            // queue belongs to the next one, so a late caller must not pop it.
+            if (myGeneration != synthesisGeneration) return
+            if (isStopped || isFlushed) return
+            // Nothing may still be queued ahead when a chunk is spoken normally;
+            // every path that leads here has already taken it back.
+            if (!first) cancelAhead(true)
+            val pair = synchronized(chunkQueue) { if (chunkQueue.isEmpty()) null else chunkQueue.removeAt(0) }
+            if (pair == null) {
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "No more text to read." }
+                // Was four lines with two early returns. Identical in all four
+                // cases -- null callback, not started, already finished, and
+                // started-and-unfinished -- because the block ends in `return`
+                // either way, so the guards' only effect was the done() call.
+                endSynthesis(callback, "7")
+                return
+            }
+            val (currentChunk, chunk) = pair
+            val effectiveLang = if (modeInt == 1) when (chunk.typeCode) {
+                2 -> prefs.toIso3(dualLang)
+                3, 4, 5 -> prefs.toIso3(chunk.lang)
+                else -> "eng"
+            } else prefs.toIso3(chunk.lang)
+            val chunkText = chunk.text
+            currentPair = pair
+            currentPairFirst = first
+            currentPairLang = effectiveLang
+            // AutoTTS's bypass branch runs f0 only when the prefix actually
+            // carried an engine or a locale, and hands the parsed fields
+            // straight through:
+            //     if (!engine.isEmpty() || !locale.isEmpty())
+            //         f0(engine, j0(locale), variant, false);
+            // An empty engine means "keep the last one" inside loadVoice, and
+            // j0("") is Locale(""). Ours used to substitute the resolved engine
+            // and, with no locale in the prefix, read one back out of
+            // SharedPreferences -- a runtime pref read, which is exactly what
+            // the settings-live-in-statics rule forbids, and on the Test button
+            // of all places: the user changes a voice and presses Test before
+            // anything has been persisted.
+            if (bypassed && (chunk.forcedEngine != null || chunk.forcedLocale != null)) {
+                val forcedLocale = parseVoiceNameAsLocale(chunk.forcedLocale ?: "") ?: localeOf("")
+                loadVoice(chunk.forcedEngine ?: "", forcedLocale, chunk.forcedVariant ?: "", false)
+            }
+            if (engineIndex < 0 || engineIndex >= enginePool.size) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex out of range.")
+                if (retryChunkElsewhere(LangStore.engineFor(effectiveLang, modeInt), "no engine could take " + effectiveLang)) return
+                releaseWaitWithoutSpeaking("engine index out of range")
+                return
+            }
+            val wrapper = enginePool[engineIndex]
+            val tts = wrapper.tts ?: run {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "mTTSIndex refers null tts.")
+                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " has no client")) return
+                releaseWaitWithoutSpeaking("engine has no TextToSpeech")
+                return
+            }
+            // A client this utterance's own load just found dead (clientIsDead
+            // sets -1 at once), or one being restored (1), is not spoken into:
+            // speak() on it can only fail, one binder call later.
+            if (wrapper.state != 2) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, wrapper.rawPkg + " is not ready (state " + wrapper.state + ")")
+                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " is not ready")) return
+                releaseWaitWithoutSpeaking("engine is not ready")
+                return
+            }
+            // A CLIENT CAN BE RE-BOUND BEHIND OUR BACK, AND THIS IS THE ONLY PLACE
+            // THAT CAN SEE IT (2026-09-23, from AOSP's TextToSpeech.Connection).
+            //
+            //     } catch (RemoteException ex) {
+            //         Log.e(TAG, method + " failed", ex);
+            //         if (reconnect) { disconnect(); initTts(); }
+            //         return errorResult;
+            //     }
+            //
+            // Every ordinary client call -- speak, stop, setLanguage, setVoice,
+            // getVoices -- goes through runAction with reconnect = true. So a call
+            // that lands on an engine as its process dies (DeadObjectException, a
+            // RemoteException) makes the framework run initTts() AGAIN, with the
+            // same useFallback = true that the init listeners guard against -- and
+            // this time mInitListener is already null (dispatchOnInit clears it
+            // after the first init), so NO listener of ours hears about it. If the
+            // engine is not installed at that instant, which is what an update
+            // looks like, the client comes back bound to the default engine: Easy
+            // Voice. The wrapper still says state 2 and still names the engine.
+            //
+            // Speaking through that client is not a wrong voice, it is a hang: our
+            // own Stub enqueues the chunk on OUR SynthHandler, behind the very
+            // onSynthesizeText that is parked waiting for it. loadVoice's inline
+            // detector cannot help when the voice cache says "Do nothing!" and no
+            // setLanguage is made, so the check is here, on the client that is
+            // about to speak. One Field.get per chunk (the Field is cached in
+            // EngineFinder).
+            //
+            // The cure is the one every other failure on this path already uses:
+            // clientIsDead takes the wrapper out of use and asks for the engine's
+            // one restore, and this chunk ends through releaseWaitWithoutSpeaking
+            // (or goes to another engine) so nothing is left parked.
+            val boundNow = EngineFinder.boundEngineOf(tts, wrapper.rawPkg)
+            if (!isSameEnginePkg(boundNow, wrapper.rawPkg)) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+                    "client for " + wrapper.rawPkg + " is bound to " + boundNow +
+                    " -- not speaking through it")
+                try { clientIsDead(wrapper, "its client was re-bound to " + boundNow) } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "restore after re-bind: " + ex.toString()) }
+                if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " is not reachable")) return
+                releaseWaitWithoutSpeaking("engine client re-bound to another engine")
+                return
+            }
+            // "Current engine: " logs the wrapper that is about to speak --
+            // AutoTTS reads f.get(d).e() here, the engine actually selected, not
+            // the one the language asked for. Resolving a "preferred" package
+            // instead meant a whole getEngine4Language block (the header, one
+            // line per enabled language, and the result) in the log for every
+            // chunk, which AutoTTS never emits at this point.
+            val pkg = wrapper.pkg
+            val paramLang = if (first && firstChunkParamLang.isNotEmpty()) firstChunkParamLang else effectiveLang
+            // One walk for all three (owner, 2026-10-01): speed, pitch, volume.
+            val voiceParams = LangStore.voiceParamsFor(paramLang)
+            val appRate   = voiceParams[0] / 100.0f
+            val appPitch  = voiceParams[1] / 100.0f
+            val appVolume = voiceParams[2] / 100.0f
+            val finalRate   = sysRate  * appRate
+            val finalPitch  = sysPitch * appPitch
+            val finalVolume = requestVolume * appVolume
+            tts.setSpeechRate(finalRate); tts.setPitch(finalPitch)
+            if (currentChunk == 1) chunkCounter = 1
+            // THE UTTERANCE ID IS NOW UNIQUE, AND IT WAS NOT (owner, 2026-09-09:
+            // "speech interruption ka problem").
+            //
+            // It used to be "${utteranceId}_${chunkCounter}", and neither half
+            // separates one utterance from the next: `utteranceId` is a static
+            // read from the caller's params and is literally the string "null"
+            // whenever the caller sets none, and `chunkCounter` is reset to 1 for
+            // every utterance by the line above -- so two consecutive
+            // screen-reader utterances, which are one chunk each, both spoke
+            // under the id "null_1".
+            //
+            // That is why the 2026-09-03 attempt to drop stale callbacks with
+            // `id != expectedId` broke explore-by-touch instead of fixing it: the
+            // check was right and the id was not. The generation makes the id
+            // genuinely unique, and the guards below then mean what they say.
+            //
+            // The framework hands this string back verbatim and cannot alter it:
+            // TextToSpeech.speak() passes it as its own AIDL argument, not inside
+            // params; TextToSpeechService stores it in UtteranceSpeechItemWith-
+            // Params.mUtteranceId, which is protected final on a PRIVATE class of
+            // the framework; and every dispatchOn* sends getUtteranceId(). An
+            // engine implementation overrides onSynthesizeText, never those.
+            val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}" + (if (retryCount > 0) "_r$retryCount" else "")
+            val listener = makeListener(wrapper, expectedId, null)
+            currentListener = listener
+            tts.setOnUtteranceProgressListener(listener)
+            val params = buildParams(wrapper, finalVolume)
             if (isStopped || isFlushed) return
             wrapper.listenerSet = true
             if (isForceAccessibility && !wrapper.audioAttrSet) {
@@ -4156,7 +4394,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     // Whose death would strand this utterance. Set before the
                     // call, so a process that dies during it is still matched.
                     speakingPkg = pkg
-                    val speakResult = tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)
+                    // Under the wrapper's speak lock, with the generation that
+                    // flushed it: a late stop for an older utterance sees it and
+                    // leaves this one alone (EngineWrapper.stop).
+                    val speakResult = synchronized(wrapper.speakLock) {
+                        wrapper.flushedGeneration = myGeneration
+                        tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)
+                    }
                     if (speakResult != 0) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Speaking failed!!!")
                         if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " refused to speak")) {
@@ -4242,6 +4486,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { if (packageReceiverRegistered) { packageReceiverRegistered = false; unregisterReceiver(packageReceiver) } } catch (_: Throwable) {}
         try { if (screensObserved) { screensObserved = false; androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.removeObserver(screensClosedObserver) } } catch (_: Throwable) {}
         try { mainHandler.removeCallbacksAndMessages(null) } catch (_: Throwable) {}
+        try { speakHandler.removeCallbacksAndMessages(null); speakThread.quitSafely() } catch (_: Throwable) {}
         if (running?.get() === this) running = null
         super.onDestroy()
     }
@@ -4466,9 +4711,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // reversed that, and the read is genuinely cross-thread: speakChunk
         // WRITES it (`if (currentChunk == 1) chunkCounter = 1`) and READS it
         // into expectedId, and speakChunk is reached from three threads -- the
-        // synthesis thread for the first chunk, the MAIN LOOPER from onDone's
-        // post (which also does chunkCounter++), and a BINDER thread when
-        // onDone finds the queue empty and calls speakChunk(false) directly.
+        // synthesis thread for the first chunk and the SPEAK THREAD from onDone's
+        // post (which also does chunkCounter++; until 2026-10-01 that was the main
+        // looper, and an empty queue was ended on a BINDER thread directly).
         // The main-looper write and the binder-thread read are ordered only by
         // the two binder round trips that happen to sit between them, which is
         // a practical barrier and not a guarantee. A stale read builds the

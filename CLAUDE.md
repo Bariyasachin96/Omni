@@ -8,20 +8,45 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## ITEMS 2-5 OF THE SPEED LIST: MEASURED, NOT DONE (owner, 2026-10-01, latest)
-*"345 teenon dekh lo ... test karke ... sahi result aata hai to use kar do."* Do not re-research these.
-- **2 (queue the next same-engine, same-language chunk with QUEUE_ADD): NOT done, owner agreed to leave it.** The owner's
-  real log is 250 utterances / 251 chunks, so it almost never fires. It also makes the interrupt corner worse: when
-  `EngineWrapper.stop(forGeneration)` is skipped and the next utterance goes to a DIFFERENT engine, the old engine
-  would play the queued chunk too (two voices). An ahead chunk that errors at once, or dies with its engine, also
-  needs extra hand-over code.
-- **3 (cache the parsed locale in onLoadLanguage): NOT done.** split + Locale + isO3Language measured at ~0.3 us per
-  call (desktop JVM), against milliseconds of setLanguage binder calls. No audible saving.
-- **4 (per-engine package replace in loadVoice): ALREADY GONE.** loadVoiceImpl normalises the asked package once
-  (~13 ns) and compares against `EngineWrapper.pkg`, which is stored normalised.
-- **5 (reuse the listener / params Bundle per chunk): NOT done.** The Bundle copy plus 7 removes is ~0.2 us, and
-  utterances are almost always one chunk. The listener cannot be shared: each one carries its chunk's expectedId,
-  which is the stale-callback guard.
+## THE NEXT CHUNK IS QUEUED AHEAD, THE SPEAK STEPS HAVE THEIR OWN THREAD, AND A STOP NO LONGER LEAVES OLD AUDIO PLAYING (owner, 2026-10-01, latest)
+*"court mein jo donon chijen ... properli test ... simulator bhi aap banaa sakte hain ... complete karke kariye."*
+This replaces the "2 NOT done" and "8 NOT done, on purpose" decisions below.
+- **Queued ahead (EasyVoiceTtsService, `queueNextAhead`/`AheadChunk`):** if the next chunk goes to the engine
+  speaking now (same `speakingPkg`), the prefetch already loaded its language with an answer that is not "not
+  supported", and the client is live and bound, it is spoken with **QUEUE_ADD** while the current one plays.
+  Built exactly as speakChunk(false) would build it then (rate/pitch/volume per language, id with the counter and
+  retry suffix). Until the chunk in front is done the client carries a ROUTING listener (its id -> its own
+  listener, everything else -> the one that was there). Every way back is handled: onDone of the chunk in front
+  -> `promote`; that chunk fails -> its queued one is stopped at once from the binder thread and taken back
+  (`cancelAhead`: queue head, chunkCounter, prefetch restored) before the error is handled; the engine dies ->
+  taken back, then the retry; the queued one fails before its turn -> held (`deferFailure`) and handled at
+  promote; an interrupt flushes both; a taken-back chunk's onStart does not prefetch / queue again.
+- **Speak thread:** `speakHandler` on a HandlerThread "EasyVoiceSpeak" (THREAD_PRIORITY_AUDIO) runs every step
+  after the first chunk -- onDone's next step (and the end when the queue is empty), onStart's prefetch + queue
+  ahead, the error hand-over, and the engine-death retry (`retryOnEngineDeath` now posts there and returns
+  true, releasing the wait itself when nothing takes the chunk). Still ONE thread, so currentPair / queue /
+  ahead stay unlocked and serial; main can no longer hold the next chunk up. Restores it triggers still go to
+  main through onMainThread.
+- **The stop rule (`EngineWrapper.stop`):** a stop ordered for generation G is skipped only if a NEWER utterance
+  has FLUSHED that engine since (`flushedGeneration`, written under `speakLock` with every QUEUE_FLUSH speak
+  and the empty-text flush). The old test (`forGeneration != synthesisGeneration`) also skipped it when the new
+  utterance was on ANOTHER engine or had not reached this one yet, so the old chunk played on over the new one,
+  and its late onDone/onError could end the next utterance early. Both are gone.
+- **Proof `tools/verify/speakpipe/run.sh`:** lifts the whole speak loop (releaseWaitWithoutSpeaking ..
+  speakChunk(true)), the empty-text flush, onStop, onEngineProcessGone, the end helpers and EngineWrapper from
+  the LAST COMMIT and the WORKING TREE; drives both on one virtual clock against an AOSP-shaped engine (synthesis
+  overlaps playback by ~500 ms, flush/stop, binder delay, immediate and mid-play errors, engine death, interrupts
+  followed by empty / new utterances, busy or idle main, fallback on/off, modes 1/2/4/5). **200,000 scenarios,
+  0 differ** in chunks heard (engine, text, rate, pitch, volume, language), the interrupted chunk, endSynthesis /
+  unlock numbers, callback start/done, wait released; 0 hangs. Silence between chunks 45.6 -> 12.3 million ms
+  over 247,940 boundaries (idle main: avg 170 -> 49 ms); none longer by over 0.3 ms. Old: 9,128 interrupts
+  left audio playing (3.6 million ms), 129 next utterances changed by it; new: 0. Stated costs: the queued
+  chunk is heard ~1 ms (one binder hop) when the chunk in front fails (6,501 cases), and in 32 cases ~3 ms
+  between an interrupt and its stop landing. Negatives caught: old stop rule (905), no cancel on error (248),
+  no defer (827), death not taken back (317), queue ahead on another engine (1,428), rate not set (2,628).
+- **Not covered, stated:** real engines that mishandle QUEUE_ADD (AOSP's TextToSpeechService does the queueing,
+  so every engine built on it behaves the same), and true thread preemption (each simulated step runs whole).
+- Items 3 (locale cache), 4 (already gone), 5 (bundle/listener reuse): measured sub-microsecond, NOT done.
 
 ## THE NEXT LANGUAGE LOADS WHILE THE SAME ENGINE IS STILL SPEAKING (owner, 2026-10-01, latest)
 *"pahla wala complete karte hain ... pahle test karo ... pura sem result Milta Hai ... problem mile to mat karna."*
@@ -68,7 +93,7 @@
   utterance. `tools/verify/runlang/run.sh`: IDENTICAL; negative (latin dropped from key) caught.
 - **6 NOT done, measured:** SilentText's draw-time measure is a TextMeasurer cache hit after the first frame, and
   reusing the layout result would move RTL/centred labels (paragraph width differs). No real saving.
-- **8 NOT done, on purpose:** moving the next-chunk step / prefetch off the main looper. Those steps, the error
+- **8 ~~NOT done, on purpose~~ DONE later the same day (speak thread, see the top section):** moving the next-chunk step / prefetch off the main looper. Those steps, the error
   hand-over and the engine-death retry are serialised ONLY by all running on main (no locks on currentPair,
   prefetch, retryCount); a second thread would race them on the speaking path. 1-3 removed the main-thread work
   that competed with them instead.
