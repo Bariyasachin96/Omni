@@ -121,7 +121,7 @@ run "#29 restore from the death callback again" "#29" \
 run "#29 leave a dead process's wrapper selectable" "#29" \
     "perl -0pi -e 's/            if \\(dead\\.state == 2\\) dead\\.state = -1\\n//' $K/EasyVoiceTtsService.kt"
 run "#29 never give a restore back in the listener" "#29" \
-    "perl -0pi -e 's/            \\} finally \\{\\n                wrapper\\.restoring = false\\n            \\}/            }/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/            \\} finally \\{\\n                wrapper\\.restoring = false\\n                engineSettled\\(\\)\\n            \\}/            }/' $K/EasyVoiceTtsService.kt"
 run "#12 grow build.yml past the ceiling" "#12" \
     "head -c 500000 /dev/zero | tr '\\0' '#' >> .github/workflows/build.yml"
 run "put a CLD3 source back in CMakeLists" "a CLD3/protobuf build input" \
