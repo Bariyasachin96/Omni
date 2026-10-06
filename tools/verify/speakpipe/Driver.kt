@@ -81,6 +81,7 @@ class TextToSpeech(val engine: FakeEngine) {
     fun stop(): Int = engine.stop()
     fun shutdown() {}
     val voice: Voice? get() = null
+    val language: java.util.Locale? get() = null
 }
 object EngineFinder { fun boundEngineOf(t: TextToSpeech, raw: String): String = t.boundTo }
 object EasyVoiceLogger {

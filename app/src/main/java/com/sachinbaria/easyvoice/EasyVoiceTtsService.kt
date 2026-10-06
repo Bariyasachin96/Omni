@@ -774,6 +774,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // and never on the repeat path.
         @Volatile var currentVoice: android.speech.tts.Voice? = null
         @Volatile var currentVoiceKnown: Boolean = true
+            set(value) { field = value; if (!value) paramLocale = null }
+        // The current voice's locale as loadVoice last read it from the client's
+        // params (paramsLocaleNow) while the voice NAME was unknown. Kept exactly
+        // as long as voiceNow() would keep the voice it reads: dropped whenever a
+        // setLanguage makes the voice unknown again, and with the client.
+        @Volatile var paramLocale: Array<String>? = null
         // Called wherever `tts` is replaced. A new TextToSpeech is a new connection
         // with empty mParams, so getVoice() would answer null and the old engine's
         // Voice objects belong to the old connection.
@@ -813,7 +819,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
             currentVoice = null
             currentVoiceKnown = true
             localeSet = false
+            paramLocale = null
             refusedLocale = null
+        }
+        // The locale of the voice the client's params name, as AOSP wrote it there
+        // (ISO3 language, ISO3 country, variant of that voice), read with
+        // TextToSpeech.getLanguage(), whose body is "No service call, but we're
+        // accessing mParams". Null when there is no client or no connection.
+        fun paramsLocaleNow(): Array<String>? {
+            @Suppress("DEPRECATION")
+            val l = try { tts?.language } catch (_: Exception) { null } ?: return null
+            return arrayOf(l.language, l.country, l.variant)
         }
         fun voiceNow(): android.speech.tts.Voice? {
             if (currentVoiceKnown) return currentVoice
@@ -1157,7 +1173,30 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (variant.isEmpty() && wrapper.voiceName.isNotEmpty()) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Load voice original" }; loadVoiceOriginal(normPkg, locale); return }
             var curLocale = localeOf("zxx")
             var curVoiceName = ""
-            if (wrapper.voiceName.isNotEmpty()) {
+            // THE CURRENT VOICE'S LOCALE WITHOUT A VOICE-SET MARSHAL (owner,
+            // 2026-10-06: "performance top notch ... koi jugaad nahin").
+            // After a successful setLanguage the voice name in the client's
+            // params is one we were never told, so voiceNow() below asks
+            // getVoice() -- AOSP's getVoices() marshal of the engine's whole voice
+            // set -- and on a *Default language the only thing used from that
+            // answer is its LOCALE. AOSP's setLanguage writes that locale into the
+            // same params (KEY_PARAM_LANGUAGE/COUNTRY/VARIANT = the chosen
+            // voice's getISO3Language / getISO3Country / getVariant), and
+            // getLanguage() reads them back with "No service call". So when the
+            // name cannot matter -- the request is *Default, which no engine
+            // voice is called, so the "Do nothing!" test below cannot fire --
+            // the locale comes from there. The name is fetched later, exactly as
+            // before, if the variant this engine stores for the locale turns out
+            // to be a named voice. Logging on keeps the old read and its line.
+            var nameOwed = false
+            var paramsLocale: Array<String>? = null
+            if (wrapper.voiceName.isNotEmpty() && !wrapper.currentVoiceKnown && variant == "*Default" && !EasyVoiceLogger.loggingOn) {
+                paramsLocale = wrapper.paramLocale ?: wrapper.paramsLocaleNow()
+                if (paramsLocale != null) { nameOwed = true; wrapper.paramLocale = paramsLocale }
+            }
+            if (nameOwed) {
+                // compared through localeMatchesParams; curLocale is not read
+            } else if (wrapper.voiceName.isNotEmpty()) {
                 // voiceNow(), not `wrapper.tts!!.voice` -- see the field for why that
                 // read is a full voice-set marshal and how this mirrors it exactly.
                 // (It also fixes a second defect: `!!` on a client that state == 2
@@ -1216,8 +1255,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
             }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " variant " + effectiveVariant }
+            if (nameOwed && effectiveVariant != "*Default") {
+                // A named voice is wanted after all: the comparison needs the name,
+                // so read the voice exactly as the old path did (the "Do nothing!"
+                // test it carried cannot fire for a *Default request).
+                nameOwed = false
+                val curVoice = wrapper.voiceNow()
+                if (curVoice != null) { curLocale = curVoice.locale; curVoiceName = curVoice.name }
+            }
             if (effectiveVariant == "*Default") {
-                if (!localeMatches(locale, curLocale)) {
+                if (if (nameOwed) !localeMatchesParams(locale, paramsLocale!!) else !localeMatches(locale, curLocale)) {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { locale.toString() + " vs " + curLocale.toString() }
                     val setLangResult = wrapper.tts?.setLanguage(locale)
                     if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Set voice 1" } } else setLanguageFailed(wrapper, locale, setLangResult)
@@ -3155,6 +3202,22 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val iso3 = locale.isO3Language
             when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
         } catch (_: Exception) { "zxx" }
+    }
+    // localeMatches against the client's params: p = the current voice's ISO3
+    // language, ISO3 country and variant, which AOSP computed from that voice's
+    // locale with the same getISO3Language / getISO3Country localeMatches calls
+    // ("" where those threw -- and a candidate that throws answers false there,
+    // as "" never equals a requested code here).
+    private fun localeMatchesParams(requested: java.util.Locale, p: Array<String>): Boolean {
+        return try {
+            if (requested.isO3Language != p[0]) return false
+            val matchCountry = requested.isO3Country
+            if (matchCountry.isEmpty()) return true
+            if (matchCountry != p[1]) return false
+            val matchVariant = requested.variant
+            if (matchVariant.isEmpty()) return true
+            matchVariant == p[2]
+        } catch (_: Exception) { false }
     }
     private fun localeMatches(requested: java.util.Locale?, candidate: java.util.Locale?): Boolean {
         if (requested == null || candidate == null) return false

@@ -39,7 +39,7 @@ def cls(name):
     return block(i)
 FUNS = ["loadVoice", "setLanguageFailed", "setVoiceFailed", "clientIsDead", "loadVoiceImpl",
         "loadVoiceOriginal", "loadVoiceDedicated", "voiceEntries", "parseVoiceNameAsLocale", "parseVoiceNameAsLocaleUncached",
-        "isSameEnginePkg", "normPkg", "nullableIso3", "nullableIso3Country", "localeIso3", "localeMatches"]
+        "isSameEnginePkg", "normPkg", "nullableIso3", "nullableIso3Country", "localeIso3", "localeMatches", "localeMatchesParams"]
 body = "\n".join(fun(n) for n in FUNS) + "\n" + cls("VoiceEntry") + "\n" + cls("EngineWrapper")
 # the parser's cache (2026-10-06): its two fields, as they are in the file
 for decl in ("    private val parsedLocales", "    private val NO_LOCALE"):

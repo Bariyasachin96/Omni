@@ -22,6 +22,7 @@ import java.util.Locale
 object EasyVoiceLogger {
     const val TAG = "t"
     var on = false
+    val loggingOn: Boolean get() = on
     inline fun debug(tag: String, msg: () -> String) { if (on) msg() }
     fun error(tag: String, msg: String) {}
     fun isLoggingEnabled() = on
@@ -77,6 +78,9 @@ class TextToSpeech(val engine: FakeEngine) {
     }
     val voices: MutableSet<Voice>? get() { engine.call(); return if (engine.dead || shut) null else LinkedHashSet(engine.voices) }
     val voice: Voice? get() { engine.call(); return if (engine.dead || shut) null else engine.voices.firstOrNull { it.name == paramVoice } }
+    // AOSP getLanguage(): no service call, the params' ISO3 language/country/variant
+    val language: Locale? get() = if (engine.dead || shut) null else paramLang?.let {
+        Locale(try { it.isO3Language } catch (_: Exception) { "" }, try { it.isO3Country } catch (_: Exception) { "" }, it.variant) } ?: Locale("", "", "")
     fun setVoice(v: Voice): Int {
         engine.call()
         if (engine.dead || shut || engine.voices.none { it.name == v.name }) return ERROR

@@ -8,7 +8,7 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE UNICODE IS GENERATED FROM UCD 18.0 NOW, NOT TYPED BY HAND (owner, 2026-10-06, latest)
+## THE UNICODE IS GENERATED FROM UCD 18.0 NOW, NOT TYPED BY HAND (owner, 2026-10-06)
 *"detection Mein Ham Jo Unicode use kar rahe hain ... bilkul Purana Hai ... latest likho aur latest hisab se karo."*
 Every Unicode table the app reads comes from `tools/unicode/gen_tables.py` over `tools/unicode/ucd/` (UCD 18.0.0,
 emoji 18.0, fetched from unicode.org) into `app/src/main/cpp/unicode_tables.h` and `UnicodeTables.kt`. **Do not
