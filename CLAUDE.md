@@ -8,6 +8,31 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## BUILDS 951 AND 952 ARE REVERTED; A LANGUAGE SWITCH DROPS ONE VOICE-SET MARSHAL (owner, 2026-10-06, latest)
+*"951 aur 952 ... vah changes hata do ... 950 wala hi theek hai ... performance top notch ... koi jugaad nahin."*
+- **Reverted** (515646e; tree byte-identical to e2d0895 = build 950): the quick-read lone-matra change (78b8dfb) and
+  the script audit (a7b7f33). For comparison Vajra TTS 1.1.0 was decompiled: no detection library, Unicode block
+  ranges + Hindi/Marathi word lists, and a lone matra rewritten to a HAND-WRITTEN name before the engine sees it.
+  Not adopted.
+- **loadVoiceImpl, *Default request, voice name unknown after a setLanguage, logging off:** the current voice's locale
+  comes from the client's params via `TextToSpeech.getLanguage()` (AOSP: "No service call"; setLanguage stored the
+  chosen voice's getISO3Language/getISO3Country/variant there) instead of `voiceNow()`'s getVoices() marshal.
+  `localeMatchesParams` = localeMatches over those fields. Kept in `EngineWrapper.paramLocale` exactly as long as
+  voiceNow would keep its voice (dropped by the `currentVoiceKnown = false` setter and by forgetClientState). If the
+  engine stores a NAMED variant for the locale, the name is fetched as before. Hindi<->Gujarati on one engine: per
+  switch 5 binder calls / 2 voice-set marshals -> 4 / 1.
+- **NOT done, and why:** a cached setVoice instead of setLanguage would save the other marshal but cannot be exact --
+  whether the engine's default voice for a locale changed is only knowable via getDefaultVoiceNameFor, which
+  TextToSpeech does not expose.
+- **Proof `tools/verify/voicenow/run.sh [ref]`:** the real loadVoice family of the ref and of the working tree against
+  an AOSP-line-accurate fake: engines alive, voices installed **400,000 cases 0 differ** (logging on: identical calls).
+  Reported, not failed: an engine that died BEFORE our keep-alive noticed (76 of 400,000: found at the load instead of
+  at the speak; the real notice runs forgetClientState), and a voice uninstalled mid-session with no package event
+  (603: the staleness the 2026-09-11 voice cache already accepts). Negatives caught: name never fetched (17), any
+  variant (383), country ignored (1,073), known voice bypassed (138), remembered locale outliving a setLanguage
+  (1,054). prefetch 400,000 / speakpipe 200,000 0 differ (both fakes got getLanguage); restore, voicelist, coldstart,
+  chunkiso3 pass; check-all 0/0, selftest EVERY CHECK FIRES.
+
 ## THE UNICODE IS GENERATED FROM UCD 18.0 NOW, NOT TYPED BY HAND (owner, 2026-10-06)
 *"detection Mein Ham Jo Unicode use kar rahe hain ... bilkul Purana Hai ... latest likho aur latest hisab se karo."*
 Every Unicode table the app reads comes from `tools/unicode/gen_tables.py` over `tools/unicode/ucd/` (UCD 18.0.0,
