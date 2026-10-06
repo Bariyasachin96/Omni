@@ -96,6 +96,11 @@ class LangEntry(val enginePkg: String, val localeTag: String, val variant: Strin
 object LangStore {
     var entries = ArrayList<LangEntry>()
     fun entryAt(i: Int): LangEntry? = entries.getOrNull(i)
+    // The working tree's one-walk lookup; the old tree walks entryAt itself.
+    fun variantForEngineLocale(enginePkg: String, localeTag: String): String? {
+        for (e in entries) if (e.enginePkg == enginePkg && e.localeTag == localeTag) return e.variant
+        return null
+    }
 }
 
 class Svc(val engines: List<FakeEngine>) {

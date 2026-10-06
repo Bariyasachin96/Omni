@@ -53,6 +53,11 @@ class Svc {
     fun engineSettled() {}
     var scanned = 0
     fun startupScan() { scanned++ }
+    // two-wave start (2026-10-01): which engines a language uses; null = all
+    var usedPkgs: Set<String>? = null
+    fun usedEnginePkgs(): Set<String> = usedPkgs ?: walkList.map { normPkg(it) }.toSet()
+    var secondWave: List<Int> = emptyList()
+    var firstWaveSize = 0
     inner class EngineWrapper(pkgName: String) {
         val pkg: String = normPkg(pkgName)
         val rawPkg: String = pkgName
@@ -152,6 +157,36 @@ fun main() {
         check("S6 waits for the process", TextToSpeech.built.size == 1 && s.enginePool[0].processGone)
         s.engineServiceBinders[G] = FakeBinder(); s.onEngineProcessBack(G)
         check("S6 restored when it connects", TextToSpeech.built.size == 2)
+    }
+    // S7: two waves. Only the used engine starts; the other starts when it answers.
+    val X = "com.other.tts"
+    val Y = "com.third.tts"
+    run {
+        val s = fresh(); s.walkList = arrayListOf(X, G, Y); s.usedPkgs = setOf(G); s.startNextInitEngine()
+        check("S7 only the used engine is built at first", TextToSpeech.built.size == 1 && TextToSpeech.built[0].pkg == G, "built=${TextToSpeech.built.map { it.pkg }}")
+        check("S7 only the used engine is bound at first", s.binds == listOf(G), "binds=${s.binds}")
+        check("S7 every engine is in the pool, the rest at state 0", s.enginePool.size == 3 && s.enginePool[0].state == 0 && s.enginePool[2].state == 0)
+        s.engineServiceBinders[X] = FakeBinder()                                      // its process happens to be up
+        s.restoreEngineMain(s.enginePool[0].pkg, "test")
+        check("S7 a restore of a not-started engine builds nothing", TextToSpeech.built.size == 1)
+        TextToSpeech.built[0].listener.onInit(TextToSpeech.SUCCESS)
+        check("S7 the rest start when the first wave answered", TextToSpeech.built.size == 3 && TextToSpeech.built.map { it.pkg }.toSet() == setOf(G, X, Y), "built=${TextToSpeech.built.map { it.pkg }}")
+        check("S7 no scan before the second wave answered", s.scanned == 0)
+        TextToSpeech.built[1].listener.onInit(TextToSpeech.SUCCESS)
+        TextToSpeech.built[2].listener.onInit(TextToSpeech.SUCCESS)
+        check("S7 all ready, walk finished once", s.enginePool.all { it.state == 2 } && s.scanned == 1, "scanned=${s.scanned}")
+    }
+    // S8: the first wave's engine never answers -> the watchdog still releases the second wave.
+    run {
+        val s = fresh(); s.walkList = arrayListOf(G, X); s.usedPkgs = setOf(G); s.startNextInitEngine()
+        check("S8 one built", TextToSpeech.built.size == 1)
+        s.mainHandler.fireAll()
+        check("S8 watchdog releases the second wave", TextToSpeech.built.any { it.pkg == X }, "built=${TextToSpeech.built.map { it.pkg }}")
+    }
+    // S9: no configured engine installed -> everything starts at once, as before.
+    run {
+        val s = fresh(); s.walkList = arrayListOf(G, X); s.usedPkgs = setOf("nothing"); s.startNextInitEngine()
+        check("S9 none used -> all built at once", TextToSpeech.built.size == 2)
     }
     println(if (bad == 0) "ALL RESTORE SCENARIOS PASS" else "$bad FAILED")
     kotlin.system.exitProcess(if (bad == 0) 0 else 1)

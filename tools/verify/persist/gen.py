@@ -23,7 +23,7 @@ def lift(path, name):
     return text[i:j+1]
 FUNS = ["persistLanguages", "persistDisabled", "persistEngines", "persistVoiceList", "persistVoiceRows", "voiceRowKey",
         "persistAll", "persistModeLangs", "persistMode", "persistFlags"]
-HELPERS = ["putLanguages", "putEngines", "putVoiceList", "putModeLangs", "putMode", "putFlags", "putVoiceRows"]
+HELPERS = ["putLanguages", "putEngines", "putVoiceList", "putModeLangs", "putMode", "putFlags", "putVoiceRows", "publishEngines", "publishVoices"]
 def body(path):
     text = open(path, encoding="utf-8").read()
     parts = []

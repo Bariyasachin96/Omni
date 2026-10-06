@@ -377,7 +377,8 @@ initsdead=$(printf '%s\n' "$svc" | grep -A2 'Error when initializing' | grep -c 
 [ "$inits" -ge 1 ] && [ "$initsdead" = "$inits" ] || fail29="$fail29 construction-catch($initsdead/$inits marks state=-1);"
 # every startup init is bounded too: an onInit that never arrives would leave
 # that engine at state 0, invisible to every recovery path
-printf '%s\n' "$svc" | sed -n '/fun startNextInitEngine/,/^    }/p' | grep -q 'mainHandler.postDelayed' \
+# (Since the two-wave start, 2026-10-01, every client is built in startEngineClient.)
+printf '%s\n' "$svc" | sed -n '/fun startEngineClient/,/^    }/p' | grep -q 'mainHandler.postDelayed' \
   || fail29="$fail29 no-init-walk-timeout;"
 # a configured engine that is not ready asks for itself back
 printf '%s\n' "$svc" | grep -q 'recoverEngineNotReady(if' \

@@ -18,12 +18,19 @@ class LangEntry(
     // A setter rather than a bump at each call site: the list is edited from
     // the UI, the scan and the loaders, and a site that forgot would leave the
     // detector on old sets.
+    //
+    // Only while the entry IS in LangStore.languages (`attached`). A rebuild
+    // fills a fresh list -- disabled from prefs, the engine from the stored
+    // voice -- before replaceAll swaps it in, and those writes bumped the
+    // version on every screen resume although replaceAll then found the
+    // content identical; replaceAll alone decides for an entry it brings in.
+    @Volatile @JvmField var attached = false
     var iso3: String = iso3
-        set(value) { field = value; LangStore.listVersion.incrementAndGet() }
+        set(value) { field = value; if (attached) LangStore.listVersion.incrementAndGet() }
     var enginePkg: String = enginePkg
-        set(value) { field = value; LangStore.listVersion.incrementAndGet() }
+        set(value) { field = value; if (attached) LangStore.listVersion.incrementAndGet() }
     var disabled: Boolean = false
-        set(value) { field = value; LangStore.listVersion.incrementAndGet() }
+        set(value) { field = value; if (attached) LangStore.listVersion.incrementAndGet() }
     @JvmField val enginePkgs: java.util.LinkedHashSet<String> = java.util.LinkedHashSet()
 }
 object LangStore {
@@ -114,11 +121,30 @@ object LangStore {
     // lock every order already recorded in this project depends on.
     @JvmStatic
     fun replaceAll(fresh: List<LangEntry>) {
-        synchronized(languages) {
+        val changed = synchronized(languages) {
+            val differs = !sameDerivedContent(languages, fresh)
+            for (entry in languages) entry.attached = false
             languages.clear()
             languages.addAll(fresh)
+            for (entry in fresh) entry.attached = true
+            differs
         }
-        listVersion.incrementAndGet()
+        // ONLY WHEN WHAT THE VERSION GUARDS ACTUALLY CHANGED (owner, 2026-10-01).
+        // Every screen resume rebuilds the list from the same scan, and bumping
+        // anyway threw away the service's detect sets and its onGetVoices list
+        // for nothing. Everything keyed on the version is derived from iso3,
+        // the engine package(s) and disabled, in list order -- exactly what
+        // sameDerivedContent compares.
+        if (changed) listVersion.incrementAndGet()
+    }
+    private fun sameDerivedContent(old: List<LangEntry>, fresh: List<LangEntry>): Boolean {
+        if (old.size != fresh.size) return false
+        for (index in old.indices) {
+            val one = old[index]; val other = fresh[index]
+            if (one.iso3 != other.iso3 || one.enginePkg != other.enginePkg || one.disabled != other.disabled ||
+                one.enginePkgs != other.enginePkgs) return false
+        }
+        return true
     }
     // Moves whenever the list is replaced or an entry's iso3, engine or
     // disabled flag is written (LangEntry's setters). Only ever compared for
@@ -129,6 +155,17 @@ object LangStore {
     // throw rather than answer null. Under the monitor it cannot.
     @JvmStatic
     fun entryAt(index: Int): LangEntry? = synchronized(languages) { languages.getOrNull(index) }
+    // The first entry set up on this engine (normalised package) with exactly
+    // this locale tag: its variant, or null. One walk under the monitor, which
+    // stays the leaf lock -- nothing else is taken inside it.
+    @JvmStatic
+    fun variantForEngineLocale(enginePkg: String, localeTag: String): String? = synchronized(languages) {
+        for (index in 0 until languages.size) {
+            val entry = languages[index]
+            if (entry.enginePkg == enginePkg && entry.localeTag == localeTag) return@synchronized entry.variant
+        }
+        null
+    }
     // THE DISK WRITE HAPPENS OUTSIDE THE LIST MONITOR (owner, 2026-10-01).
     // `languages` is the leaf lock the service's binder and synthesis threads
     // take on every utterance (engineFor, voiceParamsFor, onGetVoices), and
@@ -509,7 +546,7 @@ object LangStore {
         val editor = prefs(ctx).edit()
         val engines = putEngines(editor) ?: return
         editor.commit()
-        EasyVoiceTtsService.engineList = engines
+        publishEngines(engines)
     }
     // The engine_N list for the editor, and the list the service should then
     // hold; null when there is nothing to write.
@@ -540,7 +577,7 @@ object LangStore {
         val editor = prefs(ctx).edit()
         val voices = putVoiceList(editor) ?: return
         editor.commit()
-        EasyVoiceTtsService.voiceList = voices
+        publishVoices(voices)
     }
     private fun putVoiceList(editor: SharedPreferences.Editor): ArrayList<String>? {
         val voices = EngineFinder.lastScanVoices
@@ -658,8 +695,18 @@ object LangStore {
         putMode(editor)
         putFlags(editor)
         editor.commit()
-        if (engines != null) EasyVoiceTtsService.engineList = engines
-        if (voices != null) EasyVoiceTtsService.voiceList = voices
+        if (engines != null) publishEngines(engines)
+        if (voices != null) publishVoices(voices)
+    }
+    // A content-equal list keeps the OBJECT the service already holds (owner,
+    // 2026-10-01). The service caches its parsed voice list by identity
+    // (voiceEntries), so handing it a fresh but equal ArrayList on every
+    // onPause made the next language switch re-split hundreds of entries.
+    private fun publishEngines(engines: ArrayList<String>) {
+        if (engines != EasyVoiceTtsService.engineList) EasyVoiceTtsService.engineList = engines
+    }
+    private fun publishVoices(voices: ArrayList<String>) {
+        if (voices != EasyVoiceTtsService.voiceList) EasyVoiceTtsService.voiceList = voices
     }
     @JvmStatic
     fun indexOf(iso3: String): Int {

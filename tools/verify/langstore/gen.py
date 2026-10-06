@@ -35,7 +35,7 @@ def cls(path, name):
     j = text.index("\n}\n", i)
     return text[i:j+2]
 OLD = ["engineFor", "localeFor", "variantFor", "speedFor", "volumeFor", "pitchFor", "availableLanguagesFor"]
-NEW = ["isAvailable", "voiceParamsFor", "voiceTargetFor", "replaceAll", "engineFor"]
+NEW = ["isAvailable", "voiceParamsFor", "voiceTargetFor", "replaceAll", "sameDerivedContent", "engineFor"]
 SVC = ["refillEnabledIso2", "detectOkIso3", "pushDetectSetsOnly", "pushLanguageSets", "sendDetectSets", "onGetVoices"]
 with open(out, "w", encoding="utf-8") as f:
     f.write('@file:Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE", "NAME_SHADOWING", "unused")\n')
@@ -51,6 +51,9 @@ with open(out, "w", encoding="utf-8") as f:
  var sentDetectOk: Set<String>? = null
  var sentEnabled: Set<String>? = null
  var pushedListVersion = -1L
+ var sentHints: Array<String>? = null
+ var coreHints: Array<String>? = null
+ var hintSends = 0
  var serviceVoices: Pair<Long, List<Voice>>? = null
  fun calledFromOwnClient(w: String) = false
  fun availableLanguagesForNow() = OldLS.availableLanguagesFor(null, true)
@@ -62,7 +65,7 @@ with open(out, "w", encoding="utf-8") as f:
      if (failNext) { failNext = false; throw RuntimeException("injected") }
      sends++; coreOk = ok.toHashSet(); coreEnabled = en.toHashSet()
  }
- fun setLanguageHints(a: Array<String>) {}
+ fun setLanguageHints(a: Array<String>) { hintSends++; coreHints = a.copyOf() }
 }
 ''')
     f.write(open(driver, encoding="utf-8").read())

@@ -40,7 +40,7 @@ def cls(name):
     return block(i)
 FUNS = ["onEngineProcessGone", "restoreEngine", "wrapperFor", "restoreEngineMain", "restoreFailed",
         "rearmRestore", "onEngineProcessBack", "recoverEngineNotReady", "recoverEngineNotReadyMain",
-        "afterStartupFailure", "startNextInitEngine", "initFinished", "normPkg", "isSameEnginePkg",
+        "afterStartupFailure", "startNextInitEngine", "firstWaveOf", "startEngineClient", "initFinished", "normPkg", "isSameEnginePkg",
         "engineProcessUp", "onMainThread"]
 body = "\n".join(fun(n) for n in FUNS) + "\n" + cls("EngineInitListener") + "\n" + cls("RestoreInitListener")
 body = body.replace("private fun", "fun").replace("android.os.Looper", "Looper")

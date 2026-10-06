@@ -91,6 +91,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun awaitEngineStarting(langCode: String?) {
         if (mayAwaitEngine.get() != true || langCode.isNullOrEmpty()) return
         if (android.os.Looper.getMainLooper().isCurrentThread) return
+        // FAST PATH (owner, 2026-10-01): once every engine has answered there is
+        // nothing to wait for, and asking which engine the language uses walks
+        // the whole language list on every load. A wrapper only ever ENTERS
+        // state 0 or 1 on the main looper (pool fill, restore), and the loop
+        // below re-reads the state under syncLock, so skipping here can only
+        // miss a start that also began after this utterance asked -- which the
+        // old code would equally have found settled.
+        var anyStarting = false
+        try {
+            for (index in 0 until enginePool.size) {
+                val state = enginePool[index].state
+                if (state == 0 || state == 1) { anyStarting = true; break }
+            }
+        } catch (_: Throwable) { anyStarting = true }
+        if (!anyStarting) return
         val rawPkg = try { LangStore.engineFor(prefs.toIso3(langCode.lowercase()), modeInt) } catch (_: Throwable) { "" }
         if (rawPkg.isEmpty() || rawPkg.equals("disable", true)) return
         val norm = normPkg(rawPkg)
@@ -376,10 +391,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // check beside it (AutoTTS's a0()) cannot see a notification the user has
     // blocked, and would ask for startForeground again on every utterance.
     @Volatile private var foregroundStarted = false
-    private fun isForegroundActive(): Boolean {
-        if (foregroundStarted) return true
-        return NotificationManagerCompat.from(this).activeNotifications.any { it.id == FOREGROUND_NOTIFICATION_ID }
-    }
+    // The flag alone (owner, 2026-10-01). Only this service starts its foreground
+    // state, a new instance starts without it, and stopping the service removes
+    // it, so foregroundStarted is exact -- the reasoning the OFF branch of
+    // onSynthesizeText already uses. The activeNotifications() binder call it
+    // replaces ran on EVERY utterance while the switch was on and the start had
+    // been refused.
+    private fun isForegroundActive(): Boolean = foregroundStarted
+    // A refused start is not retried from an utterance: from the background
+    // Android 12+ refuses it every time, so each retry was an exception and a
+    // log line per utterance. Cleared by onStartCommand (an app screen asked,
+    // which Android allows); a new instance starts with it clear.
+    @Volatile private var foregroundRefused = false
     private fun stopForegroundNow() {
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         foregroundStarted = false
@@ -418,6 +441,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // `ex.toString()` carries the class and the message and is never
             // empty, which `ex.message` can be.
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "foreground service refused: " + ex.toString())
+            foregroundRefused = true
         }
     }
     // THE ONE LISTENER BOTH PATHS USE. Below API 26 the focus is abandoned by
@@ -575,7 +599,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // spellings that does not crash.
         // Through the app's one logger, as AutoTTS's p0() writes it through its
         // own (c3.n.a.d): logcat as before, and the shared log file as well.
-        try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: ex.toString()) }
+        // (The foreground start moved below loadAllSettings -- see there.)
         // EVERY STEP IS GUARDED SEPARATELY (2026-09-11), and this is the most
         // catastrophic failure in the whole app: a throw anywhere in onCreate
         // leaves the TTS service dead, the phone with no voice at all, and
@@ -596,6 +620,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { requestAudioFocus() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "requestAudioFocus failed: " + ex.toString()) }
         try { initIsoMaps() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "initIsoMaps failed: " + ex.toString()) }
         try { loadAllSettings() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "loadAllSettings failed: " + ex.toString()) }
+        // AFTER loadAllSettings, not before it (owner, 2026-10-01). The flag is a
+        // static that loadAllSettings fills, so in a fresh process -- boot, Clear
+        // all, a memory kill: exactly when it matters -- it was still false
+        // above and the foreground service never started at service start, only
+        // at the first utterance. AutoTTS has the same order (onCreate tests a0
+        // before n.q() loads it); a DELIBERATE DEPARTURE.
+        try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: ex.toString()) }
         // e0() ends with s0(): the list has just been loaded, so hints go too.
         try { pushLanguageSets() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "pushLanguageSets failed: " + ex.toString()) }
         initDone = true
@@ -631,6 +662,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int {
         try {
             if (showNotificationFlag) {
+                foregroundRefused = false
                 if (!isForegroundActive()) startForegroundIfPossible()
             } else {
                 if (isForegroundActive()) stopForegroundNow()
@@ -898,8 +930,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // EngineWrapper.pkg strips "-" and "_", so every comparison against it must
     // strip them too. Comparing a RAW package name against a wrapper's is the
     // exact defect that made onEngineProcessGone unable to match its own engine.
+    // Equal strings normalise equally, so the common case -- the client bound
+    // to exactly the package it was built for -- answers without the four
+    // String.replace allocations normPkg makes (owner, 2026-10-01).
     private fun isSameEnginePkg(one: String, other: String): Boolean =
-        normPkg(one) == normPkg(other)
+        one == other || normPkg(one) == normPkg(other)
 
     // THE BACKSTOP FOR THE SAME DEFECT, AND IT NEEDS NO REFLECTION.
     //
@@ -1159,13 +1194,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     // no lock is held across the body and the logging inside the
                     // sibling loop cannot nest the logger's monitor inside this one
                     // (INVARIANTS #3).
-                    var langIdx = 0
-                    while (true) {
-                        val entry = LangStore.entryAt(langIdx) ?: break
-                        langIdx++
-                        if (entry.enginePkg != normPkg || entry.localeTag != locale.toString()) continue
-                        effectiveVariant = entry.variant; break
-                    }
+                    // One walk under one lock, the locale written once (owner,
+                    // 2026-10-01): this was a lock per entry and a toString()
+                    // per entry on every language switch.
+                    val found = LangStore.variantForEngineLocale(normPkg, localeTag)
+                    if (found != null) effectiveVariant = found
                     break
                 }
             }
@@ -1542,42 +1575,86 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // while it is below walkList.size. All of it runs on the main looper.
     private fun startNextInitEngine() {
         val count = walkList.size
-        for (myIndex in 0 until count) {
-            val enginePkg = walkList[myIndex]
-            enginePool.add(EngineWrapper(enginePkg))
-            bindEngineKeepAlive(enginePkg)
-        }
-        for (myIndex in 0 until count) {
-            val enginePkg = walkList[myIndex]
-            val cell = arrayOfNulls<TextToSpeech>(1)
-            val done = java.util.concurrent.atomic.AtomicBoolean(false)
-            try {
-                cell[0] = TextToSpeech(applicationContext, EngineInitListener(cell, myIndex, done), enginePkg)
-                mainHandler.postDelayed({
-                    if (!done.compareAndSet(false, true)) return@postDelayed
-                    EasyVoiceLogger.error(EasyVoiceLogger.TAG, "init never arrived for " + enginePkg + " -- marking it not ready")
-                    try { cell[0]?.shutdown() } catch (_: Throwable) {}
-                    if (myIndex < enginePool.size) { enginePool[myIndex].tts = null; enginePool[myIndex].forgetClientState(); enginePool[myIndex].state = -1; afterStartupFailure(enginePool[myIndex], "its first start never answered") }
-                    initFinished()
-                }, 30000L)
-            } catch (_: Exception) {
-                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Error when initializing " + enginePkg }
-                if (done.compareAndSet(false, true)) {
-                    if (myIndex < enginePool.size) enginePool[myIndex].state = -1
-                    if (myIndex < enginePool.size) afterStartupFailure(enginePool[myIndex], "its client could not be built")
-                    initFinished()
-                }
-            }
-        }
+        for (myIndex in 0 until count) enginePool.add(EngineWrapper(walkList[myIndex]))
+        // TWO WAVES (owner, 2026-10-01: "process over kar raha ho ... latency").
+        // Every installed engine used to be bound and built at once at a cold
+        // start, the ones no language uses included, so the first utterance
+        // waited behind that crowd. The engines a language is set up on start
+        // now; the rest start the moment the last of those has answered (its
+        // init, its failure or its 30 s watchdog -- initFinished counts them).
+        // An EVENT, not a clock. No language maps to a second-wave engine, so
+        // nothing waits for one; until it starts it is state 0, which only
+        // awaitEngineStarting reads, and only for a language's own engine.
+        val first = firstWaveOf(walkList, usedEnginePkgs())
+        secondWave = (0 until count).filter { it !in first }
+        firstWaveSize = first.size
+        for (myIndex in first) startEngineClient(myIndex)
         if (count == 0) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "All tts engines have been initialized. (2)" }; startupScan() }
     }
-    // A FIRST START THAT FAILED IS RESTORED AT ONCE (owner, 2026-10-01: "update
-    // karta hun ... tab kaam nahin karta"). The keep-alive bind is made just
-    // before the client, so its "process is back" usually arrives while the
-    // init is still pending (state 0) and finds nothing to restore; when the
-    // init then fails, no event was left and the engine waited for the first
-    // utterance that needed it -- which was spoken by nobody. This is that
-    // episode's ONE restore: now if the process is up, else when it is.
+    // Indices of walk to start first: every engine a language is set up on,
+    // in walk order. None of them installed -> all of them, the old behaviour.
+    private fun firstWaveOf(walk: List<String>, used: Set<String>): List<Int> {
+        val first = ArrayList<Int>()
+        for (index in walk.indices) if (normPkg(walk[index]) in used) first.add(index)
+        if (first.isEmpty()) for (index in walk.indices) first.add(index)
+        return first
+    }
+    // Normalised packages of the engines the language list routes to, plus the
+    // built-in engine in Google mode, plus the device language's engine (walk
+    // position 0, which buildEngineList puts first).
+    private fun usedEnginePkgs(): Set<String> {
+        val used = HashSet<String>()
+        try {
+            synchronized(LangStore.languages) {
+                for (index in 0 until LangStore.languages.size) {
+                    val entry = LangStore.languages[index]
+                    if (entry.disabled || entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true)) continue
+                    used.add(normPkg(entry.enginePkg))
+                }
+            }
+            if (modeInt == 3 && EngineFinder.builtInEngine.isNotEmpty()) used.add(normPkg(EngineFinder.builtInEngine))
+            if (walkList.isNotEmpty()) used.add(normPkg(walkList[0]))
+        } catch (_: Throwable) { used.clear() }
+        return used
+    }
+    @Volatile private var secondWave: List<Int> = emptyList()
+    @Volatile private var firstWaveSize = 0
+    private fun startEngineClient(myIndex: Int) {
+        val enginePkg = walkList[myIndex]
+        bindEngineKeepAlive(enginePkg)
+        val cell = arrayOfNulls<TextToSpeech>(1)
+        val done = java.util.concurrent.atomic.AtomicBoolean(false)
+        try {
+            cell[0] = TextToSpeech(applicationContext, EngineInitListener(cell, myIndex, done), enginePkg)
+            mainHandler.postDelayed({
+                if (!done.compareAndSet(false, true)) return@postDelayed
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "init never arrived for " + enginePkg + " -- marking it not ready")
+                try { cell[0]?.shutdown() } catch (_: Throwable) {}
+                if (myIndex < enginePool.size) { enginePool[myIndex].tts = null; enginePool[myIndex].forgetClientState(); enginePool[myIndex].state = -1; afterStartupFailure(enginePool[myIndex], "its first start never answered") }
+                initFinished()
+            }, 30000L)
+        } catch (_: Exception) {
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Error when initializing " + enginePkg }
+            if (done.compareAndSet(false, true)) {
+                if (myIndex < enginePool.size) enginePool[myIndex].state = -1
+                if (myIndex < enginePool.size) afterStartupFailure(enginePool[myIndex], "its client could not be built")
+                initFinished()
+            }
+        }
+    }
+    private fun liveClient(rawPkg: String): TextToSpeech? {
+        if (destroyed) return null
+        val norm = normPkg(rawPkg)
+        for (index in 0 until enginePool.size) {
+            val wrapper = enginePool[index]
+            if (wrapper.pkg != norm) continue
+            val client = wrapper.tts ?: return null
+            if (wrapper.state != 2 || wrapper.restoring) return null
+            if (!isSameEnginePkg(EngineFinder.boundEngineOf(client, wrapper.rawPkg), wrapper.rawPkg)) return null
+            return client
+        }
+        return null
+    }
     private fun afterStartupFailure(wrapper: EngineWrapper, why: String) {
         try {
             if (destroyed) return
@@ -1588,6 +1665,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun initFinished() {
         engineSettled()
         initializingIndex++
+        if (initializingIndex == firstWaveSize && secondWave.isNotEmpty()) {
+            val rest = secondWave
+            secondWave = emptyList()
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "first engines answered -- starting the other " + rest.size }
+            for (myIndex in rest) startEngineClient(myIndex)
+        }
         if (initializingIndex == walkList.size) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "All tts engines have been initialized. (2)" }; startupScan() }
     }
 
@@ -1881,6 +1964,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val wrapper = wrapperFor(pkg)
             if (wrapper == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + pkg + ": not in the engine pool" }; return }
             if (wrapper.restoring) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): already being restored" }; return }
+            // NOT STARTED YET (owner, 2026-10-01). State 0 with no client is an
+            // engine whose first start is still pending -- in flight, or in the
+            // second wave of startNextInitEngine. A restore here built a second
+            // client beside the one being built; the first start's own answer
+            // (initFinished, afterStartupFailure) is what follows instead.
+            if (wrapper.state == 0 && wrapper.tts == null) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): its first start is still pending" }; return }
             if (wrapper.restoreSpent) { EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "restoreTts " + wrapper.pkg + " (" + why + "): restored once already -- waiting for it to come back" }; return }
             if (wrapper.processGone) {
                 // Waiting needs a binding that can report the return. One that
@@ -2677,7 +2766,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  LOCALE SPANS                AutoTTS e0.g
     //  Two quirks copied on purpose: getSpans(0, length - 1), and end + 1.
     // ==========================================================================
-    private fun splitByLocaleSpans(input: CharSequence): MutableList<TextChunk> {
+    // plainText is input.toString(), which the caller already made: with locale
+    // spans off the chunk is that string, not a second copy (owner, 2026-10-01).
+    private fun splitByLocaleSpans(input: CharSequence, plainText: String): MutableList<TextChunk> {
         val result = mutableListOf<TextChunk>()
         if (localeSpansFlag) {
             val span = SpannableString(input)
@@ -2697,7 +2788,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             return result
         }
-        result.add(TextChunk(input.toString(), "UNKNOWN"))
+        result.add(TextChunk(plainText, "UNKNOWN"))
         return result
     }
 
@@ -3130,7 +3221,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "\n-------------------------------\nonSynthesizeText" }
         reloadLanguagesIfMissing()
         if (showNotificationFlag && !isForegroundActive()) {
-            startForegroundIfPossible()
+            if (!foregroundRefused) startForegroundIfPossible()
         } else if (!showNotificationFlag && foregroundStarted) {
             // The flag, not isForegroundActive(): with the switch OFF (the
             // default) that asked the notification service over binder on EVERY
@@ -3347,7 +3438,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // ==========================================================================
             "mix" -> {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Mixed mode" }
-                val localeChunks = splitByLocaleSpans(rawCharSeq)
+                val localeChunks = splitByLocaleSpans(rawCharSeq, rawText)
                 val neutralType = if (localeIso3() == prefs.toIso3(nonLatinFallback)) 2 else 1
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
                 val disableAdvancedDetection = disableAdvancedFlag
@@ -3418,7 +3509,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // ==========================================================================
             "multilingual" -> {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Multilingual mode" }
-                val localeChunks = splitByLocaleSpans(rawCharSeq)
+                val localeChunks = splitByLocaleSpans(rawCharSeq, rawText)
                 val neutralType = if (localeIso3() == prefs.toIso3(nonLatinFallback)) 2 else 1
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
                 val disableAdvancedDetection = disableAdvancedFlag
@@ -3520,7 +3611,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             else -> {
                 val autoModeF = prefs.toIso3(autoLang)
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Auto mode || Google mode" }
-                val localeChunks = splitByLocaleSpans(rawCharSeq)
+                val localeChunks = splitByLocaleSpans(rawCharSeq, rawText)
                 for (spanChunk in localeChunks) {
                     if (isFlushed) break
                     val detected = if (spanChunk.lang.equals("unknown", ignoreCase = true)) {
@@ -3954,6 +4045,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     // either leaves the synthesis thread parked with no callback
                     // left to come.
                     try {
+                    // THE LAST CHUNK ENDS HERE, ON THE BINDER THREAD (owner,
+                    // 2026-10-01). With nothing queued and nothing queued ahead,
+                    // the posted step below would only reach speakChunk(false),
+                    // find the queue empty and call endSynthesis #7 -- one thread
+                    // hop later, while the screen reader's synthesis thread (and
+                    // its next utterance behind it) waits. Same checks, same
+                    // ending, no hop. Nothing can refill the queue after this
+                    // point: a pending queueNextAhead finds it empty, and a
+                    // retry only follows an error, not this onDone.
+                    if (myGeneration == synthesisGeneration && !isStopped && !isFlushed && ahead.get() == null &&
+                        synchronized(chunkQueue) { chunkQueue.isEmpty() }) {
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "No more text to read." }
+                        endSynthesis(callback, "7")
+                        return
+                    }
                     speakHandler.post {
                         try {
                         // Posted while THIS utterance was live; it runs on the
@@ -4586,6 +4692,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // it never keeps the service alive (the 2026-09-10 appCtx leak was a
         // STRONG static reference to it).
         @Volatile private var running: java.lang.ref.WeakReference<EasyVoiceTtsService>? = null
+        // THE SCAN READS A LIVE ENGINE THROUGH THE CLIENT WE ALREADY HOLD
+        // (owner, 2026-10-01). EngineFinder built a NEW TextToSpeech per engine
+        // for every scan -- the background scan right after a cold start
+        // included, so every engine was bound twice exactly while the first
+        // utterances waited. A client that is ready (state 2), not mid-restore
+        // and still bound to its own engine answers getVoices the same way; the
+        // scan reads it off the main thread and never shuts it down. Anything
+        // less than that and the scan builds its own client, as before.
+        @JvmStatic fun liveClientFor(rawPkg: String): TextToSpeech? {
+            val svc = running?.get() ?: return null
+            return try { svc.liveClient(rawPkg) } catch (_: Throwable) { null }
+        }
         @JvmStatic fun engineAnswered(rawPkg: String) {
             try { running?.get()?.onEngineAnswered(rawPkg) } catch (_: Throwable) {}
         }
@@ -4682,7 +4800,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (sendDetectSets(detectOkIso3(), enabledSet, always = true)) {
                 synchronized(sentDetectLock) { pushedListVersion = version }
             }
-            try { setLanguageHints(enabledSet.toTypedArray()) } catch (_: Throwable) {}
+            // The SAME hints in the SAME order are not sent again (owner,
+            // 2026-10-01). setLanguageHints builds a new HintState, and a new
+            // HintState drops the native CLD2 answer cache's span table -- so
+            // every screen resume, which rebuilds an identical list, emptied the
+            // cache the next utterance would have hit. Order is compared, not
+            // just membership: it decides which 64 survive the native cap.
+            val hints = enabledSet.toTypedArray()
+            val sameHints = synchronized(sentDetectLock) { sentHints?.contentEquals(hints) == true }
+            if (!sameHints) {
+                try {
+                    setLanguageHints(hints)
+                    synchronized(sentDetectLock) { sentHints = hints }
+                } catch (_: Throwable) { synchronized(sentDetectLock) { sentHints = null } }
+            }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " " + enabledSet.toString() }
             return enabledSet
         }
@@ -4755,6 +4886,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         private val sentDetectLock = Any()
         private var sentDetectOk: Set<String>? = null
         private var sentEnabled: Set<String>? = null
+        private var sentHints: Array<String>? = null
         private var pushedListVersion = -1L
         // True when the core now holds these sets (already did, or just sent).
         private fun sendDetectSets(detectOk: List<String>, enabled: Set<String>, always: Boolean): Boolean {

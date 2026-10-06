@@ -8,6 +8,38 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE SECOND PERFORMANCE SWEEP: ELEVEN ITEMS, COLD START FIRST (owner, 2026-10-01, latest)
+*"process over kar raha ho ... performance kharab ... latency ... Puri list ... Sabhi kar do."*
+Native core measured at the floor (165 chars ~0.05 ms), so the list was the Kotlin side:
+- **1 Two-wave engine start** (`startNextInitEngine` -> `firstWaveOf(walk, usedEnginePkgs())`, `startEngineClient`):
+  only engines a language is set up on (+ built-in in Google mode, + walk[0]) are bound and built at once; the rest
+  start in `initFinished` the moment the first wave has all answered (init / failure / its 30 s watchdog) -- an
+  EVENT, no clock. None used -> all at once as before. **And `restoreEngineMain` refuses state 0 with no client**
+  ("first start still pending"): a restore during a pending first start built a SECOND client (pre-existing hole,
+  now open longer for wave 2). Restore harness S7-S9 added; negatives (wave 2 never started, guard removed) caught.
+- **2 Scans read the service's live clients** (`EasyVoiceTtsService.liveClientFor`: state 2, not restoring, bound to
+  its own engine): no new TextToSpeech per engine, cell stays null so release() never shuts it; a "(retry)" builds
+  its own as before. The startup background scan therefore binds nothing new.
+- **3 Foreground start moved BELOW loadAllSettings** in onCreate (the flag was still false in a fresh process, so
+  the persistent-notification service never started at service start). AutoTTS has the same order: DEPARTURE.
+- **4 `isForegroundActive()` = `foregroundStarted`** (no activeNotifications IPC), and a refused start is not
+  retried per utterance (`foregroundRefused`, cleared by onStartCommand).
+- **5 `LangStore.replaceAll` bumps `listVersion` only when iso3/enginePkg/enginePkgs/disabled differ** in order
+  (every screen resume rebuilt an identical list and threw away the service's detect sets and onGetVoices list);
+  **`pushLanguageSets` skips `setLanguageHints` for the same ordered hints** (a new HintState drops the native CLD2
+  span cache).
+- **6 persistAll/persistVoiceList/persistEngines keep the service's list OBJECT when content-equal**
+  (`publishVoices/publishEngines`): the service caches parsed voices by identity, so every onPause re-split
+  hundreds of entries at the next switch. (An unchanged SharedPreferences commit already writes nothing: AOSP
+  skips the disk when memoryStateGeneration did not move.)
+- **7 `awaitEngineStarting` fast path**: no wrapper in state 0/1 -> return before the language walk.
+- **8 loadVoice variant lookup** = `LangStore.variantForEngineLocale` (one lock, locale string once).
+- **9 the last chunk's onDone ends on the binder thread** (queue empty, nothing ahead, same generation): no hop.
+- **10 `isSameEnginePkg`** answers equal strings first (no normPkg allocations per chunk); **11** `splitByLocaleSpans`
+  takes the caller's plain text instead of a second toString.
+- **Not changed:** the screen-resume rebuild itself (it is what picks up Voice setup's writes); its costs above
+  are what went.
+
 ## THE NATIVE LIBRARY EXPORTED 698 SYMBOLS; ICONS ARE LOSSLESS WEBP (owner, 2026-10-01, latest)
 *"application ki size bahut jyada hai ... native side ... R8 jaisa ... kuchh delete bhi na ho ... ho sake to kar bhi dena."*
 Measured on the SHIPPED build 945 APK this time, not on a host link -- which is what the 2026-09-09 pass did, and

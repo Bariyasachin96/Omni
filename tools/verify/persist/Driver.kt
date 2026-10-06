@@ -50,7 +50,7 @@ fun main() {
     val isos = listOf("eng", "hin", "guj", "mar", "ara", "zho", "rus")
     val pkgs = listOf("com.google.android.tts", "com.eloq", "com.voc", BuildConfig.APPLICATION_ID)
     val locs = listOf(java.util.Locale("en", "US"), java.util.Locale("hi", "IN"), java.util.Locale("gu"), java.util.Locale("ar"))
-    var bad = 0; var cases = 0; var oldUnder = 0; var newUnder = 0; var oldCommits = 0; var newCommits = 0
+    var bad = 0; var cases = 0; var oldUnder = 0; var newUnder = 0; var oldCommits = 0; var newCommits = 0; var replacedSame = 0
     val ctx = Context()
     repeat(20000) { step ->
         Lists.languages.clear()
@@ -84,13 +84,23 @@ fun main() {
             EasyVoiceTtsService.engineList = emptyList(); EasyVoiceTtsService.voiceList = emptyList()
             current = Prefs().also { it.map.putAll(seed) }; r(NewP)
             newUnder += current.commitsUnderLock; newCommits += current.commits
+            // #6: the same persist again must keep the service's list OBJECTS
+            // (the service caches parsed voices by identity) when content-equal.
+            val e1 = EasyVoiceTtsService.engineList; val v1 = EasyVoiceTtsService.voiceList
+            val saved = current
+            current = Prefs().also { it.map.putAll(seed) }; r(NewP); current = saved
+            if (EasyVoiceTtsService.engineList == e1 && EasyVoiceTtsService.engineList !== e1) replacedSame++
+            if (EasyVoiceTtsService.voiceList == v1 && EasyVoiceTtsService.voiceList !== v1) replacedSame++
+            if (EasyVoiceTtsService.engineList != e1 || EasyVoiceTtsService.voiceList != v1) { bad++; println("DIFF repeat persist changed the lists") }
+            EasyVoiceTtsService.engineList = e1; EasyVoiceTtsService.voiceList = v1
             // compared as maps: what a SharedPreferences file holds
             if (HashMap(oldMap) != HashMap(current.map) || oldE != EasyVoiceTtsService.engineList || oldV != EasyVoiceTtsService.voiceList) {
                 bad++; if (bad < 5) println("DIFF fn#$i step $step\n old $oldMap\n new ${current.map}")
             }
         }
     }
-    println("cases $cases  differ $bad")
+    println("cases $cases  differ $bad  content-equal lists replaced on a repeat persist: $replacedSame")
+    if (replacedSame != 0) bad++
     println("commits: old $oldCommits ($oldUnder under the list lock)  new $newCommits ($newUnder under the list lock)")
     println(if (bad == 0 && newUnder == 0) "IDENTICAL, never under the lock" else "FAILED")
     if (bad != 0 || newUnder != 0) kotlin.system.exitProcess(1)

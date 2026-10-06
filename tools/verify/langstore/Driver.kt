@@ -70,7 +70,7 @@ fun main() {
         .mapNotNull { IsoCodes.toIso2(it.iso3) }.toHashSet()
     NewLS.replaceAll(ArrayList<LangEntry>().also { l -> repeat(6) { l.add(entry()) } })
     Svc.pushLanguageSets()
-    var utterances = 0; var builds = 0
+    var utterances = 0; var builds = 0; var sameRebuilds = 0; var needlessBumps = 0
     repeat(200000) {
         when (rnd.nextInt(20)) {
             0 -> { val l = ArrayList<LangEntry>(); repeat(rnd.nextInt(10)) { l.add(entry()) }; NewLS.replaceAll(l) }
@@ -79,7 +79,28 @@ fun main() {
             3 -> Lists.languages.randomOrNull()?.let { it.iso3 = isos[rnd.nextInt(isos.size)] }
             4 -> Lists.languages.randomOrNull()?.let { it.speed = 50 }
             5 -> Svc.failNext = true
-            6 -> Svc.pushLanguageSets()
+            7 -> {
+                // the same list rebuilt from fresh objects, written the way a
+                // rebuild writes them: the version must NOT move.
+                val v = Lists.listVersion.get()
+                val copy = ArrayList<LangEntry>()
+                for (o in Lists.languages) {
+                    val e = LangEntry(o.displayName, o.iso3, o.speed + 1, o.volume, o.pitch, "", o.localeTag, o.variant)
+                    e.enginePkg = o.enginePkg; e.disabled = o.disabled; e.enginePkgs.addAll(o.enginePkgs)
+                    copy.add(e)
+                }
+                NewLS.replaceAll(copy)
+                sameRebuilds++
+                if (Lists.listVersion.get() != v) needlessBumps++
+            }
+            6 -> {
+                // s0 always leaves the core holding the hints a fresh push sends,
+                // even when an identical array is not sent again.
+                Svc.pushLanguageSets()
+                if (!(Svc.coreHints?.contentEquals(Svc.enabledIso2.toTypedArray()) ?: false)) {
+                    bad++; if (bad < 10) println("DIFF hints after step $it")
+                }
+            }
         }
         val before = Lists.listVersion.get()
         val sendsBefore = Svc.sends
@@ -94,6 +115,8 @@ fun main() {
         if (Svc.pushedListVersion == -1L) return@repeat   // a push threw: retried next utterance
         if (Svc.coreOk != truthOk() || Svc.coreEnabled != truthEn()) { bad++; if (bad < 10) println("DIFF sets after step $it") }
     }
+    println("hints sent " + Svc.hintSends + " times; identical rebuilds " + sameRebuilds + ", of them bumping the version: " + needlessBumps)
+    if (needlessBumps != 0) bad++
     println("$cases cases ($utterances utterances, the sets built on $builds of them): " + if (bad == 0) "IDENTICAL" else "$bad DIFFER")
     kotlin.system.exitProcess(if (bad == 0) 0 else 1)
 }

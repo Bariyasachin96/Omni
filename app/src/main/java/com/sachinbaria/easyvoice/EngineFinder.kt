@@ -626,7 +626,7 @@ object EngineFinder {
         // overall timeouts are AutoTTS's own numbers and are untouched; this only
         // stops abandoned work from continuing, so it does strictly less than
         // before.
-        startEngine = { suffix ->
+        startEngine = startEngine@{ suffix ->
             val myIndex = index
             val pkg = engines[myIndex].pkg
             if (myGeneration == scanGeneration) scanPending.remove(pkg)
@@ -759,6 +759,22 @@ object EngineFinder {
             }
 
             onProgress?.invoke("Scanning $pkg... $suffix")
+            // A READY CLIENT THE SERVICE ALREADY HOLDS IS READ INSTEAD OF A NEW
+            // ONE (owner, 2026-10-01; see EasyVoiceTtsService.liveClientFor).
+            // cell[0] stays null, so release() never shuts the service's client
+            // down; a retry (no voices) builds its own, exactly as before.
+            val live = if (suffix == "(retry)") null else EasyVoiceTtsService.liveClientFor(pkg)
+            if (live != null) {
+                try {
+                    engineCalls.execute {
+                        val voices = try { live.voices } catch (ex: Exception) {
+                            EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: ""); null
+                        }
+                        mainHandler.post { applyRead(voices) }
+                    }
+                } catch (ex: Exception) { applyRead(null) }
+                return@startEngine
+            }
             // THE CONSTRUCTOR IS GUARDED (2026-09-10): `new TextToSpeech(...)` reads
             // Settings.Secure, resolves the engine and binds it, so it can throw
             // when that engine is mid-update. The recovery is what the timeout
