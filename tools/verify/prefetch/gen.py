@@ -38,9 +38,12 @@ def cls(name):
     i = text.index("inner class " + name + "(")
     return block(i)
 FUNS = ["loadVoice", "setLanguageFailed", "setVoiceFailed", "clientIsDead", "loadVoiceImpl",
-        "loadVoiceOriginal", "loadVoiceDedicated", "voiceEntries", "parseVoiceNameAsLocale",
+        "loadVoiceOriginal", "loadVoiceDedicated", "voiceEntries", "parseVoiceNameAsLocale", "parseVoiceNameAsLocaleUncached",
         "isSameEnginePkg", "normPkg", "nullableIso3", "nullableIso3Country", "localeIso3", "localeMatches"]
 body = "\n".join(fun(n) for n in FUNS) + "\n" + cls("VoiceEntry") + "\n" + cls("EngineWrapper")
+# the parser's cache (2026-10-06): its two fields, as they are in the file
+for decl in ("    private val parsedLocales", "    private val NO_LOCALE"):
+    k = text.index(decl); body += "\n" + text[k:text.index("\n", k)]
 body = body.replace("private fun", "fun").replace("private inner class", "inner class")
 body = body.replace("android.speech.tts.Voice", "Voice").replace("android.util.Log.w", "FakeLog.w")
 body = re.sub(r"val stopExec:.*?prestartCoreThread\(\) \}\n", "", body, flags=re.S)

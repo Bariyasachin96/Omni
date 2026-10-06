@@ -88,9 +88,15 @@ object EasyVoiceLogger {
     var sink: ((String) -> Unit)? = null
     inline fun debug(tag: String, msg: () -> String) { val s = sink ?: return; s(msg()) }
     fun error(tag: String, msg: String) { sink?.invoke(msg) }
-    fun isLoggingEnabled() = true
+    // the NEW code takes its one-walk prefetch path only with logging off;
+    // main() runs every other seed that way (the OLD code has no such branch)
+    @JvmStatic var loggingOn = true
+    fun isLoggingEnabled() = loggingOn
 }
-data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null)
+data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null) {
+    // the real one memoises toIso3(lang); FakePrefs.toIso3 is the identity
+    fun iso3(): String = lang
+}
 class FakePrefs { fun toIso3(s: String) = s }
 object LangStore {
     lateinit var run: Run
@@ -371,6 +377,10 @@ class XSvc(val run: Run) : Svc {
         }
         return TextToSpeech.LANG_AVAILABLE
     }
+    // loadLanguage(needEngine = true), as the prefetch's logging-off path calls
+    // it: null when the language has no engine, else the load
+    fun loadLanguage(lang: String?, c: String?, v: String?, needEngine: Boolean): Int? =
+        if (needEngine && LangStore.engineFor(lang ?: "", modeInt).isEmpty()) null else onLoadLanguage(lang, c, v)
     fun clientIsDead(w: EngineWrapper, why: String) { w.state = -1 }
     fun walkPending(raw: String) = false
     fun loadVoice(p: String, l: Locale, v: String, d: Boolean) {}
@@ -483,7 +493,9 @@ fun main(args: Array<String>) {
     for (seed in 1..n) {
         val sc = Scenario(seed)
         val o = runOne(Scenario(seed), false)
+        EasyVoiceLogger.loggingOn = seed % 2 == 0
         val w = runOne(Scenario(seed), true)
+        EasyVoiceLogger.loggingOn = true
         cases++
         if (o.failure != null || w.failure != null) { differ++; if (differ <= 10) println("seed $seed runaway old=${o.failure} new=${w.failure}"); continue }
         var why: String? = null

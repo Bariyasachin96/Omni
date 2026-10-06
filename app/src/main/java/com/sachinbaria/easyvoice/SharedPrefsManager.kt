@@ -10,10 +10,14 @@ class SharedPrefsManager(context: Context) {
     // (owner, 2026-10-01). Same function, same answers -- tools/verify/toiso3.
     // Capped: a client could send endless odd codes, and past 512 the answer
     // is simply computed as before.
-    fun toIso3(lang: String): String =
-        toIso3Cache[lang] ?: toIso3Uncached(lang).also { if (toIso3Cache.size < 512) toIso3Cache[lang] = it }
+    fun toIso3(lang: String): String = toIso3Cached(lang)
     companion object {
         private val toIso3Cache = java.util.concurrent.ConcurrentHashMap<String, String>()
+        // The cache lives here so code without a SharedPrefsManager (TextChunk's
+        // memo) reaches the very same answers.
+        @JvmStatic
+        fun toIso3Cached(lang: String): String =
+            toIso3Cache[lang] ?: toIso3Uncached(lang).also { if (toIso3Cache.size < 512) toIso3Cache[lang] = it }
         fun toIso3Uncached(lang: String): String {
             val iso3 = if (lang.length != 2) lang else try { localeOf(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
             return when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }

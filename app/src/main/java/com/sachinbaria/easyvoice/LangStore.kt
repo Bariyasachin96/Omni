@@ -806,6 +806,45 @@ object LangStore {
         }
         return@synchronized intArrayOf(100, 100, 100)
     }
+    // What one language load needs, in ONE walk under ONE lock (owner,
+    // 2026-10-06: "double double ... ek hi bar mein"). onLoadLanguage used to
+    // walk the list for isAvailable(raw), again for voiceTargetFor(lang), and
+    // the prefetch a third time for engineFor(raw) before calling it. Each
+    // field keeps the rule of the function it replaces:
+    //   available  = isAvailable(raw)
+    //   rawEngine  = engineFor(raw, modeInt) with logging off
+    //   locale / engine / variant = voiceTargetFor(lang, modeInt)
+    // `raw` is the code as the caller passed it, `lang` its iso3; they are
+    // usually the same string and the walk serves both.
+    class LoadPlan(@JvmField val available: Boolean, @JvmField val rawEngine: String,
+                   @JvmField val locale: String, @JvmField val engine: String, @JvmField val variant: String)
+    @JvmStatic
+    fun loadPlan(raw: String, lang: String, modeInt: Int): LoadPlan = synchronized(languages) {
+        val google = modeInt == 3
+        var available = false
+        var rawEngine: String? = if (google) EngineFinder.builtInEngine else null
+        var engine: String? = if (google) EngineFinder.builtInEngine else null
+        var locale: String? = if (google) lang else null
+        var variant: String? = if (google) lang else null
+        var index = 0
+        while (index < languages.size && (!available || rawEngine == null || engine == null || locale == null)) {
+            val entry = languages[index]
+            index++
+            val iso3 = entry.iso3
+            if (iso3 == raw) {
+                if (!available && !entry.disabled) available = true
+                if (rawEngine == null) rawEngine = if (entry.disabled) "Disable" else entry.enginePkg
+            }
+            if (iso3 == lang) {
+                if (engine == null) engine = if (entry.disabled) "Disable" else entry.enginePkg
+                if (locale == null && !(entry.enginePkg.isEmpty() || entry.enginePkg.equals("disable", true) || entry.disabled)) {
+                    locale = entry.localeTag
+                    variant = entry.variant
+                }
+            }
+        }
+        LoadPlan(available, rawEngine ?: "", locale ?: "", engine ?: "", variant ?: "")
+    }
     // localeFor, engineFor and variantFor in one walk, without their log lines
     // (onLoadLanguage calls the three logging ones while logging is on, so the
     // log stays what it was). Each keeps its own rule: the engine is the FIRST

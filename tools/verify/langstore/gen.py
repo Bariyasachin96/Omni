@@ -35,7 +35,7 @@ def cls(path, name):
     j = text.index("\n}\n", i)
     return text[i:j+2]
 OLD = ["engineFor", "localeFor", "variantFor", "speedFor", "volumeFor", "pitchFor", "availableLanguagesFor"]
-NEW = ["isAvailable", "voiceParamsFor", "voiceTargetFor", "replaceAll", "sameDerivedContent", "engineFor"]
+NEW = ["isAvailable", "voiceParamsFor", "voiceTargetFor", "replaceAll", "sameDerivedContent", "engineFor", "loadPlan"]
 SVC = ["refillEnabledIso2", "detectOkIso3", "pushDetectSetsOnly", "pushLanguageSets", "sendDetectSets", "onGetVoices"]
 with open(out, "w", encoding="utf-8") as f:
     f.write('@file:Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE", "NAME_SHADOWING", "unused")\n')
@@ -43,6 +43,7 @@ with open(out, "w", encoding="utf-8") as f:
     f.write("object OldLS {\n val languages get() = Lists.languages\n" +
             "\n".join(lift(old_ls, n) for n in OLD) + "\n}\n")
     f.write("object NewLS {\n val languages get() = Lists.languages\n val listVersion get() = Lists.listVersion\n" +
+            re.search(r"    class LoadPlan\(.*?\)\n", open(new_ls, encoding="utf-8").read(), re.S).group(0) +
             "\n".join(lift(new_ls, n) for n in NEW) + "\n}\n")
     svc = "\n".join(lift(new_svc, n) for n in SVC).replace("LangStore.", "Lists.")
     f.write("object Svc {\n" + svc + "\n" + '''

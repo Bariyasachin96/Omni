@@ -11,6 +11,7 @@
 #include <memory>
 #include <algorithm>
 #include <limits>
+#include <iterator>
 #include "compact_lang_det.h"
 #include "encodings.h"
 #include "compact_lang_det_impl.h"
@@ -1343,7 +1344,7 @@ static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
 
 // Defined beside nativeFoldAndDetect, which shares it; processDirect uses it
 // to carry each chunk's spans in the same crossing.
-static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded = false);
+static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded = false, bool forRecord = false);
 static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat);
 // String.getBytes(UTF_8), byte for byte (owner, 2026-10-01): the Kotlin side
 // used to encode the text, copy it into a direct ByteBuffer and hand THAT over
@@ -1426,17 +1427,21 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     // character became a space and was gone. AutoTTS's d0.t keeps U+0000 (Java's
     // \\s does not match it); buildMixChunks fed it whole agrees with d0.t on 192
     // U+0000 cases (segmenter harness, dual/mixed/multilingual x 4 mode ints).
-    std::vector<std::string> processed{rawInput};
+    // Moved, not copied: rawInput is not read again (owner, 2026-10-06).
+    std::vector<std::string> processed;
+    processed.push_back(std::move(rawInput));
     bool detect = (jDetect == JNI_TRUE);
     bool singleStops = (jSingleStops == JNI_TRUE);
-    auto addRecord = [&flat](const ChunkResult& chunk, const std::vector<std::string>* extra){
+    // Every piece is MOVED into the answer (owner, 2026-10-06): the chunk and
+    // its spans are not read again once the record is written.
+    auto addRecord = [&flat](ChunkResult& chunk, std::vector<std::string>* extra){
         size_t n = 4 + (extra ? extra->size() : 0);
         flat.push_back(std::to_string(n));
         flat.push_back(std::to_string(chunk.type));
         flat.push_back("0");                       // the retired kind field
-        flat.push_back(chunk.lang);
-        flat.push_back(chunk.text);
-        if (extra) flat.insert(flat.end(), extra->begin(), extra->end());
+        flat.push_back(std::move(chunk.lang));
+        flat.push_back(std::move(chunk.text));
+        if (extra) flat.insert(flat.end(), std::make_move_iterator(extra->begin()), std::make_move_iterator(extra->end()));
     };
     if (mode == "mix") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection);
@@ -1448,15 +1453,12 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
             // folded text, then lang / latin / text triples. An empty chunk
             // carries nothing, because the caller answers it before detecting.
             if (detect && chunks[i].type >= 0 && chunks[i].type <= 2 && !chunks[i].text.empty()) {
-                std::vector<std::string> spans = foldAndSpansFlat(chunks[i].text, singleStops, true);
-                // Nothing is sent twice (owner, 2026-10-01): the fold IS the
-                // chunk's text here (see foldAndSpansFlat's alreadyFolded), and a
-                // span covering all of it is that text again, so both go as ""
-                // -- one Java string fewer each. A real fold or span text is
-                // never empty, so "" cannot be mistaken; runsFromFlat reads it
-                // back as the record's text.
-                spans[0].clear();
-                for (size_t k = 3; k < spans.size(); k += 3) if (spans[k] == chunks[i].text) spans[k].clear();
+                // forRecord: the fold slot and a span covering the whole chunk
+                // come back as "" instead of being built and then cleared
+                // (owner, 2026-10-06). The Kotlin reads "" as the chunk's text;
+                // a real fold or span text is never empty, so "" cannot be
+                // mistaken (runsFromFlat's sameAs).
+                std::vector<std::string> spans = foldAndSpansFlat(chunks[i].text, singleStops, true, true);
                 addRecord(chunks[i], &spans);
             } else addRecord(chunks[i], nullptr);
         }
@@ -2130,7 +2132,7 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
         // GetStringUTFRegion (jstringToStd) answers.
         std::string text = utf16to8(units.data(), textLen);
         std::vector<std::string> spans = foldAndSpansFlat(text, jSingleStops == JNI_TRUE);
-        flat.insert(flat.end(), spans.begin(), spans.end());
+        flat.insert(flat.end(), std::make_move_iterator(spans.begin()), std::make_move_iterator(spans.end()));
     }
     return toJavaStringArray(env, stringClass, flat);
 }
@@ -2142,7 +2144,7 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
 // ==========================================================================
 // The span walk itself, with no JNI in it. Returns lang, latin flag, text
 // triples, flattened, exactly as nativeFoldAndDetect's array carries them.
-static std::vector<std::string> languageSpansFlat(const std::string& text){
+static std::vector<std::string> languageSpansFlat(const std::string& text, bool blankWhole = false){
     struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
     std::vector<ScriptSpan> spans;
     const int kMaxSpans = 128;
@@ -2434,7 +2436,10 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
         if(spanBytes < 1) continue;
         flat.push_back(std::move(span.lang));
         flat.push_back(span.latin ? "1" : "0");
-        flat.push_back(text.substr(span.offset, (size_t)spanBytes));
+        // blankWhole: a span that IS the whole text goes as "" -- the same
+        // string processDirect used to build here and then clear.
+        if (blankWhole && span.offset == 0 && spanBytes == textBytesTotal) flat.emplace_back();
+        else flat.push_back(text.substr(span.offset, (size_t)spanBytes));
     }
     return flat;
 }
@@ -2448,7 +2453,7 @@ static std::vector<std::string> languageSpansFlat(const std::string& text){
 // ASCII spaces respaceDigits adds. The fold maps code point by code point and
 // f(f(c)) == f(c) for all 1,114,112 code points (corebytes/foldtwice.cpp), so
 // folding such a chunk again cannot change it; it only cost a scan and a copy.
-static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded){
+static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded, bool forRecord){
     // Text with nothing to fold is used as it is, not copied (owner, 2026-10-01).
     std::string foldedCopy;
     bool fold = !alreadyFolded && needsFancyFold(text);
@@ -2463,10 +2468,12 @@ static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool s
         units += (b >= 0xF0) ? 2 : 1;
     }
     std::vector<std::string> flat;
-    flat.push_back(folded);
+    // forRecord (processDirect): the fold slot is "" -- the record already
+    // carries the chunk's text, which IS the fold there (alreadyFolded).
+    if(forRecord) flat.emplace_back(); else flat.push_back(folded);
     if(!(singleStops && units == 1)){
-        std::vector<std::string> spans = languageSpansFlat(folded);
-        flat.insert(flat.end(), spans.begin(), spans.end());
+        std::vector<std::string> spans = languageSpansFlat(folded, forRecord);
+        flat.insert(flat.end(), std::make_move_iterator(spans.begin()), std::make_move_iterator(spans.end()));
     }
     return flat;
 }
@@ -2476,25 +2483,44 @@ static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool s
 // And each jstring is a LOCAL reference that lives until the native method
 // returns -- up to 385 of them here (the folded text + 128 spans x 3) -- so it
 // is dropped as soon as the array holds it.
+// ONE Java string per distinct short value (owner, 2026-10-06). An answer
+// repeats the same few short strings over and over -- every record's field
+// count, its type, the retired "0", the "" fold slot, each span's "0"/"1"
+// latin flag and its language code -- and each used to be its own
+// NewStringUTF. Java strings are immutable, so one jstring can fill any
+// number of array slots; the elements read back are equal() to what they were.
+// Only strings of at most kShareMax bytes are shared, and at most kShareSlots
+// of them, so the local references held until the end stay few.
 static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat){
     jobjectArray arr=env->NewObjectArray((jsize)flat.size(), stringClass, nullptr);
     if(!arr) return nullptr;                                  // OOM pending
+    constexpr size_t kShareMax = 8;
+    constexpr int kShareSlots = 32;
+    const std::string* sharedKey[kShareSlots];
+    jstring sharedRef[kShareSlots];
+    int shared = 0;
+    auto release = [&](){ for(int k=0;k<shared;k++) env->DeleteLocalRef(sharedRef[k]); };
     for(jsize i=0;i<(jsize)flat.size();i++){
-        jstring element = newJavaString(env, flat[(size_t)i]);
-        if(!element){ env->DeleteLocalRef(arr); return nullptr; }   // exception pending
+        const std::string& value = flat[(size_t)i];
+        jstring element = nullptr;
+        bool keep = false;
+        if(value.size() <= kShareMax){
+            for(int k=0;k<shared;k++) if(*sharedKey[k] == value){ element = sharedRef[k]; keep = true; break; }
+        }
+        if(!element){
+            element = newJavaString(env, value);
+            if(!element){ release(); env->DeleteLocalRef(arr); return nullptr; }   // exception pending
+            if(value.size() <= kShareMax && shared < kShareSlots){
+                sharedKey[shared] = &value; sharedRef[shared] = element; shared++; keep = true;
+            }
+        }
         env->SetObjectArrayElement(arr, i, element);
-        env->DeleteLocalRef(element);
-        if(env->ExceptionCheck()){ env->DeleteLocalRef(arr); return nullptr; }
+        if(!keep) env->DeleteLocalRef(element);
+        if(env->ExceptionCheck()){ release(); env->DeleteLocalRef(arr); return nullptr; }
     }
+    release();
     return arr;
 }
-// clsCLD2.e / clsCLD2.f's first two steps in ONE crossing (owner, 2026-09-30):
-// fold the text (clsCLD2.b), then find its spans. It is the ONLY way the app
-// reaches the span detector; the separate normalizeFancy / nativeGetLanguages
-// entry points were removed at the owner's request. Element 0 is the folded
-// text, because the quick-character test measures it; the triples follow. When
-// the folded text is a single UTF-16 unit and `singleStops` is set, the spans
-// are not computed, because the caller answers that case without them.
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv* env, jclass, jstring jText, jboolean singleStops){
     jclass stringClass = stringClassRef(env);

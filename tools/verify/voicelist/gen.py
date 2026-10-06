@@ -16,10 +16,14 @@ def block(text, start):
 def line(text, start):
     i = text.index(start); return text[i:text.index("\n", i)]
 o = open(old).read(); n = open(new).read()
-helpers = block(n, "private fun parseVoiceNameAsLocale(") + "\n" + block(n, "private fun localeIso3(")
+helpers = block(n, "private fun parseVoiceNameAsLocale(") + "\n" + block(n, "private fun parseVoiceNameAsLocaleUncached(") + "\n" + \
+    line(n, "private val parsedLocales") + "\n" + line(n, "private val NO_LOCALE") + "\n" + block(n, "private fun localeIso3(")
+# 2026-10-06: the parser caches now, so the OLD class keeps the old commit's
+# own parser and the driver compares the two answers.
+helpersOld = block(o, "private fun parseVoiceNameAsLocale(") + "\n" + block(o, "private fun localeIso3(")
 with open(out, "w") as f:
     f.write("fun localeOf(l: String, c: String = \"\", v: String = \"\") = java.util.Locale(l, c, v)\n")
-    f.write("class OldS(val voiceList: ArrayList<String>) {\n" + helpers + "\n" + block(o, "private fun findEngineForLocale(") + "\nfun find(l: java.util.Locale) = findEngineForLocale(l)\n}\n")
+    f.write("class OldS(val voiceList: ArrayList<String>) {\n" + helpersOld + "\n" + block(o, "private fun findEngineForLocale(") + "\nfun find(l: java.util.Locale) = findEngineForLocale(l)\nfun parse(t: String?) = parseVoiceNameAsLocale(t)\n}\n")
     f.write("class NewS(var voiceList: ArrayList<String>) {\n" + helpers + "\n" + block(n, "private inner class VoiceEntry(").replace("private inner", "inner") + "\n" +
             line(n, "@Volatile private var parsedVoices") + "\n" + block(n, "private fun voiceEntries(").replace("private fun", "fun") + "\n" +
             block(n, "private fun findEngineForLocale(") + "\nfun find(l: java.util.Locale) = findEngineForLocale(l)\nfun entries() = voiceEntries()\nfun parse(t: String?) = parseVoiceNameAsLocale(t)\n}\n")

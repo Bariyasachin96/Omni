@@ -59,6 +59,17 @@ fun main() {
             val a = NewLS.isAvailable(lang); val b = OldLS.availableLanguagesFor(null, true).contains(lang)
             if (a != b) { bad++; if (bad < 5) println("DIFF available $lang") }
         }
+        // 2026-10-06: loadPlan is isAvailable(raw), engineFor(raw) and
+        // voiceTargetFor(lang) in one walk -- every raw/lang pair, every mode.
+        EasyVoiceLogger.on = false
+        for (raw in isos + listOf("")) for (lang in isos + listOf("")) for (mode in listOf(0, 2, 3, 4, 5)) {
+            cases++
+            val plan = NewLS.loadPlan(raw, lang, mode)
+            val got = listOf(plan.available.toString(), plan.rawEngine, plan.locale, plan.engine, plan.variant)
+            val want = listOf(OldLS.availableLanguagesFor(null, true).contains(raw).toString(), OldLS.engineFor(raw, mode),
+                OldLS.localeFor(lang, mode), OldLS.engineFor(lang, mode), OldLS.variantFor(lang, mode))
+            if (got != want) { bad++; if (bad < 5) println("DIFF loadPlan $raw/$lang/$mode: $got vs $want") }
+        }
         val none: String? = null
         if (NewLS.isAvailable(none) != OldLS.availableLanguagesFor(null, true).contains(none)) bad++
     }

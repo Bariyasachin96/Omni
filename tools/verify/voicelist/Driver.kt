@@ -13,6 +13,17 @@ fun main() {
     }
     val wants = tags.map { t -> val p = t.split("_"); localeOf(p[0], p.getOrElse(1) { "" }, p.getOrElse(2) { "" }) } + listOf(localeOf("eng"), localeOf("hin", "IND"))
     var cases = 0; var bad = 0
+    // 2026-10-06: the cached parser answers what the old one did -- the same
+    // tags again and again (hits), then more distinct ones than the cache holds.
+    run {
+        val o = OldS(ArrayList()); val w = NewS(ArrayList())
+        val many = tags + listOf<String?>(null) + (0 until 400).map { "q" + it + "_" + (if (it % 3 == 0) "" else "R" + it) + (if (it % 7 == 0) "_v" else "") }
+        repeat(200000) {
+            val t = many[rnd.nextInt(many.size)]
+            cases++
+            if (o.parse(t) != w.parse(t)) { bad++; if (bad < 5) println("DIFF parse $t") }
+        }
+    }
     repeat(20000) {
         val list = ArrayList<String>(); repeat(rnd.nextInt(30)) { list.add(entry()) }
         val oldS = OldS(list); val newS = NewS(list)

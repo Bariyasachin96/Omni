@@ -8,7 +8,31 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE SECOND PERFORMANCE SWEEP: ELEVEN ITEMS, COLD START FIRST (owner, 2026-10-01, latest)
+## THE DOUBLE-WORK SWEEP: SEVEN ITEMS, BOTH SIDES (owner, 2026-10-06, latest)
+*"double double processing ... Kati side bhi aur Si plus plus side bhi ... ek hi bar mein ... saaton kar do test karke."*
+Read first: the first chunk is NOT loaded twice (speakChunk(true) never reloads after the preflight). What was left:
+- **1 One Java string per distinct short value** (`toJavaStringArray`): counts, types, the retired "0", the "" fold
+  slot, latin flags and language codes were each a NewStringUTF; values of <= 8 bytes are shared (<= 32 per call).
+  Over corebytes' answers: Java strings made 560,532 -> 297,248 (53%).
+- **2** processDirect moves the utterance into the segmenter (was a full copy). **3** `foldAndSpansFlat(..., forRecord)`
+  / `languageSpansFlat(..., blankWhole)` never build the fold slot or a whole-chunk span that processDirect sent as ""
+  (built, compared, cleared before). **4** records and spans are MOVED into the answer.
+- **5 `TextChunk.iso3()`** memoises toIso3(lang) per chunk (keyed by lang, one immutable Pair);
+  `SharedPrefsManager.toIso3Cached` is the static cache both reach.
+- **6 `LangStore.loadPlan(raw, lang, mode)`**: onLoadLanguage's isAvailable(raw) + voiceTargetFor(lang) in ONE walk
+  (logging off; logging on keeps the old calls and log). **`parseVoiceNameAsLocale` caches** (256, NO_LOCALE = null).
+- **7** the prefetch's engineFor(raw) check comes from the same plan: `loadLanguage(..., needEngine = true)` answers
+  null for "no engine" (logging on: old engineFor + onLoadLanguage pair).
+- **Proof:** corebytes 895,440 cases 0 differ (negatives: share by length 877,168; blank any offset-0 span 11,264;
+  shared ref freed early = abort; NOT caught and output-equal by construction: fold slot built again); langstore
+  9,200,000 IDENTICAL incl. every raw/lang/mode loadPlan (negatives 839,250 / 539,125 / 910,692 / 1,440,000);
+  voicelist 3,984,980 IDENTICAL incl. 200,000 cached-vs-old parses (negatives sentinel leak, key cut: FAILED);
+  new `tools/verify/chunkiso3` IDENTICAL (negative nokey 1,788,624); speakpipe 200,000 0 differ (logging off on
+  every other seed; the no-engine negative is invisible to its fake engine -- langstore proves that part); prefetch
+  400,000 0 differ; toiso3, runlang, coldstart, restore, scansched, enginefinder, oldnew, onecall, stress, segmenter,
+  devanagari all pass; check-all 0/0, selftest EVERY CHECK FIRES.
+
+## THE SECOND PERFORMANCE SWEEP: ELEVEN ITEMS, COLD START FIRST (owner, 2026-10-01)
 *"process over kar raha ho ... performance kharab ... latency ... Puri list ... Sabhi kar do."*
 Native core measured at the floor (165 chars ~0.05 ms), so the list was the Kotlin side:
 - **1 Two-wave engine start** (`startNextInitEngine` -> `firstWaveOf(walk, usedEnginePkgs())`, `startEngineClient`):

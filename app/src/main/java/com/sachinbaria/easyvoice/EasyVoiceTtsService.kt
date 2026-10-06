@@ -22,7 +22,20 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null)
+data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null) {
+    // toIso3(lang) worked out once per chunk (owner, 2026-10-06): the prefetch,
+    // the queue-ahead, speakChunk and onDone each converted the same chunk's
+    // language again. Keyed by `lang` itself, so a chunk whose language is
+    // reassigned converts the new one; one immutable pair, so a reader on
+    // another thread sees a key and its value together or neither.
+    @Volatile private var iso3Memo: Pair<String, String>? = null
+    fun iso3(): String {
+        val l = lang
+        val memo = iso3Memo
+        if (memo != null && memo.first == l) return memo.second
+        return SharedPrefsManager.toIso3Cached(l).also { iso3Memo = Pair(l, it) }
+    }
+}
 class EasyVoiceTtsService : TextToSpeechService() {
     private val enginePool = ArrayList<EngineWrapper>()
     // THE SERVICE'S ONE MAIN-LOOPER HANDLER (2026-09-23). There were three --
@@ -2329,12 +2342,26 @@ class EasyVoiceTtsService : TextToSpeechService() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -res: " + result }
         return result
     }
-    override fun onLoadLanguage(langCode: String?, countryCode: String?, variantName: String?): Int {
+    override fun onLoadLanguage(langCode: String?, countryCode: String?, variantName: String?): Int =
+        loadLanguage(langCode, countryCode, variantName, false) ?: TextToSpeech.LANG_NOT_SUPPORTED
+    // onLoadLanguage's body. With logging OFF the list is walked ONCE for all it
+    // needs (LangStore.loadPlan, owner 2026-10-06): availability, the target
+    // voice, and -- for the prefetch (`needEngine`) -- whether the raw code has
+    // an engine; null then means "no engine", decided before anything is loaded.
+    // With logging on it is the old code, call for call, so the log lines and
+    // their order stay what they were. tools/verify/langstore proves loadPlan.
+    private fun loadLanguage(langCode: String?, countryCode: String?, variantName: String?, needEngine: Boolean): Int? {
         awaitEngineStarting(langCode)
         return synchronized(this) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onLoadLanguage: " + langCode + " " + countryCode + " " + variantName }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "loadLanguage " + langCode + " " + countryCode + " " + variantName }
-            val result = onIsLanguageAvailable(langCode, countryCode, variantName)
+            val logging = EasyVoiceLogger.isLoggingEnabled()
+            val plan = if (logging) null else LangStore.loadPlan(langCode ?: "",
+                if (langCode.isNullOrEmpty()) "" else prefs.toIso3(langCode.lowercase()), modeInt)
+            if (needEngine && plan != null && plan.rawEngine.isEmpty()) return@synchronized null
+            val result = if (plan == null) onIsLanguageAvailable(langCode, countryCode, variantName)
+                else if (calledFromOwnClient("onIsLanguageAvailable")) TextToSpeech.LANG_NOT_SUPPORTED
+                else if (plan.available) TextToSpeech.LANG_AVAILABLE else TextToSpeech.LANG_NOT_SUPPORTED
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " isLanguageAvailable = " + result }
             // There used to be a `&& ::prefs.isInitialized` here. It was ours, not
             // AutoTTS's, and it could only ever do harm: if it had been false this
@@ -2353,7 +2380,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 var voiceLoc: String
                 var enginePkg: String
                 val variantOut: String
-                if (EasyVoiceLogger.isLoggingEnabled()) {
+                if (plan == null) {
                     // The three walks that write AutoTTS's log lines, in their order.
                     voiceLoc = LangStore.localeFor(lang, modeInt)
                     enginePkg = LangStore.engineFor(lang, modeInt)
@@ -2363,12 +2390,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         enginePkg = LangStore.engineFor(autoIso3, modeInt)
                     }
                 } else {
-                    // Logging off: the same three answers from ONE walk
-                    // (owner, 2026-10-01). tools/verify/langstore proves it.
-                    val target = LangStore.voiceTargetFor(lang, modeInt)
-                    voiceLoc = target[0]
-                    enginePkg = target[1]
-                    variantOut = if (variantOrEmpty.isEmpty()) target[2] else variantOrEmpty
+                    // Logging off: the same three answers, already in the plan
+                    // (owner, 2026-10-01 / 2026-10-06). tools/verify/langstore proves it.
+                    voiceLoc = plan.locale
+                    enginePkg = plan.engine
+                    variantOut = if (variantOrEmpty.isEmpty()) plan.variant else variantOrEmpty
                     if (enginePkg.isEmpty()) {
                         val auto = LangStore.voiceTargetFor(autoIso3, modeInt)
                         voiceLoc = auto[0]
@@ -2465,8 +2491,22 @@ class EasyVoiceTtsService : TextToSpeechService() {
         parsedVoices = Pair(list, parsed)
         return parsed
     }
+    // Answers cached by the string (owner, 2026-10-06): every language switch
+    // parsed the same few stored locale tags again -- a split and a new Locale
+    // each -- and loadVoiceDedicated parsed one per list entry. A Locale is
+    // immutable and compared by value, so handing back the same object is the
+    // same answer; NO_LOCALE stands in for null. Capped like toIso3's cache.
     private fun parseVoiceNameAsLocale(voiceName: String?): java.util.Locale? {
         if (voiceName == null) return null
+        val cached = parsedLocales[voiceName]
+        if (cached != null) return if (cached === NO_LOCALE) null else cached
+        val parsed = parseVoiceNameAsLocaleUncached(voiceName)
+        if (parsedLocales.size < 256) parsedLocales[voiceName] = parsed ?: NO_LOCALE
+        return parsed
+    }
+    private val parsedLocales = java.util.concurrent.ConcurrentHashMap<String, java.util.Locale>()
+    private val NO_LOCALE: java.util.Locale = localeOf("x-none")
+    private fun parseVoiceNameAsLocaleUncached(voiceName: String): java.util.Locale? {
         return try {
             val parts = voiceName.split("_")
             when (parts.size) {
@@ -3790,12 +3830,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 4 -> puncSpecificLang
                 5 -> emojiSpecificLang
                 else -> ""
-            } else prefs.toIso3(next.lang)
+            } else next.iso3()
             if (lang.isEmpty()) return
-            val nextPkg = LangStore.engineFor(lang, modeInt)
-            if (nextPkg.isEmpty()) return
+            // Logging on: engineFor, then onLoadLanguage -- the old pair, log
+            // lines included. Logging off: loadLanguage(needEngine = true) finds
+            // "no engine" in the same walk the load uses and answers null
+            // (owner, 2026-10-06: one walk, not two).
+            val nextPkg = if (EasyVoiceLogger.isLoggingEnabled()) LangStore.engineFor(lang, modeInt) else null
+            if (nextPkg != null && nextPkg.isEmpty()) return
             try {
-                prefetchedResult = onLoadLanguage(lang, "", "")
+                prefetchedResult = (if (nextPkg != null) onLoadLanguage(lang, "", "") else loadLanguage(lang, "", "", true)) ?: return
                 prefetchedReady = engineIndex >= 0
                 prefetchedLang = lang
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "prefetch " + lang + " on " + nextPkg + " = " + prefetchedResult }
@@ -4095,7 +4139,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 }
                             }
                         } else if (modeInt == 4 || modeInt == 5) {
-                            val nextLang = prefs.toIso3(next.lang)
+                            val nextLang = next.iso3()
                             // Mirrors AutoTTS's Q(lang) at this exact point. Its
                             // result is deliberately discarded, and that is NOT an
                             // oversight: AutoTTS only uses it to fall back by
@@ -4127,7 +4171,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 advance = false
                             }
                         } else {
-                            val nextLang = prefs.toIso3(next.lang)
+                            val nextLang = next.iso3()
                             val loadRes = loadOrPrefetched(nextLang)
                             if (loadRes == TextToSpeech.LANG_NOT_SUPPORTED || loadRes == TextToSpeech.LANG_MISSING_DATA) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language " + nextLang + " is not supported.\n Text: " + next.text)
@@ -4346,7 +4390,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 4 -> puncSpecificLang
                 5 -> emojiSpecificLang
                 else -> ""
-            } else prefs.toIso3(next.lang)
+            } else next.iso3()
             if (loadLang.isNotEmpty()) {
                 if (prefetchedLang != loadLang) return
                 if (prefetchedResult == TextToSpeech.LANG_NOT_SUPPORTED || prefetchedResult == TextToSpeech.LANG_MISSING_DATA) return
@@ -4371,9 +4415,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val chunk = pair.second
             val effectiveLang = if (modeInt == 1) when (chunk.typeCode) {
                 2 -> prefs.toIso3(dualLang)
-                3, 4, 5 -> prefs.toIso3(chunk.lang)
+                3, 4, 5 -> chunk.iso3()
                 else -> "eng"
-            } else prefs.toIso3(chunk.lang)
+            } else chunk.iso3()
             val voiceParams = LangStore.voiceParamsFor(effectiveLang)
             val finalRate   = sysRate  * (voiceParams[0] / 100.0f)
             val finalPitch  = sysPitch * (voiceParams[1] / 100.0f)
@@ -4431,9 +4475,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val (currentChunk, chunk) = pair
             val effectiveLang = if (modeInt == 1) when (chunk.typeCode) {
                 2 -> prefs.toIso3(dualLang)
-                3, 4, 5 -> prefs.toIso3(chunk.lang)
+                3, 4, 5 -> chunk.iso3()
                 else -> "eng"
-            } else prefs.toIso3(chunk.lang)
+            } else chunk.iso3()
             val chunkText = chunk.text
             currentPair = pair
             currentPairFirst = first
