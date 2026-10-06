@@ -13,21 +13,3 @@ record sep \u001E inside and unit sep \u001F and escape \u001D here
 x
 अ
 😀
-# 2026-10-06: lone non-Latin characters under quick character read
-ि
-ू
-्
-ं
-़
-ः
-િ
-્
-ক
-ি
-ட
-ि
-ก
-a
-1
-,
-◌ि

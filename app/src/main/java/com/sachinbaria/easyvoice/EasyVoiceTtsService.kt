@@ -2848,9 +2848,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun detectWindowThenAggregate(text: String, latinFallback: String, nonLatinFallback: String): String {
         if (text.isEmpty()) return detectLanguageAggregate(text)
         val quick = quickCharacterFlag
-        // A lone non-Latin character (a matra, a halant, one akshar) goes on to
-        // the window detector like any text (owner, 2026-10-06).
-        if (text.length == 1 && quick && isLatinCommonInherited(text.codePointAt(0))) return detectLanguageAggregate(text)
+        if (text.length == 1 && quick) return detectLanguageAggregate(text)
         try {
             initIsoMaps()
             val out = detectWindowOrSpans(text, latinFallback, nonLatinFallback, disableAdvancedFlag,
@@ -2993,12 +2991,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun runsFromFlat(flat: List<String>, first: Int, quick: Boolean, sameAs: String? = null): List<DetectedRun> {
         val runs = ArrayList<DetectedRun>()
         val folded = if (sameAs != null && flat[first].isEmpty()) sameAs else flat[first]
-        // Only a lone Latin/Common/Inherited character stops here (owner,
-        // 2026-10-06): a lone matra, halant or akshar of another script is
-        // detected like any text, so it reaches its own language's voice --
-        // see foldAndSpansFlat, which decides the same way from the same table.
-        if (quick && folded.length == 1 && isLatinCommonInherited(folded.codePointAt(0))) {
-            runs.add(DetectedRun("un", true, folded))
+        if (quick && folded.length == 1) {
+            runs.add(DetectedRun("un", isLatinCommonInherited(folded.codePointAt(0)), folded))
             return runs
         }
         var index = first + 1
@@ -3031,7 +3025,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // is the folded text -- nativeFoldAndDetect's array, or the tail of
     // detectWindowOrSpans's.
     private fun aggregateOf(flat: List<String>, first: Int, quick: Boolean): String {
-        if (quick && flat[first].length == 1 && isLatinCommonInherited(flat[first].codePointAt(0))) return "un"
+        if (quick && flat[first].length == 1) return "un"
         val size = flat.size - first
         if (size < 4) return "un"
         // One triple means one span, so there is nothing to weigh up.
