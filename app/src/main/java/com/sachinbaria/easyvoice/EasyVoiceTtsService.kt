@@ -3067,12 +3067,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (text.isEmpty()) arrayOf(text)
             else arrayOf(text, "un", if (isLatinCommonInherited(text.codePointAt(0))) "1" else "0", text)
         }
-    private fun isLatinCommonInherited(codePoint: Int): Boolean {
-        val script = Character.UnicodeScript.of(codePoint)
-        return script == Character.UnicodeScript.LATIN ||
-            script == Character.UnicodeScript.COMMON ||
-            script == Character.UnicodeScript.INHERITED
-    }
+    // clsCLD2.g: Script is Latin, Common or Inherited. From the app's own
+    // generated table (UnicodeTables, owner 2026-10-06) rather than
+    // Character.UnicodeScript, whose answer is whatever Unicode the phone's
+    // Android carries -- a character newer than that was "Unknown" there.
+    private fun isLatinCommonInherited(codePoint: Int): Boolean = UnicodeTables.isLatinCommonInherited(codePoint)
+
     // A detected run's final iso3, as the mix and multilingual loops add it:
     // prefs.toIso3(languageForDetectedRun(...)). The answer depends only on the
     // run's language and latin flag within one utterance, so with a `memo` it is

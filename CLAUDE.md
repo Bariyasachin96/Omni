@@ -8,7 +8,38 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE DOUBLE-WORK SWEEP: SEVEN ITEMS, BOTH SIDES (owner, 2026-10-06, latest)
+## THE UNICODE IS GENERATED FROM UCD 18.0 NOW, NOT TYPED BY HAND (owner, 2026-10-06, latest)
+*"detection Mein Ham Jo Unicode use kar rahe hain ... bilkul Purana Hai ... latest likho aur latest hisab se karo."*
+Every Unicode table the app reads comes from `tools/unicode/gen_tables.py` over `tools/unicode/ucd/` (UCD 18.0.0,
+emoji 18.0, fetched from unicode.org) into `app/src/main/cpp/unicode_tables.h` and `UnicodeTables.kt`. **Do not
+edit those two files; regenerate.** check-all runs `gen_tables.py --check`. To move to Unicode 19: new files in
+tools/unicode/ucd, run the generator, then `tools/verify/unicode/run.sh` and the detection harnesses.
+- **isEmoji** = Extended_Pictographic + Emoji_Component minus # * 0-9 and ZWJ (was a Unicode-11-era hand list: missed
+  every newer emoji and the tag characters, so 🟠🫠 went to the NON-LATIN voice and tag flags were cut). Unicode
+  18's Ext_Pict no longer lists some old symbols (★ U+2605), so those stopped being emoji -- per the data.
+- **isLetterCodepoint** (Java isLetter, smart-number keyword edges) = General_Category L*.
+- **span script slot** (`spanScriptSlot`, libcld2's classifyScript) = Script, else a single-slot Script_Extensions,
+  else none (the danda stays neutral by the data). Adds CJK Ext G-J, Cyrillic Ext-C/D, Arabic Ext-B/C, Mtavruli,
+  Myanmar/Ethiopic extensions...; × ÷ and U+FEFF are neutral now.
+- **bidi strip** = Bidi_Control (adds the isolates U+2066-2069). **Latin buffer** (`isLatinBufferCp`) = c3.w's
+  blocks PLUS Script=Latin (only adds). **fold** = clsCLD2.a first, then styling compatibility forms to one ASCII
+  letter/digit (85 new: outlined digits, modifier capitals...; not Latin-1 ª º, not emoji ℹ).
+- **script-family fallback** (a.java): where its Unicode-6 block ranges give nothing, the Script picks the same
+  family a.java gives that script (only fills "un"/"" answers). Kotlin `isLatinCommonInherited` = own table, not
+  the phone's Character.UnicodeScript.
+- **Not changeable:** CLD2's own internal script/quadgram tables (generated 2014 by tools not in its repo).
+  VoiceRows' Test-sample script check still uses the platform (UI only).
+- **Proof:** new `tools/verify/unicode/run.sh`: every one of 1,112,064 code points through the real functions vs an
+  independent reading of the UCD -- fold, emoji, letter, slot, latin buffer, bidi, family, Kotlin all IDENTICAL;
+  changed vs the old tables: fold 85, emoji 2,145, letter 117,750, family 7,986. Negatives caught (tag chars lost 95,
+  danda as Devanagari 2, a letter lost 2, an isolate lost 1, wrong fallback family 81, fold without clsCLD2.a 132).
+  segmenter IDENTICAL 163,296 vs AutoTTS; scriptfamily identical wherever a.java answers (32,806 added; negative:
+  an old answer changed = BAD 120); normaliser IDENTICAL; corebytes vs the last commit: 6,536 records in 11 texts
+  differ, every one a Unicode-18 change (new emoji, fullwidth/small-caps Latin now "en", an unassigned code point no
+  longer "Lao"); oldnew 690 (the coloured-circles text); onecall, stress, devanagari, runlang, langstore pass;
+  `make_core_inc.py` pastes the table into slices. check-all 0/0, selftest EVERY CHECK FIRES.
+
+## THE DOUBLE-WORK SWEEP: SEVEN ITEMS, BOTH SIDES (owner, 2026-10-06)
 *"double double processing ... Kati side bhi aur Si plus plus side bhi ... ek hi bar mein ... saaton kar do test karke."*
 Read first: the first chunk is NOT loaded twice (speakChunk(true) never reloads after the preflight). What was left:
 - **1 One Java string per distinct short value** (`toJavaStringArray`): counts, types, the retired "0", the "" fold

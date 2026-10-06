@@ -31,6 +31,7 @@ step "kotlin call signatures"  python3 tools/check/ktresolve.py
 step "kotlin imports"          python3 tools/check/ktimports.py
 step "xml resources"           python3 tools/check/xmlcheck.py
 step "invariants"              bash    tools/check/invariants.sh
+step "unicode tables current"  python3 tools/unicode/gen_tables.py --check
 step "c++ syntax"              bash    tools/check/cpp-syntax.sh
 step "minSdk API usage"        bash    tools/check/minsdk-api.sh
 step "workflow shell"          bash    tools/check/workflow-shell.sh

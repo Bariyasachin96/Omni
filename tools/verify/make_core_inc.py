@@ -88,12 +88,22 @@ def cut_point(lines, name):
     raise SystemExit('make_core_inc: %s never closes' % name)
 
 
-def strip(lines):
+def strip(lines, source):
     out = []
     index = 0
     while index < len(lines):
         line = lines[index]
         if line.strip() in DROP_INCLUDES:
+            index += 1
+            continue
+        # The generated Unicode tables (2026-10-06) are pasted in, so a slice
+        # stays one self-contained file: from beside the source when that copy
+        # has them (an old commit's core with its own tables), else the tree's.
+        if line.startswith('#include "unicode_tables.h"'):
+            here = os.path.join(os.path.dirname(os.path.abspath(source)), 'unicode_tables.h')
+            if not os.path.exists(here):
+                here = os.path.join(os.path.dirname(os.path.abspath(DEFAULT_SOURCE)), 'unicode_tables.h')
+            out.extend(l for l in open(here, encoding='utf-8').read().split('\n') if l.strip() != '#pragma once')
             index += 1
             continue
         if line.startswith('JNIEXPORT jint JNI_OnLoad') or line.startswith('extern "C" JNIEXPORT'):
@@ -158,7 +168,7 @@ def main():
                          'root' % args.source)
 
     lines = open(args.source, encoding='utf-8').read().split('\n')
-    kept = strip(lines[:cut_point(lines, args.until)])
+    kept = strip(lines[:cut_point(lines, args.until)], args.source)
     text = '\n'.join(kept)
     # Only stub what the slice actually needs. A short slice -- the normaliser,
     # say -- contains neither the hint accessor nor the keyword cache.

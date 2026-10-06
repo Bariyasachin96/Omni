@@ -13,6 +13,7 @@
 #include <limits>
 #include <iterator>
 #include "compact_lang_det.h"
+#include "unicode_tables.h"   // generated from the Unicode Character Database
 #include "encodings.h"
 #include "compact_lang_det_impl.h"
 // java.lang.String, looked up ONCE. Android's JNI tips: "cache the IDs in
@@ -397,6 +398,18 @@ static bool isFancyTrigger(int cp){
         || cp == 0xA730 || cp == 0xA731;                   // 42800, 42801
 }
 
+// clsCLD2.a's fold first; where it leaves a code point alone, the styling
+// compatibility forms of the current Unicode (kUniFold: font, circled, wide,
+// super/subscript, squared, small, narrow forms of one ASCII letter or digit --
+// e.g. the outlined digits U+1CCF0.., the modifier capitals U+1D2C..) fold to
+// that letter too (owner, 2026-10-06: "latest Unicode"). Every target is ASCII,
+// which neither table touches, so folding twice still changes nothing.
+static int foldCodepoint(int cp){
+    int folded = normalizeFancyCodepoint(cp);
+    if(folded != cp) return folded;
+    return uniValue(kUniFold, cp, cp);
+}
+
 // Does the text hold anything the fold would change? Split out (owner,
 // 2026-10-01) so a caller can keep its own string when the answer is no,
 // instead of getting a copy of it back from normalizeFancyText.
@@ -405,7 +418,7 @@ static bool needsFancyFold(const std::string& text){
         int cpLen = 0;
         int cp = utf8ToCodepoint((const unsigned char*)text.data() + at, cpLen);
         if(cpLen <= 0) cpLen = 1;
-        if(isFancyTrigger(cp)) return true;
+        if(isFancyTrigger(cp) || uniValue(kUniFold, cp, -1) >= 0) return true;
         at += cpLen;
     }
     return false;
@@ -420,7 +433,7 @@ static std::string normalizeFancyText(const std::string& text){
         int cpLen = 0;
         int cp = utf8ToCodepoint((const unsigned char*)text.data() + at, cpLen);
         if(cpLen <= 0) cpLen = 1;
-        appendCodepointUtf8(out, normalizeFancyCodepoint(cp));
+        appendCodepointUtf8(out, foldCodepoint(cp));
         at += cpLen;
     }
     return out;
@@ -430,19 +443,36 @@ static std::string normalizeFancyText(const std::string& text){
 // ==========================================================================
 //  EMOJI
 // ==========================================================================
+// Extended_Pictographic + Emoji_Component of the current Unicode (kUniEmoji,
+// generated), minus # * 0-9 and ZWJ (owner, 2026-10-06). This was a hand list
+// from Unicode 11-era data: it missed every emoji since (🟠 U+1F7E0, 🫠 U+1FAE0,
+// the 1FA70-1FAFF block ...) and the tag characters, so a tag flag was cut in two.
 inline bool isEmoji(int codePoint) {
-    return codePoint==0x00A9||codePoint==0x00AE||codePoint==0x203C||codePoint==0x2049||codePoint==0x2122||codePoint==0x2139||
-           (codePoint>=0x2194&&codePoint<=0x2199)||(codePoint>=0x21A9&&codePoint<=0x21AA)||
-           codePoint==0x231A||codePoint==0x231B||codePoint==0x2328||codePoint==0x23CF||(codePoint>=0x23E9&&codePoint<=0x23F3)||(codePoint>=0x23F8&&codePoint<=0x23FA)||
-           codePoint==0x24C2||codePoint==0x25AA||codePoint==0x25AB||codePoint==0x25B6||codePoint==0x25C0||(codePoint>=0x25FB&&codePoint<=0x25FE)||
-           (codePoint>=0x2600&&codePoint<=0x26FF)||(codePoint>=0x2700&&codePoint<=0x27BF)||codePoint==0x2934||codePoint==0x2935||
-           (codePoint>=0x2B05&&codePoint<=0x2B07)||codePoint==0x2B1B||codePoint==0x2B1C||codePoint==0x2B50||codePoint==0x2B55||
-           codePoint==0x3030||codePoint==0x303D||codePoint==0x3297||codePoint==0x3299||codePoint==0x20E3||codePoint==0xFE0F||
-           codePoint==0x1F004||codePoint==0x1F0CF||
-           codePoint==0x1F170||codePoint==0x1F171||codePoint==0x1F17E||codePoint==0x1F17F||codePoint==0x1F18E||(codePoint>=0x1F191&&codePoint<=0x1F19A)||
-           (codePoint>=0x1F1E6&&codePoint<=0x1F1FF)||
-           codePoint==0x1F201||codePoint==0x1F202||codePoint==0x1F21A||codePoint==0x1F22F||(codePoint>=0x1F232&&codePoint<=0x1F23A)||codePoint==0x1F250||codePoint==0x1F251||
-           (codePoint>=0x1F300&&codePoint<=0x1F5FF)||(codePoint>=0x1F600&&codePoint<=0x1F64F)||(codePoint>=0x1F680&&codePoint<=0x1F6FF)||(codePoint>=0x1F900&&codePoint<=0x1F9FF);
+    return uniIn(kUniEmoji, codePoint);
+}
+// libcld2 getLanguageSpans' script of one code point (languageSpansFlat's classifyScript).
+static int spanScriptSlot(int codePoint){
+    // 0x653ae8: `and w8, w8, #0x5f / sub w8, w8, #0x5b / cmn w8, #0x1a /
+    // b.lo 0x653b88`. b.lo is taken when the folded byte is OUTSIDE
+    // [0x41, 0x5A], and 0x653b88 is `mov w27, w3` -- keep the current
+    // script. A letter falls through to 0x653b78, `mov w27, #1` = Latin.
+    // So a letter means Latin and anything else means "no information",
+    // exactly like the ASCII fast path in the caller. This branch is
+    // reachable only through an OVERLONG UTF-8 sequence, which is not
+    // hypothetical: JNI hands out modified UTF-8, where U+0000 is C0 80.
+    if (codePoint < 0x80) {
+        int folded = codePoint & 0x5F;
+        return (folded >= 0x41 && folded <= 0x5A) ? 1 : -1;
+    }
+    // Everything above ASCII from the current Unicode (kUniSpanSlot,
+    // generated; owner 2026-10-06). libcld2's hand-made block test stopped at
+    // Unicode ~6: CJK Extensions G-J, Cyrillic Extended-C/D, Arabic
+    // Extended-B/C, Georgian Mtavruli, Myanmar Extended-A/B, Ethiopic
+    // Extended ... all read as "no script". A code point takes its Script's
+    // slot; a Common/Inherited one the single slot its Script_Extensions
+    // name, else none -- which is why the danda (U+0964/5, a dozen Indic
+    // scripts) stays neutral exactly as 5.7.7.26 made it by hand.
+    return uniValue(kUniSpanSlot, codePoint, -1);
 }
 
 // ==========================================================================
@@ -564,83 +594,13 @@ static const std::vector<std::string>& activeSmartNumberKeywords(){
     smartNumberCacheValid = true;
     return smartNumberActive;
 }
-static bool isNonLetterInsideLetterBlock(int codePoint){
-    if(codePoint >= 0x0300 && codePoint <= 0x036F) return true;
-    if(codePoint == 0x0374 || codePoint == 0x0375 || codePoint == 0x037E || codePoint == 0x0384 ||
-       codePoint == 0x0385 || codePoint == 0x0387) return true;
-    if(codePoint >= 0x0483 && codePoint <= 0x0489) return true;
-    if(codePoint >= 0x0591 && codePoint <= 0x05C7) return true;
-    if(codePoint >= 0x0610 && codePoint <= 0x061A) return true;
-    if(codePoint >= 0x064B && codePoint <= 0x065F) return true;
-    if(codePoint >= 0x0660 && codePoint <= 0x0669) return true;
-    if(codePoint == 0x0670) return true;
-    if(codePoint >= 0x06D6 && codePoint <= 0x06ED) return true;
-    if(codePoint >= 0x06F0 && codePoint <= 0x06F9) return true;
-    if(codePoint >= 0x0900 && codePoint <= 0x0903) return true;
-    if(codePoint >= 0x093A && codePoint <= 0x094F) return true;
-    if(codePoint >= 0x0951 && codePoint <= 0x0957) return true;
-    if(codePoint >= 0x0962 && codePoint <= 0x096F) return true;
-    if(codePoint >= 0x0981 && codePoint <= 0x0983) return true;
-    if(codePoint >= 0x09BC && codePoint <= 0x09CD) return true;
-    if(codePoint >= 0x09E2 && codePoint <= 0x09EF) return true;
-    if(codePoint >= 0x0A01 && codePoint <= 0x0A03) return true;
-    if(codePoint >= 0x0A3C && codePoint <= 0x0A4D) return true;
-    if(codePoint >= 0x0A66 && codePoint <= 0x0A71) return true;
-    if(codePoint >= 0x0A81 && codePoint <= 0x0A83) return true;
-    if(codePoint >= 0x0ABC && codePoint <= 0x0ACD) return true;
-    if(codePoint >= 0x0AE2 && codePoint <= 0x0AEF) return true;
-    if(codePoint >= 0x0B01 && codePoint <= 0x0B03) return true;
-    if(codePoint >= 0x0B3C && codePoint <= 0x0B4D) return true;
-    if(codePoint >= 0x0B62 && codePoint <= 0x0B6F) return true;
-    if(codePoint >= 0x0B82 && codePoint <= 0x0B82) return true;
-    if(codePoint >= 0x0BBE && codePoint <= 0x0BCD) return true;
-    if(codePoint >= 0x0BE6 && codePoint <= 0x0BEF) return true;
-    if(codePoint >= 0x0C00 && codePoint <= 0x0C04) return true;
-    if(codePoint >= 0x0C3E && codePoint <= 0x0C56) return true;
-    if(codePoint >= 0x0C66 && codePoint <= 0x0C6F) return true;
-    if(codePoint >= 0x0C81 && codePoint <= 0x0C83) return true;
-    if(codePoint >= 0x0CBC && codePoint <= 0x0CD6) return true;
-    if(codePoint >= 0x0CE6 && codePoint <= 0x0CEF) return true;
-    if(codePoint >= 0x0D00 && codePoint <= 0x0D03) return true;
-    if(codePoint >= 0x0D3B && codePoint <= 0x0D4D) return true;
-    if(codePoint >= 0x0D66 && codePoint <= 0x0D6F) return true;
-    if(codePoint >= 0x0D81 && codePoint <= 0x0D83) return true;
-    if(codePoint >= 0x0DCA && codePoint <= 0x0DDF) return true;
-    if(codePoint >= 0x0DE6 && codePoint <= 0x0DEF) return true;
-    if(codePoint >= 0x0E31 && codePoint <= 0x0E3A) return true;
-    if(codePoint >= 0x0E47 && codePoint <= 0x0E4E) return true;
-    if(codePoint >= 0x0E50 && codePoint <= 0x0E5B) return true;
-    if(codePoint >= 0x0EB1 && codePoint <= 0x0EBC) return true;
-    if(codePoint >= 0x0EC8 && codePoint <= 0x0ED9) return true;
-    if(codePoint >= 0x102B && codePoint <= 0x103E) return true;
-    if(codePoint >= 0x1040 && codePoint <= 0x104F) return true;
-    if(codePoint >= 0x1056 && codePoint <= 0x1059) return true;
-    if(codePoint >= 0x17B4 && codePoint <= 0x17D3) return true;
-    return false;
-}
+// Java's Character.isLetter (d0.p asks it): General_Category Lu/Ll/Lt/Lm/Lo
+// of the current Unicode (kUniLetter, generated; owner 2026-10-06). The old
+// block list called IPA, Latin Extended-E, most scripts after Unicode 5 and
+// whole blocks of unassigned code points the wrong thing.
 static bool isLetterCodepoint(int codePoint){
-    // ASCII first, and the exception list only where it has entries -- its
-    // first range starts at U+0300 (owner, 2026-10-01; swept over every code
-    // point against the old order in corebytes/sweeps.cpp).
     if(codePoint < 0x80) return (codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A);
-    if(codePoint >= 0x0300 && isNonLetterInsideLetterBlock(codePoint)) return false;
-    if(codePoint == 0x00AA || codePoint == 0x00B5 || codePoint == 0x00BA) return true;
-    return (codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A)||
-           (codePoint>=0xC0&&codePoint<=0xD6)||(codePoint>=0xD8&&codePoint<=0xF6)||(codePoint>=0xF8&&codePoint<=0x24F)||
-           (codePoint>=0x370&&codePoint<=0x3FF)||(codePoint>=0x400&&codePoint<=0x52F)||
-           (codePoint>=0x531&&codePoint<=0x58F)||(codePoint>=0x5D0&&codePoint<=0x5EA)||
-           (codePoint>=0x620&&codePoint<=0x64A)||(codePoint>=0x66E&&codePoint<=0x6D3)||
-           (codePoint>=0x710&&codePoint<=0x74F)||(codePoint>=0x900&&codePoint<=0x97F)||
-           (codePoint>=0x980&&codePoint<=0x9FF)||(codePoint>=0xA00&&codePoint<=0xA7F)||
-           (codePoint>=0xA80&&codePoint<=0xAFF)||(codePoint>=0xB00&&codePoint<=0xB7F)||
-           (codePoint>=0xB80&&codePoint<=0xBFF)||(codePoint>=0xC00&&codePoint<=0xC7F)||
-           (codePoint>=0xC80&&codePoint<=0xCFF)||(codePoint>=0xD00&&codePoint<=0xD7F)||
-           (codePoint>=0xD80&&codePoint<=0xDFF)||(codePoint>=0xE01&&codePoint<=0xE5B)||
-           (codePoint>=0xE81&&codePoint<=0xEDF)||(codePoint>=0x1000&&codePoint<=0x109F)||
-           (codePoint>=0x1780&&codePoint<=0x17D3)||(codePoint>=0x1E00&&codePoint<=0x1EFF)||
-           (codePoint>=0x2C60&&codePoint<=0x2C7F)||(codePoint>=0x2E80&&codePoint<=0x9FFF)||
-           (codePoint>=0xA720&&codePoint<=0xA7FF)||(codePoint>=0xAC00&&codePoint<=0xD7AF)||
-           (codePoint>=0xF900&&codePoint<=0xFAFF);
+    return uniIn(kUniLetter, codePoint);
 }
 static bool keywordMatchesAnywhere(const std::string& keyword){
     int cpLen = 0;
@@ -1058,6 +1018,20 @@ struct ReadingModes {
 //  PROVEN: tools/verify/segmenter/run.sh -- 163,296 cases against AutoTTS.
 // ==========================================================================
 // ==========================================================================
+// c3.w's Latin pattern -- Basic Latin to Latin Extended-B, Latin Extended
+// Additional, General Punctuation, Currency Symbols, Latin Extended-C/D -- and,
+// added to it, every Script=Latin code point of the current Unicode (kUniLatin;
+// owner 2026-10-06): IPA, Latin Extended-E/F/G, the Latin modifier letters and
+// the fullwidth Latin letters are Latin text too. Only ADDS to the old pattern.
+static bool isLatinBufferCp(int codePoint){
+    return (codePoint <= 0x024F) ||
+           (codePoint >= 0x1E00 && codePoint <= 0x1EFF) ||
+           (codePoint >= 0x2000 && codePoint <= 0x206F) ||
+           (codePoint >= 0x20A0 && codePoint <= 0x20CF) ||
+           (codePoint >= 0x2C60 && codePoint <= 0x2C7F) ||
+           (codePoint >= 0xA720 && codePoint <= 0xA7FF) ||
+           uniIn(kUniLatin, codePoint);
+}
 static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& sentences, const std::string& latinFallback, const std::string& nonLatinFallback, const ReadingModes& modes, const std::string& neutralDefault, int neutralType, bool disableAdvancedDetection, bool isDual = false) {
     std::vector<ChunkResult> result;
     std::string fullText;
@@ -1113,8 +1087,10 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
         while (bytePos < byteLen) {
             int cpLen = 0;
             int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[bytePos], cpLen);
-            if (codePoint == 0x061C || codePoint == 0x200E || codePoint == 0x200F ||
-                (codePoint >= 0x202A && codePoint <= 0x202E)) {
+            // Bidi_Control of the current Unicode (kUniBidiControl): the
+            // marks and embeddings d0.q strips, plus the isolates U+2066-2069
+            // (Unicode 6.3) it predates (owner, 2026-10-06).
+            if (uniIn(kUniBidiControl, codePoint)) {
                 if (!cut) { clean.reserve(fullText.size()); cut = true; }
                 clean.append(fullText, (size_t)keepFrom, (size_t)(bytePos - keepFrom));
                 bytePos += cpLen;
@@ -1146,12 +1122,7 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
         while (i < len) {
             int cpLen = 0;
             int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[i], cpLen);
-            bool latRange = (codePoint <= 0x024F) ||
-                            (codePoint >= 0x1E00 && codePoint <= 0x1EFF) ||
-                            (codePoint >= 0x2000 && codePoint <= 0x206F) ||
-                            (codePoint >= 0x20A0 && codePoint <= 0x20CF) ||
-                            (codePoint >= 0x2C60 && codePoint <= 0x2C7F) ||
-                            (codePoint >= 0xA720 && codePoint <= 0xA7FF);
+            bool latRange = isLatinBufferCp(codePoint);
             int kind = latRange ? 0 : 1;
             if (bufKind != -1 && bufKind != kind) { flushBuf(i); bufStart = i; }
             bufKind = kind;
@@ -1682,7 +1653,43 @@ static std::string familyLangForCpFiltered(int codePoint, const std::unordered_s
                (codePoint>=177984&&codePoint<=178207)||(codePoint>=178208&&codePoint<=183983)||(codePoint>=183984&&codePoint<=191471)||
                (codePoint>=196608&&codePoint<=201551)||(codePoint>=201552&&codePoint<=205743)) && hasCjk())
         return pickFamilyLangArr(FAMILY_CJK, enabled);
-    return "";
+    // A letter, mark or digit none of a.java's block ranges reached: its Script
+    // in the current Unicode picks the same family a.java gives that script
+    // (owner, 2026-10-06). a.java's blocks are Unicode ~6 -- Greek Extended was
+    // there, Cyrillic Extended-C, Latin Extended-E, Kana Supplement, Hangul
+    // Jamo Extended-B, CJK Extensions I/J and the rest were not.
+    switch (uniValue(kUniFamilyScript, codePoint, 0)) {
+        case 1: return hasLatin() ? pickFamilyLangArr(FAMILY_LATIN, enabled) : "";
+        case 2: return hasGreek() ? pickFamilyLang("el", {"grc","pnt"}, enabled) : "";
+        case 3: return hasCyrillic() ? pickFamilyLangArr(FAMILY_CYRILLIC, enabled) : "";
+        case 4: return hasArmenian() ? pickFamilyLang("hy", {}, enabled) : "";
+        case 5: return hasHebrew() ? pickFamilyLang("he", {"yi","lad"}, enabled) : "";
+        case 6: return hasArabic() ? pickFamilyLang("ar", {}, enabled) : "";
+        case 7: return hasThaana() ? "dv" : "";
+        case 8: return hasDevanagari() ? pickFamilyLangArr(FAMILY_DEVANAGARI, enabled) : "";
+        case 9: return hasBengali() ? pickFamilyLang("bn", {"as","mni"}, enabled) : "";
+        case 10: return hasSouthIndic() ? pickFamilyLang("pa", {}, enabled) : "";
+        case 11: return hasSouthIndic() ? pickFamilyLang("gu", {}, enabled) : "";
+        case 12: return hasSouthIndic() ? pickFamilyLang("or", {}, enabled) : "";
+        case 13: return hasSouthIndic() ? pickFamilyLang("ta", {"kn"}, enabled) : "";
+        case 14: return hasSouthIndic() ? pickFamilyLang("te", {}, enabled) : "";
+        case 15: return hasSouthIndic() ? pickFamilyLang("kn", {"tcy"}, enabled) : "";
+        case 16: return hasSouthIndic() ? pickFamilyLang("ml", {}, enabled) : "";
+        case 17: return hasSouthIndic() ? pickFamilyLang("si", {}, enabled) : "";
+        case 18: return hasThai() ? pickFamilyLang("th", {"nod","sou","tts"}, enabled) : "";
+        case 19: return hasSeAsian() ? pickFamilyLang("lo", {"hnx"}, enabled) : "";
+        case 20: return hasSeAsian() ? pickFamilyLang("bo", {"dz"}, enabled) : "";
+        case 21: return hasSeAsian() ? pickFamilyLang("my", {"shn","kar","mnw"}, enabled) : "";
+        case 22: return hasGeorgian() ? pickFamilyLang("ka", {"xmf","lzz"}, enabled) : "";
+        case 23: return hasHangul() ? pickFamilyLang("ko", {}, enabled) : "";
+        case 24: return hasEthiopic() ? pickFamilyLangArr(FAMILY_ETHIOPIC, enabled) : "";
+        case 25: return hasSeAsian() ? pickFamilyLang("km", {}, enabled) : "";
+        case 26: return hasMongolian() ? pickFamilyLang("mn", {"mnc","xal"}, enabled) : "";
+        case 27: return hasKana() ? pickFamilyLang("ja", {}, enabled) : "";
+        case 28: return hasKana() ? pickFamilyLang("ja", {"ain"}, enabled) : "";
+        case 29: return hasCjk() ? pickFamilyLangArr(FAMILY_CJK, enabled) : "";
+        default: return "";
+    }
 }
 struct LangFamily { const char* primary; std::vector<std::string> members; };
 static LangFamily familyForCp(int codePoint){
@@ -1776,7 +1783,39 @@ static LangFamily familyForCp(int codePoint){
     if(codePoint>=68096&&codePoint<=68191) return makeFamily("sa", {});
     if((codePoint>=77824&&codePoint<=78895)||(codePoint>=78896&&codePoint<=78943)) return makeFamily("egy", {});
     if((codePoint>=73728&&codePoint<=74751)||(codePoint>=74752&&codePoint<=74879)) return makeFamily("akk", {});
-    return makeFamily("un", {});
+    // The same Script fallback as familyLangForCpFiltered's (owner, 2026-10-06).
+    switch (uniValue(kUniFamilyScript, codePoint, 0)) {
+        case 1: return famFromArray(FAMILY_LATIN, sizeof(FAMILY_LATIN)/sizeof(FAMILY_LATIN[0]));
+        case 2: return makeFamily("el", {"grc","pnt"});
+        case 3: return famFromArray(FAMILY_CYRILLIC, sizeof(FAMILY_CYRILLIC)/sizeof(FAMILY_CYRILLIC[0]));
+        case 4: return makeFamily("hy", {});
+        case 5: return makeFamily("he", {"yi","lad"});
+        case 6: return makeFamily("ar", {});
+        case 7: return makeFamily("dv", {});
+        case 8: return famFromArray(FAMILY_DEVANAGARI, sizeof(FAMILY_DEVANAGARI)/sizeof(FAMILY_DEVANAGARI[0]));
+        case 9: return makeFamily("bn", {"as","mni"});
+        case 10: return makeFamily("pa", {});
+        case 11: return makeFamily("gu", {});
+        case 12: return makeFamily("or", {});
+        case 13: return makeFamily("ta", {"kn"});
+        case 14: return makeFamily("te", {});
+        case 15: return makeFamily("kn", {"tcy"});
+        case 16: return makeFamily("ml", {});
+        case 17: return makeFamily("si", {});
+        case 18: return makeFamily("th", {"nod","sou","tts"});
+        case 19: return makeFamily("lo", {"hnx"});
+        case 20: return makeFamily("bo", {"dz"});
+        case 21: return makeFamily("my", {"shn","kar","mnw"});
+        case 22: return makeFamily("ka", {"xmf","lzz"});
+        case 23: return makeFamily("ko", {});
+        case 24: return famFromArray(FAMILY_ETHIOPIC, sizeof(FAMILY_ETHIOPIC)/sizeof(FAMILY_ETHIOPIC[0]));
+        case 25: return makeFamily("km", {});
+        case 26: return makeFamily("mn", {"mnc","xal"});
+        case 27: return makeFamily("ja", {});
+        case 28: return makeFamily("ja", {"ain"});
+        case 29: return famFromArray(FAMILY_CJK, sizeof(FAMILY_CJK)/sizeof(FAMILY_CJK[0]));
+        default: return makeFamily("un", {});
+    }
 }
 static std::string familyLangForCp(int codePoint, const std::unordered_set<std::string>& okIso3){
     LangFamily family = familyForCp(codePoint);
@@ -2144,66 +2183,12 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
 // ==========================================================================
 // The span walk itself, with no JNI in it. Returns lang, latin flag, text
 // triples, flattened, exactly as nativeFoldAndDetect's array carries them.
+
 static std::vector<std::string> languageSpansFlat(const std::string& text, bool blankWhole = false){
     struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
     std::vector<ScriptSpan> spans;
     const int kMaxSpans = 128;
-    auto classifyScript = [](int codePoint) -> int {
-        // 0x653ae8: `and w8, w8, #0x5f / sub w8, w8, #0x5b / cmn w8, #0x1a /
-        // b.lo 0x653b88`. b.lo is taken when the folded byte is OUTSIDE
-        // [0x41, 0x5A], and 0x653b88 is `mov w27, w3` -- keep the current
-        // script. A letter falls through to 0x653b78, `mov w27, #1` = Latin.
-        // So a letter means Latin and anything else means "no information",
-        // exactly like the ASCII fast path in the caller. This branch is
-        // reachable only through an OVERLONG UTF-8 sequence, which is not
-        // hypothetical: JNI hands out modified UTF-8, where U+0000 is C0 80.
-        if (codePoint < 0x80) {
-            int folded = codePoint & 0x5F;
-            return (folded >= 0x41 && folded <= 0x5A) ? 1 : -1;
-        }
-        if (codePoint < 0xC0) return -1;
-        if (codePoint < 0x2B0) return 1;
-        if ((unsigned)(codePoint - 0x370) < 0x90)  return 7;
-        if ((unsigned)(codePoint - 0x400) < 0x130) return 2;
-        if ((unsigned)(codePoint - 0x530) < 0x60)  return 8;
-        if ((unsigned)(codePoint - 0x590) < 0x70)  return 9;
-        if ((unsigned)(codePoint - 0x8A0) < 0x60)  return 3;
-        if ((codePoint & 0x1FFF00) == 0x600) return 3;
-        if ((unsigned)(codePoint - 0x750) < 0x30)  return 3;
-        // 5.7.7.26: `and w10, w8, #0x1ffffe / cmp w10, #0x964 / b.eq` in
-        // getLanguageSpans, branching to the same `mov w27, w3` that a code
-        // point below 0xC0 jumps to. The mask makes one compare cover U+0964
-        // and U+0965, the danda and double danda, and the target is the neutral
-        // path -- so a danda no longer counts as Devanagari.
-        if ((codePoint & 0x1FFFFE) == 0x964) return -1;
-        unsigned indicBlock = ((unsigned)(codePoint - 0x900)) >> 7;
-        if (indicBlock <= 11) {
-            static const int kIndic[12] = {4,6,11,12,13,14,15,16,17,18,19,20};
-            return kIndic[indicBlock];
-        }
-        if ((codePoint & 0x1FFF00) == 0xF00)  return 21;
-        if ((unsigned)(codePoint - 0x1000) < 0xA0)  return 22;
-        if ((unsigned)(codePoint - 0x10A0) < 0x60)  return 10;
-        if ((codePoint & 0x1FFF00) == 0x1100) return 25;
-        if ((unsigned)(codePoint - 0x1200) < 0x180) return 24;
-        if ((codePoint & 0x1FFF80) == 0x1780) return 23;
-        if ((codePoint & 0x1FFF00) == 0x1E00) return 1;
-        if ((codePoint & 0x1FFFE0) == 0x2C60) return 1;
-        if ((unsigned)(codePoint - 0x2E80) < 0x160) return 5;
-        if ((unsigned)(codePoint - 0x3040) < 0xC0)  return 5;
-        if ((unsigned)(codePoint - 0x3130) < 0x60)  return 25;
-        if ((codePoint >> 4) == 0x31F)        return 5;
-        if ((((unsigned)(codePoint - 0x3400)) >> 10) < 0x1B) return 5;
-        if ((unsigned)(codePoint - 0xA720) < 0xE0)  return 1;
-        if ((codePoint & 0x1FFFE0) == 0xA960) return 25;
-        if ((((unsigned)(codePoint - 0xAC00)) >> 10) < 0xB) return 25;
-        if ((unsigned)(codePoint - 0xF900) < 0x200) return 5;
-        if ((unsigned)(codePoint - 0xFB50) < 0x2B0) return 3;
-        if ((unsigned)(codePoint - 0xFE70) < 0x90)  return 3;
-        if ((unsigned)(codePoint - 0xFF66) < 0x38)  return 5;
-        if ((((unsigned)(codePoint - 0x20000)) >> 5) < 0x7D1) return 5;
-        return -1;
-    };
+    auto classifyScript = [](int codePoint) -> int { return spanScriptSlot(codePoint); };
 
     static const char* SCRIPT_FIXED_LANG[19] = {
         "el",

@@ -58,4 +58,4 @@ python3 "$HERE/gen.py" "$WORK/old/EasyVoiceTtsService.kt" \
 rm -f "$WORK/check.jar"
 "$KOTLINC" -nowarn "$WORK/Check.kt" -include-runtime -d "$WORK/check.jar" 2>&1 | grep -v '^warning' || true
 [ -f "$WORK/check.jar" ] || { echo "Check.kt did not compile"; exit 1; }
-java -jar "$WORK/check.jar" "$WORK/old.txt" "$WORK/new.txt"
+java -Dstdout.encoding=UTF-8 -jar "$WORK/check.jar" "$WORK/old.txt" "$WORK/new.txt"

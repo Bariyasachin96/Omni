@@ -67,27 +67,30 @@ fail=0
 
 java -cp "$WORK/java" Fam 2>/dev/null | grep -v "^Picked up" > "$WORK/a.out"
 "$WORK/unfiltered" > "$WORK/b.out"
-if diff -q "$WORK/a.out" "$WORK/b.out" >/dev/null; then
-  echo "     unfiltered families (primary + members in order): identical"
+added=0
+if r=$(python3 "$HERE/compare.py" "$WORK/a.out" "$WORK/b.out"); then
+  n=$(echo "$r" | sed -n 's/^ADDED \([0-9]*\).*/\1/p'); added=$((added + n))
+  echo "     unfiltered families (primary + members in order): identical where a.java answers ($n added from Unicode)"
 else
-  echo "     unfiltered families: DIFFER"
-  diff "$WORK/a.out" "$WORK/b.out" | head -8
+  echo "     unfiltered families: DIFFER"; echo "$r" | head -8
   fail=1
 fi
 
 for set in "${SETS[@]}"; do
   java -cp "$WORK/java" Main "$set" 2>/dev/null | grep -v "^Picked up" > "$WORK/a.out"
   "$WORK/filtered" "$set" > "$WORK/b.out"
-  if ! diff -q "$WORK/a.out" "$WORK/b.out" >/dev/null; then
-    echo "     DIFFER for {$set}"
-    diff "$WORK/a.out" "$WORK/b.out" | head -6
+  if r=$(python3 "$HERE/compare.py" "$WORK/a.out" "$WORK/b.out"); then
+    n=$(echo "$r" | sed -n 's/^ADDED \([0-9]*\).*/\1/p'); added=$((added + n))
+  else
+    echo "     DIFFER for {$set}"; echo "$r" | head -6
     fail=1
   fi
 done
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "IDENTICAL over ${#SETS[@]} language sets x 1,114,112 code points"
+  echo "IDENTICAL over ${#SETS[@]} language sets x 1,114,112 code points wherever a.java answers"
+  echo "($added answers added where a.java had none -- the current Unicode's scripts; tools/verify/unicode checks them)"
 else
   echo "work kept in $WORK"
 fi
