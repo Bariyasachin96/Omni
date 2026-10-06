@@ -27,7 +27,9 @@ Native core measured at the floor (165 chars ~0.05 ms), so the list was the Kotl
 - **5 `LangStore.replaceAll` bumps `listVersion` only when iso3/enginePkg/enginePkgs/disabled differ** in order
   (every screen resume rebuilt an identical list and threw away the service's detect sets and onGetVoices list);
   **`pushLanguageSets` skips `setLanguageHints` for the same ordered hints** (a new HintState drops the native CLD2
-  span cache).
+  span cache). **Found while proving it:** a rebuild writes `disabled`/`enginePkg` on its FRESH entries before
+  replaceAll, and those setters bumped the version anyway -- item 5 did nothing. `LangEntry.attached`
+  (set/cleared only by replaceAll): a setter bumps only for an entry in the list; replaceAll decides for the rest.
 - **6 persistAll/persistVoiceList/persistEngines keep the service's list OBJECT when content-equal**
   (`publishVoices/publishEngines`): the service caches parsed voices by identity, so every onPause re-split
   hundreds of entries at the next switch. (An unchanged SharedPreferences commit already writes nothing: AOSP
@@ -37,6 +39,13 @@ Native core measured at the floor (165 chars ~0.05 ms), so the list was the Kotl
 - **9 the last chunk's onDone ends on the binder thread** (queue empty, nothing ahead, same generation): no hop.
 - **10 `isSameEnginePkg`** answers equal strings first (no normPkg allocations per chunk); **11** `splitByLocaleSpans`
   takes the caller's plain text instead of a second toString.
+- **Proof (all re-run):** langstore 1,100,000 IDENTICAL + 9,951 identical rebuilds with 0 version bumps (negatives
+  caught: attached gate removed 8,981 bumps, fresh never attached 142,072 differ, hints skipped whenever any were
+  sent 9,850); persist IDENTICAL, 0 content-equal lists replaced on a repeat (negative: always replace = 33,298);
+  restore ALL PASS incl. S7-S9; coldstart ALL PASS (negatives norestore/nogate caught, nostop/nogeneration hang =
+  caught); speakpipe 200,000 0 differ / 0 hangs; prefetch 400,000 0 differ; scansched 0/0; enginefinder,
+  voicelist, rebuild, sortkeys, uilists, runlang IDENTICAL; check-all 0/0 (invariants #29 now reads the init
+  watchdog in startEngineClient), selftest EVERY CHECK FIRES.
 - **Not changed:** the screen-resume rebuild itself (it is what picks up Voice setup's writes); its costs above
   are what went.
 
