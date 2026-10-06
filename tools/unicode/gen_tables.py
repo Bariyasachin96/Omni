@@ -162,6 +162,9 @@ h.append("// Extended_Pictographic + Emoji_Component, minus # * 0-9 and ZWJ.\n" 
 h.append("// Bidi_Control (PropList).\n" + c_ranges("kUniBidiControl", merge(BIDI)) + "\n")
 h.append("// General_Category L* -- Java's Character.isLetter.\n" + c_ranges("kUniLetter", merge(LETTER)) + "\n")
 h.append("// Script=Latin.\n" + c_ranges("kUniLatin", merge(LATIN)) + "\n")
+h.append("// Script=Latin, Common or Inherited -- the same set as UnicodeTables.kt, so the\n"
+         "// native core and the Kotlin decide a lone character's \"quick read\" alike.\n"
+         + c_ranges("kUniLatinCommonInherited", merge(LCI)) + "\n")
 h.append("// The span detector's script slot of each code point from U+0080 (see the generator).\n" + c_vranges("kUniSpanSlot", span) + "\n")
 h.append("// The script-family fallback: FamilyScript of each letter, mark or digit.\n" + c_vranges("kUniFamilyScript", fam) + "\n")
 h.append("// Styling compatibility forms that decompose to one ASCII letter or digit.\n" + c_vranges("kUniFold", fold) + "\n")

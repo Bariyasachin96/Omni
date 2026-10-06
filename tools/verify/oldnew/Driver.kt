@@ -83,7 +83,7 @@ fun main(args: Array<String>) {
             if (rawDetected != newDetected) why = "auto answer differs: old '$rawDetected' new '$newDetected'"
             else if (ol != nl) why = "auto log differs:\n   old $ol\n   new $nl"
         }
-        if (why != null) { bad++; if (bad <= 10) println("DIFF case ${oh[1]} quick=$quick text '$text': $why") }
+        if (why != null) { bad++; if (bad <= 10 || System.getenv("EV_ALL") != null) println("DIFF case ${oh[1]} quick=$quick text '$text': $why") }
     }
     println("\n$cases cases, $spoken spoken chunks, $unknowns auto answers that went to the aggregate: $bad differ")
     kotlin.system.exitProcess(if (bad > 0) 1 else 0)

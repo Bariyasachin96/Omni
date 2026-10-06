@@ -2438,6 +2438,11 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
 // ASCII spaces respaceDigits adds. The fold maps code point by code point and
 // f(f(c)) == f(c) for all 1,114,112 code points (corebytes/foldtwice.cpp), so
 // folding such a chunk again cannot change it; it only cost a scan and a copy.
+static int firstCodepointOf(const std::string& text){
+    if(text.empty()) return -1;
+    int cpLen = 0;
+    return utf8ToCodepoint((const unsigned char*)text.data(), cpLen);
+}
 static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded, bool forRecord){
     // Text with nothing to fold is used as it is, not copied (owner, 2026-10-01).
     std::string foldedCopy;
@@ -2456,7 +2461,17 @@ static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool s
     // forRecord (processDirect): the fold slot is "" -- the record already
     // carries the chunk's text, which IS the fold there (alreadyFolded).
     if(forRecord) flat.emplace_back(); else flat.push_back(folded);
-    if(!(singleStops && units == 1)){
+    // Quick character read skips detection only for a lone character of the
+    // Latin, Common or Inherited script -- a letter, digit or sign clsCLD2.e's
+    // "un" + latin flag already sends to the right preferred language. A lone
+    // Devanagari, Gujarati, Bengali ... character -- a matra, a halant, an
+    // anusvara, one akshar -- is detected like any other text (owner,
+    // 2026-10-06: "matraen read nahin kar raha"): answered "un" it went to the
+    // preferred NON-Latin language, i.e. a Hindi matra to the Gujarati voice,
+    // which says nothing. Kotlin's runsFromFlat / aggregateOf /
+    // detectWindowThenAggregate test the same table (UnicodeTables).
+    bool quickStop = singleStops && units == 1 && uniIn(kUniLatinCommonInherited, firstCodepointOf(folded));
+    if(!quickStop){
         std::vector<std::string> spans = languageSpansFlat(folded, forRecord);
         flat.insert(flat.end(), std::make_move_iterator(spans.begin()), std::make_move_iterator(spans.end()));
     }

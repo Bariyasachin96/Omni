@@ -8,7 +8,26 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE UNICODE IS GENERATED FROM UCD 18.0 NOW, NOT TYPED BY HAND (owner, 2026-10-06, latest)
+## A LONE MATRA / HALANT / AKSHAR IS DETECTED EVEN WITH QUICK CHARACTER READ ON (owner, 2026-10-06, latest)
+*"matraen read nahin kar raha ... ek ek character ko read karke dekha ... detection ka khel hota hai."* (Quick
+character read was ON on the owner's phone.) Researched first: with quick read OFF every lone matra, halant,
+anusvara, nukta, visarga and akshar was already detected right (Devanagari -> hi, Gujarati -> gu, in mix AND auto;
+probed through the real core). With it ON, clsCLD2.e's shortcut answered every ONE-UTF-16-unit text "un" without
+detecting: mix sent it to the preferred NON-Latin language (a Hindi matra to the Gujarati voice, which says
+nothing), auto to the auto language (English). The engine names a matra itself ("badi u ki matra") once it gets it.
+- **Now the shortcut applies only to a lone Latin/Common/Inherited character** (`kUniLatinCommonInherited` in C++,
+  `UnicodeTables.isLatinCommonInherited` in Kotlin -- one generated set): `foldAndSpansFlat`'s quickStop,
+  `runsFromFlat`, `aggregateOf`, `detectWindowThenAggregate`. Any other lone character is detected like text.
+  DELIBERATE DEPARTURE from clsCLD2.e.
+- **Proof:** new `tools/verify/quickchar/run.sh` -- every BMP code point through the real core: 5,405 stop, 58,051
+  detected, 0 wrong (a stopped one = the fold alone; a detected one == its quick-OFF answer), Kotlin table == C++
+  table; negatives caught (old stop-everything rule = 58,051 wrong; a Kotlin range lost = 1 differ). corebytes vs
+  HEAD: 30,128 records differ, ALL single non-Latin characters or a single-character chunk inside a text (pi,
+  U+1680); oldnew: the same texts only. segmenter, scriptfamily, normaliser, unicode, devanagari, runlang,
+  langstore, onecall, stress pass; check-all 0/0, selftest EVERY CHECK FIRES.
+- Marathi and Hindi share Devanagari, so a lone matra goes to the Devanagari language CLD2 picks (hints/fallback).
+
+## THE UNICODE IS GENERATED FROM UCD 18.0 NOW, NOT TYPED BY HAND (owner, 2026-10-06)
 *"detection Mein Ham Jo Unicode use kar rahe hain ... bilkul Purana Hai ... latest likho aur latest hisab se karo."*
 Every Unicode table the app reads comes from `tools/unicode/gen_tables.py` over `tools/unicode/ucd/` (UCD 18.0.0,
 emoji 18.0, fetched from unicode.org) into `app/src/main/cpp/unicode_tables.h` and `UnicodeTables.kt`. **Do not
