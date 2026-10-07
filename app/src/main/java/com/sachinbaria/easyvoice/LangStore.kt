@@ -1,7 +1,38 @@
 package com.sachinbaria.easyvoice
 import android.content.Context
-import android.content.SharedPreferences
-import androidx.core.content.edit
+import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+
+// THE SETTINGS ARE JETPACK DATASTORE (owner, 2026-10-07: "jo library behtarin hai
+// vahi use karte hain, shared preferences nahin use karna ... alag se class kyon").
+// The library's own delegate makes the one DataStore for the process, in
+// files/datastore/easy_voice_settings.preferences_pb. SharedPreferencesMigration
+// (the library's) runs once on the first read: it copies every key of the old
+// easy_voice_settings.xml with its type and deletes that file, so a phone keeps
+// all its languages, voices, speeds and modes. A damaged file is replaced with an
+// empty one by the library's ReplaceFileCorruptionHandler instead of crashing.
+val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(
+    name = LangStore.PREFS_FILE,
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+    produceMigrations = { context -> listOf(SharedPreferencesMigration(context, LangStore.PREFS_FILE)) },
+)
 class LangEntry(
     @JvmField var displayName: String,
     iso3: String,
@@ -34,16 +65,34 @@ class LangEntry(
     @JvmField val enginePkgs: java.util.LinkedHashSet<String> = java.util.LinkedHashSet()
 }
 object LangStore {
-    // THE ONE PLACE THE SETTINGS FILE IS OPENED (2026-09-24). It was spelled out
-    // by hand at 24 sites across five files, 21 of them with a bare 0 for the
-    // mode; Context.MODE_PRIVATE IS that 0, named by the platform.
-    // getSharedPreferences hands back the same process-wide instance for a file
-    // name whichever Context asks (ContextImpl caches it per package and file),
-    // so routing every site through here changes no read and no write.
+    // The settings' name: the DataStore file and, for the one-time migration,
+    // the old SharedPreferences file it replaces.
     const val PREFS_FILE = "easy_voice_settings"
+    // THE SETTINGS AS THEY ARE NOW: DataStore's own snapshot (data.first()). The
+    // first call in a process reads the file (and migrates the old one); after
+    // that DataStore answers from memory. The app reads its settings once into
+    // the statics and the screens read on open, so this is never per utterance.
     @JvmStatic
-    fun prefs(ctx: Context): SharedPreferences =
-        ctx.applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+    fun prefs(ctx: Context): Preferences = runBlocking { ctx.applicationContext.settingsStore.data.first() }
+    // EVERY WRITE GOES THROUGH ONE QUEUE, so the file sees them in the order the
+    // app made them (DataStore's edit {} is atomic per call; the queue orders the
+    // calls). write() waits for its edit to reach the disk -- the screens' onPause
+    // and the scan, as SharedPreferences.commit did; writeLater() does not -- the
+    // speaking path and a switch tap, as apply did. A failed write is logged,
+    // never thrown into the caller (it was a boolean commit() before).
+    private val writes = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1) +
+        CoroutineExceptionHandler { _, ex -> EasyVoiceLogger.error(EasyVoiceLogger.TAG, "settings write failed: $ex") })
+    @JvmStatic
+    fun write(ctx: Context, block: (MutablePreferences) -> Unit) {
+        val app = ctx.applicationContext
+        try { runBlocking { writes.launch { app.settingsStore.edit { block(it) } }.join() } }
+        catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "settings write failed: $ex") }
+    }
+    @JvmStatic
+    fun writeLater(ctx: Context, block: (MutablePreferences) -> Unit) {
+        val app = ctx.applicationContext
+        writes.launch { app.settingsStore.edit { block(it) } }
+    }
     @JvmStatic val languages: java.util.ArrayList<LangEntry> = java.util.ArrayList()
     @JvmStatic var currentVoiceIso: String = ""
     @JvmStatic var currentVoiceRows: List<EngineFinder.ScanVoice?> = emptyList()
@@ -72,13 +121,13 @@ object LangStore {
         //     replaces, even with nothing parsed.
         var index = 0
         while (true) {
-            val iso = sharedPrefs.getString("language_$index", "") ?: ""
+            val iso = sharedPrefs[stringPreferencesKey("language_$index")] ?: ""
             if (iso.isEmpty()) break
-            val speed = sharedPrefs.getInt(iso + "_speed", 100)
-            val pitch = sharedPrefs.getInt(iso + "_pitch", 100)
-            val volume = sharedPrefs.getInt(iso + "_volume", 100)
-            val variant = sharedPrefs.getString(iso + "_variant", "*Default") ?: "*Default"
-            val stored = sharedPrefs.getString(iso, "") ?: ""
+            val speed = sharedPrefs[intPreferencesKey(iso + "_speed")] ?: 100
+            val pitch = sharedPrefs[intPreferencesKey(iso + "_pitch")] ?: 100
+            val volume = sharedPrefs[intPreferencesKey(iso + "_volume")] ?: 100
+            val variant = sharedPrefs[stringPreferencesKey(iso + "_variant")] ?: "*Default"
+            val stored = sharedPrefs[stringPreferencesKey(iso)] ?: ""
             var engine = ""
             var locale = ""
             if (stored.isNotEmpty()) {
@@ -86,7 +135,7 @@ object LangStore {
                 if (parts.size >= 2) { engine = parts[0]; locale = parts[1] }
             }
             val entry = LangEntry("", iso, speed, volume, pitch, engine, locale, variant)
-            entry.disabled = sharedPrefs.getBoolean(iso + "_disabled", false)
+            entry.disabled = sharedPrefs[booleanPreferencesKey(iso + "_disabled")] ?: false
             parsed.add(entry)
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " - " + iso + " " + engine + " " + locale + " " + variant }
             index++
@@ -186,21 +235,19 @@ object LangStore {
     }
     @JvmStatic
     fun persistLanguages(ctx: Context) {
-        val editor = prefs(ctx).edit()
-        putLanguages(editor)
-        editor.commit()
-    }
-    private fun putLanguages(editor: SharedPreferences.Editor) {
         val list = snapshot()
+        write(ctx) { putLanguages(it, list) }
+    }
+    private fun putLanguages(editor: MutablePreferences, list: List<Persisted>) {
         for (index in list.indices) {
             val entry = list[index]
-            editor.putString("language_$index", entry.iso3)
-            editor.putInt(entry.iso3 + "_speed", entry.speed)
-            editor.putInt(entry.iso3 + "_volume", entry.volume)
-            editor.putInt(entry.iso3 + "_pitch", entry.pitch)
-            editor.putString(entry.iso3 + "_variant", entry.variant)
+            editor[stringPreferencesKey("language_$index")] = entry.iso3
+            editor[intPreferencesKey(entry.iso3 + "_speed")] = entry.speed
+            editor[intPreferencesKey(entry.iso3 + "_volume")] = entry.volume
+            editor[intPreferencesKey(entry.iso3 + "_pitch")] = entry.pitch
+            editor[stringPreferencesKey(entry.iso3 + "_variant")] = entry.variant
         }
-        editor.putString("language_${list.size}", "")
+        editor[stringPreferencesKey("language_${list.size}")] = ""
     }
     // Everything "set up" means for one language, undone: the chosen voice, the
     // variant and the three sliders, in memory AND in prefs. The stored keys
@@ -214,20 +261,21 @@ object LangStore {
         entry.speed = 100
         entry.volume = 100
         entry.pitch = 100
-        prefs(ctx).edit(commit = true) {
-            remove(entry.iso3)
-            remove(entry.iso3 + "_speed")
-            remove(entry.iso3 + "_volume")
-            remove(entry.iso3 + "_pitch")
-            remove(entry.iso3 + "_variant")
+        val iso3 = entry.iso3
+        write(ctx) {
+            it.remove(stringPreferencesKey(iso3))
+            it.remove(intPreferencesKey(iso3 + "_speed"))
+            it.remove(intPreferencesKey(iso3 + "_volume"))
+            it.remove(intPreferencesKey(iso3 + "_pitch"))
+            it.remove(stringPreferencesKey(iso3 + "_variant"))
         }
     }
     @JvmStatic
     fun persistDisabled(ctx: Context) {
         val list = snapshot()
-        prefs(ctx).edit(commit = true) {
+        write(ctx) {
             var index = 0
-            while (index < list.size) { val entry = list[index]; index++; putBoolean(entry.iso3 + "_disabled", entry.disabled) }
+            while (index < list.size) { val entry = list[index]; index++; it[booleanPreferencesKey(entry.iso3 + "_disabled")] = entry.disabled }
         }
     }
     @JvmStatic
@@ -297,10 +345,10 @@ object LangStore {
             if (!seenNames.contains(name)) {
                 seenNames.add(name)
                 val entry = LangEntry(name, iso3, 100, 100, 100, "", "", "*Default")
-                entry.volume = sharedPrefs.getInt(iso3 + "_volume", 100)
-                entry.pitch = sharedPrefs.getInt(iso3 + "_pitch", 100)
-                entry.speed = sharedPrefs.getInt(iso3 + "_speed", 100)
-                entry.variant = sharedPrefs.getString(iso3 + "_variant", "*Default") ?: "*Default"
+                entry.volume = sharedPrefs[intPreferencesKey(iso3 + "_volume")] ?: 100
+                entry.pitch = sharedPrefs[intPreferencesKey(iso3 + "_pitch")] ?: 100
+                entry.speed = sharedPrefs[intPreferencesKey(iso3 + "_speed")] ?: 100
+                entry.variant = sharedPrefs[stringPreferencesKey(iso3 + "_variant")] ?: "*Default"
                 entry.enginePkg = ""
                 entry.localeTag = ""
                 // Default TRUE = start cleared. AutoTTS defaults this to false, so
@@ -313,10 +361,10 @@ object LangStore {
                 // Only applies where the key has never been written: an install
                 // that already has choices saved keeps them. "Clear all" produces
                 // this same state on demand.
-                entry.disabled = sharedPrefs.getBoolean(iso3 + "_disabled", true)
+                entry.disabled = sharedPrefs[booleanPreferencesKey(iso3 + "_disabled")] ?: true
                 if (entry.disabled && required.contains(iso3)) { entry.disabled = false; changed = true }
                 entry.enginePkgs.add(pkg)
-                val stored = sharedPrefs.getString(iso3, "") ?: ""
+                val stored = sharedPrefs[stringPreferencesKey(iso3)] ?: ""
                 if (stored != "") {
                     val parts = stored.split("#")
                     if (parts.size >= 2) { entry.enginePkg = parts[0]; entry.localeTag = parts[1] }
@@ -345,14 +393,14 @@ object LangStore {
             if (!iso3.equals("eng", true) && !iso3.equals(dualLang, true) || seenNames.contains(name)) continue
             seenNames.add(name)
             val entry = LangEntry(name, iso3, 100, 100, 100, "", "", "*Default")
-            entry.volume = sharedPrefs.getInt(iso3 + "_volume", 100)
-            entry.pitch = sharedPrefs.getInt(iso3 + "_pitch", 100)
-            entry.speed = sharedPrefs.getInt(iso3 + "_speed", 100)
-            entry.variant = sharedPrefs.getString(iso3 + "_variant", "*Default") ?: "*Default"
+            entry.volume = sharedPrefs[intPreferencesKey(iso3 + "_volume")] ?: 100
+            entry.pitch = sharedPrefs[intPreferencesKey(iso3 + "_pitch")] ?: 100
+            entry.speed = sharedPrefs[intPreferencesKey(iso3 + "_speed")] ?: 100
+            entry.variant = sharedPrefs[stringPreferencesKey(iso3 + "_variant")] ?: "*Default"
             entry.enginePkg = ""
             entry.localeTag = ""
-            entry.disabled = sharedPrefs.getBoolean(iso3 + "_disabled", false)
-            val stored = sharedPrefs.getString(iso3, "") ?: ""
+            entry.disabled = sharedPrefs[booleanPreferencesKey(iso3 + "_disabled")] ?: false
+            val stored = sharedPrefs[stringPreferencesKey(iso3)] ?: ""
             if (stored != "") {
                 val parts = stored.split("#")
                 if (parts.size >= 2) { entry.enginePkg = parts[0]; entry.localeTag = parts[1] }
@@ -439,27 +487,27 @@ object LangStore {
             val index = java.util.Locale.getDefault().isO3Language
             if (index == "cmn" || index == "lzh" || index == "gan" || index == "hak") "zho" else index
         } catch (_: Exception) { "zxx" }
-        EasyVoiceTtsService.autoLang = (sharedPrefs.getString("auto_mode_language", "") ?: "").ifEmpty { deviceIso3 }
-        EasyVoiceTtsService.mixLatinLang = (sharedPrefs.getString("mixed_mode_latin_language", "") ?: "").ifEmpty { deviceIso3 }
-        EasyVoiceTtsService.mixNonLatinLang = (sharedPrefs.getString("mixed_mode_non_latin_language", "") ?: "").ifEmpty { deviceIso3 }
-        EasyVoiceTtsService.dualLang = (sharedPrefs.getString("dual_mode_language", "") ?: "").ifEmpty { deviceIso3 }
-        EasyVoiceTtsService.numberModeInt = sharedPrefs.getInt("number_mode_language", 0)
-        EasyVoiceTtsService.punctuationModeInt = sharedPrefs.getInt("punc_mode_language", 0)
-        EasyVoiceTtsService.emojiModeInt = sharedPrefs.getInt("emoji_mode_language", 0)
-        EasyVoiceTtsService.numberSpecificLang = (sharedPrefs.getString("number_specific_language", "") ?: "").ifEmpty { deviceIso3 }
-        EasyVoiceTtsService.puncSpecificLang = (sharedPrefs.getString("punc_specific_language", "") ?: "").ifEmpty { deviceIso3 }
-        EasyVoiceTtsService.emojiSpecificLang = (sharedPrefs.getString("emoji_specific_language", "") ?: "").ifEmpty { deviceIso3 }
+        EasyVoiceTtsService.autoLang = (sharedPrefs[stringPreferencesKey("auto_mode_language")] ?: "").ifEmpty { deviceIso3 }
+        EasyVoiceTtsService.mixLatinLang = (sharedPrefs[stringPreferencesKey("mixed_mode_latin_language")] ?: "").ifEmpty { deviceIso3 }
+        EasyVoiceTtsService.mixNonLatinLang = (sharedPrefs[stringPreferencesKey("mixed_mode_non_latin_language")] ?: "").ifEmpty { deviceIso3 }
+        EasyVoiceTtsService.dualLang = (sharedPrefs[stringPreferencesKey("dual_mode_language")] ?: "").ifEmpty { deviceIso3 }
+        EasyVoiceTtsService.numberModeInt = (sharedPrefs[intPreferencesKey("number_mode_language")] ?: 0)
+        EasyVoiceTtsService.punctuationModeInt = (sharedPrefs[intPreferencesKey("punc_mode_language")] ?: 0)
+        EasyVoiceTtsService.emojiModeInt = (sharedPrefs[intPreferencesKey("emoji_mode_language")] ?: 0)
+        EasyVoiceTtsService.numberSpecificLang = (sharedPrefs[stringPreferencesKey("number_specific_language")] ?: "").ifEmpty { deviceIso3 }
+        EasyVoiceTtsService.puncSpecificLang = (sharedPrefs[stringPreferencesKey("punc_specific_language")] ?: "").ifEmpty { deviceIso3 }
+        EasyVoiceTtsService.emojiSpecificLang = (sharedPrefs[stringPreferencesKey("emoji_specific_language")] ?: "").ifEmpty { deviceIso3 }
     }
     @JvmStatic
     fun loadMode(ctx: Context) {
         val sharedPrefs = prefs(ctx)
-        var index = sharedPrefs.getInt("auto_mode", 3)
+        var index = (sharedPrefs[intPreferencesKey("auto_mode")] ?: 3)
         if (index == 3) {
             EngineFinder.attach(ctx)
             if (EngineFinder.builtInEngine.isEmpty()) index = 0
         }
         EasyVoiceTtsService.modeInt = index
-        EasyVoiceTtsService.localeSpansFlag = sharedPrefs.getBoolean("locale_spans", false)
+        EasyVoiceTtsService.localeSpansFlag = (sharedPrefs[booleanPreferencesKey("locale_spans")] ?: false)
     }
     // Load the statics ONLY if this process has never loaded them.
     //
@@ -519,10 +567,10 @@ object LangStore {
     @JvmStatic
     fun applyAdvancedDetectionDefault(ctx: Context) {
         val sharedPrefs = prefs(ctx)
-        if (sharedPrefs.getBoolean(ADVANCED_DEFAULT_MIGRATED, false)) return
-        sharedPrefs.edit {
-            putBoolean("disable_advanced_detection", false)
-            putBoolean(ADVANCED_DEFAULT_MIGRATED, true)
+        if (sharedPrefs[booleanPreferencesKey(ADVANCED_DEFAULT_MIGRATED)] == true) return
+        write(ctx) {
+            it[booleanPreferencesKey("disable_advanced_detection")] = false
+            it[booleanPreferencesKey(ADVANCED_DEFAULT_MIGRATED)] = true
         }
     }
 
@@ -538,17 +586,18 @@ object LangStore {
     @JvmStatic
     fun loadBackupLanguages(ctx: Context): Set<String> {
         val sharedPrefs = prefs(ctx)
-        val stored = sharedPrefs.getString(BACKUP_KEY, null)
+        val stored = sharedPrefs[stringPreferencesKey(BACKUP_KEY)]
         if (stored != null) return stored.split(",").filter { it.isNotEmpty() }.toHashSet()
         val migrated = HashSet<String>()
-        if (sharedPrefs.getBoolean("engine_fallback", false)) {
-            for ((key, value) in sharedPrefs.all) {
-                if (key.length == 3 && value is String && value.contains("#")) migrated.add(key)
+        if ((sharedPrefs[booleanPreferencesKey("engine_fallback")] ?: false)) {
+            for ((key, value) in sharedPrefs.asMap()) {
+                if (key.name.length == 3 && value is String && value.contains("#")) migrated.add(key.name)
             }
         }
-        sharedPrefs.edit {
-            putString(BACKUP_KEY, migrated.sorted().joinToString(","))
-            remove("engine_fallback")
+        val joined = migrated.sorted().joinToString(",")
+        write(ctx) {
+            it[stringPreferencesKey(BACKUP_KEY)] = joined
+            it.remove(booleanPreferencesKey("engine_fallback"))
         }
         return migrated
     }
@@ -557,33 +606,33 @@ object LangStore {
         val next = HashSet(EasyVoiceTtsService.backupLangs)
         if (on) next.add(iso3) else next.remove(iso3)
         EasyVoiceTtsService.backupLangs = next
-        prefs(ctx).edit { putString(BACKUP_KEY, next.sorted().joinToString(",")) }
+        val joined = next.sorted().joinToString(",")
+        writeLater(ctx) { it[stringPreferencesKey(BACKUP_KEY)] = joined }
     }
     @JvmStatic
     fun loadFlags(ctx: Context) {
         applyAdvancedDetectionDefault(ctx)
         val sharedPrefs = prefs(ctx)
-        EasyVoiceTtsService.stripAudioAttrFlag = sharedPrefs.getBoolean("strip_audio_attr", false)
-        EasyVoiceTtsService.forceAccessibilityFlag = sharedPrefs.getBoolean("force_accessibility_stream", false)
-        EasyVoiceTtsService.keepAliveFlag = sharedPrefs.getBoolean("keep_alive_mode", false)
+        EasyVoiceTtsService.stripAudioAttrFlag = (sharedPrefs[booleanPreferencesKey("strip_audio_attr")] ?: false)
+        EasyVoiceTtsService.forceAccessibilityFlag = (sharedPrefs[booleanPreferencesKey("force_accessibility_stream")] ?: false)
+        EasyVoiceTtsService.keepAliveFlag = (sharedPrefs[booleanPreferencesKey("keep_alive_mode")] ?: false)
         EasyVoiceTtsService.backupLangs = loadBackupLanguages(ctx)
-        EasyVoiceTtsService.showNotificationFlag = sharedPrefs.getBoolean("show_notification", false)
-        EasyVoiceTtsService.disableAdvancedFlag = sharedPrefs.getBoolean("disable_advanced_detection", false)
-        EasyVoiceTtsService.quickCharacterFlag = sharedPrefs.getBoolean("quick_character_reading", false)
-        EasyVoiceTtsService.punctuationInFlowFlag = sharedPrefs.getBoolean("punctuation_with_sentence", true)
-        EasyVoiceTtsService.smartNumberFlag = sharedPrefs.getBoolean("smart_number_reading", false)
-        EasyVoiceTtsService.smartNumberGroupSize = sharedPrefs.getInt("smart_number_reading_group_size", 1)
+        EasyVoiceTtsService.showNotificationFlag = (sharedPrefs[booleanPreferencesKey("show_notification")] ?: false)
+        EasyVoiceTtsService.disableAdvancedFlag = (sharedPrefs[booleanPreferencesKey("disable_advanced_detection")] ?: false)
+        EasyVoiceTtsService.quickCharacterFlag = (sharedPrefs[booleanPreferencesKey("quick_character_reading")] ?: false)
+        EasyVoiceTtsService.punctuationInFlowFlag = (sharedPrefs[booleanPreferencesKey("punctuation_with_sentence")] ?: true)
+        EasyVoiceTtsService.smartNumberFlag = (sharedPrefs[booleanPreferencesKey("smart_number_reading")] ?: false)
+        EasyVoiceTtsService.smartNumberGroupSize = (sharedPrefs[intPreferencesKey("smart_number_reading_group_size")] ?: 1)
     }
     @JvmStatic
     fun persistEngines(ctx: Context) {
-        val editor = prefs(ctx).edit()
-        val engines = putEngines(editor) ?: return
-        editor.commit()
+        val engines = enginesToWrite() ?: return
+        write(ctx) { putEngines(it, engines) }
         publishEngines(engines)
     }
-    // The engine_N list for the editor, and the list the service should then
-    // hold; null when there is nothing to write.
-    private fun putEngines(editor: SharedPreferences.Editor): ArrayList<String>? {
+    // The engine list the service should hold and the file should list; null
+    // when there is nothing to write.
+    private fun enginesToWrite(): ArrayList<String>? {
         // NO SCAN IN THIS PROCESS, NOTHING TO WRITE (2026-09-23). lastScanEngines
         // is filled only by a finished scan, and four screens persist in onPause
         // without scanning -- Voice setup, Mode settings and Languages when
@@ -595,94 +644,100 @@ object LangStore {
         // persistVoiceList has always had this guard; this is the same one.
         if (EngineFinder.lastScanEngines.isEmpty()) return null
         val newEngineList = ArrayList<String>()
-        var index = 0
         for (pkg in EngineFinder.lastScanEngines) {
             if (pkg == BuildConfig.APPLICATION_ID) continue
-            editor.putString("engine_$index", pkg)
             newEngineList.add(pkg)
-            index++
         }
-        editor.putString("engine_$index", "end")
         return newEngineList
+    }
+    private fun putEngines(editor: MutablePreferences, engines: List<String>) {
+        for (index in engines.indices) editor[stringPreferencesKey("engine_$index")] = engines[index]
+        editor[stringPreferencesKey("engine_${engines.size}")] = "end"
     }
     @JvmStatic
     fun persistVoiceList(ctx: Context) {
-        val editor = prefs(ctx).edit()
-        val voices = putVoiceList(editor) ?: return
-        editor.commit()
+        val voices = voicesToWrite() ?: return
+        val dedicated = EasyVoiceTtsService.dedicatedEnginesFlag
+        write(ctx) { putVoiceList(it, voices, dedicated) }
         publishVoices(voices)
     }
-    private fun putVoiceList(editor: SharedPreferences.Editor): ArrayList<String>? {
+    private fun voicesToWrite(): ArrayList<String>? {
         val voices = EngineFinder.lastScanVoices
         if (voices.isEmpty()) return null
         val newVoiceList = ArrayList<String>()
-        for (index in voices.indices) {
-            val key = voices[index].pkg + "#" + voices[index].locale.toString()
-            editor.putString("voice_$index", key)
-            newVoiceList.add(key)
-        }
-        editor.putString("voice_" + voices.size, "")
-        editor.putBoolean("dedicated_engines", EasyVoiceTtsService.dedicatedEnginesFlag)
+        for (index in voices.indices) newVoiceList.add(voices[index].pkg + "#" + voices[index].locale.toString())
         return newVoiceList
+    }
+    private fun putVoiceList(editor: MutablePreferences, voices: List<String>, dedicated: Boolean) {
+        for (index in voices.indices) editor[stringPreferencesKey("voice_$index")] = voices[index]
+        editor[stringPreferencesKey("voice_" + voices.size)] = ""
+        editor[booleanPreferencesKey("dedicated_engines")] = dedicated
     }
     @JvmStatic
     fun persistModeLangs(ctx: Context) {
-        val editor = prefs(ctx).edit()
-        putModeLangs(editor)
-        editor.commit()
+        // Filled HERE, on the caller's thread, from the statics as they are now;
+        // the queued write only merges it in.
+        val delta = mutablePreferencesOf()
+        putModeLangs(delta)
+        write(ctx) { it += delta }
     }
-    private fun putModeLangs(editor: SharedPreferences.Editor) {
-        editor.putString("auto_mode_language", EasyVoiceTtsService.autoLang)
-        editor.putString("dual_mode_language", EasyVoiceTtsService.dualLang)
-        editor.putString("mixed_mode_latin_language", EasyVoiceTtsService.mixLatinLang)
-        editor.putString("mixed_mode_non_latin_language", EasyVoiceTtsService.mixNonLatinLang)
-        editor.putInt("number_mode_language", EasyVoiceTtsService.numberModeInt)
-        editor.putInt("punc_mode_language", EasyVoiceTtsService.punctuationModeInt)
-        editor.putInt("emoji_mode_language", EasyVoiceTtsService.emojiModeInt)
-        editor.putString("number_specific_language", EasyVoiceTtsService.numberSpecificLang)
-        editor.putString("punc_specific_language", EasyVoiceTtsService.puncSpecificLang)
-        editor.putString("emoji_specific_language", EasyVoiceTtsService.emojiSpecificLang)
+    private fun putModeLangs(editor: MutablePreferences) {
+        editor[stringPreferencesKey("auto_mode_language")] = EasyVoiceTtsService.autoLang
+        editor[stringPreferencesKey("dual_mode_language")] = EasyVoiceTtsService.dualLang
+        editor[stringPreferencesKey("mixed_mode_latin_language")] = EasyVoiceTtsService.mixLatinLang
+        editor[stringPreferencesKey("mixed_mode_non_latin_language")] = EasyVoiceTtsService.mixNonLatinLang
+        editor[intPreferencesKey("number_mode_language")] = EasyVoiceTtsService.numberModeInt
+        editor[intPreferencesKey("punc_mode_language")] = EasyVoiceTtsService.punctuationModeInt
+        editor[intPreferencesKey("emoji_mode_language")] = EasyVoiceTtsService.emojiModeInt
+        editor[stringPreferencesKey("number_specific_language")] = EasyVoiceTtsService.numberSpecificLang
+        editor[stringPreferencesKey("punc_specific_language")] = EasyVoiceTtsService.puncSpecificLang
+        editor[stringPreferencesKey("emoji_specific_language")] = EasyVoiceTtsService.emojiSpecificLang
     }
     @JvmStatic
     fun persistMode(ctx: Context) {
-        val editor = prefs(ctx).edit()
-        putMode(editor)
-        editor.commit()
+        // Filled HERE, on the caller's thread, from the statics as they are now;
+        // the queued write only merges it in.
+        val delta = mutablePreferencesOf()
+        putMode(delta)
+        write(ctx) { it += delta }
     }
-    private fun putMode(editor: SharedPreferences.Editor) {
-        editor.putInt("auto_mode", EasyVoiceTtsService.modeInt)
-        editor.putBoolean("locale_spans", EasyVoiceTtsService.localeSpansFlag)
+    private fun putMode(editor: MutablePreferences) {
+        editor[intPreferencesKey("auto_mode")] = EasyVoiceTtsService.modeInt
+        editor[booleanPreferencesKey("locale_spans")] = EasyVoiceTtsService.localeSpansFlag
     }
     @JvmStatic
     fun persistFlags(ctx: Context) {
-        val editor = prefs(ctx).edit()
-        putFlags(editor)
-        editor.commit()
+        // Filled HERE, on the caller's thread, from the statics as they are now;
+        // the queued write only merges it in.
+        val delta = mutablePreferencesOf()
+        putFlags(delta)
+        write(ctx) { it += delta; it.remove(ENGINE_FALLBACK) }
     }
-    private fun putFlags(editor: SharedPreferences.Editor) {
-        editor.putBoolean("strip_audio_attr", EasyVoiceTtsService.stripAudioAttrFlag)
-        editor.putBoolean("force_accessibility_stream", EasyVoiceTtsService.forceAccessibilityFlag)
-        editor.putBoolean("keep_alive_mode", EasyVoiceTtsService.keepAliveFlag)
-        editor.putString(BACKUP_KEY, EasyVoiceTtsService.backupLangs.sorted().joinToString(","))
-        editor.remove("engine_fallback")
-        editor.putBoolean("show_notification", EasyVoiceTtsService.showNotificationFlag)
-        editor.putBoolean("disable_advanced_detection", EasyVoiceTtsService.disableAdvancedFlag)
-        editor.putBoolean("quick_character_reading", EasyVoiceTtsService.quickCharacterFlag)
-        editor.putBoolean("punctuation_with_sentence", EasyVoiceTtsService.punctuationInFlowFlag)
-        editor.putBoolean("smart_number_reading", EasyVoiceTtsService.smartNumberFlag)
-        editor.putInt("smart_number_reading_group_size", EasyVoiceTtsService.smartNumberGroupSize)
+    // The old global Backup TTS switch, gone since 2026-10-06; every flags write
+    // removes it (the per-language set replaced it).
+    private val ENGINE_FALLBACK = booleanPreferencesKey("engine_fallback")
+    private fun putFlags(editor: MutablePreferences) {
+        editor[booleanPreferencesKey("strip_audio_attr")] = EasyVoiceTtsService.stripAudioAttrFlag
+        editor[booleanPreferencesKey("force_accessibility_stream")] = EasyVoiceTtsService.forceAccessibilityFlag
+        editor[booleanPreferencesKey("keep_alive_mode")] = EasyVoiceTtsService.keepAliveFlag
+        editor[stringPreferencesKey(BACKUP_KEY)] = EasyVoiceTtsService.backupLangs.sorted().joinToString(",")
+        editor[booleanPreferencesKey("show_notification")] = EasyVoiceTtsService.showNotificationFlag
+        editor[booleanPreferencesKey("disable_advanced_detection")] = EasyVoiceTtsService.disableAdvancedFlag
+        editor[booleanPreferencesKey("quick_character_reading")] = EasyVoiceTtsService.quickCharacterFlag
+        editor[booleanPreferencesKey("punctuation_with_sentence")] = EasyVoiceTtsService.punctuationInFlowFlag
+        editor[booleanPreferencesKey("smart_number_reading")] = EasyVoiceTtsService.smartNumberFlag
+        editor[intPreferencesKey("smart_number_reading_group_size")] = EasyVoiceTtsService.smartNumberGroupSize
     }
     @JvmStatic
     fun voiceRowKey(row: EngineFinder.ScanVoice?): String =
         if (row == null) "Disable#" + localeOf(currentVoiceIso).toString() else row.pkg + "#" + row.locale.toString()
     @JvmStatic
     fun persistVoiceRows(ctx: Context) {
-        val sharedPrefs = prefs(ctx)
-        val editor = sharedPrefs.edit()
-        if (putVoiceRows(sharedPrefs, editor)) editor.commit()
+        val delta = mutablePreferencesOf()
+        if (putVoiceRows(prefs(ctx), delta)) write(ctx) { it += delta }
     }
     // True when there was a row to write.
-    private fun putVoiceRows(sharedPrefs: SharedPreferences, editor: SharedPreferences.Editor): Boolean {
+    private fun putVoiceRows(sharedPrefs: Preferences, editor: MutablePreferences): Boolean {
         // ONE COMMIT FOR ALL ROWS (owner, 2026-10-01). This was one synchronous
         // disk write PER ROW -- dozens on a language with many voices, on the
         // main thread, on every Previous/Next. The only read below
@@ -704,9 +759,9 @@ object LangStore {
             // row's key -> its index) is still written every time; it only sorts
             // the list.
             val ownKey = if (row == null) currentVoiceIso else EngineFinder.iso3Of(row.locale)
-            val writeOwn = index == 0 && (currentVoiceChosen || (sharedPrefs.getString(ownKey, "") ?: "").isEmpty())
-            editor.putString(key, index.toString())
-            if (writeOwn) editor.putString(ownKey, key)
+            val writeOwn = index == 0 && (currentVoiceChosen || (sharedPrefs[stringPreferencesKey(ownKey)] ?: "").isEmpty())
+            editor[stringPreferencesKey(key)] = index.toString()
+            if (writeOwn) editor[stringPreferencesKey(ownKey)] = key
             index++
         }
         return rows.isNotEmpty()
@@ -720,15 +775,15 @@ object LangStore {
     // one the seven commits left (tools/verify/persist/run.sh).
     fun persistAll(ctx: Context) {
         val sharedPrefs = prefs(ctx)
-        val editor = sharedPrefs.edit()
-        val engines = putEngines(editor)
-        val voices = putVoiceList(editor)
+        val editor = mutablePreferencesOf()
+        val engines = enginesToWrite()?.also { putEngines(editor, it) }
+        val voices = voicesToWrite()?.also { putVoiceList(editor, it, EasyVoiceTtsService.dedicatedEnginesFlag) }
         putVoiceRows(sharedPrefs, editor)
         putModeLangs(editor)
-        putLanguages(editor)
+        putLanguages(editor, snapshot())
         putMode(editor)
         putFlags(editor)
-        editor.commit()
+        write(ctx) { it += editor; it.remove(ENGINE_FALLBACK) }
         if (engines != null) publishEngines(engines)
         if (voices != null) publishVoices(voices)
     }

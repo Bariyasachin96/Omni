@@ -230,7 +230,7 @@ dependencies {
     // Latest stable, checked against the androidx release notes on 2026-08-27.
     // core-ktx is what NotificationCompat, ServiceCompat and FileProvider come
     // from, so it is the one that actually earns its place.
-    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     // lifecycle and coroutines are declared but not imported directly anywhere:
     // Compose and activity-compose pull both in, and Gradle resolves to the
     // highest, so the old 2.7.0 / 1.7.3 pins were already inert. Declared at
@@ -262,6 +262,8 @@ dependencies {
     // AppCompat artifact in this project. That is the whole price, and the owner
     // has taken it knowingly in exchange for being current.
     implementation("androidx.core:core-splashscreen:1.2.0")
+    // Settings storage (owner, 2026-10-07): Jetpack DataStore, see SettingsStore.kt.
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
     // Installs the ART profile (app/src/main/baseline-prof.txt plus the libraries'
     // own) on sideloaded installs too, where Play's cloud profiles never arrive --
     // which is how this app is installed. It was already in the graph through
@@ -335,18 +337,18 @@ dependencies {
         implementation("androidx.annotation:annotation-experimental:1.6.0")
         implementation("androidx.appcompat:appcompat-resources:1.8.0")
         implementation("androidx.autofill:autofill:1.3.0")
-        implementation("androidx.collection:collection:1.6.0")
+        implementation("androidx.collection:collection:1.7.0")
         implementation("androidx.customview:customview-poolingcontainer:1.1.0")
-        implementation("androidx.emoji2:emoji2:1.6.0")
+        implementation("androidx.emoji2:emoji2:1.7.0")
         implementation("androidx.graphics:graphics-path:1.1.0")
-        implementation("androidx.navigationevent:navigationevent:1.1.2")
-        implementation("androidx.navigationevent:navigationevent-compose:1.1.2")
+        implementation("androidx.navigationevent:navigationevent:1.2.0")
+        implementation("androidx.navigationevent:navigationevent-compose:1.2.0")
         implementation("androidx.profileinstaller:profileinstaller:1.4.1")
         implementation("androidx.savedstate:savedstate:1.5.0")
         implementation("androidx.savedstate:savedstate-compose:1.5.0")
         implementation("androidx.savedstate:savedstate-ktx:1.5.0")
         implementation("androidx.startup:startup-runtime:1.2.0")
-        implementation("androidx.tracing:tracing:2.0.2")
+        implementation("androidx.tracing:tracing:2.0.3")
         implementation("androidx.vectordrawable:vectordrawable:1.2.0")
         implementation("androidx.vectordrawable:vectordrawable-animated:1.2.0")
         implementation("androidx.versionedparcelable:versionedparcelable:1.2.1")

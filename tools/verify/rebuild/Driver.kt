@@ -12,7 +12,15 @@ class Prefs(val map: Map<String, Any>) {
     fun getInt(k: String, d: Int) = map[k] as Int? ?: d
     fun getString(k: String, d: String?) = map[k] as String? ?: d
     fun getBoolean(k: String, d: Boolean) = map[k] as Boolean? ?: d
+    // DataStore's read (2026-10-07): prefs[typedKey] answers the value or null,
+    // the key's identity being its name -- as androidx Preferences.Key is.
+    @Suppress("UNCHECKED_CAST")
+    operator fun <T> get(k: PKey<T>): T? = map[k.name] as T?
 }
+class PKey<T>(val name: String)
+fun intPreferencesKey(n: String) = PKey<Int>(n)
+fun stringPreferencesKey(n: String) = PKey<String>(n)
+fun booleanPreferencesKey(n: String) = PKey<Boolean>(n)
 class Context(val prefs: Prefs)
 fun describe(list: List<LangEntry>) = list.joinToString("\n") {
     "${it.displayName}|${it.iso3}|${it.speed}|${it.volume}|${it.pitch}|${it.variant}|${it.enginePkg}|${it.localeTag}|${it.disabled}|${it.enginePkgs}"

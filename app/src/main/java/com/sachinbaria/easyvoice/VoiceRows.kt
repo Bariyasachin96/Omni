@@ -3,6 +3,7 @@ import android.content.Context
 import android.speech.tts.TextToSpeech
 import java.util.Locale
 import android.content.Intent
+import androidx.datastore.preferences.core.stringPreferencesKey
 object VoiceRows {
     private fun voiceKey(row: EngineFinder.ScanVoice?, selectedIso: String): String =
         if (row == null) "Disable#" + localeOf(selectedIso).toString() else row.pkg + "#" + row.locale.toString()
@@ -38,7 +39,7 @@ object VoiceRows {
             // answers -- "unranked" -- so a corrupt entry now sorts last instead
             // of taking the screen down, and valid data behaves exactly as before.
             val storedWeight = try {
-                (rawPrefs.getString(key, "1000") ?: "1000").toIntOrNull() ?: 1000
+                (rawPrefs[stringPreferencesKey(key)] ?: "1000").toIntOrNull() ?: 1000
             } catch (_: Exception) { 1000 }
             EngineFinder.voiceWeights[key] = storedWeight
             return storedWeight
@@ -64,7 +65,7 @@ object VoiceRows {
                 if (a.first != b.first) a.first - b.first else a.second.compareTo(b.second, ignoreCase = true)
             }).map { it.third }
         }
-        val stored = try { rawPrefs.getString(selectedIso, "") ?: "" } catch (_: Exception) { "" }
+        val stored = try { rawPrefs[stringPreferencesKey(selectedIso)] ?: "" } catch (_: Exception) { "" }
         val pinned = pinConfigured(context, sorted, stored, selectedIso, readingMode)
         LangStore.currentVoiceRows = pinned
         var weightIdx = 0
@@ -109,8 +110,8 @@ object VoiceRows {
         if (EngineFinder.iso3Of(locale) != selectedIso) return rows
         val engineName = EngineFinder.engineLabel(context, parts[0])
         val variants = arrayListOf("*Default")
-        val savedVariant = try { LangStore.prefs(context)
-            .getString(selectedIso + "_variant", "*Default") ?: "*Default" } catch (_: Exception) { "*Default" }
+        val savedVariant = try { LangStore.prefs(context)[stringPreferencesKey(selectedIso + "_variant")] ?: "*Default" }
+            catch (_: Exception) { "*Default" }
         if (savedVariant.isNotEmpty() && savedVariant != "*Default") variants.add(savedVariant)
         out.add(0, EngineFinder.ScanVoice(parts[0], engineName, locale, variants, notFound = true))
         return out

@@ -130,12 +130,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
+          # 9.8.1 (latest stable, 2026-10-07); AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
           # release notes), so this is not an independent bump -- the two move
           # together or the build fails at configuration. It is also not new
           # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
           # Gradle was innocent of the accessibility job's dependency failure.
-          gradle-version: '9.7.1'
+          gradle-version: '9.8.1'
           # cache-disabled STAYS TRUE, and it is now a measured decision rather
           # than an unexamined default (2026-09-10). Enabling it looked like the
           # biggest remaining lever -- every run re-downloads the whole
@@ -515,12 +515,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
+          # 9.8.1 (latest stable, 2026-10-07); AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
           # release notes), so this is not an independent bump -- the two move
           # together or the build fails at configuration. It is also not new
           # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
           # Gradle was innocent of the accessibility job's dependency failure.
-          gradle-version: '9.7.1'
+          gradle-version: '9.8.1'
           # cache-disabled STAYS TRUE, and it is now a measured decision rather
           # than an unexamined default (2026-09-10). Enabling it looked like the
           # biggest remaining lever -- every run re-downloads the whole
@@ -761,12 +761,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
+          # 9.8.1 (latest stable, 2026-10-07); AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
           # release notes), so this is not an independent bump -- the two move
           # together or the build fails at configuration. It is also not new
           # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
           # Gradle was innocent of the accessibility job's dependency failure.
-          gradle-version: '9.7.1'
+          gradle-version: '9.8.1'
           # cache-disabled STAYS TRUE, and it is now a measured decision rather
           # than an unexamined default (2026-09-10). Enabling it looked like the
           # biggest remaining lever -- every run re-downloads the whole

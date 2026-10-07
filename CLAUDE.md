@@ -8,7 +8,38 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## A GENERATED BASELINE PROFILE, MADE ON CI'S EMULATOR EVERY BUILD (owner, 2026-10-07, latest)
+## THE SETTINGS ARE JETPACK DATASTORE; EVERY LIBRARY ON ITS LATEST STABLE (owner, 2026-10-07, latest)
+*"jo library behtarin hai vahi ... shared preferences nahin use karna ... alag se class kyon ... sab kuchh naya karo."*
+- **DataStore Preferences 1.2.1, used directly** (no wrapper class -- a first draft that put DataStore behind a
+  hand-written SharedPreferences implementation was rejected by the owner and deleted). LangStore.kt holds the
+  library's own delegate `val Context.settingsStore by preferencesDataStore(name = "easy_voice_settings",
+  corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() }, produceMigrations = { listOf(
+  SharedPreferencesMigration(it, PREFS_FILE)) })`: the old XML is migrated once (types kept, file deleted).
+  `LangStore.prefs(ctx)` = `data.first()` (a `Preferences` snapshot); reads are typed keys
+  (`p[intPreferencesKey(iso3 + "_speed")] ?: 100`). Writes: `LangStore.write(ctx) { }` (waits, was commit) and
+  `writeLater(ctx) { }` (does not, was apply) both go through ONE queue (`Dispatchers.IO.limitedParallelism(1)`)
+  so the file sees edits in order; a failed write is logged, never thrown. Persist functions fill a
+  `mutablePreferencesOf()` delta ON THE CALLER'S THREAD from the statics; the queued edit only merges it.
+  `Preferences.Key` equality is the NAME (read in the 1.2.1 sources), so removes and re-puts match the old keys.
+  SharedPrefsManager keeps its name and reads the snapshot. No `getSharedPreferences` is left in the app.
+- **Proof:** `tools/verify/persist/run.sh` now runs the NEW LangStore against the REAL DataStore JVM library (jars
+  fetched into tools/.cache/datastore-<v>) and HEAD's against the SharedPreferences stand-in: 9,000 cases
+  IDENTICAL, never under the list lock (negative: one key written from the wrong static -> 300 differ). The
+  rebuild harness learned typed-key reads: IDENTICAL 12,004. New on-device `SettingsMigrationTest` (CI emulator):
+  every key shape the app writes survives SharedPreferencesMigration with its type, and the XML is gone after.
+  speakpipe 200,000 0 differ, prefetch 400,000 0 differ, restore, coldstart, scansched, scanyield, voicenow,
+  enginefinder, voicelist, langstore, chunkiso3, toiso3, runlang all pass; check-all 0/0, selftest EVERY CHECK FIRES.
+- **Updates:** core-ktx 1.19.1, collection 1.7.0, emoji2 1.7.0, navigationevent 1.2.0, tracing 2.0.3, Gradle 9.8.1.
+  Re-checked latest: AGP 9.4.1, Kotlin 2.4.20, BOM 2026.09.00, NDK 30.0.16248370, CMake 4.1.2, build-tools 37.0.0.
+  `EngineFinder.engineCalls` = `Dispatchers.IO.asExecutor()` (the library's blocking-call pool, a thread per
+  waiting call) instead of a hand-made cached pool.
+- **Looked at, NOT changed, and why:** the speaking path's HandlerThread / synchronized / wait-notify / stopExec
+  (AutoTTS-proven and harness-proven; a coroutine rewrite there is the riskiest change possible); Navigation
+  Compose (no accessibility handling; screens are announced by their window titles); audio focus (androidx.media's
+  compat is deprecated, media3's is @UnstableApi with Guava); the logger's SimpleDateFormat (java.time needs API 26
+  or desugaring at minSdk 24).
+
+## A GENERATED BASELINE PROFILE, MADE ON CI'S EMULATOR EVERY BUILD (owner, 2026-10-07)
 *"3 and 5 complete test karke"* -- item 3 of the kernel-level list.
 - **`:baselineprofile`** (com.android.test + `androidx.baselineprofile` 1.5.0, benchmark-macro-junit4 1.5.0,
   uiautomator 2.4.0; root build.gradle.kts declares com.android.test 9.4.1 and the plugin). One test,

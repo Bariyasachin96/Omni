@@ -19,9 +19,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null) {
     // toIso3(lang) worked out once per chunk (owner, 2026-10-06): the prefetch,
     // the queue-ahead, speakChunk and onDone each converted the same chunk's
@@ -2729,9 +2730,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 entry.variant = "*Default"
             }
         }
-        LangStore.prefs(this).edit {
-            putString(lang, pkg + "#" + loc.toString())
-            putString(lang + "_variant", "*Default")
+        val stored = pkg + "#" + loc.toString()
+        LangStore.writeLater(this) {
+            it[stringPreferencesKey(lang)] = stored
+            it[stringPreferencesKey(lang + "_variant")] = "*Default"
         }
         EasyVoiceLogger.error(EasyVoiceLogger.TAG, lang + " is now set up on " + pkg + " " + loc)
     }
@@ -3026,10 +3028,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val sharedPrefs = LangStore.prefs(this)
             var index = 0
             while (true) {
-                val voice = sharedPrefs.getString("voice_$index", "") ?: ""
+                val voice = sharedPrefs[stringPreferencesKey("voice_$index")] ?: ""
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -" + voice }
                 if (voice.isEmpty()) {
-                    dedicatedEnginesFlag = sharedPrefs.getBoolean("dedicated_engines", false)
+                    dedicatedEnginesFlag = sharedPrefs[booleanPreferencesKey("dedicated_engines")] ?: false
                     return
                 }
                 voiceList.add(voice)

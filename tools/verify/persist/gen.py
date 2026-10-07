@@ -23,10 +23,14 @@ def lift(path, name):
     return text[i:j+1]
 FUNS = ["persistLanguages", "persistDisabled", "persistEngines", "persistVoiceList", "persistVoiceRows", "voiceRowKey",
         "persistAll", "persistModeLangs", "persistMode", "persistFlags"]
-HELPERS = ["putLanguages", "putEngines", "putVoiceList", "putModeLangs", "putMode", "putFlags", "putVoiceRows", "publishEngines", "publishVoices"]
+HELPERS = ["putLanguages", "putEngines", "putVoiceList", "putModeLangs", "putMode", "putFlags", "putVoiceRows", "publishEngines", "publishVoices",
+           "enginesToWrite", "voicesToWrite"]
 def body(path):
     text = open(path, encoding="utf-8").read()
     parts = []
+    # DataStore (2026-10-07): the new file names its settings key once.
+    m = re.search(r"^[ \t]*private val ENGINE_FALLBACK = .*$", text, re.M)
+    if m: parts.append(m.group(0).strip().replace("private ", ""))
     m = re.search(r"^[ \t]*private class Persisted\(.*$", text, re.M)
     if m: parts.append(m.group(0).strip().replace("private ", ""))
     names = FUNS + (["snapshot"] if "fun snapshot(" in text else []) + [h for h in HELPERS if ("fun " + h + "(") in text]
@@ -35,9 +39,18 @@ def body(path):
             m = re.search(r"fun voiceRowKey\(.*\n.*\n", text)
             parts.append(m.group(0)); continue
         parts.append(lift(path, n))
-    return "\n".join(parts).replace("SharedPreferences.Editor", "Prefs.Ed").replace("SharedPreferences", "Prefs")
+    out = "\n".join(parts).replace("SharedPreferences.Editor", "Prefs.Ed").replace("SharedPreferences", "Prefs")
+    # A DataStore body reads and writes the REAL library (Driver.kt's dsPrefs /
+    # dsWrite over a real PreferenceDataStoreFactory store).
+    if "MutablePreferences" in out:
+        out = out.replace("prefs(ctx)", "dsPrefs(ctx)").replace("write(ctx)", "dsWrite(ctx)")
+    return out
+drv = open(driver, encoding="utf-8").read().split("\n")
+imports = [l for l in drv if l.startswith("import ")]
+drv_text = "\n".join(l for l in drv if not l.startswith("import "))
 with open(out, "w", encoding="utf-8") as f:
     f.write('@file:Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE", "NAME_SHADOWING", "unused")\n')
+    f.write("\n".join(imports) + "\n")
     f.write("object OldP {\n val languages get() = Lists.languages\n" + body(old_ls) + "\n}\n")
     f.write("object NewP {\n val languages get() = Lists.languages\n" + body(new_ls) + "\n}\n")
-    f.write(open(driver, encoding="utf-8").read())
+    f.write(drv_text)

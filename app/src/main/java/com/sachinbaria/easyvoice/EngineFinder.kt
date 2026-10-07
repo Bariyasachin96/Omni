@@ -3,6 +3,9 @@ import android.content.Context
 import android.content.Intent
 import android.speech.tts.TextToSpeech
 import java.util.Locale
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.asExecutor
 object EngineFinder {
     data class EngineInfo(val pkg: String, val name: String) { override fun toString() = name }
     // NO PACKAGE NAME IS WRITTEN IN THIS APP (owner, 2026-09-24: "kisi bhi TTS ka
@@ -150,10 +153,12 @@ object EngineFinder {
     // meant to give up on such an engine runs on that same thread, so it could
     // not fire: "Easy Voice isn't responding". shutdown() takes the same lock
     // those calls hold (TextToSpeech.mStartLock), so it goes here too.
-    // A cached pool rather than one thread: an engine that never answers keeps
-    // only its own thread, and every other engine is still read.
-    @JvmStatic val engineCalls: java.util.concurrent.ExecutorService =
-        java.util.concurrent.Executors.newCachedThreadPool { runnable -> Thread(runnable, "EngineCall").apply { isDaemon = true } }
+    // kotlinx.coroutines' IO dispatcher (owner, 2026-10-07: the library's pool,
+    // not one of ours): it is made for blocking calls and grows a thread per
+    // waiting call up to 64, so an engine that never answers keeps only its own
+    // thread and every other engine is still read -- what the hand-made cached
+    // pool did.
+    @JvmStatic val engineCalls: java.util.concurrent.Executor = kotlinx.coroutines.Dispatchers.IO.asExecutor()
     @JvmStatic fun shutdownLater(client: TextToSpeech?) {
         if (client == null) return
         try { engineCalls.execute { try { client.shutdown() } catch (_: Exception) {} } }
@@ -370,21 +375,22 @@ object EngineFinder {
         if (EasyVoiceTtsService.backupLangs.isEmpty()) return
         try {
             val prefs = LangStore.prefs(ctx)
-            val editor = prefs.edit()
+            val editor = mutablePreferencesOf()
             var changed = false
-            for ((key, value) in prefs.all) {
+            for ((prefKey, value) in prefs.asMap()) {
+                val key = prefKey.name
                 if (key.length != 3 || value !is String || !EasyVoiceTtsService.backupFor(key)) continue
                 val parts = value.split("#")
                 if (parts.size < 2 || parts[0].isEmpty() || parts[0].equals("disable", true) || isSelfEngine(parts[0])) continue
                 if (isTtsEngine(ctx, parts[0], whenUnknown = true)) continue
                 val replacement = voices.firstOrNull { !isSelfEngine(it.pkg) && it.pkg != parts[0] && iso3Of(it.locale) == key } ?: continue
-                editor.putString(key, replacement.pkg + "#" + replacement.locale.toString())
-                editor.putString(key + "_variant", "*Default")
+                editor[stringPreferencesKey(key)] = replacement.pkg + "#" + replacement.locale.toString()
+                editor[stringPreferencesKey(key + "_variant")] = "*Default"
                 changed = true
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, parts[0] + " is not installed any more -- " + key +
                     " is now set up on " + replacement.pkg + " " + replacement.locale)
             }
-            if (changed) editor.commit()
+            if (changed) LangStore.write(ctx) { it += editor }
         } catch (ex: Exception) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "repointUninstalled: " + ex.toString())
         }
@@ -397,7 +403,7 @@ object EngineFinder {
             val prefs = LangStore.prefs(ctx)
             var engineIdx = 0
             while (true) {
-                val pkg = prefs.getString("engine_$engineIdx", "") ?: ""
+                val pkg = prefs[stringPreferencesKey("engine_$engineIdx")] ?: ""
                 if (pkg.isEmpty() || pkg == "end") break
                 out.add(pkg)
                 engineIdx++
@@ -499,7 +505,7 @@ object EngineFinder {
                     val stored = LangStore.prefs(ctx)
                     var voiceIdx = 0
                     while (true) {
-                        val key = stored.getString("voice_$voiceIdx", "") ?: ""
+                        val key = stored[stringPreferencesKey("voice_$voiceIdx")] ?: ""
                         if (key.isEmpty()) break
                         voiceIdx++
                         val parts = key.split("#")
@@ -515,8 +521,8 @@ object EngineFinder {
                 // configured on it. Each language's own "<pkg>#<locale>" key names
                 // the voice it was set up with, so that voice is kept as well.
                 val prefs = LangStore.prefs(ctx)
-                for ((key, value) in prefs.all) {
-                    if (key.length != 3 || value !is String) continue
+                for ((prefKey, value) in prefs.asMap()) {
+                    if (prefKey.name.length != 3 || value !is String) continue
                     val parts = value.split("#")
                     if (parts.size < 2 || parts[0] != failedPkg || parts[1].isEmpty()) continue
                     val loc = parseStoredLocale(parts[1])
