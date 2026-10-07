@@ -5,6 +5,8 @@ import java.io.File
 object FakeClock {
     var t = 1_700_000_000_000L
     fun now(): java.util.Date { t += 7; return java.util.Date(t) }
+    // The same tick for a java.time logger (2026-10-07).
+    fun nowLocal(): java.time.LocalDateTime { t += 7; return java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(t), java.time.ZoneId.systemDefault()) }
 }
 
 fun main(args: Array<String>) {

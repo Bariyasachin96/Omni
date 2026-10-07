@@ -171,7 +171,9 @@ android {
         }
         debug { isMinifyEnabled = false }
     }
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    // Core library desugaring (2026-10-07): java.time on API 24-25 too, so the app
+    // uses the current date/time API everywhere (the logger's DateTimeFormatter).
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17; isCoreLibraryDesugaringEnabled = true }
     // buildConfig: the About screen reads BuildConfig.VERSION_NAME instead of
     // asking PackageManager for the app's own version at run time.
     buildFeatures { compose = true; buildConfig = true }
@@ -227,6 +229,7 @@ baselineProfile {
 }
 dependencies {
     baselineProfile(project(":baselineprofile"))
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // Latest stable, checked against the androidx release notes on 2026-08-27.
     // core-ktx is what NotificationCompat, ServiceCompat and FileProvider come
     // from, so it is the one that actually earns its place.

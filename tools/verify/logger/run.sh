@@ -16,11 +16,12 @@ prep() {  # source on stdin, $1 = package
   sed -e "s/^package com.sachinbaria.easyvoice/package $1/" \
       -e "s/MAX_LOG_BYTES = 2L \* 1024L \* 1024L/MAX_LOG_BYTES = ${CAP}L/" \
       -e "s/timestampFormat.format(Date())/timestampFormat.format(FakeClock.now())/" \
+      -e "s/timestampFormat.format(LocalDateTime.now())/timestampFormat.format(FakeClock.nowLocal())/" \
       -e "1a import FakeClock"
 }
 git -C "$ROOT" show "$REF:app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceLogger.kt" | prep old > "$WORK/src/Old.kt"
 prep < "$ROOT/app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceLogger.kt" new > "$WORK/src/New.kt"
-grep -q "FakeClock.now()" "$WORK/src/Old.kt" && grep -q "FakeClock.now()" "$WORK/src/New.kt" || { echo "clock substitution did not apply"; exit 1; }
+grep -q "FakeClock.now" "$WORK/src/Old.kt" && grep -q "FakeClock.now" "$WORK/src/New.kt" || { echo "clock substitution did not apply"; exit 1; }
 grep -q "MAX_LOG_BYTES = ${CAP}L" "$WORK/src/Old.kt" && grep -q "MAX_LOG_BYTES = ${CAP}L" "$WORK/src/New.kt" || { echo "cap substitution did not apply"; exit 1; }
 cp "$HERE"/Driver.kt "$HERE"/Stubs.kt "$HERE"/Context.kt "$WORK/src/"
 "$KOTLINC" -nowarn "$WORK"/src/*.kt -include-runtime -d "$WORK/logger.jar" 2>&1 | grep -v '^warning' || true

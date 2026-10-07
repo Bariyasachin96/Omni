@@ -63,6 +63,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 // How far a horizontal drag must travel before it counts as a tab swipe.
 //
 // RESTORED 2026-09-17 at the owner's request -- "ye swiping wala aapne hataya
@@ -225,8 +227,11 @@ class MainActivity : EvActivity() {
                 )
             }
         }
-        EngineFinder.scanLanguages(this, { line -> runOnUiThread { scanLine = line } },
-            publish = { apply -> if (inFront) apply() else pendingPublish = apply }) { newTestClient(); runOnUiThread {
+        // lifecycleScope (androidx lifecycle-runtime-ktx) instead of runOnUiThread
+        // (owner, 2026-10-07): the same hop to the main thread, but cancelled with
+        // the screen, so a scan that ends after the screen closed touches nothing.
+        EngineFinder.scanLanguages(this, { line -> lifecycleScope.launch { scanLine = line } },
+            publish = { apply -> if (inFront) apply() else pendingPublish = apply }) { newTestClient(); lifecycleScope.launch {
             scanning = false
             modeRefresh++
         } }

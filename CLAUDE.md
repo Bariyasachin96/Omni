@@ -33,11 +33,16 @@
   Re-checked latest: AGP 9.4.1, Kotlin 2.4.20, BOM 2026.09.00, NDK 30.0.16248370, CMake 4.1.2, build-tools 37.0.0.
   `EngineFinder.engineCalls` = `Dispatchers.IO.asExecutor()` (the library's blocking-call pool, a thread per
   waiting call) instead of a hand-made cached pool.
+- **Second batch, same day ("sab kuchh ek saath"):** core library desugaring (`desugar_jdk_libs` 2.1.5) and the
+  logger on java.time (`DateTimeFormatter`, immutable and thread-safe, was SimpleDateFormat) -- logger harness
+  byte-identical over 5 x 4,000 ops; MainActivity's scan callbacks hop with `lifecycleScope.launch` (cancelled
+  with the screen) instead of runOnUiThread. Toasts are KEPT: not deprecated, read by every screen reader, and a
+  Snackbar queues (showSnackbar suspends) so the slider's -/+ value would lag behind repeated presses.
 - **Looked at, NOT changed, and why:** the speaking path's HandlerThread / synchronized / wait-notify / stopExec
   (AutoTTS-proven and harness-proven; a coroutine rewrite there is the riskiest change possible); Navigation
   Compose (no accessibility handling; screens are announced by their window titles); audio focus (androidx.media's
   compat is deprecated, media3's is @UnstableApi with Guava); the logger's SimpleDateFormat (java.time needs API 26
-  or desugaring at minSdk 24).
+  or desugaring at minSdk 24 -- DONE in the second batch).
 
 ## A GENERATED BASELINE PROFILE, MADE ON CI'S EMULATOR EVERY BUILD (owner, 2026-10-07)
 *"3 and 5 complete test karke"* -- item 3 of the kernel-level list.

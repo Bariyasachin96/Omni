@@ -4,13 +4,17 @@ import android.util.Log
 import java.io.File
 import java.io.FileWriter
 import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 object EasyVoiceLogger {
     const val TAG = "EasyVoice"
     private const val MAX_LOG_BYTES = 2L * 1024L * 1024L
-    private val timestampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+    // java.time (owner, 2026-10-07: the current API, not the old one): an
+    // immutable, thread-safe DateTimeFormatter instead of SimpleDateFormat,
+    // which is neither. Below API 26 the app's core-library desugaring supplies
+    // java.time. Same pattern, same text (tools/verify/logger compares files).
+    private val timestampFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     private var logFile: File? = null
     @PublishedApi @Volatile internal var loggingOn = false
     // ---- THE WRITER IS HELD OPEN -------------------------------------------
@@ -95,7 +99,7 @@ object EasyVoiceLogger {
         if (writer != null && writtenBytes >= MAX_LOG_BYTES) closeWriter()
         val line = try {
             if (writer == null) rotate(file)
-            timestampFormat.format(Date()) + " [" + level + "] " + tag + ": " + msg
+            timestampFormat.format(LocalDateTime.now()) + " [" + level + "] " + tag + ": " + msg
         } catch (ex: Throwable) {
             Log.e("TtsLogger", "Failed to prepare a log line", ex)
             closeWriter()
