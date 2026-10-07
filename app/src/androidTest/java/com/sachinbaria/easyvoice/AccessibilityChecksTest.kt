@@ -17,6 +17,7 @@ import androidx.compose.ui.test.hasSetTextAction
 // every test here already waits for that -- each state change is followed by
 // rule.waitForIdle() or by an onNode lookup, which synchronises.
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -558,6 +559,30 @@ class AccessibilityChecksTest {
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("More actions for English (eng)").performClick()
         rule.onNodeWithContentDescription("Disable language").performClick()
+        sweepSchemes()
+    }
+
+    // The menu left OPEN, so its items are what ATF measures, including
+    // "Download voice data" when the emulator's engine has an
+    // INSTALL_TTS_DATA screen. Whether it is offered must agree with the
+    // package manager, in both directions.
+    @Test
+    fun configurationRowMenuShowsVoiceData() {
+        val pkg = "com.google.android.tts"
+        val ctx = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val hasInstaller = ctx.packageManager.resolveActivity(
+            android.content.Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(pkg), 0) != null
+        themed {
+            ConfigurationScreen(
+                labels = listOf("English (eng)"),
+                engines = listOf(pkg),
+                onLanguage = { }, onDeleteConfiguration = { }, onDisable = { }
+            )
+        }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("More actions for English (eng)").performClick()
+        val shown = rule.onAllNodesWithContentDescription("Download voice data").fetchSemanticsNodes().isNotEmpty()
+        org.junit.Assert.assertEquals("Download voice data offered", hasInstaller, shown)
         sweepSchemes()
     }
 

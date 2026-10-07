@@ -1,4 +1,7 @@
 package com.sachinbaria.easyvoice
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -147,6 +150,26 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
                                     onClick = { menuOpen = false; onDisable(index) },
                                     modifier = Modifier.semantics { contentDescription = "Disable language" }
                                 )
+                                // THE ENGINE'S OWN VOICE DATA SCREEN (owner, 2026-10-07:
+                                // "download voice data ... jo TTS select kiya hai ...
+                                // available hai vahan per"). Offered only when the
+                                // engine set up for this language answers
+                                // ACTION_INSTALL_TTS_DATA, which <queries> declares.
+                                // Asked here, inside the menu's content, so the package
+                                // manager is asked only when the menu is opened.
+                                val installData = remember(enginePkg) { voiceDataIntent(context, enginePkg) }
+                                if (installData != null) {
+                                    DropdownMenuItem(
+                                        text = { SilentText("Download voice data") },
+                                        onClick = {
+                                            menuOpen = false
+                                            try { context.startActivity(installData) } catch (_: Exception) {
+                                                Toast.makeText(context, "This voice engine cannot open its voice data screen", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier.semantics { contentDescription = "Download voice data" }
+                                    )
+                                }
                         }
                     }
                     }
@@ -154,4 +177,14 @@ fun ConfigurationScreen(labels: List<String>, engines: List<String>, onLanguage:
             }
         }
     }
+}
+
+// The engine's ACTION_INSTALL_TTS_DATA activity, or null when it has none (or no
+// engine is set up). Exactly what AOSP's TTS settings open for "Install voice data".
+private fun voiceDataIntent(context: Context, enginePkg: String): Intent? {
+    if (enginePkg.isEmpty()) return null
+    val intent = Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(enginePkg)
+    return try {
+        if (context.packageManager.resolveActivity(intent, 0) != null) intent else null
+    } catch (_: Exception) { null }
 }

@@ -8,7 +8,16 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE CORE'S ANSWER IS READ IN PLACE; ITS REPEATED STRINGS ARE MADE ONCE (owner, 2026-10-07, latest)
+## "DOWNLOAD VOICE DATA" IN THE CONFIGURATION ROW'S MORE ACTIONS (owner, 2026-10-07, latest)
+*"Mor action ... download voice data ... jo TTS select kiya hai ... available hai vahan per."*
+- `ConfigurationScreen`'s three-dot menu gains **"Download voice data"** after Delete/Disable, shown ONLY when the
+  engine configured for that language resolves `TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA` (declared in
+  `<queries>`), and it opens that engine's own screen. Resolved inside the menu's content, so the package manager is
+  asked only when the menu opens. A failed start Toasts. No new screen, no new dependency.
+- Test `AccessibilityChecksTest.configurationRowMenuShowsVoiceData`: menu left open, option shown exactly when the
+  emulator's Google TTS has an installer, ATF over it. check-all 0/0, selftest EVERY CHECK FIRES.
+
+## THE CORE'S ANSWER IS READ IN PLACE; ITS REPEATED STRINGS ARE MADE ONCE (owner, 2026-10-07)
 *"teesra chautha aur paanchva ... 4 aur 5 kar do."* From a list for the voice-switch gap; measured first and stated
 to the owner as microseconds, done on their word. Item 3 (speak the next chunk from onDone's binder thread) NOT done:
 every speak-thread step is serial by design (no locks on currentPair/queue/ahead), and locking them costs more than
