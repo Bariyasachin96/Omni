@@ -1917,6 +1917,44 @@ struct Cld2Cache {
     std::unordered_map<std::string, std::string> windows;       // window bytes -> detectWindowLang's answer
 };
 static const size_t kCld2CacheMax = 256;
+// CLD2 READS ONLY WELL-FORMED UTF-8, AND A U+0000 IS NOT (2026-10-07). Found by
+// tools/pgo: CLD2's UTF8GenericProperty* step through a state table assuming
+// valid input (utf8statetable.h: "assumed to be valid"). An illegal lead or
+// second byte answers the table's error state 32768, and the next lookup is
+// Tbl_0[32768 << 6] -- 4 MB past a 32 KB table. JNI's modified UTF-8 spells
+// U+0000 as C0 80 (jstringToStd, utf16to8), so a text holding one sent CLD2
+// into that read: garbage on one memory layout, SIGSEGV on another (it crashed
+// the NDK-built static driver), and a crash here kills the TTS service.
+// Each byte that does not begin or continue a well-formed sequence becomes a
+// space, so the LENGTH is unchanged and every offset into the text still
+// holds; C0 80 becomes two spaces, which is what a U+0000 is to a language
+// detector anyway. Surrogates (ED A0..BF), which ART writes for a lone one,
+// stay: the table has rows for them (probed: in range). Returns `in` itself
+// when nothing needed changing, which is every ordinary text.
+static const char* cld2Bytes(const char* in, int n, std::string& scratch){
+    auto cont = [&](int at){ return at < n && ((unsigned char)in[at] & 0xC0) == 0x80; };
+    bool copied = false;
+    for(int i = 0; i < n;){
+        unsigned char c = (unsigned char)in[i];
+        int len = 0;
+        if(c < 0x80) len = 1;
+        else if(c >= 0xC2 && c <= 0xDF) len = cont(i + 1) ? 2 : 0;
+        else if(c >= 0xE0 && c <= 0xEF){
+            unsigned char d = i + 1 < n ? (unsigned char)in[i + 1] : 0;
+            bool ok2 = c == 0xE0 ? (d >= 0xA0 && d <= 0xBF) : (d >= 0x80 && d <= 0xBF);
+            len = ok2 && cont(i + 2) ? 3 : 0;
+        } else if(c >= 0xF0 && c <= 0xF4){
+            unsigned char d = i + 1 < n ? (unsigned char)in[i + 1] : 0;
+            bool ok2 = c == 0xF0 ? (d >= 0x90 && d <= 0xBF) : c == 0xF4 ? (d >= 0x80 && d <= 0x8F) : (d >= 0x80 && d <= 0xBF);
+            len = ok2 && cont(i + 2) && cont(i + 3) ? 4 : 0;
+        }
+        if(len){ i += len; continue; }
+        if(!copied){ scratch.assign(in, (size_t)n); in = scratch.data(); copied = true; }
+        scratch[(size_t)i] = ' ';
+        i++;
+    }
+    return in;
+}
 static Cld2Cache& cld2Cache(){ static thread_local Cld2Cache cache; return cache; }
 static std::string detectWindowLangUncached(const std::string& utf8Text);
 static std::string detectWindowLang(const std::string& utf8Text){
@@ -1937,7 +1975,9 @@ static std::string detectWindowLangUncached(const std::string& utf8Text){
     CLD2::CLDHints hints = {nullptr, "", 0, CLD2::UNKNOWN_LANGUAGE};
     CLD2::Language lang3[3]; int percent3[3]; double score3[3];
     int textBytes=0; bool reliable=false;
-    CLD2::DetectLanguageSummaryV2(utf8Text.c_str(), (int)utf8Text.size(), false, &hints,
+    std::string clean;
+    const char* bytes = cld2Bytes(utf8Text.c_str(), (int)utf8Text.size(), clean);
+    CLD2::DetectLanguageSummaryV2(bytes, (int)utf8Text.size(), false, &hints,
                                   true, 0x4000, CLD2::UNKNOWN_LANGUAGE,
                                   lang3, percent3, score3, nullptr, &textBytes, &reliable);
     if(!reliable) return "UNKNOWN";
@@ -2379,7 +2419,9 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
                                                       : (CLD2::Language)scriptHint};
             CLD2::Language lang3[3]; int percent3[3]; double score3[3];
             int textBytes = 0; bool reliable = false;
-            CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(text.c_str() + start, detectBytes, true, &hints, 0x4000,
+            std::string clean;
+            const char* bytes = cld2Bytes(text.c_str() + start, detectBytes, clean);
+            CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(bytes, detectBytes, true, &hints, 0x4000,
                                        lang3, percent3, score3, nullptr, &textBytes, &reliable);
             const char* code = CLD2::LanguageCode(cldLang);
             lang = code ? std::string(code) : "un";

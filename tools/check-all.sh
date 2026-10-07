@@ -33,6 +33,7 @@ step "xml resources"           python3 tools/check/xmlcheck.py
 step "invariants"              bash    tools/check/invariants.sh
 step "unicode tables current"  python3 tools/unicode/gen_tables.py --check
 step "c++ syntax"              bash    tools/check/cpp-syntax.sh
+step "native PGO profile fresh" bash   tools/check/pgo-fresh.sh
 step "minSdk API usage"        bash    tools/check/minsdk-api.sh
 step "workflow shell"          bash    tools/check/workflow-shell.sh
 step "gradle compile (app + androidTest)" bash tools/check/gradle-compile.sh

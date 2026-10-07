@@ -81,6 +81,22 @@ add_library(easyvoice SHARED
     ${CLD2_DIR}/cld_generated_score_quad_octa_0122.cc
 )
 target_include_directories(easyvoice PRIVATE ${CLD2_DIR}/../public ${CLD2_DIR})
+# PROFILE-GUIDED OPTIMIZATION (owner, 2026-10-07). pgo/easyvoice.profdata is
+# trained by tools/pgo/run.sh with this NDK's own clang, on the core's real JNI
+# entry points over the corebytes corpus, weighted toward the mix mode a screen
+# reader actually uses. Front-end (source-based) profiles are keyed by function
+# name and control-flow hash, so one profile serves arm64-v8a and armeabi-v7a;
+# run.sh compiles both with -Werror=profile-instr-out-of-date to prove it.
+# Measured (run.sh, x86_64-android, callgrind): the core's own instructions
+# -8.9% (buildMixChunks -13%, CLD2's DetectLanguageSummaryV2 -7.6%); every
+# answer byte-identical to the plain build over 917,754 cases; the library
+# +15 KB raw, +10 KB gzipped per ABI. After ANY change to tts_engine_core.cpp,
+# run tools/pgo/run.sh --update (check-all fails on a stale profile).
+set(EV_PGO_PROFILE ${CMAKE_CURRENT_SOURCE_DIR}/pgo/easyvoice.profdata)
+target_compile_options(easyvoice PRIVATE "-fprofile-instr-use=${EV_PGO_PROFILE}")
+target_link_options(easyvoice PRIVATE "-fprofile-instr-use=${EV_PGO_PROFILE}")
+get_target_property(EV_SOURCES easyvoice SOURCES)
+set_source_files_properties(${EV_SOURCES} PROPERTIES OBJECT_DEPENDS ${EV_PGO_PROFILE})
 find_library(log-lib log)
 target_link_libraries(easyvoice ${log-lib})
 # --gc-sections is the LINKER half of -ffunction-sections/-fdata-sections in

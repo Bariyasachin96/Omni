@@ -8,7 +8,33 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## "DOWNLOAD VOICE DATA" IN THE CONFIGURATION ROW'S MORE ACTIONS (owner, 2026-10-07, latest)
+## NATIVE PGO, AND CLD2 READ 4 MB PAST A TABLE FOR A U+0000 (owner, 2026-10-07, latest)
+*"3 and 5 complete test karke kar do"* -- item 5 of the kernel-level list (PGO of the native core).
+- **`tools/pgo/run.sh [--update]`** trains with the NDK's OWN clang 21: static x86_64- AND i686-android executables
+  run on this Linux kernel as they are (the NDK has no host profile runtime), around `tools/pgo/fakejni.h` (a JNIEnv
+  without a JVM, ART string behaviour, every unused slot aborts) so `driver.cpp` calls the REAL JNI entry points over
+  the corebytes corpus, weighted to mix-mode defaults under {hi,en,gu}. 32-bit too because size_t/long mangle
+  differently: x86_64 alone left 31 core functions with no record on armeabi-v7a. Profile:
+  `app/src/main/cpp/pgo/easyvoice.profdata` (113 KB, deterministic); CMakeLists passes `-fprofile-instr-use` (compile
+  + link, OBJECT_DEPENDS). Static functions are keyed by the source BASENAME, so CI's paths do not matter (proven:
+  the same core from another directory fits).
+- **Proof (run.sh, all steps):** profile identical to the committed one; plain vs PGO build (shipped flags) **917,754
+  answers byte-identical**; arm64-v8a AND armeabi-v7a compile with `-Werror=profile-instr-out-of-date` and
+  `-Werror=profile-instr-missing` (0 and 0); ASan+UBSan over the whole training run clean. Measured (callgrind,
+  x86_64-android): the core's own instructions **-8.9%** (buildMixChunks -13%, CLD2 DetectLanguageSummaryV2 -7.6%);
+  wall clock ~5-7% (noisy). Cost: library +15 KB raw / +10 KB gz per ABI (Gradle's real arm64 .so 6,521,256).
+- **Stale profile = check-all FAILS** (`tools/check/pgo-fresh.sh`: the core alone for arm64 with both -Werror;
+  negative: one changed branch -> "1 has mismatched data"). After ANY tts_engine_core.cpp edit: `run.sh --update`.
+  NOTE: `-w` silences a -Werror'd warning too -- the first draft of both checks passed a stale profile that way.
+- **THE BUG PGO FOUND (`cld2Bytes`):** CLD2's UTF8GenericProperty* assume valid UTF-8. JNI modified UTF-8 spells U+0000
+  as C0 80; C0 answers the table's error state 32768, then `Tbl_0[32768 << 6]` = 4 MB past a 32 KB table. The NDK
+  driver and an ASan build of HEAD's core both SEGV on "plain\0after nul" (auto mode); on a phone it is garbage or a
+  dead TTS process. Both CLD2 calls now get bytes where any ill-formed byte is a space (same length, offsets hold;
+  ART's lone-surrogate ED A0..BF kept: the table has rows for them, probed). corebytes vs HEAD: 96 records differ,
+  ALL in the three corpus texts holding U+0000, old answer garbage ('sa', UNKNOWN), new the right one ('hi', 'en').
+  devanagari 64/64, onecall 0 differ, stress 0 wrong, segmenter (only the known '£'), registernatives, latency pass.
+
+## "DOWNLOAD VOICE DATA" IN THE CONFIGURATION ROW'S MORE ACTIONS (owner, 2026-10-07)
 *"Mor action ... download voice data ... jo TTS select kiya hai ... available hai vahan per."*
 - `ConfigurationScreen`'s three-dot menu gains **"Download voice data"** after Delete/Disable, shown ONLY when the
   engine configured for that language resolves `TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA` (declared in
