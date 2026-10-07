@@ -3357,6 +3357,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // An utterance is in flight: a background scan does not read an engine
         // now (ScanYield). Its end, below, is the event that lets it go on.
         synthesizingNow = true
+        boostSynthesisThread()
+        try { nativeRewarmTables() } catch (_: Throwable) {}
         try {
             onSynthesizeTextImpl(request, callback)
         } catch (ex: Throwable) {
@@ -3370,7 +3372,60 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (ScanYield.hasParked()) onMainThread { ScanYield.speechEnded() }
         }
     }
+    // ==========================================================================
+    //  THE SCHEDULER IS TOLD WHICH THREADS THE SCREEN READER IS WAITING ON
+    //  (owner, 2026-10-07: "Karnal level per ... bahut jyada hi fast").
+    //
+    //  1. AOSP builds the synthesis thread at THREAD_PRIORITY_DEFAULT
+    //     (TextToSpeechService.SynthThread: super(SYNTH_THREAD_NAME,
+    //     Process.THREAD_PRIORITY_DEFAULT)), and onSynthesizeText runs on it --
+    //     segmentation, detection, the language load and the first speak(). It is
+    //     raised to THREAD_PRIORITY_AUDIO, the priority the speak thread already
+    //     has, once, the first time this thread enters (the thread lives as long
+    //     as the service). A phone busy with something else no longer runs that
+    //     work after its own.
+    //
+    //  2. Android 12+: an ADPF hint session (PerformanceHintManager) for the
+    //     synthesis and speak threads. Each utterance reports how long its work
+    //     took, from entering onSynthesizeText to the first speak() accepted; the
+    //     kernel's scheduler raises those threads' CPU floor (uclamp) when that
+    //     is over the target and lowers it again when it is under. The target is
+    //     the session's required parameter, not a wait: nothing here waits.
+    //     A device that does not support it answers null and nothing changes.
+    // ==========================================================================
+    private val synthesisThreadBoosted = ThreadLocal<Boolean>()
+    @Volatile private var hintSession: Any? = null          // PerformanceHintManager.Session, API 31+
+    private var hintSessionTried = false
+    private fun boostSynthesisThread() {
+        if (synthesisThreadBoosted.get() == true) return
+        synthesisThreadBoosted.set(true)
+        try { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "synthesis thread priority: " + ex.toString())
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && !hintSessionTried) {
+            hintSessionTried = true
+            try { hintSession = createHintSession31(intArrayOf(android.os.Process.myTid(), speakThread.threadId)) } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "hint session: " + ex.toString())
+            }
+        }
+    }
+    @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.S)
+    private fun createHintSession31(threads: IntArray): Any? {
+        val manager = getSystemService(android.os.PerformanceHintManager::class.java) ?: return null
+        return manager.createHintSession(threads, HINT_TARGET_NANOS)
+    }
+    // How long this utterance's work took, up to the first speak() accepted.
+    private fun reportSynthesisWork(nanos: Long) {
+        val session = hintSession ?: return
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return
+        try { reportWork31(session, nanos) } catch (_: Throwable) {}
+    }
+    @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.S)
+    private fun reportWork31(session: Any, nanos: Long) {
+        if (nanos > 0) (session as android.os.PerformanceHintManager.Session).reportActualWorkDuration(nanos)
+    }
     private fun onSynthesizeTextImpl(request: SynthesisRequest?, callback: SynthesisCallback?) {
+        val workStart = System.nanoTime()
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "\n-------------------------------\nonSynthesizeText" }
         reloadLanguagesIfMissing()
         if (showNotificationFlag && !isForegroundActive()) {
@@ -4761,6 +4816,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)
                     }
                     if (speakResult == 0) {
+                        if (first) reportSynthesisWork(System.nanoTime() - workStart)
                         // The engine has the chunk. Everything until its last word is
                         // free time to load the next chunk's language and, on this same
                         // engine, to hand it over with QUEUE_ADD -- so it starts now,
@@ -4851,6 +4907,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // Nothing will be spoken by this instance any more: a parked background
         // scan step goes on now instead of waiting for an utterance end.
         try { synthesizingNow = false; ScanYield.speechInFlight = { false }; ScanYield.speechEnded() } catch (_: Throwable) {}
+        try { (hintSession as? java.io.Closeable)?.close() } catch (_: Throwable) {}
+        hintSession = null
         try { for (index in 0 until enginePool.size) enginePool[index].shutdown() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "engine shutdown: " + ex.toString()) }
         try { unbindAllEngineKeepAlive() } catch (_: Throwable) {}
         try { if (packageReceiverRegistered) { packageReceiverRegistered = false; unregisterReceiver(packageReceiver) } } catch (_: Throwable) {}
@@ -4875,6 +4933,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // it never keeps the service alive (the 2026-09-10 appCtx leak was a
         // STRONG static reference to it).
         @Volatile private var running: java.lang.ref.WeakReference<EasyVoiceTtsService>? = null
+        // ADPF's required target for one utterance's work (see boostSynthesisThread):
+        // under it the scheduler eases off, over it it raises the CPU floor.
+        const val HINT_TARGET_NANOS = 1_000_000L
         // True while onSynthesizeText runs (there is one synthesis thread).
         @Volatile @JvmStatic var synthesizingNow = false
         // THE SCAN READS A LIVE ENGINE THROUGH THE CLIENT WE ALREADY HOLD
@@ -4965,6 +5026,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // and spans clsCLD2.f weighs up -- one crossing (owner, 2026-10-01).
         @JvmStatic external fun detectWindowOrSpans(text: String, latinFallback: String, nonLatinFallback: String,
             disableAdvancedDetection: Boolean, wantLog: Boolean, singleStops: Boolean): Array<String>
+        // An utterance is starting: the core's own worker checks that the
+        // detector's tables are still in the page cache and reads back what the
+        // kernel dropped (image_warm.h). One mutex and a signal here.
+        @JvmStatic external fun nativeRewarmTables()
 
         // AutoTtsService.s0, "updateLanguage2LetterCodes". It rebuilds the enabled
         // two-letter set from the language list and pushes it to the detector:

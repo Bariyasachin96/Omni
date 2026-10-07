@@ -36,6 +36,10 @@ static jclass stringClassRef(JNIEnv* env) {
     }
     return cached;
 }
+// The entry points, bound once at load (owner, 2026-10-07): ART otherwise
+// looks each Java_* symbol up with dlsym the first time it is called. Defined
+// at the end of this file; registerNatives below is too.
+static void registerNatives(JNIEnv* env);
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
     // The detector's tables, read in now rather than on the first word: see
     // image_warm.h. Any address inside this library names it.
@@ -43,6 +47,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
     JNIEnv* env = nullptr;
     if (vm && vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) == JNI_OK && env) {
         if (!stringClassRef(env)) env->ExceptionClear();
+        registerNatives(env);
     }
     return JNI_VERSION_1_6;
 }
@@ -607,9 +612,45 @@ static bool isLetterCodepoint(int codePoint){
     if(codePoint < 0x80) return (codePoint>=0x41&&codePoint<=0x5A)||(codePoint>=0x61&&codePoint<=0x7A);
     return uniIn(kUniLetter, codePoint);
 }
+// ---------------------------------------------------------------------------
+// FROM THE UNICODE DATA, NOT TYPED BY HAND (owner, 2026-10-07: "jo old hai vahan
+// per sab kuchh update kar do"). Each one reads a table tools/unicode/gen_tables.py
+// writes from UCD 18; tools/verify/unicode2/run.sh checks them against Java.
+//
+// A decimal digit is General_Category Nd -- Java's Character.isDigit: ASCII 0-9
+// and the Devanagari, Gujarati, Bengali, Arabic-Indic, Thai... digits alike.
+// AutoTTS's d0 used the regex [0-9], so a "१२३" was read as letters of the
+// script around it; it is a number now, in every mode (a DEPARTURE).
+static int decimalDigitValue(int cp){
+    if(cp >= '0' && cp <= '9') return cp - '0';
+    if(cp < 0x80) return -1;
+    size_t a = 0, b = sizeof(kUniDigit) / sizeof(kUniDigit[0]);
+    while(a < b){
+        size_t m = (a + b) / 2;
+        if((uint32_t)cp < kUniDigit[m].lo) b = m;
+        else if((uint32_t)cp > kUniDigit[m].hi) a = m + 1;
+        else return kUniDigit[m].v + (cp - (int)kUniDigit[m].lo);
+    }
+    return -1;
+}
+static inline bool isDecimalDigit(int cp){ return decimalDigitValue(cp) >= 0; }
+// A currency symbol: AutoTTS's Currency Symbols block (U+20A0-20CF) plus every
+// General_Category Sc outside ASCII (the cent, pound, yen, rial... signs). '$'
+// is named on its own where it is meant.
+static inline bool isCurrencySymbol(int cp){ return (cp >= 0x20A0 && cp <= 0x20CF) || uniIn(kUniCurrency, cp); }
+// Java's Character.isWhitespace (Zs Zl Zp minus the no-break spaces, plus the
+// controls Java names). One function now; it was typed out twice.
+static inline bool isJavaWhitespace(int cp){ return uniIn(kUniJavaSpace, cp); }
+// Reads one code point at `at`; *digit gets its value or -1.
+static inline int digitAt(const std::string& text, size_t at, int& cpLen){
+    return decimalDigitValue(utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen));
+}
 static bool keywordMatchesAnywhere(const std::string& keyword){
     int cpLen = 0;
     int firstCp = utf8ToCodepoint((const unsigned char*)keyword.c_str(), cpLen);
+    // AutoTTS d0.p's blocks first (unchanged), then every letter of a script
+    // written without spaces, from Line_Break (CJK Ext B-J, Tai Tham, Tai Viet...).
+    if(uniIn(kUniNoSpace, firstCp)) return true;
     if(firstCp>=0x0E00 && firstCp<=0x0EFF) return true;
     if(firstCp>=0x1000 && firstCp<=0x109F) return true;
     if(firstCp>=0x1780 && firstCp<=0x17FF) return true;
@@ -647,24 +688,47 @@ static bool contextHasKeyword(const std::string& text, const std::vector<std::st
     }
     return false;
 }
+// String.toLowerCase(Locale.ROOT), which is what AutoTTS's d0 calls: the simple
+// Lowercase_Mapping of every code point, SpecialCasing's one unconditional
+// mapping (U+0130 -> i + U+0307), and Final_Sigma (a capital sigma that ends a
+// word lowers to the final form). It covered Latin-1, Greek and Cyrillic by hand.
+static_assert(EV_SPECIAL_LOWER_COUNT == 1, "SpecialCasing gained an unconditional lowercase mapping -- add it here");
 static std::string lowerCaseRoot(const std::string& text){
-    std::string out;
-    out.reserve(text.size());
+    std::vector<int> cps;
+    cps.reserve(text.size());
     size_t at = 0;
     while(at < text.size()){
         int cpLen = 0;
-        int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
-        int lowered = codePoint;
-        if(codePoint>=0x41 && codePoint<=0x5A) lowered = codePoint + 0x20;
-        else if(codePoint>=0xC0 && codePoint<=0xDE && codePoint!=0xD7) lowered = codePoint + 0x20;
-        else if(codePoint>=0x391 && codePoint<=0x3A9 && codePoint!=0x3A2) lowered = codePoint + 0x20;
-        else if(codePoint>=0x410 && codePoint<=0x42F) lowered = codePoint + 0x20;
-        else if(codePoint>=0x400 && codePoint<=0x40F) lowered = codePoint + 0x50;
-        if(lowered < 0x80) out += (char)lowered;
-        else if(lowered < 0x800){ out += (char)(0xC0|(lowered>>6)); out += (char)(0x80|(lowered&0x3F)); }
-        else if(lowered < 0x10000){ out += (char)(0xE0|(lowered>>12)); out += (char)(0x80|((lowered>>6)&0x3F)); out += (char)(0x80|(lowered&0x3F)); }
-        else { out += (char)(0xF0|(lowered>>18)); out += (char)(0x80|((lowered>>12)&0x3F)); out += (char)(0x80|((lowered>>6)&0x3F)); out += (char)(0x80|(lowered&0x3F)); }
+        cps.push_back(utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen));
         at += cpLen;
+    }
+    std::string out;
+    out.reserve(text.size() + 4);
+    for(size_t k = 0; k < cps.size(); k++){
+        int cp = cps[k];
+        if(cp == 0x130){ out += 'i'; appendCodepointUtf8(out, 0x307); continue; }
+        if(cp == 0x3A3){
+            // Final_Sigma: a cased letter before (skipping case-ignorables), and
+            // no cased letter after (skipping case-ignorables).
+            bool before = false;
+            for(size_t b = k; b > 0; b--){
+                int c = cps[b - 1];
+                if(uniIn(kUniCaseIgnorable, c)) continue;
+                before = uniIn(kUniCased, c); break;
+            }
+            bool after = false;
+            for(size_t f = k + 1; f < cps.size(); f++){
+                int c = cps[f];
+                if(uniIn(kUniCaseIgnorable, c)) continue;
+                after = uniIn(kUniCased, c); break;
+            }
+            appendCodepointUtf8(out, (before && !after) ? 0x3C2 : 0x3C3);
+            continue;
+        }
+        int lowered = cp;
+        if(cp >= 'A' && cp <= 'Z') lowered = cp + 0x20;
+        else if(cp >= 0x80) lowered = cp + uniValue(kUniLowerDelta, cp, 0);
+        appendCodepointUtf8(out, lowered);
     }
     return out;
 }
@@ -674,9 +738,9 @@ static bool hasEnoughDigits(const std::string& text){
     while(at < text.size()){
         int cpLen = 0;
         int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
-        if(codePoint>='0' && codePoint<='9') digits++;
+        if(isDecimalDigit(codePoint)) digits++;
         else if(codePoint==',' || codePoint=='.' || codePoint==':' || codePoint=='%' || codePoint=='$') return false;
-        else if(codePoint>=0x20A0 && codePoint<=0x20CF) return false;
+        else if(isCurrencySymbol(codePoint)) return false;
         at += cpLen;
     }
     return digits >= 4;
@@ -693,20 +757,17 @@ static bool hasEnoughDigits(const std::string& text){
 // rejects. Counting all leading digits and requiring 1 or 2 rejects it too.
 static bool looksLikeClockTime(const std::string& text){
     size_t at = 0;
-    size_t digits = 0;
-    while(at < text.size() && text[at] >= '0' && text[at] <= '9'){ at++; digits++; }
+    int cpLen = 0;
+    auto digitsFrom = [&](size_t& pos){ size_t n = 0; while(pos < text.size() && digitAt(text, pos, cpLen) >= 0){ pos += cpLen; n++; } return n; };
+    size_t digits = digitsFrom(at);
     if(digits < 1 || digits > 2) return false;
     if(at >= text.size() || text[at] != ':') return false;
     at++;
-    digits = 0;
-    while(at < text.size() && text[at] >= '0' && text[at] <= '9'){ at++; digits++; }
-    if(digits != 2) return false;
+    if(digitsFrom(at) != 2) return false;
     if(at == text.size()) return true;
     if(text[at] != ':') return false;
     at++;
-    digits = 0;
-    while(at < text.size() && text[at] >= '0' && text[at] <= '9'){ at++; digits++; }
-    return digits == 2 && at == text.size();
+    return digitsFrom(at) == 2 && at == text.size();
 }
 static bool isPhoneShaped(const std::string& raw){
     size_t begin = 0, finish = raw.size();
@@ -722,10 +783,10 @@ static bool isPhoneShaped(const std::string& raw){
     while(at < text.size()){
         int cpLen = 0;
         int codePoint = utf8ToCodepoint((const unsigned char*)text.c_str() + at, cpLen);
-        if(codePoint>='0' && codePoint<='9'){ digits++; run++; if(run>longestRun) longestRun = run; }
+        if(isDecimalDigit(codePoint)){ digits++; run++; if(run>longestRun) longestRun = run; }
         else if(codePoint==','){ run = 0; sawComma = true; }
         else if(codePoint=='.'){ run = 0; sawDot = true; }
-        else if(codePoint=='%' || codePoint=='$' || (codePoint>=0x20A0 && codePoint<=0x20CF)){ run = 0; sawCurrency = true; }
+        else if(codePoint=='%' || codePoint=='$' || isCurrencySymbol(codePoint)){ run = 0; sawCurrency = true; }
         else run = 0;
         at += cpLen;
     }
@@ -734,7 +795,7 @@ static bool isPhoneShaped(const std::string& raw){
     if((text.rfind("+", 0) == 0 || text.rfind("00", 0) == 0) && digits >= 8) return true;
     std::string body = text;
     if(body[0] == '+' || body[0] == '-') body = body.substr(1);
-    if(!body.empty() && body[0] == '0' && digits >= 5) return true;
+    { int firstLen = 0; if(!body.empty() && digitAt(body, 0, firstLen) == 0 && digits >= 5) return true; }
     if(!sawComma && !sawDot){
         if(longestRun >= 7) return true;
         std::vector<std::string> parts;
@@ -747,8 +808,10 @@ static bool isPhoneShaped(const std::string& raw){
         if((int)parts.size() >= 3 && digits >= 7){
             bool grouped = true;
             for(const std::string& part : parts){
-                if(part.size() < 2 || part.size() > 4){ grouped = false; break; }
-                for(char ch : part) if(ch < '0' || ch > '9'){ grouped = false; break; }
+                size_t partCps = 0;
+                for(size_t p = 0; p < part.size(); ){ int len = 0; utf8ToCodepoint((const unsigned char*)part.c_str() + p, len); p += len; partCps++; }
+                if(partCps < 2 || partCps > 4){ grouped = false; break; }
+                for(size_t p = 0; p < part.size(); ){ int len = 0; if(digitAt(part, p, len) < 0){ grouped = false; break; } p += len; }
                 if(!grouped) break;
             }
             if(grouped) return true;
@@ -756,23 +819,24 @@ static bool isPhoneShaped(const std::string& raw){
     }
     return false;
 }
-// Byte-wise rather than char-wise, which is safe here: the only characters
-// that advance the run are ASCII digits, and every byte of a multi-byte UTF-8
-// character takes the else branch, where resetting the run to 0 repeatedly is
-// the same as resetting it once.
+// Code point by code point: a digit run is any decimal digits (Nd), so a
+// Devanagari or Gujarati number is grouped like an ASCII one.
 static std::string respaceDigits(const std::string& text, int groupSize){
     int size = groupSize > 1 ? groupSize : 1;      // Math.max(1, AutoTtsService.f0)
     std::string out;
     out.reserve(text.size() * 2);
     int run = 0;
-    for(char ch : text){
-        if(ch>='0' && ch<='9'){
+    size_t at = 0;
+    while(at < text.size()){
+        int cpLen = 0;
+        if(digitAt(text, at, cpLen) >= 0){
             if(run > 0 && run % size == 0) out += ' ';
             run++;
         } else {
             run = 0;
         }
-        out += ch;
+        out.append(text, at, cpLen);
+        at += cpLen;
     }
     return out;
 }
@@ -780,11 +844,11 @@ static std::string respaceDigits(const std::string& text, int groupSize){
 //  CODE-POINT PREDICATES
 //  Note two pairs that look mergeable and are not: cpIsAsciiPunct EXCLUDES
 //  backslash while isLatinPunctuation includes it, and cpIsJavaSpace and
-//  isJavaWhitespace are separate ports of separate AutoTTS sources.
+//  isJavaWhitespace both read kUniJavaSpace now (one table, two names).
 // ==========================================================================
 static bool cpIsNumericCore(int codePoint){
-    return (codePoint >= '0' && codePoint <= '9') || codePoint == 0x00B0 || codePoint == 0x00D7 ||
-           codePoint == 0x00F7 || (codePoint >= 0x20A0 && codePoint <= 0x20CF);
+    return isDecimalDigit(codePoint) || codePoint == 0x00B0 || codePoint == 0x00D7 ||
+           codePoint == 0x00F7 || isCurrencySymbol(codePoint);
 }
 static bool cpIsAsciiPunct(int codePoint){
     return (codePoint >= 0x21 && codePoint <= 0x2F) || (codePoint >= 0x3A && codePoint <= 0x40) ||
@@ -798,12 +862,7 @@ static bool cpIsPosixSpace(int codePoint){
 static bool cpIsPunctRun(int codePoint){
     return cpIsGeneralPunct(codePoint) || cpIsAsciiPunct(codePoint) || cpIsPosixSpace(codePoint);
 }
-static bool cpIsJavaSpace(int codePoint){
-    return (codePoint >= 0x09 && codePoint <= 0x0D) || (codePoint >= 0x1C && codePoint <= 0x1F) ||
-           codePoint == 0x20 || codePoint == 0x1680 ||
-           (codePoint >= 0x2000 && codePoint <= 0x200A && codePoint != 0x2007) ||
-           codePoint == 0x205F || codePoint == 0x3000 || codePoint == 0x2028 || codePoint == 0x2029;
-}
+static bool cpIsJavaSpace(int codePoint){ return isJavaWhitespace(codePoint); }
 static bool cpIsEmojiRunChar(int codePoint){ return isEmoji(codePoint) || codePoint == 0x200D; }
 // The caller has usually decoded the code point at `offset` already; this
 // takes it rather than decoding it again (owner, 2026-10-01).
@@ -829,7 +888,7 @@ static int emojiRunLengthAt(const std::string& text, int offset){
     return emojiRunLengthFrom(text, offset, codePoint, cpLen);
 }
 static bool cpIsLetterOrDigitForNumberEdge(int codePoint){
-    return (codePoint >= '0' && codePoint <= '9') || isLetterCodepoint(codePoint);
+    return isDecimalDigit(codePoint) || isLetterCodepoint(codePoint);
 }
 static int codepointAtOffset(const std::string& text, int offset, int& cpLen){
     return utf8ToCodepoint((const unsigned char*)text.c_str() + offset, cpLen);
@@ -892,7 +951,7 @@ static int segmentTypeOf(const std::string& text){
         sawAny = true;
         if(!cpIsJavaSpace(codePoint)) allSpace = false;
         if(!cpIsPunctRun(codePoint)) allPunct = false;
-        if(codePoint >= '0' && codePoint <= '9') sawDigit = true;
+        if(isDecimalDigit(codePoint)) sawDigit = true;
         else if(!(cpIsNumericCore(codePoint) || cpIsGeneralPunct(codePoint) || cpIsPosixPunct(codePoint) || cpIsPosixSpace(codePoint))) allNumber = false;
         if(allEmoji){
             int emojiLen = emojiRunLengthFrom(text, at, codePoint, cpLen);
@@ -1461,16 +1520,12 @@ static std::string toIso3(const std::string& lang){
     if (iso3=="cmn"||iso3=="lzh"||iso3=="gan"||iso3=="hak") return "zho";
     return iso3;
 }
-static bool isJavaWhitespace(int codePoint){
-    return (codePoint>=0x09&&codePoint<=0x0D)||(codePoint>=0x1C&&codePoint<=0x1F)||codePoint==0x20||codePoint==0x1680||
-           (codePoint>=0x2000&&codePoint<=0x200A&&codePoint!=0x2007)||codePoint==0x205F||codePoint==0x3000||codePoint==0x2028||codePoint==0x2029;
-}
 static bool isLatinPunctuation(int codePoint){ return (codePoint>=33&&codePoint<=47)||(codePoint>=58&&codePoint<=64)||(codePoint>=91&&codePoint<=96)||(codePoint>=123&&codePoint<=126); }
 static int firstValidCodePointU16(const jchar* units, int len){
     int j=0;
     while(j<len){
         jchar unit=units[j];
-        if(!isJavaWhitespace((int)unit) && !(unit>='0'&&unit<='9') && !isLatinPunctuation((int)unit)){
+        if(!isJavaWhitespace((int)unit) && !isDecimalDigit((int)unit) && !isLatinPunctuation((int)unit)){
             if(unit>=0xD800&&unit<=0xDBFF&&j+1<len&&units[j+1]>=0xDC00&&units[j+1]<=0xDFFF)
                 return 0x10000+((((int)unit)-0xD800)<<10)+(((int)units[j+1])-0xDC00);
             return (int)unit;
@@ -2518,4 +2573,49 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv* e
     std::string text;
     if(jText && !jstringToStd(env, jText, text)) return nullptr;
     return toJavaStringArray(env, stringClass, foldAndSpansFlat(text, singleStops == JNI_TRUE));
+}
+
+// ==========================================================================
+//  THE TABLES, READ BACK AT AN UTTERANCE START IF THE KERNEL DROPPED THEM
+//  (image_warm.h step 3). One mutex and a signal on the synthesis thread; the
+//  worker does the rest.
+// ==========================================================================
+extern "C" JNIEXPORT void JNICALL
+Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeRewarmTables(JNIEnv*, jclass){
+    evwarm::requestRewarm();
+}
+
+// ==========================================================================
+//  RegisterNatives: every entry point bound at load, ONE AT A TIME, so a
+//  signature that ever drifted from the Kotlin declaration costs only that
+//  method its binding (ART then finds it by its exported name, as before) and
+//  never the load. The Java_* names stay exported for exactly that reason.
+//  tools/verify/registernatives/run.sh checks every signature against the
+//  compiled class.
+// ==========================================================================
+static void registerNatives(JNIEnv* env){
+    jclass cls = env->FindClass("com/sachinbaria/easyvoice/EasyVoiceTtsService");
+    if (!cls) { env->ExceptionClear(); return; }
+    static const JNINativeMethod methods[] = {
+        {const_cast<char*>("processDirect"),
+         const_cast<char*>("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;ILjava/lang/String;ILjava/lang/String;ZZILjava/lang/String;IZZZ)[Ljava/lang/String;"),
+         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect)},
+        {const_cast<char*>("nativeFoldAndDetect"), const_cast<char*>("(Ljava/lang/String;Z)[Ljava/lang/String;"),
+         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect)},
+        {const_cast<char*>("setIsoMap"), const_cast<char*>("([Ljava/lang/String;[Ljava/lang/String;)V"),
+         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setIsoMap)},
+        {const_cast<char*>("setLanguageHints"), const_cast<char*>("([Ljava/lang/String;)V"),
+         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints)},
+        {const_cast<char*>("setDetectSets"), const_cast<char*>("([Ljava/lang/String;[Ljava/lang/String;)V"),
+         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets)},
+        {const_cast<char*>("detectWindowOrSpans"),
+         const_cast<char*>("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)[Ljava/lang/String;"),
+         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans)},
+        {const_cast<char*>("nativeRewarmTables"), const_cast<char*>("()V"),
+         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeRewarmTables)},
+    };
+    for (const JNINativeMethod& m : methods) {
+        if (env->RegisterNatives(cls, &m, 1) != JNI_OK) env->ExceptionClear();
+    }
+    env->DeleteLocalRef(cls);
 }

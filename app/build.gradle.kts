@@ -157,6 +157,12 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
+            // DEX LAYOUT FROM A STARTUP PROFILE (owner, 2026-10-07): R8 puts the
+            // classes in src/main/baselineProfiles/startup-prof.txt first in
+            // classes.dex, so a cold start of the TTS service reads a few
+            // contiguous pages. The switch is AGP 9.4's own property (read out of
+            // its jar: ApplicationTaskManager's r8DexStartupOptimizationEnabled).
+            experimentalProperties["android.experimental.r8.dex-startup-optimization"] = true
         }
         debug { isMinifyEnabled = false }
     }

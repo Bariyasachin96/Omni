@@ -8,7 +8,49 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## FOUR DELAYS REMOVED BY ORDERING THE WORK, NOT BY CLOCKS (owner, 2026-10-07, latest)
+## KERNEL-LEVEL HINTS, AND THE LAST HAND-TYPED UNICODE GOES (owner, 2026-10-07, latest)
+*"Karnal level per ... bahut jyada hi fast ... unic code ka detection ... jo old hai vahan per sab kuchh update kar do."*
+Twelve items, all done, each proven.
+- **1 Synthesis thread priority:** AOSP builds `SynthThread` at THREAD_PRIORITY_DEFAULT (read in
+  TextToSpeechService.java, main). `boostSynthesisThread()` raises it to THREAD_PRIORITY_AUDIO once (ThreadLocal).
+- **2 ADPF (API 31+):** `PerformanceHintManager.createHintSession([synthesis tid, speak thread tid],
+  HINT_TARGET_NANOS = 1 ms)`; each utterance reports entering onSynthesizeText -> first speak() accepted
+  (`reportSynthesisWork`). The target is ADPF's required parameter, nothing waits. Null session = unsupported, no-op.
+  Closed in onDestroy. minsdk allowlist has the four API-31 names (@RequiresApi(S) methods behind SDK_INT >= S).
+- **3+4 image_warm.h rewritten:** one detached worker: at load WILLNEED (128 KB pieces) then MADV_POPULATE_READ
+  (22, Linux 5.14+, EINVAL on older = step 1 stands); then it waits on a condvar. `nativeRewarmTables()` (new JNI,
+  called at every onSynthesizeText start: mutex + signal) makes it mincore() the segments and read back only the
+  128 KB pieces the kernel dropped. Proof `tools/verify/warmtables/run.sh`: first read of every page 2.5 -> 0.07 ms,
+  minor faults 59 -> 1; after MADV_PAGEOUT + DONTNEED (0 of 1643 resident) an utterance start brings 1643 back.
+  Negatives noadvise / nopopulate / norewarm all FAIL.
+- **5 DEX startup layout:** `experimentalProperties["android.experimental.r8.dex-startup-optimization"] = true`
+  (release; the property read out of AGP 9.4.1's ApplicationTaskManager) + `src/main/baselineProfiles/startup-prof.txt`
+  (27 service-path classes, explicit, no wildcards). Local release build: classes.dex now holds exactly those 25
+  classes R8 kept, everything else in classes2.dex.
+- **6 RegisterNatives** in JNI_OnLoad, ONE method per call (a drifted signature costs only that binding; the Java_*
+  names stay exported as the fallback). Proof `tools/verify/registernatives/run.sh`: the C++ table vs javap of the
+  compiled class (7/7 IDENTICAL; negative `sig` FAILS), then a REAL JVM loading a build whose only export is
+  JNI_OnLoad -- every native call works (negative `noregister`: UnsatisfiedLinkError).
+- **7-12 Unicode from UCD 18 (gen_tables.py, + LineBreak, SpecialCasing, DerivedCoreProperties fetched):**
+  `kUniJavaSpace` (one `isJavaWhitespace`, was typed twice -- identical), `kUniDigit` (Nd; `decimalDigitValue`;
+  smart numbers, clock time, respace, phone shape, number edges, clsCLD2.c's first-letter skip -- AutoTTS used
+  ASCII [0-9]: DEPARTURE), `kUniCurrency` (Sc outside ASCII, plus AutoTTS's 20A0-20CF block: DEPARTURE),
+  `kUniNoSpace` (Line_Break SA ID CJ H2 H3 JL JV JT letters, ADDED to d0.p's blocks), `lowerCaseRoot` = Java
+  toLowerCase(Locale.ROOT) exactly (simple Lowercase_Mapping + U+0130 + Final_Sigma; `static_assert` if
+  SpecialCasing gains another unconditional mapping), Kotlin `UnicodeTables.scriptOf` (Voice setup's sample check,
+  was the phone's Character.UnicodeScript). Proof `tools/verify/unicode2/run.sh`: all 1,112,064 code points vs the
+  JDK (isWhitespace, isDigit/digit, CURRENCY_SYMBOL, toLowerCase, UnicodeScript) -- 0 differ wherever the JDK
+  knows the code point (digits 90, lowercase 75, scripts 22,609 newer than JDK 21); 21 sigma/I-dot strings 0
+  differ. Negatives nosigma / ascii-digits / ws / script all FAIL.
+- **What it changes, measured:** native digits stay inside their own script's run (the Hindi voice reads ०१२३, as
+  before); segmenter vs AutoTTS differs only on '£' (now currency, joins the number: 270 cases, one text);
+  corebytes vs the last commit 1,680 records differ, ALL explained (144 non-ASCII digits: auto mode's fallback now
+  skips a leading number to the first letter -- "１２３ Hello" is en, was UNKNOWN; 1,536 the '£' text).
+- Re-run: check-all 0/0, selftest EVERY CHECK FIRES, speakpipe 200,000 0 differ, prefetch, coldstart, restore,
+  scansched, scanyield, enginefinder, normalizer, scriptfamily, langcodes, unicode, devanagari 17/17, stress 0
+  wrong, onecall 0 differ, latency; local release APK: exports only Java_*/JNI_OnLoad, 16 KB aligned.
+
+## FOUR DELAYS REMOVED BY ORDERING THE WORK, NOT BY CLOCKS (owner, 2026-10-07)
 *"yah Sare Charon fix Karne hain ... Jugaad Wale Hain Mujhe properli chahie Jo logicaly hone chahie."*
 - **1 The next chunk's language loads the moment the engine ACCEPTS this chunk** (speakChunk: `speak() == SUCCESS`
   -> `speakHandler.post { prefetchNextLanguage(); queueNextAhead() }`), not at onStart: from acceptance the engine owns

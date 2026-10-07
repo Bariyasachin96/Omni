@@ -10,6 +10,7 @@
 #include <cstring>
 #include <thread>
 #include <vector>
+#include <sys/resource.h>
 
 struct Seg { uintptr_t s, e; };
 static std::vector<Seg> segs;
@@ -37,11 +38,16 @@ static long resident(long* total) {
     }
     return r;
 }
+static long minorFaults() { struct rusage u; getrusage(RUSAGE_SELF, &u); return u.ru_minflt; }
+static long faultsInTouch = 0;
 static double touchAll() {
     long ps = sysconf(_SC_PAGESIZE); volatile unsigned long sum = 0;
+    long f0 = minorFaults();
     auto t0 = std::chrono::steady_clock::now();
     for (auto& g : segs) for (uintptr_t a = g.s; a < g.e; a += ps) sum += *(volatile const unsigned char*)a;
-    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    faultsInTouch = minorFaults() - f0;
+    return ms;
 }
 static void evict() {
     int fd = open(soPath, O_RDONLY); if (fd < 0) { perror("open"); exit(2); }
@@ -51,9 +57,22 @@ static void evict() {
 // One round per PROCESS: a library that dlclose cannot unload (libstdc++'s
 // unique symbols make it NODELETE) would stay mapped and resident otherwise.
 //   driver <lib> cold|advised   prints: mode before resident total ms
+static long waitResident(long before, long* total) {
+    long last = -1, now = before;
+    for (int i = 0; i < 300 && now != last; i++) {
+        last = now; std::this_thread::sleep_for(std::chrono::milliseconds(10)); now = resident(total);
+    }
+    return now;
+}
+// One round per PROCESS: a library that dlclose cannot unload (libstdc++'s
+// unique symbols make it NODELETE) would stay mapped and resident otherwise.
+//   driver <lib> cold|advised     prints: mode before resident total ms faults
+//   driver <lib> rewarm           loads + advises, evicts the tables the way
+//                                 memory pressure does, asks for a rewarm, and
+//                                 prints: rewarm resident-after-evict resident-after total
 int main(int argc, char** argv) {
     soPath = argv[1];
-    bool advised = strcmp(argv[2], "advised") == 0;
+    bool advised = strcmp(argv[2], "cold") != 0;
     long total = 0;
     evict();
     void* h = dlopen(soPath, RTLD_NOW | RTLD_LOCAL);
@@ -66,14 +85,25 @@ int main(int argc, char** argv) {
         OnLoad onLoad = (OnLoad)dlsym(h, "JNI_OnLoad");
         if (!onLoad) { fprintf(stderr, "no JNI_OnLoad\n"); return 2; }
         onLoad(nullptr, nullptr);
-        // the harness waits for the readahead to land (the app never does)
-        long last = -1, now = before;
-        for (int i = 0; i < 300 && now != last; i++) {
-            last = now; std::this_thread::sleep_for(std::chrono::milliseconds(10)); now = resident(&total);
-        }
+        // the harness waits for the reads to land (the app never does)
+        waitResident(before, &total);
+    }
+    if (strcmp(argv[2], "rewarm") == 0) {
+        // Evict: unmap our pages (MADV_PAGEOUT, what reclaim does) and drop the
+        // file's pages from the cache.
+        for (auto& g : segs) madvise((void*)g.s, g.e - g.s, 21 /* MADV_PAGEOUT */);
+        evict();
+        long evicted = resident(&total);
+        typedef void (*Rewarm)(void*, void*);
+        Rewarm rw = (Rewarm)dlsym(h, "Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeRewarmTables");
+        if (!rw) { fprintf(stderr, "no nativeRewarmTables\n"); return 2; }
+        rw(nullptr, nullptr);
+        long back = waitResident(evicted, &total);
+        printf("rewarm %ld %ld %ld\n", evicted, back, total);
+        return 0;
     }
     long res = resident(&total);
     double ms = touchAll();
-    printf("%s %ld %ld %ld %.3f\n", advised ? "advised" : "cold", before, res, total, ms);
+    printf("%s %ld %ld %ld %.3f %ld\n", advised ? "advised" : "cold", before, res, total, ms, faultsInTouch);
     return 0;
 }

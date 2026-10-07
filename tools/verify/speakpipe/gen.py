@@ -93,6 +93,7 @@ elif NEG:
     sys.exit("unknown EV_NEG " + NEG)
 if NEG and (nm, nb) == before: sys.exit("EV_NEG " + NEG + " changed nothing")
 REST = """        val bypassed = false
+        val workStart = 0L
         val isForceAccessibility = forceAccessibilityFlag
         val isStripAudioAttr = stripAudioAttrFlag
         val chunks = plan.chunks.map { TextChunk(it.text, it.lang, typeCode = it.type) }

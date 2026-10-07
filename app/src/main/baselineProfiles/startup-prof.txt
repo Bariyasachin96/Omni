@@ -1,0 +1,34 @@
+# STARTUP PROFILE (owner, 2026-10-07: "Karnal level per ... fast"). R8 lays these
+# classes out first in classes.dex (android.experimental.r8.dex-startup-optimization
+# in app/build.gradle.kts), so the pages ART touches from the moment the system
+# binds the TTS service to the first word are a few contiguous pages instead of
+# scattered ones -- fewer page faults on a cold start. The service path only:
+# no screen is here, they start when the user opens the app. AGP rewrites the
+# names through the R8 mapping. The broader rules are in ../baseline-prof.txt.
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$Companion;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$DetectedRun;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$EngineInitListener;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$EngineWrapper;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$RestoreInitListener;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$VoiceEntry;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$bindEngineKeepAlive$1$conn$1;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$onSynthesizeTextImpl$AheadChunk;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$onSynthesizeTextImpl$makeListener$1;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$packageReceiver$1;
+Lcom/sachinbaria/easyvoice/EasyVoiceLogger;
+Lcom/sachinbaria/easyvoice/EngineFinder;
+Lcom/sachinbaria/easyvoice/EngineFinder$EngineInfo;
+Lcom/sachinbaria/easyvoice/EngineFinder$EngineService;
+Lcom/sachinbaria/easyvoice/EngineFinder$ScanVoice;
+Lcom/sachinbaria/easyvoice/IsoCodes;
+Lcom/sachinbaria/easyvoice/LangEntry;
+Lcom/sachinbaria/easyvoice/LangStore;
+Lcom/sachinbaria/easyvoice/LangStore$LoadPlan;
+Lcom/sachinbaria/easyvoice/LangStore$Persisted;
+Lcom/sachinbaria/easyvoice/ScanYield;
+Lcom/sachinbaria/easyvoice/ScanYield$Companion;
+Lcom/sachinbaria/easyvoice/SharedPrefsManager;
+Lcom/sachinbaria/easyvoice/SharedPrefsManager$Companion;
+Lcom/sachinbaria/easyvoice/TextChunk;
+Lcom/sachinbaria/easyvoice/UnicodeTables;

@@ -114,6 +114,55 @@ for line in open(os.path.join(UCD, "UnicodeData.txt"), encoding="utf-8"):
     if c < 0x100 or c in EMOJI: continue
     FOLD[c] = t
 
+# ---- Java's Character.isWhitespace, from the data: a space, line or paragraph
+# separator (Zs Zl Zp) that is not a no-break one (U+00A0 U+2007 U+202F), plus
+# the controls Java names (U+0009-000D, U+001C-001F). The core had it typed out
+# twice.
+JAVA_SPACE = {c for c, v in GC.items() if v in ("Zs", "Zl", "Zp")} - {0xA0, 0x2007, 0x202F}
+JAVA_SPACE |= set(range(0x09, 0x0E)) | set(range(0x1C, 0x20))
+
+# ---- decimal digits (General_Category Nd, which is Java's Character.isDigit),
+# with each range's value at its low end: every Nd range is a run of 0..9.
+DIGIT_VALUE = {}
+for line in open(os.path.join(UCD, "UnicodeData.txt"), encoding="utf-8"):
+    f = line.split(";")
+    if f[2] == "Nd": DIGIT_VALUE[int(f[0], 16)] = int(f[6])
+NUMERIC_DIGIT = set(DIGIT_VALUE)
+
+# ---- currency symbols (General_Category Sc), outside ASCII: the core already
+# names '$' on its own wherever it means it.
+CURRENCY = {c for c, v in GC.items() if v == "Sc" and c >= 0x80}
+
+# ---- letters of the scripts written without spaces between words: Line_Break
+# SA (Thai, Lao, Myanmar, Khmer, Tai Tham, New Tai Lue, Tai Viet...), ID/CJ
+# (ideographs, kana) and the Hangul classes. A smart-number keyword that starts
+# with one may match inside a word.
+NOSPACE_LB = {"SA", "ID", "CJ", "H2", "H3", "JL", "JV", "JT"}
+NOSPACE = set()
+for lo, hi, v in rows("LineBreak.txt"):
+    if v in NOSPACE_LB:
+        for c in range(lo, hi + 1):
+            if GC.get(c, "Cn")[0] in "LM": NOSPACE.add(c)
+
+# ---- lowercase: the simple Lowercase_Mapping of UnicodeData (field 13), as a
+# delta per code point; SpecialCasing's one unconditional lowercase (U+0130 ->
+# i + U+0307) and Final_Sigma are applied in the core, as Java's
+# String.toLowerCase(Locale.ROOT) applies them.
+LOWER_DELTA = {}
+for line in open(os.path.join(UCD, "UnicodeData.txt"), encoding="utf-8"):
+    f = line.split(";")
+    if f[13]: LOWER_DELTA[int(f[0], 16)] = int(f[13], 16) - int(f[0], 16)
+SPECIAL_LOWER = {}
+for line in open(os.path.join(UCD, "SpecialCasing.txt"), encoding="utf-8"):
+    body = line.split("#")[0].strip()
+    if not body: continue
+    f = [x.strip() for x in body.split(";")]
+    if len(f) >= 5 and f[4]: continue          # conditional (Final_Sigma, language)
+    c = int(f[0], 16); low = [int(x, 16) for x in f[1].split()]
+    if low != [c] and (len(low) != 1 or LOWER_DELTA.get(c, 0) + c != low[0]): SPECIAL_LOWER[c] = low
+CASED = prop("DerivedCoreProperties.txt", "Cased")
+CASE_IGNORABLE = prop("DerivedCoreProperties.txt", "Case_Ignorable")
+
 def merge(cps):
     out = []
     for c in sorted(cps):
@@ -165,9 +214,57 @@ h.append("// Script=Latin.\n" + c_ranges("kUniLatin", merge(LATIN)) + "\n")
 h.append("// The span detector's script slot of each code point from U+0080 (see the generator).\n" + c_vranges("kUniSpanSlot", span) + "\n")
 h.append("// The script-family fallback: FamilyScript of each letter, mark or digit.\n" + c_vranges("kUniFamilyScript", fam) + "\n")
 h.append("// Styling compatibility forms that decompose to one ASCII letter or digit.\n" + c_vranges("kUniFold", fold) + "\n")
+h.append("// Java's Character.isWhitespace: Zs Zl Zp minus the no-break spaces, plus U+0009-000D, U+001C-001F.\n" + c_ranges("kUniJavaSpace", merge(JAVA_SPACE)) + "\n")
+digit_ranges = []
+for c in sorted(NUMERIC_DIGIT):
+    if digit_ranges and digit_ranges[-1][1] == c - 1 and DIGIT_VALUE[c] == DIGIT_VALUE[digit_ranges[-1][1]] + 1: digit_ranges[-1][1] = c
+    else: digit_ranges.append([c, c, DIGIT_VALUE[c]])
+h.append("// Decimal digits (General_Category Nd); v is the digit value at lo.\n" + c_vranges("kUniDigit", digit_ranges) + "\n")
+h.append("// Currency symbols (General_Category Sc) from U+0080.\n" + c_ranges("kUniCurrency", merge(CURRENCY)) + "\n")
+h.append("// Letters and marks of scripts written without spaces (Line_Break SA ID CJ H2 H3 JL JV JT).\n" + c_ranges("kUniNoSpace", merge(NOSPACE)) + "\n")
+lower_ranges = []
+for c in sorted(LOWER_DELTA):
+    d = LOWER_DELTA[c]
+    if lower_ranges and lower_ranges[-1][1] == c - 1 and lower_ranges[-1][2] == d: lower_ranges[-1][1] = c
+    else: lower_ranges.append([c, c, d])
+h.append("// Simple Lowercase_Mapping (UnicodeData field 13) as a delta.\n" + c_vranges("kUniLowerDelta", lower_ranges) + "\n")
+h.append("// Cased and Case_Ignorable (DerivedCoreProperties), for Final_Sigma.\n" + c_ranges("kUniCased", merge(CASED)) + "\n" + c_ranges("kUniCaseIgnorable", merge(CASE_IGNORABLE)) + "\n")
+h.append("// SpecialCasing's unconditional lowercase mappings that are not one code point.\n#define EV_SPECIAL_LOWER_COUNT %d\n" % len(SPECIAL_LOWER))
 h = "".join(h)
 
 lci = merge(LCI)
+# ---- the Script of each code point for the Kotlin side (Voice setup's check
+# that an engine's sample is in the language's script). Common, Inherited and
+# Unknown carry no script; Hiragana, Katakana, Hangul and Bopomofo count as Han,
+# because a Japanese or Korean sample mixes them with it.
+SCRIPT_GROUP = {"Hiragana": "Han", "Katakana": "Han", "Hangul": "Han", "Bopomofo": "Han"}
+script_names = sorted({SCRIPT_GROUP.get(v, v) for v in SCRIPT.values()} - {"Common", "Inherited", "Unknown"})
+script_id = {n: i for i, n in enumerate(script_names)}
+def kt_script(c):
+    v = SCRIPT.get(c)
+    if v is None or v in ("Common", "Inherited", "Unknown"): return None
+    return script_id[SCRIPT_GROUP.get(v, v)]
+script_ranges = merge_val(kt_script, 0)
+kt_scripts = (
+    "\n    // Script of each code point (Han, kana, Hangul and Bopomofo as one), as\n"
+    "    // \"lo,hi,id;\" in hex; -1 for Common, Inherited and Unknown. Read once, when\n"
+    "    // first asked (only the Voice setup screen asks).\n"
+    "    private const val SCRIPT_RANGES = \"%s\"\n"
+    "    private val scriptTable: IntArray by lazy {\n"
+    "        val parts = SCRIPT_RANGES.split(';')\n"
+    "        val out = IntArray(parts.size * 3)\n"
+    "        var n = 0\n"
+    "        for (part in parts) { val f = part.split(','); out[n++] = f[0].toInt(16); out[n++] = f[1].toInt(16); out[n++] = f[2].toInt(16) }\n"
+    "        out\n    }\n"
+    "    const val SCRIPT_COUNT = %d\n"
+    "    fun scriptOf(codePoint: Int): Int {\n"
+    "        val t = scriptTable\n        var a = 0\n        var b = t.size / 3\n"
+    "        while (a < b) {\n            val m = (a + b) ushr 1\n"
+    "            if (codePoint < t[3 * m]) b = m\n"
+    "            else if (codePoint > t[3 * m + 1]) a = m + 1\n"
+    "            else return t[3 * m + 2]\n        }\n        return -1\n    }\n") % (
+    ";".join("%X,%X,%X" % (a, b, v) for a, b, v in script_ranges), len(script_names))
+
 kt = ("package com.sachinbaria.easyvoice\n\n"
       "// GENERATED by tools/unicode/gen_tables.py from the Unicode Character Database\n"
       "// %s. Do not edit; regenerate.\n\n"
@@ -181,8 +278,8 @@ kt = ("package com.sachinbaria.easyvoice\n\n"
       "        while (a < b) {\n            val m = (a + b) ushr 1\n"
       "            if (codePoint < LATIN_COMMON_INHERITED[2 * m]) b = m\n"
       "            else if (codePoint > LATIN_COMMON_INHERITED[2 * m + 1]) a = m + 1\n"
-      "            else return true\n        }\n        return false\n    }\n}\n") % (
-      ver, ver, ",\n".join("        0x%X, 0x%X" % (a, b) for a, b in lci))
+      "            else return true\n        }\n        return false\n    }\n%s}\n") % (
+      ver, ver, ",\n".join("        0x%X, 0x%X" % (a, b) for a, b in lci), kt_scripts)
 
 check = "--check" in sys.argv
 for path, text in ((OUT_H, h), (OUT_KT, kt)):

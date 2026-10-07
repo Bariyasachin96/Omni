@@ -266,8 +266,8 @@ object EngineSample {
     // answer LANG_AVAILABLE with its default sentence, and the owner then heard
     // the Hindi voice read English. The table's own sample for the language says
     // which script to expect (Devanagari for Hindi, Latin for French); the
-    // engine's text must be mostly in that script, counted with the platform's
-    // Character.UnicodeScript. The Han, kana and Hangul scripts count as one, since
+    // engine's text must be mostly in that script, counted with the app's own
+    // Unicode 18 table (UnicodeTables.scriptOf). The Han, kana and Hangul scripts count as one, since
     // Japanese mixes them and either can lead. With no table sample there is
     // nothing to compare against, and the engine's sentence is taken as it is.
     // Not caught: an English sentence for another Latin-script language -- the
@@ -276,17 +276,17 @@ object EngineSample {
         val expected = dominantScript(SampleTexts.get(EngineFinder.iso3Of(locale))) ?: return true
         return dominantScript(text) == expected
     }
-    private fun dominantScript(text: String): Character.UnicodeScript? {
-        val counts = HashMap<Character.UnicodeScript, Int>()
+    // The app's own Unicode 18 Script table (UnicodeTables.scriptOf), not the
+    // phone's: Han, kana, Hangul and Bopomofo are one id there already, and
+    // Common, Inherited and Unknown answer -1 (owner, 2026-10-07).
+    private fun dominantScript(text: String): Int? {
+        val counts = HashMap<Int, Int>()
         var offset = 0
         while (offset < text.length) {
             val cp = text.codePointAt(offset)
             offset += Character.charCount(cp)
-            var script = try { Character.UnicodeScript.of(cp) } catch (_: Exception) { continue }
-            if (script == Character.UnicodeScript.COMMON || script == Character.UnicodeScript.INHERITED ||
-                script == Character.UnicodeScript.UNKNOWN) continue
-            if (script == Character.UnicodeScript.HIRAGANA || script == Character.UnicodeScript.KATAKANA ||
-                script == Character.UnicodeScript.HANGUL || script == Character.UnicodeScript.BOPOMOFO) script = Character.UnicodeScript.HAN
+            val script = UnicodeTables.scriptOf(cp)
+            if (script < 0) continue
             counts[script] = (counts[script] ?: 0) + 1
         }
         return counts.maxByOrNull { it.value }?.key

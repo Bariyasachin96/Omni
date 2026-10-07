@@ -408,6 +408,8 @@ class XSvc(val run: Run) : Svc {
         }
         return null
     }
+    // the ADPF report (2026-10-07) has no scheduler to report to here
+    fun reportSynthesisWork(nanos: Long) {}
     //MEMBERS//
     fun utter(request: SynthesisRequest?, callback: SynthesisCallback?, plan: UttSpec) {
         //BODY//
