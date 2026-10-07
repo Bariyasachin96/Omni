@@ -12,7 +12,6 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.TextToSpeechService
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
-import android.text.SpannableString
 import android.text.style.LocaleSpan
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -23,6 +22,9 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.core.content.getSystemService
+import androidx.core.text.getSpans
+import androidx.core.text.toSpannable
 data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null) {
     // toIso3(lang) worked out once per chunk (owner, 2026-10-06): the prefetch,
     // the queue-ahead, speakChunk and onDone each converted the same chunk's
@@ -2905,8 +2907,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun splitByLocaleSpans(input: CharSequence, plainText: String): MutableList<TextChunk> {
         val result = mutableListOf<TextChunk>()
         if (localeSpansFlag) {
-            val span = SpannableString(input)
-            val spans = span.getSpans(0, span.length - 1, LocaleSpan::class.java)
+            // core-ktx (2026-10-07): toSpannable() and the reified getSpans<T>(),
+            // the same SpannableString and the same getSpans(start, end, class).
+            val span = input.toSpannable()
+            val spans = span.getSpans<LocaleSpan>(0, span.length - 1)
             var prevEnd = 0
             for (localeSpan in spans) {
                 val start = span.getSpanStart(localeSpan)
@@ -3418,7 +3422,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.S)
     private fun createHintSession31(threads: IntArray): Any? {
-        val manager = getSystemService(android.os.PerformanceHintManager::class.java) ?: return null
+        val manager = getSystemService<android.os.PerformanceHintManager>() ?: return null
         return manager.createHintSession(threads, HINT_TARGET_NANOS)
     }
     // How long this utterance's work took, up to the first speak() accepted.

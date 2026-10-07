@@ -1,10 +1,12 @@
 package com.sachinbaria.easyvoice
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.content.Intent
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import java.util.Locale
-class CheckVoiceData : Activity() {
+// androidx ComponentActivity (2026-10-07), the base every other screen uses;
+// both still finish inside onCreate, as Theme.NoDisplay requires.
+class CheckVoiceData : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // GUARDED 2026-09-11. This activity is EXPORTED and is launched by every
@@ -34,7 +36,7 @@ class CheckVoiceData : Activity() {
     }
 }
 
-class GetSampleText : Activity() {
+class GetSampleText : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // getStringExtra UNPARCELS THE WHOLE BUNDLE, and this activity is exported

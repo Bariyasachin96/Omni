@@ -39,6 +39,17 @@
   with the screen) instead of runOnUiThread. Verified after: debug and signed release APKs build (R8 keeps DataStore's
   protobuf fields, j$.time is in the dex), native exports + 16 KB checks pass, check-all 0/0, selftest. Toasts are KEPT: not deprecated, read by every screen reader, and a
   Snackbar queues (showSnackbar suspends) so the slider's -/+ value would lag behind repeated presses.
+- **Third batch, the platform-API audit** (owner: "pure Android API ... androidx mein available ... manual"): every
+  `android.*` the Kotlin touches was listed (60 types). Moved to androidx: LocaleSpan reading uses core-ktx
+  `toSpannable()` + reified `getSpans<LocaleSpan>()`; the ADPF manager comes from core-ktx `getSystemService<T>()`;
+  CheckVoiceData / GetSampleText extend androidx `ComponentActivity` (still finish in onCreate, Theme.NoDisplay).
+  Already androidx before: ContextCompat (system services, receivers, permissions), ServiceCompat,
+  NotificationCompat / NotificationChannelCompat / NotificationManagerCompat, PackageInfoCompat, HandlerCompat,
+  ShareCompat, Activity Result API, `toUri`, `toBitmap`, `edit`. Platform-only, no androidx form exists: the whole
+  TextToSpeech / TextToSpeechService / Voice / SynthesisCallback surface, PackageManager queries, bindService,
+  Settings.Secure, Process priority, PerformanceHintManager, SystemClock, Looper. Verified: compile 0/0, check-all,
+  selftest, speakpipe 200,000 / prefetch 400,000 / voicenow 400,000 0 differ, coldstart, restore, chunkiso3, runlang,
+  langstore, persist, logger; signed release APK builds, exports + 16 KB checks pass.
 - **Looked at, NOT changed, and why:** the speaking path's HandlerThread / synchronized / wait-notify / stopExec
   (AutoTTS-proven and harness-proven; a coroutine rewrite there is the riskiest change possible); Navigation
   Compose (no accessibility handling; screens are announced by their window titles); audio focus (androidx.media's
