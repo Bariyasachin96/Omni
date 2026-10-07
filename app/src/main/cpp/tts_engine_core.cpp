@@ -16,6 +16,8 @@
 #include "unicode_tables.h"   // generated from the Unicode Character Database
 #include "encodings.h"
 #include "compact_lang_det_impl.h"
+// the tables read in at load (JNI_OnLoad); the harness slicer drops this line
+#include "image_warm.h"
 // java.lang.String, looked up ONCE. Android's JNI tips: "cache the IDs in
 // JNI_OnLoad" -- FindClass is a class-loader lookup, and nativeGetLanguages
 // ran it on every call. Held as a global ref, because a local one dies with the
@@ -35,6 +37,9 @@ static jclass stringClassRef(JNIEnv* env) {
     return cached;
 }
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
+    // The detector's tables, read in now rather than on the first word: see
+    // image_warm.h. Any address inside this library names it.
+    evwarm::startAdvisingOwnImage(reinterpret_cast<const void*>(&JNI_OnLoad));
     JNIEnv* env = nullptr;
     if (vm && vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) == JNI_OK && env) {
         if (!stringClassRef(env)) env->ExceptionClear();

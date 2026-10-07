@@ -69,7 +69,7 @@ object EngineFinder {
     fun runningScanWillRead(pkg: String): Boolean = scanRunning && w.cur?.pending?.contains(pkg) == true
     fun isInstalled(ctx: Any?, pkg: String): Boolean = w.installed[pkg] == true
     fun isSelfEngine(pkg: String) = false
-    fun scanLanguages(ctx: Any?, onResult: (Set<String>) -> Unit) { w.startScan(byService = true) }
+    fun scanLanguages(ctx: Any?, yieldToSpeech: Boolean = false, onResult: (Set<String>) -> Unit) { w.startScan(byService = true) }
 }
 interface Svc {
     fun packageEvent(pkg: String)

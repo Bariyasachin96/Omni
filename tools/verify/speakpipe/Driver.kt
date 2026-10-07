@@ -196,6 +196,7 @@ class Run(val sc: Scenario, val negLabel: String) {
     val uttEnd = HashMap<Int, Double>()
     val interruptAt = HashMap<Int, Double>()
     val callbacks = HashMap<Int, SynthesisCallback>()
+    val attempts = ArrayList<Triple<Int, String, String>>()   // every chunk handed to an engine: utterance, text, language loaded
     var failure: String? = null
     var steps = 0
     fun loop() {
@@ -246,6 +247,7 @@ class FakeEngine(val run: Run, val raw: String, val latency: Double) {
         if (text.isEmpty()) return TextToSpeech.SUCCESS
         val spec = run.sc.utts.flatMap { it.chunks }.first { it.text == text }
         val item = Item(client, text, id, client.rate, client.pitch, params?.getFloat("volume", 0f) ?: 0f, client.lang)
+        run.attempts.add(Triple(run.curUtt, text, client.lang))
         val tok = token
         val utt = run.curUtt; val gen = run.genOfUtt[utt] ?: -1
         val t0 = maxOf(run.now, synthFree)
@@ -494,6 +496,7 @@ fun main(args: Array<String>) {
     var gapOld = 0.0; var gapNew = 0.0; var gapsCompared = 0; var newLonger = 0
     var leakOld = 0; var leakNew = 0; var leakOldMs = 0.0; var leakNewMs = 0.0
     var glitch = 0; var glitchMs = 0.0; var hangOld = 0; var hangNew = 0; var cutLaterNew = 0; var cutLaterOld = 0
+    var wrongOld = 0; var wrongNew = 0; var fixedWrong = 0; var afterFix = 0
     var queuedUsed = 0; var oldLeakHarm = 0; var stopWindow = 0; var stopWindowMs = 0.0; var maxLonger = 0.0; var idleN = 0; var idleOld = 0.0; var idleNew = 0.0
     for (seed in 1..n) {
         val sc = Scenario(seed)
@@ -511,8 +514,31 @@ fun main(args: Array<String>) {
         // counted, not compared.
         val oldLeakedHere = sc.interrupt != null && o.interruptAt.containsKey(0) &&
             (leakOf(o, sc) > 0 || o.plays.any { it.utt == 0 && !it.cut && it.end > o.interruptAt[0]!! + 1e-6 && it.start < o.interruptAt[0]!! })
+        // A chunk heard in a language it does not need is a wrong voice: the
+        // engine spoke it with whatever its client had loaded last. Counted for
+        // both versions; an utterance the old code got wrong and the new one
+        // gets right is a fix, not a difference -- and a new wrong voice fails.
+        val wantLang = HashMap<String, String>()
+        for (c in sc.utts.flatMap { it.chunks }) if (c.lang != "xxx") wantLang[c.text] = c.lang
+        // (cut or failed ones too: an attempt in the wrong language is the fault
+        // whatever happened to it afterwards)
+        // Counted at speak(), so one an engine refused at once counts too.
+        fun wrongIn(run: Run, u: Int) = run.attempts.count { it.first == u && wantLang[it.second] != null && wantLang[it.second] != it.third }
+        val differentUtts = HashSet<Int>()
+        var firstFixed = -1
         for (u in sc.utts.indices) {
             val so = summary(o, u); val sn = summary(w, u)
+            val wo = wrongIn(o, u); val wn = wrongIn(w, u)
+            wrongOld += wo; wrongNew += wn
+            if (wn > 0 && why == null) why = "new: a chunk heard in the wrong language in utterance $u"
+            if (so != sn) differentUtts.add(u)
+            if (wo > 0 && wn == 0 && firstFixed < 0) firstFixed = u
+            if (so != sn && wo > 0 && wn == 0) { fixedWrong++; continue }
+            // Once an utterance went differently because the old code spoke a
+            // chunk in the wrong language, what follows it in that scenario (the
+            // interrupt anchored to a chunk the new code never plays wrongly, a
+            // death anchored likewise, the next utterance) follows from the fix.
+            if (so != sn && firstFixed in 0 until u) { afterFix++; continue }
             if (!o.uttEnd.containsKey(u) && o.callbacks.containsKey(u)) hangOld++
             if (!w.uttEnd.containsKey(u) && w.callbacks.containsKey(u)) hangNew++
             if (so != sn) {
@@ -528,7 +554,7 @@ fun main(args: Array<String>) {
             // where the old code let the interrupted chunk play on (counted as a
             // leak below), the new one cutting it is the fix, not a difference
             val oldLeaked = o.plays.any { it.utt == 0 && it.text == ci.first && !it.cut && (o.interruptAt[0] ?: Double.MAX_VALUE) < it.end }
-            if (co != cn && !(oldLeaked && cn == 1)) why = "interrupt cut differs: old $co new $cn"
+            if (co != cn && !(oldLeaked && cn == 1) && firstFixed < 0) why = "interrupt cut differs: old $co new $cn"
         }
         chunksHeard += w.plays.count { !it.cut && !it.errored }
         // silence between the chunks of one utterance, heard to the end in both
@@ -539,6 +565,7 @@ fun main(args: Array<String>) {
             }
             val go = gaps(o); val gn = gaps(w)
             if (u > 0 && oldLeakedHere) continue
+            if (u in differentUtts) continue
             if (go.size == gn.size) for (k in go.indices) {
                 gapsCompared++; gapOld += go[k]; gapNew += gn[k]
                 if (sc.mainHop < 1.0) { idleN++; idleOld += go[k]; idleNew += gn[k] }
@@ -572,6 +599,7 @@ fun main(args: Array<String>) {
             if (afterFailure) { glitch++; glitchMs += p.end - p.start }
             else if (inStopWindow) { stopWindow++; stopWindowMs += p.end - p.start }
             else if (p.utt > 0 && oldLeakedHere) oldLeakHarm++
+            else if (firstFixed in 0..p.utt) afterFix++
             else { cutLaterNew++; if (why == null) why = "new cut ${p.text} on ${p.engine} at %.1f".format(p.end) }
         }
         for ((k, v) in co0) if (v > (cn0[k] ?: 0)) cutLaterOld += v - (cn0[k] ?: 0)
@@ -579,6 +607,7 @@ fun main(args: Array<String>) {
     }
     println("$cases scenarios (old vs new, AOSP-shaped engines): $differ differ")
     println("  chunks heard to the end: $chunksHeard; hangs old $hangOld new $hangNew")
+    println("  chunks handed to an engine in a language they do not need: old $wrongOld, new $wrongNew; utterances old got wrong and new gets right: $fixedWrong (what followed from them in the same scenario: $afterFix)")
     println("  silence between chunks: old %.0f ms, new %.0f ms over %d boundaries (%d shorter, %d longer by over 1 ms; the most any was longer: %.1f ms)".format(gapOld, gapNew, gapsCompared, queuedUsed, newLonger, maxLonger))
     println("    of them with the main thread idle (no settings screen busy): old %.0f ms, new %.0f ms over %d boundaries".format(idleOld, idleNew, idleN))
     println("  interrupted audio still playing after its stop: old %d cases %.0f ms, new %d cases %.0f ms".format(leakOld, leakOldMs, leakNew, leakNewMs))
@@ -586,5 +615,5 @@ fun main(args: Array<String>) {
     println("  cuts only one version made: old $cutLaterOld, new (not a failed chunk's queued one) $cutLaterNew")
     println("  queued chunk heard after the chunk in front failed: %d cases, %.0f ms".format(glitch, glitchMs))
     println("  queued chunk started between an interrupt and its stop: %d cases, %.0f ms".format(stopWindow, stopWindowMs))
-    if (differ > 0 || hangNew > hangOld || newLonger > 0 || cutLaterNew > 0) kotlin.system.exitProcess(1)
+    if (differ > 0 || wrongNew > 0 || hangNew > hangOld || newLonger > 0 || cutLaterNew > 0) kotlin.system.exitProcess(1)
 }

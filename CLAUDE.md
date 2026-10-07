@@ -8,7 +8,47 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## SWITCHES ANNOUNCE ON/OFF AGAIN: COMPOSE 1.11 CHANGED THE EVENT (owner, 2026-10-07, latest)
+## FOUR DELAYS REMOVED BY ORDERING THE WORK, NOT BY CLOCKS (owner, 2026-10-07, latest)
+*"yah Sare Charon fix Karne hain ... Jugaad Wale Hain Mujhe properli chahie Jo logicaly hone chahie."*
+- **1 The next chunk's language loads the moment the engine ACCEPTS this chunk** (speakChunk: `speak() == SUCCESS`
+  -> `speakHandler.post { prefetchNextLanguage(); queueNextAhead() }`), not at onStart: from acceptance the engine owns
+  the chunk, so its whole start-up time was idle. onStart still starts it for a chunk QUEUED AHEAD (that one cannot
+  earlier: the chunk in front holds the one prefetch slot). **Found by the harness on the way, an OLD bug:**
+  `retryChunkElsewhere` kept a prefetch made before the retry, and switchToAlternative had moved engineIndex, so the
+  next chunk was spoken/queued on the retry's engine with the language loaded on another -- **old: 1,971 chunks handed
+  to an engine in a language they do not need; new: 0**. A prefetch is "the last load", so the retry drops it
+  (`prefetchedLang = ""`) and the retry's own speak() starts the next load. speakpipe now counts that at speak()
+  (`run.attempts`, `wrongIn`); an utterance the old code got wrong is a fix (and what followed from it in that
+  scenario), never a difference; any new wrong voice fails. 200,000 scenarios 0 differ, 0 hangs, 0 longer gaps.
+  Negative (retry keeps the prefetch): 240 differ, new wrong 246 -- caught.
+- **2 The CLD2 tables are read in at library load** (`app/src/main/cpp/image_warm.h`, called first in JNI_OnLoad):
+  madvise(MADV_WILLNEED) over this object's read-only PT_LOAD segments, found with dl_iterate_phdr, on a detached
+  thread, IN 128 KB PIECES (the kernel reads one readahead window per request -- one whole-segment call read only
+  ~4 MB of 6.4; measured). Nothing is detected, copied or pinned; the library load is the event. `make_core_inc.py`
+  drops the include (only JNI_OnLoad uses it). Proof `tools/verify/warmtables/run.sh` (real core + CLD2 built as a
+  .so, file pages evicted, one process per round): resident at first read 121 -> 1636 of 1636 pages, first read of
+  every page 3.0 -> 0.28 ms (container NVMe; phone flash is slower). Negative (MADV_NORMAL): FAIL.
+- **3 A background scan reads an engine only while nothing is being spoken** (`ScanYield.kt`, pure Kotlin):
+  `scanLanguages(..., yieldToSpeech = true)` from tryOwedScan; every step of the walk (first engine, next, retry)
+  goes through `walk.step {}`, which parks it while `synthesizingNow` (set/cleared around onSynthesizeText); the end
+  of an utterance (`ScanYield.speechEnded()`, posted only if a step is parked) runs it. The 180 s watchdog counts
+  WALKING time only (taken down while parked, put back with what was left). The user's scan does not yield. Overlap
+  left: at most one read that started in a gap. onDestroy releases a parked step. Proof
+  `tools/verify/scanyield/run.sh` (the real file, virtual clock, 100,000 histories): 0 reads during speech, 0 scans
+  unfinished, 0 user scans waiting, watchdog 0 early / 0 missed (1,639 walks past budget). Negatives nogate /
+  noresume / nopause all FAIL.
+- **4 The main screen does not wait for a scan it already has**: `scanning` starts false when this process holds a
+  finished scan (`lastScanEngines` non-empty -- the service's startup scan or the last one), and the scan runs behind
+  the settings. Its result is APPLIED (`scanLanguages(..., publish = ...)`, finalize split into finalizeScan +
+  publishScan) only while MainActivity is in front: Voice setup / Languages / Mode settings hold entries of the list
+  they opened with (VoiceScreen captures `entry`), so a rebuild under them would lose edits. A held result runs in
+  onResume (after that screen's onPause persisted) or onDestroy; publishScan re-checks the generation. First run
+  still shows the scanning screen (nothing to show). Not harness-proven (Activity lifecycle); gradle-compile 0/0.
+- Re-run: check-all 0/0, selftest EVERY CHECK FIRES, prefetch 400,000 0 differ, scansched 0/0 (fake took the new
+  param), coldstart, restore, enginefinder, corebytes 895,440 0 differ, segmenter, scriptfamily, normalizer,
+  langcodes IDENTICAL, oldnew 690 (the known Unicode-18 baseline), devanagari 17/17, latency.
+
+## SWITCHES ANNOUNCE ON/OFF AGAIN: COMPOSE 1.11 CHANGED THE EVENT (owner, 2026-10-07)
 *"switch on off karte hain to TalkBack announce nahin karta ... Samsung ... components use karo ... manually nahin."*
 - **Cause, read in the libraries:** Compose UI's delegate reports a ToggleableState change with
   `CONTENT_CHANGE_TYPE_STATE_DESCRIPTION` in 1.8.3 / 1.9.0 / 1.10.0 and with **`CONTENT_CHANGE_TYPE_CHECKED`**

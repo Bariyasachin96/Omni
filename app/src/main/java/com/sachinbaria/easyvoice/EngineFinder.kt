@@ -410,6 +410,11 @@ object EngineFinder {
     fun scanLanguages(
         ctx: Context,
         onProgress: ((String) -> Unit)? = null,
+        yieldToSpeech: Boolean = false,
+        // When the result may be APPLIED: the caller runs the block now, or later
+        // when nothing it shows could be holding the old list (MainActivity:
+        // while it is the screen in front). Null = at once, as always.
+        publish: ((() -> Unit) -> Unit)? = null,
         onResult: (Set<String>) -> Unit
     ) {
         attach(ctx)
@@ -423,6 +428,11 @@ object EngineFinder {
         // This scan's own 180 s watchdog, so finalize cancels exactly that one.
         // A cell rather than a val because finalizeScan is declared above it.
         val myTimeout = arrayOfNulls<Runnable>(1)
+        // The walk's pacing: a background scan reads an engine only while nothing
+        // is being spoken (ScanYield). Its watchdog counts walking time only.
+        val walk = ScanYield(yieldToSpeech, 180000L, { android.os.SystemClock.uptimeMillis() },
+            { ms -> myTimeout[0]?.let { globalTimeoutHandler.removeCallbacks(it); globalTimeoutHandler.postDelayed(it, ms) } },
+            { myTimeout[0]?.let { globalTimeoutHandler.removeCallbacks(it) } })
         voiceWeights.clear()
         val langs = LinkedHashSet<String>()
         val displayNames = HashMap<String, String>()
@@ -436,13 +446,10 @@ object EngineFinder {
         // the walk used to reach its own end later and finalize a second time --
         // saving again and calling the caller back twice.
         var finalized = false
-        fun finalizeScan() {
-            // A superseded scan writes NOTHING. Without this the older scan
-            // still reached here and did languages.clear() + rebuildFromScan() +
-            // persistAll() with its own half-finished engine list, which is
-            // exactly why the count differed on every open.
-            if (myGeneration != scanGeneration || finalized) return
-            finalized = true
+        fun publishScan() {
+            // A superseded scan writes NOTHING (checked again here: a result held
+            // by `publish` can be overtaken by a newer scan before it is applied).
+            if (myGeneration != scanGeneration) return
             scanRunning = false
             if (startSeq > coveredSeq) coveredSeq = startSeq
             scanPending.clear()
@@ -462,10 +469,6 @@ object EngineFinder {
                 listed.add(pkg)
                 engines.add(EngineInfo(pkg, engineLabel(ctx, pkg)))
             }
-            // removeCallbacks, NOT removeCallbacksAndMessages(null): the handler
-            // is shared, and clearing it wholesale cancelled the OTHER scan's
-            // watchdog too.
-            myTimeout[0]?.let { globalTimeoutHandler.removeCallbacks(it) }
             // A FAILED ENGINE IS STILL INSTALLED -- it came out of this scan's
             // own queryIntentServices -- so it stays in the engine list and keeps
             // the voices it had (2026-09-23). Dropping it is what made Google
@@ -561,9 +564,24 @@ object EngineFinder {
             EasyVoiceTtsService.scanFinished()
             onResult(orderedLangs)
         }
+        fun finalizeScan() {
+            // A superseded scan writes NOTHING. Without this the older scan
+            // still reached here and did languages.clear() + rebuildFromScan() +
+            // persistAll() with its own half-finished engine list, which is
+            // exactly why the count differed on every open.
+            if (myGeneration != scanGeneration || finalized) return
+            finalized = true
+            // removeCallbacks, NOT removeCallbacksAndMessages(null): the handler
+            // is shared, and clearing it wholesale cancelled the OTHER scan's
+            // watchdog too.
+            myTimeout[0]?.let { globalTimeoutHandler.removeCallbacks(it) }
+            walk.finish()
+            val gate = publish
+            if (gate == null) publishScan() else gate { publishScan() }
+        }
         val globalTimeout = Runnable { finalizeScan() }
         myTimeout[0] = globalTimeout
-        globalTimeoutHandler.postDelayed(globalTimeout, 180000L)
+        walk.start()
         engines.addAll(getEngines(ctx, seen))
         scanPending.clear()
         for (info in engines) if (!isSelfEngine(info.pkg)) scanPending.add(info.pkg)
@@ -580,7 +598,7 @@ object EngineFinder {
                 finalizeScan()
                 return
             }
-            startEngine("(2)")
+            walk.step { if (myGeneration == scanGeneration && !finalized) startEngine("(2)") }
         }
         // ONE ENGINE, ONE LISTENER, ONE TIMEOUT, ONE CLIENT -- all captured
         // together (owner, 2026-09-09, explicitly overriding rule 5 here:
@@ -677,7 +695,7 @@ object EngineFinder {
                 }
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Scan of " + pkg + " failed (" + why + "), retrying once")
                 release()
-                startEngine("(retry)")
+                walk.step { if (myGeneration == scanGeneration && !finalized) startEngine("(retry)") }
                 return true
             }
             fun applyRead(engineVoices: Set<android.speech.tts.Voice>?) {
@@ -810,7 +828,7 @@ object EngineFinder {
                 finalizeScan()
                 return
             }
-            startEngine("(3)")
+            walk.step { if (myGeneration == scanGeneration && !finalized) startEngine("(3)") }
         }
         // THE ENGINE LIST IS THE PACKAGE MANAGER'S, ONCE (2026-09-30, owner: "koi
         // chijen double double nahin honi chahie"). A second list used to be

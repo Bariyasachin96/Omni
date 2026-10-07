@@ -582,6 +582,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // are asked of the package manager -- see EngineFinder.attach.
         try { EngineFinder.attach(this) } catch (_: Throwable) {}
         prefs = SharedPrefsManager(this)
+        ScanYield.speechInFlight = { synthesizingNow }
         EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())
         // AutoTtsService.onCreate opens with c3.a0.c/c3.a0.b, so every log a
         // user shares names the build it came from -- "Unknown" and -1 are the
@@ -1834,7 +1835,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     return@onMainThread
                 }
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Background scan: " + why)
-                EngineFinder.scanLanguages(applicationContext) { langs ->
+                EngineFinder.scanLanguages(applicationContext, yieldToSpeech = true) { langs ->
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Background scan finished: " + langs.size + " languages" }
                 }
             } catch (ex: Throwable) {
@@ -3353,6 +3354,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // below rechecks isStopped -- so the normal ending is unaffected.
     override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
         mayAwaitEngine.set(true)
+        // An utterance is in flight: a background scan does not read an engine
+        // now (ScanYield). Its end, below, is the event that lets it go on.
+        synthesizingNow = true
         try {
             onSynthesizeTextImpl(request, callback)
         } catch (ex: Throwable) {
@@ -3362,6 +3366,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             try { startAndFinish(callback) } catch (_: Throwable) {}
         } finally {
             mayAwaitEngine.set(false)
+            synthesizingNow = false
+            if (ScanYield.hasParked()) onMainThread { ScanYield.speechEnded() }
         }
     }
     private fun onSynthesizeTextImpl(request: SynthesisRequest?, callback: SynthesisCallback?) {
@@ -3981,6 +3987,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
             synchronized(this) {
                 switchToAlternative(currentPairLang, failedThisUtterance, !walkPending(failedRawPkg), why)
             } ?: return false
+            // A prefetch is "the last load", and it is only reusable while it still
+            // is: switchToAlternative has just loaded this chunk's language on
+            // another engine and moved engineIndex there. Kept, the next chunk would
+            // be spoken (or queued ahead) on the engine this retry chose, with the
+            // language loaded on a different one. Dropped, the next chunk loads
+            // again -- and the retry's own speak() starts that load at once.
+            prefetchedLang = ""
             retryCount++
             synchronized(chunkQueue) { chunkQueue.add(0, pair) }
             speakChunkRef(currentPairFirst)
@@ -4170,8 +4183,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // to it now with QUEUE_ADD, so it starts the moment this one ends.
                         // Not for a queued chunk that was taken back: it started only
                         // because the chunk in front failed, and it is spoken again later.
-                        speakHandler.post {
-                            if (mine != null && mine.takenBack) return@post
+                        //
+                        // ONLY FOR A CHUNK QUEUED AHEAD now (owner, 2026-10-07). A chunk
+                        // spoken the ordinary way starts this work the moment its
+                        // speak() is accepted (speakChunk, below): from that instant the
+                        // engine owns it, and waiting for its first audio only spent
+                        // the engine's own start-up time doing nothing. A queued chunk
+                        // cannot start it earlier -- until it is promoted, the chunk in
+                        // front still holds the one prefetch slot.
+                        if (mine != null) speakHandler.post {
+                            if (mine.takenBack) return@post
                             prefetchNextLanguage(); queueNextAheadRef()
                         }
                     } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStart failed: " + ex.toString()) }
@@ -4739,7 +4760,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         wrapper.flushedGeneration = myGeneration
                         tts.speak(chunkText, TextToSpeech.QUEUE_FLUSH, params, expectedId)
                     }
-                    if (speakResult != 0) {
+                    if (speakResult == 0) {
+                        // The engine has the chunk. Everything until its last word is
+                        // free time to load the next chunk's language and, on this same
+                        // engine, to hand it over with QUEUE_ADD -- so it starts now,
+                        // not at onStart. Posted: the speak thread is the one thread
+                        // that owns the prefetch slot and the ahead chunk.
+                        speakHandler.post { prefetchNextLanguage(); queueNextAheadRef() }
+                    } else {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Speaking failed!!!")
                         if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " refused to speak")) {
                             // the chunk is being spoken elsewhere
@@ -4820,6 +4848,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // releases its session with the system's TTS manager.
         destroyed = true
         try { engineSettled() } catch (_: Throwable) {}
+        // Nothing will be spoken by this instance any more: a parked background
+        // scan step goes on now instead of waiting for an utterance end.
+        try { synthesizingNow = false; ScanYield.speechInFlight = { false }; ScanYield.speechEnded() } catch (_: Throwable) {}
         try { for (index in 0 until enginePool.size) enginePool[index].shutdown() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "engine shutdown: " + ex.toString()) }
         try { unbindAllEngineKeepAlive() } catch (_: Throwable) {}
         try { if (packageReceiverRegistered) { packageReceiverRegistered = false; unregisterReceiver(packageReceiver) } } catch (_: Throwable) {}
@@ -4844,6 +4875,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // it never keeps the service alive (the 2026-09-10 appCtx leak was a
         // STRONG static reference to it).
         @Volatile private var running: java.lang.ref.WeakReference<EasyVoiceTtsService>? = null
+        // True while onSynthesizeText runs (there is one synthesis thread).
+        @Volatile @JvmStatic var synthesizingNow = false
         // THE SCAN READS A LIVE ENGINE THROUGH THE CLIENT WE ALREADY HOLD
         // (owner, 2026-10-01). EngineFinder built a NEW TextToSpeech per engine
         // for every scan -- the background scan right after a cold start

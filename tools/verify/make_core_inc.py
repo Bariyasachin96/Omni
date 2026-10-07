@@ -42,6 +42,7 @@ DROP_INCLUDES = (
     '#include <jni.h>',
     '#include "compact_lang_det.h"',
     '#include "encodings.h"',
+    '#include "image_warm.h"',      # used only by JNI_OnLoad, which the slice drops
     '#include "compact_lang_det_impl.h"',
 )
 

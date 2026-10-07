@@ -104,7 +104,22 @@ class MainActivity : EvActivity() {
         try { testTts?.shutdown() } catch (_: Exception) { }
         testTts = android.speech.tts.TextToSpeech(this, null, BuildConfig.APPLICATION_ID)
     }
-    private var scanning by mutableStateOf(true)
+    // THE SCREEN DOES NOT WAIT FOR A SCAN IT ALREADY HAS (owner, 2026-10-07).
+    // A finished scan in this process -- the service's own startup scan, or this
+    // screen's last one -- is the same data the new scan is about to produce,
+    // so the settings show at once and the scan runs behind them. Only a
+    // process that has never finished one (first run, or a process the system
+    // started for this screen alone) shows the scanning screen, because then
+    // there is nothing to show.
+    private var scanning by mutableStateOf(EngineFinder.lastScanEngines.isEmpty())
+    // The scan's result is APPLIED only while this screen is the one in front.
+    // Applying rebuilds the language list, and a screen opened from here
+    // (Languages, Voice setup, Mode settings) holds entries of the list it was
+    // opened with: replaced under it, its changes would land on entries nothing
+    // reads any more. So a result that arrives while one of them is open waits
+    // for this screen to come back (onResume) -- an event, not a delay.
+    private var inFront = false
+    private var pendingPublish: (() -> Unit)? = null
     private var scanLine by mutableStateOf("Checking your TTS engines")
     private var modeRefresh by mutableIntStateOf(0)
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -210,19 +225,31 @@ class MainActivity : EvActivity() {
                 )
             }
         }
-        EngineFinder.scanLanguages(this, { line -> runOnUiThread { scanLine = line } }) { newTestClient(); runOnUiThread {
+        EngineFinder.scanLanguages(this, { line -> runOnUiThread { scanLine = line } },
+            publish = { apply -> if (inFront) apply() else pendingPublish = apply }) { newTestClient(); runOnUiThread {
             scanning = false
+            modeRefresh++
         } }
     }
     override fun onPause() {
+        inFront = false
         LangStore.persistAll(this)
         super.onPause()
     }
     override fun onResume() {
         super.onResume()
+        inFront = true
+        // A result that arrived while another screen was in front. persistAll
+        // in that screen's onPause already saved what it changed, so the
+        // rebuild reads it back.
+        pendingPublish?.let { pendingPublish = null; it() }
         modeRefresh++
     }
     override fun onDestroy() {
+        // Leaving the app (or turning the phone) with a result still held: no
+        // screen of ours is in front to hold the old list now, so it is applied.
+        // A newer scan (the next onCreate) supersedes it, which it checks itself.
+        pendingPublish?.let { pendingPublish = null; try { it() } catch (_: Exception) { } }
         // TextToSpeech holds a binding until shutdown() is called; see the field.
         try { testTts?.shutdown() } catch (_: Exception) { }
         testTts = null
