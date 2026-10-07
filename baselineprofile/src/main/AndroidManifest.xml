@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The generator binds the app's TTS service as an ordinary TextToSpeech
+         client; from API 30 the engine must be visible to this package. -->
+    <queries>
+        <package android:name="com.sachinbaria.easyvoice" />
+        <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
+    </queries>
+</manifest>

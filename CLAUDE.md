@@ -8,7 +8,30 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## NATIVE PGO, AND CLD2 READ 4 MB PAST A TABLE FOR A U+0000 (owner, 2026-10-07, latest)
+## A GENERATED BASELINE PROFILE, MADE ON CI'S EMULATOR EVERY BUILD (owner, 2026-10-07, latest)
+*"3 and 5 complete test karke"* -- item 3 of the kernel-level list.
+- **`:baselineprofile`** (com.android.test + `androidx.baselineprofile` 1.5.0, benchmark-macro-junit4 1.5.0,
+  uiautomator 2.4.0; root build.gradle.kts declares com.android.test 9.4.1 and the plugin). One test,
+  `BaselineProfileGenerator`: open the app (the scan), then for Mixed / Auto / Dual (tapped by contentDescription),
+  pressHome (onPause persists the mode) and speak 10 screen-reader-shaped texts (labels, time, number, emoji,
+  Latin+Devanagari+Gujarati) through a `TextToSpeech` client bound to `com.sachinbaria.easyvoice`; every step
+  tolerates a missing engine/label. maxIterations 5, stableIterations 2 (the default 15 could outlast the job);
+  includeInStartupProfile = true. Its manifest `<queries>` our package + TTS_SERVICE.
+- **App:** applies the plugin with `mergeIntoMain = true`, `automaticGenerationDuringBuild = false`,
+  `baselineProfile(project(":baselineprofile"))`. Output path `app/src/main/generated/baselineProfiles/` (gitignored);
+  the hand-written `baseline-prof.txt` and `baselineProfiles/startup-prof.txt` stay and merge with it.
+- **CI:** new job `baseline-profile` (accessibility job's emulator, API 34 google_apis: BaselineProfileRule needs no
+  root at 33+) runs `:app:generateBaselineProfile` and uploads `baseline-profile-<n>`. The **build job now
+  `needs: baseline-profile` with `if: !cancelled()`**: it downloads the artifact (continue-on-error) before
+  assembleRelease; without it the APK still ships, with a warning, and the release notes say which ("Baseline
+  profile: ..."). COST: the APK is published only after the profile job (~10-15 min later than before).
+- **Proven locally (no KVM here, so NOT the device run itself):** both APKs build (`:baselineprofile:assemble
+  NonMinifiedRelease`, `:app:assembleNonMinifiedRelease`, throwaway key); a marker file in the generated dir appears in
+  `merged_art_profile/release/.../baseline-prof.txt` (the release build really uses it); `assembleRelease -PevAbiSplit`
+  unchanged (no generator task runs), exports + 16 KB checks pass; check-all compiles :baselineprofile too (0/0);
+  workflow-shell parses the new step under dash. **The first CI run is the first time it executes on a device.**
+
+## NATIVE PGO, AND CLD2 READ 4 MB PAST A TABLE FOR A U+0000 (owner, 2026-10-07)
 *"3 and 5 complete test karke kar do"* -- item 5 of the kernel-level list (PGO of the native core).
 - **`tools/pgo/run.sh [--update]`** trains with the NDK's OWN clang 21: static x86_64- AND i686-android executables
   run on this Linux kernel as they are (the NDK has no host profile runtime), around `tools/pgo/fakejni.h` (a JNIEnv

@@ -34,7 +34,7 @@ export ANDROID_HOME="$CACHE/android-sdk"
 LOG=${TMPDIR:-/tmp}/ev-gradle-compile.log
 n=0
 while :; do
-  (cd "$ROOT" && "$GRADLE" --no-daemon :app:compileDebugKotlin :app:compileDebugAndroidTestKotlin) > "$LOG" 2>&1
+  (cd "$ROOT" && "$GRADLE" --no-daemon :app:compileDebugKotlin :app:compileDebugAndroidTestKotlin :baselineprofile:compileNonMinifiedReleaseKotlin) > "$LOG" 2>&1
   rc=$?
   [ $rc -eq 0 ] && break
   if grep -q " 429 \|status code 429" "$LOG" && [ $n -lt 4 ]; then
@@ -51,4 +51,4 @@ if [ -n "$WARN" ]; then
   echo "gradle-compile  FAILED -- $(echo "$WARN" | wc -l) compiler warning(s) in our sources"
   exit 1
 fi
-echo "gradle-compile  app + androidTest compiled with Gradle $GV: 0 errors, 0 warnings"
+echo "gradle-compile  app + androidTest + baselineprofile compiled with Gradle $GV: 0 errors, 0 warnings"

@@ -7,3 +7,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "EasyVoice"
 include(":app")
+include(":baselineprofile")

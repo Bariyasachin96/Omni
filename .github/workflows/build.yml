@@ -34,6 +34,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Waits for the profile, but runs whatever happened to it.
+    needs: baseline-profile
+    if: ${{ !cancelled() }}
     permissions:
       contents: write
     steps:
@@ -164,6 +167,22 @@ jobs:
           fi
           printf '%s' "$KSBASE64" | base64 -d > easyvoice-release.keystore
           echo "Keystore ready" 
+      - name: Use the generated baseline profile
+        id: profile
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: baseline-profile-${{ github.run_number }}
+          path: app/src/main/generated/baselineProfiles/
+      - name: Say whether the generated profile is in
+        run: |
+          if ls app/src/main/generated/baselineProfiles/*.txt >/dev/null 2>&1; then
+            wc -l app/src/main/generated/baselineProfiles/*.txt
+            echo "EV_PROFILE=generated on the emulator and compiled in" >> "$GITHUB_ENV"
+          else
+            echo "::warning::no generated baseline profile; shipping the hand-written one only"
+            echo "EV_PROFILE=hand-written only (the profile job did not produce one)" >> "$GITHUB_ENV"
+          fi
       - name: Build APK
         # tools/ci/gradle-retry.sh, not an inline function: this same retry was
         # written inline first and broke the accessibility job, because the
@@ -287,6 +306,8 @@ jobs:
             source this build was compiled from, taken straight out of the commit
             above. It excludes only `autotts_reference/`, which is a third-party
             app kept in the repo for comparison and is not part of Easy Voice.
+
+            Baseline profile: ${{ env.EV_PROFILE }}.
           files: |
             EasyVoice-${{ github.run_number }}.apk
             EasyVoice-${{ github.run_number }}-arm64-v8a.apk
@@ -574,3 +595,237 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
           if-no-files-found: warn
+
+  # THE GENERATED BASELINE PROFILE (owner, 2026-10-07). :baselineprofile's
+  # BaselineProfileGenerator drives the real app on the emulator -- the main
+  # screen and its scan, then the TTS service speaking in mixed, auto and dual
+  # mode -- and records what ran, so ART compiles exactly that ahead of time on
+  # install. It cannot run in the dev container (no KVM), so it runs here, on
+  # every build, and the build job waits for it. A failure here never blocks
+  # the APK: the build job then ships with the hand-written profile only and
+  # its release notes say so.
+  baseline-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          # DROP THE DEAD `tools` PACKAGE. This input's default is
+          # `tools platform-tools` (the action's own action.yml), and Google has
+          # REMOVED `tools` from the SDK repository -- proven rather than
+          # inferred: repository2-3.xml today contains zero `path="tools"` and
+          # one `path="platform-tools"`. So the action ran `sdkmanager tools`,
+          # got "Warning: Failed to find package 'tools'", exited 1, and took
+          # BOTH jobs down at step 4 before a single line of ours ran. That is
+          # build 876, and build 875 passed on the identical pin five days
+          # earlier -- nothing in this repo changed, the SDK repository did.
+          #
+          # platform-tools stays because the emulator job needs adb. Everything
+          # else this build uses -- the NDK, CMake, build-tools, the platform --
+          # is installed by the next step, which resolves sdkmanager from PATH
+          # and therefore does not care that the runner image has moved
+          # cmdline-tools again (it is 20.0 now, not the 16.0 the v4 bump
+          # predicted).
+          packages: platform-tools
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # THE EMULATOR NEEDS 7.2 GB OF FREE DISK AND THE RUNNER STOPPED HAVING IT.
+      # Runs 795 and 796 both died with the emulator never booting, and the only
+      # line that matters is buried a thousand lines above the adb retries:
+      #
+      #   FATAL | Not enough space to create userdata partition.
+      #           Available: 6881.56 MB at /home/runner/.android/avd/test.avd,
+      #           need 7372.80 MB.
+      #
+      # Short by 491 MB. Not KVM, not a missing system image -- and NOT anything
+      # in this repository: run 794 passed with this workflow byte for byte, so
+      # what changed is the hosted runner image, which keeps growing while the
+      # pixel_6 userdata partition stays 7.2 GB. By the time the emulator starts
+      # this job has already spent its budget on NDK 29, the CLD2 clone,
+      # Gradle and the system image.
+      #
+      # So reclaim what a TTS build provably never touches. Every path here is a
+      # preinstalled toolchain for another language or ecosystem; `|| true` on
+      # each, because a path disappearing from a future image must not fail the
+      # run. NEVER add /opt/hostedtoolcache/Java_* (JAVA_HOME) or
+      # /usr/local/lib/android (ANDROID_HOME) to this list -- they are what the
+      # job runs on.
+      #
+      # The `df` lines are deliberate: if this ever fails again, the log states
+      # the space on both sides instead of leaving the next person to guess.
+      - name: Free disk space for the emulator
+        run: |
+          echo "before:"; df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo rm -rf /opt/ghc /usr/local/.ghcup || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune -af || true
+          echo "after:"; df -h / | tail -1
+          # SAY IT HERE IF THERE IS NOT ENOUGH ROOM, because the emulator will not.
+          # Runs 795-797 died on ONE line buried a thousand adb errors below the
+          # noise:
+          #     FATAL | Not enough space to create userdata partition.
+          #             Available: 6881.56 MB ... need 7372.80 MB.
+          # and everything after it was adb talking to a process that never
+          # started. 7372.80 MB is the pixel_6 userdata partition; the margin is
+          # for the system image and the build that follow it.
+          #
+          # This WARNS rather than fails: a manufactured red run is worse than a
+          # real one, and the emulator may still manage. What it buys is that the
+          # number is at the TOP of the log instead of inferred from adb noise.
+          avail_mb=$(df -m / | tail -1 | awk '{print $4}')
+          echo "free after cleanup: ${avail_mb} MB"
+          if [ "$avail_mb" -lt 9000 ]; then
+            echo "::warning::Only ${avail_mb} MB free. The pixel_6 userdata partition alone needs 7373 MB, and the system image and build come out of the same disk. If this run dies in adb, grep the log for FATAL first -- that is what runs 795-797 were."
+          fi
+
+      - name: Install NDK and CMake
+        timeout-minutes: 20
+        run: |
+          # PATH first, absolute path as the fallback -- the same reason as the
+          # build job's copy: setup-android v4 documents cmdline-tools/16.0/bin
+          # rather than .../latest/, and this step must not depend on which.
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          echo "using sdkmanager: $SDKMANAGER"
+          # THIS STEP USED TO PASS WHEN THE NDK WAS NOT THERE (fixed 2026-09-10).
+          # It looped three times and then simply ended -- no check that the NDK
+          # had actually landed, and no non-zero exit if all three attempts
+          # failed. So a failed or CORRUPT download left this step GREEN and the
+          # real failure surfaced three minutes later, inside the emulator, as an
+          # opaque CMake or Gradle error with nothing pointing back here.
+          #
+          # The build job has always verified the directory and errored. This is
+          # that, byte for byte, including clearing the sdkmanager caches between
+          # attempts -- the build job's comment records that a corrupt download
+          # is the usual reason a retry is needed at all.
+          install_pkgs() {
+            echo "y" | "$SDKMANAGER" \
+              "ndk;30.0.16248370" "cmake;4.1.2" "build-tools;37.0.0" \
+              --sdk_root=$ANDROID_HOME
+          }
+          n=0
+          until [ $n -ge 3 ]; do
+            if install_pkgs && [ -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
+              echo "NDK + CMake installed successfully."; break
+            fi
+            n=$((n+1))
+            echo "::warning::NDK/CMake install attempt $n failed; clearing caches and retrying"
+            rm -rf "$ANDROID_HOME/ndk/30.0.16248370" 2>/dev/null || true
+            rm -rf "$HOME/.android/cache" "$HOME/.cache/Google/AndroidStudio"*/ 2>/dev/null || true
+            sleep $((n * 10))
+          done
+          if [ ! -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
+            echo "::error::NDK install failed after $n retries. Failing HERE rather than letting the emulator step fail three minutes later with an unrelated message."
+            exit 1
+          fi
+
+      # The debug APK links the same native core as the release one, so the
+      # the CLD2 sources have to be here too.
+      - name: Clone the CLD2 Native Library
+        timeout-minutes: 12
+        run: |
+          set -e
+          mkdir -p app/src/main/cpp
+          clone() {
+            url=$1; dir=$2; shift 2
+            n=0
+            until [ $n -ge 3 ]; do
+              rm -rf "$dir"
+              if timeout 240 git clone --depth 1 "$@" "$url" "$dir"; then return 0; fi
+              n=$((n+1)); echo "clone attempt $n failed for $url, retrying"; sleep $((n * 5))
+            done
+            echo "giving up on $url"; return 1
+          }
+          clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # 9.7.1 because AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
+          # release notes), so this is not an independent bump -- the two move
+          # together or the build fails at configuration. It is also not new
+          # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
+          # Gradle was innocent of the accessibility job's dependency failure.
+          gradle-version: '9.7.1'
+          # cache-disabled STAYS TRUE, and it is now a measured decision rather
+          # than an unexamined default (2026-09-10). Enabling it looked like the
+          # biggest remaining lever -- every run re-downloads the whole
+          # buildscript classpath, which is exactly what flaked in build 866 --
+          # until setup-gradle's own docs settled it:
+          #
+          #   "By default, the setup-gradle action will only WRITE to the cache
+          #    for builds run on the default (master/main) branch"
+          #   "cache entries written for a Git branch are not visible from
+          #    actions running against different branches or tags. Entries
+          #    written for the default branch are visible to all."
+          #
+          # Every run of this workflow is a workflow_dispatch on
+          # claude/yaml-file-nk3czh, a FEATURE branch. So it would write nothing
+          # (read-only off the default branch) and find nothing to read (main
+          # never populated one). Turning it on buys a cache-restore attempt that
+          # misses, every run, for ever.
+          #
+          # The transient failure it would have prevented is handled at the
+          # symptom instead, by tools/ci/gradle-retry.sh -- which is the right
+          # place for it here, because the cause cannot be removed on a branch.
+          cache-disabled: true
+
+      - name: Restore Keystore
+        run: |
+          KSBASE64="${{ secrets.KEYSTORE_BASE64 }}"
+          if [ -z "$KSBASE64" ]; then
+            KSBASE64="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"
+          fi
+          printf '%s' "$KSBASE64" | base64 -d > easyvoice-release.keystore
+          echo "Keystore ready" 
+      - name: Generate the baseline profile on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # The same image as the accessibility job (34 is also the floor
+          # where BaselineProfileRule collects without root: API 33+).
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+            bash tools/ci/gradle-retry.sh :app:generateBaselineProfile
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
+
+      # The same classifier as the other two jobs.
+      - name: Say WHY this went red
+        if: failure()
+        run: bash tools/ci/why-failed.sh
+
+      # The build job waits for this artifact and compiles it into the APK.
+      - name: Upload the generated baseline profile
+        uses: actions/upload-artifact@v7
+        with:
+          name: baseline-profile-${{ github.run_number }}
+          path: app/src/main/generated/baselineProfiles/
+          retention-days: 30
+          if-no-files-found: error

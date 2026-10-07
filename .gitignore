@@ -22,3 +22,5 @@ __pycache__/
 
 # Compiled by the verify harnesses if they are ever run in place.
 *.class
+/app/src/main/generated/
+/baselineprofile/build/

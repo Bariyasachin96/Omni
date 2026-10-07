@@ -1,6 +1,11 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    // Consumes the profile :baselineprofile generates on a device; see that
+    // module. Generation is never part of an ordinary build: CI's
+    // baseline-profile job runs :app:generateBaselineProfile on its emulator
+    // and the build job drops the result into src/main/generated/baselineProfiles.
+    id("androidx.baselineprofile")
 }
 android {
     namespace = "com.sachinbaria.easyvoice"
@@ -213,7 +218,15 @@ configurations.configureEach {
     }
 }
 
+// mergeIntoMain: one generated profile for every release-like variant, written
+// to src/main/generated/baselineProfiles (startup-prof.txt there feeds the dex
+// layout beside the hand-written one in src/main/baselineProfiles).
+baselineProfile {
+    mergeIntoMain = true
+    automaticGenerationDuringBuild = false
+}
 dependencies {
+    baselineProfile(project(":baselineprofile"))
     // Latest stable, checked against the androidx release notes on 2026-08-27.
     // core-ktx is what NotificationCompat, ServiceCompat and FileProvider come
     // from, so it is the one that actually earns its place.
