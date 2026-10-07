@@ -30,17 +30,17 @@ fun oldDual(packed: String): List<String> {
 }
 fun newSpeak(out: Array<String>, quick: Boolean): List<String> {
     val res = ArrayList<String>()
-    for (parts in New.recordsOf(out)) {
-        if (parts.size < 4) continue
-        val t = parts[0].toIntOrNull() ?: 0
-        if (t == 3 || t == 4 || t == 5) res.add("S|${parts[2]}|${parts[3]}")
-        else for (r in New.detectedRunsOf(parts, quick)) res.add("R|${r.lang}|${r.latin}|${r.text}")
+    New.forEachRecord(out) { at, n ->
+        if (n < 4) return@forEachRecord
+        val t = New.fieldInt(out[at]) ?: 0
+        if (t == 3 || t == 4 || t == 5) res.add("S|${out[at + 2]}|${out[at + 3]}")
+        else New.forEachDetectedRun(out, at, n, quick) { lang, latin, text -> res.add("R|$lang|$latin|$text") }
     }
     return res
 }
 fun newDual(out: Array<String>): List<String> {
     val res = ArrayList<String>()
-    for (parts in New.recordsOf(out)) if (parts.size == 4) res.add("D|${parts[0]}|${parts[2]}|${parts[3]}")
+    New.forEachRecord(out) { at, n -> if (n == 4) res.add("D|${out[at]}|${out[at + 2]}|${out[at + 3]}") }
     return res
 }
 fun main(args: Array<String>) {

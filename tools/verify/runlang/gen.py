@@ -16,6 +16,9 @@ isotext = open(iso).read().replace("package com.sachinbaria.easyvoice\n", "")
 with open(out, "w") as f:
     f.write(isotext + "\n")
     f.write("class OldX(val prefs: P, val modeInt: Int) {\n" + block(o, "private fun languageForDetectedRun(") + "\nfun lang(r: DetectedRun, a: String, b: String) = prefs.toIso3(languageForDetectedRun(r, a, b))\n}\n")
+    # the working tree takes (lang, latin) and a RunLangMemo (owner, 2026-10-07)
+    memo = n[n.index("private class RunLangMemo"):n.index("\n", n.index("private class RunLangMemo"))].replace("private class", "class")
+    f.write(memo + "\n")
     f.write("class NewX(val prefs: P, val modeInt: Int) {\n" + block(n, "private fun detectedLangOf(") + "\n" + block(n, "private fun languageForDetectedRun(") +
-            "\nfun lang(r: DetectedRun, a: String, b: String, m: HashMap<String, String>?) = detectedLangOf(r, a, b, m)\n}\n")
+            "\nfun lang(r: DetectedRun, a: String, b: String, m: RunLangMemo?) = detectedLangOf(r.lang, r.latin, a, b, m)\n}\n")
     f.write(open(driver).read())

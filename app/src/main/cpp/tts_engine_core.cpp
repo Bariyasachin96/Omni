@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <limits>
 #include <iterator>
+#include <atomic>
 #include "compact_lang_det.h"
 #include "unicode_tables.h"   // generated from the Unicode Character Database
 #include "encodings.h"
@@ -2536,6 +2537,39 @@ static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool s
 // number of array slots; the elements read back are equal() to what they were.
 // Only strings of at most kShareMax bytes are shared, and at most kShareSlots
 // of them, so the local references held until the end stay few.
+// THE VALUES EVERY ANSWER REPEATS ARE MADE ONCE PER PROCESS (owner, 2026-10-07,
+// item 4). A record's field count, its type, the retired "0", the "" fold slot
+// and each span's "0"/"1" latin flag are the same handful of strings in every
+// answer of every utterance; the per-call sharing above still made each one
+// fresh on every call. A decimal 0..kConstMax-1 or "" is a GLOBAL ref now,
+// created the first time it is needed and never again (a global ref is valid
+// on every thread, and two threads racing make one each and keep one).
+// Strings are immutable, so the slots read back exactly as before.
+static jstring constantJavaString(JNIEnv* env, const std::string& value){
+    constexpr int kConstMax = 400;   // 4 + 1 + 3 x 128 spans, the largest count
+    static std::atomic<jstring> slots[kConstMax + 1];
+    int index;
+    if(value.empty()) index = kConstMax;
+    else {
+        if(value.size() > 3 || (value.size() > 1 && value[0] == '0')) return nullptr;
+        index = 0;
+        for(char c : value){ if(c < '0' || c > '9') return nullptr; index = index * 10 + (c - '0'); }
+        if(index >= kConstMax) return nullptr;
+    }
+    jstring have = slots[index].load(std::memory_order_acquire);
+    if(have) return have;
+    jstring local = env->NewStringUTF(value.c_str());
+    if(!local) return nullptr;                                   // exception pending
+    jstring global = static_cast<jstring>(env->NewGlobalRef(local));
+    env->DeleteLocalRef(local);
+    if(!global) return nullptr;
+    jstring expected = nullptr;
+    if(!slots[index].compare_exchange_strong(expected, global, std::memory_order_acq_rel)){
+        env->DeleteGlobalRef(global);
+        return expected;
+    }
+    return global;
+}
 static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat){
     jobjectArray arr=env->NewObjectArray((jsize)flat.size(), stringClass, nullptr);
     if(!arr) return nullptr;                                  // OOM pending
@@ -2547,9 +2581,10 @@ static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std
     auto release = [&](){ for(int k=0;k<shared;k++) env->DeleteLocalRef(sharedRef[k]); };
     for(jsize i=0;i<(jsize)flat.size();i++){
         const std::string& value = flat[(size_t)i];
-        jstring element = nullptr;
-        bool keep = false;
-        if(value.size() <= kShareMax){
+        jstring element = constantJavaString(env, value);
+        if(!element && env->ExceptionCheck()){ release(); env->DeleteLocalRef(arr); return nullptr; }
+        bool keep = element != nullptr;                          // a global ref is never deleted here
+        if(!element && value.size() <= kShareMax){
             for(int k=0;k<shared;k++) if(*sharedKey[k] == value){ element = sharedRef[k]; keep = true; break; }
         }
         if(!element){

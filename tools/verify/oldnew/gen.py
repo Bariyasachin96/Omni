@@ -5,12 +5,12 @@ import re, sys
 old_src, new_src, out = sys.argv[1], sys.argv[2], sys.argv[3]
 OLD_FNS = ["decodeChunkText", "detectLanguageRuns", "runsFromFlat", "detectedRunsOf",
            "detectLanguageAggregate", "detectLanguage", "foldAndDetect", "isLatinCommonInherited"]
-NEW_FNS = ["recordsOf", "detectLanguageRuns", "runsFromFlat", "detectedRunsOf",
+NEW_FNS = ["forEachRecord", "fieldInt", "forEachRun", "forEachDetectedRun",
            "detectLanguageAggregate", "aggregateOf", "detectWindowThenAggregate", "foldAndDetect",
            "isLatinCommonInherited"]
 def lift(src, name):
     text = open(src, encoding="utf-8").read()
-    m = re.search(r"^    private fun " + name + r"\(", text, re.M)
+    m = re.search(r"^    private (?:inline )?fun " + name + r"\(", text, re.M)
     if not m: sys.exit("no function %s in %s" % (name, src))
     i = m.start(); line_end = text.index("\n", i)
     header = text[i:line_end]
@@ -23,7 +23,7 @@ def lift(src, name):
             k = text.index("\n", j); ln = text[j:k]; lines.append(ln); j = k + 1
             depth += ln.count("{") - ln.count("}")
             if depth <= 0 and not ln.rstrip().endswith(("{", "=", ",")): break
-        return "\n".join(lines).replace("private fun", "fun")
+        return "\n".join(lines).replace("private inline fun", "inline fun").replace("private fun", "fun")
     depth = 0; j = i
     while True:
         c = text[j]
@@ -32,7 +32,7 @@ def lift(src, name):
             depth -= 1
             if depth == 0: break
         j += 1
-    return text[i:j + 1].replace("private fun", "fun")
+    return text[i:j + 1].replace("private inline fun", "inline fun").replace("private fun", "fun")
 STUBS = '''
     var quickCharacterFlag = false
     var disableAdvancedFlag = false

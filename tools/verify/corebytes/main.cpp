@@ -110,7 +110,8 @@ static std::u16string fromUtf8(const char* s){
 }
 static JNINativeInterface_ artFns;
 static const JNINativeInterface_* realFns;
-static jstring JNICALL artNewStringUTF(JNIEnv* e, const char* c){ std::u16string u = fromUtf8(c ? c : ""); return realFns->NewString(e, (const jchar*)u.data(), (jsize)u.size()); }
+static long long stringsMade = 0;   // every Java string the core asked for
+static jstring JNICALL artNewStringUTF(JNIEnv* e, const char* c){ stringsMade++; std::u16string u = fromUtf8(c ? c : ""); return realFns->NewString(e, (const jchar*)u.data(), (jsize)u.size()); }
 static std::string artOf(JNIEnv* e, jstring s){
     jsize n = realFns->GetStringLength(e, s);
     std::vector<jchar> c((size_t)n + 1);
@@ -204,5 +205,6 @@ int main(int argc, char** argv){
         }
         env->PopLocalFrame(nullptr);
     }
+    fprintf(stderr, "Java strings made: %lld\n", stringsMade);
     return 0;
 }

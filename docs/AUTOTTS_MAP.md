@@ -123,7 +123,7 @@ Ours: `tts_engine_core.cpp` plus the Kotlin wrappers in `EasyVoiceTtsService.kt`
 | `clsCLD2.b(String)` | `normalizeFancyText`, exposed as `NativeEngine.normalizeFancy` | proven |
 | `clsCLD2.c(String)` | `firstValidCodePointU16` | verified |
 | `clsCLD2.d(...)` | `detectWindowed` (C++, JNI `detectWindowOrSpans`), called by `detectWindowThenAggregate` (Kotlin) | verified |
-| `clsCLD2.e(...)` | `detectLanguageRuns` (Kotlin) over `nativeGetLanguages` | verified |
+| `clsCLD2.e(...)` | `forEachRun` / `forEachDetectedRun` (Kotlin) over `nativeFoldAndDetect` and processDirect's records | verified |
 | `clsCLD2.f(...)` | `detectLanguageAggregate` (Kotlin) | verified |
 | `clsCLD2.g(String)` | `isLatinCommonInherited` | verified |
 | `clsCLD2.h(char)` | `isLatinPunctuation` | verified |
@@ -312,7 +312,7 @@ for statement, in the same order.
 
 **It affects auto and Google mode ONLY — in AutoTTS too.** `clsCLD2.e` (the span
 detector used by mix and multilingual) and `clsCLD2.f` (the aggregate) never
-read `b0`, and neither do our `detectLanguageRuns` and `detectLanguageAggregate`.
+read `b0`, and neither do our `forEachRun` and `detectLanguageAggregate`.
 In dual mode nothing is detected at all. So in mix, multilingual and dual this
 switch does nothing, on either side. That is the likeliest source of "it behaves
 differently": it is expected to change something in a mode it has never touched.

@@ -2926,7 +2926,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
 
     // ==========================================================================
     //  DETECTION                   AutoTTS clsCLD2.d / clsCLD2.e / clsCLD2.f
-    //  detectLanguage is the windowed detect, detectLanguageRuns the per-span one,
+    //  detectLanguage is the windowed detect, forEachRun the per-span reader,
     //  detectLanguageAggregate the most-text-wins fallback. They are hinted
     //  DIFFERENTLY in the native half -- see docs/AUTOTTS_MAP.md.
     // ==========================================================================
@@ -3051,59 +3051,62 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // of fields that follow, then the fields (type, kind, lang, text and, for a
     // detected chunk, its fold and spans). A count that runs past the end ends
     // the walk rather than reading what is not there.
-    private fun recordsOf(flat: Array<String>): List<List<String>> {
-        val records = ArrayList<List<String>>()
+    // READ IN PLACE (owner, 2026-10-07, item 5): `block` gets the record's
+    // first field and its field count, so no list, view or run object is made
+    // per record or per span -- the answer is walked by index, once.
+    private inline fun forEachRecord(flat: Array<String>, block: (at: Int, n: Int) -> Unit) {
         var at = 0
         while (at < flat.size) {
-            val n = flat[at].toIntOrNull() ?: break
+            val n = fieldInt(flat[at]) ?: break
             if (n < 0 || at + 1 + n > flat.size) break
-            records.add(flat.asList().subList(at + 1, at + 1 + n))
+            block(at + 1, n)
             at += 1 + n
         }
-        return records
     }
-    private class DetectedRun(val lang: String, val latin: Boolean, val text: String)
-    private fun detectLanguageRuns(text: String): List<DetectedRun> {
-        val runs = ArrayList<DetectedRun>()
-        if (text.isEmpty()) { runs.add(DetectedRun("un", false, "")); return runs }
-        // clsCLD2.e folds first and only then measures the length. A lone
-        // maths-bold letter is two UTF-16 units, so testing the raw text would
-        // miss the single-character case that folding creates.
-        // One trip into the core does both steps, the fold and the spans
-        // (owner, 2026-09-30): element 0 is the folded text, the triples follow.
-        return runsFromFlat(foldAndDetect(text).asList(), 0, quickCharacterFlag)
-    }
-    // The runs out of a fold-and-detect answer: element `first` is the folded
-    // text, lang / latin / text triples follow. One reader for both carriers --
-    // nativeFoldAndDetect's array and processDirect's record -- so the two
-    // cannot read the same answer two ways.
+    // toIntOrNull, with the one-digit case (every type, most counts) answered
+    // without a parse. Same answer for every string.
+    private fun fieldInt(s: String): Int? =
+        if (s.length == 1 && s[0] in '0'..'9') s[0] - '0' else s.toIntOrNull()
+    // The runs of a fold-and-detect answer: flat[first] is the folded text,
+    // lang / latin / text triples follow up to `end`. One reader for both
+    // carriers -- nativeFoldAndDetect's array and a processDirect record -- so
+    // the two cannot read the same answer two ways.
     // `sameAs` (processDirect records only, owner 2026-10-01): the core sends
     // the fold, and a span covering the whole fold, as "" there, because both
     // are the record's own text; a real fold or span text is never empty.
-    private fun runsFromFlat(flat: List<String>, first: Int, quick: Boolean, sameAs: String? = null): List<DetectedRun> {
-        val runs = ArrayList<DetectedRun>()
+    private inline fun forEachRun(flat: Array<String>, first: Int, end: Int, quick: Boolean, sameAs: String?,
+                                  block: (lang: String, latin: Boolean, text: String) -> Unit) {
         val folded = if (sameAs != null && flat[first].isEmpty()) sameAs else flat[first]
+        // clsCLD2.e folds first and only then measures the length. A lone
+        // maths-bold letter is two UTF-16 units, so testing the raw text would
+        // miss the single-character case that folding creates.
         if (quick && folded.length == 1) {
-            runs.add(DetectedRun("un", isLatinCommonInherited(folded.codePointAt(0)), folded))
-            return runs
+            block("un", isLatinCommonInherited(folded.codePointAt(0)), folded)
+            return
         }
         var index = first + 1
-        while (index + 2 < flat.size) {
+        while (index + 2 < end) {
             val spanText = flat[index + 2]
-            runs.add(DetectedRun(flat[index], flat[index + 1] == "1", if (sameAs != null && spanText.isEmpty()) folded else spanText))
+            block(flat[index], flat[index + 1] == "1", if (sameAs != null && spanText.isEmpty()) folded else spanText)
             index += 3
         }
-        return runs
     }
-    // A processDirect record of type 0, 1 or 2: type / kind / lang / text, then
-    // (owner, 2026-10-01, one crossing per span) the chunk's fold and spans,
-    // exactly what nativeFoldAndDetect would answer for that text. A record
-    // without them -- the empty chunk, which the core skips -- is detected here
-    // as before, and detectLanguageRuns answers an empty text without the core.
-    private fun detectedRunsOf(parts: List<String>, quick: Boolean): List<DetectedRun> {
-        val text = parts[3]
-        if (parts.size < 5 || text.isEmpty()) return detectLanguageRuns(text)
-        return runsFromFlat(parts, 4, quick, text)
+    // A processDirect record of type 0, 1 or 2 at flat[at], n fields: type /
+    // kind / lang / text, then (owner, 2026-10-01, one crossing per span) the
+    // chunk's fold and spans, exactly what nativeFoldAndDetect would answer for
+    // that text. A record without them -- the empty chunk, which the core
+    // skips -- is detected here as before: an empty text is one "un" span
+    // without the core, anything else one trip into it (fold and spans together).
+    private inline fun forEachDetectedRun(flat: Array<String>, at: Int, n: Int, quick: Boolean,
+                                          block: (lang: String, latin: Boolean, text: String) -> Unit) {
+        val text = flat[at + 3]
+        if (n < 5 || text.isEmpty()) {
+            if (text.isEmpty()) { block("un", false, ""); return }
+            val answer = foldAndDetect(text)
+            forEachRun(answer, 0, answer.size, quickCharacterFlag, null, block)
+            return
+        }
+        forEachRun(flat, at + 4, at + n, quick, text, block)
     }
     // AutoTTS 5.7.7.26 clsCLD2.f. Ask for every span the detector can see, add up
     // how much text each language covers, and take the biggest -- except that a
@@ -3171,16 +3174,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // worked out once per (language, latin) instead of once per run -- each
     // time an ISO conversion and a walk of the language list (owner,
     // 2026-10-01). While logging is on the callers pass no memo, so the log
-    // keeps every getEngine4Language block it had.
-    private fun detectedLangOf(run: DetectedRun, latinFallback: String, nonLatinFallback: String, memo: HashMap<String, String>?): String {
-        if (memo == null) return prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))
-        return memo.getOrPut(run.lang + if (run.latin) "|1" else "|0") {
-            prefs.toIso3(languageForDetectedRun(run, latinFallback, nonLatinFallback))
+    // keeps every getEngine4Language block it had. One map per latin flag
+    // (owner, 2026-10-07): the key is the language itself, no string is joined.
+    private class RunLangMemo { val latin = HashMap<String, String>(); val nonLatin = HashMap<String, String>() }
+    private fun detectedLangOf(lang: String, latin: Boolean, latinFallback: String, nonLatinFallback: String, memo: RunLangMemo?): String {
+        if (memo == null) return prefs.toIso3(languageForDetectedRun(lang, latin, latinFallback, nonLatinFallback))
+        return (if (latin) memo.latin else memo.nonLatin).getOrPut(lang) {
+            prefs.toIso3(languageForDetectedRun(lang, latin, latinFallback, nonLatinFallback))
         }
     }
-    private fun languageForDetectedRun(run: DetectedRun, latinFallback: String, nonLatinFallback: String): String {
-        val byScript = if (run.latin) latinFallback else nonLatinFallback
-        var resolved = IsoCodes.toIso3(run.lang) ?: byScript
+    private fun languageForDetectedRun(lang: String, latin: Boolean, latinFallback: String, nonLatinFallback: String): String {
+        val byScript = if (latin) latinFallback else nonLatinFallback
+        var resolved = IsoCodes.toIso3(lang) ?: byScript
         val enginePkg = LangStore.engineFor(prefs.toIso3(resolved), modeInt)
         if (enginePkg.isEmpty() || enginePkg == "Disable") resolved = byScript
         return resolved
@@ -3652,7 +3657,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 val disableAdvancedDetection = disableAdvancedFlag
                 val quick = quickCharacterFlag
                 val autoModeF = prefs.toIso3(autoLang)
-                val runLangMemo = if (EasyVoiceLogger.isLoggingEnabled()) null else HashMap<String, String>()
+                val runLangMemo = if (EasyVoiceLogger.isLoggingEnabled()) null else RunLangMemo()
                 // The three specific languages are the same for every span of
                 // this utterance; converted once, not once per span.
                 val numberSpecific = normalizeLangCode(numberSpecificLang)
@@ -3673,8 +3678,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             smartNumberGroupSize,
                             neutralDefault, neutralType, disableAdvancedDetection, true, quick
                         )
-                        for (parts in recordsOf(chunkOutput)) {
-                            if (parts.size >= 4) {
+                        forEachRecord(chunkOutput) { at, n ->
+                            if (n >= 4) {
                                 // AutoTTS branches on the type d0.t RESOLVED, never on what
                                 // the text looks like. A type of 3, 4 or 5 survives only when
                                 // that mode int is 3 ("Specific language"), and the caller
@@ -3683,12 +3688,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 // all go to clsCLD2.e, and modes 1 and 2 rely on that: the
                                 // segment was re-typed so it MERGES with the Latin or the
                                 // non-Latin run and is detected together with it.
-                                val spanMixType = parts[0].toIntOrNull() ?: 0
+                                val spanMixType = fieldInt(chunkOutput[at]) ?: 0
                                 if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {
-                                    chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))
+                                    chunks.add(TextChunk(chunkOutput[at + 3], prefs.toIso3(normalizeLangCode(chunkOutput[at + 2]))))
                                 } else {
-                                    for (run in detectedRunsOf(parts, quick)) {
-                                        chunks.add(TextChunk(run.text, detectedLangOf(run, latinFallback, nonLatinFallback, runLangMemo)))
+                                    forEachDetectedRun(chunkOutput, at, n, quick) { lang, latin, text ->
+                                        chunks.add(TextChunk(text, detectedLangOf(lang, latin, latinFallback, nonLatinFallback, runLangMemo)))
                                     }
                                 }
                             }
@@ -3722,7 +3727,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
                 val disableAdvancedDetection = disableAdvancedFlag
                 val quick = quickCharacterFlag
-                val runLangMemo = if (EasyVoiceLogger.isLoggingEnabled()) null else HashMap<String, String>()
+                val runLangMemo = if (EasyVoiceLogger.isLoggingEnabled()) null else RunLangMemo()
                 val numberSpecific = normalizeLangCode(numberSpecificLang)
                 val puncSpecific = normalizeLangCode(puncSpecificLang)
                 val emojiSpecific = normalizeLangCode(emojiSpecificLang)
@@ -3740,15 +3745,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             smartNumberGroupSize,
                             neutralDefault, neutralType, disableAdvancedDetection, true, quick
                         )
-                        for (parts in recordsOf(chunkOutput)) {
-                            if (parts.size < 4) continue
+                        forEachRecord(chunkOutput) { at, n ->
+                            if (n < 4) return@forEachRecord
                             // Same branch as mixed above, and for the same reason.
-                            val spanMixType = parts[0].toIntOrNull() ?: 0
+                            val spanMixType = fieldInt(chunkOutput[at]) ?: 0
                             if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {
-                                chunks.add(TextChunk(parts[3], prefs.toIso3(normalizeLangCode(parts[2]))))
+                                chunks.add(TextChunk(chunkOutput[at + 3], prefs.toIso3(normalizeLangCode(chunkOutput[at + 2]))))
                             } else {
-                                for (run in detectedRunsOf(parts, quick)) {
-                                    chunks.add(TextChunk(run.text, detectedLangOf(run, latinFallback, nonLatinFallback, runLangMemo)))
+                                forEachDetectedRun(chunkOutput, at, n, quick) { lang, latin, text ->
+                                    chunks.add(TextChunk(text, detectedLangOf(lang, latin, latinFallback, nonLatinFallback, runLangMemo)))
                                 }
                             }
                         }
@@ -3785,10 +3790,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         smartNumberGroupSize,
                         neutralDefault, neutralType, disableAdvancedDetection, false, false
                     )
-                    for (parts in recordsOf(chunkOutput)) {
-                        if (parts.size == 4) {
-                            val resolved = normalizeLangCode(parts[2])
-                            chunks.add(TextChunk(parts[3], resolved, typeCode = parts[0].toIntOrNull() ?: 0))
+                    forEachRecord(chunkOutput) { at, n ->
+                        if (n == 4) {
+                            val resolved = normalizeLangCode(chunkOutput[at + 2])
+                            chunks.add(TextChunk(chunkOutput[at + 3], resolved, typeCode = fieldInt(chunkOutput[at]) ?: 0))
                         }
                     }
                     val segmenterEmpty = chunks.isEmpty()

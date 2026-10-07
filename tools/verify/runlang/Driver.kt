@@ -19,7 +19,7 @@ fun main() {
         val runs = List(1 + rnd.nextInt(12)) { DetectedRun(langs[rnd.nextInt(langs.size)], rnd.nextBoolean(), "t") }
         val o = OldX(P(), mode); val n = NewX(P(), mode)
         LangStore.calls.clear(); val a = runs.map { o.lang(it, lat, non) }; val oldCalls = ArrayList(LangStore.calls)
-        LangStore.calls.clear(); val memo = HashMap<String, String>(); val b = runs.map { n.lang(it, lat, non, memo) }
+        LangStore.calls.clear(); val memo = RunLangMemo(); val b = runs.map { n.lang(it, lat, non, memo) }
         cases++; if (a != b) { bad++; if (bad < 5) println("DIFF memo $a vs $b") }
         LangStore.calls.clear(); val c = runs.map { n.lang(it, lat, non, null) }
         cases++; if (a != c || LangStore.calls != oldCalls) { bad++; if (bad < 5) println("DIFF no-memo (logging on)") }

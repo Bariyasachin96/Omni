@@ -8,7 +8,26 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## EVERY SCRIPT GETS A SPAN SLOT; DETECTION TESTED ACROSS ALL SCRIPTS (owner, 2026-10-07, latest)
+## THE CORE'S ANSWER IS READ IN PLACE; ITS REPEATED STRINGS ARE MADE ONCE (owner, 2026-10-07, latest)
+*"teesra chautha aur paanchva ... 4 aur 5 kar do."* From a list for the voice-switch gap; measured first and stated
+to the owner as microseconds, done on their word. Item 3 (speak the next chunk from onDone's binder thread) NOT done:
+every speak-thread step is serial by design (no locks on currentPair/queue/ahead), and locking them costs more than
+the ~0.1 ms hop. Item 1 (route all audio through our own callback) declined by the owner: resampling = quality loss.
+- **4 (C++) `constantJavaString`**: a decimal 0..399 or "" in an answer (field counts, types, the retired "0", the ""
+  fold slot, latin flags) is a GLOBAL ref made once per process (atomic slot, CAS; the loser deletes its own) instead
+  of a NewStringUTF per call. corebytes vs HEAD: 895,440 cases 0 differ; Java strings made 7,934,998 -> 4,074,529
+  (now counted in corebytes/main.cpp). Negative (slot = last digit only): 44,608 differ.
+- **5 (Kotlin)**: `recordsOf`/`detectedRunsOf`/`runsFromFlat`/`detectLanguageRuns`/`DetectedRun` are gone;
+  `forEachRecord` / `forEachDetectedRun` / `forEachRun` (inline, by index, no list/view/run object) and `fieldInt`
+  (one digit without a parse). `detectedLangOf(lang, latin, ..., RunLangMemo?)`: one map per latin flag, no joined key.
+  New `tools/verify/readers/run.sh [ref]`: HEAD's readers vs the tree's over oldnew's 54k real core answers + edge
+  cases, quick on/off: 162,456 readings 0 differ; per answer 4.5 us / 747 B -> 1.4 us / 198 B (desktop JVM).
+  Negative (latin flag flipped): FAILS. runlang IDENTICAL (gen takes RunLangMemo; negative memo-ignores-latin 18,416).
+  oldnew unchanged at its known 1550 vs ae274b9 (gen.py lifts `private inline fun` now).
+- Re-run: check-all 0/0, selftest EVERY CHECK FIRES, speakpipe 200,000 0 differ, onecall 0 differ, stress 0 wrong,
+  devanagari 64/64, registernatives, latency.
+
+## EVERY SCRIPT GETS A SPAN SLOT; DETECTION TESTED ACROSS ALL SCRIPTS (owner, 2026-10-07)
 *"sabhi lipiyon ka kiya hai ya bus devnagri ka ... mujhe sabhi lipiyon ka sahi detection."*
 - **Measured first** (`tools/verify/devanagari/run.sh`, now every script, real core + CLD2 + real JNI): 19 script-fixed
   languages all enabled together, Bengali/Assamese, Chinese/Japanese, 13 Latin languages together, 4 Cyrillic,
