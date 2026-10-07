@@ -23,7 +23,7 @@ compile() {
   # -binary trap of 2026-09-02 had.
   local src=$1
   local obj="$WORK/obj/$(echo "$src" | md5sum | cut -c1-16).o"
-  if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
+  if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ] || [ -n "$(find "$(dirname "$src")" -maxdepth 1 -name "*.h" -newer "$obj" -print -quit)" ]; then
     rm -f "$obj"
     g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w -Wno-narrowing $INC -o "$obj" "$src" || {
       echo "compile failed: $src" >&2; exit 1; }

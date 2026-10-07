@@ -8,7 +8,27 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## KERNEL-LEVEL HINTS, AND THE LAST HAND-TYPED UNICODE GOES (owner, 2026-10-07, latest)
+## EVERY SCRIPT GETS A SPAN SLOT; DETECTION TESTED ACROSS ALL SCRIPTS (owner, 2026-10-07, latest)
+*"sabhi lipiyon ka kiya hai ya bus devnagri ka ... mujhe sabhi lipiyon ka sahi detection."*
+- **Measured first** (`tools/verify/devanagari/run.sh`, now every script, real core + CLD2 + real JNI): 19 script-fixed
+  languages all enabled together, Bengali/Assamese, Chinese/Japanese, 13 Latin languages together, 4 Cyrillic,
+  Hindi/Marathi/Nepali, Arabic/Urdu/Persian -- all right. **Wrong: Thaana (Dhivehi), Cherokee, Syriac** -- read by the
+  LATIN voice although CLD2 itself says dv/chr/syr 100%. Cause: libcld2's 25 script slots give those scripts NO slot, so
+  they joined the run before them (Latin) and never reached CLD2. AutoTTS the same: DEPARTURE.
+- **Fix (`gen_tables.py`, `SLOT_EXTRA`/`SLOT_OTHER`):** Syriac 26, Thaana 27, Cherokee 28, Canadian Aboriginal 29,
+  Mongolian 30, Tagalog 31, Limbu 32 (the scripts CLD2 has a language for); every other real script 33 (CLD2 answers
+  its `xx-Script` pseudo-code, latin = false, so the non-Latin preferred voice reads it, never the Latin one). A slot
+  above 25 goes to CLD2 (`b.hi`), hint/fallback UNKNOWN; tables hold 40 slots. The 25 old slots are untouched.
+- **Proof:** devanagari 64/64 (was 60/62; the Dhivehi/Cherokee inside an English sentence now come out as their own
+  span); unicode slot IDENTICAL to the UCD (reference.py has the new rule); corebytes 895,440 0 differ (its texts hold
+  none of the new scripts), segmenter unchanged, scriptfamily IDENTICAL, stress 0 wrong, onecall 0 differ; check-all
+  (ktimports learned `ThreadLocal`), selftest EVERY CHECK FIRES. **Harness trap fixed:** the five real-core harnesses
+  rebuilt an object only when its .cpp changed, so an edited generated header was invisible (it hid this very fix on
+  the first run); they now rebuild when any .h beside the source is newer.
+- **What cannot be better:** a language CLD2 has no model for (e.g. Santali in Ol Chiki) can only be told by its
+  script, and no voice may speak it.
+
+## KERNEL-LEVEL HINTS, AND THE LAST HAND-TYPED UNICODE GOES (owner, 2026-10-07)
 *"Karnal level per ... bahut jyada hi fast ... unic code ka detection ... jo old hai vahan per sab kuchh update kar do."*
 Twelve items, all done, each proven.
 - **1 Synthesis thread priority:** AOSP builds `SynthThread` at THREAD_PRIORITY_DEFAULT (read in

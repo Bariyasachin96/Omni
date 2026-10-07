@@ -64,7 +64,7 @@ mkdir -p "$WORK/obj"
 compile() {  # compile <source> -- cached on mtime
   local src=$1
   local obj="$WORK/obj/$(echo "$src" | md5sum | cut -c1-16).o"
-  if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
+  if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ] || [ -n "$(find "$(dirname "$src")" -maxdepth 1 -name "*.h" -newer "$obj" -print -quit)" ]; then
     # Delete first, and fail the whole run on a compile error. Without both,
     # this function ended in a successful `echo` and so returned 0 however g++
     # fared, and the link then picked up the object from the LAST GOOD build --

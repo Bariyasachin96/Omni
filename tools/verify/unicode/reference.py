@@ -39,6 +39,9 @@ for i, (l, s) in enumerate(GROUPS, 1):
 def slot(c):
     if c < 0x80: return 1 if chr(c).isascii() and chr(c).isalpha() else -1
     if sc.get(c) in longslot: return longslot[sc[c]]
+    extra = ["Syriac", "Thaana", "Cherokee", "Canadian_Aboriginal", "Mongolian", "Tagalog", "Limbu"]
+    if sc.get(c) in extra: return 26 + extra.index(sc[c])
+    if sc.get(c, "Unknown") not in ("Common", "Inherited", "Unknown"): return 33
     hits = {shortslot[x] for x in scx.get(c, ()) if x in shortslot}
     return hits.pop() if len(hits) == 1 else -1
 fold = {}

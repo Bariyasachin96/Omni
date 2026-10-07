@@ -182,6 +182,105 @@ int main(){
         {"fa", "این جلسه برای بحث در مورد مسائل مهم برگزار شده است"},
     });
 
+    // ---- EVERY SCRIPT: one sentence per language (owner, 2026-10-07:
+    //      "sabhi lipiyon ka sahi detection") ---------------------------------
+    run("Script-fixed languages, all enabled together",
+        {{"en","eng"},{"el","ell"},{"hy","hye"},{"iw","heb"},{"ka","kat"},{"pa","pan"},{"gu","guj"},
+         {"or","ori"},{"ta","tam"},{"te","tel"},{"kn","kan"},{"ml","mal"},{"si","sin"},{"th","tha"},
+         {"lo","lao"},{"bo","bod"},{"my","mya"},{"km","khm"},{"am","amh"},{"ko","kor"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"el", "Αυτή η συνάντηση οργανώθηκε για να συζητηθούν σημαντικά θέματα"},
+        {"hy", "Այս հանդիպումը կազմակերպվել է կարևոր հարցեր քննարկելու համար"},
+        {"iw", "הפגישה הזאת אורגנה כדי לדון בנושאים חשובים"},
+        {"ka", "ეს შეხვედრა მოეწყო მნიშვნელოვანი საკითხების განსახილველად"},
+        {"pa", "ਇਹ ਮੀਟਿੰਗ ਮਹੱਤਵਪੂਰਨ ਮੁੱਦਿਆਂ ਤੇ ਚਰਚਾ ਕਰਨ ਲਈ ਕੀਤੀ ਗਈ ਹੈ"},
+        {"gu", "આ બેઠક મહત્વના મુદ્દાઓ પર ચર્ચા કરવા માટે યોજવામાં આવી છે"},
+        {"or", "ଏହି ବୈଠକ ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ ବିଷୟ ଉପରେ ଆଲୋଚନା ପାଇଁ ଆୟୋଜିତ ହୋଇଛି"},
+        {"ta", "இந்த கூட்டம் முக்கியமான விஷயங்களைப் பற்றி விவாதிக்க ஏற்பாடு செய்யப்பட்டது"},
+        {"te", "ఈ సమావేశం ముఖ్యమైన విషయాలను చర్చించడానికి ఏర్పాటు చేయబడింది"},
+        {"kn", "ಈ ಸಭೆಯನ್ನು ಪ್ರಮುಖ ವಿಷಯಗಳನ್ನು ಚರ್ಚಿಸಲು ಆಯೋಜಿಸಲಾಗಿದೆ"},
+        {"ml", "ഈ യോഗം പ്രധാനപ്പെട്ട വിഷയങ്ങൾ ചർച്ച ചെയ്യാനാണ് സംഘടിപ്പിച്ചത്"},
+        {"si", "මෙම රැස්වීම වැදගත් කරුණු සාකච්ඡා කිරීම සඳහා සංවිධානය කරන ලදී"},
+        {"th", "การประชุมครั้งนี้จัดขึ้นเพื่อหารือเรื่องสำคัญ"},
+        {"lo", "ກອງປະຊຸມນີ້ຈັດຂຶ້ນເພື່ອປຶກສາຫາລືບັນຫາສຳຄັນ"},
+        {"bo", "ཚོགས་འདུ་འདི་གནད་དོན་གལ་ཆེན་གྲོས་བསྡུར་བྱེད་ཆེད་ཚོགས་པ་ཡིན།"},
+        {"my", "ဒီအစည်းအဝေးကို အရေးကြီးတဲ့ကိစ္စတွေ ဆွေးနွေးဖို့ စီစဉ်ခဲ့တာပါ"},
+        {"km", "កិច្ចប្រជុំនេះត្រូវបានរៀបចំឡើងដើម្បីពិភាក្សាអំពីបញ្ហាសំខាន់ៗ"},
+        {"am", "ይህ ስብሰባ አስፈላጊ ጉዳዮችን ለመወያየት ተዘጋጅቷል"},
+        {"ko", "이 회의는 중요한 문제를 논의하기 위해 마련되었습니다"},
+    });
+    run("Bengali script, Bengali + Assamese", {{"en","eng"},{"bn","ben"},{"as","asm"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"bn", "এই সভাটি গুরুত্বপূর্ণ বিষয় নিয়ে আলোচনার জন্য আয়োজন করা হয়েছে"},
+        {"as", "এই সভাখন গুৰুত্বপূৰ্ণ বিষয়সমূহ আলোচনা কৰিবলৈ আয়োজন কৰা হৈছে"},
+    });
+    run("CJK, Chinese + Japanese", {{"en","eng"},{"zh","zho"},{"ja","jpn"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"zh", "这次会议是为了讨论重要问题而组织的"},
+        {"ja", "この会議は重要な問題を話し合うために開かれました"},
+    });
+    run("Latin, thirteen languages enabled together",
+        {{"en","eng"},{"fr","fra"},{"de","deu"},{"es","spa"},{"pt","por"},{"it","ita"},{"nl","nld"},
+         {"tr","tur"},{"vi","vie"},{"id","ind"},{"pl","pol"},{"sv","swe"},{"sw","swa"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"en", "This meeting was organised to discuss important issues"},
+        {"fr", "Cette réunion a été organisée pour discuter de questions importantes"},
+        {"de", "Dieses Treffen wurde organisiert, um wichtige Fragen zu besprechen"},
+        {"es", "Esta reunión fue organizada para discutir temas importantes"},
+        {"pt", "Esta reunião foi organizada para discutir questões importantes"},
+        {"it", "Questa riunione è stata organizzata per discutere questioni importanti"},
+        {"nl", "Deze vergadering werd georganiseerd om belangrijke kwesties te bespreken"},
+        {"tr", "Bu toplantı önemli konuları görüşmek için düzenlendi"},
+        {"vi", "Cuộc họp này được tổ chức để thảo luận những vấn đề quan trọng"},
+        {"id", "Pertemuan ini diadakan untuk membahas masalah-masalah penting"},
+        {"pl", "To spotkanie zostało zorganizowane w celu omówienia ważnych spraw"},
+        {"sv", "Det här mötet anordnades för att diskutera viktiga frågor"},
+        {"sw", "Mkutano huu uliandaliwa ili kujadili masuala muhimu"},
+    });
+    run("Cyrillic, four languages", {{"en","eng"},{"ru","rus"},{"uk","ukr"},{"bg","bul"},{"sr","srp"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"ru", "Эта встреча была организована для обсуждения важных вопросов"},
+        {"uk", "Ця зустріч була організована для обговорення важливих питань"},
+        {"bg", "Тази среща беше организирана, за да се обсъдят важни въпроси"},
+        {"sr", "Овај састанак је организован да би се разговарало о важним питањима"},
+    });
+    run("Devanagari, Hindi + Marathi + Nepali", {{"en","eng"},{"hi","hin"},{"mr","mar"},{"ne","nep"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"hi", "यह बैठक महत्वपूर्ण मुद्दों पर चर्चा करने के लिए आयोजित की गई है"},
+        {"mr", "ही बैठक महत्त्वाच्या मुद्द्यांवर चर्चा करण्यासाठी आयोजित केली आहे"},
+        {"ne", "यो बैठक महत्त्वपूर्ण विषयहरूमा छलफल गर्न आयोजना गरिएको हो"},
+    });
+    run("Scripts CLD2 knows only a little", {{"en","eng"},{"dv","div"},{"chr","chr"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"dv", "މި ބައްދަލުވުމަކީ މުހިންމު ކަންކަމާ މެދު މަޝްވަރާކުރުމަށް ބޭއްވި ބައްދަލުވުމެކެވެ"},
+        {"chr", "ᏣᎳᎩ ᎦᏬᏂᎯᏍᏗ ᎠᏂᏴᏫ ᎤᏂᏬᏂᎯᏍᏗ"},
+        {"syr", "ܗܢܐ ܟܢܘܫܝܐ ܐܬܛܝܒ ܠܡܡܠܠܘ ܥܠ ܨܒܘܬܐ ܚܫܝܚܬܐ"},
+    });
+    // A script CLD2 has no language for: "un", NOT latin -- the non-Latin
+    // preferred voice gets it, never the Latin one.
+    run("A script CLD2 does not know (Ol Chiki)", {{"en","eng"},{"hi","hin"}},
+        CLD2::UNKNOWN_LANGUAGE, {
+        {"xx-Olck", "ᱱᱤᱭᱟᱹ ᱫᱚ ᱢᱤᱫ ᱡᱟᱹᱨᱩᱲ ᱠᱟᱹᱢᱤ ᱠᱟᱱᱟ"},
+    });
+    // The same sentences INSIDE Latin text: each must come out as its own span.
+    {
+        enable({{"en","eng"},{"dv","div"},{"chr","chr"},{"syr","syr"}});
+        const char* mixed[] = {
+            "Hello friends މި ބައްދަލުވުމަކީ މުހިންމު ކަންކަމާ މެދު މަޝްވަރާކުރުމަށް",
+            "Read this ᏣᎳᎩ ᎦᏬᏂᎯᏍᏗ ᎠᏂᏴᏫ ᎤᏂᏬᏂᎯᏍᏗ please",
+        };
+        printf("\n== other scripts inside Latin text (spans) ==\n");
+        for (const char* t : mixed) {
+            jobjectArray got = Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(
+                env, nullptr, env->NewStringUTF(t), JNI_FALSE);
+            jsize n = env->GetArrayLength(got);
+            for (jsize i = 1; i + 2 < n; i += 3)
+                printf("   %-4s latin=%s  %s\n", str((jstring)env->GetObjectArrayElement(got, i)).c_str(),
+                       str((jstring)env->GetObjectArrayElement(got, i + 1)).c_str(),
+                       str((jstring)env->GetObjectArrayElement(got, i + 2)).c_str());
+        }
+    }
+
     // ---- THE REAL PATH: segment first, then detect each segment -------------
     printf("\n== the REAL mix path: processDirect, then detect each chunk ==\n");
     printf("   enabled: en gu hi mr   (non-Latin preferred = hin, Latin = eng)\n");

@@ -67,9 +67,23 @@ SLOT_SHORT = {"Latn": 1, "Cyrl": 2, "Arab": 3, "Deva": 4, "Hani": 5, "Hira": 5, 
               "Beng": 6, "Grek": 7, "Armn": 8, "Hebr": 9, "Geor": 10, "Guru": 11, "Gujr": 12,
               "Orya": 13, "Taml": 14, "Telu": 15, "Knda": 16, "Mlym": 17, "Sinh": 18, "Thai": 19,
               "Laoo": 20, "Tibt": 21, "Mymr": 22, "Khmr": 23, "Ethi": 24, "Hang": 25}
+# EVERY OTHER SCRIPT gets a slot of its own too (owner, 2026-10-07: "sabhi
+# lipiyon ka sahi detection"). libcld2's 25 slots left Thaana, Syriac,
+# Cherokee, Mongolian, Ol Chiki ... with no script at all, so a Dhivehi
+# sentence joined the run before it and was read by the LATIN voice although
+# CLD2 itself names it (dv 100%). Slots 26..39 are the rest of the 40 the hint
+# tables hold, and a slot above 25 goes to CLD2 (getLanguageSpans' own
+# `cmp w3, #0x19 / b.hi`): the seven scripts CLD2 has a language for get one
+# each, every other script shares 33 -- CLD2 answers "un" for those, a
+# non-Latin span, so the non-Latin preferred voice reads it.
+SLOT_EXTRA = {"Syriac": 26, "Thaana": 27, "Cherokee": 28, "Canadian_Aboriginal": 29,
+              "Mongolian": 30, "Tagalog": 31, "Limbu": 32}
+SLOT_OTHER = 33
 def span_slot(c):
     s = SCRIPT.get(c, "Unknown")
     if s in SLOT_LONG: return SLOT_LONG[s]
+    if s in SLOT_EXTRA: return SLOT_EXTRA[s]
+    if s not in ("Common", "Inherited", "Unknown"): return SLOT_OTHER
     if c in SCX:
         v = {SLOT_SHORT[x] for x in SCX[c] if x in SLOT_SHORT}
         if len(v) == 1: return v.pop()
