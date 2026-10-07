@@ -23,7 +23,7 @@
   `Preferences.Key` equality is the NAME (read in the 1.2.1 sources), so removes and re-puts match the old keys.
   SharedPrefsManager keeps its name and reads the snapshot. No `getSharedPreferences` is left in the app.
 - **Proof:** `tools/verify/persist/run.sh` now runs the NEW LangStore against the REAL DataStore JVM library (jars
-  fetched into tools/.cache/datastore-<v>) and HEAD's against the SharedPreferences stand-in: 9,000 cases
+  fetched into tools/.cache/datastore-<v>) and 3038d16's (the last SharedPreferences one) against a stand-in: 12,000 cases
   IDENTICAL, never under the list lock (negative: one key written from the wrong static -> 300 differ). The
   rebuild harness learned typed-key reads: IDENTICAL 12,004. New on-device `SettingsMigrationTest` (CI emulator):
   every key shape the app writes survives SharedPreferencesMigration with its type, and the XML is gone after.
@@ -36,7 +36,8 @@
 - **Second batch, same day ("sab kuchh ek saath"):** core library desugaring (`desugar_jdk_libs` 2.1.5) and the
   logger on java.time (`DateTimeFormatter`, immutable and thread-safe, was SimpleDateFormat) -- logger harness
   byte-identical over 5 x 4,000 ops; MainActivity's scan callbacks hop with `lifecycleScope.launch` (cancelled
-  with the screen) instead of runOnUiThread. Toasts are KEPT: not deprecated, read by every screen reader, and a
+  with the screen) instead of runOnUiThread. Verified after: debug and signed release APKs build (R8 keeps DataStore's
+  protobuf fields, j$.time is in the dex), native exports + 16 KB checks pass, check-all 0/0, selftest. Toasts are KEPT: not deprecated, read by every screen reader, and a
   Snackbar queues (showSnackbar suspends) so the slider's -/+ value would lag behind repeated presses.
 - **Looked at, NOT changed, and why:** the speaking path's HandlerThread / synchronized / wait-notify / stopExec
   (AutoTTS-proven and harness-proven; a coroutine rewrite there is the riskiest change possible); Navigation

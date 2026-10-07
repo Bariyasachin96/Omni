@@ -2,13 +2,13 @@
 # #1 (owner, 2026-10-01): the persist functions write exactly what they wrote
 # at <ref>, and the new ones never hold the language-list monitor while they
 # commit. Lifted from the real files by gen.py.
-#   run.sh [ref]    ref defaults to HEAD; since 2026-10-07 the new side is the
+#   run.sh [ref]    ref defaults to 3038d16 (the last SharedPreferences LangStore); since 2026-10-07 the new side is the
 #                   DataStore LangStore against the real library, the old the
 #                   SharedPreferences one against a faithful stand-in.
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$HERE/../../.." && pwd)
-REF=${1:-HEAD}
+REF=${1:-3038d16}
 SRC=$ROOT/app/src/main/java/com/sachinbaria/easyvoice
 KOTLINC=${KOTLINC:-$ROOT/tools/.cache/kotlinc/bin/kotlinc}
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-persist
