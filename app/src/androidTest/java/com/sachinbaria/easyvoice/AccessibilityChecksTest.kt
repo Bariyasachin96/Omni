@@ -152,7 +152,7 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.stripAudioAttrFlag = false
         EasyVoiceTtsService.forceAccessibilityFlag = false
         EasyVoiceTtsService.keepAliveFlag = false
-        EasyVoiceTtsService.engineFallbackFlag = false
+        EasyVoiceTtsService.backupLangs = emptySet()
         EasyVoiceTtsService.showNotificationFlag = false
         EasyVoiceTtsService.disableAdvancedFlag = false
         EasyVoiceTtsService.quickCharacterFlag = false
@@ -384,6 +384,14 @@ class AccessibilityChecksTest {
         check { VoiceScreen(prefs(), 0, 3, { }) { null } }
     }
 
+    // The per-language Backup TTS switch ON (it moved here from the Advanced
+    // tab on 2026-10-06), so its checked state is measured too.
+    @Test
+    fun voiceSetupBackupOn() {
+        EasyVoiceTtsService.backupLangs = setOf(LangStore.entryAt(0)?.iso3 ?: "eng")
+        check { VoiceScreen(prefs(), 0, 3, { }) { null } }
+    }
+
     @Test
     fun languagesList() {
         check { LanguagesScreen(prefs()) }
@@ -600,7 +608,6 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.stripAudioAttrFlag = true
         EasyVoiceTtsService.forceAccessibilityFlag = true
         EasyVoiceTtsService.keepAliveFlag = true
-        EasyVoiceTtsService.engineFallbackFlag = true
         EasyVoiceTtsService.showNotificationFlag = true
         EasyVoiceTtsService.disableAdvancedFlag = true
         EasyVoiceTtsService.quickCharacterFlag = true

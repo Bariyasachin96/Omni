@@ -469,6 +469,7 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
     var volume by remember { mutableIntStateOf(entry.volume) }
     var pitch by remember { mutableIntStateOf(entry.pitch) }
     var dedicated by remember { mutableStateOf(EasyVoiceTtsService.dedicatedEnginesFlag) }
+    var backup by remember { mutableStateOf(EasyVoiceTtsService.backupFor(selectedIso)) }
     val voiceLabels = voiceRows.map { VoiceRows.label(it) }
     // Name the heading after the language you opened. It used to read the
     // generic "Voices", so the only thing saying which language these voices
@@ -577,6 +578,16 @@ fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigat
             // SettingDescription, which is also why it drew in `onSurface` while
             // every other description in the app draws in `onSurfaceVariant` --
             // going through the shared composable fixes that too.
+            // BACKUP TTS LIVES HERE NOW, ONE PER LANGUAGE (owner, 2026-10-06:
+            // "voice wali activity ... jahan per ham voice select karte hain
+            // ... us language ke liye ... switch hai uske upar rakhna"). It was
+            // one switch for every language on the Advanced tab. Written at
+            // once (LangStore.setBackup), like the voice picked above it.
+            SettingSwitch(
+                label = "Backup TTS",
+                checked = backup
+            ) { picked -> backup = picked; LangStore.setBackup(context, selectedIso, picked) }
+            SettingDescription("If the TTS chosen for " + entry.displayName + " stops working, another TTS that speaks it takes over at once and is set up for it.")
             SettingSwitch(
                 label = "Dedicated engines",
                 checked = dedicated,

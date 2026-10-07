@@ -365,15 +365,15 @@ object EngineFinder {
         }
         return false
     }
-    // Only with Backup TTS on (engineFallbackFlag).
+    // Only for a language whose Backup TTS is on (EasyVoiceTtsService.backupLangs).
     private fun repointUninstalled(ctx: Context, voices: List<ScanVoice>) {
-        if (!EasyVoiceTtsService.engineFallbackFlag) return
+        if (EasyVoiceTtsService.backupLangs.isEmpty()) return
         try {
             val prefs = LangStore.prefs(ctx)
             val editor = prefs.edit()
             var changed = false
             for ((key, value) in prefs.all) {
-                if (key.length != 3 || value !is String) continue
+                if (key.length != 3 || value !is String || !EasyVoiceTtsService.backupFor(key)) continue
                 val parts = value.split("#")
                 if (parts.size < 2 || parts[0].isEmpty() || parts[0].equals("disable", true) || isSelfEngine(parts[0])) continue
                 if (isTtsEngine(ctx, parts[0], whenUnknown = true)) continue
@@ -770,7 +770,10 @@ object EngineFinder {
                         val voices = try { live.voices } catch (ex: Exception) {
                             EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: ""); null
                         }
-                        mainHandler.post { applyRead(voices) }
+                        mainHandler.post {
+                            if (voices != null) EasyVoiceTtsService.offerScannedVoices(live, voices)
+                            applyRead(voices)
+                        }
                     }
                 } catch (ex: Exception) { applyRead(null) }
                 return@startEngine

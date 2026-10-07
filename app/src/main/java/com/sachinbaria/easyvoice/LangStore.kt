@@ -526,6 +526,39 @@ object LangStore {
         }
     }
 
+    // BACKUP TTS IS A PER-LANGUAGE SETTING (owner, 2026-10-06: "backup TTS ka
+    // option ... voice wali activity ... jahan per ham voice select karte hain
+    // ... us language ke liye"). The set of iso3 codes it is on for, kept as one
+    // comma-separated key and read into EasyVoiceTtsService.backupLangs, the
+    // static every reader uses (the settings-live-in-statics rule). It replaces
+    // the old global "engine_fallback" switch: an install that had that ON gets
+    // every language it has configured, once, so nothing the owner had working
+    // is turned off by the move.
+    const val BACKUP_KEY = "backup_languages"
+    @JvmStatic
+    fun loadBackupLanguages(ctx: Context): Set<String> {
+        val sharedPrefs = prefs(ctx)
+        val stored = sharedPrefs.getString(BACKUP_KEY, null)
+        if (stored != null) return stored.split(",").filter { it.isNotEmpty() }.toHashSet()
+        val migrated = HashSet<String>()
+        if (sharedPrefs.getBoolean("engine_fallback", false)) {
+            for ((key, value) in sharedPrefs.all) {
+                if (key.length == 3 && value is String && value.contains("#")) migrated.add(key)
+            }
+        }
+        sharedPrefs.edit {
+            putString(BACKUP_KEY, migrated.sorted().joinToString(","))
+            remove("engine_fallback")
+        }
+        return migrated
+    }
+    @JvmStatic
+    fun setBackup(ctx: Context, iso3: String, on: Boolean) {
+        val next = HashSet(EasyVoiceTtsService.backupLangs)
+        if (on) next.add(iso3) else next.remove(iso3)
+        EasyVoiceTtsService.backupLangs = next
+        prefs(ctx).edit { putString(BACKUP_KEY, next.sorted().joinToString(",")) }
+    }
     @JvmStatic
     fun loadFlags(ctx: Context) {
         applyAdvancedDetectionDefault(ctx)
@@ -533,7 +566,7 @@ object LangStore {
         EasyVoiceTtsService.stripAudioAttrFlag = sharedPrefs.getBoolean("strip_audio_attr", false)
         EasyVoiceTtsService.forceAccessibilityFlag = sharedPrefs.getBoolean("force_accessibility_stream", false)
         EasyVoiceTtsService.keepAliveFlag = sharedPrefs.getBoolean("keep_alive_mode", false)
-        EasyVoiceTtsService.engineFallbackFlag = sharedPrefs.getBoolean("engine_fallback", false)
+        EasyVoiceTtsService.backupLangs = loadBackupLanguages(ctx)
         EasyVoiceTtsService.showNotificationFlag = sharedPrefs.getBoolean("show_notification", false)
         EasyVoiceTtsService.disableAdvancedFlag = sharedPrefs.getBoolean("disable_advanced_detection", false)
         EasyVoiceTtsService.quickCharacterFlag = sharedPrefs.getBoolean("quick_character_reading", false)
@@ -630,7 +663,8 @@ object LangStore {
         editor.putBoolean("strip_audio_attr", EasyVoiceTtsService.stripAudioAttrFlag)
         editor.putBoolean("force_accessibility_stream", EasyVoiceTtsService.forceAccessibilityFlag)
         editor.putBoolean("keep_alive_mode", EasyVoiceTtsService.keepAliveFlag)
-        editor.putBoolean("engine_fallback", EasyVoiceTtsService.engineFallbackFlag)
+        editor.putString(BACKUP_KEY, EasyVoiceTtsService.backupLangs.sorted().joinToString(","))
+        editor.remove("engine_fallback")
         editor.putBoolean("show_notification", EasyVoiceTtsService.showNotificationFlag)
         editor.putBoolean("disable_advanced_detection", EasyVoiceTtsService.disableAdvancedFlag)
         editor.putBoolean("quick_character_reading", EasyVoiceTtsService.quickCharacterFlag)

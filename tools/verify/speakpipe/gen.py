@@ -83,6 +83,12 @@ elif NEG == "otherengine":
 elif NEG == "norate":
     # the queued chunk keeps the playing chunk's rate
     nb = nb.replace("            tts.setSpeechRate(finalRate); tts.setPitch(finalPitch)\n            val expectedId = ", "            tts.setPitch(finalPitch)\n            val expectedId = ", 1)
+elif NEG == "nobackup":
+    # the per-language Backup TTS answer ignored: the hand-over never happens
+    nb = nb.replace("if (!backupFor(lang) ||", "if (true ||", 1).replace("if (!backupFor(currentPairLang)) return false", "return false", 1)
+elif NEG == "stalewins":
+    # a stale prefetch is not told it is stale
+    nb = nb.replace("loadLanguage(lang, \"\", \"\", true, stale)", "loadLanguage(lang, \"\", \"\", true, null)", 1)
 elif NEG:
     sys.exit("unknown EV_NEG " + NEG)
 if NEG and (nm, nb) == before: sys.exit("EV_NEG " + NEG + " changed nothing")

@@ -1,6 +1,7 @@
 
 // ---- hand-written driver; everything above is lifted verbatim ----
 class LangEntry(var iso3: String, var speed: Int, var volume: Int, var pitch: Int, var variant: String, var disabled: Boolean)
+const val BACKUP_KEY = "backup_languages"
 object Lists { val languages = ArrayList<LangEntry>() }
 class Context
 object BuildConfig { const val APPLICATION_ID = "com.sachinbaria.easyvoice" }
@@ -11,6 +12,7 @@ object EasyVoiceTtsService {
     var numberSpecificLang = "eng"; var puncSpecificLang = "hin"; var emojiSpecificLang = "guj"
     var modeInt = 4; var localeSpansFlag = false
     var stripAudioAttrFlag = false; var forceAccessibilityFlag = true; var keepAliveFlag = false; var engineFallbackFlag = true
+    var backupLangs: Set<String> = setOf("hin", "eng")
     var showNotificationFlag = false; var disableAdvancedFlag = false; var quickCharacterFlag = true; var punctuationInFlowFlag = true
     var smartNumberFlag = false; var smartNumberGroupSize = 2
 }
@@ -35,15 +37,22 @@ class Prefs {
         fun putString(k: String, v: String) = apply { ops.add(k to v) }
         fun putInt(k: String, v: Int) = apply { ops.add(k to v) }
         fun putBoolean(k: String, v: Boolean) = apply { ops.add(k to v) }
+        fun remove(k: String) = apply { ops.add(k to REMOVED) }
         fun commit(): Boolean {
             commits++; if (Thread.holdsLock(Lists.languages)) commitsUnderLock++
-            for ((k, v) in ops) map[k] = v; return true
+            for ((k, v) in ops) if (v === REMOVED) map.remove(k) else map[k] = v; return true
         }
     }
     fun edit() = Ed()
 }
 inline fun Prefs.edit(commit: Boolean = false, action: Prefs.Ed.() -> Unit) { val e = edit(); e.action(); e.commit() }
+val REMOVED = Any()
 var current = Prefs()
+// Backup TTS became per language on 2026-10-06: the old global
+// "engine_fallback" boolean is replaced by "backup_languages". Those two keys
+// are the intended change and are left out of the comparison; every other key
+// must still match.
+fun comparable(m: Map<String, Any>): HashMap<String, Any> = HashMap(m).also { it.remove("engine_fallback"); it.remove("backup_languages") }
 fun prefs(ctx: Context) = current
 fun main() {
     val rnd = java.util.Random(11)
@@ -94,7 +103,7 @@ fun main() {
             if (EasyVoiceTtsService.engineList != e1 || EasyVoiceTtsService.voiceList != v1) { bad++; println("DIFF repeat persist changed the lists") }
             EasyVoiceTtsService.engineList = e1; EasyVoiceTtsService.voiceList = v1
             // compared as maps: what a SharedPreferences file holds
-            if (HashMap(oldMap) != HashMap(current.map) || oldE != EasyVoiceTtsService.engineList || oldV != EasyVoiceTtsService.voiceList) {
+            if (comparable(oldMap) != comparable(current.map) || oldE != EasyVoiceTtsService.engineList || oldV != EasyVoiceTtsService.voiceList) {
                 bad++; if (bad < 5) println("DIFF fn#$i step $step\n old $oldMap\n new ${current.map}")
             }
         }

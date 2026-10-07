@@ -201,7 +201,6 @@ fun AdvancedScreen(
     var stripAudioAttr by remember { mutableStateOf(EasyVoiceTtsService.stripAudioAttrFlag) }
     var forceAccessibility by remember { mutableStateOf(EasyVoiceTtsService.forceAccessibilityFlag) }
     var keepAlive by remember { mutableStateOf(EasyVoiceTtsService.keepAliveFlag) }
-    var engineFallback by remember { mutableStateOf(EasyVoiceTtsService.engineFallbackFlag) }
     var showNotification by remember { mutableStateOf(EasyVoiceTtsService.showNotificationFlag) }
     var disableAdvanced by remember { mutableStateOf(EasyVoiceTtsService.disableAdvancedFlag) }
     var quickCharacter by remember { mutableStateOf(EasyVoiceTtsService.quickCharacterFlag) }
@@ -256,14 +255,6 @@ fun AdvancedScreen(
                 "Feeds a little silence between phrases, so the system does not cut the speech off mid-sentence.",
                 keepAlive
             ) { picked -> keepAlive = picked; EasyVoiceTtsService.keepAliveFlag = picked }
-            // OFF BY DEFAULT (owner, 2026-09-23: "yah optional rakho ... by
-            // default usko off rakho"). The switch is EasyVoiceTtsService's
-            // engineFallbackFlag; see switchToAlternative for what it turns on.
-            SettingOption(
-                "Backup TTS",
-                "If a TTS stops working, another TTS for that language takes over.",
-                engineFallback
-            ) { picked -> engineFallback = picked; EasyVoiceTtsService.engineFallbackFlag = picked }
             SettingOption(
                 "Disable advanced language detection",
                 "Falls back to the simpler detection, which is faster.",

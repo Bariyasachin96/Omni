@@ -1715,6 +1715,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         return null
     }
+    // THE SCAN'S READ OF A LIVE CLIENT FILLS THAT CLIENT'S VOICE CACHE (owner,
+    // 2026-10-06: "pahla aur dusra karna hai"). The scan asks the service's own
+    // client for getVoices() -- the full voice-set marshal -- and used to keep
+    // the answer only for its lists, so the first switch to a language with a
+    // NAMED voice asked the same client for the same set again. Handed over
+    // here it is the object loadVoiceImpl would have fetched, from the same
+    // connection, only earlier; a voice installed since is found by the
+    // re-query on a miss, exactly as for any cached set. Runs on the main
+    // looper, where every replacement of `tts` (and its forgetClientState)
+    // also runs, so a client replaced meanwhile is seen and nothing is kept.
+    private fun offerVoices(client: TextToSpeech, voices: MutableSet<android.speech.tts.Voice>) {
+        if (destroyed) return
+        for (index in 0 until enginePool.size) {
+            val wrapper = enginePool[index]
+            if (wrapper.tts !== client) continue
+            if (wrapper.voicesCache == null) wrapper.voicesCache = voices
+            return
+        }
+    }
     private fun afterStartupFailure(wrapper: EngineWrapper, why: String) {
         try {
             if (destroyed) return
@@ -2397,9 +2416,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // an engine; null then means "no engine", decided before anything is loaded.
     // With logging on it is the old code, call for call, so the log lines and
     // their order stay what they were. tools/verify/langstore proves loadPlan.
-    private fun loadLanguage(langCode: String?, countryCode: String?, variantName: String?, needEngine: Boolean): Int? {
+    //
+    // `stale` (owner, 2026-10-06): the prefetch passes "my utterance has ended".
+    // It is asked AFTER the monitor is taken, because that is where a stale
+    // prefetch used to lose the time: it waited for the lock behind some other
+    // load, a swipe ended its utterance meanwhile, and Java monitors are not
+    // fair -- it could win the lock over the NEW utterance's own load and then
+    // make an engine's whole setLanguage (four binder calls) for a chunk that
+    // will never be spoken, while the new utterance waited. Its result was
+    // never used either way (loadOrPrefetched belongs to the utterance that
+    // started it), so skipping it changes nothing that is heard.
+    private fun loadLanguage(langCode: String?, countryCode: String?, variantName: String?, needEngine: Boolean,
+                             stale: (() -> Boolean)? = null): Int? {
         awaitEngineStarting(langCode)
         return synchronized(this) {
+            if (stale != null && stale()) return@synchronized null
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onLoadLanguage: " + langCode + " " + countryCode + " " + variantName }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "loadLanguage " + langCode + " " + countryCode + " " + variantName }
             val logging = EasyVoiceLogger.isLoggingEnabled()
@@ -2599,75 +2630,88 @@ class EasyVoiceTtsService : TextToSpeechService() {
         return true
     }
     private fun switchToAlternative(lang: String, excluded: Set<String>, setUp: Boolean, why: String): String? {
-        if (!engineFallbackFlag) return null
+        if (!backupFor(lang)) return null
         try {
             val tried = HashSet<String>(excluded)
-            fun usable(rawPkg: String): Boolean {
-                val norm = normPkg(rawPkg)
-                if (rawPkg.isEmpty() || tried.contains(norm)) return false
-                if (rawPkg == packageName || EngineFinder.isSelfEngine(rawPkg)) return false
-                return true
-            }
-            fun liveWrapper(rawPkg: String): EngineWrapper? {
-                val norm = normPkg(rawPkg)
-                for (index in 0 until enginePool.size) {
-                    val wrapper = enginePool[index]
-                    if (wrapper.pkg != norm) continue
-                    val client = wrapper.tts ?: return null
-                    if (wrapper.state != 2) return null
-                    if (!isSameEnginePkg(EngineFinder.boundEngineOf(client, wrapper.rawPkg), wrapper.rawPkg)) return null
-                    return wrapper
-                }
+            val target = findBackupEngine(lang, tried) ?: run {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- no other working engine speaks " + lang)
                 return null
             }
-            fun take(rawPkg: String, loc: Locale): String? {
-                tried.add(normPkg(rawPkg))
-                loadVoice(rawPkg, loc, "", false)
-                if (voiceLoadFailed || engineIndex < 0) return null
-                EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- speaking " + lang + " with " + rawPkg + " " + loc)
-                if (setUp && modeInt != 3) setUpAlternative(lang, rawPkg, loc)
-                return rawPkg
-            }
-            // 1. the last full scan, in its own order
-            for (voice in voiceEntries()) {
-                val parts = voice.parts
-                if (parts.size < 2 || !usable(parts[0])) continue
-                val loc = voice.storedLocale ?: continue
-                if (localeIso3(loc) != lang) continue
-                if (liveWrapper(parts[0]) == null) { tried.add(normPkg(parts[0])); recoverEngineNotReady(parts[0]); continue }
-                take(parts[0], loc)?.let { return it }
-            }
-            // 2. every live engine, asked now
-            for (wrapper in ArrayList(enginePool)) {
-                if (!usable(wrapper.rawPkg)) continue
-                val client = liveWrapper(wrapper.rawPkg)?.tts ?: continue
-                val answer = try { client.isLanguageAvailable(localeOf(lang)) } catch (_: Exception) { TextToSpeech.LANG_NOT_SUPPORTED }
-                if (answer < TextToSpeech.LANG_AVAILABLE) { tried.add(wrapper.pkg); continue }
-                take(wrapper.rawPkg, localeOf(lang))?.let { return it }
-            }
-            // 3. SCAN NOW (2026-09-23, owner: "Hindi padhta hun to kuchh awaaz nahin
-            // ... use time per kuchh scan nahin hota ... dusra TTS nahin bolta").
-            // Steps 1 and 2 only knew the engines of the LAST scan and the ones
-            // already live in the pool; an engine installed on the phone that the
-            // pool never held, or that sits there not ready, was never asked. The
-            // system's own list of TTS services is read now, and every such
-            // engine is brought up (recoverEngineNotReady adds it to the pool and
-            // restores it). A bind is asynchronous, so THIS chunk cannot wait for
-            // it; the next one finds it live and step 2 asks it for the language.
-            val started = ArrayList<String>()
-            val installed = EngineFinder.installedEngines(this, withLabels = false).map { it.pkg }
-            for (rawPkg in installed) {
-                if (!usable(rawPkg)) continue
-                if (liveWrapper(rawPkg) != null) continue
-                recoverEngineNotReady(rawPkg)
-                started.add(rawPkg)
-            }
-            if (started.isNotEmpty()) EasyVoiceLogger.error(EasyVoiceLogger.TAG,
-                "bringing up " + started.joinToString(", ") + " to look for " + lang + " on the next chunk")
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- no other working engine speaks " + lang)
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, why + " -- speaking " + lang + " with " + target.first + " " + target.second)
+            if (setUp && modeInt != 3) setUpAlternative(lang, target.first, target.second)
+            return target.first
         } catch (ex: Throwable) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "switchToAlternative: " + ex.toString())
         }
+        return null
+    }
+    // THE BACKUP SEARCH, REWRITTEN (owner, 2026-10-06: "purana delete karke
+    // bilkul nai tarike se ... acche se likhna"). One question per engine, in a
+    // fixed order, and the language LOADED on the first engine that can take it
+    // -- loadVoice is the only thing that proves an engine can speak it now.
+    // `tried` grows with every engine asked, so nothing is asked twice and the
+    // search always ends. Answers the engine and the locale it was loaded with.
+    //
+    //   1. the voices the last full scan saved, in scan order -- the user's own
+    //      engines first, with the locale the scan found for the language;
+    //   2. every engine that is live right now, asked isLanguageAvailable;
+    //   3. installed TTS services that are not live are brought up (bound and
+    //      restored) for the NEXT chunk: a bind is asynchronous, so this chunk
+    //      cannot wait for one, and the next finds it live in step 2.
+    //
+    // It is loaded at "*Default", the variant setUpAlternative stores, so the
+    // backup speaks this chunk with the voice the next utterance will get too.
+    // (It used to pass "", which loadVoice treats as "keep the voice this engine
+    // already has" -- another language's named voice could be kept.)
+    private fun findBackupEngine(lang: String, tried: HashSet<String>): Pair<String, Locale>? {
+        fun usable(rawPkg: String): Boolean {
+            if (rawPkg.isEmpty() || tried.contains(normPkg(rawPkg))) return false
+            return rawPkg != packageName && !EngineFinder.isSelfEngine(rawPkg)
+        }
+        fun live(rawPkg: String): EngineWrapper? {
+            val norm = normPkg(rawPkg)
+            for (index in 0 until enginePool.size) {
+                val wrapper = enginePool[index]
+                if (wrapper.pkg != norm) continue
+                val client = wrapper.tts ?: return null
+                if (wrapper.state != 2) return null
+                if (!isSameEnginePkg(EngineFinder.boundEngineOf(client, wrapper.rawPkg), wrapper.rawPkg)) return null
+                return wrapper
+            }
+            return null
+        }
+        fun load(rawPkg: String, loc: Locale): Pair<String, Locale>? {
+            tried.add(normPkg(rawPkg))
+            loadVoice(rawPkg, loc, "*Default", false)
+            return if (voiceLoadFailed || engineIndex < 0) null else Pair(rawPkg, loc)
+        }
+        // 1. the last full scan
+        for (voice in voiceEntries()) {
+            val rawPkg = voice.parts[0]
+            if (voice.parts.size < 2 || !usable(rawPkg)) continue
+            val loc = voice.storedLocale ?: continue
+            if (localeIso3(loc) != lang) continue
+            if (live(rawPkg) == null) { tried.add(normPkg(rawPkg)); recoverEngineNotReady(rawPkg); continue }
+            load(rawPkg, loc)?.let { return it }
+        }
+        // 2. every live engine, asked now
+        val wanted = localeOf(lang)
+        for (wrapper in ArrayList(enginePool)) {
+            if (!usable(wrapper.rawPkg)) continue
+            val client = live(wrapper.rawPkg)?.tts ?: continue
+            val answer = try { client.isLanguageAvailable(wanted) } catch (_: Exception) { TextToSpeech.LANG_NOT_SUPPORTED }
+            if (answer < TextToSpeech.LANG_AVAILABLE) { tried.add(wrapper.pkg); continue }
+            load(wrapper.rawPkg, wanted)?.let { return it }
+        }
+        // 3. engines on the phone that are not up, for the next chunk
+        val started = ArrayList<String>()
+        for (info in EngineFinder.installedEngines(this, withLabels = false)) {
+            if (!usable(info.pkg) || live(info.pkg) != null) continue
+            recoverEngineNotReady(info.pkg)
+            started.add(info.pkg)
+        }
+        if (started.isNotEmpty()) EasyVoiceLogger.error(EasyVoiceLogger.TAG,
+            "bringing up " + started.joinToString(", ") + " to look for " + lang + " on the next chunk")
         return null
     }
     // The same write the Voice setup screen makes when a voice is picked there:
@@ -3171,7 +3215,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         stripAudioAttrFlag = prefs.isStripAudioAttr()
         forceAccessibilityFlag = prefs.isForceAccessibilityStream()
         keepAliveFlag = prefs.isKeepAliveMode()
-        engineFallbackFlag = prefs.isEngineFallback()
+        backupLangs = LangStore.loadBackupLanguages(applicationContext)
         showNotificationFlag = prefs.isShowNotification()
         disableAdvancedFlag = prefs.isDisableAdvancedDetection()
         quickCharacterFlag = prefs.isQuickCharacterReading()
@@ -3902,7 +3946,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val nextPkg = if (EasyVoiceLogger.isLoggingEnabled()) LangStore.engineFor(lang, modeInt) else null
             if (nextPkg != null && nextPkg.isEmpty()) return
             try {
-                prefetchedResult = (if (nextPkg != null) onLoadLanguage(lang, "", "") else loadLanguage(lang, "", "", true)) ?: return
+                val stale = { myGeneration != synthesisGeneration || isStopped || isFlushed }
+                prefetchedResult = (if (nextPkg != null) loadLanguage(lang, "", "", false, stale) else loadLanguage(lang, "", "", true, stale)) ?: return
                 prefetchedReady = engineIndex >= 0
                 prefetchedLang = lang
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "prefetch " + lang + " on " + nextPkg + " = " + prefetchedResult }
@@ -3927,7 +3972,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         val failedThisUtterance = HashSet<String>()
         lateinit var speakChunkRef: (Boolean) -> Unit
         fun retryChunkElsewhere(failedRawPkg: String, why: String): Boolean {
-            if (!engineFallbackFlag) return false
+            if (!backupFor(currentPairLang)) return false
             if (myGeneration != synthesisGeneration || isStopped || isFlushed) return false
             if (bypassed) return false
             val pair = currentPair ?: return false
@@ -4105,7 +4150,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // ONE CHUNK'S LISTENER. It used to be built inline in speakChunk; it is a
         // function now because the chunk queued AHEAD (below) needs the very same
         // listener, built the very same way. `mine` is that ahead chunk, or null.
-        fun makeListener(wrapper: EngineWrapper, expectedId: String, mine: AheadChunk?): UtteranceProgressListener =
+        fun makeListener(wrapper: EngineWrapper, expectedId: String, mine: AheadChunk?, lang: String): UtteranceProgressListener =
             object : UtteranceProgressListener() {
                 init { mine?.handOver = { code, n -> handOver(code, n) } }
                 override fun onStart(id: String) {
@@ -4274,7 +4319,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     }
                     // Switch OFF: straight to endSynthesis on this thread, which
                     // is exactly what onError did before the hand-over existed.
-                    if (!engineFallbackFlag || code == TextToSpeech.ERROR_OUTPUT || code == TextToSpeech.ERROR_INVALID_REQUEST) {
+                    if (!backupFor(lang) || code == TextToSpeech.ERROR_OUTPUT || code == TextToSpeech.ERROR_INVALID_REQUEST) {
                         if (queued == null) { endSynthesis(callback, n); return }
                         speakHandler.post {
                             if (myGeneration != synthesisGeneration) return@post
@@ -4488,7 +4533,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             tts.setSpeechRate(finalRate); tts.setPitch(finalPitch)
             val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}" + (if (retryCount > 0) "_r$retryCount" else "")
             val queued = AheadChunk(pair, wrapper, effectiveLang, savedCounter, savedLang, savedResult)
-            val listener = makeListener(wrapper, expectedId, queued)
+            val listener = makeListener(wrapper, expectedId, queued, effectiveLang)
             queued.listener = listener
             // Until the chunk in front is done the client carries both listeners:
             // the queued chunk's id goes to its own, everything else to the one
@@ -4666,7 +4711,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // the framework; and every dispatchOn* sends getUtteranceId(). An
             // engine implementation overrides onSynthesizeText, never those.
             val expectedId = "${utteranceId}_${myGeneration}_${chunkCounter}" + (if (retryCount > 0) "_r$retryCount" else "")
-            val listener = makeListener(wrapper, expectedId, null)
+            val listener = makeListener(wrapper, expectedId, null, effectiveLang)
             currentListener = listener
             tts.setOnUtteranceProgressListener(listener)
             val params = buildParams(wrapper, finalVolume)
@@ -4810,6 +4855,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @JvmStatic fun liveClientFor(rawPkg: String): TextToSpeech? {
             val svc = running?.get() ?: return null
             return try { svc.liveClient(rawPkg) } catch (_: Throwable) { null }
+        }
+        @JvmStatic fun offerScannedVoices(client: TextToSpeech, voices: MutableSet<android.speech.tts.Voice>) {
+            try { running?.get()?.offerVoices(client, voices) } catch (_: Throwable) {}
         }
         @JvmStatic fun engineAnswered(rawPkg: String) {
             try { running?.get()?.onEngineAnswered(rawPkg) } catch (_: Throwable) {}
@@ -5063,12 +5111,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
         @Volatile @JvmField var mixLatinLang = ""
         @Volatile @JvmField var mixNonLatinLang = ""
         @Volatile @JvmField var keepAliveFlag = false
-        // "Backup TTS" (owner, 2026-09-23: "yah
-        // optional rakho ... by default off rakho"). Gates every automatic
-        // engine substitution: switchToAlternative, retryChunkElsewhere, the
-        // onError hand-over and the scan's repointUninstalled. OFF is the
-        // behaviour from before the feature -- the configured engine is kept.
-        @Volatile @JvmField var engineFallbackFlag = false
+        // "Backup TTS", PER LANGUAGE (owner, 2026-10-06; it was one global
+        // switch on the Advanced tab from 2026-09-23). The iso3 codes it is on
+        // for, set on the Voice setup screen of each language; an immutable set
+        // replaced whole, so a reader on any thread sees one consistent answer.
+        // Gates every automatic engine substitution for THAT language:
+        // switchToAlternative, retryChunkElsewhere, the onError hand-over and the
+        // scan's repointUninstalled. Off (the default, empty) is the behaviour
+        // from before the feature -- the configured engine is kept.
+        @Volatile @JvmField var backupLangs: Set<String> = emptySet()
+        @JvmStatic fun backupFor(lang: String): Boolean = lang.isNotEmpty() && backupLangs.contains(lang)
         @Volatile @JvmField var disableAdvancedFlag = true
         @Volatile @JvmField var quickCharacterFlag = false
     }

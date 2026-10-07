@@ -8,7 +8,31 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## BUILDS 951 AND 952 ARE REVERTED; A LANGUAGE SWITCH DROPS ONE VOICE-SET MARSHAL (owner, 2026-10-06, latest)
+## BACKUP TTS IS PER LANGUAGE, ON THE VOICE SETUP SCREEN; TWO SMALLER LOADS (owner, 2026-10-06, latest)
+*"pahla aur dusra karna hai ... backup TTS ka option ... voice wali activity ... us language ke liye ... switch hai
+uske upar rakhna ... purana delete karke bilkul nai tarike se ... test karke."*
+- **Backup TTS moved from the Advanced tab to Voice setup, one switch per language**, above "Dedicated engines".
+  Storage: one key `backup_languages` (comma iso3) read into the static `EasyVoiceTtsService.backupLangs`
+  (immutable set, replaced whole); `LangStore.setBackup` writes it at once; `backupFor(lang)` is the only test.
+  Migration (`loadBackupLanguages`): an install with the old global `engine_fallback` ON gets every configured
+  language once; the old key is removed. Gates per language: switchToAlternative, retryChunkElsewhere (the
+  chunk's language), the onError hand-over (`makeListener(..., lang)`), EngineFinder.repointUninstalled (per key).
+- **The search is rewritten** as `findBackupEngine(lang, tried)`: (1) the last scan's voices in scan order, (2)
+  every live engine asked isLanguageAvailable, (3) installed engines not up are brought up for the next chunk;
+  the first that LOADS the language wins. It loads at `"*Default"` (the variant setUpAlternative stores) -- it
+  passed "", which loadVoice reads as "keep this engine's current voice", so another language's named voice
+  could be kept. The setting is still updated at the moment of failure (owner's 2026-09-23 decision).
+- **Item 1:** the scan's getVoices() of a LIVE client (`liveClientFor`) is handed to that client's
+  `voicesCache` (`offerVoices`, on main, identity-checked against `wrapper.tts`, only into an empty cache): the
+  first switch to a NAMED voice no longer marshals the same set again.
+- **Item 2:** `loadLanguage(..., stale)` -- the prefetch passes "my utterance ended", asked after the monitor is
+  taken, so a stale prefetch that won the (unfair) lock over a new utterance's load does no setLanguage.
+- **Proof:** speakpipe 40,000 scenarios 0 differ (fallback scenarios = backup on for every language); negative
+  `nobackup` caught (1,300); `stalewins` NOT caught and equal by construction (the simulator runs each step
+  whole, and a stale prefetch's result is never used). persist 120,000 IDENTICAL (the two backup keys are the
+  intended change and are left out of the comparison). New ATF case `voiceSetupBackupOn`. check-all 0/0.
+
+## BUILDS 951 AND 952 ARE REVERTED; A LANGUAGE SWITCH DROPS ONE VOICE-SET MARSHAL (owner, 2026-10-06)
 *"951 aur 952 ... vah changes hata do ... 950 wala hi theek hai ... performance top notch ... koi jugaad nahin."*
 - **Reverted** (515646e; tree byte-identical to e2d0895 = build 950): the quick-read lone-matra change (78b8dfb) and
   the script audit (a7b7f33). For comparison Vajra TTS 1.1.0 was decompiled: no detection library, Unicode block

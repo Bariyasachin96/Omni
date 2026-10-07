@@ -380,8 +380,12 @@ class XSvc(val run: Run) : Svc {
     }
     // loadLanguage(needEngine = true), as the prefetch's logging-off path calls
     // it: null when the language has no engine, else the load
-    fun loadLanguage(lang: String?, c: String?, v: String?, needEngine: Boolean): Int? =
-        if (needEngine && LangStore.engineFor(lang ?: "", modeInt).isEmpty()) null else onLoadLanguage(lang, c, v)
+    fun loadLanguage(lang: String?, c: String?, v: String?, needEngine: Boolean, stale: (() -> Boolean)? = null): Int? =
+        if (stale != null && stale()) null
+        else if (needEngine && LangStore.engineFor(lang ?: "", modeInt).isEmpty()) null else onLoadLanguage(lang, c, v)
+    // Backup TTS per language (2026-10-06): a scenario with fallback on has it
+    // on for every language, which is what the old global switch meant.
+    fun backupFor(lang: String): Boolean = engineFallbackFlag && lang.isNotEmpty()
     fun clientIsDead(w: EngineWrapper, why: String) { w.state = -1 }
     fun walkPending(raw: String) = false
     fun loadVoice(p: String, l: Locale, v: String, d: Boolean) {}
