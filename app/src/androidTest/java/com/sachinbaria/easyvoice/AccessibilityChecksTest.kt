@@ -622,6 +622,28 @@ class AccessibilityChecksTest {
     // language" (mode 3), mirroring c3.k:833-843. A disabled control is exempt
     // from the contrast floor but not from having a name or a 48dp target, and
     // that state had never been rendered.
+    // A switch must CHANGE its state description when it is toggled (owner, 2026-10-07:
+    // TalkBack on a Samsung phone said nothing on switch on/off). Compose UI 1.11+ reports a
+    // toggle only through CONTENT_CHANGE_TYPE_CHECKED, an API 36 flag that Android 15 and
+    // older TalkBack builds drop; a StateDescription change is reported through
+    // CONTENT_CHANGE_TYPE_STATE_DESCRIPTION, which every TalkBack speaks. So the state
+    // description is what has to move, and this asserts that it does.
+    @Test
+    fun switchStateDescriptionChangesOnToggle() {
+        EasyVoiceTtsService.keepAliveFlag = false
+        check { AdvancedScreen(prefs(), 0, { }) }
+        fun state() = rule.onNodeWithContentDescription("Keep alive").fetchSemanticsNode()
+            .config.getOrNull(SemanticsProperties.StateDescription)
+        val before = state()
+        rule.onNodeWithContentDescription("Keep alive").performClick()
+        rule.waitForIdle()
+        val after = state()
+        org.junit.Assert.assertNotNull("a switch carries no state description", before)
+        org.junit.Assert.assertNotNull("a switch carries no state description", after)
+        org.junit.Assert.assertNotEquals("toggling did not change the state description", before, after)
+        EasyVoiceTtsService.keepAliveFlag = false
+    }
+
     @Test
     fun advancedTabPunctuationLocked() {
         EasyVoiceTtsService.punctuationModeInt = 3

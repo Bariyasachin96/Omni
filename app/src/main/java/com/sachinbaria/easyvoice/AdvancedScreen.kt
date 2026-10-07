@@ -32,6 +32,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.core.content.ContextCompat
@@ -57,6 +59,23 @@ fun SettingSwitch(
     onChange: (Boolean) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    // WHY THE STATE IS NAMED HERE (owner, 2026-10-07: "switch on/off karta hun to TalkBack
+    // announce nahin karta ... Samsung"). Read in the libraries, not guessed:
+    //  - Compose UI 1.11+ (1.12.1 here, 1.13 alphas too) announces a toggle by sending
+    //    CONTENT_CHANGE_TYPE_CHECKED -- an Android 16 (API 36) constant -- where 1.8..1.10
+    //    sent CONTENT_CHANGE_TYPE_STATE_DESCRIPTION. Android 15 and older, and every
+    //    TalkBack build that does not know the new flag (Samsung's), drop it.
+    //  - TalkBack (google/talkback EventTypeViewClickedFeedbackRule) says nothing on the
+    //    click for a node that HAS a state description, because it expects the
+    //    STATE_DESCRIPTION change to say it -- and Compose gives every Switch one ("On").
+    //  So on those phones the click says nothing and the state change says nothing.
+    //  Setting the state description ourselves makes Compose send STATE_DESCRIPTION when
+    //  it changes (the delegate's StateDescription branch), which every TalkBack speaks.
+    //  The words are androidx's OWN strings -- exactly what Compose would have said, in
+    //  the phone's language -- so nothing is written by hand; only the event changes.
+    val stateWord = stringResource(
+        if (checked) androidx.compose.ui.R.string.state_on else androidx.compose.ui.R.string.state_off
+    )
     ListItem(
         headlineContent = {
             // "a small, regular-weight light purple font for option labels"
@@ -101,7 +120,10 @@ fun SettingSwitch(
                 role = Role.Switch,
                 onValueChange = { picked -> haptic.toggled(picked); onChange(picked) }
             )
-            .clearAndSetSemantics { contentDescription = label }
+            .clearAndSetSemantics {
+                contentDescription = label
+                stateDescription = stateWord
+            }
     )
 }
 

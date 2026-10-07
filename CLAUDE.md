@@ -8,7 +8,23 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## BACKUP TTS IS PER LANGUAGE, ON THE VOICE SETUP SCREEN; TWO SMALLER LOADS (owner, 2026-10-06, latest)
+## SWITCHES ANNOUNCE ON/OFF AGAIN: COMPOSE 1.11 CHANGED THE EVENT (owner, 2026-10-07, latest)
+*"switch on off karte hain to TalkBack announce nahin karta ... Samsung ... components use karo ... manually nahin."*
+- **Cause, read in the libraries:** Compose UI's delegate reports a ToggleableState change with
+  `CONTENT_CHANGE_TYPE_STATE_DESCRIPTION` in 1.8.3 / 1.9.0 / 1.10.0 and with **`CONTENT_CHANGE_TYPE_CHECKED`**
+  from **1.11.0** (1.12.1 shipped here; 1.13.0-alpha03 still does it). That flag is **API 36**; Android 15 and
+  older, and TalkBack builds that do not know it, drop it. Open-source TalkBack (google/talkback, 2026-03) has
+  `supportCheckedAccessibilityEvent()` and never calls it. And TalkBack's click rule
+  (`EventTypeViewClickedFeedbackRule`) says NOTHING for a node that has a state description -- it waits for the
+  STATE_DESCRIPTION change -- while Compose gives every Role.Switch one ("On"/"Off"). So: silence on toggle.
+- **Fix (`SettingSwitch`, the only switch in the app):** its clearing node also sets
+  `stateDescription = stringResource(androidx.compose.ui.R.string.state_on / state_off)` -- androidx's OWN words,
+  the ones Compose already used, so nothing is hand-written; the change now fires the delegate's StateDescription
+  branch (`CONTENT_CHANGE_TYPE_STATE_DESCRIPTION`), which every TalkBack speaks. Test:
+  `AccessibilityChecksTest.switchStateDescriptionChangesOnToggle`. Not changed: checkboxes (Compose gives them no
+  state description, so TalkBack's click rule speaks checked/not checked itself) and radio rows.
+
+## BACKUP TTS IS PER LANGUAGE, ON THE VOICE SETUP SCREEN; TWO SMALLER LOADS (owner, 2026-10-06)
 *"pahla aur dusra karna hai ... backup TTS ka option ... voice wali activity ... us language ke liye ... switch hai
 uske upar rakhna ... purana delete karke bilkul nai tarike se ... test karke."*
 - **Backup TTS moved from the Advanced tab to Voice setup, one switch per language**, above "Dedicated engines".
