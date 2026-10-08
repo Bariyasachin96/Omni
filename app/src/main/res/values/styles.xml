@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- This app draws its entire UI with Jetpack Compose, and every colour it
          uses comes from Material 3's own lightColorScheme() / darkColorScheme()
          through EasyVoiceTheme. The only job left for an XML theme is dressing
@@ -30,7 +30,8 @@
          for DARK bar icons, which is what a white window needs; leaving them
          false, or unstated, puts light icons on a white bar and the clock and
          the signal meter disappear. windowLightNavigationBar arrived in API 27
-         and minSdk is 24; an older device ignores an attribute it does not know.
+         and minSdk is 24; an older device ignores an attribute it does not know,
+         and tools:targetApi="27" is lint's own way of saying so (NewApi).
          EvActivity states the same thing at runtime with the bare
          enableEdgeToEdge(), whose SystemBarStyle.auto reads the phone's own
          night setting - read the note there for why the explicit dark(...) had
@@ -46,7 +47,7 @@
         <item name="android:statusBarColor">@color/ev_background</item>
         <item name="android:navigationBarColor">@color/ev_background</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
     </style>
     <style name="AppTheme.NoActionBar" parent="@style/AppTheme" />
 

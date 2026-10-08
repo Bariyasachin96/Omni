@@ -97,8 +97,10 @@ object EngineFinder {
     //  GET_META_DATA and no flags, in that order -- so no engine one of them
     //  would return is missed, and the order is the system's own resolution
     //  order (the scan walks engines in it, so it is NOT re-sorted here).
-    //  QUERY_ALL_PACKAGES and the manifest's <queries> make every engine visible,
-    //  in the background as well as the foreground.
+    //  The manifest's <queries> TTS_SERVICE intent makes every engine visible,
+    //  in the background as well as the foreground (QUERY_ALL_PACKAGES went on
+    //  2026-10-08: AOSP's AppsFilter matches that intent against each app's own
+    //  manifest, so no engine needs the Play-restricted permission).
     // ==========================================================================
     data class EngineService(val pkg: String, val label: String, val system: Boolean, val priority: Int)
     @JvmStatic
@@ -155,10 +157,20 @@ object EngineFinder {
     // those calls hold (TextToSpeech.mStartLock), so it goes here too.
     // kotlinx.coroutines' IO dispatcher (owner, 2026-10-07: the library's pool,
     // not one of ours): it is made for blocking calls and grows a thread per
-    // waiting call up to 64, so an engine that never answers keeps only its own
-    // thread and every other engine is still read -- what the hand-made cached
-    // pool did.
-    @JvmStatic val engineCalls: java.util.concurrent.Executor = kotlinx.coroutines.Dispatchers.IO.asExecutor()
+    // waiting call, so an engine that never answers keeps only its own thread
+    // and every other engine is still read -- what the hand-made cached pool did.
+    //
+    // ITS OWN ELASTIC VIEW, NOT Dispatchers.IO ITSELF (2026-10-08). Plain IO is
+    // capped at 64 threads SHARED by everything on it -- and DataStore runs its
+    // file work on Dispatchers.IO too. Engines that never answer would hold IO
+    // threads and could starve the settings read the TTS service waits for. The
+    // library's own rule for this ("Elasticity for limited parallelism": a view
+    // from Dispatchers.IO.limitedParallelism is NOT counted against IO's 64) is
+    // the answer; a parallelism at or above the scheduler's maximum returns the
+    // unlimited IO scheduler itself under the given name (read in kotlinx-
+    // coroutines 1.11.0's Dispatcher.kt, UnlimitedIoScheduler.limitedParallelism).
+    @JvmStatic val engineCalls: java.util.concurrent.Executor =
+        kotlinx.coroutines.Dispatchers.IO.limitedParallelism(Int.MAX_VALUE, "EasyVoiceEngineCall").asExecutor()
     @JvmStatic fun shutdownLater(client: TextToSpeech?) {
         if (client == null) return
         try { engineCalls.execute { try { client.shutdown() } catch (_: Exception) {} } }
@@ -290,9 +302,16 @@ object EngineFinder {
     // per process and a chunk costs one Field.get. It also means a platform that
     // does block it logs the stack trace ONCE, not once per chunk into the file
     // the owner shares.
+    //
+    // lint's DiscouragedPrivateApi is suppressed on that statement for the
+    // reason above: the platform offers no public way to ask which engine a
+    // client is bound to (AOSP's own comment says so), the read is guarded, and
+    // a blocked field degrades to the caller's own answer.
     private val currentEngineField: java.lang.reflect.Field? by lazy {
         try {
-            TextToSpeech::class.java.getDeclaredField("mCurrentEngine").also { it.isAccessible = true }
+            @android.annotation.SuppressLint("DiscouragedPrivateApi")
+            val field = TextToSpeech::class.java.getDeclaredField("mCurrentEngine")
+            field.also { it.isAccessible = true }
         } catch (ex: Exception) {
             EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "Reflection failed", ex)
             null
@@ -840,7 +859,7 @@ object EngineFinder {
         // chijen double double nahin honi chahie"). A second list used to be
         // asked for first: a TextToSpeech bound to OUR OWN service, only to call
         // getEngines() -- which asks the package manager the same TTS-service
-        // question getEngines(ctx) above already asked, with QUERY_ALL_PACKAGES.
+        // question getEngines(ctx) above already asked.
         // It cost a bind of Easy Voice on every open, and when it failed the
         // whole scan finalized having read no engine at all.
         scanFirstEngine()

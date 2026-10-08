@@ -73,6 +73,11 @@ fun SettingSwitch(
     //  it changes (the delegate's StateDescription branch), which every TalkBack speaks.
     //  The words are androidx's OWN strings -- exactly what Compose would have said, in
     //  the phone's language -- so nothing is written by hand; only the event changes.
+    //  lint calls them PrivateResource (the aar publishes no public.txt), and its advice
+    //  is to copy them; that would mean hand-typing "On"/"Off" in every language, the
+    //  thing this avoids. If a future Compose drops them, the build fails to compile
+    //  here -- it cannot fail quietly on a phone -- so the suppression is the safe side.
+    @android.annotation.SuppressLint("PrivateResource")
     val stateWord = stringResource(
         if (checked) androidx.compose.ui.R.string.state_on else androidx.compose.ui.R.string.state_off
     )

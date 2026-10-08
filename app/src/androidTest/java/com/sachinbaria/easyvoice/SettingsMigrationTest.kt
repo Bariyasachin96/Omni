@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -72,5 +73,24 @@ class SettingsMigrationTest {
             scope.cancel()
             ctx.preferencesDataStoreFile(name).delete()
         }
+    }
+
+    // THE MIGRATION IS HANDED OVER ONLY WHILE THE OLD FILE EXISTS (2026-10-08),
+    // and "exists" is LangStore.sharedPrefsFile: the path the DataStore library
+    // itself reproduces for SharedPreferences. This proves on the device that it
+    // is where the platform really writes one -- if it were not, the migration
+    // would never run for a phone updating from a SharedPreferences build.
+    @Test
+    fun legacyFileIsWhereThePlatformWritesIt() {
+        val ctx: Context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "ev_path_check"
+        @Suppress("ApplySharedPref")
+        ctx.getSharedPreferences(name, Context.MODE_PRIVATE).edit().putInt("x", 1).commit()
+        assertTrue(LangStore.sharedPrefsFile(ctx, name).exists())
+        ctx.deleteSharedPreferences(name)
+        assertFalse(LangStore.sharedPrefsFile(ctx, name).exists())
+        // And reading the app's own settings leaves no old file behind.
+        LangStore.prefs(ctx)
+        assertFalse(LangStore.legacyFileExists(ctx))
     }
 }

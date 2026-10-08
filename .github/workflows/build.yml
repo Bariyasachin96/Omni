@@ -544,6 +544,18 @@ jobs:
           # place for it here, because the cause cannot be removed on a branch.
           cache-disabled: true
 
+      # ANDROID LINT, AS A GATE (owner, 2026-10-08: "library ke rule ke hisab se").
+      # Android's own rules plus the checks every AndroidX library ships in its
+      # aar; app/build.gradle.kts sets warningsAsErrors, and the tree stands at
+      # "No issues found". In THIS job because it already builds the debug
+      # variant and runs beside the baseline-profile job, so the APK is not held
+      # up by it; like the accessibility checks below, a failure fails the run.
+      # The text report is printed when it fails, so the log names each issue.
+      - name: Lint (Android and AndroidX rules)
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          bash tools/ci/gradle-retry.sh lintDebug || { cat app/build/reports/lint-results-debug.txt 2>/dev/null; exit 1; }
+
       - name: Run accessibility checks on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:

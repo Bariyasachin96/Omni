@@ -9,7 +9,7 @@ String Int Long Float Double Boolean Char Byte Short Unit Any Nothing Array List
 Set MutableSet Map MutableMap Pair Triple Comparable Comparator Iterable Iterator Sequence Collection
 Exception Throwable RuntimeException IllegalStateException IllegalArgumentException
 InterruptedException IndexOutOfBoundsException NumberFormatException UnsupportedOperationException
-ArrayList HashMap HashSet LinkedHashMap LinkedHashSet Object Runnable Thread ThreadLocal Regex CharSequence
+ArrayList HashMap HashSet LinkedHashMap LinkedHashSet Object Runnable Thread ThreadLocal Class Regex CharSequence
 Number Enum Lazy Result System Character Charsets Math StringBuilder ByteArray IntArray
 FloatArray ShortArray LongArray DoubleArray BooleanArray CharArray Integer Locale Collections
 JvmStatic JvmField Volatile Synchronized Suppress Deprecated SuppressLint JvmOverloads Throws

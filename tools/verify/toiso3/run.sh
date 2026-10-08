@@ -14,7 +14,7 @@ python3 - "$SRC" "$WORK/Check.kt" "$HERE/Driver.kt" <<'PY'
 import sys, re
 src, out, drv = sys.argv[1:4]
 sp = open(src + "/SharedPrefsManager.kt", encoding="utf-8").read()
-i = sp.index("    // Called several times per chunk"); j = sp.index("    fun getLanguageList")
+i = sp.index("    // Called several times per chunk"); j = sp.index("    fun getReadingMode")
 iso = open(src + "/IsoCodes.kt", encoding="utf-8").read()
 k = iso.index("@Suppress(\"DEPRECATION\")\nfun localeOf")
 open(out, "w", encoding="utf-8").write(

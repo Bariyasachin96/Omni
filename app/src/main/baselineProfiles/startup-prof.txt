@@ -5,9 +5,12 @@
 # scattered ones -- fewer page faults on a cold start. The service path only:
 # no screen is here, they start when the user opens the app. AGP rewrites the
 # names through the R8 mapping. The broader rules are in ../baseline-prof.txt.
+# SettingsPreload is App Startup's initializer, created as the process starts
+# (androidx.startup asks for its initializers to be in the primary dex).
+# (2026-10-08: DetectedRun went from this list; the class was removed on
+# 2026-10-07, and every name below is checked against the compiled classes.)
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$Companion;
-Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$DetectedRun;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$EngineInitListener;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$EngineWrapper;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$RestoreInitListener;
@@ -28,6 +31,7 @@ Lcom/sachinbaria/easyvoice/LangStore$LoadPlan;
 Lcom/sachinbaria/easyvoice/LangStore$Persisted;
 Lcom/sachinbaria/easyvoice/ScanYield;
 Lcom/sachinbaria/easyvoice/ScanYield$Companion;
+Lcom/sachinbaria/easyvoice/SettingsPreload;
 Lcom/sachinbaria/easyvoice/SharedPrefsManager;
 Lcom/sachinbaria/easyvoice/SharedPrefsManager$Companion;
 Lcom/sachinbaria/easyvoice/TextChunk;

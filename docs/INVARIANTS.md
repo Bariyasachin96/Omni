@@ -128,9 +128,11 @@ every setting into a static once and the synthesis path re-reads nothing.
       grep -o "prefs\.[a-zA-Z]*" | sort -u
 
 That must print **`prefs.toIso3` and nothing else** — it is a pure string
-conversion and reads no preference. Everywhere else in the file, `prefs.` calls
-are fine and expected: they are `loadAllSettings` and `loadModeLangsOnce`
-filling the statics once.
+conversion and reads no preference — and the section must not name
+`LangStore.prefs(` or `settingsStore` at all (the DataStore snapshot, since
+2026-10-07). Outside it the settings are read once, by `loadAllSettings` calling
+LangStore's loaders (`loadModeLangs`, `loadMode`, `loadFlags`), which fill the
+statics.
 
 **When it was broken.** Four times: `onLoadLanguage` reading `auto_mode_language`,
 the dual branch reading `dual_mode_language`, `onSynthesizeText` re-reading the
@@ -141,14 +143,16 @@ scanned languages per utterance, and the Test path reading a locale back with
 
 ## 4b. The settings UI reads and writes the statics, never the preferences
 
-**Rule.** No screen may call a settings accessor on `SharedPrefsManager`
-(`isKeepAliveMode`, `isDisableAdvancedDetection`, `getSmartNumberGroupSize`, and
-the thirteen others). It reads `EasyVoiceTtsService.<flag>` and writes it back.
-`getReadingMode` / `setReadingMode` are exempt because, despite living on
-`SharedPrefsManager`, they read and write `EasyVoiceTtsService.modeInt` and
-touch no preference at all. `isLoggingEnabled` is exempt because it is the one
-flag AutoTTS persists eagerly (`c3.p`), and `MainActivity` seeds the logger from
-it on purpose.
+**Rule.** No file but `LangStore.kt` may name a setting's key — the mode, the
+mode languages, the number/punctuation/emoji modes, the Advanced flags and the
+Backup TTS set. A screen reads `EasyVoiceTtsService.<flag>` and writes it back;
+LangStore's loaders are the only readers of those keys and its persist functions
+the only writers. (Until 2026-10-08 this was phrased as "no screen may call one
+of `SharedPrefsManager`'s sixteen settings readers"; those readers are gone, the
+service loads through LangStore too, and the rule moved to the keys
+themselves.) `isLoggingEnabled` is outside it on purpose: it is the one flag
+AutoTTS persists eagerly (`c3.p`), and `MainActivity` and the service seed the
+logger from it.
 
 **Why.** This is #4 seen from the other end, and it is AutoTTS's own design:
 `c3.k` assigns `AutoTtsService`'s fields directly and `c3.n.v()` persists them
@@ -162,7 +166,8 @@ The owner asked for it in these words on 2026-09-02: *"sab kuchh static rakho �
 static wala bahut andar hi andar apply ho jata hai"*.
 
 **Check.** `tools/check/invariants.sh` #4b, negative-tested in `selftest.sh` by
-making `AdvancedScreen` read `prefs.isKeepAliveMode()`.
+making `AdvancedScreen` read the `keep_alive_mode` key from the DataStore
+snapshot.
 
 ## 5. `announceForAccessibility` is banned
 
@@ -313,7 +318,7 @@ not design.
 its own bug — the one where the service kept routing to the previously stored
 language while the UI showed the new one (see #4). `ensureLoaded` returns
 immediately when `EasyVoiceTtsService.autoLang` is non-empty, which is exactly
-the marker `loadModeLangsOnce` already uses: it is `""` only before anything has
+the marker the service's `loadAllSettings` guards `loadModeLangs` with: it is `""` only before anything has
 loaded, and both loaders end with `ifEmpty { deviceIso3 }`, so it can never be
 empty afterwards.
 

@@ -220,8 +220,19 @@ class MainActivity : EvActivity() {
                         // 33 there is no permission to ask for, so it is true
                         // unless the user blocked notifications themselves --
                         // no version branch needed.
+                        //
+                        // InlinedApi is suppressed because the library already
+                        // does the version check lint asks for: below 33 the
+                        // launcher's ContextCompat.checkSelfPermission answers
+                        // POST_NOTIFICATIONS from areNotificationsEnabled(), and
+                        // ActivityCompat.requestPermissions REMOVES it from the
+                        // request ("notification permission doesn't exist before
+                        // T", androidx.core's own source), so an older phone is
+                        // never shown a dialog for a permission it does not have.
                         if (!androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) {
-                            try { notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) {}
+                            @android.annotation.SuppressLint("InlinedApi")
+                            val permission = android.Manifest.permission.POST_NOTIFICATIONS
+                            try { notificationPermissionLauncher.launch(permission) } catch (_: Exception) {}
                         }
                     }
                 )

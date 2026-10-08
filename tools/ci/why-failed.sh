@@ -49,6 +49,15 @@ if grep -qE 'AccessibilityViewCheckException|AccessibilityCheck|accessibility ch
   exit 0
 fi
 
+if grep -qE 'Lint found errors in the project|Lint found fatal errors' "$LOG"; then
+  say "REAL: ANDROID LINT found an issue (warnings count, app/build.gradle.kts sets
+  warningsAsErrors). It is Android's or an AndroidX library's own rule; fix the
+  line it names, or suppress it AT that line with the reason beside it. The
+  lint step printed app/build/reports/lint-results-debug.txt above."
+  grep -m 20 -E 'Lint found|: (Error|Warning): ' "$LOG" || true
+  exit 0
+fi
+
 if grep -qE '^e: |compileDebugKotlin FAILED|compileReleaseKotlin FAILED|Unresolved reference|error: ' "$LOG"; then
   say "REAL: a COMPILE error. Fix the line it names."
   grep -m 20 -E '^e: |error: ' "$LOG" || true

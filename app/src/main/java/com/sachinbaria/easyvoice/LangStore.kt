@@ -12,13 +12,18 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.startup.Initializer
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.io.IOException
 
 // THE SETTINGS ARE JETPACK DATASTORE (owner, 2026-10-07: "jo library behtarin hai
 // vahi use karte hain, shared preferences nahin use karna ... alag se class kyon").
@@ -28,11 +33,36 @@ import kotlinx.coroutines.runBlocking
 // easy_voice_settings.xml with its type and deletes that file, so a phone keeps
 // all its languages, voices, speeds and modes. A damaged file is replaced with an
 // empty one by the library's ReplaceFileCorruptionHandler instead of crashing.
+//
+// THE MIGRATION IS HANDED OVER ONLY WHILE THE OLD FILE IS THERE (2026-10-08).
+// SharedPreferencesMigration with every key asks `sharedPrefs.all.isNotEmpty()`
+// on EVERY process start (read in its 1.2.1 source), and producing those
+// SharedPreferences builds a SharedPreferencesImpl, starts its loader thread and
+// recreates the shared_prefs directory -- on the TTS service's cold start, for a
+// file that was deleted after the first migration. The test below is the
+// library's own definition of where that file lives (its getSharedPrefsFile and
+// getSharedPrefsBackup: applicationInfo.dataDir/shared_prefs/<name>.xml, and
+// the ".bak" SharedPreferences leaves behind a write that was cut short), so the
+// migration still runs exactly when there is something to migrate.
 val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(
     name = LangStore.PREFS_FILE,
     corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
-    produceMigrations = { context -> listOf(SharedPreferencesMigration(context, LangStore.PREFS_FILE)) },
+    produceMigrations = { context ->
+        if (LangStore.legacyFileExists(context)) listOf(SharedPreferencesMigration(context, LangStore.PREFS_FILE))
+        else emptyList()
+    },
 )
+// THE PRELOAD'S ENTRY POINT IS THE LIBRARY'S (androidx.startup, 2026-10-08).
+// App Startup's InitializationProvider -- already in the APK for emoji2,
+// lifecycle-process and profileinstaller -- creates this from its manifest entry
+// as the process starts, before the TTS service's onCreate and before any
+// screen, and it only starts LangStore.preload's background read. The class is
+// the Initializer contract itself (a public no-argument constructor named in the
+// manifest; startup-runtime's own R8 rules keep it), not a wrapper.
+class SettingsPreload : Initializer<Unit> {
+    override fun create(context: Context) = LangStore.preload(context)
+    override fun dependencies(): List<Class<out Initializer<*>>> = emptyList()
+}
 class LangEntry(
     @JvmField var displayName: String,
     iso3: String,
@@ -68,12 +98,64 @@ object LangStore {
     // The settings' name: the DataStore file and, for the one-time migration,
     // the old SharedPreferences file it replaces.
     const val PREFS_FILE = "easy_voice_settings"
+    // Where SharedPreferences keeps a file, by the definition the DataStore
+    // library itself reproduces (SharedPreferencesMigration's getSharedPrefsFile;
+    // ContextImpl's own is private). SettingsMigrationTest checks it on a device.
+    @JvmStatic
+    fun sharedPrefsFile(ctx: Context, name: String): File =
+        File(File(ctx.applicationInfo.dataDir, "shared_prefs"), "$name.xml")
+    @JvmStatic
+    fun legacyFileExists(ctx: Context): Boolean {
+        val xml = sharedPrefsFile(ctx, PREFS_FILE)
+        return xml.exists() || File(xml.path + ".bak").exists()
+    }
     // THE SETTINGS AS THEY ARE NOW: DataStore's own snapshot (data.first()). The
     // first call in a process reads the file (and migrates the old one); after
     // that DataStore answers from memory. The app reads its settings once into
     // the statics and the screens read on open, so this is never per utterance.
+    //
+    // A READ THAT FAILS IS HANDLED THE WAY THE LIBRARY SAYS (2026-10-08). The
+    // DataStore guide: "DataStore reads data from a file, IOExceptions are thrown
+    // when an error occurs while reading data. You can handle these by using the
+    // catch() Flow operator ... and emitting emptyPreferences()". Without it the
+    // exception came out of this call -- and the service's onCreate reads here
+    // first, so one failed read was a TTS service that could not start. It is
+    // tried once more (a passing I/O hiccup), then the app runs on defaults.
+    //
+    // AND WHILE IT RUNS ON DEFAULTS IT WRITES NOTHING (`readFailed`). The statics
+    // were loaded from those defaults; persisting them -- every onPause does --
+    // would put defaults over the user's real settings the moment the file can
+    // be read again. So a process that once could not read keeps its hands off
+    // the file; the next process reads it afresh. Any other exception is not an
+    // I/O one and is thrown, as the guide says.
+    @Volatile private var readFailed = false
     @JvmStatic
-    fun prefs(ctx: Context): Preferences = runBlocking { ctx.applicationContext.settingsStore.data.first() }
+    fun prefs(ctx: Context): Preferences = runBlocking {
+        ctx.applicationContext.settingsStore.data
+            .retry(1) { it is IOException }
+            .catch { ex ->
+                if (ex !is IOException) throw ex
+                readFailed = true
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "settings could not be read -- using defaults, saving nothing: $ex")
+                emit(emptyPreferences())
+            }
+            .first()
+    }
+    // READ AHEAD, OFF THE MAIN THREAD (2026-10-08): the guide's own advice for
+    // code that reads DataStore synchronously -- start the read early and
+    // asynchronously, so the blocking read later is answered from memory.
+    // SettingsPreload (an androidx.startup Initializer) calls this as the
+    // process starts, before the TTS service's onCreate or the first screen, so
+    // opening the file, migrating it the first time, and loading DataStore's and
+    // protobuf's classes overlap with the rest of the start instead of waiting
+    // on the main thread. A failure here is ignored: the synchronous read that
+    // follows meets it again and handles it as above.
+    private val preloads = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @JvmStatic
+    fun preload(ctx: Context) {
+        val app = ctx.applicationContext
+        preloads.launch { try { app.settingsStore.data.first() } catch (_: Throwable) {} }
+    }
     // EVERY WRITE GOES THROUGH ONE QUEUE, so the file sees them in the order the
     // app made them (DataStore's edit {} is atomic per call; the queue orders the
     // calls). write() waits for its edit to reach the disk -- the screens' onPause
@@ -84,14 +166,21 @@ object LangStore {
         CoroutineExceptionHandler { _, ex -> EasyVoiceLogger.error(EasyVoiceLogger.TAG, "settings write failed: $ex") })
     @JvmStatic
     fun write(ctx: Context, block: (MutablePreferences) -> Unit) {
+        if (refusedAfterFailedRead()) return
         val app = ctx.applicationContext
         try { runBlocking { writes.launch { app.settingsStore.edit { block(it) } }.join() } }
         catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "settings write failed: $ex") }
     }
     @JvmStatic
     fun writeLater(ctx: Context, block: (MutablePreferences) -> Unit) {
+        if (refusedAfterFailedRead()) return
         val app = ctx.applicationContext
         writes.launch { app.settingsStore.edit { block(it) } }
+    }
+    private fun refusedAfterFailedRead(): Boolean {
+        if (!readFailed) return false
+        EasyVoiceLogger.error(EasyVoiceLogger.TAG, "settings write skipped: this process could not read the settings file")
+        return true
     }
     @JvmStatic val languages: java.util.ArrayList<LangEntry> = java.util.ArrayList()
     @JvmStatic var currentVoiceIso: String = ""
@@ -480,6 +569,27 @@ object LangStore {
             return out
         }
     }
+    // The language list of the oldest builds was ONE comma-separated key; it is
+    // moved once into the language_N keys loadLanguages reads. This was
+    // SharedPrefsManager.getScannedLangs's side effect, run at every service
+    // start, and it took a blocking DataStore read per stored language twice
+    // over; it is one snapshot now. It also WAITS for its write (it was
+    // writeLater): loadLanguages reads the list right after, and an
+    // asynchronous write could land after that read and leave the first start
+    // with no languages. Same keys, same order as before (the codes go through
+    // a HashSet, as they did), and the old key goes only when it was moved.
+    @JvmStatic
+    fun migrateLegacyScannedLangs(ctx: Context) {
+        val stored = prefs(ctx)
+        val legacy = stored[stringPreferencesKey("scanned_langs_iso3")] ?: ""
+        if (legacy.isEmpty() || (stored[stringPreferencesKey("language_0")] ?: "").isNotEmpty()) return
+        val codes = legacy.split(",").filter { it.isNotBlank() }.map { SharedPrefsManager.toIso3Cached(it) }.toHashSet().toList()
+        write(ctx) {
+            for (index in codes.indices) it[stringPreferencesKey("language_$index")] = codes[index]
+            it[stringPreferencesKey("language_${codes.size}")] = ""
+            it.remove(stringPreferencesKey("scanned_langs_iso3"))
+        }
+    }
     @JvmStatic
     fun loadModeLangs(ctx: Context) {
         val sharedPrefs = prefs(ctx)
@@ -522,8 +632,8 @@ object LangStore {
     // real settings. That is a silent wipe, and for someone whose only TTS
     // engine this is, it is not a recoverable one.
     //
-    // The guard is autoLang, because that is exactly the marker
-    // loadModeLangsOnce already uses: it is "" only before anything has loaded,
+    // The guard is autoLang, because that is exactly the marker the service's
+    // loadAllSettings guards loadModeLangs with: it is "" only before anything has loaded,
     // and both loaders end with ifEmpty { deviceIso3 }, so it can never be
     // empty afterwards. That matters more than convenience -- reloading over a
     // LIVE edit is its own bug, the one that made the service route to the

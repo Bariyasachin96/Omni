@@ -1,7 +1,6 @@
 package com.sachinbaria.easyvoice
 
 import androidx.activity.ComponentActivity
-import androidx.annotation.RequiresApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsActions
@@ -66,9 +65,11 @@ import java.util.Locale
 // that, so this is gated rather than left to run and quietly pass on an older
 // device: SdkSuppress reports it as SKIPPED there, which is the truth, while a
 // silent pass would be a lie. The workflow's emulator is API 34.
+// @SdkSuppress ALONE, no @RequiresApi beside it (lint UseSdkSuppress,
+// 2026-10-08): the test runner reads only SdkSuppress, and lint's API check
+// accepts it as the guard for the API-34 calls inside the class.
 @RunWith(AndroidJUnit4::class)
 @SdkSuppress(minSdkVersion = 34)
-@RequiresApi(34)
 class AccessibilityChecksTest {
 
     @get:Rule

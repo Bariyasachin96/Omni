@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CollectionInfo
@@ -373,7 +374,9 @@ private const val SLIDER_BUTTON_STEP = 5   // AutoTTS's I1/J1/K1/L1/M1/N1
 @Composable
 fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit) {
     val context = LocalContext.current
-    val lowered = label.lowercase(Locale.getDefault())
+    // LocalLocale, not Locale.getDefault(): composition state, so a change of
+    // the phone's language re-lowers "Decrease speed" (lint NonObservableLocale).
+    val lowered = label.lowercase(LocalLocale.current.platformLocale)
     val clamp = { picked: Int ->
         if (picked < SLIDER_MIN) SLIDER_MIN else if (picked > maxValue) maxValue else picked
     }

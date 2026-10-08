@@ -50,7 +50,12 @@ import androidx.activity.enableEdgeToEdge
 // The padding that keeps content out of those bars is NOT here -- it is one
 // line in EasyVoiceTheme, which every screen also goes through. Read the note
 // there for why one place is enough.
-open class EvActivity : ComponentActivity() {
+//
+// ABSTRACT, because it is never a screen of its own (lint Registered,
+// 2026-10-08): an open class extending an Activity looks to lint like an
+// activity the manifest forgot, and abstract is the language's way of saying
+// "only the subclasses are started".
+abstract class EvActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)

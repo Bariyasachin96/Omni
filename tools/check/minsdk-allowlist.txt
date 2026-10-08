@@ -24,3 +24,6 @@ EasyVoiceTtsService.kt:PerformanceHintManager
 EasyVoiceTtsService.kt:S
 EasyVoiceTtsService.kt:createHintSession
 EasyVoiceTtsService.kt:reportActualWorkDuration
+# Why the last process ended (API 30): logRecentExits30 is @RequiresApi(R),
+# entered only behind SDK_INT >= R in logRecentExits.
+EasyVoiceTtsService.kt:getHistoricalProcessExitReasons

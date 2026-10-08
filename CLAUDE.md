@@ -8,7 +8,65 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE SETTINGS ARE JETPACK DATASTORE; EVERY LIBRARY ON ITS LATEST STABLE (owner, 2026-10-07, latest)
+## DATASTORE BY ITS OWN RULES, LINT AS A GATE, NO QUERY_ALL_PACKAGES (owner, 2026-10-08, latest)
+*"data store wale mein ... kuchh rah gaya ho ... library ke rule ke hisab se sab kuchh karo ... sab kuchh test
+karke hi karna hai."*
+- **DataStore read errors, the guide's own rule:** `LangStore.prefs` = `data.retry(1){IOException}.catch{IOException
+  -> log, emit(emptyPreferences())}.first()`; any other exception is thrown. Before, an IOException came out of the
+  service's FIRST read (`isLoggingEnabled`, unguarded, before super.onCreate) = a TTS service that could not start.
+  **A process that once fell back to defaults writes NOTHING** (`readFailed`; `write`/`writeLater` refuse and log), so
+  defaults never overwrite the real file. Proof `tools/verify/settingsread/run.sh` (the lifted real functions, the REAL
+  DataStore JVM library + a fake store whose flow throws): healthy, one transient failure (retried), lasting failure,
+  non-IO exception, unreadable path -- ALL PASS; negatives noretry / nocatch / norefuse / catchall all FAIL.
+- **Migration handed over only while the old XML (or its .bak) exists** (`LangStore.legacyFileExists`, the library's
+  own path definition `applicationInfo.dataDir/shared_prefs/<name>.xml`): MIGRATE_ALL_KEYS otherwise built a
+  SharedPreferencesImpl + loader thread on every cold start. `SettingsMigrationTest.legacyFileIsWhereThePlatformWritesIt`
+  proves the path on the device. (The migration never overwrites keys DataStore already has -- read in its source.)
+- **Preload at process start:** `SettingsPreload` (androidx.startup `Initializer`, in LangStore.kt, manifest
+  `InitializationProvider` meta-data, `startup-runtime:1.2.0` now declared) starts the read on Dispatchers.IO before the
+  service's onCreate -- the guide's advice for synchronous readers. Release build: kept by name, in classes.dex
+  (added to startup-prof.txt; the stale `DetectedRun` entry went, and gradle-compile.sh now fails on a profile class
+  that does not exist -- negative-tested).
+- **One snapshot per loader:** the service's `loadAllSettings` = `migrateLegacyScannedLangs` + LangStore's
+  `loadModeLangs` (still guarded by autoLang) / `loadMode` / `loadFlags` -- same keys and defaults -- instead of ~25
+  blocking reads (plus ~280 in getScannedLangs). `buildEngineList` one snapshot. The legacy scanned-langs move now
+  WAITS for its write (writeLater could land after loadLanguages read). SharedPrefsManager lost its 16 readers and the
+  generic getters; it keeps toIso3, reading mode, logging. **Invariant #4b is on the KEYS now** (only LangStore.kt may
+  name a setting key); #4 also catches `LangStore.prefs(`/`settingsStore` on the synthesis path; selftest updated.
+- **Engine calls on their own elastic view:** `Dispatchers.IO.limitedParallelism(Int.MAX_VALUE, "EasyVoiceEngineCall")`
+  -- not counted against IO's 64 threads (coroutines' documented elasticity; `>= MAX_POOL_SIZE` returns the unlimited
+  scheduler, read in Dispatcher.kt), so wedged engines cannot starve DataStore's own IO work.
+- **Why the last process ended:** with logging ON, the service's start logs every `ApplicationExitInfo` (API 30+,
+  `getHistoricalProcessExitReasons`, its own toString: reason, status, importance, memory) since the last one logged
+  (`last_exit_logged` key), off the main thread. For the "suddenly stopped" reports.
+- **QUERY_ALL_PACKAGES REMOVED** (Play-restricted; lint error). AOSP `AppsFilterUtils.canQueryViaComponents` matches our
+  `<queries>` TTS_SERVICE intent against each app's manifest components (exported, enabled or not), and a package
+  update swaps the rules in one `addPackage(isReplace)` -- so every engine stays visible. New on-device
+  `PackageVisibilityTest`: the shell's `pm query-services` (same three flag sets) must equal the app's own engine list,
+  and isInstalled/resolveService must answer for each.
+- **Lint is a gate:** `lint { warningsAsErrors; abortOnError }`; default lint "No issues found." Fixed: NewApi (audio
+  focus `@RequiresApi(O)`; `windowLightNavigationBar tools:targetApi="27"`), NonObservableLocale (Compose `LocalLocale`
+  in LanguagesActivity/VoiceScreen; uilists harness taught it), UseSdkSuppress (test), Registered (EvActivity abstract).
+  Suppressed AT THE LINE with the library-backed reason: InlinedApi x2 (ServiceCompat/ActivityCompat do the version
+  check), PrivateResource (androidx's own On/Off words), DiscouragedPrivateApi (mCurrentEngine), ExportedService,
+  DataExtractionRules + UnusedAttribute (manifest). `textReport/textOutput` are deprecated in AGP 9.4.1 -- not used.
+  `tools/check/lint.sh` in check-all (negative: a reintroduced Locale.getDefault() -> FAILED); CI's accessibility job
+  runs `lintDebug` before the emulator; why-failed.sh classifies lint failures. Left: AGP 9.4.1 itself calls the
+  deprecated `Configuration.setVisible` (its BasePlugin/SourceSetManager, not our scripts).
+- **Harness fixes found on the way:** readers' default ref is `1abbd7e~1` (HEAD has no recordsOf since 1abbd7e);
+  toiso3's slice marker; ktimports knows `Class`.
+- **Verified:** gradle-compile 0/0, lint No issues, check-all ALL PASS, selftest EVERY CHECK FIRES (33 negatives),
+  settingsread, persist IDENTICAL, rebuild, langstore 9,200,000, toiso3, chunkiso3, enginefinder, voicelist, coldstart,
+  restore, scansched, scanyield, voicenow 400,000 0 differ, runlang, readers 0 differ, logger, sortkeys, uilists,
+  speakpipe 200,000 0 differ, prefetch 400,000 0 differ; signed release APKs build (throwaway key, deleted), exports and
+  16 KB pass, manifest without QUERY_ALL_PACKAGES. The two new device tests run first on CI's emulator.
+- **Researched, NOT done:** Direct Boot (TalkBack itself returns to the preferred engine after unlock; settings would
+  move to device-protected storage), tracing-perfetto / ATrace, ADPF CPU_LOAD hints, C++20 (CLD2 + the PGO profile),
+  ML Kit / TextClassifier language ID (CLD2 stays the only detector), SyntheticAccessor/IconExpectedSize (off by
+  default; R8 removes accessors; nodpi art false positive). `libdatastore_shared_counter.so` is DataStore's own
+  (multi-process only), 16 KB aligned.
+
+## THE SETTINGS ARE JETPACK DATASTORE; EVERY LIBRARY ON ITS LATEST STABLE (owner, 2026-10-07)
 *"jo library behtarin hai vahi ... shared preferences nahin use karna ... alag se class kyon ... sab kuchh naya karo."*
 - **DataStore Preferences 1.2.1, used directly** (no wrapper class -- a first draft that put DataStore behind a
   hand-written SharedPreferences implementation was rejected by the owner and deleted). LangStore.kt holds the

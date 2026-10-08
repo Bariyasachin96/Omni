@@ -51,4 +51,18 @@ if [ -n "$WARN" ]; then
   echo "gradle-compile  FAILED -- $(echo "$WARN" | wc -l) compiler warning(s) in our sources"
   exit 1
 fi
+# The hand-written STARTUP PROFILE names classes by hand, and R8 only lays out
+# the ones that exist -- a class renamed or removed simply drops out of the dex
+# layout with no error (EasyVoiceTtsService$DetectedRun sat there for a day
+# after its class was deleted). Every name must be a class this compile made.
+CLASSES="$ROOT/app/build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+if [ -d "$CLASSES" ]; then
+  stale=$(grep -o '^L[^;]*;' "$ROOT/app/src/main/baselineProfiles/startup-prof.txt" | sed 's/^L//; s/;$//' |
+          while read -r c; do [ -f "$CLASSES/$c.class" ] || echo "  $c"; done)
+  if [ -n "$stale" ]; then
+    echo "$stale"
+    echo "gradle-compile  FAILED -- startup-prof.txt names classes that do not exist"
+    exit 1
+  fi
+fi
 echo "gradle-compile  app + androidTest + baselineprofile compiled with Gradle $GV: 0 errors, 0 warnings"

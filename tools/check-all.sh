@@ -37,6 +37,7 @@ step "native PGO profile fresh" bash   tools/check/pgo-fresh.sh
 step "minSdk API usage"        bash    tools/check/minsdk-api.sh
 step "workflow shell"          bash    tools/check/workflow-shell.sh
 step "gradle compile (app + androidTest)" bash tools/check/gradle-compile.sh
+step "android lint (Android + AndroidX rules)" bash tools/check/lint.sh
 
 echo
 if [ "$fail" = 0 ]; then

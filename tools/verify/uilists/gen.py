@@ -21,10 +21,15 @@ old_sort = block(o, "fun tieBreakLabel(", "val stored = try")
 new_sort = block(n, "fun tieBreakLabel(", "val stored = try")
 lo = open(old_la).read(); ln = open(new_la).read()
 old_filter = block(lo, "val visibleIdx = labels.indices.filter", "ResponsiveContent {")
-new_filter = block(ln, "val lowerLabels = remember(labels)", "ResponsiveContent {")
+# Since 2026-10-08 the tree lowers with Compose's LocalLocale (lint
+# NonObservableLocale) instead of Locale.getDefault(); off a composition the
+# harness's stand-in for it is the JVM default locale the old code read.
+new_filter = block(ln, "val locale = LocalLocale.current.platformLocale", "ResponsiveContent {")
+new_filter = new_filter.replace("LocalLocale.current.platformLocale", "Locale.getDefault()")
 with open(out, "w") as f:
     f.write("import java.util.Locale\n" + abbr + "\n")
     f.write("fun <T> remember(k: Any?, calc: () -> T): T = calc()\n")
+    f.write("fun <T> remember(k1: Any?, k2: Any?, calc: () -> T): T = calc()\n")
     for tag, srt, flt in (("Old", old_sort, old_filter), ("New", new_sort, new_filter)):
         f.write("fun sort%s(rows: List<ScanVoice?>, selectedIso: String, voiceOrder: (String) -> Int): List<ScanVoice?> {\n%s\nreturn sorted\n}\n" % (tag, srt))
         f.write("fun filter%s(labels: List<String>, query: String, showSelectedOnly: Boolean, checked: List<Boolean>): List<Int> {\n%s\nreturn visibleIdx\n}\n" % (tag, flt))

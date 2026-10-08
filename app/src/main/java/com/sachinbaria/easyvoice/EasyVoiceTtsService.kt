@@ -25,6 +25,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.core.content.getSystemService
 import androidx.core.text.getSpans
 import androidx.core.text.toSpannable
+import kotlinx.coroutines.launch
 data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null) {
     // toIso3(lang) worked out once per chunk (owner, 2026-10-06): the prefetch,
     // the queue-ahead, speakChunk and onDone each converted the same chunk's
@@ -440,6 +441,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // background, so ForegroundServiceStartNotAllowedException is a real outcome
     // when this runs from an utterance. The app's own screens start it while
     // they are showing instead (onStartCommand), which Android allows.
+    //
+    // InlinedApi is suppressed with a reason, not to hide a defect: the type is
+    // an int constant (API 29) compiled into the call, and ServiceCompat's own
+    // source passes it on only at 29+ ("Api29Impl"/"Api34Impl") and calls the
+    // plain startForeground(id, notification) below that, so on API 24-28 the
+    // number is never handed to the platform.
+    @android.annotation.SuppressLint("InlinedApi")
     private fun startForegroundIfPossible() {
         try {
             if (!notificationsShown()) {
@@ -554,7 +562,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // Its own method on purpose, which is the shape Android's own guidance and
     // PackageInfoCompat's Api28Impl both use: the verifier only ever has to
     // resolve AudioFocusRequest when this method is entered, and on API 24 it
-    // never is.
+    // never is. @RequiresApi is what tells lint (and the next reader) that the
+    // body is API 26 only and that every caller has to be behind the guard.
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
     private fun requestAudioFocus26(): Int {
         val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(accessibilitySpeech)
@@ -568,6 +578,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) abandonAudioFocus26()
         else { @Suppress("DEPRECATION") audioManager!!.abandonAudioFocus(audioFocusListener) }
     }
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
     private fun abandonAudioFocus26() {
         val request = audioFocusRequest ?: return
         audioManager?.abandonAudioFocusRequest(request)
@@ -586,7 +597,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { EngineFinder.attach(this) } catch (_: Throwable) {}
         prefs = SharedPrefsManager(this)
         ScanYield.speechInFlight = { synthesizingNow }
-        EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())
+        // Guarded like every step below (2026-10-08): this is the process's first
+        // settings read, and before DataStore that read could not throw.
+        try { EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled()) }
+        catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "reading the logging flag failed: " + ex.toString()) }
         // AutoTtsService.onCreate opens with c3.a0.c/c3.a0.b, so every log a
         // user shares names the build it came from -- "Unknown" and -1 are the
         // values a0 answers with when PackageManager cannot find the package.
@@ -658,7 +672,41 @@ class EasyVoiceTtsService : TextToSpeechService() {
             androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(screensClosedObserver)
             screensObserved = true
         } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "screen observer failed: " + ex.toString()) }
+        try { logRecentExits() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "exit reasons failed: " + ex.toString()) }
         running = java.lang.ref.WeakReference(this)
+    }
+    // WHY THE LAST PROCESS ENDED, IN THE LOG THE OWNER SHARES (2026-10-08).
+    // Android 11+ keeps the reason each of the app's processes ended --
+    // killed for memory, by Clear all or force stop, by the freezer, a crash, an
+    // ANR -- in ActivityManager.getHistoricalProcessExitReasons (the platform's
+    // own record; there is no androidx form). A "it suddenly stopped speaking"
+    // report is very often one of those, and until now the log could not say
+    // which. With logging ON, each service start writes the exits since the last
+    // one it wrote (ApplicationExitInfo's own toString: reason name, status,
+    // importance, memory, description). Off the main thread -- it is a binder
+    // call -- and each exit once: the newest timestamp written is kept in the
+    // settings.
+    private fun logRecentExits() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !EasyVoiceLogger.isLoggingEnabled()) return
+        val app = applicationContext
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try { logRecentExits30(app) }
+            catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "exit reasons failed: " + ex.toString()) }
+        }
+    }
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
+    private fun logRecentExits30(app: Context) {
+        val manager = app.getSystemService<android.app.ActivityManager>() ?: return
+        val key = androidx.datastore.preferences.core.longPreferencesKey("last_exit_logged")
+        val seen = LangStore.prefs(app)[key] ?: 0L
+        var newest = seen
+        // Newest first from the platform; written oldest first.
+        for (info in manager.getHistoricalProcessExitReasons(app.packageName, 0, 5).reversed()) {
+            if (info.timestamp <= seen) continue
+            EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Earlier process ended: $info" }
+            if (info.timestamp > newest) newest = info.timestamp
+        }
+        if (newest > seen) LangStore.writeLater(app) { it[key] = newest }
     }
     // THE VERSION IN THAT LOG LINE COMES FROM THE BUILD (2026-09-24). It used to be
     // c3.a0.a/b/c ported: ask PackageManager for our OWN PackageInfo -- a binder
@@ -3009,9 +3057,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
             val rebuiltEngineList = ArrayList<String>()
             val isGoogleMode = modeInt == 3
             val defaultEngine = LangStore.engineFor(localeIso3(), if (isGoogleMode) 3 else 0)
+            // One snapshot for the whole list, not a blocking read per engine.
+            val stored = LangStore.prefs(this@EasyVoiceTtsService)
             var index = 0
             while (true) {
-                val pkg = prefs.getString("engine_$index", "")
+                val pkg = stored[stringPreferencesKey("engine_$index")] ?: ""
                 if (pkg.isEmpty() || pkg == "end") break
                 if (pkg != defaultEngine) rebuiltEngineList.add(pkg)
                 index++
@@ -3211,42 +3261,24 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  synthesis path. INVARIANTS #4 -- prefs hold what was last persisted, the
     //  statics hold what the user has just chosen.
     // ==========================================================================
+    // ONE SNAPSHOT PER LOADER (2026-10-08). The flags used to come through
+    // sixteen SharedPrefsManager readers, each a blocking DataStore read of its
+    // own on the service's cold start; they are LangStore's loaders now -- the
+    // same functions the screens load with (ensureLoaded), same keys, same
+    // defaults, read from one snapshot each. The mode languages keep their
+    // "only if this process has not loaded them" guard (autoLang), so a screen's
+    // live, not yet persisted choice is never reloaded over; the mode and the
+    // flags are reloaded, as they always were here.
     private fun loadAllSettings() {
-        prefs.getScannedLangs()
+        LangStore.migrateLegacyScannedLangs(applicationContext)
         buildEngineList()
         loadVoiceList()
         synchronized(this) { LangStore.loadLanguages(applicationContext) }
         languagesLoaded = true
-        loadModeLangsOnce()
+        if (autoLang.isEmpty()) LangStore.loadModeLangs(applicationContext)
         LangStore.loadMode(applicationContext)
-        // The service reads the flags through prefs rather than LangStore.loadFlags,
-        // so the one-time default flip has to be applied on this path as well. It
-        // is guarded by its own marker key, so running it from both is a no-op.
-        LangStore.applyAdvancedDetectionDefault(applicationContext)
-        localeSpansFlag = prefs.isLocaleSpansEnabled()
-        stripAudioAttrFlag = prefs.isStripAudioAttr()
-        forceAccessibilityFlag = prefs.isForceAccessibilityStream()
-        keepAliveFlag = prefs.isKeepAliveMode()
-        backupLangs = LangStore.loadBackupLanguages(applicationContext)
-        showNotificationFlag = prefs.isShowNotification()
-        disableAdvancedFlag = prefs.isDisableAdvancedDetection()
-        quickCharacterFlag = prefs.isQuickCharacterReading()
-        punctuationInFlowFlag = prefs.isPunctuationWithSentence()
-        smartNumberFlag = prefs.isSmartNumberReading()
-        smartNumberGroupSize = prefs.getSmartNumberGroupSize()
-    }
-    private fun loadModeLangsOnce() {
-        if (autoLang.isNotEmpty()) return
-        autoLang = prefs.getString("auto_mode_language", "").ifEmpty { localeIso3() }
-        mixLatinLang = prefs.getString("mixed_mode_latin_language", "").ifEmpty { localeIso3() }
-        mixNonLatinLang = prefs.getString("mixed_mode_non_latin_language", "").ifEmpty { localeIso3() }
-        dualLang = prefs.getString("dual_mode_language", "").ifEmpty { localeIso3() }
-        numberModeInt = prefs.getNumberModeLang()
-        punctuationModeInt = prefs.getPuncModeLang()
-        emojiModeInt = prefs.getEmojiModeLang()
-        numberSpecificLang = prefs.getNumberSpecificLang().ifEmpty { localeIso3() }
-        puncSpecificLang = prefs.getPuncSpecificLang().ifEmpty { localeIso3() }
-        emojiSpecificLang = prefs.getEmojiSpecificLang().ifEmpty { localeIso3() }
+        // applyAdvancedDetectionDefault and the Backup TTS set are inside it.
+        LangStore.loadFlags(applicationContext)
     }
     // c3.n.e and c3.n.d, which both accept null: "zxx" and "" respectively.
     private fun nullableIso3(locale: java.util.Locale?): String =

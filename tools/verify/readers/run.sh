@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# The processDirect answer readers of a ref (default HEAD) against the working
+# The processDirect answer readers of a ref (default 1abbd7e~1, the last tree
+# with the old list readers -- once 1abbd7e landed, HEAD had no recordsOf to
+# compare against and the default stopped running) against the working
 # tree's, over the real core's answers (oldnew's probe output) plus edge cases;
 # also prints the time and allocation of each per answer. EV_NEG=latin breaks
 # the new reader's latin flag (must FAIL).
 set -euo pipefail
-REF=${1:-HEAD}
+REF=${1:-1abbd7e~1}
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$HERE/../../.." && pwd)
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-readers

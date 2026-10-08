@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:installLocation="auto">
     <queries>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
@@ -7,12 +8,30 @@
         <intent><action android:name="android.speech.tts.engine.CHECK_TTS_DATA" /></intent>
         <intent><action android:name="android.speech.tts.engine.GET_SAMPLE_TEXT" /></intent>
     </queries>
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- NO QUERY_ALL_PACKAGES (owner, 2026-10-08: "library ke rule ke hisab se").
+         It is a Play-restricted permission and lint's QueryAllPackagesPermission
+         is an error. The four <queries> intents above are what make every voice
+         engine visible: AOSP's AppsFilter matches them against each package's
+         own manifest components (AppsFilterUtils.canQueryViaComponents), so any
+         app with a TTS_SERVICE service is visible to us, enabled or not, and an
+         update swaps its rules in one step (addPackage with isReplace). Every
+         package-manager question the app asks is about such an app: the engine
+         list, isInstalled, resolveService, checkSignatures, the install-data
+         and sample-text screens. The two features that asked about other apps,
+         Import and Troubleshoot, are gone. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Two lint warnings are answered here rather than silenced blindly
+         (2026-10-08). DataExtractionRules asks for android:fullBackupContent for
+         API 24-30, but allowBackup="false" already turns every kind of backup off
+         below Android 12, so such a file would never be read. UnusedAttribute
+         names appCategory (API 26) and enableOnBackInvokedCallback (API 33): an
+         older platform ignores an attribute it does not know, which is the
+         intent. -->
     <application
+        tools:ignore="DataExtractionRules,UnusedAttribute"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:appCategory="accessibility"
@@ -21,7 +40,13 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name">
+        <!-- exported with no permission ON PURPOSE (lint ExportedService): a
+             TTS engine is bound by any app that speaks, through TextToSpeech
+             (directly, or by the system's TextToSpeechManagerService on the
+             app's behalf), so a permission would stop the screen reader itself
+             from reaching it. -->
         <service
+            tools:ignore="ExportedService"
             android:accessibilityEventTypes="typeWindowsChanged"
             android:accessibilityFlags="flagRetrieveInteractiveWindows"
             android:canRetrieveWindowContent="true"
@@ -59,6 +84,21 @@
         </activity>
         <provider android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true" android:name="androidx.core.content.FileProvider">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" />
+        </provider>
+        <!-- App Startup (androidx.startup) runs SettingsPreload as the process
+             starts: it begins reading the DataStore settings file on a
+             background thread, so the TTS service's first, blocking read is
+             answered from memory (DataStore's own advice for synchronous
+             readers). tools:node="merge" adds our entry to the provider the
+             libraries already declare. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="com.sachinbaria.easyvoice.SettingsPreload"
+                android:value="androidx.startup" />
         </provider>
     </application>
 </manifest>

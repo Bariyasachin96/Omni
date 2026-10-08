@@ -64,8 +64,12 @@ else
 fi
 
 # --- 4. no runtime preference read on the synthesis path -------------------
+# Since 2026-10-07 the settings are DataStore, so a read can also be the
+# snapshot itself -- LangStore.prefs( or settingsStore -- which the old
+# `prefs.` pattern does not see.
 stray=$(awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' $SERVICE |
-        grep -o "prefs\.[a-zA-Z]*" | sort -u | grep -v "^prefs\.toIso" || true)
+        sed 's://.*::' |
+        grep -oE "prefs\.[a-zA-Z]*|LangStore\.prefs\(|settingsStore" | sort -u | grep -v "^prefs\.toIso" || true)
 [ -z "$stray" ] && ok "#4  synthesis path reads statics only" \
                 || bad "#4  runtime preference read on the synthesis path: $stray"
 
@@ -81,19 +85,23 @@ stray=$(awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' $SERVICE |
 # preferences therefore shows the value from before the current edit, and the
 # service keeps speaking with the one the user has already changed.
 #
-# getReadingMode/setReadingMode are NOT preference accessors despite living on
-# SharedPrefsManager -- they read and write EasyVoiceTtsService.modeInt -- so
-# they are not listed. isLoggingEnabled is the one eager-persist flag (AutoTTS's
-# c3.p does the same) and is seeded from MainActivity on purpose.
-settings_readers='isStripAudioAttr|isForceAccessibilityStream|getPuncModeLang|getEmojiModeLang|getNumberModeLang|getPuncSpecificLang|getEmojiSpecificLang|getNumberSpecificLang|isShowNotification|isLocaleSpansEnabled|isDisableAdvancedDetection|isKeepAliveMode|isQuickCharacterReading|isPunctuationWithSentence|isSmartNumberReading|getSmartNumberGroupSize|isEngineFallback'
+# SINCE 2026-10-08 THE RULE IS ON THE KEYS THEMSELVES. The sixteen
+# SharedPrefsManager readers it used to list are gone -- the service loads
+# through LangStore.loadModeLangs/loadMode/loadFlags as the screens do -- so a
+# screen that wanted a setting from storage would now name its KEY on the
+# DataStore snapshot. Only LangStore.kt (its loaders and persist functions) may
+# name one. isLoggingEnabled stays outside on purpose: it is the one
+# eager-persist flag (AutoTTS's c3.p does the same) and is seeded from
+# MainActivity and the service.
+settings_keys='auto_mode|auto_mode_language|dual_mode_language|mixed_mode_latin_language|mixed_mode_non_latin_language|number_mode_language|punc_mode_language|emoji_mode_language|number_specific_language|punc_specific_language|emoji_specific_language|locale_spans|strip_audio_attr|force_accessibility_stream|keep_alive_mode|show_notification|disable_advanced_detection|quick_character_reading|punctuation_with_sentence|smart_number_reading|smart_number_reading_group_size|backup_languages|engine_fallback'
 uiread=$(for f in $KT/*.kt; do
            case "$f" in
-             */EasyVoiceTtsService.kt|*/SharedPrefsManager.kt) continue ;;
+             */LangStore.kt) continue ;;
            esac
-           sed 's://.*::' "$f" | grep -qE "prefs\.($settings_readers)\(" && echo "$f"
+           sed 's://.*::' "$f" | grep -qE "PreferencesKey\(\"($settings_keys)\"\)" && echo "$f"
          done)
-[ -z "$uiread" ] && ok "#4b settings live in statics -- no screen reads them from preferences" \
-                 || bad "#4b a screen reads a setting from preferences instead of the static:$uiread"
+[ -z "$uiread" ] && ok "#4b settings live in statics -- only LangStore's loaders read their keys" \
+                 || bad "#4b a setting's key is read outside LangStore's loaders:$uiread"
 
 # --- 5. announceForAccessibility is banned --------------------------------
 n=$(grep -rc "announceForAccessibility" $KT | awk -F: '{s+=$2} END{print s+0}')

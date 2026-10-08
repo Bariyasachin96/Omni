@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
@@ -290,8 +291,14 @@ fun LanguagesScreen(prefs: SharedPrefsManager) {
     // Lowered ONCE (owner, 2026-10-01): this filter runs on every recomposition
     // -- every keystroke and every tick -- and lowered all ~137 labels AND the
     // query again for each row. Same Locale, same strings, same answer.
-    val lowerLabels = remember(labels) { labels.map { it.lowercase(Locale.getDefault()) } }
-    val lowerQuery = query.lowercase(Locale.getDefault())
+    // The locale is Compose's LocalLocale (lint NonObservableLocale, 2026-10-08):
+    // Locale.getDefault() is not composition state, so after the user changed
+    // the phone's language this screen kept lowering with the old one until it
+    // happened to recompose for another reason; LocalLocale is read from the
+    // configuration, so a locale change recomposes and re-lowers.
+    val locale = LocalLocale.current.platformLocale
+    val lowerLabels = remember(labels, locale) { labels.map { it.lowercase(locale) } }
+    val lowerQuery = query.lowercase(locale)
     val visibleIdx = labels.indices.filter { index ->
         val matches = query.isEmpty() || lowerLabels[index].contains(lowerQuery)
         val selected = if (showSelectedOnly) (index < checked.size && checked[index]) else true

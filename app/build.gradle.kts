@@ -181,6 +181,21 @@ android {
         resources { excludes.add("**/libc++_shared.so") }
         jniLibs { useLegacyPackaging = true }
     }
+    // ANDROID LINT IS A GATE (owner, 2026-10-08: "library ke rule ke hisab se").
+    // Lint is Android's own rule book plus the checks each AndroidX library ships
+    // inside its aar -- Compose's NonObservableLocale, androidx.test's
+    // UseSdkSuppress, and the rest. The tree stands at "No issues found": every
+    // exception is suppressed AT ITS LINE with the reason beside it, never here.
+    // warningsAsErrors keeps it there -- a new warning fails lintDebug, which
+    // tools/check-all.sh and CI's accessibility job both run. (lintVital, the
+    // fatal-only pass inside assembleRelease, is not affected.)
+    // No textReport/textOutput: AGP 9.4.1 deprecates both ("Lint reports are
+    // now always generated"); the text report is app/build/reports/
+    // lint-results-debug.txt, which the CI step prints when lint fails.
+    lint {
+        warningsAsErrors = true
+        abortOnError = true
+    }
 }
 // THE KOTLIN COMPILER, STATED (2026-09-24). Nothing set it before: the JVM
 // target was whatever AGP derived from compileOptions (17, read off the class
@@ -265,8 +280,13 @@ dependencies {
     // AppCompat artifact in this project. That is the whole price, and the owner
     // has taken it knowingly in exchange for being current.
     implementation("androidx.core:core-splashscreen:1.2.0")
-    // Settings storage (owner, 2026-10-07): Jetpack DataStore, see SettingsStore.kt.
+    // Settings storage (owner, 2026-10-07): Jetpack DataStore, used directly --
+    // the store and its migration are declared at the top of LangStore.kt.
     implementation("androidx.datastore:datastore-preferences:1.2.1")
+    // App Startup: runs SettingsPreload (LangStore.kt) as the process starts.
+    // It was already in the APK (emoji2, lifecycle-process, profileinstaller
+    // use it) and is declared now that the app implements an Initializer.
+    implementation("androidx.startup:startup-runtime:1.2.0")
     // Installs the ART profile (app/src/main/baseline-prof.txt plus the libraries'
     // own) on sideloaded installs too, where Play's cloud profiles never arrive --
     // which is how this app is installed. It was already in the graph through
