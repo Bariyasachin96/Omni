@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- NO android:installLocation (2026-10-08). It was "auto", carried over from
+     AutoTTS, which let Android move the app to an SD card. Android's own page
+     says an app with a SERVICE should not allow that ("Your running Service is
+     killed and isn't restarted when external storage is remounted",
+     developer.android.com/guide/topics/data/install-location), and the TTS
+     engine IS a service: the screen reader would lose its voice until the next
+     restart. Without the attribute the app installs on internal storage only,
+     Android's default. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:installLocation="auto">
+    xmlns:tools="http://schemas.android.com/tools">
     <queries>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
         <intent><action android:name="android.speech.tts.engine.INSTALL_TTS_DATA" /></intent>
@@ -22,7 +29,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- No WAKE_LOCK (2026-10-08): AutoTTS declares it and nothing here ever
+         took a wake lock, so it was a permission with no use. -->
     <!-- Two lint warnings are answered here rather than silenced blindly
          (2026-10-08). DataExtractionRules asks for android:fullBackupContent for
          API 24-30, but allowBackup="false" already turns every kind of backup off
@@ -44,12 +52,13 @@
              TTS engine is bound by any app that speaks, through TextToSpeech
              (directly, or by the system's TextToSpeechManagerService on the
              app's behalf), so a permission would stop the screen reader itself
-             from reaching it. -->
+             from reaching it.
+             accessibilityEventTypes / accessibilityFlags / canRetrieveWindowContent
+             are gone (2026-10-08): they configure an ACCESSIBILITY service and do
+             nothing on a TTS engine's <service>; they came over from AutoTTS's
+             manifest. -->
         <service
             tools:ignore="ExportedService"
-            android:accessibilityEventTypes="typeWindowsChanged"
-            android:accessibilityFlags="flagRetrieveInteractiveWindows"
-            android:canRetrieveWindowContent="true"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback"
             android:label="@string/app_name"

@@ -24,14 +24,14 @@ object VoiceRows {
         if (selectedIso.isEmpty()) { LangStore.currentVoiceRows = emptyList(); return emptyList() }
         LangStore.currentVoiceIso = selectedIso
         LangStore.currentVoiceChosen = false
-        val rawPrefs = LangStore.prefs(context)
+        val settings = LangStore.prefs(context)
         fun voiceOrder(key: String): Int {
             val cached = EngineFinder.voiceWeights[key]
             if (cached != null) return cached
             // toIntOrNull, and a try, because this reads STORAGE rather than a
             // literal: `.toInt()` threw NumberFormatException on anything that is
-            // not a number, and `getString` throws ClassCastException outright if
-            // the key was ever written with putInt. Both land inside the Voice
+            // not a number, and reading the key as a string throws
+            // ClassCastException if it was ever stored as a number. Both land inside the Voice
             // setup screen's composition, so they are a crash on a screen the
             // owner opens once per language.
             //
@@ -39,7 +39,7 @@ object VoiceRows {
             // answers -- "unranked" -- so a corrupt entry now sorts last instead
             // of taking the screen down, and valid data behaves exactly as before.
             val storedWeight = try {
-                (rawPrefs[stringPreferencesKey(key)] ?: "1000").toIntOrNull() ?: 1000
+                (settings[stringPreferencesKey(key)] ?: "1000").toIntOrNull() ?: 1000
             } catch (_: Exception) { 1000 }
             EngineFinder.voiceWeights[key] = storedWeight
             return storedWeight
@@ -65,7 +65,7 @@ object VoiceRows {
                 if (a.first != b.first) a.first - b.first else a.second.compareTo(b.second, ignoreCase = true)
             }).map { it.third }
         }
-        val stored = try { rawPrefs[stringPreferencesKey(selectedIso)] ?: "" } catch (_: Exception) { "" }
+        val stored = try { settings[stringPreferencesKey(selectedIso)] ?: "" } catch (_: Exception) { "" }
         val pinned = pinConfigured(context, sorted, stored, selectedIso, readingMode)
         LangStore.currentVoiceRows = pinned
         var weightIdx = 0

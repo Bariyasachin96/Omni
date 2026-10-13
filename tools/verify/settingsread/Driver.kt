@@ -60,12 +60,20 @@ fun main(args: Array<String>) {
         check("healthy file: write lands", runBlocking { store.data.first() }[KEY] == "guj")
         scope.cancel()
     }
-    // 2. One passing I/O failure: the retry reads the real value.
+    // 2. One I/O failure: read ONCE, as the guide does (no second read in this
+    //    process), defaults, flagged, nothing written -- and the NEXT process
+    //    (a fresh LS over the same store) reads the real value and may write.
     run {
-        val store = FakeStore(1, { IOException("transient") }, stored)
-        val ls = LS()
-        check("one I/O failure: retried, value read", ls.prefs(Context(store))[KEY] == "hin" && store.reads == 2)
-        check("one I/O failure: not flagged", !ls.readFailed)
+        val store = FakeStore(1, { IOException("passing") }, stored)
+        val first = LS(); val ctx = Context(store)
+        check("one I/O failure: read once, defaults", first.prefs(ctx) == emptyPreferences() && store.reads == 1)
+        check("one I/O failure: flagged", first.readFailed)
+        first.write(ctx) { it[KEY] = "eng" }
+        check("one I/O failure: no write reached the store", store.updates == 0)
+        val next = LS()
+        check("next process: value read", next.prefs(ctx)[KEY] == "hin" && !next.readFailed)
+        next.write(ctx) { it[KEY] = "guj" }
+        check("next process: write lands", store.updates == 1)
     }
     // 3. A lasting I/O failure: defaults, flagged, and NO write reaches the
     //    store -- the defaults never go over the real file.

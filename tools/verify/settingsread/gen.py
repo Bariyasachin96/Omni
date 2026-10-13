@@ -40,8 +40,10 @@ body = "\n".join(parts)
 body = body.replace("ctx.applicationContext.settingsStore", "ctx.store")
 body = body.replace("val app = ctx.applicationContext", "val app = ctx").replace("app.settingsStore", "app.store")
 body = body.replace("private var readFailed", "var readFailed")
-if neg == "noretry":
-    a = "            .retry(1) { it is IOException }\n"; assert a in body; body = body.replace(a, "")
+if neg == "retry":
+    # the read repeated once more before the catch -- what this code had until
+    # the owner asked for it to go
+    a = "            .catch { ex ->"; assert a in body; body = body.replace(a, "            .retry(1) { it is IOException }\n" + a)
 elif neg == "nocatch":
     i = body.index("            .catch { ex ->"); j = body.index("            .first()")
     body = body[:i] + body[j:]

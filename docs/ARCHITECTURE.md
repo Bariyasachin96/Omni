@@ -27,8 +27,9 @@ structured the same way, branch for branch.
 ## Stage 0 — settings
 
 All settings live in **statics on the service's companion object**, loaded once
-in `onCreate` by `loadAllSettings()`. The synthesis path never reads
-`SharedPreferences`. See INVARIANTS #4 for why.
+in `onCreate` by `loadAllSettings()` from Jetpack DataStore (`LangStore`, the only
+file that names a setting's key). The synthesis path never reads the stored
+settings. See INVARIANTS #4 for why.
 
 The language list — which languages exist, which are enabled, which engine and
 voice each uses — is `LangStore.languages`, a shared static rebuilt by the
@@ -225,8 +226,8 @@ Ranked by how long each took to find, because it says where to look first:
    for the rebuild sites and comparing the count with AutoTTS's.
 3. **A neighbour-type scan that walked past a whitespace segment** — found by a
    harness, not by reading.
-4. **A runtime `SharedPreferences` read on the Test path** — INVARIANTS #4.
-   Found by grepping `prefs.` in the synthesis path.
+4. **A runtime read of the stored settings on the Test path** — INVARIANTS #4.
+   Found by grepping the synthesis path.
 
 The lesson each time: **compare against the real AutoTTS artefact**, and where a
 function is small enough to isolate, **prove it with a harness** rather than

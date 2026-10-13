@@ -39,13 +39,22 @@ CI does it, and only on a manual dispatch:
 
     Actions → "Build Easy Voice Native" → Run workflow
 
-The APK is published to a GitHub release named after the run number. There is no
-local build — the NDK, CMake and R8 are CI's job, and CLD2
-are cloned at build time rather than checked in.
+The APK is published to a GitHub release named after the run number.
+
+A local build is the project's own Gradle Wrapper — it fetches the Gradle the
+build pins (version and SHA-256 in `gradle/wrapper/gradle-wrapper.properties`):
+
+    tools/bootstrap.sh                    # once: Gradle via the wrapper, the Android SDK
+    git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+    ./gradlew assembleDebug
+
+Every version the build uses — AGP, Kotlin, each library, the NDK, CMake and
+build-tools — is in one file, the version catalog `gradle/libs.versions.toml`;
+CI and the tools read it from there.
 
 ## Changing something
 
-    tools/bootstrap.sh          # once, downloads android.jar and kotlinc
+    tools/bootstrap.sh          # once: Gradle (wrapper), the SDK, android.jar, kotlinc
     …edit…
     tools/check-all.sh          # ~2 min: structure, signatures, imports, XML, C++, Kotlin types
     tools/verify/segmenter/run.sh

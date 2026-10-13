@@ -11,8 +11,9 @@ it could start. That is why it is here now.
 
 ## First run
 
-    tools/bootstrap.sh          # android.jar, kotlinc, the Compose plugin
-                                #   and the androidx classpath
+    tools/bootstrap.sh          # Gradle through the project's wrapper, the
+                                #   Android SDK, android.jar, kotlinc, the Compose
+                                #   plugin and the androidx classpath
 
 Every download retries five times with a widening wait. Maven Central answers
 **429** under load -- it did on the first run of the Kotlin 2.4.20 bump, and a
@@ -52,8 +53,9 @@ two silent-failure bugs in a row, both recorded in its header.
 ### The type-check IS the real build now (2026-09-23)
 
 `check/gradle-compile.sh` runs `:app:compileDebugKotlin` and
-`:app:compileDebugAndroidTestKotlin` with the Gradle version `build.yml` names,
-against the Android SDK `bootstrap.sh` installs into `tools/.cache/android-sdk`.
+`:app:compileDebugAndroidTestKotlin` with the project's Gradle Wrapper (`./gradlew`,
+the Gradle CI runs), against the Android SDK `bootstrap.sh` installs into
+`tools/.cache/android-sdk`.
 Zero errors and zero compiler warnings from our sources is the bar; it retries
 Maven Central's 429s and nothing else. It was negative-tested both ways: a type
 error and a new warning each fail it.

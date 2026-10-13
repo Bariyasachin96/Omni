@@ -13,6 +13,8 @@ def block(text, start):
         j += 1
 o = open(old).read(); n = open(new).read()
 isotext = open(iso).read().replace("package com.sachinbaria.easyvoice\n", "")
+# localeOf asks the Android version; on this JVM it takes the Android 16 branch.
+isotext = isotext.replace("android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.BAKLAVA", "true")
 with open(out, "w") as f:
     f.write(isotext + "\n")
     f.write("class OldX(val prefs: P, val modeInt: Int) {\n" + block(o, "private fun languageForDetectedRun(") + "\nfun lang(r: DetectedRun, a: String, b: String) = prefs.toIso3(languageForDetectedRun(r, a, b))\n}\n")

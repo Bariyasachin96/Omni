@@ -131,8 +131,8 @@ class MainActivity : EvActivity() {
             EasyVoiceLogger.debug("TTS") { "Notification permission denied" }
         }
     }
-    private fun isRequiredLanguage(prefs: SharedPrefsManager, iso3: String): Boolean =
-        LangStore.requiredLangs(modeIntOf(prefs.getReadingMode()),
+    private fun isRequiredLanguage(iso3: String): Boolean =
+        LangStore.requiredLangs(modeIntOf(LangStore.readingMode()),
             EasyVoiceTtsService.autoLang, EasyVoiceTtsService.dualLang,
             EasyVoiceTtsService.mixLatinLang, EasyVoiceTtsService.mixNonLatinLang).contains(iso3)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -142,15 +142,13 @@ class MainActivity : EvActivity() {
         // is drawn, so it never delays a screen reader by a millisecond.
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        val prefs = SharedPrefsManager(this)
         LangStore.loadModeLangs(this)
         LangStore.loadMode(this)
         LangStore.loadFlags(this)
-        EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled())
+        EasyVoiceLogger.setLoggingEnabled(LangStore.loggingEnabled(this))
         setContent {
             EasyVoiceTheme {
                 MainScreen(
-                    prefs = prefs,
                     scanning = scanning,
                     scanLine = scanLine,
                     modeRefresh = modeRefresh,
@@ -188,7 +186,7 @@ class MainActivity : EvActivity() {
                         val entry = LangStore.entryAt(index)
                         if (entry != null) {
                             LangStore.clearConfiguration(this, entry)
-                            if (isRequiredLanguage(prefs, entry.iso3)) {
+                            if (isRequiredLanguage(entry.iso3)) {
                                 Toast.makeText(this, "Configuration deleted. " + entry.displayName + " is needed by the current mode, so it stays in the list", Toast.LENGTH_LONG).show()
                             } else {
                                 entry.disabled = true
@@ -203,7 +201,7 @@ class MainActivity : EvActivity() {
                     onDisableLanguage = { index ->
                         val entry = LangStore.entryAt(index)
                         if (entry != null) {
-                            if (isRequiredLanguage(prefs, entry.iso3)) {
+                            if (isRequiredLanguage(entry.iso3)) {
                                 Toast.makeText(this, entry.displayName + " is needed by the current mode, so it cannot be turned off", Toast.LENGTH_LONG).show()
                             } else {
                                 entry.disabled = true
@@ -280,7 +278,6 @@ class MainActivity : EvActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    prefs: SharedPrefsManager,
     scanning: Boolean,
     scanLine: String,
     modeRefresh: Int,
@@ -302,9 +299,9 @@ fun MainScreen(
     // A `var`, because the Modes tab changes the mode without bumping
     // modeRefresh -- it writes the store directly -- and BOTH floating buttons
     // depend on the answer: the Main Settings one names the mode whose settings
-    // it opens, and the Configuration one is hidden for dual. Re-reading prefs
-    // on the refresh key alone left each of them one mode behind.
-    var readingMode by remember(modeRefresh) { mutableStateOf(prefs.getReadingMode()) }
+    // it opens, and the Configuration one is hidden for dual. Re-reading the
+    // mode on the refresh key alone left each of them one mode behind.
+    var readingMode by remember(modeRefresh) { mutableStateOf(LangStore.readingMode()) }
     val showAddLanguage = readingMode != "none" && readingMode != "dual"
     // Plain state instead of a PagerState. See the comment on the content Box
     // below for why the pager had to go. rememberSaveable, Compose's own way to
@@ -678,7 +675,6 @@ fun MainScreen(
                 ) {
                     when (currentPage) {
                         0 -> ModesScreen(
-                            prefs,
                             modeRefresh,
                             onModeChanged = { picked -> readingMode = picked }
                         )
@@ -692,7 +688,7 @@ fun MainScreen(
                             }
                             ConfigurationScreen(page.first, page.second, onLanguage, onDeleteConfiguration, onDisableLanguage)
                         }
-                        else -> AdvancedScreen(prefs, modeRefresh, requestNotificationPermission)
+                        else -> AdvancedScreen(modeRefresh, requestNotificationPermission)
                     }
                 }
             }

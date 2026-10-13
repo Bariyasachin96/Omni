@@ -69,7 +69,7 @@ fi
 # `prefs.` pattern does not see.
 stray=$(awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' $SERVICE |
         sed 's://.*::' |
-        grep -oE "prefs\.[a-zA-Z]*|LangStore\.prefs\(|settingsStore" | sort -u | grep -v "^prefs\.toIso" || true)
+        grep -oE "LangStore\.prefs\(|LangStore\.loggingEnabled\(|settingsStore" | sort -u || true)
 [ -z "$stray" ] && ok "#4  synthesis path reads statics only" \
                 || bad "#4  runtime preference read on the synthesis path: $stray"
 
@@ -85,15 +85,13 @@ stray=$(awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' $SERVICE |
 # preferences therefore shows the value from before the current edit, and the
 # service keeps speaking with the one the user has already changed.
 #
-# SINCE 2026-10-08 THE RULE IS ON THE KEYS THEMSELVES. The sixteen
-# SharedPrefsManager readers it used to list are gone -- the service loads
-# through LangStore.loadModeLangs/loadMode/loadFlags as the screens do -- so a
-# screen that wanted a setting from storage would now name its KEY on the
-# DataStore snapshot. Only LangStore.kt (its loaders and persist functions) may
-# name one. isLoggingEnabled stays outside on purpose: it is the one
-# eager-persist flag (AutoTTS's c3.p does the same) and is seeded from
-# MainActivity and the service.
-settings_keys='auto_mode|auto_mode_language|dual_mode_language|mixed_mode_latin_language|mixed_mode_non_latin_language|number_mode_language|punc_mode_language|emoji_mode_language|number_specific_language|punc_specific_language|emoji_specific_language|locale_spans|strip_audio_attr|force_accessibility_stream|keep_alive_mode|show_notification|disable_advanced_detection|quick_character_reading|punctuation_with_sentence|smart_number_reading|smart_number_reading_group_size|backup_languages|engine_fallback'
+# THE RULE IS ON THE KEYS THEMSELVES (2026-10-08). The service loads through
+# LangStore.loadModeLangs/loadMode/loadFlags as the screens do, so a screen that
+# wanted a setting from storage would name its KEY on the DataStore snapshot.
+# Only LangStore.kt (its loaders and persist functions) may name one -- the
+# logging switch included, which LangStore reads and saves for the service and
+# the screens (loggingEnabled / persistLogging).
+settings_keys='auto_mode|auto_mode_language|dual_mode_language|mixed_mode_latin_language|mixed_mode_non_latin_language|number_mode_language|punc_mode_language|emoji_mode_language|number_specific_language|punc_specific_language|emoji_specific_language|locale_spans|strip_audio_attr|force_accessibility_stream|keep_alive_mode|show_notification|disable_advanced_detection|quick_character_reading|punctuation_with_sentence|smart_number_reading|smart_number_reading_group_size|backup_languages|logging_enabled|last_exit_logged'
 uiread=$(for f in $KT/*.kt; do
            case "$f" in
              */LangStore.kt) continue ;;
@@ -102,6 +100,19 @@ uiread=$(for f in $KT/*.kt; do
          done)
 [ -z "$uiread" ] && ok "#4b settings live in statics -- only LangStore's loaders read their keys" \
                  || bad "#4b a setting's key is read outside LangStore's loaders:$uiread"
+
+# --- 4c. the settings are DataStore and nothing else ------------------------
+# Owner, 2026-10-08: "shared preferences, retry ... kuchh bhi purana nahin
+# rakhna". The old key-value store is gone from the app entirely -- no store of
+# its own, no migration out of it -- and the settings read follows the DataStore
+# guide exactly: catch the IOException, emit emptyPreferences(), and NO second
+# read. Comments are stripped first; the history is allowed to name what went.
+old_store=$(for f in $KT/*.kt "$ROOT"/app/src/androidTest/java/com/sachinbaria/easyvoice/*.kt; do
+              sed 's://.*::' "$f" | grep -qE "SharedPreferences|getSharedPreferences|PreferenceManager|SharedPrefs" && echo "$f"
+            done)
+retry=$(sed 's://.*::' $KT/LangStore.kt | grep -nE "\.retry(When)?\(" || true)
+[ -z "$old_store$retry" ] && ok "#4c settings are DataStore only -- no old store, no retried read" \
+                          || bad "#4c the old settings store or a retried settings read is back:$old_store $retry"
 
 # --- 5. announceForAccessibility is banned --------------------------------
 n=$(grep -rc "announceForAccessibility" $KT | awk -F: '{s+=$2} END{print s+0}')

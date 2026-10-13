@@ -68,12 +68,16 @@ run "#2  push hints from the synthesis path" "#2" \
     "perl -0pi -e 's/\n(\s+)refreshEnabledLangs\(\)\n/\n\$1pushLanguageSets()\n/' $K/EasyVoiceTtsService.kt"
 run "#3  nest a lock in the list monitor" "#3" \
     "perl -0pi -e 's/(val missing = synchronized\(LangStore\.languages\) \{)/\$1\n            synchronized(this) { }/' $K/EasyVoiceTtsService.kt"
-run "#4  read a preference while synthesising" "#4" \
-    "perl -0pi -e 's/(val readingMode = when \(modeInt\))/val leak = prefs.isLoggingEnabled()\n        \$1/' $K/EasyVoiceTtsService.kt"
+run "#4  read the logging switch from storage while synthesising" "#4" \
+    "perl -0pi -e 's/(val readingMode = when \(modeInt\))/val leak = LangStore.loggingEnabled(this)\n        \$1/' $K/EasyVoiceTtsService.kt"
 run "#4  read the DataStore snapshot while synthesising" "#4" \
     "perl -0pi -e 's/(val readingMode = when \(modeInt\))/val leak = LangStore.prefs(this)\n        \$1/' $K/EasyVoiceTtsService.kt"
 run "#4b read a setting's key from storage in a screen" "#4b" \
     "perl -0pi -e 's/(var keepAlive by remember)/val leak = LangStore.prefs(context)[booleanPreferencesKey(\"keep_alive_mode\")]\n    \$1/' $K/AdvancedScreen.kt"
+run "#4c bring the old settings store back" "#4c" \
+    "perl -0pi -e 's/(var keepAlive by remember)/val leak = context.getSharedPreferences(\"x\", 0)\n    \$1/' $K/AdvancedScreen.kt"
+run "#4c retry the settings read" "#4c" \
+    "perl -0pi -e 's/(\n(\s+)\.catch \{ ex ->)/\n\$2.retry(1) { it is IOException }\$1/' $K/LangStore.kt"
 run "#5  add an announceForAccessibility" "#5" \
     "echo 'fun x() { v.announceForAccessibility(\"hi\") }' >> $K/ModesScreen.kt"
 run "#6  put state in a contentDescription" "#6" \

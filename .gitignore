@@ -24,3 +24,6 @@ __pycache__/
 *.class
 /app/src/main/generated/
 /baselineprofile/build/
+
+# A JVM crash report (one was committed by accident on 2026-10-06).
+hs_err_pid*.log

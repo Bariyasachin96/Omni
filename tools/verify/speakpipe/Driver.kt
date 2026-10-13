@@ -99,6 +99,8 @@ data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, 
     fun iso3(): String = lang
 }
 class FakePrefs { fun toIso3(s: String) = s }
+// the code since 2026-10-08 calls IsoCodes.kt's iso3OfCode; the same identity
+fun iso3OfCode(s: String) = s
 object LangStore {
     lateinit var run: Run
     fun engineFor(lang: String, mode: Int): String = run.config[lang] ?: ""

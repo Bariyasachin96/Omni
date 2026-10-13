@@ -76,21 +76,20 @@ private fun rebuildLanguagesFor(context: android.content.Context, modeInt: Int) 
 //
 // `onModeChanged` is what keeps the FAB honest. The radio writes the mode
 // straight to the store, so MainScreen cannot learn about it by re-reading
-// prefs on a refresh key -- it has to be told, or the FAB would go on offering
+// the store on a refresh key -- it has to be told, or the FAB would go on offering
 // the settings of the mode you just left.
 @Composable
 fun ModesScreen(
-    prefs: SharedPrefsManager,
     refreshKey: Int,
     onModeChanged: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var selectedMode by remember { mutableStateOf(shownMode(prefs.getReadingMode())) }
+    var selectedMode by remember { mutableStateOf(shownMode(LangStore.readingMode())) }
     val haptic = LocalHapticFeedback.current
     LaunchedEffect(refreshKey) {
-        val mode = shownMode(prefs.getReadingMode())
+        val mode = shownMode(LangStore.readingMode())
         selectedMode = mode
-        prefs.setReadingMode(mode)
+        LangStore.setReadingMode(mode)
         rebuildLanguagesFor(context, modeIntOf(mode))
         onModeChanged(mode)
     }
@@ -123,7 +122,7 @@ fun ModesScreen(
                     // nothing on.
                     if (mode != selectedMode) haptic.toggled(true)
                     selectedMode = mode
-                    prefs.setReadingMode(mode)
+                    LangStore.setReadingMode(mode)
                     rebuildLanguagesFor(context, modeIntOf(mode))
                     onModeChanged(mode)
                 }
@@ -313,13 +312,13 @@ private fun LocaleSpanRow() {
     }
 }
 @Composable
-fun ModeSettingsScreen(prefs: SharedPrefsManager, mode: String) {
+fun ModeSettingsScreen(mode: String) {
     val context = LocalContext.current
     val modeInt = modeIntOf(mode)
     val loaded = remember(mode) {
         // Exactly what onModeSelected(settingsOnlyForMode) did in the View version:
         // write the reading mode, then rebuild the language list for it.
-        prefs.setReadingMode(mode)
+        LangStore.setReadingMode(mode)
         rebuildLanguagesFor(context, modeInt)
         val loadedCodes = ArrayList<String>()
         // Under the list monitor -- see LangStore.replaceAll.
@@ -404,8 +403,7 @@ class ModeSettingsActivity : EvActivity() {
         // statics: Android can restore it alone into a fresh process. No-op
         // whenever anything is already loaded -- see LangStore.ensureLoaded.
         LangStore.ensureLoaded(this)
-        val prefs = SharedPrefsManager(this)
-        val mode = intent.getStringExtra("mode") ?: prefs.getReadingMode()
+        val mode = intent.getStringExtra("mode") ?: LangStore.readingMode()
         // NO setTitle HERE ANY MORE. The window already has a title from the
         // manifest ("Mode settings"), and a screen reader speaks a window's
         // title when the window appears; changing it during onCreate produced a
@@ -413,7 +411,7 @@ class ModeSettingsActivity : EvActivity() {
         // announcement, which is the doubling the owner reported on 2026-09-04.
         // The mode's own name is not lost -- it is the screen's first heading,
         // "<Mode> settings", which is where the reader lands.
-        setContent { EasyVoiceTheme { ModeSettingsScreen(prefs, mode) } }
+        setContent { EasyVoiceTheme { ModeSettingsScreen(mode) } }
     }
     override fun onPause() {
         LangStore.persistAll(this)

@@ -7,8 +7,9 @@
 # names through the R8 mapping. The broader rules are in ../baseline-prof.txt.
 # SettingsPreload is App Startup's initializer, created as the process starts
 # (androidx.startup asks for its initializers to be in the primary dex).
-# (2026-10-08: DetectedRun went from this list; the class was removed on
-# 2026-10-07, and every name below is checked against the compiled classes.)
+# Every name below is checked against the compiled classes (gradle-compile.sh).
+# IsoCodesKt holds iso3OfCode and localeOf, called for every chunk; LangStoreKt
+# holds the DataStore delegate the service reads its settings through.
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$Companion;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$EngineInitListener;
@@ -25,14 +26,14 @@ Lcom/sachinbaria/easyvoice/EngineFinder$EngineInfo;
 Lcom/sachinbaria/easyvoice/EngineFinder$EngineService;
 Lcom/sachinbaria/easyvoice/EngineFinder$ScanVoice;
 Lcom/sachinbaria/easyvoice/IsoCodes;
+Lcom/sachinbaria/easyvoice/IsoCodesKt;
 Lcom/sachinbaria/easyvoice/LangEntry;
 Lcom/sachinbaria/easyvoice/LangStore;
 Lcom/sachinbaria/easyvoice/LangStore$LoadPlan;
 Lcom/sachinbaria/easyvoice/LangStore$Persisted;
+Lcom/sachinbaria/easyvoice/LangStoreKt;
 Lcom/sachinbaria/easyvoice/ScanYield;
 Lcom/sachinbaria/easyvoice/ScanYield$Companion;
 Lcom/sachinbaria/easyvoice/SettingsPreload;
-Lcom/sachinbaria/easyvoice/SharedPrefsManager;
-Lcom/sachinbaria/easyvoice/SharedPrefsManager$Companion;
 Lcom/sachinbaria/easyvoice/TextChunk;
 Lcom/sachinbaria/easyvoice/UnicodeTables;

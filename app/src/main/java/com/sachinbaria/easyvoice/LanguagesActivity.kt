@@ -58,8 +58,7 @@ class LanguagesActivity : EvActivity() {
         // statics: Android can restore it alone into a fresh process. No-op
         // whenever anything is already loaded -- see LangStore.ensureLoaded.
         LangStore.ensureLoaded(this)
-        val prefs = SharedPrefsManager(this)
-        setContent { EasyVoiceTheme { LanguagesScreen(prefs) } }
+        setContent { EasyVoiceTheme { LanguagesScreen() } }
     }
     override fun onPause() {
         LangStore.persistAll(this)
@@ -204,9 +203,9 @@ private fun LanguageCheckRow(label: String, checked: Boolean, position: Int, onT
     )
 }
 @Composable
-fun LanguagesScreen(prefs: SharedPrefsManager) {
+fun LanguagesScreen() {
     val context = LocalContext.current
-    val readingMode = remember { prefs.getReadingMode() }
+    val readingMode = remember { LangStore.readingMode() }
     if (readingMode == "none" || readingMode == "dual") {
         ResponsiveContent {
             Column(modifier = Modifier.fillMaxWidth()) {

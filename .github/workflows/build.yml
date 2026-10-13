@@ -43,68 +43,36 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v6
         with:
-          java-version: '17'
+          # 21, the JDK Android Studio runs Gradle with and the local checks use.
+          # AGP 9 needs 17 or newer; the app's bytecode target is the build's
+          # compileOptions, not this.
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # DROP THE DEAD `tools` PACKAGE. This input's default is
-          # `tools platform-tools` (the action's own action.yml), and Google has
-          # REMOVED `tools` from the SDK repository -- proven rather than
-          # inferred: repository2-3.xml today contains zero `path="tools"` and
-          # one `path="platform-tools"`. So the action ran `sdkmanager tools`,
-          # got "Warning: Failed to find package 'tools'", exited 1, and took
-          # BOTH jobs down at step 4 before a single line of ours ran. That is
-          # build 876, and build 875 passed on the identical pin five days
-          # earlier -- nothing in this repo changed, the SDK repository did.
-          #
-          # platform-tools stays because the emulator job needs adb. Everything
-          # else this build uses -- the NDK, CMake, build-tools, the platform --
-          # is installed by the next step, which resolves sdkmanager from PATH
-          # and therefore does not care that the runner image has moved
-          # cmdline-tools again (it is 20.0 now, not the 16.0 the v4 bump
-          # predicted).
+          # Command-line tools 23.0 (build 16111833, the current stable). They
+          # carry the Android CLI, `android`, which tools/ci/install-sdk.sh
+          # installs the NDK, CMake and build-tools with; from 23.0 sdkmanager
+          # calls itself deprecated ("'android sdk' is the replacement for
+          # 'sdkmanager'"). The action puts their bin/ on the PATH.
+          cmdline-tools-version: '16111833'
+          # platform-tools only: the emulator jobs need adb. The action's own
+          # default once asked for the `tools` package Google has deleted, which
+          # is what took builds down at this step in run 876.
           packages: platform-tools
 
-      - name: Install NDK and CMake
-        run: |
-          # RESOLVED FROM PATH FIRST, then the absolute path as a fallback.
-          # setup-android v3 puts cmdline-tools under .../latest/ and v4's own
-          # README documents .../16.0/bin on the PATH instead, so hard-coding
-          # "latest" made this step depend on the action's major version. Both
-          # shapes work now, and the fallback keeps the exact old behaviour when
-          # sdkmanager is not on the PATH at all.
-          SDKMANAGER="$(command -v sdkmanager || true)"
-          [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          echo "using sdkmanager: $SDKMANAGER"
-          install_pkgs() {
-            echo "y" | "$SDKMANAGER" \
-              "ndk;30.0.16248370" "cmake;4.1.2" "build-tools;37.0.0" --sdk_root=$ANDROID_HOME
-          }
-          n=0
-          until [ $n -ge 5 ]; do
-            if install_pkgs && [ -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
-              echo "NDK + CMake installed successfully."; break
-            fi
-            n=$((n+1))
-            echo "::warning::NDK/CMake install attempt $n failed (likely corrupt download) — clearing caches and retrying..."
-            rm -rf "$ANDROID_HOME/ndk/30.0.16248370" 2>/dev/null || true
-            rm -rf "$HOME/.android/cache" "$HOME/.cache/Google/AndroidStudio"*/ 2>/dev/null || true
-            sleep $((n * 5))
-          done
-          if [ ! -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
-            echo "::error::NDK install failed after $n retries."; exit 1
-          fi
-          # compileSdk 37 needs the platform. Best effort only: AGP downloads a
-          # missing platform itself, and a bad package name here must never take
-          # the NDK install down with it (that is how run 711 failed).
-          echo "y" | "$SDKMANAGER" \
-            "platforms;android-37" --sdk_root=$ANDROID_HOME \
-            || echo "::warning::platforms;android-37 not available from sdkmanager; letting AGP fetch it"
+      # The versions are the version catalog's (gradle/libs.versions.toml), and the
+      # script fails HERE if a package never lands -- see tools/ci/install-sdk.sh.
+      - name: Install NDK, CMake and build-tools
+        timeout-minutes: 20
+        run: bash tools/ci/install-sdk.sh
+        env:
+          EV_SDK_ATTEMPTS: '5'
 
       # Run 738 sat on this step for 33 minutes -- it normally takes 45 seconds --
       # because a clone hung with no timeout to kill it. Each fetch now gets its
@@ -112,51 +80,21 @@ jobs:
       # of burning the job's 6-hour budget.
       - name: Clone the CLD2 Native Library
         timeout-minutes: 12
-        run: |
-          set -e
-          mkdir -p app/src/main/cpp
-          clone() {
-            url=$1; dir=$2; shift 2
-            n=0
-            until [ $n -ge 3 ]; do
-              rm -rf "$dir"
-              if timeout 240 git clone --depth 1 "$@" "$url" "$dir"; then return 0; fi
-              n=$((n+1)); echo "clone attempt $n failed for $url, retrying"; sleep $((n * 5))
-            done
-            echo "giving up on $url"; return 1
-          }
-          clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+        run: bash tools/ci/clone-cld2.sh
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # 9.8.1 (latest stable, 2026-10-07); AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
-          # release notes), so this is not an independent bump -- the two move
-          # together or the build fails at configuration. It is also not new
-          # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
-          # Gradle was innocent of the accessibility job's dependency failure.
-          gradle-version: '9.8.1'
-          # cache-disabled STAYS TRUE, and it is now a measured decision rather
-          # than an unexamined default (2026-09-10). Enabling it looked like the
-          # biggest remaining lever -- every run re-downloads the whole
-          # buildscript classpath, which is exactly what flaked in build 866 --
-          # until setup-gradle's own docs settled it:
+          # No gradle-version: the build runs the project's own Gradle Wrapper
+          # (./gradlew, through tools/ci/gradle-retry.sh), which pins the Gradle
+          # version and its SHA-256 in gradle/wrapper/gradle-wrapper.properties,
+          # and this action validates the wrapper jar against Gradle's own
+          # published checksums before anything runs.
           #
-          #   "By default, the setup-gradle action will only WRITE to the cache
-          #    for builds run on the default (master/main) branch"
-          #   "cache entries written for a Git branch are not visible from
-          #    actions running against different branches or tags. Entries
-          #    written for the default branch are visible to all."
-          #
-          # Every run of this workflow is a workflow_dispatch on
-          # claude/yaml-file-nk3czh, a FEATURE branch. So it would write nothing
-          # (read-only off the default branch) and find nothing to read (main
-          # never populated one). Turning it on buys a cache-restore attempt that
-          # misses, every run, for ever.
-          #
-          # The transient failure it would have prevented is handled at the
-          # symptom instead, by tools/ci/gradle-retry.sh -- which is the right
-          # place for it here, because the cause cannot be removed on a branch.
+          # cache-disabled STAYS TRUE (measured, 2026-09-10): setup-gradle writes
+          # its cache only on the default branch, and every run here is a
+          # workflow_dispatch on a feature branch, so a cache would never be
+          # written and never be found.
           cache-disabled: true
 
       - name: Restore Keystore
@@ -202,6 +140,21 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
 
+      # THE ANDROID APP BUNDLE, the format Google Play takes (2026-10-13: the
+      # owner is preparing the Play listing, and Play accepts new apps only as
+      # bundles). Its OWN Gradle run, without -PevAbiSplit: AGP cannot shrink
+      # resources for a bundle while ABI splits are on ("Multiple shrunk-
+      # resources files found", measured), and a bundle needs no splits --
+      # Play makes the per-phone APKs from it. The build cache from the step
+      # above is reused, so this costs about three minutes.
+      - name: Build the Play bundle
+        run: bash tools/ci/gradle-retry.sh bundleRelease
+        env:
+          EV_BUILD_NUMBER: ${{ github.run_number }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
+
       # Every build ships the same way: clearly named APKs on the release page.
       # "app-release.apk" collided in the Downloads folder and was hard to tell
       # apart from the mapping artifact.
@@ -227,13 +180,24 @@ jobs:
           cp "$out/app-universal-release.apk"    "EasyVoice-${{ github.run_number }}.apk"
           cp "$out/app-arm64-v8a-release.apk"    "EasyVoice-${{ github.run_number }}-arm64-v8a.apk"
           cp "$out/app-armeabi-v7a-release.apk"  "EasyVoice-${{ github.run_number }}-armeabi-v7a.apk"
-          ls -l EasyVoice-${{ github.run_number }}*.apk
+          cp app/build/outputs/bundle/release/app-release.aab "EasyVoice-${{ github.run_number }}.aab"
+          ls -l EasyVoice-${{ github.run_number }}*.apk EasyVoice-${{ github.run_number }}.aab
 
       # The native library must export only Java_* and JNI_OnLoad; build 945
       # exported 698 libc++ symbols, which kept dead code in every APK. Checked
       # BEFORE publishing so a regression cannot reach the Releases page.
       - name: Check native exports
         run: bash tools/check/native-exports.sh "EasyVoice-${{ github.run_number }}.apk"
+
+      # 16 KB PAGES, NOW IN THE APK ITSELF (2026-10-13). The libraries are stored
+      # uncompressed and mapped straight out of the APK (no legacy packaging), so
+      # a 64-bit library must start on a 16 KB boundary of the FILE as well as
+      # carry 16 KB ELF segments, or Android 16 runs it in compatibility mode and
+      # shows the user a dialog. Checked before publishing.
+      - name: Check 16 KB alignment
+        run: |
+          bash tools/check/native-pagesize.sh "EasyVoice-${{ github.run_number }}.apk"
+          bash tools/check/native-pagesize.sh "EasyVoice-${{ github.run_number }}-arm64-v8a.apk"
 
       # THE EXACT SOURCE OF THIS BUILD, PUBLISHED BESIDE IT (owner, 2026-09-11:
       # "har build ke sath pura jo latest build ka source code hai vah bhi a jana
@@ -302,6 +266,10 @@ jobs:
             code in it -- `arm64-v8a` is the one for any phone from about 2015
             onwards, and it is roughly half the download.
 
+            **EasyVoice-${{ github.run_number }}.aab** is the same build as an
+            Android App Bundle, the file the Google Play Console takes. It is
+            not installed on a phone directly.
+
             **EasyVoice-${{ github.run_number }}-source.zip** is the complete
             source this build was compiled from, taken straight out of the commit
             above. It excludes only `autotts_reference/`, which is a third-party
@@ -312,6 +280,7 @@ jobs:
             EasyVoice-${{ github.run_number }}.apk
             EasyVoice-${{ github.run_number }}-arm64-v8a.apk
             EasyVoice-${{ github.run_number }}-armeabi-v7a.apk
+            EasyVoice-${{ github.run_number }}.aab
             EasyVoice-${{ github.run_number }}-source.zip
           make_latest: true
           fail_on_unmatched_files: true
@@ -331,7 +300,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: easy-voice-apk-${{ github.run_number }}
-          path: EasyVoice-${{ github.run_number }}*.apk
+          path: |
+            EasyVoice-${{ github.run_number }}*.apk
+            EasyVoice-${{ github.run_number }}.aab
           retention-days: 7
           if-no-files-found: error
 
@@ -365,31 +336,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v6
         with:
-          java-version: '17'
+          # 21, the JDK Android Studio runs Gradle with and the local checks use.
+          # AGP 9 needs 17 or newer; the app's bytecode target is the build's
+          # compileOptions, not this.
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # DROP THE DEAD `tools` PACKAGE. This input's default is
-          # `tools platform-tools` (the action's own action.yml), and Google has
-          # REMOVED `tools` from the SDK repository -- proven rather than
-          # inferred: repository2-3.xml today contains zero `path="tools"` and
-          # one `path="platform-tools"`. So the action ran `sdkmanager tools`,
-          # got "Warning: Failed to find package 'tools'", exited 1, and took
-          # BOTH jobs down at step 4 before a single line of ours ran. That is
-          # build 876, and build 875 passed on the identical pin five days
-          # earlier -- nothing in this repo changed, the SDK repository did.
-          #
-          # platform-tools stays because the emulator job needs adb. Everything
-          # else this build uses -- the NDK, CMake, build-tools, the platform --
-          # is installed by the next step, which resolves sdkmanager from PATH
-          # and therefore does not care that the runner image has moved
-          # cmdline-tools again (it is 20.0 now, not the 16.0 the v4 bump
-          # predicted).
+          # Command-line tools 23.0 (build 16111833, the current stable). They
+          # carry the Android CLI, `android`, which tools/ci/install-sdk.sh
+          # installs the NDK, CMake and build-tools with; from 23.0 sdkmanager
+          # calls itself deprecated ("'android sdk' is the replacement for
+          # 'sdkmanager'"). The action puts their bin/ on the PATH.
+          cmdline-tools-version: '16111833'
+          # platform-tools only: the emulator jobs need adb. The action's own
+          # default once asked for the `tools` package Google has deleted, which
+          # is what took builds down at this step in run 876.
           packages: platform-tools
 
       - name: Enable KVM
@@ -452,96 +419,31 @@ jobs:
             echo "::warning::Only ${avail_mb} MB free. The pixel_6 userdata partition alone needs 7373 MB, and the system image and build come out of the same disk. If this run dies in adb, grep the log for FATAL first -- that is what runs 795-797 were."
           fi
 
-      - name: Install NDK and CMake
+      # The versions are the version catalog's (gradle/libs.versions.toml), and the
+      # script fails HERE if a package never lands -- see tools/ci/install-sdk.sh.
+      - name: Install NDK, CMake and build-tools
         timeout-minutes: 20
-        run: |
-          # PATH first, absolute path as the fallback -- the same reason as the
-          # build job's copy: setup-android v4 documents cmdline-tools/16.0/bin
-          # rather than .../latest/, and this step must not depend on which.
-          SDKMANAGER="$(command -v sdkmanager || true)"
-          [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          echo "using sdkmanager: $SDKMANAGER"
-          # THIS STEP USED TO PASS WHEN THE NDK WAS NOT THERE (fixed 2026-09-10).
-          # It looped three times and then simply ended -- no check that the NDK
-          # had actually landed, and no non-zero exit if all three attempts
-          # failed. So a failed or CORRUPT download left this step GREEN and the
-          # real failure surfaced three minutes later, inside the emulator, as an
-          # opaque CMake or Gradle error with nothing pointing back here.
-          #
-          # The build job has always verified the directory and errored. This is
-          # that, byte for byte, including clearing the sdkmanager caches between
-          # attempts -- the build job's comment records that a corrupt download
-          # is the usual reason a retry is needed at all.
-          install_pkgs() {
-            echo "y" | "$SDKMANAGER" \
-              "ndk;30.0.16248370" "cmake;4.1.2" "build-tools;37.0.0" \
-              --sdk_root=$ANDROID_HOME
-          }
-          n=0
-          until [ $n -ge 3 ]; do
-            if install_pkgs && [ -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
-              echo "NDK + CMake installed successfully."; break
-            fi
-            n=$((n+1))
-            echo "::warning::NDK/CMake install attempt $n failed; clearing caches and retrying"
-            rm -rf "$ANDROID_HOME/ndk/30.0.16248370" 2>/dev/null || true
-            rm -rf "$HOME/.android/cache" "$HOME/.cache/Google/AndroidStudio"*/ 2>/dev/null || true
-            sleep $((n * 10))
-          done
-          if [ ! -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
-            echo "::error::NDK install failed after $n retries. Failing HERE rather than letting the emulator step fail three minutes later with an unrelated message."
-            exit 1
-          fi
+        run: bash tools/ci/install-sdk.sh
 
       # The debug APK links the same native core as the release one, so the
       # the CLD2 sources have to be here too.
       - name: Clone the CLD2 Native Library
         timeout-minutes: 12
-        run: |
-          set -e
-          mkdir -p app/src/main/cpp
-          clone() {
-            url=$1; dir=$2; shift 2
-            n=0
-            until [ $n -ge 3 ]; do
-              rm -rf "$dir"
-              if timeout 240 git clone --depth 1 "$@" "$url" "$dir"; then return 0; fi
-              n=$((n+1)); echo "clone attempt $n failed for $url, retrying"; sleep $((n * 5))
-            done
-            echo "giving up on $url"; return 1
-          }
-          clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+        run: bash tools/ci/clone-cld2.sh
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # 9.8.1 (latest stable, 2026-10-07); AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
-          # release notes), so this is not an independent bump -- the two move
-          # together or the build fails at configuration. It is also not new
-          # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
-          # Gradle was innocent of the accessibility job's dependency failure.
-          gradle-version: '9.8.1'
-          # cache-disabled STAYS TRUE, and it is now a measured decision rather
-          # than an unexamined default (2026-09-10). Enabling it looked like the
-          # biggest remaining lever -- every run re-downloads the whole
-          # buildscript classpath, which is exactly what flaked in build 866 --
-          # until setup-gradle's own docs settled it:
+          # No gradle-version: the build runs the project's own Gradle Wrapper
+          # (./gradlew, through tools/ci/gradle-retry.sh), which pins the Gradle
+          # version and its SHA-256 in gradle/wrapper/gradle-wrapper.properties,
+          # and this action validates the wrapper jar against Gradle's own
+          # published checksums before anything runs.
           #
-          #   "By default, the setup-gradle action will only WRITE to the cache
-          #    for builds run on the default (master/main) branch"
-          #   "cache entries written for a Git branch are not visible from
-          #    actions running against different branches or tags. Entries
-          #    written for the default branch are visible to all."
-          #
-          # Every run of this workflow is a workflow_dispatch on
-          # claude/yaml-file-nk3czh, a FEATURE branch. So it would write nothing
-          # (read-only off the default branch) and find nothing to read (main
-          # never populated one). Turning it on buys a cache-restore attempt that
-          # misses, every run, for ever.
-          #
-          # The transient failure it would have prevented is handled at the
-          # symptom instead, by tools/ci/gradle-retry.sh -- which is the right
-          # place for it here, because the cause cannot be removed on a branch.
+          # cache-disabled STAYS TRUE (measured, 2026-09-10): setup-gradle writes
+          # its cache only on the default branch, and every run here is a
+          # workflow_dispatch on a feature branch, so a cache would never be
+          # written and never be found.
           cache-disabled: true
 
       # ANDROID LINT, AS A GATE (owner, 2026-10-08: "library ke rule ke hisab se").
@@ -623,31 +525,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v6
         with:
-          java-version: '17'
+          # 21, the JDK Android Studio runs Gradle with and the local checks use.
+          # AGP 9 needs 17 or newer; the app's bytecode target is the build's
+          # compileOptions, not this.
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # DROP THE DEAD `tools` PACKAGE. This input's default is
-          # `tools platform-tools` (the action's own action.yml), and Google has
-          # REMOVED `tools` from the SDK repository -- proven rather than
-          # inferred: repository2-3.xml today contains zero `path="tools"` and
-          # one `path="platform-tools"`. So the action ran `sdkmanager tools`,
-          # got "Warning: Failed to find package 'tools'", exited 1, and took
-          # BOTH jobs down at step 4 before a single line of ours ran. That is
-          # build 876, and build 875 passed on the identical pin five days
-          # earlier -- nothing in this repo changed, the SDK repository did.
-          #
-          # platform-tools stays because the emulator job needs adb. Everything
-          # else this build uses -- the NDK, CMake, build-tools, the platform --
-          # is installed by the next step, which resolves sdkmanager from PATH
-          # and therefore does not care that the runner image has moved
-          # cmdline-tools again (it is 20.0 now, not the 16.0 the v4 bump
-          # predicted).
+          # Command-line tools 23.0 (build 16111833, the current stable). They
+          # carry the Android CLI, `android`, which tools/ci/install-sdk.sh
+          # installs the NDK, CMake and build-tools with; from 23.0 sdkmanager
+          # calls itself deprecated ("'android sdk' is the replacement for
+          # 'sdkmanager'"). The action puts their bin/ on the PATH.
+          cmdline-tools-version: '16111833'
+          # platform-tools only: the emulator jobs need adb. The action's own
+          # default once asked for the `tools` package Google has deleted, which
+          # is what took builds down at this step in run 876.
           packages: platform-tools
 
       - name: Enable KVM
@@ -710,96 +608,31 @@ jobs:
             echo "::warning::Only ${avail_mb} MB free. The pixel_6 userdata partition alone needs 7373 MB, and the system image and build come out of the same disk. If this run dies in adb, grep the log for FATAL first -- that is what runs 795-797 were."
           fi
 
-      - name: Install NDK and CMake
+      # The versions are the version catalog's (gradle/libs.versions.toml), and the
+      # script fails HERE if a package never lands -- see tools/ci/install-sdk.sh.
+      - name: Install NDK, CMake and build-tools
         timeout-minutes: 20
-        run: |
-          # PATH first, absolute path as the fallback -- the same reason as the
-          # build job's copy: setup-android v4 documents cmdline-tools/16.0/bin
-          # rather than .../latest/, and this step must not depend on which.
-          SDKMANAGER="$(command -v sdkmanager || true)"
-          [ -n "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          echo "using sdkmanager: $SDKMANAGER"
-          # THIS STEP USED TO PASS WHEN THE NDK WAS NOT THERE (fixed 2026-09-10).
-          # It looped three times and then simply ended -- no check that the NDK
-          # had actually landed, and no non-zero exit if all three attempts
-          # failed. So a failed or CORRUPT download left this step GREEN and the
-          # real failure surfaced three minutes later, inside the emulator, as an
-          # opaque CMake or Gradle error with nothing pointing back here.
-          #
-          # The build job has always verified the directory and errored. This is
-          # that, byte for byte, including clearing the sdkmanager caches between
-          # attempts -- the build job's comment records that a corrupt download
-          # is the usual reason a retry is needed at all.
-          install_pkgs() {
-            echo "y" | "$SDKMANAGER" \
-              "ndk;30.0.16248370" "cmake;4.1.2" "build-tools;37.0.0" \
-              --sdk_root=$ANDROID_HOME
-          }
-          n=0
-          until [ $n -ge 3 ]; do
-            if install_pkgs && [ -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
-              echo "NDK + CMake installed successfully."; break
-            fi
-            n=$((n+1))
-            echo "::warning::NDK/CMake install attempt $n failed; clearing caches and retrying"
-            rm -rf "$ANDROID_HOME/ndk/30.0.16248370" 2>/dev/null || true
-            rm -rf "$HOME/.android/cache" "$HOME/.cache/Google/AndroidStudio"*/ 2>/dev/null || true
-            sleep $((n * 10))
-          done
-          if [ ! -d "$ANDROID_HOME/ndk/30.0.16248370" ]; then
-            echo "::error::NDK install failed after $n retries. Failing HERE rather than letting the emulator step fail three minutes later with an unrelated message."
-            exit 1
-          fi
+        run: bash tools/ci/install-sdk.sh
 
       # The debug APK links the same native core as the release one, so the
       # the CLD2 sources have to be here too.
       - name: Clone the CLD2 Native Library
         timeout-minutes: 12
-        run: |
-          set -e
-          mkdir -p app/src/main/cpp
-          clone() {
-            url=$1; dir=$2; shift 2
-            n=0
-            until [ $n -ge 3 ]; do
-              rm -rf "$dir"
-              if timeout 240 git clone --depth 1 "$@" "$url" "$dir"; then return 0; fi
-              n=$((n+1)); echo "clone attempt $n failed for $url, retrying"; sleep $((n * 5))
-            done
-            echo "giving up on $url"; return 1
-          }
-          clone https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
+        run: bash tools/ci/clone-cld2.sh
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # 9.8.1 (latest stable, 2026-10-07); AGP 9.4 requires Gradle 9.6.0 as a MINIMUM (its own
-          # release notes), so this is not an independent bump -- the two move
-          # together or the build fails at configuration. It is also not new
-          # ground: builds 849-857 ran on 9.7.1, and build 857 is what proved
-          # Gradle was innocent of the accessibility job's dependency failure.
-          gradle-version: '9.8.1'
-          # cache-disabled STAYS TRUE, and it is now a measured decision rather
-          # than an unexamined default (2026-09-10). Enabling it looked like the
-          # biggest remaining lever -- every run re-downloads the whole
-          # buildscript classpath, which is exactly what flaked in build 866 --
-          # until setup-gradle's own docs settled it:
+          # No gradle-version: the build runs the project's own Gradle Wrapper
+          # (./gradlew, through tools/ci/gradle-retry.sh), which pins the Gradle
+          # version and its SHA-256 in gradle/wrapper/gradle-wrapper.properties,
+          # and this action validates the wrapper jar against Gradle's own
+          # published checksums before anything runs.
           #
-          #   "By default, the setup-gradle action will only WRITE to the cache
-          #    for builds run on the default (master/main) branch"
-          #   "cache entries written for a Git branch are not visible from
-          #    actions running against different branches or tags. Entries
-          #    written for the default branch are visible to all."
-          #
-          # Every run of this workflow is a workflow_dispatch on
-          # claude/yaml-file-nk3czh, a FEATURE branch. So it would write nothing
-          # (read-only off the default branch) and find nothing to read (main
-          # never populated one). Turning it on buys a cache-restore attempt that
-          # misses, every run, for ever.
-          #
-          # The transient failure it would have prevented is handled at the
-          # symptom instead, by tools/ci/gradle-retry.sh -- which is the right
-          # place for it here, because the cause cannot be removed on a branch.
+          # cache-disabled STAYS TRUE (measured, 2026-09-10): setup-gradle writes
+          # its cache only on the default branch, and every run here is a
+          # workflow_dispatch on a feature branch, so a cache would never be
+          # written and never be found.
           cache-disabled: true
 
       - name: Restore Keystore

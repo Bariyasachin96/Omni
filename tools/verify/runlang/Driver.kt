@@ -1,7 +1,9 @@
 
 // ---- hand-written driver; everything above is lifted verbatim ----
 class DetectedRun(val lang: String, val latin: Boolean, val text: String)
-class P { fun toIso3(s: String): String = IsoCodes.toIso3(s) ?: s }
+// The old code converted through its prefs object, the new through IsoCodes.kt's
+// iso3OfCode (2026-10-08); both sides get the REAL function.
+class P { fun toIso3(s: String): String = iso3OfCode(s) }
 object LangStore {
     var engines: Map<String, String> = emptyMap()
     val calls = ArrayList<String>()

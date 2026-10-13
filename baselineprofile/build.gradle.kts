@@ -7,8 +7,8 @@
 // container) and writes app/src/main/generated/baselineProfiles/, which the
 // release build compiles ahead of time on install and uses for dex layout.
 plugins {
-    id("com.android.test")
-    id("androidx.baselineprofile")
+    alias(libs.plugins.android.test)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 android {
     namespace = "com.sachinbaria.easyvoice.baselineprofile"
@@ -23,9 +23,9 @@ android {
     targetProjectPath = ":app"
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 }
+// The JVM target follows compileOptions (AGP 9's built-in Kotlin), as in :app.
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         allWarningsAsErrors.set(true)
     }
 }
@@ -33,7 +33,7 @@ kotlin {
 // running, and a managed device would download a second system image.
 baselineProfile { useConnectedDevices = true }
 dependencies {
-    implementation("androidx.test.ext:junit:1.3.0")
-    implementation("androidx.test.uiautomator:uiautomator:2.4.0")
-    implementation("androidx.benchmark:benchmark-macro-junit4:1.5.0")
+    implementation(libs.androidx.test.ext.junit)
+    implementation(libs.androidx.test.uiautomator)
+    implementation(libs.androidx.benchmark.macro.junit4)
 }

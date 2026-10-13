@@ -1,16 +1,16 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
     // Consumes the profile :baselineprofile generates on a device; see that
     // module. Generation is never part of an ordinary build: CI's
     // baseline-profile job runs :app:generateBaselineProfile on its emulator
     // and the build job drops the result into src/main/generated/baselineProfiles.
-    id("androidx.baselineprofile")
+    alias(libs.plugins.androidx.baselineprofile)
 }
 android {
     namespace = "com.sachinbaria.easyvoice"
     compileSdk = 37
-    ndkVersion = "30.0.16248370"
+    ndkVersion = libs.versions.ndk.get()
     defaultConfig {
         applicationId = "com.sachinbaria.easyvoice"
         // minSdk STAYS 24. It is the oldest Android this app will install on,
@@ -147,7 +147,7 @@ android {
             }
         }
     }
-    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "4.1.2" } }
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = libs.versions.cmake.get() } }
     signingConfigs {
         create("release") {
             storeFile = rootProject.file("easyvoice-release.keystore")
@@ -177,9 +177,19 @@ android {
     // buildConfig: the About screen reads BuildConfig.VERSION_NAME instead of
     // asking PackageManager for the app's own version at run time.
     buildFeatures { compose = true; buildConfig = true }
+    // NATIVE LIBRARIES THE CURRENT WAY, NOT THE LEGACY ONE (owner, 2026-10-08:
+    // "kuchh bhi purana nahin rakhna"). `jniLibs.useLegacyPackaging = true` --
+    // AGP's own name for it -- compressed the library inside the APK and had
+    // Android EXTRACT it to the phone's storage on install, so the phone kept it
+    // twice. AGP's default for minSdk 23+ stores it uncompressed and 16 KB
+    // aligned and Android maps it straight out of the APK: the app takes about
+    // the library's size less space on the phone (it is 95% CLD2 tables, so
+    // that is several MB), installs without unpacking, and Google Play can serve
+    // it the same way from the bundle. The cost is a larger APK FILE when it is
+    // downloaded outside Play, measured and stated in CLAUDE.md.
+    // tools/check/native-pagesize.sh checks the 16 KB placement in the APK.
     packaging {
         resources { excludes.add("**/libc++_shared.so") }
-        jniLibs { useLegacyPackaging = true }
     }
     // ANDROID LINT IS A GATE (owner, 2026-10-08: "library ke rule ke hisab se").
     // Lint is Android's own rule book plus the checks each AndroidX library ships
@@ -197,16 +207,15 @@ android {
         abortOnError = true
     }
 }
-// THE KOTLIN COMPILER, STATED (2026-09-24). Nothing set it before: the JVM
-// target was whatever AGP derived from compileOptions (17, read off the class
-// files), and a warning passed the CI build and was caught only by
-// tools/check/gradle-compile.sh on a machine that ran it. The target is written
-// here beside compileOptions so the two cannot drift, and any compiler warning
-// in app or androidTest code now fails the build itself -- the code stands at
-// zero warnings, so this changes nothing today and stops the next one.
+// THE KOTLIN COMPILER (2026-09-24, 2026-10-08). Any compiler warning in app or
+// androidTest code fails the build itself -- the code stands at zero warnings,
+// so this changes nothing today and stops the next one. The JVM target is NOT
+// set here: with AGP 9's built-in Kotlin it is compileOptions.targetCompatibility
+// by definition ("you don't need to set kotlin.compilerOptions.jvmTarget",
+// developer.android.com/build/migrate-to-built-in-kotlin), so the two cannot
+// drift and stating it a second time would only be a second place to forget.
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         allWarningsAsErrors.set(true)
     }
 }
@@ -244,25 +253,24 @@ baselineProfile {
 }
 dependencies {
     baselineProfile(project(":baselineprofile"))
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
-    // Latest stable, checked against the androidx release notes on 2026-08-27.
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     // core-ktx is what NotificationCompat, ServiceCompat and FileProvider come
     // from, so it is the one that actually earns its place.
-    implementation("androidx.core:core-ktx:1.19.1")
+    implementation(libs.androidx.core.ktx)
     // lifecycle and coroutines are declared but not imported directly anywhere:
     // Compose and activity-compose pull both in, and Gradle resolves to the
     // highest, so the old 2.7.0 / 1.7.3 pins were already inert. Declared at
     // current stable rather than removed, so the resolved versions are stated
     // in one place instead of being whatever the transitive graph settles on.
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation(libs.androidx.lifecycle.runtime.ktx)
     // ProcessLifecycleOwner: "is any of the app's screens showing?" for the whole
     // process. The service's background engine scan waits for the screens to
     // close (the Languages screen's rows must not move under it). It was already
     // in the APK -- emoji2 pulls it in at runtime and androidx.startup's
     // InitializationProvider starts it -- and is declared now that the app calls it.
-    implementation("androidx.lifecycle:lifecycle-process:2.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.activity.compose)
     // The app-opening splash. From API 31 the platform shows one for every app
     // whether we ask or not, built from the launcher icon and windowBackground;
     // this library backports the same thing to API 23 and gives one theme that
@@ -279,19 +287,19 @@ dependencies {
     // androidx.appcompat:appcompat-resources:1.7.0 -- a 64 KB aar, and the first
     // AppCompat artifact in this project. That is the whole price, and the owner
     // has taken it knowingly in exchange for being current.
-    implementation("androidx.core:core-splashscreen:1.2.0")
+    implementation(libs.androidx.core.splashscreen)
     // Settings storage (owner, 2026-10-07): Jetpack DataStore, used directly --
-    // the store and its migration are declared at the top of LangStore.kt.
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
+    // the store is declared at the top of LangStore.kt.
+    implementation(libs.androidx.datastore.preferences)
     // App Startup: runs SettingsPreload (LangStore.kt) as the process starts.
     // It was already in the APK (emoji2, lifecycle-process, profileinstaller
     // use it) and is declared now that the app implements an Initializer.
-    implementation("androidx.startup:startup-runtime:1.2.0")
+    implementation(libs.androidx.startup.runtime)
     // Installs the ART profile (app/src/main/baseline-prof.txt plus the libraries'
     // own) on sideloaded installs too, where Play's cloud profiles never arrive --
     // which is how this app is installed. It was already in the graph through
     // Compose; declared so the profile does not depend on that.
-    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+    implementation(libs.androidx.profileinstaller)
     // ALIGNS THE APP WITH THE androidTest CLASSPATH -- one of the two halves of
     // the accessibility job's old dependency failure. The app used to resolve
     // concurrent-futures 1.1.0 (via profileinstaller) while androidx.test:core
@@ -306,12 +314,12 @@ dependencies {
     // concurrent-futures-ktx to 1.3.0, so the test side moves with it. Its
     // runtime needs are annotation 1.8.1, listenablefuture 1.0 and jspecify --
     // nothing the app does not already carry.
-    implementation("androidx.concurrent:concurrent-futures:1.3.0")
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
+    implementation(libs.androidx.concurrent.futures)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.material3)
     // Window size classes. This is the library the adaptive guidance is written
     // against -- currentWindowAdaptiveInfoV2() and the WindowSizeClass
     // breakpoints -- and it is NOT in the Compose BOM, which is why it carries
@@ -320,7 +328,7 @@ dependencies {
     //
     // Only the `adaptive` artifact: adaptive-layout and adaptive-navigation are
     // the pane scaffolds, and we deliberately have no two-pane layout.
-    implementation("androidx.compose.material3.adaptive:adaptive:1.3.0")
+    implementation(libs.androidx.compose.material3.adaptive)
 
     // THE LIBRARIES NOTHING HERE DECLARES, RAISED TO THEIR LATEST STABLE (owner,
     // 2026-09-23: "baki aur bhi chijen jo hogi vah bhi update kar do ... properly
@@ -345,7 +353,7 @@ dependencies {
     // raising the app to the newest stable is also what keeps a test library
     // from ever asking for more than the app has.
     //
-    // androidx.tracing IS ON 2.0.2, A MAJOR VERSION, AND THAT WAS CHECKED BEFORE
+    // androidx.tracing IS ON 2.x, A MAJOR VERSION, AND THAT WAS CHECKED BEFORE
     // IT WENT IN (owner, 2026-09-23: "jo nahin kiya hai vah bhi update kar hi
     // lo"). A major version may break the 1.x callers inside startup-runtime and
     // androidx.test, so the two jars were compared with javap: androidx.tracing.
@@ -357,28 +365,26 @@ dependencies {
     // window, vectordrawable), the library's own constraints bring the rest of
     // the family to the same version.
     constraints {
-        implementation("androidx.annotation:annotation-experimental:1.6.0")
-        implementation("androidx.appcompat:appcompat-resources:1.8.0")
-        implementation("androidx.autofill:autofill:1.3.0")
-        implementation("androidx.collection:collection:1.7.0")
-        implementation("androidx.customview:customview-poolingcontainer:1.1.0")
-        implementation("androidx.emoji2:emoji2:1.7.0")
-        implementation("androidx.graphics:graphics-path:1.1.0")
-        implementation("androidx.navigationevent:navigationevent:1.2.0")
-        implementation("androidx.navigationevent:navigationevent-compose:1.2.0")
-        implementation("androidx.profileinstaller:profileinstaller:1.4.1")
-        implementation("androidx.savedstate:savedstate:1.5.0")
-        implementation("androidx.savedstate:savedstate-compose:1.5.0")
-        implementation("androidx.savedstate:savedstate-ktx:1.5.0")
-        implementation("androidx.startup:startup-runtime:1.2.0")
-        implementation("androidx.tracing:tracing:2.0.3")
-        implementation("androidx.vectordrawable:vectordrawable:1.2.0")
-        implementation("androidx.vectordrawable:vectordrawable-animated:1.2.0")
-        implementation("androidx.versionedparcelable:versionedparcelable:1.2.1")
-        implementation("androidx.window:window:1.5.1")
-        implementation("androidx.window:window-core:1.5.1")
-        implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
-        implementation("org.jspecify:jspecify:1.0.1")
+        implementation(libs.androidx.annotation.experimental)
+        implementation(libs.androidx.appcompat.resources)
+        implementation(libs.androidx.autofill)
+        implementation(libs.androidx.collection)
+        implementation(libs.androidx.customview.poolingcontainer)
+        implementation(libs.androidx.emoji2)
+        implementation(libs.androidx.graphics.path)
+        implementation(libs.androidx.navigationevent)
+        implementation(libs.androidx.navigationevent.compose)
+        implementation(libs.androidx.savedstate)
+        implementation(libs.androidx.savedstate.compose)
+        implementation(libs.androidx.savedstate.ktx)
+        implementation(libs.androidx.tracing)
+        implementation(libs.androidx.vectordrawable)
+        implementation(libs.androidx.vectordrawable.animated)
+        implementation(libs.androidx.versionedparcelable)
+        implementation(libs.androidx.window)
+        implementation(libs.androidx.window.core)
+        implementation(libs.kotlinx.serialization.core)
+        implementation(libs.jspecify)
     }
 
     // Accessibility checks, run against the real screens on a real emulator.
@@ -404,12 +410,12 @@ dependencies {
     // here -- every component this app argues with in CLAUDE.md
     // (ExposedDropdownMenuBox and its OptIn, PrimaryTabRow, FilterChip, Slider's
     // sliderSemantics) is material3, and material3 does not move.
-    androidTestImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4-accessibility")
-    androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4.accessibility)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     // Supplies the empty activity createAndroidComposeRule<ComponentActivity>()
     // launches; debug-only, so it never reaches the release APK.
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

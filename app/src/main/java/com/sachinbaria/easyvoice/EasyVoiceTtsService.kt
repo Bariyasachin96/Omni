@@ -25,6 +25,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.core.content.getSystemService
 import androidx.core.text.getSpans
 import androidx.core.text.toSpannable
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null) {
     // toIso3(lang) worked out once per chunk (owner, 2026-10-06): the prefetch,
@@ -37,7 +38,7 @@ data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, 
         val l = lang
         val memo = iso3Memo
         if (memo != null && memo.first == l) return memo.second
-        return SharedPrefsManager.toIso3Cached(l).also { iso3Memo = Pair(l, it) }
+        return iso3OfCode(l).also { iso3Memo = Pair(l, it) }
     }
 }
 class EasyVoiceTtsService : TextToSpeechService() {
@@ -123,7 +124,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
         } catch (_: Throwable) { anyStarting = true }
         if (!anyStarting) return
-        val rawPkg = try { LangStore.engineFor(prefs.toIso3(langCode.lowercase()), modeInt) } catch (_: Throwable) { "" }
+        val rawPkg = try { LangStore.engineFor(iso3OfCode(langCode.lowercase()), modeInt) } catch (_: Throwable) { "" }
         if (rawPkg.isEmpty() || rawPkg.equals("disable", true)) return
         val norm = normPkg(rawPkg)
         val generation = synthesisGeneration
@@ -149,7 +150,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
     }
     private val keepAliveLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
     @Volatile var engineIndex = -1
-    private lateinit var prefs: SharedPrefsManager
     // java.lang.Object on purpose: wait() and notifyAll() are ITS methods and
     // kotlin.Any does not expose them, so this is the one place the compiler's
     // "use kotlin.Any" advice does not apply.
@@ -261,8 +261,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // `appCtx` USED TO SIT HERE AND IT LEAKED THE WHOLE SERVICE (2026-09-10).
     // It was `lateinit var appCtx: Context`, assigned `appCtx = this` on the
     // first line of onCreate, and read by NOTHING -- swept for readers across
-    // the whole app and there are none (SharedPrefsManager's `appCtx` is a
-    // different, private, instance field).
+    // the whole app and there are none.
     //
     // It is the vestige of AutoTTS's `this.h = this`, and the difference is the
     // whole defect: AutoTTS's `h` is an INSTANCE field, so it dies with the
@@ -586,7 +585,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
 
     // ==========================================================================
     //  LIFECYCLE
-    //  onCreate is ordering-critical: context, logger, prefs and the logging flag
+    //  onCreate is ordering-critical: context, logger and the logging flag
     //  come BEFORE super.onCreate(), and the language sets are pushed only after
     //  loadAllSettings has filled them.
     // ==========================================================================
@@ -595,11 +594,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // Which installed engine is the phone's built-in one, and which are ours,
         // are asked of the package manager -- see EngineFinder.attach.
         try { EngineFinder.attach(this) } catch (_: Throwable) {}
-        prefs = SharedPrefsManager(this)
         ScanYield.speechInFlight = { synthesizingNow }
         // Guarded like every step below (2026-10-08): this is the process's first
         // settings read, and before DataStore that read could not throw.
-        try { EasyVoiceLogger.setLoggingEnabled(prefs.isLoggingEnabled()) }
+        try { EasyVoiceLogger.setLoggingEnabled(LangStore.loggingEnabled(this)) }
         catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "reading the logging flag failed: " + ex.toString()) }
         // AutoTtsService.onCreate opens with c3.a0.c/c3.a0.b, so every log a
         // user shares names the build it came from -- "Unknown" and -1 are the
@@ -689,7 +687,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun logRecentExits() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !EasyVoiceLogger.isLoggingEnabled()) return
         val app = applicationContext
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        backgroundWork.launch {
             try { logRecentExits30(app) }
             catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "exit reasons failed: " + ex.toString()) }
         }
@@ -697,8 +695,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
     private fun logRecentExits30(app: Context) {
         val manager = app.getSystemService<android.app.ActivityManager>() ?: return
-        val key = androidx.datastore.preferences.core.longPreferencesKey("last_exit_logged")
-        val seen = LangStore.prefs(app)[key] ?: 0L
+        val seen = LangStore.lastExitLogged(app)
         var newest = seen
         // Newest first from the platform; written oldest first.
         for (info in manager.getHistoricalProcessExitReasons(app.packageName, 0, 5).reversed()) {
@@ -706,8 +703,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Earlier process ended: $info" }
             if (info.timestamp > newest) newest = info.timestamp
         }
-        if (newest > seen) LangStore.writeLater(app) { it[key] = newest }
+        if (newest > seen) LangStore.persistLastExitLogged(app, newest)
     }
+    // THE SERVICE'S OWN BACKGROUND WORK HAS A SCOPE THAT ENDS WITH IT (2026-10-13).
+    // A throwaway CoroutineScope(...).launch belongs to nothing -- it is the
+    // GlobalScope pattern kotlinx.coroutines warns about, outliving the service
+    // that started it. This one is cancelled in onDestroy (structured
+    // concurrency). SupervisorJob: one failed job does not cancel the others.
+    private val backgroundWork = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     // THE VERSION IN THAT LOG LINE COMES FROM THE BUILD (2026-09-24). It used to be
     // c3.a0.a/b/c ported: ask PackageManager for our OWN PackageInfo -- a binder
     // call, and an API-33 branch for PackageInfoFlags -- with "Unknown" / -1 for
@@ -2487,26 +2491,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "loadLanguage " + langCode + " " + countryCode + " " + variantName }
             val logging = EasyVoiceLogger.isLoggingEnabled()
             val plan = if (logging) null else LangStore.loadPlan(langCode ?: "",
-                if (langCode.isNullOrEmpty()) "" else prefs.toIso3(langCode.lowercase()), modeInt)
+                if (langCode.isNullOrEmpty()) "" else iso3OfCode(langCode.lowercase()), modeInt)
             if (needEngine && plan != null && plan.rawEngine.isEmpty()) return@synchronized null
             val result = if (plan == null) onIsLanguageAvailable(langCode, countryCode, variantName)
                 else if (calledFromOwnClient("onIsLanguageAvailable")) TextToSpeech.LANG_NOT_SUPPORTED
                 else if (plan.available) TextToSpeech.LANG_AVAILABLE else TextToSpeech.LANG_NOT_SUPPORTED
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " isLanguageAvailable = " + result }
-            // There used to be a `&& ::prefs.isInitialized` here. It was ours, not
-            // AutoTTS's, and it could only ever do harm: if it had been false this
-            // method would have reported the language available and loaded no voice
-            // at all, silently. It also cannot be false. AOSP's own
+            // No "is the service set up yet" guard here, and there must not be one:
+            // if it were ever false this method would report the language
+            // available and load no voice at all, silently. AOSP's own
             // TextToSpeechService.onCreate ENDS with
             //     onLoadLanguage(defaultLocale[0], defaultLocale[1], defaultLocale[2]);
-            // so the earliest possible call is our own `super.onCreate()`, six lines
-            // after `prefs` is assigned, and no binder call can arrive before
-            // onCreate returns. AutoTTS's onCreate has the same shape -- logger,
-            // version log, super.onCreate(), and only then e0()/n.o()/n.q().
+            // so the earliest possible call is our own `super.onCreate()`, after
+            // the logger and the logging flag, and no binder call can arrive
+            // before onCreate returns. AutoTTS's onCreate has the same shape --
+            // logger, version log, super.onCreate(), and only then e0()/n.o()/n.q().
             if ((result == TextToSpeech.LANG_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE) && !langCode.isNullOrEmpty()) {
-                val lang = prefs.toIso3(langCode.lowercase())
+                val lang = iso3OfCode(langCode.lowercase())
                 val variantOrEmpty = variantName ?: ""
-                val autoIso3 = prefs.toIso3(autoLang)
+                val autoIso3 = iso3OfCode(autoLang)
                 var voiceLoc: String
                 var enginePkg: String
                 val variantOut: String
@@ -3079,13 +3082,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
         synchronized(this) {
             if (!voiceList.isEmpty()) return
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "LoadVoices" }
-            val sharedPrefs = LangStore.prefs(this)
+            val stored = LangStore.prefs(this)
             var index = 0
             while (true) {
-                val voice = sharedPrefs[stringPreferencesKey("voice_$index")] ?: ""
+                val voice = stored[stringPreferencesKey("voice_$index")] ?: ""
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " -" + voice }
                 if (voice.isEmpty()) {
-                    dedicatedEnginesFlag = sharedPrefs[booleanPreferencesKey("dedicated_engines")] ?: false
+                    dedicatedEnginesFlag = stored[booleanPreferencesKey("dedicated_engines")] ?: false
                     return
                 }
                 voiceList.add(voice)
@@ -3225,7 +3228,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun isLatinCommonInherited(codePoint: Int): Boolean = UnicodeTables.isLatinCommonInherited(codePoint)
 
     // A detected run's final iso3, as the mix and multilingual loops add it:
-    // prefs.toIso3(languageForDetectedRun(...)). The answer depends only on the
+    // iso3OfCode(languageForDetectedRun(...)). The answer depends only on the
     // run's language and latin flag within one utterance, so with a `memo` it is
     // worked out once per (language, latin) instead of once per run -- each
     // time an ISO conversion and a walk of the language list (owner,
@@ -3234,15 +3237,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // (owner, 2026-10-07): the key is the language itself, no string is joined.
     private class RunLangMemo { val latin = HashMap<String, String>(); val nonLatin = HashMap<String, String>() }
     private fun detectedLangOf(lang: String, latin: Boolean, latinFallback: String, nonLatinFallback: String, memo: RunLangMemo?): String {
-        if (memo == null) return prefs.toIso3(languageForDetectedRun(lang, latin, latinFallback, nonLatinFallback))
+        if (memo == null) return iso3OfCode(languageForDetectedRun(lang, latin, latinFallback, nonLatinFallback))
         return (if (latin) memo.latin else memo.nonLatin).getOrPut(lang) {
-            prefs.toIso3(languageForDetectedRun(lang, latin, latinFallback, nonLatinFallback))
+            iso3OfCode(languageForDetectedRun(lang, latin, latinFallback, nonLatinFallback))
         }
     }
     private fun languageForDetectedRun(lang: String, latin: Boolean, latinFallback: String, nonLatinFallback: String): String {
         val byScript = if (latin) latinFallback else nonLatinFallback
         var resolved = IsoCodes.toIso3(lang) ?: byScript
-        val enginePkg = LangStore.engineFor(prefs.toIso3(resolved), modeInt)
+        val enginePkg = LangStore.engineFor(iso3OfCode(resolved), modeInt)
         if (enginePkg.isEmpty() || enginePkg == "Disable") resolved = byScript
         return resolved
     }
@@ -3261,23 +3264,20 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  synthesis path. INVARIANTS #4 -- prefs hold what was last persisted, the
     //  statics hold what the user has just chosen.
     // ==========================================================================
-    // ONE SNAPSHOT PER LOADER (2026-10-08). The flags used to come through
-    // sixteen SharedPrefsManager readers, each a blocking DataStore read of its
-    // own on the service's cold start; they are LangStore's loaders now -- the
-    // same functions the screens load with (ensureLoaded), same keys, same
-    // defaults, read from one snapshot each. The mode languages keep their
-    // "only if this process has not loaded them" guard (autoLang), so a screen's
-    // live, not yet persisted choice is never reloaded over; the mode and the
-    // flags are reloaded, as they always were here.
+    // ONE SNAPSHOT PER LOADER (2026-10-08): LangStore's loaders -- the same
+    // functions the screens load with (ensureLoaded), same keys, same defaults,
+    // read from one snapshot each. The mode languages keep their "only if this
+    // process has not loaded them" guard (autoLang), so a screen's live, not yet
+    // persisted choice is never reloaded over; the mode and the flags are
+    // reloaded, as they always were here.
     private fun loadAllSettings() {
-        LangStore.migrateLegacyScannedLangs(applicationContext)
         buildEngineList()
         loadVoiceList()
         synchronized(this) { LangStore.loadLanguages(applicationContext) }
         languagesLoaded = true
         if (autoLang.isEmpty()) LangStore.loadModeLangs(applicationContext)
         LangStore.loadMode(applicationContext)
-        // applyAdvancedDetectionDefault and the Backup TTS set are inside it.
+        // The Backup TTS set is inside it.
         LangStore.loadFlags(applicationContext)
     }
     // c3.n.e and c3.n.d, which both accept null: "zxx" and "" respectively.
@@ -3690,11 +3690,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
             "mix" -> {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Mixed mode" }
                 val localeChunks = splitByLocaleSpans(rawCharSeq, rawText)
-                val neutralType = if (localeIso3() == prefs.toIso3(nonLatinFallback)) 2 else 1
+                val neutralType = if (localeIso3() == iso3OfCode(nonLatinFallback)) 2 else 1
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
                 val disableAdvancedDetection = disableAdvancedFlag
                 val quick = quickCharacterFlag
-                val autoModeF = prefs.toIso3(autoLang)
+                val autoModeF = iso3OfCode(autoLang)
                 val runLangMemo = if (EasyVoiceLogger.isLoggingEnabled()) null else RunLangMemo()
                 // The three specific languages are the same for every span of
                 // this utterance; converted once, not once per span.
@@ -3728,7 +3728,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                                 // non-Latin run and is detected together with it.
                                 val spanMixType = fieldInt(chunkOutput[at]) ?: 0
                                 if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {
-                                    chunks.add(TextChunk(chunkOutput[at + 3], prefs.toIso3(normalizeLangCode(chunkOutput[at + 2]))))
+                                    chunks.add(TextChunk(chunkOutput[at + 3], iso3OfCode(normalizeLangCode(chunkOutput[at + 2]))))
                                 } else {
                                     forEachDetectedRun(chunkOutput, at, n, quick) { lang, latin, text ->
                                         chunks.add(TextChunk(text, detectedLangOf(lang, latin, latinFallback, nonLatinFallback, runLangMemo)))
@@ -3739,7 +3739,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     }
                 }
                 if (chunks.isNotEmpty()) {
-                    val firstLang = prefs.toIso3(chunks[0].lang)
+                    val firstLang = iso3OfCode(chunks[0].lang)
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "language: " + firstLang }
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "engine: " + LangStore.engineFor(firstLang, modeInt) }
                     if (!preflightLanguage(firstLang)) {
@@ -3761,7 +3761,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             "multilingual" -> {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Multilingual mode" }
                 val localeChunks = splitByLocaleSpans(rawCharSeq, rawText)
-                val neutralType = if (localeIso3() == prefs.toIso3(nonLatinFallback)) 2 else 1
+                val neutralType = if (localeIso3() == iso3OfCode(nonLatinFallback)) 2 else 1
                 val neutralDefault = requestedLang.ifEmpty { latinFallback }
                 val disableAdvancedDetection = disableAdvancedFlag
                 val quick = quickCharacterFlag
@@ -3788,7 +3788,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             // Same branch as mixed above, and for the same reason.
                             val spanMixType = fieldInt(chunkOutput[at]) ?: 0
                             if (spanMixType == 3 || spanMixType == 4 || spanMixType == 5) {
-                                chunks.add(TextChunk(chunkOutput[at + 3], prefs.toIso3(normalizeLangCode(chunkOutput[at + 2]))))
+                                chunks.add(TextChunk(chunkOutput[at + 3], iso3OfCode(normalizeLangCode(chunkOutput[at + 2]))))
                             } else {
                                 forEachDetectedRun(chunkOutput, at, n, quick) { lang, latin, text ->
                                     chunks.add(TextChunk(text, detectedLangOf(lang, latin, latinFallback, nonLatinFallback, runLangMemo)))
@@ -3816,7 +3816,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             "dual" -> {
                 run {
                     EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Dual mode" }
-                    val neutralType = if (localeIso3() == prefs.toIso3(dualLang)) 2 else 1
+                    val neutralType = if (localeIso3() == iso3OfCode(dualLang)) 2 else 1
                     val neutralDefault = requestedLang.ifEmpty { latinFallback }
                     val disableAdvancedDetection = disableAdvancedFlag
                     val chunkOutput = processDirect(
@@ -3860,7 +3860,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
             }
             else -> {
-                val autoModeF = prefs.toIso3(autoLang)
+                val autoModeF = iso3OfCode(autoLang)
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Auto mode || Google mode" }
                 val localeChunks = splitByLocaleSpans(rawCharSeq, rawText)
                 for (spanChunk in localeChunks) {
@@ -3899,8 +3899,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         if (forceGoogle && !bypassed) { chunks.forEach { it.forcedEngine = EngineFinder.builtInEngine } }
         val firstChunkParamLang = when (readingMode) {
-            "dual" -> prefs.toIso3(requestedLang.ifEmpty { latinFallback })
-            "auto", "google" -> if (chunks.isNotEmpty()) prefs.toIso3(chunks[chunks.size - 1].lang) else ""
+            "dual" -> iso3OfCode(requestedLang.ifEmpty { latinFallback })
+            "auto", "google" -> if (chunks.isNotEmpty()) iso3OfCode(chunks[chunks.size - 1].lang) else ""
             else -> ""
         }
         var firstChunkForced = false
@@ -4641,7 +4641,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             chunkCounter++
             val chunk = pair.second
             val effectiveLang = if (modeInt == 1) when (chunk.typeCode) {
-                2 -> prefs.toIso3(dualLang)
+                2 -> iso3OfCode(dualLang)
                 3, 4, 5 -> chunk.iso3()
                 else -> "eng"
             } else chunk.iso3()
@@ -4701,7 +4701,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             val (currentChunk, chunk) = pair
             val effectiveLang = if (modeInt == 1) when (chunk.typeCode) {
-                2 -> prefs.toIso3(dualLang)
+                2 -> iso3OfCode(dualLang)
                 3, 4, 5 -> chunk.iso3()
                 else -> "eng"
             } else chunk.iso3()
@@ -4716,9 +4716,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
             //         f0(engine, j0(locale), variant, false);
             // An empty engine means "keep the last one" inside loadVoice, and
             // j0("") is Locale(""). Ours used to substitute the resolved engine
-            // and, with no locale in the prefix, read one back out of
-            // SharedPreferences -- a runtime pref read, which is exactly what
-            // the settings-live-in-statics rule forbids, and on the Test button
+            // and, with no locale in the prefix, read one back out of the stored
+            // settings -- a runtime read, which is exactly what the
+            // settings-live-in-statics rule forbids, and on the Test button
             // of all places: the user changes a voice and presses Test before
             // anything has been persisted.
             if (bypassed && (chunk.forcedEngine != null || chunk.forcedLocale != null)) {
@@ -4958,6 +4958,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { if (screensObserved) { screensObserved = false; androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.removeObserver(screensClosedObserver) } } catch (_: Throwable) {}
         try { mainHandler.removeCallbacksAndMessages(null) } catch (_: Throwable) {}
         try { speakHandler.removeCallbacksAndMessages(null); speakThread.quitSafely() } catch (_: Throwable) {}
+        try { backgroundWork.cancel() } catch (_: Throwable) {}
         if (running?.get() === this) running = null
         super.onDestroy()
     }

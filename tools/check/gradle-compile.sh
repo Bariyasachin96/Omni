@@ -24,11 +24,14 @@
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 CACHE="$ROOT/tools/.cache"
-GV=$(grep -oE "gradle-version: '[0-9.]+'" "$ROOT/.github/workflows/build.yml" | head -1 | grep -oE "[0-9.]+")
-GRADLE="$CACHE/gradle-$GV/bin/gradle"
+# The project's own Gradle Wrapper -- the Gradle CI runs, at the version and
+# checksum gradle/wrapper/gradle-wrapper.properties pins.
+GRADLE="$ROOT/gradlew"
+GV=$(sed -n 's|^distributionUrl=.*gradle-\([0-9.]*\)-bin\.zip$|\1|p' "$ROOT/gradle/wrapper/gradle-wrapper.properties")
+DIST=$(ls -d "${GRADLE_USER_HOME:-$HOME/.gradle}"/wrapper/dists/gradle-"$GV"-bin/*/gradle-"$GV" 2>/dev/null | head -1)
 export ANDROID_HOME="$CACHE/android-sdk"
-[ -x "$GRADLE" ] && [ -d "$ANDROID_HOME/platforms" ] || {
-  echo "gradle-compile  SKIPPED -- Gradle $GV or the Android SDK is missing; run tools/bootstrap.sh"
+[ -n "$DIST" ] && [ -d "$ANDROID_HOME/platforms" ] || {
+  echo "gradle-compile  SKIPPED -- Gradle $GV (the wrapper's) or the Android SDK is missing; run tools/bootstrap.sh"
   exit 0; }
 
 LOG=${TMPDIR:-/tmp}/ev-gradle-compile.log

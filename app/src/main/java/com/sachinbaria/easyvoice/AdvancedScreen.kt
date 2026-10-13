@@ -213,7 +213,6 @@ fun ActionButton(label: String, iconRes: Int, onClick: () -> Unit) {
 
 @Composable
 fun AdvancedScreen(
-    prefs: SharedPrefsManager,
     refreshKey: Int,
     requestNotificationPermission: () -> Unit
 ) {
@@ -392,7 +391,7 @@ fun AdvancedScreen(
                 loggingEnabled
             ) { picked ->
                 loggingEnabled = picked
-                prefs.setLoggingEnabled(picked)
+                LangStore.persistLogging(context, picked)
                 EasyVoiceLogger.setLoggingEnabled(picked)
             }
             Row(

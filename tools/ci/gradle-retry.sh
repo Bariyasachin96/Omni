@@ -41,7 +41,9 @@ set -o pipefail
 
 TRANSIENT='Could not (find|resolve|GET|HEAD|download)|Connection reset|Read timed out|connect timed out|Premature end of Content-Length|502 Bad Gateway|503 Service|504 Gateway'
 LOG=${EV_GRADLE_LOG:-/tmp/ev-gradle.log}
-GRADLE=${EV_GRADLE:-gradle}
+# The project's own Gradle Wrapper (gradle/wrapper): the version and its
+# checksum are pinned there, and setup-gradle validates the wrapper jar.
+GRADLE=${EV_GRADLE:-$(cd "$(dirname "$0")/../.." && pwd)/gradlew}
 
 n=0
 until [ "$n" -ge 3 ]; do

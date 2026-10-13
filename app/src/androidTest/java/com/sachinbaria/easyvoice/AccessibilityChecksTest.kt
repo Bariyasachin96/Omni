@@ -136,7 +136,7 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.puncSpecificLang = "eng"
         EasyVoiceTtsService.emojiSpecificLang = "eng"
         // THE READING MODE HAS TO BE STATED, and leaving it out was a real hole
-        // rather than an omission. `prefs.getReadingMode()` reads
+        // rather than an omission. `LangStore.readingMode()` reads
         // `EasyVoiceTtsService.modeInt`, whose default is 0 = "none", and
         // `LangStore.ensureLoaded` may then set it from `auto_mode` -- which is
         // 3 when Google TTS is on the emulator image and 0 when it is not. So
@@ -322,11 +322,9 @@ class AccessibilityChecksTest {
         sweepSchemes()
     }
 
-    private fun prefs() = SharedPrefsManager(rule.activity)
-
     @Test
     fun modesList() {
-        check { ModesScreen(prefs(), 0) { } }
+        check { ModesScreen(0) { } }
     }
 
     // One per mode, because the settings screen shows a different set of
@@ -335,27 +333,27 @@ class AccessibilityChecksTest {
     // hides the numbers-punctuation-emojis block entirely.
     @Test
     fun dualModeSettings() {
-        check { ModeSettingsScreen(prefs(), "dual") }
+        check { ModeSettingsScreen("dual") }
     }
 
     @Test
     fun autoModeSettings() {
-        check { ModeSettingsScreen(prefs(), "auto") }
+        check { ModeSettingsScreen("auto") }
     }
 
     @Test
     fun mixedModeSettings() {
-        check { ModeSettingsScreen(prefs(), "mix") }
+        check { ModeSettingsScreen("mix") }
     }
 
     @Test
     fun multilingualModeSettings() {
-        check { ModeSettingsScreen(prefs(), "multilingual") }
+        check { ModeSettingsScreen("multilingual") }
     }
 
     @Test
     fun advancedTab() {
-        check { AdvancedScreen(prefs(), 0, { }) }
+        check { AdvancedScreen(0, { }) }
     }
 
     // The About screen, added 2026-09-03. Its two link buttons went on
@@ -383,7 +381,7 @@ class AccessibilityChecksTest {
     // to be reachable and readable too.
     @Test
     fun voiceSetup() {
-        check { VoiceScreen(prefs(), 0, 3, { }) { null } }
+        check { VoiceScreen(0, 3, { }) { null } }
     }
 
     // The per-language Backup TTS switch ON (it moved here from the Advanced
@@ -391,12 +389,12 @@ class AccessibilityChecksTest {
     @Test
     fun voiceSetupBackupOn() {
         EasyVoiceTtsService.backupLangs = setOf(LangStore.entryAt(0)?.iso3 ?: "eng")
-        check { VoiceScreen(prefs(), 0, 3, { }) { null } }
+        check { VoiceScreen(0, 3, { }) { null } }
     }
 
     @Test
     fun languagesList() {
-        check { LanguagesScreen(prefs()) }
+        check { LanguagesScreen() }
     }
 
     // ======================================================================
@@ -415,7 +413,6 @@ class AccessibilityChecksTest {
 
     private fun mainScreen(scanning: Boolean, scanLine: String) = @androidx.compose.runtime.Composable {
         MainScreen(
-            prefs = prefs(),
             scanning = scanning,
             scanLine = scanLine,
             modeRefresh = 0,
@@ -514,7 +511,7 @@ class AccessibilityChecksTest {
     // LabeledDropdown names its anchor.
     @Test
     fun languageDropdownOpen() {
-        themed { ModeSettingsScreen(prefs(), "dual") }
+        themed { ModeSettingsScreen("dual") }
         rule.enableAccessibilityChecks()
         val anchor = rule.onNodeWithContentDescription("Select secondary language, Hindi (hin)")
         // The combobox states required by W3C's pattern: collapsed while shut,
@@ -540,7 +537,7 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.numberModeInt = 3
         EasyVoiceTtsService.punctuationModeInt = 3
         EasyVoiceTtsService.emojiModeInt = 3
-        themed { ModeSettingsScreen(prefs(), "dual") }
+        themed { ModeSettingsScreen("dual") }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("Specific language for reading numbers, English (eng)")
             .performClick()
@@ -640,7 +637,7 @@ class AccessibilityChecksTest {
         EasyVoiceTtsService.punctuationInFlowFlag = true
         EasyVoiceTtsService.smartNumberFlag = true
         EasyVoiceTtsService.smartNumberGroupSize = 3
-        check { AdvancedScreen(prefs(), 0, { }) }
+        check { AdvancedScreen(0, { }) }
     }
 
     // The one DISABLED control on that tab: "Read punctuation in flow with
@@ -657,7 +654,7 @@ class AccessibilityChecksTest {
     @Test
     fun switchStateDescriptionChangesOnToggle() {
         EasyVoiceTtsService.keepAliveFlag = false
-        check { AdvancedScreen(prefs(), 0, { }) }
+        check { AdvancedScreen(0, { }) }
         fun state() = rule.onNodeWithContentDescription("Keep alive").fetchSemanticsNode()
             .config.getOrNull(SemanticsProperties.StateDescription)
         val before = state()
@@ -673,7 +670,7 @@ class AccessibilityChecksTest {
     @Test
     fun advancedTabPunctuationLocked() {
         EasyVoiceTtsService.punctuationModeInt = 3
-        check { AdvancedScreen(prefs(), 0, { }) }
+        check { AdvancedScreen(0, { }) }
     }
 
     // The filter ON. A selected FilterChip is drawn with
@@ -684,7 +681,7 @@ class AccessibilityChecksTest {
     // floor to be worth a real measurement.
     @Test
     fun languagesListFiltered() {
-        themed { LanguagesScreen(prefs()) }
+        themed { LanguagesScreen() }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("My languages").performClick()
         rule.onNodeWithContentDescription("My languages").performClick()
@@ -697,7 +694,7 @@ class AccessibilityChecksTest {
     // Nothing had ever typed, so nothing had ever seen it.
     @Test
     fun languagesListSearching() {
-        themed { LanguagesScreen(prefs()) }
+        themed { LanguagesScreen() }
         rule.enableAccessibilityChecks()
         rule.onNode(hasSetTextAction()).performTextInput("Hin")
         // Clicking the clear button checks the screen while it is on it.
@@ -722,7 +719,7 @@ class AccessibilityChecksTest {
     // announced position is off. Nothing had ever rendered it under ATF.
     @Test
     fun languagesListGrouped() {
-        check { LanguagesScreen(prefs()) }
+        check { LanguagesScreen() }
         rule.onNodeWithText("United States languages").assertExists()
         rule.onNodeWithText("All languages").assertExists()
     }
@@ -733,7 +730,7 @@ class AccessibilityChecksTest {
     @Test
     fun languagesListUngrouped() {
         Locale.setDefault(localeOf("en"))
-        check { LanguagesScreen(prefs()) }
+        check { LanguagesScreen() }
         rule.onNodeWithText("All languages").assertDoesNotExist()
     }
 
@@ -743,7 +740,7 @@ class AccessibilityChecksTest {
     // the last place an unchecked label should be sitting.
     @Test
     fun languagesListNoMatch() {
-        themed { LanguagesScreen(prefs()) }
+        themed { LanguagesScreen() }
         rule.enableAccessibilityChecks()
         rule.onNode(hasSetTextAction()).performTextInput("zzzz")
         rule.onNodeWithText("No languages match your search.").assertExists()
@@ -756,7 +753,7 @@ class AccessibilityChecksTest {
     // never empty the list. Filter plus a search that matches nothing can.
     @Test
     fun languagesListFilteredNoMatch() {
-        themed { LanguagesScreen(prefs()) }
+        themed { LanguagesScreen() }
         rule.enableAccessibilityChecks()
         rule.onNodeWithContentDescription("My languages").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("zzzz")
@@ -767,7 +764,7 @@ class AccessibilityChecksTest {
     @Test
     fun languagesListNotAvailable() {
         EasyVoiceTtsService.modeInt = 1
-        check { LanguagesScreen(prefs()) }
+        check { LanguagesScreen() }
     }
 
     // Configuration with nothing configured yet. This is what a user sees on a
@@ -793,13 +790,13 @@ class AccessibilityChecksTest {
         synchronized(LangStore.languages) {
             LangStore.languages.add(entry("Marathi", "mar", "mr_IN"))
         }
-        check { VoiceScreen(prefs(), 3, 4, { }) { null } }
+        check { VoiceScreen(3, 4, { }) { null } }
     }
 
     // And the branch above that one: no entry at all at that index, which is
     // what a mode with no voice settings produces.
     @Test
     fun voiceSetupNoLanguage() {
-        check { VoiceScreen(prefs(), 99, 1, { }) { null } }
+        check { VoiceScreen(99, 1, { }) { null } }
     }
 }

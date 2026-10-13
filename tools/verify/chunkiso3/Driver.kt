@@ -1,4 +1,4 @@
-// ---- driver: iso3() must always answer toIso3Uncached(lang) of the CURRENT lang
+// ---- driver: iso3() must always answer iso3OfCodeUncached(lang) of the CURRENT lang
 fun main() {
     val codes = (java.util.Locale.getISOLanguages().toList() + listOf("eng", "hin", "guj", "cmn", "zh", "iw", "in", "ji", "", "x", "UNKNOWN", "Hi", "EN"))
     val rnd = java.util.Random(11)
@@ -9,7 +9,7 @@ fun main() {
         if (rnd.nextInt(5) == 0) c.lang = codes[rnd.nextInt(codes.size)]
         repeat(1 + rnd.nextInt(4)) {
             calls++
-            if (c.iso3() != SharedPrefsManager.toIso3Uncached(c.lang)) { bad++; if (bad < 5) println("DIFF ${c.lang} -> ${c.iso3()}") }
+            if (c.iso3() != iso3OfCodeUncached(c.lang)) { bad++; if (bad < 5) println("DIFF ${c.lang} -> ${c.iso3()}") }
         }
     }
     // four threads reading and reassigning the same chunks
@@ -22,7 +22,7 @@ fun main() {
             val got = c.iso3()
             // a reader may race a reassignment; the answer must belong to SOME
             // language the chunk had, i.e. to l or to the current one
-            if (got != SharedPrefsManager.toIso3Uncached(l) && got != SharedPrefsManager.toIso3Uncached(c.lang)) errors.incrementAndGet()
+            if (got != iso3OfCodeUncached(l) && got != iso3OfCodeUncached(c.lang)) errors.incrementAndGet()
             if (r.nextInt(50) == 0) c.lang = codes[r.nextInt(codes.size)]
         }
     } }

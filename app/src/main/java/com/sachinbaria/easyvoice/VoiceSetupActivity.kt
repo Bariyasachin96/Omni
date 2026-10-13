@@ -30,7 +30,6 @@ class VoiceSetupActivity : EvActivity() {
         // statics: Android can restore it alone into a fresh process. No-op
         // whenever anything is already loaded -- see LangStore.ensureLoaded.
         LangStore.ensureLoaded(this)
-        val prefs = SharedPrefsManager(this)
         testTts = android.speech.tts.TextToSpeech(this, null, BuildConfig.APPLICATION_ID)
         sampleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val key = pendingSampleKey; pendingSampleKey = null
@@ -56,8 +55,7 @@ class VoiceSetupActivity : EvActivity() {
             try { retry?.invoke() } catch (_: Throwable) { }
         }
         langIndex = intent.getIntExtra("lang_index", -1)
-        val readingMode = prefs.getReadingMode()
-        val modeInt = when (readingMode) { "dual" -> 1; "auto" -> 2; "google" -> 3; "mix" -> 4; "multilingual" -> 5; else -> 0 }
+        val modeInt = modeIntOf(LangStore.readingMode())
         // Rebuilds LangStore.languages, which is what lang_index indexes, and
         // its size is the list Configuration shows -- the same list to walk.
         total = voiceLanguageLabels(this, modeInt).size
@@ -72,11 +70,11 @@ class VoiceSetupActivity : EvActivity() {
                 // would survive the switch and show the previous language's
                 // settings.
                 key(langIndex) {
-                    VoiceScreen(prefs, langIndex, total, { target ->
+                    VoiceScreen(langIndex, total, { target ->
                         if (target >= 0 && target < total) {
                             // MUST persist before switching. persistVoiceRows is
                             // the only writer of a language's engine assignment
-                            // (`if (index == 0) editor.putString(iso3, key)`) and
+                            // (the language's own key, written with row 0) and
                             // it reads LangStore.currentVoiceRows, which holds
                             // one language at a time -- VoiceRows.load replaces
                             // it for the language we are about to move to. Skip

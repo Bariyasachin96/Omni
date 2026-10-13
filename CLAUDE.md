@@ -8,7 +8,69 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## DATASTORE BY ITS OWN RULES, LINT AS A GATE, NO QUERY_ALL_PACKAGES (owner, 2026-10-08, latest)
+## NOTHING OLD: NO SHAREDPREFERENCES, NO RETRY, WRAPPER + CATALOG, ANDROID CLI, LIBS MAPPED FROM THE APK (owner, 2026-10-08 / 10-13, latest)
+*"shared preferences, retry ... kuchh bhi purana nahin rakhna ... sab kuchh naye ke hisab se ... jitni bhi new
+method hai vah saari use karo"*; 10-13: *"jo data store mein aata hai vah data store mein, jo proto buffer mein
+aata hai vah proto buffer mein"* -- the settings STAY Preferences DataStore (no forced move to Proto DataStore).
+- **SharedPreferences is gone from the app and its tests.** SharedPreferencesMigration, `legacyFileExists`,
+  `sharedPrefsFile` and SettingsMigrationTest removed: every build since 10-07 moved the old XML and deleted it,
+  so a phone that ran one has nothing left; a phone jumping from an older build starts with DEFAULT settings.
+  **SharedPrefsManager is dissolved**: `iso3OfCode` (+ its 512 cache) is top-level in IsoCodes.kt, the reading
+  mode is `LangStore.readingMode()/setReadingMode()`, the logging switch `LangStore.loggingEnabled()/
+  persistLogging()`, the exit bookmark `LangStore.lastExitLogged()/persistLastExitLogged()`; no screen takes a
+  `prefs` parameter. **Invariant #4c**: no old store, no retried settings read (2 selftest negatives).
+- **No retry**: `LangStore.prefs` is the guide's pattern only -- catch IOException, emit emptyPreferences(); the
+  `readFailed` latch stays (that process writes nothing). settingsread: one failure = read once, defaults, no
+  write; the next process reads and writes; negatives retry/nocatch/norefuse/catchall all FAIL.
+- **Old one-time migrations gone**: scanned_langs_iso3, disable_advanced_detection_default_off_applied,
+  engine_fallback (and its removal on every write). Leftover keys in an old file are simply never read.
+- **Build the current way**: Gradle Wrapper 9.8.1 (`gradlew`, distributionSha256Sum; the jar's SHA-256 equals
+  Gradle's published one; setup-gradle validates it), **version catalog `gradle/libs.versions.toml`** -- every
+  version incl. NDK/CMake/build-tools, read by CI and tools; plugins by `alias`; KGP on the buildscript
+  classpath from the catalog (AGP 9's documented way to a newer KGP); `jvmTarget` dropped (built-in Kotlin takes
+  compileOptions); configuration cache + build cache on; settings.gradle.kts repositories as Android Studio's
+  template (google() limited to its groups); `android.useAndroidX` dropped (AGP 9 default). Kotlin **2.4.21**,
+  androidx.tracing **2.0.4** (found by a one-off lint run with every check on; nothing else was behind).
+- **CI**: JDK 21 (= local and Android Studio's); setup-android with command-line tools **23.0** (16111833) and the
+  **Android CLI** (`android sdk install`) -- sdkmanager calls itself deprecated from 23.0 -- in ONE script,
+  `tools/ci/install-sdk.sh` (used by all three jobs; success = package.xml/source.properties present, and only a
+  HALF-installed package is ever removed: the first draft's cleanup deleted a COMPLETE NDK in a negative test);
+  `tools/ci/clone-cld2.sh` likewise; Gradle through `./gradlew`.
+- **Native libraries without legacy packaging** (`useLegacyPackaging` removed, AGP's default): stored
+  uncompressed, 16 KB aligned, mapped straight from the APK, `extractNativeLibs=false`. Measured, release:
+  arm64 APK 6,645,775 -> 8,375,343, armeabi-v7a 6,622,785 -> 8,295,701, universal 11,445,850 -> 14,865,938
+  (download +1.7 MB per ABI); on the phone the extracted 6.5 MB copy is gone (~4.8 MB less in all). Play
+  serves the bundle the same way. `native-pagesize.sh` now also checks each stored 64-bit library's OFFSET in the
+  APK (negative: a library at offset 231 -> FAIL); CI runs it before publishing ("Check 16 KB alignment").
+- **Play bundle**: CI builds `EasyVoice-<n>.aab` in its own Gradle run (AGP fails with ABI splits on:
+  "Multiple shrunk-resources files found"); ~3 min, build cache reused. Published beside the APKs.
+- **Manifest**: no `installLocation="auto"` (Android's page: a service on external storage "is killed and isn't
+  restarted when external storage is remounted" -- the TTS engine IS a service), no `WAKE_LOCK` (never used), no
+  accessibility attributes on the TTS `<service>` (they configure an accessibility service; cargo from AutoTTS).
+- **New methods**: `localeOf` = `Locale.of` on Android 16+ (BAKLAVA), the constructor below (toiso3 proves both
+  give the same Locale over every input shape; negative caught). The service's background work runs in a scope
+  cancelled in onDestroy (was a throwaway CoroutineScope).
+- **KEPT ON PURPOSE, each the only or the faster way**: `TextToSpeech.getLanguage()` (deprecated; the new
+  `getVoice()` marshals the engine's whole voice list on every language switch -- the delay the owner heard;
+  getLanguage reads memory); the pre-26 audio-focus call (Android 7 only; androidx.media's compat is deprecated,
+  media3's `@UnstableApi`); `onError(String)` (the framework's abstract method); Handler/HandlerThread/
+  synchronized on the speaking path (current APIs; AOSP's TTS framework itself runs on them; a coroutine rewrite
+  is risk without gain); the prestarted stop thread (owner, 09-02); Java 17 bytecode (Android's documented level);
+  C++17 (CLD2 stays as it is).
+- **Also**: a JVM crash log committed by accident on 10-06 (hs_err_pid1927.log) removed; `hs_err_pid*.log` ignored.
+- **Verified**: gradle-compile 0/0 (Kotlin 2.4.21), lint "No issues found", check-all ALL PASS (minsdk 12 symbols
+  incl. Locale.of/BAKLAVA), selftest EVERY CHECK FIRES (35 negatives); toiso3 800,000 calls + 150,678 localeOf
+  inputs IDENTICAL (negatives fold 413 / locale 66,968 caught), chunkiso3, runlang, persist (vs 7d8649e and vs
+  3038d16) IDENTICAL, settingsread ALL PASS (negative retry caught), coldstart, restore, speakpipe 200,000 0 differ,
+  prefetch 400,000 0 differ, voicenow 3 x 400,000 0 differ, langstore 9,200,000, rebuild, voicelist, enginefinder,
+  readers, scansched, scanyield, sortkeys, logger, uilists all pass. Signed release APKs + .aab built (throwaway
+  key, deleted), exports + 16 KB (ELF and in-APK offset) + `zipalign -c -P 16` pass, manifest has neither
+  WAKE_LOCK nor installLocation. **That release build predates three later changes** (Kotlin 2.4.21/tracing
+  2.0.4, localeOf, the service's background scope) -- compile, lint and every harness ran on them; the owner
+  stopped the second release build. CI's first run is the first for the Android CLI install, Java 21, the
+  wrapper validation and the bundle step.
+
+## DATASTORE BY ITS OWN RULES, LINT AS A GATE, NO QUERY_ALL_PACKAGES (owner, 2026-10-08)
 *"data store wale mein ... kuchh rah gaya ho ... library ke rule ke hisab se sab kuchh karo ... sab kuchh test
 karke hi karna hai."*
 - **DataStore read errors, the guide's own rule:** `LangStore.prefs` = `data.retry(1){IOException}.catch{IOException

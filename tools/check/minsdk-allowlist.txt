@@ -27,3 +27,7 @@ EasyVoiceTtsService.kt:reportActualWorkDuration
 # Why the last process ended (API 30): logRecentExits30 is @RequiresApi(R),
 # entered only behind SDK_INT >= R in logRecentExits.
 EasyVoiceTtsService.kt:getHistoricalProcessExitReasons
+IsoCodes.kt:of                                       # Locale.of (Java 19, Android API 36), called
+                                                     # only behind SDK_INT >= BAKLAVA in localeOf
+IsoCodes.kt:BAKLAVA                                  # API 36's VERSION_CODES name, a compile-time
+                                                     # constant: nothing is resolved at runtime on API 24

@@ -41,8 +41,9 @@ fun localeOf(l: String) = java.util.Locale(l)
 var currentVoiceRows: List<EngineFinder.ScanVoice?> = emptyList()
 var currentVoiceIso = ""
 var currentVoiceChosen = false
-// A SharedPreferences stand-in: puts are buffered per editor, commit applies
-// them in order and records whether the list monitor was held at that moment.
+// A stand-in for the key-value store LangStore used before DataStore (an old
+// ref only): puts are buffered per editor, commit applies them in order and
+// records whether the list monitor was held at that moment.
 class Prefs {
     val map = LinkedHashMap<String, Any>()
     var commits = 0; var commitsUnderLock = 0
@@ -64,10 +65,12 @@ inline fun Prefs.edit(commit: Boolean = false, action: Prefs.Ed.() -> Unit) { va
 val REMOVED = Any()
 var current = Prefs()
 // Backup TTS became per language on 2026-10-06: the old global
-// "engine_fallback" boolean is replaced by "backup_languages". Those two keys
-// are the intended change and are left out of the comparison; every other key
-// must still match.
-fun comparable(m: Map<String, Any>): HashMap<String, Any> = HashMap(m).also { it.remove("engine_fallback"); it.remove("backup_languages") }
+// "engine_fallback" boolean was replaced by "backup_languages". Against a ref
+// from before that, those two keys are the intended change and are left out of
+// the comparison; every other key must still match. Against a DataStore ref
+// every key is compared.
+fun comparable(m: Map<String, Any>): HashMap<String, Any> =
+    HashMap(m).also { if (!OLD_DS) { it.remove("engine_fallback"); it.remove("backup_languages") } }
 fun prefs(ctx: Context) = current
 // The NEW side (2026-10-07) reads and writes the REAL Jetpack DataStore, one
 // fresh store file per case, through the library's own PreferenceDataStoreFactory.
@@ -127,9 +130,15 @@ fun main() {
         for ((i, r) in runs.withIndex()) {
             cases++
             EasyVoiceTtsService.engineList = emptyList(); EasyVoiceTtsService.voiceList = emptyList()
-            current = Prefs().also { it.map.putAll(seed) }; r(OldP)
-            val oldMap = LinkedHashMap(current.map); val oldE = EasyVoiceTtsService.engineList; val oldV = EasyVoiceTtsService.voiceList
-            oldUnder += current.commitsUnderLock; oldCommits += current.commits
+            val oldMap: LinkedHashMap<String, Any>
+            if (OLD_DS) {
+                freshStore(seed); dsCommits = 0; dsCommitsUnderLock = 0; r(OldP)
+                oldMap = dsMap(); oldUnder += dsCommitsUnderLock; oldCommits += dsCommits
+            } else {
+                current = Prefs().also { it.map.putAll(seed) }; r(OldP)
+                oldMap = LinkedHashMap(current.map); oldUnder += current.commitsUnderLock; oldCommits += current.commits
+            }
+            val oldE = EasyVoiceTtsService.engineList; val oldV = EasyVoiceTtsService.voiceList
             EasyVoiceTtsService.engineList = emptyList(); EasyVoiceTtsService.voiceList = emptyList()
             freshStore(seed); dsCommits = 0; dsCommitsUnderLock = 0; r(NewP)
             newUnder += dsCommitsUnderLock; newCommits += dsCommits
@@ -142,7 +151,7 @@ fun main() {
             if (EasyVoiceTtsService.voiceList == v1 && EasyVoiceTtsService.voiceList !== v1) replacedSame++
             if (EasyVoiceTtsService.engineList != e1 || EasyVoiceTtsService.voiceList != v1) { bad++; println("DIFF repeat persist changed the lists") }
             EasyVoiceTtsService.engineList = e1; EasyVoiceTtsService.voiceList = v1
-            // compared as maps: what a SharedPreferences file holds
+            // compared as maps: name -> value, what the settings file holds
             if (comparable(oldMap) != comparable(newMap) || oldE != EasyVoiceTtsService.engineList || oldV != EasyVoiceTtsService.voiceList) {
                 bad++; if (bad < 5) println("DIFF fn#$i step $step\n old $oldMap\n new $newMap")
             }

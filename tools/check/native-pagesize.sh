@@ -80,6 +80,35 @@ PY
 done < <(find "$work/lib" -name '*.so' 2>/dev/null | sort)
 
 [ "$count" -gt 0 ] || { echo "no .so found in $apk -- is this the right file?"; exit 1; }
+
+# AND WHERE THE LIBRARY SITS IN THE APK (2026-10-08). Since the legacy packaging
+# went, a library is stored UNCOMPRESSED and loaded straight out of the APK, so
+# its bytes must start on a 16 KB boundary of the file as well -- the same rule
+# `zipalign -P 16` enforces. A compressed library (an old build) is extracted at
+# install instead and is out of scope here, as is any 32-bit one.
+python3 - "$apk" <<'PY' || bad=$((bad + 1))
+import struct, sys, zipfile
+apk = sys.argv[1]
+fails = 0
+with zipfile.ZipFile(apk) as z, open(apk, 'rb') as f:
+    for info in z.infolist():
+        name = info.filename
+        if not (name.startswith('lib/') and name.endswith('.so')): continue
+        abi = name.split('/')[1]
+        if info.compress_type != zipfile.ZIP_STORED:
+            print("  n/a   %-46s compressed, extracted at install" % name[4:]); continue
+        if abi not in ('arm64-v8a', 'x86_64'):
+            print("  n/a   %-46s stored, 32-bit ABI" % name[4:]); continue
+        f.seek(info.header_offset)
+        h = f.read(30)
+        fn_len, extra_len = struct.unpack_from('<HH', h, 26)
+        data = info.header_offset + 30 + fn_len + extra_len
+        if data % 16384 == 0:
+            print("  ok    %-46s stored at offset %d (16 KB aligned)" % (name[4:], data))
+        else:
+            print("  FAIL  %-46s stored at offset %d -- not 16 KB aligned in the APK" % (name[4:], data)); fails += 1
+sys.exit(1 if fails else 0)
+PY
 if [ "$bad" -eq 0 ]; then
   echo "16 KB page size: all $count native libraries are in scope and aligned, or out of scope"
 else

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Fetch the things the local checks need, into tools/.cache (gitignored).
 #
-#   gradle-<v>/    the SAME Gradle CI uses (the version is read out of build.yml)
+#   (Gradle)       the project's own Gradle Wrapper (./gradlew) fetches the Gradle
+#                  CI uses into ~/.gradle/wrapper, checked against the SHA-256
+#                  gradle/wrapper/gradle-wrapper.properties pins
 #   android-sdk/   command-line tools, the compileSdk platform and build-tools,
 #                  so that Gradle and AGP can build the app here exactly as CI
 #                  does. tools/check/gradle-compile.sh compiles the app and its
@@ -27,13 +29,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE="$ROOT/tools/.cache"
-KOTLIN_VERSION=2.4.20
-
-# Gradle, the SDK packages and the command-line tools, all read from the files
-# that already state them, so this cannot drift from what CI builds with.
-GRADLE_VERSION=$(grep -oE "gradle-version: '[0-9.]+'" "$ROOT/.github/workflows/build.yml" | head -1 | grep -oE "[0-9.]+")
+# Every version is read from the file that already states it -- the version
+# catalog, the app's build file -- so this cannot drift from what CI builds with.
+catalog() { sed -n "s/^$1 *= *\"\([^\"]*\)\".*/\1/p" "$ROOT/gradle/libs.versions.toml" | head -1; }
+KOTLIN_VERSION=$(catalog kotlin)
+BUILD_TOOLS=$(catalog buildTools)
 COMPILE_SDK=$(grep -oE '^\s*compileSdk\s*=\s*[0-9]+' "$ROOT/app/build.gradle.kts" | grep -oE '[0-9]+$')
-BUILD_TOOLS=$(grep -oE 'build-tools;[0-9.]+' "$ROOT/.github/workflows/build.yml" | head -1 | cut -d';' -f2)
+[ -n "$KOTLIN_VERSION" ] && [ -n "$BUILD_TOOLS" ] && [ -n "$COMPILE_SDK" ] || { echo "could not read the versions"; exit 1; }
 KOTLINC_URL="https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
 
 # THE NON-EMBEDDABLE PLUGIN, AND THE DIFFERENCE IS NOT cosmetic. The
@@ -71,14 +73,12 @@ fetch() {
 }
 
 # --------------------------------------------------------------------- gradle
-if [ -x "$CACHE/gradle-$GRADLE_VERSION/bin/gradle" ]; then
-  echo "gradle         $GRADLE_VERSION already present"
+# The wrapper downloads its own Gradle the first time and verifies it against
+# distributionSha256Sum; asking it for its version is enough to do that here.
+if (cd "$ROOT" && ./gradlew --no-daemon -q --version >/dev/null 2>&1); then
+  echo "gradle         ok ($(sed -n 's|^distributionUrl=.*gradle-\([0-9.]*\)-bin\.zip$|\1|p' "$ROOT/gradle/wrapper/gradle-wrapper.properties"), the project's wrapper)"
 else
-  echo "gradle         downloading $GRADLE_VERSION..."
-  fetch "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip" "$CACHE/gradle.zip" \
-    || { echo "gradle unavailable"; exit 1; }
-  unzip -q -o "$CACHE/gradle.zip" -d "$CACHE" && rm -f "$CACHE/gradle.zip"
-  echo "gradle         ok"
+  echo "gradle unavailable -- the wrapper could not fetch its distribution"; exit 1
 fi
 
 # ---------------------------------------------------------------- android sdk
@@ -108,11 +108,12 @@ else
 fi
 
 # ------------------------------------------------------------------- kotlinc
-if [ -x "$CACHE/kotlinc/bin/kotlinc" ]; then
-  echo "kotlinc        already present"
-elif command -v kotlinc >/dev/null 2>&1; then
-  echo "kotlinc        found on PATH, not downloading"
+# The catalog's Kotlin, exactly: a kotlinc from an older catalog is replaced
+# (its build.txt names its version).
+if [ -x "$CACHE/kotlinc/bin/kotlinc" ] && [ "$(cut -d- -f1 "$CACHE/kotlinc/build.txt" 2>/dev/null)" = "$KOTLIN_VERSION" ]; then
+  echo "kotlinc        $KOTLIN_VERSION already present"
 else
+  rm -rf "$CACHE/kotlinc"
   echo "kotlinc        downloading ${KOTLIN_VERSION}..."
   fetch "$KOTLINC_URL" "$CACHE/kotlin-compiler.zip" || { echo "kotlinc unavailable"; exit 1; }
   unzip -q -o "$CACHE/kotlin-compiler.zip" -d "$CACHE"
@@ -121,18 +122,19 @@ else
 fi
 
 # ------------------------------------------------------ compose compiler plugin
-if [ -f "$CACHE/compose-plugin.jar" ]; then
-  echo "compose plugin already present"
+if [ -f "$CACHE/compose-plugin.jar" ] && [ "$(cat "$CACHE/compose-plugin.version" 2>/dev/null)" = "$KOTLIN_VERSION" ]; then
+  echo "compose plugin $KOTLIN_VERSION already present"
 else
   echo "compose plugin downloading ${KOTLIN_VERSION}..."
   fetch "$COMPOSE_PLUGIN_URL" "$CACHE/compose-plugin.jar" || { rm -f "$CACHE/compose-plugin.jar"; echo "compose plugin unavailable"; exit 1; }
+  echo "$KOTLIN_VERSION" > "$CACHE/compose-plugin.version"
   echo "compose plugin ok ($(wc -c < "$CACHE/compose-plugin.jar") bytes)"
 fi
 
 # --------------------------------------------------------- androidx classpath
 # Written by Gradle, from the app's real debugCompileClasspath. Always rewritten,
 # because it is cheap and a stale one is exactly the defect it replaced.
-if (cd "$ROOT" && ANDROID_HOME="$SDK" "$CACHE/gradle-$GRADLE_VERSION/bin/gradle" --no-daemon -q \
+if (cd "$ROOT" && ANDROID_HOME="$SDK" ./gradlew --no-daemon -q --no-configuration-cache \
       -I tools/check/classpath.init.gradle.kts -PevOut="$CACHE/androidx-classpath.txt" :app:evClasspath) >/dev/null 2>&1; then
   echo "androidx cp    ok ($(wc -l < "$CACHE/androidx-classpath.txt") jars, from Gradle)"
 else

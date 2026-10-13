@@ -10,6 +10,8 @@ object SystemClock { fun uptimeMillis() = System.nanoTime() / 1_000_000 }
 object EasyVoiceLogger { const val TAG = "t"; fun error(t: String, m: String) {} }
 object LangStore { val map = HashMap<String, String>(); fun engineFor(lang: String, mode: Int) = map[lang] ?: "" }
 class FakePrefs { fun toIso3(s: String) = s }
+// the code since 2026-10-08 calls IsoCodes.kt's iso3OfCode; the same identity
+fun iso3OfCode(s: String) = s
 class EngineWrapper(raw: String) { val pkg = raw.replace("-", "").replace("_", ""); @Volatile var state = 0 }
 class Svc {
     val mayAwaitEngine = ThreadLocal<Boolean>()

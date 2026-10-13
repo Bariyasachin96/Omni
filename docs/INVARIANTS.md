@@ -111,9 +111,9 @@ three lines apart and look almost identical —
 
 ## 4. Settings live in statics, never re-read from prefs at runtime
 
-**Rule.** The synthesis path reads only the companion statics. No
-`SharedPreferences` read may happen per utterance, per chunk, or on any control
-the user can press right after changing a setting.
+**Rule.** The synthesis path reads only the companion statics. No read of the
+stored settings may happen per utterance, per chunk, or on any control the user
+can press right after changing a setting.
 
 **Why.** Prefs hold what was last *persisted*; the statics hold what the user
 has just *chosen*. They converge only when `persistAll` runs. AutoTTS loads
@@ -125,14 +125,12 @@ every setting into a static once and the synthesis path re-reads nothing.
 
     awk '/\/\/  SYNTHESIS /,/\/\/  SHUTDOWN/' \
       app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceTtsService.kt |
-      grep -o "prefs\.[a-zA-Z]*" | sort -u
+      grep -oE "LangStore\.prefs\(|LangStore\.loggingEnabled\(|settingsStore"
 
-That must print **`prefs.toIso3` and nothing else** — it is a pure string
-conversion and reads no preference — and the section must not name
-`LangStore.prefs(` or `settingsStore` at all (the DataStore snapshot, since
-2026-10-07). Outside it the settings are read once, by `loadAllSettings` calling
-LangStore's loaders (`loadModeLangs`, `loadMode`, `loadFlags`), which fill the
-statics.
+That must print **nothing**: the section may not read the DataStore snapshot
+(since 2026-10-07 the settings are DataStore). Outside it the settings are read
+once, by `loadAllSettings` calling LangStore's loaders (`loadModeLangs`,
+`loadMode`, `loadFlags`), which fill the statics.
 
 **When it was broken.** Four times: `onLoadLanguage` reading `auto_mode_language`,
 the dual branch reading `dual_mode_language`, `onSynthesizeText` re-reading the
@@ -144,15 +142,13 @@ scanned languages per utterance, and the Test path reading a locale back with
 ## 4b. The settings UI reads and writes the statics, never the preferences
 
 **Rule.** No file but `LangStore.kt` may name a setting's key — the mode, the
-mode languages, the number/punctuation/emoji modes, the Advanced flags and the
-Backup TTS set. A screen reads `EasyVoiceTtsService.<flag>` and writes it back;
-LangStore's loaders are the only readers of those keys and its persist functions
-the only writers. (Until 2026-10-08 this was phrased as "no screen may call one
-of `SharedPrefsManager`'s sixteen settings readers"; those readers are gone, the
-service loads through LangStore too, and the rule moved to the keys
-themselves.) `isLoggingEnabled` is outside it on purpose: it is the one flag
-AutoTTS persists eagerly (`c3.p`), and `MainActivity` and the service seed the
-logger from it.
+mode languages, the number/punctuation/emoji modes, the Advanced flags, the
+Backup TTS set, the logging switch and the service's last-logged exit. A screen
+reads `EasyVoiceTtsService.<flag>` and writes it back; LangStore's loaders are
+the only readers of those keys and its persist functions the only writers. The
+logging switch is saved the moment it changes (`LangStore.persistLogging`, as
+AutoTTS's `c3.p` does) and read first by `MainActivity` and the service
+(`LangStore.loggingEnabled`) to seed the logger.
 
 **Why.** This is #4 seen from the other end, and it is AutoTTS's own design:
 `c3.k` assigns `AutoTtsService`'s fields directly and `c3.n.v()` persists them
@@ -168,6 +164,20 @@ static wala bahut andar hi andar apply ho jata hai"*.
 **Check.** `tools/check/invariants.sh` #4b, negative-tested in `selftest.sh` by
 making `AdvancedScreen` read the `keep_alive_mode` key from the DataStore
 snapshot.
+
+## 4c. The settings are DataStore and nothing else
+
+**Rule.** No old key-value store anywhere in the app or its tests — no store of
+its own, no migration out of it — and the settings read is exactly the DataStore
+guide's: catch the `IOException`, emit `emptyPreferences()`, no second read.
+
+**Why.** The owner, 2026-10-08: *"shared preferences, retry ... kuchh bhi purana
+nahin rakhna"*. Every build since 2026-10-07 had already moved the old file
+into DataStore, so the migration code had nothing left to move.
+
+**Check.** `tools/check/invariants.sh` #4c (comments stripped), negative-tested
+in `selftest.sh` twice: a screen opening the old store, and a `.retry(1)` put
+back into `LangStore.prefs`.
 
 ## 5. `announceForAccessibility` is banned
 

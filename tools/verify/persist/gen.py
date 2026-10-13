@@ -1,5 +1,7 @@
 # Lifts the REAL persist functions out of LangStore.kt (old commit and working
-# tree) into Check.kt, with SharedPreferences and the statics they read stubbed.
+# tree) into Check.kt, with the statics they read stubbed. A side written for
+# DataStore runs against the real library; a side from before it (an old ref)
+# runs against Driver.kt's stand-in of the old key-value store.
 import re, sys
 old_ls, new_ls, driver, out = sys.argv[1:5]
 def lift(path, name):
@@ -39,18 +41,22 @@ def body(path):
             m = re.search(r"fun voiceRowKey\(.*\n.*\n", text)
             parts.append(m.group(0)); continue
         parts.append(lift(path, n))
-    out = "\n".join(parts).replace("SharedPreferences.Editor", "Prefs.Ed").replace("SharedPreferences", "Prefs")
+    old_store = "Shared" + "Preferences"
+    out = "\n".join(parts).replace(old_store + ".Editor", "Prefs.Ed").replace(old_store, "Prefs")
     # A DataStore body reads and writes the REAL library (Driver.kt's dsPrefs /
     # dsWrite over a real PreferenceDataStoreFactory store).
     if "MutablePreferences" in out:
         out = out.replace("prefs(ctx)", "dsPrefs(ctx)").replace("write(ctx)", "dsWrite(ctx)")
     return out
+def is_datastore(path):
+    return "MutablePreferences" in open(path, encoding="utf-8").read()
 drv = open(driver, encoding="utf-8").read().split("\n")
 imports = [l for l in drv if l.startswith("import ")]
 drv_text = "\n".join(l for l in drv if not l.startswith("import "))
 with open(out, "w", encoding="utf-8") as f:
     f.write('@file:Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE", "NAME_SHADOWING", "unused")\n')
     f.write("\n".join(imports) + "\n")
+    f.write("const val OLD_DS = " + ("true" if is_datastore(old_ls) else "false") + "\n")
     f.write("object OldP {\n val languages get() = Lists.languages\n" + body(old_ls) + "\n}\n")
     f.write("object NewP {\n val languages get() = Lists.languages\n" + body(new_ls) + "\n}\n")
     f.write(drv_text)

@@ -444,11 +444,11 @@ fun ValueSlider(label: String, value: Int, maxValue: Int, onValue: (Int) -> Unit
 // without going back each time. testTtsProvider stays last so the existing
 // trailing-lambda call site still reads naturally.
 @Composable
-fun VoiceScreen(prefs: SharedPrefsManager, langIndex: Int, total: Int, onNavigate: (Int) -> Unit,
+fun VoiceScreen(langIndex: Int, total: Int, onNavigate: (Int) -> Unit,
                 sampleProvider: ((String, Locale, () -> Unit) -> String?)? = null,
                 testTtsProvider: () -> TextToSpeech?) {
     val context = LocalContext.current
-    val readingMode = remember { prefs.getReadingMode() }
+    val readingMode = remember { LangStore.readingMode() }
     val entry = LangStore.entryAt(langIndex)
     if (entry == null) {
         ResponsiveContent {

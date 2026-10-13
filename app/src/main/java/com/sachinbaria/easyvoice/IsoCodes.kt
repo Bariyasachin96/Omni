@@ -88,14 +88,33 @@ object IsoCodes {
     fun iso2Pairs(): List<Pair<String, String>> = toIso3Map.entries.map { it.key to it.value }
 }
 
-// EVERY LOCALE THE APP BUILDS GOES THROUGH HERE.
-//
-// One call for every Android version (owner, 2026-09-24: no version branches
-// where one call does the job). Locale.of is API 36 only, while the
-// three-argument constructor exists on every Android this app runs on and
-// builds the identical object -- both go through BaseLocale.getInstance with
-// the same old-ISO-code conversion. The constructor is only deprecated by Java
-// 19, so the warning is silenced here, in the one place that calls it.
-@Suppress("DEPRECATION")
+// EVERY LOCALE THE APP BUILDS GOES THROUGH HERE, with the CURRENT method
+// wherever the phone has it (owner, 2026-10-13: "jo old method hai vah saari
+// mat use karo ... jitni bhi new method hai vah saari use karo"). Locale.of is
+// the factory that replaced the constructors (Java 19; Android from API 36).
+// Below Android 16 the constructor is the only way to build a Locale from these
+// three parts (Locale.Builder rejects what engines actually send, such as
+// three-letter countries), so a phone on Android 16+ uses the new method and an
+// older one the method it has. Both build the same object: BaseLocale.getInstance
+// with the same old-ISO-code conversion and the same compatibility extensions
+// (checked: tools/verify/toiso3 runs both over every code the app meets).
 fun localeOf(language: String, country: String = "", variant: String = ""): Locale =
-    Locale(language, country, variant)
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.BAKLAVA) Locale.of(language, country, variant)
+    else @Suppress("DEPRECATION") Locale(language, country, variant)
+
+// A LANGUAGE CODE AS THE SETTINGS AND THE ENGINES KEY IT: three letters. A
+// two-letter code becomes its ISO 639-2 code through Locale, anything else is
+// kept as it is, and the Chinese macrolanguage codes fold to "zho".
+//
+// Called several times per chunk with the same few codes. A code's answer never
+// changes within a process (Locale's ISO tables are fixed), so it is remembered:
+// a two-letter code built a Locale and looked it up every time (owner,
+// 2026-10-01). Same answers -- tools/verify/toiso3. Capped: a client could send
+// endless odd codes, and past 512 the answer is simply computed.
+private val iso3OfCodeCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+fun iso3OfCode(lang: String): String =
+    iso3OfCodeCache[lang] ?: iso3OfCodeUncached(lang).also { if (iso3OfCodeCache.size < 512) iso3OfCodeCache[lang] = it }
+fun iso3OfCodeUncached(lang: String): String {
+    val iso3 = if (lang.length != 2) lang else try { localeOf(lang).isO3Language.ifEmpty { lang } } catch (_: Exception) { lang }
+    return when (iso3) { "cmn", "lzh", "gan", "hak" -> "zho"; else -> iso3 }
+}
