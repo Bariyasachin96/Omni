@@ -65,10 +65,10 @@ aata hai vah proto buffer mein"* -- the settings STAY Preferences DataStore (no 
   prefetch 400,000 0 differ, voicenow 3 x 400,000 0 differ, langstore 9,200,000, rebuild, voicelist, enginefinder,
   readers, scansched, scanyield, sortkeys, logger, uilists all pass. Signed release APKs + .aab built (throwaway
   key, deleted), exports + 16 KB (ELF and in-APK offset) + `zipalign -c -P 16` pass, manifest has neither
-  WAKE_LOCK nor installLocation. **That release build predates three later changes** (Kotlin 2.4.21/tracing
-  2.0.4, localeOf, the service's background scope) -- compile, lint and every harness ran on them; the owner
-  stopped the second release build. CI's first run is the first for the Android CLI install, Java 21, the
-  wrapper validation and the bundle step.
+  WAKE_LOCK nor installLocation. The FINAL release build (owner's go-ahead) has every change: buildscript KGP
+  resolves to 2.4.21, classes.dex calls Locale.of; exports, 16 KB (ELF + offset), zipalign -P 16 and apksigner
+  pass, extractNativeLibs=false, the .aab carries both ABIs' libraries; key deleted. CI's first run is the first
+  for the Android CLI install, Java 21, the wrapper validation and the bundle step.
 
 ## DATASTORE BY ITS OWN RULES, LINT AS A GATE, NO QUERY_ALL_PACKAGES (owner, 2026-10-08)
 *"data store wale mein ... kuchh rah gaya ho ... library ke rule ke hisab se sab kuchh karo ... sab kuchh test
