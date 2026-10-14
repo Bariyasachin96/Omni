@@ -100,7 +100,7 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/runlang/run.sh          # a detected run's iso3 memoised per utterance == before
     tools/verify/readers/run.sh [ref]    # processDirect answer readers of <ref> (HEAD) == working tree, + cost per answer
     tools/verify/prefetch/run.sh         # loading the next language while the SAME engine speaks == loading it after
-    tools/verify/directplay/run.sh [ref] [n]  # old speak() path vs the direct player (own AudioTrack), simulated engines + track; EV_NEG=<name> negatives
+    tools/verify/speakpipe/run.sh        # the whole speak loop, last commit vs working tree, on a simulated AOSP engine
     tools/verify/scansched/run.sh        # background-scan scheduling: no change left unscanned, no needless scan
     tools/verify/coldstart/run.sh        # the cold-start waiter under real threads: returns on every event, never early
     tools/verify/corebytes/run.sh [ref]  # native core of a commit vs the working tree, every JNI answer byte for byte

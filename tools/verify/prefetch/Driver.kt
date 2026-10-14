@@ -121,8 +121,6 @@ class Svc(val engines: List<FakeEngine>) {
     fun restoreEngine(pkg: String, why: String) { events.add("restore " + pkg + " / " + why) }
     fun recoverEngineNotReady(raw: String) { events.add("recover " + raw) }
 
-    // the direct player ends a dead engine's streams here; there are none in this harness
-    fun failPending(wrapper: Any, why: String) {}
 //LIFTED//
 }
 
@@ -178,7 +176,7 @@ fun run(sc: Scenario, newOrder: Boolean): Outcome {
     svc.modeInt = sc.mode
     svc.voiceList = ArrayList(sc.voiceListRaw)
     LangStore.entries = ArrayList(sc.entries)
-    for (e in engines) { val w = svc.EngineWrapper(e.pkg); w.state = 2; w.tts = TextToSpeech(e); svc.enginePool.add(w) }
+    for (e in engines) { val w = svc.EngineWrapper(e.pkg); w.state = 2; w.tts = TextToSpeech(e); w.listenerSet = true; svc.enginePool.add(w) }
     val out = ArrayList<String>()
     fun load(i: Int, when_: String) {
         val t = sc.targets[i]

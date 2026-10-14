@@ -9,7 +9,7 @@ String Int Long Float Double Boolean Char Byte Short Unit Any Nothing Array List
 Set MutableSet Map MutableMap Pair Triple Comparable Comparator Iterable Iterator Sequence Collection
 Exception Throwable RuntimeException IllegalStateException IllegalArgumentException
 InterruptedException IndexOutOfBoundsException NumberFormatException UnsupportedOperationException
-ArrayList ArrayDeque HashMap HashSet LinkedHashMap LinkedHashSet Object Runnable Thread ThreadLocal Class Regex CharSequence
+ArrayList HashMap HashSet LinkedHashMap LinkedHashSet Object Runnable Thread ThreadLocal Class Regex CharSequence
 Number Enum Lazy Result System Character Charsets Math StringBuilder ByteArray IntArray
 FloatArray ShortArray LongArray DoubleArray BooleanArray CharArray Integer Locale Collections
 JvmStatic JvmField Volatile Synchronized Suppress Deprecated SuppressLint JvmOverloads Throws
@@ -25,19 +25,6 @@ FUN_RE = re.compile(r'\bfun\s+(?:<[^>]*>\s*)?([A-Z]\w*)\s*\(')
 # `val X` including locals and class properties, and adding those module-wide
 # would suppress real findings rather than one false one.
 TOP_VAL_RE = re.compile(r'^(?:const\s+)?(?:val|var)\s+([A-Z]\w*)\b', re.M)
-
-# The entries of an `enum class` are names declared in the file (SpeechPlayer's
-# Ending.DONE etc.), read from the body up to its first `;` or `}`.
-ENUM_RE = re.compile(r'\benum\s+class\s+[A-Z]\w*[^{]*\{([^;}]*)')
-def enum_entries(text):
-    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
-    text = re.sub(r'//[^\n]*', '', text)
-    out = set()
-    for body in ENUM_RE.findall(text):
-        for part in body.split(','):
-            m = re.match(r'\s*([A-Z]\w*)', part)
-            if m: out.add(m.group(1))
-    return out
 
 # Receiver-scope members: called on a scope, never imported. Verified against the
 # material3 API file for the version we build against, not assumed --
@@ -97,7 +84,6 @@ def main():
         module_types |= set(re.findall(r'^typealias\s+([A-Z]\w*)', text, re.M))
         module_types |= set(FUN_RE.findall(text))
         module_types |= set(TOP_VAL_RE.findall(text))
-        module_types |= enum_entries(text)
 
     problems = []
     for f in files:

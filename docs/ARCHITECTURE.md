@@ -142,38 +142,35 @@ setting, and short-circuits when the current voice already matches.
 
 ---
 
-## Stage 6 — speaking (the direct player, since 2026-10-14)
+## Stage 6 — speaking
 
-Easy Voice plays the engines' audio ITSELF. Each chunk is handed to its engine
-with `synthesizeToFile(..., /dev/null, id)` (`submitTo`), with the rate, pitch and
-volume each the product of the system request and the per-language setting; the
-engine's framework streams the PCM back as it is made (`onBeginSynthesis` /
-`onAudioAvailable`, routed by `StreamRouter` into a `PcmStream` per chunk).
+`speakChunk` sets the rate, pitch and volume — each the product of the system
+request and the per-language setting — copies the request's parameter bundle
+minus the keys the platform must not see, and calls `speak`.
 
-**Every chunk of an utterance is handed over at once** — the first on the
-synthesis thread, the rest on the speak thread — so the next language is being
-synthesised while the current one plays. `UtterancePlayback` (SpeechPlayer.kt,
-pure Kotlin) plays the chunks in order on the synthesis thread, writing each one
-to `SpeechOut`: one AudioTrack per exact format (sample rate, encoding, channel
-count, the request's attributes and session), kept and reused, never resampled.
-At the end the track is drained to its last real frame (a position marker, and
-silence written non-blocking so a short chunk passes the start threshold), then
-paused and flushed.
+`onDone` on a binder thread posts the next chunk to the main thread, loads that
+chunk's language, and repeats. The queue is `chunkQueue`.
 
-**An interrupt stops the sound in our own process**: `onStop` calls
-`speechOut.interrupt()`, which pauses the track and wakes the player. Work an
-engine still owes a finished utterance is dropped (`tts.stop()`) right before the
-next request to that engine, or when the utterance ends.
+Two deliberate departures from AutoTTS, both requested by the owner: the first
+chunk is spoken inline on the synthesis thread rather than after a 50 ms post,
+and the next-chunk hop is `post` rather than `postDelayed(50)`.
 
-An engine that fails a chunk part-way hands it over whole to the language's
-backup engine (`retryChunk`); a dead engine's pending streams end at once
-(`failPending`). The utterance id is
-`"${utteranceId}_${synthesisGeneration}_${chunk}"`, unique per utterance and per
-chunk, and every callback is matched by it.
+**Three threads share this stage, and every callback has to say which utterance
+it belongs to.** `onSynthesizeText` runs on the screen reader's synthesis thread
+and blocks there; the target engine's `onStart` / `onDone` / `onError` / `onStop`
+arrive on OUR binder threads; and the next-chunk step runs on the main looper.
+`setOnUtteranceProgressListener` holds ONE listener per `TextToSpeech` and the
+framework reads it at dispatch time, so when the reader interrupts, the old
+utterance's callback lands on the listener the NEW utterance installed.
 
-Proof: `tools/verify/directplay/run.sh` (the old speak() path vs this one on
-simulated AOSP engines and a fake track) and `SpeechOutTest` (a real track, CI's
-emulator).
+Two guards keep them apart, and INVARIANTS #26 has the whole story:
+- the utterance id we hand the engine is
+  `"${utteranceId}_${synthesisGeneration}_${chunkCounter}"`, unique per utterance
+  and per chunk, and the framework echoes it verbatim. `onStart`, `onDone` and
+  both `onError`s drop anything that does not match;
+- `synthesisGeneration`, bumped once per `onSynthesizeText`, is checked at the
+  top of `speakChunk` and inside the posted next-chunk step -- for the callback
+  that was live when it arrived and acts only after the utterance has ended.
 
 ---
 
