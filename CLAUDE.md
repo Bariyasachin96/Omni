@@ -78,6 +78,21 @@ bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*
   console said only "There were failing tests"). `why-failed.sh` now prints each failing device test's name,
   message and stack from the JUnit XML (both emulator jobs), and the profile step tries once more after
   printing the first failure. Tested on fake results (generic, ATF, none); workflow-shell OK.
+- **The callback system swept again for useless work (owner, same day: "aur bhi aisi chijen ... faltu mein time
+  badhati hogi ... usi jagah per").** One found and removed: after every accepted speak() the speak thread was
+  woken to prefetch / queue ahead even when NO chunk waits (every one-language swipe) -- both functions return at
+  once on an empty queue. Now posted only when one waits (speakChunk, and the queued-ahead chunk's onStart).
+  Nothing refills the queue behind the check without posting itself (retryChunkElsewhere speaks what it puts back;
+  an ahead chunk exists only when one waited). speakpipe vs 76dd9f9 60,000: 0 differ, 0 hangs, silences identical;
+  speak-thread wake-ups 280,894 -> 235,722 (now counted); negative `nopost` (never post) FAILS (silence 3x).
+  **Checked and left, with the measurement:** (a) CLD2 allocates ~175 KB per detection; glibc made that look like
+  26 us, but Android's app-process allocator (Zygote: `mallopt(M_BIONIC_ZERO_INIT, 0)`, `M_DECAY_TIME 1`, read in
+  AOSP main) costs 0.07 us per block -- measured with the NDK's static bionic: CLD2 1.7 us per call, buffer reuse
+  changes nothing, so NO operator-new override. (b) TalkBack's empty interrupt makes AOSP's done() log
+  "done() was called before start() call" (one logcat write); only start() avoids it = the AudioTrack. (c) The
+  engine sends every audio buffer back to us (onAudioAvailable) because a chunk has an utterance id, which onDone
+  needs -- the same traffic as TalkBack talking to the engine directly. (d) The re-warm check: mincore over the
+  image = ~2 us, on the warm worker. (e) ADPF report: after the speak, rate-limited.
 
 ## NOTHING OLD: NO SHAREDPREFERENCES, NO RETRY, WRAPPER + CATALOG, ANDROID CLI, LIBS MAPPED FROM THE APK (owner, 2026-10-08 / 10-13, latest)
 *"shared preferences, retry ... kuchh bhi purana nahin rakhna ... sab kuchh naye ke hisab se ... jitni bhi new

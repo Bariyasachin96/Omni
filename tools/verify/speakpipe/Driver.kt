@@ -198,6 +198,7 @@ class Run(val sc: Scenario, val negLabel: String) {
     val uttEnd = HashMap<Int, Double>()
     val interruptAt = HashMap<Int, Double>()
     val callbacks = HashMap<Int, SynthesisCallback>()
+    var speakPosts = 0   // speak-thread wake-ups (each post wakes that thread)
     val attempts = ArrayList<Triple<Int, String, String>>()   // every chunk handed to an engine: utterance, text, language loaded
     var failure: String? = null
     var steps = 0
@@ -208,9 +209,9 @@ class Run(val sc: Scenario, val negLabel: String) {
         }
     }
 }
-class SerialQueue(val run: Run, val hop: Double) {
+class SerialQueue(val run: Run, val hop: Double, val counts: Boolean = false) {
     var last = 0.0
-    fun post(r: () -> Unit) { val t = maxOf(run.now, last) + hop; last = t; run.at(t, r) }
+    fun post(r: () -> Unit) { if (counts) run.speakPosts++; val t = maxOf(run.now, last) + hop; last = t; run.at(t, r) }
 }
 class SimHandler(val sq: SerialQueue) {
     fun post(r: Runnable): Boolean { sq.post { r.run() }; return true }
@@ -332,7 +333,7 @@ fun Run.startAt(index: Int, t: Double) {
 // ---- SVC TEMPLATE BEGIN ----
 class XSvc(val run: Run) : Svc {
     val mainHandler = SimHandler(SerialQueue(run, run.sc.mainHop).also { mainQ = it })
-    val speakHandler = SimHandler(SerialQueue(run, 0.3))
+    val speakHandler = SimHandler(SerialQueue(run, 0.3, true))
     val enginePool = ArrayList<EngineWrapper>()
     @Volatile var engineIndex = -1
     val mayAwaitEngine = ThreadLocal<Boolean>()
@@ -505,6 +506,7 @@ fun main(args: Array<String>) {
     var glitch = 0; var glitchMs = 0.0; var hangOld = 0; var hangNew = 0; var cutLaterNew = 0; var cutLaterOld = 0
     var wrongOld = 0; var wrongNew = 0; var fixedWrong = 0; var afterFix = 0
     var startsOld = 0; var startsNew = 0
+    var postsOld = 0L; var postsNew = 0L
     var queuedUsed = 0; var oldLeakHarm = 0; var stopWindow = 0; var stopWindowMs = 0.0; var maxLonger = 0.0; var idleN = 0; var idleOld = 0.0; var idleNew = 0.0
     for (seed in 1..n) {
         val sc = Scenario(seed)
@@ -514,6 +516,7 @@ fun main(args: Array<String>) {
         EasyVoiceLogger.loggingOn = true
         cases++
         startsOld += o.callbacks.values.sumOf { it.starts }; startsNew += w.callbacks.values.sumOf { it.starts }
+        postsOld += o.speakPosts; postsNew += w.speakPosts
         if (o.failure != null || w.failure != null) { differ++; if (differ <= 10) println("seed $seed runaway old=${o.failure} new=${w.failure}"); continue }
         var why: String? = null
         // The old code could let an interrupted chunk play on (the stop it
@@ -624,6 +627,7 @@ fun main(args: Array<String>) {
     println("  cuts only one version made: old $cutLaterOld, new (not a failed chunk's queued one) $cutLaterNew")
     println("  queued chunk heard after the chunk in front failed: %d cases, %.0f ms".format(glitch, glitchMs))
     println("  callbacks started (each one an AudioTrack in our process): old $startsOld, new $startsNew")
+    println("  speak-thread wake-ups (posts): old $postsOld, new $postsNew")
     println("  queued chunk started between an interrupt and its stop: %d cases, %.0f ms".format(stopWindow, stopWindowMs))
     if (differ > 0 || wrongNew > 0 || hangNew > hangOld || newLonger > 0 || cutLaterNew > 0 || startsNew > 0) kotlin.system.exitProcess(1)
 }

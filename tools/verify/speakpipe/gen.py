@@ -103,6 +103,9 @@ elif NEG == "nodone":
 elif NEG == "start":
     # the engine's onStart starts the callback again: an AudioTrack per utterance
     nb = nb.replace("                        // No callback.start() here any more: see finishCallback.\n", "                        startCallback(callback)\n", 1)
+elif NEG == "nopost":
+    # the next chunk is never prepared while this one speaks, waiting or not
+    nb = nb.replace("if (synchronized(chunkQueue) { chunkQueue.isNotEmpty() }) {\n                            speakHandler.post", "if (false) {\n                            speakHandler.post", 1)
 elif NEG:
     sys.exit("unknown EV_NEG " + NEG)
 if NEG and (nm, nb) == before: sys.exit("EV_NEG " + NEG + " changed nothing")

@@ -4235,7 +4235,9 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // the engine's own start-up time doing nothing. A queued chunk
                         // cannot start it earlier -- until it is promoted, the chunk in
                         // front still holds the one prefetch slot.
-                        if (mine != null) speakHandler.post {
+                        // Not when no chunk is waiting: both return at once on an empty
+                        // queue (see speakChunk). A taken-back chunk returns anyway.
+                        if (mine != null && synchronized(chunkQueue) { chunkQueue.isNotEmpty() }) speakHandler.post {
                             if (mine.takenBack) return@post
                             prefetchNextLanguage(); queueNextAheadRef()
                         }
@@ -4811,7 +4813,19 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // engine, to hand it over with QUEUE_ADD -- so it starts now,
                         // not at onStart. Posted: the speak thread is the one thread
                         // that owns the prefetch slot and the ahead chunk.
-                        speakHandler.post { prefetchNextLanguage(); queueNextAheadRef() }
+                        //
+                        // ONLY WHEN A CHUNK IS WAITING (owner, 2026-10-14: "aur bhi aisi
+                        // chijen ... faltu mein time badhati hogi ... usi jagah per").
+                        // prefetchNextLanguage and queueNextAhead both return at once on
+                        // an empty queue, so for the last (or only) chunk -- every swipe
+                        // over a one-language label -- the post woke the speak thread to
+                        // do nothing, at the moment the engine starts speaking. Nothing
+                        // can refill the queue behind this check without posting itself:
+                        // retryChunkElsewhere speaks (and so posts) the chunk it puts
+                        // back, and a chunk queued ahead exists only when one was waiting.
+                        if (synchronized(chunkQueue) { chunkQueue.isNotEmpty() }) {
+                            speakHandler.post { prefetchNextLanguage(); queueNextAheadRef() }
+                        }
                     } else {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Speaking failed!!!")
                         if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " refused to speak")) {
