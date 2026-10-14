@@ -3405,7 +3405,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // now (ScanYield). Its end, below, is the event that lets it go on.
         synthesizingNow = true
         boostSynthesisThread()
-        try { nativeRewarmTables() } catch (_: Throwable) {}
         try {
             onSynthesizeTextImpl(request, callback)
         } catch (ex: Throwable) {
@@ -3516,9 +3515,24 @@ class EasyVoiceTtsService : TextToSpeechService() {
             synchronized(chunkQueue) { chunkQueue.clear() }
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
             synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }
-            startAndFinish(callback)
+            // FINISHED WITHOUT BEING STARTED (owner, 2026-10-14: "aur bhi fast").
+            // start() is what makes AOSP build an AudioTrack in this process
+            // (PlaybackSynthesisCallback.start -> SynthesisPlaybackQueueItem.run ->
+            // BlockingAudioTrack.init: createTrack, stop, release in audioserver)
+            // -- for an utterance with no audio. TalkBack's interrupt IS this
+            // utterance (FailoverTextToSpeech.stopAll / stopFromTalkBack:
+            // speak("", ..., null), no utterance id), on every touch and gesture
+            // that cuts speech off. done() alone is AOSP's own path for this
+            // ("done() was called before start() call. Treat it as successful
+            // synthesis for a client"): a caller that did give an id still gets
+            // onDone; no AudioTrack is made. AutoTTS's N starts it: DELIBERATE
+            // DEPARTURE.
+            if (callback?.hasFinished() == false) callback.done()
             return
         }
+        // The CLD2 tables are re-warmed only for text that will be detected; the
+        // empty interrupt above has none (it used to signal the worker too).
+        try { nativeRewarmTables() } catch (_: Throwable) {}
         val readingMode = when (modeInt) { 1 -> "dual"; 2 -> "auto"; 3 -> "google"; 4 -> "mix"; 5 -> "multilingual"; else -> "none" }
         val isForceAccessibility  = forceAccessibilityFlag
         val isStripAudioAttr      = stripAudioAttrFlag

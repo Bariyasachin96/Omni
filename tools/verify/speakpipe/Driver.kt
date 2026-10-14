@@ -477,7 +477,10 @@ fun summary(run: Run, utt: Int): String {
     val notes = run.notes.filter { it.startsWith("$utt:") }
     val cb = run.callbacks[utt]
     val ended = run.uttEnd.containsKey(utt)
-    return "full=$full notes=$notes cb=${cb?.starts}/${cb?.dones} ended=$ended"
+    // An EMPTY utterance's callback is finished without being started since
+    // 2026-10-14 (no AudioTrack for an interrupt), so only its done is compared.
+    val starts = if (run.sc.utts.getOrNull(utt)?.empty == true) "-" else "${cb?.starts}"
+    return "full=$full notes=$notes cb=$starts/${cb?.dones} ended=$ended"
 }
 
 fun main(args: Array<String>) {

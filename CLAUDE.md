@@ -27,6 +27,23 @@ bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*
   few ms (4 cases, 7 ms in all). The simulator gives a binder call no duration, so the saving itself does not show
   in its numbers. gradle-compile 0/0, invariants hold.
 
+- **TalkBack's interrupt utterance builds no AudioTrack** (owner, same day: "aur bhi fast"). TalkBack cuts speech
+  with speak("", ..., null) (FailoverTextToSpeech.stopAll / stopFromTalkBack, NO utterance id) on every touch and
+  gesture interrupt; it never calls stop(). The empty branch did start()+done(), and start() makes AOSP build an
+  AudioTrack in our process (SynthesisPlaybackQueueItem.run -> BlockingAudioTrack.init: createTrack, stop, release
+  in audioserver) for no audio. Now done() only -- AOSP's own "done() was called before start()" path: a caller that
+  gave an id still gets onDone. AutoTTS's N starts it: DELIBERATE DEPARTURE. `nativeRewarmTables()` moved below the
+  empty check (it signalled the warm worker for the interrupt too). speakpipe vs 1a09f44 60,000: 0 differ (an empty
+  utterance's callback is compared by done only); negative (done skipped) caught. Read and KEPT: onStop's early
+  stop of the speaking engine (it pipelines the engine's stop work with our detection; the new speak's QUEUE_FLUSH
+  would otherwise do it later, inline), and start() at the engine's onStart for real speech (TalkBack's onStart).
+- **CI: the release no longer waits for the baseline-profile job** (build 971 waited 41 min -- 11 compiling, 30 on the
+  emulator -- and then its upload failed on the artifact storage quota, so 968-971 shipped no generated profile at
+  all). `build` has no `needs`; it takes the newest `baseline-profile-*` an EARLIER run kept (`gh run download`,
+  `actions: read`; a profile a build old still applies), else the hand-written ones. Profile retention 1 -> 7 days,
+  R8 mapping 15 -> 7. All 205 artifacts (315 MB, 150 R8 mappings) deleted on the owner's word. The repo is PRIVATE:
+  Actions minutes count, and the profile job is ~42 of a run's ~73 job-minutes.
+
 ## NOTHING OLD: NO SHAREDPREFERENCES, NO RETRY, WRAPPER + CATALOG, ANDROID CLI, LIBS MAPPED FROM THE APK (owner, 2026-10-08 / 10-13, latest)
 *"shared preferences, retry ... kuchh bhi purana nahin rakhna ... sab kuchh naye ke hisab se ... jitni bhi new
 method hai vah saari use karo"*; 10-13: *"jo data store mein aata hai vah data store mein, jo proto buffer mein

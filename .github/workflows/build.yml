@@ -34,11 +34,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Waits for the profile, but runs whatever happened to it.
-    needs: baseline-profile
-    if: ${{ !cancelled() }}
+    # Does NOT wait for the profile job (owner, 2026-10-14) -- see the profile
+    # step below. actions: read lets it fetch the profile an earlier run made.
     permissions:
       contents: write
+      actions: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -105,21 +105,37 @@ jobs:
           fi
           printf '%s' "$KSBASE64" | base64 -d > easyvoice-release.keystore
           echo "Keystore ready" 
-      - name: Use the generated baseline profile
-        id: profile
+      # THE RELEASE NO LONGER WAITS FOR THE PROFILE JOB (owner, 2026-10-14).
+      # Build 971's APK waited 41 minutes for it (11 to compile, 30 on the
+      # emulator) and then the profile could not even be uploaded (storage
+      # quota). The profile job runs BESIDE this one now, and its profile goes
+      # into the NEXT build: a baseline profile names classes and methods, so
+      # one made a build earlier still applies, and an entry for a method that
+      # has since changed is simply ignored. With no earlier profile kept, the
+      # APK ships the hand-written profiles only, as it always could.
+      - name: Use the newest generated baseline profile
         continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          name: baseline-profile-${{ github.run_number }}
-          path: app/src/main/generated/baselineProfiles/
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          found=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.name | startswith("baseline-profile-"))]
+                  | sort_by(.created_at) | last | select(. != null) | "\(.workflow_run.id) \(.name)"') || found=""
+          if [ -n "$found" ]; then
+            set -- $found
+            gh run download "$1" -R "$GITHUB_REPOSITORY" -n "$2" -D app/src/main/generated/baselineProfiles/ \
+              && echo "EV_PROFILE_FROM=$2" >> "$GITHUB_ENV"
+          else
+            echo "no generated baseline profile is kept from an earlier run"
+          fi
       - name: Say whether the generated profile is in
         run: |
           if ls app/src/main/generated/baselineProfiles/*.txt >/dev/null 2>&1; then
             wc -l app/src/main/generated/baselineProfiles/*.txt
-            echo "EV_PROFILE=generated on the emulator and compiled in" >> "$GITHUB_ENV"
+            echo "EV_PROFILE=generated on the emulator (${EV_PROFILE_FROM:-an earlier run}) and compiled in" >> "$GITHUB_ENV"
           else
             echo "::warning::no generated baseline profile; shipping the hand-written one only"
-            echo "EV_PROFILE=hand-written only (the profile job did not produce one, or could not upload it)" >> "$GITHUB_ENV"
+            echo "EV_PROFILE=hand-written only (no earlier run left a generated one)" >> "$GITHUB_ENV"
           fi
       - name: Build APK
         # tools/ci/gradle-retry.sh, not an inline function: this same retry was
@@ -313,7 +329,9 @@ jobs:
         with:
           name: r8-mapping-${{ github.run_number }}
           path: app/build/outputs/mapping/release/mapping.txt
-          retention-days: 15
+          # 7 days (was 15): 150 mappings of ~2.4 MB filled the quota again by
+          # 2026-10-14 (build 971 could upload nothing); all were deleted then.
+          retention-days: 7
           if-no-files-found: warn
 
   # Google's Accessibility Test Framework over every screen -- labels, colour
@@ -518,9 +536,9 @@ jobs:
   # screen and its scan, then the TTS service speaking in mixed, auto and dual
   # mode -- and records what ran, so ART compiles exactly that ahead of time on
   # install. It cannot run in the dev container (no KVM), so it runs here, on
-  # every build, and the build job waits for it. A failure here never blocks
-  # the APK: the build job then ships with the hand-written profile only and
-  # its release notes say so.
+  # every build, BESIDE the build job (which no longer waits for it): the
+  # profile it makes is compiled into the NEXT build. A failure here never
+  # touches the APK.
   baseline-profile:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -669,15 +687,15 @@ jobs:
         if: failure()
         run: bash tools/ci/why-failed.sh
 
-      # The build job waits for this artifact and compiles it into the APK. It is
-      # needed only within this run, so it is kept one day. A failed upload
-      # (storage quota) does not fail the run: the build job then ships the
-      # hand-written profile and says so in the release notes.
+      # The NEXT build's build job takes the newest of these and compiles it
+      # into its APK. Kept 7 days so a gap between builds does not lose it (a
+      # few hundred KB). A failed upload (storage quota) does not fail the run:
+      # the next build then takes an older one, or the hand-written profile.
       - name: Upload the generated baseline profile
         continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: baseline-profile-${{ github.run_number }}
           path: app/src/main/generated/baselineProfiles/
-          retention-days: 1
+          retention-days: 7
           if-no-files-found: error

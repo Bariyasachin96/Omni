@@ -37,7 +37,12 @@ def lift(path, cls):
     region = t[a:b]
     # the empty-text flush (and the per-utterance reset above it)
     p = t.index("        synchronized(syncLock) { isStopped = false; isFlushed = false; syncLock.notifyAll() }")
-    q = t.index("            startAndFinish(callback)\n            return\n        }\n", p) + len("            startAndFinish(callback)\n            return\n        }\n")
+    # the branch ends with startAndFinish (refs before 2026-10-14) or with a
+    # done() that never starts the callback (the tree since)
+    ends = [e for e in ("            startAndFinish(callback)\n            return\n        }\n",
+                        "            if (callback?.hasFinished() == false) callback.done()\n            return\n        }\n")
+            if t.find(e, p) >= 0]
+    q = min(t.index(e, p) + len(e) for e in ends)
     prelude = t[p:q]
     funs = [fun(t, "    private fun startCallback("), fun(t, "    private fun startAndFinish("),
             fun(t, "    private fun endSynthesis("), fun(t, "    private fun unlockSynthesis("),
