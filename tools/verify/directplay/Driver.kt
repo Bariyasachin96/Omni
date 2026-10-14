@@ -227,6 +227,8 @@ class Run(val sc: Scenario, val newCode: Boolean) {
     val attempts = ArrayList<Triple<Int, String, String>>()
     /** "utterance|text|engine" of every request made. */
     val asked = HashSet<String>()
+    /** Requests an engine began synthesising after their utterance had ended. */
+    var staleStarted = 0
     var failure: String? = null
     var steps = 0
     // the new code's audio
@@ -408,6 +410,8 @@ class FakeEngine(val run: Run, val raw: String, val latency: Double) {
     private fun startNext() {
         val item = fileQueue.removeFirstOrNull() ?: run { current = null; return }
         current = item
+        val ended = run.uttEnd[item.utt]
+        if (ended != null && run.now > ended + 1.0) run.staleStarted++
         val tok = ++token
         val fault = run.sc.faults[item.text + "|" + raw]
         if (fault != null && fault.immediate) {
@@ -783,7 +787,7 @@ fun main(args: Array<String>) {
         return
     }
     var differ = 0; var cases = 0; var chunksHeard = 0; var failures = 0
-    var deathDiff = 0; var hangs = 0; var leakN = 0; var afterDoneN = 0; var rateN = 0; var killedN = 0; var unknownN = 0
+    var deathDiff = 0; var hangs = 0; var leakN = 0; var afterDoneN = 0; var rateN = 0; var killedN = 0; var unknownN = 0; var staleN = 0
     var wrongNew = 0; var wrongOld = 0
     var gapOld = 0.0; var gapNew = 0.0; var gapsCompared = 0; var newLonger = 0; var maxLonger = 0.0
     var sameFmtGaps = 0; var sameFmtNew = 0.0; var switchGaps = 0; var switchNew = 0.0
@@ -805,6 +809,7 @@ fun main(args: Array<String>) {
         if (w.afterDoneFrames > 0) { afterDoneN++; if (why == null) why = "new: ${w.afterDoneFrames} frames heard after done()" }
         if (w.rateMismatch > 0) { rateN++; if (why == null) why = "new: ${w.rateMismatch} frames played at another rate/channel count" }
         if (w.liveKilled > 0) { killedN++; if (why == null) why = "new: ${w.liveKilled} requests of the utterance in progress stopped" }
+        if (w.staleStarted > 0) { staleN++; if (why == null) why = "new: ${w.staleStarted} requests of a finished utterance synthesised" }
         if (w.unknownFrames > 0) { unknownN++; if (why == null) why = "new: ${w.unknownFrames} frames of no request heard" }
         if (leakOldOf(o, sc) > 0) leakOldCases++
         for (h in w.heard.values) offVolFrames += h.offVol
@@ -880,6 +885,7 @@ fun main(args: Array<String>) {
     println("$cases scenarios (old speak() path vs the direct player, AOSP-shaped engines): $differ differ")
     println("  chunks heard to the end (new): $chunksHeard; hangs $hangs; failures $failures")
     println("  heard after an interrupt: $leakN; after done(): $afterDoneN; at another rate: $rateN; of no request: $unknownN")
+    println("  scenarios where an engine began work of an utterance already over: $staleN")
     println("  requests of the utterance in progress stopped: $killedN; given in the wrong language: old $wrongOld, new $wrongNew")
     println("  utterances that differ where an engine died (by design, not compared): $deathDiff")
     println("  utterances where a chunk already handed over stayed with its engine after a backup switch: $lookaheadEngine")
