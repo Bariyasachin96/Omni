@@ -47,6 +47,24 @@ bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*
   is older than 6 days (jq `fromdateiso8601 | max // 0`, tested on empty / expired / live data); an API failure
   answers NOT due with a ::warning:: rather than spend 42 minutes on a guess. About once a week, then.
 
+- **Latency, the last pass (owner, same day: "aur bhi fast ... antim charan"). Our side is at its floor; NO
+  speaking-path change.** Re-traced with TalkBack's source (FailoverTextToSpeech: per swipe it sends
+  speak("", QUEUE_FLUSH) then speak(text, QUEUE_ADD); setLanguage on us only when its attached locale changes)
+  and AOSP's playback classes. Per swipe our process does ~1 ms of work; the only other cost is the AudioTrack
+  AOSP builds for our callback at the engine's onStart (it is what sends TalkBack its onStart, which TalkBack's
+  UtteranceStartActions need -- KEPT; moving start() earlier gains ~1 ms and changes when TalkBack hears onStart).
+  **The one real cost left: a *Default voice switching language on a SHARED engine (Hindi<->Gujarati on
+  Google).** AOSP's setLanguage = 4 binder calls, one of them getVoices(): Google's whole list (hundreds of
+  voices), each Voice's Locale Java-serialized (Voice(Parcel) uses readSerializable; 500 Locales = 6 ms / 85 KB on
+  a desktop JVM, several times that on a phone). A NAMED variant switches with setVoice = 1 call (voicesCache
+  filled by the scan). So: pick a named (preferably "-local") voice for every language sharing an engine in Voice
+  setup. Resolving *Default to the engine's default voice automatically is NOT exact (only setLanguage /
+  getDefaultVoiceNameFor know it, the latter is hidden; mParams is not reflection-allowed) -- owner's call.
+- **CI: run 972's red X was the baseline-profile job's device test** (973 passed with the same code; AGP's
+  console said only "There were failing tests"). `why-failed.sh` now prints each failing device test's name,
+  message and stack from the JUnit XML (both emulator jobs), and the profile step tries once more after
+  printing the first failure. Tested on fake results (generic, ATF, none); workflow-shell OK.
+
 ## NOTHING OLD: NO SHAREDPREFERENCES, NO RETRY, WRAPPER + CATALOG, ANDROID CLI, LIBS MAPPED FROM THE APK (owner, 2026-10-08 / 10-13, latest)
 *"shared preferences, retry ... kuchh bhi purana nahin rakhna ... sab kuchh naye ke hisab se ... jitni bhi new
 method hai vah saari use karo"*; 10-13: *"jo data store mein aata hai vah data store mein, jo proto buffer mein

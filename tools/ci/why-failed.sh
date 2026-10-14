@@ -72,6 +72,42 @@ if grep -qE 'device offline|emulator-5554. not found|Timeout waiting for emulato
   exit 0
 fi
 
+# A DEVICE TEST FAILED. AGP's console says only "There were failing tests" and
+# points at an HTML report on the runner, which is gone with it -- run 972's
+# baseline-profile job said nothing more than that. The test's name, message and
+# stack are in the JUnit XML AGP writes beside the report, so print them here.
+if grep -q 'There were failing tests' "$LOG"; then
+  failures=$(python3 -I - <<'PY'
+import glob
+import xml.etree.ElementTree as ET
+files = sorted(glob.glob('**/build/outputs/androidTest-results/**/*.xml', recursive=True))
+shown = 0
+for path in files:
+    try:
+        root = ET.parse(path).getroot()
+    except Exception:
+        continue
+    for case in root.iter('testcase'):
+        for kind in ('failure', 'error'):
+            for node in case.findall(kind):
+                shown += 1
+                print('--- %s.%s  (%s)' % (case.get('classname'), case.get('name'), path))
+                print((node.get('message') or '').strip()[:500])
+                print('\n'.join((node.text or '').strip().splitlines()[:30]))
+print('(%d failing test(s) in %d result file(s))' % (shown, len(files)))
+PY
+)
+  if printf '%s' "$failures" | grep -qE 'AccessibilityViewCheckException|AccessibilityCheck|ContrastCheck|SpeakableTextPresentCheck|TouchTargetSizeCheck|DuplicateSpeakableTextCheck'; then
+    say "REAL: an ACCESSIBILITY CHECK FAILED. This is a defect in the app, not the
+  pipeline. Do NOT add continue-on-error. The test and the node are below."
+  else
+    say "A DEVICE TEST FAILED -- the test itself on the emulator, not the build.
+  Its name, message and stack are below."
+  fi
+  printf '%s\n' "$failures"
+  exit 0
+fi
+
 say "UNCLASSIFIED. tools/ci/why-failed.sh does not recognise this one; the last
   40 lines of the Gradle log are below. If it turns out to be a KIND that can
   happen again, add its signature here."

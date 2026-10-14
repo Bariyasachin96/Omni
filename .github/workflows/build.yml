@@ -713,9 +713,15 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
+          # ONE more try when the device run fails (run 972: the generator's test
+          # failed on the emulator, run 973 passed it with the same code). The
+          # first failure is still explained in this log by why-failed.sh -- the
+          # test, its message and its stack -- so a retry that passes hides nothing.
+          # A compile error fails both tries the same way. The profile is an
+          # optimisation the APK does not wait for (see the build job).
           script: |
             echo "sdk.dir=$ANDROID_HOME" > local.properties
-            bash tools/ci/gradle-retry.sh :app:generateBaselineProfile
+            bash tools/ci/gradle-retry.sh :app:generateBaselineProfile || { bash tools/ci/why-failed.sh; bash tools/ci/gradle-retry.sh :app:generateBaselineProfile; }
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
