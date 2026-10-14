@@ -42,7 +42,10 @@ bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*
   all). `build` has no `needs`; it takes the newest `baseline-profile-*` an EARLIER run kept (`gh run download`,
   `actions: read`; a profile a build old still applies), else the hand-written ones. Profile retention 1 -> 7 days,
   R8 mapping 15 -> 7. All 205 artifacts (315 MB, 150 R8 mappings) deleted on the owner's word. The repo is PRIVATE:
-  Actions minutes count, and the profile job is ~42 of a run's ~73 job-minutes.
+  Actions minutes count, and the profile job is ~42 of a run's ~73 job-minutes -- so (owner: "han") it now runs
+  ONLY WHEN DUE: a short `profile-due` job answers due when no `baseline-profile-*` artifact is kept or the newest
+  is older than 6 days (jq `fromdateiso8601 | max // 0`, tested on empty / expired / live data); an API failure
+  answers NOT due with a ::warning:: rather than spend 42 minutes on a guess. About once a week, then.
 
 ## NOTHING OLD: NO SHAREDPREFERENCES, NO RETRY, WRAPPER + CATALOG, ANDROID CLI, LIBS MAPPED FROM THE APK (owner, 2026-10-08 / 10-13, latest)
 *"shared preferences, retry ... kuchh bhi purana nahin rakhna ... sab kuchh naye ke hisab se ... jitni bhi new

@@ -535,11 +535,50 @@ jobs:
   # BaselineProfileGenerator drives the real app on the emulator -- the main
   # screen and its scan, then the TTS service speaking in mixed, auto and dual
   # mode -- and records what ran, so ART compiles exactly that ahead of time on
-  # install. It cannot run in the dev container (no KVM), so it runs here, on
-  # every build, BESIDE the build job (which no longer waits for it): the
-  # profile it makes is compiled into the NEXT build. A failure here never
-  # touches the APK.
+  # install. It cannot run in the dev container (no KVM), so it runs here,
+  # BESIDE the build job (which no longer waits for it): the profile it makes
+  # is compiled into the NEXT build. A failure here never touches the APK.
+  #
+  # ONLY WHEN THE KEPT PROFILE IS DUE (owner, 2026-10-14): the repository is
+  # private, so every job's minutes count, and this one took ~42 of a run's ~73.
+  # profile-due (one short job, no emulator) answers "due" only when no
+  # baseline-profile-* artifact is kept or the newest is older than 6 days --
+  # before the 7-day retention lets it expire -- so the emulator runs about
+  # once a week and every build in between compiles in the kept profile.
+  profile-due:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      due: ${{ steps.check.outputs.due }}
+    steps:
+      - name: Is a new baseline profile due
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          newest=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.name | startswith("baseline-profile-"))
+                   | .created_at | fromdateiso8601] | max // 0') || newest=""
+          if [ -z "$newest" ]; then
+            # The question could not be asked: say so, and do not spend ~42
+            # minutes on a guess. The build ships whatever profile is kept.
+            echo "::warning::could not list artifacts; baseline profile not regenerated this run"
+            due=false
+          elif [ "$newest" = 0 ]; then
+            echo "no generated baseline profile is kept"; due=true
+          else
+            age=$(( $(date -u +%s) - newest ))
+            echo "newest kept profile is $(( age / 3600 )) hours old"
+            if [ "$age" -gt $(( 6 * 86400 )) ]; then due=true; else due=false; fi
+          fi
+          echo "due=$due"
+          echo "due=$due" >> "$GITHUB_OUTPUT"
+
   baseline-profile:
+    needs: profile-due
+    if: needs.profile-due.outputs.due == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
