@@ -868,7 +868,7 @@ fun main(args: Array<String>) {
                     val go = po[k].start - po[k - 1].end; val gn = pn[k].start - pn[k - 1].end
                     gapsCompared++; gapOld += go; gapNew += gn
                     if (gn > go + 1e-6) maxLonger = maxOf(maxLonger, gn - go)
-                    if (gn > go + 1.0) { newLonger++; if (System.getenv("EV_SHOW") == "longer") println("longer seed $seed utt $u gap $k old %.1f new %.1f".format(go, gn)) }
+                    if (gn > go + 1.0) { newLonger++; if (System.getenv("EV_SHOW") == "longer") println("longer seed $seed utt $u gap $k old %.1f new %.1f faults ${sc.faults.size} death ${sc.death != null}".format(go, gn)) }
                     fun whole(t: String) = w.items.values.first { it.text == t && it.utt == u && (w.heard[it.serial]?.frames ?: -1L) >= it.frames && !it.failed }
                     val a = whole(pn[k - 1].text)
                     val b = whole(pn[k].text)

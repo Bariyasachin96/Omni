@@ -33,10 +33,18 @@ generations, per-engine stops). ARCHITECTURE stage 6, INVARIANTS #32.
   shape OUR track's attributes).
 - **Known cost, stated:** with Backup TTS on, a chunk handed over before its engine failed an EARLIER chunk stays
   with that engine (the old path moved it with the language); if it then fails there, it is handed over and part
-  of it is heard twice.
+  of it is heard twice. And the part of a chunk still in the track's buffer (at most one buffer, ~40 ms) plays at
+  the NEXT chunk's volume when two neighbouring chunks of one format have different volume settings.
 - **Proof `tools/verify/directplay/run.sh`** (replaces speakpipe): the old speak() path (236c56c) vs the real
   SpeechPlayer.kt/SpeechOut.kt on one virtual clock, AOSP-shaped engines and a fake AudioTrack (threshold,
-  underrun, pause/flush, markers): @@RESULT@@ Negatives, each caught: @@NEGS@@. It found a real bug: half a frame
+  underrun, pause/flush, markers): 20,000 scenarios, **0 differ**, 0 hangs; 0 frames heard after an interrupt, after done(), at another rate or of no
+  request; 0 work begun for an utterance already over. Silence between chunks old 2,123,293 -> new 659,802 ms over
+  25,583 boundaries (same format avg 20.3 ms, a format switch 57.1 ms); first sound old 230 -> 192 ms. Counted by
+  design, not compared: engine deaths 153, a chunk staying with its engine after a backup switch 159 (26 meeting a
+  fault there), -5 now handed to the backup 188, and 36 utterances after those. 401 boundaries are longer than
+  before: nearly all where an engine failed or died (the retry queues behind chunks already with that engine); in
+  a clean run, where the new path is already ahead and meets the engine's own start-up latency. Negatives, each caught: nodrain 906, nopause 356, nodrop 97 (it needed the
+  new stale-work count), dropall 1,070, noretry 35, volume 421, nodeath 197, noload 777, nocarry 3. It found a real bug: half a frame
   left by a failed chunk was joined to the next chunk (noise) -- fixed in `select()`. Harness fairness fixed on
   the way: the old engine's next request now waits for its synthesis speed too (AOSP starts it when synthesis
   returns).
