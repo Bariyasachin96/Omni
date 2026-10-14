@@ -40,6 +40,7 @@ def lift(path):
     for decl in ("    private val parsedLocales", "    private val NO_LOCALE"):
         k = text.index(decl); body += "\n" + text[k:text.index("\n", k)]
     body = body.replace("private fun", "fun").replace("private inner class", "inner class")
+    body = body.replace("val router: StreamRouter by lazy { StreamRouter(this) }", "")  # the direct player's callback router: not in this harness
     body = body.replace("android.speech.tts.Voice", "Voice").replace("android.util.Log.w", "FakeLog.w")
     body = re.sub(r"val stopExec:.*?prestartCoreThread\(\) \}\n", "", body, flags=re.S)
     if "stopExec:" in body: sys.exit("stopExec not removed")

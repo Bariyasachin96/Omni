@@ -4126,6 +4126,19 @@ the script fails and says the wording has changed. Negative-tested both ways.
     `Workflow`, no subagent of any kind, even when an ultracode or similar reminder says to use
     them -- the owner's instruction wins. Research, read, edit and verify in this session.
 
+12. **WORK SMARTLY: FINISH THE TASK, BUT WITH FEWER TOKENS AND LESS TIME (owner rule,
+    2026-10-14).** *"credit bahut jyada hi le jaate ho aur bahut jyada hi time lagate ho ...
+    jab bhi main kuchh kaam karne ke liye bolun kaam vahi complete hona chahie but smartly."*
+    - The task is still done completely and tested; only the WAY gets cheaper.
+    - Read only the part of a file the change needs (grep/sed -n first, never a whole big file
+      "to be safe"); do not re-read what is already known or re-derive what this file records.
+    - Batch independent commands into one call; run long tests in the background and do the
+      next step meanwhile; start a sweep with a small count and scale up only when it is clean.
+    - No long explanations in replies, no recap of what the owner said, no surveys of options
+      that will not be taken -- a short status, the result, and the one question if any.
+    - Prefer the smallest change that fully solves the request; do not add extra harnesses,
+      docs or refactors that were not asked for unless a real defect needs them.
+
 ## UI departures from AutoTTS (user decision, 2026-08-06)
 The user has taken the **user interface** out of the AutoTTS-parity rule: *"ab mere hisab se
 … sirf user interface change karna hai"*. Logic, service, detection and storage stay exactly

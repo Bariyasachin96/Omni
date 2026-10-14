@@ -952,13 +952,12 @@ diagnosing is worse than no diagnostic.
 *(`invariants.sh` #28, negative-tested three ways in `selftest.sh`)*
 
 `EngineWrapper` has two kinds of field. Some describe the **engine package** —
-`pkg`, `state`, and the restore flags — and survive anything. Five describe **the
+`pkg`, `state`, and the restore flags — and survive anything. Four describe **the
 `TextToSpeech` object currently in `tts`**:
 
     voicesCache        the voice set marshalled out of THAT connection
     currentVoice       what mParams[KEY_PARAM_VOICE_NAME] resolves to on it
     currentVoiceKnown  whether we know the above without asking
-    audioAttrSet       our accessibility attributes are in ITS mParams
     localeSet          setLanguage or setVoice has succeeded ON IT
 
 Replace `tts` and every one of those becomes a statement about an object that no
@@ -970,14 +969,9 @@ longer exists. **A new `TextToSpeech` is a new binder connection with empty
 belong to it. There are four assignment sites — both init listeners, both
 restore branches.
 
-**`audioAttrSet` is the deliberate exception, and the ORDER is why.** Both
-listeners set it to `true` — inside the `forceAccessibilityFlag` branch, on the
-new client — immediately *before* they assign `tts` and call
-`forgetClientState()`. Clearing it in there would therefore undo the value just
-written and make the force switch dead on that engine, which is the exact bug
-that clearing it was added to fix. It is reset at both listeners instead, and
-`RestoreInitListener` sets it `false` before the status branch so the failure
-path is covered too.
+**`audioAttrSet` is gone (2026-10-14).** The audio attributes are set on Easy Voice's
+own track now (the direct player, #32), never into an engine client's `mParams`,
+so no flag has to describe them.
 
 ### Each field that was missed cost a real bug, and they got worse
 - **`voicesCache`** (2026-09-02) — a stale list meant scanning the *old*
@@ -1118,3 +1112,31 @@ reconnects. One restore per death is needed, and exactly one. The death callback
 therefore never restore (the old code restored there AND again from
 `onServiceConnected`); they mark `-1` and wait. Every engine restores in parallel.
 `invariants.sh` #29 checks each of those rules and `selftest.sh` breaks each one.
+
+## 32. The direct player: exact format, no lock across a write, stop in our own process
+
+Since 2026-10-14 Easy Voice plays the engines' audio itself (SpeechPlayer.kt,
+SpeechOut.kt; ARCHITECTURE stage 6). Five rules hold it together:
+
+1. **Never resample.** A chunk plays on a track of exactly the format its engine
+   announced in `onBeginSynthesis` (rate, encoding, channels) with the request's
+   attributes and session; another format is another track (owner: *"resampling
+   nahin karna hai kisi bhi halat mein"*).
+2. **The gate is never held across `AudioTrack.write`.** A blocking write can take
+   a whole buffer's time; `onStop` takes the same monitor to wake the player, so
+   holding it would delay the stop by that much. Pieces are taken out under the
+   gate and written outside it.
+3. **The stop is a `pause()` in our own `onStop`**, and every wait the player has
+   (slot, format, piece, drain) also ends on `interrupted`. A write already
+   blocked returns at once (AudioTrack.write: "another thread interrupts the
+   write by calling stop or pause").
+4. **Heard to the end means the marker at the last real frame.** The silence
+   written after it (so a short chunk passes the start threshold) is dropped by
+   `pause()` + `flush()`, never heard; flush also zeroes the head, which is why a
+   track is always parked before it is used again.
+5. **A chunk starts on a frame boundary.** Half a frame left by a chunk that
+   failed part-way is dropped in `select()`, never joined to the next chunk
+   (that bug was real: the simulator heard "frames of no request").
+
+Proof: `tools/verify/directplay/run.sh` (EV_NEG negatives each break one of these)
+and `SpeechOutTest` on CI's emulator.

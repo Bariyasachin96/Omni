@@ -117,6 +117,8 @@ interface Arm {
     fun summary(): List<String>
 }
 open class Base {
+    // the direct player ends a dead engine's streams here; there are none in this harness
+    fun failPending(wrapper: Any, why: String) {}
     var voiceList = ArrayList<String>()
     var modeInt = 4
     var lastEnginePkg = ""
@@ -147,7 +149,7 @@ class SvcNew : Base(), Arm {
 //NEW//
     override fun setUp(engines: List<FakeEngine>, mode: Int, voiceList: List<String>) {
         modeInt = mode; this.voiceList = ArrayList(voiceList)
-        for (e in engines) { val w = EngineWrapper(e.pkg); w.state = 2; w.tts = TextToSpeech(e); w.listenerSet = true; enginePool.add(w) }
+        for (e in engines) { val w = EngineWrapper(e.pkg); w.state = 2; w.tts = TextToSpeech(e); enginePool.add(w) }
     }
     override fun load(pkg: String, l: Locale, v: String, d: Boolean) = loadVoice(pkg, l, v, d)
     override fun current(): Pair<String, TextToSpeech?>? { val w = enginePool.getOrNull(engineIndex) ?: return null; return if (w.state != 2) null else Pair(w.pkg, w.tts) }

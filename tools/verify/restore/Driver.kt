@@ -51,6 +51,8 @@ class Svc {
     fun bindEngineKeepAlive(pkg: String) { binds.add(pkg) }
     // the cold-start waiter is woken here (2026-10-01); nothing waits in this harness
     fun engineSettled() {}
+    // The direct player ends a dead engine's streams here; no stream exists in this harness.
+    fun failPending(wrapper: EngineWrapper, why: String) {}
     var scanned = 0
     fun startupScan() { scanned++ }
     // two-wave start (2026-10-01): which engines a language uses; null = all

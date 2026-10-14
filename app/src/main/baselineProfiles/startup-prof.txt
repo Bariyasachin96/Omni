@@ -9,7 +9,9 @@
 # (androidx.startup asks for its initializers to be in the primary dex).
 # Every name below is checked against the compiled classes (gradle-compile.sh).
 # IsoCodesKt holds iso3OfCode and localeOf, called for every chunk; LangStoreKt
-# holds the DataStore delegate the service reads its settings through.
+# holds the DataStore delegate the service reads its settings through. SpeechOut,
+# PcmStream and UtterancePlayback are the direct player every utterance plays
+# through (2026-10-14).
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$Companion;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$EngineInitListener;
@@ -17,8 +19,8 @@ Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$EngineWrapper;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$RestoreInitListener;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$VoiceEntry;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$bindEngineKeepAlive$1$conn$1;
-Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$onSynthesizeTextImpl$AheadChunk;
-Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$onSynthesizeTextImpl$makeListener$1;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$StreamRouter;
+Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$Utterance;
 Lcom/sachinbaria/easyvoice/EasyVoiceTtsService$packageReceiver$1;
 Lcom/sachinbaria/easyvoice/EasyVoiceLogger;
 Lcom/sachinbaria/easyvoice/EngineFinder;
@@ -32,8 +34,15 @@ Lcom/sachinbaria/easyvoice/LangStore;
 Lcom/sachinbaria/easyvoice/LangStore$LoadPlan;
 Lcom/sachinbaria/easyvoice/LangStore$Persisted;
 Lcom/sachinbaria/easyvoice/LangStoreKt;
+Lcom/sachinbaria/easyvoice/MonitorGate;
+Lcom/sachinbaria/easyvoice/PcmStream;
 Lcom/sachinbaria/easyvoice/ScanYield;
 Lcom/sachinbaria/easyvoice/ScanYield$Companion;
 Lcom/sachinbaria/easyvoice/SettingsPreload;
+Lcom/sachinbaria/easyvoice/SpeechOut;
+Lcom/sachinbaria/easyvoice/SpeechOut$Track;
+Lcom/sachinbaria/easyvoice/SpeechOut$positionListener$1;
 Lcom/sachinbaria/easyvoice/TextChunk;
 Lcom/sachinbaria/easyvoice/UnicodeTables;
+Lcom/sachinbaria/easyvoice/UtterancePlayback;
+Lcom/sachinbaria/easyvoice/UtterancePlayback$Ending;
