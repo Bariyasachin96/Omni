@@ -8,6 +8,25 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE DIRECT PLAYER IS REVERTED; TWO STOPS THAT REPEATED THE READER'S OWN INTERRUPT ARE GONE (owner, 2026-10-14, latest)
+*"yah player wala tarika mujhe achcha nahin laga ... pichhla build ... sahi tha ... jo screen reader kar sakta hai vah
+bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*
+- **The direct player (own AudioTrack, synthesizeToFile) is REVERTED** (3ebdc11..7d9dab9): the tree is build 969's
+  (236c56c) again, speakpipe is back, directplay is gone. Do not bring it back unless the owner asks.
+- **The empty utterance flushes nothing.** A screen reader interrupts with speak("", QUEUE_FLUSH); AOSP's
+  stopForApp has already run our onStop(), which stopped the speaking engine. The empty branch then sent
+  speak("", QUEUE_FLUSH) to EVERY engine -- speakingPkg is cleared when the previous utterance ends, so the
+  2026-09-17 "only the engine that was speaking" narrowing never applied there: one binder call per engine on the
+  synthesis thread before the reader's next utterance, plus an empty request queued in each engine. AutoTTS's
+  q0(FALSE) flush: DELIBERATE DEPARTURE.
+- **onStop() stops only the engine that is speaking** (speakingPkg, set right before speak()); with none it stops
+  nothing -- the walk over every engine is gone.
+- **Proof:** speakpipe vs 236c56c, 60,000 scenarios: 0 hangs, 0 interrupted audio left playing, silence between
+  chunks identical (3,887,688 ms both). 5 differ, all one kind: an interrupt within a few ms of a chunk's natural
+  end -- the old empty flush landed a few ms before onStop's queued stop, so the chunk queued ahead was heard for a
+  few ms (4 cases, 7 ms in all). The simulator gives a binder call no duration, so the saving itself does not show
+  in its numbers. gradle-compile 0/0, invariants hold.
+
 ## NOTHING OLD: NO SHAREDPREFERENCES, NO RETRY, WRAPPER + CATALOG, ANDROID CLI, LIBS MAPPED FROM THE APK (owner, 2026-10-08 / 10-13, latest)
 *"shared preferences, retry ... kuchh bhi purana nahin rakhna ... sab kuchh naye ke hisab se ... jitni bhi new
 method hai vah saari use karo"*; 10-13: *"jo data store mein aata hai vah data store mein, jo proto buffer mein
