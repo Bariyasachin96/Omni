@@ -51,7 +51,7 @@ Ours: `app/src/main/java/com/sachinbaria/easyvoice/EasyVoiceTtsService.kt`
 | `R(lang)` | `LangStore.pitchFor` | verified |
 | `S(lang)` | `LangStore.speedFor` | verified |
 | `V(lang)` | `LangStore.volumeFor` | verified |
-| `N(cb, n)` / `O(cb, n)` | `startAndFinish` | verified |
+| `N(cb, n)` / `O(cb, n)` | `finishCallback` / `endSynthesis` | **DEPARTURE 2026-10-14**: `N` starts and finishes, ours only finishes (`done()` with no `start()`, so no AudioTrack per utterance); `O` needs a started callback, ours finishes any unfinished one. Keep-alive alone starts it. |
 | `k0` / `t0` | the keep-alive silence loop, inline in `onSynthesizeText` | verified |
 | `p0()` / `a0()` | `startForegroundIfPossible` / `isForegroundActive` | verified |
 

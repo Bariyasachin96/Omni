@@ -44,7 +44,10 @@ def lift(path, cls):
             if t.find(e, p) >= 0]
     q = min(t.index(e, p) + len(e) for e in ends)
     prelude = t[p:q]
-    funs = [fun(t, "    private fun startCallback("), fun(t, "    private fun startAndFinish("),
+    # an utterance's callback is finished by startAndFinish (refs before
+    # 2026-10-14, which also STARTED it) or by finishCallback (done() alone)
+    end_fn = "finishCallback" if "    private fun finishCallback(" in t else "startAndFinish"
+    funs = [fun(t, "    private fun startCallback("), fun(t, "    private fun " + end_fn + "("),
             fun(t, "    private fun endSynthesis("), fun(t, "    private fun unlockSynthesis("),
             fun(t, "    private fun onEngineProcessGone("), fun(t, "    override fun onStop() {"),
             fun(t, "    inner class EngineWrapper(")]
@@ -60,10 +63,10 @@ def lift(path, cls):
                  ("android.util.Log.w", "FakeLog.w"), ("android.media.AudioFormat.ENCODING_PCM_16BIT", "2"),
                  ("java.util.Locale", "Locale")]:
         body = body.replace(s, r); members = members.replace(s, r)
-    return members, body
+    return members, body, end_fn
 
-om, ob = lift(old_file, "OldSvc")
-nm, nb = lift(new_file, "NewSvc")
+om, ob, oend = lift(old_file, "OldSvc")
+nm, nb, nend = lift(new_file, "NewSvc")
 before = (nm, nb)
 if NEG == "noflushgen":
     # the stop rule without the flushed-generation test: always skip a spent order
@@ -94,6 +97,12 @@ elif NEG == "nobackup":
 elif NEG == "stalewins":
     # a stale prefetch is not told it is stale
     nb = nb.replace("loadLanguage(lang, \"\", \"\", true, stale)", "loadLanguage(lang, \"\", \"\", true, null)", 1)
+elif NEG == "nodone":
+    # an utterance's callback never finished: the caller would hang on it
+    nm = nm.replace("    private fun finishCallback(callback: SynthesisCallback?) {\n        if (callback?.hasFinished() == false) callback.done()", "    private fun finishCallback(callback: SynthesisCallback?) {\n        if (callback?.hasFinished() == false && System.nanoTime() < 0) callback.done()", 1)
+elif NEG == "start":
+    # the engine's onStart starts the callback again: an AudioTrack per utterance
+    nb = nb.replace("                        // No callback.start() here any more: see finishCallback.\n", "                        startCallback(callback)\n", 1)
 elif NEG:
     sys.exit("unknown EV_NEG " + NEG)
 if NEG and (nm, nb) == before: sys.exit("EV_NEG " + NEG + " changed nothing")
@@ -105,7 +114,7 @@ REST = """        val bypassed = false
         // the first chunk's language, loaded as each mode's branch does
         if (plan.firstLoad.isNotEmpty()) {
             val first = onLoadLanguage(plan.firstLoad, "", "")
-            if (first == TextToSpeech.LANG_NOT_SUPPORTED || first == TextToSpeech.LANG_MISSING_DATA) { startAndFinish(callback); return }
+            if (first == TextToSpeech.LANG_NOT_SUPPORTED || first == TextToSpeech.LANG_MISSING_DATA) { ENDCB(callback); return }
         }
         val firstChunkParamLang = plan.firstParamLang
         val sysRate = requestRate
@@ -118,9 +127,9 @@ REST = """        val bypassed = false
 src = open(driver, encoding="utf-8").read()
 a = src.index("// ---- SVC TEMPLATE BEGIN ----"); b = src.index("// ---- SVC TEMPLATE END ----") + len("// ---- SVC TEMPLATE END ----")
 tmpl = src[a:b]; src = src[:a] + src[b:]
-def svc(name, members, body):
-    return tmpl.replace("XSvc", name).replace("//MEMBERS//", members).replace("//BODY//", body.replace("        //REST//\n", REST))
-src = src.replace("//SERVICES//", svc("OldSvc", om, ob) + "\n" + svc("NewSvc", nm, nb))
+def svc(name, members, body, end_fn):
+    return tmpl.replace("XSvc", name).replace("//MEMBERS//", members).replace("//BODY//", body.replace("        //REST//\n", REST)).replace("ENDCB(", end_fn + "(")
+src = src.replace("//SERVICES//", svc("OldSvc", om, ob, oend) + "\n" + svc("NewSvc", nm, nb, nend))
 with open(out, "w", encoding="utf-8") as f:
     f.write('@file:Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE", "NAME_SHADOWING", "unused", "UNCHECKED_CAST", "DEPRECATION", "UNUSED_VALUE", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE", "PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNREACHABLE_CODE", "SENSELESS_COMPARISON")\n')
     f.write(src)

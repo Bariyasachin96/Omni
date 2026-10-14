@@ -36,7 +36,8 @@ bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*
   empty check (it signalled the warm worker for the interrupt too). speakpipe vs 1a09f44 60,000: 0 differ (an empty
   utterance's callback is compared by done only); negative (done skipped) caught. Read and KEPT: onStop's early
   stop of the speaking engine (it pipelines the engine's stop work with our detection; the new speak's QUEUE_FLUSH
-  would otherwise do it later, inline), and start() at the engine's onStart for real speech (TalkBack's onStart).
+  would otherwise do it later, inline). start() at the engine's onStart for real speech was kept here too, and
+  REMOVED later the same day (see "NO AudioTrack PER UTTERANCE" below).
 - **CI: the release no longer waits for the baseline-profile job** (build 971 waited 41 min -- 11 compiling, 30 on the
   emulator -- and then its upload failed on the artifact storage quota, so 968-971 shipped no generated profile at
   all). `build` has no `needs`; it takes the newest `baseline-profile-*` an EARLIER run kept (`gh run download`,
@@ -50,9 +51,22 @@ bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*
 - **Latency, the last pass (owner, same day: "aur bhi fast ... antim charan"). Our side is at its floor; NO
   speaking-path change.** Re-traced with TalkBack's source (FailoverTextToSpeech: per swipe it sends
   speak("", QUEUE_FLUSH) then speak(text, QUEUE_ADD); setLanguage on us only when its attached locale changes)
-  and AOSP's playback classes. Per swipe our process does ~1 ms of work; the only other cost is the AudioTrack
-  AOSP builds for our callback at the engine's onStart (it is what sends TalkBack its onStart, which TalkBack's
-  UtteranceStartActions need -- KEPT; moving start() earlier gains ~1 ms and changes when TalkBack hears onStart).
+  and AOSP's playback classes. Per swipe our process does ~1 ms of work (detection + the one speak() to the engine).
+- **NO AudioTrack PER UTTERANCE ANY MORE (owner, same day: "audio wala ... jugaadu ... 1 MS ka bhi latency nahin";
+  NOT the direct player).** Every utterance ends with done() alone (`finishCallback`); nothing calls start() but
+  the keep-alive (`startCallback`, under syncLock, only while the utterance runs -- a start() after a done() would
+  queue an item no done() finishes and block AOSP's playback thread). AOSP: done() with no start() dispatches
+  onDone AT ONCE (+ one Log.w "done() was called before start() call"), stop() with no start() onStop at once.
+  start() built a real AudioTrack in our process per swipe (createTrack in audioserver beside the ENGINE's own,
+  a native thread, stop+release in front of TalkBack's onDone). What it gave was onStart/onBeginSynthesis:
+  TalkBack's source uses onStart only for its latency stats (start actions: SpeakOptions.setStartingAction has no
+  caller; TtsLogger empty); its queue moves on onDone/onStop. isSpeaking() unchanged (SynthHandler holds the item
+  while onSynthesizeText waits). endSynthesis finishes any unfinished callback (O needed a started one).
+  DELIBERATE DEPARTURE (AutoTTS's N/onStart start it). A screen reader that needs onStart would lose only that
+  callback; revert = put `startCallback(callback)` back in the listener's onStart. releaseWaitWithoutSpeaking now
+  sets the flag BEFORE its done() (as endSynthesis), so a speak-thread exit cannot let the keep-alive start late.
+  **Proof:** speakpipe vs 63893e1 60,000: 0 differ, 0 hangs, silence identical; callbacks started 75,114 -> 0
+  (now counted, and any new start fails the run); negatives `nodone`/`start` caught. check-all, selftest pass.
   **The one real cost left: a *Default voice switching language on a SHARED engine (Hindi<->Gujarati on
   Google).** AOSP's setLanguage = 4 binder calls, one of them getVoices(): Google's whole list (hundreds of
   voices), each Voice's Locale Java-serialized (Voice(Parcel) uses readSerializable; 500 Locales = 6 ms / 85 KB on

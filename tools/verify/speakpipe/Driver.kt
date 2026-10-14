@@ -418,7 +418,7 @@ class XSvc(val run: Run) : Svc {
         pendingTail = {
             speakingPkg = null
             if (retryOnEngineDeath === retryOnDeath) retryOnEngineDeath = null
-            startAndFinish(callback)
+            ENDCB(callback)
         }
     }
     override fun startUtt(index: Int, spec: UttSpec) {
@@ -477,10 +477,10 @@ fun summary(run: Run, utt: Int): String {
     val notes = run.notes.filter { it.startsWith("$utt:") }
     val cb = run.callbacks[utt]
     val ended = run.uttEnd.containsKey(utt)
-    // An EMPTY utterance's callback is finished without being started since
-    // 2026-10-14 (no AudioTrack for an interrupt), so only its done is compared.
-    val starts = if (run.sc.utts.getOrNull(utt)?.empty == true) "-" else "${cb?.starts}"
-    return "full=$full notes=$notes cb=$starts/${cb?.dones} ended=$ended"
+    // No utterance's callback is started since 2026-10-14 (no AudioTrack per
+    // utterance; an empty one's earlier the same day), so only its done is
+    // compared. The new code's starts are counted on their own and must be 0.
+    return "full=$full notes=$notes cb=${cb?.dones} ended=$ended"
 }
 
 fun main(args: Array<String>) {
@@ -504,6 +504,7 @@ fun main(args: Array<String>) {
     var leakOld = 0; var leakNew = 0; var leakOldMs = 0.0; var leakNewMs = 0.0
     var glitch = 0; var glitchMs = 0.0; var hangOld = 0; var hangNew = 0; var cutLaterNew = 0; var cutLaterOld = 0
     var wrongOld = 0; var wrongNew = 0; var fixedWrong = 0; var afterFix = 0
+    var startsOld = 0; var startsNew = 0
     var queuedUsed = 0; var oldLeakHarm = 0; var stopWindow = 0; var stopWindowMs = 0.0; var maxLonger = 0.0; var idleN = 0; var idleOld = 0.0; var idleNew = 0.0
     for (seed in 1..n) {
         val sc = Scenario(seed)
@@ -512,6 +513,7 @@ fun main(args: Array<String>) {
         val w = runOne(Scenario(seed), true)
         EasyVoiceLogger.loggingOn = true
         cases++
+        startsOld += o.callbacks.values.sumOf { it.starts }; startsNew += w.callbacks.values.sumOf { it.starts }
         if (o.failure != null || w.failure != null) { differ++; if (differ <= 10) println("seed $seed runaway old=${o.failure} new=${w.failure}"); continue }
         var why: String? = null
         // The old code could let an interrupted chunk play on (the stop it
@@ -621,6 +623,7 @@ fun main(args: Array<String>) {
     println("  next utterance changed by that old leak (e.g. ended early by its late error): $oldLeakHarm")
     println("  cuts only one version made: old $cutLaterOld, new (not a failed chunk's queued one) $cutLaterNew")
     println("  queued chunk heard after the chunk in front failed: %d cases, %.0f ms".format(glitch, glitchMs))
+    println("  callbacks started (each one an AudioTrack in our process): old $startsOld, new $startsNew")
     println("  queued chunk started between an interrupt and its stop: %d cases, %.0f ms".format(stopWindow, stopWindowMs))
-    if (differ > 0 || wrongNew > 0 || hangNew > hangOld || newLonger > 0 || cutLaterNew > 0) kotlin.system.exitProcess(1)
+    if (differ > 0 || wrongNew > 0 || hangNew > hangOld || newLonger > 0 || cutLaterNew > 0 || startsNew > 0) kotlin.system.exitProcess(1)
 }

@@ -316,22 +316,38 @@ class EasyVoiceTtsService : TextToSpeechService() {
             .build()
         NotificationManagerCompat.from(this).createNotificationChannel(channel)
     }
-    // THE ONE PLACE the callback is started. Easy Voice produces no audio of its
-    // own, but AOSP needs start() before anything else: it is what dispatches
-    // onBeginSynthesis and queues the item whose playback sends the screen
-    // reader its onStart, and without it done() logs "done() was called before
-    // start() call" and returns ERROR (PlaybackSynthesisCallback, read at the
-    // line), and the keep-alive's audioAvailable() refuses every buffer. The
-    // format is only a declaration for audio we never write (or, for the
-    // keep-alive, for silence), so it is the plainest one the API accepts:
-    // 16 kHz, 16-bit PCM, mono. The framework has no named constant for a
-    // sample rate or a channel count.
+    // AN UTTERANCE IS FINISHED WITH done() ALONE -- NO AudioTrack PER UTTERANCE
+    // (owner, 2026-10-14: "yah TalkBack wala jo audio wala hai na vah to jugaadu
+    // lag raha hai ... 1 MS ka bhi latency nahin hona chahie"). Easy Voice plays
+    // nothing itself; the engine it hands each chunk to plays it. AOSP's
+    // PlaybackSynthesisCallback, read at the line in AOSP main:
+    //   done() with no start()  dispatches the caller's onDone AT ONCE (and logs
+    //                           one Log.w, "done() was called before start() call")
+    //   stop() with no start()  dispatches onStop AT ONCE
+    // start() would have queued a SynthesisPlaybackQueueItem whose run() builds a
+    // real AudioTrack in THIS process (BlockingAudioTrack: createTrack in
+    // audioserver and a native thread), writes nothing to it, then stops and
+    // releases it -- on every swipe, in audioserver beside the ENGINE's own
+    // createTrack for the same words, and with the screen reader's onDone held
+    // behind that release. All it gave the caller was onStart (and
+    // onBeginSynthesis), and TalkBack's own source uses onStart only for its
+    // latency statistics: FailoverTextToSpeech -> SpeechControllerImpl runs
+    // utterance start actions that nothing registers (SpeakOptions.
+    // setStartingAction has no caller in the tree) and TtsLogger's is empty; its
+    // queue moves on onDone/onStop alone. isSpeaking() is unchanged: SynthHandler
+    // holds the item for as long as onSynthesizeText waits. DELIBERATE DEPARTURE:
+    // AutoTTS starts the callback in the engine's onStart.
+    private fun finishCallback(callback: SynthesisCallback?) {
+        if (callback?.hasFinished() == false) callback.done()
+    }
+    // ONLY THE KEEP-ALIVE STARTS THE CALLBACK: its audioAvailable() refuses every
+    // buffer of silence without start(). The format only declares that silence:
+    // 16 kHz, 16-bit PCM, mono (the framework names no sample rate or channel
+    // count). Its caller starts it under syncLock and only while the utterance is
+    // still running: start() after a done() would queue an item no done() ever
+    // finishes, and that would block AOSP's playback thread.
     private fun startCallback(callback: SynthesisCallback?) {
         if (callback?.hasStarted() == false) callback.start(16000, android.media.AudioFormat.ENCODING_PCM_16BIT, 1)
-    }
-    private fun startAndFinish(callback: SynthesisCallback?) {
-        startCallback(callback)
-        if (callback?.hasFinished() == false) callback.done()
     }
     // ==========================================================================
     //  THE TWO WAYS AN UTTERANCE ENDS          AutoTTS O(cb,int) and r0(int)
@@ -348,7 +364,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //
     //      O(cb, n)  noexc:300  "endSynthesis #n", set the flag, notify, and then
     //                           done() ONLY if the callback has already started
-    //                           and has not finished
+    //                           and has not finished (ours: whenever it has not
+    //                           finished -- nothing starts it since 2026-10-14)
     //      r0(n)     noexc:2250 "unlockSynthesis #n", set the flag, notify, and
     //                           touch the callback NOT AT ALL
     //
@@ -364,9 +381,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //  WHAT DELIBERATELY DID NOT MOVE, because the body genuinely differs:
     //    * our own onStop() override and the empty-text flush set BOTH flags --
     //      that is AutoTTS's q0, a third shape;
-    //    * releaseWaitWithoutSpeaking and the onSynthesizeText catch-all call
-    //      startAndFinish (AutoTTS's N), which STARTS the callback if it never
-    //      started. O never starts one. They are not interchangeable;
+    //    * releaseWaitWithoutSpeaking and the onSynthesizeText catch-all
+    //      finish the callback themselves (AutoTTS's N, which also STARTED it;
+    //      nothing starts an utterance's callback since 2026-10-14 -- see
+    //      finishCallback);
     //    * onEngineProcessGone releases on an event rather than at an exit.
     //
     //  `n` is a String, not an Int, because one site computes its own number
@@ -374,7 +392,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     private fun endSynthesis(callback: SynthesisCallback?, n: String) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "endSynthesis #" + n }
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-        if (callback?.hasStarted() == true && !callback.hasFinished()) callback.done()
+        if (callback?.hasFinished() == false) callback.done()
     }
     private fun unlockSynthesis(n: String) {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "unlockSynthesis #" + n }
@@ -3397,7 +3415,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     //
     // The catch does exactly what every other "this utterance cannot speak" exit
     // does: release the parked thread, then finish the callback. Both are
-    // idempotent -- startAndFinish tests hasStarted/hasFinished, and the wait
+    // idempotent -- finishCallback tests hasFinished, and the wait
     // below rechecks isStopped -- so the normal ending is unaffected.
     override fun onSynthesizeText(request: SynthesisRequest?, callback: SynthesisCallback?) {
         mayAwaitEngine.set(true)
@@ -3411,7 +3429,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             EasyVoiceLogger.errorWithStack(EasyVoiceLogger.TAG, "onSynthesizeText failed: " + ex.toString(), ex)
             speakingPkg = null
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-            try { startAndFinish(callback) } catch (_: Throwable) {}
+            try { finishCallback(callback) } catch (_: Throwable) {}
         } finally {
             mayAwaitEngine.set(false)
             synthesizingNow = false
@@ -3675,7 +3693,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             // 1962 of the noexc decompile) and the auto/Google one
                             // (1677). Those two are these two.
                             "Languge is not supported: " + firstLang + ", text: " + chunks[0].text)
-                        startAndFinish(callback)
+                        finishCallback(callback)
                         return
                     }
                 }
@@ -3725,13 +3743,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
                 if (chunks.isEmpty()) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "lstLanString is empty!")
-                    startAndFinish(callback)
+                    finishCallback(callback)
                     return
                 }
                 if (!preflightLanguage(chunks[0].lang)) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG,
                         "Language is not supported: " + chunks[0].lang + ", text: " + chunks[0].text)
-                    startAndFinish(callback)
+                    finishCallback(callback)
                     return
                 }
             }
@@ -3778,7 +3796,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             if (!preflightLanguage(preflight)) {
                                 EasyVoiceLogger.error(EasyVoiceLogger.TAG,
                                     "Language is not supported: " + preflight + ", text: " + chunks[0].text)
-                                startAndFinish(callback)
+                                finishCallback(callback)
                                 return
                             }
                         }
@@ -3812,7 +3830,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // The second surviving "Languge" -- see the mix branch above.
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG,
                             "Languge is not supported: " + chunks[0].lang + ", text: " + chunks[0].text)
-                        startAndFinish(callback)
+                        finishCallback(callback)
                         return
                     }
                 }
@@ -3820,7 +3838,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         }
         } catch (ex: Exception) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Synthesis ended with error: " + ex.message)
-            startAndFinish(callback)
+            finishCallback(callback)
             return
         }
         if (forceGoogle && !bypassed) { chunks.forEach { it.forcedEngine = EngineFinder.builtInEngine } }
@@ -3838,7 +3856,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "load " + firstLangLoad }
                 if (firstLangLoad == TextToSpeech.LANG_NOT_SUPPORTED || firstLangLoad == TextToSpeech.LANG_MISSING_DATA) {
                     EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Language is not supported: " + requestLang + ", text: " + chunks[0].text)
-                    startAndFinish(callback)
+                    finishCallback(callback)
                     return
                 }
             }
@@ -3871,7 +3889,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         //   matches the package in state 2 -- which is exactly what restoreEngine
         //   leaves behind while an engine re-initialises after a failed
         //   setLanguage. The NEXT utterance then hit "mTTSIndex out of range",
-        //   logged it, called startAndFinish and returned... into the wait, with
+        //   logged it, finished the callback and returned... into the wait, with
         //   both flags false, no speak() issued, no callback coming, and
         //   speakingPkg null so onEngineProcessGone could not match either. The
         //   thread parked for ever, and since a screen reader has ONE synthesis
@@ -3885,8 +3903,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // AutoTTS's, which is why fixing it is not a parity break.
         fun releaseWaitWithoutSpeaking(why: String) {
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "unlockSynthesis: " + why }
-            startAndFinish(callback)
+            // The flag BEFORE the done(), as endSynthesis does: on the speak thread
+            // a done() first could let the keep-alive start the callback after it.
             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
+            finishCallback(callback)
         }
         // THE NEXT CHUNK'S LANGUAGE IS LOADED WHILE THIS ONE IS STILL SPEAKING
         // (owner, 2026-09-16: "alag-alag bhashaen read karne ke liye jo TTS change
@@ -4199,7 +4219,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         wrapper.restoreSpent = false
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onStart " + id }
                         if (id != expectedId) return
-                        startCallback(callback)
+                        // No callback.start() here any more: see finishCallback.
                         // The engine has begun audio, so the whole of this chunk is
                         // free time to load the next one, on this engine or any
                         // other. Posted rather than run here: this is a binder callback.
@@ -4337,13 +4357,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
                             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone Error: " + ex.toString())
                             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "endSynthesis #6" }
                             synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                            try { startAndFinish(callback) } catch (_: Throwable) {}
+                            try { finishCallback(callback) } catch (_: Throwable) {}
                         }
                     }
                     } catch (ex: Throwable) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone failed: " + ex.toString())
                         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-                        try { startAndFinish(callback) } catch (_: Throwable) {}
+                        try { finishCallback(callback) } catch (_: Throwable) {}
                     }
                 }
                 // The engine could not say this chunk. Unless the failure is not
@@ -4797,7 +4817,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         if (retryChunkElsewhere(wrapper.rawPkg, wrapper.rawPkg + " refused to speak")) {
                             // the chunk is being spoken elsewhere
                         } else if (first) {
-                            startAndFinish(callback)
+                            finishCallback(callback)
                             unlockSynthesis("12")
                         } else {
                             endSynthesis(callback, "5")
@@ -4808,7 +4828,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // the chunk is being spoken elsewhere
                     } else if (first) {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onSynthesis Error: " + ex.message)
-                        startAndFinish(callback)
+                        finishCallback(callback)
                         unlockSynthesis("14")
                     } else {
                         EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onDone Error: " + ex.message)
@@ -4824,7 +4844,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // AutoTTS logs this immediately before k0(callback), and spells it
             // "Keep-live", not "Keep-alive".
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Keep-live activated" }
-            startCallback(callback)
+            synchronized(syncLock) { if (!isStopped && !isFlushed && callback?.hasFinished() == false) startCallback(callback) }
             val silenceBuf = ByteArray(32)
             val maxBuf = callback?.maxBufferSize ?: silenceBuf.size
             keepAlive@ while (!isStopped) {
@@ -4850,7 +4870,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
         speakingPkg = null
         if (retryOnEngineDeath === retryOnDeath) retryOnEngineDeath = null
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onSynthesizeText ended" }
-        startAndFinish(callback)
+        finishCallback(callback)
     }
 
     // ==========================================================================
