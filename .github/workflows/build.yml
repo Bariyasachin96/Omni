@@ -119,7 +119,7 @@ jobs:
             echo "EV_PROFILE=generated on the emulator and compiled in" >> "$GITHUB_ENV"
           else
             echo "::warning::no generated baseline profile; shipping the hand-written one only"
-            echo "EV_PROFILE=hand-written only (the profile job did not produce one)" >> "$GITHUB_ENV"
+            echo "EV_PROFILE=hand-written only (the profile job did not produce one, or could not upload it)" >> "$GITHUB_ENV"
           fi
       - name: Build APK
         # tools/ci/gradle-retry.sh, not an inline function: this same retry was
@@ -295,26 +295,25 @@ jobs:
         if: failure()
         run: bash tools/ci/why-failed.sh
 
-      # Backup copy, so the APK is reachable even if the release step ever fails.
-      - name: Upload APK (backup)
-        uses: actions/upload-artifact@v7
-        with:
-          name: easy-voice-apk-${{ github.run_number }}
-          path: |
-            EasyVoice-${{ github.run_number }}*.apk
-            EasyVoice-${{ github.run_number }}.aab
-          retention-days: 7
-          if-no-files-found: error
-
+      # ARTIFACT STORAGE IS A QUOTA, AND RUN 968 WENT RED ON IT (2026-10-14).
+      # Every upload failed with "Artifact storage quota has been hit" while the
+      # APKs, the bundle, lint and every device test had passed. The account
+      # held about 1 GB of artifacts: 219 R8 mappings kept 90 days (523 MB) and
+      # 17 APK backups (407 MB) that were byte-for-byte copies of the release
+      # files. So: no APK backup any more (the release IS the delivery, and it
+      # is published unconditionally above), the mapping is kept 15 days (the
+      # repository's own maximum), and no upload can turn a good build red --
+      # each says what it could not keep and the run goes on.
       # mapping.txt must never ship publicly - it undoes the obfuscation.
       # Kept as a repo-private build artifact so only we can retrace a crash.
       - name: Upload R8 mapping (private)
         uses: actions/upload-artifact@v7
         if: always()
+        continue-on-error: true
         with:
           name: r8-mapping-${{ github.run_number }}
           path: app/build/outputs/mapping/release/mapping.txt
-          retention-days: 90
+          retention-days: 15
           if-no-files-found: warn
 
   # Google's Accessibility Test Framework over every screen -- labels, colour
@@ -500,14 +499,18 @@ jobs:
         if: failure()
         run: bash tools/ci/why-failed.sh
 
+      # Not able to fail the run (storage quota, see the build job); the
+      # tests' own result is the step above.
       - name: Upload the accessibility report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: accessibility-report-${{ github.run_number }}
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+          retention-days: 7
           if-no-files-found: warn
 
   # THE GENERATED BASELINE PROFILE (owner, 2026-10-07). :baselineprofile's
@@ -666,11 +669,15 @@ jobs:
         if: failure()
         run: bash tools/ci/why-failed.sh
 
-      # The build job waits for this artifact and compiles it into the APK.
+      # The build job waits for this artifact and compiles it into the APK. It is
+      # needed only within this run, so it is kept one day. A failed upload
+      # (storage quota) does not fail the run: the build job then ships the
+      # hand-written profile and says so in the release notes.
       - name: Upload the generated baseline profile
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: baseline-profile-${{ github.run_number }}
           path: app/src/main/generated/baselineProfiles/
-          retention-days: 30
+          retention-days: 1
           if-no-files-found: error
