@@ -225,6 +225,8 @@ class Run(val sc: Scenario, val newCode: Boolean) {
     val interruptAt = HashMap<Int, Double>()
     val callbacks = HashMap<Int, SynthesisCallback>()
     val attempts = ArrayList<Triple<Int, String, String>>()
+    /** "utterance|text|engine" of every request made. */
+    val asked = HashSet<String>()
     var failure: String? = null
     var steps = 0
     // the new code's audio
@@ -313,6 +315,7 @@ class FakeEngine(val run: Run, val raw: String, val latency: Double) {
         val spec = run.sc.utts.flatMap { it.chunks }.first { it.text == text }
         val item = Item(client, text, id, client.rate, client.pitch, params?.getFloat("volume", 0f) ?: 0f, client.lang)
         run.attempts.add(Triple(run.curUtt, text, client.lang))
+        run.asked.add("${run.curUtt}|$text|$raw")
         val tok = token
         val utt = run.curUtt; val gen = run.genOfUtt[utt] ?: -1
         val t0 = maxOf(run.now, synthFree)
@@ -338,7 +341,10 @@ class FakeEngine(val run: Run, val raw: String, val latency: Double) {
         val full = spec.dur
         val end = if (fault != null) start + fault.at else start + full
         lastPlayEnd = end
-        synthFree = maxOf(first, end - 500.0)
+        // The engine's next request starts when this one's synthesis returns: no
+        // sooner than its own speed allows, and held back while more than 500 ms
+        // of its audio is still unplayed (AOSP's MAX_UNCONSUMED_AUDIO_MS).
+        synthFree = maxOf(first, end - 500.0, t0 + latency + (end - start) / run.sc.speed[raw]!!)
         run.at(start) {
             if (tok != token || dead) return@at
             val p = Play(gen, utt, raw, text, item.rate, item.pitch, item.volume, item.lang, start, end)
@@ -383,6 +389,7 @@ class FakeEngine(val run: Run, val raw: String, val latency: Double) {
             client.lang, sr, ch, (spec.dur * sr / 1000.0).toLong())
         run.items[serial] = item
         run.attempts.add(Triple(run.curUtt, text, client.lang))
+        run.asked.add("${run.curUtt}|$text|$raw")
         fileQueue.addLast(item)
         if (current == null) startNext()
         return TextToSpeech.SUCCESS
@@ -837,8 +844,7 @@ fun main(args: Array<String>) {
                 // The mirror: the old path moved the next chunk to the backup with the
                 // language, and it failed THERE -- an engine the new path never asked,
                 // because its chunk was already with the first engine, which said it.
-                if (sc.fallback && o.plays.any { p -> p.utt == u && p.errored && sc.faults.containsKey(p.text + "|" + p.engine) &&
-                        w.items.values.none { it.utt == u && it.text == p.text && it.engine == p.engine } }) { lookaheadFault++; continue }
+                if (sc.fallback && sc.faults.keys.any { k -> o.asked.contains("$u|$k") && !w.asked.contains("$u|$k") }) { lookaheadFault++; continue }
                 // An engine's ERROR_OUTPUT (-5) is handed to the backup now (it is the
                 // engine's own file, not our speaker); the old path ended there.
                 // An utterance AFTER that one differs too: the next request waits for the

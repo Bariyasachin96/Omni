@@ -8,6 +8,44 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE DIRECT PLAYER: EASY VOICE PLAYS THE ENGINES' AUDIO ITSELF (owner, 2026-10-14, latest)
+*"screen reader per hi chhod deni chahie ... smart voice se bhi fast ... resampling nahin karna hai kisi bhi halat
+mein ... directly hi jo process hai vah ho jaaye."* Replaces the speak() relay below (queued-ahead chunk, stop
+generations, per-engine stops). ARCHITECTURE stage 6, INVARIANTS #32.
+- **How:** each chunk goes to its engine with `synthesizeToFile(text, params, /dev/null, id)` (`submitTo`); the
+  engine's framework streams the PCM back (`onBeginSynthesis`/`onAudioAvailable`, API 24; `StreamRouter` -> a
+  `PcmStream` per chunk). `UtterancePlayback` (SpeechPlayer.kt, pure Kotlin) plays the chunks in order on the
+  synthesis thread into `SpeechOut`: Easy Voice's own AudioTrack, one per exact format (rate, encoding, channels,
+  the request's attributes and session), kept and reused (at most 3), **never resampled**.
+- **Faster:** every chunk is handed over at once (first on the synthesis thread, the rest on the speak thread), so
+  the next language synthesises while the current one plays; tracks are reused (AOSP builds one per utterance);
+  the buffer is 2 x the platform minimum (AOSP waits for >= 8192 bytes before a track starts).
+- **Stop:** `onStop` -> `speechOut.interrupt()` pauses the track in OUR process. Work an engine still owes a
+  finished utterance is dropped (`tts.stop()`) right before the next request to it (`dropStaleWork`) or at the end.
+- **End of a chunk:** a marker at the last real frame; silence written non-blocking after it lets a short chunk
+  pass the start threshold; then `pause()`+`flush()` (the silence is never heard).
+- **Failures:** a chunk failed part-way is handed over whole to the language's backup, as before; `ERROR_OUTPUT`
+  (-5) is retried now too (it is the engine's own file), only -8 is not; a dead engine's pending streams end at
+  once (`failPending`). An engine that answers synthesizeToFile by speaking itself (a proxy) ends with no audio
+  and counts as said.
+- **Removed:** speak() to the engines, `AheadChunk`, `flushedGeneration`/`speakLock`, `listenerSet`,
+  `audioAttrSet`, `speakingPkg`/`retryOnEngineDeath`, per-engine `setAudioAttributes` (the force/strip switches
+  shape OUR track's attributes).
+- **Known cost, stated:** with Backup TTS on, a chunk handed over before its engine failed an EARLIER chunk stays
+  with that engine (the old path moved it with the language); if it then fails there, it is handed over and part
+  of it is heard twice.
+- **Proof `tools/verify/directplay/run.sh`** (replaces speakpipe): the old speak() path (236c56c) vs the real
+  SpeechPlayer.kt/SpeechOut.kt on one virtual clock, AOSP-shaped engines and a fake AudioTrack (threshold,
+  underrun, pause/flush, markers): @@RESULT@@ Negatives, each caught: @@NEGS@@. It found a real bug: half a frame
+  left by a failed chunk was joined to the next chunk (noise) -- fixed in `select()`. Harness fairness fixed on
+  the way: the old engine's next request now waits for its synthesis speed too (AOSP starts it when synthesis
+  returns).
+- **Device:** `SpeechOutTest` (real AudioTrack on CI's emulator: 5 formats incl. 8-bit/float/stereo, a 20 ms chunk,
+  an interrupt during a blocking write, reuse after it). **Its first run is on CI.**
+- Re-run: restore ALL PASS, prefetch 400,000 0 differ, voicenow 3 x 400,000 0 differ, coldstart, scansched,
+  langstore 9,200,000, chunkiso3, runlang, readers, voicelist pass; gradle-compile 0/0, lint No issues,
+  invariants + selftest EVERY CHECK FIRES (ktimports learned ArrayDeque and enum entries).
+
 ## NOTHING OLD: NO SHAREDPREFERENCES, NO RETRY, WRAPPER + CATALOG, ANDROID CLI, LIBS MAPPED FROM THE APK (owner, 2026-10-08 / 10-13, latest)
 *"shared preferences, retry ... kuchh bhi purana nahin rakhna ... sab kuchh naye ke hisab se ... jitni bhi new
 method hai vah saari use karo"*; 10-13: *"jo data store mein aata hai vah data store mein, jo proto buffer mein
