@@ -309,10 +309,11 @@ strays=$(sed 's://.*::' $CPP $KT/*.kt |
   && ok "#16 CLD2 is the only detector -- no CLD3 symbol anywhere" \
   || bad "#16 CLD3 has come back: $strays"
 
-# --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's six sites --
+# --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's own sites --
 # AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and
 # "TTS" at six -- the three audio-focus lines, the focus request, and the two
-# notification-permission lines. EasyVoiceLogger.TAG is our "AutoTTS". Any
+# notification-permission lines. Ours keeps the last two (the audio focus
+# request went on 2026-10-15). EasyVoiceLogger.TAG is our "AutoTTS". Any
 # OTHER literal is a mistake: `debug("TAG", ...)` shipped in localeFor and
 # variantFor, which put the string "TAG" in the log file the owner attaches
 # when reporting a problem. Comments are stripped so prose about tags is fine.

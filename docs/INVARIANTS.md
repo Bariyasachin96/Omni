@@ -654,16 +654,18 @@ showed 1135 errors before and 1135 after, with no new error text.
 
 ---
 
-## 14. A log tag is `EasyVoiceLogger.TAG`, or `"TTS"` at six sites
+## 14. A log tag is `EasyVoiceLogger.TAG`, or `"TTS"` at AutoTTS's own sites
 
 **Rule.** Every `EasyVoiceLogger` call passes `EasyVoiceLogger.TAG`, except the
-six that pass the literal `"TTS"`.
+two that pass the literal `"TTS"`.
 
 **Why.** AutoTTS logs under exactly two tags, counted across the whole 5.7.7.26
 decompile: `"AutoTTS"` at 133 call sites, and `"TTS"` at six — the three
 audio-focus lines (`AutoTtsService:211,214,217`), the focus request
 (`:1495`), and the two notification-permission lines (`c3/k.java:160,163`).
-Ours mirrors all six message-for-message. `EasyVoiceLogger.TAG` is `"EasyVoice"`,
+Ours mirrored all six message-for-message until 2026-10-15, when the audio
+focus request went (the screen reader takes focus for its own speech); the two
+notification-permission lines remain. `EasyVoiceLogger.TAG` is `"EasyVoice"`,
 our counterpart of `"AutoTTS"`, so any *other* literal is a mistake.
 
 **Check.** `tools/check/invariants.sh` #14, comments stripped.

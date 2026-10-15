@@ -8,7 +8,33 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE OWNER'S OWN KEY SIGNS EVERYTHING, V1 TO V4; THE ABOUT PAGE IS VISION HACKS' (owner, 2026-10-14/15, latest)
+## WHAT THE SCREEN READER DOES ITSELF, WE DO NOT DO AGAIN (owner, 2026-10-15, latest)
+*"jaise TalkBack wala ... kuchh chijen hatai thi ... aur bhi chijen aisi hogi ... jo screen reader khud handle
+karta hai vah hata dena."* Read in TalkBack's own source (google/talkback master: SpeechControllerImpl,
+FailoverTextToSpeech, WindowEventInterpreter, compositor.json), not assumed.
+- **Audio focus REMOVED** (requestAudioFocus/26, abandonAudioFocus/26, the listener, the two fields, the import;
+  the minsdk allowlist's AudioFocusRequest / abandonAudioFocusRequest / VERSION_CODES.O). AutoTTS's l0() asked for
+  permanent AUDIOFOCUS_GAIN in onCreate, i.e. at every process start: music or a podcast got AUDIOFOCUS_LOSS and
+  stopped for good, and nothing in the speech used it (the engine plays in its own process). The reader ducks per
+  utterance itself: TalkBack's handleSpeechStarting requests AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK and
+  handleSpeechCompleted abandons it ("Audio ducking"). From Android 15 ours was refused in the background anyway.
+  DELIBERATE DEPARTURE. INVARIANTS #14's "TTS" tag now has two sites (the notification-permission lines).
+- **"Force to use audio accessibility stream" no longer overrides a reader that already asks for it.**
+  `isForceAccessibility = forceAccessibilityFlag && (isStripAudioAttr || !readerAsksAccessibility(requestParams))`
+  (BundleCompat.getParcelable of "audioAttributes", usage == USAGE_ASSISTANCE_ACCESSIBILITY). TalkBack sets
+  USAGE_ASSISTANCE_ACCESSIBILITY + FLAG_LOW_LATENCY on its client (FailoverTextToSpeech, after its engine is up), so
+  forcing replaced them with ours, which lack FLAG_LOW_LATENCY: the engine lost its fast output track. A reader
+  that sends no attributes or another usage, or strip ON, still gets ours, as before. Switch OFF: unchanged.
+  speakpipe's REST defines its own isForceAccessibility (flags off), so the harness is untouched.
+- **Checked and NOT duplicates -- do not remove:** MainActivity's paneTitle (TalkBack's
+  updateWindowTitleFromPane only REPLACES the window's stored title; one announcement); the toggle haptics
+  (TalkBack's compositor vibrates on accessibility focus and TYPE_VIEW_SELECTED, never on a click); onStop's early
+  stop of the speaking engine (kept 10-14: the reader's interrupt with no next utterance would leave it talking);
+  the switch / slider / dropdown state descriptions, collectionItemInfo and the scan line's live region (each is
+  something Compose does not give the reader); strip audio attributes and keep-alive (device workarounds, not
+  reader work).
+
+## THE OWNER'S OWN KEY SIGNS EVERYTHING, V1 TO V4; THE ABOUT PAGE IS VISION HACKS' (owner, 2026-10-14/15)
 *"aage se aap sign karoge ... sabhi file ko naya wala keyStore se"*, *"sirf V2 signature aata hai ... V1 V2 V3 V4
 jitna bhi hai"*, and an About-page prompt (colours: *"standard hi rakhna hai jo hamara chal raha hai"*).
 - **Release key = the owner's `sachin.jks`**: alias `sachin`, store AND key password `sachin96`, CN=Sachin Baria,
@@ -219,8 +245,7 @@ aata hai vah proto buffer mein"* -- the settings STAY Preferences DataStore (no 
   cancelled in onDestroy (was a throwaway CoroutineScope).
 - **KEPT ON PURPOSE, each the only or the faster way**: `TextToSpeech.getLanguage()` (deprecated; the new
   `getVoice()` marshals the engine's whole voice list on every language switch -- the delay the owner heard;
-  getLanguage reads memory); the pre-26 audio-focus call (Android 7 only; androidx.media's compat is deprecated,
-  media3's `@UnstableApi`); `onError(String)` (the framework's abstract method); Handler/HandlerThread/
+  getLanguage reads memory); ~~the pre-26 audio-focus call~~ (the audio focus request is gone since 10-15); `onError(String)` (the framework's abstract method); Handler/HandlerThread/
   synchronized on the speaking path (current APIs; AOSP's TTS framework itself runs on them; a coroutine rewrite
   is risk without gain); the prestarted stop thread (owner, 09-02); Java 17 bytecode (Android's documented level);
   C++17 (CLD2 stays as it is).

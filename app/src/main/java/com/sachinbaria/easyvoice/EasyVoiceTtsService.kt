@@ -3,8 +3,6 @@ import android.app.Notification
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
 import android.os.Build
 import android.speech.tts.SynthesisCallback
 import android.speech.tts.SynthesisRequest
@@ -293,8 +291,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
     var initDone = false
     // AutoTtsService.w: set once the language list has actually been read.
     @Volatile private var languagesLoaded = false
-    var audioManager: AudioManager? = null
-    var audioFocusRequest: AudioFocusRequest? = null
     private val FOREGROUND_NOTIFICATION_ID = 136549
     private val FOREGROUND_CHANNEL_ID = "tts_channel"
     @Volatile private var lastEnginePkg = ""
@@ -399,8 +395,8 @@ class EasyVoiceTtsService : TextToSpeechService() {
         synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
     }
     // USAGE_ASSISTANCE_ACCESSIBILITY + CONTENT_TYPE_SPEECH, built ONCE (2026-09-24).
-    // The same attributes were built four times over -- the focus request and the
-    // three places that install them on an engine client -- and three of those
+    // The same attributes were built four times over -- the old audio focus request
+    // and the three places that install them on an engine client -- and three of those
     // spelled the constants as 11 and 1 (a leftover from an API-15 check jar that
     // had no AudioAttributes; the values were right). AudioAttributes is
     // immutable, so one instance serves every caller.
@@ -410,6 +406,15 @@ class EasyVoiceTtsService : TextToSpeechService() {
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
     }
+    // TRUE when the reader's own request already asks for the accessibility
+    // stream: KEY_PARAM_AUDIO_ATTRIBUTES ("audioAttributes", @hide), which its
+    // TextToSpeech client merges in from setAudioAttributes. BundleCompat reads
+    // the typed parcelable on every API level; a bundle that cannot be read
+    // answers false, i.e. ours are forced as before.
+    private fun readerAsksAccessibility(params: android.os.Bundle?): Boolean = try {
+        params != null && androidx.core.os.BundleCompat.getParcelable(params, "audioAttributes", AudioAttributes::class.java)
+            ?.usage == AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY
+    } catch (_: Throwable) { false }
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, FOREGROUND_CHANNEL_ID)
             .setContentTitle("Easy Voice active")
@@ -485,121 +490,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
             foregroundRefused = true
         }
     }
-    // THE ONE LISTENER BOTH PATHS USE. Below API 26 the focus is abandoned by
-    // handing this same object back, so it has to outlive the request.
-    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-        when (focusChange) {
-            -2 -> EasyVoiceLogger.debug("TTS") { "Audio focus lost temporarily" }
-            -1 -> EasyVoiceLogger.debug("TTS") { "Audio focus lost" }
-            1 -> EasyVoiceLogger.debug("TTS") { "Audio focus gained" }
-        }
-    }
-
-    // AudioFocusRequest IS API 26, AND minSdk IS 24 -- THIS CRASHED EVERY
-    // ANDROID 7 PHONE (found 2026-09-10 by compiling the whole app against API
-    // 24's own android.jar, which is the only thing that can see this).
-    //
-    // requestAudioFocus() is called BARE from onCreate, with no try/catch, and
-    // AudioFocusRequest.Builder resolves its class the moment that line runs.
-    // On API 24 or 25 that is a NoClassDefFoundError -- an Error, NOT an
-    // Exception, so even a catch would not have held it -- thrown out of the
-    // service's onCreate. The TTS service died on startup and the phone had no
-    // voice at all. Nothing in the app could recover from it.
-    //
-    // AutoTTS does NOT have this defect: it makes the same unguarded call, but
-    // the lowest SDK_INT guard anywhere in its code is 28, so its own minSdk is
-    // at least 26 and API 24 is not a device it claims. Ours is 24 -- the same
-    // "our refactor's bug, not AutoTTS's" split as releaseWaitWithoutSpeaking
-    // and the double scan -- so the guard is ours to add and is not a rule 5
-    // divergence: on 26 and up this is byte for byte l0() as before.
-    //
-    // The pre-26 branch is AOSP's own equivalent rather than a guess.
-    // AudioAttributes.toVolumeStreamType maps USAGE_ASSISTANCE_ACCESSIBILITY to
-    // STREAM_ACCESSIBILITY -- and that constant is ITSELF API 26, so below it
-    // there is no accessibility stream in the audio policy at all. The right
-    // stream for speech there is STREAM_MUSIC, which is what the TTS framework
-    // itself falls back to: Engine.DEFAULT_STREAM is STREAM_MUSIC, and
-    // AudioOutputParams.createFromParamsBundle builds exactly that pairing when
-    // no attributes are supplied.
-    // NO LIBRARY HERE, and that was checked rather than assumed (owner,
-    // 2026-09-23: a library over code written by hand wherever one exists).
-    // androidx.media's AudioManagerCompat does this exact split, and in 1.8.0
-    // -- the latest -- every one of its audio classes is @Deprecated
-    // ("androidx.media is deprecated. Please migrate to androidx.media3"); it
-    // also added 23,868 bytes of dex, measured with R8, and below API 26 asks
-    // on STREAM_ACCESSIBILITY, a stream Android 7 does not have. Media3's
-    // replacement lives in media3-common, which is @UnstableApi and pulls the
-    // whole of Guava in. The platform AudioFocusRequest below IS the current
-    // API, so it stays.
-    private fun requestAudioFocus() {
-        // ContextCompat.getSystemService is androidx's typed lookup: a device that
-        // has no audio service answers null here instead of the NPE that
-        // `getSystemService(AUDIO_SERVICE) as AudioManager` threw on the cast.
-        val manager = ContextCompat.getSystemService(this, AudioManager::class.java)
-        if (manager == null) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "Audio focus request: no AudioManager on this device"); return }
-        audioManager = manager
-        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) requestAudioFocus26()
-        else {
-            @Suppress("DEPRECATION")
-            audioManager!!.requestAudioFocus(audioFocusListener,
-                AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
-        }
-        // THE RAW CODE AS WELL AS THE BOOLEAN, AND IT STARTS AT ANDROID 15 --
-        // NOT 17, WHICH IS WHAT THIS COMMENT SAID FIRST AND GOT WRONG.
-        //
-        // Android 15 (API 35), "Audio focus request restrictions": an app "must be
-        // top app or running a foreground service to request audio focus", and
-        // otherwise the call returns AUDIOFOCUS_REQUEST_FAILED
-        // (developer.android.com/about/versions/15/behavior-changes-15, Camera and
-        // Media). Android 17 then HARDENS the same rule for every app whatever it
-        // targets -- "calls fail silently or return AUDIOFOCUS_REQUEST_FAILED when
-        // the app is not in valid lifecycle"
-        // (about/versions/17/behavior-changes-all, Media).
-        //
-        // The correction matters rather than being pedantry: this app targets 37
-        // but RUNS on everything from 24 up, and the restriction has been in force
-        // on the owner's phone since Android 15 rather than arriving with 17.
-        //
-        // This request is made from onCreate, which runs when the system BINDS the
-        // engine -- in the background by definition -- so from Android 15 onward a
-        // denial here is expected rather than exceptional.
-        //
-        // It is harmless, and that is worth stating because it looks alarming in a
-        // log: Easy Voice never produces a sample. It hands text to another
-        // engine, and THAT engine holds the focus for the audio it plays. The
-        // request is AutoTTS's `l0()` carried over, not something the speech
-        // depends on.
-        //
-        // GRANTED is 1, FAILED is 0 and DELAYED is 2, and the boolean cannot tell
-        // the last two apart -- which is exactly the distinction that says whether
-        // Android 17 refused it or the system deferred it.
-        EasyVoiceLogger.debug("TTS") { "Audio focus request: " +
-            (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) + " (code " + result + ")" }
-    }
-    // Its own method on purpose, which is the shape Android's own guidance and
-    // PackageInfoCompat's Api28Impl both use: the verifier only ever has to
-    // resolve AudioFocusRequest when this method is entered, and on API 24 it
-    // never is. @RequiresApi is what tells lint (and the next reader) that the
-    // body is API 26 only and that every caller has to be behind the guard.
-    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
-    private fun requestAudioFocus26(): Int {
-        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(accessibilitySpeech)
-            .setOnAudioFocusChangeListener(audioFocusListener)
-            .build()
-        audioFocusRequest = focusRequest
-        return audioManager!!.requestAudioFocus(focusRequest)
-    }
-    private fun abandonAudioFocus() {
-        if (audioManager == null) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) abandonAudioFocus26()
-        else { @Suppress("DEPRECATION") audioManager!!.abandonAudioFocus(audioFocusListener) }
-    }
-    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
-    private fun abandonAudioFocus26() {
-        val request = audioFocusRequest ?: return
-        audioManager?.abandonAudioFocusRequest(request)
-    }
 
     // ==========================================================================
     //  LIFECYCLE
@@ -656,15 +546,21 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // total for every Android 7 device.
         //
         // Guarding each step SEPARATELY rather than the block as a whole is the
-        // point: these five are independent, so a device on which one of them
-        // fails should still get the other four. An app that has loaded its
-        // settings and its engines but could not take audio focus still speaks; an
-        // app that skipped initAllEngines because requestAudioFocus threw does not.
+        // point: these steps are independent, so a device on which one of them
+        // fails should still get the others. An app that has loaded its settings
+        // but whose ISO maps failed still starts its engines, and the reverse.
         //
-        // getSystemService(AUDIO_SERVICE) as AudioManager is the concrete new risk
-        // here -- `as` on a null answer is an NPE, and a heavily modified OEM build
-        // is exactly where a system service comes back null.
-        try { requestAudioFocus() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "requestAudioFocus failed: " + ex.toString()) }
+        // NO AUDIO FOCUS HERE ANY MORE (owner, 2026-10-15: what the screen reader
+        // does itself, we do not). AutoTTS's l0() asked for permanent
+        // AUDIOFOCUS_GAIN the moment the service was created, i.e. every time our
+        // process started: whatever was playing (music, a podcast) got
+        // AUDIOFOCUS_LOSS and stopped for good, and it did nothing for the speech,
+        // which the engine plays in its own process. The reader takes focus for
+        // its own speech: TalkBack's SpeechControllerImpl.handleSpeechStarting
+        // requests AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK and handleSpeechCompleted
+        // abandons it (its "Audio ducking" setting), around every utterance.
+        // From Android 15 the request was refused in the background anyway.
+        // DELIBERATE DEPARTURE.
         try { initIsoMaps() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "initIsoMaps failed: " + ex.toString()) }
         try { loadAllSettings() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "loadAllSettings failed: " + ex.toString()) }
         // AFTER loadAllSettings, not before it (owner, 2026-10-01). The flag is a
@@ -3587,8 +3483,17 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // empty interrupt above has none (it used to signal the worker too).
         try { nativeRewarmTables() } catch (_: Throwable) {}
         val readingMode = when (modeInt) { 1 -> "dual"; 2 -> "auto"; 3 -> "google"; 4 -> "mix"; 5 -> "multilingual"; else -> "none" }
-        val isForceAccessibility  = forceAccessibilityFlag
         val isStripAudioAttr      = stripAudioAttrFlag
+        // "Force to use audio accessibility stream" forces OUR attributes only
+        // when the screen reader has not asked for that stream itself (owner,
+        // 2026-10-15: what the reader does, we do not do again). TalkBack sets
+        // USAGE_ASSISTANCE_ACCESSIBILITY + FLAG_LOW_LATENCY on its own client
+        // (FailoverTextToSpeech, setAudioAttributes after its engine is up), so
+        // every request of its carries them; forcing replaced them with ours,
+        // which have no FLAG_LOW_LATENCY, and the engine lost its fast output
+        // track. The switch still forces ours for a reader that sends none or
+        // another usage, and with strip on (the reader's are removed then).
+        val isForceAccessibility  = forceAccessibilityFlag && (isStripAudioAttr || !readerAsksAccessibility(requestParams))
         val latinFallback = when (readingMode) {
             "mix", "multilingual"  -> normalizeLangCode(mixLatinLang)
             "dual" -> "en"
@@ -4201,7 +4106,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // switches share this line because they need the same removal for
             // opposite reasons: strip so the engine falls back to
             // Engine.DEFAULT_STREAM (STREAM_MUSIC) + CONTENT_TYPE_SPEECH, force
-            // so our USAGE_ASSISTANCE_ACCESSIBILITY survives.
+            // so our USAGE_ASSISTANCE_ACCESSIBILITY survives. (Since 2026-10-15
+            // force is off for a request whose own attributes already ask for
+            // the accessibility stream -- TalkBack's do -- see where
+            // isForceAccessibility is read: those are forwarded as they are.)
             //
             // The keys: KEY_PARAM_STREAM, KEY_PARAM_UTTERANCE_ID and
             // KEY_PARAM_VOLUME are public in TextToSpeech.Engine and are used by
@@ -4927,16 +4835,14 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // ==========================================================================
     override fun onDestroy() {
         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "onDestroy" }
-        // Each step on its own, for the same reason onCreate's five are: they are
+        // Each step on its own, for the same reason onCreate's steps are: they are
         // independent, and a failure in one must not skip the others. Shutting the
         // engine clients down and releasing the bindings is what stops this
         // process leaking a connection into every TTS engine on the phone, and
-        // until 2026-09-11 a throw from stopForeground or abandonAudioFocus --
-        // abandonAudioFocus dereferences audioManager!! and audioFocusRequest!!,
-        // both null if requestAudioFocus failed at startup -- skipped the pool
-        // walk that follows.
+        // until 2026-09-11 a throw from stopForeground (or the audio focus
+        // release, gone with the request on 2026-10-15) skipped the pool walk
+        // that follows.
         try { stopForegroundNow() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "stopForeground: " + ex.toString()) }
-        try { abandonAudioFocus() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "abandonAudioFocus: " + ex.toString()) }
         // Every client the pool still holds, not only the ready ones: a wrapper
         // at -1 can still hold the client that failed, and shutdown() is what
         // releases its session with the system's TTS manager.
