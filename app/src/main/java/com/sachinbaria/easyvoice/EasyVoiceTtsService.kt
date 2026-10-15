@@ -1262,11 +1262,23 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // the locale comes from there. The name is fetched later, exactly as
             // before, if the variant this engine stores for the locale turns out
             // to be a named voice. Logging on keeps the old read and its line.
+            //
+            // AND A NAMED VOICE IN ANOTHER LANGUAGE (owner, 2026-10-15: "jo
+            // lambi process ... jo directly ho jata hoga"). The name cannot
+            // matter there either: the voice in the params is of the params'
+            // language, the one asked for is of the request's, so "Do nothing!"
+            // cannot fire and a named request goes to setVoice whatever the
+            // current name is. Switching from a *Default language to a named one
+            // on the same engine (Hindi on *Default, Gujarati on a named voice,
+            // both on Google) no longer marshals Google's whole voice set first.
+            // Same language: the name can matter, the old read stays.
             var nameOwed = false
             var paramsLocale: Array<String>? = null
-            if (wrapper.voiceName.isNotEmpty() && !wrapper.currentVoiceKnown && variant == "*Default" && !EasyVoiceLogger.loggingOn) {
-                paramsLocale = wrapper.paramLocale ?: wrapper.paramsLocaleNow()
-                if (paramsLocale != null) { nameOwed = true; wrapper.paramLocale = paramsLocale }
+            if (wrapper.voiceName.isNotEmpty() && !wrapper.currentVoiceKnown && !EasyVoiceLogger.loggingOn) {
+                val p = wrapper.paramLocale ?: wrapper.paramsLocaleNow()
+                if (p != null && (variant == "*Default" || languageDiffersFromParams(locale, p))) {
+                    nameOwed = true; paramsLocale = p; wrapper.paramLocale = p
+                }
             }
             if (nameOwed) {
                 // compared through localeMatchesParams; curLocale is not read
@@ -1329,10 +1341,13 @@ class EasyVoiceTtsService : TextToSpeechService() {
                 }
             }
             EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { " variant " + effectiveVariant }
-            if (nameOwed && effectiveVariant != "*Default") {
-                // A named voice is wanted after all: the comparison needs the name,
-                // so read the voice exactly as the old path did (the "Do nothing!"
-                // test it carried cannot fire for a *Default request).
+            if (nameOwed && effectiveVariant != "*Default" &&
+                (effectiveVariant.isEmpty() || !languageDiffersFromParams(locale, paramsLocale!!))) {
+                // A named voice in the SAME language is wanted after all: the
+                // comparison needs the name, so read the voice exactly as the old
+                // path did (the "Do nothing!" test it carried cannot fire for a
+                // *Default request). In another language the name cannot match,
+                // so it stays unread and setVoice decides below.
                 nameOwed = false
                 val curVoice = wrapper.voiceNow()
                 if (curVoice != null) { curLocale = curVoice.locale; curVoiceName = curVoice.name }
@@ -1402,7 +1417,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                     val fresh = try { wrapper.tts?.voices } catch (_: Exception) { null }
                     if (fresh != null) { wrapper.voicesCache = fresh; matchedAVoice = scanFor(fresh) }
                 }
-                if (!matchedAVoice && !localeMatches(locale, curLocale)) {
+                if (!matchedAVoice && !(if (nameOwed) localeMatchesParams(locale, paramsLocale!!) else localeMatches(locale, curLocale))) {
                     val setLangResult = wrapper.tts?.setLanguage(locale)
                     if (setLangResult != null && setLangResult >= TextToSpeech.LANG_AVAILABLE) { wrapper.localeSet = true; wrapper.currentVoiceKnown = false; EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Set voice 3: " + locale + " res = " + setLangResult + " " + wrapper.tts.toString() } } else setLanguageFailed(wrapper, locale, setLangResult)
                 }
@@ -3318,6 +3333,11 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // locale with the same getISO3Language / getISO3Country localeMatches calls
     // ("" where those threw -- and a candidate that throws answers false there,
     // as "" never equals a requested code here).
+    // True only when the request's ISO3 language provably differs from the
+    // params' (which getLanguage() gives as ISO3); a locale that cannot answer
+    // counts as "not provably different", so the caller keeps the old read.
+    private fun languageDiffersFromParams(requested: java.util.Locale, p: Array<String>): Boolean =
+        try { requested.isO3Language != p[0] } catch (_: Exception) { false }
     private fun localeMatchesParams(requested: java.util.Locale, p: Array<String>): Boolean {
         return try {
             if (requested.isO3Language != p[0]) return false

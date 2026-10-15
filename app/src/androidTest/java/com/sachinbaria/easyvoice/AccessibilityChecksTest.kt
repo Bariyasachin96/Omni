@@ -360,14 +360,17 @@ class AccessibilityChecksTest {
     }
 
     // The About screen, added 2026-09-03 and made the Vision Hacks page on
-    // 2026-10-14: the highlighted developer line, the people thanked, the
-    // Telegram and donation buttons. Their contrast in both schemes, and every
-    // button one node with its own name.
+    // 2026-10-14/15: the highlighted developer line, the people thanked in one
+    // line, and exactly two buttons -- the Telegram channel and the user guide.
+    // Their contrast in both schemes, and every button one node with its name.
     @Test
     fun aboutScreen() {
         check { AboutScreen() }
         rule.onNodeWithText("Developer and maintainer: Sachin Baria").assertExists()
-        rule.onNodeWithContentDescription("Make a donation").assertExists()
+        rule.onNodeWithText("Adil Hussain Shaikh, Naresh Kushmi, Rini Singh and Syed Sharib Ali").assertExists()
+        rule.onNodeWithContentDescription("Join our Telegram channel: @visionhacks").assertExists()
+        rule.onNodeWithContentDescription("Read user guide").assertExists()
+        rule.onNodeWithContentDescription("Make a donation").assertDoesNotExist()
     }
 
     // THE USER GUIDE DIALOG (owner, 2026-10-14). It exists only after the tap,

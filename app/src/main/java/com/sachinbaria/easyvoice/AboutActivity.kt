@@ -2,7 +2,6 @@ package com.sachinbaria.easyvoice
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -47,15 +46,16 @@ import androidx.core.net.toUri
 // info icon only that button used are all gone. Put them back only when the
 // owner asks.
 //
-// THE VISION HACKS PAGE (owner, 2026-10-14): the developer and maintainer in
-// the centre, highlighted; the people thanked; what the app is; the Telegram
-// help bot, channel and group; the user guide; and a donation through any UPI
-// app. Colours are the app's own theme and nothing new ("color aapko standard
-// hi rakhna hai"): the highlight is the scheme's `primary`, the buttons are
-// EvButton's, and both follow the system's light or dark mode as every screen
-// does. The spelling in the owner's prompt was corrected on their word
-// ("rooting" -> routing, "swich" -> switch, "Joine" -> Join); the user guide's
-// text is theirs exactly (res/raw/user_guide.txt, byte for byte their file).
+// THE VISION HACKS PAGE (owner, 2026-10-14/15): the developer and maintainer in
+// the centre, highlighted; the people thanked, all in ONE line ("ek hi jagah
+// per": a stop and a row per name took too much screen); what the app is; and
+// exactly two buttons, one under the other: the Telegram channel, then the
+// user guide (the help bot, the group and the donation went on the owner's
+// word). Colours are the app's own theme and nothing new ("color aapko
+// standard hi rakhna hai"): the highlight is the scheme's `primary`, the
+// buttons are EvButton's, and both follow the system's light or dark mode as
+// every screen does. The user guide's text is the owner's exactly
+// (res/raw/user_guide.txt, byte for byte their file).
 class AboutActivity : EvActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,17 +63,15 @@ class AboutActivity : EvActivity() {
     }
 }
 
-private val THANKS = listOf("Adil Hussain Shekh", "Naresh Khushmi", "Rini Singh", "Syed Sharib Ali")
+// The names as the owner spelled them (2026-10-15), in one line.
+private const val THANKS = "Adil Hussain Shaikh, Naresh Kushmi, Rini Singh and Syed Sharib Ali"
 
 private const val ABOUT_THIS_APP =
-    "This TTS engine acts as a free TTS routing solution that allows the user to seamlessly " +
-    "switch between various TTS engines in accordance with user-specified languages and the " +
-    "nature of the text, such as punctuation and digits."
+    "Easy Voice is a TTS engine that works with the other TTS engines on your phone. " +
+    "It sends each language to the engine you set up for it, and numbers and punctuation " +
+    "can be read in a language of your choice."
 
-private const val HELP_BOT_URL = "https://t.me/visionHacksHelpBot"
 private const val CHANNEL_URL = "https://t.me/visionhacks"
-private const val GROUP_URL = "https://t.me/+ggOHU9LRRR04MTk1"
-private const val UPI_ID = "9727654365@pthdfc"
 
 // Version comes from the build itself -- BuildConfig.VERSION_NAME is the
 // versionName in app/build.gradle.kts, written by AGP at compile time -- so it
@@ -113,15 +111,12 @@ fun AboutScreen() {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)
             )
             SectionHeader("Huge thanks to")
-            for (name in THANKS) SettingDescription(name)
+            SettingDescription(THANKS)
             SectionHeader("About this app")
             SettingDescription(ABOUT_THIS_APP)
             Spacer(Modifier.height(8.dp))
-            ActionButton("Get help on Telegram: @visionHacksHelpBot", 0) { openLink(context, HELP_BOT_URL) }
             ActionButton("Join our Telegram channel: @visionhacks", 0) { openLink(context, CHANNEL_URL) }
-            ActionButton("Join our Telegram group", 0) { openLink(context, GROUP_URL) }
             ActionButton("Read user guide", 0) { guideOpen = true }
-            ActionButton("Make a donation", 0) { donate(context) }
             Spacer(Modifier.height(8.dp))
             SettingDescription("Copyright © 2026 Sachin Baria. All rights reserved.")
         }
@@ -136,32 +131,6 @@ private fun openLink(context: Context, url: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, "No app on this phone can open this link", Toast.LENGTH_SHORT).show()
-    }
-}
-
-// A UPI payment link (NPCI's upi://pay: payee address, payee name, currency)
-// offered to every UPI app on the phone through the system chooser, so the
-// person picks the app they pay with each time. No amount is set: the app asks
-// for one. Asking the package manager first needs the upi <queries> entry in
-// the manifest; it is there so "no UPI app" is said in words instead of an
-// empty chooser.
-private fun donate(context: Context) {
-    val pay = Intent(
-        Intent.ACTION_VIEW,
-        Uri.Builder().scheme("upi").authority("pay")
-            .appendQueryParameter("pa", UPI_ID)
-            .appendQueryParameter("pn", "Sachin Baria")
-            .appendQueryParameter("cu", "INR")
-            .build()
-    )
-    if (pay.resolveActivity(context.packageManager) == null) {
-        Toast.makeText(context, "No UPI payment app found on this phone", Toast.LENGTH_LONG).show()
-        return
-    }
-    try {
-        context.startActivity(Intent.createChooser(pay, "Pay with"))
-    } catch (_: ActivityNotFoundException) {
-        Toast.makeText(context, "No UPI payment app found on this phone", Toast.LENGTH_LONG).show()
     }
 }
 

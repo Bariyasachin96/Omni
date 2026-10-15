@@ -26,18 +26,37 @@ jitna bhi hai"*, and an About-page prompt (colours: *"standard hi rakhna hai jo 
   v1+v2+v3+v4 and every signer is the owner's certificate; the .aab's certificate too. Tested: the local signed
   release build (all three APKs + .aab) ok; negatives FAIL -- old key (apk and aab), v2-only, missing .idsig.
   Also on that build: native exports, 16 KB (ELF + in-APK offset) ok.
-- **About (More options -> About)**: "About", "Easy Voice", "Easy Voice is a part of Vision Hacks.", Version;
-  centred, titleLarge bold `primary`: "Developer and maintainer: Sachin Baria"; "Huge thanks to" + Adil Hussain
-  Shekh, Naresh Khushmi, Rini Singh, Syed Sharib Ali (one stop each); "About this app" + the owner's paragraph
-  (spelling fixed on their word: routing, switch, Join); EvButtons: Telegram help bot `t.me/visionHacksHelpBot`,
-  channel `t.me/visionhacks`, group `t.me/+ggOHU9LRRR04MTk1` (ACTION_VIEW, Toast if nothing opens it), "Read user
-  guide", "Make a donation" (`upi://pay?pa=9727654365@pthdfc&pn=Sachin Baria&cu=INR` through the system chooser;
-  manifest `<queries>` VIEW+upi so "no UPI app" is a Toast); Copyright last. No new colours.
+- **About (More options -> About)**, as of 2026-10-15: "About", "Easy Voice", "Easy Voice is a part of Vision
+  Hacks.", Version; centred, titleLarge bold `primary`: "Developer and maintainer: Sachin Baria"; "Huge thanks to"
+  + ONE line "Adil Hussain Shaikh, Naresh Kushmi, Rini Singh and Syed Sharib Ali" (owner's spelling; one stop, not
+  one per name); "About this app" + "Easy Voice is a TTS engine that works with the other TTS engines on your
+  phone. It sends each language to the engine you set up for it, and numbers and punctuation can be read in a
+  language of your choice." (NO "free", owner); exactly TWO EvButtons, one under the other: "Join our Telegram
+  channel: @visionhacks" (`t.me/visionhacks`, ACTION_VIEW, Toast if nothing opens it), then "Read user guide";
+  Copyright last. The help bot, group and donation (UPI) buttons and the manifest's upi `<queries>` are GONE on
+  the owner's word. No new colours.
 - **User guide** = `res/raw/user_guide.txt`, the owner's file byte for byte (a new guide = a new file); in an
   AlertDialog, every non-blank line its own Text; a line <= 40 chars ending ':'/'?' is a heading (exactly the 4
   titles); Column scrolls; "Close" EvButton. Tests: `aboutScreen` (+ two asserts), `aboutUserGuideDialogOpen`
   (four headings, "Limitation:" not one, ATF both schemes -- tryPerformAccessibilityChecks checks every root, the
   dialog's included, read in ui-test 1.12.1). check-all ALL PASS (compile 0/0, lint No issues).
+- **The bundle (.aab) is signed with the same key** (owner asked, 2026-10-15): jar-signed by AGP with the release
+  signingConfig; keytool reads CN=Sachin Baria / 1E:37:9A:EF...; CI's "Check the release signature" fails the
+  run before publishing if it is not.
+- **Speed (owner, 2026-10-15: "jo lambi process ... jo directly ho jata hoga")**: re-traced; per swipe our side
+  is still ~1 ms. ONE exact fix: loadVoiceImpl's params-locale path (2026-10-06) now also covers a NAMED voice in
+  ANOTHER language than the client's params (`languageDiffersFromParams`): "Do nothing!" cannot fire there and
+  setVoice decides, so the voiceNow() marshal of the engine's whole voice set is skipped; the named-branch
+  fallback compares the params locale. Same language keeps the old read. voicenow vs HEAD 40,000 x 2: engines
+  alive 0 differ, marshals 327,070 -> 300,001; Hindi(*Default)<->Gujarati(named) on one engine per switch 1.01
+  -> 0.51; the two report-only runs differ only in the known kinds (an unnoticed death found at the load; an
+  uninstalled voice now re-resolved to the engine's current default instead of the stale one). Negatives
+  anyvariant 252 / known 276 caught; nameowed now equal by construction. prefetch 200,000 0 differ.
+  **Left, and it is the owner's call (asked):** both languages on *Default on one engine still cost AOSP's
+  setLanguage per switch (4 calls + the whole-voice-list marshal). Exact today: pick NAMED voices in Voice setup
+  (then a switch is one setVoice). Remembering the resolved default per client would make it one call too, but
+  is NOT exact (voicenow's default-flip scenarios would differ): a default changed inside the engine's own
+  settings would be picked up only at the next scan / process start.
 
 ## THE DIRECT PLAYER IS REVERTED; TWO STOPS THAT REPEATED THE READER'S OWN INTERRUPT ARE GONE (owner, 2026-10-14, latest)
 *"yah player wala tarika mujhe achcha nahin laga ... pichhla build ... sahi tha ... jo screen reader kar sakta hai vah

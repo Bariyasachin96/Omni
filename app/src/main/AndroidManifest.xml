@@ -14,16 +14,10 @@
         <intent><action android:name="android.speech.tts.engine.INSTALL_TTS_DATA" /></intent>
         <intent><action android:name="android.speech.tts.engine.CHECK_TTS_DATA" /></intent>
         <intent><action android:name="android.speech.tts.engine.GET_SAMPLE_TEXT" /></intent>
-        <!-- About's "Make a donation": is there a UPI payment app for a
-             upi://pay link at all, so "none" can be said in words. -->
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="upi" />
-        </intent>
     </queries>
     <!-- NO QUERY_ALL_PACKAGES (owner, 2026-10-08: "library ke rule ke hisab se").
          It is a Play-restricted permission and lint's QueryAllPackagesPermission
-         is an error. The four TTS <queries> intents above are what make every voice
+         is an error. The four <queries> intents above are what make every voice
          engine visible: AOSP's AppsFilter matches them against each package's
          own manifest components (AppsFilterUtils.canQueryViaComponents), so any
          app with a TTS_SERVICE service is visible to us, enabled or not, and an

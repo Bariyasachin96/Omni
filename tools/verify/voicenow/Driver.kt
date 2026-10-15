@@ -241,6 +241,18 @@ fun alternation() {
         for (i in 0 until 100) arm.load("com.g.tts", if (i % 2 == 0) Locale("gu", "IN") else Locale("hi", "IN"), "*Default", false)
         println((if (arm is SvcOld) "OLD" else "NEW") + " Hindi<->Gujarati, per switch: binder calls " + (e.calls - c0) / 100.0 + ", voice-set marshals " + (e.marshals - m0) / 100.0)
     }
+    // Hindi on *Default, Gujarati on a NAMED voice, one engine (2026-10-15).
+    for (arm in listOf<Arm>(SvcOld(), SvcNew())) {
+        val e = FakeEngine("com.g.tts").apply {
+            voices.add(Voice("hi-1", Locale("hi", "IN"))); voices.add(Voice("gu-1", Locale("gu", "IN"))); voices.add(Voice("gu-2", Locale("gu", "IN"))) }
+        LangStore.entries = arrayListOf(LangEntry("com.g.tts", "hi_IN", "*Default"), LangEntry("com.g.tts", "gu_IN", "gu-2"))
+        EasyVoiceLogger.loggingOn = false
+        arm.setUp(listOf(e), 4, listOf("com.g.tts#hi_IN#hi-1", "com.g.tts#gu_IN#gu-1", "com.g.tts#gu_IN#gu-2"))
+        arm.load("com.g.tts", Locale("hi", "IN"), "*Default", false)
+        val c0 = e.calls; val m0 = e.marshals
+        for (i in 0 until 100) if (i % 2 == 0) arm.load("com.g.tts", Locale("gu", "IN"), "gu-2", false) else arm.load("com.g.tts", Locale("hi", "IN"), "*Default", false)
+        println((if (arm is SvcOld) "OLD" else "NEW") + " Hindi(*Default)<->Gujarati(named), per switch: binder calls " + (e.calls - c0) / 100.0 + ", voice-set marshals " + (e.marshals - m0) / 100.0)
+    }
 }
 
 fun main() {
