@@ -360,14 +360,15 @@ class AccessibilityChecksTest {
     }
 
     // The About screen, added 2026-09-03 and made the Vision Hacks page on
-    // 2026-10-14/15: the highlighted developer line, the people thanked in one
+    // 2026-10-14/15: the highlighted developer line, the people thanked one per
     // line, and exactly two buttons -- the Telegram channel and the user guide.
     // Their contrast in both schemes, and every button one node with its name.
     @Test
     fun aboutScreen() {
         check { AboutScreen() }
         rule.onNodeWithText("Developer and maintainer: Sachin Baria").assertExists()
-        rule.onNodeWithText("Adil Hussain Shaikh, Naresh Kushmi, Rini Singh and Syed Sharib Ali").assertExists()
+        for (name in listOf("Adil Hussain Shaikh", "Naresh Kushmi", "Rini Singh", "Syed Sharib Ali"))
+            rule.onNodeWithText(name).assertExists()
         rule.onNodeWithContentDescription("Join our Telegram channel: @visionhacks").assertExists()
         rule.onNodeWithContentDescription("Read user guide").assertExists()
         rule.onNodeWithContentDescription("Make a donation").assertDoesNotExist()

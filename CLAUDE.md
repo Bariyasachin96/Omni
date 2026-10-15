@@ -26,6 +26,10 @@ FailoverTextToSpeech, WindowEventInterpreter, compositor.json), not assumed.
   forcing replaced them with ours, which lack FLAG_LOW_LATENCY: the engine lost its fast output track. A reader
   that sends no attributes or another usage, or strip ON, still gets ours, as before. Switch OFF: unchanged.
   speakpipe's REST defines its own isForceAccessibility (flags off), so the harness is untouched.
+- **One wake per interrupt** (owner, same day: "stop ... aur fast"): onStop's finally and the empty-utterance branch
+  set isStopped AND isFlushed in ONE syncLock block with one notifyAll. Two blocks back to back made the woken
+  synthesis thread find the monitor taken again (park + second wake) on every touch. Pushed without a local
+  compile (owner stopped the runs); CI is the check.
 - **Checked and NOT duplicates -- do not remove:** MainActivity's paneTitle (TalkBack's
   updateWindowTitleFromPane only REPLACES the window's stored title; one announcement); the toggle haptics
   (TalkBack's compositor vibrates on accessibility focus and TYPE_VIEW_SELECTED, never on a click); onStop's early
@@ -54,8 +58,8 @@ jitna bhi hai"*, and an About-page prompt (colours: *"standard hi rakhna hai jo 
   Also on that build: native exports, 16 KB (ELF + in-APK offset) ok.
 - **About (More options -> About)**, as of 2026-10-15: "About", "Easy Voice", "Easy Voice is a part of Vision
   Hacks.", Version; centred, titleLarge bold `primary`: "Developer and maintainer: Sachin Baria"; "Huge thanks to"
-  + ONE line "Adil Hussain Shaikh, Naresh Kushmi, Rini Singh and Syed Sharib Ali" (owner's spelling; one stop, not
-  one per name); "About this app" + "Easy Voice is a TTS engine that works with the other TTS engines on your
+  + the four names ONE PER LINE again (owner, 2026-10-15: back to the first shape), spelled "Adil Hussain Shaikh",
+  "Naresh Kushmi", "Rini Singh", "Syed Sharib Ali"; "About this app" + "Easy Voice is a TTS engine that works with the other TTS engines on your
   phone. It sends each language to the engine you set up for it, and numbers and punctuation can be read in a
   language of your choice." (NO "free", owner); exactly TWO EvButtons, SIDE BY SIDE (owner, 2026-10-15: "upar
   niche nahin, agal-bagal"; Row + weight(1f) + spacedBy(8.dp), the Share logs pair's shape, and

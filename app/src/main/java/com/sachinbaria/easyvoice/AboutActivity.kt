@@ -66,8 +66,9 @@ class AboutActivity : EvActivity() {
     }
 }
 
-// The names as the owner spelled them (2026-10-15), in one line.
-private const val THANKS = "Adil Hussain Shaikh, Naresh Kushmi, Rini Singh and Syed Sharib Ali"
+// The names as the owner spelled them (2026-10-15), one after another, as the
+// page first showed them (owner, same day: back to one name per line).
+private val THANKS = listOf("Adil Hussain Shaikh", "Naresh Kushmi", "Rini Singh", "Syed Sharib Ali")
 
 private const val ABOUT_THIS_APP =
     "Easy Voice is a TTS engine that works with the other TTS engines on your phone. " +
@@ -114,7 +115,7 @@ fun AboutScreen() {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)
             )
             SectionHeader("Huge thanks to")
-            SettingDescription(THANKS)
+            for (name in THANKS) SettingDescription(name)
             SectionHeader("About this app")
             SettingDescription(ABOUT_THIS_APP)
             Spacer(Modifier.height(8.dp))

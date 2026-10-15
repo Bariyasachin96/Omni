@@ -2892,8 +2892,12 @@ class EasyVoiceTtsService : TextToSpeechService() {
         } catch (ex: Throwable) {
             EasyVoiceLogger.error(EasyVoiceLogger.TAG, "onStop failed before releasing: " + ex.toString())
         } finally {
-            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-            synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }
+            // ONE wake (owner, 2026-10-15: "stop ... aur fast"): both flags in one
+            // monitor entry. Two blocks back to back meant the synthesis thread,
+            // woken by the first and already reaching for the monitor, found it
+            // taken again by the second: a park and a second wake on every
+            // interrupt, in front of the reader's next utterance.
+            synchronized(syncLock) { isStopped = true; isFlushed = true; syncLock.notifyAll() }
         }
     }
 
@@ -3462,8 +3466,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             // reader's next utterance could start, plus an empty request queued in
             // every engine. AutoTTS's q0(FALSE) flushes: DELIBERATE DEPARTURE.
             synchronized(chunkQueue) { chunkQueue.clear() }
-            synchronized(syncLock) { isStopped = true; syncLock.notifyAll() }
-            synchronized(syncLock) { isFlushed = true; syncLock.notifyAll() }
+            synchronized(syncLock) { isStopped = true; isFlushed = true; syncLock.notifyAll() }
             // FINISHED WITHOUT BEING STARTED (owner, 2026-10-14: "aur bhi fast").
             // start() is what makes AOSP build an AudioTrack in this process
             // (PlaybackSynthesisCallback.start -> SynthesisPlaybackQueueItem.run ->
