@@ -8,6 +8,37 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## THE OWNER'S OWN KEY SIGNS EVERYTHING, V1 TO V4; THE ABOUT PAGE IS VISION HACKS' (owner, 2026-10-14/15, latest)
+*"aage se aap sign karoge ... sabhi file ko naya wala keyStore se"*, *"sirf V2 signature aata hai ... V1 V2 V3 V4
+jitna bhi hai"*, and an About-page prompt (colours: *"standard hi rakhna hai jo hamara chal raha hai"*).
+- **Release key = the owner's `sachin.jks`**: alias `sachin`, store AND key password `sachin96`, CN=Sachin Baria,
+  RSA 2048, valid 2015-2095, certificate SHA-256 `1E:37:9A:EF:8F:A5:1A:58:D6:0F:56:B6:09:46:B9:AE:D1:61:28:2F:AB:43:23:
+  17:8B:B0:7B:7B:E0:B6:81:9B`. Base64 inline in build.yml's two "Restore Keystore" steps (build + baseline-profile),
+  as the old key was (owner refuses Secrets); **no secret is read for it any more** (an old KEYSTORE_BASE64 secret
+  would have signed with the old key). Passwords literal in the workflow env and app/build.gradle.kts defaults.
+  The old key (CN=Sachin, OU=Omni, SHA-256 60:B5:65:5F...) is gone, so the first build with the new key does NOT
+  install over an older one: uninstall once (settings + default-engine choice redone). No .jks file in the repo.
+- **Every scheme**: `enableV1Signing/V2/V3/V4 = true` (AGP made only v2 at minSdk 24). v4 is a separate
+  `<apk>.idsig` (ADB incremental install only); CI copies it beside each renamed APK and publishes the three.
+  The .aab is jar-signed only (bundles have no v2+). apksigner reports v1 "false" at the APK's own minSdk (24 ignores
+  JAR signing when v2 exists) -- `--min-sdk-version 23` shows it true; v4 needs `--v4-signature-file`.
+- **`tools/check/release-signature.sh`** (CI "Check the release signature", before publishing): every APK verifies
+  v1+v2+v3+v4 and every signer is the owner's certificate; the .aab's certificate too. Tested: the local signed
+  release build (all three APKs + .aab) ok; negatives FAIL -- old key (apk and aab), v2-only, missing .idsig.
+  Also on that build: native exports, 16 KB (ELF + in-APK offset) ok.
+- **About (More options -> About)**: "About", "Easy Voice", "Easy Voice is a part of Vision Hacks.", Version;
+  centred, titleLarge bold `primary`: "Developer and maintainer: Sachin Baria"; "Huge thanks to" + Adil Hussain
+  Shekh, Naresh Khushmi, Rini Singh, Syed Sharib Ali (one stop each); "About this app" + the owner's paragraph
+  (spelling fixed on their word: routing, switch, Join); EvButtons: Telegram help bot `t.me/visionHacksHelpBot`,
+  channel `t.me/visionhacks`, group `t.me/+ggOHU9LRRR04MTk1` (ACTION_VIEW, Toast if nothing opens it), "Read user
+  guide", "Make a donation" (`upi://pay?pa=9727654365@pthdfc&pn=Sachin Baria&cu=INR` through the system chooser;
+  manifest `<queries>` VIEW+upi so "no UPI app" is a Toast); Copyright last. No new colours.
+- **User guide** = `res/raw/user_guide.txt`, the owner's file byte for byte (a new guide = a new file); in an
+  AlertDialog, every non-blank line its own Text; a line <= 40 chars ending ':'/'?' is a heading (exactly the 4
+  titles); Column scrolls; "Close" EvButton. Tests: `aboutScreen` (+ two asserts), `aboutUserGuideDialogOpen`
+  (four headings, "Limitation:" not one, ATF both schemes -- tryPerformAccessibilityChecks checks every root, the
+  dialog's included, read in ui-test 1.12.1). check-all ALL PASS (compile 0/0, lint No issues).
+
 ## THE DIRECT PLAYER IS REVERTED; TWO STOPS THAT REPEATED THE READER'S OWN INTERRUPT ARE GONE (owner, 2026-10-14, latest)
 *"yah player wala tarika mujhe achcha nahin laga ... pichhla build ... sahi tha ... jo screen reader kar sakta hai vah
 bhi ham likh rahe hain is vajah se thoda delay ho raha hai."*

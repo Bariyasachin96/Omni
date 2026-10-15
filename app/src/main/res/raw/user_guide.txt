@@ -1,0 +1,25 @@
+Hello user, welcome to Easy Voice!
+What is Easy Voice?
+Easy Voice is a TTS routing application that automatically selects and routes text-to-speech requests to different TTS engines based on the language and selected mode. Its routing method varies depending on the mode, allowing different TTS providers to be used for different languages and requirements.
+How to use: Here are step-by-step instructions on how to use this app and how to set up different TTS engines with it.
+Open the app and select your desired mode from the provided list of modes. If you rely on only two different languages, the Dual Languages mode is efficient for handling that, and if you need to read the text in multiple languages, you may go with Mixed/Auto modes.
+After selecting a mode, you'll find a Settings button which will show the options that each specific mode has to offer. Dual Mode, for instance, allows the user to select a secondary language which will be used apart from English, and it also grants the ability to select the voice for reading numbers and special characters.
+Head to the Configurations tab available just above the Home button, hit the Add Language button, and select the desired languages you want to configure with Easy Voice. From here, you can select your desired language, its corresponding TTS engine, along with the ability to design the entire customised voice profile for each language, for instance, setting a different speed, pitch, and volume for each language. There is also a checkbox inside the language configuration settings that immediately invokes the corresponding TTS engine with no delay, and this comes into use when one TTS engine doesn't handle more than one language. The languages can later also be disabled, enabled, or removed through this tab.
+After clicking Add Language and opening the voice configuration screen, you can select the language and voice and configure settings such as speech pitch, speed, and volume. The configuration screen also provides Previous Language and Next Language buttons, allowing you to quickly navigate between the configured languages without leaving the voice configuration section.
+Users can navigate to the Advanced tab available at the bottom right of the screen to set some additional configurations for the app, if required.
+The ability to remove audio attributes from the synthesis request, or make it mandatory to send the speech through the accessibility volume channel.
+Enable or disable smart number processing for handling numbers in different scenarios.
+Enable/disable punctuation reading separately, or process it along with the text.
+Turn on/off quick reading of characters without any processing on them.
+Turn on/off Keep Alive mode, which will add a bit of silence to prevent audio stuttering issues.
+The ability to share the logs with the developer if any problem occurs.
+Once you have finished configuring the settings across all three tabs, click on the More Options menu available at the top-right corner of the screen, and then select TTS Settings to open the text-to-speech settings. From there, you can set this particular engine as your default TTS engine to start using it.
+
+Each mode that Easy Voice has to offer is described below.
+Dual Languages Mode:
+This mode operates using a primary and secondary language. The primary language (English) handles all Latin-script text, while non-Latin text is routed to the configured secondary TTS engine. If the non-Latin text matches the selected secondary language, it is spoken using the corresponding TTS engine; otherwise, it is ignored.
+Auto Language Mode:
+In this mode, users can configure as many languages as desired. Easy Voice analyzes each text block and determines which configured TTS engine is capable of processing the entire block. Once an eligible engine is identified, the complete text is sent to that single TTS engine.
+Limitation: Because the entire text block is handled by one TTS engine, small portions of text written in a different language may not be recognized or spoken correctly. For example, if an English sentence contains a short phrase in another language—particularly at the beginning of the text—the selected TTS engine may fail to process that portion, causing it to be skipped or omitted from speech. For content that frequently switches between multiple languages within the same text, Mixed Mode is more suitable.
+Mixed Mode (Widely Preferred):
+This mode is a combination of both Dual Languages and Auto Language modes. In this mode, each language and word is processed strictly by its dedicated TTS engine, unlike Auto Language Mode, which processes the entire text through a single TTS engine. Users can configure as many languages as desired, allowing multilingual content to be processed seamlessly across multiple TTS engines.

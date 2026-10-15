@@ -10,6 +10,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 // The v2 rule (compose ui-test 1.12): the v1 one is deprecated and v2 is its
 // named replacement. Same return type, so nothing below changed. v2 queues
 // coroutines on a StandardTestDispatcher instead of running them at once, and
@@ -21,6 +23,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
 // NOT androidx.compose.ui.test -- enableAccessibilityChecks lives in its own
@@ -356,13 +359,34 @@ class AccessibilityChecksTest {
         check { AdvancedScreen(0, { }) }
     }
 
-    // The About screen, added 2026-09-03. Its two link buttons went on
-    // 2026-09-10 and the licence button and dialog on 2026-09-23, both at the
-    // owner's request, so what is left is the heading, the title and three
-    // facts, and the check that matters is their contrast in both schemes.
+    // The About screen, added 2026-09-03 and made the Vision Hacks page on
+    // 2026-10-14: the highlighted developer line, the people thanked, the
+    // Telegram and donation buttons. Their contrast in both schemes, and every
+    // button one node with its own name.
     @Test
     fun aboutScreen() {
         check { AboutScreen() }
+        rule.onNodeWithText("Developer and maintainer: Sachin Baria").assertExists()
+        rule.onNodeWithContentDescription("Make a donation").assertExists()
+    }
+
+    // THE USER GUIDE DIALOG (owner, 2026-10-14). It exists only after the tap,
+    // so aboutScreen never draws it. Every paragraph of the owner's file is its
+    // own Text and its four title lines are headings -- a heading lost is a
+    // section a screen reader can no longer jump to, with nothing on screen to
+    // show it. The dialog is its own window; tryPerformAccessibilityChecks
+    // checks every compose root, so sweepSchemes covers it and the page behind.
+    @Test
+    fun aboutUserGuideDialogOpen() {
+        themed { AboutScreen() }
+        rule.enableAccessibilityChecks()
+        rule.onNodeWithContentDescription("Read user guide").performScrollTo().performClick()
+        rule.onNodeWithText("Hello user, welcome to Easy Voice!").assertExists()
+        for (title in listOf("What is Easy Voice?", "Dual Languages Mode:", "Auto Language Mode:", "Mixed Mode (Widely Preferred):")) {
+            rule.onNode(hasText(title).and(isHeading())).assertExists()
+        }
+        rule.onNode(hasText("Limitation:", substring = true).and(isHeading())).assertDoesNotExist()
+        sweepSchemes()
     }
 
     @Test

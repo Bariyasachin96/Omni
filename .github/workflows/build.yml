@@ -97,14 +97,16 @@ jobs:
           # written and never be found.
           cache-disabled: true
 
+      # THE OWNER'S RELEASE KEY (2026-10-14: "aage se ... sabhi file ko naya wala
+      # keyStore se"): alias sachin, CN=Sachin Baria, certificate SHA-256
+      # 1E:37:9A:EF:...:E0:B6:81:9B. It lives here, as the previous key did, not
+      # in a repository secret, by the owner's choice -- and nothing reads a
+      # secret for it any more, so an old secret cannot sign with the old key.
+      # "Check the release signature" proves every published file carries it.
       - name: Restore Keystore
         run: |
-          KSBASE64="${{ secrets.KEYSTORE_BASE64 }}"
-          if [ -z "$KSBASE64" ]; then
-            KSBASE64="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"
-          fi
-          printf '%s' "$KSBASE64" | base64 -d > easyvoice-release.keystore
-          echo "Keystore ready" 
+          printf '%s' "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" | base64 -d > easyvoice-release.keystore
+          echo "Keystore ready"
       # THE RELEASE NO LONGER WAITS FOR THE PROFILE JOB (owner, 2026-10-14).
       # Build 971's APK waited 41 minutes for it (11 to compile, 30 on the
       # emulator) and then the profile could not even be uploaded (storage
@@ -152,9 +154,9 @@ jobs:
           # Read by defaultConfig.versionCode, so the Advanced tab's "Build number"
           # is this run's number rather than a frozen 1.
           EV_BUILD_NUMBER: ${{ github.run_number }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
+          KEYSTORE_PASSWORD: sachin96
+          KEY_ALIAS: sachin
+          KEY_PASSWORD: sachin96
 
       # THE ANDROID APP BUNDLE, the format Google Play takes (2026-10-13: the
       # owner is preparing the Play listing, and Play accepts new apps only as
@@ -167,9 +169,9 @@ jobs:
         run: bash tools/ci/gradle-retry.sh bundleRelease
         env:
           EV_BUILD_NUMBER: ${{ github.run_number }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
+          KEYSTORE_PASSWORD: sachin96
+          KEY_ALIAS: sachin
+          KEY_PASSWORD: sachin96
 
       # Every build ships the same way: clearly named APKs on the release page.
       # "app-release.apk" collided in the Downloads folder and was hard to tell
@@ -196,8 +198,13 @@ jobs:
           cp "$out/app-universal-release.apk"    "EasyVoice-${{ github.run_number }}.apk"
           cp "$out/app-arm64-v8a-release.apk"    "EasyVoice-${{ github.run_number }}-arm64-v8a.apk"
           cp "$out/app-armeabi-v7a-release.apk"  "EasyVoice-${{ github.run_number }}-armeabi-v7a.apk"
+          # Each APK's v4 signature (2026-10-14: every scheme, v1 to v4) is the
+          # file beside it, <apk>.idsig; it keeps that pairing in its new name.
+          cp "$out/app-universal-release.apk.idsig"    "EasyVoice-${{ github.run_number }}.apk.idsig"
+          cp "$out/app-arm64-v8a-release.apk.idsig"    "EasyVoice-${{ github.run_number }}-arm64-v8a.apk.idsig"
+          cp "$out/app-armeabi-v7a-release.apk.idsig"  "EasyVoice-${{ github.run_number }}-armeabi-v7a.apk.idsig"
           cp app/build/outputs/bundle/release/app-release.aab "EasyVoice-${{ github.run_number }}.aab"
-          ls -l EasyVoice-${{ github.run_number }}*.apk EasyVoice-${{ github.run_number }}.aab
+          ls -l EasyVoice-${{ github.run_number }}*.apk EasyVoice-${{ github.run_number }}*.idsig EasyVoice-${{ github.run_number }}.aab
 
       # The native library must export only Java_* and JNI_OnLoad; build 945
       # exported 698 libc++ symbols, which kept dead code in every APK. Checked
@@ -214,6 +221,12 @@ jobs:
         run: |
           bash tools/check/native-pagesize.sh "EasyVoice-${{ github.run_number }}.apk"
           bash tools/check/native-pagesize.sh "EasyVoice-${{ github.run_number }}-arm64-v8a.apk"
+
+      # SIGNED WITH THE OWNER'S KEY (2026-10-14). Every file published below must
+      # carry its certificate: one signed with any other key would not install
+      # over the app on the owner's phone.
+      - name: Check the release signature
+        run: bash tools/check/release-signature.sh EasyVoice-${{ github.run_number }}*.apk "EasyVoice-${{ github.run_number }}.aab"
 
       # THE EXACT SOURCE OF THIS BUILD, PUBLISHED BESIDE IT (owner, 2026-09-11:
       # "har build ke sath pura jo latest build ka source code hai vah bhi a jana
@@ -286,6 +299,11 @@ jobs:
             Android App Bundle, the file the Google Play Console takes. It is
             not installed on a phone directly.
 
+            Every APK is signed with v1, v2, v3 and v4 signatures. The v4
+            signature is its own file, the **.apk.idsig** beside each APK; only
+            `adb install --incremental` uses it, and a normal install does not
+            need it.
+
             **EasyVoice-${{ github.run_number }}-source.zip** is the complete
             source this build was compiled from, taken straight out of the commit
             above. It excludes only `autotts_reference/`, which is a third-party
@@ -296,6 +314,9 @@ jobs:
             EasyVoice-${{ github.run_number }}.apk
             EasyVoice-${{ github.run_number }}-arm64-v8a.apk
             EasyVoice-${{ github.run_number }}-armeabi-v7a.apk
+            EasyVoice-${{ github.run_number }}.apk.idsig
+            EasyVoice-${{ github.run_number }}-arm64-v8a.apk.idsig
+            EasyVoice-${{ github.run_number }}-armeabi-v7a.apk.idsig
             EasyVoice-${{ github.run_number }}.aab
             EasyVoice-${{ github.run_number }}-source.zip
           make_latest: true
@@ -695,14 +716,16 @@ jobs:
           # written and never be found.
           cache-disabled: true
 
+      # THE OWNER'S RELEASE KEY (2026-10-14: "aage se ... sabhi file ko naya wala
+      # keyStore se"): alias sachin, CN=Sachin Baria, certificate SHA-256
+      # 1E:37:9A:EF:...:E0:B6:81:9B. It lives here, as the previous key did, not
+      # in a repository secret, by the owner's choice -- and nothing reads a
+      # secret for it any more, so an old secret cannot sign with the old key.
+      # "Check the release signature" proves every published file carries it.
       - name: Restore Keystore
         run: |
-          KSBASE64="${{ secrets.KEYSTORE_BASE64 }}"
-          if [ -z "$KSBASE64" ]; then
-            KSBASE64="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"
-          fi
-          printf '%s' "$KSBASE64" | base64 -d > easyvoice-release.keystore
-          echo "Keystore ready" 
+          printf '%s' "/u3+7QAAAAIAAAABAAAAAQAGc2FjaGluAAABUflN5N0AAAUBMIIE/TAOBgorBgEEASoCEQEBBQAEggTpZyyeXb7vpA5SiySXZOeA0EglbXJNyIyRkT+Br7Tlada9BVd2zI5e9hMeAcH0b5KafBI0xUi7pysa7HLxwcV+w4gXSBwjFQ4VGJjd1InUmRflGUQqC/XdOu/UBpuVhfoonwwOEVvRmGI5h7DTnQDujdton2yETM5D0fdTlbuFoTb+ZHgNoCTZABuTluzwEeUJAChKQ23yTm7+UdbejNUaFAaU9Rzg36bLNnLiLKG+tE8nZntcPBNEnE4G0MggSqxxoX3heobpFPY+vXqsed72Sa0JG7Le82uiii6w84nT/ixBX3+cUlWPQjJKibf5ieLgpdvbA8t7rfw6u37O4upaVA2aPCmK64FgUsJ3lEPk89zNXQV3lXPxoc6GW8N8Nvps/cAuLbxcEUFwGd8TyaZWt0zLdWqcdDRA/QXFuFAum1POvx2/gc/zK1jPj+5oY+nA9MzVv3v2mc6teNkjZShKqyLfKW2r1u2MTX5Jw2Lcd+UHkrfM2cniR7FuXm0XVFARVxapFRj80P9r08SIEkqi/zyCk4Ln0klAL9OZsKw8tE9OZqKYj/8yePZvEhoUIvBsFv+JZTObXfTMTShLV8d8Z9QZkIc9VcLWrMuuJgLfPy/xOz0RpEsuD5+gf5Y/8YFMlzvBO8zGiUffSxR4IvODa/tnt8DOUWDmBCQM1m1YIandx+uKoN7ECXGl17CcaC3GMvZULyTK7b4RPq335MMFXJmLTfqKdvtnttzA4bdzM32+zDzME0XCG/YduKoXCilB8GKOYNu65u4SrIxaY2g6vU7QbcxOyCaBu3gyzA4PkTN5vs0YHZounKL7hOlzYvPa3kXlPTbBK3Wloc3JLkY3jlj16EdeFan45KXqKS6pMgwn7XJ4z4oOeGqbpN1VFRIsvfazAlkuSpOqy5LB0MejpaU4rTe1ZDISzpP6/iIdx/sQZ9B5yZ8P5gvTfzRtfTuS9T7Qt8a2Za3ryvoMZLQM3Buw4u4WUYv2SbH12qhY9HwAK2smbt+1Cz46dSNsEmup824goxXd+F8mQ314yJeMQs3HlBNjH1kNF6FgQ4cq4QAL4lwHN1gA6G666ivGl58czEhGOXizBxk7WXQcQaQIESTwHxLzQYnyDDoQwQeSt2dWqAYBNtBt8yvXm+qaRk4+Xl0yRt6JeDQ41pARJN5pKYW/Zz/FuOShB0FxkO36V+aGYr8G7jjQ/hF41QJ93rj+yb0AlAXb9WoMVuqVRlCNMqvRfVazqLLUr7icUc0xO/dlftPRpSgiVApVwstwmVNqCD8V6XV5IsR1xIaQzYNDYWr/0QQyuGWzclL7VqoHBKqVribMUMdNb12oZNwqHob8DT3b7zupPe8YZ9KSnhx+NCWbSbfNJYMOFVgOzmbrpxeXt6CE5icylv2lwzOjCHJu9KMXXshzn2QsAiDIwml4pyJcQ1ANcjcDxHbrLkhfs22v+K1WR5Hcmz4yExFL/cj7Re7AS/tyPIrhFL3W34p/uuReyhSR3gz/PNjjisdMjdBg682fAMk5npunPUrGWv2Rv+D42IeFi8GqY9WSUuWvtAQ1j5/gxmNXr8gW4fonxsO5wOrsAIR4YRAxDewprPFrgQeI3gGHSazay90DPFzOTupcXHcNPaQFMwKYKAQ970M/gFOc5PPFbtIvNmMSJiZh8nnh1uOaMZhXAAAAAQAFWC41MDkAAAMAMIIC/DCCAeSgAwIBAgIEWoP/NzANBgkqhkiG9w0BAQ0FADAXMRUwEwYDVQQDEwxTYWNoaW4gQmFyaWEwIBcNMTUxMjMxMTgzMDEwWhgPMjA5NTEyMTExODMwMTBaMBcxFTATBgNVBAMTDFNhY2hpbiBCYXJpYTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALv2ZDNDUTBK+nwHAHqZ5phLS4spuQMbFBG0LJYVEQbs8hnH1bc0X8QYdgFKb3raAWQ5FOv0gUcqmVmRUff3TopdC2Zr8HaO2PG6GcRlT71mHGxtO7+7Gx4tgeAH2PAQjbvkJP7v9RQfZZvXe34R7gCXSJevQX5T+mpgYexO5EjtGAJloUGbB7o5HcJvxSxVr1TlQwNHcG824cKBeT57gQPstt+wdTf4TbfMVE/MNs3zdtulc9jTidFHedoiKHvt6zeoq14iSXwRgBQg/HN22B7PkIFLy//fAYo9Rom/4Xy8bGuXjBX+0tlFAAhAZqM9jO+TVDNYMcNysdybDR1dmcUCAwEAAaNOMEwwHQYDVR0OBBYEFE2IpQL1WG10TuHGsnCPR+PgaAlUMCsGA1UdEAQkMCKADzIwMTUxMjMxMTgzMDEwWoEPMjA5NTEyMTExODMwMTBaMA0GCSqGSIb3DQEBDQUAA4IBAQCLuvtxPjPwkOp/9UBElGUPT3W8KUyXSjm+PPCc02feUeK4gg+PS+BtNzpLJfy5Ie9svToUj17xllBPsZc5UbyipvrrY4A49ijARdMINEZHQ/yie8zun2kajN0boOA+K/Ohniurl2dVc2zz+PHrxxzgtMZWAdOFcA9VjlYFIMDBH2noCt7lzI/kRpqH8/8qnbJV5iQcKMjapE2Lt2ZWvSwOWLptNBj/+OsE026Lb346jpeFHJh3/D7IWA+8F/d4Cs0WnVHe02UHzfLUNf9ix8xGSbymQRue6FH1+E944k5xBrdV1jEmvxQdjZyFa2TQyL9CvP7OscTzz6LgLkNM9JyVU0zdpbUU2lRKtMReIJYBIjIRN5M=" | base64 -d > easyvoice-release.keystore
+          echo "Keystore ready"
       - name: Generate the baseline profile on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -723,9 +746,9 @@ jobs:
             echo "sdk.dir=$ANDROID_HOME" > local.properties
             bash tools/ci/gradle-retry.sh :app:generateBaselineProfile || { bash tools/ci/why-failed.sh; bash tools/ci/gradle-retry.sh :app:generateBaselineProfile; }
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'sachin1211' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'sachin' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'sachin1211' }}
+          KEYSTORE_PASSWORD: sachin96
+          KEY_ALIAS: sachin
+          KEY_PASSWORD: sachin96
 
       # The same classifier as the other two jobs.
       - name: Say WHY this went red

@@ -149,11 +149,24 @@ android {
     }
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = libs.versions.cmake.get() } }
     signingConfigs {
+        // The owner's release key (2026-10-14), restored from build.yml into
+        // easyvoice-release.keystore (gitignored): a JKS file, which AGP's
+        // default PKCS12 store type reads too (the JDK's keystore.type.compat).
         create("release") {
             storeFile = rootProject.file("easyvoice-release.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "sachin1211"
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "sachin96"
             keyAlias = System.getenv("KEY_ALIAS") ?: "sachin"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "sachin1211"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "sachin96"
+            // EVERY SIGNATURE SCHEME (owner, 2026-10-14: "sirf V2 signature aata
+            // hai ... V1 V2 V3 V4 jitna bhi hai"). AGP signs only v2 when minSdk
+            // is 24 or more (v1 is skipped as unneeded, v3 is off by default);
+            // stated, each one is made. v1 = JAR signing, v2/v3 inside the APK,
+            // v4 = a separate <apk>.idsig file (ADB incremental install), which
+            // CI publishes beside each APK. v3.1 exists only for key rotation.
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
         }
     }
     buildTypes {
