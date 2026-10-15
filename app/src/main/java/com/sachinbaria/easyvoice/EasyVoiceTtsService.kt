@@ -922,10 +922,25 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // spell has to construct a thread before it can even issue the stop, which is
         // pure added delay on the one call that must not be slow. One idle daemon
         // thread per engine wrapper is the price, and it is blocked on the queue.
+        //
+        // AT AUDIO PRIORITY (owner, 2026-10-15: "lamba rasta ... directly"). On every
+        // interrupt onStop() hands the speaking engine's stop to this thread, and the
+        // reader's next utterance then speaks to the same engine under the same
+        // speakLock -- so when the stop holds the lock, the next word waits for it.
+        // The thread was made at the default priority (nice 0) while the synthesis
+        // and speak threads run at THREAD_PRIORITY_AUDIO, so on a busy phone (a
+        // swipe is exactly when TalkBack and the focus highlight are drawing) the
+        // stop could be scheduled late and hold the next word up behind it. Same
+        // priority as the two threads it serves; nothing it does changes.
         val stopExec: java.util.concurrent.ThreadPoolExecutor =
             java.util.concurrent.ThreadPoolExecutor(1, 5, 60L, java.util.concurrent.TimeUnit.SECONDS,
                 java.util.concurrent.LinkedBlockingQueue<Runnable>(),
-                java.util.concurrent.ThreadFactory { runnable -> Thread(runnable, "TtsStop").apply { isDaemon = true } })
+                java.util.concurrent.ThreadFactory { runnable ->
+                    Thread({
+                        try { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) } catch (_: Throwable) {}
+                        runnable.run()
+                    }, "TtsStop").apply { isDaemon = true }
+                })
                 .apply { prestartCoreThread() }
         // THE CLIENT IS CAPTURED HERE, NOT READ INSIDE THE RUNNABLE (2026-09-16).
         //

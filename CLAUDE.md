@@ -31,9 +31,11 @@ jitna bhi hai"*, and an About-page prompt (colours: *"standard hi rakhna hai jo 
   + ONE line "Adil Hussain Shaikh, Naresh Kushmi, Rini Singh and Syed Sharib Ali" (owner's spelling; one stop, not
   one per name); "About this app" + "Easy Voice is a TTS engine that works with the other TTS engines on your
   phone. It sends each language to the engine you set up for it, and numbers and punctuation can be read in a
-  language of your choice." (NO "free", owner); exactly TWO EvButtons, one under the other: "Join our Telegram
-  channel: @visionhacks" (`t.me/visionhacks`, ACTION_VIEW, Toast if nothing opens it), then "Read user guide";
-  Copyright last. The help bot, group and donation (UPI) buttons and the manifest's upi `<queries>` are GONE on
+  language of your choice." (NO "free", owner); exactly TWO EvButtons, SIDE BY SIDE (owner, 2026-10-15: "upar
+  niche nahin, agal-bagal"; Row + weight(1f) + spacedBy(8.dp), the Share logs pair's shape, and
+  `height(IntrinsicSize.Min)` + `fillMaxHeight()` so the wrapped Telegram label does not leave two heights):
+  "Join our Telegram channel: @visionhacks" (`t.me/visionhacks`, ACTION_VIEW, Toast if nothing opens it), then
+  "Read user guide"; Copyright last. The help bot, group and donation (UPI) buttons and the manifest's upi `<queries>` are GONE on
   the owner's word. No new colours.
 - **User guide** = `res/raw/user_guide.txt`, the owner's file byte for byte (a new guide = a new file); in an
   AlertDialog, every non-blank line its own Text; a line <= 40 chars ending ':'/'?' is a heading (exactly the 4
@@ -52,11 +54,40 @@ jitna bhi hai"*, and an About-page prompt (colours: *"standard hi rakhna hai jo 
   -> 0.51; the two report-only runs differ only in the known kinds (an unnoticed death found at the load; an
   uninstalled voice now re-resolved to the engine's current default instead of the stale one). Negatives
   anyvariant 252 / known 276 caught; nameowed now equal by construction. prefetch 200,000 0 differ.
-  **Left, and it is the owner's call (asked):** both languages on *Default on one engine still cost AOSP's
-  setLanguage per switch (4 calls + the whole-voice-list marshal). Exact today: pick NAMED voices in Voice setup
-  (then a switch is one setVoice). Remembering the resolved default per client would make it one call too, but
-  is NOT exact (voicenow's default-flip scenarios would differ): a default changed inside the engine's own
-  settings would be picked up only at the next scan / process start.
+  **The owner DECLINED the remembered-default cache (2026-10-15: "vah to aapko nahin karna hai ... main khud
+  setup kar lunga"): he picks NAMED voices in Voice setup himself, so a switch is one setVoice.** Do NOT build
+  it: both languages on *Default on one engine still cost AOSP's setLanguage per switch (4 calls + the
+  whole-voice-list marshal), and caching the resolved default is NOT exact (voicenow's default-flip scenarios
+  would differ).
+- **The engine-stop thread runs at THREAD_PRIORITY_AUDIO** (owner, same day: "lamba rasta ... directly";
+  everything else on the swipe path re-read and already at its floor). On every interrupt onStop() hands the
+  speaking engine's stop() to `stopExec` ("TtsStop"), and the next utterance's speak() to that engine takes the
+  same `speakLock` -- so a stop holding the lock holds the next word. The thread was nice 0 while the synthesis
+  and speak threads are AUDIO, so on a busy phone (a swipe is when TalkBack and the focus highlight draw) the
+  stop could start late. Now set once at thread start (`Process.setThreadPriority`, in the ThreadFactory);
+  nothing it does changes, so no harness can differ (the three gen.py regexes over `val stopExec:` ...
+  `prestartCoreThread() }` still match, checked).
+
+## EVERY BUILD REPORT ALSO LISTS THE PERMISSIONS, AND WHY (owner, 2026-10-15, standing)
+*"build karne ke bad ... yah bhi batana ki ham kaun-kaun se permission lete hain aur kis liye ... play store
+mein ... bata sake."* Read them from the MERGED release manifest
+(`app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml`), not from
+memory. As of 2026-10-15:
+- `POST_NOTIFICATIONS` (runtime, Android 13+): only for "Show persistent notification" (OFF by default),
+  asked when that switch is turned on.
+- `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (normal): that same switch runs the TTS service as
+  a foreground service of type mediaPlayback (speech playback) so Clear all / low memory does not kill it.
+  **Play Console: App content > Foreground service permissions** must be filled for mediaPlayback (what it
+  does, what the user loses if it is stopped, a video link, a use case) -- Google's answer 13392821/16965181.
+- `<app>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (signature, added by androidx.core): only our own app holds
+  it; it guards our package-change receiver. No declaration.
+- `android.permission.DUMP` appears only as the permission a SENDER needs for androidx.profileinstaller's
+  receiver (system/adb); the app does not request it.
+- NOT requested: INTERNET (the app cannot send anything off the phone), QUERY_ALL_PACKAGES (gone 10-08; the
+  four TTS `<queries>` intents suffice), REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (gone 09-24), WAKE_LOCK (gone),
+  no AccessibilityService. Data safety: the text is processed on the phone and handed only to the TTS engine
+  the user chose for that language (that engine's own policy covers what it does); logs are local and leave
+  only when the user taps Share logs.
 
 ## THE DIRECT PLAYER IS REVERTED; TWO STOPS THAT REPEATED THE READER'S OWN INTERRUPT ARE GONE (owner, 2026-10-14, latest)
 *"yah player wala tarika mujhe achcha nahin laga ... pichhla build ... sahi tha ... jo screen reader kar sakta hai vah

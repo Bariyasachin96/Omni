@@ -5,8 +5,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -49,9 +53,8 @@ import androidx.core.net.toUri
 // THE VISION HACKS PAGE (owner, 2026-10-14/15): the developer and maintainer in
 // the centre, highlighted; the people thanked, all in ONE line ("ek hi jagah
 // per": a stop and a row per name took too much screen); what the app is; and
-// exactly two buttons, one under the other: the Telegram channel, then the
-// user guide (the help bot, the group and the donation went on the owner's
-// word). Colours are the app's own theme and nothing new ("color aapko
+// exactly two buttons, side by side: the Telegram channel, then the user
+// guide (the help bot, the group and the donation went on the owner's word). Colours are the app's own theme and nothing new ("color aapko
 // standard hi rakhna hai"): the highlight is the scheme's `primary`, the
 // buttons are EvButton's, and both follow the system's light or dark mode as
 // every screen does. The user guide's text is the owner's exactly
@@ -115,8 +118,21 @@ fun AboutScreen() {
             SectionHeader("About this app")
             SettingDescription(ABOUT_THIS_APP)
             Spacer(Modifier.height(8.dp))
-            ActionButton("Join our Telegram channel: @visionhacks", 0) { openLink(context, CHANNEL_URL) }
-            ActionButton("Read user guide", 0) { guideOpen = true }
+            // SIDE BY SIDE (owner, 2026-10-15: "upar niche nahin, agal-bagal"): the
+            // app's own pair shape (Share logs / Clear logs), each half the row.
+            // The Telegram label wraps to more lines than "Read user guide", so the
+            // row takes its tallest button's height (IntrinsicSize.Min) and both
+            // fill it: one even pair, not two buttons of different heights.
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                EvButton("Join our Telegram channel: @visionhacks", Modifier.weight(1f).fillMaxHeight()) {
+                    openLink(context, CHANNEL_URL)
+                }
+                EvButton("Read user guide", Modifier.weight(1f).fillMaxHeight()) { guideOpen = true }
+            }
             Spacer(Modifier.height(8.dp))
             SettingDescription("Copyright © 2026 Sachin Baria. All rights reserved.")
         }
