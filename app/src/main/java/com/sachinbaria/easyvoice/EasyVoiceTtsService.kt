@@ -3759,7 +3759,16 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // detectWindowThenAggregate, in one crossing.
                         val rawDetected = detectWindowThenAggregate(spanChunk.text, latinFallback, nonLatinFallback)
                         EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Cld2: " + rawDetected + " '" + spanChunk.text + "'" }
-                        if (rawDetected.length > 2) rawDetected.substring(0, 2) else rawDetected
+                        // THE WHOLE CODE, NOT ITS FIRST TWO LETTERS (owner, 2026-10-16:
+                        // "sabhi mod mein"). AutoTTS cut every answer to two letters to
+                        // drop a subtag (zh-Hant, sr-ME, xx-Olck), and that also cut a
+                        // three-letter language into a different one: fil (Filipino) into
+                        // fi (Finnish), kok (Konkani) into ko (Korean), sat (Santali) into
+                        // sa (Sanskrit), new (Newari) into ne (Nepali). toIso3 below already
+                        // drops a subtag itself (normalizeTag cuts at '-' or '_'), so the
+                        // two-letter answers and the subtagged ones resolve exactly as
+                        // before. DELIBERATE DEPARTURE.
+                        rawDetected
                     } else spanChunk.lang
                     var resolved = IsoCodes.toIso3(detected) ?: autoModeF
                     val engAuto = LangStore.engineFor(resolved, modeInt)

@@ -15,8 +15,12 @@ o = open(old).read(); n = open(new).read()
 isotext = open(iso).read().replace("package com.sachinbaria.easyvoice\n", "")
 # localeOf asks the Android version; on this JVM it takes the Android 16 branch.
 isotext = isotext.replace("android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.BAKLAVA", "true")
+# IsoCodes knows the languages of the scripts in use today from the generated
+# UnicodeTables (2026-10-16), which sits beside it.
+import os
+tables = open(os.path.join(os.path.dirname(iso), "UnicodeTables.kt")).read().replace("package com.sachinbaria.easyvoice\n", "")
 with open(out, "w") as f:
-    f.write(isotext + "\n")
+    f.write(isotext + "\n" + tables + "\n")
     f.write("class OldX(val prefs: P, val modeInt: Int) {\n" + block(o, "private fun languageForDetectedRun(") + "\nfun lang(r: DetectedRun, a: String, b: String) = prefs.toIso3(languageForDetectedRun(r, a, b))\n}\n")
     # the working tree takes (lang, latin) and a RunLangMemo (owner, 2026-10-07)
     memo = n[n.index("private class RunLangMemo"):n.index("\n", n.index("private class RunLangMemo"))].replace("private class", "class")

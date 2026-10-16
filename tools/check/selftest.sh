@@ -91,7 +91,7 @@ run "#26 add a res/layout XML" "#26" \
 run "#27 unwrap onSynthesizeText's guard" "#27" \
     "perl -0pi -e 's/onSynthesizeTextImpl\\(request, callback\\)/EasyVoiceLogger.debug(EasyVoiceLogger.TAG, \\"x\\")/' $K/EasyVoiceTtsService.kt"
 run "#27 take the finally off onStop's release" "#27" \
-    "perl -0pi -e 's/\\} finally \\{\\n            synchronized\\(syncLock\\) \\{ isStopped/} catch (_: Error) {\\n            synchronized(syncLock) { isStopped/' $K/EasyVoiceTtsService.kt"
+    "perl -0pi -e 's/\\} finally \\{((?:\\n *\\/\\/[^\\n]*)*\\n            synchronized\\(syncLock\\) \\{ isStopped)/} catch (_: Error) {\\1/' $K/EasyVoiceTtsService.kt"
 run "#27 drop a ServiceConnection guard" "#27" \
     "perl -0pi -e 's/override fun onNullBinding\\(name: android.content.ComponentName\\?\\) \\{ try \\{/override fun onNullBinding(name: android.content.ComponentName?) { run {/' $K/EasyVoiceTtsService.kt"
 run "#18 contentDescription on a heading" "#18" \

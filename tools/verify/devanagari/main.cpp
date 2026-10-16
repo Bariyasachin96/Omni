@@ -256,11 +256,13 @@ int main(){
         {"chr", "ᏣᎳᎩ ᎦᏬᏂᎯᏍᏗ ᎠᏂᏴᏫ ᎤᏂᏬᏂᎯᏍᏗ"},
         {"syr", "ܗܢܐ ܟܢܘܫܝܐ ܐܬܛܝܒ ܠܡܡܠܠܘ ܥܠ ܨܒܘܬܐ ܚܫܝܚܬܐ"},
     });
-    // A script CLD2 has no language for: "un", NOT latin -- the non-Latin
-    // preferred voice gets it, never the Latin one.
+    // A living script CLD2 has no language for (2026-10-16): decided by the
+    // script, in CLDR's likely language -- Santali, whatever is enabled -- and
+    // NOT latin, so without a Santali voice the non-Latin preferred one reads it.
+    // It was "xx-Olck" before, which no voice is ever set up for.
     run("A script CLD2 does not know (Ol Chiki)", {{"en","eng"},{"hi","hin"}},
         CLD2::UNKNOWN_LANGUAGE, {
-        {"xx-Olck", "ᱱᱤᱭᱟᱹ ᱫᱚ ᱢᱤᱫ ᱡᱟᱹᱨᱩᱲ ᱠᱟᱹᱢᱤ ᱠᱟᱱᱟ"},
+        {"sat", "ᱱᱤᱭᱟᱹ ᱫᱚ ᱢᱤᱫ ᱡᱟᱹᱨᱩᱲ ᱠᱟᱹᱢᱤ ᱠᱟᱱᱟ"},
     });
     // The same sentences INSIDE Latin text: each must come out as its own span.
     {

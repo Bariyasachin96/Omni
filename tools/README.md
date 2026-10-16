@@ -104,6 +104,8 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/scansched/run.sh        # background-scan scheduling: no change left unscanned, no needless scan
     tools/verify/coldstart/run.sh        # the cold-start waiter under real threads: returns on every event, never early
     tools/verify/corebytes/run.sh [ref]  # native core of a commit vs the working tree, every JNI answer byte for byte
+    tools/verify/allscripts/run.sh       # every Unicode script through the real core + real IsoCodes, mix/auto/dual:
+                                         #   each script in use today must reach its CLDR language (EV_NEG=nofixed|noiso|truncate fail)
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

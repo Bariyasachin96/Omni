@@ -56,6 +56,16 @@ object IsoCodes {
             toIso2Map[code] = code
             toIso3Map[code] = code
         }
+        // The language of every script in use today (CLDR's, UnicodeTables): one of
+        // three letters with no ISO 639-1 code (sat, mni, lif ...) is known by
+        // itself, as codesWithoutIso2 are, so a span the detector names after its
+        // script reaches that language's voice (owner, 2026-10-16). Nothing the
+        // tables above already know is touched.
+        for (code in UnicodeTables.SCRIPT_LANGUAGES) {
+            if (code.length != 3 || toIso3Map.containsKey(code) || toIso2Map.containsKey(code)) continue
+            toIso2Map[code] = code
+            toIso3Map[code] = code
+        }
     }
     fun normalizeTag(tag: String?): String? {
         if (tag == null) return null

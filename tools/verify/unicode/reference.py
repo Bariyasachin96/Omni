@@ -36,11 +36,26 @@ longslot = {}; shortslot = {}
 for i, (l, s) in enumerate(GROUPS, 1):
     for x in (l if isinstance(l, tuple) else (l,)): longslot[x] = i
     for x in (s if isinstance(s, tuple) else (s,)): shortslot[x] = i
+# a living script (CLDR: UAX #31 Recommended or Limited_Use, with a likely
+# language) that neither list above names: 34, 35 ... in the order of its name
+cldr = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "unicode", "cldr")
+code_of = {}
+for line in open(os.path.join(ucd, "PropertyValueAliases.txt"), encoding="utf-8"):
+    f = [y.strip() for y in line.split("#")[0].split(";")]
+    if f[0] == "sc" and len(f) > 2: code_of[f[2]] = f[1]
+living_codes = set()
+for line in open(os.path.join(cldr, "scriptMetadata.txt"), encoding="utf-8"):
+    f = [y.strip() for y in line.split("#")[0].split(";")]
+    if len(f) > 5 and f[5] in ("RECOMMENDED", "LIMITED_USE"): living_codes.add(f[0])
+has_language = set(re.findall(r'from="und_([A-Z][a-z]{3})" to="[a-z]', open(os.path.join(cldr, "likelySubtags-scripts.txt"), encoding="utf-8").read()))
+extra = ["Syriac", "Thaana", "Cherokee", "Canadian_Aboriginal", "Mongolian", "Tagalog", "Limbu"]
+own = sorted(n for n in set(sc.values()) if code_of.get(n) in living_codes and code_of.get(n) in has_language
+             and n not in longslot and n not in extra)
 def slot(c):
     if c < 0x80: return 1 if chr(c).isascii() and chr(c).isalpha() else -1
     if sc.get(c) in longslot: return longslot[sc[c]]
-    extra = ["Syriac", "Thaana", "Cherokee", "Canadian_Aboriginal", "Mongolian", "Tagalog", "Limbu"]
     if sc.get(c) in extra: return 26 + extra.index(sc[c])
+    if sc.get(c) in own: return 34 + own.index(sc[c])
     if sc.get(c, "Unknown") not in ("Common", "Inherited", "Unknown"): return 33
     hits = {shortslot[x] for x in scx.get(c, ()) if x in shortslot}
     return hits.pop() if len(hits) == 1 else -1

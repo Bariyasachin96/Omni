@@ -1,0 +1,180 @@
+# The <likelySubtag from="und_<Script>"> lines of CLDR release-48-2,
+# common/supplemental/likelySubtags.xml, verbatim (each script's most likely
+# language). Fetched 2026-10-16 from
+# https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/common/supplemental/likelySubtags.xml
+# with: grep -E 'from="und_[A-Z][a-z]{3}"'. Read by tools/unicode/gen_tables.py.
+<likelySubtag from="und_Adlm" to="ff_Adlm_GN"/>		<!--?‧Adlam‧?	➡ Fula‧Adlam‧Guinea-->
+<likelySubtag from="und_Aghb" to="xag_Aghb_AZ"/>		<!--?‧Caucasian Albanian‧?	➡ Aghwan‧Caucasian Albanian‧Azerbaijan-->
+<likelySubtag from="und_Ahom" to="aho_Ahom_IN"/>		<!--?‧Ahom‧?	➡ Ahom‧Ahom‧India-->
+<likelySubtag from="und_Arab" to="ar_Arab_EG"/>		<!--?‧Arabic‧?	➡ Arabic‧Arabic‧Egypt-->
+<likelySubtag from="und_Armi" to="arc_Armi_IR"/>		<!--?‧Imperial Aramaic‧?	➡ Aramaic‧Imperial Aramaic‧Iran-->
+<likelySubtag from="und_Armn" to="hy_Armn_AM"/>		<!--?‧Armenian‧?	➡ Armenian‧Armenian‧Armenia-->
+<likelySubtag from="und_Avst" to="ae_Avst_IR"/>		<!--?‧Avestan‧?	➡ Avestan‧Avestan‧Iran-->
+<likelySubtag from="und_Bali" to="ban_Bali_ID"/>		<!--?‧Balinese‧?	➡ Balinese‧Balinese‧Indonesia-->
+<likelySubtag from="und_Bamu" to="bax_Bamu_CM"/>		<!--?‧Bamum‧?	➡ Bamun‧Bamum‧Cameroon-->
+<likelySubtag from="und_Bass" to="bsq_Bass_LR"/>		<!--?‧Bassa Vah‧?	➡ Bassa‧Bassa Vah‧Liberia-->
+<likelySubtag from="und_Batk" to="bbc_Batk_ID"/>		<!--?‧Batak‧?	➡ Batak Toba‧Batak‧Indonesia-->
+<likelySubtag from="und_Beng" to="bn_Beng_BD"/>		<!--?‧Bangla‧?	➡ Bangla‧Bangla‧Bangladesh-->
+<likelySubtag from="und_Berf" to="zag_Berf_SD"/>		<!--?‧Beria Erfe‧?	➡ Zaghawa‧Beria Erfe‧Sudan-->
+<likelySubtag from="und_Bhks" to="sa_Bhks_IN"/>		<!--?‧Bhaiksuki‧?	➡ Sanskrit‧Bhaiksuki‧India-->
+<likelySubtag from="und_Bopo" to="zh_Bopo_TW"/>		<!--?‧Bopomofo‧?	➡ Chinese‧Bopomofo‧Taiwan-->
+<likelySubtag from="und_Brah" to="pka_Brah_IN"/>		<!--?‧Brahmi‧?	➡ Ardhamāgadhī Prākrit‧Brahmi‧India-->
+<likelySubtag from="und_Brai" to="fr_Brai_FR"/>		<!--?‧Braille‧?	➡ French‧Braille‧France-->
+<likelySubtag from="und_Bugi" to="bug_Bugi_ID"/>		<!--?‧Buginese‧?	➡ Buginese‧Buginese‧Indonesia-->
+<likelySubtag from="und_Buhd" to="bku_Buhd_PH"/>		<!--?‧Buhid‧?	➡ Buhid‧Buhid‧Philippines-->
+<likelySubtag from="und_Cakm" to="ccp_Cakm_BD"/>		<!--?‧Chakma‧?	➡ Chakma‧Chakma‧Bangladesh-->
+<likelySubtag from="und_Cans" to="iu_Cans_CA"/>		<!--?‧Unified Canadian Aboriginal Syllabics‧?	➡ Inuktitut‧Unified Canadian Aboriginal Syllabics‧Canada-->
+<likelySubtag from="und_Cari" to="xcr_Cari_TR"/>		<!--?‧Carian‧?	➡ Carian‧Carian‧Türkiye-->
+<likelySubtag from="und_Cham" to="cjm_Cham_VN"/>		<!--?‧Cham‧?	➡ Eastern Cham‧Cham‧Vietnam-->
+<likelySubtag from="und_Cher" to="chr_Cher_US"/>		<!--?‧Cherokee‧?	➡ Cherokee‧Cherokee‧United States-->
+<likelySubtag from="und_Chrs" to="xco_Chrs_UZ"/>		<!--?‧Chorasmian‧?	➡ Chorasmian‧Chorasmian‧Uzbekistan-->
+<likelySubtag from="und_Copt" to="cop_Copt_EG"/>		<!--?‧Coptic‧?	➡ Coptic‧Coptic‧Egypt-->
+<likelySubtag from="und_Cpmn" to="und_Cpmn_CY"/>		<!--?‧Cypro-Minoan‧?	➡ ?‧Cypro-Minoan‧Cyprus-->
+<likelySubtag from="und_Cprt" to="ecy_Cprt_CY"/>		<!--?‧Cypriot‧?	➡ Eteocypriot‧Cypriot‧Cyprus-->
+<likelySubtag from="und_Cyrl" to="ru_Cyrl_RU"/>		<!--?‧Cyrillic‧?	➡ Russian‧Cyrillic‧Russia-->
+<likelySubtag from="und_Deva" to="hi_Deva_IN"/>		<!--?‧Devanagari‧?	➡ Hindi‧Devanagari‧India-->
+<likelySubtag from="und_Diak" to="dv_Diak_MV"/>		<!--?‧Dives Akuru‧?	➡ Divehi‧Dives Akuru‧Maldives-->
+<likelySubtag from="und_Dogr" to="doi_Dogr_IN"/>		<!--?‧Dogra‧?	➡ Dogri‧Dogra‧India-->
+<likelySubtag from="und_Dupl" to="fr_Dupl_FR"/>		<!--?‧Duployan shorthand‧?	➡ French‧Duployan shorthand‧France-->
+<likelySubtag from="und_Egyp" to="egy_Egyp_EG"/>		<!--?‧Egyptian hieroglyphs‧?	➡ Ancient Egyptian‧Egyptian hieroglyphs‧Egypt-->
+<likelySubtag from="und_Elba" to="sq_Elba_AL"/>		<!--?‧Elbasan‧?	➡ Albanian‧Elbasan‧Albania-->
+<likelySubtag from="und_Elym" to="arc_Elym_IR"/>		<!--?‧Elymaic‧?	➡ Aramaic‧Elymaic‧Iran-->
+<likelySubtag from="und_Ethi" to="am_Ethi_ET"/>		<!--?‧Ethiopic‧?	➡ Amharic‧Ethiopic‧Ethiopia-->
+<likelySubtag from="und_Gara" to="wo_Gara_SN"/>		<!--?‧Garay‧?	➡ Wolof‧Garay‧Senegal-->
+<likelySubtag from="und_Geor" to="ka_Geor_GE"/>		<!--?‧Georgian‧?	➡ Georgian‧Georgian‧Georgia-->
+<likelySubtag from="und_Glag" to="cu_Glag_BG"/>		<!--?‧Glagolitic‧?	➡ Church Slavic‧Glagolitic‧Bulgaria-->
+<likelySubtag from="und_Gong" to="wsg_Gong_IN"/>		<!--?‧Gunjala Gondi‧?	➡ Adilabad Gondi‧Gunjala Gondi‧India-->
+<likelySubtag from="und_Gonm" to="esg_Gonm_IN"/>		<!--?‧Masaram Gondi‧?	➡ Aheri Gondi‧Masaram Gondi‧India-->
+<likelySubtag from="und_Goth" to="got_Goth_UA"/>		<!--?‧Gothic‧?	➡ Gothic‧Gothic‧Ukraine-->
+<likelySubtag from="und_Gran" to="sa_Gran_IN"/>		<!--?‧Grantha‧?	➡ Sanskrit‧Grantha‧India-->
+<likelySubtag from="und_Grek" to="el_Grek_GR"/>		<!--?‧Greek‧?	➡ Greek‧Greek‧Greece-->
+<likelySubtag from="und_Gujr" to="gu_Gujr_IN"/>		<!--?‧Gujarati‧?	➡ Gujarati‧Gujarati‧India-->
+<likelySubtag from="und_Gukh" to="gvr_Gukh_NP"/>		<!--?‧Gurung Khema‧?	➡ Gurung‧Gurung Khema‧Nepal-->
+<likelySubtag from="und_Guru" to="pa_Guru_IN"/>		<!--?‧Gurmukhi‧?	➡ Punjabi‧Gurmukhi‧India-->
+<likelySubtag from="und_Hanb" to="zh_Hanb_TW"/>		<!--?‧Han with Bopomofo‧?	➡ Chinese‧Han with Bopomofo‧Taiwan-->
+<likelySubtag from="und_Hang" to="ko_Hang_KR"/>		<!--?‧Hangul‧?	➡ Korean‧Hangul‧South Korea-->
+<likelySubtag from="und_Hani" to="zh_Hani_CN"/>		<!--?‧Han‧?	➡ Chinese‧Han‧China-->
+<likelySubtag from="und_Hano" to="hnn_Hano_PH"/>		<!--?‧Hanunoo‧?	➡ Hanunoo‧Hanunoo‧Philippines-->
+<likelySubtag from="und_Hans" to="zh_Hans_CN"/>		<!--?‧Simplified‧?	➡ Chinese‧Simplified‧China-->
+<likelySubtag from="und_Hant" to="zh_Hant_TW"/>		<!--?‧Traditional‧?	➡ Chinese‧Traditional‧Taiwan-->
+<likelySubtag from="und_Hatr" to="arc_Hatr_IQ"/>		<!--?‧Hatran‧?	➡ Aramaic‧Hatran‧Iraq-->
+<likelySubtag from="und_Hebr" to="he_Hebr_IL"/>		<!--?‧Hebrew‧?	➡ Hebrew‧Hebrew‧Israel-->
+<likelySubtag from="und_Hira" to="ja_Hira_JP"/>		<!--?‧Hiragana‧?	➡ Japanese‧Hiragana‧Japan-->
+<likelySubtag from="und_Hluw" to="hlu_Hluw_TR"/>		<!--?‧Anatolian Hieroglyphs‧?	➡ Hieroglyphic Luwian‧Anatolian Hieroglyphs‧Türkiye-->
+<likelySubtag from="und_Hmng" to="hnj_Hmng_LA"/>		<!--?‧Pahawh Hmong‧?	➡ Hmong Njua‧Pahawh Hmong‧Laos-->
+<likelySubtag from="und_Hmnp" to="mww_Hmnp_US"/>		<!--?‧Nyiakeng Puachue Hmong‧?	➡ Hmong Daw‧Nyiakeng Puachue Hmong‧United States-->
+<likelySubtag from="und_Hung" to="hu_Hung_HU"/>		<!--?‧Old Hungarian‧?	➡ Hungarian‧Old Hungarian‧Hungary-->
+<likelySubtag from="und_Ital" to="ett_Ital_IT"/>		<!--?‧Old Italic‧?	➡ Etruscan‧Old Italic‧Italy-->
+<likelySubtag from="und_Jamo" to="ko_Jamo_KR"/>		<!--?‧Jamo‧?	➡ Korean‧Jamo‧South Korea-->
+<likelySubtag from="und_Java" to="jv_Java_ID"/>		<!--?‧Javanese‧?	➡ Javanese‧Javanese‧Indonesia-->
+<likelySubtag from="und_Jpan" to="ja_Jpan_JP"/>		<!--?‧Japanese‧?	➡ Japanese‧Japanese‧Japan-->
+<likelySubtag from="und_Kali" to="eky_Kali_MM"/>		<!--?‧Kayah Li‧?	➡ Eastern Kayah‧Kayah Li‧Myanmar (Burma)-->
+<likelySubtag from="und_Kana" to="ja_Kana_JP"/>		<!--?‧Katakana‧?	➡ Japanese‧Katakana‧Japan-->
+<likelySubtag from="und_Kawi" to="kaw_Kawi_ID"/>		<!--?‧Kawi‧?	➡ Kawi‧Kawi‧Indonesia-->
+<likelySubtag from="und_Khar" to="pgd_Khar_PK"/>		<!--?‧Kharoshthi‧?	➡ Gāndhārī‧Kharoshthi‧Pakistan-->
+<likelySubtag from="und_Khmr" to="km_Khmr_KH"/>		<!--?‧Khmer‧?	➡ Khmer‧Khmer‧Cambodia-->
+<likelySubtag from="und_Khoj" to="sd_Khoj_IN"/>		<!--?‧Khojki‧?	➡ Sindhi‧Khojki‧India-->
+<likelySubtag from="und_Kits" to="zkt_Kits_CN"/>		<!--?‧Khitan small script‧?	➡ Kitan‧Khitan small script‧China-->
+<likelySubtag from="und_Knda" to="kn_Knda_IN"/>		<!--?‧Kannada‧?	➡ Kannada‧Kannada‧India-->
+<likelySubtag from="und_Kore" to="ko_Kore_KR"/>		<!--?‧Korean‧?	➡ Korean‧Korean‧South Korea-->
+<likelySubtag from="und_Krai" to="bap_Krai_IN"/>		<!--?‧Kirat Rai‧?	➡ Bantawa‧Kirat Rai‧India-->
+<likelySubtag from="und_Kthi" to="bho_Kthi_IN"/>		<!--?‧Kaithi‧?	➡ Bhojpuri‧Kaithi‧India-->
+<likelySubtag from="und_Lana" to="nod_Lana_TH"/>		<!--?‧Lanna‧?	➡ Northern Thai‧Lanna‧Thailand-->
+<likelySubtag from="und_Laoo" to="lo_Laoo_LA"/>		<!--?‧Lao‧?	➡ Lao‧Lao‧Laos-->
+<likelySubtag from="und_Lepc" to="lep_Lepc_IN"/>		<!--?‧Lepcha‧?	➡ Lepcha‧Lepcha‧India-->
+<likelySubtag from="und_Limb" to="lif_Limb_IN"/>		<!--?‧Limbu‧?	➡ Limbu‧Limbu‧India-->
+<likelySubtag from="und_Lina" to="lab_Lina_GR"/>		<!--?‧Linear A‧?	➡ Linear A‧Linear A‧Greece-->
+<likelySubtag from="und_Linb" to="gmy_Linb_GR"/>		<!--?‧Linear B‧?	➡ Mycenaean Greek‧Linear B‧Greece-->
+<likelySubtag from="und_Lisu" to="lis_Lisu_CN"/>		<!--?‧Fraser‧?	➡ Lisu‧Fraser‧China-->
+<likelySubtag from="und_Lyci" to="xlc_Lyci_TR"/>		<!--?‧Lycian‧?	➡ Lycian‧Lycian‧Türkiye-->
+<likelySubtag from="und_Lydi" to="xld_Lydi_TR"/>		<!--?‧Lydian‧?	➡ Lydian‧Lydian‧Türkiye-->
+<likelySubtag from="und_Mahj" to="hi_Mahj_IN"/>		<!--?‧Mahajani‧?	➡ Hindi‧Mahajani‧India-->
+<likelySubtag from="und_Maka" to="mak_Maka_ID"/>		<!--?‧Makasar‧?	➡ Makasar‧Makasar‧Indonesia-->
+<likelySubtag from="und_Mand" to="myz_Mand_IR"/>		<!--?‧Mandaean‧?	➡ Classical Mandaic‧Mandaean‧Iran-->
+<likelySubtag from="und_Mani" to="xmn_Mani_CN"/>		<!--?‧Manichaean‧?	➡ Manichaean Middle Persian‧Manichaean‧China-->
+<likelySubtag from="und_Marc" to="bo_Marc_CN"/>		<!--?‧Marchen‧?	➡ Tibetan‧Marchen‧China-->
+<likelySubtag from="und_Medf" to="dmf_Medf_NG"/>		<!--?‧Medefaidrin‧?	➡ Medefaidrin‧Medefaidrin‧Nigeria-->
+<likelySubtag from="und_Mend" to="men_Mend_SL"/>		<!--?‧Mende‧?	➡ Mende‧Mende‧Sierra Leone-->
+<likelySubtag from="und_Merc" to="xmr_Merc_SD"/>		<!--?‧Meroitic Cursive‧?	➡ Meroitic‧Meroitic Cursive‧Sudan-->
+<likelySubtag from="und_Mero" to="xmr_Mero_SD"/>		<!--?‧Meroitic‧?	➡ Meroitic‧Meroitic‧Sudan-->
+<likelySubtag from="und_Mlym" to="ml_Mlym_IN"/>		<!--?‧Malayalam‧?	➡ Malayalam‧Malayalam‧India-->
+<likelySubtag from="und_Modi" to="mr_Modi_IN"/>		<!--?‧Modi‧?	➡ Marathi‧Modi‧India-->
+<likelySubtag from="und_Mong" to="mn_Mong_CN"/>		<!--?‧Mongolian‧?	➡ Mongolian‧Mongolian‧China-->
+<likelySubtag from="und_Mroo" to="mro_Mroo_BD"/>		<!--?‧Mro‧?	➡ Mru‧Mro‧Bangladesh-->
+<likelySubtag from="und_Mtei" to="mni_Mtei_IN"/>		<!--?‧Meitei Mayek‧?	➡ Manipuri‧Meitei Mayek‧India-->
+<likelySubtag from="und_Mult" to="skr_Mult_PK"/>		<!--?‧Multani‧?	➡ Saraiki‧Multani‧Pakistan-->
+<likelySubtag from="und_Mymr" to="my_Mymr_MM"/>		<!--?‧Myanmar‧?	➡ Burmese‧Myanmar‧Myanmar (Burma)-->
+<likelySubtag from="und_Nagm" to="unr_Nagm_IN"/>		<!--?‧Nag Mundari‧?	➡ Mundari‧Nag Mundari‧India-->
+<likelySubtag from="und_Nand" to="sa_Nand_IN"/>		<!--?‧Nandinagari‧?	➡ Sanskrit‧Nandinagari‧India-->
+<likelySubtag from="und_Narb" to="xna_Narb_SA"/>		<!--?‧Old North Arabian‧?	➡ Ancient North Arabian‧Old North Arabian‧Saudi Arabia-->
+<likelySubtag from="und_Nbat" to="arc_Nbat_JO"/>		<!--?‧Nabataean‧?	➡ Aramaic‧Nabataean‧Jordan-->
+<likelySubtag from="und_Newa" to="new_Newa_NP"/>		<!--?‧Newa‧?	➡ Newari‧Newa‧Nepal-->
+<likelySubtag from="und_Nkoo" to="man_Nkoo_GN"/>		<!--?‧N’Ko‧?	➡ Mandingo‧N’Ko‧Guinea-->
+<likelySubtag from="und_Ogam" to="sga_Ogam_IE"/>		<!--?‧Ogham‧?	➡ Old Irish‧Ogham‧Ireland-->
+<likelySubtag from="und_Olck" to="sat_Olck_IN"/>		<!--?‧Ol Chiki‧?	➡ Santali‧Ol Chiki‧India-->
+<likelySubtag from="und_Onao" to="unr_Onao_IN"/>		<!--?‧Ol Onal‧?	➡ Mundari‧Ol Onal‧India-->
+<likelySubtag from="und_Orkh" to="otk_Orkh_MN"/>		<!--?‧Orkhon‧?	➡ Old Turkish‧Orkhon‧Mongolia-->
+<likelySubtag from="und_Orya" to="or_Orya_IN"/>		<!--?‧Odia‧?	➡ Odia‧Odia‧India-->
+<likelySubtag from="und_Osge" to="osa_Osge_US"/>		<!--?‧Osage‧?	➡ Osage‧Osage‧United States-->
+<likelySubtag from="und_Osma" to="so_Osma_SO"/>		<!--?‧Osmanya‧?	➡ Somali‧Osmanya‧Somalia-->
+<likelySubtag from="und_Ougr" to="oui_Ougr_CN"/>		<!--?‧Old Uyghur‧?	➡ Old Uighur‧Old Uyghur‧China-->
+<likelySubtag from="und_Palm" to="arc_Palm_SY"/>		<!--?‧Palmyrene‧?	➡ Aramaic‧Palmyrene‧Syria-->
+<likelySubtag from="und_Pauc" to="ctd_Pauc_MM"/>		<!--?‧Pau Cin Hau‧?	➡ Tedim Chin‧Pau Cin Hau‧Myanmar (Burma)-->
+<likelySubtag from="und_Perm" to="kv_Perm_RU"/>		<!--?‧Old Permic‧?	➡ Komi‧Old Permic‧Russia-->
+<likelySubtag from="und_Phag" to="lzh_Phag_CN"/>		<!--?‧Phags-pa‧?	➡ Literary Chinese‧Phags-pa‧China-->
+<likelySubtag from="und_Phli" to="pal_Phli_IR"/>		<!--?‧Inscriptional Pahlavi‧?	➡ Pahlavi‧Inscriptional Pahlavi‧Iran-->
+<likelySubtag from="und_Phlp" to="pal_Phlp_CN"/>		<!--?‧Psalter Pahlavi‧?	➡ Pahlavi‧Psalter Pahlavi‧China-->
+<likelySubtag from="und_Phnx" to="phn_Phnx_LB"/>		<!--?‧Phoenician‧?	➡ Phoenician‧Phoenician‧Lebanon-->
+<likelySubtag from="und_Plrd" to="hmd_Plrd_CN"/>		<!--?‧Pollard Phonetic‧?	➡ Large Flowery Miao‧Pollard Phonetic‧China-->
+<likelySubtag from="und_Prti" to="xpr_Prti_IR"/>		<!--?‧Inscriptional Parthian‧?	➡ Parthian‧Inscriptional Parthian‧Iran-->
+<likelySubtag from="und_Rjng" to="rej_Rjng_ID"/>		<!--?‧Rejang‧?	➡ Rejang‧Rejang‧Indonesia-->
+<likelySubtag from="und_Rohg" to="rhg_Rohg_MM"/>		<!--?‧Hanifi‧?	➡ Rohingya‧Hanifi‧Myanmar (Burma)-->
+<likelySubtag from="und_Runr" to="non_Runr_SE"/>		<!--?‧Runic‧?	➡ Old Norse‧Runic‧Sweden-->
+<likelySubtag from="und_Samr" to="smp_Samr_IL"/>		<!--?‧Samaritan‧?	➡ Samaritan‧Samaritan‧Israel-->
+<likelySubtag from="und_Sarb" to="xsa_Sarb_YE"/>		<!--?‧Old South Arabian‧?	➡ Sabaean‧Old South Arabian‧Yemen-->
+<likelySubtag from="und_Saur" to="saz_Saur_IN"/>		<!--?‧Sourashtra‧?	➡ Sourashtra‧Sourashtra‧India-->
+<likelySubtag from="und_Sgnw" to="ase_Sgnw_US"/>		<!--?‧SignWriting‧?	➡ American Sign Language‧SignWriting‧United States-->
+<likelySubtag from="und_Shaw" to="en_Shaw_GB"/>		<!--?‧Shavian‧?	➡ English‧Shavian‧United Kingdom-->
+<likelySubtag from="und_Shrd" to="sa_Shrd_IN"/>		<!--?‧Sharada‧?	➡ Sanskrit‧Sharada‧India-->
+<likelySubtag from="und_Sidd" to="sa_Sidd_IN"/>		<!--?‧Siddham‧?	➡ Sanskrit‧Siddham‧India-->
+<likelySubtag from="und_Sidt" to="xsd_Sidt_TR"/>		<!--?‧Sidetic‧?	➡ Sidetic‧Sidetic‧Türkiye-->
+<likelySubtag from="und_Sind" to="sd_Sind_IN"/>		<!--?‧Khudawadi‧?	➡ Sindhi‧Khudawadi‧India-->
+<likelySubtag from="und_Sinh" to="si_Sinh_LK"/>		<!--?‧Sinhala‧?	➡ Sinhala‧Sinhala‧Sri Lanka-->
+<likelySubtag from="und_Sogd" to="sog_Sogd_UZ"/>		<!--?‧Sogdian‧?	➡ Sogdien‧Sogdian‧Uzbekistan-->
+<likelySubtag from="und_Sogo" to="sog_Sogo_UZ"/>		<!--?‧Old Sogdian‧?	➡ Sogdien‧Old Sogdian‧Uzbekistan-->
+<likelySubtag from="und_Sora" to="srb_Sora_IN"/>		<!--?‧Sora Sompeng‧?	➡ Sora‧Sora Sompeng‧India-->
+<likelySubtag from="und_Soyo" to="cmg_Soyo_MN"/>		<!--?‧Soyombo‧?	➡ Classical Mongolian‧Soyombo‧Mongolia-->
+<likelySubtag from="und_Sund" to="su_Sund_ID"/>		<!--?‧Sundanese‧?	➡ Sundanese‧Sundanese‧Indonesia-->
+<likelySubtag from="und_Sunu" to="suz_Sunu_NP"/>		<!--?‧Sunuwar‧?	➡ Sunwar‧Sunuwar‧Nepal-->
+<likelySubtag from="und_Sylo" to="syl_Sylo_BD"/>		<!--?‧Syloti Nagri‧?	➡ Sylheti‧Syloti Nagri‧Bangladesh-->
+<likelySubtag from="und_Syrc" to="syr_Syrc_IQ"/>		<!--?‧Syriac‧?	➡ Syriac‧Syriac‧Iraq-->
+<likelySubtag from="und_Tagb" to="tbw_Tagb_PH"/>		<!--?‧Tagbanwa‧?	➡ Tagbanwa‧Tagbanwa‧Philippines-->
+<likelySubtag from="und_Takr" to="doi_Takr_IN"/>		<!--?‧Takri‧?	➡ Dogri‧Takri‧India-->
+<likelySubtag from="und_Tale" to="tdd_Tale_CN"/>		<!--?‧Tai Le‧?	➡ Tai Nüa‧Tai Le‧China-->
+<likelySubtag from="und_Talu" to="khb_Talu_CN"/>		<!--?‧New Tai Lue‧?	➡ Lü‧New Tai Lue‧China-->
+<likelySubtag from="und_Taml" to="ta_Taml_IN"/>		<!--?‧Tamil‧?	➡ Tamil‧Tamil‧India-->
+<likelySubtag from="und_Tang" to="txg_Tang_CN"/>		<!--?‧Tangut‧?	➡ Tangut‧Tangut‧China-->
+<likelySubtag from="und_Tavt" to="blt_Tavt_VN"/>		<!--?‧Tai Viet‧?	➡ Tai Dam‧Tai Viet‧Vietnam-->
+<likelySubtag from="und_Tayo" to="tyj_Tayo_VN"/>		<!--?‧Tai Yo‧?	➡ Tai Do‧Tai Yo‧Vietnam-->
+<likelySubtag from="und_Telu" to="te_Telu_IN"/>		<!--?‧Telugu‧?	➡ Telugu‧Telugu‧India-->
+<likelySubtag from="und_Tfng" to="zgh_Tfng_MA"/>		<!--?‧Tifinagh‧?	➡ Standard Moroccan Tamazight‧Tifinagh‧Morocco-->
+<likelySubtag from="und_Tglg" to="fil_Tglg_PH"/>		<!--?‧Tagalog‧?	➡ Filipino‧Tagalog‧Philippines-->
+<likelySubtag from="und_Thaa" to="dv_Thaa_MV"/>		<!--?‧Thaana‧?	➡ Divehi‧Thaana‧Maldives-->
+<likelySubtag from="und_Thai" to="th_Thai_TH"/>		<!--?‧Thai‧?	➡ Thai‧Thai‧Thailand-->
+<likelySubtag from="und_Tibt" to="bo_Tibt_CN"/>		<!--?‧Tibetan‧?	➡ Tibetan‧Tibetan‧China-->
+<likelySubtag from="und_Tirh" to="mai_Tirh_IN"/>		<!--?‧Tirhuta‧?	➡ Maithili‧Tirhuta‧India-->
+<likelySubtag from="und_Tnsa" to="nst_Tnsa_IN"/>		<!--?‧Tangsa‧?	➡ Tase Naga‧Tangsa‧India-->
+<likelySubtag from="und_Todr" to="sq_Todr_AL"/>		<!--?‧Todhri‧?	➡ Albanian‧Todhri‧Albania-->
+<likelySubtag from="und_Tols" to="kru_Tols_IN"/>		<!--?‧Tolong Siki‧?	➡ Kurukh‧Tolong Siki‧India-->
+<likelySubtag from="und_Toto" to="txo_Toto_IN"/>		<!--?‧Toto‧?	➡ Toto‧Toto‧India-->
+<likelySubtag from="und_Tutg" to="sa_Tutg_IN"/>		<!--?‧Tulu-Tigalari‧?	➡ Sanskrit‧Tulu-Tigalari‧India-->
+<likelySubtag from="und_Ugar" to="uga_Ugar_SY"/>		<!--?‧Ugaritic‧?	➡ Ugaritic‧Ugaritic‧Syria-->
+<likelySubtag from="und_Vaii" to="vai_Vaii_LR"/>		<!--?‧Vai‧?	➡ Vai‧Vai‧Liberia-->
+<likelySubtag from="und_Vith" to="sq_Vith_AL"/>		<!--?‧Vithkuqi‧?	➡ Albanian‧Vithkuqi‧Albania-->
+<likelySubtag from="und_Wara" to="hoc_Wara_IN"/>		<!--?‧Varang Kshiti‧?	➡ Ho‧Varang Kshiti‧India-->
+<likelySubtag from="und_Wcho" to="nnp_Wcho_IN"/>		<!--?‧Wancho‧?	➡ Wancho Naga‧Wancho‧India-->
+<likelySubtag from="und_Xpeo" to="peo_Xpeo_IR"/>		<!--?‧Old Persian‧?	➡ Old Persian‧Old Persian‧Iran-->
+<likelySubtag from="und_Xsux" to="akk_Xsux_IQ"/>		<!--?‧Sumero-Akkadian Cuneiform‧?	➡ Akkadian‧Sumero-Akkadian Cuneiform‧Iraq-->
+<likelySubtag from="und_Yezi" to="ku_Yezi_GE"/>		<!--?‧Yezidi‧?	➡ Kurdish‧Yezidi‧Georgia-->
+<likelySubtag from="und_Yiii" to="ii_Yiii_CN"/>		<!--?‧Yi‧?	➡ Sichuan Yi‧Yi‧China-->
+<likelySubtag from="und_Zanb" to="cmg_Zanb_MN"/>		<!--?‧Zanabazar Square‧?	➡ Classical Mongolian‧Zanabazar Square‧Mongolia-->

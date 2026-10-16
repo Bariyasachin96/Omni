@@ -2375,6 +2375,13 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
             }
         } else if (scriptIdx < 19) {
             lang = SCRIPT_FIXED_LANG[scriptIdx];
+        } else if (script >= EV_FIXED_SLOT_FIRST && script < EV_FIXED_SLOT_FIRST + EV_FIXED_SLOT_COUNT) {
+            // A living script no slot above names (owner, 2026-10-16): CLD2 has no
+            // model for Ol Chiki, Meetei Mayek, Javanese, Tifinagh ... and answered
+            // "un" or "xx-Olck", so the span never reached that language's voice.
+            // Decided by the script, like SCRIPT_FIXED_LANG; the language is
+            // CLDR's likely one (unicode_tables.h, generated).
+            lang = kUniFixedSlotLang[script - EV_FIXED_SLOT_FIRST];
         } else {
             int detectBytes = len;
             if (detectBytes > 1024) {

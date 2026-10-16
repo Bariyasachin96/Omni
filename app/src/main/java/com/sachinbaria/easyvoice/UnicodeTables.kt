@@ -224,4 +224,9 @@ internal object UnicodeTables {
         }
         return -1
     }
+
+    // The language of every script in use today (CLDR's likely subtags of the
+    // UAX #31 Recommended and Limited_Use scripts): the codes the detector can
+    // name a span after its script. IsoCodes knows a three-letter one by itself.
+    val SCRIPT_LANGUAGES = arrayOf("am", "ar", "ban", "bax", "bbc", "blt", "bn", "bo", "ccp", "chr", "cjm", "dv", "eky", "el", "ff", "gu", "he", "hi", "hmd", "hy", "ii", "iu", "ja", "jv", "ka", "khb", "km", "kn", "ko", "lep", "lif", "lis", "lo", "man", "ml", "mni", "mww", "my", "myz", "new", "nnp", "nod", "or", "osa", "pa", "rhg", "ru", "sat", "saz", "si", "su", "syl", "syr", "ta", "tdd", "te", "th", "vai", "zgh", "zh")
 }

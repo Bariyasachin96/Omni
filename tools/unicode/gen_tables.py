@@ -11,11 +11,13 @@ data from unicode.org/Public/emoji/18.0) and writes
 To move to a newer Unicode: put the new files in tools/unicode/ucd/, run this,
 then tools/verify/unicode/run.sh (every code point against this file's own
 reading of the data) and the detection harnesses. Nothing here is typed by
-hand except which scripts the app has a slot for.
+hand except which scripts the app has a slot for. Which language a living
+script is read in comes from CLDR (tools/unicode/cldr/, release 48.2): its
+likely subtags and its script metadata.
 
     gen_tables.py [--check]     --check: fail if the generated files differ
 """
-import os, sys
+import os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -79,10 +81,40 @@ SLOT_SHORT = {"Latn": 1, "Cyrl": 2, "Arab": 3, "Deva": 4, "Hani": 5, "Hira": 5, 
 SLOT_EXTRA = {"Syriac": 26, "Thaana": 27, "Cherokee": 28, "Canadian_Aboriginal": 29,
               "Mongolian": 30, "Tagalog": 31, "Limbu": 32}
 SLOT_OTHER = 33
+# A LIVING SCRIPT NOBODY ELSE NAMES gets a slot of its own from 34 up, and its
+# language is CLDR's (owner, 2026-10-16: "Unicode script mein kuchh chijen aisi
+# hogi jo detect nahin hoti ... latest Unicode ... jo available na ho vah
+# provide"). Measured first (tools/verify/allscripts): 30 scripts in use today
+# -- Ol Chiki, Meetei Mayek, Javanese, Tifinagh, N'Ko, Adlam ... -- reached
+# CLD2 on slot 33 and came back "un" or its xx-Script pseudo-code, so even with
+# that language's voice set up the span went to the non-Latin preferred voice.
+# CLDR's likely subtags name each script's most likely language (und_Olck ->
+# sat_Olck_IN) and its script metadata says which scripts are in use today (UAX
+# #31 Recommended or Limited_Use). Such a script that getLanguageSpans' 25
+# slots and SLOT_EXTRA leave out is decided by the script alone, like the 19
+# SCRIPT_FIXED_LANG ones. Historic scripts stay on SLOT_OTHER: no voice speaks
+# them. The slots follow the scripts' names, so the numbering is stable.
+CLDR = os.path.join(HERE, "cldr")
+SCRIPT_CODE = {}
+for line in open(os.path.join(UCD, "PropertyValueAliases.txt"), encoding="utf-8"):
+    p = [x.strip() for x in line.split("#", 1)[0].split(";")]
+    if len(p) >= 3 and p[0] == "sc": SCRIPT_CODE[p[2]] = p[1]
+USAGE = {}
+for line in open(os.path.join(CLDR, "scriptMetadata.txt"), encoding="utf-8"):
+    p = [x.strip() for x in line.split("#", 1)[0].split(";")]
+    if len(p) > 5: USAGE[p[0]] = p[5]
+LIKELY = dict(re.findall(r'from="und_([A-Z][a-z]{3})" to="([a-z]{2,3})_',
+                         open(os.path.join(CLDR, "likelySubtags-scripts.txt"), encoding="utf-8").read()))
+LIVING = {n: LIKELY[c] for n, c in SCRIPT_CODE.items()
+          if USAGE.get(c) in ("RECOMMENDED", "LIMITED_USE") and c in LIKELY and n in set(SCRIPT.values())}
+SLOT_FIXED_FIRST = 34
+SLOT_FIXED = {n: SLOT_FIXED_FIRST + i for i, n in
+              enumerate(sorted(n for n in LIVING if n not in SLOT_LONG and n not in SLOT_EXTRA))}
 def span_slot(c):
     s = SCRIPT.get(c, "Unknown")
     if s in SLOT_LONG: return SLOT_LONG[s]
     if s in SLOT_EXTRA: return SLOT_EXTRA[s]
+    if s in SLOT_FIXED: return SLOT_FIXED[s]
     if s not in ("Common", "Inherited", "Unknown"): return SLOT_OTHER
     if c in SCX:
         v = {SLOT_SHORT[x] for x in SCX[c] if x in SLOT_SHORT}
@@ -226,6 +258,12 @@ h.append("// Bidi_Control (PropList).\n" + c_ranges("kUniBidiControl", merge(BID
 h.append("// General_Category L* -- Java's Character.isLetter.\n" + c_ranges("kUniLetter", merge(LETTER)) + "\n")
 h.append("// Script=Latin.\n" + c_ranges("kUniLatin", merge(LATIN)) + "\n")
 h.append("// The span detector's script slot of each code point from U+0080 (see the generator).\n" + c_vranges("kUniSpanSlot", span) + "\n")
+fixed = sorted(SLOT_FIXED, key=SLOT_FIXED.get)
+h.append("// A living script no other slot names (see the generator): slot EV_FIXED_SLOT_FIRST + i\n"
+         "// is read in kUniFixedSlotLang[i], CLDR's likely language of that script.\n"
+         "#define EV_FIXED_SLOT_FIRST %d\n#define EV_FIXED_SLOT_COUNT %d\n"
+         "static const char* const kUniFixedSlotLang[EV_FIXED_SLOT_COUNT] = {\n%s\n};\n\n"
+         % (SLOT_FIXED_FIRST, len(fixed), ",\n".join('    "%s"  /* %s */' % (LIVING[n], n) for n in fixed)))
 h.append("// The script-family fallback: FamilyScript of each letter, mark or digit.\n" + c_vranges("kUniFamilyScript", fam) + "\n")
 h.append("// Styling compatibility forms that decompose to one ASCII letter or digit.\n" + c_vranges("kUniFold", fold) + "\n")
 h.append("// Java's Character.isWhitespace: Zs Zl Zp minus the no-break spaces, plus U+0009-000D, U+001C-001F.\n" + c_ranges("kUniJavaSpace", merge(JAVA_SPACE)) + "\n")
@@ -292,8 +330,12 @@ kt = ("package com.sachinbaria.easyvoice\n\n"
       "        while (a < b) {\n            val m = (a + b) ushr 1\n"
       "            if (codePoint < LATIN_COMMON_INHERITED[2 * m]) b = m\n"
       "            else if (codePoint > LATIN_COMMON_INHERITED[2 * m + 1]) a = m + 1\n"
-      "            else return true\n        }\n        return false\n    }\n%s}\n") % (
-      ver, ver, ",\n".join("        0x%X, 0x%X" % (a, b) for a, b in lci), kt_scripts)
+      "            else return true\n        }\n        return false\n    }\n%s%s}\n") % (
+      ver, ver, ",\n".join("        0x%X, 0x%X" % (a, b) for a, b in lci), kt_scripts,
+      "\n    // The language of every script in use today (CLDR's likely subtags of the\n"
+      "    // UAX #31 Recommended and Limited_Use scripts): the codes the detector can\n"
+      "    // name a span after its script. IsoCodes knows a three-letter one by itself.\n"
+      "    val SCRIPT_LANGUAGES = arrayOf(%s)\n" % ", ".join('"%s"' % l for l in sorted(set(LIVING.values()))))
 
 check = "--check" in sys.argv
 for path, text in ((OUT_H, h), (OUT_KT, kt)):
@@ -302,5 +344,6 @@ for path, text in ((OUT_H, h), (OUT_KT, kt)):
         if old != text: sys.exit("out of date: " + path)
     elif old != text:
         open(path, "w", encoding="utf-8").write(text)
-print("Unicode %s: emoji %d, bidi %d, letters %d, latin %d, span slots %d ranges, family %d ranges, fold %d, kotlin LCI %d ranges"
-      % (ver, len(EMOJI), len(BIDI), len(LETTER), len(LATIN), len(span), len(fam), len(fold), len(lci)))
+print("Unicode %s: emoji %d, bidi %d, letters %d, latin %d, span slots %d ranges, family %d ranges, fold %d, kotlin LCI %d ranges, living scripts %d (%d on fixed slots %d-%d)"
+      % (ver, len(EMOJI), len(BIDI), len(LETTER), len(LATIN), len(span), len(fam), len(fold), len(lci),
+         len(LIVING), len(SLOT_FIXED), SLOT_FIXED_FIRST, SLOT_FIXED_FIRST + len(SLOT_FIXED) - 1))

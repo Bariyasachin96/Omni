@@ -8,7 +8,43 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## WHAT THE SCREEN READER DOES ITSELF, WE DO NOT DO AGAIN (owner, 2026-10-15, latest)
+## EVERY SCRIPT IN USE TODAY REACHES ITS LANGUAGE, IN EVERY MODE (owner, 2026-10-16, latest)
+*"Unicode script mein kuchh chijen aisi hogi jo detect nahin hoti ... sabhi mod mein ... latest Unicode ... jo
+available na ho vah provide karai jaaye."* Unicode 18.0.0 is the latest (19.0 is a 404); CLDR release-48-2 is the
+latest CLDR release.
+- **Measured first, `tools/verify/allscripts/run.sh` (new):** one sample per Unicode 18 script (172, letters from
+  the UCD) through the core's REAL JNI entry points (tools/pgo/fakejni.h, no JVM) in mix (processDirect + detect),
+  auto (detectWindowOrSpans + clsCLD2.f weighing) and dual, under {hi,en,gu} and with the script's own language
+  enabled; then the REAL IsoCodes.kt + UnicodeTables.kt (lifted, Check.kt) turn each answer into the voice's iso3.
+  Before: **30 scripts in use today** (Ol Chiki/Santali, Meetei Mayek/Manipuri, Javanese, Sundanese, Balinese,
+  Tifinagh, N'Ko, Adlam, Chakma, Lepcha, Newa, Syloti Nagri, Yi, Lisu, Tai Le/Tham/Viet, Osage, Wancho ...) came
+  back "un" or CLD2's xx-Script pseudo-code even WITH that language's voice enabled (-> the non-Latin preferred
+  voice), and auto mode cut every three-letter code to two letters (below), so Syriac/Cherokee/Limbu were lost there.
+- **Data, not a hand list:** `tools/unicode/cldr/` = CLDR 48.2's scriptMetadata.txt (UAX #31 usage: RECOMMENDED /
+  LIMITED_USE = in use today; EXCLUSION = historic) and the und_<Script> lines of likelySubtags.xml (each script's
+  likely language), + UCD's PropertyValueAliases.txt (script name <-> code). gen_tables.py: a living script with a
+  likely language that neither AutoTTS's 25 slots nor SLOT_EXTRA (CLD2's) name gets its own slot 34..63 (by name,
+  stable), `kUniFixedSlotLang` = its language; `UnicodeTables.SCRIPT_LANGUAGES` = every living script's language.
+  Historic scripts stay on SLOT_OTHER (no voice speaks them).
+- **Core:** `emitScriptSpan` reads a fixed slot's language like SCRIPT_FIXED_LANG (no CLD2; latin false).
+  **IsoCodes:** a three-letter SCRIPT_LANGUAGES code unknown to its tables (sat, mni, lif, ban ...) is known by
+  itself, as codesWithoutIso2 are; nothing already mapped changes. **Auto branch:** the detected code goes to
+  toIso3 WHOLE -- AutoTTS's `substring(0, 2)` (kept to drop zh-Hant / sr-ME / xx-Olck subtags) also made fil
+  Finnish, kok Korean, sat Sanskrit, new Nepali, nnp Nynorsk; normalizeTag already cuts at '-'/'_', so two-letter
+  and subtagged answers resolve exactly as before. Both DELIBERATE DEPARTURES. Without that voice, mix/multilingual
+  fall back to the non-Latin preferred voice as before; auto mode does what it already did for the 19 fixed scripts.
+- **Proof:** allscripts: 62 of 62 living scripts right in mix, auto and dual (negatives nofixed 30 / noiso 27 /
+  truncate 29 wrong, all FAIL; it also fails if the service truncates again). unicode: slot IDENTICAL to the UCD
+  (reference.py reads the CLDR files independently); devanagari 64/64 (Ol Chiki now "sat", was "xx-Olck");
+  corebytes 895,440 0 differ; segmenter, oldnew, scriptfamily, langcodes 283 IDENTICAL, stress 0 wrong, runlang
+  (lifts UnicodeTables now), chunkiso3, toiso3, readers, unicode2 unchanged; PGO --update ALL PASS (917,754 answers
+  plain == PGO, ASan+UBSan clean); check-all 0/0 + lint No issues; selftest EVERY CHECK FIRES (35) -- its "#27 take
+  the finally off onStop's release" had gone to sleep with 10-15's comment above the release, so its pattern now
+  steps over comment lines.
+- **Left, needs the owner's word:** CLD2 names Filipino "tl" (Android's voice is "fil") and Javanese "jw" (owner
+  kept that on 09-09), so LATIN-script Filipino/Javanese text still misses those voices.
+
+## WHAT THE SCREEN READER DOES ITSELF, WE DO NOT DO AGAIN (owner, 2026-10-15)
 *"jaise TalkBack wala ... kuchh chijen hatai thi ... aur bhi chijen aisi hogi ... jo screen reader khud handle
 karta hai vah hata dena."* Read in TalkBack's own source (google/talkback master: SpeechControllerImpl,
 FailoverTextToSpeech, WindowEventInterpreter, compositor.json), not assumed.
