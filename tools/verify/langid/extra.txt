@@ -1,0 +1,83 @@
+# Texts the UDHR set does not cover, for oracle.py. Not labelled: the oracle
+# only needs the same text on both sides.
+# Telugu, Sinhala, Sindhi, Kurmanji, Frisian, Hmong, Odia, Assamese
+మానవులందరూ స్వేచ్ఛగా సమానంగా జన్మించారు. వారికి వివేకం అంతఃకరణం ఉన్నాయి.
+మీరు ఎలా ఉన్నారు?
+සියලු මනුෂ්‍යයෝ නිදහස්ව උපත ලබා ඇත.
+ඔබට කොහොමද?
+سڀئي انسان آزاد ۽ برابر حيثيت ۽ حقن سان پيدا ٿيا آهن.
+توهان ڪيئن آهيو؟
+Hemû mirov azad û di weqar û mafan de wekhev tên dinyayê.
+Alle minsken wurde frij en gelyk yn weardigens en rjochten berne.
+Txhua tus neeg yug los muaj kev ywj pheej thiab sib luag.
+ସମସ୍ତ ମଣିଷ ଜନ୍ମକାଳରୁ ସ୍ୱାଧୀନ ଏବଂ ସମାନ।
+সকলো মানুহ মুক্ত আৰু সমান মৰ্যাদা আৰু অধিকাৰ লৈ জন্মগ্ৰহণ কৰে।
+# romanized text the model has labels for
+kya haal hai bhai, sab theek?
+mujhe kal office jaana hai
+Aaj mausam bahut accha hai
+main ghar ja raha hoon
+kaise ho aap log
+ana bahebak ya habibi
+ezayak 3amel eh
+privet kak dela
+ya tebya lyublyu
+kalimera ti kaneis
+efharisto poli
+konnichiwa genki desu ka
+arigatou gozaimasu
+ni hao ma wo hen hao
+xie xie ni
+zdravei kak si
+# Hinglish and other mixes in one script
+Kal meeting hai at 10 am, please time pe aana
+Bhai ye phone ka battery bahut jaldi khatam hota hai
+# Urdu / Hindi / Punjabi / Arabic short and long
+آپ کیسے ہیں؟
+میں ٹھیک ہوں، شکریہ
+کیا حال ہے
+كيف حالك؟
+أنا بخير، شكرا
+السلام علیکم
+ਤੁਸੀਂ ਕਿਵੇਂ ਹੋ?
+ستاسو نوم څه دی؟
+شما چطور هستید؟
+नमस्ते, आप कैसे हैं?
+तुम्ही कसे आहात?
+तपाईंलाई कस्तो छ?
+आपण कसे आहात
+तुम कहाँ जा रहे हो
+আপনি কেমন আছেন?
+તમે કેમ છો?
+நீங்கள் எப்படி இருக்கிறீர்கள்?
+ನೀವು ಹೇಗಿದ್ದೀರಿ?
+നിങ്ങൾക്ക് സുഖമാണോ?
+# short app-like strings
+Settings
+OK
+Cancel
+WhatsApp
+Download complete
+Battery low
+सेटिंग्स
+ठीक है
+रद्द करें
+सूचनाएं
+الإعدادات
+ترتیبات
+설정
+設定
+设置
+Настройки
+Paramètres
+Einstellungen
+Configuración
+12:45
++91 98765 43210
+😀😀😀
+!!! ??? ...
+http://example.com/path?q=1
+user@example.com
+#hashtag @mention
+İstanbul'a gidiyorum, İzmir de güzel
+Ⱥ Ⱦ ⱥ ⱦ

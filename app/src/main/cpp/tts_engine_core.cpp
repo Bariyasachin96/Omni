@@ -15,6 +15,8 @@
 #include <atomic>
 #include "compact_lang_det.h"
 #include "unicode_tables.h"   // generated from the Unicode Character Database
+// CLD2 and the model ML Kit runs, weighed together; the harness slicer drops this line
+#include "langblend.h"
 #include "encodings.h"
 #include "compact_lang_det_impl.h"
 // the tables read in at load (JNI_OnLoad); the harness slicer drops this line
@@ -1911,10 +1913,21 @@ static std::string scriptLangForCpFiltered(int codePoint, const std::unordered_s
 //  cache per thread: no lock, and nothing shared. At most kCld2CacheMax
 //  entries each, cleared when full.
 // ==========================================================================
+// An answer as cached: CLD2's (path) answer, and where two or more enabled
+// languages share the script (slot 1..6, else 0) what langblend.h weighed --
+// the context is applied after the cache (blendFinal), since the same bytes
+// can follow different text.
+struct CachedAnswer {
+    std::string lang;
+    int slot = 0;
+    BlendResult blend;
+    std::string resolve() const { return slot ? blendFinal(slot, blend, lang) : lang; }
+};
 struct Cld2Cache {
     std::shared_ptr<const void> spanHints;                      // the HintState the span entries belong to
-    std::unordered_map<std::string, std::string> spans;         // script byte + span bytes -> language
-    std::unordered_map<std::string, std::string> windows;       // window bytes -> detectWindowLang's answer
+    std::unordered_map<std::string, CachedAnswer> spans;        // script byte + span bytes -> language
+    std::shared_ptr<const void> windowsEnabled;                 // the enabled set the window entries belong to
+    std::unordered_map<std::string, CachedAnswer> windows;      // window bytes -> detectWindowLang's answer
 };
 static const size_t kCld2CacheMax = 256;
 // CLD2 READS ONLY WELL-FORMED UTF-8, AND A U+0000 IS NOT (2026-10-07). Found by
@@ -1956,17 +1969,23 @@ static const char* cld2Bytes(const char* in, int n, std::string& scratch){
     return in;
 }
 static Cld2Cache& cld2Cache(){ static thread_local Cld2Cache cache; return cache; }
-static std::string detectWindowLangUncached(const std::string& utf8Text);
-static std::string detectWindowLang(const std::string& utf8Text){
+static CachedAnswer detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled);
+// The answer depends on the enabled set too since the two detectors are
+// weighed between enabled languages (langblend.h), so a new set drops the
+// window entries, as a new HintState drops the span ones.
+static std::string detectWindowLang(const std::string& utf8Text,
+                                    const std::shared_ptr<const std::unordered_set<std::string>>& enabled){
     Cld2Cache& cache = cld2Cache();
+    if(cache.windowsEnabled != enabled){ cache.windows.clear(); cache.windowsEnabled = enabled; }
     auto hit = cache.windows.find(utf8Text);
-    if(hit != cache.windows.end()) return hit->second;
-    std::string answer = detectWindowLangUncached(utf8Text);
-    if(cache.windows.size() >= kCld2CacheMax) cache.windows.clear();
-    cache.windows.emplace(utf8Text, answer);
-    return answer;
+    if(hit == cache.windows.end()){
+        CachedAnswer answer = detectWindowLangUncached(utf8Text, *enabled);
+        if(cache.windows.size() >= kCld2CacheMax) cache.windows.clear();
+        hit = cache.windows.emplace(utf8Text, std::move(answer)).first;
+    }
+    return hit->second.resolve();
 }
-static std::string detectWindowLangUncached(const std::string& utf8Text){
+static CachedAnswer detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled){
     // getLanguage (0x6523c8), which is what clsCLD2.d calls per 64-character
     // window. It passes no content-language hint, an EMPTY tld hint rather than
     // a null one, encoding_hint 0 (ISO_8859_1, not UNKNOWN_ENCODING), and
@@ -1980,9 +1999,26 @@ static std::string detectWindowLangUncached(const std::string& utf8Text){
     CLD2::DetectLanguageSummaryV2(bytes, (int)utf8Text.size(), false, &hints,
                                   true, 0x4000, CLD2::UNKNOWN_LANGUAGE,
                                   lang3, percent3, score3, nullptr, &textBytes, &reliable);
-    if(!reliable) return "UNKNOWN";
+    CachedAnswer answer;
+    answer.lang = "UNKNOWN";
+    if(!reliable) return answer;
     const char* code = CLD2::LanguageCode(lang3[0]);
-    return code ? std::string(code) : "UNKNOWN";
+    if(!code) return answer;
+    answer.lang = code;
+    // Where two or more enabled languages share the script of that answer, the
+    // model is asked too and the two are weighed (langblend.h) -- so the window
+    // answers the enabled language of that script both agree on best, which the
+    // enabled-language test in detectWindowed then keeps. Sorted, so a tie is
+    // settled the same way whatever order the set iterates in.
+    const int label = blendLabelIndex(answer.lang);
+    const int slot = label > 0 ? blendLabelSlot(kLidLabels[label]) : blendCldOnlySlot(answer.lang);
+    if(slot >= 1 && slot <= 6 && enabled.size() >= 2){
+        std::vector<std::string> codes(enabled.begin(), enabled.end());
+        std::sort(codes.begin(), codes.end());
+        answer.slot = slot;
+        answer.blend = blendDetectors(slot, bytes, (int)utf8Text.size(), codes, answer.lang, lang3, percent3);
+    }
+    return answer;
 }
 
 // ==========================================================================
@@ -2203,7 +2239,7 @@ static std::string detectWindowed(const jchar* chars, int textLen,
             char nbuf[32]; snprintf(nbuf,sizeof(nbuf),"%d",windowEnd-winStart);
             *logBuf += std::string("[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latinFallback+" nonLatFall="+nonLatinFallback+" isDisableAdv="+(disableAdvanced?"true":"false")+" snip='"+utf16to8(chars+winStart,snippetLen)+"'\n";
         }
-        std::string detectedLang = detectWindowLang(windowUtf8);
+        std::string detectedLang = detectWindowLang(windowUtf8, enabledPtr);
         if(logBuf) *logBuf += std::string("[CLD2] cld2DetectWindow rawOut='")+(detectedLang.empty()?"UNKNOWN":detectedLang)+"|"+windowUtf8+"' → result="+(detectedLang.empty()?"null":detectedLang)+"\n";
         if(!detectedLang.empty() && detectedLang!="UNKNOWN"){
             if(disableAdvanced){ result=detectedLang; done=true; break; }
@@ -2397,8 +2433,7 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
             cacheKey += (char)script;
             cacheKey.append(text, (size_t)start, (size_t)detectBytes);
             auto cached = cache.spans.find(cacheKey);
-            if(cached != cache.spans.end()) lang = cached->second;
-            else {
+            if(cached == cache.spans.end()) {
             // What these two do -- keep an answer only if the user has that
             // language enabled, and otherwise fall back to the one language
             // this script implies -- is what decides the voice for the span,
@@ -2461,9 +2496,19 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
                     if(!fallbackCode.empty()) lang = fallbackCode;
                 }
             }
-            if(cache.spans.size() >= kCld2CacheMax) cache.spans.clear();
-            cache.spans.emplace(std::move(cacheKey), lang);
+            // Both detectors, where two or more enabled languages share this
+            // script (langblend.h): CLD2's answer above, weighed against the
+            // model's. With one, nothing here runs and CLD2's path stands.
+            CachedAnswer answer;
+            answer.lang = lang;
+            if(script >= 1 && script <= 6 && !hintCodes.empty()){
+                answer.slot = script;
+                answer.blend = blendDetectors(script, bytes, detectBytes, hintCodes, lang, lang3, percent3);
             }
+            if(cache.spans.size() >= kCld2CacheMax) cache.spans.clear();
+            cached = cache.spans.emplace(std::move(cacheKey), std::move(answer)).first;
+            }
+            lang = cached->second.resolve();
         }
         if (!spans.empty()
             && spans.back().offset + spans.back().bytes == start

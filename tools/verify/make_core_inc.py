@@ -44,6 +44,7 @@ DROP_INCLUDES = (
     '#include "encodings.h"',
     '#include "image_warm.h"',      # used only by JNI_OnLoad, which the slice drops
     '#include "compact_lang_det_impl.h"',
+    '#include "langblend.h"',       # the two detectors together; nothing before the cut uses it
 )
 
 HINTS_STUB = """

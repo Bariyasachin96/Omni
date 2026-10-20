@@ -1,0 +1,16 @@
+# Enabled-language sets the pipeline part decides with: what users who read
+# more than one language of a script really turn on. One set per line.
+en hi mr
+en hi ne
+en hi mr ne
+en ur ar
+en ur fa
+en ar fa ur ps
+en bn as
+en ru uk
+en ru uk bg sr
+en zh ja
+en es fr de pt it
+en id ms
+hi en
+ur en

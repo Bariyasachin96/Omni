@@ -81,6 +81,12 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/scriptfamily/run.sh     # ~3 min,  15 language sets x 1,114,112 code points
     tools/verify/normalizer/run.sh       # ~20 s,   1,114,112 code points, 1,062 mappings
     tools/verify/langcodes/run.sh        # ~5 s,    283 CLD2 language codes
+    tools/verify/langid/run.sh           # ~3 min,  langid.h == MediaPipe's C++ bit for bit, == ML Kit's own library on 58,770 texts
+    tools/verify/langsuite/run.sh        # ~4 min,  where enabled languages share a script: CLD2, the ML Kit model, letters,
+                                         #          the word-and-ending model and context on ~110,000 labelled texts
+                                         #          (UDHR, phrases, Android UI strings, Tatoeba); C++ == Python checked
+    tools/verify/langsuite/fetch_data.sh # once:    Android UI strings, Tatoeba, CLDR, Unihan into tools/.cache/langdata
+    tools/langid/fetch_train.sh          # once:    the word-and-ending model's learning text into tools/.cache/langtrain
     tools/pgo/run.sh [--update]          # ~3 min,  native PGO: retrain (NDK clang, x86_64+i686 android),
                                          #          917,754 answers plain vs PGO, timing, both ABIs fit, ASan+UBSan
     tools/verify/autottslog/run.sh <auto_tts.log>   # replays a REAL AutoTTS log through our core,

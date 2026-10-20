@@ -1,0 +1,21 @@
+# Learned by tools/langid/train_nb.py from the same texts as nb_model.tsv -- do not
+# edit. slot<TAB>language<TAB>other<TAB>letters the language writes in at least
+# 0.005 of its texts and the other in at most 2e-05 of its texts.
+2	ru	bg	Э
+2	ru	sr	Ящё
+2	uk	ru	ЄІєіїґ
+2	uk	bg	Єґ
+2	uk	sr	ЄЙЩЮЯщєїґ
+2	bg	ru	ѝ
+2	bg	uk	ѝ
+2	bg	sr	ЙЩЮЯщѝ
+2	sr	ru	ЂЈЊЏђјљњћџ
+2	sr	uk	ЂЈЊЏђјљњћџ
+2	sr	bg	ЂЈЊЏљћџ
+3	fa	ar	ژ
+3	ur	ar	ٹڈڑژںہۂۃے
+3	ur	fa	ٹڈڑںھہۂۃے
+3	ps	ar	ټځڅډړږژښګڼۍېﺍﺎﺩﻪﻭﻮ
+3	ps	fa	ټځڅډړږښګڼۍېﺍﺎﺩﻪﻭﻮ
+3	ps	ur	ټڅږڼۍﻪ
+6	as	bn	ৱ

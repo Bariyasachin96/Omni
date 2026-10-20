@@ -8,7 +8,47 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## EVERY SCRIPT IN USE TODAY REACHES ITS LANGUAGE, IN EVERY MODE (owner, 2026-10-16, latest)
+## WHERE TWO ENABLED LANGUAGES SHARE A SCRIPT: LETTERS, A WORD-AND-ENDING MODEL, ML KIT'S MODEL, CONTEXT (owner, 2026-10-20, latest)
+*"ml kit hi rakhna hai ... native"*, then *"accuracy 100% hi chahie ... har language ke liye har lipi ke liye ... kuchh
+bhi karo"* and *"99% nahin, 100% ... bilkul accurate aur bahut fast"*. Told plainly, more than once: a text that is
+the same in both languages ("ब्लूटूथ", "प्रस्तावना" in Hindi and Marathi, "تمام", "Todos") carries no evidence, so no
+detector can name it; for those the app now takes the language of the text around it.
+- **Runs only where a span's script is shared by 2+ ENABLED languages** (Latin, Cyrillic, Arabic, Devanagari,
+  Han/kana, Bengali). **The owner's own set {hi, en, gu} has one language per script: nothing here runs, every
+  answer is byte for byte the old one** (corebytes: {hi,en,gu}, {}, {en} and the 8-language set 0 differ).
+- **app/src/main/cpp/langblend.h**, in order: (1) letters: a letter one enabled language writes and every other
+  practically never does (Cyrillic/Arabic/Bengali, LEARNED from data -- the old hand list had ळ, ৰ and ے wrong:
+  Hindi Wikipedia writes ळ, Pashto writes ے); Han: kana -> ja, a Han character outside JIS X 0208 -> zh, 7+ Han
+  without kana -> zh, a short text fitting neither GB 2312 alone nor CNS 11643 1-2 alone -> ja (電話番号); (2) the
+  WORD-AND-ENDING model (Naive Bayes over each word and its last 1-3 letters) decides alone when its best language
+  leads by e^10; (3) a language ML Kit's model lacks (as, sa) stays CLD2's; (4) else a log-linear blend of ML
+  Kit's model, CLD2's top three and the word-and-ending score (kBlend). (1)-(2) are SURE; (3)-(4) are not.
+- **Context** (blendFinal): a not-sure span takes the language of the last SURE span of its script (one per slot,
+  mutex, shared by the span and window paths) unless the word-and-ending model puts its own pick 6 nats above it.
+  The CLD2 cache stores the context-free answer (CachedAnswer); the context applies after it.
+- **The model ML Kit runs** = `langid.h` + `langid_model.h` (tools/langid/gen_model.py from the MediaPipe
+  language_detector.tflite = ML Kit language-id 17.0.6's graph): proven equal to ML Kit's own x86_64 library
+  within 1e-5 on 58,714 texts (tools/verify/langid/run.sh: its machine code's quantization reproduced). No
+  ML Kit dependency, no Play services, no INTERNET.
+- **Generated, never hand-edit:** `langid_model.h` (gen_model.py), `langhan.h` (tools/langid/gen_han.py from
+  han_sets.txt = Unihan 18 IRG sources), `langnb.h` (tools/langid/train_nb.py header from nb_model.tsv +
+  letters.tsv: 20,000 features per script, FNV-1a hash, round(8 ln p)). check-all runs all three --check.
+  Relearning needs tools/langid/fetch_train.sh (Wikipedia CC BY-SA, Tatoeba CC BY, Common Voice CC0, FLORES-200
+  for test only) and the suite's cases: `train_nb.py learn cases.tsv` then `header`.
+- **Proof, tools/verify/langsuite/run.sh** (fetch_data.sh once: Android's own UI strings from AOSP, Tatoeba,
+  CLDR, Unihan): 131,961 decisions C++ == Python, context 450,522 C++ == Python. Held-out half (35,212 texts in
+  multi-language sets): CLD2 92.3% -> 96.1% without context; with context, a stream in one language 99.79%
+  (last sure language differs 10% of the time: 98.57%). What is still wrong is English names inside other
+  languages' UI files ("Google Talk", "IMEI") and Indonesian/Malay. The word-and-ending model alone: FLORES-200
+  devtest 96% of sentences decided at 99.99%+.
+- **Cost:** the core grows ~1.17 MB per ABI (ML Kit's model 0.33, word-and-ending 0.82). Time: latency harness
+  10,620 chars 0.92 ms in all (en+gu+hi+mr, so Devanagari spans pay it). Harnesses: corebytes 895,440 vs HEAD --
+  only {en,hi,mr} (6 texts), {en,ar,ur,fa} (3) and {zh,ja,ko,th} (3) move; segmenter (the known £), scriptfamily,
+  langcodes IDENTICAL; allscripts 62/0; devanagari 64/64; PGO --update ALL PASS (917,754 plain == PGO, ASan clean).
+- **Same day, lint's NewerVersionAvailable:** Gradle 9.8.1 -> **9.8.2** (wrapper SHA-256 21bd5da2...; the wrapper
+  jar is unchanged) and kotlinx-serialization-core 1.11.0 -> **1.12.0** (needs stdlib 2.4.10; we have 2.4.21).
+
+## EVERY SCRIPT IN USE TODAY REACHES ITS LANGUAGE, IN EVERY MODE (owner, 2026-10-16)
 *"Unicode script mein kuchh chijen aisi hogi jo detect nahin hoti ... sabhi mod mein ... latest Unicode ... jo
 available na ho vah provide karai jaaye."* Unicode 18.0.0 is the latest (19.0 is a 404); CLDR release-48-2 is the
 latest CLDR release.

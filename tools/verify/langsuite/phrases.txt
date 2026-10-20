@@ -1,0 +1,580 @@
+# Everyday short text, labelled, for the languages that share a script and so
+# reach the detector: what a screen reader actually reads -- chat, notices,
+# UI labels -- and not only formal prose. One per line: label TAB text.
+# Labels are the model's (kLidLabels); "hi-Latn" is Hindi/Urdu in Latin letters.
+hi	नमस्ते
+hi	आप कैसे हैं?
+hi	मैं ठीक हूँ, धन्यवाद।
+hi	आज मौसम बहुत अच्छा है।
+hi	कल ऑफिस जाना है।
+hi	खाना खा लिया?
+hi	मुझे नहीं पता।
+hi	कृपया दरवाज़ा बंद कर दीजिए।
+hi	बैटरी कम है।
+hi	नया संदेश
+hi	आपका दिन शुभ हो
+hi	भाई, कहाँ हो तुम?
+hi	मैं घर जा रहा हूँ।
+hi	यह बहुत अच्छा है।
+hi	रात को फ़ोन करना।
+hi	हम कल मिलेंगे।
+hi	क्या हुआ?
+hi	चलो चलते हैं
+hi	पानी पी लो
+hi	मुझे तुम्हारी बहुत याद आ रही है।
+mr	नमस्कार
+mr	तुम्ही कसे आहात?
+mr	मी ठीक आहे, धन्यवाद.
+mr	आज हवामान खूप छान आहे.
+mr	उद्या ऑफिसला जायचं आहे.
+mr	जेवण झालं का?
+mr	मला माहीत नाही.
+mr	कृपया दार बंद करा.
+mr	बॅटरी कमी आहे.
+mr	नवीन संदेश
+mr	तू कुठे आहेस?
+mr	मी घरी जात आहे.
+mr	हे खूप छान आहे.
+mr	रात्री फोन कर.
+mr	आपण उद्या भेटू.
+mr	काय झालं?
+mr	चला जाऊया
+mr	पाणी पी
+mr	मला तुझी खूप आठवण येते.
+ne	तपाईंलाई कस्तो छ?
+ne	म ठीक छु, धन्यवाद।
+ne	आज मौसम धेरै राम्रो छ।
+ne	भोलि अफिस जानु छ।
+ne	खाना खानुभयो?
+ne	मलाई थाहा छैन।
+ne	कृपया ढोका बन्द गर्नुहोस्।
+ne	तिमी कहाँ छौ?
+ne	म घर जाँदैछु।
+ne	यो धेरै राम्रो छ।
+ne	के भयो?
+ne	हामी भोलि भेटौंला।
+ur	السلام علیکم
+ur	آپ کیسے ہیں؟
+ur	میں ٹھیک ہوں، شکریہ۔
+ur	آج موسم بہت اچھا ہے۔
+ur	کل دفتر جانا ہے۔
+ur	کھانا کھا لیا؟
+ur	مجھے نہیں معلوم۔
+ur	براہ کرم دروازہ بند کر دیں۔
+ur	بیٹری کم ہے۔
+ur	نیا پیغام
+ur	بھائی، تم کہاں ہو؟
+ur	میں گھر جا رہا ہوں۔
+ur	یہ بہت اچھا ہے۔
+ur	رات کو فون کرنا۔
+ur	ہم کل ملیں گے۔
+ur	کیا ہوا؟
+ur	خدا حافظ
+ur	مجھے تمہاری بہت یاد آ رہی ہے۔
+ar	مرحبا
+ar	كيف حالك؟
+ar	أنا بخير، شكرا.
+ar	الطقس جميل جدا اليوم.
+ar	سأذهب إلى العمل غدا.
+ar	هل أكلت؟
+ar	لا أعرف.
+ar	من فضلك أغلق الباب.
+ar	البطارية منخفضة.
+ar	رسالة جديدة
+ar	أين أنت؟
+ar	أنا ذاهب إلى البيت.
+ar	هذا جميل جدا.
+ar	اتصل بي في الليل.
+ar	سنلتقي غدا.
+ar	ماذا حدث؟
+ar	مع السلامة
+ar	إن شاء الله
+fa	سلام
+fa	حال شما چطور است؟
+fa	من خوبم، ممنون.
+fa	امروز هوا خیلی خوب است.
+fa	فردا باید به اداره بروم.
+fa	غذا خوردی؟
+fa	نمی‌دانم.
+fa	لطفا در را ببندید.
+fa	باتری کم است.
+fa	پیام جدید
+fa	کجایی؟
+fa	دارم می‌روم خانه.
+fa	این خیلی خوب است.
+fa	چه شد؟
+fa	خداحافظ
+bn	নমস্কার
+bn	আপনি কেমন আছেন?
+bn	আমি ভালো আছি, ধন্যবাদ।
+bn	আজ আবহাওয়া খুব ভালো।
+bn	কাল অফিসে যেতে হবে।
+bn	খাওয়া হয়েছে?
+bn	আমি জানি না।
+bn	দয়া করে দরজা বন্ধ করুন।
+bn	ব্যাটারি কম।
+bn	নতুন বার্তা
+bn	তুমি কোথায়?
+bn	আমি বাড়ি যাচ্ছি।
+bn	এটা খুব সুন্দর।
+bn	কী হয়েছে?
+as	নমস্কাৰ
+as	আপুনি কেনে আছে?
+as	মই ভালে আছোঁ, ধন্যবাদ।
+as	আজি বতৰ বৰ ভাল।
+as	কালি অফিচলৈ যাব লাগিব।
+as	ভাত খালেনে?
+as	মই নাজানো।
+as	অনুগ্ৰহ কৰি দুৱাৰখন বন্ধ কৰক।
+as	তুমি ক'ত আছা?
+as	মই ঘৰলৈ গৈ আছোঁ।
+as	এইটো বৰ ধুনীয়া।
+as	কি হ'ল?
+as	সকলো মানুহ মুক্ত আৰু সমান মৰ্যাদা আৰু অধিকাৰ লৈ জন্মগ্ৰহণ কৰে।
+en	Hello
+en	How are you?
+en	I'm fine, thanks.
+en	The weather is very nice today.
+en	I have to go to the office tomorrow.
+en	Did you eat?
+en	I don't know.
+en	Please close the door.
+en	Battery low
+en	New message
+en	Where are you?
+en	I'm going home.
+en	This is very good.
+en	Call me at night.
+en	See you tomorrow.
+en	What happened?
+en	Settings
+en	Download complete
+en	Wi-Fi connected
+en	Missed call
+en	Your order has been shipped.
+en	Tap to open
+hi-Latn	kya haal hai bhai
+hi-Latn	mujhe kal office jaana hai
+hi-Latn	aaj mausam bahut accha hai
+hi-Latn	main ghar ja raha hoon
+hi-Latn	kaise ho aap log
+hi-Latn	khana kha liya?
+hi-Latn	mujhe nahi pata
+hi-Latn	tum kahan ho
+hi-Latn	yeh bahut acha hai
+hi-Latn	kal milte hain
+hi-Latn	kya hua yaar
+hi-Latn	bhai phone uthao
+hi-Latn	aap kaise hain
+hi-Latn	mai theek hu
+ru	Привет
+ru	Как дела?
+ru	Я в порядке, спасибо.
+ru	Сегодня очень хорошая погода.
+ru	Новое сообщение
+ru	Где ты?
+ru	Я иду домой.
+uk	Привіт
+uk	Як справи?
+uk	Я в порядку, дякую.
+uk	Сьогодні дуже гарна погода.
+uk	Нове повідомлення
+uk	Де ти?
+uk	Я йду додому.
+zh	你好
+zh	谢谢
+zh	新消息
+zh	你在哪里？
+zh	今天天气很好。
+zh	我要回家了。
+ja	こんにちは
+ja	ありがとう
+ja	新しいメッセージ
+ja	どこにいますか？
+ja	今日はいい天気ですね。
+ja	家に帰ります。
+# --- a second, larger batch (2026-10-20): the same twenty-odd everyday
+# sentences in each language that shares a script, so a confusable pair is
+# measured on matched content, not on whatever the UDHR happens to say.
+mr	मी उद्या येईन.
+mr	तुझं नाव काय आहे?
+mr	आज खूप पाऊस पडतोय.
+mr	मला भूक लागली आहे.
+mr	तू जेवलास का?
+mr	आम्ही सिनेमाला जाणार आहोत.
+mr	हे पुस्तक कोणाचं आहे?
+mr	माझा फोन बंद झाला.
+mr	लवकर घरी ये.
+mr	आई बाजारात गेली आहे.
+mr	तुला काय हवंय?
+mr	उशीर झाला, माफ कर.
+mr	मी ऑफिसमध्ये आहे.
+mr	चहा घेणार का?
+mr	उद्या सुट्टी आहे.
+mr	त्याला ताप आला आहे.
+mr	मी तुला नंतर फोन करतो.
+mr	बस अजून आली नाही.
+mr	हे काम पूर्ण झालं.
+mr	मला माहिती नव्हतं.
+mr	खूप छान झालं!
+mr	तू कधी येणार?
+mr	दार उघड.
+mr	शांत बस.
+mr	मी झोपायला जातोय.
+mr	आज काय बेत आहे?
+mr	पैसे पाठवले आहेत.
+mr	गाडी चालू कर.
+mr	मला मदत कर.
+mr	सगळं ठीक आहे ना?
+hi	मैं कल आऊँगा।
+hi	तुम्हारा नाम क्या है?
+hi	आज बहुत बारिश हो रही है।
+hi	मुझे भूख लगी है।
+hi	तुमने खाना खाया?
+hi	हम फिल्म देखने जा रहे हैं।
+hi	यह किताब किसकी है?
+hi	मेरा फोन बंद हो गया।
+hi	जल्दी घर आओ।
+hi	माँ बाज़ार गई है।
+hi	तुम्हें क्या चाहिए?
+hi	देर हो गई, माफ़ करना।
+hi	मैं ऑफिस में हूँ।
+hi	चाय पियोगे?
+hi	कल छुट्टी है।
+hi	उसे बुखार है।
+hi	मैं तुम्हें बाद में फोन करता हूँ।
+hi	बस अभी तक नहीं आई।
+hi	यह काम पूरा हो गया।
+hi	मुझे पता नहीं था।
+hi	बहुत अच्छा हुआ!
+hi	तुम कब आओगे?
+hi	दरवाज़ा खोलो।
+hi	चुप बैठो।
+hi	मैं सोने जा रहा हूँ।
+hi	आज क्या प्लान है?
+hi	पैसे भेज दिए हैं।
+hi	गाड़ी चालू करो।
+hi	मेरी मदद करो।
+hi	सब ठीक है ना?
+ne	म भोलि आउँछु।
+ne	तिम्रो नाम के हो?
+ne	आज धेरै पानी परिरहेको छ।
+ne	मलाई भोक लाग्यो।
+ne	तिमीले खाना खायौ?
+ne	हामी सिनेमा हेर्न जाँदैछौं।
+ne	यो किताब कसको हो?
+ne	मेरो फोन बन्द भयो।
+ne	चाँडो घर आऊ।
+ne	आमा बजार जानुभएको छ।
+ne	तिमीलाई के चाहियो?
+ne	ढिलो भयो, माफ गर।
+ne	म अफिसमा छु।
+ne	चिया खान्छौ?
+ne	भोलि बिदा छ।
+ne	उसलाई ज्वरो आएको छ।
+ne	म तिमीलाई पछि फोन गर्छु।
+ne	बस अझै आएन।
+ne	यो काम सकियो।
+ne	मलाई थाहा थिएन।
+ne	धेरै राम्रो भयो!
+ne	तिमी कहिले आउँछौ?
+ne	ढोका खोल।
+ne	चुप लागेर बस।
+ne	सबै ठीक छ नि?
+ur	میں کل آؤں گا۔
+ur	تمہارا نام کیا ہے؟
+ur	آج بہت بارش ہو رہی ہے۔
+ur	مجھے بھوک لگی ہے۔
+ur	تم نے کھانا کھایا؟
+ur	ہم فلم دیکھنے جا رہے ہیں۔
+ur	یہ کتاب کس کی ہے؟
+ur	میرا فون بند ہو گیا۔
+ur	جلدی گھر آؤ۔
+ur	امی بازار گئی ہیں۔
+ur	تمہیں کیا چاہیے؟
+ur	دیر ہو گئی، معاف کرنا۔
+ur	میں دفتر میں ہوں۔
+ur	چائے پیو گے؟
+ur	کل چھٹی ہے۔
+ur	اسے بخار ہے۔
+ur	میں تمہیں بعد میں فون کرتا ہوں۔
+ur	بس ابھی تک نہیں آئی۔
+ur	یہ کام مکمل ہو گیا۔
+ur	مجھے معلوم نہیں تھا۔
+ur	بہت اچھا ہوا!
+ur	تم کب آؤ گے؟
+ur	دروازہ کھولو۔
+ur	خاموش بیٹھو۔
+ur	میں سونے جا رہا ہوں۔
+ur	آج کا کیا پروگرام ہے؟
+ur	پیسے بھیج دیے ہیں۔
+ur	گاڑی چلاؤ۔
+ur	میری مدد کرو۔
+ur	سب ٹھیک ہے نا؟
+fa	من فردا می‌آیم.
+fa	اسم تو چیست؟
+fa	امروز خیلی باران می‌بارد.
+fa	گرسنه‌ام.
+fa	ناهار خوردی؟
+fa	ما داریم به سینما می‌رویم.
+fa	این کتاب مال کیست؟
+fa	گوشی‌ام خاموش شد.
+fa	زود بیا خانه.
+fa	مادرم به بازار رفته است.
+fa	چه می‌خواهی؟
+fa	دیر شد، ببخشید.
+fa	من در اداره هستم.
+fa	چای می‌خوری؟
+fa	فردا تعطیل است.
+fa	او تب دارد.
+fa	بعداً به تو زنگ می‌زنم.
+fa	اتوبوس هنوز نیامده.
+fa	این کار تمام شد.
+fa	نمی‌دانستم.
+fa	خیلی خوب شد!
+fa	کی می‌آیی؟
+fa	در را باز کن.
+fa	ساکت بنشین.
+fa	همه چیز خوب است؟
+ar	سآتي غداً.
+ar	ما اسمك؟
+ar	الجو ممطر جداً اليوم.
+ar	أنا جائع.
+ar	هل تناولت الطعام؟
+ar	نحن ذاهبون إلى السينما.
+ar	لمن هذا الكتاب؟
+ar	انطفأ هاتفي.
+ar	تعال إلى البيت بسرعة.
+ar	ذهبت أمي إلى السوق.
+ar	ماذا تريد؟
+ar	تأخرت، آسف.
+ar	أنا في المكتب.
+ar	هل تشرب الشاي؟
+ar	غداً عطلة.
+ar	عنده حمى.
+ar	سأتصل بك لاحقاً.
+ar	لم تصل الحافلة بعد.
+ar	انتهى هذا العمل.
+ar	لم أكن أعرف.
+ar	رائع جداً!
+ar	متى ستأتي؟
+ar	افتح الباب.
+ar	اجلس بهدوء.
+ar	هل كل شيء بخير؟
+bn	আমি কাল আসব।
+bn	তোমার নাম কী?
+bn	আজ খুব বৃষ্টি হচ্ছে।
+bn	আমার খিদে পেয়েছে।
+bn	তুমি খেয়েছ?
+bn	আমরা সিনেমা দেখতে যাচ্ছি।
+bn	এই বইটা কার?
+bn	আমার ফোন বন্ধ হয়ে গেছে।
+bn	তাড়াতাড়ি বাড়ি এসো।
+bn	মা বাজারে গেছে।
+bn	তোমার কী চাই?
+bn	দেরি হয়ে গেল, দুঃখিত।
+bn	আমি অফিসে আছি।
+bn	চা খাবে?
+bn	কাল ছুটি।
+bn	ওর জ্বর হয়েছে।
+bn	আমি তোমাকে পরে ফোন করব।
+bn	বাস এখনও আসেনি।
+bn	কাজটা শেষ হয়েছে।
+bn	আমি জানতাম না।
+bn	খুব ভালো হয়েছে!
+bn	তুমি কখন আসবে?
+bn	দরজা খোলো।
+bn	চুপ করে বসো।
+bn	সব ঠিক আছে তো?
+as	মই কালি আহিম।
+as	তোমাৰ নাম কি?
+as	আজি বৰ বৰষুণ দিছে।
+as	মোৰ ভোক লাগিছে।
+as	তুমি ভাত খালানে?
+as	আমি চিনেমা চাবলৈ গৈ আছোঁ।
+as	এই কিতাপখন কাৰ?
+as	মোৰ ফোনটো বন্ধ হৈ গ'ল।
+as	সোনকালে ঘৰলৈ আহা।
+as	মা বজাৰলৈ গৈছে।
+as	তোমাক কি লাগে?
+as	পলম হ'ল, ক্ষমা কৰিবা।
+as	মই অফিচত আছোঁ।
+as	চাহ খাবানে?
+as	কালি বন্ধ।
+as	তাৰ জ্বৰ হৈছে।
+as	মই তোমাক পিছত ফোন কৰিম।
+as	বাছখন এতিয়াও অহা নাই।
+as	কামটো শেষ হ'ল।
+as	মই গম পোৱা নাছিলোঁ।
+as	বৰ ভাল হ'ল!
+as	তুমি কেতিয়া আহিবা?
+as	দুৱাৰখন খোলা।
+as	মনে মনে বহা।
+as	সকলো ঠিকে আছে নে?
+ru	Я приду завтра.
+ru	Как тебя зовут?
+ru	Сегодня идёт дождь.
+ru	Я голоден.
+ru	Ты поел?
+ru	Мы идём в кино.
+ru	Чья это книга?
+ru	Мой телефон выключился.
+ru	Иди домой быстрее.
+ru	Что тебе нужно?
+ru	Извини, я опоздал.
+ru	Я на работе.
+ru	Будешь чай?
+ru	Завтра выходной.
+ru	Всё в порядке?
+uk	Я прийду завтра.
+uk	Як тебе звати?
+uk	Сьогодні йде дощ.
+uk	Я голодний.
+uk	Ти поїв?
+uk	Ми йдемо в кіно.
+uk	Чия це книжка?
+uk	Мій телефон вимкнувся.
+uk	Іди додому швидше.
+uk	Що тобі потрібно?
+uk	Вибач, я запізнився.
+uk	Я на роботі.
+uk	Будеш чай?
+uk	Завтра вихідний.
+uk	Все гаразд?
+bg	Ще дойда утре.
+bg	Как се казваш?
+bg	Днес вали дъжд.
+bg	Гладен съм.
+bg	Яде ли?
+bg	Отиваме на кино.
+bg	Чия е тази книга?
+bg	Телефонът ми се изключи.
+bg	Ела бързо вкъщи.
+bg	Какво ти трябва?
+bg	Извинявай, закъснях.
+bg	На работа съм.
+bg	Ще пиеш ли чай?
+bg	Утре е почивен ден.
+bg	Всичко наред ли е?
+sr	Доћи ћу сутра.
+sr	Како се зовеш?
+sr	Данас пада киша.
+sr	Гладан сам.
+sr	Јеси ли јео?
+sr	Идемо у биоскоп.
+sr	Чија је ово књига?
+sr	Телефон ми се угасио.
+sr	Дођи брзо кући.
+sr	Шта ти треба?
+sr	Извини, закаснио сам.
+sr	На послу сам.
+sr	Хоћеш ли чај?
+sr	Сутра је слободан дан.
+sr	Да ли је све у реду?
+zh	我明天来。
+zh	你叫什么名字？
+zh	今天下雨了。
+zh	我饿了。
+zh	你吃饭了吗？
+zh	我们去看电影。
+zh	这是谁的书？
+zh	我的手机关机了。
+zh	快回家吧。
+zh	你需要什么？
+ja	明日行きます。
+ja	お名前は何ですか？
+ja	今日は雨が降っています。
+ja	お腹が空きました。
+ja	ご飯食べた？
+ja	映画を見に行きます。
+ja	これは誰の本ですか？
+ja	携帯の電源が切れました。
+ja	早く帰ってきて。
+ja	何が必要ですか？
+en	I'll come tomorrow.
+en	What's your name?
+en	It's raining today.
+en	I'm hungry.
+en	Have you eaten?
+en	We're going to the movies.
+en	Whose book is this?
+en	My phone died.
+en	Come home soon.
+en	What do you need?
+es	Mañana vengo.
+es	¿Cómo te llamas?
+es	Hoy está lloviendo.
+es	Tengo hambre.
+es	¿Ya comiste?
+es	Vamos al cine.
+es	¿De quién es este libro?
+es	Se apagó mi teléfono.
+es	Ven pronto a casa.
+es	¿Qué necesitas?
+pt	Eu venho amanhã.
+pt	Como você se chama?
+pt	Hoje está chovendo.
+pt	Estou com fome.
+pt	Você já comeu?
+pt	Vamos ao cinema.
+pt	De quem é este livro?
+pt	Meu celular desligou.
+pt	Venha logo para casa.
+pt	Do que você precisa?
+it	Vengo domani.
+it	Come ti chiami?
+it	Oggi piove.
+it	Ho fame.
+it	Hai mangiato?
+it	Andiamo al cinema.
+it	Di chi è questo libro?
+it	Il mio telefono si è spento.
+it	Torna presto a casa.
+it	Di cosa hai bisogno?
+fr	Je viens demain.
+fr	Comment tu t'appelles ?
+fr	Il pleut aujourd'hui.
+fr	J'ai faim.
+fr	Tu as mangé ?
+fr	On va au cinéma.
+fr	À qui est ce livre ?
+fr	Mon téléphone s'est éteint.
+fr	Rentre vite à la maison.
+fr	De quoi as-tu besoin ?
+de	Ich komme morgen.
+de	Wie heißt du?
+de	Heute regnet es.
+de	Ich habe Hunger.
+de	Hast du gegessen?
+de	Wir gehen ins Kino.
+de	Wessen Buch ist das?
+de	Mein Handy ist aus.
+de	Komm schnell nach Hause.
+de	Was brauchst du?
+id	Saya datang besok.
+id	Siapa namamu?
+id	Kamu sudah makan?
+id	Kami mau nonton film.
+id	Ini buku siapa?
+id	HP saya mati.
+id	Cepat pulang ke rumah.
+id	Kamu perlu apa?
+ms	Saya datang esok.
+ms	Siapa nama awak?
+ms	Awak dah makan?
+ms	Kami nak pergi tengok wayang.
+ms	Buku ini siapa punya?
+ms	Telefon saya dah mati.
+ms	Balik rumah cepat.
+ms	Awak perlukan apa?
+hi-Latn	kal milte hain
+hi-Latn	kya kar rahe ho
+hi-Latn	khana kha liya kya
+hi-Latn	main aa raha hoon
+hi-Latn	tumhara naam kya hai
+hi-Latn	aaj bahut garmi hai
+hi-Latn	phone kyu nahi uthaya
+hi-Latn	thik hai bhai
+hi-Latn	mujhe neend aa rahi hai
+hi-Latn	kitne baje aaoge
+hi-Latn	ghar pahunch gaya
