@@ -16,34 +16,37 @@ ROOT=$(cd "$HERE/../../.." && pwd)
 CPP="$ROOT/app/src/main/cpp"
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-corebytes
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
-[ -d "$CPP/cld2_src/internal" ] || { echo "clone CLD2 into app/src/main/cpp/cld2_src first"; exit 2; }
 # the ref's core WITH its own headers (langblend.h, langnb.h, unicode_tables.h
 # ...): the old core includes them from its own directory first, so a change
 # made in a header alone is measured too (2026-10-21; before, the old core was
-# built against the working tree's headers and such a change showed 0 differ)
+# built against the working tree's headers and such a change showed 0 differ).
+# A ref from before 2026-10-21 links CLD2: sources.py points it at the clone
+# tools/verify/clone-cld2.sh keeps in tools/.cache/cld2; the working tree links
+# nothing but its own core.
 rm -rf "$WORK/old"; mkdir -p "$WORK/obj" "$WORK/old"
 git -C "$ROOT" archive "$REF" app/src/main/cpp | tar -x -C "$WORK/old" --strip-components=4
-INC="-I$JH/include -I$JH/include/linux -I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$CPP"
-compile() {
-  local src=$1
+SRC="$ROOT/tools/verify/latency/sources.py"
+OLDINC=$(python3 "$SRC" --includes "$WORK/old") || exit 2
+NEWINC=$(python3 "$SRC" --includes "$CPP") || exit 2
+INC="-I$JH/include -I$JH/include/linux -I$CPP"
+compile() {   # compile <source> <extra -I flags>
+  local src=$1 extra=$2
   local obj="$WORK/obj/$(echo "$src" | md5sum | cut -c1-16).o"
   if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ] || [ -n "$(find "$(dirname "$src")" -maxdepth 1 -name "*.h" -newer "$obj" -print -quit)" ]; then
     rm -f "$obj"
-    g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w -Wno-narrowing $INC -o "$obj" "$src" || { echo "compile failed: $src" >&2; exit 1; }
+    g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w -Wno-narrowing $INC $extra -o "$obj" "$src" || { echo "compile failed: $src" >&2; exit 1; }
   fi
   echo "$obj"
 }
-cld=""; core=""
-for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do
-  case "$f" in */tts_engine_core.cpp) core="$f" ;; *) cld="$cld $(compile "$f")" ;; esac
-done
 # the old core is always rebuilt: the same path holds whatever ref was asked for
 rm -f "$WORK/obj/$(echo "$WORK/old/tts_engine_core.cpp" | md5sum | cut -c1-16).o"
-newcore=$(compile "$core"); oldcore=$(compile "$WORK/old/tts_engine_core.cpp")
+oldobjs=""; newobjs=""
+for f in $(python3 "$SRC" "$WORK/old"); do oldobjs="$oldobjs $(compile "$f" "$OLDINC")"; done
+for f in $(python3 "$SRC" "$CPP"); do newobjs="$newobjs $(compile "$f" "$NEWINC")"; done
 g++ -c -O2 -std=c++17 -w $INC -o "$WORK/obj/probe.o" "$HERE/main.cpp" || exit 1
 LINK="-L$JH/lib/server -ljvm -lpthread -Wl,-rpath,$JH/lib/server"
-g++ -o "$WORK/probe-old" "$WORK/obj/probe.o" "$oldcore" $cld $LINK
-g++ -o "$WORK/probe-new" "$WORK/obj/probe.o" "$newcore" $cld $LINK
+g++ -o "$WORK/probe-old" "$WORK/obj/probe.o" $oldobjs $LINK
+g++ -o "$WORK/probe-new" "$WORK/obj/probe.o" $newobjs $LINK
 
 CORPUS="$WORK/corpus.txt"
 { grep -v '^# ' "$ROOT/tools/verify/autottslog/stress.txt" | grep -v '^$'

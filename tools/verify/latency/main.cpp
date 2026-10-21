@@ -4,7 +4,7 @@
 // where start-to-first-speak is 8-12 ms. The report is about a text of 25 to 30
 // paragraphs, which no log covers, so this measures that case against the REAL
 // native core rather than guessing at it: the same tts_engine_core.cpp the app
-// loads, linked with CLD2, with a genuine JNIEnv.
+// loads, with a genuine JNIEnv.
 //
 // What it times is the work that must finish before speakChunk(true) runs:
 // buildMixChunks (through processDirect) and then one detection per chunk, which

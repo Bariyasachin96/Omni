@@ -16,14 +16,14 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 CPP="$ROOT/app/src/main/cpp"
 CORE=${1:-$CPP/tts_engine_core.cpp}
 NDK=$(ls -d "$ROOT"/tools/.cache/android-sdk/ndk/* 2>/dev/null | sort | tail -1 || true)
-if [ -z "$NDK" ] || [ ! -d "$CPP/cld2_src/internal" ]; then echo "   skipped: no NDK or no CLD2 clone here"; exit 0; fi
+if [ -z "$NDK" ]; then echo "   skipped: no NDK here"; exit 0; fi
 OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
 if "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" --target=aarch64-linux-android24 \
      -std=c++17 -Wno-narrowing -Oz -fno-exceptions -fno-rtti -DNDEBUG \
      -fprofile-instr-use="$CPP/pgo/easyvoice.profdata" \
      -Wprofile-instr-out-of-date -Werror=profile-instr-out-of-date \
      -Wprofile-instr-missing -Werror=profile-instr-missing \
-     -I"$CPP/cld2_src/public" -I"$CPP/cld2_src/internal" -I"$CPP" \
+     -I"$CPP" \
      -c "$CORE" -o "$OUT/core.o" 2> "$OUT/err"; then
   echo "   profile fits tts_engine_core.cpp"
 else

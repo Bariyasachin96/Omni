@@ -296,18 +296,19 @@ done
                   || bad "#17 persists in onPause but never loads:$missing -- a fresh process would write defaults over real settings"
 
 # --- 16. there is ONE detector, and it must stay that way ------------------
-# CLD3 was removed on 2026-09-02 at the owner's instruction. Its arm had grown
-# three guards of its own -- a reliability flag, a wrong-script rejection and a
-# squeeze gate -- and all three are gone with it, so this checks that none of it
-# comes back by accident: no CLD3 symbol, no second detector, no useCld3 flag.
-# See CLAUDE.md, "CLD3 IS GONE", for why, and for the measurements that decided
-# it. Comments are stripped, because that section quotes these very names.
-strays=$(sed 's://.*::' $CPP $KT/*.kt |
-         grep -oE '\b(cld3[A-Za-z]*|useCld3[A-Za-z]*|NNetLanguageIdentifier|isRomanisedTag)\b' |
+# CLD3 was removed on 2026-09-02 at the owner's instruction, and CLD2 on
+# 2026-10-21 ("jahan per CLD2 kam karega vahan per ab ML Kit kam karega ... CLD2
+# hata do"): the model ML Kit runs (langid.h) is the detector. This checks that
+# neither comes back by accident -- no CLD3 symbol or useCld3 flag, no CLD2 call
+# or header -- in the core, its headers or the Kotlin. See CLAUDE.md, "CLD3 IS
+# GONE" and "CLD2 IS GONE". Comments are stripped, because those sections and
+# the code's own history notes quote these very names.
+strays=$(sed 's://.*::' app/src/main/cpp/*.cpp app/src/main/cpp/*.h $KT/*.kt |
+         grep -oE '\b(cld3[A-Za-z]*|useCld3[A-Za-z]*|NNetLanguageIdentifier|isRomanisedTag)\b|CLD2::[A-Za-z_]+|compact_lang_det[a-z_.]*|ExtDetectLanguageSummary|cld2_src' |
          sort -u || true)
 [ -z "$strays" ] \
-  && ok "#16 CLD2 is the only detector -- no CLD3 symbol anywhere" \
-  || bad "#16 CLD3 has come back: $strays"
+  && ok "#16 the model ML Kit runs is the only detector -- no CLD2 or CLD3 anywhere" \
+  || bad "#16 an old detector has come back: $strays"
 
 # --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's own sites --
 # AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and
@@ -439,20 +440,21 @@ size=$(wc -c < .github/workflows/build.yml)
 [ "$size" -lt 400000 ] && ok "#12 build.yml is $size bytes" \
                        || bad "#12 build.yml is $size bytes -- at 512,000 a run is never parsed"
 
-# --- the detector's build inputs stay CLD2-only -----------------------------
+# --- the detector's build inputs: the core alone -----------------------------
 # CMakeLists carried nineteen CLD3 sources, three generated protobufs and the
-# whole protobuf runtime; build.yml cloned cld3 and protobuf and ran protoc.
-# All of it went with the detector. If any of those names reappear the APK has
-# grown a dependency nobody asked for.
+# whole protobuf runtime, and until 2026-10-21 CLD2's 24 sources (6 MB of tables
+# per ABI); build.yml cloned cld3, protobuf and CLD2 and ran protoc. All of it
+# went with those detectors. If any of those names reappear the APK has grown a
+# dependency nobody asked for.
 # Comment lines are stripped first in BOTH files -- CMakeLists and build.yml
 # each carry a note saying these names must not come back, and a check that
 # fires on its own warning is a check nobody keeps.
 buildstray=$(cat app/src/main/cpp/CMakeLists.txt .github/workflows/build.yml |
              sed 's:#.*::' |
-             grep -oiE 'cld3|protobuf|protoc' | sort -u || true)
+             grep -oiE 'cld3|cld2|protobuf|protoc' | sort -u || true)
 [ -z "$buildstray" ] \
-  && ok "no CLD3 or protobuf input in CMakeLists or build.yml" \
-  || bad "a CLD3/protobuf build input is back: $buildstray"
+  && ok "no CLD2, CLD3 or protobuf input in CMakeLists or build.yml" \
+  || bad "an old detector's build input is back: $buildstray"
 echo
 echo "not checkable by grep -- read docs/INVARIANTS.md #7, #9, #10, #11, #13"
 [ "$fail" = 0 ] && echo "ALL MECHANICAL INVARIANTS HOLD" || echo "SOMETHING IS BROKEN"

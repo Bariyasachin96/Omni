@@ -10,10 +10,9 @@ ROOT=$(cd "$HERE/../../.." && pwd)
 CPP="$ROOT/app/src/main/cpp"
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-autottslog
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
-[ -d "$CPP/cld2_src/internal" ] || { echo "clone CLD2 into app/src/main/cpp/cld2_src first"; exit 2; }
 ls "$JH"/lib/server/libjvm.so >/dev/null 2>&1 || { echo "no libjvm.so under $JH"; exit 2; }
 
-INC="-I$JH/include -I$JH/include/linux -I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$CPP"
 mkdir -p "$WORK/obj"
 compile() {
   # TWO `local` lines, not one. `local src=$1 obj="...$src..."` expands $src

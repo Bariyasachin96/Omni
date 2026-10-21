@@ -13,12 +13,10 @@
 #include <limits>
 #include <iterator>
 #include <atomic>
-#include "compact_lang_det.h"
 #include "unicode_tables.h"   // generated from the Unicode Character Database
-// CLD2 and the model ML Kit runs, weighed together; the harness slicer drops this line
+// the model ML Kit runs and the rules that choose between the enabled languages
+// of one script; the harness slicer drops this line
 #include "langblend.h"
-#include "encodings.h"
-#include "compact_lang_det_impl.h"
 // the tables read in at load (JNI_OnLoad); the harness slicer drops this line
 #include "image_warm.h"
 // java.lang.String, looked up ONCE. Android's JNI tips: "cache the IDs in
@@ -1409,6 +1407,8 @@ static bool jstringToStd(JNIEnv* env, jstring value, std::string& out){
 // Defined beside nativeFoldAndDetect, which shares it; processDirect uses it
 // to carry each chunk's spans in the same crossing.
 static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool singleStops, bool alreadyFolded = false, bool forRecord = false);
+struct ChunkResult;
+static std::vector<std::vector<std::string>> chunksSpansFlat(const std::vector<ChunkResult>& chunks, bool singleStops);
 static jobjectArray toJavaStringArray(JNIEnv* env, jclass stringClass, const std::vector<std::string>& flat);
 // String.getBytes(UTF_8), byte for byte (owner, 2026-10-01): the Kotlin side
 // used to encode the text, copy it into a direct ByteBuffer and hand THAT over
@@ -1509,22 +1509,19 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     };
     if (mode == "mix") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection);
+        // ONE CROSSING FOR THE WHOLE SPAN (owner, 2026-10-01). A chunk of type
+        // 0, 1 or 2 is the one the caller hands to clsCLD2.e, so its fold and
+        // its language spans ride in the same record -- exactly what
+        // nativeFoldAndDetect answers for it, field for field: the folded text,
+        // then lang / latin / text triples. An empty chunk carries nothing,
+        // because the caller answers it before detecting. The chunks' spans are
+        // named together (chunksSpansFlat): the chunks are one utterance, and a
+        // script's runs in one sentence of it are one text to the detector.
+        std::vector<std::vector<std::string>> chunkSpans;
+        if (detect) chunkSpans = chunksSpansFlat(chunks, singleStops);
         for(size_t i=0; i<chunks.size(); i++){
-            // ONE CROSSING FOR THE WHOLE SPAN (owner, 2026-10-01). A chunk of
-            // type 0, 1 or 2 is the one the caller hands to clsCLD2.e, so its
-            // fold and its language spans ride in the same record -- exactly
-            // what nativeFoldAndDetect answers for it, field for field: the
-            // folded text, then lang / latin / text triples. An empty chunk
-            // carries nothing, because the caller answers it before detecting.
-            if (detect && chunks[i].type >= 0 && chunks[i].type <= 2 && !chunks[i].text.empty()) {
-                // forRecord: the fold slot and a span covering the whole chunk
-                // come back as "" instead of being built and then cleared
-                // (owner, 2026-10-06). The Kotlin reads "" as the chunk's text;
-                // a real fold or span text is never empty, so "" cannot be
-                // mistaken (runsFromFlat's sameAs).
-                std::vector<std::string> spans = foldAndSpansFlat(chunks[i].text, singleStops, true, true);
-                addRecord(chunks[i], &spans);
-            } else addRecord(chunks[i], nullptr);
+            if (detect && chunks[i].type >= 0 && chunks[i].type <= 2 && !chunks[i].text.empty()) addRecord(chunks[i], &chunkSpans[i]);
+            else addRecord(chunks[i], nullptr);
         }
     } else if (mode == "dual") {
         auto chunks = buildMixChunks(processed, latinFallback, nonLatinFallback, modes, neutralDefault, neutralType, disableAdvancedDetection, true);
@@ -1923,23 +1920,43 @@ static std::string scriptLangForCpFiltered(int codePoint, const std::unordered_s
     return res;
 }
 
+// The language each script slot 7..25 is read in (libcld2's getLanguageSpans
+// jump table, 0x62f8f0): a span of one of these scripts is that language,
+// decided by the script alone.
+static const char* const SCRIPT_FIXED_LANG[19] = {
+    "el", "hy", "iw", "ka", "pa", "gu", "or", "ta", "te", "kn",
+    "ml", "si", "th", "lo", "bo", "my", "km", "am", "ko"
+};
+// The script slot (spanScriptSlot's numbering) a label of the model writes in;
+// -1 for "unknown" and the romanised xx-Latn labels.
+static int lidLabelSlot(const char* label){
+    const int slot = blendLabelSlot(label);
+    if(slot >= 1) return slot;
+    for(int i = 0; i < 19; i++) if(!strcmp(label, SCRIPT_FIXED_LANG[i])) return 7 + i;
+    if(!strcmp(label, "yi")) return 9;   // Yiddish: the Hebrew script
+    return -1;
+}
+
 // ==========================================================================
 //  DETECTOR                    AutoTTS clsCLD2.d / libcld2.so getLanguage 0x6523c8
-//  CLD2 is the only detector. The CLD3 arm that used to sit beside it was
-//  removed on 2026-09-02 at the owner's instruction -- see CLAUDE.md.
+//  THE MODEL ML KIT RUNS IS THE DETECTOR (owner, 2026-10-21: "jahan per CLD2
+//  kam karega vahan per ab ML Kit kam karega ... CLD2 hata do"). CLD2 -- its
+//  tables (6 MB per ABI), its calls and its answers -- is gone; langid.h is
+//  ML Kit's own language-identification model (tools/verify/langid: equal to
+//  ML Kit's library within 1e-5). The CLD3 arm that once sat beside CLD2 went
+//  on 2026-09-02.
 // ==========================================================================
 // ==========================================================================
-//  CLD2 ANSWER CACHE (owner, 2026-10-01)
+//  DETECTION CACHE (owner, 2026-10-01)
 //  A screen reader says the same short labels again and again ("Settings",
-//  "Back", a contact's name), and each one cost a full CLD2 call. CLD2 keeps no
-//  state between calls, so for the same bytes it gives the same answer; the
-//  span answer also depends on the script and on the hint state, so a span
-//  entry is keyed by script + bytes and the whole span table is dropped when
-//  the hint state changes (the pointer is kept, so it cannot be reused). One
-//  cache per thread: no lock, and nothing shared. At most kCld2CacheMax
-//  entries each, cleared when full.
+//  "Back", a contact's name). The detector keeps no state between calls, so for
+//  the same bytes it gives the same answer; the span answer also depends on the
+//  script and on the hint state, so a span entry is keyed by script + bytes and
+//  the whole span table is dropped when the hint state changes (the pointer is
+//  kept, so it cannot be reused). One cache per thread: no lock, and nothing
+//  shared. At most kDetectCacheMax entries each, cleared when full.
 // ==========================================================================
-// An answer as cached: CLD2's (path) answer, and where two or more enabled
+// An answer as cached: the span's own answer, and where two or more enabled
 // languages share the script (slot 1..6, else 0) what langblend.h weighed --
 // the context is applied after the cache (blendFinal), since the same bytes
 // can follow different text.
@@ -1949,132 +1966,133 @@ struct CachedAnswer {
     BlendResult blend;
     std::string resolve() const { return slot ? blendFinal(slot, blend, lang) : lang; }
 };
-struct Cld2Cache {
+struct DetectCache {
     std::shared_ptr<const void> spanHints;                      // the HintState the span entries belong to
     std::unordered_map<std::string, CachedAnswer> spans;        // script byte + span bytes -> language
     std::shared_ptr<const void> windowsEnabled;                 // the enabled set the window entries belong to
     std::unordered_map<std::string, CachedAnswer> windows;      // window bytes -> detectWindowLang's answer
 };
-static const size_t kCld2CacheMax = 256;
-// CLD2 READS ONLY WELL-FORMED UTF-8, AND A U+0000 IS NOT (2026-10-07). Found by
-// tools/pgo: CLD2's UTF8GenericProperty* step through a state table assuming
-// valid input (utf8statetable.h: "assumed to be valid"). An illegal lead or
-// second byte answers the table's error state 32768, and the next lookup is
-// Tbl_0[32768 << 6] -- 4 MB past a 32 KB table. JNI's modified UTF-8 spells
-// U+0000 as C0 80 (jstringToStd, utf16to8), so a text holding one sent CLD2
-// into that read: garbage on one memory layout, SIGSEGV on another (it crashed
-// the NDK-built static driver), and a crash here kills the TTS service.
-// Each byte that does not begin or continue a well-formed sequence becomes a
-// space, so the LENGTH is unchanged and every offset into the text still
-// holds; C0 80 becomes two spaces, which is what a U+0000 is to a language
-// detector anyway. Surrogates (ED A0..BF), which ART writes for a lone one,
-// stay: the table has rows for them (probed: in range). Returns `in` itself
-// when nothing needed changing, which is every ordinary text.
-static const char* cld2Bytes(const char* in, int n, std::string& scratch){
-    auto cont = [&](int at){ return at < n && ((unsigned char)in[at] & 0xC0) == 0x80; };
-    bool copied = false;
-    for(int i = 0; i < n;){
-        unsigned char c = (unsigned char)in[i];
-        int len = 0;
-        if(c < 0x80) len = 1;
-        else if(c >= 0xC2 && c <= 0xDF) len = cont(i + 1) ? 2 : 0;
-        else if(c >= 0xE0 && c <= 0xEF){
-            unsigned char d = i + 1 < n ? (unsigned char)in[i + 1] : 0;
-            bool ok2 = c == 0xE0 ? (d >= 0xA0 && d <= 0xBF) : (d >= 0x80 && d <= 0xBF);
-            len = ok2 && cont(i + 2) ? 3 : 0;
-        } else if(c >= 0xF0 && c <= 0xF4){
-            unsigned char d = i + 1 < n ? (unsigned char)in[i + 1] : 0;
-            bool ok2 = c == 0xF0 ? (d >= 0x90 && d <= 0xBF) : c == 0xF4 ? (d >= 0x80 && d <= 0x8F) : (d >= 0x80 && d <= 0xBF);
-            len = ok2 && cont(i + 2) && cont(i + 3) ? 4 : 0;
-        }
-        if(len){ i += len; continue; }
-        if(!copied){ scratch.assign(in, (size_t)n); in = scratch.data(); copied = true; }
-        scratch[(size_t)i] = ' ';
-        i++;
-    }
-    return in;
-}
-static Cld2Cache& cld2Cache(){ static thread_local Cld2Cache cache; return cache; }
+static const size_t kDetectCacheMax = 256;
+static DetectCache& detectCache(){ static thread_local DetectCache cache; return cache; }
+// ML Kit's identifyLanguage answers a language only when the model gives it at
+// least this confidence, "und" otherwise -- its documented default threshold
+// (LanguageIdentificationOptions). The window detector keeps the same rule.
+static const float kLidReliable = 0.5f;
 static CachedAnswer detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled);
-// The answer depends on the enabled set too since the two detectors are
-// weighed between enabled languages (langblend.h), so a new set drops the
+// The answer depends on the enabled set too since the enabled languages of one
+// script are weighed against each other (langblend.h), so a new set drops the
 // window entries, as a new HintState drops the span ones.
 static std::string detectWindowLang(const std::string& utf8Text,
                                     const std::shared_ptr<const std::unordered_set<std::string>>& enabled){
-    Cld2Cache& cache = cld2Cache();
+    DetectCache& cache = detectCache();
     if(cache.windowsEnabled != enabled){ cache.windows.clear(); cache.windowsEnabled = enabled; }
     auto hit = cache.windows.find(utf8Text);
     if(hit == cache.windows.end()){
         CachedAnswer answer = detectWindowLangUncached(utf8Text, *enabled);
-        if(cache.windows.size() >= kCld2CacheMax) cache.windows.clear();
+        if(cache.windows.size() >= kDetectCacheMax) cache.windows.clear();
         hit = cache.windows.emplace(utf8Text, std::move(answer)).first;
     }
     return hit->second.resolve();
 }
 static CachedAnswer detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled){
-    // getLanguage (0x6523c8), which is what clsCLD2.d calls per 64-character
-    // window. It passes no content-language hint, an EMPTY tld hint rather than
-    // a null one, encoding_hint 0 (ISO_8859_1, not UNKNOWN_ENCODING), and
-    // is_plain_text from CLD2::FLAGS_plain -- a flag nothing in the app ever
-    // sets, so false.
-    CLD2::CLDHints hints = {nullptr, "", 0, CLD2::UNKNOWN_LANGUAGE};
-    CLD2::Language lang3[3]; int percent3[3]; double score3[3];
-    int textBytes=0; bool reliable=false;
-    std::string clean;
-    const char* bytes = cld2Bytes(utf8Text.c_str(), (int)utf8Text.size(), clean);
-    CLD2::DetectLanguageSummaryV2(bytes, (int)utf8Text.size(), false, &hints,
-                                  true, 0x4000, CLD2::UNKNOWN_LANGUAGE,
-                                  lang3, percent3, score3, nullptr, &textBytes, &reliable);
+    // What clsCLD2.d asks per 64-character window (AutoTTS: CLD2's getLanguage,
+    // 0x6523c8): one language for the window, or none when the detector is not
+    // sure of it. Here the model's top language at ML Kit's own threshold. A
+    // romanised label (hi-Latn, ar-Latn ...) is not taken: Latin text stays with
+    // the Latin-script languages, as in the span path, where a Latin span is
+    // only ever one of them.
     CachedAnswer answer;
     answer.lang = "UNKNOWN";
-    if(!reliable) return answer;
-    const char* code = CLD2::LanguageCode(lang3[0]);
-    if(!code) return answer;
-    answer.lang = code;
-    // Where two or more enabled languages share the script of that answer, the
-    // model is asked too and the two are weighed (langblend.h) -- so the window
-    // answers the enabled language of that script both agree on best, which the
-    // enabled-language test in detectWindowed then keeps. Sorted, so a tie is
-    // settled the same way whatever order the set iterates in.
-    const int label = blendLabelIndex(answer.lang);
-    const int slot = label > 0 ? blendLabelSlot(kLidLabels[label]) : blendCldOnlySlot(answer.lang);
-    if(slot >= 1 && slot <= 6 && enabled.size() >= 2){
-        std::vector<std::string> codes(enabled.begin(), enabled.end());
-        std::sort(codes.begin(), codes.end());
-        answer.slot = slot;
-        answer.blend = blendDetectors(slot, bytes, (int)utf8Text.size(), codes, answer.lang, lang3, percent3);
+    // ONLY A LANGUAGE THAT WRITES THE WINDOW'S LETTERS (2026-10-21). CLD2
+    // scored a text per script, so its answer was always a language of the
+    // text's own letters. The model weighs all its 111 labels at once, and on
+    // a letter it barely knows it names one of another script with confidence:
+    // "en" for a lone Greek beta, "hi" for a rare Han character, "gu" for a
+    // Latin modifier letter, Khmer at 0.5+ for "😂😂😂" (no letter at all:
+    // every character is a space token to it). So the answer is the most
+    // probable label among the languages that write a script the window's
+    // letters are in, and a window without one letter answers UNKNOWN, as CLD2
+    // did -- the script fallback after it then names the language.
+    uint64_t scripts = 0;
+    {
+        const unsigned char* s = (const unsigned char*)utf8Text.data();
+        size_t i = 0, n = utf8Text.size();
+        while(i < n){
+            int32_t r;
+            int used = lidDecode(s + i, n - i, &r);
+            if(used == 0) break;
+            i += (size_t)used;
+            if(!lidIsAlpha(r)) continue;
+            const int slot = spanScriptSlot((int)r);
+            if(slot >= 1 && slot < 64) scripts |= (uint64_t)1 << slot;
+        }
+        if(!scripts) return answer;
     }
+    float p[EV_LID_CLASSES];
+    if(!lidClassify(utf8Text.data(), utf8Text.size(), p)) return answer;
+    int top = -1;
+    for(int k = 1; k < EV_LID_CLASSES; k++){
+        const int slot = lidLabelSlot(kLidLabels[k]);
+        if(slot < 1 || !((scripts >> slot) & 1)) continue;
+        if(top < 0 || p[k] > p[top]) top = k;
+    }
+    if(top < 0) return answer;
+    // Sorted, so the same code is chosen whatever order the set iterates in.
+    std::vector<std::string> codes(enabled.begin(), enabled.end());
+    std::sort(codes.begin(), codes.end());
+    // Where two or more enabled languages write the script of that answer, they
+    // are weighed (langblend.h, as for a span) -- so the window answers the
+    // enabled language of that script the letters, the word-and-ending model and
+    // the model agree on best, which the enabled-language test in detectWindowed
+    // then keeps. Whatever the model's own confidence: between close languages
+    // (Indonesian and Malay, Spanish and Portuguese, Hindi and Marathi) it is
+    // split under 0.5, and an UNKNOWN there handed the window to the script's
+    // first enabled language, right or not.
+    const int slot = blendLabelSlot(kLidLabels[top]);
+    if(slot >= 1 && slot <= 6){
+        std::vector<std::string> slotLangs;
+        blendSlotLangs(slot, codes, slotLangs);
+        if(slotLangs.size() >= 2){
+            answer.slot = slot;
+            answer.blend = blendDetectors(slot, utf8Text.data(), (int)utf8Text.size(), codes);
+            answer.lang = answer.blend.lang;
+            return answer;
+        }
+    }
+    if(p[top] < kLidReliable) return answer;
+    answer.lang = kLidLabels[top];
+    // The enabled code that names this language, so its voice is found: the
+    // model says "no", "iw", "id", "fil" where a voice may be "nb", "he", "in",
+    // "tl".
+    for(const std::string& code : codes) if(blendCanonical(code) == answer.lang){ answer.lang = code; break; }
     return answer;
 }
 
 // ==========================================================================
 //  LANGUAGE HINTS              libcld2.so setLanguageHints 0x653588
-//  setLanguageHints does more than remember the list: it derives two per-script
-//  tables that steer CLD2. The hint survives only where exactly one enabled
-//  language uses that script; the fallback is the first one that does.
+//  setLanguageHints does more than remember the list: it derives, per script,
+//  the first enabled language that writes it (AutoTTS's scriptLanguageFallback
+//  table) -- what a run of only neutral characters and a few scripts' spans are
+//  read in. (AutoTTS's other table, the hint CLD2 was steered with, went with
+//  CLD2 on 2026-10-21.)
 // ==========================================================================
 static std::mutex languageHintMutex;
 // AutoTTS's native setLanguageHints (0x653588) keeps the codes lowercased and
-// at most 64 of them, and then derives two per-script tables that
-// getLanguageSpans steers CLD2 with. Both are 40 entries -- the script codes it
-// dispatches on stop at 39 -- and both start as UNKNOWN_LANGUAGE.
+// at most 64 of them. The script codes the span walk dispatches on stop at 39,
+// so the table has 40 entries.
 static const int kScriptHintSlots = 40;
-// ONE IMMUTABLE SNAPSHOT (owner, 2026-10-01). The list, the codes and the two
-// tables used to be separate statics behind languageHintMutex, and the span
-// detector took that mutex three to five times PER SPAN -- one of them copying
-// the whole code vector -- to read them. setLanguageHints now builds a new
+// ONE IMMUTABLE SNAPSHOT (owner, 2026-10-01). setLanguageHints builds a new
 // HintState and swaps the pointer; nothing changes a HintState after that, so
 // a reader takes the mutex once, keeps a refcounted pointer, and reads freely.
 struct HintState {
     std::string list;                         // the comma list, = languageHintList
     std::vector<std::string> codes;           // = languageHintCodes
-    int hint[kScriptHintSlots];               // = scriptLanguageHint
-    int fallback[kScriptHintSlots];           // = scriptLanguageFallback
+    const char* fallback[kScriptHintSlots];   // = scriptLanguageFallback; nullptr where none
 };
 typedef std::shared_ptr<const HintState> HintStatePtr;
 static HintStatePtr emptyHintState(){
     std::shared_ptr<HintState> state = std::make_shared<HintState>();
-    for(int slot=0; slot<kScriptHintSlots; slot++){ state->hint[slot] = 0; state->fallback[slot] = 0; }
+    for(int slot=0; slot<kScriptHintSlots; slot++) state->fallback[slot] = nullptr;
     return state;
 }
 static HintStatePtr g_hintState = emptyHintState();
@@ -2084,92 +2102,54 @@ static HintStatePtr currentHintState(){
 }
 // The static table at 0x62f924: 48 {script, candidate language} pairs, in file
 // order, because the order is what decides which candidate becomes the
-// fallback. Only the six scripts CLD2 is ever asked about appear.
-static const struct { int script; CLD2::Language lang; } kScriptLangPairs[48] = {
-    { 3, CLD2::ARABIC},   { 3, CLD2::PERSIAN},    { 3, CLD2::URDU},
-    { 3, CLD2::PASHTO},   { 3, CLD2::SINDHI},
-    { 2, CLD2::RUSSIAN},  { 2, CLD2::UKRAINIAN},  { 2, CLD2::BULGARIAN},
-    { 2, CLD2::SERBIAN},  { 2, CLD2::MACEDONIAN}, { 2, CLD2::BELARUSIAN},
-    { 2, CLD2::MONGOLIAN},{ 2, CLD2::TAJIK},      { 2, CLD2::KAZAKH},
-    { 2, CLD2::KYRGYZ},
-    { 4, CLD2::HINDI},    { 4, CLD2::MARATHI},    { 4, CLD2::NEPALI},
-    { 4, CLD2::SANSKRIT},
-    { 6, CLD2::BENGALI},  { 6, CLD2::ASSAMESE},
-    { 5, CLD2::CHINESE},  { 5, CLD2::CHINESE_T},  { 5, CLD2::JAPANESE},
-    { 1, CLD2::ENGLISH},  { 1, CLD2::SPANISH},    { 1, CLD2::FRENCH},
-    { 1, CLD2::PORTUGUESE},{ 1, CLD2::GERMAN},    { 1, CLD2::ITALIAN},
-    { 1, CLD2::VIETNAMESE},{ 1, CLD2::INDONESIAN},{ 1, CLD2::TURKISH},
-    { 1, CLD2::DUTCH},    { 1, CLD2::POLISH},     { 1, CLD2::ROMANIAN},
-    { 1, CLD2::CZECH},    { 1, CLD2::HUNGARIAN},  { 1, CLD2::SWEDISH},
-    { 1, CLD2::DANISH},   { 1, CLD2::NORWEGIAN},  { 1, CLD2::FINNISH},
-    { 1, CLD2::SLOVAK},   { 1, CLD2::CROATIAN},   { 1, CLD2::MALAY},
-    { 1, CLD2::TAGALOG},  { 1, CLD2::SWAHILI},    { 1, CLD2::AFRIKAANS}
+// fallback. Only the six scripts a detector is ever asked about appear. (The
+// codes CLD2 named its languages by: zh-Hant, tl, no.)
+static const struct { int script; const char* code; } kScriptLangPairs[48] = {
+    { 3, "ar"},  { 3, "fa"},  { 3, "ur"},  { 3, "ps"},  { 3, "sd"},
+    { 2, "ru"},  { 2, "uk"},  { 2, "bg"},  { 2, "sr"},  { 2, "mk"},
+    { 2, "be"},  { 2, "mn"},  { 2, "tg"},  { 2, "kk"},  { 2, "ky"},
+    { 4, "hi"},  { 4, "mr"},  { 4, "ne"},  { 4, "sa"},
+    { 6, "bn"},  { 6, "as"},
+    { 5, "zh"},  { 5, "zh-Hant"}, { 5, "ja"},
+    { 1, "en"},  { 1, "es"},  { 1, "fr"},  { 1, "pt"},  { 1, "de"},
+    { 1, "it"},  { 1, "vi"},  { 1, "id"},  { 1, "tr"},  { 1, "nl"},
+    { 1, "pl"},  { 1, "ro"},  { 1, "cs"},  { 1, "hu"},  { 1, "sv"},
+    { 1, "da"},  { 1, "no"},  { 1, "fi"},  { 1, "sk"},  { 1, "hr"},
+    { 1, "ms"},  { 1, "tl"},  { 1, "sw"},  { 1, "af"}
 };
+// THE SEVEN SCRIPTS GEN_TABLES' SLOT_EXTRA NAMES (owner, 2026-10-21: "ek
+// character bhi nahin chhutna chahie ... Chahe Koi Bhi Lipi Ho"): Syriac,
+// Thaana, Cherokee, Canadian Aboriginal, Mongolian, Tagalog and Limbu, each
+// written by one language. A span of one of them is that language (as the
+// fixed slots 7..25 are theirs), and the fallback table below holds it where it
+// is enabled.
+static const struct { int script; const char* code; } kExtraSlotLangs[7] = {
+    {26, "syr"}, {27, "dv"}, {28, "chr"}, {29, "iu"}, {30, "mn"}, {31, "tl"}, {32, "lif"}};
 // This is the second half of setLanguageHints, run on a HintState nobody else
-// can see yet.
+// can see yet: for each script, the first enabled language of the tables above.
 static void rebuildScriptLanguageTables(HintState& state){
     const std::vector<std::string>& languageHintCodes = state.codes;
-    int* scriptLanguageHint = state.hint;
-    int* scriptLanguageFallback = state.fallback;
-    for(int slot=0; slot<kScriptHintSlots; slot++){
-        scriptLanguageHint[slot] = CLD2::UNKNOWN_LANGUAGE;
-        scriptLanguageFallback[slot] = CLD2::UNKNOWN_LANGUAGE;
-    }
+    for(int slot=0; slot<kScriptHintSlots; slot++) state.fallback[slot] = nullptr;
     if(languageHintCodes.empty()) return;
-    int matched[kScriptHintSlots];
-    for(int slot=0; slot<kScriptHintSlots; slot++) matched[slot] = 0;
+    auto hinted = [&](const char* code){
+        return std::find(languageHintCodes.begin(), languageHintCodes.end(), code) != languageHintCodes.end();
+    };
     for(int pair=0; pair<48; pair++){
-        const char* code = CLD2::LanguageCode(kScriptLangPairs[pair].lang);
-        if(!code) continue;
-        bool hinted = false;
-        for(size_t at=0; at<languageHintCodes.size(); at++){
-            if(languageHintCodes[at] == code){ hinted = true; break; }
-        }
-        if(!hinted) continue;
-        int slot = kScriptLangPairs[pair].script;
-        if(slot < 0 || slot >= kScriptHintSlots) continue;
-        scriptLanguageHint[slot] = (int)kScriptLangPairs[pair].lang;
-        matched[slot]++;
-        if(scriptLanguageFallback[slot] == CLD2::UNKNOWN_LANGUAGE)
-            scriptLanguageFallback[slot] = (int)kScriptLangPairs[pair].lang;
+        if(!hinted(kScriptLangPairs[pair].code)) continue;
+        const int slot = kScriptLangPairs[pair].script;
+        if(!state.fallback[slot]) state.fallback[slot] = kScriptLangPairs[pair].code;
     }
-    // THE SEVEN SCRIPTS SLOT_EXTRA HANDS TO CLD2 (owner, 2026-10-21: "ek
-    // character bhi nahin chhutna chahie ... Chahe Koi Bhi Lipi Ho"): Syriac,
-    // Thaana, Cherokee, Canadian Aboriginal, Mongolian, Tagalog and Limbu each
-    // have one CLD2 language, and the 48 pairs above name none of them, so
-    // their spans had no hint and no fallback -- a Syriac or Limbu punctuation
-    // mark, a Limbu digit, the Cherokee small letters and the Canadian
-    // syllabics CLD2's 2014 tables do not know all came back "un" and went to
-    // the non-Latin preferred voice even with that language enabled. The same
-    // rule as above: hinted where exactly one enabled language uses the slot,
-    // the first such the fallback.
-    static const struct { int script; CLD2::Language lang; } kExtraSlotLangs[7] = {
-        {26, CLD2::SYRIAC},   {27, CLD2::DHIVEHI}, {28, CLD2::CHEROKEE}, {29, CLD2::INUKTITUT},
-        {30, CLD2::MONGOLIAN},{31, CLD2::TAGALOG}, {32, CLD2::LIMBU}};
     for(int pair=0; pair<7; pair++){
-        const char* code = CLD2::LanguageCode(kExtraSlotLangs[pair].lang);
-        if(!code) continue;
-        if(std::find(languageHintCodes.begin(), languageHintCodes.end(), code) == languageHintCodes.end()) continue;
-        int slot = kExtraSlotLangs[pair].script;
-        scriptLanguageHint[slot] = (int)kExtraSlotLangs[pair].lang;
-        matched[slot]++;
-        if(scriptLanguageFallback[slot] == CLD2::UNKNOWN_LANGUAGE)
-            scriptLanguageFallback[slot] = (int)kExtraSlotLangs[pair].lang;
+        if(!hinted(kExtraSlotLangs[pair].code)) continue;
+        const int slot = kExtraSlotLangs[pair].script;
+        if(!state.fallback[slot]) state.fallback[slot] = kExtraSlotLangs[pair].code;
     }
-    // The language hint is kept only where exactly one enabled language uses
-    // that script; anywhere else it goes back to UNKNOWN.
-    for(int slot=0; slot<kScriptHintSlots; slot++)
-        if(matched[slot] != 1) scriptLanguageHint[slot] = CLD2::UNKNOWN_LANGUAGE;
 }
 static std::string currentLanguageHints(){
     return currentHintState()->list;
 }
-static int scriptLanguageHintOf(const HintState& state, int script){
-    if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
-    return state.hint[script];
-}
-static int scriptLanguageFallbackOf(const HintState& state, int script){
-    if(script < 0 || script >= kScriptHintSlots) return CLD2::UNKNOWN_LANGUAGE;
+static const char* scriptLanguageFallbackOf(const HintState& state, int script){
+    if(script < 0 || script >= kScriptHintSlots) return nullptr;
     return state.fallback[script];
 }
 
@@ -2270,7 +2250,7 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv* env, jc
 // windows, the first reliable answer that is an enabled language (or any
 // answer with advanced detection disabled), else the script family of the
 // window's first letter, else the whole text's. Answers the language, or
-// "UNKNOWN". logBuf, when set, collects the [CLD2] lines.
+// "UNKNOWN". logBuf, when set, collects the [DETECT] lines.
 static std::string detectWindowed(const jchar* chars, int textLen,
         const std::string& latinFallback, const std::string& nonLatinFallback,
         bool disableAdvanced, std::string* logBuf){
@@ -2286,10 +2266,10 @@ static std::string detectWindowed(const jchar* chars, int textLen,
         if(logBuf){
             int snippetLen = (windowEnd-winStart)<30?(windowEnd-winStart):30;
             char nbuf[32]; snprintf(nbuf,sizeof(nbuf),"%d",windowEnd-winStart);
-            *logBuf += std::string("[CLD2] cld2DetectWindow windowLen=")+nbuf+" latFall="+latinFallback+" nonLatFall="+nonLatinFallback+" isDisableAdv="+(disableAdvanced?"true":"false")+" snip='"+utf16to8(chars+winStart,snippetLen)+"'\n";
+            *logBuf += std::string("[DETECT] detectWindow windowLen=")+nbuf+" latFall="+latinFallback+" nonLatFall="+nonLatinFallback+" isDisableAdv="+(disableAdvanced?"true":"false")+" snip='"+utf16to8(chars+winStart,snippetLen)+"'\n";
         }
         std::string detectedLang = detectWindowLang(windowUtf8, enabledPtr);
-        if(logBuf) *logBuf += std::string("[CLD2] cld2DetectWindow rawOut='")+(detectedLang.empty()?"UNKNOWN":detectedLang)+"|"+windowUtf8+"' → result="+(detectedLang.empty()?"null":detectedLang)+"\n";
+        if(logBuf) *logBuf += std::string("[DETECT] detectWindow rawOut='")+(detectedLang.empty()?"UNKNOWN":detectedLang)+"|"+windowUtf8+"' → result="+(detectedLang.empty()?"null":detectedLang)+"\n";
         if(!detectedLang.empty() && detectedLang!="UNKNOWN"){
             if(disableAdvanced){ result=detectedLang; done=true; break; }
             if(okIso3.count(toIso3(detectedLang))){ result=detectedLang; done=true; break; }
@@ -2366,250 +2346,38 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans(
 //  Script 0 -- a run with nothing classified: digits, punctuation, spaces,
 //  emoji -- answers "un" with latin = TRUE and never reaches a detector. That
 //  is why a bare number is read in the LATIN preferred language.
+//
+//  Three steps, with no JNI in any: scanScriptRuns cuts a text into runs of one
+//  script (getLanguageSpans' walk), nameSpanTexts gives every run its language
+//  (pieces of it, where it holds two), spanTriples merges and flattens them the
+//  way nativeGetLanguages carries them.
 // ==========================================================================
-// The span walk itself, with no JNI in it. Returns lang, latin flag, text
-// triples, flattened, exactly as nativeFoldAndDetect's array carries them.
+// A run of one script slot inside a text, before it is named.
+struct ScriptRun { int offset; int bytes; int script; };
+// A text whose runs are named: `named` false for one that only lies between
+// others (a number or punctuation chunk of processDirect), read for its
+// sentence ends; `pieces` per run, where each piece of it ends and its language.
+struct SpanText {
+    const std::string* text = nullptr;
+    bool named = false;
+    std::vector<ScriptRun> runs;
+    std::vector<std::vector<std::pair<int, std::string>>> pieces;
+};
 
-static std::vector<std::string> languageSpansFlat(const std::string& text, bool blankWhole = false){
-    struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
-    std::vector<ScriptSpan> spans;
-    const int kMaxSpans = 128;
+// The walk of getLanguageSpans over one text: the runs of one script slot, in
+// order. A neutral character (a digit, punctuation, a space) stays with the run
+// it is in.
+static void scanScriptRuns(const std::string& text, const HintState& hints, std::vector<ScriptRun>& runs){
+    const std::vector<std::string>& hintCodes = hints.codes;
     auto classifyScript = [](int codePoint) -> int { return spanScriptSlot(codePoint); };
-
-    static const char* SCRIPT_FIXED_LANG[19] = {
-        "el",
-        "hy",
-        "iw",
-        "ka",
-        "pa",
-        "gu",
-        "or",
-        "ta",
-        "te",
-        "kn",
-        "ml",
-        "si",
-        "th",
-        "lo",
-        "bo",
-        "my",
-        "km",
-        "am",
-        "ko"
-    };
-    // One snapshot of the hints for the whole text (see HintState).
-    const HintStatePtr hintState = currentHintState();
-    const std::vector<std::string>& hintCodes = hintState->codes;
-    // A range of the text of a CLD2 script slot: the language its voice reads it in.
-    auto detectRange = [&](int start, int len, int script) -> std::string {
-        std::string lang;
-        int detectBytes = len;
-        if (detectBytes > 1024) {
-            detectBytes = 1024;
-            while (detectBytes > 0 && ((unsigned char)text[start + detectBytes] & 0xC0) == 0x80) detectBytes--;
-        }
-        // What follows depends on the script, these bytes and the hint
-        // state, and nothing else: answered from the cache when it can be.
-        Cld2Cache& cache = cld2Cache();
-        if(cache.spanHints != hintState){ cache.spans.clear(); cache.spanHints = hintState; }
-        std::string cacheKey;
-        cacheKey.reserve((size_t)detectBytes + 1);
-        cacheKey += (char)script;
-        cacheKey.append(text, (size_t)start, (size_t)detectBytes);
-        auto cached = cache.spans.find(cacheKey);
-        if(cached == cache.spans.end()) {
-        // What these two do -- keep an answer only if the user has that
-        // language enabled, and otherwise fall back to the one language
-        // this script implies -- is what decides the voice for the span,
-        // more often than the detector itself does.
-        auto isHinted = [&](const std::string& candidate) -> bool {
-            if(candidate.empty()) return false;
-            for(size_t at=0; at<hintCodes.size(); at++)
-                if(hintCodes[at] == candidate) return true;
-            return false;
-        };
-        auto scriptFallbackCode = [&]() -> std::string {
-            const int fallback = scriptLanguageFallbackOf(*hintState, script);
-            if(fallback == CLD2::UNKNOWN_LANGUAGE) return "";
-            const char* fallbackCode = CLD2::LanguageCode((CLD2::Language)fallback);
-            return fallbackCode ? std::string(fallbackCode) : std::string();
-        };
-        // AutoTTS passes NO content-language hint here. What it passes
-        // is the per-script language hint setLanguageHints derived, and
-        // it then filters the answer against the hint list -- see
-        // 0x65400c (the two NULL pointers), 0x654030 (the table read)
-        // and 0x654098 onwards (the filter).
-        const int scriptHint = scriptLanguageHintOf(*hintState, script);
-        CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING,
-                                hintCodes.empty() ? CLD2::UNKNOWN_LANGUAGE
-                                                  : (CLD2::Language)scriptHint};
-        CLD2::Language lang3[3]; int percent3[3]; double score3[3];
-        int textBytes = 0; bool reliable = false;
-        std::string clean;
-        const char* bytes = cld2Bytes(text.c_str() + start, detectBytes, clean);
-        CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(bytes, detectBytes, true, &hints, 0x4000,
-                                   lang3, percent3, score3, nullptr, &textBytes, &reliable);
-        const char* code = CLD2::LanguageCode(cldLang);
-        lang = code ? std::string(code) : "un";
-        if(!hintCodes.empty() && !isHinted(lang)){
-            bool picked = false;
-            // lang3[0], [1] then [2] -- the compiler unrolled the loop
-            // into three identical blocks at 0x654190, 0x6542ac and
-            // 0x654380, reading language3[0..2] from x29-0x14/-0x10/-0xc
-            // and percent3[0..2] from x29-0x20/-0x1c/-0x18. Rank 0 is
-            // NOT a repeat of the summary above it: CalcSummaryLang
-            // returns language3[active_slot[1]] when it decides the top
-            // answer is English or FIGS boilerplate, and
-            // UNKNOWN_LANGUAGE when the top language covers too little
-            // of the text -- so the summary and language3[0] genuinely
-            // differ, and skipping rank 0 sent those spans to the
-            // per-script fallback instead of the language CLD2 ranked
-            // first. Each rank counts only when it is a real language
-            // and covers at least one percent of the text.
-            for(int rank=0; rank<3 && !picked; rank++){
-                if(lang3[rank] == CLD2::UNKNOWN_LANGUAGE) continue;
-                if(percent3[rank] < 1) continue;
-                const char* other = CLD2::LanguageCode(lang3[rank]);
-                if(!other) continue;
-                if(!isHinted(other)) continue;
-                lang = other;
-                picked = true;
-            }
-            if(!picked){
-                const std::string fallbackCode = scriptFallbackCode();
-                if(!fallbackCode.empty()) lang = fallbackCode;
-            }
-        }
-        // Both detectors, where two or more enabled languages share this
-        // script (langblend.h): CLD2's answer above, weighed against the
-        // model's. With one, nothing here runs and CLD2's path stands.
-        CachedAnswer answer;
-        answer.lang = lang;
-        if(script >= 1 && script <= 6 && !hintCodes.empty()){
-            answer.slot = script;
-            answer.blend = blendDetectors(script, bytes, detectBytes, hintCodes, lang, lang3, percent3);
-        }
-        if(cache.spans.size() >= kCld2CacheMax) cache.spans.clear();
-        cached = cache.spans.emplace(std::move(cacheKey), std::move(answer)).first;
-        }
-        lang = cached->second.resolve();
-        return lang;
-    };
-    auto pushSpan = [&](int start, int len, const std::string& lang, bool latin) {
-        if (!spans.empty()
-            && spans.back().offset + spans.back().bytes == start
-            && spans.back().latin == latin
-            && spans.back().lang == lang) {
-            spans.back().bytes += len;
-            return;
-        }
-        if ((int)spans.size() >= kMaxSpans) {
-            if (!spans.empty()) spans.back().bytes = (start + len) - spans.back().offset;
-            return;
-        }
-        ScriptSpan newSpan;
-        newSpan.offset = start; newSpan.bytes = len;
-        newSpan.lang = lang;
-        newSpan.latin = latin;
-        spans.push_back(newSpan);
-    };
     auto emitScriptSpan = [&](int start, int len, int script) {
         if (len < 1) return;
         if (start < 0 || start + len > (int)text.size()) return;
-        std::string lang;
-        // getLanguageSpans dispatches on the script through a 26-entry jump
-        // table (0x62f8f0; `cmp w3, #0x19 / b.hi` sends anything above 25 to
-        // CLD2), and script 0 -- nothing classified, i.e. a run made only of
-        // digits, ASCII punctuation, spaces or emoji -- has a case of its own:
-        //
-        //     653ef0: mov  w20, #0x1        ; latin = TRUE
-        //     653ef8: adrp x19, <"un">      ; language = "un"
-        //     653f08: b.lt 0x6544c0         ; one past the cset below
-        //     6544b8: cmp  w3, #0x1
-        //     6544bc: cset w20, eq          ; latin = (script == 1)
-        //
-        // so it never reaches CLD2 and never reaches that cset. It matters
-        // because the caller resolves such a span with `run.b ? P : Q`: AutoTTS
-        // speaks a bare number, a bare punctuation run or a bare emoji with the
-        // LATIN preferred language. Detecting it and leaving latin false sent it
-        // to the NON-Latin one instead -- a different voice for every standalone
-        // number a screen reader announces.
-        //
-        // Script 0 can only be the single final span of a text in which nothing
-        // was classified: the two mid-text emits fire on `curScript >= 2` and on
-        // `curScript != 0 && stringClass != curScript`, and neither can pass 0.
-        // The case still branches to 0x6544c0, which IS the merge, cap and push
-        // code below, so only the language and the flag are settled early.
-        bool latin = (script == 1);
-        unsigned scriptIdx = (unsigned)(script - 7);
-        if (script == 0) {
-            // ...but "un" is only where case 0 STARTS. It then consults the
-            // LATIN fallback, hard-coded to slot 1 of the same table the CLD2
-            // path uses:
-            //
-            //     653f00: ldr  w8, [x8, #0x2b4]   ; hint count
-            //     653f04: cmp  w8, #0x1
-            //     653f08: b.lt 0x6544c0           ; no hints -> keep "un"
-            //     653f10: ldr  w0, [x8, #0x564]   ; scriptLanguageFallback[1]
-            //     653f14: cmp  w0, #0x1a          ; UNKNOWN_LANGUAGE
-            //     653f18: b.eq 0x6544c0           ; none -> keep "un"
-            //     653f34: bl   CLD2::LanguageCode
-            //     653f50: mov  x19, x0            ; language = that code
-            //
-            // so a run of nothing but digits, punctuation, spaces or emoji is
-            // named after the first enabled Latin language rather than left
-            // undetermined -- and latin stays true either way. It matters
-            // because the caller resolves an unnamed span with the PREFERRED
-            // Latin language while a named one goes through c3.e.c and the
-            // engine check first.
-            lang = "un";
-            latin = true;
-            if(!hintCodes.empty()){
-                const int latinFallback = scriptLanguageFallbackOf(*hintState, 1);
-                if(latinFallback != CLD2::UNKNOWN_LANGUAGE){
-                    const char* latinFallbackCode = CLD2::LanguageCode((CLD2::Language)latinFallback);
-                    if(latinFallbackCode) lang = latinFallbackCode;
-                }
-            }
-        } else if (scriptIdx < 19) {
-            lang = SCRIPT_FIXED_LANG[scriptIdx];
-        } else if (script >= EV_FIXED_SLOT_FIRST && script < EV_FIXED_SLOT_FIRST + EV_FIXED_SLOT_COUNT) {
-            // A living script no slot above names (owner, 2026-10-16): CLD2 has no
-            // model for Ol Chiki, Meetei Mayek, Javanese, Tifinagh ... and answered
-            // "un" or "xx-Olck", so the span never reached that language's voice.
-            // Decided by the script, like SCRIPT_FIXED_LANG; the language is
-            // CLDR's likely one (unicode_tables.h, generated).
-            lang = kUniFixedSlotLang[script - EV_FIXED_SLOT_FIRST];
-        } else if ((script == 2 || script == 3 || script == 6) && !hintCodes.empty()) {
-            // TWO LANGUAGES OF ONE SCRIPT IN ONE SPAN (owner, 2026-10-21: "jo bhasha
-            // ke liye Jo voice Chuna Hai vah bhasha ke liye Vahi voice"): where the
-            // letters of the enabled languages' orthographies say the span holds
-            // more than one of them -- an Urdu sentence and then an Arabic one --
-            // it is cut there (langblend.h orthoSegment) and each piece is detected
-            // and read on its own.
-            std::vector<std::string> slotLangs;
-            blendSlotLangs(script, hintCodes, slotLangs);
-            std::vector<int> cuts;
-            if (slotLangs.size() >= 2) {
-                std::string clean;
-                const char* bytes = cld2Bytes(text.c_str() + start, len, clean);
-                cuts = orthoSegment(script, bytes, len, slotLangs);
-            }
-            int at = start;
-            for (size_t c = 0; c <= cuts.size(); c++) {
-                const int end = c < cuts.size() ? start + cuts[c] : start + len;
-                pushSpan(at, end - at, detectRange(at, end - at, script), latin);
-                at = end;
-            }
-            return;
-        } else {
-            lang = detectRange(start, len, script);
-        }
-        pushSpan(start, len, lang, latin);
+        runs.push_back({start, len, script});
     };
     // The lowest slot in `slots` (bit 1 << slot) that an enabled language
-    // writes: a CLD2 slot (1-6, 26-32) with a fallback language, a fixed slot
-    // whose language is enabled; 0 when none.
+    // writes: a detector slot (1-6, 26-32) with a fallback language, a fixed
+    // slot whose language is enabled; 0 when none.
     auto hintedCode = [&](const char* code) -> bool {
         for (const std::string& h : hintCodes) {
             if (h == code) return true;
@@ -2623,7 +2391,7 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
             if (!((slots >> slot) & 1)) continue;
             bool enabled = false;
             if (slot <= 6 || (slot >= 26 && slot <= 32))
-                enabled = scriptLanguageFallbackOf(*hintState, slot) != CLD2::UNKNOWN_LANGUAGE;
+                enabled = scriptLanguageFallbackOf(hints, slot) != nullptr;
             else if (slot >= 7 && slot <= 25)
                 enabled = hintedCode(SCRIPT_FIXED_LANG[slot - 7]);
             else if (slot >= EV_FIXED_SLOT_FIRST && slot < EV_FIXED_SLOT_FIRST + EV_FIXED_SLOT_COUNT)
@@ -2676,6 +2444,258 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
         if (curScript == 0 && neutralSlots != 0) curScript = enabledNeutralSlot(neutralSlots);
         emitScriptSpan(spanStart, textLen - spanStart, curScript);
     }
+}
+
+// What a span of a detector's script slot (1..6) is read in, from these bytes
+// alone (the context is applied after): with one enabled language that writes
+// the script, that one (what AutoTTS's per-script hint and fallback made of
+// CLD2's answer); with two or more, langblend.h chooses between them; with
+// none, the model's best language of the script, which no voice of the user's
+// reads. Cached by script + bytes; the cache is dropped when the hints change.
+static std::string nameRange(const char* bytes, int len, int script, const HintStatePtr& hintState){
+    int detectBytes = len;
+    if (detectBytes > 1024) {
+        detectBytes = 1024;
+        while (detectBytes > 0 && ((unsigned char)bytes[detectBytes] & 0xC0) == 0x80) detectBytes--;
+    }
+    DetectCache& cache = detectCache();
+    if(cache.spanHints != hintState){ cache.spans.clear(); cache.spanHints = hintState; }
+    std::string cacheKey;
+    cacheKey.reserve((size_t)detectBytes + 1);
+    cacheKey += (char)script;
+    cacheKey.append(bytes, (size_t)detectBytes);
+    auto cached = cache.spans.find(cacheKey);
+    if(cached == cache.spans.end()) {
+        const std::vector<std::string>& hintCodes = hintState->codes;
+        CachedAnswer answer;
+        std::vector<std::string> slotLangs;
+        blendSlotLangs(script, hintCodes, slotLangs);
+        if(slotLangs.size() == 1){
+            answer.lang = slotLangs[0];
+        } else if(slotLangs.empty()){
+            answer.lang = "un";
+            float p[EV_LID_CLASSES];
+            if(lidClassify(bytes, (size_t)detectBytes, p)){
+                int best = -1;
+                for(int k = 1; k < EV_LID_CLASSES; k++)
+                    if(blendLabelSlot(kLidLabels[k]) == script && (best < 0 || p[k] > p[best])) best = k;
+                if(best > 0) answer.lang = kLidLabels[best];
+            }
+        } else {
+            answer.slot = script;
+            answer.blend = blendDetectors(script, bytes, detectBytes, hintCodes);
+            answer.lang = answer.blend.lang;
+        }
+        if(cache.spans.size() >= kDetectCacheMax) cache.spans.clear();
+        cached = cache.spans.emplace(std::move(cacheKey), std::move(answer)).first;
+    }
+    return cached->second.resolve();
+}
+
+// A run named on its own: every script but one two or more enabled languages
+// share.
+static std::string nameRunAlone(const std::string& text, const ScriptRun& run, const HintStatePtr& hintState){
+    const int script = run.script;
+    // getLanguageSpans dispatches on the script through a 26-entry jump
+    // table (0x62f8f0; `cmp w3, #0x19 / b.hi` sends anything above 25 to
+    // CLD2), and script 0 -- nothing classified, i.e. a run made only of
+    // digits, ASCII punctuation, spaces or emoji -- has a case of its own:
+    //
+    //     653ef0: mov  w20, #0x1        ; latin = TRUE
+    //     653ef8: adrp x19, <"un">      ; language = "un"
+    //     653f08: b.lt 0x6544c0         ; one past the cset below
+    //     6544b8: cmp  w3, #0x1
+    //     6544bc: cset w20, eq          ; latin = (script == 1)
+    //
+    // so it never reaches CLD2 and never reaches that cset. It matters
+    // because the caller resolves such a span with `run.b ? P : Q`: AutoTTS
+    // speaks a bare number, a bare punctuation run or a bare emoji with the
+    // LATIN preferred language. Detecting it and leaving latin false sent it
+    // to the NON-Latin one instead -- a different voice for every standalone
+    // number a screen reader announces.
+    //
+    // Script 0 can only be the single final span of a text in which nothing
+    // was classified: the two mid-text emits fire on `curScript >= 2` and on
+    // `curScript != 0 && stringClass != curScript`, and neither can pass 0.
+    // The case still branches to 0x6544c0, which IS the merge, cap and push
+    // code (spanTriples here), so only the language and the flag are settled
+    // early.
+    unsigned scriptIdx = (unsigned)(script - 7);
+    if (script == 0) {
+        // ...but "un" is only where case 0 STARTS. It then consults the
+        // LATIN fallback, hard-coded to slot 1 of the same table the
+        // detection path uses:
+        //
+        //     653f00: ldr  w8, [x8, #0x2b4]   ; hint count
+        //     653f04: cmp  w8, #0x1
+        //     653f08: b.lt 0x6544c0           ; no hints -> keep "un"
+        //     653f10: ldr  w0, [x8, #0x564]   ; scriptLanguageFallback[1]
+        //     653f14: cmp  w0, #0x1a          ; UNKNOWN_LANGUAGE
+        //     653f18: b.eq 0x6544c0           ; none -> keep "un"
+        //     653f34: bl   CLD2::LanguageCode
+        //     653f50: mov  x19, x0            ; language = that code
+        //
+        // so a run of nothing but digits, punctuation, spaces or emoji is
+        // named after the first enabled Latin language rather than left
+        // undetermined -- and latin stays true either way. It matters
+        // because the caller resolves an unnamed span with the PREFERRED
+        // Latin language while a named one goes through c3.e.c and the
+        // engine check first.
+        std::string lang = "un";
+        if(!hintState->codes.empty()){
+            const char* latinFallbackCode = scriptLanguageFallbackOf(*hintState, 1);
+            if(latinFallbackCode) lang = latinFallbackCode;
+        }
+        return lang;
+    }
+    if (scriptIdx < 19) return SCRIPT_FIXED_LANG[scriptIdx];
+    if (script >= EV_FIXED_SLOT_FIRST && script < EV_FIXED_SLOT_FIRST + EV_FIXED_SLOT_COUNT) {
+        // A living script no slot above names (owner, 2026-10-16): CLD2 had no
+        // model for Ol Chiki, Meetei Mayek, Javanese, Tifinagh ... and answered
+        // "un" or "xx-Olck", so the span never reached that language's voice.
+        // Decided by the script, like SCRIPT_FIXED_LANG; the language is CLDR's
+        // likely one (unicode_tables.h, generated).
+        return kUniFixedSlotLang[script - EV_FIXED_SLOT_FIRST];
+    }
+    if (script >= 1 && script <= 6) return nameRange(text.c_str() + run.offset, run.bytes, script, hintState);
+    // Syriac, Thaana, Cherokee, Canadian Aboriginal, Mongolian, Tagalog, Limbu:
+    // each written by one language, which reads it.
+    if (script >= 26 && script <= 32) return kExtraSlotLangs[script - 26].code;
+    // A script no language of today writes (gen_tables.py SLOT_OTHER: the
+    // historic ones), so no voice reads it: "un", the non-Latin preferred voice.
+    return "un";
+}
+
+// Whether a sentence ends between run `a` of text `ta` and run `b` of text `tb`
+// (tb >= ta, b after a): a mark of kOrthoSent in the text between them, the
+// texts that lie between included.
+static bool sentenceEndBetween(const std::vector<SpanText>& texts, size_t ta, size_t a, size_t tb, size_t b){
+    auto scan = [](const std::string& t, size_t from, size_t to) {
+        const int nSent = (int)(sizeof kOrthoSent / sizeof kOrthoSent[0]);
+        for (size_t i = from; i < to;) {
+            int32_t r;
+            int used = lidDecode((const unsigned char*)t.data() + i, to - i, &r);
+            if (used <= 0) break;
+            for (int k = 0; k < nSent; k++) if ((uint32_t)r == kOrthoSent[k]) return true;
+            i += (size_t)used;
+        }
+        return false;
+    };
+    const ScriptRun& ra = texts[ta].runs[a];
+    const ScriptRun& rb = texts[tb].runs[b];
+    if (ta == tb) return scan(*texts[ta].text, (size_t)(ra.offset + ra.bytes), (size_t)rb.offset);
+    if (scan(*texts[ta].text, (size_t)(ra.offset + ra.bytes), texts[ta].text->size())) return true;
+    for (size_t t = ta + 1; t < tb; t++) if (texts[t].text && scan(*texts[t].text, 0, texts[t].text->size())) return true;
+    return scan(*texts[tb].text, 0, (size_t)rb.offset);
+}
+
+// ONE SCRIPT, ONE SENTENCE, ONE DECISION (2026-10-21). Every run is named --
+// and where two or more enabled languages share a script, its runs are named
+// TOGETHER: all of them in one sentence of the utterance, in every text of it
+// (processDirect's chunks are one utterance), joined into one text and cut only
+// where the letters of the languages' orthographies say the language changes
+// (langblend.h orthoSegment, Cyrillic, Arabic and Bengali) -- never just because
+// a word of another script stood between. A Russian sentence that names "ASUS
+// Eee PC" or "Virgin" in Latin letters is one Russian text, not "Серия " and a
+// separate "серия ..." guessed alone; CLD2's bias toward the big language of a
+// script once hid that, and the model weighs each piece fairly. A sentence end
+// between two runs (kOrthoSent) still parts them, as two runs were parted
+// before. Where each sentence holds one run, this is what naming each run on
+// its own (orthoSegment inside it) always was.
+static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hintState){
+    std::vector<std::string> slotLangs[7];
+    for (int s = 1; s <= 6; s++) blendSlotLangs(s, hintState->codes, slotLangs[s]);
+    for (SpanText& t : texts) {
+        if (!t.named) continue;
+        t.pieces.assign(t.runs.size(), {});
+        for (size_t r = 0; r < t.runs.size(); r++) {
+            const ScriptRun& run = t.runs[r];
+            if (run.script >= 1 && run.script <= 6 && slotLangs[run.script].size() >= 2) continue;
+            t.pieces[r].push_back({run.offset + run.bytes, nameRunAlone(*t.text, run, hintState)});
+        }
+    }
+    struct Ref { size_t t, r; };
+    for (int s = 1; s <= 6; s++) {
+        if (slotLangs[s].size() < 2) continue;
+        std::vector<Ref> group;
+        auto flush = [&]() {
+            if (group.empty()) return;
+            std::string g;
+            std::vector<int> gStart, gEnd;
+            for (size_t k = 0; k < group.size(); k++) {
+                if (k) g += ' ';
+                const SpanText& st = texts[group[k].t];
+                const ScriptRun& run = st.runs[group[k].r];
+                gStart.push_back((int)g.size());
+                g.append(*st.text, (size_t)run.offset, (size_t)run.bytes);
+                gEnd.push_back((int)g.size());
+            }
+            std::vector<int> cuts;
+            if (s == 2 || s == 3 || s == 6) cuts = orthoSegment(s, g.c_str(), (int)g.size(), slotLangs[s]);
+            cuts.push_back((int)g.size());
+            int a = 0;
+            size_t k = 0;
+            for (int b : cuts) {
+                if (b <= a) continue;
+                const std::string lang = nameRange(g.c_str() + a, b - a, s, hintState);
+                while (k < group.size() && gStart[k] < b) {
+                    SpanText& st = texts[group[k].t];
+                    const ScriptRun& run = st.runs[group[k].r];
+                    const int end = std::min(b, gEnd[k]);
+                    if (end > std::max(a, gStart[k])) st.pieces[group[k].r].push_back({run.offset + (end - gStart[k]), lang});
+                    if (gEnd[k] <= b) k++; else break;
+                }
+                a = b;
+            }
+            group.clear();
+        };
+        for (size_t t = 0; t < texts.size(); t++) {
+            if (!texts[t].named) continue;
+            for (size_t r = 0; r < texts[t].runs.size(); r++) {
+                if (texts[t].runs[r].script != s) continue;
+                if (!group.empty() && sentenceEndBetween(texts, group.back().t, group.back().r, t, r)) flush();
+                group.push_back({t, r});
+            }
+        }
+        flush();
+    }
+}
+
+// The named runs of one text as nativeGetLanguages carries them: lang, latin
+// flag, text triples, flattened; a piece that follows one of the same language
+// and flag is merged into it, and past kMaxSpans the last span stretches.
+static std::vector<std::string> spanTriples(SpanText& t, bool blankWhole){
+    struct ScriptSpan { int offset; int bytes; std::string lang; bool latin; };
+    std::vector<ScriptSpan> spans;
+    const int kMaxSpans = 128;
+    auto pushSpan = [&](int start, int len, const std::string& lang, bool latin) {
+        if (!spans.empty()
+            && spans.back().offset + spans.back().bytes == start
+            && spans.back().latin == latin
+            && spans.back().lang == lang) {
+            spans.back().bytes += len;
+            return;
+        }
+        if ((int)spans.size() >= kMaxSpans) {
+            if (!spans.empty()) spans.back().bytes = (start + len) - spans.back().offset;
+            return;
+        }
+        ScriptSpan newSpan;
+        newSpan.offset = start; newSpan.bytes = len;
+        newSpan.lang = lang;
+        newSpan.latin = latin;
+        spans.push_back(newSpan);
+    };
+    for (size_t r = 0; r < t.runs.size(); r++) {
+        const ScriptRun& run = t.runs[r];
+        const bool latin = run.script == 1 || run.script == 0;
+        int at = run.offset;
+        for (const auto& piece : t.pieces[r]) {
+            if (piece.first > at) pushSpan(at, piece.first - at, piece.second, latin);
+            at = piece.first;
+        }
+    }
+    const std::string& text = *t.text;
     std::vector<std::string> flat;
     flat.reserve(spans.size() * 3);
     const int textBytesTotal = (int)text.size();
@@ -2683,7 +2703,7 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
         ScriptSpan& span = spans[scriptIdx];
         // nativeGetLanguages CLAMPS rather than dropping (0x652f8c): a negative
         // offset or one past the end is skipped, and an overlong span is cut to
-        // what is left of the text. Neither can happen -- the loop only emits
+        // what is left of the text. Neither can happen -- the walk only emits
         // ranges inside it -- but this is the shape.
         if(span.offset < 0) continue;
         if(textBytesTotal <= span.offset) continue;
@@ -2698,6 +2718,18 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
         else flat.push_back(text.substr(span.offset, (size_t)spanBytes));
     }
     return flat;
+}
+
+// The spans of one text: lang, latin flag, text triples, flattened, exactly as
+// nativeFoldAndDetect's array carries them.
+static std::vector<std::string> languageSpansFlat(const std::string& text, bool blankWhole = false){
+    const HintStatePtr hintState = currentHintState();
+    std::vector<SpanText> texts(1);
+    texts[0].text = &text;
+    texts[0].named = true;
+    scanScriptRuns(text, *hintState, texts[0].runs);
+    nameSpanTexts(texts, hintState);
+    return spanTriples(texts[0], blankWhole);
 }
 // The fold, then the spans of the folded text: element 0 is the folded text,
 // lang / latin / text triples follow. With `singleStops` and a fold that is a
@@ -2732,6 +2764,42 @@ static std::vector<std::string> foldAndSpansFlat(const std::string& text, bool s
         flat.insert(flat.end(), std::make_move_iterator(spans.begin()), std::make_move_iterator(spans.end()));
     }
     return flat;
+}
+// processDirect's records: for each chunk of type 0, 1 or 2 that is not empty,
+// what foldAndSpansFlat(chunk, singleStops, true, true) answers for it -- the
+// fold slot as "" (the record carries the chunk's text, which is the fold:
+// buildMixChunks folded it), then the triples, a span covering the whole chunk
+// as "" -- and nothing for any other chunk. Unlike foldAndSpansFlat one chunk
+// at a time, the chunks' runs are named together (nameSpanTexts), the chunks
+// in between read for their sentence ends.
+static std::vector<std::vector<std::string>> chunksSpansFlat(const std::vector<ChunkResult>& chunks, bool singleStops){
+    std::vector<std::vector<std::string>> out(chunks.size());
+    const HintStatePtr hintState = currentHintState();
+    std::vector<SpanText> texts(chunks.size());
+    for (size_t i = 0; i < chunks.size(); i++) {
+        texts[i].text = &chunks[i].text;
+        if (chunks[i].type < 0 || chunks[i].type > 2 || chunks[i].text.empty()) continue;
+        out[i].emplace_back();
+        // The UTF-16 length: with singleStops a single unit is answered
+        // without spans (foldAndSpansFlat).
+        const std::string& t = chunks[i].text;
+        int units = 0;
+        for (size_t k = 0; k < t.size() && units < 2; k++) {
+            unsigned char b = (unsigned char)t[k];
+            if ((b & 0xC0) == 0x80) continue;
+            units += (b >= 0xF0) ? 2 : 1;
+        }
+        if (singleStops && units == 1) continue;
+        texts[i].named = true;
+        scanScriptRuns(t, *hintState, texts[i].runs);
+    }
+    nameSpanTexts(texts, hintState);
+    for (size_t i = 0; i < chunks.size(); i++) {
+        if (!texts[i].named) continue;
+        std::vector<std::string> triples = spanTriples(texts[i], true);
+        out[i].insert(out[i].end(), std::make_move_iterator(triples.begin()), std::make_move_iterator(triples.end()));
+    }
+    return out;
 }
 // Every element is checked and released (2026-09-30). NewStringUTF can fail
 // with an OutOfMemoryError pending, and JNI forbids the next call

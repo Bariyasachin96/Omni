@@ -100,6 +100,10 @@ run "#17 persist without loading" "#17" \
     "sed -i '/LangStore.ensureLoaded(this)/d' $K/LanguagesActivity.kt"
 run "#16 bring a CLD3 symbol back into the core" "#16" \
     "perl -0pi -e 's/static std::string detectWindowLang/static std::string cld3DetectRaw(const std::string\&, bool*, bool);\\nstatic std::string detectWindowLang/' app/src/main/cpp/tts_engine_core.cpp"
+run "#16 call CLD2 from the core again" "#16" \
+    "perl -0pi -e 's/static std::string detectWindowLang/static int cld2Probe(){ return (int)CLD2::UNKNOWN_LANGUAGE; }\\nstatic std::string detectWindowLang/' app/src/main/cpp/tts_engine_core.cpp"
+run "#16 include CLD2's header in langblend.h again" "#16" \
+    "sed -i 's|#include \"langid.h\"|#include \"compact_lang_det.h\"\\n#include \"langid.h\"|' app/src/main/cpp/langblend.h"
 run "#16 bring a useCld3 flag back into the service" "#16" \
     "sed -i 's/var utteranceId = \"\"/var useCld3Flag = false/' $K/EasyVoiceTtsService.kt"
 run "#14 log with a stray tag literal" "#14" \
@@ -130,8 +134,12 @@ run "#29 never give a restore back in the listener" "#29" \
     "perl -0pi -e 's/            \\} finally \\{\\n                wrapper\\.restoring = false\\n                engineSettled\\(\\)\\n            \\}/            }/' $K/EasyVoiceTtsService.kt"
 run "#12 grow build.yml past the ceiling" "#12" \
     "head -c 500000 /dev/zero | tr '\\0' '#' >> .github/workflows/build.yml"
-run "put a CLD3 source back in CMakeLists" "a CLD3/protobuf build input" \
-    "sed -i 's|    \${CLD2_DIR}/cldutil.cc|    \${CLD3_DIR}/nnet_language_identifier.cc\\n    \${CLD2_DIR}/cldutil.cc|' app/src/main/cpp/CMakeLists.txt"
+run "put a CLD3 source back in CMakeLists" "an old detector's build input" \
+    "sed -i 's|^    tts_engine_core.cpp$|    tts_engine_core.cpp\\n    \${CLD3_DIR}/nnet_language_identifier.cc|' app/src/main/cpp/CMakeLists.txt"
+run "put a CLD2 source back in CMakeLists" "an old detector's build input" \
+    "sed -i 's|^    tts_engine_core.cpp$|    tts_engine_core.cpp\\n    \${CLD2_DIR}/cldutil.cc|' app/src/main/cpp/CMakeLists.txt"
+run "clone CLD2 in the workflow again" "an old detector's build input" \
+    "sed -i '0,/      - name: Setup Gradle/s||      - name: Clone CLD2\\n        run: bash tools/verify/clone-cld2.sh\\n      - name: Setup Gradle|' .github/workflows/build.yml"
 echo
 [ "$fail" = 0 ] && echo "EVERY CHECK FIRES" || echo "AT LEAST ONE CHECK IS ASLEEP"
 exit $fail

@@ -74,14 +74,6 @@ jobs:
         env:
           EV_SDK_ATTEMPTS: '5'
 
-      # Run 738 sat on this step for 33 minutes -- it normally takes 45 seconds --
-      # because a clone hung with no timeout to kill it. Each fetch now gets its
-      # own timeout and three tries, and the step as a whole fails fast instead
-      # of burning the job's 6-hour budget.
-      - name: Clone the CLD2 Native Library
-        timeout-minutes: 12
-        run: bash tools/ci/clone-cld2.sh
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
@@ -416,7 +408,7 @@ jobs:
       # in this repository: run 794 passed with this workflow byte for byte, so
       # what changed is the hosted runner image, which keeps growing while the
       # pixel_6 userdata partition stays 7.2 GB. By the time the emulator starts
-      # this job has already spent its budget on NDK 29, the CLD2 clone,
+      # this job has already spent its budget on NDK 29,
       # Gradle and the system image.
       #
       # So reclaim what a TTS build provably never touches. Every path here is a
@@ -462,12 +454,6 @@ jobs:
       - name: Install NDK, CMake and build-tools
         timeout-minutes: 20
         run: bash tools/ci/install-sdk.sh
-
-      # The debug APK links the same native core as the release one, so the
-      # the CLD2 sources have to be here too.
-      - name: Clone the CLD2 Native Library
-        timeout-minutes: 12
-        run: bash tools/ci/clone-cld2.sh
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -648,7 +634,7 @@ jobs:
       # in this repository: run 794 passed with this workflow byte for byte, so
       # what changed is the hosted runner image, which keeps growing while the
       # pixel_6 userdata partition stays 7.2 GB. By the time the emulator starts
-      # this job has already spent its budget on NDK 29, the CLD2 clone,
+      # this job has already spent its budget on NDK 29,
       # Gradle and the system image.
       #
       # So reclaim what a TTS build provably never touches. Every path here is a
@@ -694,12 +680,6 @@ jobs:
       - name: Install NDK, CMake and build-tools
         timeout-minutes: 20
         run: bash tools/ci/install-sdk.sh
-
-      # The debug APK links the same native core as the release one, so the
-      # the CLD2 sources have to be here too.
-      - name: Clone the CLD2 Native Library
-        timeout-minutes: 12
-        run: bash tools/ci/clone-cld2.sh
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6

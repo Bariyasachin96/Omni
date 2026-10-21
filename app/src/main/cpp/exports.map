@@ -1,5 +1,5 @@
 /* The ONLY symbols this library exports: the JNI entry points the VM resolves
- * by name, and JNI_OnLoad. Everything else -- our helpers, CLD2, and the static
+ * by name, and JNI_OnLoad. Everything else -- our helpers and the static
  * libc++ the NDK links in -- stays local, so --gc-sections can drop what nothing
  * reaches. Without this the shipped .so exported 698 symbols, almost all libc++.
  */

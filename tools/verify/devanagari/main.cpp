@@ -6,25 +6,25 @@
 // for the general case, not just Marathi: "yah maine sirf Marathi ka example
 // diya hai ... aur bhi languages mein honge."
 //
-// So this links the REAL tts_engine_core.cpp with CLD2 and a genuine JNIEnv,
-// pushes a real enabled set through setLanguageHints/setDetectSets exactly as
+// So this links the REAL tts_engine_core.cpp and a genuine JNIEnv, pushes a
+// real enabled set through setLanguageHints/setDetectSets exactly as
 // pushLanguageSets does, and asks nativeFoldAndDetect what each span gets. It
-// also calls CLD2 DIRECTLY with the same hints so the summary, the top three
-// and their percentages are printed beside the answer -- which is the only way
-// to tell "the detector was wrong" from "our filter dropped a right answer".
+// also asks the model ML Kit runs (langid.h) DIRECTLY and prints its top three
+// beside the answer -- the way to tell "the detector was wrong" from "the
+// choice among the enabled languages dropped a right answer". (Until
+// 2026-10-21 that column was CLD2's summary and top three; CLD2 is gone.)
 //
 // Gujarati, Tamil, Telugu and the rest are decided by their Unicode SCRIPT and
-// can never take part in this; only the scripts CLD2 is actually asked about
-// can -- Devanagari, Cyrillic, Arabic, Bengali and CJK -- so those are what it
-// covers.
+// can never take part in this; only the scripts several languages share can --
+// Devanagari, Cyrillic, Arabic, Bengali and CJK -- so those are what it covers.
 #include <jni.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
-#include "cld2_src/public/compact_lang_det.h"
-#include "cld2_src/public/encodings.h"
+#include <algorithm>
+#include "langid.h"
 
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
@@ -77,21 +77,19 @@ static std::string appAnswer(const std::string& text){
     return best.empty() ? "<none>" : best;
 }
 
-// CLD2 asked DIRECTLY, with the same per-script hint the core would pass, so
-// the ranking behind the answer is visible rather than inferred.
-static std::string cldDetail(const std::string& text, CLD2::Language scriptHint){
-    CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING, scriptHint};
-    CLD2::Language l3[3]; int p3[3]; double s3[3];
-    int bytes = 0; bool reliable = false;
-    CLD2::Language summary = CLD2::ExtDetectLanguageSummary(
-        text.c_str(), (int)text.size(), true, &hints, 0x4000, l3, p3, s3, nullptr, &bytes, &reliable);
+// The model ML Kit runs, asked DIRECTLY: its three most likely labels, so the
+// ranking behind the answer is visible rather than inferred.
+static std::string modelDetail(const std::string& text){
+    float p[EV_LID_CLASSES];
+    if (!lidClassify(text.c_str(), text.size(), p)) return "model: no answer";
+    std::vector<int> order;
+    for (int k = 0; k < EV_LID_CLASSES; k++) order.push_back(k);
+    std::partial_sort(order.begin(), order.begin() + 3, order.end(),
+                      [&](int x, int y){ return p[x] > p[y]; });
     char buf[256];
-    const char* sc = CLD2::LanguageCode(summary);
-    snprintf(buf, sizeof buf, "summary=%-8s rel=%d  top3=[%s %d%%, %s %d%%, %s %d%%]",
-             sc ? sc : "?", reliable ? 1 : 0,
-             CLD2::LanguageCode(l3[0]) ? CLD2::LanguageCode(l3[0]) : "?", p3[0],
-             CLD2::LanguageCode(l3[1]) ? CLD2::LanguageCode(l3[1]) : "?", p3[1],
-             CLD2::LanguageCode(l3[2]) ? CLD2::LanguageCode(l3[2]) : "?", p3[2]);
+    snprintf(buf, sizeof buf, "model top3=[%s %.0f%%, %s %.0f%%, %s %.0f%%]",
+             kLidLabels[order[0]], 100 * p[order[0]], kLidLabels[order[1]], 100 * p[order[1]],
+             kLidLabels[order[2]], 100 * p[order[2]]);
     return buf;
 }
 
@@ -125,7 +123,7 @@ struct Case { const char* want; const char* text; };
 static int failures = 0, total = 0;
 
 static void run(const char* title, const std::vector<Lang>& set,
-                CLD2::Language scriptHintWhenAlone, const std::vector<Case>& cases){
+                const std::vector<Case>& cases){
     printf("\n== %s ==\n   enabled:", title);
     for (auto& l : set) printf(" %s", l.iso2);
     printf("\n");
@@ -135,7 +133,7 @@ static void run(const char* title, const std::vector<Lang>& set,
         bool ok = got == c.want;
         total++; if (!ok) failures++;
         printf("   %-4s want %-3s got %-4s  %-3s  %s\n", ok ? "ok" : "MISS",
-               c.want, got.c_str(), "", cldDetail(c.text, scriptHintWhenAlone).c_str());
+               c.want, got.c_str(), "", modelDetail(c.text).c_str());
         printf("        %.*s\n", 72, c.text);
     }
 }
@@ -146,8 +144,7 @@ int main(){
     if (JNI_CreateJavaVM(&vm, (void**)&env, &a) != JNI_OK) { printf("no JVM\n"); return 2; }
 
     // ---- DEVANAGARI: Hindi vs Marathi, the reported case --------------------
-    run("Devanagari, the owner's set", {{"en","eng"},{"gu","guj"},{"hi","hin"},{"mr","mar"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("Devanagari, the owner's set", {{"en","eng"},{"gu","guj"},{"hi","hin"},{"mr","mar"}}, {
         {"mr", "ही बैठक आयोजित करण्याचा उद्देश काय आहे"},
         {"mr", "मला मराठीत वाचायला खूप आवडते"},
         {"mr", "माझे नाव सचिन आहे आणि मी पुण्यात राहतो"},
@@ -161,22 +158,19 @@ int main(){
     });
 
     // ---- the same text with ONLY Marathi enabled ----------------------------
-    run("Devanagari, only Marathi enabled", {{"en","eng"},{"mr","mar"}},
-        CLD2::MARATHI, {
+    run("Devanagari, only Marathi enabled", {{"en","eng"},{"mr","mar"}}, {
         {"mr", "ही बैठक आयोजित करण्याचा उद्देश काय आहे"},
         {"mr", "नवीन चॅट"},
     });
 
     // ---- CYRILLIC: Russian vs Ukrainian ------------------------------------
-    run("Cyrillic, Russian + Ukrainian", {{"en","eng"},{"ru","rus"},{"uk","ukr"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("Cyrillic, Russian + Ukrainian", {{"en","eng"},{"ru","rus"},{"uk","ukr"}}, {
         {"uk", "Це зустріч організована для обговорення важливих питань"},
         {"ru", "Это встреча организована для обсуждения важных вопросов"},
     });
 
     // ---- ARABIC: Arabic vs Urdu vs Persian ---------------------------------
-    run("Arabic script, Arabic + Urdu + Persian", {{"en","eng"},{"ar","ara"},{"ur","urd"},{"fa","fas"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("Arabic script, Arabic + Urdu + Persian", {{"en","eng"},{"ar","ara"},{"ur","urd"},{"fa","fas"}}, {
         {"ur", "یہ میٹنگ اہم امور پر تبادلہ خیال کے لیے منعقد کی گئی ہے"},
         {"ar", "هذا الاجتماع منعقد لمناقشة القضايا المهمة"},
         {"fa", "این جلسه برای بحث در مورد مسائل مهم برگزار شده است"},
@@ -187,8 +181,7 @@ int main(){
     run("Script-fixed languages, all enabled together",
         {{"en","eng"},{"el","ell"},{"hy","hye"},{"iw","heb"},{"ka","kat"},{"pa","pan"},{"gu","guj"},
          {"or","ori"},{"ta","tam"},{"te","tel"},{"kn","kan"},{"ml","mal"},{"si","sin"},{"th","tha"},
-         {"lo","lao"},{"bo","bod"},{"my","mya"},{"km","khm"},{"am","amh"},{"ko","kor"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+         {"lo","lao"},{"bo","bod"},{"my","mya"},{"km","khm"},{"am","amh"},{"ko","kor"}}, {
         {"el", "Αυτή η συνάντηση οργανώθηκε για να συζητηθούν σημαντικά θέματα"},
         {"hy", "Այս հանդիպումը կազմակերպվել է կարևոր հարցեր քննարկելու համար"},
         {"iw", "הפגישה הזאת אורגנה כדי לדון בנושאים חשובים"},
@@ -209,20 +202,17 @@ int main(){
         {"am", "ይህ ስብሰባ አስፈላጊ ጉዳዮችን ለመወያየት ተዘጋጅቷል"},
         {"ko", "이 회의는 중요한 문제를 논의하기 위해 마련되었습니다"},
     });
-    run("Bengali script, Bengali + Assamese", {{"en","eng"},{"bn","ben"},{"as","asm"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("Bengali script, Bengali + Assamese", {{"en","eng"},{"bn","ben"},{"as","asm"}}, {
         {"bn", "এই সভাটি গুরুত্বপূর্ণ বিষয় নিয়ে আলোচনার জন্য আয়োজন করা হয়েছে"},
         {"as", "এই সভাখন গুৰুত্বপূৰ্ণ বিষয়সমূহ আলোচনা কৰিবলৈ আয়োজন কৰা হৈছে"},
     });
-    run("CJK, Chinese + Japanese", {{"en","eng"},{"zh","zho"},{"ja","jpn"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("CJK, Chinese + Japanese", {{"en","eng"},{"zh","zho"},{"ja","jpn"}}, {
         {"zh", "这次会议是为了讨论重要问题而组织的"},
         {"ja", "この会議は重要な問題を話し合うために開かれました"},
     });
     run("Latin, thirteen languages enabled together",
         {{"en","eng"},{"fr","fra"},{"de","deu"},{"es","spa"},{"pt","por"},{"it","ita"},{"nl","nld"},
-         {"tr","tur"},{"vi","vie"},{"id","ind"},{"pl","pol"},{"sv","swe"},{"sw","swa"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+         {"tr","tur"},{"vi","vie"},{"id","ind"},{"pl","pol"},{"sv","swe"},{"sw","swa"}}, {
         {"en", "This meeting was organised to discuss important issues"},
         {"fr", "Cette réunion a été organisée pour discuter de questions importantes"},
         {"de", "Dieses Treffen wurde organisiert, um wichtige Fragen zu besprechen"},
@@ -237,31 +227,27 @@ int main(){
         {"sv", "Det här mötet anordnades för att diskutera viktiga frågor"},
         {"sw", "Mkutano huu uliandaliwa ili kujadili masuala muhimu"},
     });
-    run("Cyrillic, four languages", {{"en","eng"},{"ru","rus"},{"uk","ukr"},{"bg","bul"},{"sr","srp"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("Cyrillic, four languages", {{"en","eng"},{"ru","rus"},{"uk","ukr"},{"bg","bul"},{"sr","srp"}}, {
         {"ru", "Эта встреча была организована для обсуждения важных вопросов"},
         {"uk", "Ця зустріч була організована для обговорення важливих питань"},
         {"bg", "Тази среща беше организирана, за да се обсъдят важни въпроси"},
         {"sr", "Овај састанак је организован да би се разговарало о важним питањима"},
     });
-    run("Devanagari, Hindi + Marathi + Nepali", {{"en","eng"},{"hi","hin"},{"mr","mar"},{"ne","nep"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("Devanagari, Hindi + Marathi + Nepali", {{"en","eng"},{"hi","hin"},{"mr","mar"},{"ne","nep"}}, {
         {"hi", "यह बैठक महत्वपूर्ण मुद्दों पर चर्चा करने के लिए आयोजित की गई है"},
         {"mr", "ही बैठक महत्त्वाच्या मुद्द्यांवर चर्चा करण्यासाठी आयोजित केली आहे"},
         {"ne", "यो बैठक महत्त्वपूर्ण विषयहरूमा छलफल गर्न आयोजना गरिएको हो"},
     });
-    run("Scripts CLD2 knows only a little", {{"en","eng"},{"dv","div"},{"chr","chr"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("Scripts written by one language each", {{"en","eng"},{"dv","div"},{"chr","chr"}}, {
         {"dv", "މި ބައްދަލުވުމަކީ މުހިންމު ކަންކަމާ މެދު މަޝްވަރާކުރުމަށް ބޭއްވި ބައްދަލުވުމެކެވެ"},
         {"chr", "ᏣᎳᎩ ᎦᏬᏂᎯᏍᏗ ᎠᏂᏴᏫ ᎤᏂᏬᏂᎯᏍᏗ"},
         {"syr", "ܗܢܐ ܟܢܘܫܝܐ ܐܬܛܝܒ ܠܡܡܠܠܘ ܥܠ ܨܒܘܬܐ ܚܫܝܚܬܐ"},
     });
-    // A living script CLD2 has no language for (2026-10-16): decided by the
+    // A living script no detector knows (2026-10-16): decided by the
     // script, in CLDR's likely language -- Santali, whatever is enabled -- and
     // NOT latin, so without a Santali voice the non-Latin preferred one reads it.
     // It was "xx-Olck" before, which no voice is ever set up for.
-    run("A script CLD2 does not know (Ol Chiki)", {{"en","eng"},{"hi","hin"}},
-        CLD2::UNKNOWN_LANGUAGE, {
+    run("A script no detector knows (Ol Chiki)", {{"en","eng"},{"hi","hin"}}, {
         {"sat", "ᱱᱤᱭᱟᱹ ᱫᱚ ᱢᱤᱫ ᱡᱟᱹᱨᱩᱲ ᱠᱟᱹᱢᱤ ᱠᱟᱱᱟ"},
     });
     // The same sentences INSIDE Latin text: each must come out as its own span.

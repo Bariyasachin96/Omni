@@ -180,7 +180,7 @@ int main(int argc, char** argv){
             env->PopLocalFrame(nullptr);
         }
     }
-    // THE SAME TEXT UNDER EVERY HINT SET, BACK TO BACK (2026-10-01): the CLD2
+    // THE SAME TEXT UNDER EVERY HINT SET, BACK TO BACK (2026-10-01): the detector
     // answer cache keys a span by its bytes and drops its span table whenever
     // the hint state changes. The pass above changes hints only between whole
     // corpus sweeps, by which time the cache has long been refilled, so a cache

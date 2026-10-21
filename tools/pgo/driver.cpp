@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     if (mode == "train") {
         // Weighted toward what a screen reader actually sends: the mix mode with
         // its defaults (every mode int 0, smart numbers off, punctuation in
-        // flow) under the owner's own set {hi, en, gu}, with the CLD2 answer
+        // flow) under the owner's own set {hi, en, gu}, with the detector answer
         // cache emptied each round so the detector itself is counted. Every
         // other combination runs once, so no path is left without counts.
         for (int round = 0; round < 4; round++) {
@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
     if (mode == "time") {
         std::vector<double> cold, warm;
         for (int rep = 0; rep < 27; rep++) {
-            useSet(SETS[0]);   // a new hint state empties the CLD2 answer cache
+            useSet(SETS[0]);   // a new hint state empties the detection cache
             for (int pass = 0; pass < 2; pass++) {
                 auto t0 = std::chrono::steady_clock::now();
                 for (auto& t : texts) {

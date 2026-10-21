@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The detector's tables are read in at library load (image_warm.h), not on the
-# first word (owner, 2026-10-07). This builds the REAL core + CLD2 as a shared
+# first word (owner, 2026-10-07). This builds the REAL core as a shared
 # library, the way the app ships it, and for each round:
 #   1. drops the library's file pages from the page cache (posix_fadvise
 #      DONTNEED -- what a reboot, an update or memory pressure leaves behind);
@@ -17,7 +17,6 @@ ROOT=$(cd "$HERE/../../.." && pwd)
 CPP="$ROOT/app/src/main/cpp"
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-warmtables${EV_NEG:+-$EV_NEG}
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
-[ -d "$CPP/cld2_src/internal" ] || { echo "CLD2 sources missing (see tools/verify/latency/run.sh)"; exit 2; }
 mkdir -p "$WORK/obj" "$WORK/src"
 cp "$CPP"/*.cpp "$CPP"/*.h "$WORK/src/"
 case "${EV_NEG:-}" in
@@ -27,12 +26,12 @@ case "${EV_NEG:-}" in
   norewarm)   sed -i 's/    g_rewarmWanted = true;/    g_rewarmWanted = false;/' "$WORK/src/image_warm.h" ;;
   *) echo "unknown EV_NEG"; exit 2 ;;
 esac
-INC="-I$JH/include -I$JH/include/linux -I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$WORK/src"
+INC="-I$JH/include -I$JH/include/linux -I$WORK/src"
 objs=""
 for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do
   case "$f" in */tts_engine_core.cpp) f="$WORK/src/tts_engine_core.cpp" ;; esac
   o="$WORK/obj/$(echo "$f" | md5sum | cut -c1-16).o"
-  if [ ! -f "$o" ] || [ "$f" -nt "$o" ]; then
+  if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || [ -n "$(find "$WORK/src" -maxdepth 1 -name "*.h" -newer "$o" -print -quit)" ]; then
     rm -f "$o"; g++ -c -O2 -fPIC -std=c++17 -w $INC -o "$o" "$f" || { echo "compile failed: $f"; exit 1; }
   fi
   objs="$objs $o"

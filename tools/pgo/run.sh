@@ -20,9 +20,9 @@
 #      on both ABIs the app ships
 #   6. the driver's training run under AddressSanitizer + UBSan (host g++,
 #      host JDK's jni.h): no out-of-bounds read anywhere on that whole
-#      workload. This is the step that found CLD2 reading 4 MB past a table
-#      for a U+0000 (cld2Bytes in the core); `EV_CORE=<file>` runs it against
-#      another copy of the core, e.g. the one from before that fix.
+#      workload. This is the step that found CLD2 (in the app until
+#      2026-10-21) reading 4 MB past a table for a U+0000; `EV_CORE=<file>`
+#      runs it against another copy of the core.
 set -euo pipefail
 UPDATE=0; [ "${1:-}" = "--update" ] && UPDATE=1
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -32,7 +32,6 @@ PROF="$CPP/pgo/easyvoice.profdata"
 NDK=$(ls -d "$ROOT"/tools/.cache/android-sdk/ndk/* 2>/dev/null | sort | tail -1)
 [ -n "$NDK" ] || { echo "no NDK under tools/.cache (run tools/bootstrap.sh and one gradle native build)"; exit 2; }
 BIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
-[ -d "$CPP/cld2_src/internal" ] || { echo "clone CLD2 into app/src/main/cpp/cld2_src first"; exit 2; }
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-pgo
 rm -rf "$WORK"; mkdir -p "$WORK"
 
@@ -41,7 +40,7 @@ FLAGS="-std=c++17 -Wno-narrowing -Oz -g0 -fvisibility=hidden -fvisibility-inline
  -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -fno-unwind-tables
  -fno-asynchronous-unwind-tables -flto=thin -DNDEBUG"
 QUIET="$FLAGS"; FLAGS="$FLAGS -w"   # -w would also silence the -Werror of step 5
-INC="-I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$CPP"
+INC="-I$CPP"
 SRCS=$(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP")
 
 # build <name> <target> <extra flags...>: objects of every library source
@@ -106,7 +105,7 @@ link pgo x86_64 "$USE"
 if cmp -s "$WORK/plain.txt" "$WORK/pgo.txt"; then echo "IDENTICAL: $(wc -l < "$WORK/plain.txt") answers"
 else echo "FAIL: answers differ"; diff "$WORK/plain.txt" "$WORK/pgo.txt" | head; exit 1; fi
 
-echo "== 4. time (us per pass over the corpus, median of 25; cold = CLD2 cache emptied, warm = repeated)"
+echo "== 4. time (us per pass over the corpus, median of 25; cold = detection cache emptied, warm = repeated)"
 for r in 1 2 3; do
   p=$("$WORK/plain/driver" time "$CORPUS"); g=$("$WORK/pgo/driver" time "$CORPUS")
   echo "  plain cold/warm $p    pgo cold/warm $g"

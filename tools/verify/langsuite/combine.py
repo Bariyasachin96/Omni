@@ -1,40 +1,49 @@
-"""Ways of combining CLD2 and the model, tuned on one half of the text and
-measured on the other.
+"""The core's choice between the enabled languages of one script, mirrored in
+Python, tuned on one half of the text and measured on the other.
 
-    combine.py pipeline.tsv
+    combine.py pipeline.tsv [baseline.tsv]
 
 Every row of pipeline.tsv is one decision the core makes: a text in a language
-the user enabled, the enabled set, what CLD2's path answered, and the model's
-probability for each enabled language of that script. A way of combining them
-is tuned only on one half of the "test" rows and scored only on the other half,
-text it never saw (the "tune" rows are what the word-and-ending model learned from).
+the user enabled, the enabled set, the model's probability for each enabled
+language of that script, and what langblend.h decided (blendDetectors) and
+would decide after each possible context (blendFinal). This mirrors those
+steps -- the letters of each orthography (step 0), the learned letters and the
+Han rules (1), the word-and-ending model when it is sure (2), the model ML Kit
+runs and the word-and-ending model weighed (3), then the context -- and FAILS
+if the C++ decides otherwise. The weight of step 3 (kBlendC, one per script) is
+tuned only on one half of the "test" rows and scored only on the other half;
+the shipped weight is kept unless a retune gains more than LAM there, a right
+answer turned wrong counted LAM times a wrong one put right (the owner's "no
+risk"). The "tune" rows are what the word-and-ending model learned from.
 
-The rules are not tuned: each is a letter one language of a pair writes and the
-other never does, or (Chinese and Japanese) which national character sets the
-text's Han characters fit. The blend's weights are tuned per script with a
-right answer turned wrong counted LAM times a wrong one put right -- the owner's
-"no risk".
+baseline.tsv: a pipeline.tsv of an earlier core (its own format), for a
+"before" column -- e.g. the last run with CLD2 (until 2026-10-21), whose rows
+are set, label, class, split, cld2, model, fallback, detail, cands, blend, text.
 """
 import collections
 import math
 import os
+import re
 import sys
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+sys.path.insert(0, os.path.join(ROOT, "tools", "langid"))
+import train_nb  # noqa: E402
+
 SLOT = {}
 for l in "be bg kk ky mk mn ru sr tg uk".split():
     SLOT[l] = 2
 for l in "ar fa ps sd ur".split():
     SLOT[l] = 3
-for l in "hi mr ne".split():
+for l in "hi mr ne sa".split():
     SLOT[l] = 4
 for l in "zh ja".split():
     SLOT[l] = 5
 for l in "bn as".split():
     SLOT[l] = 6
 SCRIPT = {1: "Latin", 2: "Cyrillic", 3: "Arabic", 4: "Devanagari", 5: "Han", 6: "Bengali"}
-ALIAS = {"tl": "fil", "jw": "jv", "zh-Hant": "zh", "nn": "no", "sr-ME": "sr"}
 MODEL_LABELS = {"af", "am", "ar", "az", "be", "bg", "bn", "bs", "ca", "ceb", "co", "cs", "cy", "da", "de", "el", "en",
                 "eo", "es", "et", "eu", "fa", "fi", "fil", "fr", "fy", "ga", "gd", "gl", "gu", "ha", "haw", "hi", "hmn",
                 "hr", "ht", "hu", "hy", "id", "ig", "is", "it", "iw", "ja", "jv", "ka", "kk", "km", "kn", "ko", "ku",
@@ -52,8 +61,8 @@ for line in open(os.path.join(ROOT, "tools", "langid", "han_sets.txt"), encoding
 
 def han_rule(t, e):
     """langblend.h's Han rules: kana -> ja; a Han character outside JIS X 0208
-    -> zh; Han fitting neither GB 2312 alone nor CNS 11643 1-2 alone -> ja;
-    seven or more Han characters (no kana) -> zh."""
+    -> zh; seven or more Han characters (no kana) -> zh; Han fitting neither
+    GB 2312 alone nor CNS 11643 1-2 alone -> ja."""
     han = 0
     kana = notj = False
     alls = allt = True
@@ -79,218 +88,166 @@ def han_rule(t, e):
     return None
 
 
-# The word-and-ending model (tools/langid/train_nb.py; langnb.h): langblend.h's
-# step 2, believed when the best enabled language leads by NB_MARGIN.
-sys.path.insert(0, os.path.join(ROOT, "tools", "langid"))
-import train_nb  # noqa: E402
 NB = train_nb.shipped()
-NB_MARGIN = {1: 80, 2: 80, 3: 80, 4: 80, 6: 80}
-
-
-def nb_rule(t, order, slot):
-    langs = train_nb.GROUPS.get(slot)
-    cands = [L for L in dict.fromkeys(order) if SLOT.get(L, 1) == slot]
-    if not langs or len(cands) < 2 or any(L not in langs for L in cands) or not NB_MARGIN.get(slot):
-        return None
-    sc = train_nb.qscores(NB, slot, t, cands)
-    best = max(range(len(cands)), key=lambda i: (sc[i], -i))
-    second = max(sc[i] for i in range(len(cands)) if i != best)
-    return cands[best] if sc[best] - second >= NB_MARGIN[slot] else None
-
-
 LT = train_nb.letters()
 LR = train_nb.letters(train_nb.LETTERS_RARE)
-
-
 OT = train_nb.ortho()
-
-
-def slot_langs(r):
-    """the enabled languages of the text's script, as blendDetectors holds them
-    once its step 0 has run: those the orthographies' letters leave"""
-    if r.get("left") is not None:
-        return r["left"]
-    return [L for L in dict.fromkeys(r["set"].split("+")) if SLOT.get(L, 1) == r["slot"]]
-
-
-def ortho_step(r):
-    """langblend.h's step 0 (orthoDecide): (the one language the letters leave,
-    or None; what they leave when they rule something out, else None; their
-    best, which stands for CLD2's answer if they ruled that out)"""
-    slot = r["slot"]
-    if slot not in (2, 3, 6):
-        return None, None, None
-    langs = train_nb.GROUPS[slot]
-    cands = [L for L in dict.fromkeys(r["set"].split("+")) if SLOT.get(L, 1) == slot]
-    if len(cands) < 2 or any(L not in langs for L in cands):
-        return None, None, None
-    det = (r["cld2"], r["mtop"]) if all(L in MODEL_LABELS for L in cands) else None
-    left, tot = train_nb.ortho_decide(OT, NB, slot, r["text"], cands, det)
-    if tot is None or len(left) == len(cands):
-        return None, None, None
-    best = cands[max(range(len(cands)), key=lambda j: (tot[j], -j))]
-    return (left[0] if len(left) == 1 else None), left, best
-
-
-def rule(r):
-    """langblend.h's step 1: the learned letters (Cyrillic, Arabic, Bengali), the
-    Han rules (Chinese and Japanese)."""
-    t, e, slot = r["text"], r["enabled"], r["slot"]
-    if slot in (2, 3, 6):
-        langs = train_nb.GROUPS[slot]
-        cands = slot_langs(r)
-        if any(L not in langs for L in cands):
-            return None
-        return train_nb.letter_rule(LT, slot, t, cands)
-    if slot == 5:
-        return han_rule(t, e)
-    return None
-
+NB_MARGIN = 80     # langblend.h kNbMargin: e^10
+CTX_MARGIN = 48    # langblend.h kCtxMargin: 6 nats
 
 rows = []
 for line in open(sys.argv[1], encoding="utf-8"):
     f = line.rstrip("\n").split("\t")
-    s, label, cls, split, cld2, model, fallback, detail, cands, blend_cpp, text = f[:11]
-    ctxmap = dict(x.split(":", 1) for x in f[11].split(",") if ":" in x) if len(f) > 11 else {}
+    s, label, cls, split, model, fallback, cands, blend_cpp, text = f[:9]
+    ctxmap = dict(x.split(":", 1) for x in f[9].split(",") if ":" in x) if len(f) > 9 else {}
     probs = {}
     for c in cands.split(","):
         if "=" in c:
             k, v = c.split("=")
             probs[k] = float(v)
-    d = detail.split(":")
-    rank = [(ALIAS.get(x.split("/")[0], x.split("/")[0]), int(x.split("/")[1])) for x in d[2:]]
-    enabled = set(s.split("+"))
+    enabled = list(dict.fromkeys(s.split("+")))
     slot = SLOT.get(label, 1)
-    r = dict(set=s, label=label, cls=cls, split=split, cld2=cld2, model=model, text=text, slot=slot,
-             enabled=enabled, blend=blend_cpp, probs=probs, rank=rank, ctxmap=ctxmap)
-    r["multi"] = sum(1 for x in enabled if SLOT.get(x, 1) == slot) > 1
+    r = dict(set=s, label=label, cls=cls, split=split, model=model, text=text, slot=slot, enabled=set(enabled),
+             blend=blend_cpp, probs=probs, ctxmap=ctxmap)
+    r["slotl"] = [L for L in enabled if SLOT.get(L, 1) == slot]
+    r["multi"] = len(r["slotl"]) > 1
     r["mtop"] = max(sorted(probs), key=lambda L: probs[L]) if probs else None
-    r["left"], r["ruled_out"] = None, None
-    sure0 = None
-    if r["multi"]:
-        sure0, r["left"], best0 = ortho_step(r)
-        if r["left"] is not None and cld2 not in r["left"]:
-            r["ruled_out"] = best0
-    r["rule"] = (sure0 or rule(r) or nb_rule(text, slot_langs(r), slot)) if r["multi"] else None
-    # what the blend reads, once: per candidate ln p, CLD2's percent, CLD2's answer
-    r["cands"] = sorted(L for L in probs if r["left"] is None or L in r["left"])
-    r["lp"] = [math.log(probs[L] + 1e-6) for L in r["cands"]]
-    pct = {L: 0.0 for L in r["cands"]}
-    named = False
-    for code, p in rank:
-        if code in pct and p > 0:
-            pct[code] += p / 100.0
-            named = True
-    r["pct"] = [pct[L] for L in r["cands"]]
-    r["ans"] = [1.0 if L == cld2 else 0.0 for L in r["cands"]]
-    r["named"] = named
-    nbl = train_nb.GROUPS.get(slot)
-    if r["multi"] and nbl and len(r["cands"]) > 1 and all(L in nbl for L in r["cands"]):
-        q8 = train_nb.qscores(NB, slot, text, r["cands"])
-        r["nb"] = [x / 8.0 for x in q8]
-    else:
-        r["nb"] = [0.0] * len(r["cands"])
-    r["usable"] = bool(probs) and cld2 in MODEL_LABELS
     rows.append(r)
 
 
-def soft(r, a, k, b, c):
-    """langblend.h's step 4: a ln p_model + (1 - a) ln q_cld2 + c nb, q = CLD2's
-    percents + k + b for its answer, nb = the word-and-ending model's score (nats)."""
-    if not r["usable"] or not r["cands"]:
-        return r["ruled_out"] or r["cld2"]
-    q = [k + p + b * a_ for p, a_ in zip(r["pct"], r["ans"])]
-    z = sum(q)
-    best_l, bs = None, -1e300
-    for L, lp, qq, nb in zip(r["cands"], r["lp"], q, r["nb"]):
-        sc = a * lp + (1 - a) * math.log(qq / z + 1e-6) + c * nb
-        if sc > bs:
-            best_l, bs = L, sc
-    return best_l
+def prepare(r):
+    """steps 0-2 of blendDetectors: (sure answer or None, the languages left,
+    the word-and-ending model's scores over them or None)"""
+    slot, text = r["slot"], r["text"]
+    left = list(r["slotl"])
+    if slot in (2, 3, 6) and all(L in train_nb.GROUPS[slot] for L in left):
+        det = (r["mtop"], r["mtop"]) if all(L in MODEL_LABELS for L in left) else None
+        kept, tot = train_nb.ortho_decide(OT, NB, slot, text, left, det)
+        if tot is not None and len(kept) < len(left):
+            left = kept
+            if len(kept) == 1:
+                return kept[0], left, None
+    if slot in (2, 3, 6):
+        if all(L in train_nb.GROUPS[slot] for L in left):
+            won = train_nb.letter_rule(LT, slot, text, left)
+            if won:
+                return won, left, None
+    elif slot == 5:
+        won = han_rule(text, r["enabled"])
+        if won:
+            return won, left, None
+    nb = None
+    g = train_nb.GROUPS.get(slot)
+    if g and len(left) > 1 and all(L in g for L in left):
+        nb = train_nb.qscores(NB, slot, text, left)
+        best = max(range(len(left)), key=lambda i: (nb[i], -i))
+        second = max(nb[i] for i in range(len(left)) if i != best)
+        if nb[best] - second >= NB_MARGIN:
+            return left[best], left, nb
+    return None, left, nb
 
 
-def blend(r, w):
-    return r["rule"] or soft(r, *w)
+for r in rows:
+    if r["multi"]:
+        r["sure"], r["left"], r["nb"] = prepare(r)
 
 
-LAM = float(os.environ.get("EV_LAM", "3"))
+def soft(r, c):
+    """step 3: ln p(model) + c * nb / 8 when the model knows every candidate;
+    else the word-and-ending model alone; else the model among those it knows"""
+    left, nb = r["left"], r["nb"]
+    lab = [L for L in left if L in MODEL_LABELS]
+    if len(lab) == len(left) and lab:
+        best, bs = None, -1e300
+        for i, L in enumerate(left):
+            sc = math.log(r["probs"].get(L, 0.0) + 1e-6) + (c * nb[i] / 8.0 if nb else 0.0)
+            if sc > bs:
+                best, bs = L, sc
+        return best
+    if nb:
+        return left[max(range(len(left)), key=lambda i: (nb[i], -i))]
+    if lab:
+        return max(lab, key=lambda L: r["probs"].get(L, 0.0))
+    return left[0]
 
 
-def gain(sub, w):
-    g = 0
-    for r in sub:
-        old = r["cld2"] == r["label"]
-        new = blend(r, w) == r["label"]
-        if new != old:
-            g += 1 if new else -LAM
-    return g
+def decide(r, c):
+    if not r["multi"]:
+        return r["model"]
+    return r["sure"] or soft(r, c)
 
 
-# The word-and-ending model learned from the cases' "tune" half, so those rows
-# say nothing fair about weights: the blend is tuned on one half of the "test"
-# rows and measured on the other (by a hash of the text, the same every run).
-import zlib  # noqa: E402
-tune = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["text"]).encode("utf-8")) % 2 == 0]
-test = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["text"]).encode("utf-8")) % 2 == 1]
-GRID = [(a, k, b, c) for a in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9) for k in (0.01, 0.05, 0.2)
-        for b in (0, 0.5, 1, 2) for c in (0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0)]
-# The weights langblend.h ships (kBlend), per slot: a retune replaces them only
-# when it gains more than one break's worth (LAM) on the tune half -- a change
-# of the rows a rule decides moves the argmax by a point or two either way, and
-# chasing that is noise, not a better blend (2026-10-21: the letters' step 0
-# changed which Cyrillic texts the blend decides; the argmax then gained 1 on
-# the tune half and lost 4 on the held-out one).
-import re  # noqa: E402
 SHIPPED = {}
 _kb = open(os.path.join(ROOT, "app", "src", "main", "cpp", "langblend.h"), encoding="utf-8").read()
-_kb = _kb[_kb.index("static const BlendWeights kBlend[7] = {"):]
-for _slot, _row in enumerate(re.findall(r"\{([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f\}", _kb[:_kb.index("};")])):
-    SHIPPED[_slot] = tuple(float(x) for x in _row)
+_kb = _kb[_kb.index("static const float kBlendC[7] = {"):]
+for _slot, _v in enumerate(re.findall(r"([0-9.]+)f", _kb[:_kb.index("};")])):
+    SHIPPED[_slot] = float(_v)
+
+tune = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["text"]).encode("utf-8")) % 2 == 0]
+test = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["text"]).encode("utf-8")) % 2 == 1]
+LAM = float(os.environ.get("EV_LAM", "3"))
+GRIDC = [0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0]
 best = {}
 for slot in SCRIPT:
-    # only the decisions the weights can change: the blend runs (two or more
-    # candidates), no rule has decided, CLD2's answer is one the model knows
-    live = [r for r in tune if r["slot"] == slot and r["multi"] and not r["rule"] and r["usable"]
-            and len(r["cands"]) > 1]
+    live = [r for r in tune if r["slot"] == slot and r["multi"] and not r["sure"] and len(r["left"]) > 1]
     if not live:
+        best[slot] = SHIPPED.get(slot, 0.0)
         continue
-    best[slot] = max(GRID, key=lambda w: (gain(live, w), -w[3], -w[0]))
-    if slot in SHIPPED and gain(live, SHIPPED[slot]) >= gain(live, best[slot]) - LAM:
-        best[slot] = SHIPPED[slot]
-    print("%-10s tuned on %6d: a=%.1f k=%.2f b=%.1f c=%.2f" % ((SCRIPT[slot], len(live)) + best[slot]))
+    shipped = SHIPPED.get(slot, 0.0)
 
-WAYS = collections.OrderedDict([
-    ("CLD2 (today)", lambda r: r["cld2"]),
-    ("model", lambda r: r["model"]),
-    ("rules + CLD2", lambda r: r["rule"] or r["cld2"]),
-    ("rules + blend", lambda r: blend(r, best[r["slot"]]) if r["slot"] in best else (r["rule"] or r["cld2"])),
-    ("C++ blend", lambda r: r["blend"]),
-    ("either right", lambda r: r["label"] if r["label"] in (r["cld2"], r["model"]) else r["cld2"]),
-])
+    def gain(c):
+        g = 0
+        for r in live:
+            old = soft(r, shipped) == r["label"]
+            new = soft(r, c) == r["label"]
+            if new != old:
+                g += 1 if new else -LAM
+        return g
+    cand = max(GRIDC, key=lambda c: (gain(c), -abs(c - shipped)))
+    best[slot] = cand if gain(cand) > LAM else shipped
+    print("%-10s tuned on %6d undecided texts: c = %.2f (shipped %.2f, best of the grid %.2f gains %+.0f)"
+          % (SCRIPT[slot], len(live), best[slot], shipped, cand, gain(cand)))
+
+base = {}
+if len(sys.argv) > 2:
+    for line in open(sys.argv[2], encoding="utf-8"):
+        f = line.rstrip("\n").split("\t")
+        if len(f) >= 11:
+            base.setdefault((f[0], f[1], f[10]), f[9])
+before = (lambda r: base.get((r["set"], r["label"], r["text"]))) if base else None
+
+WAYS = collections.OrderedDict()
+if before:
+    WAYS["before"] = before
+WAYS["model alone"] = lambda r: r["model"]
+WAYS["now (python)"] = lambda r: decide(r, best[r["slot"]])
+WAYS["now (C++)"] = lambda r: r["blend"]
+NOW = WAYS["now (python)"]
+REF = before or WAYS["model alone"]
 
 
 def acc(sub, fn):
     return sum(fn(r) == r["label"] for r in sub) / len(sub) if sub else 0.0
 
 
-def breaks(sub, fn):
-    return sum(1 for r in sub if r["cld2"] == r["label"] and fn(r) != r["label"])
+def broke(sub):
+    return sum(1 for r in sub if REF(r) == r["label"] and NOW(r) != r["label"])
 
 
-def fixes(sub, fn):
-    return sum(1 for r in sub if r["cld2"] != r["label"] and fn(r) == r["label"])
+def fixed(sub):
+    return sum(1 for r in sub if REF(r) != r["label"] and NOW(r) == r["label"])
 
 
-print("\n== TEST rows only (never used for tuning): accuracy %, and for rules + blend the texts")
-print("== CLD2 got right that it gets wrong / CLD2 got wrong that it gets right ==")
-print("%-34s" % "" + "".join("%15s" % w for w in WAYS) + "   broke/fixed")
+print("\n== TEST rows only (never used for tuning), texts where 2+ enabled languages share the script:")
+print("== accuracy %%, and the texts %s got right that now are wrong / wrong that now are right =="
+      % ("before" if before else "the model alone"))
+print("%-34s" % "" + "".join("%14s" % w for w in WAYS) + "   broke/fixed")
 for name in dict.fromkeys(r["set"] for r in test):
     sub = [r for r in test if r["set"] == name and r["multi"]]
     for lang in dict.fromkeys(r["label"] for r in sub):
         ls = [r for r in sub if r["label"] == lang]
-        fn = WAYS["rules + blend"]
-        print("%-34s" % ("%s  %s (%d)" % (name, lang, len(ls))) + "".join("%14.1f " % (100 * acc(ls, f)) for f in WAYS.values())
-              + "   %d/%d" % (breaks(ls, fn), fixes(ls, fn)))
+        print("%-34s" % ("%s  %s (%d)" % (name, lang, len(ls))) + "".join("%13.1f " % (100 * acc(ls, f)) for f in WAYS.values())
+              + "   %d/%d" % (broke(ls), fixed(ls)))
 print()
 for title, keep in (("ALL test", lambda r: True),
                     ("short (1-3 words, phrases)", lambda r: r["cls"] in ("1w", "2-3w", "phrase")),
@@ -300,40 +257,33 @@ for title, keep in (("ALL test", lambda r: True),
                     ("Tatoeba", lambda r: r["cls"] == "tatoeba")):
     sub = [r for r in test if keep(r) and r["multi"]]
     if sub:
-        fn = WAYS["rules + blend"]
-        print("%-34s" % ("%s (%d)" % (title, len(sub))) + "".join("%14.1f " % (100 * acc(sub, f)) for f in WAYS.values())
-              + "   %d/%d" % (breaks(sub, fn), fixes(sub, fn)))
-
-# CONTEXT (langblend.h's blendFinal): a decision that is not sure (no rule, the
-# word-and-ending model below its margin) takes the language of the last sure
-# decision in the same script, unless the word-and-ending model puts its own
-# pick at least CTX nats above that language, or the text holds a letter its own
-# answer writes and that language practically never does (letters_rare.tsv). Simulated: the last sure
-# decision was the text's own language, or with probability P another one.
-def nb_scores_all(r):
-    langs = train_nb.GROUPS.get(r["slot"])
-    cands = slot_langs(r)
-    if not langs or len(cands) < 2 or any(L not in langs for L in cands):
-        return cands, None
-    return cands, train_nb.qscores(NB, r["slot"], r["text"], cands)
+        print("%-34s" % ("%s (%d)" % (title, len(sub))) + "".join("%13.1f " % (100 * acc(sub, f)) for f in WAYS.values())
+              + "   %d/%d" % (broke(sub), fixed(sub)))
 
 
-def with_context(r, ctx, ctx_margin):
-    got = WAYS["rules + blend"](r)
-    if r["rule"] or ctx is None or ctx == got:
+# CONTEXT (langblend.h's blendFinal): a decision that is not sure takes the
+# language of the last sure decision in the same script, unless the
+# word-and-ending model puts its own pick CTX_MARGIN above that language, or the
+# text holds a letter its own answer writes and that language practically never
+# does (letters_rare.tsv). Simulated: the last sure decision was the text's own
+# language, or with probability P another one.
+def with_context(r, ctx):
+    got = decide(r, best[r["slot"]])
+    if not r["multi"] or r["sure"] or ctx is None or ctx == got:
         return got
-    cands, sc = nb_scores_all(r)
+    cands = r["left"]
     if ctx not in cands:
         return got
-    if train_nb.letter_veto(LR, r["slot"], r["text"], got, ctx):
+    if got in cands and train_nb.letter_veto(LR, r["slot"], r["text"], got, ctx):
         return got
+    sc = r["nb"]
     if sc is None or got not in cands:
         return ctx
-    return got if sc[cands.index(got)] - sc[cands.index(ctx)] >= ctx_margin * 8 else ctx
+    return got if sc[cands.index(got)] - sc[cands.index(ctx)] >= CTX_MARGIN else ctx
 
 
 def sim_ctx(r, p):
-    cands = [L for L in dict.fromkeys(r["set"].split("+")) if SLOT.get(L, 1) == r["slot"]]
+    cands = r["slotl"]
     h = zlib.crc32(("ctx" + r["text"]).encode("utf-8")) % 1000
     if h >= p * 1000 or len(cands) < 2:
         return r["label"]
@@ -341,50 +291,43 @@ def sim_ctx(r, p):
     return others[h % len(others)]
 
 
-for r in rows:
-    r["nbs"] = None
-ctx_best = 6          # langblend.h's kCtxMargin (48 = 6 nats): context wins unless overruled by 6 nats
-print("\n== CONTEXT (held-out half), margin to overrule it: %d nats ==" % ctx_best)
+print("\n== CONTEXT (held-out half), margin to overrule it: %d nats ==" % (CTX_MARGIN // 8))
+sub = [r for r in test if r["multi"]]
 for P in (0.0, 0.1, 0.3, 0.5):
-    sub = [r for r in test if r["multi"]]
-    a = sum(with_context(r, sim_ctx(r, P), ctx_best) == r["label"] for r in sub) / len(sub)
-    print("  last sure language differs with probability %.1f: %.2f%%  (no context %.2f%%)" % (
-        P, 100 * a, 100 * acc(sub, WAYS["rules + blend"])))
+    a = sum(with_context(r, sim_ctx(r, P)) == r["label"] for r in sub) / len(sub)
+    print("  last sure language differs with probability %.1f: %.2f%%  (no context %.2f%%)" % (P, 100 * a, 100 * acc(sub, NOW)))
 
-# blendFinal (C++) after every possible context must answer what with_context does
-cdiff = 0
-ctotal = 0
+cdiff = ctotal = 0
 for r in rows:
-    if r["multi"] and r["slot"] in best and r["ctxmap"]:
+    if r["multi"] and r["ctxmap"]:
         for c, cpp in r["ctxmap"].items():
             ctotal += 1
-            if with_context(r, c, ctx_best) != cpp:
+            if with_context(r, c) != cpp:
                 cdiff += 1
                 if cdiff <= 5:
-                    print("   context %s, %s %s: python %s  C++ %s  %r" % (c, r["set"], r["label"], with_context(r, c, ctx_best), cpp, r["text"][:50]))
+                    print("   context %s, %s %s: python %s  C++ %s  %r" % (c, r["set"], r["label"], with_context(r, c), cpp, r["text"][:50]))
 print("C++ context vs python: %d of %d differ" % (cdiff, ctotal))
-if cdiff > ctotal // 1000:
-    print("FAILED: blendFinal does not apply the context as simulated")
-    sys.exit(1)
 
-# Every test text the blend turns wrong, for reading: breaks.tsv beside the input.
+# Every test text now wrong that the reference got right, for reading: breaks.tsv beside the input.
 with open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "breaks.tsv"), "w", encoding="utf-8") as out:
-    fn = WAYS["rules + blend"]
     for r in test:
-        if r["multi"] and r["cld2"] == r["label"] and fn(r) != r["label"]:
-            out.write("%s\t%s\t%s\tcld2=%s\tmodel=%s\tblend=%s\t%s\t%s\n" % (
-                r["set"], r["label"], r["cls"], r["cld2"], r["model"], fn(r),
-                ",".join("%s/%d" % x for x in r["rank"]), r["text"]))
+        if r["multi"] and REF(r) == r["label"] and NOW(r) != r["label"]:
+            out.write("%s\t%s\t%s\tref=%s\tmodel=%s\tnow=%s\t%s\n" % (
+                r["set"], r["label"], r["cls"], REF(r), r["model"], NOW(r), r["text"]))
 
-# The C++ (langblend.h, what the core runs) must make the decisions the tuned
-# arithmetic above makes. Single-language scripts are left to CLD2's path by
-# design, so they are not compared.
-multi = [r for r in rows if r["multi"] and r["slot"] in best]
-differ = [r for r in multi if blend(r, best[r["slot"]]) != r["blend"]]
-print("\nC++ blend vs the tuned arithmetic: %d of %d decisions differ" % (len(differ), len(multi)))
+multi = [r for r in rows if r["multi"]]
+differ = [r for r in multi if decide(r, best[r["slot"]]) != r["blend"]]
+print("\nC++ blend vs python: %d of %d decisions differ" % (len(differ), len(multi)))
 for r in differ[:8]:
-    print("   %s %s: python %s  C++ %s  %r" % (r["set"], r["label"], blend(r, best[r["slot"]]), r["blend"], r["text"][:50]))
-print("kBlend: " + ", ".join("{%.1ff, %.2ff, %.1ff, %.2ff}" % best[s] for s in sorted(best)))
-if len(differ) > len(multi) // 1000:
-    print("FAILED: langblend.h does not decide what was tuned")
-    sys.exit(1)
+    print("   %s %s: python %s  C++ %s  %r" % (r["set"], r["label"], decide(r, best[r["slot"]]), r["blend"], r["text"][:50]))
+print("kBlendC: {0.0f, " + ", ".join("%.2ff" % best[s] for s in sorted(best)) + "}")
+failed = False
+if any(abs(best[s] - SHIPPED.get(s, 0.0)) > 1e-9 for s in best):
+    print("NOTE: a retune beats the shipped kBlendC by more than LAM -- put the line above into langblend.h")
+if differ:
+    print("FAILED: langblend.h does not decide what is mirrored here")
+    failed = True
+if cdiff:
+    print("FAILED: blendFinal does not apply the context as mirrored here")
+    failed = True
+sys.exit(1 if failed else 0)

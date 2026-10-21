@@ -27,7 +27,9 @@ afterwards.
 
 **Why.** `pushLanguageSets` is AutoTTS's `s0()`. It recomputes the enabled-ISO
 set from the *live* list and hands it to `NativeEngine.setLanguageHints`, which
-rebuilds the two per-script tables the native detector steers CLD2 with. AutoTTS
+rebuilds the per-script fallback table and the list of enabled languages the
+native detector may choose among (CLD2 was steered with them until it left the
+app on 2026-10-21). AutoTTS
 does this at **all eleven** of its rebuild sites, inside the same
 `synchronized` block, without exception. A rebuild that does not push leaves the
 detector hinting at the previous list.
@@ -58,8 +60,9 @@ select-all / clear-all / row tap change the disabled flag and call `n.y()`
 hints, and may only be called where the list was just loaded or rebuilt.
 `pushDetectSetsOnly()` is the per-utterance call and must never send hints.
 
-**Why.** The hints steer the detector — CLD2 takes them as its per-script
-language hint is derived from that list — so it decides which
+**Why.** The hints are what the detector may answer: the enabled languages
+of a script are the only candidates for a span of it (and until 2026-10-21 CLD2
+took its per-script language hint from the same list) -- so the list decides which
 languages may be named at all. `LangStore.languages` is a shared static that the
 settings screens rebuild, and **not always whole**: `dualLangList` is two
 entries, and `voiceLanguageLabels` uses `onlyEnabled = true`. Re-deriving the
@@ -342,12 +345,25 @@ That is the second time this exact trap has been hit; `selftest.sh` found both.
 
 ---
 
-## 16. CLD2 is the only detector — CLD3 must not come back
+## 16. The model ML Kit runs is the only detector — CLD2 and CLD3 must not come back
 
 **Rule.** No `cld3*`, `useCld3*`, `NNetLanguageIdentifier` or `isRomanisedTag`
-symbol in `tts_engine_core.cpp` or the service, and no `cld3` / `protobuf` /
-`protoc` in `CMakeLists.txt` or `build.yml`. Both halves are checked by
-`invariants.sh` and both are negative-tested in `selftest.sh`.
+symbol, no `CLD2::` call, `compact_lang_det` header, `ExtDetectLanguageSummary`
+or `cld2_src` in the core, its headers or the Kotlin, and no `cld2` / `cld3` /
+`protobuf` / `protoc` in `CMakeLists.txt` or `build.yml` (comments stripped).
+Both halves are checked by `invariants.sh` and negative-tested in `selftest.sh`.
+
+**CLD2 went on 2026-10-21** at the owner's instruction: *"jahan per CLD2 kam
+karega vahan per ab ML Kit kam karega ... CLD2 hata do."* Measured first, on the
+language suite's held-out half (35,212 texts where 2+ enabled languages share a
+script): 96.2% with CLD2, 96.1% without; with the context 99.79 / 98.63 / 96.42 /
+94.11% against 99.78 / 98.63 / 96.45 / 94.16%. Auto mode, on the same texts
+through the real core (`tools/verify/automode`), is BETTER without it in every
+set (es/fr/de/pt/it 97.86 -> 99.27%, id+ms 98.71 -> 99.42%, ru+uk+bg+sr 99.35 ->
+99.88%, the owner's set 100% both). The library lost 6.1 MB per ABI. What a span
+of a script two or more enabled languages share is read in is #34-#36; with one
+enabled language it is that one, with none the model's best language of the
+script (which no voice of the user's reads).
 
 **Why.** CLD3 was removed on 2026-09-02 at the owner's instruction, after they had
 tested it on their own device for days. This invariant used to say the opposite
@@ -380,9 +396,10 @@ translation units, a protoc download per CI run, and 12x on the detection path.
 ---
 
 
-## 20. The span emitter has three parts nobody would guess from the Java
+## 20. The span emitter has parts nobody would guess from the Java
 
-**Rule.** `emitScriptSpan` must keep all three of these. They are not visible in
+**Rule.** The span walk (`scanScriptRuns`, `nameRunAlone`, `spanTriples`) must keep
+these (part 2 went with CLD2 on 2026-10-21). They are not visible in
 any `.java` file — `clsCLD2.nativeGetLanguages` is a `native` declaration, and
 everything below lives in `getLanguageSpans` at **0x65392c** in
 `lib/arm64-v8a/libcld2.so`.
@@ -408,7 +425,8 @@ way. Answering `"un"` there is not equivalent: an unnamed span is resolved by
 the caller with the *preferred* Latin language, a named one goes through
 `c3.e.c` and the engine check first.
 
-**2. The CLD2 answer filter tests FOUR candidates, not three.** In order: the
+**2. (Until 2026-10-21, when CLD2 left the app.) The CLD2 answer filter tested
+FOUR candidates, not three.** In order: the
 value `ExtDetectLanguageSummary` returns, then `language3[0]`, `[1]` and `[2]`,
 each of the last three only when it is a real language covering at least one
 percent. The compiler unrolled the loop into three identical blocks at
@@ -427,8 +445,8 @@ per-script fallback instead.
 `0x6535f4`: `sub x8, x0, #0x8 / cmn x8, #0x7 / b.lo <skip>` keeps a code only
 when `1 <= strlen <= 7` — it has to fit an 8-byte slot with its NUL — and a
 longer one is **skipped, not truncated**. `0x65373c` stops the loop once 64 have
-been kept. Our comma list, which the per-script hint tables are derived from, is built
-from the same accepted codes so the two detectors are steered by one list.
+been kept. Our comma list, which the per-script fallback table is derived from, is
+built from the same accepted codes.
 
 **4. In the script ladder, an ASCII letter means Latin and anything else means
 "no information".** `0x653ae8`: `and w8, w8, #0x5f / sub w8, w8, #0x5b /
@@ -1139,8 +1157,8 @@ and judges each answer through the real IsoCodes. Three rules keep it at zero:
   language) used. A lone danda, Vedic sign, CJK full stop or Arabic comma went to the
   English voice without it.
 - **Every script slot counts.** The single-slot Script_Extensions rule (`span_slot` in
-  gen_tables.py) and the per-script hint tables (`kExtraSlotLangs` beside the 48 pairs)
-  cover all slots, not libcld2's 25: the Arabic comma and harakat are not Arabic after a
+  gen_tables.py) and the per-script fallback table (`kExtraSlotLangs` beside the 48
+  pairs) cover all slots, not libcld2's 25: the Arabic comma and harakat are not Arabic after a
   Syriac or N'Ko letter, and a Syriac or Limbu mark is Syriac or Limbu.
 
 Each rule has a negative test in that harness (`EV_NEG=noattach | noneutral | noextra |
@@ -1184,16 +1202,16 @@ Bengali (slots 2, 3, 6), two rules (langblend.h; the owner's {hi, en, gu} meets 
   48 for Bengali) more than the best is ruled out; one left is SURE, so it becomes the
   context and the context can no longer turn "كتاب" (Arabic kaf) after Urdu text into Urdu;
   otherwise steps 1-4 and the context choose only between those left. Two vetoes keep a
-  language in: the word-and-ending model `kNbMargin` above the best, or CLD2's answer, the
-  model's top and the word-and-ending model's best all naming it (Persian typed with
-  Arabic letters).
+  language in: the word-and-ending model `kNbMargin` above the best, or the model's top
+  and the word-and-ending model's best both naming it (Persian typed with Arabic letters;
+  CLD2's answer was a third voice there until 2026-10-21).
 - **Why "alone":** Pashto writes both ي and ی, ك and ک, so a Persian sentence quoting
   three Arabic words costs Pashto nothing and "is" Pashto by letters; no word allows
   Pashto alone there, so nothing is ruled out and the blend reads it as Persian.
 - **Why only letters a language does NOT write:** letters a language lacks never rule it
   out. The first draft counted absence too (each letter present or absent, a Bernoulli
   model): a three-word Pashto phrase without a Pashto letter was ruled out of Pashto.
-- **`orthoSegment`, called by `emitScriptSpan`.** Such a span is cut so each piece is one
+- **`orthoSegment`, called by `nameSpanTexts` (#35).** Such a text is cut so each piece is one
   language. Pass 1: sentences (cut at `kOrthoSent`: . ! ? ; ؟ ؛ ۔ । ॥ newline) each named by
   the letters' one language, else the word-and-ending model `kNbMargin` ahead in a sentence
   of `kOrthoMinWords` (3) words or more; a sentence naming another language than the one
@@ -1221,6 +1239,49 @@ Bengali (slots 2, 3, 6), two rules (langblend.h; the owner's {hi, en, gu} meets 
   is contradicted" (worse in every set: one word inside an Urdu/Arabic sentence 92.3%, kept
   rule 96.2%); "rule out only a language most telling words contradict" (fewer texts the
   letters settle, and one suite text it settled wrong).
-- **The suite keeps the shipped blend weights** unless a retune gains more than `LAM` on
-  the tune half (`combine.py` reads `kBlend`): step 0 changed which Cyrillic texts the blend
-  decides, and the argmax then gained 1 there while losing 4 on the held-out half.
+- **The suite keeps the shipped blend weight** unless a retune gains more than `LAM` on
+  the tune half (`combine.py` reads `kBlendC`).
+
+## 35. One script, one sentence, one decision
+2026-10-21, found the moment CLD2 left (`tools/verify/mixedscript`: 49 one-language texts
+newly read in two). Where two or more enabled languages share a script, the runs of that
+script in ONE SENTENCE of an utterance are named TOGETHER (`nameSpanTexts`): joined into
+one text, in every text of the utterance -- processDirect's chunks are one utterance, and
+`chunksSpansFlat` names them together -- and cut only where `orthoSegment` says the
+language changes, never because a word of another script stood between. A sentence end
+(`kOrthoSent`) between two runs, in the text between them or in a chunk between them,
+still parts them, as two runs were parted before; where each sentence holds one run this
+is exactly what naming each run on its own was.
+
+- **Why.** "Конгломерат Virgin приобрел ...", "Серия ASUS Eee PC ...", "В XVI веке ...":
+  mix mode cuts a Russian sentence at every Latin word, and a lone "Конгломерат" or "В"
+  read alone is any Cyrillic language. CLD2's bias toward the big language of a script hid
+  it; the model weighs each piece fairly. Joined, the sentence is one Russian text.
+- **Measured** (mixedscript, FLORES-200, real core, mix mode): one-language texts read in
+  two languages 0 (HEAD with CLD2: 128); two sentences of two languages after a stop
+  99.6-100% of words right (99.5-100%). Without a stop between them 59-97% (68-99.7%): the
+  Latin words and numbers inside such a text no longer cut it by accident -- the price,
+  stated.
+- **Check.** `tools/verify/mixedscript` fails on any one-language text read in two that
+  the reference core read in one; corebytes: the owner's {hi, en, gu} shares no script, so
+  nothing here runs for them.
+
+## 36. Auto mode: a window is read in a language that writes its letters
+2026-10-21. The window detector (`detectWindowLangUncached`, AutoTTS's per-64-character
+`getLanguage`) is the model ML Kit runs, with three rules CLD2 got by construction (it
+scored a text per script, letters only):
+
+- **Only a language that writes a script the window's letters are in** (`lidLabelSlot`,
+  `spanScriptSlot` of each letter the model reads). Unrestricted, the model named "en" for
+  a lone Greek beta, "hi" for a rare Han character, "gu" for a Latin modifier letter
+  (allchars: 478 characters wrong in auto mode, 0 with the rule).
+- **No letter, no answer:** a window of emoji, digits or punctuation is UNKNOWN (the model
+  said Khmer at 0.5+ for "😂😂😂"), and the script fallback after it names the language.
+- **Two or more enabled languages of that script are weighed (`blendDetectors`, as for a
+  span) whatever the model's own confidence.** Between close languages its probability is
+  split under ML Kit's 0.5, and an UNKNOWN there handed the window to the script's first
+  enabled language: auto mode fell to 90.1% for id+ms and 91-94% for es/pt/it/fr before
+  this; with it 99.4% and 98.8-99.5% (CLD2: 98.7%, 96.3-98.3%). Otherwise the model's
+  label counts only at 0.5 or more, ML Kit's own threshold.
+- **Check.** `tools/verify/automode` (the language suite's texts through an earlier core
+  and the working tree's) and `tools/verify/allchars`.

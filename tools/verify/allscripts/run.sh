@@ -11,7 +11,7 @@
 #   EV_NEG=nofixed     the core without its fixed-slot languages  -> must FAIL
 #   EV_NEG=noiso       IsoCodes without the script languages      -> must FAIL
 #   EV_NEG=truncate    auto mode cutting the code to two letters  -> must FAIL
-# Needs g++, a JDK, kotlinc (tools/bootstrap.sh) and the CLD2 clone.
+# Needs g++, a JDK and kotlinc (tools/bootstrap.sh).
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$HERE/../../.." && pwd)
@@ -21,11 +21,10 @@ KOTLINC=${KOTLINC:-$ROOT/tools/.cache/kotlinc/bin/kotlinc}
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-allscripts
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
 NEG=${EV_NEG:-}
-[ -d "$CPP/cld2_src/internal" ] || { echo "clone CLD2 into app/src/main/cpp/cld2_src first"; exit 2; }
 # The auto branch hands toIso3 the whole code (it drops a subtag itself).
 if grep -q 'rawDetected.substring(0, 2)' "$SRC/EasyVoiceTtsService.kt"; then
   echo "FAILED: the auto branch cuts the detected code to two letters again"; exit 1; fi
-INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$CPP"
 mkdir -p "$WORK/obj" "$WORK/neg"
 compile() {
   local src=$1

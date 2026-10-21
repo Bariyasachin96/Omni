@@ -80,12 +80,15 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/segmenter/run.sh        # ~1 min,  163,296 cases
     tools/verify/scriptfamily/run.sh     # ~3 min,  15 language sets x 1,114,112 code points
     tools/verify/normalizer/run.sh       # ~20 s,   1,114,112 code points, 1,062 mappings
-    tools/verify/langcodes/run.sh        # ~5 s,    283 CLD2 language codes
+    tools/verify/langcodes/run.sh        # ~5 s,    312 language codes: every one the detector answers, and CLD2's
     tools/verify/langid/run.sh           # ~3 min,  langid.h == MediaPipe's C++ bit for bit, == ML Kit's own library on 58,770 texts
-    tools/verify/langsuite/run.sh        # ~4 min,  where enabled languages share a script: CLD2, the ML Kit model, letters,
+    tools/verify/langsuite/run.sh        # ~4 min,  where enabled languages share a script: the ML Kit model, letters,
                                          #          the word-and-ending model and context on ~110,000 labelled texts
                                          #          (UDHR, phrases, Android UI strings, Tatoeba); C++ == Python checked
     tools/verify/langsuite/fetch_data.sh # once:    Android UI strings, Tatoeba, CLDR, Unihan into tools/.cache/langdata
+    tools/verify/automode/run.sh [ref]   # ~2 min,  auto/Google mode on the suite's texts, an earlier core vs the tree
+    tools/verify/mixedscript/run.sh      # ~5 min,  two languages of one script in one text, and none read in two
+    tools/verify/clone-cld2.sh           # once:    CLD2, only to build a core from before 2026-10-21
     tools/langid/fetch_train.sh          # once:    the word-and-ending model's learning text into tools/.cache/langtrain
     tools/pgo/run.sh [--update]          # ~3 min,  native PGO: retrain (NDK clang, x86_64+i686 android),
                                          #          917,754 answers plain vs PGO, timing, both ABIs fit, ASan+UBSan
@@ -148,7 +151,8 @@ be worth proving:
   300-line hand transcription. CLAUDE.md says outright: if it is ever touched,
   redo this sweep rather than hand-checking it. This is that sweep.
 - **the language codes** — `c3.n.n`'s normalisation versus the native
-  `toIso3()`, over **every** code CLD2's full build can return. It is the
+  `toIso3()`, over **every** code the detector can answer (`gen_codes.py`) and every
+  code CLD2's full build could (the detector until 2026-10-21). It is the
   youngest of the four and it exists because of a specific worry: the 2026-09-08
   swap to CLD2's full tables handed the app a hundred languages it had never
   seen, and "does anything downstream choke on them?" deserved a measurement
@@ -163,14 +167,15 @@ be worth proving:
 
     tools/verify/latency/run.sh          # ~1 min first run, then seconds
 
-The odd one out: it asserts nothing. It links the real `tts_engine_core.cpp`
-against CLD2, starts a JVM for a genuine `JNIEnv`, and
+The odd one out: it asserts nothing. It links the real `tts_engine_core.cpp`,
+starts a JVM for a genuine `JNIEnv`, and
 **times** the work that has to finish before the first word is spoken -- the
 segmenter and then one `nativeGetLanguages` per chunk -- for a 30- and a
 60-paragraph text.
 
-It times the one detector there is. For 30 paragraphs: segmenting 0.3 ms,
-CLD2 1.6 ms. CLD3 used to add a second column at 6.6 ms and is gone.
+It times the one detector there is. For 30 paragraphs (5,310 characters):
+segmenting 0.37 ms, detecting 0.23 ms (2026-10-21, the model ML Kit runs; CLD2
+read 1.6 ms there, and CLD3 used to add a second column at 6.6 ms).
 
 It exists because the owner reported a long wait before a long text starts
 reading, and the honest answer to "is our own pipeline the delay?" is a number,

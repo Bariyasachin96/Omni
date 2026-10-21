@@ -1,19 +1,15 @@
-# Every language code CLD2's FULL build can return.
+# Every language code the native core can answer, and every code CLD2's full
+# build could (the detector until 2026-10-21) -- the second set kept so the
+# sweep stays as wide as it was.
 #
-# Lifted from cld2_src/internal/generated_language.cc -- kLanguageToCode, the
-# table CLD2::LanguageCode() indexes -- with the empty entries and the
-# duplicates removed. It is checked in rather than read from the clone because
-# cld2_src is a CI git clone and is not in this repository; regenerate with
+# The core's own codes come from tools/verify/langcodes/gen_codes.py, which
+# reads them out of langid_model.h, tts_engine_core.cpp and unicode_tables.h;
+# run.sh fails if one of them is missing here. The CLD2 codes were lifted from
+# its generated_language.cc (kLanguageToCode, empty entries and duplicates
+# removed): 152 two-letter, 27 three-letter, 103 with a script subtag (zh-Hant,
+# sr-ME and 101 xx-Script pseudo-languages), 1 five-letter.
 #
-#     python3 - <<'EOF'
-#     import re
-#     src=open('app/src/main/cpp/cld2_src/internal/generated_language.cc').read()
-#     i=src.index('kLanguageToCode[kLanguageToCodeSize] = {'); j=src.index('};', i)
-#     print("\n".join(sorted(set(c for c in re.findall(r'"([^"]*)"', src[i:j]) if c))))
-#     EOF
-#
-# 283 codes: 152 two-letter, 27 three-letter, 103 with a script subtag
-# (zh-Hant, sr-ME and the 101 xx-Script pseudo-languages), 1 five-letter.
+# 312 codes: 143 the core answers now, 283 CLD2 answered, 114 both.
 aa
 ab
 af
@@ -24,17 +20,23 @@ as
 ay
 az
 ba
+ban
+bax
+bbc
 be
 bg
 bh
 bi
+blt
 bn
 bo
 br
 bs
 ca
+ccp
 ceb
 chr
+cjm
 co
 crs
 cs
@@ -44,6 +46,7 @@ de
 dv
 dz
 ee
+eky
 el
 en
 eo
@@ -51,7 +54,9 @@ es
 et
 eu
 fa
+ff
 fi
+fil
 fj
 fo
 fr
@@ -66,6 +71,7 @@ gv
 ha
 haw
 hi
+hmd
 hmn
 hr
 ht
@@ -75,15 +81,18 @@ ia
 id
 ie
 ig
+ii
 ik
 is
 it
 iu
 iw
 ja
+jv
 jw
 ka
 kha
+khb
 kk
 kl
 km
@@ -95,8 +104,10 @@ ku
 ky
 la
 lb
+lep
 lg
 lif
+lis
 ln
 lo
 loz
@@ -104,22 +115,28 @@ lt
 lua
 luo
 lv
+man
 mfe
 mg
 mi
 mk
 ml
 mn
+mni
 mr
 ms
 mt
+mww
 my
+myz
 na
 ne
 new
 nl
 nn
+nnp
 no
+nod
 nr
 nso
 ny
@@ -127,6 +144,7 @@ oc
 om
 or
 os
+osa
 pa
 pam
 pl
@@ -134,12 +152,15 @@ ps
 pt
 qu
 raj
+rhg
 rm
 rn
 ro
 ru
 rw
 sa
+sat
+saz
 sco
 sd
 sg
@@ -157,8 +178,10 @@ st
 su
 sv
 sw
+syl
 syr
 ta
+tdd
 te
 tg
 th
@@ -178,6 +201,7 @@ uk
 un
 ur
 uz
+vai
 ve
 vi
 vo
@@ -290,6 +314,7 @@ xxx
 yi
 yo
 za
+zgh
 zh
 zh-Hant
 zu

@@ -8,7 +8,63 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## EACH LANGUAGE TO ITS OWN VOICE: THE LETTERS OF EACH ORTHOGRAPHY RULE A LANGUAGE OUT, AND A TEXT OF TWO IS CUT (owner, 2026-10-21, latest)
+## CLD2 IS GONE: THE MODEL ML KIT RUNS IS THE DETECTOR; ONE SCRIPT, ONE SENTENCE, ONE DECISION (owner, 2026-10-21, latest)
+*"Jahan per cld Tu kam Karega vahan per ab ml kit kam Karega ... CLD2 Hata Do"*, then *"accuracy 100% ... Ek character
+bhi ... galat Nahin Hona chahie ... Sabhi Lipi"*. The sections below describe CLD2's role as it was; where they say
+CLD2 now read "the model ML Kit runs" (or, for AutoTTS's own library, libcld2.so). Do NOT bring CLD2 back:
+`invariants.sh` #16 and the build-input check fail on any `CLD2::`, `compact_lang_det`, `cld2_src`, or `cld2` in
+CMakeLists/build.yml (selftest: five new negatives). docs/INVARIANTS.md #16, #35, #36.
+- **Gone:** CLD2's 24 sources and 6.1 MB of tables per ABI (CMakeLists builds `tts_engine_core.cpp` alone), the
+  three CI clone steps, `cld2Bytes`, the CLD2 hint per script (the fallback table stays), CLD2's answer in
+  langblend.h's step 3 and in step 0's veto (now the model's top + the word-and-ending model's best).
+- **A span of a detector script (slots 1-6):** one enabled language of it -> that one; none -> the model's best label
+  of the script (no voice of the user's reads it); two or more -> `blendDetectors`: 0 letters of the orthographies,
+  1 learned letters / Han rules, 2 word-and-ending model sure, 3 ln p(model) + kBlendC x nb/8 (`kBlendC` 1.00 Latin,
+  1.50 Cyrillic, 0.75 Arabic, 5.00 Devanagari, 0 Han/Bengali); a language the model lacks (as, sa): the
+  word-and-ending model alone. Then the context (`blendFinal`), unchanged.
+- **NEW, found the moment CLD2 left: one script, one sentence, one decision** (`nameSpanTexts`; processDirect's
+  chunks named together by `chunksSpansFlat`). mixedscript showed 49 one-language texts newly read in two: mix mode
+  cuts "Конгломерат Virgin приобрел ..." at every Latin word and a lone "Конгломерат" is any Cyrillic language. Now all
+  runs of a shared script in one sentence of the utterance are joined, cut only by orthoSegment; a sentence end
+  (`kOrthoSent`) between runs still parts them. Result: one-language texts read in two **0** (HEAD with CLD2: 128);
+  two sentences after a stop 99.6-100%; the price: two languages with NO stop between 59-97% (68-99.7%).
+- **NEW, auto/Google mode's window** (`detectWindowLangUncached`): (a) only a label whose script the window's letters
+  are in (`lidLabelSlot`); unrestricted, the model said "en" for a lone Greek beta, "hi" for a rare Han character
+  (allchars: 478 wrong in auto mode, 0 now); (b) no letter -> UNKNOWN (Khmer at 0.5+ for "😂😂😂"); (c) 2+ enabled
+  languages of that script -> the blend, whatever the model's confidence (an UNKNOWN between close languages fell
+  to the script's first enabled language: id+ms 90.1%, es/it/pt 91-94% before (c)); else ML Kit's 0.5.
+- **Measured.** Suite, held-out 35,212 texts where 2+ enabled languages share a script: 96.2% (CLD2) -> 96.1%; with
+  context 99.79/98.63/96.42/94.11 -> 99.78/98.63/96.45/94.16; C++ == Python 0 of 140,291 blend + 0 of 466,358
+  context (combine.py rewritten as the no-CLD2 mirror; `EV_BASELINE=<old pipeline.tsv>` adds a "before" column).
+  Per language, no context: ru (en+ru+uk+bg+sr) 97.1 -> 91.6, sr 96.4 -> 93.8, hi (hi+mr+ne) 99.2 -> 97.9, en
+  (6 Latin) 99.3 -> 98.2; bg 94.1 -> 97.0, es 94.0 -> 96.2, as 96.6 -> 97.8, zh 98.5 -> 99.5, ms 73.2 -> 76.4.
+  Auto mode, NEW `tools/verify/automode` (the suite's texts through HEAD's core and the tree's, real JNI): better in
+  every set -- es/fr/de/pt/it 97.86 -> 99.27%, id+ms 98.71 -> 99.42, ru+uk+bg+sr 99.35 -> 99.88, hi+mr 99.81 ->
+  99.95, the owner's {hi,en,gu} 100% both; 1-word texts 94.3 -> 97.8.
+- **The owner's {hi,en,gu}:** every script has one enabled language, so mix mode reads every voice as before
+  (corebytes vs HEAD: only spans of scripts nobody of theirs enabled name another language -- zh-Hant -> zh, ur ->
+  ar -- and those fall to the preferred voice either way); auto mode: emoji / maths-bold / flag windows are UNKNOWN
+  now and the spans name them (same voice). Logs say `[DETECT] detectWindow` where they said `[CLD2] cld2DetectWindow`.
+- **Gained:** Filipino and Javanese voices are reached from Latin text (the model says "fil", "jv"; CLD2 said "tl",
+  "jw", which no voice is: the 2026-10-16 "left, needs the owner's word" item is closed without a mapping change).
+  **Lost:** a language the model has no label for, sharing a script with another enabled one (Sanskrit beside
+  Hindi; rare Latin/Cyrillic/Arabic-script languages ML Kit lacks) -- only the word-and-ending model or letters
+  speak for it.
+- **Also proven:** allchars 464,866 right / 0 wrong / 0 dropped / 0 split; allscripts 62/0; devanagari 64/64 (now
+  prints the model's top three); mixedscript ALL PASS (C++ cuts == Python, 0 of 56,562); langcodes IDENTICAL over
+  312 codes (gen_codes.py: every code the core can answer, + CLD2's 283); segmenter only the known '£' (270);
+  scriptfamily, normalizer, unicode, unicode2 IDENTICAL; stress 0 wrong; onecall 0 differ; warmtables pass (the
+  read-only image is 358 pages, was 1,643); latency 10,620 chars 1.02 ms one call; PGO --update ALL PASS (917,376
+  plain == PGO, both ABIs, ASan+UBSan clean); check-all; selftest EVERY CHECK FIRES.
+- **Size, measured** (Gradle's release libeasyvoice.so, this tree vs HEAD built the same way): arm64-v8a 7,731,080 ->
+  **1,391,144** bytes, armeabi-v7a 7,627,504 -> **1,331,944**. The library is stored uncompressed in the APK, so
+  build 985's APKs (arm64 9,622,614, v7a 9,519,017, universal 17,285,541) become about **3.3 / 3.2 / 4.7 MB**.
+- **Harnesses:** `tools/verify/clone-cld2.sh` (was tools/ci) clones CLD2 into tools/.cache/cld2 ONLY to build a
+  core from before 2026-10-21; `latency/sources.py --includes <dir>` names its headers; corebytes, mixedscript,
+  oldnew and automode build such a ref with it. oldnew's ae274b9 comparison now shows the detector change too.
+- **Next:** the owner's 100% -- task #20 (accuracy research on every text that carries evidence).
+
+## EACH LANGUAGE TO ITS OWN VOICE: THE LETTERS OF EACH ORTHOGRAPHY RULE A LANGUAGE OUT, AND A TEXT OF TWO IS CUT (owner, 2026-10-21)
 *"Jo Nahin Badla hai usko badlo ... Arabic language Arabic voice ke pass bhi Jana chahie ... jo bhasha ke liye Jo
 voice Chuna Hai vah bhasha ke liye Vahi voice ... aisa Nahin Ki Ek Hi voice do Bhasha Pade."* Runs only where 2+
 ENABLED languages share Cyrillic, Arabic or Bengali; the owner's {hi,en,gu} meets none of it. docs/INVARIANTS.md #34.

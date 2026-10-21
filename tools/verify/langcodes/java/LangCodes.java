@@ -3,8 +3,9 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.regex.*;
 
-// Prove that every language code CLD2's FULL build can return is resolved the
-// same way by us and by AutoTTS.
+// Prove that every language code the detector can return (and every code CLD2's
+// full build could, the detector until 2026-10-21) is resolved the same way by
+// us and by AutoTTS.
 //
 // The tables are read out of app/src/main/java/com/sachinbaria/easyvoice/IsoCodes.kt at
 // run time, so this cannot pass against a stale copy: change the Kotlin and this
@@ -164,6 +165,6 @@ public class LangCodes {
         System.out.println("c3.e.c cannot map (n.n FALSE):  " + benign + "  -- ours cannot match either");
         System.out.println("REAL differences:               " + real);
         if (real != 0) { System.out.println("\nFAILED"); System.exit(1); }
-        System.out.println("\nIDENTICAL over " + codes.size() + " CLD2 language codes");
+        System.out.println("\nIDENTICAL over " + codes.size() + " language codes");
     }
 }

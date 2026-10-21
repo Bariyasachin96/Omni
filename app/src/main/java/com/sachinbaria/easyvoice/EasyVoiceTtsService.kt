@@ -3052,7 +3052,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
     // regression: LangStore.languages is a shared static that the settings
     // screens rebuild, and not always whole (dualLangList is two entries,
     // voiceLanguageLabels uses onlyEnabled = true), so re-deriving the hints on
-    // every utterance let a visit to the Configuration tab leave CLD2 hinting at
+    // every utterance let a visit to the Configuration tab leave the detector hinting at
     // two languages for the rest of the process. AutoTTS rebuilds its hint set
     // (c3.n.f) only inside s0(), which it never calls from onSynthesizeText.
     private fun refreshEnabledLangs() {
@@ -3482,7 +3482,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (callback?.hasFinished() == false) callback.done()
             return
         }
-        // The CLD2 tables are re-warmed only for text that will be detected; the
+        // The detector's tables are re-warmed only for text that will be detected; the
         // empty interrupt above has none (it used to signal the worker too).
         try { nativeRewarmTables() } catch (_: Throwable) {}
         val readingMode = when (modeInt) { 1 -> "dual"; 2 -> "auto"; 3 -> "google"; 4 -> "mix"; 5 -> "multilingual"; else -> "none" }
@@ -3758,7 +3758,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
                         // unknown, the aggregate detector gets a turn. Both are in
                         // detectWindowThenAggregate, in one crossing.
                         val rawDetected = detectWindowThenAggregate(spanChunk.text, latinFallback, nonLatinFallback)
-                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Cld2: " + rawDetected + " '" + spanChunk.text + "'" }
+                        EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "Detected: " + rawDetected + " '" + spanChunk.text + "'" }
                         // THE WHOLE CODE, NOT ITS FIRST TWO LETTERS (owner, 2026-10-16:
                         // "sabhi mod mein"). AutoTTS cut every answer to two letters to
                         // drop a subtag (zh-Hant, sr-ME, xx-Olck), and that also cut a
@@ -5012,7 +5012,7 @@ class EasyVoiceTtsService : TextToSpeechService() {
             }
             // The SAME hints in the SAME order are not sent again (owner,
             // 2026-10-01). setLanguageHints builds a new HintState, and a new
-            // HintState drops the native CLD2 answer cache's span table -- so
+            // HintState drops the native detection cache's span table -- so
             // every screen resume, which rebuilds an identical list, emptied the
             // cache the next utterance would have hit. Order is compared, not
             // just membership: it decides which 64 survive the native cap.

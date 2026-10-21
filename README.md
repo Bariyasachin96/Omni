@@ -14,7 +14,7 @@ which is deliberately different.
 | path | what |
 |---|---|
 | `app/src/main/java/com/sachinbaria/easyvoice/` | the service, the settings screens, the storage |
-| `app/src/main/cpp/tts_engine_core.cpp` | the segmenter, the script classifier and the CLD2 wrapper |
+| `app/src/main/cpp/tts_engine_core.cpp` | the segmenter, the script classifier and the language detection (the model ML Kit runs, `langid.h`; `langblend.h`) |
 | `docs/` | how it works, what it maps to, and the rules that must hold |
 | `tools/` | the checks and the two proof harnesses |
 | `autotts_reference/` | the decompiled AutoTTS releases this is checked against |
@@ -45,7 +45,6 @@ A local build is the project's own Gradle Wrapper — it fetches the Gradle the
 build pins (version and SHA-256 in `gradle/wrapper/gradle-wrapper.properties`):
 
     tools/bootstrap.sh                    # once: Gradle via the wrapper, the Android SDK
-    git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
     ./gradlew assembleDebug
 
 Every version the build uses — AGP, Kotlin, each library, the NDK, CMake and

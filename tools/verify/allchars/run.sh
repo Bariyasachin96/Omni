@@ -13,9 +13,9 @@
 #   run.sh                verdicts; exit 1 on any character misrouted, dropped or split
 #   EV_NEG=noattach       the segmenter without the attach rule       -> must FAIL
 #   EV_NEG=noneutral      an all-neutral text without its scripts     -> must FAIL
-#   EV_NEG=noextra        CLD2's seven extra scripts without fallback -> must FAIL
-#   EV_NEG=onlyold        the scx slot rule over libcld2's 25 slots    -> must FAIL
-# Needs g++, a JDK, kotlinc (tools/bootstrap.sh) and the CLD2 clone.
+#   EV_NEG=noextra        the seven extra scripts without fallback    -> must FAIL
+#   EV_NEG=onlyold        the scx slot rule over AutoTTS's 25 slots   -> must FAIL
+# Needs g++, a JDK and kotlinc (tools/bootstrap.sh).
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$HERE/../../.." && pwd)
@@ -24,8 +24,7 @@ SRC="$ROOT/app/src/main/java/com/sachinbaria/easyvoice"
 KOTLINC=${KOTLINC:-$ROOT/tools/.cache/kotlinc/bin/kotlinc}
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-allchars
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
-[ -d "$CPP/cld2_src/internal" ] || { echo "clone CLD2 into app/src/main/cpp/cld2_src first"; exit 2; }
-INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$CPP"
 mkdir -p "$WORK/obj"
 compile() {
   local src=$1

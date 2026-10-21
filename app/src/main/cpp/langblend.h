@@ -1,14 +1,12 @@
 // ==========================================================================
-//  THE TWO DETECTORS TOGETHER       owner, 2026-10-20: "Mujhe accuracy 100%
-//  hi chahie ... aap kaise bhi karo"
+//  CHOOSING BETWEEN THE ENABLED LANGUAGES OF ONE SCRIPT
+//  owner, 2026-10-20: "Mujhe accuracy 100% hi chahie ... aap kaise bhi karo";
+//  2026-10-21: CLD2 removed -- "jahan per CLD2 kam karega vahan per ab ML Kit
+//  kam karega". The model ML Kit runs (langid.h) is now the only statistical
+//  detector; CLD2, its tables and its answers are gone from the app.
 //
-//  CLD2 and the model ML Kit runs (langid.h) are each better at different
-//  pairs of languages -- measured by tools/verify/langsuite on 5,538 texts
-//  neither was tuned on: CLD2 at Hindi/Marathi/Nepali, Urdu/Persian and
-//  Assamese (which the model has no label for), the model at Spanish/French/
-//  Italian/Portuguese, Russian/Ukrainian/Bulgarian and Chinese. So where a
-//  span's script is shared by two or more ENABLED languages -- the only place
-//  a detector chooses between voices at all -- both are asked and weighed:
+//  Where a span's script is shared by two or more ENABLED languages -- the
+//  only place a detector chooses between voices at all -- in order:
 //
 //    0. the letters of each orthography, word by word (Cyrillic, Arabic,
 //       Bengali; orthoDecide below, owner 2026-10-21): a language the text's
@@ -24,35 +22,24 @@
 //    2. the word-and-ending model (langnb.h, learned from Wikipedia, Tatoeba,
 //       Common Voice and Android's own UI strings) decides alone when its best
 //       language leads the next by e^10 to 1 or more;
-//    3. a language the model ML Kit runs has no label for (Assamese, Sanskrit,
-//       Bihari ...) can only come from CLD2, so CLD2's answer stands when it
-//       names one;
-//    4. otherwise each enabled language L of the script scores
-//           a ln p_model(L) + (1 - a) ln q_cld2(L) + c nb(L)
-//       where q_cld2 is CLD2's top three (each one's percent of the text),
-//       plus k for every candidate and b for CLD2's own answer, normalised,
-//       and nb is the word-and-ending model's score. The highest wins. a, k,
-//       b and c are per script (kBlend), chosen on text NOT used to measure
-//       the result, with a right answer turned wrong counted three times a
-//       wrong one put right.
+//    3. otherwise each enabled language L of the script scores
+//           ln p_model(L) + c nb(L)
+//       (nb: the word-and-ending model's score in nats; c per script, kBlendC,
+//       chosen on text NOT used to measure the result). Where one of them is a
+//       language the model has no label for (Assamese, Sanskrit), the
+//       word-and-ending model alone decides, else the model between those it
+//       knows.
 //
-//  Then CONTEXT (blendFinal): a span that proved nothing (steps 3-4: "ब्लूटूथ",
+//  Then CONTEXT (blendFinal): a span that proved nothing (step 3: "ब्लूटूथ",
 //  "प्रस्तावना" are the same in Hindi and Marathi) takes the language of the
 //  last span of its script that did prove one, unless the word-and-ending
 //  model puts its own pick 6 nats above it, or the span holds a letter its own
 //  answer writes and that language practically never does (keheh after Arabic
 //  text, ৰ after Bengali: langnb.h kNbRare, at most 1 in 2,000 texts).
 //
-//  Measured (tools/verify/langsuite/run.sh) on 35,212 held-out texts in sets
-//  where languages share a script -- Android's own UI strings, Tatoeba, the
-//  UDHR, everyday phrases: CLD2 alone 92.3%, steps 1-4 96.1%, and with the
-//  context, reading text in one language, 99.79%. What is left is mostly
-//  English names inside other languages' UI ("Google Talk", "IMEI") and
-//  Indonesian/Malay, which are nearly one language.
-//
-//  With fewer than two enabled languages in the script nothing here runs and
-//  CLD2's path decides exactly as before -- the owner's own set {hi, en, gu}
-//  is such a set.
+//  With fewer than two enabled languages in the script nothing here runs: the
+//  span is that one language (tts_engine_core.cpp) -- the owner's own set
+//  {hi, en, gu} is such a set.
 // ==========================================================================
 #pragma once
 #include <algorithm>
@@ -61,7 +48,6 @@
 #include <cstring>
 #include <string>
 #include <vector>
-#include "compact_lang_det.h"
 #include "langhan.h"
 #include "langnb.h"
 #include "langid.h"
@@ -84,7 +70,7 @@ static inline int blendLabelSlot(const char* l) {
     return strchr(l, '-') ? 0 : 1;   // "hi-Latn" and the rest are never an enabled code
 }
 
-// A CLD2 or enabled-language code spelled the way the model labels it.
+// An enabled-language code spelled the way the model labels it.
 static inline std::string blendCanonical(const std::string& c) {
     if (c == "tl") return "fil";
     if (c == "jw") return "jv";
@@ -104,8 +90,9 @@ static inline int blendLabelIndex(const std::string& code) {
     return -1;
 }
 
-// The languages of CLD2's kScriptLangPairs the model has no label for, by slot.
-static inline int blendCldOnlySlot(const std::string& code) {
+// The languages of kScriptLangPairs (tts_engine_core.cpp) the model has no
+// label for, by slot: their script is known, the model cannot name them.
+static inline int blendUnlabelledSlot(const std::string& code) {
     if (code == "sa") return 4;
     if (code == "as") return 6;
     return 0;
@@ -220,18 +207,16 @@ static inline bool nbScore(int slot, const char* text, int bytes, const std::vec
 // units: 80 = 10 nats, the odds e^10 to 1), per script slot.
 static const int kNbMargin[7] = {0, 80, 80, 80, 80, 0, 80};
 
-struct BlendWeights { float a, k, b, c; };
-// Chosen per script slot on half of the suite's held-out text, counting a right
-// answer turned wrong as three times a wrong one put right
-// (tools/verify/langsuite/combine.py prints them).
-static const BlendWeights kBlend[7] = {
-    {0.0f, 0.0f, 0.0f, 0.0f},
-    {0.3f, 0.20f, 2.0f, 0.50f},   // 1 Latin
-    {0.4f, 0.01f, 0.5f, 0.50f},   // 2 Cyrillic
-    {0.4f, 0.20f, 0.5f, 0.20f},   // 3 Arabic
-    {0.3f, 0.20f, 2.0f, 1.00f},   // 4 Devanagari
-    {0.6f, 0.05f, 1.0f, 0.00f},   // 5 Han and kana
-    {0.1f, 0.01f, 0.0f, 0.00f},   // 6 Bengali (one model language: the blend cannot move it)
+// Step 3's weight on the word-and-ending model, per script slot, chosen on half
+// of the suite's held-out text (tools/verify/langsuite/combine.py prints it).
+static const float kBlendC[7] = {
+    0.0f,
+    1.00f,   // 1 Latin
+    1.50f,   // 2 Cyrillic
+    0.75f,   // 3 Arabic
+    5.00f,   // 4 Devanagari
+    0.00f,   // 5 Han and kana (no word-and-ending model)
+    0.00f,   // 6 Bengali (Assamese has no model label: the word-and-ending model decides)
 };
 
 // The letters one enabled language of the script writes and every other enabled
@@ -408,16 +393,15 @@ static inline bool orthoWordCost(const NbModel& m, const std::vector<int>& idx, 
 // only when some word's letters allow the best alone (a Pashto letter, an
 // Arabic ة, "كتاب" against Urdu): then a language they cost kOrthoM or more
 // than the best is ruled out, unless the word-and-ending model puts it
-// kNbMargin above that best, or -- for a span's own decision (cld2Answer given)
-// and every language one the model ML Kit runs knows -- CLD2's answer, the
-// model's top and the word-and-ending model's best all name it: then the text
-// is that language spelled with another's letters (Persian typed with Arabic
-// ي ك). A best no word attests alone wins only because it writes everyone's
+// kNbMargin above that best, or -- for a span's own decision (`detectors`) and
+// every language one the model ML Kit runs knows -- the model's top and the
+// word-and-ending model's best both name it: then the text is that language
+// spelled with another's letters (Persian typed with Arabic ي ك). A best no word attests alone wins only because it writes everyone's
 // letters -- Pashto writes both ي and ی, so a Persian sentence quoting Arabic
 // would "be" Pashto -- and nothing is ruled out.
 static inline bool orthoDecide(int slot, const char* text, int bytes, const std::vector<std::string>& langs,
                                std::vector<char>& keep, std::vector<long long>& total, int& best,
-                               const std::string* cld2Answer = nullptr) {
+                               bool detectors = false) {
     NbModel m;
     std::vector<int> idx;
     if (!orthoModel(slot, langs, m, idx)) return false;
@@ -453,7 +437,7 @@ static inline bool orthoDecide(int slot, const char* text, int bytes, const std:
     for (size_t j = 0; j < langs.size(); j++) {
         if (keep[j]) continue;
         if (nb[j] - nb[best] >= kNbMargin[slot]) { keep[j] = 1; continue; }
-        if (!cld2Answer || (int)j != nbBest || blendCanonical(*cld2Answer) != blendCanonical(langs[j])) continue;
+        if (!detectors || (int)j != nbBest) continue;
         if (modelTop == -2) {
             modelTop = -1;
             std::vector<int> labels;
@@ -629,7 +613,7 @@ static inline void blendSlotLangs(int slot, const std::vector<std::string>& enab
     for (const std::string& code : enabled) {
         const int label = blendLabelIndex(code);
         const bool here = (label > 0 && blendLabelSlot(kLidLabels[label]) == slot) ||
-                          (label < 0 && blendCldOnlySlot(code) == slot);
+                          (label < 0 && blendUnlabelledSlot(code) == slot);
         if (!here) continue;
         bool dup = false;
         for (const std::string& x : slotLangs) dup |= blendCanonical(x) == blendCanonical(code);
@@ -643,11 +627,12 @@ static inline void blendSlotLangs(int slot, const std::vector<std::string>& enab
 }
 
 // What blendDetectors decided for a span of script slot `slot`: the enabled
-// code ("" keeps CLD2's path answer), whether the text itself proved it (a
-// letter, the Han rules, or the word-and-ending model past its margin), and,
-// for the context (blendFinal), the script's enabled languages, the
-// word-and-ending model's score for each (empty when it cannot score them) and
-// the rare-letter veto over them (nbRareVeto).
+// code, whether the text itself proved it (a letter, the Han rules, or the
+// word-and-ending model past its margin), and, for the context (blendFinal),
+// the script's enabled languages, the word-and-ending model's score for each
+// (empty when it cannot score them) and the rare-letter veto over them
+// (nbRareVeto). `lang` is empty only when fewer than two enabled languages
+// write the script (then nothing here ran).
 struct BlendResult {
     std::string lang;
     bool sure = false;
@@ -656,30 +641,18 @@ struct BlendResult {
     uint64_t veto = 0;
 };
 
-// `cld2Answer` is CLD2's path answer; lang3 / percent3 are the same CLD2
-// call's top three. Depends on nothing but its arguments, so it can be cached.
+// Depends on nothing but its arguments, so it can be cached.
 static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
-                                         const std::vector<std::string>& enabled,
-                                         const std::string& cld2Answer,
-                                         const CLD2::Language lang3[3], const int percent3[3]) {
+                                         const std::vector<std::string>& enabled) {
     BlendResult res;
     if (slot < 1 || slot > 6 || bytes <= 0) return res;
-    std::vector<std::string> cands;   // enabled codes of this script the model ML Kit runs has a label for
-    std::vector<int> labels;
-    blendSlotLangs(slot, enabled, res.slotLangs, &cands, &labels);
+    blendSlotLangs(slot, enabled, res.slotLangs);
     if (res.slotLangs.size() < 2) return res;
     auto enabledCode = [&](const char* want) -> std::string {
         for (const std::string& code : enabled) if (blendCanonical(code) == want || code == want) return code;
         return "";
     };
     auto sure = [&](const std::string& lang) { res.lang = lang; res.sure = true; return res; };
-    // Where the letters ruled CLD2's answer out, what stands instead when
-    // nothing below names a language: their best.
-    std::string ruledOut;
-    auto done = [&]() {
-        if (res.lang.empty() && !ruledOut.empty()) res.lang = ruledOut;
-        return res;
-    };
 
     // 0. the letters of each orthography, word by word: one language left is
     // sure; otherwise everything below (and the context) only chooses between
@@ -688,22 +661,11 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
         std::vector<char> keep;
         std::vector<long long> total;
         int best = 0;
-        if (orthoDecide(slot, text, bytes, res.slotLangs, keep, total, best, &cld2Answer)) {
-            std::vector<std::string> left, leftCands;
-            std::vector<int> leftLabels;
+        if (orthoDecide(slot, text, bytes, res.slotLangs, keep, total, best, true)) {
+            std::vector<std::string> left;
             for (size_t j = 0; j < res.slotLangs.size(); j++) if (keep[j]) left.push_back(res.slotLangs[j]);
             if (left.size() == 1) return sure(left[0]);
-            if (left.size() < res.slotLangs.size()) {
-                bool kept = false;
-                for (const std::string& l : left) kept |= blendCanonical(l) == blendCanonical(cld2Answer);
-                if (!kept) ruledOut = res.slotLangs[best];
-                for (size_t c = 0; c < cands.size(); c++)
-                    for (const std::string& l : left)
-                        if (l == cands[c]) { leftCands.push_back(cands[c]); leftLabels.push_back(labels[c]); }
-                res.slotLangs = left;
-                cands = leftCands;
-                labels = leftLabels;
-            }
+            res.slotLangs = left;
         }
     }
 
@@ -758,35 +720,33 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
     }
     if (slot == 2 || slot == 3 || slot == 6) res.veto = nbRareVeto(slot, text, bytes, res.slotLangs);
 
-    // 3. only CLD2 can name it
-    if (blendLabelIndex(cld2Answer) < 0) return done();
-    if (cands.empty()) return done();
-
-    // 4. all three, weighed
+    // 3. the model ML Kit runs and the word-and-ending model, weighed; where
+    // the model has no label for one of them (Assamese, Sanskrit) the
+    // word-and-ending model alone, else the model between those it knows
+    std::vector<int> labels;
+    bool allLabelled = true;
+    for (const std::string& c : res.slotLangs) {
+        const int label = blendLabelIndex(c);
+        labels.push_back(label);
+        if (label <= 0) allLabelled = false;
+    }
     float p[EV_LID_CLASSES];
-    if (!lidClassify(text, (size_t)bytes, p)) return done();
-    const BlendWeights w = kBlend[slot];
-    std::vector<double> q(cands.size(), w.k);
-    for (int rank = 0; rank < 3; rank++) {
-        const char* code = CLD2::LanguageCode(lang3[rank]);
-        if (!code || percent3[rank] <= 0) continue;
-        int label = blendLabelIndex(code);
-        for (size_t c = 0; c < cands.size(); c++) if (labels[c] == label) q[c] += percent3[rank] / 100.0;
-    }
-    const int answer = blendLabelIndex(cld2Answer);
-    for (size_t c = 0; c < cands.size(); c++) if (labels[c] == answer) q[c] += w.b;
-    double z = 0;
-    for (double v : q) z += v;
-    std::vector<int> nb;
-    if (cands.size() < 2 || !nbScore(slot, text, bytes, cands, nb)) nb.assign(cands.size(), 0);
+    const bool haveP = lidClassify(text, (size_t)bytes, p);
     size_t best = 0;
-    double bestScore = -1e300;
-    for (size_t c = 0; c < cands.size(); c++) {
-        const double score = w.a * std::log(p[labels[c]] + 1e-6) + (1 - w.a) * std::log(q[c] / z + 1e-6) +
-                             w.c * (nb[c] / 8.0);
-        if (score > bestScore) { bestScore = score; best = c; }
+    if (allLabelled && haveP) {
+        double bestScore = -1e300;
+        for (size_t c = 0; c < res.slotLangs.size(); c++) {
+            const double score = std::log(p[labels[c]] + 1e-6) + kBlendC[slot] * (res.nb.empty() ? 0.0 : res.nb[c] / 8.0);
+            if (score > bestScore) { bestScore = score; best = c; }
+        }
+    } else if (!res.nb.empty()) {
+        for (size_t c = 1; c < res.nb.size(); c++) if (res.nb[c] > res.nb[best]) best = c;
+    } else if (haveP) {
+        float bestP = -1.0f;
+        for (size_t c = 0; c < res.slotLangs.size(); c++)
+            if (labels[c] > 0 && p[labels[c]] > bestP) { bestP = p[labels[c]]; best = c; }
     }
-    res.lang = cands[best];
+    res.lang = res.slotLangs[best];
     return res;
 }
 
@@ -802,10 +762,10 @@ static const int kCtxMargin = 48;
 static std::mutex gBlendContextMutex;
 static std::string gBlendContext[7];
 
-// The span's language from a (possibly cached) BlendResult and CLD2's path
-// answer; a sure result becomes the script's context.
-static inline std::string blendFinal(int slot, const BlendResult& r, const std::string& cld2Answer) {
-    const std::string got = r.lang.empty() ? cld2Answer : r.lang;
+// The span's language from a (possibly cached) BlendResult and the answer the
+// span had without it; a sure result becomes the script's context.
+static inline std::string blendFinal(int slot, const BlendResult& r, const std::string& plainAnswer) {
+    const std::string got = r.lang.empty() ? plainAnswer : r.lang;
     if (slot < 1 || slot > 6 || r.slotLangs.size() < 2) return got;
     std::lock_guard<std::mutex> lock(gBlendContextMutex);
     if (r.sure) {

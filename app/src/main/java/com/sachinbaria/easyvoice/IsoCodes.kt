@@ -28,24 +28,10 @@ object IsoCodes {
         toIso3Map["id"] = "ind"
         toIso3Map["ji"] = "yid"
         toIso3Map["yi"] = "yid"
-        // CLD2 SAYS "jw" FOR JAVANESE AND WE LEAVE IT AT THAT (owner, 2026-09-09).
-        // A fix was written on 2026-09-09 and REVERTED the same day at the
-        // owner's word -- *"agar CLD2 jw kehta hai to jw hi rehne do"*. Keep
-        // this note so the finding is not re-made and re-fixed:
-        //
-        //     "iw",    //  6 HEBREW        handled above
-        //     "id",    // 38 INDONESIAN    handled above
-        //     "jw",    // 48 JAVANESE      deliberately NOT handled
-        //     "yi",    // 91 YIDDISH       handled above
-        //
-        // Those are the four pre-1989 ISO 639-1 spellings. Java's
-        // Locale.getISOLanguages() carries jv and not jw, so toIso3("jw")
-        // answers null and languageForDetectedRun's `?: byScript` sends the
-        // span to the preferred language. **c3.e behaves identically**, which
-        // is the whole reason this stays: rule 5 governs detection, and the
-        // three pairs around this comment exist only because AutoTTS has
-        // exactly those three. A fourth would be our own decision, and the
-        // owner has said no.
+        // "jw" FOR JAVANESE IS CLD2'S SPELLING, AND CLD2 IS GONE (2026-10-21). The
+        // model ML Kit runs names Javanese "jv", which Locale knows, so the old
+        // gap (CLD2's "jw" had no iso3 and the owner kept it on 2026-09-09) is
+        // closed without a line here. "iw", "id", "yi" are handled above.
         toIso2Map["heb"] = "he"
         toIso2Map["ind"] = "id"
         toIso2Map["yid"] = "yi"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Prove that every language code CLD2's FULL build can return resolves the same
-# way here as it does in AutoTTS.
+# Prove that every language code the detector can return resolves the same way
+# here as it does in AutoTTS.
 #
 #     tools/verify/langcodes/run.sh
 #
@@ -9,7 +9,8 @@
 # 183. That is a hundred codes the app had never been handed before, and the
 # question the owner asked was the right one: is there anything in the reading
 # path that quietly cannot deal with them? This answers it mechanically instead
-# of by reading.
+# of by reading. Since 2026-10-21 the detector is the model ML Kit runs, and the
+# codes it answers (gen_codes.py) are swept as well as CLD2's.
 #
 # WHAT IS COMPARED. Two routes decide whether a detected code is routable.
 #
@@ -59,6 +60,11 @@ if [ ! -f "$out/LangCodes.class" ]; then
   echo "     FAILED: javac produced no class file"; exit 1
 fi
 
-echo "3/3  sweeping every CLD2 language code"
+missing=$(python3 "$HERE/gen_codes.py" | while read -r c; do grep -qx -- "$c" "$HERE/codes.txt" || echo "$c"; done)
+if [ -n "$missing" ]; then
+  echo "     FAILED: the core can answer codes codes.txt lacks: $(echo $missing)"
+  echo "     add them (see the header of codes.txt)"; exit 1
+fi
+echo "3/3  sweeping every language code the detector answers, and CLD2's"
 java -cp "$out" LangCodes "$ISO" "$HERE/codes.txt" 2>&1 | grep -v '^Picked up JAVA_TOOL_OPTIONS'
 exit "${PIPESTATUS[0]}"

@@ -100,29 +100,37 @@ compared. `tools/verify/segmenter/`.
 Two different detectors, at two different call sites, and they are **not**
 hinted the same way. This distinction is the source of more than one bug.
 
-**Per span** — `nativeGetLanguages` → the span loop → `emitScriptSpan`.
-The text is walked code point by code point, each classified into a script by
-`classifyScript`; a run of one script becomes a span. Then:
+**Per span** — `nativeFoldAndDetect` / `processDirect` → `scanScriptRuns`
+→ `nameSpanTexts` → `spanTriples`. The text is walked code point by code point,
+each classified into a script by `classifyScript`; a run of one script becomes a
+span. Then:
 
 - script 0 (nothing classified — digits, punctuation, spaces, emoji) →
   `"un"` with **`latin = true`**, and no detector runs at all;
 - scripts 7..25 → a fixed language (Greek, Armenian, Hebrew, …);
-- scripts 1..6 → CLD2, hinted with the per-script language hint and
-  then **filtered** against the enabled languages, falling back to the script's
-  own language.
+- scripts 1..6 → with one enabled language of the script, that one; with
+  none, the model ML Kit runs (langid.h) names its best language of the script;
+  with two or more, langblend.h chooses between them (the letters of each
+  orthography, the learned letters and Han rules, the word-and-ending model,
+  the model ML Kit runs, the context) -- over ALL the runs of that script in one
+  sentence of the utterance at once, processDirect's chunks included, cut only
+  where the letters say the language changes (INVARIANTS #34, #35).
 
 **Per 64-character window** — `detectWindowOrSpans` → `detectWindowed` → `detectWindowLang`, used by
-auto and Google mode. Here the detector gets **no hints and no filter**; the
-caller decides what to do with an answer the user has not enabled, falling back
-to the script family.
+auto and Google mode. The model ML Kit runs names a language that writes the
+window's letters (at ML Kit's 0.5), or langblend.h weighs the enabled languages
+of that script; a window without a letter is UNKNOWN (INVARIANTS #36). The caller
+decides what to do with an answer the user has not enabled, falling back to the
+script family.
 
 The **script family** fallback is `scriptLangForCpFiltered` (AutoTTS `a.e`): given
 a code point and the enabled languages, it answers the most likely language of
 that script. It is **proven** over all 1,114,112 code points for 45 language
 sets: `tools/verify/scriptfamily/`.
 
-CLD3 used to sit beside CLD2 here as an Easy Voice extra. It was removed on
-2026-09-02 at the owner's instruction; see CLAUDE.md, "CLD3 IS GONE".
+CLD3 used to sit beside CLD2 here as an Easy Voice extra; it was removed on
+2026-09-02 ("CLD3 IS GONE"), and CLD2 itself on 2026-10-21 ("CLD2 IS GONE"), both
+at the owner's instruction.
 
 ---
 
@@ -176,9 +184,9 @@ Two guards keep them apart, and INVARIANTS #26 has the whole story:
 
 ## The native library
 
-`app/src/main/cpp/tts_engine_core.cpp` is one translation unit built with CMake
-against **CLD2**, which CI clones at build time (it is not in
-this repository). It holds, roughly in file order:
+`app/src/main/cpp/tts_engine_core.cpp` is one translation unit built with CMake,
+with nothing from outside this repository (CLD2, which CI cloned until
+2026-10-21, is gone). It holds, roughly in file order:
 
 | area | what |
 |---|---|

@@ -42,13 +42,13 @@ print("IDENTICAL" if not bad else "FAILED")
 sys.exit(1 if bad else 0)
 PY
 [ "${EV_NEG:-}" = sig ] && exit 0
-# On a real JVM: the core + CLD2 as a shared library whose ONLY exported symbol
+# On a real JVM: the core as a shared library whose ONLY exported symbol
 # is JNI_OnLoad, so every call below can succeed only through RegisterNatives.
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
 CPP="$ROOT/app/src/main/cpp"
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-registernatives${EV_NEG:+-$EV_NEG}
 mkdir -p "$WORK/obj"
-INC="-I$JH/include -I$JH/include/linux -I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$CPP"
 objs=""
 for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do
   src="$f"
@@ -56,7 +56,7 @@ for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do
     sed 's/        registerNatives(env);//' "$f" > "$WORK/core-neg.cpp"; src="$WORK/core-neg.cpp"
   fi
   o="$WORK/obj/$(echo "$src" | md5sum | cut -c1-16).o"
-  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then rm -f "$o"; g++ -c -O2 -fPIC -std=c++17 -w $INC -o "$o" "$src" || { echo "compile failed: $src"; exit 1; }; fi
+  if [ ! -f "$o" ] || [ "$src" -nt "$o" ] || [ -n "$(find "$CPP" -maxdepth 1 -name "*.h" -newer "$o" -print -quit)" ]; then rm -f "$o"; g++ -c -O2 -fPIC -std=c++17 -w $INC -o "$o" "$src" || { echo "compile failed: $src"; exit 1; }; fi
   objs="$objs $o"
 done
 printf '{ global: JNI_OnLoad; local: *; };\n' > "$WORK/only-onload.map"

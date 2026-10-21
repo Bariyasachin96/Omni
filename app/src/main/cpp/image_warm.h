@@ -2,8 +2,9 @@
 // (owner, 2026-10-07: "logically ... performance bahut hi fast", and the same
 // day: "Karnal level per ... sari chijen").
 //
-// CLD2's tables are about 6 MB of read-only data inside this library, mapped
-// from the file on demand. After a cold start of the process -- a reboot, an
+// The detector's tables -- the model ML Kit runs, the word-and-ending model and
+// the Unicode tables, about 1.4 MB since CLD2's 6 MB left on 2026-10-21 -- are
+// read-only data inside this library, mapped from the file on demand. After a cold start of the process -- a reboot, an
 // update, memory pressure that dropped the file from the page cache -- the
 // first detection page-faults them in from storage one page at a time, on the
 // synthesis thread, while the screen reader waits for the first word.

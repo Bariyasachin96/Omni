@@ -13,8 +13,9 @@
 # WHAT IT MEASURES. The work that must finish before speakChunk(true) runs:
 # buildMixChunks through processDirect, then one detection per chunk, which is
 # what the mix and multilingual branches do. It links the REAL
-# tts_engine_core.cpp with CLD2 and starts a JVM for a genuine JNIEnv,
-# so the numbers are the device's code, not a model of it.
+# tts_engine_core.cpp (CLD2 until 2026-10-21; the model ML Kit runs since) and
+# starts a JVM for a genuine JNIEnv, so the numbers are the device's code, not a
+# model of it.
 #
 # WHAT IT FOUND (2026-09-01, x86-64 container):
 #
@@ -30,7 +31,7 @@
 # magnitude for a phone. Anything that looks like a chunking cost should be
 # measured here first.
 #
-# Needs: g++, javac (for libjvm and jni.h), and the CLD2 sources CI clones.
+# Needs: g++ and javac (for libjvm and jni.h).
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -39,26 +40,11 @@ CPP="$ROOT/app/src/main/cpp"
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-latency
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
 
-missing=0
-for d in "$CPP/cld2_src/internal"; do
-  [ -d "$d" ] || { echo "missing: ${d#$ROOT/}"; missing=1; }
-done
-if [ "$missing" = 1 ]; then
-  cat <<EOF
-
-The CLD2 sources are not present. They are cloned by CI, not checked in.
-From the repository root:
-
-  git clone --depth 1 https://github.com/CLD2Owners/cld2.git app/src/main/cpp/cld2_src
-EOF
-  exit 2
-fi
 if ! ls "$JH"/lib/server/libjvm.so >/dev/null 2>&1; then
   echo "no libjvm.so under $JH -- a JDK is needed for the JNIEnv"; exit 2
 fi
 
-INC="-I$JH/include -I$JH/include/linux -I$CPP/cld2_src/public -I$CPP/cld2_src/internal
-     -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$CPP"
 
 mkdir -p "$WORK/obj"
 compile() {  # compile <source> -- cached on mtime
@@ -77,9 +63,8 @@ compile() {  # compile <source> -- cached on mtime
   echo "$obj"
 }
 
-echo "1/3  compiling CLD2 and the native core (cached in $WORK)"
-# The source list comes from CMakeLists.txt, not a glob -- see sources.py for
-# why a glob cannot work here.
+echo "1/3  compiling the native core (cached in $WORK)"
+# The source list comes from CMakeLists.txt, not a glob (see sources.py).
 sources=$(python3 "$HERE/sources.py" "$CPP")
 objs=""
 for f in $sources; do

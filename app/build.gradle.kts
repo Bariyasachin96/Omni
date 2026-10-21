@@ -63,7 +63,7 @@ android {
                 //
                 // -fno-exceptions -fno-rtti IS BEHAVIOUR-NEUTRAL HERE, not a trade:
                 // there is not one try, catch, throw, dynamic_cast or typeid in our core
-                // OR in CLD2. Nothing can be caught that was not already going to
+                // (nor was there in CLD2, linked until 2026-10-21). Nothing can be caught that was not already going to
                 // terminate. -fno-unwind-tables follows from that; it drops 18 KB of
                 // .eh_frame metadata that nothing unwinds.
                 //
@@ -103,6 +103,9 @@ android {
         }
         ndk { abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a")) }
     }
+    // (2026-10-21: CLD2 left the app and took its 6.1 MB of tables per ABI with it;
+    // the library is about 1.4 MB now. The split below still keeps each download
+    // to one ABI's code.)
     // ONE ABI PER DOWNLOAD (owner, 2026-09-09: "complete full CLD2 rahe aur file
     // size bhi kam ho jayegi"). This is the change that answers that, and it is
     // the only one that does -- the research is written up in CLAUDE.md and in
@@ -196,8 +199,8 @@ android {
     // Android EXTRACT it to the phone's storage on install, so the phone kept it
     // twice. AGP's default for minSdk 23+ stores it uncompressed and 16 KB
     // aligned and Android maps it straight out of the APK: the app takes about
-    // the library's size less space on the phone (it is 95% CLD2 tables, so
-    // that is several MB), installs without unpacking, and Google Play can serve
+    // the library's size less space on the phone (about 1.4 MB since CLD2 left
+    // on 2026-10-21; it was 95% CLD2 tables before), installs without unpacking, and Google Play can serve
     // it the same way from the bundle. The cost is a larger APK FILE when it is
     // downloaded outside Play, measured and stated in CLAUDE.md.
     // tools/check/native-pagesize.sh checks the 16 KB placement in the APK.

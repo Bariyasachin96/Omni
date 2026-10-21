@@ -141,7 +141,7 @@ Ours: `tts_engine_core.cpp` plus the Kotlin wrappers in `EasyVoiceTtsService.kt`
 | `getLanguageSpans` **0x65392c** | the span loop in `nativeGetLanguages` | verified |
 | its code-point classifier **0x653ae0** | `classifyScript` | verified, range for range |
 | its span emitter **0x653e90** | `emitScriptSpan` | verified |
-| `getLanguage` **0x6523c8** | `detectWindowLang` | verified |
+| `getLanguage` **0x6523c8** | `detectWindowLang` | verified; since 2026-10-21 the model ML Kit runs answers there (CLD2 gone) |
 | `setLanguageHints` **0x653588** | `Java_…_setLanguageHints` + `rebuildScriptLanguageTables` | verified |
 | the 48 `{script, Language}` pairs **0x62f924** | `kScriptLangPairs` | decoded from the binary |
 | `nativeGetLanguages`' span cap | `kMaxSpans = 128` (`mov w3, #0x80`) | verified |
@@ -155,8 +155,8 @@ preferred language. See CLAUDE.md, "The DETECTOR lives in libcld2.so".
 Script_Extensions (a danda, a Vedic sign, CJK punctuation, the Arabic comma),
 it is read as the lowest of those scripts an enabled language writes
 (`kUniScxMask`); case 0 stands only when none does, and digits, ASCII
-punctuation and emoji name none. The seven scripts CLD2 is asked about beyond
-the 48 pairs get a hint and a fallback too (`kExtraSlotLangs`).
+punctuation and emoji name none. The seven scripts beyond the 48 pairs that one
+language each writes get a fallback too (`kExtraSlotLangs`).
 docs/INVARIANTS.md #32.
 
 ---
