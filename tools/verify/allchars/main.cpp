@@ -17,6 +17,7 @@
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setDetectSets(JNIEnv*, jclass, jobjectArray, jobjectArray);
+JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setIsoMap(JNIEnv*, jclass, jobjectArray, jobjectArray);
 JNIEXPORT jobjectArray JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
     JNIEnv*, jclass, jstring, jstring, jstring, jstring, jint, jstring, jint, jstring,
     jint, jstring, jboolean, jboolean, jint, jstring, jint, jboolean, jboolean, jboolean);
@@ -32,6 +33,18 @@ static jobjectArray arr(const std::vector<std::string>& v) {
     jobjectArray a = env->NewObjectArray((jsize)v.size(), env->FindClass("java/lang/String"), nullptr);
     for (size_t i = 0; i < v.size(); i++) env->SetObjectArrayElement(a, (jsize)i, J(v[i]));
     return a;
+}
+// The ISO map the service pushes at its start (initIsoMaps:
+// IsoCodes.iso2Pairs(), written by the Kotlin half). Without it the core's
+// toIso3 answers a two-letter code unchanged, so auto mode's window answer
+// never matches the iso3 detect set and every window falls to the script
+// family -- a path the app does not take.
+static void pushIsoMap(const char* path) {
+    std::ifstream in(path); std::string l; std::vector<std::string> iso2, iso3;
+    while (std::getline(in, l)) { size_t t = l.find('\t'); if (t != std::string::npos) { iso2.push_back(l.substr(0, t)); iso3.push_back(l.substr(t + 1)); } }
+    if (iso2.empty()) { fprintf(stderr, "no ISO pairs in %s\n", path); exit(2); }
+    Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setIsoMap(env, nullptr, arr(iso2), arr(iso3));
+    fakejni::reset();
 }
 static jobjectArray direct(const std::string& text, bool dual) {
     return Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_processDirect(
@@ -87,8 +100,9 @@ static std::string autoAnswer(const std::string& text) {
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) { fprintf(stderr, "usage: main <cases.tsv>\n"); return 2; }
+    if (argc != 3) { fprintf(stderr, "usage: main <cases.tsv> <isopairs.tsv>\n"); return 2; }
     env = fakejni::env();
+    pushIsoMap(argv[2]);
     std::ifstream in(argv[1]); std::string line;
     while (std::getline(in, line)) {
         if (line.empty()) continue;

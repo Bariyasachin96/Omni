@@ -4,8 +4,10 @@
 // branch (auto, Google) do. Appended to a copy of those two files by run.sh.
 //   prep  <langs.tsv>             -> script, iso2 (hint), iso3 (detect set) of each living script
 //   check <langs.tsv> <probe.txt> -> one verdict per living script; exit 1 on any miss
+//   pairs                         -> the ISO map the service pushes at its start (initIsoMaps)
 fun autoCode(raw: String): String = if (System.getenv("EV_NEG") == "truncate" && raw.length > 2) raw.substring(0, 2) else raw
 fun main(args: Array<String>) {
+    if (args[0] == "pairs") { for ((k, v) in IsoCodes.iso2Pairs()) println(k + "\t" + v); return }
     val langs = java.io.File(args[1]).readLines().map { it.split('\t') }.filter { it.size >= 3 }
     val living = langs.filter { it[1].isNotEmpty() && (it[2] == "RECOMMENDED" || it[2] == "LIMITED_USE") }.associate { it[0] to it[1] }
     if (args[0] == "prep") {

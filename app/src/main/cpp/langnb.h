@@ -26793,12 +26793,22 @@ static const uint64_t kNbLetters4[][2] = {{0,0}};
 static const int kNbLetterCount4 = 0;
 static const uint64_t kNbLetters6[][2] = {{0x9F1,0x100ULL},};
 static const int kNbLetterCount6 = 1;
-struct NbModel { const char* const* langs; int nLangs; const uint32_t* hash; const int8_t* logp; int n; const uint64_t (*letters)[2]; int nLetters; };
+static const uint64_t kNbRare1[][2] = {{0,0}};
+static const int kNbRareCount1 = 0;
+static const uint64_t kNbRare2[][2] = {{0x402,0x7000000ULL}, {0x404,0xD00ULL}, {0x406,0x900ULL}, {0x408,0x7000000ULL}, {0x40A,0x7000000ULL}, {0x40F,0x7000000ULL}, {0x419,0x80800ULL}, {0x429,0x90900ULL}, {0x42D,0xEULL}, {0x42E,0x80800ULL}, {0x42F,0x80808ULL}, {0x439,0x80808ULL}, {0x449,0x80808ULL}, {0x44A,0xA000AULL}, {0x44B,0xCULL}, {0x44C,0x80808ULL}, {0x44D,0xEULL}, {0x44E,0x80808ULL}, {0x44F,0x80808ULL}, {0x451,0xEULL}, {0x452,0x7000000ULL}, {0x454,0xD00ULL}, {0x456,0xD00ULL}, {0x457,0xD00ULL}, {0x458,0x7000000ULL}, {0x459,0x7000000ULL}, {0x45A,0x7000000ULL}, {0x45B,0x7000000ULL}, {0x45D,0xB0000ULL}, {0x45F,0x7000000ULL}, {0x491,0xD00ULL},};
+static const int kNbRareCount2 = 31;
+static const uint64_t kNbRare3[][2] = {{0x625,0x2ULL}, {0x649,0x2000002ULL}, {0x679,0xB0000ULL}, {0x67C,0x7000000ULL}, {0x681,0x7000000ULL}, {0x685,0x7000000ULL}, {0x686,0x1010100ULL}, {0x688,0xB0000ULL}, {0x689,0x7000000ULL}, {0x691,0xB0000ULL}, {0x693,0x7000000ULL}, {0x696,0x7000000ULL}, {0x698,0x1010100ULL}, {0x69A,0x7000000ULL}, {0x6A9,0x1010100ULL}, {0x6AB,0x7000000ULL}, {0x6AF,0x1010100ULL}, {0x6BA,0x30000ULL}, {0x6BC,0x7000000ULL}, {0x6BE,0x30000ULL}, {0x6C1,0x30000ULL}, {0x6C2,0xB0000ULL}, {0x6C3,0xB0000ULL}, {0x6CD,0x7000000ULL}, {0x6D0,0x7000000ULL}, {0x6D2,0x30000ULL}, {0xFE8D,0x3000000ULL}, {0xFE8E,0x3000000ULL}, {0xFEA9,0x3000000ULL}, {0xFEEA,0x7000000ULL}, {0xFEED,0x3000000ULL}, {0xFEEE,0x3000000ULL},};
+static const int kNbRareCount3 = 32;
+static const uint64_t kNbRare4[][2] = {{0,0}};
+static const int kNbRareCount4 = 0;
+static const uint64_t kNbRare6[][2] = {{0x9DC,0x2ULL}, {0x9F0,0x100ULL}, {0x9F1,0x100ULL},};
+static const int kNbRareCount6 = 3;
+struct NbModel { const char* const* langs; int nLangs; const uint32_t* hash; const int8_t* logp; int n; const uint64_t (*letters)[2]; int nLetters; const uint64_t (*rare)[2]; int nRare; };
 static inline bool nbModel(int slot, NbModel* m) {
-    if (slot == 1) { *m = {kNbLangs1, 8, kNbHash1, kNbLogp1, 20000, kNbLetters1, kNbLetterCount1}; return true; }
-    if (slot == 2) { *m = {kNbLangs2, 4, kNbHash2, kNbLogp2, 20000, kNbLetters2, kNbLetterCount2}; return true; }
-    if (slot == 3) { *m = {kNbLangs3, 4, kNbHash3, kNbLogp3, 20000, kNbLetters3, kNbLetterCount3}; return true; }
-    if (slot == 4) { *m = {kNbLangs4, 3, kNbHash4, kNbLogp4, 20000, kNbLetters4, kNbLetterCount4}; return true; }
-    if (slot == 6) { *m = {kNbLangs6, 2, kNbHash6, kNbLogp6, 20000, kNbLetters6, kNbLetterCount6}; return true; }
+    if (slot == 1) { *m = {kNbLangs1, 8, kNbHash1, kNbLogp1, 20000, kNbLetters1, kNbLetterCount1, kNbRare1, kNbRareCount1}; return true; }
+    if (slot == 2) { *m = {kNbLangs2, 4, kNbHash2, kNbLogp2, 20000, kNbLetters2, kNbLetterCount2, kNbRare2, kNbRareCount2}; return true; }
+    if (slot == 3) { *m = {kNbLangs3, 4, kNbHash3, kNbLogp3, 20000, kNbLetters3, kNbLetterCount3, kNbRare3, kNbRareCount3}; return true; }
+    if (slot == 4) { *m = {kNbLangs4, 3, kNbHash4, kNbLogp4, 20000, kNbLetters4, kNbLetterCount4, kNbRare4, kNbRareCount4}; return true; }
+    if (slot == 6) { *m = {kNbLangs6, 2, kNbHash6, kNbLogp6, 20000, kNbLetters6, kNbLetterCount6, kNbRare6, kNbRareCount6}; return true; }
     return false;
 }

@@ -152,14 +152,19 @@ def flores(lang, split):
     return [l.strip() for l in open(path, encoding="utf-8")] if os.path.exists(path) else []
 
 
+def of_script(c, slot):
+    """the code point is a letter block of the group's script"""
+    lo, hi = {1: (0x41, 0x24F), 2: (0x400, 0x52F), 3: (0x600, 0x6FF), 4: (0x900, 0x97F), 6: (0x980, 0x9FF)}[slot]
+    return lo <= c <= hi or (slot == 1 and 0x1E00 <= c <= 0x1EFF) or \
+        (slot == 3 and (0x750 <= c <= 0x8FF or 0xFB50 <= c <= 0xFEFF))
+
+
 def in_script(text, slot):
     """the text's letters are mostly of the group's script (Serbian Tatoeba mixes Latin in)"""
-    lo, hi = {1: (0x41, 0x24F), 2: (0x400, 0x52F), 3: (0x600, 0x6FF), 4: (0x900, 0x97F), 6: (0x980, 0x9FF)}[slot]
     letters = [ord(c) for c in text if ord(c) in WORD]
     if not letters:
         return False
-    inside = sum(1 for c in letters if lo <= c <= hi or (slot == 1 and 0x1E00 <= c <= 0x1EFF) or
-                 (slot == 3 and (0x750 <= c <= 0x8FF or 0xFB50 <= c <= 0xFEFF)))
+    inside = sum(1 for c in letters if of_script(c, slot))
     return inside >= 0.8 * len(letters)
 
 
@@ -237,9 +242,17 @@ def value(c, n):
 
 
 LETTERS = os.path.join(ROOT, "tools", "langid", "letters.tsv")
+LETTERS_RARE = os.path.join(ROOT, "tools", "langid", "letters_rare.tsv")
 LETTER_SLOTS = (2, 3, 6)          # where a letter is an orthography, not a loanword's accent
 LETTER_COMMON = 0.005             # the letter is in at least 1 of 200 of the language's texts
 LETTER_NEVER = 0.00002            # and in at most 1 of 50,000 of the other's
+# A letter the other writes in at most 1 of 2,000 of its texts decides nothing on
+# its own, but a span holding one does not take that other language from the
+# context (langblend.h blendFinal): keheh after Arabic text is not Arabic (ar
+# writes it in 1 of 4,300 texts, ur in 9 of 10). Chosen on the suite's held-out
+# half: it put right 13 / 42 / 64 texts whose context was another language
+# (P = 0.1 / 0.3 / 0.5) and turned none wrong; at 1 of 1,000 it starts to.
+LETTER_RARE = 0.0005
 
 
 def learn_letters(texts):
@@ -249,25 +262,31 @@ def learn_letters(texts):
         for t in ts:
             c.update({ch for ch in t if ord(ch) in WORD and unicodedata.category(ch)[0] == "L"})
         rate[L] = {ch: n / max(1, len(ts)) for ch, n in c.items()}
-    with open(LETTERS, "w", encoding="utf-8") as out:
-        out.write("# Learned by tools/langid/train_nb.py from the same texts as nb_model.tsv -- do not\n")
-        out.write("# edit. slot<TAB>language<TAB>other<TAB>letters the language writes in at least\n")
-        out.write("# %g of its texts and the other in at most %g of its texts.\n" % (LETTER_COMMON, LETTER_NEVER))
-        for slot in LETTER_SLOTS:
-            langs = GROUPS[slot]
-            for L in langs:
-                for B in langs:
-                    if B != L:
-                        ex = sorted(ch for ch, r in rate[L].items()
-                                    if r >= LETTER_COMMON and rate[B].get(ch, 0) <= LETTER_NEVER)
-                        if ex:
-                            out.write("%d\t%s\t%s\t%s\n" % (slot, L, B, "".join(ex)))
+    for path, other, why in ((LETTERS, LETTER_NEVER, ""),
+                             (LETTERS_RARE, LETTER_RARE,
+                              "# They decide nothing alone: a span holding one does not take the other\n"
+                              "# language from the context (langblend.h blendFinal).\n")):
+        with open(path, "w", encoding="utf-8") as out:
+            out.write("# Learned by tools/langid/train_nb.py from the same texts as nb_model.tsv -- do not\n")
+            out.write("# edit. slot<TAB>language<TAB>other<TAB>letters the language writes in at least\n")
+            out.write("# %g of its texts and the other in at most %g of its texts.\n" % (LETTER_COMMON, other))
+            out.write(why)
+            for slot in LETTER_SLOTS:
+                langs = GROUPS[slot]
+                for L in langs:
+                    for B in langs:
+                        if B != L:
+                            ex = sorted(ch for ch, r in rate[L].items()
+                                        if r >= LETTER_COMMON and rate[B].get(ch, 0) <= other
+                                        and of_script(ord(ch), slot))
+                            if ex:
+                                out.write("%d\t%s\t%s\t%s\n" % (slot, L, B, "".join(ex)))
 
 
-def letters():
+def letters(path=LETTERS):
     """slot -> {letter: set of (language, other)}"""
     table = {}
-    for line in open(LETTERS, encoding="utf-8"):
+    for line in open(path, encoding="utf-8"):
         if line.startswith("#"):
             continue
         slot, L, B, ex = line.rstrip("\n").split("\t")
@@ -291,6 +310,13 @@ def letter_rule(table, slot, text, cands):
             if all((L, B) in pairs for B in cands if B != L):
                 won.add(L)
     return next(iter(won)) if len(won) == 1 else None
+
+
+def letter_veto(table, slot, text, got, ctx):
+    """some letter of the text is one `got` writes and `ctx` practically never does
+    (the letters_rare table): the context must not turn the span into `ctx`"""
+    t = table.get(slot)
+    return bool(t) and any((got, ctx) in t.get(ch, ()) for ch in set(text))
 
 
 def load(keep=None):
@@ -455,25 +481,28 @@ def header():
             out.append("    " + " ".join(",".join(str(x) for x in t[h]) + "," for h in hs[i:i + 6]))
         out.append("};")
     # letters: per slot, each letter with the (language, other) pairs it decides, as bit
-    # (language index * 8 + other index) of a 64-bit mask
-    lt = letters()
-    for slot in GROUPS:
-        langs = GROUPS[slot]
-        ents = []
-        for ch, pairs in sorted(lt.get(slot, {}).items()):
-            mask = 0
-            for L, B in pairs:
-                mask |= 1 << (langs.index(L) * 8 + langs.index(B))
-            ents.append((ord(ch), mask))
-        out.append("static const uint64_t kNbLetters%d[][2] = {%s};" % (
-            slot, " ".join("{0x%X,0x%XULL}," % e for e in ents) if ents else "{0,0}"))
-        out.append("static const int kNbLetterCount%d = %d;" % (slot, len(ents)))
+    # (language index * 8 + other index) of a 64-bit mask; the rare letters (which only
+    # keep the context away from `other`) the same way
+    for name, count, lt in (("kNbLetters", "kNbLetterCount", letters()),
+                            ("kNbRare", "kNbRareCount", letters(LETTERS_RARE))):
+        for slot in GROUPS:
+            langs = GROUPS[slot]
+            ents = []
+            for ch, pairs in sorted(lt.get(slot, {}).items()):
+                mask = 0
+                for L, B in pairs:
+                    mask |= 1 << (langs.index(L) * 8 + langs.index(B))
+                ents.append((ord(ch), mask))
+            out.append("static const uint64_t %s%d[][2] = {%s};" % (
+                name, slot, " ".join("{0x%X,0x%XULL}," % e for e in ents) if ents else "{0,0}"))
+            out.append("static const int %s%d = %d;" % (count, slot, len(ents)))
     out.append("struct NbModel { const char* const* langs; int nLangs; const uint32_t* hash; const int8_t* logp; int n;"
-               " const uint64_t (*letters)[2]; int nLetters; };")
+               " const uint64_t (*letters)[2]; int nLetters; const uint64_t (*rare)[2]; int nRare; };")
     out.append("static inline bool nbModel(int slot, NbModel* m) {")
     for slot, langs in GROUPS.items():
-        out.append("    if (slot == %d) { *m = {kNbLangs%d, %d, kNbHash%d, kNbLogp%d, %d, kNbLetters%d, kNbLetterCount%d};"
-                   " return true; }" % (slot, slot, len(langs), slot, slot, len(table.get(slot, {})), slot, slot))
+        out.append("    if (slot == %d) { *m = {kNbLangs%d, %d, kNbHash%d, kNbLogp%d, %d, kNbLetters%d, kNbLetterCount%d,"
+                   " kNbRare%d, kNbRareCount%d}; return true; }"
+                   % (slot, slot, len(langs), slot, slot, len(table.get(slot, {})), slot, slot, slot, slot))
     out.append("    return false;")
     out.append("}")
     return "\n".join(out) + "\n"

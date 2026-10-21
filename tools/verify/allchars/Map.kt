@@ -4,7 +4,9 @@
 // (IsoCodes.toIso3, then iso3OfCode). Appended to a copy of those two files.
 //   prep <langs.tsv>  ->  script, iso2, iso3 of each living script's language
 //   map <codes.txt>   ->  code<TAB>iso3 ("-" when IsoCodes knows no such language)
+//   pairs             ->  the ISO map the service pushes at its start (initIsoMaps)
 fun main(args: Array<String>) {
+    if (args[0] == "pairs") { for ((k, v) in IsoCodes.iso2Pairs()) println(k + "\t" + v); return }
     if (args[0] == "prep") {
         val langs = java.io.File(args[1]).readLines().map { it.split('\t') }.filter { it.size >= 3 }
         for (f in langs) {

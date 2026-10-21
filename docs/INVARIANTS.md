@@ -1145,3 +1145,22 @@ and judges each answer through the real IsoCodes. Three rules keep it at zero:
 
 Each rule has a negative test in that harness (`EV_NEG=noattach | noneutral | noextra |
 onlyold`), and all four fail.
+
+## 33. The context never overrules a letter, and the harnesses load what the service loads
+Owner, 2026-10-21: *"aur Urdu aur arabik ke liye kya karta hai."* Two rules:
+
+- **A span that proved nothing takes the context language only when its letters allow
+  it.** `blendFinal` refuses the context `ctx` when the span holds a letter its own answer
+  writes in at least 1 of 200 texts and `ctx` in at most 1 of 2,000 (`letters_rare.tsv`,
+  learned by `tools/langid/train_nb.py letters`, emitted as `kNbRare` into langnb.h,
+  computed once per span as `BlendResult::veto`). Keheh (ک) is in 9 of 10 Urdu texts and 1
+  of 4,300 Arabic ones, so an Urdu word read after Arabic text stays Urdu; Assamese ৰ after
+  Bengali text stays Assamese. The letters only keep the context away; they decide nothing
+  alone (`letters.tsv`, at 1 in 50,000, still does that). `combine.py` mirrors it
+  (`train_nb.letter_veto`) and the suite fails if C++ and Python disagree.
+- **A real-core harness pushes the ISO map the service pushes at its start**
+  (`initIsoMaps` = `IsoCodes.iso2Pairs()` -> `setIsoMap`). Without it the core's `toIso3`
+  answers a two-letter code unchanged, auto mode's window answer never matches the iso3
+  detect set, and every window falls to the script family -- a path the app does not take.
+  `allchars` and `allscripts` write `isopairs.tsv` from the lifted Kotlin and their probes
+  refuse to run without it.

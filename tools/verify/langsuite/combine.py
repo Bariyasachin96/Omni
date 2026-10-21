@@ -99,6 +99,7 @@ def nb_rule(t, order, slot):
 
 
 LT = train_nb.letters()
+LR = train_nb.letters(train_nb.LETTERS_RARE)
 
 
 def rule(r):
@@ -253,10 +254,11 @@ for title, keep in (("ALL test", lambda r: True),
         print("%-34s" % ("%s (%d)" % (title, len(sub))) + "".join("%14.1f " % (100 * acc(sub, f)) for f in WAYS.values())
               + "   %d/%d" % (breaks(sub, fn), fixes(sub, fn)))
 
-# CONTEXT (langblend.h's blendWithContext): a decision that is not sure (no
-# rule, the word-and-ending model below its margin) takes the language of the
-# last sure decision in the same script, unless the word-and-ending model puts
-# its own pick at least CTX nats above that language. Simulated: the last sure
+# CONTEXT (langblend.h's blendFinal): a decision that is not sure (no rule, the
+# word-and-ending model below its margin) takes the language of the last sure
+# decision in the same script, unless the word-and-ending model puts its own
+# pick at least CTX nats above that language, or the text holds a letter its own
+# answer writes and that language practically never does (letters_rare.tsv). Simulated: the last sure
 # decision was the text's own language, or with probability P another one.
 def nb_scores_all(r):
     langs = train_nb.GROUPS.get(r["slot"])
@@ -272,6 +274,8 @@ def with_context(r, ctx, ctx_margin):
         return got
     cands, sc = nb_scores_all(r)
     if ctx not in cands:
+        return got
+    if train_nb.letter_veto(LR, r["slot"], r["text"], got, ctx):
         return got
     if sc is None or got not in cands:
         return ctx

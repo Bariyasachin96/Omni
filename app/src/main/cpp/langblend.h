@@ -32,7 +32,9 @@
 //  Then CONTEXT (blendFinal): a span that proved nothing (steps 3-4: "ब्लूटूथ",
 //  "प्रस्तावना" are the same in Hindi and Marathi) takes the language of the
 //  last span of its script that did prove one, unless the word-and-ending
-//  model puts its own pick 6 nats above it.
+//  model puts its own pick 6 nats above it, or the span holds a letter its own
+//  answer writes and that language practically never does (keheh after Arabic
+//  text, ৰ after Bengali: langnb.h kNbRare, at most 1 in 2,000 texts).
 //
 //  Measured (tools/verify/langsuite/run.sh) on 35,212 held-out texts in sets
 //  where languages share a script -- Android's own UI strings, Tatoeba, the
@@ -265,16 +267,56 @@ static inline std::string nbLetterRule(int slot, const char* text, int bytes, co
     return "";
 }
 
+// The rare letters (langnb.h kNbRare, learned like the letter table with a
+// looser bound, owner 2026-10-21: "Urdu aur Arabic ke liye kya karta hai"):
+// bit (a * 8 + b) when some letter of the text is one cands[a] writes in at
+// least 1 of 200 of its texts and cands[b] in at most 1 of 2,000. They decide
+// nothing alone; blendFinal does not give such a span the context b. Keheh
+// (ک) is in 9 of 10 Urdu texts and 1 of 4,300 Arabic ones, so an Urdu word
+// read after Arabic text stays Urdu.
+static inline uint64_t nbRareVeto(int slot, const char* text, int bytes, const std::vector<std::string>& cands) {
+    NbModel m;
+    if (cands.size() < 2 || cands.size() > 8 || !nbModel(slot, &m) || m.nRare == 0) return 0;
+    int idx[8];
+    for (size_t i = 0; i < cands.size(); i++) {
+        const std::string k = blendCanonical(cands[i]);
+        idx[i] = -1;
+        for (int j = 0; j < m.nLangs; j++) if (k == m.langs[j]) idx[i] = j;
+    }
+    uint64_t seen = 0;
+    for (int i = 0; i < bytes;) {
+        int32_t r;
+        int used = lidDecode((const unsigned char*)text + i, (size_t)(bytes - i), &r);
+        if (used <= 0) break;
+        i += used;
+        int lo = 0, hi = m.nRare - 1;
+        while (lo <= hi) {
+            int mid = (lo + hi) >> 1;
+            if ((uint64_t)r < m.rare[mid][0]) hi = mid - 1;
+            else if ((uint64_t)r > m.rare[mid][0]) lo = mid + 1;
+            else { seen |= m.rare[mid][1]; break; }
+        }
+    }
+    uint64_t veto = 0;
+    for (size_t a = 0; a < cands.size(); a++)
+        for (size_t b = 0; b < cands.size(); b++)
+            if (a != b && idx[a] >= 0 && idx[b] >= 0 && ((seen >> (idx[a] * 8 + idx[b])) & 1))
+                veto |= 1ULL << (a * 8 + b);
+    return veto;
+}
+
 // What blendDetectors decided for a span of script slot `slot`: the enabled
 // code ("" keeps CLD2's path answer), whether the text itself proved it (a
 // letter, the Han rules, or the word-and-ending model past its margin), and,
-// for the context (blendFinal), the script's enabled languages and the
-// word-and-ending model's score for each (empty when it cannot score them).
+// for the context (blendFinal), the script's enabled languages, the
+// word-and-ending model's score for each (empty when it cannot score them) and
+// the rare-letter veto over them (nbRareVeto).
 struct BlendResult {
     std::string lang;
     bool sure = false;
     std::vector<std::string> slotLangs;
     std::vector<int> nb;
+    uint64_t veto = 0;
 };
 
 // `cld2Answer` is CLD2's path answer; lang3 / percent3 are the same CLD2
@@ -357,6 +399,7 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
     } else {
         res.nb.clear();
     }
+    if (slot == 2 || slot == 3 || slot == 6) res.veto = nbRareVeto(slot, text, bytes, res.slotLangs);
 
     // 3. only CLD2 can name it
     if (blendLabelIndex(cld2Answer) < 0) return res;
@@ -395,7 +438,9 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
 // enabled languages) takes the language of the last text of its script that
 // did prove one -- the screen or the message being read -- unless the
 // word-and-ending model puts its own pick at least kCtxMargin (6 nats, 400 to
-// 1) above that language. One per script slot, shared by every caller.
+// 1) above that language, or the span holds a letter its own answer writes
+// and that language practically never does (BlendResult::veto). One per
+// script slot, shared by every caller.
 static const int kCtxMargin = 48;
 static std::mutex gBlendContextMutex;
 static std::string gBlendContext[7];
@@ -417,6 +462,7 @@ static inline std::string blendFinal(int slot, const BlendResult& r, const std::
         if (r.slotLangs[i] == got) gi = (int)i;
     }
     if (ctx.empty() || ci < 0 || ctx == got) return got;
+    if (gi >= 0 && ((r.veto >> (gi * 8 + ci)) & 1)) return got;
     if (r.nb.empty() || gi < 0) return ctx;
     return r.nb[gi] - r.nb[ci] >= kCtxMargin ? got : ctx;
 }

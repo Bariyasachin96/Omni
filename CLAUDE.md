@@ -8,7 +8,33 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## EVERY CHARACTER OF EVERY SCRIPT REACHES A VOICE THAT WRITES IT, AND NO WORD IS CUT (owner, 2026-10-21, latest)
+## URDU AND ARABIC: A LETTER A LANGUAGE NEVER WRITES KEEPS ITS CONTEXT AWAY; HARNESSES LOAD THE ISO MAP (owner, 2026-10-21, latest)
+*"aur Urdu aur arabik ke liye kya karta hai."* Measured through the real core (allchars probe + the suite):
+- **What it does:** with {en, ur, ar} enabled, Urdu sentences go to the Urdu voice and Arabic to the Arabic one, in
+  mix AND auto. Held-out suite (no context): {en,ur,ar} ar 99.9% / ur 99.5% (CLD2 alone 99.6 / 98.2); {en,ar,fa,ur,ps}
+  ar 99.9, fa 98.6, ur 98.8. With only Urdu enabled every Arabic-script text is Urdu's (the per-script fallback).
+  In the owner's {hi,en,gu} no language writes the Arabic script: such text goes to the non-Latin preferred voice
+  (Gujarati) as before -- enable Urdu/Arabic and give it a voice.
+- **Found 1, the harnesses:** allchars/allscripts never called `setIsoMap`, which the service does at its start
+  (`initIsoMaps` = `IsoCodes.iso2Pairs()`), so the core's toIso3 left "ur" as "ur", auto mode's window answer never
+  matched the iso3 detect set and EVERY window fell to the script family (Urdu read as "ar" in the probe). Both
+  probes now take `isopairs.tsv` from the lifted Kotlin (`pairs` command) and refuse to run without it: allchars
+  464,866 / 0 (12,797 auto answers now take the app's path), allscripts 62 / 0.
+- **Found 2, the context overrode a letter:** after Arabic text the Urdu word "کتاب" (keheh) was read in Arabic;
+  after Bengali an Assamese word with ৰ in Bengali. Keheh is in 9 of 10 Urdu texts and 1 of 4,300 Arabic ones, but
+  `letters.tsv` decides only at 1 in 50,000. Fix: **`letters_rare.tsv`** (train_nb.py `letters`: the answer writes
+  the letter in >= 1/200 texts, the context language in <= 1/2,000; the group's own script only) -> `kNbRare` in
+  langnb.h -> `BlendResult::veto` (nbRareVeto, computed once a span is not sure) -> `blendFinal` refuses such a
+  context; combine.py mirrors it (`train_nb.letter_veto`). 1/2,000 chosen on the held-out half: it put right 13 /
+  42 / 64 texts whose context was another language (P 0.1 / 0.3 / 0.5) and turned NONE wrong; 1/1,000 starts to.
+  Context: one-language stream 99.79% unchanged, P 0.1 98.57 -> 98.60, 0.3 96.19 -> 96.31, 0.5 93.75 -> 93.93.
+  "كتاب" (Arabic kaf) after Urdu stays Urdu: Urdu writes that kaf in 1 of 250 texts, so it is not evidence.
+- **Proof:** suite C++ == Python 450,522 context + 131,961 blend; corebytes vs HEAD 0 of 895,440 differ; allchars,
+  allscripts as above; letters.tsv byte-identical after relearning; allchars negatives still FAIL (96+52 split / 368
+  / 166 / 96); devanagari 64/64; PGO --update ALL PASS (917,754 plain == PGO, ASan+UBSan clean); check-all ALL PASS
+  (langnb.h current, compile 0/0, lint No issues).
+
+## EVERY CHARACTER OF EVERY SCRIPT REACHES A VOICE THAT WRITES IT, AND NO WORD IS CUT (owner, 2026-10-21)
 *"ek character bhi nahin chhutna chahie koi bhi Bhasha ka ek character bhi nahin chhutna chahie ... Chahe Koi Bhi
 Lipi Ho."* Identical text in two languages still carries no evidence (section below): context decides there.
 - **Measured first, `tools/verify/allchars/run.sh` (new):** every assigned character of UCD 18 (Cc Cf Cs Co Cn Zs

@@ -97,7 +97,8 @@ fi
 python3 -I "$ROOT/tools/verify/allscripts/langs.py" "$ROOT/tools/unicode/ucd" "$ROOT/tools/unicode/cldr" > "$WORK/langs.tsv"
 java -jar "$WORK/map.jar" prep "$WORK/langs.tsv" > "$WORK/own.tsv"
 python3 -I "$HERE/cases.py" "$ROOT/tools/unicode/ucd" "$WORK/own.tsv" "$WORK"
-"$WORK/probe" "$WORK/cases.tsv" > "$WORK/probe.txt"
+java -jar "$WORK/map.jar" pairs > "$WORK/isopairs.tsv"
+"$WORK/probe" "$WORK/cases.tsv" "$WORK/isopairs.tsv" > "$WORK/probe.txt"
 python3 -I - "$WORK/probe.txt" > "$WORK/codes.txt" <<'PY'
 import sys
 codes = set()
