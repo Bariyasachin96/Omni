@@ -1164,3 +1164,63 @@ Owner, 2026-10-21: *"aur Urdu aur arabik ke liye kya karta hai."* Two rules:
   detect set, and every window falls to the script family -- a path the app does not take.
   `allchars` and `allscripts` write `isopairs.tsv` from the lifted Kotlin and their probes
   refuse to run without it.
+
+## 34. A letter a language never writes rules it out, and two languages of one script in one text are cut apart
+Owner, 2026-10-21: *"Arabic language Arabic voice ke pass bhi Jana chahie ... jo bhasha ke
+liye Jo voice Chuna Hai vah bhasha ke liye Vahi voice kam karna chahie ... aisa Nahin Ki Ek
+Hi voice do Bhasha Pade."* Where two or more ENABLED languages share Cyrillic, Arabic or
+Bengali (slots 2, 3, 6), two rules (langblend.h; the owner's {hi, en, gu} meets neither):
+
+- **Step 0 of `blendDetectors` (`orthoDecide`).** `tools/langid/ortho.tsv` (learned by
+  `train_nb.py ortho`, emitted as `kOrtho<slot>` into langnb.h) holds each letter that
+  belongs to some orthographies and not others -- Urdu ٹ ڈ ڑ ں ھ ہ ے, Persian/Urdu ک ی,
+  Arabic ة أ إ ي ك, Pashto ټ ځ څ ډ ړ ږ ښ ګ ۍ ې, Ukrainian і ї є, Russian ы э ё, Serbian
+  ђ ј љ њ ћ, Bulgarian ъ, Assamese ৰ ৱ -- with the languages that write it (in 1 of 200 of
+  their words or more) and each one's share of words holding it; for the others ONE share,
+  the worst any of their sources shows (older spelling: Persian typed with Arabic ي ك,
+  Assamese with Bengali র). Each word's letters a language does not write cost it that
+  share against the best writer's. When some word's letters allow the best language ALONE
+  (a Pashto letter, an Arabic ة, "كتاب" against Urdu), a language costing `kOrthoM` (32;
+  48 for Bengali) more than the best is ruled out; one left is SURE, so it becomes the
+  context and the context can no longer turn "كتاب" (Arabic kaf) after Urdu text into Urdu;
+  otherwise steps 1-4 and the context choose only between those left. Two vetoes keep a
+  language in: the word-and-ending model `kNbMargin` above the best, or CLD2's answer, the
+  model's top and the word-and-ending model's best all naming it (Persian typed with
+  Arabic letters).
+- **Why "alone":** Pashto writes both ي and ی, ك and ک, so a Persian sentence quoting
+  three Arabic words costs Pashto nothing and "is" Pashto by letters; no word allows
+  Pashto alone there, so nothing is ruled out and the blend reads it as Persian.
+- **Why only letters a language does NOT write:** letters a language lacks never rule it
+  out. The first draft counted absence too (each letter present or absent, a Bernoulli
+  model): a three-word Pashto phrase without a Pashto letter was ruled out of Pashto.
+- **`orthoSegment`, called by `emitScriptSpan`.** Such a span is cut so each piece is one
+  language. Pass 1: sentences (cut at `kOrthoSent`: . ! ? ; ؟ ؛ ۔ । ॥ newline) each named by
+  the letters' one language, else the word-and-ending model `kNbMargin` ahead in a sentence
+  of `kOrthoMinWords` (3) words or more; a sentence naming another language than the one
+  before starts a piece. Pass 2, inside each piece: the best path over the words' costs, a
+  change costing `kOrthoPw` (52; 1000 for Bengali/Assamese, whose text writes Bengali র in
+  conjuncts: never inside a sentence). Each cut lands where the word-and-ending model puts
+  the words between the two languages' evidence best (a sentence end, else a `kOrthoStrong`
+  mark, else any word; a tie, the later). Each piece goes through the cached detection
+  alone.
+- **Mirrors.** The C++ is `train_nb.py ortho_*` exactly: `tools/verify/mixedscript`
+  compares the cuts on 56,562 texts (0 differ) and then reads them through the real core
+  against `EV_REF` (HEAD) word by word; `combine.py` mirrors step 0 and the suite fails if
+  C++ and Python disagree (0 of 131,961 blend, 0 of 449,706 context decisions).
+- **What it changed, measured** (FLORES-200, never learned from, real core, mix mode, HEAD
+  in brackets): two sentences of two languages in one text read 99.5-100% of words right
+  (54.7-64.8%); without a stop between them 68-99.7% (54.7-64.8%); a three-word phrase
+  inside the other's sentence 71.5-95.3% (65.3-87.0%); a text in one language read in two:
+  128 (134), none new. The owner's cases exact: "كتاب" after Urdu is Arabic, "کتاب" after
+  Arabic is Urdu, "تمام" follows what came before, Urdu + Arabic + Persian + Pashto
+  sentences each to their own voice.
+- **Known limit, stated:** with Arabic, Persian, Urdu AND Pashto all enabled, ONE word
+  inside the other's sentence is read right 94.8% of the time (HEAD 95.4%): a lone Pashto
+  word can make the Persian around it Pashto.
+- **Tried and NOT kept:** absence as evidence (above); "rule nothing out when even the best
+  is contradicted" (worse in every set: one word inside an Urdu/Arabic sentence 92.3%, kept
+  rule 96.2%); "rule out only a language most telling words contradict" (fewer texts the
+  letters settle, and one suite text it settled wrong).
+- **The suite keeps the shipped blend weights** unless a retune gains more than `LAM` on
+  the tune half (`combine.py` reads `kBlend`): step 0 changed which Cyrillic texts the blend
+  decides, and the argmax then gained 1 there while losing 4 on the held-out half.

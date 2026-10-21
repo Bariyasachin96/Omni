@@ -9,6 +9,8 @@
     train_nb.py eval cases.tsv pipeline.tsv
                                      precision and coverage on the suite's
                                      TEST half and on FLORES-200 devtest
+    train_nb.py ortho cases.tsv      learn tools/langid/ortho.tsv (the letters of each
+                                     orthography, word by word) from the same sources
     train_nb.py header               write app/src/main/cpp/langnb.h
     train_nb.py check                fail if langnb.h is stale
 
@@ -319,6 +321,291 @@ def letter_veto(table, slot, text, got, ctx):
     return bool(t) and any((got, ctx) in t.get(ch, ()) for ch in set(text))
 
 
+# ---- THE LETTERS OF AN ORTHOGRAPHY, WORD BY WORD (owner, 2026-10-21: "Arabic
+# language Arabic voice ke pass ... aisa Nahin Ki Ek Hi voice do Bhasha Pade") ----
+# Where languages share a script, some letters belong to one orthography: Urdu
+# writes ٹ ڈ ڑ ں ھ ہ ے, Persian and Urdu ک ی where Arabic writes ك ي, Arabic ة أ إ,
+# Pashto ټ ځ څ ډ ړ ږ ښ ګ ۍ ې, Ukrainian і ї є, Russian ы э ё, Serbian ђ ј љ њ ћ,
+# Bulgarian ъ, Assamese ৰ ৱ. For each such letter ortho.tsv holds, per language,
+# whether it writes the letter itself (in at least ORTHO_NATIVE of its words) and
+# round(8 ln r) for r the share of its WORDS holding it: its own share where it
+# writes the letter, and where it does not, ONE share for every such language --
+# the highest any of them shows in any one source of at least ORTHO_MINWORDS
+# words, i.e. what careless or older spelling (Persian typed with Arabic ي ك,
+# Assamese with Bengali র) does at worst. A word holding the letter costs a
+# language that does not write it that share against the best writer's: letters
+# a language does not write rule it out, letters it lacks never do. Only letters
+# of the script's own blocks, letters NFC text can hold, and only where the best
+# and worst share differ by ORTHO_SPREAD or more.
+ORTHO = os.path.join(ROOT, "tools", "langid", "ortho.tsv")
+ORTHO_NATIVE = 1 / 200
+ORTHO_MINWORDS = 5000
+ORTHO_SPREAD = 24
+ORTHO_BLOCKS = {2: [(0x400, 0x52F)], 3: [(0x600, 0x6FF), (0x750, 0x77F), (0x8A0, 0x8FF)], 6: [(0x980, 0x9FF)]}
+# How the letters decide (langblend.h orthoDecide / orthoSegment), per slot:
+# a language whose words' letters score ORTHO_M or more below the best is ruled
+# out, and changing language between two words of one sentence costs ORTHO_PW.
+# Chosen on FLORES-200 (never learned from): Bengali and Assamese never change
+# inside a sentence (Assamese text writes Bengali র in conjuncts).
+ORTHO_M = {2: 32, 3: 32, 6: 48}
+ORTHO_PW = {2: 52, 3: 52, 6: 1000}
+ORTHO_MINW = 3          # words a sentence needs before the word-and-ending model alone may name it
+ORTHO_SENT = set(".!?;؟؛۔।॥\n")
+ORTHO_STRONG = ORTHO_SENT | set(":\"«»“”„()[]{}﴾﴿۝")
+
+
+def ortho_letter(ch, slot):
+    c = ord(ch)
+    return (any(a <= c <= b for a, b in ORTHO_BLOCKS[slot]) and unicodedata.category(ch)[0] == "L"
+            and unicodedata.normalize("NFC", ch) == ch)
+
+
+def ortho_sources(cases):
+    """per language, per source (the suite's tune rows, Tatoeba, Common Voice,
+    Wikipedia): its texts in the script, none the suite or FLORES test on"""
+    test_keys = set()
+    tune = collections.defaultdict(list)
+    for line in open(cases, encoding="utf-8"):
+        f = line.rstrip("\n").split("\t")
+        if len(f) == 5 and f[0] in SLOT:
+            if f[3] == "test":
+                test_keys.add(key(f[4]))
+            else:
+                tune[f[0]].append(f[4])
+    for L in SLOT:
+        for split in ("dev", "devtest"):
+            test_keys.update(key(t) for t in flores(L, split))
+    out = {}
+    for slot in LETTER_SLOTS:
+        for L in GROUPS[slot]:
+            src = {"suite": tune[L]}
+            path = os.path.join(TRAIN, "tatoeba", TATOEBA[L] + ".tsv")
+            src["tatoeba"] = [l.rstrip("\n").split("\t")[2] for l in open(path, encoding="utf-8", errors="replace")
+                              if l.count("\t") == 2] if os.path.exists(path) else []
+            path = os.path.join(TRAIN, "cv", CV.get(L, L) + ".txt")
+            src["cv"] = [l.strip() for l in open(path, encoding="utf-8", errors="replace")] if os.path.exists(path) else []
+            src["wiki"] = wiki_texts(L, NTEXT)
+            out[L] = {k: [t for t in v if key(t) not in test_keys and in_script(t, slot)] for k, v in src.items()}
+    return out
+
+
+def learn_ortho(cases):
+    srcs = ortho_sources(cases)
+
+    def counts(texts, slot):
+        n, c = 0, collections.Counter()
+        for t in texts:
+            for w in tokens(t):
+                n += 1
+                c.update({ch for ch in w if ortho_letter(ch, slot)})
+        return n, c
+
+    with open(ORTHO, "w", encoding="utf-8") as out:
+        out.write("# Learned by tools/langid/train_nb.py ortho -- do not edit. slot<TAB>letter<TAB>per language\n")
+        out.write("# (GROUPS order): writes it natively (1/0)<TAB>round(8 ln r), r the share of the language's\n")
+        out.write("# words holding the letter (train_nb.py ORTHO_*).\n")
+        for slot in LETTER_SLOTS:
+            langs = GROUPS[slot]
+            pooled = {L: counts([t for v in srcs[L].values() for t in v], slot) for L in langs}
+            persrc = {L: [counts(v, slot) for v in srcs[L].values()] for L in langs}
+            for ch in sorted(set().union(*[pooled[L][1] for L in langs])):
+                rate = {L: pooled[L][1][ch] / pooled[L][0] for L in langs}
+                native = [L for L in langs if rate[L] >= ORTHO_NATIVE]
+                if not native or len(native) == len(langs):
+                    continue
+                f = max(max((c[ch] + 0.5) / (n + 1) for n, c in persrc[L] if n >= ORTHO_MINWORDS)
+                        for L in langs if L not in native)
+                r = [rate[L] if L in native else f for L in langs]
+                pres = [max(-127, int(round(SCALE * math.log(x)))) for x in r]
+                if max(pres) - min(pres) < ORTHO_SPREAD:
+                    continue
+                out.write("%d\t%s\t%s\t%s\n" % (slot, ch, ",".join("1" if L in native else "0" for L in langs),
+                                                ",".join(map(str, pres))))
+
+
+def ortho():
+    """slot -> {letter: (native, share)}, lists in GROUPS order"""
+    table = {}
+    for line in open(ORTHO, encoding="utf-8"):
+        if line.startswith("#"):
+            continue
+        slot, ch, nat, pres = line.rstrip("\n").split("\t")
+        table.setdefault(int(slot), {})[ch] = ([int(x) for x in nat.split(",")], [int(x) for x in pres.split(",")])
+    return table
+
+
+def ortho_words(text):
+    """(word, start, end): the words tokens() makes, with their offsets"""
+    res, cur, start = [], [], None
+    for i, ch in enumerate(text):
+        c = ord(ch)
+        if c in WORD:
+            if start is None:
+                start = i
+            cur.append(chr(LOWER.get(c, c)))
+        elif cur:
+            res.append(("".join(cur), start, i))
+            cur, start = [], None
+    if cur:
+        res.append(("".join(cur), start, len(text)))
+    return res
+
+
+def ortho_pen(ot, slot, w, idx):
+    """what a word costs each candidate in letters it does not write itself
+    (each such letter: its stored share against the best writer's), or None
+    when that is the same for every candidate"""
+    t = ot[slot]
+    p = [0] * len(idx)
+    for ch in set(w) & t.keys():
+        nat, pres = t[ch]
+        top = max(pres)
+        for j, i in enumerate(idx):
+            if not nat[i]:
+                p[j] += pres[i] - top
+    return p if min(p) < max(p) else None
+
+
+def ortho_decide(ot, nbtab, slot, text, cands, detectors=None):
+    """(allowed, totals): the candidates the letters leave. They rule out only
+    when some word's letters allow the best language alone (a Pashto letter, an
+    Arabic ة, "كتاب" against Urdu): then a language whose words' letters cost it
+    ORTHO_M or more more than the best is ruled out, unless the word-and-ending
+    model puts it kNbMargin above that best, or (detectors = (CLD2's answer, the
+    model's top), the final decision only, every candidate one the model knows)
+    CLD2, the model and the word-and-ending model all name it: then the text is
+    that language spelled with another's letters. A best no word attests alone
+    wins only because it writes everyone's letters (Pashto writes both ي and ی:
+    a Persian sentence quoting Arabic is not Pashto) -- nothing is ruled out.
+    Totals None: no word's letters tell the candidates apart."""
+    langs = GROUPS[slot]
+    idx = [langs.index(L) for L in cands]
+    tot, ev, alone = [0] * len(cands), False, set()
+    for w, _, _ in ortho_words(text):
+        s = ortho_pen(ot, slot, w, idx)
+        if s is not None:
+            ev = True
+            for j in range(len(cands)):
+                tot[j] += s[j]
+            free = [j for j in range(len(cands)) if s[j] == 0]
+            if len(free) == 1:
+                alone.add(free[0])
+    if not ev:
+        return list(cands), None
+    best = max(range(len(cands)), key=lambda j: (tot[j], -j))
+    if best not in alone:
+        return list(cands), tot
+    keep = [tot[best] - tot[j] < ORTHO_M[slot] for j in range(len(cands))]
+    if not all(keep):
+        nb = qscores(nbtab, slot, text, cands)
+        nbbest = max(range(len(cands)), key=lambda j: (nb[j], -j))
+        for j in range(len(cands)):
+            if keep[j]:
+                continue
+            if nb[j] - nb[best] >= 80:
+                keep[j] = True
+            elif detectors and detectors[0] == cands[j] and detectors[1] == cands[j] and nbbest == j:
+                keep[j] = True
+    return [cands[j] for j in range(len(cands)) if keep[j]], tot
+
+
+def ortho_sure(ot, nbtab, slot, text, cands, nwords):
+    """what a sentence surely is, for cutting a text: the letters' one language,
+    else the word-and-ending model's best among what the letters allow, ahead by
+    kNbMargin, in a sentence of ORTHO_MINW words or more; else None"""
+    allowed, _ = ortho_decide(ot, nbtab, slot, text, cands)
+    if len(allowed) == 1:
+        return allowed[0]
+    if len(allowed) < 2 or nwords < ORTHO_MINW:
+        return None
+    sc = qscores(nbtab, slot, text, allowed)
+    order = sorted(range(len(allowed)), key=lambda j: (-sc[j], j))
+    return allowed[order[0]] if sc[order[0]] - sc[order[1]] >= 80 else None
+
+
+def _ortho_viterbi(ems, cost, n):
+    """the labels of the best path (each step its emission; a change costs `cost`);
+    ties keep the language, then take the lower index"""
+    score, back = list(ems[0]), []
+    for t in range(1, len(ems)):
+        ns, bk = [], []
+        for j in range(n):
+            bj, bs = j, score[j]
+            for i in range(n):
+                if i != j and score[i] - cost > bs:
+                    bj, bs = i, score[i] - cost
+            ns.append(bs + ems[t][j])
+            bk.append(bj)
+        score = ns
+        back.append(bk)
+    j = max(range(n), key=lambda x: (score[x], -x))
+    labels = [j]
+    for t in range(len(ems) - 1, 0, -1):
+        j = back[t - 1][j]
+        labels.append(j)
+    return labels[::-1]
+
+
+def ortho_segment(ot, nbtab, slot, text, cands):
+    """where in `text` (offsets) a new piece starts. Pass 1: sentences (cut at
+    ORTHO_SENT) each named by ortho_sure; one naming another language than the
+    one before starts a new piece. Pass 2: inside each piece, words scored by the
+    letters their candidates do not write (ortho_pen), best path with a change
+    costing ORTHO_PW. Each cut lands where the word-and-ending model puts the
+    words between the two languages' evidence best: at a sentence end in pass 1,
+    at an ORTHO_STRONG mark if one is there in pass 2; on a tie, the later."""
+    langs = GROUPS[slot]
+    idx = [langs.index(L) for L in cands]
+    toks = ortho_words(text)
+    if len(toks) < 2:
+        return []
+
+    def between(g, marks):
+        return any(ch in marks for ch in text[toks[g - 1][2]:toks[g][1]])
+
+    def cut(a, b, A, B, options):
+        best_g, best_v = b, None
+        for g in options:
+            v = 0
+            for k in range(g, b):
+                sc = qscores(nbtab, slot, toks[k][0], [A, B])
+                v += sc[1] - sc[0]
+            if best_v is None or v > best_v or (v == best_v and g > best_g):
+                best_g, best_v = g, v
+        return best_g
+
+    runs, cur, start, last, x = [], None, 0, None, 0
+    for k in range(1, len(toks) + 1):
+        if k < len(toks) and not between(k, ORTHO_SENT):
+            continue
+        lab = ortho_sure(ot, nbtab, slot, text[toks[x][1]:toks[k - 1][2]], cands, k - x)
+        if lab is not None:
+            if cur is None:
+                cur = lab
+            elif lab != cur:
+                g = cut(last, x, cur, lab, [g for g in range(last + 1, x + 1) if between(g, ORTHO_SENT)])
+                runs.append((start, g))
+                start, cur = g, lab
+            last = k - 1
+        x = k
+    runs.append((start, len(toks)))
+    cuts = set()
+    for ri, (x, y) in enumerate(runs):
+        if ri:
+            cuts.add(x)
+        ev = [(k, ortho_pen(ot, slot, toks[k][0], idx)) for k in range(x, y)]
+        ev = [(k, p) for k, p in ev if p is not None]
+        if len(ev) < 2:
+            continue
+        lab = _ortho_viterbi([p for _, p in ev], ORTHO_PW[slot], len(cands))
+        for t in range(1, len(ev)):
+            if lab[t] != lab[t - 1]:
+                a, b = ev[t - 1][0], ev[t][0]
+                options = [g for g in range(a + 1, b + 1) if between(g, ORTHO_STRONG)] or list(range(a + 1, b + 1))
+                cuts.add(cut(a, b, cands[lab[t - 1]], cands[lab[t]], options))
+    return sorted(toks[g][1] for g in cuts)
+
+
 def load(keep=None):
     model = {}
     ntext = {}
@@ -496,13 +783,35 @@ def header():
             out.append("static const uint64_t %s%d[][2] = {%s};" % (
                 name, slot, " ".join("{0x%X,0x%XULL}," % e for e in ents) if ents else "{0,0}"))
             out.append("static const int %s%d = %d;" % (count, slot, len(ents)))
+    # the letters of an orthography (ortho.tsv): per slot, each letter with a mask of the
+    # languages that write it natively (bit = language index) and per language round(8 ln r);
+    # then how they decide (ORTHO_*)
+    ot = ortho()
+    out.append("struct OrthoLetter { uint32_t cp; uint32_t native; int8_t share[8]; };")
+    for slot in GROUPS:
+        ents = sorted(ot.get(slot, {}).items())
+        out.append("static const OrthoLetter kOrtho%d[] = {%s};" % (slot, "" if ents else "{0, 0, {0}}"))
+        if ents:
+            out[-1] = out[-1][:-2]
+            for ch, (nat, pres) in ents:
+                out.append("    {0x%X, 0x%X, {%s}}," % (ord(ch), sum(1 << i for i, x in enumerate(nat) if x),
+                                                       ",".join(map(str, pres))))
+            out.append("};")
+        out.append("static const int kOrthoCount%d = %d;" % (slot, len(ents)))
+    out.append("static const int kOrthoM[7] = {%s};" % ", ".join(str(ORTHO_M.get(s, 0)) for s in range(7)))
+    out.append("static const int kOrthoPw[7] = {%s};" % ", ".join(str(ORTHO_PW.get(s, 0)) for s in range(7)))
+    out.append("static const int kOrthoMinWords = %d;" % ORTHO_MINW)
+    for name, marks in (("kOrthoSent", ORTHO_SENT), ("kOrthoStrong", ORTHO_STRONG)):
+        cps = sorted(ord(c) for c in marks)
+        out.append("static const uint32_t %s[%d] = {%s};" % (name, len(cps), ", ".join("0x%X" % c for c in cps)))
     out.append("struct NbModel { const char* const* langs; int nLangs; const uint32_t* hash; const int8_t* logp; int n;"
-               " const uint64_t (*letters)[2]; int nLetters; const uint64_t (*rare)[2]; int nRare; };")
+               " const uint64_t (*letters)[2]; int nLetters; const uint64_t (*rare)[2]; int nRare;"
+               " const OrthoLetter* ortho; int nOrtho; };")
     out.append("static inline bool nbModel(int slot, NbModel* m) {")
     for slot, langs in GROUPS.items():
         out.append("    if (slot == %d) { *m = {kNbLangs%d, %d, kNbHash%d, kNbLogp%d, %d, kNbLetters%d, kNbLetterCount%d,"
-                   " kNbRare%d, kNbRareCount%d}; return true; }"
-                   % (slot, slot, len(langs), slot, slot, len(table.get(slot, {})), slot, slot, slot, slot))
+                   " kNbRare%d, kNbRareCount%d, kOrtho%d, kOrthoCount%d}; return true; }"
+                   % (slot, slot, len(langs), slot, slot, len(table.get(slot, {})), slot, slot, slot, slot, slot, slot))
     out.append("    return false;")
     out.append("}")
     return "\n".join(out) + "\n"
@@ -517,6 +826,8 @@ if __name__ == "__main__":
         prune()
     elif sys.argv[1] == "letters":
         learn_letters(learning_texts(sys.argv[2]))
+    elif sys.argv[1] == "ortho":
+        learn_ortho(sys.argv[2])
     elif sys.argv[1] == "header":
         with open(OUT, "w", encoding="utf-8") as f:
             f.write(header())

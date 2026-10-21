@@ -8,7 +8,38 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## URDU AND ARABIC: A LETTER A LANGUAGE NEVER WRITES KEEPS ITS CONTEXT AWAY; HARNESSES LOAD THE ISO MAP (owner, 2026-10-21, latest)
+## EACH LANGUAGE TO ITS OWN VOICE: THE LETTERS OF EACH ORTHOGRAPHY RULE A LANGUAGE OUT, AND A TEXT OF TWO IS CUT (owner, 2026-10-21, latest)
+*"Jo Nahin Badla hai usko badlo ... Arabic language Arabic voice ke pass bhi Jana chahie ... jo bhasha ke liye Jo
+voice Chuna Hai vah bhasha ke liye Vahi voice ... aisa Nahin Ki Ek Hi voice do Bhasha Pade."* Runs only where 2+
+ENABLED languages share Cyrillic, Arabic or Bengali; the owner's {hi,en,gu} meets none of it. docs/INVARIANTS.md #34.
+- **Step 0 of blendDetectors (langblend.h orthoDecide):** `tools/langid/ortho.tsv` (train_nb.py `ortho`, emitted as
+  kOrtho<slot> into langnb.h; 51 letters) = per letter, which languages write it (1/200+ of their words) and each one's
+  word share; a non-writer gets ONE share, the worst any source shows (older spelling). A word's letters a language does
+  not write cost it that share. When some word allows the best language ALONE, a language costing kOrthoM (32; 48
+  Bengali) more is ruled out; one left is SURE (sets the context: "كتاب" with Arabic kaf after Urdu is now ARABIC);
+  else the blend and the context choose only among those left. Vetoes: word-and-ending model kNbMargin above the best;
+  CLD2 + model + word-and-ending model all naming it (Persian typed with ي ك). Letters a language LACKS never rule it
+  out (first draft did: short Pashto phrases lost); "alone" because Pashto writes ي and ی (a Persian sentence quoting
+  Arabic is not Pashto).
+- **orthoSegment (emitScriptSpan):** pass 1 sentences (kOrthoSent . ! ? ; ؟ ؛ ۔ । ॥ \n) named by the letters or the
+  word-and-ending model (kNbMargin, 3+ words); pass 2 inside: Viterbi over words' costs, change kOrthoPw (52; 1000 =
+  never for Bengali/Assamese). Cut where the word-and-ending model puts the gap words best (sentence end / kOrthoStrong
+  mark first; tie = later). Each piece detected alone (cached).
+- **Proof:** NEW `tools/verify/mixedscript/run.sh`: C++ cuts == train_nb.py ortho_segment on 56,562 FLORES texts (0
+  differ); real core (mix mode) vs HEAD's core word by word: two sentences of two languages 99.5-100% (HEAD 54.7-64.8),
+  no stop between 68-99.7 (54.7-64.8), 3-word phrase inside 71.5-95.3 (65.3-87.0); one-language texts read in two 128
+  (134), NONE new; the owner's 9 cases exact (كتاب after Urdu = ar, کتاب after Arabic = ur, تمام follows context, ur+ar+
+  fa+ps sentences each own voice, ru then uk, bn then as). Negatives EV_NEG=nosegment / nostep0 FAIL. Suite: C++ ==
+  Python 0 of 131,961 blend + 0 of 449,706 context; held-out 96.2%; context 99.79 / 98.63 / 96.42 / 94.11 (was 99.79 /
+  98.60 / 96.31 / 93.93). corebytes vs HEAD 0 of 895,440 (now built with the REF's own headers: before, a header-only
+  change could never show).
+- **Known limit:** {ar,fa,ur,ps} all enabled: one word inside the other's sentence 94.8% (HEAD 95.4%).
+- **combine.py keeps the shipped kBlend** unless a retune gains > LAM on the tune half (step 0 moved the Cyrillic argmax
+  by 1 point while it lost 4 held-out); kBlend unchanged.
+- **Only Urdu enabled, no Arabic voice:** Arabic text still goes to the Urdu voice (no other voice writes it) -- tick
+  Arabic in Languages and give it a voice.
+
+## URDU AND ARABIC: A LETTER A LANGUAGE NEVER WRITES KEEPS ITS CONTEXT AWAY; HARNESSES LOAD THE ISO MAP (owner, 2026-10-21)
 *"aur Urdu aur arabik ke liye kya karta hai."* Measured through the real core (allchars probe + the suite):
 - **What it does:** with {en, ur, ar} enabled, Urdu sentences go to the Urdu voice and Arabic to the Arabic one, in
   mix AND auto. Held-out suite (no context): {en,ur,ar} ar 99.9% / ur 99.5% (CLD2 alone 99.6 / 98.2); {en,ar,fa,ur,ps}

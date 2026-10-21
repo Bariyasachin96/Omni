@@ -109,13 +109,20 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/speakpipe/run.sh        # the whole speak loop, last commit vs working tree, on a simulated AOSP engine
     tools/verify/scansched/run.sh        # background-scan scheduling: no change left unscanned, no needless scan
     tools/verify/coldstart/run.sh        # the cold-start waiter under real threads: returns on every event, never early
-    tools/verify/corebytes/run.sh [ref]  # native core of a commit vs the working tree, every JNI answer byte for byte
+    tools/verify/corebytes/run.sh [ref]  # native core of a commit (with its own headers) vs the working tree, every JNI
+                                         #   answer byte for byte
     tools/verify/allscripts/run.sh       # every Unicode script through the real core + real IsoCodes, mix/auto/dual:
                                          #   each script in use today must reach its CLDR language (EV_NEG=nofixed|noiso|truncate fail)
     tools/verify/allchars/run.sh         # ~2 min, EVERY character of UCD 18 (635,459 texts) through the real core + real
                                          #   IsoCodes: alone and after a letter of its script, its language enabled or not;
                                          #   none may reach a voice that does not write its script, be dropped, or be cut
                                          #   from its word (EV_NEG=noattach|noneutral|noextra|onlyold fail)
+    tools/verify/mixedscript/run.sh      # ~3 min, two languages of one script in one text (Urdu + Arabic, Russian +
+                                         #   Ukrainian, Bengali + Assamese ...): langblend.h orthoSegment == train_nb.py
+                                         #   ortho_segment on 56,562 FLORES texts, then the real core (mix mode) word by
+                                         #   word against the core of EV_REF (HEAD): a one-language text never newly read
+                                         #   in two, two sentences >= 99% right, the owner's 9 cases exact
+                                         #   (EV_NEG=nosegment|nostep0 fail)
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

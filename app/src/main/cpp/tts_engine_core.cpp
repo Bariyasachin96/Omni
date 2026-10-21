@@ -2400,6 +2400,119 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
     // One snapshot of the hints for the whole text (see HintState).
     const HintStatePtr hintState = currentHintState();
     const std::vector<std::string>& hintCodes = hintState->codes;
+    // A range of the text of a CLD2 script slot: the language its voice reads it in.
+    auto detectRange = [&](int start, int len, int script) -> std::string {
+        std::string lang;
+        int detectBytes = len;
+        if (detectBytes > 1024) {
+            detectBytes = 1024;
+            while (detectBytes > 0 && ((unsigned char)text[start + detectBytes] & 0xC0) == 0x80) detectBytes--;
+        }
+        // What follows depends on the script, these bytes and the hint
+        // state, and nothing else: answered from the cache when it can be.
+        Cld2Cache& cache = cld2Cache();
+        if(cache.spanHints != hintState){ cache.spans.clear(); cache.spanHints = hintState; }
+        std::string cacheKey;
+        cacheKey.reserve((size_t)detectBytes + 1);
+        cacheKey += (char)script;
+        cacheKey.append(text, (size_t)start, (size_t)detectBytes);
+        auto cached = cache.spans.find(cacheKey);
+        if(cached == cache.spans.end()) {
+        // What these two do -- keep an answer only if the user has that
+        // language enabled, and otherwise fall back to the one language
+        // this script implies -- is what decides the voice for the span,
+        // more often than the detector itself does.
+        auto isHinted = [&](const std::string& candidate) -> bool {
+            if(candidate.empty()) return false;
+            for(size_t at=0; at<hintCodes.size(); at++)
+                if(hintCodes[at] == candidate) return true;
+            return false;
+        };
+        auto scriptFallbackCode = [&]() -> std::string {
+            const int fallback = scriptLanguageFallbackOf(*hintState, script);
+            if(fallback == CLD2::UNKNOWN_LANGUAGE) return "";
+            const char* fallbackCode = CLD2::LanguageCode((CLD2::Language)fallback);
+            return fallbackCode ? std::string(fallbackCode) : std::string();
+        };
+        // AutoTTS passes NO content-language hint here. What it passes
+        // is the per-script language hint setLanguageHints derived, and
+        // it then filters the answer against the hint list -- see
+        // 0x65400c (the two NULL pointers), 0x654030 (the table read)
+        // and 0x654098 onwards (the filter).
+        const int scriptHint = scriptLanguageHintOf(*hintState, script);
+        CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING,
+                                hintCodes.empty() ? CLD2::UNKNOWN_LANGUAGE
+                                                  : (CLD2::Language)scriptHint};
+        CLD2::Language lang3[3]; int percent3[3]; double score3[3];
+        int textBytes = 0; bool reliable = false;
+        std::string clean;
+        const char* bytes = cld2Bytes(text.c_str() + start, detectBytes, clean);
+        CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(bytes, detectBytes, true, &hints, 0x4000,
+                                   lang3, percent3, score3, nullptr, &textBytes, &reliable);
+        const char* code = CLD2::LanguageCode(cldLang);
+        lang = code ? std::string(code) : "un";
+        if(!hintCodes.empty() && !isHinted(lang)){
+            bool picked = false;
+            // lang3[0], [1] then [2] -- the compiler unrolled the loop
+            // into three identical blocks at 0x654190, 0x6542ac and
+            // 0x654380, reading language3[0..2] from x29-0x14/-0x10/-0xc
+            // and percent3[0..2] from x29-0x20/-0x1c/-0x18. Rank 0 is
+            // NOT a repeat of the summary above it: CalcSummaryLang
+            // returns language3[active_slot[1]] when it decides the top
+            // answer is English or FIGS boilerplate, and
+            // UNKNOWN_LANGUAGE when the top language covers too little
+            // of the text -- so the summary and language3[0] genuinely
+            // differ, and skipping rank 0 sent those spans to the
+            // per-script fallback instead of the language CLD2 ranked
+            // first. Each rank counts only when it is a real language
+            // and covers at least one percent of the text.
+            for(int rank=0; rank<3 && !picked; rank++){
+                if(lang3[rank] == CLD2::UNKNOWN_LANGUAGE) continue;
+                if(percent3[rank] < 1) continue;
+                const char* other = CLD2::LanguageCode(lang3[rank]);
+                if(!other) continue;
+                if(!isHinted(other)) continue;
+                lang = other;
+                picked = true;
+            }
+            if(!picked){
+                const std::string fallbackCode = scriptFallbackCode();
+                if(!fallbackCode.empty()) lang = fallbackCode;
+            }
+        }
+        // Both detectors, where two or more enabled languages share this
+        // script (langblend.h): CLD2's answer above, weighed against the
+        // model's. With one, nothing here runs and CLD2's path stands.
+        CachedAnswer answer;
+        answer.lang = lang;
+        if(script >= 1 && script <= 6 && !hintCodes.empty()){
+            answer.slot = script;
+            answer.blend = blendDetectors(script, bytes, detectBytes, hintCodes, lang, lang3, percent3);
+        }
+        if(cache.spans.size() >= kCld2CacheMax) cache.spans.clear();
+        cached = cache.spans.emplace(std::move(cacheKey), std::move(answer)).first;
+        }
+        lang = cached->second.resolve();
+        return lang;
+    };
+    auto pushSpan = [&](int start, int len, const std::string& lang, bool latin) {
+        if (!spans.empty()
+            && spans.back().offset + spans.back().bytes == start
+            && spans.back().latin == latin
+            && spans.back().lang == lang) {
+            spans.back().bytes += len;
+            return;
+        }
+        if ((int)spans.size() >= kMaxSpans) {
+            if (!spans.empty()) spans.back().bytes = (start + len) - spans.back().offset;
+            return;
+        }
+        ScriptSpan newSpan;
+        newSpan.offset = start; newSpan.bytes = len;
+        newSpan.lang = lang;
+        newSpan.latin = latin;
+        spans.push_back(newSpan);
+    };
     auto emitScriptSpan = [&](int start, int len, int script) {
         if (len < 1) return;
         if (start < 0 || start + len > (int)text.size()) return;
@@ -2467,114 +2580,32 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
             // Decided by the script, like SCRIPT_FIXED_LANG; the language is
             // CLDR's likely one (unicode_tables.h, generated).
             lang = kUniFixedSlotLang[script - EV_FIXED_SLOT_FIRST];
+        } else if ((script == 2 || script == 3 || script == 6) && !hintCodes.empty()) {
+            // TWO LANGUAGES OF ONE SCRIPT IN ONE SPAN (owner, 2026-10-21: "jo bhasha
+            // ke liye Jo voice Chuna Hai vah bhasha ke liye Vahi voice"): where the
+            // letters of the enabled languages' orthographies say the span holds
+            // more than one of them -- an Urdu sentence and then an Arabic one --
+            // it is cut there (langblend.h orthoSegment) and each piece is detected
+            // and read on its own.
+            std::vector<std::string> slotLangs;
+            blendSlotLangs(script, hintCodes, slotLangs);
+            std::vector<int> cuts;
+            if (slotLangs.size() >= 2) {
+                std::string clean;
+                const char* bytes = cld2Bytes(text.c_str() + start, len, clean);
+                cuts = orthoSegment(script, bytes, len, slotLangs);
+            }
+            int at = start;
+            for (size_t c = 0; c <= cuts.size(); c++) {
+                const int end = c < cuts.size() ? start + cuts[c] : start + len;
+                pushSpan(at, end - at, detectRange(at, end - at, script), latin);
+                at = end;
+            }
+            return;
         } else {
-            int detectBytes = len;
-            if (detectBytes > 1024) {
-                detectBytes = 1024;
-                while (detectBytes > 0 && ((unsigned char)text[start + detectBytes] & 0xC0) == 0x80) detectBytes--;
-            }
-            // What follows depends on the script, these bytes and the hint
-            // state, and nothing else: answered from the cache when it can be.
-            Cld2Cache& cache = cld2Cache();
-            if(cache.spanHints != hintState){ cache.spans.clear(); cache.spanHints = hintState; }
-            std::string cacheKey;
-            cacheKey.reserve((size_t)detectBytes + 1);
-            cacheKey += (char)script;
-            cacheKey.append(text, (size_t)start, (size_t)detectBytes);
-            auto cached = cache.spans.find(cacheKey);
-            if(cached == cache.spans.end()) {
-            // What these two do -- keep an answer only if the user has that
-            // language enabled, and otherwise fall back to the one language
-            // this script implies -- is what decides the voice for the span,
-            // more often than the detector itself does.
-            auto isHinted = [&](const std::string& candidate) -> bool {
-                if(candidate.empty()) return false;
-                for(size_t at=0; at<hintCodes.size(); at++)
-                    if(hintCodes[at] == candidate) return true;
-                return false;
-            };
-            auto scriptFallbackCode = [&]() -> std::string {
-                const int fallback = scriptLanguageFallbackOf(*hintState, script);
-                if(fallback == CLD2::UNKNOWN_LANGUAGE) return "";
-                const char* fallbackCode = CLD2::LanguageCode((CLD2::Language)fallback);
-                return fallbackCode ? std::string(fallbackCode) : std::string();
-            };
-            // AutoTTS passes NO content-language hint here. What it passes
-            // is the per-script language hint setLanguageHints derived, and
-            // it then filters the answer against the hint list -- see
-            // 0x65400c (the two NULL pointers), 0x654030 (the table read)
-            // and 0x654098 onwards (the filter).
-            const int scriptHint = scriptLanguageHintOf(*hintState, script);
-            CLD2::CLDHints hints = {nullptr, nullptr, CLD2::UNKNOWN_ENCODING,
-                                    hintCodes.empty() ? CLD2::UNKNOWN_LANGUAGE
-                                                      : (CLD2::Language)scriptHint};
-            CLD2::Language lang3[3]; int percent3[3]; double score3[3];
-            int textBytes = 0; bool reliable = false;
-            std::string clean;
-            const char* bytes = cld2Bytes(text.c_str() + start, detectBytes, clean);
-            CLD2::Language cldLang = CLD2::ExtDetectLanguageSummary(bytes, detectBytes, true, &hints, 0x4000,
-                                       lang3, percent3, score3, nullptr, &textBytes, &reliable);
-            const char* code = CLD2::LanguageCode(cldLang);
-            lang = code ? std::string(code) : "un";
-            if(!hintCodes.empty() && !isHinted(lang)){
-                bool picked = false;
-                // lang3[0], [1] then [2] -- the compiler unrolled the loop
-                // into three identical blocks at 0x654190, 0x6542ac and
-                // 0x654380, reading language3[0..2] from x29-0x14/-0x10/-0xc
-                // and percent3[0..2] from x29-0x20/-0x1c/-0x18. Rank 0 is
-                // NOT a repeat of the summary above it: CalcSummaryLang
-                // returns language3[active_slot[1]] when it decides the top
-                // answer is English or FIGS boilerplate, and
-                // UNKNOWN_LANGUAGE when the top language covers too little
-                // of the text -- so the summary and language3[0] genuinely
-                // differ, and skipping rank 0 sent those spans to the
-                // per-script fallback instead of the language CLD2 ranked
-                // first. Each rank counts only when it is a real language
-                // and covers at least one percent of the text.
-                for(int rank=0; rank<3 && !picked; rank++){
-                    if(lang3[rank] == CLD2::UNKNOWN_LANGUAGE) continue;
-                    if(percent3[rank] < 1) continue;
-                    const char* other = CLD2::LanguageCode(lang3[rank]);
-                    if(!other) continue;
-                    if(!isHinted(other)) continue;
-                    lang = other;
-                    picked = true;
-                }
-                if(!picked){
-                    const std::string fallbackCode = scriptFallbackCode();
-                    if(!fallbackCode.empty()) lang = fallbackCode;
-                }
-            }
-            // Both detectors, where two or more enabled languages share this
-            // script (langblend.h): CLD2's answer above, weighed against the
-            // model's. With one, nothing here runs and CLD2's path stands.
-            CachedAnswer answer;
-            answer.lang = lang;
-            if(script >= 1 && script <= 6 && !hintCodes.empty()){
-                answer.slot = script;
-                answer.blend = blendDetectors(script, bytes, detectBytes, hintCodes, lang, lang3, percent3);
-            }
-            if(cache.spans.size() >= kCld2CacheMax) cache.spans.clear();
-            cached = cache.spans.emplace(std::move(cacheKey), std::move(answer)).first;
-            }
-            lang = cached->second.resolve();
+            lang = detectRange(start, len, script);
         }
-        if (!spans.empty()
-            && spans.back().offset + spans.back().bytes == start
-            && spans.back().latin == latin
-            && spans.back().lang == lang) {
-            spans.back().bytes += len;
-            return;
-        }
-        if ((int)spans.size() >= kMaxSpans) {
-            if (!spans.empty()) spans.back().bytes = (start + len) - spans.back().offset;
-            return;
-        }
-        ScriptSpan newSpan;
-        newSpan.offset = start; newSpan.bytes = len;
-        newSpan.lang = lang;
-        newSpan.latin = latin;
-        spans.push_back(newSpan);
+        pushSpan(start, len, lang, latin);
     };
     // The lowest slot in `slots` (bit 1 << slot) that an enabled language
     // writes: a CLD2 slot (1-6, 26-32) with a fallback language, a fixed slot

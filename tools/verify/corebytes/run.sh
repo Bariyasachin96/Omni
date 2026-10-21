@@ -17,8 +17,12 @@ CPP="$ROOT/app/src/main/cpp"
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-corebytes
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
 [ -d "$CPP/cld2_src/internal" ] || { echo "clone CLD2 into app/src/main/cpp/cld2_src first"; exit 2; }
-mkdir -p "$WORK/obj" "$WORK/old"
-git -C "$ROOT" show "$REF:app/src/main/cpp/tts_engine_core.cpp" > "$WORK/old/tts_engine_core.cpp"
+# the ref's core WITH its own headers (langblend.h, langnb.h, unicode_tables.h
+# ...): the old core includes them from its own directory first, so a change
+# made in a header alone is measured too (2026-10-21; before, the old core was
+# built against the working tree's headers and such a change showed 0 differ)
+rm -rf "$WORK/old"; mkdir -p "$WORK/obj" "$WORK/old"
+git -C "$ROOT" archive "$REF" app/src/main/cpp | tar -x -C "$WORK/old" --strip-components=4
 INC="-I$JH/include -I$JH/include/linux -I$CPP/cld2_src/public -I$CPP/cld2_src/internal -I$CPP"
 compile() {
   local src=$1

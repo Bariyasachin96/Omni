@@ -10,6 +10,13 @@
 //  span's script is shared by two or more ENABLED languages -- the only place
 //  a detector chooses between voices at all -- both are asked and weighed:
 //
+//    0. the letters of each orthography, word by word (Cyrillic, Arabic,
+//       Bengali; orthoDecide below, owner 2026-10-21): a language the text's
+//       letters it does not write cost kOrthoM or more than they cost the best
+//       is ruled out ("كتاب" with Arabic kaf is not Urdu), one left is sure,
+//       and everything below -- the context too -- only chooses between those
+//       left. A span holding two such languages has already been cut into one
+//       piece per language (orthoSegment, tts_engine_core.cpp emitScriptSpan);
 //    1. a letter one language of the pair writes and the other never does
 //       decides alone: Assamese ৰ ৱ, Bengali র, Marathi ळ, Urdu ٹ ڈ ڑ ں ے,
 //       Ukrainian ї є ґ, Serbian ђ ћ џ, Japanese kana; and for Chinese and
@@ -305,6 +312,336 @@ static inline uint64_t nbRareVeto(int slot, const char* text, int bytes, const s
     return veto;
 }
 
+// ---- THE LETTERS OF EACH ORTHOGRAPHY, WORD BY WORD ----
+// Owner, 2026-10-21: "Arabic language Arabic voice ke pass bhi Jana chahie ...
+// jo bhasha ke liye Jo voice Chuna Hai vah bhasha ke liye Vahi voice ... aisa
+// Nahin Ki Ek Hi voice do Bhasha Pade." Where languages share a script, some
+// letters belong to one orthography: Urdu writes ٹ ڈ ڑ ں ھ ہ ے, Persian and
+// Urdu ک ی where Arabic writes ك ي, Arabic ة أ إ, Pashto ټ ځ څ ډ ړ ږ ښ ګ ۍ ې,
+// Ukrainian і ї є, Russian ы э ё, Serbian ђ ј љ њ ћ, Bulgarian ъ, Assamese ৰ ৱ.
+// langnb.h kOrtho<slot> holds each such letter with the languages that write it
+// and, per language, round(8 ln r) for r the share of its words holding it --
+// where the language does not write it, ONE share for all such languages: the
+// worst any careless or older spelling shows in any one source (Persian typed
+// with Arabic ي ك, Assamese with Bengali র). A word holding such a letter costs
+// each language that does not write it that share against the best writer's.
+// Letters a language does not write rule it out; letters it lacks never do (a
+// short Pashto phrase need not hold a Pashto letter).
+// (tools/langid/train_nb.py learn_ortho / ortho_*, the reference this mirrors.)
+//   orthoDecide   step 0 of blendDetectors: a language kOrthoM or more below
+//                 the best is ruled out ("كتاب" with Arabic kaf after Urdu text
+//                 is Arabic: the context can no longer make it Urdu);
+//   orthoSegment  where a span holding two such languages is cut so that each
+//                 piece reaches its own voice (emitScriptSpan).
+// FLORES-200, never learned from, through the real core (tools/verify/
+// mixedscript): no text in one language is newly read in two, and two
+// sentences of two languages in one text are read 99.5-100% right word for
+// word (before: 54.7-64.8%).
+struct OrthoWord { int start, end; std::vector<int32_t> cps; };   // byte offsets; the letters, lowercased
+
+// The words as nbFeatures makes them, with their offsets.
+static inline void orthoWords(const char* text, int bytes, std::vector<OrthoWord>& out) {
+    out.clear();
+    OrthoWord cur{-1, -1, {}};
+    int i = 0;
+    while (i < bytes) {
+        int32_t r;
+        int used = lidDecode((const unsigned char*)text + i, (size_t)(bytes - i), &r);
+        if (used <= 0) break;
+        if (nbIsWord(r)) {
+            if (cur.start < 0) cur.start = i;
+            cur.cps.push_back(nbLower(r));
+        } else if (cur.start >= 0) {
+            cur.end = i;
+            out.push_back(cur);
+            cur.start = -1;
+            cur.cps.clear();
+        }
+        i += used;
+    }
+    if (cur.start >= 0) {
+        cur.end = i;
+        out.push_back(cur);
+    }
+}
+
+// The slot's letter table and each of `langs` as an index into it; false when
+// the slot has none or one of them is a language it was not taught.
+static inline bool orthoModel(int slot, const std::vector<std::string>& langs, NbModel& m, std::vector<int>& idx) {
+    if (langs.size() < 2 || langs.size() > 8 || !nbModel(slot, &m) || m.nOrtho == 0) return false;
+    idx.clear();
+    for (const std::string& c : langs) {
+        const std::string k = blendCanonical(c);
+        int at = -1;
+        for (int i = 0; i < m.nLangs; i++) if (k == m.langs[i]) at = i;
+        if (at < 0) return false;
+        idx.push_back(at);
+    }
+    return true;
+}
+static inline bool orthoHolds(const OrthoWord& w, uint32_t cp) {
+    for (int32_t c : w.cps) if ((uint32_t)c == cp) return true;
+    return false;
+}
+
+// What a word costs each language in letters that language does not write
+// itself (each: its stored share against the best writer's). False when that
+// is the same for every language (the word says nothing).
+static inline bool orthoWordCost(const NbModel& m, const std::vector<int>& idx, const OrthoWord& w,
+                                 std::vector<long long>& c) {
+    c.assign(idx.size(), 0);
+    for (int l = 0; l < m.nOrtho; l++) {
+        const OrthoLetter& e = m.ortho[l];
+        if (!orthoHolds(w, e.cp)) continue;
+        int top = -128;
+        for (int i = 0; i < m.nLangs; i++) top = std::max(top, (int)e.share[i]);
+        for (size_t j = 0; j < idx.size(); j++)
+            if (!((e.native >> idx[j]) & 1)) c[j] += e.share[idx[j]] - top;
+    }
+    long long lo = c[0], hi = c[0];
+    for (long long x : c) { lo = std::min(lo, x); hi = std::max(hi, x); }
+    return lo < hi;
+}
+
+// The letters' verdict over `langs`: keep[j], the summed costs, and the best
+// (first highest). False when no word's letters tell them apart. They rule out
+// only when some word's letters allow the best alone (a Pashto letter, an
+// Arabic ة, "كتاب" against Urdu): then a language they cost kOrthoM or more
+// than the best is ruled out, unless the word-and-ending model puts it
+// kNbMargin above that best, or -- for a span's own decision (cld2Answer given)
+// and every language one the model ML Kit runs knows -- CLD2's answer, the
+// model's top and the word-and-ending model's best all name it: then the text
+// is that language spelled with another's letters (Persian typed with Arabic
+// ي ك). A best no word attests alone wins only because it writes everyone's
+// letters -- Pashto writes both ي and ی, so a Persian sentence quoting Arabic
+// would "be" Pashto -- and nothing is ruled out.
+static inline bool orthoDecide(int slot, const char* text, int bytes, const std::vector<std::string>& langs,
+                               std::vector<char>& keep, std::vector<long long>& total, int& best,
+                               const std::string* cld2Answer = nullptr) {
+    NbModel m;
+    std::vector<int> idx;
+    if (!orthoModel(slot, langs, m, idx)) return false;
+    std::vector<OrthoWord> words;
+    orthoWords(text, bytes, words);
+    total.assign(langs.size(), 0);
+    std::vector<long long> s;
+    std::vector<char> alone(langs.size(), 0);   // some word's letters allow this language alone
+    bool evidence = false;
+    for (const OrthoWord& w : words) {
+        if (!orthoWordCost(m, idx, w, s)) continue;
+        evidence = true;
+        int clean = 0, only = -1;   // languages this word costs nothing
+        for (size_t j = 0; j < langs.size(); j++) {
+            total[j] += s[j];
+            if (s[j] == 0) { clean++; only = (int)j; }
+        }
+        if (clean == 1) alone[only] = 1;
+    }
+    if (!evidence) return false;
+    best = 0;
+    for (size_t j = 1; j < langs.size(); j++) if (total[j] > total[best]) best = (int)j;
+    keep.assign(langs.size(), 1);
+    if (!alone[best]) return true;
+    bool out = false;
+    for (size_t j = 0; j < langs.size(); j++)
+        if (total[best] - total[j] >= kOrthoM[slot]) { keep[j] = 0; out = true; }
+    std::vector<int> nb;
+    if (!out || !nbScore(slot, text, bytes, langs, nb)) return true;
+    int nbBest = 0;
+    for (size_t j = 1; j < langs.size(); j++) if (nb[j] > nb[nbBest]) nbBest = (int)j;
+    int modelTop = -2;   // not asked yet
+    for (size_t j = 0; j < langs.size(); j++) {
+        if (keep[j]) continue;
+        if (nb[j] - nb[best] >= kNbMargin[slot]) { keep[j] = 1; continue; }
+        if (!cld2Answer || (int)j != nbBest || blendCanonical(*cld2Answer) != blendCanonical(langs[j])) continue;
+        if (modelTop == -2) {
+            modelTop = -1;
+            std::vector<int> labels;
+            for (const std::string& c : langs) {
+                const int label = blendLabelIndex(c);
+                if (label <= 0 || blendLabelSlot(kLidLabels[label]) != slot) { labels.clear(); break; }
+                labels.push_back(label);
+            }
+            float p[EV_LID_CLASSES];
+            if (!labels.empty() && lidClassify(text, (size_t)bytes, p)) {
+                modelTop = 0;
+                for (size_t c = 1; c < labels.size(); c++) if (p[labels[c]] > p[labels[modelTop]]) modelTop = (int)c;
+            }
+        }
+        if (modelTop == (int)j) keep[j] = 1;
+    }
+    return true;
+}
+
+// What a sentence surely is, for cutting a text: the letters' one language,
+// else the word-and-ending model's best of those they leave, kNbMargin ahead,
+// in a sentence of kOrthoMinWords words or more; -1 when neither (it then goes
+// with the text around it).
+static inline int orthoSure(int slot, const char* text, int bytes, const std::vector<std::string>& langs, int words) {
+    std::vector<char> keep;
+    std::vector<long long> total;
+    int best = 0;
+    std::vector<std::string> left;
+    std::vector<int> at;
+    const bool said = orthoDecide(slot, text, bytes, langs, keep, total, best);
+    for (size_t j = 0; j < langs.size(); j++)
+        if (!said || keep[j]) { left.push_back(langs[j]); at.push_back((int)j); }
+    if (left.size() == 1) return at[0];
+    std::vector<int> sc;
+    if (left.size() < 2 || words < kOrthoMinWords || !nbScore(slot, text, bytes, left, sc)) return -1;
+    size_t top = 0;
+    for (size_t j = 1; j < sc.size(); j++) if (sc[j] > sc[top]) top = j;
+    int second = -1000000000;
+    for (size_t j = 0; j < sc.size(); j++) if (j != top && sc[j] > second) second = sc[j];
+    return sc[top] - second >= kNbMargin[slot] ? at[top] : -1;
+}
+
+// The best path through per-word scores, a change of language costing `cost`;
+// a tie keeps the language, then takes the lower index.
+static inline std::vector<int> orthoViterbi(const std::vector<std::vector<long long>>& ems, long long cost, int n) {
+    std::vector<long long> score(ems[0]);
+    std::vector<std::vector<int>> back;
+    for (size_t t = 1; t < ems.size(); t++) {
+        std::vector<long long> next((size_t)n);
+        std::vector<int> from((size_t)n);
+        for (int j = 0; j < n; j++) {
+            int bj = j;
+            long long bs = score[j];
+            for (int i = 0; i < n; i++)
+                if (i != j && score[i] - cost > bs) { bj = i; bs = score[i] - cost; }
+            next[j] = bs + ems[t][j];
+            from[j] = bj;
+        }
+        score.swap(next);
+        back.push_back(from);
+    }
+    int j = 0;
+    for (int x = 1; x < n; x++) if (score[x] > score[j]) j = x;
+    std::vector<int> labels(ems.size());
+    labels.back() = j;
+    for (size_t t = ems.size() - 1; t > 0; t--) {
+        j = back[t - 1][j];
+        labels[t - 1] = j;
+    }
+    return labels;
+}
+
+// Where a span (well-formed UTF-8) is cut so that each piece is one language of
+// `langs`: byte offsets, each the start of a word, ascending; none when nothing
+// is to be cut. Pass 1: sentences (cut at kOrthoSent) each named by orthoSure;
+// one named another language than the one before starts a new piece. Pass 2:
+// inside each piece, words scored by the letters their languages do not write
+// (orthoWordCost), best path with a change costing kOrthoPw. Each cut lands
+// where the word-and-ending model puts the words between the two languages'
+// evidence best -- at a sentence end in pass 1, at a kOrthoStrong mark when
+// there is one in pass 2 -- and on a tie the later.
+static inline std::vector<int> orthoSegment(int slot, const char* text, int bytes, const std::vector<std::string>& langs) {
+    std::vector<int> cuts;
+    NbModel m;
+    std::vector<int> idx;
+    if (!orthoModel(slot, langs, m, idx)) return cuts;
+    std::vector<OrthoWord> toks;
+    orthoWords(text, bytes, toks);
+    const int n = (int)toks.size();
+    if (n < 2) return cuts;
+    const int nSent = (int)(sizeof kOrthoSent / sizeof kOrthoSent[0]);
+    const int nStrong = (int)(sizeof kOrthoStrong / sizeof kOrthoStrong[0]);
+    auto between = [&](int g, const uint32_t* marks, int count) {
+        for (int i = toks[g - 1].end; i < toks[g].start;) {
+            int32_t r;
+            int used = lidDecode((const unsigned char*)text + i, (size_t)(toks[g].start - i), &r);
+            if (used <= 0) break;
+            for (int k = 0; k < count; k++) if ((uint32_t)r == marks[k]) return true;
+            i += used;
+        }
+        return false;
+    };
+    // the word k's own score for B less A, summed from g to b - 1: the cut is the
+    // option that gives B the most
+    auto cut = [&](int a, int b, const std::string& A, const std::string& B, const std::vector<int>& options) {
+        const std::vector<std::string> ab = {A, B};
+        std::vector<long long> tail((size_t)(b - a + 1), 0);   // tail[k - a] = sum over [k, b)
+        for (int k = b - 1; k > a; k--) {
+            std::vector<int> sc;
+            long long d = 0;
+            if (nbScore(slot, text + toks[k].start, toks[k].end - toks[k].start, ab, sc)) d = sc[1] - sc[0];
+            tail[k - a] = tail[k + 1 - a] + d;
+        }
+        int bestG = b;
+        long long bestV = 0;
+        bool have = false;
+        for (int g : options) {
+            const long long v = tail[g - a];
+            if (!have || v > bestV || (v == bestV && g > bestG)) { bestG = g; bestV = v; have = true; }
+        }
+        return bestG;
+    };
+    std::vector<std::pair<int, int>> runs;
+    int cur = -1, start = 0, last = -1, x = 0;
+    for (int k = 1; k <= n; k++) {
+        if (k < n && !between(k, kOrthoSent, nSent)) continue;
+        const int lab = orthoSure(slot, text + toks[x].start, toks[k - 1].end - toks[x].start, langs, k - x);
+        if (lab >= 0) {
+            if (cur < 0) {
+                cur = lab;
+            } else if (lab != cur) {
+                std::vector<int> options;
+                for (int g = last + 1; g <= x; g++) if (between(g, kOrthoSent, nSent)) options.push_back(g);
+                const int g = cut(last, x, langs[cur], langs[lab], options);
+                runs.push_back({start, g});
+                start = g;
+                cur = lab;
+            }
+            last = k - 1;
+        }
+        x = k;
+    }
+    runs.push_back({start, n});
+    std::vector<int> at;
+    std::vector<long long> c;
+    for (size_t ri = 0; ri < runs.size(); ri++) {
+        if (ri) at.push_back(runs[ri].first);
+        std::vector<int> ev;
+        std::vector<std::vector<long long>> ems;
+        for (int k = runs[ri].first; k < runs[ri].second; k++)
+            if (orthoWordCost(m, idx, toks[k], c)) { ev.push_back(k); ems.push_back(c); }
+        if (ev.size() < 2) continue;
+        const std::vector<int> lab = orthoViterbi(ems, kOrthoPw[slot], (int)langs.size());
+        for (size_t t = 1; t < ev.size(); t++) {
+            if (lab[t] == lab[t - 1]) continue;
+            const int a = ev[t - 1], b = ev[t];
+            std::vector<int> options;
+            for (int g = a + 1; g <= b; g++) if (between(g, kOrthoStrong, nStrong)) options.push_back(g);
+            if (options.empty()) for (int g = a + 1; g <= b; g++) options.push_back(g);
+            at.push_back(cut(a, b, langs[lab[t - 1]], langs[lab[t]], options));
+        }
+    }
+    std::sort(at.begin(), at.end());
+    at.erase(std::unique(at.begin(), at.end()), at.end());
+    for (int g : at) cuts.push_back(toks[g].start);
+    return cuts;
+}
+
+// The enabled codes of a script slot, one per language, in the enabled order;
+// with `cands` and `labels`, those the model ML Kit runs has a label for.
+static inline void blendSlotLangs(int slot, const std::vector<std::string>& enabled, std::vector<std::string>& slotLangs,
+                                  std::vector<std::string>* cands = nullptr, std::vector<int>* labels = nullptr) {
+    for (const std::string& code : enabled) {
+        const int label = blendLabelIndex(code);
+        const bool here = (label > 0 && blendLabelSlot(kLidLabels[label]) == slot) ||
+                          (label < 0 && blendCldOnlySlot(code) == slot);
+        if (!here) continue;
+        bool dup = false;
+        for (const std::string& x : slotLangs) dup |= blendCanonical(x) == blendCanonical(code);
+        if (dup) continue;
+        slotLangs.push_back(code);
+        if (label > 0 && cands) {
+            cands->push_back(code);
+            labels->push_back(label);
+        }
+    }
+}
+
 // What blendDetectors decided for a span of script slot `slot`: the enabled
 // code ("" keeps CLD2's path answer), whether the text itself proved it (a
 // letter, the Han rules, or the word-and-ending model past its margin), and,
@@ -329,26 +666,46 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
     if (slot < 1 || slot > 6 || bytes <= 0) return res;
     std::vector<std::string> cands;   // enabled codes of this script the model ML Kit runs has a label for
     std::vector<int> labels;
-    for (const std::string& code : enabled) {
-        int label = blendLabelIndex(code);
-        const bool here = (label > 0 && blendLabelSlot(kLidLabels[label]) == slot) ||
-                          (label < 0 && blendCldOnlySlot(code) == slot);
-        if (!here) continue;
-        bool dup = false;
-        for (const std::string& x : res.slotLangs) dup |= blendCanonical(x) == blendCanonical(code);
-        if (dup) continue;
-        res.slotLangs.push_back(code);
-        if (label > 0) {
-            cands.push_back(code);
-            labels.push_back(label);
-        }
-    }
+    blendSlotLangs(slot, enabled, res.slotLangs, &cands, &labels);
     if (res.slotLangs.size() < 2) return res;
     auto enabledCode = [&](const char* want) -> std::string {
         for (const std::string& code : enabled) if (blendCanonical(code) == want || code == want) return code;
         return "";
     };
     auto sure = [&](const std::string& lang) { res.lang = lang; res.sure = true; return res; };
+    // Where the letters ruled CLD2's answer out, what stands instead when
+    // nothing below names a language: their best.
+    std::string ruledOut;
+    auto done = [&]() {
+        if (res.lang.empty() && !ruledOut.empty()) res.lang = ruledOut;
+        return res;
+    };
+
+    // 0. the letters of each orthography, word by word: one language left is
+    // sure; otherwise everything below (and the context) only chooses between
+    // the languages they leave
+    if (slot == 2 || slot == 3 || slot == 6) {
+        std::vector<char> keep;
+        std::vector<long long> total;
+        int best = 0;
+        if (orthoDecide(slot, text, bytes, res.slotLangs, keep, total, best, &cld2Answer)) {
+            std::vector<std::string> left, leftCands;
+            std::vector<int> leftLabels;
+            for (size_t j = 0; j < res.slotLangs.size(); j++) if (keep[j]) left.push_back(res.slotLangs[j]);
+            if (left.size() == 1) return sure(left[0]);
+            if (left.size() < res.slotLangs.size()) {
+                bool kept = false;
+                for (const std::string& l : left) kept |= blendCanonical(l) == blendCanonical(cld2Answer);
+                if (!kept) ruledOut = res.slotLangs[best];
+                for (size_t c = 0; c < cands.size(); c++)
+                    for (const std::string& l : left)
+                        if (l == cands[c]) { leftCands.push_back(cands[c]); leftLabels.push_back(labels[c]); }
+                res.slotLangs = left;
+                cands = leftCands;
+                labels = leftLabels;
+            }
+        }
+    }
 
     // 1. letters
     if (slot == 2 || slot == 3 || slot == 6) {
@@ -402,12 +759,12 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
     if (slot == 2 || slot == 3 || slot == 6) res.veto = nbRareVeto(slot, text, bytes, res.slotLangs);
 
     // 3. only CLD2 can name it
-    if (blendLabelIndex(cld2Answer) < 0) return res;
-    if (cands.empty()) return res;
+    if (blendLabelIndex(cld2Answer) < 0) return done();
+    if (cands.empty()) return done();
 
     // 4. all three, weighed
     float p[EV_LID_CLASSES];
-    if (!lidClassify(text, (size_t)bytes, p)) return res;
+    if (!lidClassify(text, (size_t)bytes, p)) return done();
     const BlendWeights w = kBlend[slot];
     std::vector<double> q(cands.size(), w.k);
     for (int rank = 0; rank < 3; rank++) {

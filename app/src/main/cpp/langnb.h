@@ -26803,12 +26803,82 @@ static const uint64_t kNbRare4[][2] = {{0,0}};
 static const int kNbRareCount4 = 0;
 static const uint64_t kNbRare6[][2] = {{0x9DC,0x2ULL}, {0x9F0,0x100ULL}, {0x9F1,0x100ULL},};
 static const int kNbRareCount6 = 3;
-struct NbModel { const char* const* langs; int nLangs; const uint32_t* hash; const int8_t* logp; int n; const uint64_t (*letters)[2]; int nLetters; const uint64_t (*rare)[2]; int nRare; };
+struct OrthoLetter { uint32_t cp; uint32_t native; int8_t share[8]; };
+static const OrthoLetter kOrtho1[] = {{0, 0, {0}}};
+static const int kOrthoCount1 = 0;
+static const OrthoLetter kOrtho2[] = {
+    {0x439, 0x7, {-23,-21,-27,-81}},
+    {0x449, 0x7, {-34,-30,-30,-81}},
+    {0x44A, 0x4, {-45,-45,-20,-45}},
+    {0x44B, 0x1, {-18,-63,-63,-63}},
+    {0x44C, 0x3, {-18,-18,-43,-43}},
+    {0x44D, 0x1, {-28,-74,-74,-74}},
+    {0x44E, 0x7, {-27,-25,-35,-81}},
+    {0x44F, 0x7, {-17,-17,-20,-81}},
+    {0x451, 0x1, {-32,-81,-81,-81}},
+    {0x452, 0x8, {-81,-81,-81,-35}},
+    {0x454, 0x2, {-81,-27,-81,-81}},
+    {0x456, 0x2, {-66,-10,-66,-66}},
+    {0x457, 0x2, {-81,-25,-81,-81}},
+    {0x458, 0x8, {-81,-81,-81,-14}},
+    {0x459, 0x8, {-81,-81,-81,-30}},
+    {0x45A, 0x8, {-81,-81,-81,-28}},
+    {0x45B, 0x8, {-81,-81,-81,-30}},
+};
+static const int kOrthoCount2 = 17;
+static const OrthoLetter kOrtho3[] = {
+    {0x621, 0x5, {-33,-61,-38,-61}},
+    {0x623, 0x1, {-18,-50,-50,-50}},
+    {0x625, 0x1, {-26,-71,-71,-71}},
+    {0x629, 0x1, {-15,-57,-57,-57}},
+    {0x643, 0x9, {-18,-58,-58,-35}},
+    {0x647, 0xB, {-18,-11,-58,-11}},
+    {0x649, 0x9, {-26,-61,-61,-38}},
+    {0x64A, 0x9, {-9,-48,-48,-13}},
+    {0x679, 0x4, {-81,-81,-31,-81}},
+    {0x67C, 0x8, {-81,-81,-81,-31}},
+    {0x67E, 0xE, {-73,-27,-24,-18}},
+    {0x681, 0x8, {-81,-81,-81,-31}},
+    {0x685, 0x8, {-81,-81,-81,-33}},
+    {0x686, 0xE, {-81,-33,-33,-28}},
+    {0x688, 0x4, {-75,-75,-37,-75}},
+    {0x689, 0x8, {-81,-81,-81,-33}},
+    {0x691, 0x4, {-81,-81,-38,-81}},
+    {0x693, 0x8, {-81,-81,-81,-25}},
+    {0x696, 0x8, {-81,-81,-81,-34}},
+    {0x698, 0xA, {-63,-42,-63,-38}},
+    {0x69A, 0x8, {-81,-81,-81,-32}},
+    {0x6A9, 0xE, {-73,-18,-12,-17}},
+    {0x6AB, 0x8, {-81,-81,-81,-35}},
+    {0x6AF, 0xE, {-81,-23,-26,-31}},
+    {0x6BA, 0x4, {-73,-73,-20,-73}},
+    {0x6BE, 0x4, {-78,-78,-24,-78}},
+    {0x6C1, 0x4, {-75,-75,-14,-75}},
+    {0x6CC, 0xE, {-64,-8,-9,-18}},
+    {0x6CD, 0x8, {-81,-81,-81,-36}},
+    {0x6D0, 0x8, {-81,-81,-81,-16}},
+    {0x6D2, 0x4, {-75,-75,-14,-75}},
+};
+static const int kOrthoCount3 = 31;
+static const OrthoLetter kOrtho4[] = {{0, 0, {0}}};
+static const int kOrthoCount4 = 0;
+static const OrthoLetter kOrtho6[] = {
+    {0x9B0, 0x1, {-8,-46}},
+    {0x9F0, 0x2, {-73,-7}},
+    {0x9F1, 0x2, {-81,-23}},
+};
+static const int kOrthoCount6 = 3;
+static const int kOrthoM[7] = {0, 0, 32, 32, 0, 0, 48};
+static const int kOrthoPw[7] = {0, 0, 52, 52, 0, 0, 1000};
+static const int kOrthoMinWords = 3;
+static const uint32_t kOrthoSent[10] = {0xA, 0x21, 0x2E, 0x3B, 0x3F, 0x61B, 0x61F, 0x6D4, 0x964, 0x965};
+static const uint32_t kOrthoStrong[26] = {0xA, 0x21, 0x22, 0x28, 0x29, 0x2E, 0x3A, 0x3B, 0x3F, 0x5B, 0x5D, 0x7B, 0x7D, 0xAB, 0xBB, 0x61B, 0x61F, 0x6D4, 0x6DD, 0x964, 0x965, 0x201C, 0x201D, 0x201E, 0xFD3E, 0xFD3F};
+struct NbModel { const char* const* langs; int nLangs; const uint32_t* hash; const int8_t* logp; int n; const uint64_t (*letters)[2]; int nLetters; const uint64_t (*rare)[2]; int nRare; const OrthoLetter* ortho; int nOrtho; };
 static inline bool nbModel(int slot, NbModel* m) {
-    if (slot == 1) { *m = {kNbLangs1, 8, kNbHash1, kNbLogp1, 20000, kNbLetters1, kNbLetterCount1, kNbRare1, kNbRareCount1}; return true; }
-    if (slot == 2) { *m = {kNbLangs2, 4, kNbHash2, kNbLogp2, 20000, kNbLetters2, kNbLetterCount2, kNbRare2, kNbRareCount2}; return true; }
-    if (slot == 3) { *m = {kNbLangs3, 4, kNbHash3, kNbLogp3, 20000, kNbLetters3, kNbLetterCount3, kNbRare3, kNbRareCount3}; return true; }
-    if (slot == 4) { *m = {kNbLangs4, 3, kNbHash4, kNbLogp4, 20000, kNbLetters4, kNbLetterCount4, kNbRare4, kNbRareCount4}; return true; }
-    if (slot == 6) { *m = {kNbLangs6, 2, kNbHash6, kNbLogp6, 20000, kNbLetters6, kNbLetterCount6, kNbRare6, kNbRareCount6}; return true; }
+    if (slot == 1) { *m = {kNbLangs1, 8, kNbHash1, kNbLogp1, 20000, kNbLetters1, kNbLetterCount1, kNbRare1, kNbRareCount1, kOrtho1, kOrthoCount1}; return true; }
+    if (slot == 2) { *m = {kNbLangs2, 4, kNbHash2, kNbLogp2, 20000, kNbLetters2, kNbLetterCount2, kNbRare2, kNbRareCount2, kOrtho2, kOrthoCount2}; return true; }
+    if (slot == 3) { *m = {kNbLangs3, 4, kNbHash3, kNbLogp3, 20000, kNbLetters3, kNbLetterCount3, kNbRare3, kNbRareCount3, kOrtho3, kOrthoCount3}; return true; }
+    if (slot == 4) { *m = {kNbLangs4, 3, kNbHash4, kNbLogp4, 20000, kNbLetters4, kNbLetterCount4, kNbRare4, kNbRareCount4, kOrtho4, kOrthoCount4}; return true; }
+    if (slot == 6) { *m = {kNbLangs6, 2, kNbHash6, kNbLogp6, 20000, kNbLetters6, kNbLetterCount6, kNbRare6, kNbRareCount6, kOrtho6, kOrthoCount6}; return true; }
     return false;
 }

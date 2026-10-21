@@ -102,13 +102,43 @@ LT = train_nb.letters()
 LR = train_nb.letters(train_nb.LETTERS_RARE)
 
 
+OT = train_nb.ortho()
+
+
+def slot_langs(r):
+    """the enabled languages of the text's script, as blendDetectors holds them
+    once its step 0 has run: those the orthographies' letters leave"""
+    if r.get("left") is not None:
+        return r["left"]
+    return [L for L in dict.fromkeys(r["set"].split("+")) if SLOT.get(L, 1) == r["slot"]]
+
+
+def ortho_step(r):
+    """langblend.h's step 0 (orthoDecide): (the one language the letters leave,
+    or None; what they leave when they rule something out, else None; their
+    best, which stands for CLD2's answer if they ruled that out)"""
+    slot = r["slot"]
+    if slot not in (2, 3, 6):
+        return None, None, None
+    langs = train_nb.GROUPS[slot]
+    cands = [L for L in dict.fromkeys(r["set"].split("+")) if SLOT.get(L, 1) == slot]
+    if len(cands) < 2 or any(L not in langs for L in cands):
+        return None, None, None
+    det = (r["cld2"], r["mtop"]) if all(L in MODEL_LABELS for L in cands) else None
+    left, tot = train_nb.ortho_decide(OT, NB, slot, r["text"], cands, det)
+    if tot is None or len(left) == len(cands):
+        return None, None, None
+    best = cands[max(range(len(cands)), key=lambda j: (tot[j], -j))]
+    return (left[0] if len(left) == 1 else None), left, best
+
+
 def rule(r):
     """langblend.h's step 1: the learned letters (Cyrillic, Arabic, Bengali), the
     Han rules (Chinese and Japanese)."""
     t, e, slot = r["text"], r["enabled"], r["slot"]
     if slot in (2, 3, 6):
         langs = train_nb.GROUPS[slot]
-        cands = [L for L in dict.fromkeys(r["set"].split("+")) if SLOT.get(L, 1) == slot]
+        cands = slot_langs(r)
         if any(L not in langs for L in cands):
             return None
         return train_nb.letter_rule(LT, slot, t, cands)
@@ -134,9 +164,16 @@ for line in open(sys.argv[1], encoding="utf-8"):
     r = dict(set=s, label=label, cls=cls, split=split, cld2=cld2, model=model, text=text, slot=slot,
              enabled=enabled, blend=blend_cpp, probs=probs, rank=rank, ctxmap=ctxmap)
     r["multi"] = sum(1 for x in enabled if SLOT.get(x, 1) == slot) > 1
-    r["rule"] = (rule(r) or nb_rule(text, s.split("+"), slot)) if r["multi"] else None
+    r["mtop"] = max(sorted(probs), key=lambda L: probs[L]) if probs else None
+    r["left"], r["ruled_out"] = None, None
+    sure0 = None
+    if r["multi"]:
+        sure0, r["left"], best0 = ortho_step(r)
+        if r["left"] is not None and cld2 not in r["left"]:
+            r["ruled_out"] = best0
+    r["rule"] = (sure0 or rule(r) or nb_rule(text, slot_langs(r), slot)) if r["multi"] else None
     # what the blend reads, once: per candidate ln p, CLD2's percent, CLD2's answer
-    r["cands"] = sorted(probs)
+    r["cands"] = sorted(L for L in probs if r["left"] is None or L in r["left"])
     r["lp"] = [math.log(probs[L] + 1e-6) for L in r["cands"]]
     pct = {L: 0.0 for L in r["cands"]}
     named = False
@@ -147,7 +184,6 @@ for line in open(sys.argv[1], encoding="utf-8"):
     r["pct"] = [pct[L] for L in r["cands"]]
     r["ans"] = [1.0 if L == cld2 else 0.0 for L in r["cands"]]
     r["named"] = named
-    r["mtop"] = max(r["cands"], key=lambda L: probs[L]) if probs else None
     nbl = train_nb.GROUPS.get(slot)
     if r["multi"] and nbl and len(r["cands"]) > 1 and all(L in nbl for L in r["cands"]):
         q8 = train_nb.qscores(NB, slot, text, r["cands"])
@@ -161,8 +197,8 @@ for line in open(sys.argv[1], encoding="utf-8"):
 def soft(r, a, k, b, c):
     """langblend.h's step 4: a ln p_model + (1 - a) ln q_cld2 + c nb, q = CLD2's
     percents + k + b for its answer, nb = the word-and-ending model's score (nats)."""
-    if not r["usable"]:
-        return r["cld2"]
+    if not r["usable"] or not r["cands"]:
+        return r["ruled_out"] or r["cld2"]
     q = [k + p + b * a_ for p, a_ in zip(r["pct"], r["ans"])]
     z = sum(q)
     best_l, bs = None, -1e300
@@ -198,6 +234,18 @@ tune = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["
 test = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["text"]).encode("utf-8")) % 2 == 1]
 GRID = [(a, k, b, c) for a in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9) for k in (0.01, 0.05, 0.2)
         for b in (0, 0.5, 1, 2) for c in (0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0)]
+# The weights langblend.h ships (kBlend), per slot: a retune replaces them only
+# when it gains more than one break's worth (LAM) on the tune half -- a change
+# of the rows a rule decides moves the argmax by a point or two either way, and
+# chasing that is noise, not a better blend (2026-10-21: the letters' step 0
+# changed which Cyrillic texts the blend decides; the argmax then gained 1 on
+# the tune half and lost 4 on the held-out one).
+import re  # noqa: E402
+SHIPPED = {}
+_kb = open(os.path.join(ROOT, "app", "src", "main", "cpp", "langblend.h"), encoding="utf-8").read()
+_kb = _kb[_kb.index("static const BlendWeights kBlend[7] = {"):]
+for _slot, _row in enumerate(re.findall(r"\{([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f\}", _kb[:_kb.index("};")])):
+    SHIPPED[_slot] = tuple(float(x) for x in _row)
 best = {}
 for slot in SCRIPT:
     # only the decisions the weights can change: the blend runs (two or more
@@ -207,6 +255,8 @@ for slot in SCRIPT:
     if not live:
         continue
     best[slot] = max(GRID, key=lambda w: (gain(live, w), -w[3], -w[0]))
+    if slot in SHIPPED and gain(live, SHIPPED[slot]) >= gain(live, best[slot]) - LAM:
+        best[slot] = SHIPPED[slot]
     print("%-10s tuned on %6d: a=%.1f k=%.2f b=%.1f c=%.2f" % ((SCRIPT[slot], len(live)) + best[slot]))
 
 WAYS = collections.OrderedDict([
@@ -262,7 +312,7 @@ for title, keep in (("ALL test", lambda r: True),
 # decision was the text's own language, or with probability P another one.
 def nb_scores_all(r):
     langs = train_nb.GROUPS.get(r["slot"])
-    cands = [L for L in dict.fromkeys(r["set"].split("+")) if SLOT.get(L, 1) == r["slot"]]
+    cands = slot_langs(r)
     if not langs or len(cands) < 2 or any(L not in langs for L in cands):
         return cands, None
     return cands, train_nb.qscores(NB, r["slot"], r["text"], cands)
