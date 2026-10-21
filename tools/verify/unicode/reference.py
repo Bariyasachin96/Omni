@@ -57,8 +57,28 @@ def slot(c):
     if sc.get(c) in extra: return 26 + extra.index(sc[c])
     if sc.get(c) in own: return 34 + own.index(sc[c])
     if sc.get(c, "Unknown") not in ("Common", "Inherited", "Unknown"): return 33
-    hits = {shortslot[x] for x in scx.get(c, ()) if x in shortslot}
+    hits = scxslots(c)
     return hits.pop() if len(hits) == 1 else -1
+# every slot a Script_Extensions entry names -- the 25, the seven, the living
+# ones on 34.., any other (historic) script 33
+name_of = {s: n for n, s in code_of.items()}
+def slot_of_name(n):
+    if n in longslot: return longslot[n]
+    if n in extra: return 26 + extra.index(n)
+    if n in own: return 34 + own.index(n)
+    return None if n in ("Common", "Inherited", "Unknown") else 33
+def scxslots(c):
+    return {slot_of_name(name_of[x]) for x in scx.get(c, ())} - {None}
+def scxmask(c):
+    if c < 0x80 or c not in scx or slot(c) != -1: return 0
+    m = 0
+    for s in scxslots(c): m |= 1 << s
+    return m
+def attach(c):
+    if c < 0x80 or (c in emoji and c != 0x200D): return -1     # emoji keep their own handling (ZWJ is not one)
+    if sc.get(c) == "Inherited" or (sc.get(c) == "Common" and gc.get(c, "Cn") in ("Lm", "Sk", "Mn", "Mc", "Me")):
+        return 0 if (c not in scx or "Latn" in scx[c]) else 1
+    return -1
 fold = {}
 for line in open(os.path.join(ucd, "UnicodeData.txt"), encoding="utf-8"):
     f = line.split(";")
@@ -74,7 +94,7 @@ old = {}
 if olddump != "-":
     for line in open(olddump):
         f = line.rstrip("\n").split("\t"); old[int(f[0], 16)] = f
-bad = {k: 0 for k in ("fold", "emoji", "letter", "slot", "latinbuf", "bidi", "family", "kotlin")}
+bad = {k: 0 for k in ("fold", "emoji", "letter", "slot", "latinbuf", "bidi", "family", "kotlin", "scxmask", "attach")}
 changed = {k: 0 for k in ("fold", "emoji", "letter", "family")}
 # what a.java's own branches give each script's generic letter (primary)
 FAMPRIMARY = {"Latin":"en","Greek":"el","Cyrillic":"ru","Armenian":"hy","Hebrew":"he","Arabic":"ar","Thaana":"dv",
@@ -98,6 +118,8 @@ for line in sys.stdin:
            or 0x2C60 <= c <= 0x2C7F or 0xA720 <= c <= 0xA7FF or sc.get(c) == "Latin")
     if (f[5] == "1") != lat: bad["latinbuf"] += 1
     if (f[6] == "1") != (c in bidi): bad["bidi"] += 1
+    if int(f[8], 16) != scxmask(c): bad["scxmask"] += 1
+    if int(f[9]) != attach(c): bad["attach"] += 1
     if (c in ktset) != (sc.get(c) in ("Latin", "Common", "Inherited")): bad["kotlin"] += 1
     if o:
         if o[1] != f[1]: changed["fold"] += 1

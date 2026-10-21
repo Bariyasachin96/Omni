@@ -111,6 +111,11 @@ list against chunk list, identical. Harness: `tools/verify/segmenter/`.
 Segment types, used everywhere: **0** whitespace, **1** Latin, **2** non-Latin,
 **3** number, **4** punctuation, **5** emoji.
 
+**DEPARTURE 2026-10-21**: a combining mark, or a Common modifier letter, modifier
+symbol or mark (`kUniAttach`), keeps the Latin/non-Latin buffer of the character
+before it (UAX #24). `c3.w`'s blocks know none of them, so a decomposed word was
+cut at its mark. docs/INVARIANTS.md #32.
+
 ---
 
 ## Detection — `com/vnspeak/autotts/clsCLD2.java` and `libcld2.so`
@@ -145,6 +150,14 @@ Ours: `tts_engine_core.cpp` plus the Kotlin wrappers in `EasyVoiceTtsService.kt`
 classified character — digits, ASCII punctuation, spaces, emoji — answers `"un"`
 with **`latin = true`**, so AutoTTS reads a bare number with the **Latin**
 preferred language. See CLAUDE.md, "The DETECTOR lives in libcld2.so".
+
+**DEPARTURE 2026-10-21**: when that run's characters name scripts in their
+Script_Extensions (a danda, a Vedic sign, CJK punctuation, the Arabic comma),
+it is read as the lowest of those scripts an enabled language writes
+(`kUniScxMask`); case 0 stands only when none does, and digits, ASCII
+punctuation and emoji name none. The seven scripts CLD2 is asked about beyond
+the 48 pairs get a hint and a fallback too (`kExtraSlotLangs`).
+docs/INVARIANTS.md #32.
 
 ---
 

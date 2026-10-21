@@ -1191,6 +1191,32 @@ static std::vector<ChunkResult> buildMixChunks(const std::vector<std::string>& s
             int codePoint = utf8ToCodepoint((const unsigned char*)&fullText[i], cpLen);
             bool latRange = isLatinBufferCp(codePoint);
             int kind = latRange ? 0 : 1;
+            // A CHARACTER THAT BELONGS TO THE ONE BEFORE IT (owner, 2026-10-21:
+            // "ek character bhi nahin chhutna chahie"): a combining mark
+            // (Script=Inherited, UAX #24) or a Common modifier letter, modifier
+            // symbol or mark stays in that character's buffer. c3.w's blocks
+            // know none of them, so "café" typed with a combining acute was cut
+            // into "cafe" and a lone mark, Uzbek "Oʻzbekiston" into three
+            // pieces, and a decomposed Vietnamese word apart -- each piece
+            // spoken on its own, the dual voice reading the mark. With nothing
+            // before it, it takes the buffer of the first character after it
+            // that is not one; alone, kUniAttach's own (DELIBERATE DEPARTURE).
+            if (kind == 1) {
+                int alone = uniValue(kUniAttach, codePoint, -1);
+                if (alone >= 0) {
+                    if (bufKind != -1) kind = bufKind;
+                    else {
+                        kind = alone;
+                        for (int ahead = i + cpLen; ahead < len;) {
+                            int aheadLen = 0;
+                            int aheadCp = utf8ToCodepoint((const unsigned char*)&fullText[ahead], aheadLen);
+                            bool aheadLatin = isLatinBufferCp(aheadCp);
+                            if (aheadLatin || uniValue(kUniAttach, aheadCp, -1) < 0) { kind = aheadLatin ? 0 : 1; break; }
+                            ahead += aheadLen;
+                        }
+                    }
+                }
+            }
             if (bufKind != -1 && bufKind != kind) { flushBuf(i); bufStart = i; }
             bufKind = kind;
             i += cpLen;
@@ -2107,6 +2133,29 @@ static void rebuildScriptLanguageTables(HintState& state){
         if(scriptLanguageFallback[slot] == CLD2::UNKNOWN_LANGUAGE)
             scriptLanguageFallback[slot] = (int)kScriptLangPairs[pair].lang;
     }
+    // THE SEVEN SCRIPTS SLOT_EXTRA HANDS TO CLD2 (owner, 2026-10-21: "ek
+    // character bhi nahin chhutna chahie ... Chahe Koi Bhi Lipi Ho"): Syriac,
+    // Thaana, Cherokee, Canadian Aboriginal, Mongolian, Tagalog and Limbu each
+    // have one CLD2 language, and the 48 pairs above name none of them, so
+    // their spans had no hint and no fallback -- a Syriac or Limbu punctuation
+    // mark, a Limbu digit, the Cherokee small letters and the Canadian
+    // syllabics CLD2's 2014 tables do not know all came back "un" and went to
+    // the non-Latin preferred voice even with that language enabled. The same
+    // rule as above: hinted where exactly one enabled language uses the slot,
+    // the first such the fallback.
+    static const struct { int script; CLD2::Language lang; } kExtraSlotLangs[7] = {
+        {26, CLD2::SYRIAC},   {27, CLD2::DHIVEHI}, {28, CLD2::CHEROKEE}, {29, CLD2::INUKTITUT},
+        {30, CLD2::MONGOLIAN},{31, CLD2::TAGALOG}, {32, CLD2::LIMBU}};
+    for(int pair=0; pair<7; pair++){
+        const char* code = CLD2::LanguageCode(kExtraSlotLangs[pair].lang);
+        if(!code) continue;
+        if(std::find(languageHintCodes.begin(), languageHintCodes.end(), code) == languageHintCodes.end()) continue;
+        int slot = kExtraSlotLangs[pair].script;
+        scriptLanguageHint[slot] = (int)kExtraSlotLangs[pair].lang;
+        matched[slot]++;
+        if(scriptLanguageFallback[slot] == CLD2::UNKNOWN_LANGUAGE)
+            scriptLanguageFallback[slot] = (int)kExtraSlotLangs[pair].lang;
+    }
     // The language hint is kept only where exactly one enabled language uses
     // that script; anywhere else it goes back to UNKNOWN.
     for(int slot=0; slot<kScriptHintSlots; slot++)
@@ -2527,9 +2576,35 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
         newSpan.latin = latin;
         spans.push_back(newSpan);
     };
+    // The lowest slot in `slots` (bit 1 << slot) that an enabled language
+    // writes: a CLD2 slot (1-6, 26-32) with a fallback language, a fixed slot
+    // whose language is enabled; 0 when none.
+    auto hintedCode = [&](const char* code) -> bool {
+        for (const std::string& h : hintCodes) {
+            if (h == code) return true;
+            if ((h == "he" && strcmp(code, "iw") == 0) || (h == "iw" && strcmp(code, "he") == 0)) return true;
+        }
+        return false;
+    };
+    auto enabledNeutralSlot = [&](uint64_t slots) -> int {
+        if (hintCodes.empty()) return 0;
+        for (int slot = 1; slot < 64; slot++) {
+            if (!((slots >> slot) & 1)) continue;
+            bool enabled = false;
+            if (slot <= 6 || (slot >= 26 && slot <= 32))
+                enabled = scriptLanguageFallbackOf(*hintState, slot) != CLD2::UNKNOWN_LANGUAGE;
+            else if (slot >= 7 && slot <= 25)
+                enabled = hintedCode(SCRIPT_FIXED_LANG[slot - 7]);
+            else if (slot >= EV_FIXED_SLOT_FIRST && slot < EV_FIXED_SLOT_FIRST + EV_FIXED_SLOT_COUNT)
+                enabled = hintedCode(kUniFixedSlotLang[slot - EV_FIXED_SLOT_FIRST]);
+            if (enabled) return slot;
+        }
+        return 0;
+    };
     {
         int textLen = (int)text.size();
         int spanStart = 0, curScript = 0, i = 0;
+        uint64_t neutralSlots = 0;
         while (i < textLen) {
             signed char signedByte = (signed char)text[i];
             if (signedByte >= 0) {
@@ -2553,11 +2628,21 @@ static std::vector<std::string> languageSpansFlat(const std::string& text, bool 
                 codePoint = 0xFFFD; cpLen = 1;
             }
             int stringClass = classifyScript(codePoint);
-            if (stringClass < 0) stringClass = curScript;
+            if (stringClass < 0) { stringClass = curScript; neutralSlots |= uniMask(kUniScxMask, codePoint); }
             else if (curScript != 0 && stringClass != curScript) { emitScriptSpan(spanStart, i - spanStart, curScript); spanStart = i; }
             i += cpLen;
             curScript = stringClass;
         }
+        // A TEXT OF NOTHING BUT NEUTRAL CHARACTERS (owner, 2026-10-21: "ek
+        // character bhi nahin chhutna chahie"). Script 0 takes the LATIN
+        // language (case 0 above, AutoTTS's rule) -- right for digits, ASCII
+        // punctuation and emoji, which name no script, but a lone danda, a
+        // Vedic sign, a North Indic fraction, a CJK full stop or bracket, an
+        // Arabic comma or a lone harakat went to the English voice too. Those
+        // name the scripts that use them (Script_Extensions, kUniScxMask): such
+        // a text is read as the lowest of those scripts an enabled language
+        // writes, and only when none is does case 0 stand.
+        if (curScript == 0 && neutralSlots != 0) curScript = enabledNeutralSlot(neutralSlots);
         emitScriptSpan(spanStart, textLen - spanStart, curScript);
     }
     std::vector<std::string> flat;

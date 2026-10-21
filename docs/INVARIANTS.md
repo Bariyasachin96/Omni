@@ -1120,3 +1120,28 @@ reconnects. One restore per death is needed, and exactly one. The death callback
 therefore never restore (the old code restored there AND again from
 `onServiceConnected`); they mark `-1` and wait. Every engine restores in parallel.
 `invariants.sh` #29 checks each of those rules and `selftest.sh` breaks each one.
+
+## 32. Every character reaches a voice that writes its script, and no word is cut
+Owner, 2026-10-21: *"ek character bhi nahin chhutna chahie koi bhi Bhasha ka ... Chahe
+Koi Bhi Lipi Ho."* `tools/verify/allchars/run.sh` sends every assigned character of the
+UCD the app is generated from (635,459 texts) through the core's real JNI entry points,
+alone and after a letter of its script, with and without its script's language enabled,
+and judges each answer through the real IsoCodes. Three rules keep it at zero:
+
+- **A character that belongs to the one before it stays with it.** `kUniAttach`
+  (Script=Inherited, or a Common modifier letter, modifier symbol or mark; never an
+  emoji) keeps the segmenter's buffer of the character before it. Without it "café"
+  typed with a combining acute, Uzbek "Oʻzbekiston" and every decomposed Vietnamese word
+  were cut into pieces, the mark spoken on its own.
+- **A text of nothing but neutral characters is read in a script those characters
+  name.** `kUniScxMask` (their Script_Extensions) and the lowest of those scripts an
+  enabled language writes; only when none does is AutoTTS's case 0 (the Latin
+  language) used. A lone danda, Vedic sign, CJK full stop or Arabic comma went to the
+  English voice without it.
+- **Every script slot counts.** The single-slot Script_Extensions rule (`span_slot` in
+  gen_tables.py) and the per-script hint tables (`kExtraSlotLangs` beside the 48 pairs)
+  cover all slots, not libcld2's 25: the Arabic comma and harakat are not Arabic after a
+  Syriac or N'Ko letter, and a Syriac or Limbu mark is Syriac or Limbu.
+
+Each rule has a negative test in that harness (`EV_NEG=noattach | noneutral | noextra |
+onlyold`), and all four fail.

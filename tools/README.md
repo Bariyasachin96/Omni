@@ -112,6 +112,10 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/corebytes/run.sh [ref]  # native core of a commit vs the working tree, every JNI answer byte for byte
     tools/verify/allscripts/run.sh       # every Unicode script through the real core + real IsoCodes, mix/auto/dual:
                                          #   each script in use today must reach its CLDR language (EV_NEG=nofixed|noiso|truncate fail)
+    tools/verify/allchars/run.sh         # ~2 min, EVERY character of UCD 18 (635,459 texts) through the real core + real
+                                         #   IsoCodes: alone and after a letter of its script, its language enabled or not;
+                                         #   none may reach a voice that does not write its script, be dropped, or be cut
+                                         #   from its word (EV_NEG=noattach|noneutral|noextra|onlyold fail)
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

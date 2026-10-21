@@ -8,7 +8,44 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## WHERE TWO ENABLED LANGUAGES SHARE A SCRIPT: LETTERS, A WORD-AND-ENDING MODEL, ML KIT'S MODEL, CONTEXT (owner, 2026-10-20, latest)
+## EVERY CHARACTER OF EVERY SCRIPT REACHES A VOICE THAT WRITES IT, AND NO WORD IS CUT (owner, 2026-10-21, latest)
+*"ek character bhi nahin chhutna chahie koi bhi Bhasha ka ek character bhi nahin chhutna chahie ... Chahe Koi Bhi
+Lipi Ho."* Identical text in two languages still carries no evidence (section below): context decides there.
+- **Measured first, `tools/verify/allchars/run.sh` (new):** every assigned character of UCD 18 (Cc Cf Cs Co Cn Zs
+  Zl Zp skipped) = 635,459 texts in 59 enabled sets, through the core's REAL JNI entry points (fakejni.h): alone
+  under {hi,en,gu}, alone with its script's language enabled, and after a letter of its own script; mix, auto and
+  dual; every answer turned into a voice by the REAL IsoCodes (lifted). Right = the voice writes one of the
+  character's scripts (Script, else Script_Extensions); dual is judged for letters and marks; "split" = an
+  after-case cut into two records. **Before: 506 wrong** (alone 473, after 33), and words cut at their marks.
+- **Three causes, three rules (docs/INVARIANTS.md #32), all DELIBERATE DEPARTURES:**
+  1. **A mark stays with its letter** (`kUniAttach`, gen_tables.py `attach_kind`): Script=Inherited, or Common
+     Lm/Sk/Mn/Mc/Me, never an emoji, keeps the segmenter buffer of the character before it (UAX #24); with none
+     before, that of the first character after it that is not one. c3.w's blocks knew none of them: NFD "café",
+     "Oʻzbekiston", "Hawaiʻi", decomposed Vietnamese were cut and the mark read on its own (by the dual voice too).
+  2. **A text of only neutral characters** takes the lowest script slot their Script_Extensions name
+     (`kUniScxMask`) that an enabled language writes (`enabledNeutralSlot`); AutoTTS's case 0 (the Latin language)
+     stands only when none does. A lone danda, Vedic sign, North Indic fraction, CJK full stop or bracket, Arabic
+     comma or harakat went to English. Digits, ASCII punctuation and emoji have no scx: unchanged.
+  3. **Every slot counts:** the single-slot Script_Extensions rule (`span_slot`) covers all 64 slots, not
+     libcld2's 25 (165 code points move: the Arabic comma and harakat after a Syriac or N'Ko letter, Syriac and
+     Limbu marks), and `kExtraSlotLangs` gives slots 26-32 (Syriac, Dhivehi, Cherokee, Inuktitut, Mongolian,
+     Tagalog, Limbu) a hint and a fallback beside the 48 pairs -- with that language enabled a Limbu digit or a
+     Syriac punctuation mark no longer comes back "un".
+- **After: 464,866 judged right, 0 wrong, 0 dropped, 0 split** (161,408 alone-cases have no enabled voice for
+  their script: not judged, they fall back as before). Negatives `EV_NEG=noattach` 96 wrong + 52 split,
+  `noneutral` 368, `noextra` 166, `onlyold` (old slot rule) 96 -- all FAIL.
+- **What the owner's {hi,en,gu} hears differently:** marks stay inside their word; a danda alone, or between two
+  English words, is read by Hindi (corebytes vs HEAD: 384 of 895,440 cases differ, ALL the one text "A।B", the
+  danda's record en -> hi); a danda followed by Hindi still joins the Hindi record. Quick character read is
+  unchanged (it promises the preferred language).
+- **Proof:** unicode 1,112,064 code points IDENTICAL (reference.py reads scxmask and attach on its own; its
+  emoji set leaves out ZWJ as the generator does); segmenter vs AutoTTS only the known '£' (270 lines);
+  allscripts 62/0; devanagari 64/64; scriptfamily, langcodes, normalizer IDENTICAL; stress 0 wrong; onecall 0
+  differ; latency unchanged (10,620 chars 0.90 ms one call, was 0.92); langsuite unchanged (held-out 35,212:
+  92.3 -> 96.1, context 99.79% / 98.57%, C++ == Python 131,961 and 450,522); PGO --update ALL PASS (917,754
+  answers plain == PGO, both ABIs, ASan+UBSan clean); check-all ALL PASS (gen_tables --check, PGO fresh, compile 0/0, lint No issues).
+
+## WHERE TWO ENABLED LANGUAGES SHARE A SCRIPT: LETTERS, A WORD-AND-ENDING MODEL, ML KIT'S MODEL, CONTEXT (owner, 2026-10-20)
 *"ml kit hi rakhna hai ... native"*, then *"accuracy 100% hi chahie ... har language ke liye har lipi ke liye ... kuchh
 bhi karo"* and *"99% nahin, 100% ... bilkul accurate aur bahut fast"*. Told plainly, more than once: a text that is
 the same in both languages ("ब्लूटूथ", "प्रस्तावना" in Hindi and Marathi, "تمام", "Todos") carries no evidence, so no
