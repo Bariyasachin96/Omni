@@ -32,10 +32,12 @@
 //
 //  Then CONTEXT (blendFinal): a span that proved nothing (step 3: "ब्लूटूथ",
 //  "प्रस्तावना" are the same in Hindi and Marathi) takes the language of the
-//  last span of its script that did prove one, unless the word-and-ending
-//  model puts its own pick 6 nats above it, or the span holds a letter its own
-//  answer writes and that language practically never does (keheh after Arabic
-//  text, ৰ after Bengali: langnb.h kNbRare, at most 1 in 2,000 texts).
+//  last span of its script that did prove one -- or, before the first span of
+//  its utterance that does, that span's (tts_engine_core.cpp nameSpanTexts) --
+//  unless the word-and-ending model puts its own pick 8 nats above it, or the
+//  span holds a letter its own answer writes and that language practically
+//  never does (keheh after Arabic text, ৰ after Bengali: langnb.h kNbRare, at
+//  most 1 in 2,000 texts).
 //
 //  With fewer than two enabled languages in the script nothing here runs: the
 //  span is that one language (tts_engine_core.cpp) -- the owner's own set
@@ -754,13 +756,36 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
 // A text that proves nothing ("ब्लूटूथ", "प्रस्तावना", "تمام": the same in two
 // enabled languages) takes the language of the last text of its script that
 // did prove one -- the screen or the message being read -- unless the
-// word-and-ending model puts its own pick at least kCtxMargin (6 nats, 400 to
+// word-and-ending model puts its own pick at least kCtxMargin (8 nats, 3,000 to
 // 1) above that language, or the span holds a letter its own answer writes
 // and that language practically never does (BlendResult::veto). One per
 // script slot, shared by every caller.
-static const int kCtxMargin = 48;
+// 8 nats since 2026-10-22 (was 6): the model learned from Android's UI text
+// is surer of itself ("Data" is a word of Indonesian and Italian UI as much as
+// of English) and overruled a right context more often. Measured on the
+// suite's held-out half, a stream whose last sure language is the text's own /
+// another with probability 0.1 / 0.3 / 0.5: 6 nats 99.76 / 98.81 / 97.07 /
+// 95.22%; 8 nats 99.85 / 98.72 / 96.55 / 94.31 -- above the earlier model at 6
+// nats (99.78 / 98.63 / 96.45 / 94.16) at every one; 10 nats 99.90 / 98.55 /
+// 95.98 / 93.38.
+static const int kCtxMargin = 64;
 static std::mutex gBlendContextMutex;
 static std::string gBlendContext[7];
+
+// The span's language given the context ctx ("" for none): ctx unless the
+// span proved its own (r.sure, the caller's test), the veto or the
+// word-and-ending model's margin keep its own answer.
+static inline std::string blendWithContext(const BlendResult& r, const std::string& got, const std::string& ctx) {
+    int ci = -1, gi = -1;
+    for (size_t i = 0; i < r.slotLangs.size(); i++) {
+        if (r.slotLangs[i] == ctx) ci = (int)i;
+        if (r.slotLangs[i] == got) gi = (int)i;
+    }
+    if (ctx.empty() || ci < 0 || ctx == got) return got;
+    if (gi >= 0 && ((r.veto >> (gi * 8 + ci)) & 1)) return got;
+    if (r.nb.empty() || gi < 0) return ctx;
+    return r.nb[gi] - r.nb[ci] >= kCtxMargin ? got : ctx;
+}
 
 // The span's language from a (possibly cached) BlendResult and the answer the
 // span had without it; a sure result becomes the script's context.
@@ -772,14 +797,5 @@ static inline std::string blendFinal(int slot, const BlendResult& r, const std::
         gBlendContext[slot] = r.lang;
         return r.lang;
     }
-    const std::string& ctx = gBlendContext[slot];
-    int ci = -1, gi = -1;
-    for (size_t i = 0; i < r.slotLangs.size(); i++) {
-        if (r.slotLangs[i] == ctx) ci = (int)i;
-        if (r.slotLangs[i] == got) gi = (int)i;
-    }
-    if (ctx.empty() || ci < 0 || ctx == got) return got;
-    if (gi >= 0 && ((r.veto >> (gi * 8 + ci)) & 1)) return got;
-    if (r.nb.empty() || gi < 0) return ctx;
-    return r.nb[gi] - r.nb[ci] >= kCtxMargin ? got : ctx;
+    return blendWithContext(r, got, gBlendContext[slot]);
 }

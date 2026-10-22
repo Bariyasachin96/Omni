@@ -13,6 +13,7 @@
 #include <limits>
 #include <iterator>
 #include <atomic>
+#include <array>
 #include "unicode_tables.h"   // generated from the Unicode Character Database
 // the model ML Kit runs and the rules that choose between the enabled languages
 // of one script; the harness slicer drops this line
@@ -2452,7 +2453,8 @@ static void scanScriptRuns(const std::string& text, const HintState& hints, std:
 // CLD2's answer); with two or more, langblend.h chooses between them; with
 // none, the model's best language of the script, which no voice of the user's
 // reads. Cached by script + bytes; the cache is dropped when the hints change.
-static std::string nameRange(const char* bytes, int len, int script, const HintStatePtr& hintState){
+// The (cached) answer for a run of a script, before any context is applied.
+static CachedAnswer answerRange(const char* bytes, int len, int script, const HintStatePtr& hintState){
     int detectBytes = len;
     if (detectBytes > 1024) {
         detectBytes = 1024;
@@ -2489,7 +2491,10 @@ static std::string nameRange(const char* bytes, int len, int script, const HintS
         if(cache.spans.size() >= kDetectCacheMax) cache.spans.clear();
         cached = cache.spans.emplace(std::move(cacheKey), std::move(answer)).first;
     }
-    return cached->second.resolve();
+    return cached->second;
+}
+static std::string nameRange(const char* bytes, int len, int script, const HintStatePtr& hintState){
+    return answerRange(bytes, len, script, hintState).resolve();
 }
 
 // A run named on its own: every script but one two or more enabled languages
@@ -2602,6 +2607,13 @@ static bool sentenceEndBetween(const std::vector<SpanText>& texts, size_t ta, si
 // between two runs (kOrthoSent) still parts them, as two runs were parted
 // before. Where each sentence holds one run, this is what naming each run on
 // its own (orthoSegment inside it) always was.
+// THE UTTERANCE'S OWN CONTEXT (2026-10-22): a piece that proves nothing and
+// comes BEFORE the first piece of its script in the utterance that does takes
+// that piece's language as its context (blendWithContext), not the last
+// utterance's: a title that is the same in Hindi and Marathi followed by a
+// Marathi sentence is Marathi -- the text around it -- where it used to take
+// whatever the screen read last (a voice change inside one message). After the
+// first sure piece the context is the last sure one, as always.
 static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hintState){
     std::vector<std::string> slotLangs[7];
     for (int s = 1; s <= 6; s++) blendSlotLangs(s, hintState->codes, slotLangs[s]);
@@ -2615,9 +2627,12 @@ static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hint
         }
     }
     struct Ref { size_t t, r; };
+    // one decision of a script, and the runs (text, run, end offset) it names
+    struct Piece { CachedAnswer answer; std::vector<std::array<int, 3>> at; };
     for (int s = 1; s <= 6; s++) {
         if (slotLangs[s].size() < 2) continue;
         std::vector<Ref> group;
+        std::vector<Piece> decided;
         auto flush = [&]() {
             if (group.empty()) return;
             std::string g;
@@ -2637,14 +2652,16 @@ static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hint
             size_t k = 0;
             for (int b : cuts) {
                 if (b <= a) continue;
-                const std::string lang = nameRange(g.c_str() + a, b - a, s, hintState);
+                Piece piece;
+                piece.answer = answerRange(g.c_str() + a, b - a, s, hintState);
                 while (k < group.size() && gStart[k] < b) {
-                    SpanText& st = texts[group[k].t];
-                    const ScriptRun& run = st.runs[group[k].r];
+                    const ScriptRun& run = texts[group[k].t].runs[group[k].r];
                     const int end = std::min(b, gEnd[k]);
-                    if (end > std::max(a, gStart[k])) st.pieces[group[k].r].push_back({run.offset + (end - gStart[k]), lang});
+                    if (end > std::max(a, gStart[k]))
+                        piece.at.push_back({(int)group[k].t, (int)group[k].r, run.offset + (end - gStart[k])});
                     if (gEnd[k] <= b) k++; else break;
                 }
+                decided.push_back(std::move(piece));
                 a = b;
             }
             group.clear();
@@ -2658,6 +2675,16 @@ static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hint
             }
         }
         flush();
+        size_t firstSure = decided.size();
+        for (size_t i = 0; i < decided.size(); i++)
+            if (decided[i].answer.blend.sure) { firstSure = i; break; }
+        for (size_t i = 0; i < decided.size(); i++) {
+            const CachedAnswer& ans = decided[i].answer;
+            const std::string lang = i < firstSure && firstSure < decided.size()
+                ? blendWithContext(ans.blend, ans.lang, decided[firstSure].answer.blend.lang)
+                : ans.resolve();
+            for (const auto& at : decided[i].at) texts[(size_t)at[0]].pieces[(size_t)at[1]].push_back({at[2], lang});
+        }
     }
 }
 

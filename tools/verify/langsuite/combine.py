@@ -16,9 +16,10 @@ the shipped weight is kept unless a retune gains more than LAM there, a right
 answer turned wrong counted LAM times a wrong one put right (the owner's "no
 risk"). The "tune" rows are what the word-and-ending model learned from.
 
-baseline.tsv: a pipeline.tsv of an earlier core (its own format), for a
-"before" column -- e.g. the last run with CLD2 (until 2026-10-21), whose rows
-are set, label, class, split, cld2, model, fallback, detail, cands, blend, text.
+baseline.tsv: a pipeline.tsv of an earlier core, for a "before" column --
+this script's own format, or the last run with CLD2 (until 2026-10-21), whose
+rows are set, label, class, split, cld2, model, fallback, detail, cands, blend,
+text.
 """
 import collections
 import math
@@ -93,7 +94,8 @@ LT = train_nb.letters()
 LR = train_nb.letters(train_nb.LETTERS_RARE)
 OT = train_nb.ortho()
 NB_MARGIN = 80     # langblend.h kNbMargin: e^10
-CTX_MARGIN = 48    # langblend.h kCtxMargin: 6 nats
+# langblend.h kCtxMargin (read below); EV_CTX_MARGIN tries another
+CTX_MARGIN = None
 
 rows = []
 for line in open(sys.argv[1], encoding="utf-8"):
@@ -182,6 +184,7 @@ _kb = open(os.path.join(ROOT, "app", "src", "main", "cpp", "langblend.h"), encod
 _kb = _kb[_kb.index("static const float kBlendC[7] = {"):]
 for _slot, _v in enumerate(re.findall(r"([0-9.]+)f", _kb[:_kb.index("};")])):
     SHIPPED[_slot] = float(_v)
+CTX_MARGIN = int(os.environ.get("EV_CTX_MARGIN") or re.search(r"static const int kCtxMargin = (\d+);", _kb).group(1))
 
 tune = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["text"]).encode("utf-8")) % 2 == 0]
 test = [r for r in rows if r["split"] == "test" and zlib.crc32((r["label"] + r["text"]).encode("utf-8")) % 2 == 1]
@@ -212,7 +215,9 @@ base = {}
 if len(sys.argv) > 2:
     for line in open(sys.argv[2], encoding="utf-8"):
         f = line.rstrip("\n").split("\t")
-        if len(f) >= 11:
+        if len(f) == 10:          # this script's own format: ... blend text ctxmap
+            base.setdefault((f[0], f[1], f[8]), f[7])
+        elif len(f) >= 11:        # with CLD2's columns (until 2026-10-21)
             base.setdefault((f[0], f[1], f[10]), f[9])
 before = (lambda r: base.get((r["set"], r["label"], r["text"]))) if base else None
 

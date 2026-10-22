@@ -361,7 +361,7 @@ script): 96.2% with CLD2, 96.1% without; with the context 99.79 / 98.63 / 96.42 
 through the real core (`tools/verify/automode`), is BETTER without it in every
 set (es/fr/de/pt/it 97.86 -> 99.27%, id+ms 98.71 -> 99.42%, ru+uk+bg+sr 99.35 ->
 99.88%, the owner's set 100% both). The library lost 6.1 MB per ABI. What a span
-of a script two or more enabled languages share is read in is #34-#36; with one
+of a script two or more enabled languages share is read in is #34-#37; with one
 enabled language it is that one, with none the model's best language of the
 script (which no voice of the user's reads).
 
@@ -1285,3 +1285,30 @@ scored a text per script, letters only):
   label counts only at 0.5 or more, ML Kit's own threshold.
 - **Check.** `tools/verify/automode` (the language suite's texts through an earlier core
   and the working tree's) and `tools/verify/allchars`.
+
+## 37. The word-and-ending model knows Android's UI text, and a message names its own context
+2026-10-22 (task #20, the owner's 100%). Three rules, each measured on the language suite's
+held-out half; where only one enabled language writes a script none of them runs.
+
+- **Android's UI text is always learned.** `train_nb.py learning_texts` puts the suite's
+  TUNE half and 25 more AOSP strings.xml of each language (`fetch_train.sh` aosp/:
+  SettingsLib, PackageInstaller, the lock screen, Contacts, Calendar, Email, the providers
+  ...) in FRONT of the learning texts; Tatoeba, Common Voice and Wikipedia fill the rest by
+  hash. Wikipedia hardly writes "वापरकर्ता", "पर्याय", "करा" or "Penghemat"; a screen reader
+  reads them all day. The suite's own three files are NOT learned beyond its tune half:
+  their other strings are the test's neighbours. KEEP is per script (60k Latin, 40k
+  Cyrillic and Devanagari, 30k Arabic, 20k Bengali): +0.86 MB per ABI. Held-out 96.1 ->
+  96.7%.
+- **The context is overruled at 8 nats, not 6** (`kCtxMargin`). The surer model put
+  "Data" after English text into Indonesian; at 8 nats the stream whose last sure language
+  is the text's own reads 99.85% (HEAD 99.78%), and with another one at P 0.1 / 0.3 / 0.5
+  98.72 / 96.55 / 94.31% (HEAD 98.63 / 96.45 / 94.16): better at every P. combine.py reads
+  the constant from langblend.h, so the mirror cannot drift from it.
+- **A piece before the first sure piece of its script in an utterance takes that piece's
+  language as its context** (`nameSpanTexts`, `blendWithContext`), not the last utterance's;
+  from the first sure piece on the context is the last sure one, as always. A title the
+  same in Hindi and Marathi before a Marathi sentence is Marathi.
+- **Check.** `tools/verify/langsuite` (C++ == Python, every decision and every context),
+  `tools/verify/mixedscript` (no one-language text read in two that the reference core
+  read in one), `tools/verify/automode`, `tools/verify/allchars`, corebytes vs HEAD.
+

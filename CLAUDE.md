@@ -8,7 +8,59 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## CLD2 IS GONE: THE MODEL ML KIT RUNS IS THE DETECTOR; ONE SCRIPT, ONE SENTENCE, ONE DECISION (owner, 2026-10-21, latest)
+## THE WORD-AND-ENDING MODEL LEARNS ANDROID'S OWN UI TEXT; A MESSAGE'S FIRST SURE SENTENCE NAMES THE ONES BEFORE IT (owner, 2026-10-22, latest)
+*"Jahan se kam baki tha vahan se continue karo"* -- task #20, the owner's 100% (2026-10-21). Runs only where 2+
+ENABLED languages share a script; the owner's {hi,en,gu} hears nothing new (corebytes vs HEAD 0 of 895,440).
+- **Measured and DROPPED** (research mirror of combine.py, suite held-out half, no context, base 95.87%): Devanagari
+  orthography letters as a step 0 (ॅ ऱ ॲ fall under the 1/200 bar; the 4 it learns -- ळ nukta ङ ॉ -- 95.88%: nothing);
+  a learned bias per language beside kBlendC (95.78%: worse on the held-out half); 400k learning texts instead of
+  150k (equal); bigram / prefix / trigram features (worse); one table per close pair: not tried.
+- **Adopted, 1: Android's own UI text is always learned** (`train_nb.py learning_texts`: the suite's TUNE half + 25
+  more strings.xml per language -- SettingsLib, PackageInstaller, keyguard, sysui-product, CompanionDevice,
+  CredentialManager, PrintSpooler, Contacts, Calendar, Email, Media/Download/Contacts/Calendar providers ...,
+  `fetch_train.sh` aosp/, 517 files, AOSP has no Pashto -- ~4,000 UI spans per language in FRONT, the rest of NTEXT
+  from Tatoeba/CV/Wikipedia by hash). Not learned, on purpose: the ~4,500 strings per language of the suite's OWN
+  three files beyond its 2,500 (the mirror says 97.12% with them -- the test's neighbours, so not honest).
+- **2: KEEP per script** `{1: 60000, 2: 40000, 3: 30000, 4: 40000, 6: 20000}` (was 20,000 each; more where more
+  languages share the script): the table data 0.82 -> 1.68 MB, **+0.86 MB per ABI**. Mirror: 20k everywhere 96.04,
+  30k 96.36, 40k 96.53, this split 96.64, 60k 96.74, 100k 96.91% (+3.3 MB per ABI -- the owner's call if wanted).
+  letters.tsv gained `ru uk ё` (learned).
+- **3: kCtxMargin 6 -> 8 nats.** The surer model overruled a right context ("Data" in English after English: id/it
+  UI writes "data" too, and the word's endings count again). With the context the text's own language / another
+  with P 0.1 / 0.3 / 0.5: HEAD 99.78 / 98.63 / 96.45 / 94.16; new model at 6 nats 99.76 / 98.81 / 97.07 / 95.22; at
+  8 nats **99.85 / 98.72 / 96.55 / 94.31** = above HEAD at every P; 10 nats 99.90 / 98.55 / 95.98 / 93.38.
+  combine.py now READS kCtxMargin from langblend.h (EV_CTX_MARGIN tries another).
+- **4: the utterance's own context** (`nameSpanTexts`, langblend.h `blendWithContext`): a piece that proves nothing
+  BEFORE the first sure piece of its script in the utterance takes THAT piece's language as context, not the last
+  utterance's (a title the same in Hindi and Marathi before a Marathi sentence is Marathi). Found by mixedscript:
+  the new model alone read "Тутанкамонова гробница (KV62). KV62 је ..." in two (bg, then sr).
+- **Measured.** Suite held-out 35,212: **96.1 -> 96.7%** (80 broke / 321 fixed): Android UI 95.0 -> 95.9, Tatoeba 97.8
+  -> 98.1; mr (hi+mr) 94.8 -> 95.1, ne 95.1 -> 96.1, sr 93.8 -> 95.2, bg 97.0 -> 97.7, uk 97.0 -> 98.0, ru (5 Cyrillic)
+  91.6 -> 92.4, pt 94.6 -> 96.3, fr 96.6 -> 97.2, id 81.2 -> 84.9, ms 76.4 -> 80.6; lost: en (en+id+ms) 99.0 -> 98.5,
+  ar (en+ur+ar) 100.0 -> 99.9. C++ == Python 0 of 140,291 blend + 0 of 466,360 context (`EV_BASELINE` now reads this
+  script's own pipeline.tsv too). Auto mode (automode vs HEAD) equal or better in every set: es/fr/de/pt/it 99.27 ->
+  99.36, id+ms 99.42 -> 99.54, ru+uk+bg+sr 99.88 -> 99.92, hi+mr+ne 99.89 -> 99.95, {hi,en,gu} 100 both.
+  mixedscript ALL PASS: one-language read in two 0 (0), dot 99.9-100, nopunct/embeds equal or +0.1-0.2 (ur+fa embed3
+  88.1 -> 88.0). allchars 464,866 / 0 wrong / 0 dropped / 0 split; allscripts 62/0; devanagari 64/64; latency 10,620
+  chars 0.74 ms one call.
+- **What stays wrong, plainly:** a 1-3 word UI string the same in two languages (मायक्रोफोन, "Хранилище устройства")
+  -- context decides it; Indonesian/Malay UI (85/81%); Russian UI beside Bulgarian (ML Kit's model says bg at 0.99
+  for "Название сети").
+- **Size, measured** (the core built with the NDK's clang and the shipped flags + PGO, HEAD vs this tree): arm64
+  1,388,112 -> **2,249,344** bytes, armeabi-v7a 1,360,868 -> **2,222,260** (+861 KB each, = the tables' growth).
+- **Same day, lint's GradleDependency:** DataStore 1.2.1 -> **1.3.0** (released 2026-10-21; minSdk 24; needs stdlib
+  2.2.20, coroutines 1.9.0, okio 3.17.0 -- all at or below ours -- and brings kotlinx atomicfu 0.28.0 (new, small,
+  R8-shrunk) and androidx.tracing (already ours); its libdatastore_shared_counter.so 16 KB aligned;
+  no permission or component in any of its aars; `preferencesDataStore` is not deprecated -- the new
+  `DataStore.Builder` replaces `DataStoreFactory`, which we never call) and androidx.tracing 2.0.4 -> **2.0.5**
+  (minSdk 23). persist 12,000 IDENTICAL and settingsread ALL PASS on the real 1.3.0 JVM jars; compile 0/0, lint No
+  issues; the merged release manifest is byte-identical (no new permission or component).
+- **selftest.sh committed into the REAL repo once (same day):** with `EV_WORK` naming a missing directory its `cp` and
+  `cd` failed and it carried on in the caller's directory -- `git add -A` + a "selftest base" commit on the branch
+  (undone with `git reset --soft HEAD~1`, nothing lost). It now stops (exit 1) unless it is inside its own copy, and
+  the copy leaves out tools/.cache and build outputs (118 MB, was 6.5 GB). Negative: `EV_WORK=/proc/x` stops it.
+
+## CLD2 IS GONE: THE MODEL ML KIT RUNS IS THE DETECTOR; ONE SCRIPT, ONE SENTENCE, ONE DECISION (owner, 2026-10-21)
 *"Jahan per cld Tu kam Karega vahan per ab ml kit kam Karega ... CLD2 Hata Do"*, then *"accuracy 100% ... Ek character
 bhi ... galat Nahin Hona chahie ... Sabhi Lipi"*. The sections below describe CLD2's role as it was; where they say
 CLD2 now read "the model ML Kit runs" (or, for AutoTTS's own library, libcld2.so). Do NOT bring CLD2 back:
@@ -174,7 +226,8 @@ detector can name it; for those the app now takes the language of the text aroun
   leads by e^10; (3) a language ML Kit's model lacks (as, sa) stays CLD2's; (4) else a log-linear blend of ML
   Kit's model, CLD2's top three and the word-and-ending score (kBlend). (1)-(2) are SURE; (3)-(4) are not.
 - **Context** (blendFinal): a not-sure span takes the language of the last SURE span of its script (one per slot,
-  mutex, shared by the span and window paths) unless the word-and-ending model puts its own pick 6 nats above it.
+  mutex, shared by the span and window paths) unless the word-and-ending model puts its own pick 6 nats above it
+  (8 since 2026-10-22, and before an utterance's first sure span that span's language: section at the top).
   The CLD2 cache stores the context-free answer (CachedAnswer); the context applies after it.
 - **The model ML Kit runs** = `langid.h` + `langid_model.h` (tools/langid/gen_model.py from the MediaPipe
   language_detector.tflite = ML Kit language-id 17.0.6's graph): proven equal to ML Kit's own x86_64 library

@@ -4,7 +4,7 @@
     train_nb.py learn cases.tsv      learn tools/langid/nb_model.tsv and
                                      letters.tsv from tools/.cache/langtrain
                                      (fetch_train.sh) and the TUNE half of the
-                                     suite's cases, keeping the KEEP most
+                                     suite's cases, keeping the KEEP[slot] most
                                      informative features per script
     train_nb.py eval cases.tsv pipeline.tsv
                                      precision and coverage on the suite's
@@ -170,8 +170,75 @@ def in_script(text, slot):
     return inside >= 0.8 * len(letters)
 
 
+# Android's own UI strings outside the suite's three files (fetch_train.sh aosp/):
+# AOSP locale -> language
+AOSP = {"en": "en", "es": "es", "fr": "fr", "de": "de", "pt-rBR": "pt", "pt-rPT": "pt", "it": "it", "in": "id",
+        "ms": "ms", "ru": "ru", "uk": "uk", "bg": "bg", "sr": "sr", "ar": "ar", "fa": "fa", "ur": "ur",
+        "hi": "hi", "mr": "mr", "ne": "ne", "bn": "bn", "as": "as"}
+_FORMAT = re.compile(r"%(\d+\$)?[-#+ 0,(]*\d*(\.\d+)?[sdfxXc%]|\^\d")
+_TAG = re.compile(r"<[^>]+>")
+_ICU = re.compile(r"\{\s*\w+\s*,\s*(plural|select|selectordinal)\s*,")
+
+
+def android_strings(path):
+    """name -> text of every translatable string, plural and array item, as
+    tools/verify/langsuite/realdata.py reads them: markup, format specifiers and
+    what a placeholder holds dropped"""
+    import html
+    import xml.etree.ElementTree as ET
+    out = {}
+    try:
+        root = ET.parse(path).getroot()
+    except Exception:
+        return out
+    for el in root:
+        if el.get("translatable") == "false":
+            continue
+        items = [el] if el.tag == "string" else list(el) if el.tag in ("plurals", "string-array") else []
+        for i, it in enumerate(items):
+            for child in list(it):
+                if child.tag.endswith("}g"):
+                    child.text = " "
+            text = "".join(it.itertext())
+            if _ICU.search(text):
+                continue
+            text = text.replace("\\n", " ").replace("\\'", "'").replace('\\"', '"').replace("\\@", "@")
+            text = _FORMAT.sub(" ", html.unescape(_TAG.sub(" ", text.replace("\\?", "?"))))
+            out["%s#%d" % (el.get("name", ""), i)] = " ".join(text.split())
+    return out
+
+
+def android_ui():
+    """per language: the parts of every translated UI string in the language's own
+    script (a letter of another script cuts it, as the core would)"""
+    d = os.path.join(TRAIN, "aosp")
+    english = {os.path.basename(p)[3:]: android_strings(p) for p in glob.glob(os.path.join(d, "en-*.xml"))}
+    out = collections.defaultdict(list)
+    for loc, L in AOSP.items():
+        slot = SLOT[L]
+        for p in sorted(glob.glob(os.path.join(d, loc + "-*.xml"))):
+            en = english.get(os.path.basename(p)[len(loc) + 1:], {})
+            for name, text in android_strings(p).items():
+                if L != "en" and en.get(name) == text:
+                    continue          # left untranslated
+                cur, mine = [], False
+                for ch in text + "\n":
+                    letter = unicodedata.category(ch)[0] == "L"
+                    if ch == "\n" or (letter and cur and (ord(ch) in WORD and of_script(ord(ch), slot)) != mine):
+                        t = " ".join("".join(cur).split()).strip(" -:,.;()[]\"'/|")
+                        if mine and any(unicodedata.category(c)[0] == "L" for c in t):
+                            out[L].append(t)
+                        cur = []
+                    if letter:
+                        mine = ord(ch) in WORD and of_script(ord(ch), slot)
+                    cur.append(ch)
+    return out
+
+
 def learning_texts(cases):
-    """per language: NTEXT texts, the same sources in the same order every run"""
+    """per language: NTEXT texts, the same sources in the same order every run --
+    Android's UI text (the suite's TUNE half and android_ui) always, the rest
+    (Tatoeba, Common Voice, Wikipedia) in hash order up to NTEXT"""
     test_keys = set()
     tune = collections.defaultdict(list)
     for line in open(cases, encoding="utf-8"):
@@ -184,9 +251,21 @@ def learning_texts(cases):
     for L in SLOT:
         for split in ("dev", "devtest"):
             test_keys.update(key(t) for t in flores(L, split))
+    ui = android_ui()
     texts = {}
     for L, slot in SLOT.items():
-        pool = list(tune[L])
+        seen = set()
+
+        def take(src):
+            got = []
+            for t in src:
+                k = key(t)
+                if k and k not in seen and k not in test_keys and in_script(t, slot):
+                    seen.add(k)
+                    got.append(t)
+            return got
+        first = take(tune[L] + ui.get(L, []))
+        pool = []
         path = os.path.join(TRAIN, "tatoeba", TATOEBA[L] + ".tsv")
         if os.path.exists(path):
             pool += [l.rstrip("\n").split("\t")[2] for l in open(path, encoding="utf-8", errors="replace")
@@ -195,16 +274,12 @@ def learning_texts(cases):
         if os.path.exists(path):
             pool += [l.strip() for l in open(path, encoding="utf-8", errors="replace")]
         pool += wiki_texts(L, NTEXT)
-        seen, out = set(), []
-        for t in pool:
-            k = key(t)
-            if k and k not in seen and k not in test_keys and in_script(t, slot):
-                seen.add(k)
-                out.append(t)
+        out = take(pool)
         # the same number for every language: the lowest hashes of each pool
         out.sort(key=lambda t: zlib.crc32(t.encode("utf-8")))
-        texts[L] = out[:NTEXT]
-        print("  %s: %d learning texts (of %d)" % (L, len(texts[L]), len(out)), file=sys.stderr)
+        texts[L] = first + out[:max(0, NTEXT - len(first))]
+        print("  %s: %d learning texts, %d of them Android UI (of %d)" % (L, len(texts[L]), len(first),
+              len(first) + len(out)), file=sys.stderr)
     return texts
 
 
@@ -672,13 +747,18 @@ def evaluate(cases, pipeline):
                 T, 100.0 * len(dec) / len(sub), 100.0 * (len(dec) - wrong) / max(1, len(dec)), wrong))
 
 
-KEEP = 20000          # features kept per script for the app (the most informative)
+# features kept per script for the app (the most informative): more where more
+# languages share the script. Chosen on the suite's held-out half (the
+# word-and-ending model learned with Android's UI text, no context): 20,000
+# everywhere 96.04%; 30,000 96.36; 40,000 96.53; 60,000 96.74; 100,000 96.91;
+# this split 96.64% at 0.86 MB more per ABI than 20,000 everywhere
+KEEP = {1: 60000, 2: 40000, 3: 30000, 4: 40000, 6: 20000}
 
 
 def prune():
     """keep in nb_model.tsv only what the app holds: the KEEP most informative
     features per script"""
-    model, ntext = load({0: KEEP})
+    model, ntext = load(KEEP)
     lines = [l for l in open(MODEL, encoding="utf-8") if l.startswith("#")]
     with open(MODEL, "w", encoding="utf-8") as f:
         f.writelines(lines)
@@ -699,9 +779,9 @@ def fnv(text):
 
 def shipped():
     """The table the app holds: per slot, (hash -> per-language quantized log p),
-    for the KEEP most informative features. Python's scoring and the C++'s read
-    the same table, so they decide alike."""
-    model, ntext = load({0: KEEP})
+    for the KEEP[slot] most informative features. Python's scoring and the C++'s
+    read the same table, so they decide alike."""
+    model, ntext = load(KEEP)
     table = {}
     for slot, feats_ in model.items():
         n = ntext[slot]
@@ -731,7 +811,8 @@ def qscores(table, slot, text, cands):
 def header():
     table = shipped()
     out = ["// Generated by tools/langid/train_nb.py header from tools/langid/nb_model.tsv -- do not edit.",
-           "// Per script: the %d most informative word and ending features, by FNV-1a hash" % KEEP,
+           "// Per script: the most informative word and ending features (%s), by FNV-1a hash" % ", ".join(
+               "%d for slot %d" % (KEEP[k], k) for k in sorted(KEEP)),
            "// of the feature, each with round(%d ln p) per language of the script." % SCALE,
            "#pragma once",
            "#include <cstdint>",

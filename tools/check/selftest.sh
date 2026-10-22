@@ -27,8 +27,18 @@ WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-invariant-selftest
 K=app/src/main/java/com/sachinbaria/easyvoice
 
 rm -rf "$WORK"
-cp -r "$ROOT" "$WORK"
-cd "$WORK"
+# Everything below commits, checks out and cleans IN THE COPY. If the copy or
+# the cd fails, carrying on does all of that in whatever directory the caller
+# ran from -- on 2026-10-22 that was the real repo, where it committed the
+# working tree as "selftest base" (EV_WORK named a directory that did not exist
+# yet). So stop instead, and never run in the repo itself. The copy leaves out
+# tools/.cache and the build outputs (6+ GB of SDK, Gradle and caches the
+# checks never read).
+mkdir -p "$WORK" &&
+  (cd "$ROOT" && tar --exclude=./tools/.cache --exclude=./build --exclude=./.gradle \
+     --exclude=./app/build --exclude=./baselineprofile/build -cf - .) | (cd "$WORK" && tar -xf -) &&
+  cd "$WORK" && [ "$(pwd -P)" != "$(cd "$ROOT" && pwd -P)" ] || {
+  echo "selftest: could not make or enter the scratch copy $WORK -- stopping"; exit 1; }
 git add -A >/dev/null 2>&1
 git -c user.name=selftest -c user.email=selftest@local commit -q -m "selftest base" >/dev/null 2>&1
 

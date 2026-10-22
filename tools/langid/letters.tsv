@@ -1,6 +1,7 @@
 # Learned by tools/langid/train_nb.py from the same texts as nb_model.tsv -- do not
 # edit. slot<TAB>language<TAB>other<TAB>letters the language writes in at least
 # 0.005 of its texts and the other in at most 2e-05 of its texts.
+2	ru	uk	ё
 2	ru	bg	Э
 2	ru	sr	Ящё
 2	uk	ru	ЄІєіїґ
