@@ -4,8 +4,8 @@
     train_nb.py learn cases.tsv      learn tools/langid/nb_model.tsv and
                                      letters.tsv from tools/.cache/langtrain
                                      (fetch_train.sh) and the TUNE half of the
-                                     suite's cases, keeping the KEEP[slot] most
-                                     informative features per script
+                                     suite's cases, keeping every feature a
+                                     language's texts held (KEEP None, MINC 1)
     train_nb.py eval cases.tsv pipeline.tsv
                                      precision and coverage on the suite's
                                      TEST half and on FLORES-200 devtest
@@ -54,7 +54,7 @@ GROUPS = collections.OrderedDict([
 SLOT = {L: s for s, ls in GROUPS.items() for L in ls}
 NTEXT = 150000        # learning texts per language (the same for every language of a group)
 ALPHA = 0.5
-MINC = 3              # a feature some language holds fewer times than this in total is dropped
+MINC = 1              # a feature some language holds fewer times than this in total is dropped (KEEP)
 SUFFIXES = 3
 # the blocks whose letters and marks make words; everything else separates them
 BLOCKS = [(0x0041, 0x052F), (0x0600, 0x06FF), (0x0750, 0x077F), (0x08A0, 0x08FF), (0x0900, 0x09FF),
@@ -288,9 +288,10 @@ def learn(cases):
     learn_letters(texts)
     with open(MODEL, "w", encoding="utf-8") as out:
         out.write("# Learned by tools/langid/train_nb.py learn -- do not edit. Per script slot:\n")
-        out.write("# n<TAB>slot<TAB>texts per language, then feature<TAB>slot<TAB>texts holding it\n")
-        out.write("# per language (GROUPS order). Sources: Wikipedia (CC BY-SA 4.0), Tatoeba (CC BY\n")
-        out.write("# 2.0 FR), Common Voice (CC0), AOSP UI strings (Apache 2.0), the UDHR.\n")
+        out.write("# n<TAB>slot<TAB>texts per language, then feature<TAB>slot<TAB>language:texts\n")
+        out.write("# holding it for each language (GROUPS index) that held it. Sources: Wikipedia\n")
+        out.write("# (CC BY-SA 4.0), Tatoeba (CC BY 2.0 FR), Common Voice (CC0), AOSP UI strings\n")
+        out.write("# (Apache 2.0), the UDHR.\n")
         for slot, langs in GROUPS.items():
             n = min(len(texts[L]) for L in langs if texts[L]) if any(texts[L] for L in langs) else 0
             counts = collections.defaultdict(lambda k=len(langs): [0] * k)
@@ -303,7 +304,7 @@ def learn(cases):
             for f in sorted(counts):
                 c = counts[f]
                 if sum(c) >= MINC and min(c) * 4 < max(c):    # held by some, and not the same everywhere
-                    out.write("%s\t%d\t%s\n" % (f, slot, ",".join(map(str, c))))
+                    out.write("%s\t%d\t%s\n" % (f, slot, sparse(c)))
                     kept += 1
             print("slot %d: %d texts per language, %d features kept of %d" % (slot, n, kept, len(counts)), file=sys.stderr)
     prune()
@@ -546,9 +547,9 @@ def ortho_decide(ot, nbtab, slot, text, cands, detectors=None):
     when some word's letters allow the best language alone (a Pashto letter, an
     Arabic ة, "كتاب" against Urdu): then a language whose words' letters cost it
     ORTHO_M or more more than the best is ruled out, unless the word-and-ending
-    model puts it kNbMargin above that best, or (detectors = (CLD2's answer, the
-    model's top), the final decision only, every candidate one the model knows)
-    CLD2, the model and the word-and-ending model all name it: then the text is
+    model puts it kNbMargin above that best, or (detectors = (the model's top,
+    the model's top), the final decision only, every candidate one the model
+    knows) the model and the word-and-ending model both name it: then the text is
     that language spelled with another's letters. A best no word attests alone
     wins only because it writes everyone's letters (Pashto writes both ي and ی:
     a Persian sentence quoting Arabic is not Pashto) -- nothing is ruled out.
@@ -681,6 +682,24 @@ def ortho_segment(ot, nbtab, slot, text, cands):
     return sorted(toks[g][1] for g in cuts)
 
 
+def sparse(c):
+    """a feature's counts as nb_model.tsv keeps them: index:count for each
+    language that held it (most of the two million features were held by one)"""
+    return ",".join("%d:%d" % (i, x) for i, x in enumerate(c) if x)
+
+
+def dense(field, k):
+    """the counts back, one per language of the script (an older file's plain
+    list of k counts reads too)"""
+    if ":" not in field:
+        return [int(x) for x in field.split(",")]
+    c = [0] * k
+    for item in field.split(","):
+        i, x = item.split(":")
+        c[int(i)] = int(x)
+    return c
+
+
 def load(keep=None):
     model = {}
     ntext = {}
@@ -688,11 +707,10 @@ def load(keep=None):
         if line.startswith("#"):
             continue
         f, slot, c = line.rstrip("\n").split("\t")
-        c = [int(x) for x in c.split(",")]
         if f == "n":
-            ntext[int(slot)] = c
+            ntext[int(slot)] = [int(x) for x in c.split(",")]
         else:
-            model.setdefault(int(slot), {})[f] = c
+            model.setdefault(int(slot), {})[f] = dense(c, len(GROUPS[int(slot)]))
     if keep:
         for slot in model:
             ranked = sorted(model[slot], key=lambda f: -value(model[slot][f], ntext[slot]))
@@ -727,16 +745,17 @@ def evaluate(cases, pipeline):
     rows = []
     for line in open(pipeline, encoding="utf-8"):
         f = line.rstrip("\n").split("\t")
-        s, label, cls, split, cld2 = f[:5]
+        # pipeline.tsv: set label class split model fallback cands blend text ctxmap
+        s, label, cls, split, top = f[:5]
         if split != "test" or label not in SLOT:
             continue
         cands = [L for L in s.split("+") if SLOT.get(L) == SLOT[label]]
         if len(cands) > 1:
-            rows.append((label, cands, f[10], cls, cld2))
+            rows.append((label, cands, f[8], cls, top))
     for L in SLOT:          # FLORES devtest: every other language of the group a candidate
         for t in flores(L, "devtest"):
             rows.append((L, GROUPS[SLOT[L]], t, "flores", ""))
-    res = [(label, cls, cld2) + decide(model, ntext, SLOT[label], t, cands) for label, cands, t, cls, cld2 in rows]
+    res = [(label, cls, top) + decide(model, ntext, SLOT[label], t, cands) for label, cands, t, cls, top in rows]
     for name, keep in (("suite test", lambda r: r[1] != "flores"), ("FLORES devtest", lambda r: r[1] == "flores")):
         sub = [r for r in res if keep(r)]
         print("== %s: %d texts" % (name, len(sub)))
@@ -747,25 +766,50 @@ def evaluate(cases, pipeline):
                 T, 100.0 * len(dec) / len(sub), 100.0 * (len(dec) - wrong) / max(1, len(dec)), wrong))
 
 
-# features kept per script for the app (the most informative): more where more
-# languages share the script. Chosen on the suite's held-out half (the
-# word-and-ending model learned with Android's UI text, no context): 20,000
-# everywhere 96.04%; 30,000 96.36; 40,000 96.53; 60,000 96.74; 100,000 96.91;
-# this split 96.64% at 0.86 MB more per ABI than 20,000 everywhere
-KEEP = {1: 60000, 2: 40000, 3: 30000, 4: 40000, 6: 20000}
+# How many features the app holds per script. Measured with the research mirror
+# of combine.py (no context) on the suite's held-out half, then with the halves
+# swapped (the tune half becomes the test half):
+#   the most informative 60k Latin, 40k Cyrillic/Devanagari, 30k Arabic,
+#   20k Bengali (MINC 3, 1.68 MB of tables per ABI)    96.64% / 96.35%
+#   100,000 per script (4.0 MB)                        96.91  / 96.52
+#   every feature held 3+ times (5.46 MB)              96.92  / 96.64
+#   every feature held 2+ times (7.74 MB)              96.95  / 96.66
+#   every feature held at all, MINC 1 (16.32 MB)       97.01  / 96.72
+# The more the model holds, the more often it is right, on both halves. The
+# owner (2026-10-27): the most accurate model, whatever its size. So every
+# feature is kept: None.
+KEEP = None
 
 
 def prune():
     """keep in nb_model.tsv only what the app holds: the KEEP most informative
-    features per script"""
+    features per script (every one when KEEP is None) and, of features whose
+    FNV-1a hashes collide in a script, only the most informative (the app finds
+    a feature by its hash; with every feature kept a script holds up to half a
+    million, and some 30 pairs of them share a 32-bit hash)"""
     model, ntext = load(KEEP)
+    dropped = 0
+    for slot, feats_ in model.items():
+        by_hash = {}
+        for f in sorted(feats_):
+            h = fnv(f)
+            o = by_hash.get(h)
+            if o is None:
+                by_hash[h] = f
+            else:
+                dropped += 1
+                if value(feats_[f], ntext[slot]) > value(feats_[o], ntext[slot]):
+                    by_hash[h] = f
+        model[slot] = {f: feats_[f] for f in by_hash.values()}
+    print("nb_model.tsv: %d features dropped for a hash another, more informative one holds" % dropped,
+          file=sys.stderr)
     lines = [l for l in open(MODEL, encoding="utf-8") if l.startswith("#")]
     with open(MODEL, "w", encoding="utf-8") as f:
         f.writelines(lines)
         for slot in GROUPS:
             f.write("n\t%d\t%s\n" % (slot, ",".join(map(str, ntext[slot]))))
             for feat in sorted(model.get(slot, {})):
-                f.write("%s\t%d\t%s\n" % (feat, slot, ",".join(map(str, model[slot][feat]))))
+                f.write("%s\t%d\t%s\n" % (feat, slot, sparse(model[slot][feat])))
     print("nb_model.tsv: %d features" % sum(len(v) for v in model.values()), file=sys.stderr)
 SCALE = 8             # stored log-probabilities are round(SCALE * ln p)
 
@@ -779,8 +823,8 @@ def fnv(text):
 
 def shipped():
     """The table the app holds: per slot, (hash -> per-language quantized log p),
-    for the KEEP[slot] most informative features. Python's scoring and the C++'s
-    read the same table, so they decide alike."""
+    for every feature nb_model.tsv holds (prune: KEEP). Python's scoring and the
+    C++'s read the same table, so they decide alike."""
     model, ntext = load(KEEP)
     table = {}
     for slot, feats_ in model.items():
@@ -808,11 +852,24 @@ def qscores(table, slot, text, cands):
     return s
 
 
+# each byte as a C string literal holds it: printable ASCII as itself, any
+# other byte (and " \\ ?, which a literal or a trigraph would read otherwise)
+# as a three-digit octal escape, which never swallows the digit after it
+_C_BYTE = [chr(b) if 32 <= b < 127 and b not in (34, 63, 92) else "\\%03o" % b for b in range(256)]
+
+
+def c_bytes(data, width):
+    """data as the lines of one C string literal, `width` bytes a line"""
+    if not data:
+        return ['    ""']
+    return ['    "%s"' % "".join(map(_C_BYTE.__getitem__, data[i:i + width])) for i in range(0, len(data), width)]
+
+
 def header():
     table = shipped()
     out = ["// Generated by tools/langid/train_nb.py header from tools/langid/nb_model.tsv -- do not edit.",
-           "// Per script: the most informative word and ending features (%s), by FNV-1a hash" % ", ".join(
-               "%d for slot %d" % (KEEP[k], k) for k in sorted(KEEP)),
+           "// Per script: every word and ending feature learned (%s), by FNV-1a hash" % ", ".join(
+               "%d for slot %d" % (len(table.get(k, {})), k) for k in GROUPS),
            "// of the feature, each with round(%d ln p) per language of the script." % SCALE,
            "#pragma once",
            "#include <cstdint>",
@@ -836,18 +893,30 @@ def header():
         out.append("    " + " ".join("{0x%X,0x%X}," % p for p in low[i:i + 8]))
     out.append("};")
     out.append("static const int kNbLowerCount = %d;" % len(low))
+    # The tables are string literals, not lists of numbers: a compiler reads two
+    # million numbers in half a minute and a string in a second or two (every
+    # feature kept, 2026-10-27). kNbHash<slot>: the hashes ascending, four bytes
+    # each, most significant first; kNbLogp<slot>: per feature and language
+    # -round(8 ln p), 0..127.
+    out.append("// kNbHash<slot>: each feature's FNV-1a hash, ascending, four bytes most significant first;")
+    out.append("// kNbLogp<slot>: per feature, per language of the script, -round(%d ln p) (0..127)." % SCALE)
+    out.append("static inline uint32_t nbHashAt(const unsigned char* hash, int i) {")
+    out.append("    const unsigned char* p = hash + (size_t)i * 4;")
+    out.append("    return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | (uint32_t)p[3];")
+    out.append("}")
+    out.append("static inline int nbLogpAt(const unsigned char* logp, size_t k) { return -(int)logp[k]; }")
     for slot, langs in GROUPS.items():
         t = table.get(slot, {})
         hs = sorted(t)
         out.append("static const char* const kNbLangs%d[] = {%s};" % (slot, ", ".join('"%s"' % L for L in langs)))
-        out.append("static const uint32_t kNbHash%d[%d] = {" % (slot, len(hs)))
-        for i in range(0, len(hs), 10):
-            out.append("    " + ",".join("0x%08X" % h for h in hs[i:i + 10]) + ",")
-        out.append("};")
-        out.append("static const int8_t kNbLogp%d[%d] = {" % (slot, len(hs) * len(langs)))
-        for i in range(0, len(hs), 6):
-            out.append("    " + " ".join(",".join(str(x) for x in t[h]) + "," for h in hs[i:i + 6]))
-        out.append("};")
+        out.append("static const unsigned char kNbHash%d[] =" % slot)
+        out.extend(c_bytes(b"".join(h.to_bytes(4, "big") for h in hs), 64))
+        out.append(";")
+        out.append('static_assert(sizeof(kNbHash%d) == %d, "kNbHash%d");' % (slot, 4 * len(hs) + 1, slot))
+        out.append("static const unsigned char kNbLogp%d[] =" % slot)
+        out.extend(c_bytes(bytes(-x for h in hs for x in t[h]), 96))
+        out.append(";")
+        out.append('static_assert(sizeof(kNbLogp%d) == %d, "kNbLogp%d");' % (slot, len(hs) * len(langs) + 1, slot))
     # letters: per slot, each letter with the (language, other) pairs it decides, as bit
     # (language index * 8 + other index) of a 64-bit mask; the rare letters (which only
     # keep the context away from `other`) the same way
@@ -885,7 +954,7 @@ def header():
     for name, marks in (("kOrthoSent", ORTHO_SENT), ("kOrthoStrong", ORTHO_STRONG)):
         cps = sorted(ord(c) for c in marks)
         out.append("static const uint32_t %s[%d] = {%s};" % (name, len(cps), ", ".join("0x%X" % c for c in cps)))
-    out.append("struct NbModel { const char* const* langs; int nLangs; const uint32_t* hash; const int8_t* logp; int n;"
+    out.append("struct NbModel { const char* const* langs; int nLangs; const unsigned char* hash; const unsigned char* logp; int n;"
                " const uint64_t (*letters)[2]; int nLetters; const uint64_t (*rare)[2]; int nRare;"
                " const OrthoLetter* ortho; int nOrtho; };")
     out.append("static inline bool nbModel(int slot, NbModel* m) {")

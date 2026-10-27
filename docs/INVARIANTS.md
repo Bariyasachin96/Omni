@@ -1296,14 +1296,22 @@ held-out half; where only one enabled language writes a script none of them runs
   ...) in FRONT of the learning texts; Tatoeba, Common Voice and Wikipedia fill the rest by
   hash. Wikipedia hardly writes "वापरकर्ता", "पर्याय", "करा" or "Penghemat"; a screen reader
   reads them all day. The suite's own three files are NOT learned beyond its tune half:
-  their other strings are the test's neighbours. KEEP is per script (60k Latin, 40k
-  Cyrillic and Devanagari, 30k Arabic, 20k Bengali): +0.86 MB per ABI. Held-out 96.1 ->
-  96.7%.
+  their other strings are the test's neighbours. Held-out 96.1 -> 96.7%. Since 2026-10-27
+  the model keeps EVERY feature its texts held (`MINC` 1, `KEEP` None: 1,975,918; 92 whose
+  32-bit FNV-1a hash a more informative feature holds are dropped): more was more often
+  right on both halves of the held-out text (the old 60k/40k/30k/40k/20k 96.64 / 96.35%,
+  every feature 97.01 / 96.72), held-out 97.1%. Its tables are string literals (four bytes a
+  hash, most significant first; -round(8 ln p) a language), which a compiler reads in two
+  seconds where two million numbers took half a minute; nb_model.tsv keeps the counts
+  sparse (`language:count`).
 - **The context is overruled at 8 nats, not 6** (`kCtxMargin`). The surer model put
   "Data" after English text into Indonesian; at 8 nats the stream whose last sure language
   is the text's own reads 99.85% (HEAD 99.78%), and with another one at P 0.1 / 0.3 / 0.5
   98.72 / 96.55 / 94.31% (HEAD 98.63 / 96.45 / 94.16): better at every P. combine.py reads
-  the constant from langblend.h, so the mirror cannot drift from it.
+  the constant from langblend.h, so the mirror cannot drift from it. **9 nats since
+  2026-10-27**: the every-feature model adds more of one word's endings together; at 8 nats
+  it read 99.82 / 98.82 / 96.92 / 94.98%, at 9 nats 99.85 / 98.76 / 96.68 / 94.56% -- the
+  smallest margin at or above the 8-nat model of 2026-10-22 at every P.
 - **A piece before the first sure piece of its script in an utterance takes that piece's
   language as its context** (`nameSpanTexts`, `blendWithContext`), not the last utterance's;
   from the first sure piece on the context is the last sure one, as always. A title the

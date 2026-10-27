@@ -8,7 +8,52 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE WORD-AND-ENDING MODEL LEARNS ANDROID'S OWN UI TEXT; A MESSAGE'S FIRST SURE SENTENCE NAMES THE ONES BEFORE IT (owner, 2026-10-22, latest)
+## THE WORD-AND-ENDING MODEL HOLDS EVERY FEATURE IT LEARNED; ML KIT'S OWN MODEL IS UNCHANGED (owner, 2026-10-27, latest)
+*"agar Bada model accurate Hai To properly accuracy ke liye Bada model Bhale Hi Bada Ho but accuracy Mujhe complete
+chahie"*, then *"ml kit ka Bada model ki hi baat kar raha hun"*. Runs only where 2+ ENABLED languages share a script;
+the owner's {hi,en,gu} hears nothing new (corebytes vs HEAD 0 of 895,440).
+- **ML Kit's own model has ONE size**: language-id 17.0.6's graph (langid_model.h, 0.33 MB) is used whole; Google
+  ships no bigger one. What has sizes is the word-and-ending model beside it, and that is the one made biggest.
+- **Measured first** (research mirror, no context, the suite's held-out half, then the halves swapped): the shipped
+  60k/40k/30k/40k/20k (MINC 3, 1.68 MB) 96.64 / 96.35%; 100k per script (4.0 MB) 96.91 / 96.52; every feature held
+  3+ times (5.46 MB) 96.92 / 96.64; 2+ (7.74 MB) 96.95 / 96.66; **every feature (MINC 1, 16.32 MB) 97.01 / 96.72**.
+  More is more often right on both halves, so `train_nb.py` MINC 1, KEEP None: 1,975,918 features (364,547 Latin,
+  429,094 Cyrillic, 509,952 Arabic, 395,282 Devanagari, 277,043 Bengali); 92 dropped where a more informative one
+  holds the same 32-bit FNV-1a hash (`prune()`).
+- **Files**: langnb.h (35.7 MB) holds the tables as C string literals (4 bytes a hash, most significant first;
+  -round(8 ln p) per language; `nbHashAt`/`nbLogpAt`): two million numbers took clang 30+ s, the strings ~2 s.
+  nb_model.tsv is sparse (`language:count`, 49.1 MB, under GitHub's 50 MB warning); `load()` reads both forms.
+  `train_nb.py eval` fixed on the way (it still read pipeline.tsv's columns from before 2026-10-21).
+- **Retuned with it**: kBlendC Devanagari 5.00 -> **8.00** (combine.py's tune half picks it); **kCtxMargin 8 -> 9
+  nats** (72): the stream at P 0 / 0.1 / 0.3 / 0.5 reads 99.82 / 98.82 / 96.92 / 94.98% at 8, 99.85 / 98.76 / 96.68
+  / 94.56 at 9 -- the smallest margin at or above the 2026-10-22 model (99.85 / 98.72 / 96.55 / 94.31) at every P.
+- **Measured.** Suite held-out 35,212, no context: **96.7 -> 97.1%** (104 broke / 224 fixed): Android UI 95.9 -> 96.4,
+  Tatoeba 98.1 -> 98.3, short 92.8 -> 93.8, UDHR 96.3 -> 96.6; hi (hi+mr+ne) 98.6 -> 99.5, mr 94.7 -> 95.1, ne 95.9 ->
+  96.3; bg 97.7 -> 98.6, sr 95.2 -> 96.5, uk 98.0 -> 98.1; ur (5 Arabic) 98.2 -> 98.9, fa 98.5 -> 98.9; as 97.9 ->
+  98.7; es 96.4 -> 96.8, it 94.8 -> 95.1, id 84.9 -> 85.3, ms 80.6 -> 81.9; lost: en (en+id+ms) 98.5 -> 98.4, ru
+  (ru+uk) 98.1 -> 98.0, bn 99.4 -> 99.3. C++ == Python 0 of 140,291 blend + 0 of 466,362 context. The model alone,
+  sure at 10 nats (kNbMargin 80): 81.9% of the suite's multi-language test rows at 99.965%, FLORES devtest 96.2% at
+  99.980%.
+- **What got slightly worse, plainly**: auto mode over the whole suite (`tools/verify/automode`, a stream grouped by
+  language, so the context is nearly always right): en+id+ms 99.54 -> 99.32%, Android UI 99.83 -> 99.80, es/fr/de/
+  pt/it 99.36 -> 99.33, ru/uk/bg/sr 99.92 -> 99.90; Arabic-script, Devanagari and Tatoeba equal. Cause: one word's
+  features add up ("Data": "wdata", "1a", "2ta", "3ata" all say Indonesian/Malay, and the English learning texts --
+  short Tatoeba/CV sentences -- seldom end in -a), so the surer model overrules a right context more often. Tried and
+  worse: kNbMargin 96/112 (en+id+ms 99.16 at 112), every feature 3+ and 100k per script (the same pattern, less
+  held-out accuracy).
+- **Proof**: mixedscript ALL PASS (one-language read in two 0; C++ cuts == Python 0 of 56,562); allchars 464,866 /
+  0 wrong / 0 dropped / 0 split; allscripts 62/0; devanagari 64/64; latency 10,620 chars 0.65 ms one call; warmtables
+  PASS (the read-only image is 4,146 pages, was 358: first read of every page 6.85 ms cold, 0.18 ms advised; the
+  re-warm brings all 4,146 back); PGO --update ALL PASS (917,376 plain == PGO, both ABIs, ASan+UBSan clean);
+  check-all ALL PASS (langnb.h current, compile 0/0, lint No issues); selftest EVERY CHECK FIRES.
+- **Size, measured** (the core with the NDK's clang, shipped flags + PGO): arm64 2,249,344 -> **16,885,584** bytes,
+  armeabi-v7a 2,222,260 -> **16,858,404** (+14.6 MB each; gzip -9 1.51 -> 9.63 MB). The library is stored
+  uncompressed in the APK: build 987's APKs (arm64 4,143,923, v7a 4,084,440, universal 6,378,706) become about
+  **18.8 / 18.7 / 35.7 MB**.
+- **Next**: task #20 continues -- the auto-mode Latin loss above (one word's features counted as independent
+  evidence) is the next thing to measure.
+
+## THE WORD-AND-ENDING MODEL LEARNS ANDROID'S OWN UI TEXT; A MESSAGE'S FIRST SURE SENTENCE NAMES THE ONES BEFORE IT (owner, 2026-10-22)
 *"Jahan se kam baki tha vahan se continue karo"* -- task #20, the owner's 100% (2026-10-21). Runs only where 2+
 ENABLED languages share a script; the owner's {hi,en,gu} hears nothing new (corebytes vs HEAD 0 of 895,440).
 - **Measured and DROPPED** (research mirror of combine.py, suite held-out half, no context, base 95.87%): Devanagari

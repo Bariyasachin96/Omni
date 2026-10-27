@@ -35,10 +35,14 @@ target_link_libraries(easyvoice ${log-lib})
 # verified with `nm -D --defined-only`, all seven still exported after stripping.
 #
 # WHAT THE LIBRARY IS MADE OF (2026-10-21, CLD2 gone): the model ML Kit runs
-# (~0.33 MB), the word-and-ending model (~0.82 MB), the Unicode tables and the
-# core's own code. The 6.1 MB of CLD2's quadgram tables that were 95% of the
-# library before -- and that no flag or compression could shrink (measured
-# 2026-09-09: deflate took 25%, xz 33%) -- are gone with it.
+# (~0.33 MB), the word-and-ending model, the Unicode tables and the core's own
+# code. The 6.1 MB of CLD2's quadgram tables that were 95% of the library
+# before -- and that no flag or compression could shrink (measured 2026-09-09:
+# deflate took 25%, xz 33%) -- are gone with it. The word-and-ending model
+# holds EVERY feature it learned since 2026-10-27 (16.32 MB of tables, the
+# owner's choice: the most accurate model, whatever its size); measured with
+# the shipped flags + PGO, arm64 2,249,344 -> 16,885,584 bytes, armeabi-v7a
+# 2,222,260 -> 16,858,404 (gzip -9: 1.51 -> 9.63 MB).
 #
 # --gc-sections pairs with the -ffunction-sections/-fdata-sections in
 # build.gradle.kts; --strip-all removes .symtab and .strtab only, and every

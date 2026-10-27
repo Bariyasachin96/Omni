@@ -198,10 +198,14 @@ static inline bool nbScore(int slot, const char* text, int bytes, const std::vec
     nbFeatures(text, bytes, f);
     score.assign(cands.size(), 0);
     for (uint32_t h : f) {
-        const uint32_t* p = std::lower_bound(m.hash, m.hash + m.n, h);
-        if (p == m.hash + m.n || *p != h) continue;
-        const int8_t* v = m.logp + (size_t)(p - m.hash) * m.nLangs;
-        for (size_t j = 0; j < idx.size(); j++) score[j] += v[idx[j]];
+        int lo = 0, hi = m.n;                       // the first feature whose hash is not below h
+        while (lo < hi) {
+            const int mid = lo + (hi - lo) / 2;
+            if (nbHashAt(m.hash, mid) < h) lo = mid + 1; else hi = mid;
+        }
+        if (lo == m.n || nbHashAt(m.hash, lo) != h) continue;
+        const size_t at = (size_t)lo * m.nLangs;
+        for (size_t j = 0; j < idx.size(); j++) score[j] += nbLogpAt(m.logp, at + idx[j]);
     }
     return true;
 }
@@ -216,7 +220,7 @@ static const float kBlendC[7] = {
     1.00f,   // 1 Latin
     1.50f,   // 2 Cyrillic
     0.75f,   // 3 Arabic
-    5.00f,   // 4 Devanagari
+    8.00f,   // 4 Devanagari
     0.00f,   // 5 Han and kana (no word-and-ending model)
     0.00f,   // 6 Bengali (Assamese has no model label: the word-and-ending model decides)
 };
@@ -756,7 +760,7 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
 // A text that proves nothing ("ब्लूटूथ", "प्रस्तावना", "تمام": the same in two
 // enabled languages) takes the language of the last text of its script that
 // did prove one -- the screen or the message being read -- unless the
-// word-and-ending model puts its own pick at least kCtxMargin (8 nats, 3,000 to
+// word-and-ending model puts its own pick at least kCtxMargin (9 nats, 8,100 to
 // 1) above that language, or the span holds a letter its own answer writes
 // and that language practically never does (BlendResult::veto). One per
 // script slot, shared by every caller.
@@ -768,7 +772,14 @@ static inline BlendResult blendDetectors(int slot, const char* text, int bytes,
 // 95.22%; 8 nats 99.85 / 98.72 / 96.55 / 94.31 -- above the earlier model at 6
 // nats (99.78 / 98.63 / 96.45 / 94.16) at every one; 10 nats 99.90 / 98.55 /
 // 95.98 / 93.38.
-static const int kCtxMargin = 64;
+// 9 nats since 2026-10-27 (was 8): the model now holds EVERY feature it
+// learned (langnb.h), so one word's endings ("1a", "2ta", "3ata" beside "wdata")
+// add up to more nats than before. Same measure, every-feature model: 8 nats
+// 99.82 / 98.82 / 96.92 / 94.98; 9 nats 99.85 / 98.76 / 96.68 / 94.56 -- the
+// smallest margin at which it is at or above the 2026-10-22 model at 8 nats at
+// every one. Auto mode over the whole suite (tools/verify/automode) at 9 nats:
+// en+id+ms 99.54 -> 99.32%, Android UI 99.83 -> 99.80, the rest equal or 0.03.
+static const int kCtxMargin = 72;
 static std::mutex gBlendContextMutex;
 static std::string gBlendContext[7];
 
