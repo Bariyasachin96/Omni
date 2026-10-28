@@ -8,7 +8,42 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## ML KIT IS THE LANGUAGE IDENTIFIER; THE APP KEEPS NO MODEL OF ITS OWN (owner, 2026-10-28, latest)
+## EACH LANGUAGE TO ITS OWN VOICE INSIDE A SHARED SCRIPT: WORD BY WORD, CONTEXT FOR LETTERS (owner, 2026-10-28, latest)
+*"Urdu ke liye alag TTS ... Arabic ke liye bhi alag ... multi language Mod"*, then *"jo bhi language Ke Jo Bhi
+characters ho ... Jo TTS set kara hai use TTS ke pass hi Jana chahie Ek single character bhi"* and *"100% ... Bhale hi
+FIR uski lipiyan ... sem ... accurate result chahie 100%"*. Still ML Kit + Unicode only, no model of ours (#16).
+The cause of "only the Arabic voice reads": ML Kit names ONE language for a whole text, and a script shared by 2+
+enabled languages was one decision per sentence -- an Urdu sentence and an Arabic one in one message got one voice.
+- **`nameSharedScript` (INVARIANTS #35)**: (1) every word of the script asked of ML Kit (cached), a Viterbi path
+  (0.5 x ln p per word; a change costs 4 between words, 0.5 after ؛ ؟ ۔ । . ! ? newline ...); (2) each stretch named
+  by ML Kit on its whole text, neighbours kept apart only when both are confirmed (e^2.3); (3) **context**: one
+  stretch ML Kit is not sure of (sure = 3+ letters, 0.9+, e^4 ahead; one word only at 0.99) takes the language its
+  script was last read in (`scriptContext`: the last text of 2+ words or a sure one; per script; a new language list
+  clears it) unless ML Kit leads it by e^3 (2+ words, or one word at 0.95); (4) **certain words**: a word ML Kit
+  gives 0.99 (2+ letters) is read in that language even inside another's sentence (the sentence keeps its name).
+  Mix and multilingual mode (the span path); auto/Google mode's window detector is unchanged.
+- **Why context, and why not ML Kit for letters, measured:** ML Kit on single letters is noise -- "ب" zh 0.885,
+  "ع" names neither Urdu nor Arabic, "ل" ar 0.920 (a letter Urdu writes too); on short words it errs (Urdu "اقوامِ"
+  ar 0.69, Marathi "मध्ये" hi 0.59). Even ML Kit's SURE answers on whole texts are wrong 0.75% of the time (Russian
+  "Хранилище устройства" bg 0.992, Nepali "तिमीले खाना खायौ?" hi 0.986). A letter has no language; the text it came
+  from does.
+- **Measured** (scratch tuners over the suite's held-out texts; the owner's {hi,en,gu} never reaches this code):
+  mixed pairs (two texts of two languages) both right 0% -> 58.4%, **Urdu+Arabic 0 -> 88.6%**; one-language texts
+  read in two 0 -> 0.63% (**Urdu/Arabic 0**); a stream read one after another, right for whole texts / their words
+  one by one / their letters one by one: all sets P(change) 0: 93.3/76.2/44.7 -> 98.9/98.9/99.1, P 0.1:
+  91.1/70.3/45.6 -> 95.3/95.1/95.0, P 0.5: 91.1/68.9/44.6 -> 88.7/94.3/90.0; **Urdu+Arabic P 0: 99.7/97.5/95.2 ->
+  100/100/100**, P 0.5: 99.0/89.7/68.5 -> 97.4/99.7/99.0. One Arabic word inside an Urdu sentence: its own voice
+  19.8% (when ML Kit is 0.99 sure), the rest of the sentence untouched 99.2% (as before).
+- **What stays wrong, plainly:** a short text right after the language changed (Arabic label "الإعدادات" right after
+  Urdu text is read in Urdu: ML Kit gives it only 0.84); a text written the same in two languages has no language;
+  Assamese beside Bengali (ML Kit has no Assamese); ML Kit's own confusions of close languages on short texts
+  (Indonesian/Malay, Hindi/Marathi/Nepali). "Quick character read" ON sends a lone character to the preferred voice
+  by its own definition -- keep it OFF for per-letter voices.
+- **Proof:** urar probe through the real processDirect: Urdu۔ Arabic. -> ur|ar; no separator -> ur|ar; Urdu with an
+  Arabic quote -> ur|ar|ur; one Arabic word ("المهمة") inside Urdu -> its own voice; every word and letter of an
+  Urdu then an Arabic sentence read one by one -> 100% its own voice. devanagari 63/64 (was 62; Assamese the one).
+
+## ML KIT IS THE LANGUAGE IDENTIFIER; THE APP KEEPS NO MODEL OF ITS OWN (owner, 2026-10-28)
 *"Main original ml kit use karna chahta hun ... directly Gradle mein ... Kotlin mein ... yah model wala ... bahut
 bada ho jata hai"*, then *"Hamen koi model rakhna hi nahin ... ML Kit use karenge har jagah ... aur Unicode use
 karenge ... yah sab model yah sab jhanjhat hi nahin rakhenge"*. **The sections below that describe the word-and-
@@ -25,8 +60,8 @@ Do NOT bring any of them back: `invariants.sh` #16 fails on a model header or fu
   the most (identifyPossibleLanguages, default 0.01), else scriptLanguageFallback (AutoTTS's); a span of a shared
   script none enabled writes -> ML Kit's most likely of that script, else "un"; an auto/Google window -> ML Kit's
   most likely among languages that write the window's letters, 2+ enabled of that script -> the most of them
-  (UNKNOWN if none), else only at ML Kit's 0.5. One script, one sentence, one decision (#35) stays: runs of a shared
-  script in one sentence are joined and asked once. No context, no cuts inside.
+  (UNKNOWN if none), else only at ML Kit's 0.5. (The "one script, one sentence, one decision" rule that stood here
+  was replaced the same day by word-by-word naming + context: section above, #35.)
 - **The call:** Gradle `com.google.mlkit:language-id:17.0.6` (catalog `mlkitLanguageId`); Kotlin
   `EasyVoiceTtsService.mlkitIdentify(text)` (one lazy client; Tasks.await, never on main; answers "tag
   confidence-in-millionths" lines, integers so no locale reads them; proguard keeps it); C++ `jniIdentify`, installed

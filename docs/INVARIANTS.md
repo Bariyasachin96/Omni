@@ -1205,17 +1205,31 @@ of ours on the owner's word (#16): *"koi model rakhna hi nahin ... yah sab jhanj
 rakhenge."* Two languages of one script with no sentence end between them are now read as
 one, in the language ML Kit gives that text the most.
 
-## 35. One script, one sentence, one decision
-2026-10-21, found the moment CLD2 left: mix mode cuts "Конгломерат Virgin приобрел ..." at
-every Latin word, and a lone "Конгломерат" is any Cyrillic language. So where two or more
-enabled languages share a script, `nameSpanTexts` names all runs of that script in one
-sentence of the utterance TOGETHER (processDirect's chunks are one utterance:
-`chunksSpansFlat`) -- joined into one text that ML Kit is asked about once, never cut
-because a word of another script stood between. A sentence end (`kSentenceEnd`: newline
-! . ; ? ؛ ؟ ۔ । ॥) between two runs still parts them. Since 2026-10-28 nothing cuts inside
-such a text (the orthographic cuts went, #34) and no context is applied (the first sure
-piece of an utterance named the ones before it until then): ML Kit's answer for the text
-is the answer.
+## 35. A shared script is named word by word, then by ML Kit on each stretch, then by context
+2026-10-28 (owner: "Urdu ke liye alag TTS ... Arabic ke liye bhi alag", then "jo bhi language
+Ke Jo Bhi characters ho ... Ek single character bhi"). Where two or more enabled languages
+write a script, `nameSharedScript` takes every word of that script in the utterance
+(processDirect's chunks together, `chunksSpansFlat`; a word of another script between them
+does not part them) and:
+1. **path**: a Viterbi over the words -- each adds 0.5 x ln p (ML Kit, one call per word,
+   cached), a change of language costs 4 between two words and 0.5 after a sentence end
+   (`kSentenceEnd`: newline ! . ; ? ؛ ؟ ۔ । ॥ 。 ！ ？). A lone word never moves a sentence's voice.
+2. **stretches**: each run of one path language is named by ML Kit on its WHOLE text; two
+   neighbours stay apart only when each one's own ML Kit answer puts its language e^2.3 ahead
+   of the other's, otherwise they are joined and named again together.
+3. **context**: a text that is one stretch and that ML Kit is NOT sure of (sure = 3+ letters,
+   0.9+, e^4 ahead; a single word only at 0.99) is read in the language its script was last
+   read in -- unless ML Kit puts its own answer e^3 ahead of that (on two words, or one word
+   at 0.95). The context is what the last text of two words or more, or a sure one, was read
+   in; one per script, cleared by a new language list (`scriptContext`). A letter or a lone
+   word never moves it: that is a text being read again a piece at a time.
+4. **certain words**: a word ML Kit gives 0.99 (2+ letters) is read in that language even
+   inside a sentence of another; the sentence keeps its own name.
+Do NOT go back to one decision per sentence (Urdu and Arabic in one message got one voice),
+let a lone word switch below 0.99 (ML Kit is right in 98.9% of the Urdu/Arabic words it
+gives 0.9; for Hindi/Marathi 93%), or decide a single letter by ML Kit ("ب" -> Chinese 0.885,
+"ل" -> Arabic 0.920 in Urdu text). What no rule can do, stated plainly: a text written the
+same in two languages ("ب", "من", "ब्लूटूथ") has no language of its own; the context names it.
 
 ## 36. Auto mode: a window is read in a language that writes its letters
 2026-10-21 (`detectWindowLangUncached`): ML Kit weighs all its languages at once, and on a

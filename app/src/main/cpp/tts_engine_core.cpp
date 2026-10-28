@@ -14,6 +14,7 @@
 #include <iterator>
 #include <atomic>
 #include <array>
+#include <cmath>
 #include "unicode_tables.h"   // generated from the Unicode Character Database
 // java.lang.String, looked up ONCE. Android's JNI tips: "cache the IDs in
 // JNI_OnLoad" -- FindClass is a class-loader lookup, and nativeGetLanguages
@@ -2100,9 +2101,14 @@ struct DetectCache {
     std::unordered_map<std::string, std::string> spans;         // script byte + span bytes -> language
     std::shared_ptr<const void> windowsEnabled;                 // the enabled set the window entries belong to
     std::unordered_map<std::string, std::string> windows;       // window bytes -> detectWindowLang's answer
+    std::unordered_map<std::string, std::vector<float>> shared; // script byte + bytes -> sharedAnswer's confidences
 };
 static const size_t kDetectCacheMax = 256;
 static DetectCache& detectCache(){ static thread_local DetectCache cache; return cache; }
+// The span and shared entries belong to one HintState; a new one drops them.
+static void syncSpanCache(DetectCache& cache, const std::shared_ptr<const void>& hints){
+    if(cache.spanHints != hints){ cache.spans.clear(); cache.shared.clear(); cache.spanHints = hints; }
+}
 // ML Kit's identifyLanguage answers a language only when it gives it at least
 // this confidence, "und" otherwise -- its documented default threshold
 // (LanguageIdentificationOptions). The window detector keeps the same rule.
@@ -2586,7 +2592,7 @@ static std::string nameRange(const char* bytes, int len, int script, const HintS
         while (detectBytes > 0 && ((unsigned char)bytes[detectBytes] & 0xC0) == 0x80) detectBytes--;
     }
     DetectCache& cache = detectCache();
-    if(cache.spanHints != hintState){ cache.spans.clear(); cache.spanHints = hintState; }
+    syncSpanCache(cache, hintState);
     std::string cacheKey;
     cacheKey.reserve((size_t)detectBytes + 1);
     cacheKey += (char)script;
@@ -2693,8 +2699,14 @@ static std::string nameRunAlone(const std::string& text, const ScriptRun& run, c
 }
 
 // The marks that end a sentence: newline ! . ; ?, the Arabic semicolon, question
-// mark and full stop (؛ ؟ ۔), the Devanagari danda and double danda (। ॥).
-static const uint32_t kSentenceEnd[] = {0xA, 0x21, 0x2E, 0x3B, 0x3F, 0x61B, 0x61F, 0x6D4, 0x964, 0x965};
+// mark and full stop (؛ ؟ ۔), the Devanagari danda and double danda (। ॥), the
+// ideographic full stop and the fullwidth ! and ? (。！？).
+static const uint32_t kSentenceEnd[] = {0xA, 0x21, 0x2E, 0x3B, 0x3F, 0x61B, 0x61F, 0x6D4, 0x964, 0x965,
+                                        0x3002, 0xFF01, 0xFF1F};
+static bool isSentenceEnd(uint32_t cp){
+    for (uint32_t mark : kSentenceEnd) if (cp == mark) return true;
+    return false;
+}
 // Whether a sentence ends between run `a` of text `ta` and run `b` of text `tb`
 // (tb >= ta, b after a): a mark of kSentenceEnd in the text between them, the
 // texts that lie between included.
@@ -2704,7 +2716,7 @@ static bool sentenceEndBetween(const std::vector<SpanText>& texts, size_t ta, si
             int32_t r;
             int used = utf8Decode((const unsigned char*)t.data() + i, to - i, &r);
             if (used <= 0) break;
-            for (uint32_t mark : kSentenceEnd) if ((uint32_t)r == mark) return true;
+            if (isSentenceEnd((uint32_t)r)) return true;
             i += (size_t)used;
         }
         return false;
@@ -2717,14 +2729,440 @@ static bool sentenceEndBetween(const std::vector<SpanText>& texts, size_t ta, si
     return scan(*texts[tb].text, 0, (size_t)rb.offset);
 }
 
-// ONE SCRIPT, ONE SENTENCE, ONE DECISION (2026-10-21). Every run is named --
-// and where two or more enabled languages share a script, its runs are named
-// TOGETHER: all of them in one sentence of the utterance, in every text of it
-// (processDirect's chunks are one utterance), joined into one text that ML Kit
-// is asked about once -- never cut just because a word of another script stood
-// between. A Russian sentence that names "ASUS Eee PC" or "Virgin" in Latin
-// letters is one Russian text, not "Серия " and a separate "серия ..." guessed
-// alone. A sentence end between two runs (kSentenceEnd) still parts them.
+// A word of a run: its bytes, whether a sentence end stands before its first
+// letter or after its last, and whether it holds a letter at all.
+struct RunWord { int start; int end; bool endBefore; bool endAfter; bool letters; };
+// The words of bytes [from, to) of `text`: cut at whitespace, and after a
+// sentence end that a letter follows with no space between ("ہے۔یہ").
+static void runWords(const std::string& text, int from, int to, std::vector<RunWord>& out){
+    out.clear();
+    RunWord cur{-1, -1, false, false, false};
+    auto close = [&](int at) {
+        if (cur.start >= 0) { cur.end = at; out.push_back(cur); }
+        cur = RunWord{-1, -1, false, false, false};
+    };
+    for (int pos = from; pos < to;) {
+        int32_t cp;
+        int used = utf8Decode((const unsigned char*)text.data() + pos, (size_t)(to - pos), &cp);
+        if (used <= 0) used = 1;
+        if (isJavaWhitespace(cp)) { close(pos); pos += used; continue; }
+        const bool letter = isLetterCodepoint(cp);
+        if (letter && cur.start >= 0 && cur.endAfter) close(pos);
+        if (cur.start < 0) cur.start = pos;
+        if (isSentenceEnd((uint32_t)cp)) {
+            if (!cur.letters) cur.endBefore = true;
+            cur.endAfter = true;
+        } else if (letter || isDecimalDigit(cp)) {
+            cur.endAfter = false;
+            cur.letters = cur.letters || letter;
+        }
+        pos += used;
+    }
+    close(to);
+}
+
+// ML Kit's answer for ONE WORD, kept per thread (a screen reader says the same
+// words again and again): the languages it names, at most kWordLangsMax of
+// them, by canonicalLanguage.
+struct WordLang { char tag[8]; float p; };
+static const size_t kWordLangsMax = 8;
+static const size_t kWordAnswersMax = 2048;
+static std::unordered_map<std::string, std::vector<WordLang>>& wordAnswers(){
+    static thread_local std::unordered_map<std::string, std::vector<WordLang>> cache;
+    return cache;
+}
+// The letters (Unicode's General_Category L) of bytes [0, len).
+static int countLetters(const char* bytes, size_t len){
+    int letters = 0;
+    for (size_t i = 0; i < len;) {
+        int32_t cp;
+        int used = utf8Decode((const unsigned char*)bytes + i, len - i, &cp);
+        if (used <= 0) break;
+        if (isLetterCodepoint((int)cp)) letters++;
+        i += (size_t)used;
+    }
+    return letters;
+}
+// The index of the largest p and of the next one; p.size() where there is none
+// (a language ML Kit does not name has p 0).
+static void rankOf(const std::vector<float>& p, size_t& top, size_t& second){
+    const size_t none = p.size();
+    top = second = none;
+    for (size_t l = 0; l < p.size(); l++) {
+        if (p[l] <= 0.0f) continue;
+        if (top == none || p[l] > p[top]) { second = top; top = l; }
+        else if (second == none || p[l] > p[second]) second = l;
+    }
+}
+// How far ML Kit puts confidence `a` ahead of `b`, in nats. Below kWordFloor a
+// confidence counts as kWordFloor: ML Kit names no language under 0.01, so one
+// it leaves out is unlikely, not impossible.
+static const float kWordFloor = 0.005f;
+static float leadOf(float a, float b){ return std::log(std::max(a, kWordFloor) / std::max(b, kWordFloor)); }
+// ML Kit's answer for one word (cached), restricted to `langs`: p[l] is the
+// confidence it gives langs[l], 0 where it does not name it.
+static void wordAnswer(const char* bytes, size_t len, const std::vector<std::string>& langs, std::vector<float>& p){
+    auto& cache = wordAnswers();
+    std::string key(bytes, len);
+    auto found = cache.find(key);
+    if (found == cache.end()) {
+        if (cache.size() >= kWordAnswersMax) cache.clear();
+        std::vector<WordLang> answer;
+        LidAnswer lid;
+        if (identifyLanguages(bytes, len, lid)) {
+            std::vector<int> order;
+            for (int k = 0; k < lid.n; k++) order.push_back(k);
+            std::sort(order.begin(), order.end(), [&](int x, int y){ return lid.confidences[x] > lid.confidences[y]; });
+            for (int k : order) {
+                if (answer.size() >= kWordLangsMax) break;
+                const std::string c = canonicalLanguage(lid.tags[k]);
+                if (c.size() >= sizeof(WordLang::tag)) continue;
+                WordLang one;
+                memcpy(one.tag, c.c_str(), c.size() + 1);
+                one.p = lid.confidences[k];
+                answer.push_back(one);
+            }
+        }
+        found = cache.emplace(std::move(key), std::move(answer)).first;
+    }
+    p.assign(langs.size(), 0.0f);
+    for (size_t l = 0; l < langs.size(); l++) {
+        const std::string c = canonicalLanguage(langs[l]);
+        for (const WordLang& one : found->second) if (c == one.tag) { p[l] = one.p; break; }
+    }
+}
+// How strongly one word speaks for each of `langs`: kWordWeight x ln p. A word
+// ML Kit names none of `langs` for (or has no answer for) says nothing: every
+// language gets the same.
+static const float kWordWeight = 0.5f;
+static void wordEvidence(const char* bytes, size_t len, const std::vector<std::string>& langs, std::vector<float>& out){
+    std::vector<float> p;
+    wordAnswer(bytes, len, langs, p);
+    out.assign(langs.size(), 0.0f);
+    size_t top, second;
+    rankOf(p, top, second);
+    if (top == langs.size()) return;
+    for (size_t l = 0; l < langs.size(); l++) out[l] = kWordWeight * std::log(std::max(p[l], kWordFloor));
+}
+// A word ML Kit is all but certain of: kWordSureLetters letters or more and
+// kWordSureP (0.99) for one of `langs` -- so under 0.01 for every other. Its
+// index in `langs`, or langs.size(). Such a word is read in its own language
+// even inside a sentence of another (nameSharedScript). Measured over the
+// suite's held-out texts: 2,021 Urdu and Arabic words at that certainty, none
+// of them wrong; over all eight sets 48 of 10,664, most of them English words
+// inside French, German or Italian UI strings, which an English voice does read
+// better.
+static const float kWordSureP = 0.99f;
+static const int kWordSureLetters = 2;
+static size_t certainWord(const char* bytes, size_t len, const std::vector<std::string>& langs){
+    std::vector<float> p;
+    wordAnswer(bytes, len, langs, p);
+    size_t top, second;
+    rankOf(p, top, second);
+    if (top < langs.size() && p[top] >= kWordSureP && countLetters(bytes, len) >= kWordSureLetters) return top;
+    return langs.size();
+}
+
+// ML Kit's confidence in each of `langs` for bytes [0, len) of script slot `s`,
+// kept with the span answers (dropped when the hints change, and the hints
+// decide `langs`).
+static void sharedAnswer(const char* bytes, size_t len, int s, const std::vector<std::string>& langs,
+                         const HintStatePtr& hintState, std::vector<float>& p){
+    DetectCache& cache = detectCache();
+    syncSpanCache(cache, hintState);
+    std::string key;
+    key.reserve(len + 1);
+    key += (char)s;
+    key.append(bytes, len);
+    auto hit = cache.shared.find(key);
+    if (hit == cache.shared.end()) {
+        std::vector<float> fresh(langs.size(), 0.0f);
+        LidAnswer answer;
+        if (identifyLanguages(bytes, len, answer)) {
+            for (size_t l = 0; l < langs.size(); l++) {
+                const std::string c = canonicalLanguage(langs[l]);
+                for (int k = 0; k < answer.n; k++)
+                    if (canonicalLanguage(answer.tags[k]) == c) { fresh[l] = answer.confidences[k]; break; }
+            }
+        }
+        if (cache.shared.size() >= kDetectCacheMax) cache.shared.clear();
+        hit = cache.shared.emplace(std::move(key), std::move(fresh)).first;
+    }
+    p = hit->second;
+}
+
+// THE LANGUAGE A SCRIPT WAS LAST READ IN (owner, 2026-10-28: "jo bhi language Ke
+// Jo Bhi characters ho ... Jo TTS set kara hai use TTS ke pass hi Jana chahie Ek
+// single character bhi"). A letter, or a short word, does not say which
+// language it is in: "ب" is Urdu's and Arabic's alike, and ML Kit names it
+// Chinese (0.885); "ل" it names Arabic (0.920), in Urdu text too. A screen
+// reader reads a text and then, character by character or word by word, the
+// same text -- so a text ML Kit is not sure of is read in the language its
+// script was last read in (a text of two words or more, or one ML Kit is sure
+// of). One per script for the whole process; a new language list starts
+// afresh. Measured (the suite's held-out texts read one after another, 1,200
+// per set, the language changing after P of them; right: whole texts / their
+// words read one by one / their first letters one by one): all 9 sets, P 0
+// 93.3 / 76.2 / 44.7% -> 98.9 / 98.9 / 99.1, P 0.1 91.1 / 70.3 / 45.6 -> 95.3 /
+// 95.1 / 95.0, P 0.5 91.1 / 68.9 / 44.6 -> 88.7 / 94.3 / 90.0; Urdu with
+// Arabic, P 0 99.7 / 97.5 / 95.2 -> 100 / 100 / 100, P 0.5 99.0 / 89.7 / 68.5
+// -> 97.4 / 99.7 / 99.0. The price: a short text right after the language
+// changed (a one-word Arabic label after Urdu) is read in the one before.
+struct ScriptContext { std::mutex mutex; std::shared_ptr<const void> hints; std::string lang[7]; };
+static ScriptContext& scriptContext(){ static ScriptContext context; return context; }
+static std::string contextLanguage(int s, const HintStatePtr& hintState){
+    ScriptContext& c = scriptContext();
+    std::lock_guard<std::mutex> lock(c.mutex);
+    if (c.hints != hintState) { c.hints = hintState; for (std::string& l : c.lang) l.clear(); }
+    return (s >= 0 && s < 7) ? c.lang[s] : std::string();
+}
+static void rememberContext(int s, const std::string& lang, const HintStatePtr& hintState){
+    ScriptContext& c = scriptContext();
+    std::lock_guard<std::mutex> lock(c.mutex);
+    if (c.hints != hintState) { c.hints = hintState; for (std::string& l : c.lang) l.clear(); }
+    if (s >= 0 && s < 7) c.lang[s] = lang;
+}
+// A text ML Kit is sure of: kSureLetters letters or more, and its likeliest
+// language given kSureP or more and kSureLead (e^4, 55 times) ahead of the next.
+// Over the suite's held-out texts (9 sets, 16,233) ML Kit is sure of 69.5% and
+// right in 99.27% of those -- right in 90.06% of all. A text it is not sure of
+// keeps ML Kit's own answer over the context only when it has kSureLetters
+// letters and that answer leads the context's language by kContextLead.
+static const int kSureLetters = 3;
+static const float kSureP = 0.9f;
+static const float kSureLead = 4.0f;
+static const float kContextLead = 3.0f;
+static const float kWordLeanP = 0.95f;
+
+// WHERE THE LANGUAGE CHANGES INSIDE A SHARED SCRIPT (owner, 2026-10-28: "ml kit
+// per raho ... Urdu ke liye alag TTS ... Arabic ke liye bhi alag"). ML Kit names
+// one language for the WHOLE of any text it is given: an Urdu sentence and an
+// Arabic one together came back "ur 0.985" with Arabic not even named, so a
+// message holding both was read by one voice. So every word of the script is
+// asked on its own, and the words choose where the language changes: a Viterbi
+// path over them, each word adding its wordEvidence, and a change costing
+// kSwitchCost (4) between two words -- a lone word, or two at the very end,
+// never moves a sentence's voice -- or kSentenceSwitchCost (0.5) after a
+// sentence end. Each
+// stretch that path finds is then named by ML Kit on the stretch's WHOLE text
+// (its best language, restricted to `langs`), and two neighbouring stretches
+// stay apart only when ML Kit confirms both (kKeepMargin, below). A text in one
+// language is one stretch, named by one ML Kit call, as before -- and when ML
+// Kit is not sure of it, the script's context (above) names it.
+static const float kSwitchCost = 4.0f;
+static const float kSentenceSwitchCost = 0.5f;
+static const float kKeepMargin = 2.3f;
+static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vector<std::string>& langs,
+                             const HintStatePtr& hintState){
+    struct Word { size_t t; size_t r; RunWord w; bool sentence; };
+    std::vector<Word> words;
+    std::vector<RunWord> inRun;
+    bool havePrev = false;
+    size_t prevT = 0, prevR = 0;
+    for (size_t t = 0; t < texts.size(); t++) {
+        if (!texts[t].named) continue;
+        for (size_t r = 0; r < texts[t].runs.size(); r++) {
+            const ScriptRun& run = texts[t].runs[r];
+            if (run.script != s) continue;
+            runWords(*texts[t].text, run.offset, run.offset + run.bytes, inRun);
+            const bool between = havePrev && sentenceEndBetween(texts, prevT, prevR, t, r);
+            for (size_t k = 0; k < inRun.size(); k++) {
+                bool sentence = !words.empty() && (words.back().w.endAfter || inRun[k].endBefore);
+                if (k == 0) sentence = sentence || between;
+                words.push_back({t, r, inRun[k], sentence});
+            }
+            havePrev = true;
+            prevT = t;
+            prevR = r;
+        }
+    }
+    const size_t W = words.size(), L = langs.size();
+    // The path: one language per word.
+    std::vector<int> label(W, 0);
+    size_t lettered = 0;
+    for (const Word& w : words) lettered += w.w.letters ? 1 : 0;
+    if (lettered >= 2 && L >= 2) {
+        std::vector<std::vector<float>> evidence(W);
+        for (size_t i = 0; i < W; i++) {
+            if (!words[i].w.letters) { evidence[i].assign(L, 0.0f); continue; }
+            const std::string& text = *texts[words[i].t].text;
+            wordEvidence(text.data() + words[i].w.start, (size_t)(words[i].w.end - words[i].w.start), langs, evidence[i]);
+        }
+        std::vector<float> score(evidence[0]), next(L);
+        std::vector<std::vector<int>> from(W, std::vector<int>(L, 0));
+        for (size_t i = 1; i < W; i++) {
+            size_t first = 0, second = 1;
+            if (score[second] > score[first]) std::swap(first, second);
+            for (size_t l = 2; l < L; l++) {
+                if (score[l] > score[first]) { second = first; first = l; }
+                else if (score[l] > score[second]) second = l;
+            }
+            const float cost = words[i].sentence ? kSentenceSwitchCost : kSwitchCost;
+            for (size_t l = 0; l < L; l++) {
+                const size_t other = l == first ? second : first;
+                const float move = score[other] - cost;
+                if (move > score[l]) { next[l] = move + evidence[i][l]; from[i][l] = (int)other; }
+                else { next[l] = score[l] + evidence[i][l]; from[i][l] = (int)l; }
+            }
+            score.swap(next);
+        }
+        int at = 0;
+        for (size_t l = 1; l < L; l++) if (score[l] > score[(size_t)at]) at = (int)l;
+        for (size_t i = W; i-- > 0;) { label[i] = at; at = from[i][(size_t)at]; }
+    }
+    // The stretches of one path language, each named by ML Kit on its whole text.
+    struct Stretch { size_t first; size_t last; std::string lang; std::vector<float> p; int letters; };
+    std::vector<Stretch> stretches;
+    for (size_t first = 0; first < W;) {
+        size_t last = first;
+        while (last + 1 < W && label[last + 1] == label[first]) last++;
+        stretches.push_back({first, last, langs[(size_t)label[first]], std::vector<float>(L, 0.0f), 0});
+        first = last + 1;
+    }
+    auto sameRun = [&](size_t x, size_t y) { return words[x].t == words[y].t && words[x].r == words[y].r; };
+    // The stretch's text: each run's part of it, a whole run with the spaces and
+    // marks around its words, joined by a space between runs.
+    auto stretchText = [&](const Stretch& st) {
+        std::string joined;
+        for (size_t i = st.first; i <= st.last;) {
+            size_t end = i;
+            while (end < st.last && sameRun(end + 1, i)) end++;
+            const ScriptRun& run = texts[words[i].t].runs[words[i].r];
+            const int from = (i == 0 || !sameRun(i - 1, i)) ? run.offset : words[i].w.start;
+            const int to = (end + 1 >= W || !sameRun(end + 1, i)) ? run.offset + run.bytes : words[end].w.end;
+            if (!joined.empty()) joined += ' ';
+            joined.append(*texts[words[i].t].text, (size_t)from, (size_t)(to - from));
+            i = end + 1;
+        }
+        return joined;
+    };
+    // ML Kit on a stretch's whole text (its first 1024 bytes): how likely it
+    // makes each of `langs`, and the stretch's language, the likeliest -- the
+    // one it had when ML Kit names none of them.
+    auto askStretch = [&](Stretch& st) {
+        const std::string joined = stretchText(st);
+        size_t ask = joined.size();
+        if (ask > 1024) {
+            ask = 1024;
+            while (ask > 0 && ((unsigned char)joined[ask] & 0xC0) == 0x80) ask--;
+        }
+        sharedAnswer(joined.data(), ask, s, langs, hintState, st.p);
+        st.letters = countLetters(joined.data(), joined.size());
+        size_t top, second;
+        rankOf(st.p, top, second);
+        if (top < L) st.lang = langs[top];
+    };
+    for (Stretch& st : stretches) askStretch(st);
+    // Two neighbouring stretches stay apart only when ML Kit, on each one's whole
+    // text, makes its own language kKeepMargin (e^2.3, ten times) more likely
+    // than the other's. A clause of one language that a few words made look like
+    // another ("Всеки човек," in Bulgarian, "ज्या अर्थी," in Marathi) fails that
+    // and is joined to its neighbour, and the two are named again together -- ML
+    // Kit decides, not the words. Each join leaves one stretch fewer, so this
+    // ends.
+    auto margin = [&](const Stretch& st, const std::string& other) {
+        float own = 0.0f, theirs = 0.0f;
+        for (size_t l = 0; l < L; l++) {
+            if (langs[l] == st.lang) own = st.p[l];
+            if (langs[l] == other) theirs = st.p[l];
+        }
+        return leadOf(own, theirs);
+    };
+    for (size_t k = 0; k + 1 < stretches.size();) {
+        Stretch& a = stretches[k];
+        Stretch& b = stretches[k + 1];
+        const bool apart = a.lang != b.lang && margin(a, b.lang) >= kKeepMargin && margin(b, a.lang) >= kKeepMargin;
+        if (apart) { k++; continue; }
+        const std::string longer = (a.last - a.first >= b.last - b.first) ? a.lang : b.lang;
+        a.last = b.last;
+        stretches.erase(stretches.begin() + (std::ptrdiff_t)(k + 1));
+        stretches[k].lang = longer;
+        askStretch(stretches[k]);
+        if (k > 0) k--;
+    }
+    // Sure, by ML Kit's own answer on the stretch's text: kSureLetters, kSureP,
+    // kSureLead -- and a single word only at kWordSureP (0.99): ML Kit is right
+    // in 98.9% of the Urdu and Arabic words it gives 0.9, and in all of those it
+    // gives 0.99.
+    auto wordsOf = [&](const Stretch& st) {
+        size_t n = 0;
+        for (size_t i = st.first; i <= st.last; i++) n += words[i].w.letters ? 1 : 0;
+        return n;
+    };
+    auto sure = [&](const Stretch& st) {
+        size_t top, second;
+        rankOf(st.p, top, second);
+        if (top == L) return false;
+        if (wordsOf(st) <= 1) return st.letters >= kWordSureLetters && st.p[top] >= kWordSureP;
+        return st.letters >= kSureLetters && st.p[top] >= kSureP
+               && leadOf(st.p[top], second < L ? st.p[second] : 0.0f) >= kSureLead;
+    };
+    if (stretches.size() == 1 && !sure(stretches[0])) {
+        // Not sure: the language the script was last read in, unless ML Kit
+        // puts its own answer kContextLead ahead of it -- on two words or more,
+        // or on one word it gives kWordLeanP; with no context, ML Kit's answer,
+        // and when it names none of `langs`, the script's first enabled
+        // language (AutoTTS's scriptLanguageFallback).
+        Stretch& st = stretches[0];
+        size_t top, second;
+        rankOf(st.p, top, second);
+        const std::string context = contextLanguage(s, hintState);
+        size_t at = L;
+        for (size_t l = 0; l < L; l++) if (langs[l] == context) at = l;
+        if (at < L) {
+            const bool ownLean = top < L && top != at && st.letters >= kSureLetters
+                                 && (wordsOf(st) >= 2 || st.p[top] >= kWordLeanP)
+                                 && leadOf(st.p[top], st.p[at]) >= kContextLead;
+            if (!ownLean) st.lang = langs[at];
+        } else if (top == L) {
+            const char* fallback = scriptLanguageFallbackOf(*hintState, s);
+            st.lang = fallback ? fallback : langs[0];
+        }
+    }
+    // What the script was last read in: the last stretch of two words or more,
+    // or one ML Kit is sure of. (A letter or a lone word read on its own does
+    // not move it: that is how a text is read again, a piece at a time.)
+    for (size_t k = stretches.size(); k-- > 0;)
+        if (wordsOf(stretches[k]) >= 2 || sure(stretches[k])) { rememberContext(s, stretches[k].lang, hintState); break; }
+    std::vector<std::string> wordLang(W);
+    for (const Stretch& st : stretches)
+        for (size_t i = st.first; i <= st.last; i++) wordLang[i] = st.lang;
+    // A word ML Kit is all but certain of (certainWord) is read in its own
+    // language, whatever its sentence is read in -- the sentence keeps the
+    // language it was named in above.
+    if (L >= 2) {
+        for (size_t i = 0; i < W; i++) {
+            if (!words[i].w.letters) continue;
+            const std::string& text = *texts[words[i].t].text;
+            const size_t c = certainWord(text.data() + words[i].w.start, (size_t)(words[i].w.end - words[i].w.start), langs);
+            if (c < L) wordLang[i] = langs[c];
+        }
+    }
+    // Pieces: a word ends where the next word of its run starts, the run's last
+    // word at the run's end.
+    for (size_t i = 0; i < W; i++) {
+        const Word& w = words[i];
+        const ScriptRun& run = texts[w.t].runs[w.r];
+        const bool lastOfRun = i + 1 >= W || words[i + 1].t != w.t || words[i + 1].r != w.r;
+        const int end = lastOfRun ? run.offset + run.bytes : words[i + 1].w.start;
+        texts[w.t].pieces[w.r].push_back({end, wordLang[i]});
+    }
+    // A run with no word in it (none can have: a run starts at a letter) still
+    // gets its language.
+    for (SpanText& t : texts) {
+        if (!t.named) continue;
+        for (size_t r = 0; r < t.runs.size(); r++)
+            if (t.runs[r].script == s && t.pieces[r].empty())
+                t.pieces[r].push_back({t.runs[r].offset + t.runs[r].bytes, W ? wordLang[0] : langs[0]});
+    }
+}
+
+// Every run is named. A script one enabled language writes (or none, or a script
+// one language is read in) is named run by run (nameRunAlone); a script two or
+// more enabled languages write is named word by word (nameSharedScript), over
+// every text of the utterance together -- processDirect's chunks are one
+// utterance -- so a word of another script standing between two of its runs
+// does not leave either alone to be guessed.
 static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hintState){
     std::vector<std::string> slotLangs[7];
     for (int s = 1; s <= 6; s++) slotLanguages(s, hintState->codes, slotLangs[s]);
@@ -2737,35 +3175,8 @@ static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hint
             t.pieces[r].push_back({run.offset + run.bytes, nameRunAlone(*t.text, run, hintState)});
         }
     }
-    struct Ref { size_t t, r; };
-    for (int s = 1; s <= 6; s++) {
-        if (slotLangs[s].size() < 2) continue;
-        std::vector<Ref> group;
-        auto flush = [&]() {
-            if (group.empty()) return;
-            std::string g;
-            for (size_t k = 0; k < group.size(); k++) {
-                if (k) g += ' ';
-                const ScriptRun& run = texts[group[k].t].runs[group[k].r];
-                g.append(*texts[group[k].t].text, (size_t)run.offset, (size_t)run.bytes);
-            }
-            const std::string lang = nameRange(g.c_str(), (int)g.size(), s, hintState);
-            for (const Ref& ref : group) {
-                const ScriptRun& run = texts[ref.t].runs[ref.r];
-                texts[ref.t].pieces[ref.r].push_back({run.offset + run.bytes, lang});
-            }
-            group.clear();
-        };
-        for (size_t t = 0; t < texts.size(); t++) {
-            if (!texts[t].named) continue;
-            for (size_t r = 0; r < texts[t].runs.size(); r++) {
-                if (texts[t].runs[r].script != s) continue;
-                if (!group.empty() && sentenceEndBetween(texts, group.back().t, group.back().r, t, r)) flush();
-                group.push_back({t, r});
-            }
-        }
-        flush();
-    }
+    for (int s = 1; s <= 6; s++)
+        if (slotLangs[s].size() >= 2) nameSharedScript(texts, s, slotLangs[s], hintState);
 }
 
 // The named runs of one text as nativeGetLanguages carries them: lang, latin
