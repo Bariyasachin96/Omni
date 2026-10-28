@@ -337,12 +337,17 @@ def spellings(c):
         out.update(full_decomposition(x))
     return out
 EXEMPLARS = {}
+MAIN = {}                  # the letters of each language's own alphabet (CLDR's main set), spelled
 HAS_AUXILIARY = set()
 for line in open(os.path.join(CLDR, "exemplars.txt"), encoding="utf-8"):
     if line.startswith("#") or not line.strip(): continue
     lang, kind, uset = line.rstrip("\n").split("\t")
     if kind == "auxiliary": HAS_AUXILIARY.add(lang)
     singles, seqs = parse_uset(uset)
+    if kind == "main":
+        for c in singles: MAIN.setdefault(lang, set()).update(spellings(c))
+        for seq in seqs:
+            for c in seq: MAIN.setdefault(lang, set()).update(spellings(c))
     letters = EXEMPLARS.setdefault(lang, set())
     for c in singles: letters |= spellings(c)
     for seq in seqs:
@@ -363,6 +368,81 @@ for line in open(os.path.join(CLDR, "exemplars.txt"), encoding="utf-8"):
 CLDR_MISSES = {"ne": [0x931]}
 for lang, cps in CLDR_MISSES.items():
     for c in cps: EXEMPLARS[lang] |= spellings(c)
+# And the other way round (owner, 2026-10-28: "Baki Aur aksharon Ke Sath aur
+# properli isko Sahi complete kar dijiye Unicode ke through"): letters CLDR gives
+# a language in its AUXILIARY (or index) set only -- not its own alphabet, the
+# main set; CLDR keeps them there for names and words of other languages -- that
+# the language suite's texts of that language never write (both halves, about
+# 4,200 texts each) or write only where another language's keyboard typed them,
+# while a language of the same script writes them in 1% or more of its texts.
+# Those are the other language's letters, so here they are not this one's: a
+# word that writes one is not this language. Each was counted, not assumed:
+#   bn  ৰ ৱ                Assamese's ra and wa: 0 of 4,292 Bengali texts;
+#                          Assamese writes them in 81% and 27%. ML Kit has no
+#                          Assamese, so these letters are all that tells them apart.
+#   bg  ы э ё              not Bulgarian letters (its alphabet has 30): 0 of 4,219.
+#   uk  ъ ы э ё            not Ukrainian letters: 0 of 4,230; Russian writes ы in
+#                          most sentences, Bulgarian ъ in 38%.
+#   ar  پ چ ژ ک گ ی        Persian/Urdu letters, not Arabic's: 0 of 4,268 Arabic
+#                          texts; Urdu writes ک in 80%, ی in 90%.
+#   fa  إ ك                Arabic's alef with hamza below and kaf: إ in none of
+#                          4,283 Persian texts, ك in 10 (typed on an Arabic
+#                          keyboard; Persian's kaf is ک); Arabic 30% and 41%.
+#   ur  ة ټ ي أ ه           Arabic's taa marbuta, Pashto's ټ (none of 4,284 Urdu
+#                          texts), and Arabic's yeh, alef with hamza and heh, which
+#                          Urdu writes ی, ا and ہ/ھ -- an Arabic keyboard typed
+#                          them into 34, 16 and 3 Urdu texts ("ليے" for "لیے"),
+#                          where Arabic writes ي in 71% of its texts. Measured
+#                          before it was kept (held-out half, Urdu+Arabic): Urdu
+#                          texts read wrong 0.92% before and after; Arabic words
+#                          read one by one right after Urdu text 96.1 -> 97.7%,
+#                          letters 87.4 -> 92.6%, the two languages in one text
+#                          93.2 -> 95.2%. The price, with Pashto enabled too:
+#                          "ليے" (ي and Pashto's own ے) is Pashto's -- 4 Urdu
+#                          texts of that set's 1,833 read that word in Pashto's.
+#   as  র                  Bengali's ra. Assamese writes its own ra, ৰ; the two
+#                          look different standing alone, and alone র is in 73% of
+#                          Bengali texts and none of 4,038 Assamese ones. Joined by
+#                          the virama (reph র্, ra-phala ্র) they look alike, and
+#                          there Assamese text does have Bengali's (76 texts,
+#                          Android's own "পাছৱর্ড", "স্বয়ংক্রিয়"): JOINED_NEUTRAL
+#                          below makes it say nothing there.
+#   mr  ़                  the nukta: 0 of 4,305 Marathi texts; Hindi writes it
+#                          ("बड़ा", "ज़रूरी"). (The precomposed क़..य़ CLDR never
+#                          gave Marathi.)
+# Left as CLDR has them, because the texts do write them: Persian ى ؤ ة
+# ("زندگى", "سؤال"; ة and ؤ are in Persian's main set), Urdu ه ("مجهے", typed
+# with Arabic's heh), Nepali's nukta and candra vowels (main set; "फ़र्मेण्टेड"),
+# Hindi's ळ ङ ऽ ॅ (all in Hindi's main set, though the suite's Hindi texts write
+# only ॅ). Not the Latin script's accented letters either: a German text does
+# write "à la carte".
+CLDR_FOREIGN = {
+    "bn": [0x9F0, 0x9F1],
+    "as": [0x9B0],
+    "bg": [0x44B, 0x44D, 0x451],
+    "uk": [0x44A, 0x44B, 0x44D, 0x451],
+    "ar": [0x67E, 0x686, 0x698, 0x6A9, 0x6AF, 0x6CC],
+    "fa": [0x625, 0x643],
+    "ur": [0x629, 0x67C, 0x64A, 0x623, 0x647],
+    "mr": [0x93C]}
+def case_forms(c):
+    """c and its simple upper, lower and title case (not its decomposition)."""
+    return {c} | {int(UD[c][k], 16) for k in (12, 13, 14) if c in UD and UD[c][k]}
+for lang, cps in CLDR_FOREIGN.items():
+    for c in cps:
+        assert c in EXEMPLARS[lang], "%s: CLDR never gave it U+%04X" % (lang, c)
+        for x in case_forms(c):
+            assert x not in MAIN.get(lang, set()), "%s: U+%04X is in its own alphabet" % (lang, x)
+            EXEMPLARS[lang].discard(x)
+# Letters that say nothing beside their script's virama (Canonical_Combining_Class
+# 9): joined into a conjunct they look like another language's letter, and that
+# language's text writes them there (CLDR_FOREIGN's "as" above).
+JOINED_NEUTRAL = [0x9B0]
+JOINED = []
+for c in JOINED_NEUTRAL:
+    viramas = [v for v in UD if UD[v][3] == "9" and SCRIPT.get(v) == SCRIPT.get(c)]
+    assert len(viramas) == 1, (hex(c), viramas)
+    JOINED.append((c, viramas[0]))
 NO_CLDR_LOCALE = {"hmn", "sm"}
 NOT_MLKIT = {"sa", "as"}
 SLOT_LETTERS = {}          # slot -> {code point: bits of the languages that write it}
@@ -490,6 +570,12 @@ h.append("// The languages of slot `slot` (bits as above) that write code point 
          "static inline uint64_t uniLetterLangs(int slot, int cp) {\n"
          "    switch (slot) {\n%s\n    }\n    return 0;\n}\n"
          % "\n".join("    case %d: return uniMask(kUniLetterLangs%d, cp);" % (s, s) for s in sorted(SLOT_LETTERS)))
+h.append("// A letter that says nothing beside its script's virama: joined into a conjunct it\n"
+         "// looks like another language's letter (see the generator).\n"
+         "struct UniJoined { int32_t letter, virama; };\n"
+         "#define EV_JOINED_NEUTRAL_COUNT %d\n"
+         "static const UniJoined kUniJoinedNeutral[EV_JOINED_NEUTRAL_COUNT] = {%s};\n"
+         % (len(JOINED), ", ".join("{0x%X, 0x%X}" % j for j in JOINED)))
 h = "".join(h)
 
 lci = merge(LCI)

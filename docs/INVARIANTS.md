@@ -1239,6 +1239,23 @@ does not part them) and:
    text sure (so it sets the context); a word whose letters allow one language is read in
    it. Where CLDR leaves out a letter a language's own words write, `CLDR_MISSES` adds it,
    measured: Nepali writes the eyelash ra (8 of 4,266 Nepali texts, Android's own strings).
+   And the other way round (`CLDR_FOREIGN`, owner: "Unicode ke through ... bahut Kuchh Kar
+   Hi sakte ho"): a letter CLDR gives a language only in its auxiliary set -- not its own
+   alphabet, the main set -- that the language's texts never write (or write only where
+   another language's keyboard typed it), while a language of the same script writes it in
+   1%+ of its texts, is the other's: Assamese's ৰ ৱ are not Bengali's, ы э ё not Bulgarian's
+   or Ukrainian's (nor ъ Ukrainian's), پ چ ژ ک گ ی not Arabic's, إ ك not Persian's, ة ټ ي أ ه
+   not Urdu's, the nukta not Marathi's, Bengali's র not Assamese's. gen_tables.py asserts each
+   was CLDR's and none is in the main set. A letter that looks like another's only inside a
+   conjunct says nothing there (`kUniJoinedNeutral`, beside the virama): Bengali's র as reph or
+   ra-phala looks like Assamese's ৰ, and Android's Assamese strings write it there.
+6. **a language ML Kit does not name** (owner: "Jo ml kit language support nahin karta hai
+   vah Unicode script ke through ... Usi se deduction bnao"): ML Kit reads Assamese text as
+   Bengali (300 of 300 asked), so every confidence it gives in `langs` (a word, a stretch)
+   gives Assamese just under Bengali's (`readAsNamed`, `kMlKitReadsAs`): ML Kit's answer is no
+   evidence between them, and neither is its 0.99 for one word (`certainWord`, `sure` also
+   wants e^4 over the next). The letters decide, then the context, then the language ML Kit
+   names. Sanskrit has no one such language (ML Kit: mr 98, ne 81, hi 26 of 206).
 Do NOT go back to one decision per sentence (Urdu and Arabic in one message got one voice),
 let a lone word switch below 0.99 (ML Kit is right in 98.9% of the Urdu/Arabic words it
 gives 0.9; for Hindi/Marathi 93%), or decide a single letter by ML Kit ("ب" -> Chinese 0.885,
@@ -1259,6 +1276,20 @@ step 5, `lettersHeard`): only a language they allow is chosen; when two or more 
 and ML Kit gives none of them anything, UNKNOWN, so the spans decide word by word ("Мы
 арабы": ML Kit says Kyrgyz, the letters allow Russian and Bulgarian -- it took the
 alphabet's first, Bulgarian, before).
+
+## 38. Nothing leaves the phone
+2026-10-28 (owner: "internet ki jarurat Nahin Hai Kyunki yah to offline kam Karti Hai ml kit
+... Har Jagah se internet Hata dena"). ML Kit's language identification is a model inside the
+APK. `INTERNET` and `ACCESS_NETWORK_STATE` came only with Google's datatransport, which ML Kit
+uploads its usage logs with; `app/src/main/AndroidManifest.xml` removes both permissions and
+datatransport's three components (`tools:node="remove"`), and says why that is safe, from the
+bytecode: ML Kit names `CCTDestination` directly, so the library stays; the backend is found
+only through the manifest, and with none `DefaultScheduler` drops each event before it is
+stored or scheduled; everything datatransport runs is inside its catch-all executor. Firebase
+components and encoders stay: they are ML Kit's own plumbing, not a Firebase service.
+Checked three ways: `invariants.sh` #38 (the manifest's removals), `tools/check/no-network.sh`
+on every release APK in CI before publishing, and `OfflineTest` on the emulator (no
+permission, no component, ML Kit still names Hindi and English, an event is refused).
 
 ## 37. (Retired 2026-10-28) The word-and-ending model
 The word-and-ending model (`langnb.h`, `train_nb.py`), its Android-UI learning texts and the

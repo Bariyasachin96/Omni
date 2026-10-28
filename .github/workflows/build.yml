@@ -204,6 +204,12 @@ jobs:
       - name: Check native exports
         run: bash tools/check/native-exports.sh "EasyVoice-${{ github.run_number }}.apk"
 
+      # NOTHING LEAVES THE PHONE (owner, 2026-10-28: "Har Jagah se internet Hata
+      # dena"). No network permission and none of ML Kit's log-upload parts in
+      # any published APK; a library update that brings them back stops here.
+      - name: Check no network access
+        run: bash tools/check/no-network.sh EasyVoice-${{ github.run_number }}*.apk
+
       # 16 KB PAGES, NOW IN THE APK ITSELF (2026-10-13). The libraries are stored
       # uncompressed and mapped straight out of the APK (no legacy packaging), so
       # a 64-bit library must start on a 16 KB boundary of the FILE as well as

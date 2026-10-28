@@ -31,6 +31,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- No WAKE_LOCK (2026-10-08): AutoTTS declares it and nothing here ever
          took a wake lock, so it was a permission with no use. -->
+    <!-- NOTHING LEAVES THE PHONE (owner, 2026-10-28: "internet ki jarurat Nahin
+         Hai Kyunki yah to offline kam Karti Hai ml kit ... Har Jagah se internet
+         Hata dena"). ML Kit's language identification is a model inside the APK
+         and needs no network. These two permissions came only with Google's
+         datatransport (transport-runtime 2.2.6 / transport-backend-cct 2.3.3),
+         which ML Kit uses to upload its usage logs; that upload path is removed
+         below as well, so no log is ever stored or sent. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
     <!-- Two lint warnings are answered here rather than silenced blindly
          (2026-10-08). DataExtractionRules asks for android:fullBackupContent for
          API 24-30, but allowBackup="false" already turns every kind of backup off
@@ -109,5 +118,37 @@
                 android:name="com.sachinbaria.easyvoice.SettingsPreload"
                 android:value="androidx.startup" />
         </provider>
+        <!-- ML KIT'S LOG UPLOAD, REMOVED (2026-10-28), read in the bytecode of
+             the versions this build resolves, not assumed:
+             - ML Kit (language-id-common 16.1.0) logs through
+               TransportRuntime.newFactory(CCTDestination.INSTANCE), a direct
+               class reference, so the cct library itself must stay: without it
+               ML Kit's logger would throw NoClassDefFoundError.
+             - The backend is FOUND through this manifest, nowhere else:
+               MetadataBackendRegistry reads the meta-data of
+               TransportBackendDiscovery with getServiceInfo, and a missing
+               service is NameNotFoundException, caught there ("Could not
+               retrieve metadata, returning empty list of transport backends").
+             - With no backend, DefaultScheduler.schedule logs "Transport backend
+               'cct' is not registered" and returns BEFORE eventStore.persist and
+               workScheduler.schedule, so an event is neither stored nor
+               scheduled; it is dropped on the spot, inside its own catch.
+             - The job service and the alarm receiver only ever run an upload;
+               with no backend there is none to run. Anything datatransport does
+               runs on its SafeLoggingExecutor, which catches every Exception, so
+               a job left over from an older build cannot take the process down.
+             Firebase components and encoders STAY: they are ML Kit's own
+             plumbing (MlKitComponentDiscoveryService registers ML Kit's parts
+             through them), not a Firebase service, and ML Kit cannot start
+             without them. -->
+        <service
+            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+            tools:node="remove" />
+        <service
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+            tools:node="remove" />
+        <receiver
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
+            tools:node="remove" />
     </application>
 </manifest>

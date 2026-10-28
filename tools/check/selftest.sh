@@ -146,6 +146,10 @@ run "#29 never give a restore back in the listener" "#29" \
     "perl -0pi -e 's/            \\} finally \\{\\n                wrapper\\.restoring = false\\n                engineSettled\\(\\)\\n            \\}/            }/' $K/EasyVoiceTtsService.kt"
 run "#12 grow build.yml past the ceiling" "#12" \
     "head -c 500000 /dev/zero | tr '\\0' '#' >> .github/workflows/build.yml"
+run "#38 let INTERNET back into the manifest" "#38" \
+    "sed -i '/android.permission.INTERNET\" tools:node=\"remove\"/d' app/src/main/AndroidManifest.xml"
+run "#38 keep ML Kit's upload job service" "#38" \
+    "sed -i 's#JobInfoSchedulerService\"#JobInfoSchedulerServiceX\"#' app/src/main/AndroidManifest.xml"
 run "put a CLD3 source back in CMakeLists" "an old detector's build input" \
     "sed -i 's|^    tts_engine_core.cpp$|    tts_engine_core.cpp\\n    \${CLD3_DIR}/nnet_language_identifier.cc|' app/src/main/cpp/CMakeLists.txt"
 run "put a CLD2 source back in CMakeLists" "an old detector's build input" \

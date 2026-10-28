@@ -443,6 +443,23 @@ printf '%s\n' "$svc" | grep -E 'override fun (onServiceDisconnected|onBindingDie
   && ok "#29 every unusable engine wrapper can still be recovered" \
   || bad "#29 an engine can reach a state no recovery path sees:$fail29"
 
+# --- 38. nothing leaves the phone ---------------------------------------------
+# ML Kit's language identification is offline; INTERNET and ACCESS_NETWORK_STATE
+# came only with datatransport, ML Kit's log upload. The app manifest removes
+# both permissions and the three upload components (it says why each is safe);
+# tools/check/no-network.sh checks the built APK, OfflineTest the device.
+man=app/src/main/AndroidManifest.xml
+fail38=""
+for name in android.permission.INTERNET android.permission.ACCESS_NETWORK_STATE \
+            com.google.android.datatransport.runtime.backends.TransportBackendDiscovery \
+            com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService \
+            com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver; do
+  tr '\n' ' ' < "$man" | grep -qE "android:name=\"$name\"[[:space:]]+tools:node=\"remove\"" || fail38="$fail38 $name;"
+done
+[ -z "$fail38" ] \
+  && ok "#38 the manifest removes the network permissions and ML Kit's log upload" \
+  || bad "#38 no longer removed from the manifest:$fail38"
+
 # --- 12. the workflow file must stay far under 512,000 bytes ---------------
 size=$(wc -c < .github/workflows/build.yml)
 [ "$size" -lt 400000 ] && ok "#12 build.yml is $size bytes" \

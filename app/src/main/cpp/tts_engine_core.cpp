@@ -2116,7 +2116,7 @@ static std::string detectWindowLang(const std::string& utf8Text,
     return hit->second;
 }
 // The letters each language writes (below, "THE LETTERS EACH LANGUAGE WRITES").
-struct LetterLang { int bit; bool open; bool named; };
+struct LetterLang { int bit; bool open; bool named; int readAs = -1; };
 static std::vector<LetterLang> letterLangs(int s, const std::vector<std::string>& langs);
 static uint64_t allOf(size_t n);
 static uint64_t lettersAllow(int s, const char* bytes, size_t len, const std::vector<LetterLang>& info);
@@ -2810,8 +2810,32 @@ static void rankOf(const std::vector<float>& p, size_t& top, size_t& second){
 // it leaves out is unlikely, not impossible.
 static const float kWordFloor = 0.005f;
 static float leadOf(float a, float b){ return std::log(std::max(a, kWordFloor) / std::max(b, kWordFloor)); }
+// A LANGUAGE ML KIT DOES NOT NAME, READ AS ANOTHER (owner, 2026-10-28: "Jo ml
+// kit language support nahin karta hai vah Unicode script ke through ... Usi
+// se deduction bnao"). ML Kit has no Assamese and gives Assamese text Bengali
+// -- all 300 of the language suite's Assamese texts asked, every one "bn" -- so
+// between the two its answer says nothing: a word it gives Bengali 0.99 is as
+// likely Assamese. Wherever ML Kit's confidences in `langs` are taken (a word,
+// a stretch), such a language gets just under the confidence of the one ML Kit
+// reads it as: no lead, no doubt, nothing for or against it -- the letters
+// decide (Assamese's ৰ ৱ, Bengali's র standing alone, which the other never
+// writes), then the language the script was last read in; and where nothing
+// does, the language ML Kit names. Sanskrit has no one such language (ML Kit
+// called the suite's 206 Sanskrit texts mr 98, ne 81, hi 26), so it has none.
+static const struct { const char* code; const char* readAs; } kMlKitReadsAs[] = {{"as", "bn"}};
+static const float kReadAsShare = 0.999999f;
+static void readAsNamed(const std::vector<std::string>& langs, std::vector<float>& p){
+    for (size_t l = 0; l < langs.size(); l++) {
+        const std::string c = canonicalLanguage(langs[l]);
+        for (const auto& r : kMlKitReadsAs) {
+            if (c != r.code) continue;
+            for (size_t k = 0; k < langs.size(); k++)
+                if (k != l && canonicalLanguage(langs[k]) == r.readAs) p[l] = p[k] * kReadAsShare;
+        }
+    }
+}
 // ML Kit's answer for one word (cached), restricted to `langs`: p[l] is the
-// confidence it gives langs[l], 0 where it does not name it.
+// confidence it gives langs[l], 0 where it does not name it (readAsNamed aside).
 static void wordAnswer(const char* bytes, size_t len, const std::vector<std::string>& langs, std::vector<float>& p){
     auto& cache = wordAnswers();
     std::string key(bytes, len);
@@ -2841,6 +2865,7 @@ static void wordAnswer(const char* bytes, size_t len, const std::vector<std::str
         const std::string c = canonicalLanguage(langs[l]);
         for (const WordLang& one : found->second) if (c == one.tag) { p[l] = one.p; break; }
     }
+    readAsNamed(langs, p);
 }
 // How strongly one word speaks for each of `langs`: kWordWeight x ln p. A word
 // ML Kit names none of `langs` for (or has no answer for) says nothing: every
@@ -2885,14 +2910,31 @@ static size_t certainWord(const char* bytes, size_t len, const std::vector<std::
 // out (`open`: CLDR has no locale for it, or no auxiliary letters -- it does not
 // say which letters the language never writes; a Malay name with é is still
 // Malay), and whether ML Kit names it at all.
+//
+// And, for a language ML Kit does not name, `readAs`: the index in `langs` of
+// the language ML Kit reads its text as (kMlKitReadsAs), when that one is in
+// `langs` too.
 static std::vector<LetterLang> letterLangs(int s, const std::vector<std::string>& langs){
     std::vector<LetterLang> info(langs.size(), LetterLang{-1, true, true});
     for (size_t l = 0; l < langs.size(); l++) {
         const std::string c = canonicalLanguage(langs[l]);
         for (const UniSharedLang& x : kUniSharedLangs)
             if (x.slot == s && c == x.code) { info[l] = LetterLang{x.bit, x.open, x.mlkit}; break; }
+        if (info[l].named) continue;
+        for (const auto& r : kMlKitReadsAs) {
+            if (c != r.code) continue;
+            for (size_t k = 0; k < langs.size(); k++)
+                if (k != l && canonicalLanguage(langs[k]) == r.readAs) info[l].readAs = (int)k;
+        }
     }
     return info;
+}
+// A letter beside its script's virama that says nothing there (kUniJoinedNeutral):
+// Bengali's ra as reph or ra-phala looks like Assamese's, and Assamese text has it.
+static bool joinedNeutral(int32_t cp, int32_t prev, int32_t next){
+    for (const UniJoined& j : kUniJoinedNeutral)
+        if (cp == j.letter && (prev == j.virama || next == j.virama)) return true;
+    return false;
 }
 // Every language of `langs` (the first 64), as bits: bit l is langs[l].
 static uint64_t allOf(size_t n){ return n >= 64 ? ~0ULL : ((1ULL << n) - 1); }
@@ -2904,16 +2946,29 @@ static uint64_t lettersAllow(int s, const char* bytes, size_t len, const std::ve
     const size_t L = std::min<size_t>(info.size(), 64);
     uint64_t allowed = allOf(L), open = 0;
     for (size_t l = 0; l < L; l++) if (info[l].open) open |= 1ULL << l;
-    for (size_t i = 0; i < len;) {
-        int32_t cp;
-        const int used = utf8Decode((const unsigned char*)bytes + i, len - i, &cp);
-        if (used <= 0) break;
-        i += (size_t)used;
-        const uint64_t writers = uniLetterLangs(s, (int)cp);
-        if (!writers) continue;
-        uint64_t claim = 0;
-        for (size_t l = 0; l < L; l++) if (info[l].bit >= 0 && ((writers >> info[l].bit) & 1)) claim |= 1ULL << l;
-        if (claim) allowed &= claim | open;
+    auto decode = [&](size_t& at, int32_t& out) {
+        if (at >= len) return false;
+        const int used = utf8Decode((const unsigned char*)bytes + at, len - at, &out);
+        if (used <= 0) return false;
+        at += (size_t)used;
+        return true;
+    };
+    size_t i = 0;
+    int32_t prev = -1, cp = -1;
+    for (bool have = decode(i, cp); have;) {
+        size_t j = i;
+        int32_t next = -1;
+        const bool more = decode(j, next);
+        const uint64_t writers = joinedNeutral(cp, prev, more ? next : -1) ? 0 : uniLetterLangs(s, (int)cp);
+        if (writers) {
+            uint64_t claim = 0;
+            for (size_t l = 0; l < L; l++) if (info[l].bit >= 0 && ((writers >> info[l].bit) & 1)) claim |= 1ULL << l;
+            if (claim) allowed &= claim | open;
+        }
+        prev = cp;
+        cp = next;
+        i = j;
+        have = more;
     }
     return allowed;
 }
@@ -2988,6 +3043,7 @@ static void sharedAnswer(const char* bytes, size_t len, int s, const std::vector
                     if (canonicalLanguage(answer.tags[k]) == c) { fresh[l] = answer.confidences[k]; break; }
             }
         }
+        readAsNamed(langs, fresh);
         if (cache.shared.size() >= kDetectCacheMax) cache.shared.clear();
         hit = cache.shared.emplace(std::move(key), std::move(fresh)).first;
     }
@@ -3238,9 +3294,12 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         size_t top, second;
         rankOf(st.p, top, second);
         if (top == L) return false;
-        if (wordsOf(st) <= 1) return st.letters >= kWordSureLetters && st.p[top] >= kWordSureP;
-        return st.letters >= kSureLetters && st.p[top] >= kSureP
-               && leadOf(st.p[top], second < L ? st.p[second] : 0.0f) >= kSureLead;
+        // kSureLead ahead of the next as well: at 0.99 that holds for every word
+        // (ln 99 > kSureLead) but one of a language ML Kit reads as another
+        // (readAsNamed: Assamese, which it gives Bengali's confidence).
+        const bool ahead = leadOf(st.p[top], second < L ? st.p[second] : 0.0f) >= kSureLead;
+        if (wordsOf(st) <= 1) return st.letters >= kWordSureLetters && st.p[top] >= kWordSureP && ahead;
+        return st.letters >= kSureLetters && st.p[top] >= kSureP && ahead;
     };
     if (stretches.size() == 1 && !sure(stretches[0])) {
         // Not sure: the language the script was last read in, unless ML Kit
@@ -3287,7 +3346,11 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
             const char* bytes = text.data() + words[i].w.start;
             const size_t len = (size_t)(words[i].w.end - words[i].w.start);
             const size_t c = certainWord(bytes, len, langs);
-            if (c < L && allows(own, c)) { wordLang[i] = langs[c]; continue; }
+            // Not when a language ML Kit reads as that one (Assamese, as
+            // Bengali) is as allowed: ML Kit cannot be certain between them.
+            bool readAsToo = false;
+            for (size_t l = 0; l < L && c < L; l++) if (info[l].readAs == (int)c && allows(own, l)) readAsToo = true;
+            if (c < L && allows(own, c) && !readAsToo) { wordLang[i] = langs[c]; continue; }
             if (!allows(own, indexOf(wordLang[i]))) {
                 std::vector<float> p;
                 wordAnswer(bytes, len, langs, p);

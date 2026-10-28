@@ -8,7 +8,59 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## THE LETTERS EACH LANGUAGE WRITES, FROM CLDR; LINGUA MEASURED AND NOT USED (owner, 2026-10-28, latest)
+## NOTHING LEAVES THE PHONE; LETTERS CLDR KEEPS ONLY FOR OTHER LANGUAGES; ASSAMESE READ AS ML KIT READS IT (owner, 2026-10-28, latest)
+*"Ham sirf ml kit hi Rakhenge ... Unicode ke through ... internet ki jarurat Nahin Hai ... Har Jagah se internet
+Hata dena / firebase ki bhi jarurat na ho to ... Hata dena"*, then: **ML Kit stays exactly as it is** (Gradle +
+Kotlin; "native" meant the other things), and *"Jo ml kit language support nahin karta hai vah Unicode script ke
+through ... Usi se deduction bnao"*. CLD2 measured and NOT taken back (owner: ML Kit only).
+- **Offline (#38):** the manifest removes INTERNET, ACCESS_NETWORK_STATE and datatransport's TransportBackendDiscovery,
+  JobInfoSchedulerService, AlarmManagerSchedulerBroadcastReceiver. Read in the bytecode first (transport-runtime
+  2.2.6, transport-backend-cct 2.3.3, language-id-common 16.1.0): ML Kit names `CCTDestination.INSTANCE` directly (so
+  the library stays -- without it NoClassDefFoundError); the backend is found only through that service's meta-data
+  (NameNotFoundException caught: "returning empty list"); with no backend `DefaultScheduler` logs "Transport backend
+  'cct' is not registered" and returns BEFORE persist and schedule; every datatransport job runs in
+  SafeLoggingExecutor (catches Exception). **Firebase stays only as ML Kit's plumbing** (firebase-components and
+  encoders: MlKitComponentDiscoveryService registers ML Kit's parts through them; no Firebase service exists in the
+  app). Checks: invariants #38 (+2 selftest negatives), `tools/check/no-network.sh` (CI "Check no network access"
+  on every APK before publishing; negatives: a manifest with INTERNET, and build 991's own APK, both FAIL), `OfflineTest` on the emulator (no
+  permission, no component, ML Kit names hi and en, an event sent ML Kit's way is refused). Merged release
+  manifest: POST_NOTIFICATIONS, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK and androidx's own
+  DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION -- nothing else.
+- **Letters (gen_tables.py `CLDR_FOREIGN`, #35 step 5):** a letter CLDR gives a language only in its AUXILIARY set
+  (not its main alphabet -- asserted), which the suite's texts of that language never write (or only typed on
+  another language's keyboard), while a sibling writes it in 1%+: bn ৰ ৱ (Assamese 81/27%), bg ы э ё, uk ъ ы э ё,
+  ar پ چ ژ ک گ ی, fa إ ك, ur ة ټ ي أ ه (ي/أ/ه in 34/16/3 of 4,284 Urdu texts, "ليے"), mr the nukta, as র.
+  Left alone because texts write them or CLDR's main has them: Persian ى ؤ ة, Nepali nukta and candra, Hindi ळ ङ ऽ
+  ॅ, the Latin accented letters. **`kUniJoinedNeutral`:** Bengali's র beside the virama (reph, ra-phala) looks like
+  Assamese's ৰ and Android's Assamese strings write it there ("পাছৱর্ড"): there it says nothing; alone it is in
+  73.4% of Bengali texts and 0 of 4,038 Assamese.
+- **A language ML Kit does not name (#35 step 6):** ML Kit gives all 300 Assamese texts asked "bn", so every ML Kit
+  answer restricted to `langs` (word, stretch) gives Assamese just under Bengali's confidence (`readAsNamed`,
+  `kMlKitReadsAs`; 0.999999): no lead either way, letters then context decide, Bengali where nothing does. A word
+  ML Kit gives 0.99 is not certain between them (`certainWord` guard), and `sure` now also wants e^4 over the
+  next (a no-op for every other language: 0.99 already means ln 99 > 4). Sanskrit has no one reading (mr 98, ne
+  81, hi 26 of 206): unchanged.
+- **Measured** (held-out half, HEAD -> this, scratch tuner; all sets): one-language texts wrong 12.52 -> 9.41%,
+  mixed pairs 54.8 -> 62.1%; stream text/word/letter P0.1 90.7/91.7/90.7 -> 95.8/95.6/95.5, P0.5 85.2/91.0/86.3 ->
+  89.8/94.8/90.7; words read cold (before their text) P0.5 72.3 -> 77.5%. **bn+as: wrong 50 -> 5.75%, pairs 0 ->
+  61.2%, stream P0 0/0/0 -> 100/99.7/99.1**; ur+ar pairs 90.8 -> 95.2, cold words P0.5 93.3 -> 97.7, letters 79.5
+  -> 92.6; ru+uk pairs 73.2 -> 75.2; hi+mr 21.5 -> 23.0. One loss: ar+fa+ur+ps 1 text more read in two (Android's
+  Urdu "ليے" -> Pashto's voice, since Pashto writes ي and ے). automode vs HEAD: bn+as 67.88 -> 94.63% (0 broke /
+  3,363 fixed), ar+fa+ur+ps 3/10, every other set 0 broke; {hi,en,gu} 100/100. corebytes vs HEAD 0 of 895,440;
+  devanagari **64/64** (Assamese right now); allchars 464,866/0; allscripts 62/0.
+- **The owner's Hindi/Urdu/Arabic/English text** (16 lines, {en,hi,gu,ur,ar}, mix, real processDirect + ML Kit,
+  scratch probe `owner/`): whole 24/24 spans right, line by line 24/24, each line then its words 190/190 (HEAD
+  too); its words read COLD (next line's words before the line) HEAD 168 -> 182/190 -- the 8 left are words spelled
+  the same in Urdu and Arabic ("علم", "العلم") right after the language changed: the context names them.
+- **Speed, measured** (desktop, ML Kit's library included): that whole 16-paragraph text 2.3-2.9 ms the first time
+  (86 ML Kit answers -- the Arabic-script words; Hindi and English, one enabled language per script, never ask),
+  0.3 ms again, one paragraph 0.1 ms; HEAD the same. Nothing left in Kotlin worth moving to C++; the language
+  switch's time is the TTS engines' own.
+- **What stays wrong, plainly:** Assamese text with neither ৰ ৱ nor anything else of its own (5.75%) is Bengali
+  unless the context says otherwise; Hindi/Marathi/Nepali and Indonesian/Malay (their letters are shared); Han
+  (zh/ja) letters are still not used (traditional Chinese would need zh_Hant's set; not done).
+
+## THE LETTERS EACH LANGUAGE WRITES, FROM CLDR; LINGUA MEASURED AND NOT USED (owner, 2026-10-28)
 *"cldr ka properli jo data hai Unicode ka theek hai sab Kuchh complete karo aur ekadam accurate result chahie"*, and
 *"ml kit Na Use Karke main Ling Y use karun"* (Lingua). Unicode data, not a model of ours (#16's check now says so).
 - **Data:** CLDR 48.2 exemplar characters (main + auxiliary + index) of the 87 languages of the six scripts 2+
@@ -581,14 +633,11 @@ memory. As of 2026-10-15:
   it; it guards our package-change receiver. No declaration.
 - `android.permission.DUMP` appears only as the permission a SENDER needs for androidx.profileinstaller's
   receiver (system/adb); the app does not request it.
-- **Since 2026-10-28, from Google's ML Kit library (com.google.mlkit:language-id):** `INTERNET` +
-  `ACCESS_NETWORK_STATE` (normal) -- ML Kit's datatransport sends Google usage data for diagnostics and analytics:
-  device and app info, performance, the identified languages; never the text itself (ML Kit's data-disclosure
-  page; HTTPS, not shared with third parties). It also adds a JobService (BIND_JOB_SERVICE) and a receiver for
-  that upload, MlKitInitProvider, a component-discovery service and GoogleApiActivity, all not exported. **Play
-  Data safety must now declare** what the SDK collects for diagnostics and analytics (ML Kit's "Prepare for Google
-  Play's data disclosure requirements" page lists it). Removing INTERNET with `tools:node="remove"` would stop the
-  upload (offered to the owner).
+- **INTERNET and ACCESS_NETWORK_STATE: GONE since 2026-10-28** (owner: "Har Jagah se internet Hata dena"). They came
+  only with ML Kit's datatransport (usage-log upload); the manifest removes both permissions and the upload's
+  JobService, receiver and backend discovery (#38 in docs/INVARIANTS.md). ML Kit still brings MlKitInitProvider,
+  a component-discovery service and GoogleApiActivity, all not exported, none a permission. **Play Data safety:
+  nothing is collected or sent** -- the language identification runs on the phone and nothing leaves it.
 - NOT requested: QUERY_ALL_PACKAGES (gone 10-08; the four TTS `<queries>` intents suffice),
   REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (gone 09-24), WAKE_LOCK (gone), no AccessibilityService. Data safety: the
   text is processed on the phone and handed only to the TTS engine the user chose for that language (that
