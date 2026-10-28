@@ -2023,27 +2023,13 @@ static std::string canonicalLanguage(const std::string& c){
 }
 // The script slot (spanScriptSlot's numbering) a language writes, by its
 // canonical code. 1..6, the scripts two languages can share -- Latin, Cyrillic,
-// Arabic, Devanagari, Han and kana, Bengali -- by ML Kit's own list of the 111
-// languages it identifies (developers.google.com/ml-kit/language/identification/
-// langid-support), plus Sanskrit and Assamese, which it does not name; 7..25 a
-// script one language is read in (SCRIPT_FIXED_LANG; Yiddish writes Hebrew);
-// -1 for anything else: a romanised tag ("hi-Latn"), "und", a language ML Kit
-// does not know.
+// Arabic, Devanagari, Han and kana, Bengali -- by kUniSharedLangs (gen_tables.py
+// SHARED_LANGS: ML Kit's own list of the 111 languages it identifies, plus
+// Sanskrit and Assamese, which it does not name); 7..25 a script one language is
+// read in (SCRIPT_FIXED_LANG; Yiddish writes Hebrew); -1 for anything else: a
+// romanised tag ("hi-Latn"), "und", a language ML Kit does not know.
 static int languageSlot(const std::string& code){
-    static const char* const kLatin[] = {
-        "af", "az", "bs", "ca", "ceb", "co", "cs", "cy", "da", "de", "en", "eo", "es", "et", "eu", "fi",
-        "fil", "fr", "fy", "ga", "gd", "gl", "ha", "haw", "hmn", "hr", "ht", "hu", "id", "ig", "is", "it",
-        "jv", "ku", "la", "lb", "lt", "lv", "mg", "mi", "ms", "mt", "nl", "no", "ny", "pl", "pt", "ro",
-        "sk", "sl", "sm", "sn", "so", "sq", "st", "su", "sv", "sw", "tr", "uz", "vi", "xh", "yo", "zu"};
-    static const char* const kCyrillic[] = {"be", "bg", "kk", "ky", "mk", "mn", "ru", "sr", "tg", "uk"};
-    static const char* const kArabic[] = {"ar", "fa", "ps", "sd", "ur"};
-    static const char* const kDevanagari[] = {"hi", "mr", "ne", "sa"};
-    for(const char* c : kLatin) if(code == c) return 1;
-    for(const char* c : kCyrillic) if(code == c) return 2;
-    for(const char* c : kArabic) if(code == c) return 3;
-    for(const char* c : kDevanagari) if(code == c) return 4;
-    if(code == "zh" || code == "ja") return 5;
-    if(code == "bn" || code == "as") return 6;
+    for(const UniSharedLang& x : kUniSharedLangs) if(code == x.code) return x.slot;
     for(int i = 0; i < 19; i++) if(code == SCRIPT_FIXED_LANG[i]) return 7 + i;
     if(code == "yi") return 9;   // Yiddish: the Hebrew script
     return -1;
@@ -2129,6 +2115,13 @@ static std::string detectWindowLang(const std::string& utf8Text,
     }
     return hit->second;
 }
+// The letters each language writes (below, "THE LETTERS EACH LANGUAGE WRITES").
+struct LetterLang { int bit; bool open; bool named; };
+static std::vector<LetterLang> letterLangs(int s, const std::vector<std::string>& langs);
+static uint64_t allOf(size_t n);
+static uint64_t lettersAllow(int s, const char* bytes, size_t len, const std::vector<LetterLang>& info);
+static uint64_t lettersHeard(uint64_t allowed, const std::vector<LetterLang>& info, const std::vector<float>& p);
+static size_t bestAllowed(uint64_t allowed, const std::vector<float>& p, size_t prefer);
 static std::string detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled){
     // What clsCLD2.d asks per 64-character window (AutoTTS: CLD2's getLanguage,
     // 0x6523c8): one language for the window, or none when the detector is not
@@ -2185,6 +2178,24 @@ static std::string detectWindowLangUncached(const std::string& utf8Text, const s
         std::vector<std::string> langs;
         slotLanguages(slot, codes, langs);
         if(langs.size() >= 2){
+            // Only a language the window's letters allow (lettersAllow, heard
+            // against ML Kit as a word's are): Urdu letters in it, an Urdu window.
+            const std::vector<LetterLang> info = letterLangs(slot, langs);
+            std::vector<float> p(langs.size(), 0.0f);
+            for(size_t l = 0; l < langs.size(); l++){
+                const std::string c = canonicalLanguage(langs[l]);
+                for(int k = 0; k < answer.n; k++)
+                    if(canonicalLanguage(answer.tags[k]) == c){ p[l] = answer.confidences[k]; break; }
+            }
+            const uint64_t allowed = lettersHeard(lettersAllow(slot, utf8Text.data(), utf8Text.size(), info), info, p);
+            if(allowed != allOf(langs.size())){
+                const size_t best = bestAllowed(allowed, p, langs.size());
+                // Two or more allowed and ML Kit gives none of them anything
+                // ("Мы арабы": Kyrgyz, Belarusian): the spans decide, word by
+                // word, as when it names none of `langs`.
+                if((allowed & (allowed - 1)) != 0 && p[best] <= 0.0f) return "UNKNOWN";
+                return langs[best];
+            }
             const std::string chosen = mostLikely(answer, langs);
             return chosen.empty() ? std::string("UNKNOWN") : chosen;
         }
@@ -2863,6 +2874,98 @@ static size_t certainWord(const char* bytes, size_t len, const std::vector<std::
     return langs.size();
 }
 
+// THE LETTERS EACH LANGUAGE WRITES (owner, 2026-10-28: "cldr ka properli jo data
+// hai Unicode ka ... sab Kuchh complete karo aur ekadam accurate result
+// chahie"). A letter one enabled language writes and another never does settles
+// a word between them: "ٹ" is Urdu's and never Arabic's, "إ" Arabic's and never
+// Urdu's, "ї" Ukrainian's and never Russian's, kana Japanese and never
+// Chinese. Which language writes which letter is CLDR's (kUniLetterLangs<slot>,
+// gen_tables.py). For each of `langs` (the enabled languages of shared slot s):
+// its bit there (-1 when CLDR has no letters for it), whether no letter rules it
+// out (`open`: CLDR has no locale for it, or no auxiliary letters -- it does not
+// say which letters the language never writes; a Malay name with é is still
+// Malay), and whether ML Kit names it at all.
+static std::vector<LetterLang> letterLangs(int s, const std::vector<std::string>& langs){
+    std::vector<LetterLang> info(langs.size(), LetterLang{-1, true, true});
+    for (size_t l = 0; l < langs.size(); l++) {
+        const std::string c = canonicalLanguage(langs[l]);
+        for (const UniSharedLang& x : kUniSharedLangs)
+            if (x.slot == s && c == x.code) { info[l] = LetterLang{x.bit, x.open, x.mlkit}; break; }
+    }
+    return info;
+}
+// Every language of `langs` (the first 64), as bits: bit l is langs[l].
+static uint64_t allOf(size_t n){ return n >= 64 ? ~0ULL : ((1ULL << n) - 1); }
+// Which of `langs` write every letter of bytes [0, len), as bits. A letter none
+// of them writes, or a character that is not a letter of the script, rules
+// nothing out; an open language is never ruled out; 0 when two letters rule
+// each other out (two languages in one).
+static uint64_t lettersAllow(int s, const char* bytes, size_t len, const std::vector<LetterLang>& info){
+    const size_t L = std::min<size_t>(info.size(), 64);
+    uint64_t allowed = allOf(L), open = 0;
+    for (size_t l = 0; l < L; l++) if (info[l].open) open |= 1ULL << l;
+    for (size_t i = 0; i < len;) {
+        int32_t cp;
+        const int used = utf8Decode((const unsigned char*)bytes + i, len - i, &cp);
+        if (used <= 0) break;
+        i += (size_t)used;
+        const uint64_t writers = uniLetterLangs(s, (int)cp);
+        if (!writers) continue;
+        uint64_t claim = 0;
+        for (size_t l = 0; l < L; l++) if (info[l].bit >= 0 && ((writers >> info[l].bit) & 1)) claim |= 1ULL << l;
+        if (claim) allowed &= claim | open;
+    }
+    return allowed;
+}
+// What one word's letters allow (lettersAllow), or every language when they rule
+// out none -- or when ML Kit gives a language they rule out kLetterVetoP or more
+// while they allow one it names: CLDR lists the letters a language usually
+// writes, and a word ML Kit is that sure of is not ruled out by one it seldom
+// writes (the eyelash ra in Nepali, "नपुऱ्याउनुहोस्", ML Kit ne 0.979, was such a
+// word until gen_tables.py's CLDR_MISSES gave Nepali that letter). Measured over
+// the suite's held-out words (114,811, 9 sets): 8,857 words whose letters allow
+// ONE enabled language, one of them wrong -- that Nepali word; ML Kit disputed
+// none of the right ones at 0.9 or more.
+static const float kLetterVetoP = 0.95f;
+// Whether ML Kit can dispute `allowed` at all: it allows a language ML Kit names
+// (ML Kit has no Assamese or Sanskrit, so it gives such text another language).
+static bool disputable(uint64_t allowed, const std::vector<LetterLang>& info){
+    for (size_t l = 0; l < info.size() && l < 64; l++) if (((allowed >> l) & 1) && info[l].named) return true;
+    return false;
+}
+// `allowed`, heard against ML Kit's confidences `p` in `langs`.
+static uint64_t lettersHeard(uint64_t allowed, const std::vector<LetterLang>& info, const std::vector<float>& p){
+    const uint64_t all = allOf(p.size());
+    if (allowed == 0 || allowed == all) return all;
+    if (!disputable(allowed, info)) return allowed;
+    size_t top, second;
+    rankOf(p, top, second);
+    if (top < p.size() && top < 64 && !((allowed >> top) & 1) && p[top] >= kLetterVetoP) return all;
+    return allowed;
+}
+static uint64_t wordLetters(int s, const char* bytes, size_t len, const std::vector<std::string>& langs,
+                            const std::vector<LetterLang>& info){
+    const uint64_t allowed = lettersAllow(s, bytes, len, info);
+    if (allowed == 0 || allowed == allOf(langs.size())) return allOf(langs.size());
+    if (!disputable(allowed, info)) return allowed;
+    std::vector<float> p;
+    wordAnswer(bytes, len, langs, p);
+    return lettersHeard(allowed, info, p);
+}
+// Of the languages `allowed` (bits), the one ML Kit's `p` gives the most; when
+// it gives none of them anything, `prefer` (the language the words' path chose)
+// if allowed, else the first of them in `langs`. `allowed` is never 0 here.
+static size_t bestAllowed(uint64_t allowed, const std::vector<float>& p, size_t prefer){
+    size_t best = p.size();
+    for (size_t l = 0; l < p.size() && l < 64; l++) {
+        if (!((allowed >> l) & 1)) continue;
+        if (best == p.size() || p[l] > p[best]) best = l;
+    }
+    if (best < p.size() && p[best] <= 0.0f && prefer < p.size() && prefer < 64 && ((allowed >> prefer) & 1))
+        return prefer;
+    return best;
+}
+
 // ML Kit's confidence in each of `langs` for bytes [0, len) of script slot `s`,
 // kept with the span answers (dropped when the hints change, and the hints
 // decide `langs`).
@@ -2952,6 +3055,11 @@ static const float kWordLeanP = 0.95f;
 static const float kSwitchCost = 4.0f;
 static const float kSentenceSwitchCost = 0.5f;
 static const float kKeepMargin = 2.3f;
+// A language a word's letters rule out (wordLetters) costs the path kLetterCost
+// at that word -- more than two changes (2 x kSwitchCost), so a word whose
+// letters only one language writes is read in it even inside another's
+// sentence, and a stretch is never named a language its letters rule out.
+static const float kLetterCost = 9.0f;
 static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vector<std::string>& langs,
                              const HintStatePtr& hintState){
     struct Word { size_t t; size_t r; RunWord w; bool sentence; };
@@ -2977,6 +3085,17 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         }
     }
     const size_t W = words.size(), L = langs.size();
+    // What each word's letters allow (wordLetters; every language for a word
+    // whose letters say nothing).
+    const std::vector<LetterLang> info = letterLangs(s, langs);
+    const uint64_t everyLang = allOf(L);
+    std::vector<uint64_t> letters(W, everyLang);
+    for (size_t i = 0; i < W; i++) {
+        if (!words[i].w.letters) continue;
+        const std::string& text = *texts[words[i].t].text;
+        letters[i] = wordLetters(s, text.data() + words[i].w.start, (size_t)(words[i].w.end - words[i].w.start),
+                                 langs, info);
+    }
     // The path: one language per word.
     std::vector<int> label(W, 0);
     size_t lettered = 0;
@@ -2987,6 +3106,7 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
             if (!words[i].w.letters) { evidence[i].assign(L, 0.0f); continue; }
             const std::string& text = *texts[words[i].t].text;
             wordEvidence(text.data() + words[i].w.start, (size_t)(words[i].w.end - words[i].w.start), langs, evidence[i]);
+            for (size_t l = 0; l < L && l < 64; l++) if (!((letters[i] >> l) & 1)) evidence[i][l] -= kLetterCost;
         }
         std::vector<float> score(evidence[0]), next(L);
         std::vector<std::vector<int>> from(W, std::vector<int>(L, 0));
@@ -3020,6 +3140,18 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         first = last + 1;
     }
     auto sameRun = [&](size_t x, size_t y) { return words[x].t == words[y].t && words[x].r == words[y].r; };
+    // The languages every word of a stretch's letters allow (0: its words' letters
+    // rule each other out), and a language's index in `langs`.
+    auto lettersOf = [&](const Stretch& st) {
+        uint64_t a = everyLang;
+        for (size_t i = st.first; i <= st.last; i++) a &= letters[i];
+        return a;
+    };
+    auto indexOf = [&](const std::string& lang) {
+        for (size_t l = 0; l < L; l++) if (langs[l] == lang) return l;
+        return L;
+    };
+    auto allows = [](uint64_t allowed, size_t l) { return l < 64 && ((allowed >> l) & 1); };
     // The stretch's text: each run's part of it, a whole run with the spaces and
     // marks around its words, joined by a space between runs.
     auto stretchText = [&](const Stretch& st) {
@@ -3040,6 +3172,7 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
     // makes each of `langs`, and the stretch's language, the likeliest -- the
     // one it had when ML Kit names none of them.
     auto askStretch = [&](Stretch& st) {
+        const size_t path = indexOf(st.lang);
         const std::string joined = stretchText(st);
         size_t ask = joined.size();
         if (ask > 1024) {
@@ -3051,6 +3184,10 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         size_t top, second;
         rankOf(st.p, top, second);
         if (top < L) st.lang = langs[top];
+        // Only a language every word's letters allow (lettersOf).
+        const uint64_t allowed = lettersOf(st);
+        if (allowed && allowed != everyLang && !allows(allowed, indexOf(st.lang)))
+            st.lang = langs[bestAllowed(allowed, st.p, path)];
     };
     for (Stretch& st : stretches) askStretch(st);
     // Two neighbouring stretches stay apart only when ML Kit, on each one's whole
@@ -3071,7 +3208,11 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
     for (size_t k = 0; k + 1 < stretches.size();) {
         Stretch& a = stretches[k];
         Stretch& b = stretches[k + 1];
-        const bool apart = a.lang != b.lang && margin(a, b.lang) >= kKeepMargin && margin(b, a.lang) >= kKeepMargin;
+        // A stretch's letters that rule the other's language out confirm it too.
+        auto confirmed = [&](const Stretch& st, const std::string& other) {
+            return !allows(lettersOf(st), indexOf(other)) || margin(st, other) >= kKeepMargin;
+        };
+        const bool apart = a.lang != b.lang && confirmed(a, b.lang) && confirmed(b, a.lang);
         if (apart) { k++; continue; }
         const std::string longer = (a.last - a.first >= b.last - b.first) ? a.lang : b.lang;
         a.last = b.last;
@@ -3089,7 +3230,11 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         for (size_t i = st.first; i <= st.last; i++) n += words[i].w.letters ? 1 : 0;
         return n;
     };
+    // And sure when its letters allow its language alone: "ٹ" is Urdu, read one
+    // letter at a time or not.
     auto sure = [&](const Stretch& st) {
+        const uint64_t own = lettersOf(st);
+        if (own && (own & (own - 1)) == 0 && allows(own, indexOf(st.lang))) return true;
         size_t top, second;
         rankOf(st.p, top, second);
         if (top == L) return false;
@@ -3103,12 +3248,14 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         // or on one word it gives kWordLeanP; with no context, ML Kit's answer,
         // and when it names none of `langs`, the script's first enabled
         // language (AutoTTS's scriptLanguageFallback).
+        // Neither when the stretch's letters rule it out.
         Stretch& st = stretches[0];
         size_t top, second;
         rankOf(st.p, top, second);
+        const uint64_t own = lettersOf(st) ? lettersOf(st) : everyLang;
         const std::string context = contextLanguage(s, hintState);
         size_t at = L;
-        for (size_t l = 0; l < L; l++) if (langs[l] == context) at = l;
+        for (size_t l = 0; l < L; l++) if (langs[l] == context && allows(own, l)) at = l;
         if (at < L) {
             const bool ownLean = top < L && top != at && st.letters >= kSureLetters
                                  && (wordsOf(st) >= 2 || st.p[top] >= kWordLeanP)
@@ -3116,7 +3263,7 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
             if (!ownLean) st.lang = langs[at];
         } else if (top == L) {
             const char* fallback = scriptLanguageFallbackOf(*hintState, s);
-            st.lang = fallback ? fallback : langs[0];
+            st.lang = (fallback && allows(own, indexOf(fallback))) ? fallback : langs[bestAllowed(own, st.p, indexOf(st.lang))];
         }
     }
     // What the script was last read in: the last stretch of two words or more,
@@ -3127,15 +3274,25 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
     std::vector<std::string> wordLang(W);
     for (const Stretch& st : stretches)
         for (size_t i = st.first; i <= st.last; i++) wordLang[i] = st.lang;
-    // A word ML Kit is all but certain of (certainWord) is read in its own
-    // language, whatever its sentence is read in -- the sentence keeps the
-    // language it was named in above.
+    // A word ML Kit is all but certain of (certainWord), or whose letters only
+    // one language writes, is read in its own language, whatever its sentence
+    // is read in -- the sentence keeps the language it was named in above. A
+    // word's letters outrank ML Kit.
     if (L >= 2) {
         for (size_t i = 0; i < W; i++) {
             if (!words[i].w.letters) continue;
+            const uint64_t own = letters[i];
+            if (own != everyLang && (own & (own - 1)) == 0) { wordLang[i] = langs[(size_t)__builtin_ctzll(own)]; continue; }
             const std::string& text = *texts[words[i].t].text;
-            const size_t c = certainWord(text.data() + words[i].w.start, (size_t)(words[i].w.end - words[i].w.start), langs);
-            if (c < L) wordLang[i] = langs[c];
+            const char* bytes = text.data() + words[i].w.start;
+            const size_t len = (size_t)(words[i].w.end - words[i].w.start);
+            const size_t c = certainWord(bytes, len, langs);
+            if (c < L && allows(own, c)) { wordLang[i] = langs[c]; continue; }
+            if (!allows(own, indexOf(wordLang[i]))) {
+                std::vector<float> p;
+                wordAnswer(bytes, len, langs, p);
+                wordLang[i] = langs[bestAllowed(own, p, (size_t)label[i])];
+            }
         }
     }
     // Pieces: a word ends where the next word of its run starts, the run's last

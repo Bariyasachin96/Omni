@@ -250,6 +250,134 @@ for line in open(os.path.join(UCD, "SpecialCasing.txt"), encoding="utf-8"):
 CASED = prop("DerivedCoreProperties.txt", "Cased")
 CASE_IGNORABLE = prop("DerivedCoreProperties.txt", "Case_Ignorable")
 
+# ---- THE LANGUAGES OF A SCRIPT TWO OR MORE LANGUAGES SHARE, AND THE LETTERS
+# EACH ONE WRITES (owner, 2026-10-28: "cldr ka properli jo data hai Unicode ka
+# ... sab Kuchh complete karo aur ekadam accurate result chahie"). The
+# languages of slots 1..6 are ML Kit's own list of the 111 it identifies
+# (developers.google.com/ml-kit/language/identification/langid-support), plus
+# Sanskrit and Assamese, which it does not name; the core's languageSlot reads
+# them from here. The letters are CLDR's exemplar characters
+# (tools/unicode/cldr/exemplars.txt, release 48.2): main, auxiliary and index
+# together -- the auxiliary set holds the letters of loanwords and names, so a
+# letter a language does write is not taken for a foreign one (main alone left
+# Urdu without ں and آ). Each letter is expanded the way text can spell it: its
+# simple upper, lower and title case and its canonical decomposition, and a
+# {sequence} gives its letters and its composed form. Kept: letters and marks
+# of the slot's own script only (span_slot) -- a mark several scripts share
+# (Arabic harakat, the tatweel, a Latin combining accent) says nothing -- and on
+# slot 5 no Han ideograph, which Chinese and Japanese share (CLDR lists the
+# common ones of each, not all), so there it is the kana. A language with no
+# CLDR locale (Hmong, Samoan) has no letters here, and one CLDR gives no
+# auxiliary letters (Malay, Kazakh, Latin) does not say which letters it never
+# writes: neither is ever ruled out ("open"; a Malay name with é is still
+# Malay), though Kazakh's own letters still say Kazakh.
+# Measured over the language suite's held-out texts (16,233, 9 sets): a word
+# whose letters only one enabled language writes is that language -- Urdu
+# beside Arabic 42.6% of words, Arabic 20.0%, Ukrainian beside Russian 33.8%,
+# Serbian 28.2%, Japanese beside Chinese 91% (kana) -- and wrong once in 81,000
+# words (a Nepali word with eyelash ra, which CLDR gives Marathi alone).
+SHARED_LANGS = {
+    1: ["af", "az", "bs", "ca", "ceb", "co", "cs", "cy", "da", "de", "en", "eo", "es", "et", "eu", "fi",
+        "fil", "fr", "fy", "ga", "gd", "gl", "ha", "haw", "hmn", "hr", "ht", "hu", "id", "ig", "is", "it",
+        "jv", "ku", "la", "lb", "lt", "lv", "mg", "mi", "ms", "mt", "nl", "no", "ny", "pl", "pt", "ro",
+        "sk", "sl", "sm", "sn", "so", "sq", "st", "su", "sv", "sw", "tr", "uz", "vi", "xh", "yo", "zu"],
+    2: ["be", "bg", "kk", "ky", "mk", "mn", "ru", "sr", "tg", "uk"],
+    3: ["ar", "fa", "ps", "sd", "ur"],
+    4: ["hi", "mr", "ne", "sa"],
+    5: ["zh", "ja"],
+    6: ["bn", "as"]}
+UD = {}
+for line in open(os.path.join(UCD, "UnicodeData.txt"), encoding="utf-8"):
+    f = line.rstrip("\n").split(";")
+    UD[int(f[0], 16)] = f
+def full_decomposition(c):
+    d = UD.get(c, [""] * 15)[5]
+    if not d or d.startswith("<"): return [c]
+    out = []
+    for x in d.split(): out += full_decomposition(int(x, 16))
+    return out
+COMPOSED = {}
+for c in UD:
+    d = full_decomposition(c)
+    if len(d) > 1: COMPOSED.setdefault(tuple(d), c)
+def parse_uset(s):
+    """A CLDR exemplar UnicodeSet: its single characters and its {sequences}."""
+    s = s.strip()
+    assert s[0] == "[" and s[-1] == "]", s
+    s = s[1:-1]
+    singles, seqs = set(), []
+    def take(i):
+        if s[i] == "\\":
+            if s[i + 1] == "u": return int(s[i + 2:i + 6], 16), i + 6
+            if s[i + 1] == "U": return int(s[i + 2:i + 10], 16), i + 10
+            return ord(s[i + 1]), i + 2
+        return ord(s[i]), i + 1
+    i, prev = 0, None
+    while i < len(s):
+        if s[i] == " ": i += 1; continue
+        if s[i] == "{":
+            j = s.index("}", i)
+            seqs.append([ord(x) for x in s[i + 1:j]])
+            i, prev = j + 1, None
+            continue
+        if s[i] == "-" and prev is not None and i + 1 < len(s):
+            hi, i = take(i + 1)
+            singles.update(range(prev, hi + 1))
+            prev = None
+            continue
+        c, i = take(i)
+        singles.add(c)
+        prev = c
+    return singles, seqs
+def spellings(c):
+    """c, its simple upper, lower and title case, and what they decompose to."""
+    out = set()
+    for x in [c] + [int(UD[c][k], 16) for k in (12, 13, 14) if c in UD and UD[c][k]]:
+        out.add(x)
+        out.update(full_decomposition(x))
+    return out
+EXEMPLARS = {}
+HAS_AUXILIARY = set()
+for line in open(os.path.join(CLDR, "exemplars.txt"), encoding="utf-8"):
+    if line.startswith("#") or not line.strip(): continue
+    lang, kind, uset = line.rstrip("\n").split("\t")
+    if kind == "auxiliary": HAS_AUXILIARY.add(lang)
+    singles, seqs = parse_uset(uset)
+    letters = EXEMPLARS.setdefault(lang, set())
+    for c in singles: letters |= spellings(c)
+    for seq in seqs:
+        for c in seq: letters |= spellings(c)
+        nfd = []
+        for c in seq: nfd += full_decomposition(c)
+        if tuple(nfd) in COMPOSED: letters |= spellings(COMPOSED[tuple(nfd)])
+# Letters a language's own words write that its CLDR exemplars leave out --
+# measured, not assumed (2026-10-28: over the language suite's texts, every
+# letter a language's texts write that CLDR gives another language of its
+# script and not it). Nepali writes the eyelash ra "ऱ" (U+0931) as Marathi
+# does -- 8 of 4,266 Nepali texts, Android's own strings among them
+# ("नपुऱ्याउनुहोस्", "गऱ्यो"), against Marathi's 23 of 4,305 -- and CLDR gives it
+# Marathi alone, so a Nepali sentence with it was read as Marathi. The other
+# letters that check finds are one text each (a Uyghur line labelled Urdu, the
+# Esperanto alphabet inside an Indonesian text) or French words in one Haitian
+# document ("Volonté", "inaliénables"): not letters of those languages.
+CLDR_MISSES = {"ne": [0x931]}
+for lang, cps in CLDR_MISSES.items():
+    for c in cps: EXEMPLARS[lang] |= spellings(c)
+NO_CLDR_LOCALE = {"hmn", "sm"}
+NOT_MLKIT = {"sa", "as"}
+SLOT_LETTERS = {}          # slot -> {code point: bits of the languages that write it}
+for slot, langs in SHARED_LANGS.items():
+    assert len(langs) <= 64, slot
+    table = SLOT_LETTERS.setdefault(slot, {})
+    for bit, lang in enumerate(langs):
+        if lang not in EXEMPLARS:
+            assert lang in NO_CLDR_LOCALE, "no CLDR exemplars for " + lang
+            continue
+        for c in EXEMPLARS[lang]:
+            if GC.get(c, "Cn")[0] not in "LM" or span_slot(c) != slot: continue
+            if slot == 5 and SCRIPT.get(c) == "Han": continue
+            table[c] = table.get(c, 0) | (1 << bit)
+
 def merge(cps):
     out = []
     for c in sorted(cps):
@@ -336,6 +464,32 @@ for c in sorted(LOWER_DELTA):
 h.append("// Simple Lowercase_Mapping (UnicodeData field 13) as a delta.\n" + c_vranges("kUniLowerDelta", lower_ranges) + "\n")
 h.append("// Cased and Case_Ignorable (DerivedCoreProperties), for Final_Sigma.\n" + c_ranges("kUniCased", merge(CASED)) + "\n" + c_ranges("kUniCaseIgnorable", merge(CASE_IGNORABLE)) + "\n")
 h.append("// SpecialCasing's unconditional lowercase mappings that are not one code point.\n#define EV_SPECIAL_LOWER_COUNT %d\n" % len(SPECIAL_LOWER))
+shared = []
+for slot in sorted(SHARED_LANGS):
+    for bit, lang in enumerate(SHARED_LANGS[slot]):
+        shared.append('    {%d, %d, %s, %s, "%s"}' % (slot, bit if lang in EXEMPLARS else -1,
+                                                   "false" if lang in HAS_AUXILIARY else "true",
+                                                   "false" if lang in NOT_MLKIT else "true", lang))
+h.append("\n// The languages of the scripts two or more languages share (slots 1..6; see the\n"
+         "// generator) -- languageSlot reads them here -- and, per slot, the letters each one\n"
+         "// writes (CLDR 48.2 exemplar characters): bit `bit` of kUniLetterLangs<slot>'s mask is\n"
+         "// that language, -1 when CLDR has no locale for it; `open`: no letter rules it out (no\n"
+         "// locale, or no auxiliary letters); `mlkit` false: ML Kit does not name it.\n"
+         "struct UniSharedLang { int slot; int bit; bool open; bool mlkit; const char* code; };\n"
+         "#define EV_SHARED_LANG_COUNT %d\n"
+         "static const UniSharedLang kUniSharedLangs[EV_SHARED_LANG_COUNT] = {\n%s\n};\n" % (len(shared), ",\n".join(shared)))
+for slot in sorted(SLOT_LETTERS):
+    rs = []
+    for c in sorted(SLOT_LETTERS[slot]):
+        v = SLOT_LETTERS[slot][c]
+        if rs and rs[-1][1] == c - 1 and rs[-1][2] == v: rs[-1][1] = c
+        else: rs.append([c, c, v])
+    h.append(c_mranges("kUniLetterLangs%d" % slot, rs))
+h.append("// The languages of slot `slot` (bits as above) that write code point `cp`; 0 when\n"
+         "// none of them does, or `cp` is not a letter of that script.\n"
+         "static inline uint64_t uniLetterLangs(int slot, int cp) {\n"
+         "    switch (slot) {\n%s\n    }\n    return 0;\n}\n"
+         % "\n".join("    case %d: return uniMask(kUniLetterLangs%d, cp);" % (s, s) for s in sorted(SLOT_LETTERS)))
 h = "".join(h)
 
 lci = merge(LCI)

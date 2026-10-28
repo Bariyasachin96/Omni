@@ -306,6 +306,10 @@ done
 # comes back by accident -- no CLD3 symbol or useCld3 flag, no CLD2 call or
 # header, no model header or its functions -- in the core, its headers or the
 # Kotlin. Comments are stripped, because the history notes quote these names.
+# (Which letters each language writes came back the same day, on the owner's
+# word -- "cldr ka properli jo data hai Unicode ka" -- as Unicode's own CLDR
+# data, generated into unicode_tables.h by gen_tables.py: kUniLetterLangs<slot>,
+# not the letters learned from text that langblend.h held.)
 strays=$(sed 's://.*::' app/src/main/cpp/*.cpp app/src/main/cpp/*.h $KT/*.kt |
          grep -oE '\b(cld3[A-Za-z]*|useCld3[A-Za-z]*|NNetLanguageIdentifier|isRomanisedTag|lidClassify|kLidLabels|blendDetectors|nbScore|orthoSegment|hanIn)\b|CLD2::[A-Za-z_]+|compact_lang_det[a-z_.]*|ExtDetectLanguageSummary|cld2_src|#include "(langblend|langnb|langhan|langid|langid_model)\.h"' |
          sort -u || true)

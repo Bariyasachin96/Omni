@@ -8,7 +8,46 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## EACH LANGUAGE TO ITS OWN VOICE INSIDE A SHARED SCRIPT: WORD BY WORD, CONTEXT FOR LETTERS (owner, 2026-10-28, latest)
+## THE LETTERS EACH LANGUAGE WRITES, FROM CLDR; LINGUA MEASURED AND NOT USED (owner, 2026-10-28, latest)
+*"cldr ka properli jo data hai Unicode ka theek hai sab Kuchh complete karo aur ekadam accurate result chahie"*, and
+*"ml kit Na Use Karke main Ling Y use karun"* (Lingua). Unicode data, not a model of ours (#16's check now says so).
+- **Data:** CLDR 48.2 exemplar characters (main + auxiliary + index) of the 87 languages of the six scripts 2+
+  languages share (gen_tables.py `SHARED_LANGS`), with case forms and canonical decompositions from UCD 18;
+  `tools/unicode/cldr/exemplars.txt` (written from CLDR's XML by `extract_exemplars.py`) -> unicode_tables.h
+  `kUniSharedLangs` + `kUniLetterLangs<slot>`. Letters and marks of the slot's own script only, no Han ideograph.
+  `languageSlot` reads its lists from that table. **`CLDR_MISSES`**: a letter a language's own words write that CLDR
+  leaves out -- found by checking every letter each language's texts write against the others': Nepali writes ऱ
+  (8 of 4,266 Nepali texts, Android's own strings: "नपुऱ्याउनुहोस्", "गऱ्यो"; Marathi 23 of 4,305). The rest were one
+  text each, not letters of the language.
+- **Rules** (INVARIANTS #35 step 5, #36): a letter no enabled language claims rules nothing out; a language with no
+  CLDR locale (hmn, sm) or no auxiliary set (kk, la, ms) is `open`, never ruled out; ML Kit overrules the letters at
+  0.95 for a language they rule out (`kLetterVetoP`); a ruled-out language costs the word path 9 (`kLetterCost`;
+  9 and 15 equal, 4 and 2 worse); a stretch takes only a language its letters allow (ML Kit names none of them: the
+  words' path, never the alphabet's first); letters that rule the neighbour out keep two stretches apart; letters of
+  one language make a text sure (it sets the context); a word whose letters allow one language is read in it.
+  Auto/Google window: letters first; 2+ allowed and ML Kit gives none of them anything -> UNKNOWN, the spans decide.
+- **Measured** (scratch tuner, held-out half, vs c2ee9f4): no context -- one-language texts read in two 0.63 ->
+  0.62%, wrong 9.85 -> 9.75%, mixed pairs both right 58.4 -> 60.9% (ur+ar 88.6 -> 90.8, ar+fa+ur+ps 72.0 -> 76.4,
+  ru+uk 68.3 -> 73.2, ru+uk+bg+sr 61.2 -> 67.8, zh+ja 83.7 -> 87.7; hi/mr/ne and id/ms equal); a stream (text / words /
+  letters one by one) equal or better at every P: P 0.1 95.3/95.1/95.0 -> 95.5/95.3/95.2, P 0.3 91.1/93.8/91.3 ->
+  91.4/94.0/91.7, P 0.5 88.7/94.3/90.0 -> 89.1/94.5/90.2 (ur+ar P 0.3 97.9/99.5/97.9 -> 98.2/99.6/98.5). Auto mode
+  (automode vs HEAD): **0 broke, 83 fixed** (ru+uk+bg+sr 93.91 -> 94.12, zh+ja 98.62 -> 98.77, ru+uk 97.75 -> 97.81,
+  ar+fa+ur+ps 97.73 -> 97.77). urar probe: the Arabic label "الإعدادات" right after Urdu text -> Arabic now (was the
+  failure written up below); "ٹ" -> Urdu, "ى" -> Arabic, "ب" -> context. corebytes vs HEAD 0 of 895,440 (the owner's
+  {hi,en,gu} untouched); devanagari 63/64 (Assamese, as before).
+- **Two faults the first version had, found by automode, fixed:** CLDR gave ऱ to Marathi alone (two Nepali UI
+  strings read as Marathi), and when ML Kit gave none of the allowed languages anything the window took the
+  alphabet's first ("Мы арабы": ML Kit says Kyrgyz, the letters allow ru and bg -> bg).
+- **What stays wrong, plainly:** Assamese beside Bengali (CLDR's Bengali auxiliary set lists ৰ ৱ, and ML Kit has no
+  Assamese); Devanagari letters say little (ऱ Marathi/Nepali, ॠ ॡ ॢ ॣ Sanskrit) and Latin little; Indonesian/Malay
+  unchanged; a text spelt the same in two languages.
+- **Lingua (pemistahl/lingua 1.2.2, JVM), measured and NOT adopted:** the same 16,233 held-out texts, each detector
+  restricted to the set's languages: Lingua 88.4% (its low-accuracy mode 79.2%) against ML Kit's 90.1%; it has no
+  Nepali, Pashto, Sindhi, Assamese or Sanskrit (0% there); its models preloaded (desktop JVM heap): ur+ar +77 MB,
+  hi+en+gu +29 MB, en+ru+uk+bg+sr +144 MB, every language +1,450 MB and 8.4 s; the jar is 80 MB (every model), the
+  APK would grow by about 75 MB. The owner's call if wanted anyway.
+
+## EACH LANGUAGE TO ITS OWN VOICE INSIDE A SHARED SCRIPT: WORD BY WORD, CONTEXT FOR LETTERS (owner, 2026-10-28)
 *"Urdu ke liye alag TTS ... Arabic ke liye bhi alag ... multi language Mod"*, then *"jo bhi language Ke Jo Bhi
 characters ho ... Jo TTS set kara hai use TTS ke pass hi Jana chahie Ek single character bhi"* and *"100% ... Bhale hi
 FIR uski lipiyan ... sem ... accurate result chahie 100%"*. Still ML Kit + Unicode only, no model of ours (#16).
@@ -47,7 +86,8 @@ enabled languages was one decision per sentence -- an Urdu sentence and an Arabi
 *"Main original ml kit use karna chahta hun ... directly Gradle mein ... Kotlin mein ... yah model wala ... bahut
 bada ho jata hai"*, then *"Hamen koi model rakhna hi nahin ... ML Kit use karenge har jagah ... aur Unicode use
 karenge ... yah sab model yah sab jhanjhat hi nahin rakhenge"*. **The sections below that describe the word-and-
-ending model, the letters/ortho rules, the context, langblend.h or "the model ML Kit runs" (langid.h) are HISTORY.**
+ending model, the letters/ortho rules, the context, langblend.h or "the model ML Kit runs" (langid.h) are HISTORY.** (Which letters each language writes came back the same day as Unicode's CLDR data -- the top section -- not
+the learned letters.tsv.)
 Do NOT bring any of them back: `invariants.sh` #16 fails on a model header or function (selftest: two negatives).
 - **Gone:** langnb.h (16.3 MB of tables), langblend.h (letters, orthoSegment, rare-letter veto, context, kBlendC),
   langhan.h, langid.h + langid_model.h (our copy of ML Kit's network); tools/langid/ (train_nb.py, gen_model.py,

@@ -1225,6 +1225,20 @@ does not part them) and:
    word never moves it: that is a text being read again a piece at a time.
 4. **certain words**: a word ML Kit gives 0.99 (2+ letters) is read in that language even
    inside a sentence of another; the sentence keeps its own name.
+5. **letters** (2026-10-28, owner: "cldr ka properli jo data hai Unicode ka ... sab Kuchh
+   complete karo"): which language writes which letter is CLDR's (exemplar characters, main +
+   auxiliary + index, `kUniLetterLangs<slot>` from gen_tables.py; letters and marks of the
+   slot's own script only, no Han ideograph). A word's letters rule out the enabled languages
+   that never write one of them (`wordLetters`) -- unless ML Kit gives a ruled-out language
+   0.95+ while they allow one it names (CLDR gives the eyelash ra to Marathi alone; a Nepali
+   word with it is Nepali). A language with no CLDR locale or no auxiliary letters is `open`,
+   never ruled out (Malay names with é). A ruled-out language costs the path 9 at that word;
+   a stretch is named only a language its letters allow (when ML Kit gives none of them
+   anything, the one the words' path chose -- never the alphabet's first); letters that rule
+   the neighbour's language out keep two stretches apart; letters of one language make a
+   text sure (so it sets the context); a word whose letters allow one language is read in
+   it. Where CLDR leaves out a letter a language's own words write, `CLDR_MISSES` adds it,
+   measured: Nepali writes the eyelash ra (8 of 4,266 Nepali texts, Android's own strings).
 Do NOT go back to one decision per sentence (Urdu and Arabic in one message got one voice),
 let a lone word switch below 0.99 (ML Kit is right in 98.9% of the Urdu/Arabic words it
 gives 0.9; for Hindi/Marathi 93%), or decide a single letter by ML Kit ("ب" -> Chinese 0.885,
@@ -1240,7 +1254,11 @@ among those that write a script the window's letters (Unicode General_Category L
 that script, the one of them ML Kit gives the most, whatever its confidence (UNKNOWN when
 it names none of them); else (d) the answer stands only at ML Kit's own 0.5 (its
 identifyLanguage threshold). Since 2026-10-28 the answers are ML Kit's library itself,
-through Kotlin (#16).
+through Kotlin (#16). Also since 2026-10-28, in (c) the window's letters come first (#35's
+step 5, `lettersHeard`): only a language they allow is chosen; when two or more are allowed
+and ML Kit gives none of them anything, UNKNOWN, so the spans decide word by word ("Мы
+арабы": ML Kit says Kyrgyz, the letters allow Russian and Bulgarian -- it took the
+alphabet's first, Bulgarian, before).
 
 ## 37. (Retired 2026-10-28) The word-and-ending model
 The word-and-ending model (`langnb.h`, `train_nb.py`), its Android-UI learning texts and the
