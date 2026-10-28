@@ -28,6 +28,10 @@
 # the METHOD names.
 -keepclassmembers class com.sachinbaria.easyvoice.EasyVoiceTtsService {
     native <methods>;
+    # Called BY the native core (GetStaticMethodID in JNI_OnLoad), so R8 sees no
+    # caller: ML Kit's language identification, asked from C++ where two or more
+    # enabled languages share a script.
+    public static java.lang.String mlkitIdentify(java.lang.String);
 }
 
 # --------------------------------------------------- Kotlin null checks

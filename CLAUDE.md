@@ -8,6 +8,75 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
+## ML KIT IS THE LANGUAGE IDENTIFIER; THE APP KEEPS NO MODEL OF ITS OWN (owner, 2026-10-28, latest)
+*"Main original ml kit use karna chahta hun ... directly Gradle mein ... Kotlin mein ... yah model wala ... bahut
+bada ho jata hai"*, then *"Hamen koi model rakhna hi nahin ... ML Kit use karenge har jagah ... aur Unicode use
+karenge ... yah sab model yah sab jhanjhat hi nahin rakhenge"*. **The sections below that describe the word-and-
+ending model, the letters/ortho rules, the context, langblend.h or "the model ML Kit runs" (langid.h) are HISTORY.**
+Do NOT bring any of them back: `invariants.sh` #16 fails on a model header or function (selftest: two negatives).
+- **Gone:** langnb.h (16.3 MB of tables), langblend.h (letters, orthoSegment, rare-letter veto, context, kBlendC),
+  langhan.h, langid.h + langid_model.h (our copy of ML Kit's network); tools/langid/ (train_nb.py, gen_model.py,
+  gen_han.py, nb_model.tsv 49 MB, letters/ortho tsv, mediapipe sources, fetch_train.sh); tools/verify/langid (port vs
+  ML Kit), tools/verify/mixedscript (ortho cuts), langsuite's Python mirror (combine.py). INVARIANTS #33 (veto half),
+  #34 and #37 retired; #16, #35, #36 rewritten.
+- **Now (tts_engine_core.cpp):** the script is Unicode's (unicode_tables.h). A fixed script, or a shared script ONE
+  enabled language writes, is that language with no call at all -- **the owner's {hi,en,gu} in mix mode never asks ML
+  Kit.** Where the text must name a language: a span of a script 2+ enabled languages write -> the one ML Kit gives
+  the most (identifyPossibleLanguages, default 0.01), else scriptLanguageFallback (AutoTTS's); a span of a shared
+  script none enabled writes -> ML Kit's most likely of that script, else "un"; an auto/Google window -> ML Kit's
+  most likely among languages that write the window's letters, 2+ enabled of that script -> the most of them
+  (UNKNOWN if none), else only at ML Kit's 0.5. One script, one sentence, one decision (#35) stays: runs of a shared
+  script in one sentence are joined and asked once. No context, no cuts inside.
+- **The call:** Gradle `com.google.mlkit:language-id:17.0.6` (catalog `mlkitLanguageId`); Kotlin
+  `EasyVoiceTtsService.mlkitIdentify(text)` (one lazy client; Tasks.await, never on main; answers "tag
+  confidence-in-millionths" lines, integers so no locale reads them; proguard keeps it); C++ `jniIdentify`, installed
+  by `JNI_OnLoad` -> `installLanguageIdentifier` (GetStaticMethodID), behind the hook `evSetLanguageIdentifier
+  (EvLidFn)`; the per-thread answer cache stays. ML Kit's own Java keeps the first 200 UTF-16 units of a text
+  (javap: LanguageIdentifierImpl, String.substring) and passes String.getBytes(UTF_8).
+- **What ML Kit brings (its AARs' manifests):** `INTERNET` + `ACCESS_NETWORK_STATE` for Google's datatransport usage
+  logging (device and app info, performance, the identified languages -- never the text; HTTPS; ML Kit's "Prepare
+  for Google Play's data disclosure" page), a JobService, a receiver, MlKitInitProvider, component discovery,
+  GoogleApiActivity, AppCompat. **Play Data safety now has to declare it.** Removing INTERNET (manifest
+  `tools:node="remove"`) would stop the logging: the owner's call, offered.
+- **Desktop ML Kit for the harnesses -- `tools/mlkit/`:** `build.sh` (sourced) fetches the AAR (sha256-pinned) and
+  builds the bionic shim (bionic.c, log.c) its x86_64 library needs; `host.c` = `evmlkit_load` / `evmlkit_identify`
+  (EvLidFn's signature; mirrors Kotlin + ML Kit's Java exactly: 200 UTF-16 units, lone surrogate '?', 0.01,
+  millionths); `mlkit.h` `installMlKit()` (weak `evSetLanguageIdentifier`, so an older core ignores it). corebytes,
+  allchars, allscripts, automode, devanagari, latency and langsuite install it. The PGO driver (static android
+  binaries) has none: those paths train as "no answer".
+- **Measured (ML Kit's own library):** langsuite held-out 35,212 (2+ enabled share the script): **97.1% -> 90.0%**
+  (hi+mr: mr 84.9; hi+mr+ne 86.3; hi+ne 90.6; id+ms 77.4; es/fr/de/pt/it 93.8; ru+uk 97.1; ru+uk+bg+sr 92.6;
+  ar+fa+ur+ps 96.6; ur+ar 99.4; ur+fa 97.1; zh+ja 98.2; **Assamese beside Bengali 0%** -- ML Kit has no Assamese, and
+  no Sanskrit either). Auto mode (automode vs HEAD, a stream grouped by language): {hi,en,gu} 100 / 100, hi+en 100,
+  ur+en 99.95 both; shared-script sets drop (en+hi+mr 99.95 -> 93.38, en+id+ms 99.32 -> 77.60, en+bn+as 99.99 ->
+  67.88). corebytes vs HEAD: 1,396 of 895,440 differ -- {hi,en,gu} mix 0; auto 4, all one letterless span of an
+  unenabled script named "un" where the model named "sd" (same voice); the rest shared-script sets. devanagari 62/64
+  (नवीन चॅट -> hi, Assamese -> bn). allchars 464,866 / 0 wrong / 0 dropped / 0 split; allscripts 62/0; langcodes
+  IDENTICAL 312; segmenter only the known '£' (270); scriptfamily IDENTICAL; PGO --update ALL PASS (918,056 plain
+  == PGO); latency 10,620 chars 0.75 ms one call (ML Kit included, desktop).
+- **Also gone (2026-10-28), the page warming:** image_warm.h (a worker that read the library's pages in at load and
+  back after an eviction; `nativeRewarmTables`, its JNI entry and the Kotlin call per utterance) and
+  tools/verify/warmtables: it existed for the detector's tables, and the read-only image is 69 pages now (cold first
+  read of every page 0.02 ms). RegisterNatives binds 6 methods.
+- **The upcall, proven in a real JVM:** `tools/verify/registernatives` checks the core's GetStaticMethodID name +
+  descriptor against the compiled class (static mlkitIdentify(String)String found), then loads the core in a JVM
+  whose stand-in class answers like ML Kit: {en,hi,mr} Hindi -> hi, Marathi -> mr through jniIdentify (2 asked);
+  negative `EV_NEG=noupcall` FAILS.
+- **Size, measured (signed release build, throwaway key, deleted):** libeasyvoice.so arm64 16,885,584 -> **211,912**
+  bytes, armeabi-v7a 16,858,404 -> **160,736**; ML Kit adds liblanguage_id_l2c_jni.so (arm64 1,019,552, v7a 609,628;
+  16 KB aligned on arm64) and tflite_langid.tflite.jpg 315,520, plus its dex. APKs: arm64 **3,796,620**, armeabi-v7a
+  **3,337,562**, universal **4,616,175** (build 987: 4,143,923 / 4,084,440 / 6,378,706; with the every-feature model
+  they would have been ~18.8 / 18.7 / 35.7 MB). native-exports and 16 KB (ELF + in-APK offset) pass.
+- **ML Kit's own dependencies raised to their newest SAME-major release** (constraints, catalog): play-services-base
+  18.5.0 -> 18.11.1, -basement 18.4.0 -> 18.12.0, -tasks 18.2.0 -> 18.4.1, fragment 1.5.4 -> 1.9.1, drawerlayout,
+  loader, customview 1.0.0 -> 1.2.0, viewpager -> 1.1.0 (each AAR + pom read: minSdk <= 24, nothing newer needed, no
+  permission or component). Left as ML Kit brings them: datatransport 2.x and Firebase components / encoders /
+  annotations -- their next majors are API changes (lint flagged a firebase-annotations 18.0.0 pin, so none is pinned).
+- **Checks:** gradle compile 0/0, lint "No issues found", minSdk check (classpath regenerated: Gradle's
+  androidx-classpath.txt now holds ML Kit's jars), check-all ALL PASS, selftest EVERY CHECK FIRES (40 negatives).
+- **Owner's call, offered:** (1) drop INTERNET so nothing leaves the phone; (2) a small no-model rule (a span ML Kit
+  is unsure of takes the script's last sure language) to win back shared-script streams.
+
 ## THE WORD-AND-ENDING MODEL HOLDS EVERY FEATURE IT LEARNED; ML KIT'S OWN MODEL IS UNCHANGED (owner, 2026-10-27, latest)
 *"agar Bada model accurate Hai To properly accuracy ke liye Bada model Bhale Hi Bada Ho but accuracy Mujhe complete
 chahie"*, then *"ml kit ka Bada model ki hi baat kar raha hun"*. Runs only where 2+ ENABLED languages share a script;
@@ -437,11 +506,18 @@ memory. As of 2026-10-15:
   it; it guards our package-change receiver. No declaration.
 - `android.permission.DUMP` appears only as the permission a SENDER needs for androidx.profileinstaller's
   receiver (system/adb); the app does not request it.
-- NOT requested: INTERNET (the app cannot send anything off the phone), QUERY_ALL_PACKAGES (gone 10-08; the
-  four TTS `<queries>` intents suffice), REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (gone 09-24), WAKE_LOCK (gone),
-  no AccessibilityService. Data safety: the text is processed on the phone and handed only to the TTS engine
-  the user chose for that language (that engine's own policy covers what it does); logs are local and leave
-  only when the user taps Share logs.
+- **Since 2026-10-28, from Google's ML Kit library (com.google.mlkit:language-id):** `INTERNET` +
+  `ACCESS_NETWORK_STATE` (normal) -- ML Kit's datatransport sends Google usage data for diagnostics and analytics:
+  device and app info, performance, the identified languages; never the text itself (ML Kit's data-disclosure
+  page; HTTPS, not shared with third parties). It also adds a JobService (BIND_JOB_SERVICE) and a receiver for
+  that upload, MlKitInitProvider, a component-discovery service and GoogleApiActivity, all not exported. **Play
+  Data safety must now declare** what the SDK collects for diagnostics and analytics (ML Kit's "Prepare for Google
+  Play's data disclosure requirements" page lists it). Removing INTERNET with `tools:node="remove"` would stop the
+  upload (offered to the owner).
+- NOT requested: QUERY_ALL_PACKAGES (gone 10-08; the four TTS `<queries>` intents suffice),
+  REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (gone 09-24), WAKE_LOCK (gone), no AccessibilityService. Data safety: the
+  text is processed on the phone and handed only to the TTS engine the user chose for that language (that
+  engine's own policy covers what it does); logs are local and leave only when the user taps Share logs.
 
 ## THE DIRECT PLAYER IS REVERTED; TWO STOPS THAT REPEATED THE READER'S OWN INTERRUPT ARE GONE (owner, 2026-10-14, latest)
 *"yah player wala tarika mujhe achcha nahin laga ... pichhla build ... sahi tha ... jo screen reader kar sakta hai vah

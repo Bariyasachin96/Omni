@@ -108,18 +108,19 @@ span. Then:
 - script 0 (nothing classified — digits, punctuation, spaces, emoji) →
   `"un"` with **`latin = true`**, and no detector runs at all;
 - scripts 7..25 → a fixed language (Greek, Armenian, Hebrew, …);
-- scripts 1..6 → with one enabled language of the script, that one; with
-  none, the model ML Kit runs (langid.h) names its best language of the script;
-  with two or more, langblend.h chooses between them (the letters of each
-  orthography, the learned letters and Han rules, the word-and-ending model,
-  the model ML Kit runs, the context) -- over ALL the runs of that script in one
-  sentence of the utterance at once, processDirect's chunks included, cut only
-  where the letters say the language changes (INVARIANTS #34, #35).
+- scripts 1..6 → with one enabled language of the script, that one (no call
+  at all); with none, ML Kit names its most likely language of the script; with
+  two or more, the one of them Google's ML Kit gives the most (its library,
+  asked through `EasyVoiceTtsService.mlkitIdentify` in Kotlin; the script's
+  first enabled language when it names none of them) -- over ALL the runs of
+  that script in one sentence of the utterance at once, processDirect's chunks
+  included (INVARIANTS #16, #35). The app keeps no model of its own.
 
 **Per 64-character window** — `detectWindowOrSpans` → `detectWindowed` → `detectWindowLang`, used by
-auto and Google mode. The model ML Kit runs names a language that writes the
-window's letters (at ML Kit's 0.5), or langblend.h weighs the enabled languages
-of that script; a window without a letter is UNKNOWN (INVARIANTS #36). The caller
+auto and Google mode. ML Kit names a language that writes the window's letters
+(at ML Kit's own 0.5), or, where two or more enabled languages write that
+script, the one of them it gives the most; a window without a letter is UNKNOWN
+(INVARIANTS #36). The caller
 decides what to do with an answer the user has not enabled, falling back to the
 script family.
 

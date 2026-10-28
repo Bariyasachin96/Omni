@@ -13,8 +13,9 @@
 # WHAT IT MEASURES. The work that must finish before speakChunk(true) runs:
 # buildMixChunks through processDirect, then one detection per chunk, which is
 # what the mix and multilingual branches do. It links the REAL
-# tts_engine_core.cpp (CLD2 until 2026-10-21; the model ML Kit runs since) and
-# starts a JVM for a genuine JNIEnv, so the numbers are the device's code, not a
+# tts_engine_core.cpp (CLD2 until 2026-10-21, then the model ML Kit runs; since
+# 2026-10-28 Google's ML Kit library itself, run here by tools/mlkit) and starts
+# a JVM for a genuine JNIEnv, so the numbers are the device's code, not a
 # model of it.
 #
 # WHAT IT FOUND (2026-09-01, x86-64 container):
@@ -44,7 +45,8 @@ if ! ls "$JH"/lib/server/libjvm.so >/dev/null 2>&1; then
   echo "no libjvm.so under $JH -- a JDK is needed for the JNIEnv"; exit 2
 fi
 
-INC="-I$JH/include -I$JH/include/linux -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/mlkit -I$CPP"
+source "$ROOT/tools/mlkit/build.sh"
 
 mkdir -p "$WORK/obj"
 compile() {  # compile <source> -- cached on mtime
@@ -74,9 +76,9 @@ done
 
 echo "2/3  linking the harness"
 g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp"
-g++ -o "$WORK/latency" "$WORK/obj/main.o" $objs \
+g++ -o "$WORK/latency" "$WORK/obj/main.o" $objs "$MLKIT_HOST" -ldl -lm \
     -L"$JH/lib/server" -ljvm -lpthread -Wl,-rpath,"$JH/lib/server"
 
 echo "3/3  running"
 echo
-"$WORK/latency"
+LD_LIBRARY_PATH="$MLKIT_LIBS" EV_MLKIT_MODEL="$MLKIT_MODEL" "$WORK/latency" 2> >(grep -v "Initialized TensorFlow Lite runtime" >&2)

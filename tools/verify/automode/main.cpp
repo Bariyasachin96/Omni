@@ -9,6 +9,7 @@
 //
 //   main <cases.tsv> <sets.txt> <isopairs.tsv>   ->  set TAB label TAB class TAB split TAB answer
 #include "fakejni.h"
+#include "mlkit.h"
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -60,6 +61,8 @@ static std::string autoAnswer(const std::string& text) {
 }
 
 int main(int argc, char** argv) {
+    // ML Kit as the language identifier, for a core that asks one (tools/mlkit)
+    installMlKit();
     if (argc != 4) { fprintf(stderr, "usage: main <cases.tsv> <sets.txt> <isopairs.tsv>\n"); return 2; }
     env = fakejni::env();
     { std::ifstream in(argv[3]); std::string l; std::vector<std::string> a, b;

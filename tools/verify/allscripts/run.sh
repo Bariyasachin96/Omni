@@ -24,7 +24,10 @@ NEG=${EV_NEG:-}
 # The auto branch hands toIso3 the whole code (it drops a subtag itself).
 if grep -q 'rawDetected.substring(0, 2)' "$SRC/EasyVoiceTtsService.kt"; then
   echo "FAILED: the auto branch cuts the detected code to two letters again"; exit 1; fi
-INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$ROOT/tools/mlkit -I$CPP"
+# Google's ML Kit, which the core asks where the text has to name a language
+# (2026-10-28), run here by tools/mlkit as on a phone
+source "$ROOT/tools/mlkit/build.sh"
 mkdir -p "$WORK/obj" "$WORK/neg"
 compile() {
   local src=$1
@@ -51,7 +54,7 @@ for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do
   objs="$objs $(compile "$f")"; done
 rm -f "$WORK/obj/main.o" "$WORK/probe"
 g++ -c -O2 -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp" || exit 1
-g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs -lpthread
+g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs "$MLKIT_HOST" -ldl -lm -lpthread
 
 # the Kotlin half: the real IsoCodes.kt and UnicodeTables.kt, as tools/verify/toiso3 lifts them
 python3 - "$SRC" "$HERE/Check.kt" "$WORK/Check.kt" "$NEG" <<'PY'
@@ -79,6 +82,6 @@ python3 -I "$HERE/texts.py" "$ROOT/tools/unicode/ucd" > "$WORK/scripts.tsv"
 python3 -I "$HERE/langs.py" "$ROOT/tools/unicode/ucd" "$ROOT/tools/unicode/cldr" > "$WORK/langs.tsv"
 java -jar "$WORK/check.jar" prep "$WORK/langs.tsv" > "$WORK/own.tsv"
 java -jar "$WORK/check.jar" pairs > "$WORK/isopairs.tsv"
-"$WORK/probe" "$WORK/scripts.tsv" "$WORK/own.tsv" "$WORK/isopairs.tsv" > "$WORK/probe.txt"
+LD_LIBRARY_PATH="$MLKIT_LIBS" EV_MLKIT_MODEL="$MLKIT_MODEL" "$WORK/probe" "$WORK/scripts.tsv" "$WORK/own.tsv" "$WORK/isopairs.tsv" > "$WORK/probe.txt" 2> >(grep -v "Initialized TensorFlow Lite runtime" >&2)
 [ -n "${EV_VERBOSE:-}" ] && cat "$WORK/probe.txt"
 EV_NEG="$NEG" java -jar "$WORK/check.jar" check "$WORK/langs.tsv" "$WORK/probe.txt"

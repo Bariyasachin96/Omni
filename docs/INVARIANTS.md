@@ -345,13 +345,33 @@ That is the second time this exact trap has been hit; `selftest.sh` found both.
 
 ---
 
-## 16. The model ML Kit runs is the only detector — CLD2 and CLD3 must not come back
+## 16. Google's ML Kit is the language identifier — no CLD2, CLD3 or model of ours
 
 **Rule.** No `cld3*`, `useCld3*`, `NNetLanguageIdentifier` or `isRomanisedTag`
 symbol, no `CLD2::` call, `compact_lang_det` header, `ExtDetectLanguageSummary`
 or `cld2_src` in the core, its headers or the Kotlin, and no `cld2` / `cld3` /
 `protobuf` / `protoc` in `CMakeLists.txt` or `build.yml` (comments stripped).
-Both halves are checked by `invariants.sh` and negative-tested in `selftest.sh`.
+Since 2026-10-28 also no model header (`langnb.h`, `langblend.h`, `langhan.h`,
+`langid.h`, `langid_model.h`) in app/src/main/cpp and none of their functions
+(`lidClassify`, `kLidLabels`, `blendDetectors`, `nbScore`, `orthoSegment`,
+`hanIn`) in the core. Both halves are checked by `invariants.sh` and
+negative-tested in `selftest.sh`.
+
+**Every model of ours went on 2026-10-28** at the owner's instruction: *"koi
+model rakhna hi nahin ... ML Kit use karenge har jagah ... aur Unicode use
+karenge ... yah sab jhanjhat hi nahin rakhenge."* The core reads a text's script
+from the Unicode tables; where the text has to name a language -- a span of a
+script two or more enabled languages write, a span of a shared script none of
+them writes, every window of auto and Google mode -- it asks Google's ML Kit
+library (`com.google.mlkit:language-id`, the bundled model) through
+`EasyVoiceTtsService.mlkitIdentify` (Kotlin), which `JNI_OnLoad` installs. Of the
+enabled languages of the script, the one ML Kit gives the most is read; when it
+names none of them, the script's first enabled language (AutoTTS's
+scriptLanguageFallback). Measured with ML Kit's own library on the language
+suite's held-out half (`tools/verify/langsuite`, 35,212 texts where 2+ enabled
+languages share a script): 90.0% (97.1% with the models it replaced); Assamese
+beside Bengali 0% (ML Kit has no Assamese); the owner's {hi, en, gu} reads every
+voice exactly as before in mix mode (corebytes: 0 differ).
 
 **CLD2 went on 2026-10-21** at the owner's instruction: *"jahan per CLD2 kam
 karega vahan per ab ML Kit kam karega ... CLD2 hata do."* Measured first, on the
@@ -1164,159 +1184,52 @@ and judges each answer through the real IsoCodes. Three rules keep it at zero:
 Each rule has a negative test in that harness (`EV_NEG=noattach | noneutral | noextra |
 onlyold`), and all four fail.
 
-## 33. The context never overrules a letter, and the harnesses load what the service loads
-Owner, 2026-10-21: *"aur Urdu aur arabik ke liye kya karta hai."* Two rules:
+## 33. The harnesses load what the service loads
+Owner, 2026-10-21: *"aur Urdu aur arabik ke liye kya karta hai."*
 
-- **A span that proved nothing takes the context language only when its letters allow
-  it.** `blendFinal` refuses the context `ctx` when the span holds a letter its own answer
-  writes in at least 1 of 200 texts and `ctx` in at most 1 of 2,000 (`letters_rare.tsv`,
-  learned by `tools/langid/train_nb.py letters`, emitted as `kNbRare` into langnb.h,
-  computed once per span as `BlendResult::veto`). Keheh (ک) is in 9 of 10 Urdu texts and 1
-  of 4,300 Arabic ones, so an Urdu word read after Arabic text stays Urdu; Assamese ৰ after
-  Bengali text stays Assamese. The letters only keep the context away; they decide nothing
-  alone (`letters.tsv`, at 1 in 50,000, still does that). `combine.py` mirrors it
-  (`train_nb.letter_veto`) and the suite fails if C++ and Python disagree.
 - **A real-core harness pushes the ISO map the service pushes at its start**
   (`initIsoMaps` = `IsoCodes.iso2Pairs()` -> `setIsoMap`). Without it the core's `toIso3`
   answers a two-letter code unchanged, auto mode's window answer never matches the iso3
   detect set, and every window falls to the script family -- a path the app does not take.
   `allchars` and `allscripts` write `isopairs.tsv` from the lifted Kotlin and their probes
   refuse to run without it.
+- **And since 2026-10-28 the language identifier the app installs**: a harness that runs
+  the real core installs Google's ML Kit library (`tools/mlkit`, its own x86_64 build on
+  glibc) with `installMlKit()`, as `JNI_OnLoad` installs the Kotlin one on a phone.
+- *Retired 2026-10-28:* the letter veto on the context (`kNbRare`) went with every model
+  of ours (#16).
 
-## 34. A letter a language never writes rules it out, and two languages of one script in one text are cut apart
-Owner, 2026-10-21: *"Arabic language Arabic voice ke pass bhi Jana chahie ... jo bhasha ke
-liye Jo voice Chuna Hai vah bhasha ke liye Vahi voice kam karna chahie ... aisa Nahin Ki Ek
-Hi voice do Bhasha Pade."* Where two or more ENABLED languages share Cyrillic, Arabic or
-Bengali (slots 2, 3, 6), two rules (langblend.h; the owner's {hi, en, gu} meets neither):
-
-- **Step 0 of `blendDetectors` (`orthoDecide`).** `tools/langid/ortho.tsv` (learned by
-  `train_nb.py ortho`, emitted as `kOrtho<slot>` into langnb.h) holds each letter that
-  belongs to some orthographies and not others -- Urdu ٹ ڈ ڑ ں ھ ہ ے, Persian/Urdu ک ی,
-  Arabic ة أ إ ي ك, Pashto ټ ځ څ ډ ړ ږ ښ ګ ۍ ې, Ukrainian і ї є, Russian ы э ё, Serbian
-  ђ ј љ њ ћ, Bulgarian ъ, Assamese ৰ ৱ -- with the languages that write it (in 1 of 200 of
-  their words or more) and each one's share of words holding it; for the others ONE share,
-  the worst any of their sources shows (older spelling: Persian typed with Arabic ي ك,
-  Assamese with Bengali র). Each word's letters a language does not write cost it that
-  share against the best writer's. When some word's letters allow the best language ALONE
-  (a Pashto letter, an Arabic ة, "كتاب" against Urdu), a language costing `kOrthoM` (32;
-  48 for Bengali) more than the best is ruled out; one left is SURE, so it becomes the
-  context and the context can no longer turn "كتاب" (Arabic kaf) after Urdu text into Urdu;
-  otherwise steps 1-4 and the context choose only between those left. Two vetoes keep a
-  language in: the word-and-ending model `kNbMargin` above the best, or the model's top
-  and the word-and-ending model's best both naming it (Persian typed with Arabic letters;
-  CLD2's answer was a third voice there until 2026-10-21).
-- **Why "alone":** Pashto writes both ي and ی, ك and ک, so a Persian sentence quoting
-  three Arabic words costs Pashto nothing and "is" Pashto by letters; no word allows
-  Pashto alone there, so nothing is ruled out and the blend reads it as Persian.
-- **Why only letters a language does NOT write:** letters a language lacks never rule it
-  out. The first draft counted absence too (each letter present or absent, a Bernoulli
-  model): a three-word Pashto phrase without a Pashto letter was ruled out of Pashto.
-- **`orthoSegment`, called by `nameSpanTexts` (#35).** Such a text is cut so each piece is one
-  language. Pass 1: sentences (cut at `kOrthoSent`: . ! ? ; ؟ ؛ ۔ । ॥ newline) each named by
-  the letters' one language, else the word-and-ending model `kNbMargin` ahead in a sentence
-  of `kOrthoMinWords` (3) words or more; a sentence naming another language than the one
-  before starts a piece. Pass 2, inside each piece: the best path over the words' costs, a
-  change costing `kOrthoPw` (52; 1000 for Bengali/Assamese, whose text writes Bengali র in
-  conjuncts: never inside a sentence). Each cut lands where the word-and-ending model puts
-  the words between the two languages' evidence best (a sentence end, else a `kOrthoStrong`
-  mark, else any word; a tie, the later). Each piece goes through the cached detection
-  alone.
-- **Mirrors.** The C++ is `train_nb.py ortho_*` exactly: `tools/verify/mixedscript`
-  compares the cuts on 56,562 texts (0 differ) and then reads them through the real core
-  against `EV_REF` (HEAD) word by word; `combine.py` mirrors step 0 and the suite fails if
-  C++ and Python disagree (0 of 131,961 blend, 0 of 449,706 context decisions).
-- **What it changed, measured** (FLORES-200, never learned from, real core, mix mode, HEAD
-  in brackets): two sentences of two languages in one text read 99.5-100% of words right
-  (54.7-64.8%); without a stop between them 68-99.7% (54.7-64.8%); a three-word phrase
-  inside the other's sentence 71.5-95.3% (65.3-87.0%); a text in one language read in two:
-  128 (134), none new. The owner's cases exact: "كتاب" after Urdu is Arabic, "کتاب" after
-  Arabic is Urdu, "تمام" follows what came before, Urdu + Arabic + Persian + Pashto
-  sentences each to their own voice.
-- **Known limit, stated:** with Arabic, Persian, Urdu AND Pashto all enabled, ONE word
-  inside the other's sentence is read right 94.8% of the time (HEAD 95.4%): a lone Pashto
-  word can make the Persian around it Pashto.
-- **Tried and NOT kept:** absence as evidence (above); "rule nothing out when even the best
-  is contradicted" (worse in every set: one word inside an Urdu/Arabic sentence 92.3%, kept
-  rule 96.2%); "rule out only a language most telling words contradict" (fewer texts the
-  letters settle, and one suite text it settled wrong).
-- **The suite keeps the shipped blend weight** unless a retune gains more than `LAM` on
-  the tune half (`combine.py` reads `kBlendC`).
+## 34. (Retired 2026-10-28) A letter a language never writes rules it out
+The orthographic letters (`ortho.tsv`, `orthoDecide`, `orthoSegment`) went with every model
+of ours on the owner's word (#16): *"koi model rakhna hi nahin ... yah sab jhanjhat hi nahin
+rakhenge."* Two languages of one script with no sentence end between them are now read as
+one, in the language ML Kit gives that text the most.
 
 ## 35. One script, one sentence, one decision
-2026-10-21, found the moment CLD2 left (`tools/verify/mixedscript`: 49 one-language texts
-newly read in two). Where two or more enabled languages share a script, the runs of that
-script in ONE SENTENCE of an utterance are named TOGETHER (`nameSpanTexts`): joined into
-one text, in every text of the utterance -- processDirect's chunks are one utterance, and
-`chunksSpansFlat` names them together -- and cut only where `orthoSegment` says the
-language changes, never because a word of another script stood between. A sentence end
-(`kOrthoSent`) between two runs, in the text between them or in a chunk between them,
-still parts them, as two runs were parted before; where each sentence holds one run this
-is exactly what naming each run on its own was.
-
-- **Why.** "Конгломерат Virgin приобрел ...", "Серия ASUS Eee PC ...", "В XVI веке ...":
-  mix mode cuts a Russian sentence at every Latin word, and a lone "Конгломерат" or "В"
-  read alone is any Cyrillic language. CLD2's bias toward the big language of a script hid
-  it; the model weighs each piece fairly. Joined, the sentence is one Russian text.
-- **Measured** (mixedscript, FLORES-200, real core, mix mode): one-language texts read in
-  two languages 0 (HEAD with CLD2: 128); two sentences of two languages after a stop
-  99.6-100% of words right (99.5-100%). Without a stop between them 59-97% (68-99.7%): the
-  Latin words and numbers inside such a text no longer cut it by accident -- the price,
-  stated.
-- **Check.** `tools/verify/mixedscript` fails on any one-language text read in two that
-  the reference core read in one; corebytes: the owner's {hi, en, gu} shares no script, so
-  nothing here runs for them.
+2026-10-21, found the moment CLD2 left: mix mode cuts "Конгломерат Virgin приобрел ..." at
+every Latin word, and a lone "Конгломерат" is any Cyrillic language. So where two or more
+enabled languages share a script, `nameSpanTexts` names all runs of that script in one
+sentence of the utterance TOGETHER (processDirect's chunks are one utterance:
+`chunksSpansFlat`) -- joined into one text that ML Kit is asked about once, never cut
+because a word of another script stood between. A sentence end (`kSentenceEnd`: newline
+! . ; ? ؛ ؟ ۔ । ॥) between two runs still parts them. Since 2026-10-28 nothing cuts inside
+such a text (the orthographic cuts went, #34) and no context is applied (the first sure
+piece of an utterance named the ones before it until then): ML Kit's answer for the text
+is the answer.
 
 ## 36. Auto mode: a window is read in a language that writes its letters
-2026-10-21. The window detector (`detectWindowLangUncached`, AutoTTS's per-64-character
-`getLanguage`) is the model ML Kit runs, with three rules CLD2 got by construction (it
-scored a text per script, letters only):
+2026-10-21 (`detectWindowLangUncached`): ML Kit weighs all its languages at once, and on a
+letter it barely knows it names one of another script ("en" for a lone Greek beta, Khmer
+for "😂😂😂", which has no letter). So (a) the answer is ML Kit's most likely language
+among those that write a script the window's letters (Unicode General_Category L) are in;
+(b) a window without a letter is UNKNOWN; (c) where two or more enabled languages write
+that script, the one of them ML Kit gives the most, whatever its confidence (UNKNOWN when
+it names none of them); else (d) the answer stands only at ML Kit's own 0.5 (its
+identifyLanguage threshold). Since 2026-10-28 the answers are ML Kit's library itself,
+through Kotlin (#16).
 
-- **Only a language that writes a script the window's letters are in** (`lidLabelSlot`,
-  `spanScriptSlot` of each letter the model reads). Unrestricted, the model named "en" for
-  a lone Greek beta, "hi" for a rare Han character, "gu" for a Latin modifier letter
-  (allchars: 478 characters wrong in auto mode, 0 with the rule).
-- **No letter, no answer:** a window of emoji, digits or punctuation is UNKNOWN (the model
-  said Khmer at 0.5+ for "😂😂😂"), and the script fallback after it names the language.
-- **Two or more enabled languages of that script are weighed (`blendDetectors`, as for a
-  span) whatever the model's own confidence.** Between close languages its probability is
-  split under ML Kit's 0.5, and an UNKNOWN there handed the window to the script's first
-  enabled language: auto mode fell to 90.1% for id+ms and 91-94% for es/pt/it/fr before
-  this; with it 99.4% and 98.8-99.5% (CLD2: 98.7%, 96.3-98.3%). Otherwise the model's
-  label counts only at 0.5 or more, ML Kit's own threshold.
-- **Check.** `tools/verify/automode` (the language suite's texts through an earlier core
-  and the working tree's) and `tools/verify/allchars`.
-
-## 37. The word-and-ending model knows Android's UI text, and a message names its own context
-2026-10-22 (task #20, the owner's 100%). Three rules, each measured on the language suite's
-held-out half; where only one enabled language writes a script none of them runs.
-
-- **Android's UI text is always learned.** `train_nb.py learning_texts` puts the suite's
-  TUNE half and 25 more AOSP strings.xml of each language (`fetch_train.sh` aosp/:
-  SettingsLib, PackageInstaller, the lock screen, Contacts, Calendar, Email, the providers
-  ...) in FRONT of the learning texts; Tatoeba, Common Voice and Wikipedia fill the rest by
-  hash. Wikipedia hardly writes "वापरकर्ता", "पर्याय", "करा" or "Penghemat"; a screen reader
-  reads them all day. The suite's own three files are NOT learned beyond its tune half:
-  their other strings are the test's neighbours. Held-out 96.1 -> 96.7%. Since 2026-10-27
-  the model keeps EVERY feature its texts held (`MINC` 1, `KEEP` None: 1,975,918; 92 whose
-  32-bit FNV-1a hash a more informative feature holds are dropped): more was more often
-  right on both halves of the held-out text (the old 60k/40k/30k/40k/20k 96.64 / 96.35%,
-  every feature 97.01 / 96.72), held-out 97.1%. Its tables are string literals (four bytes a
-  hash, most significant first; -round(8 ln p) a language), which a compiler reads in two
-  seconds where two million numbers took half a minute; nb_model.tsv keeps the counts
-  sparse (`language:count`).
-- **The context is overruled at 8 nats, not 6** (`kCtxMargin`). The surer model put
-  "Data" after English text into Indonesian; at 8 nats the stream whose last sure language
-  is the text's own reads 99.85% (HEAD 99.78%), and with another one at P 0.1 / 0.3 / 0.5
-  98.72 / 96.55 / 94.31% (HEAD 98.63 / 96.45 / 94.16): better at every P. combine.py reads
-  the constant from langblend.h, so the mirror cannot drift from it. **9 nats since
-  2026-10-27**: the every-feature model adds more of one word's endings together; at 8 nats
-  it read 99.82 / 98.82 / 96.92 / 94.98%, at 9 nats 99.85 / 98.76 / 96.68 / 94.56% -- the
-  smallest margin at or above the 8-nat model of 2026-10-22 at every P.
-- **A piece before the first sure piece of its script in an utterance takes that piece's
-  language as its context** (`nameSpanTexts`, `blendWithContext`), not the last utterance's;
-  from the first sure piece on the context is the last sure one, as always. A title the
-  same in Hindi and Marathi before a Marathi sentence is Marathi.
-- **Check.** `tools/verify/langsuite` (C++ == Python, every decision and every context),
-  `tools/verify/mixedscript` (no one-language text read in two that the reference core
-  read in one), `tools/verify/automode`, `tools/verify/allchars`, corebytes vs HEAD.
+## 37. (Retired 2026-10-28) The word-and-ending model
+The word-and-ending model (`langnb.h`, `train_nb.py`), its Android-UI learning texts and the
+context margins went with every model of ours on the owner's word (#16). What it was
+worth, for the record: held-out 35,212 texts 97.1% with it, 90.0% with ML Kit alone.
 

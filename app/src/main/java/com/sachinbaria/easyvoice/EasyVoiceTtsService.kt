@@ -25,6 +25,7 @@ import androidx.core.text.getSpans
 import androidx.core.text.toSpannable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 data class TextChunk(var text: String, var lang: String, var typeCode: Int = 0, var forcedEngine: String? = null, var forcedLocale: String? = null, var forcedVariant: String? = null) {
     // toIso3(lang) worked out once per chunk (owner, 2026-10-06): the prefetch,
     // the queue-ahead, speakChunk and onDone each converted the same chunk's
@@ -3482,9 +3483,6 @@ class EasyVoiceTtsService : TextToSpeechService() {
             if (callback?.hasFinished() == false) callback.done()
             return
         }
-        // The detector's tables are re-warmed only for text that will be detected; the
-        // empty interrupt above has none (it used to signal the worker too).
-        try { nativeRewarmTables() } catch (_: Throwable) {}
         val readingMode = when (modeInt) { 1 -> "dual"; 2 -> "auto"; 3 -> "google"; 4 -> "mix"; 5 -> "multilingual"; else -> "none" }
         val isStripAudioAttr      = stripAudioAttrFlag
         // "Force to use audio accessibility stream" forces OUR attributes only
@@ -4983,10 +4981,38 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // and spans clsCLD2.f weighs up -- one crossing (owner, 2026-10-01).
         @JvmStatic external fun detectWindowOrSpans(text: String, latinFallback: String, nonLatinFallback: String,
             disableAdvancedDetection: Boolean, wantLog: Boolean, singleStops: Boolean): Array<String>
-        // An utterance is starting: the core's own worker checks that the
-        // detector's tables are still in the page cache and reads back what the
-        // kernel dropped (image_warm.h). One mutex and a signal here.
-        @JvmStatic external fun nativeRewarmTables()
+
+        // GOOGLE'S ML KIT LANGUAGE IDENTIFICATION, ASKED BY THE NATIVE CORE (owner,
+        // 2026-10-28: "original ml kit use karna chahta hun ... directly Gradle mein
+        // ... Kotlin mein"; "koi model rakhna hi nahin ... ML Kit use karenge har
+        // jagah"). Wherever the text itself has to name a language -- a span of a
+        // script two or more enabled languages write, a span of a shared script no
+        // enabled language writes, every window of auto and Google mode --
+        // tts_engine_core.cpp calls this through JNI, from the thread that is
+        // detecting (the synthesis or speak thread), with the text. The answer is
+        // ML Kit's identifyPossibleLanguages at its default options -- every
+        // language it gives 0.01 or more -- as "tag confidence-in-millionths"
+        // lines (integers, so no locale reads them); "" when ML Kit could not
+        // answer. A span of a script one enabled language writes (the owner's own
+        // {hi, en, gu} in mix mode) never comes here. One client for the life of
+        // the process.
+        private val languageIdentifier by lazy { com.google.mlkit.nl.languageid.LanguageIdentification.getClient() }
+        @JvmStatic fun mlkitIdentify(text: String): String = try {
+            val task = languageIdentifier.identifyPossibleLanguages(text)
+            // Tasks.await refuses the main thread. Nothing detects there; if
+            // anything ever did, an answer still being worked on is no answer.
+            val found = if (task.isComplete) task.result
+                else if (android.os.Looper.getMainLooper().isCurrentThread) null
+                else com.google.android.gms.tasks.Tasks.await(task)
+            buildString {
+                found?.forEach {
+                    append(it.languageTag).append(' ').append((it.confidence * 1_000_000f).roundToInt()).append('\n')
+                }
+            }
+        } catch (ex: Throwable) {
+            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "ML Kit language identification failed: $ex")
+            ""
+        }
 
         // AutoTtsService.s0, "updateLanguage2LetterCodes". It rebuilds the enabled
         // two-letter set from the language list and pushes it to the detector:

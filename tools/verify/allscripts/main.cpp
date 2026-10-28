@@ -14,6 +14,7 @@
 //
 //   main <scripts.tsv> <script-lang.tsv>   one line per script
 #include "fakejni.h"
+#include "mlkit.h"
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -112,6 +113,8 @@ static std::string autoAnswer(const std::string& text) {
 }
 
 int main(int argc, char** argv) {
+    // ML Kit as the language identifier, for a core that asks one (tools/mlkit)
+    installMlKit();
     if (argc != 4) { fprintf(stderr, "usage: main <scripts.tsv> <script-lang.tsv> <isopairs.tsv>\n"); return 2; }
     env = fakejni::env();
     pushIsoMap(argv[3]);

@@ -81,15 +81,15 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
     tools/verify/scriptfamily/run.sh     # ~3 min,  15 language sets x 1,114,112 code points
     tools/verify/normalizer/run.sh       # ~20 s,   1,114,112 code points, 1,062 mappings
     tools/verify/langcodes/run.sh        # ~5 s,    312 language codes: every one the detector answers, and CLD2's
-    tools/verify/langid/run.sh           # ~3 min,  langid.h == MediaPipe's C++ bit for bit, == ML Kit's own library on 58,770 texts
-    tools/verify/langsuite/run.sh        # ~4 min,  where enabled languages share a script: the ML Kit model, letters,
-                                         #          the word-and-ending model and context on ~110,000 labelled texts
-                                         #          (UDHR, phrases, Android UI strings, Tatoeba); C++ == Python checked
+    tools/mlkit/build.sh                 # sourced: Google's ML Kit language-id library (its x86_64 build, from the
+                                         #          AAR) on this desktop, so a harness asks ML Kit what the app asks it
+    tools/verify/langsuite/run.sh        # ~2 min,  where enabled languages share a script: the voice the real core
+                                         #          chooses with ML Kit, on ~110,000 labelled texts (UDHR, phrases,
+                                         #          Android UI strings, Tatoeba); the held-out half compares with
+                                         #          the figures recorded before 2026-10-28
     tools/verify/langsuite/fetch_data.sh # once:    Android UI strings, Tatoeba, CLDR, Unihan into tools/.cache/langdata
     tools/verify/automode/run.sh [ref]   # ~2 min,  auto/Google mode on the suite's texts, an earlier core vs the tree
-    tools/verify/mixedscript/run.sh      # ~5 min,  two languages of one script in one text, and none read in two
     tools/verify/clone-cld2.sh           # once:    CLD2, only to build a core from before 2026-10-21
-    tools/langid/fetch_train.sh          # once:    the word-and-ending model's learning text into tools/.cache/langtrain
     tools/pgo/run.sh [--update]          # ~3 min,  native PGO: retrain (NDK clang, x86_64+i686 android),
                                          #          917,754 answers plain vs PGO, timing, both ABIs fit, ASan+UBSan
     tools/verify/autottslog/run.sh <auto_tts.log>   # replays a REAL AutoTTS log through our core,
@@ -120,12 +120,6 @@ against **API 24's** `android.jar`. Its classpath is written by Gradle
                                          #   IsoCodes: alone and after a letter of its script, its language enabled or not;
                                          #   none may reach a voice that does not write its script, be dropped, or be cut
                                          #   from its word (EV_NEG=noattach|noneutral|noextra|onlyold fail)
-    tools/verify/mixedscript/run.sh      # ~3 min, two languages of one script in one text (Urdu + Arabic, Russian +
-                                         #   Ukrainian, Bengali + Assamese ...): langblend.h orthoSegment == train_nb.py
-                                         #   ortho_segment on 56,562 FLORES texts, then the real core (mix mode) word by
-                                         #   word against the core of EV_REF (HEAD): a one-language text never newly read
-                                         #   in two, two sentences >= 99% right, the owner's 9 cases exact
-                                         #   (EV_NEG=nosegment|nostep0 fail)
     tools/verify/oldnew/run.sh [ref]     # ~1 min, the core AND Kotlin of commit <ref>
                                          #   (default ae274b9) against the working tree:
                                          #   what would be spoken, auto answers and log lines

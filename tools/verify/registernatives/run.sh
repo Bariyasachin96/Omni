@@ -7,6 +7,7 @@
 #   run.sh            needs a compiled class: run tools/check/gradle-compile.sh first
 #   EV_NEG=sig        breaks one signature on purpose (must FAIL)
 #   EV_NEG=noregister JNI_OnLoad registers nothing (the JVM call must FAIL)
+#   EV_NEG=noupcall   JNI_OnLoad installs no ML Kit call (the JVM check must FAIL)
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$HERE/../../.." && pwd)
@@ -36,6 +37,18 @@ for name, sig in compiled.items():
     if name not in exported: bad.append("no exported Java_ fallback: " + name)
 for name in table:
     if name not in compiled: bad.append("registered but not declared: " + name)
+# The one call the other way (2026-10-28): JNI_OnLoad looks up the Kotlin
+# function that asks ML Kit, by name and descriptor, as a STATIC method.
+up = re.search(r'GetStaticMethodID\(cls, "(\w+)", "([^"]+)"\)', core)
+if not up:
+    bad.append("no GetStaticMethodID for the ML Kit call in the core")
+else:
+    found = False
+    for i, l in enumerate(lines):
+        if re.search(r'\bstatic\b.*\b%s\(' % up.group(1), l) and i + 1 < len(lines) and "descriptor:" in lines[i + 1]:
+            found = lines[i + 1].split("descriptor:")[1].strip() == up.group(2)
+    if not found: bad.append("the class has no static %s%s" % (up.group(1), up.group(2)))
+    else: print("ML Kit call: static %s%s found in the class" % (up.group(1), up.group(2)))
 for b in bad: print(b)
 print("%d native methods declared, %d registered, %d problems" % (len(compiled), len(table), len(bad)))
 print("IDENTICAL" if not bad else "FAILED")
@@ -54,6 +67,9 @@ for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do
   src="$f"
   if [ "${EV_NEG:-}" = noregister ] && [[ "$f" == */tts_engine_core.cpp ]]; then
     sed 's/        registerNatives(env);//' "$f" > "$WORK/core-neg.cpp"; src="$WORK/core-neg.cpp"
+  fi
+  if [ "${EV_NEG:-}" = noupcall ] && [[ "$f" == */tts_engine_core.cpp ]]; then
+    sed 's/        installLanguageIdentifier(vm, env);//' "$f" > "$WORK/core-neg.cpp"; src="$WORK/core-neg.cpp"
   fi
   o="$WORK/obj/$(echo "$src" | md5sum | cut -c1-16).o"
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ] || [ -n "$(find "$CPP" -maxdepth 1 -name "*.h" -newer "$o" -print -quit)" ]; then rm -f "$o"; g++ -c -O2 -fPIC -std=c++17 -w $INC -o "$o" "$src" || { echo "compile failed: $src"; exit 1; }; fi

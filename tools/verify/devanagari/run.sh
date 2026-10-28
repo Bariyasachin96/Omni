@@ -9,7 +9,8 @@ WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-devanagari
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
 ls "$JH"/lib/server/libjvm.so >/dev/null 2>&1 || { echo "no libjvm.so under $JH"; exit 2; }
 
-INC="-I$JH/include -I$JH/include/linux -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/mlkit -I$CPP"
+source "$ROOT/tools/mlkit/build.sh"
 mkdir -p "$WORK/obj"
 compile() {
   # TWO `local` lines, not one. `local src=$1 obj="...$src..."` expands $src
@@ -29,5 +30,5 @@ compile() {
 objs=""
 for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do objs="$objs $(compile "$f")"; done
 g++ -c ${EV_CXXFLAGS:--O2} -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp" || exit 1
-g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs -L"$JH/lib/server" -ljvm -lpthread -Wl,-rpath,"$JH/lib/server"
-"$WORK/probe"
+g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs "$MLKIT_HOST" -ldl -lm -L"$JH/lib/server" -ljvm -lpthread -Wl,-rpath,"$JH/lib/server"
+LD_LIBRARY_PATH="$MLKIT_LIBS" EV_MLKIT_MODEL="$MLKIT_MODEL" "$WORK/probe" 2> >(grep -v "Initialized TensorFlow Lite runtime" >&2)

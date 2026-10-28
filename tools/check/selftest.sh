@@ -112,8 +112,10 @@ run "#16 bring a CLD3 symbol back into the core" "#16" \
     "perl -0pi -e 's/static std::string detectWindowLang/static std::string cld3DetectRaw(const std::string\&, bool*, bool);\\nstatic std::string detectWindowLang/' app/src/main/cpp/tts_engine_core.cpp"
 run "#16 call CLD2 from the core again" "#16" \
     "perl -0pi -e 's/static std::string detectWindowLang/static int cld2Probe(){ return (int)CLD2::UNKNOWN_LANGUAGE; }\\nstatic std::string detectWindowLang/' app/src/main/cpp/tts_engine_core.cpp"
-run "#16 include CLD2's header in langblend.h again" "#16" \
-    "sed -i 's|#include \"langid.h\"|#include \"compact_lang_det.h\"\\n#include \"langid.h\"|' app/src/main/cpp/langblend.h"
+run "#16 include CLD2's header in the core again" "#16" \
+    "sed -i 's|^#include \"unicode_tables.h\"|#include \"compact_lang_det.h\"\\n#include \"unicode_tables.h\"|' app/src/main/cpp/tts_engine_core.cpp"
+run "#16 bring a model header back into the core" "#16" \
+    "sed -i 's|^#include \"unicode_tables.h\"|#include \"langnb.h\"\\n#include \"unicode_tables.h\"|' app/src/main/cpp/tts_engine_core.cpp"
 run "#16 bring a useCld3 flag back into the service" "#16" \
     "sed -i 's/var utteranceId = \"\"/var useCld3Flag = false/' $K/EasyVoiceTtsService.kt"
 run "#14 log with a stray tag literal" "#14" \

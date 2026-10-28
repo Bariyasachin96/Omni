@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.18.1)
 project("easyvoice_native")
-# THE DETECTOR IS THE MODEL ML KIT RUNS (langid.h + langid_model.h), compiled
-# into tts_engine_core.cpp with the rest of the core. CLD2 -- its sources and its
-# tables, 6.1 MB per ABI -- was removed on 2026-10-21 at the owner's instruction
-# ("jahan per CLD2 kam karega vahan per ab ML Kit kam karega ... CLD2 hata do"),
-# as CLD3 was on 2026-09-02. Do not add either back without that decision being
-# reversed in writing (tools/check/invariants.sh fails the build if one is).
+# NO MODEL IN THE NATIVE CORE (owner, 2026-10-28: "koi model rakhna hi nahin ...
+# ML Kit use karenge har jagah ... aur Unicode use karenge"). The core reads a
+# text's script from the Unicode tables (unicode_tables.h) and, where the text
+# has to name a language, asks Google's ML Kit language identification -- the
+# Gradle library com.google.mlkit:language-id, called from Kotlin
+# (EasyVoiceTtsService.mlkitIdentify) through JNI. CLD2 (removed 2026-10-21),
+# CLD3 (2026-09-02), and the word-and-ending model, letter rules and the copy of
+# ML Kit's network that sat here until 2026-10-28 are all gone; do not add any
+# of them back without that decision being reversed in writing
+# (tools/check/invariants.sh fails the build on CLD2, CLD3 or a model header).
 add_library(easyvoice SHARED
     tts_engine_core.cpp
 )
@@ -34,15 +38,12 @@ target_link_libraries(easyvoice ${log-lib})
 # .dynsym, which a shared library must keep to be loadable, so they survive --
 # verified with `nm -D --defined-only`, all seven still exported after stripping.
 #
-# WHAT THE LIBRARY IS MADE OF (2026-10-21, CLD2 gone): the model ML Kit runs
-# (~0.33 MB), the word-and-ending model, the Unicode tables and the core's own
-# code. The 6.1 MB of CLD2's quadgram tables that were 95% of the library
-# before -- and that no flag or compression could shrink (measured 2026-09-09:
-# deflate took 25%, xz 33%) -- are gone with it. The word-and-ending model
-# holds EVERY feature it learned since 2026-10-27 (16.32 MB of tables, the
-# owner's choice: the most accurate model, whatever its size); measured with
-# the shipped flags + PGO, arm64 2,249,344 -> 16,885,584 bytes, armeabi-v7a
-# 2,222,260 -> 16,858,404 (gzip -9: 1.51 -> 9.63 MB).
+# WHAT THE LIBRARY IS MADE OF (2026-10-28): the Unicode tables and the core's
+# own code -- no detector tables at all. ML Kit's own native library and model
+# (liblanguage_id_l2c_jni.so, tflite_langid.tflite.jpg) come from its AAR
+# through Gradle and are packaged beside this one. Before: CLD2's 6.1 MB of
+# tables (until 2026-10-21), then the model ML Kit runs (0.33 MB) and the
+# word-and-ending model (16.32 MB of tables at the end, 2026-10-27).
 #
 # --gc-sections pairs with the -ffunction-sections/-fdata-sections in
 # build.gradle.kts; --strip-all removes .symtab and .strtab only, and every

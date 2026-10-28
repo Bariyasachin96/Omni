@@ -1,54 +1,36 @@
-"""raw.tsv and pipeline.tsv as tables.
+"""choices.tsv as a table: per set and language, the share of texts whose voice
+is the text's own language, where two or more languages of the set write the
+text's script (elsewhere the script alone decides).
 
-    report.py raw.tsv pipeline.tsv
+    report.py choices.tsv
+
+"held-out" is the half the suite measured on from 2026-10-21 to 2026-10-27 (the
+"test" rows whose crc32 of label + text is odd), so its total compares with the
+figures recorded then; "all" is every row.
 """
 import collections
 import sys
+import zlib
 
-raw = [l.rstrip("\n").split("\t") for l in open(sys.argv[1], encoding="utf-8")]
-# pipeline.tsv: set label class split model fallback cands blend text ctxmap
-pipe = [[r[0], r[1], r[2], r[4], r[7]] for r in (l.rstrip("\n").split("\t") for l in open(sys.argv[2], encoding="utf-8"))]
-MODEL = {r[2] for r in raw}
-CLASSES = ["1w", "2-3w", "4-7w", "8-15w", "16w+", "phrase"]
+rows = [l.rstrip("\n").split("\t") for l in open(sys.argv[1], encoding="utf-8")]
+rows = [r for r in rows if len(r) >= 7 and int(r[4]) >= 2]
 
 
-def raw_score(sub):
-    n = len(sub)
-    if not n:
-        return None
-    top = 100.0 * sum(r[2] == r[0] for r in sub) / n
-    und = 100.0 * sum(float(r[3]) < 0.5 for r in sub) / n
-    return "%5d  model %5.1f%%   (under 0.5: %4.1f%%)" % (n, top, und)
+def held(r):
+    return r[3] == "test" and zlib.crc32((r[1] + r[6]).encode("utf-8")) % 2 == 1
 
 
-print("== 1. THE MODEL ALONE, its top answer among all its languages ==")
-print("every language the model has:")
-for c in CLASSES:
-    s = raw_score([r for r in raw if r[1] == c and r[0] in MODEL])
-    if s:
-        print("   %-7s %s" % (c, s))
-for lang in ["hi", "mr", "ne", "ur", "ar", "fa", "ps", "bn", "en", "ru", "uk", "bg", "sr", "zh", "ja"]:
-    print(lang)
-    for c in CLASSES:
-        s = raw_score([r for r in raw if r[0] == lang and r[1] == c])
-        if s:
-            print("   %-7s %s" % (c, s))
-print("\nnot in the model, or romanized -- what it answers:")
-for lang in ["as", "sa", "bho", "mai", "pnb", "hi-Latn"]:
-    sub = [r for r in raw if r[0] == lang]
-    if sub:
-        print("   %-8s %4d  model %s" % (lang, len(sub), collections.Counter(r[2] for r in sub).most_common(4)))
-
-print("\n== 2. THE VOICE CHOSEN, with a set of languages enabled (the core's real decision) ==")
-for name in dict.fromkeys(r[0] for r in pipe):
-    sub = [r for r in pipe if r[0] == name]
-    print(name)
-    for lang in dict.fromkeys(r[1] for r in sub):
-        parts = []
-        for c in CLASSES:
-            s = [r for r in sub if r[1] == lang and r[2] == c]
-            if s:
-                mod = 100.0 * sum(r[3] == lang for r in s) / len(s)
-                now = 100.0 * sum(r[4] == lang for r in s) / len(s)
-                parts.append("%s %3.0f/%3.0f" % (c, mod, now))
-        print("   %-4s model/core %%: %s" % (lang, "  ".join(parts)))
+stat = collections.defaultdict(collections.Counter)
+for r in rows:
+    s, label, cls, _, _, got = r[:6]
+    for k in ((s, label), (s, "*"), ("*", cls), ("*", "*")):
+        stat[k]["n"] += 1
+        stat[k]["ok"] += got == label
+        if held(r):
+            stat[k]["hn"] += 1
+            stat[k]["hok"] += got == label
+print("%-26s %8s %8s %10s %8s" % ("set  language", "all", "right", "held-out", "right"))
+for k in sorted(stat, key=lambda k: (k[0] == "*", k)):
+    st = stat[k]
+    h = "%10d %7.2f%%" % (st["hn"], 100.0 * st["hok"] / st["hn"]) if st["hn"] else "%10s %8s" % ("-", "-")
+    print("%-26s %8d %7.2f%% %s" % ("  ".join(k), st["n"], 100.0 * st["ok"] / st["n"], h))

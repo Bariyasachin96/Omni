@@ -295,20 +295,24 @@ done
 [ -z "$missing" ] && ok "#17 every activity that persists also loads first" \
                   || bad "#17 persists in onPause but never loads:$missing -- a fresh process would write defaults over real settings"
 
-# --- 16. there is ONE detector, and it must stay that way ------------------
-# CLD3 was removed on 2026-09-02 at the owner's instruction, and CLD2 on
-# 2026-10-21 ("jahan per CLD2 kam karega vahan per ab ML Kit kam karega ... CLD2
-# hata do"): the model ML Kit runs (langid.h) is the detector. This checks that
-# neither comes back by accident -- no CLD3 symbol or useCld3 flag, no CLD2 call
-# or header -- in the core, its headers or the Kotlin. See CLAUDE.md, "CLD3 IS
-# GONE" and "CLD2 IS GONE". Comments are stripped, because those sections and
-# the code's own history notes quote these very names.
+# --- 16. ML Kit is the language identifier, and no model of ours comes back --
+# CLD3 was removed on 2026-09-02 at the owner's instruction, CLD2 on 2026-10-21
+# ("CLD2 hata do"), and on 2026-10-28 every model of our own -- the
+# word-and-ending model, the letter rules and the copy of ML Kit's network
+# (langnb.h, langblend.h, langhan.h, langid.h, langid_model.h): "koi model
+# rakhna hi nahin ... ML Kit use karenge har jagah ... aur Unicode". The core
+# reads scripts from the Unicode tables and asks Google's ML Kit library
+# (com.google.mlkit:language-id) through Kotlin. This checks that none of them
+# comes back by accident -- no CLD3 symbol or useCld3 flag, no CLD2 call or
+# header, no model header or its functions -- in the core, its headers or the
+# Kotlin. Comments are stripped, because the history notes quote these names.
 strays=$(sed 's://.*::' app/src/main/cpp/*.cpp app/src/main/cpp/*.h $KT/*.kt |
-         grep -oE '\b(cld3[A-Za-z]*|useCld3[A-Za-z]*|NNetLanguageIdentifier|isRomanisedTag)\b|CLD2::[A-Za-z_]+|compact_lang_det[a-z_.]*|ExtDetectLanguageSummary|cld2_src' |
+         grep -oE '\b(cld3[A-Za-z]*|useCld3[A-Za-z]*|NNetLanguageIdentifier|isRomanisedTag|lidClassify|kLidLabels|blendDetectors|nbScore|orthoSegment|hanIn)\b|CLD2::[A-Za-z_]+|compact_lang_det[a-z_.]*|ExtDetectLanguageSummary|cld2_src|#include "(langblend|langnb|langhan|langid|langid_model)\.h"' |
          sort -u || true)
-[ -z "$strays" ] \
-  && ok "#16 the model ML Kit runs is the only detector -- no CLD2 or CLD3 anywhere" \
-  || bad "#16 an old detector has come back: $strays"
+models=$(ls app/src/main/cpp | grep -E '^(langblend|langnb|langhan|langid|langid_model)\.h$' || true)
+[ -z "$strays$models" ] \
+  && ok "#16 ML Kit is the only language identifier -- no CLD2, CLD3 or model of ours anywhere" \
+  || bad "#16 an old detector or a model has come back: $strays $models"
 
 # --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's own sites --
 # AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and

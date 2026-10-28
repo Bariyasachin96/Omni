@@ -3,7 +3,8 @@
 # sweep stays as wide as it was.
 #
 # The core's own codes come from tools/verify/langcodes/gen_codes.py, which
-# reads them out of langid_model.h, tts_engine_core.cpp and unicode_tables.h;
+# reads them out of tts_engine_core.cpp and unicode_tables.h (ML Kit's own
+# support table by script since 2026-10-28, the model's labels before);
 # run.sh fails if one of them is missing here. The CLD2 codes were lifted from
 # its generated_language.cc (kLanguageToCode, empty entries and duplicates
 # removed): 152 two-letter, 27 three-letter, 103 with a script subtag (zh-Hant,

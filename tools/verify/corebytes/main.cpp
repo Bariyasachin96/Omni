@@ -13,6 +13,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
+#include "mlkit.h"
 
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
@@ -129,6 +130,8 @@ static void JNICALL artUTFRegion(JNIEnv* e, jstring s, jsize start, jsize len, c
 
 
 int main(int argc, char** argv){
+    // ML Kit as the language identifier, for a core that asks one (tools/mlkit)
+    installMlKit();
     JavaVM* vm; JavaVMInitArgs a{}; a.version = JNI_VERSION_1_8;
     JNI_CreateJavaVM(&vm, (void**)&env, &a);
     realFns = env->functions;

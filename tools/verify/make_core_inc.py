@@ -42,9 +42,9 @@ DROP_INCLUDES = (
     '#include <jni.h>',
     '#include "compact_lang_det.h"',
     '#include "encodings.h"',
-    '#include "image_warm.h"',      # used only by JNI_OnLoad, which the slice drops
+    '#include "image_warm.h"',      # an older core's (until 2026-10-28): used only by JNI_OnLoad
     '#include "compact_lang_det_impl.h"',
-    '#include "langblend.h"',       # the two detectors together; nothing before the cut uses it
+    '#include "langblend.h"',       # an older core's model header (until 2026-10-28); nothing before the cut uses it
 )
 
 HINTS_STUB = """

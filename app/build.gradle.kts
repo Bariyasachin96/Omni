@@ -345,6 +345,23 @@ dependencies {
     // Only the `adaptive` artifact: adaptive-layout and adaptive-navigation are
     // the pane scaffolds, and we deliberately have no two-pane layout.
     implementation(libs.androidx.compose.material3.adaptive)
+    // GOOGLE'S ML KIT LANGUAGE IDENTIFICATION, THE LIBRARY ITSELF (owner,
+    // 2026-10-28: "original ml kit use karna chahta hun ... directly Gradle mein
+    // ... Kotlin mein ... yah model wala nahin chahta, bahut bada ho jata hai").
+    // The app keeps no model of its own ("koi model rakhna hi nahin ... ML Kit
+    // use karenge har jagah"): the native core reads scripts from the Unicode
+    // tables, and where the text has to name a language -- two or more enabled
+    // languages write its script (Hindi and Marathi, Urdu and Arabic, Spanish and
+    // Portuguese ...), or auto and Google mode's windows -- it asks this library
+    // through EasyVoiceTtsService.mlkitIdentify (Kotlin). A script one enabled
+    // language writes is decided by the script alone, with no call at all. The
+    // bundled model: liblanguage_id_l2c_jni.so (arm64 1.0 MB, armeabi-v7a
+    // 0.6 MB) and tflite_langid.tflite.jpg (0.3 MB), works with no network.
+    // WHAT IT BRINGS, read from its own AARs: ML Kit common, Play services
+    // base/basement/tasks, Firebase components and Google's datatransport
+    // (usage logging to Google -- its manifest adds INTERNET and
+    // ACCESS_NETWORK_STATE, a JobService and a receiver), and AppCompat.
+    implementation(libs.mlkit.language.id)
 
     // THE LIBRARIES NOTHING HERE DECLARES, RAISED TO THEIR LATEST STABLE (owner,
     // 2026-09-23: "baki aur bhi chijen jo hogi vah bhi update kar do ... properly
@@ -401,6 +418,17 @@ dependencies {
         implementation(libs.androidx.window.core)
         implementation(libs.kotlinx.serialization.core)
         implementation(libs.jspecify)
+        // brought by ML Kit's language-id (2026-10-28); same major, minSdk <= 24,
+        // nothing they need is newer than this graph, no permission or new
+        // component in their manifests (read from each AAR and pom)
+        implementation(libs.play.services.base)
+        implementation(libs.play.services.basement)
+        implementation(libs.play.services.tasks)
+        implementation(libs.androidx.fragment)
+        implementation(libs.androidx.drawerlayout)
+        implementation(libs.androidx.viewpager)
+        implementation(libs.androidx.loader)
+        implementation(libs.androidx.customview)
     }
 
     // Accessibility checks, run against the real screens on a real emulator.

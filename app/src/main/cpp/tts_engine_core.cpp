@@ -15,11 +15,6 @@
 #include <atomic>
 #include <array>
 #include "unicode_tables.h"   // generated from the Unicode Character Database
-// the model ML Kit runs and the rules that choose between the enabled languages
-// of one script; the harness slicer drops this line
-#include "langblend.h"
-// the tables read in at load (JNI_OnLoad); the harness slicer drops this line
-#include "image_warm.h"
 // java.lang.String, looked up ONCE. Android's JNI tips: "cache the IDs in
 // JNI_OnLoad" -- FindClass is a class-loader lookup, and nativeGetLanguages
 // ran it on every call. Held as a global ref, because a local one dies with the
@@ -42,14 +37,15 @@ static jclass stringClassRef(JNIEnv* env) {
 // looks each Java_* symbol up with dlsym the first time it is called. Defined
 // at the end of this file; registerNatives below is too.
 static void registerNatives(JNIEnv* env);
+// ML Kit's language identification, reached through Kotlin (owner, 2026-10-28):
+// defined at the end of this file too.
+static void installLanguageIdentifier(JavaVM* vm, JNIEnv* env);
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
-    // The detector's tables, read in now rather than on the first word: see
-    // image_warm.h. Any address inside this library names it.
-    evwarm::startAdvisingOwnImage(reinterpret_cast<const void*>(&JNI_OnLoad));
     JNIEnv* env = nullptr;
     if (vm && vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) == JNI_OK && env) {
         if (!stringClassRef(env)) env->ExceptionClear();
         registerNatives(env);
+        installLanguageIdentifier(vm, env);
     }
     return JNI_VERSION_1_6;
 }
@@ -1928,145 +1924,270 @@ static const char* const SCRIPT_FIXED_LANG[19] = {
     "el", "hy", "iw", "ka", "pa", "gu", "or", "ta", "te", "kn",
     "ml", "si", "th", "lo", "bo", "my", "km", "am", "ko"
 };
-// The script slot (spanScriptSlot's numbering) a label of the model writes in;
-// -1 for "unknown" and the romanised xx-Latn labels.
-static int lidLabelSlot(const char* label){
-    const int slot = blendLabelSlot(label);
-    if(slot >= 1) return slot;
-    for(int i = 0; i < 19; i++) if(!strcmp(label, SCRIPT_FIXED_LANG[i])) return 7 + i;
-    if(!strcmp(label, "yi")) return 9;   // Yiddish: the Hebrew script
+// ==========================================================================
+//  LANGUAGE IDENTIFICATION IS GOOGLE'S ML KIT     AutoTTS clsCLD2.d / getLanguage
+//  owner, 2026-10-28: "koi model rakhna hi nahin ... ML Kit use karenge har
+//  jagah ... aur Unicode use karenge". The core keeps no model of its own: not
+//  CLD2 (gone 2026-10-21), not CLD3 (2026-09-02), and since 2026-10-28 no
+//  word-and-ending model, no letter rules and no copy of ML Kit's network. A
+//  text's SCRIPT is read from the Unicode tables (unicode_tables.h); where the
+//  text itself has to name a LANGUAGE -- a span of a script two or more
+//  enabled languages write, a span of a shared script no enabled language
+//  writes, and every window of auto and Google mode -- the core asks Google's
+//  ML Kit language identification (com.google.mlkit:language-id, its bundled
+//  model) through EasyVoiceTtsService.mlkitIdentify in Kotlin, which
+//  JNI_OnLoad installs (end of this file). A desktop harness installs its own
+//  with evSetLanguageIdentifier (tools/mlkit runs ML Kit's own library).
+// ==========================================================================
+// The identifier: the text in UTF-8 in; out, ML Kit's languages, each one's
+// tag (as ML Kit spells it: "hi", "iw", "fil", "zh-Latn" ...) and confidence
+// (0..1) -- every language it gives 0.01 or more, its identifyPossibleLanguages
+// at its default options. Answers how many it wrote, at most `max`; 0 when
+// there was no answer.
+typedef int (*EvLidFn)(const char* utf8, size_t len, char (*tags)[16], float* confidences, int max);
+static std::atomic<EvLidFn> g_languageIdentifier{nullptr};
+extern "C" void evSetLanguageIdentifier(EvLidFn fn){
+    g_languageIdentifier.store(fn, std::memory_order_release);
+}
+// ML Kit's answer for one text. It knows 111 languages, and no more than 100
+// of them can each have 0.01.
+struct LidAnswer {
+    static constexpr int kMax = 112;
+    int n = 0;
+    char tags[kMax][16];
+    float confidences[kMax];
+};
+static bool identifyLanguages(const char* utf8, size_t len, LidAnswer& answer){
+    answer.n = 0;
+    EvLidFn fn = g_languageIdentifier.load(std::memory_order_acquire);
+    if(!fn || len == 0) return false;
+    const int n = fn(utf8, len, answer.tags, answer.confidences, LidAnswer::kMax);
+    answer.n = n < 0 ? 0 : std::min(n, (int)LidAnswer::kMax);
+    for(int k = 0; k < answer.n; k++) answer.tags[k][15] = '\0';
+    return answer.n > 0;
+}
+
+// One code point of UTF-8 (MediaPipe's utf_charntorune, which ML Kit's own
+// tokenizer reads text with): the bytes it takes, *r set; 0xFFFD and 1 for a
+// byte that starts no valid sequence; 0 when the sequence runs past n.
+static int utf8Decode(const unsigned char* s, size_t n, int32_t* r){
+    *r = 0xFFFD;
+    if (n == 0) return 0;
+    int c = s[0];
+    if (c < 0x80) { *r = c; return 1; }
+    if (n <= 1) return 0;
+    int c1 = s[1] ^ 0x80;
+    if (c1 & 0xC0) return 1;
+    if (c < 0xE0) {
+        if (c < 0xC0) return 1;
+        int32_t l = ((c << 6) | c1) & 0x7FF;
+        if (l <= 0x7F) return 1;
+        *r = l;
+        return 2;
+    }
+    if (n <= 2) return 0;
+    int c2 = s[2] ^ 0x80;
+    if (c2 & 0xC0) return 1;
+    if (c < 0xF0) {
+        int32_t l = ((((c << 6) | c1) << 6) | c2) & 0xFFFF;
+        if (l <= 0x7FF) return 1;
+        *r = l;
+        return 3;
+    }
+    if (n <= 3) return 0;
+    int c3 = s[3] ^ 0x80;
+    if (c3 & 0xC0) return 1;
+    if (c < 0xF8) {
+        int32_t l = ((((((c << 6) | c1) << 6) | c2) << 6) | c3) & 0x1FFFFF;
+        if (l <= 0xFFFF || l > 0x10FFFF) return 1;
+        *r = l;
+        return 4;
+    }
+    return 1;
+}
+
+// A language code -- an enabled one, or ML Kit's tag -- spelled one way. ML Kit
+// says "iw", "fil", "jv", "no", "id", "yi" where a voice may say "he", "tl",
+// "jw", "nb" or "nn", "in", "ji"; "zh-Hant" is Chinese and "sr-ME" Serbian.
+static std::string canonicalLanguage(const std::string& c){
+    if(c == "he") return "iw";
+    if(c == "tl") return "fil";
+    if(c == "jw") return "jv";
+    if(c == "nb" || c == "nn") return "no";
+    if(c == "in") return "id";
+    if(c == "ji") return "yi";
+    if(c == "zh-Hant") return "zh";
+    if(c == "sr-ME") return "sr";
+    return c;
+}
+// The script slot (spanScriptSlot's numbering) a language writes, by its
+// canonical code. 1..6, the scripts two languages can share -- Latin, Cyrillic,
+// Arabic, Devanagari, Han and kana, Bengali -- by ML Kit's own list of the 111
+// languages it identifies (developers.google.com/ml-kit/language/identification/
+// langid-support), plus Sanskrit and Assamese, which it does not name; 7..25 a
+// script one language is read in (SCRIPT_FIXED_LANG; Yiddish writes Hebrew);
+// -1 for anything else: a romanised tag ("hi-Latn"), "und", a language ML Kit
+// does not know.
+static int languageSlot(const std::string& code){
+    static const char* const kLatin[] = {
+        "af", "az", "bs", "ca", "ceb", "co", "cs", "cy", "da", "de", "en", "eo", "es", "et", "eu", "fi",
+        "fil", "fr", "fy", "ga", "gd", "gl", "ha", "haw", "hmn", "hr", "ht", "hu", "id", "ig", "is", "it",
+        "jv", "ku", "la", "lb", "lt", "lv", "mg", "mi", "ms", "mt", "nl", "no", "ny", "pl", "pt", "ro",
+        "sk", "sl", "sm", "sn", "so", "sq", "st", "su", "sv", "sw", "tr", "uz", "vi", "xh", "yo", "zu"};
+    static const char* const kCyrillic[] = {"be", "bg", "kk", "ky", "mk", "mn", "ru", "sr", "tg", "uk"};
+    static const char* const kArabic[] = {"ar", "fa", "ps", "sd", "ur"};
+    static const char* const kDevanagari[] = {"hi", "mr", "ne", "sa"};
+    for(const char* c : kLatin) if(code == c) return 1;
+    for(const char* c : kCyrillic) if(code == c) return 2;
+    for(const char* c : kArabic) if(code == c) return 3;
+    for(const char* c : kDevanagari) if(code == c) return 4;
+    if(code == "zh" || code == "ja") return 5;
+    if(code == "bn" || code == "as") return 6;
+    for(int i = 0; i < 19; i++) if(code == SCRIPT_FIXED_LANG[i]) return 7 + i;
+    if(code == "yi") return 9;   // Yiddish: the Hebrew script
     return -1;
+}
+// The enabled codes that write script slot `slot`, one per language, in the
+// order they were enabled.
+static void slotLanguages(int slot, const std::vector<std::string>& enabled, std::vector<std::string>& out){
+    out.clear();
+    for(const std::string& code : enabled){
+        const std::string c = canonicalLanguage(code);
+        if(languageSlot(c) != slot) continue;
+        bool seen = false;
+        for(const std::string& x : out) seen |= canonicalLanguage(x) == c;
+        if(!seen) out.push_back(code);
+    }
+}
+// Of `langs`, the one ML Kit gives the most; "" when it names none of them.
+// On a tie the first.
+static std::string mostLikely(const LidAnswer& answer, const std::vector<std::string>& langs){
+    std::string best;
+    float bestConfidence = -1.0f;
+    for(const std::string& code : langs){
+        const std::string c = canonicalLanguage(code);
+        for(int k = 0; k < answer.n; k++){
+            if(canonicalLanguage(answer.tags[k]) != c) continue;
+            if(answer.confidences[k] > bestConfidence){ bestConfidence = answer.confidences[k]; best = code; }
+            break;
+        }
+    }
+    return best;
+}
+// ML Kit's most likely language among those that write script slot `slot`, as
+// ML Kit spells it; "" when it names none.
+static std::string mostLikelyInSlot(const LidAnswer& answer, int slot){
+    int best = -1;
+    for(int k = 0; k < answer.n; k++){
+        if(languageSlot(canonicalLanguage(answer.tags[k])) != slot) continue;
+        if(best < 0 || answer.confidences[k] > answer.confidences[best]) best = k;
+    }
+    return best < 0 ? std::string() : std::string(answer.tags[best]);
 }
 
 // ==========================================================================
-//  DETECTOR                    AutoTTS clsCLD2.d / libcld2.so getLanguage 0x6523c8
-//  THE MODEL ML KIT RUNS IS THE DETECTOR (owner, 2026-10-21: "jahan per CLD2
-//  kam karega vahan per ab ML Kit kam karega ... CLD2 hata do"). CLD2 -- its
-//  tables (6 MB per ABI), its calls and its answers -- is gone; langid.h is
-//  ML Kit's own language-identification model (tools/verify/langid: equal to
-//  ML Kit's library within 1e-5). The CLD3 arm that once sat beside CLD2 went
-//  on 2026-09-02.
-// ==========================================================================
-// ==========================================================================
 //  DETECTION CACHE (owner, 2026-10-01)
 //  A screen reader says the same short labels again and again ("Settings",
-//  "Back", a contact's name). The detector keeps no state between calls, so for
-//  the same bytes it gives the same answer; the span answer also depends on the
+//  "Back", a contact's name). ML Kit keeps no state between calls, so for the
+//  same bytes it gives the same answer; the span answer also depends on the
 //  script and on the hint state, so a span entry is keyed by script + bytes and
 //  the whole span table is dropped when the hint state changes (the pointer is
 //  kept, so it cannot be reused). One cache per thread: no lock, and nothing
 //  shared. At most kDetectCacheMax entries each, cleared when full.
 // ==========================================================================
-// An answer as cached: the span's own answer, and where two or more enabled
-// languages share the script (slot 1..6, else 0) what langblend.h weighed --
-// the context is applied after the cache (blendFinal), since the same bytes
-// can follow different text.
-struct CachedAnswer {
-    std::string lang;
-    int slot = 0;
-    BlendResult blend;
-    std::string resolve() const { return slot ? blendFinal(slot, blend, lang) : lang; }
-};
 struct DetectCache {
     std::shared_ptr<const void> spanHints;                      // the HintState the span entries belong to
-    std::unordered_map<std::string, CachedAnswer> spans;        // script byte + span bytes -> language
+    std::unordered_map<std::string, std::string> spans;         // script byte + span bytes -> language
     std::shared_ptr<const void> windowsEnabled;                 // the enabled set the window entries belong to
-    std::unordered_map<std::string, CachedAnswer> windows;      // window bytes -> detectWindowLang's answer
+    std::unordered_map<std::string, std::string> windows;       // window bytes -> detectWindowLang's answer
 };
 static const size_t kDetectCacheMax = 256;
 static DetectCache& detectCache(){ static thread_local DetectCache cache; return cache; }
-// ML Kit's identifyLanguage answers a language only when the model gives it at
-// least this confidence, "und" otherwise -- its documented default threshold
+// ML Kit's identifyLanguage answers a language only when it gives it at least
+// this confidence, "und" otherwise -- its documented default threshold
 // (LanguageIdentificationOptions). The window detector keeps the same rule.
-static const float kLidReliable = 0.5f;
-static CachedAnswer detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled);
-// The answer depends on the enabled set too since the enabled languages of one
-// script are weighed against each other (langblend.h), so a new set drops the
-// window entries, as a new HintState drops the span ones.
+static const float kMlKitThreshold = 0.5f;
+static std::string detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled);
+// The answer depends on the enabled set too, since ML Kit chooses between the
+// enabled languages of one script, so a new set drops the window entries, as a
+// new HintState drops the span ones.
 static std::string detectWindowLang(const std::string& utf8Text,
                                     const std::shared_ptr<const std::unordered_set<std::string>>& enabled){
     DetectCache& cache = detectCache();
     if(cache.windowsEnabled != enabled){ cache.windows.clear(); cache.windowsEnabled = enabled; }
     auto hit = cache.windows.find(utf8Text);
     if(hit == cache.windows.end()){
-        CachedAnswer answer = detectWindowLangUncached(utf8Text, *enabled);
+        std::string answer = detectWindowLangUncached(utf8Text, *enabled);
         if(cache.windows.size() >= kDetectCacheMax) cache.windows.clear();
         hit = cache.windows.emplace(utf8Text, std::move(answer)).first;
     }
-    return hit->second.resolve();
+    return hit->second;
 }
-static CachedAnswer detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled){
+static std::string detectWindowLangUncached(const std::string& utf8Text, const std::unordered_set<std::string>& enabled){
     // What clsCLD2.d asks per 64-character window (AutoTTS: CLD2's getLanguage,
     // 0x6523c8): one language for the window, or none when the detector is not
-    // sure of it. Here the model's top language at ML Kit's own threshold. A
-    // romanised label (hi-Latn, ar-Latn ...) is not taken: Latin text stays with
-    // the Latin-script languages, as in the span path, where a Latin span is
-    // only ever one of them.
-    CachedAnswer answer;
-    answer.lang = "UNKNOWN";
-    // ONLY A LANGUAGE THAT WRITES THE WINDOW'S LETTERS (2026-10-21). CLD2
-    // scored a text per script, so its answer was always a language of the
-    // text's own letters. The model weighs all its 111 labels at once, and on
-    // a letter it barely knows it names one of another script with confidence:
-    // "en" for a lone Greek beta, "hi" for a rare Han character, "gu" for a
-    // Latin modifier letter, Khmer at 0.5+ for "😂😂😂" (no letter at all:
-    // every character is a space token to it). So the answer is the most
-    // probable label among the languages that write a script the window's
-    // letters are in, and a window without one letter answers UNKNOWN, as CLD2
-    // did -- the script fallback after it then names the language.
+    // sure of it -- here ML Kit's most likely language, at ML Kit's own
+    // threshold.
+    //
+    // ONLY A LANGUAGE THAT WRITES THE WINDOW'S LETTERS (2026-10-21). CLD2 scored
+    // a text per script, so its answer was always a language of the text's own
+    // letters. ML Kit weighs all its languages at once, and on a letter it
+    // barely knows it names one of another script with confidence: "en" for a
+    // lone Greek beta, "hi" for a rare Han character, Khmer for "😂😂😂" (no
+    // letter at all). So the answer is ML Kit's most likely language among
+    // those that write a script the window's letters are in (Unicode's own
+    // letters, General_Category L), and a window without one letter answers
+    // UNKNOWN, as CLD2 did -- the script fallback after it then names the
+    // language. A romanised tag (hi-Latn, ar-Latn ...) is never taken: Latin
+    // text stays with the Latin-script languages, as in the span path.
     uint64_t scripts = 0;
     {
         const unsigned char* s = (const unsigned char*)utf8Text.data();
         size_t i = 0, n = utf8Text.size();
         while(i < n){
             int32_t r;
-            int used = lidDecode(s + i, n - i, &r);
+            const int used = utf8Decode(s + i, n - i, &r);
             if(used == 0) break;
             i += (size_t)used;
-            if(!lidIsAlpha(r)) continue;
+            if(!isLetterCodepoint((int)r)) continue;
             const int slot = spanScriptSlot((int)r);
             if(slot >= 1 && slot < 64) scripts |= (uint64_t)1 << slot;
         }
-        if(!scripts) return answer;
+        if(!scripts) return "UNKNOWN";
     }
-    float p[EV_LID_CLASSES];
-    if(!lidClassify(utf8Text.data(), utf8Text.size(), p)) return answer;
+    LidAnswer answer;
+    if(!identifyLanguages(utf8Text.data(), utf8Text.size(), answer)) return "UNKNOWN";
     int top = -1;
-    for(int k = 1; k < EV_LID_CLASSES; k++){
-        const int slot = lidLabelSlot(kLidLabels[k]);
+    for(int k = 0; k < answer.n; k++){
+        const int slot = languageSlot(canonicalLanguage(answer.tags[k]));
         if(slot < 1 || !((scripts >> slot) & 1)) continue;
-        if(top < 0 || p[k] > p[top]) top = k;
+        if(top < 0 || answer.confidences[k] > answer.confidences[top]) top = k;
     }
-    if(top < 0) return answer;
+    if(top < 0) return "UNKNOWN";
     // Sorted, so the same code is chosen whatever order the set iterates in.
     std::vector<std::string> codes(enabled.begin(), enabled.end());
     std::sort(codes.begin(), codes.end());
-    // Where two or more enabled languages write the script of that answer, they
-    // are weighed (langblend.h, as for a span) -- so the window answers the
-    // enabled language of that script the letters, the word-and-ending model and
-    // the model agree on best, which the enabled-language test in detectWindowed
-    // then keeps. Whatever the model's own confidence: between close languages
-    // (Indonesian and Malay, Spanish and Portuguese, Hindi and Marathi) it is
-    // split under 0.5, and an UNKNOWN there handed the window to the script's
-    // first enabled language, right or not.
-    const int slot = blendLabelSlot(kLidLabels[top]);
+    // Where two or more enabled languages write the script of that answer, the
+    // window is the one of them ML Kit gives the most, whatever its confidence:
+    // between close languages (Indonesian and Malay, Spanish and Portuguese,
+    // Hindi and Marathi) ML Kit is split under 0.5, and an UNKNOWN there handed
+    // the window to the script's first enabled language, right or not. When ML
+    // Kit names none of them, UNKNOWN.
+    const std::string topTag = canonicalLanguage(answer.tags[top]);
+    const int slot = languageSlot(topTag);
     if(slot >= 1 && slot <= 6){
-        std::vector<std::string> slotLangs;
-        blendSlotLangs(slot, codes, slotLangs);
-        if(slotLangs.size() >= 2){
-            answer.slot = slot;
-            answer.blend = blendDetectors(slot, utf8Text.data(), (int)utf8Text.size(), codes);
-            answer.lang = answer.blend.lang;
-            return answer;
+        std::vector<std::string> langs;
+        slotLanguages(slot, codes, langs);
+        if(langs.size() >= 2){
+            const std::string chosen = mostLikely(answer, langs);
+            return chosen.empty() ? std::string("UNKNOWN") : chosen;
         }
     }
-    if(p[top] < kLidReliable) return answer;
-    answer.lang = kLidLabels[top];
-    // The enabled code that names this language, so its voice is found: the
-    // model says "no", "iw", "id", "fil" where a voice may be "nb", "he", "in",
-    // "tl".
-    for(const std::string& code : codes) if(blendCanonical(code) == answer.lang){ answer.lang = code; break; }
-    return answer;
+    if(answer.confidences[top] < kMlKitThreshold) return "UNKNOWN";
+    // The enabled code that names this language, so its voice is found: ML Kit
+    // says "no", "iw", "id", "fil" where a voice may say "nb", "he", "in", "tl".
+    for(const std::string& code : codes) if(canonicalLanguage(code) == topTag) return code;
+    return answer.tags[top];
 }
 
 // ==========================================================================
@@ -2447,14 +2568,18 @@ static void scanScriptRuns(const std::string& text, const HintState& hints, std:
     }
 }
 
-// What a span of a detector's script slot (1..6) is read in, from these bytes
-// alone (the context is applied after): with one enabled language that writes
-// the script, that one (what AutoTTS's per-script hint and fallback made of
-// CLD2's answer); with two or more, langblend.h chooses between them; with
-// none, the model's best language of the script, which no voice of the user's
-// reads. Cached by script + bytes; the cache is dropped when the hints change.
-// The (cached) answer for a run of a script, before any context is applied.
-static CachedAnswer answerRange(const char* bytes, int len, int script, const HintStatePtr& hintState){
+// What a span of a shared script slot (1..6) is read in, from these bytes:
+//   - one enabled language writes the script: that one, and ML Kit is not
+//     asked (what AutoTTS's per-script hint and fallback made of CLD2's
+//     answer). The owner's own {hi, en, gu} is only ever this;
+//   - two or more: the one of them ML Kit gives the most; when ML Kit names
+//     none of them, the script's first enabled language (AutoTTS's
+//     scriptLanguageFallback, which its CLD2 path took when CLD2's answer was
+//     not a language the user enabled);
+//   - none: ML Kit's most likely language of the script, which no voice of the
+//     user's reads ("un" when it names none).
+// Cached by script + bytes; the cache is dropped when the hints change.
+static std::string nameRange(const char* bytes, int len, int script, const HintStatePtr& hintState){
     int detectBytes = len;
     if (detectBytes > 1024) {
         detectBytes = 1024;
@@ -2468,33 +2593,29 @@ static CachedAnswer answerRange(const char* bytes, int len, int script, const Hi
     cacheKey.append(bytes, (size_t)detectBytes);
     auto cached = cache.spans.find(cacheKey);
     if(cached == cache.spans.end()) {
-        const std::vector<std::string>& hintCodes = hintState->codes;
-        CachedAnswer answer;
-        std::vector<std::string> slotLangs;
-        blendSlotLangs(script, hintCodes, slotLangs);
-        if(slotLangs.size() == 1){
-            answer.lang = slotLangs[0];
-        } else if(slotLangs.empty()){
-            answer.lang = "un";
-            float p[EV_LID_CLASSES];
-            if(lidClassify(bytes, (size_t)detectBytes, p)){
-                int best = -1;
-                for(int k = 1; k < EV_LID_CLASSES; k++)
-                    if(blendLabelSlot(kLidLabels[k]) == script && (best < 0 || p[k] > p[best])) best = k;
-                if(best > 0) answer.lang = kLidLabels[best];
-            }
+        std::vector<std::string> langs;
+        slotLanguages(script, hintState->codes, langs);
+        std::string lang;
+        if(langs.size() == 1){
+            lang = langs[0];
         } else {
-            answer.slot = script;
-            answer.blend = blendDetectors(script, bytes, detectBytes, hintCodes);
-            answer.lang = answer.blend.lang;
+            LidAnswer answer;
+            const bool answered = identifyLanguages(bytes, (size_t)detectBytes, answer);
+            if(langs.empty()){
+                if(answered) lang = mostLikelyInSlot(answer, script);
+                if(lang.empty()) lang = "un";
+            } else {
+                if(answered) lang = mostLikely(answer, langs);
+                if(lang.empty()){
+                    const char* fallback = scriptLanguageFallbackOf(*hintState, script);
+                    lang = fallback ? fallback : langs[0];
+                }
+            }
         }
         if(cache.spans.size() >= kDetectCacheMax) cache.spans.clear();
-        cached = cache.spans.emplace(std::move(cacheKey), std::move(answer)).first;
+        cached = cache.spans.emplace(std::move(cacheKey), std::move(lang)).first;
     }
     return cached->second;
-}
-static std::string nameRange(const char* bytes, int len, int script, const HintStatePtr& hintState){
-    return answerRange(bytes, len, script, hintState).resolve();
 }
 
 // A run named on its own: every script but one two or more enabled languages
@@ -2571,17 +2692,19 @@ static std::string nameRunAlone(const std::string& text, const ScriptRun& run, c
     return "un";
 }
 
+// The marks that end a sentence: newline ! . ; ?, the Arabic semicolon, question
+// mark and full stop (؛ ؟ ۔), the Devanagari danda and double danda (। ॥).
+static const uint32_t kSentenceEnd[] = {0xA, 0x21, 0x2E, 0x3B, 0x3F, 0x61B, 0x61F, 0x6D4, 0x964, 0x965};
 // Whether a sentence ends between run `a` of text `ta` and run `b` of text `tb`
-// (tb >= ta, b after a): a mark of kOrthoSent in the text between them, the
+// (tb >= ta, b after a): a mark of kSentenceEnd in the text between them, the
 // texts that lie between included.
 static bool sentenceEndBetween(const std::vector<SpanText>& texts, size_t ta, size_t a, size_t tb, size_t b){
     auto scan = [](const std::string& t, size_t from, size_t to) {
-        const int nSent = (int)(sizeof kOrthoSent / sizeof kOrthoSent[0]);
         for (size_t i = from; i < to;) {
             int32_t r;
-            int used = lidDecode((const unsigned char*)t.data() + i, to - i, &r);
+            int used = utf8Decode((const unsigned char*)t.data() + i, to - i, &r);
             if (used <= 0) break;
-            for (int k = 0; k < nSent; k++) if ((uint32_t)r == kOrthoSent[k]) return true;
+            for (uint32_t mark : kSentenceEnd) if ((uint32_t)r == mark) return true;
             i += (size_t)used;
         }
         return false;
@@ -2597,26 +2720,14 @@ static bool sentenceEndBetween(const std::vector<SpanText>& texts, size_t ta, si
 // ONE SCRIPT, ONE SENTENCE, ONE DECISION (2026-10-21). Every run is named --
 // and where two or more enabled languages share a script, its runs are named
 // TOGETHER: all of them in one sentence of the utterance, in every text of it
-// (processDirect's chunks are one utterance), joined into one text and cut only
-// where the letters of the languages' orthographies say the language changes
-// (langblend.h orthoSegment, Cyrillic, Arabic and Bengali) -- never just because
-// a word of another script stood between. A Russian sentence that names "ASUS
-// Eee PC" or "Virgin" in Latin letters is one Russian text, not "Серия " and a
-// separate "серия ..." guessed alone; CLD2's bias toward the big language of a
-// script once hid that, and the model weighs each piece fairly. A sentence end
-// between two runs (kOrthoSent) still parts them, as two runs were parted
-// before. Where each sentence holds one run, this is what naming each run on
-// its own (orthoSegment inside it) always was.
-// THE UTTERANCE'S OWN CONTEXT (2026-10-22): a piece that proves nothing and
-// comes BEFORE the first piece of its script in the utterance that does takes
-// that piece's language as its context (blendWithContext), not the last
-// utterance's: a title that is the same in Hindi and Marathi followed by a
-// Marathi sentence is Marathi -- the text around it -- where it used to take
-// whatever the screen read last (a voice change inside one message). After the
-// first sure piece the context is the last sure one, as always.
+// (processDirect's chunks are one utterance), joined into one text that ML Kit
+// is asked about once -- never cut just because a word of another script stood
+// between. A Russian sentence that names "ASUS Eee PC" or "Virgin" in Latin
+// letters is one Russian text, not "Серия " and a separate "серия ..." guessed
+// alone. A sentence end between two runs (kSentenceEnd) still parts them.
 static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hintState){
     std::vector<std::string> slotLangs[7];
-    for (int s = 1; s <= 6; s++) blendSlotLangs(s, hintState->codes, slotLangs[s]);
+    for (int s = 1; s <= 6; s++) slotLanguages(s, hintState->codes, slotLangs[s]);
     for (SpanText& t : texts) {
         if (!t.named) continue;
         t.pieces.assign(t.runs.size(), {});
@@ -2627,42 +2738,21 @@ static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hint
         }
     }
     struct Ref { size_t t, r; };
-    // one decision of a script, and the runs (text, run, end offset) it names
-    struct Piece { CachedAnswer answer; std::vector<std::array<int, 3>> at; };
     for (int s = 1; s <= 6; s++) {
         if (slotLangs[s].size() < 2) continue;
         std::vector<Ref> group;
-        std::vector<Piece> decided;
         auto flush = [&]() {
             if (group.empty()) return;
             std::string g;
-            std::vector<int> gStart, gEnd;
             for (size_t k = 0; k < group.size(); k++) {
                 if (k) g += ' ';
-                const SpanText& st = texts[group[k].t];
-                const ScriptRun& run = st.runs[group[k].r];
-                gStart.push_back((int)g.size());
-                g.append(*st.text, (size_t)run.offset, (size_t)run.bytes);
-                gEnd.push_back((int)g.size());
+                const ScriptRun& run = texts[group[k].t].runs[group[k].r];
+                g.append(*texts[group[k].t].text, (size_t)run.offset, (size_t)run.bytes);
             }
-            std::vector<int> cuts;
-            if (s == 2 || s == 3 || s == 6) cuts = orthoSegment(s, g.c_str(), (int)g.size(), slotLangs[s]);
-            cuts.push_back((int)g.size());
-            int a = 0;
-            size_t k = 0;
-            for (int b : cuts) {
-                if (b <= a) continue;
-                Piece piece;
-                piece.answer = answerRange(g.c_str() + a, b - a, s, hintState);
-                while (k < group.size() && gStart[k] < b) {
-                    const ScriptRun& run = texts[group[k].t].runs[group[k].r];
-                    const int end = std::min(b, gEnd[k]);
-                    if (end > std::max(a, gStart[k]))
-                        piece.at.push_back({(int)group[k].t, (int)group[k].r, run.offset + (end - gStart[k])});
-                    if (gEnd[k] <= b) k++; else break;
-                }
-                decided.push_back(std::move(piece));
-                a = b;
+            const std::string lang = nameRange(g.c_str(), (int)g.size(), s, hintState);
+            for (const Ref& ref : group) {
+                const ScriptRun& run = texts[ref.t].runs[ref.r];
+                texts[ref.t].pieces[ref.r].push_back({run.offset + run.bytes, lang});
             }
             group.clear();
         };
@@ -2675,16 +2765,6 @@ static void nameSpanTexts(std::vector<SpanText>& texts, const HintStatePtr& hint
             }
         }
         flush();
-        size_t firstSure = decided.size();
-        for (size_t i = 0; i < decided.size(); i++)
-            if (decided[i].answer.blend.sure) { firstSure = i; break; }
-        for (size_t i = 0; i < decided.size(); i++) {
-            const CachedAnswer& ans = decided[i].answer;
-            const std::string lang = i < firstSure && firstSure < decided.size()
-                ? blendWithContext(ans.blend, ans.lang, decided[firstSure].answer.blend.lang)
-                : ans.resolve();
-            for (const auto& at : decided[i].at) texts[(size_t)at[0]].pieces[(size_t)at[1]].push_back({at[2], lang});
-        }
     }
 }
 
@@ -2916,16 +2996,6 @@ Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeFoldAndDetect(JNIEnv* e
 }
 
 // ==========================================================================
-//  THE TABLES, READ BACK AT AN UTTERANCE START IF THE KERNEL DROPPED THEM
-//  (image_warm.h step 3). One mutex and a signal on the synthesis thread; the
-//  worker does the rest.
-// ==========================================================================
-extern "C" JNIEXPORT void JNICALL
-Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeRewarmTables(JNIEnv*, jclass){
-    evwarm::requestRewarm();
-}
-
-// ==========================================================================
 //  RegisterNatives: every entry point bound at load, ONE AT A TIME, so a
 //  signature that ever drifted from the Kotlin declaration costs only that
 //  method its binding (ART then finds it by its exported name, as before) and
@@ -2951,11 +3021,75 @@ static void registerNatives(JNIEnv* env){
         {const_cast<char*>("detectWindowOrSpans"),
          const_cast<char*>("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)[Ljava/lang/String;"),
          reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_detectWindowOrSpans)},
-        {const_cast<char*>("nativeRewarmTables"), const_cast<char*>("()V"),
-         reinterpret_cast<void*>(Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_nativeRewarmTables)},
     };
     for (const JNINativeMethod& m : methods) {
         if (env->RegisterNatives(cls, &m, 1) != JNI_OK) env->ExceptionClear();
     }
     env->DeleteLocalRef(cls);
+}
+
+// ==========================================================================
+//  ML KIT, ASKED FROM HERE (owner, 2026-10-28: "ML Kit use karenge har jagah").
+//  JNI_OnLoad finds EasyVoiceTtsService.mlkitIdentify (Kotlin; kept by
+//  proguard-rules.pro, since only this file calls it) and installs jniIdentify
+//  as the language identifier. It runs on the thread that is detecting -- one
+//  that called into this library from Java, so it is attached -- and hands the
+//  text to Kotlin, which asks ML Kit and answers its languages as lines of
+//  "tag confidence-in-millionths" (integers, so no locale can read them).
+// ==========================================================================
+static JavaVM* g_javaVm = nullptr;
+static jclass g_serviceClass = nullptr;
+static jmethodID g_mlkitIdentify = nullptr;
+static int jniIdentify(const char* utf8, size_t len, char (*tags)[16], float* confidences, int max){
+    JNIEnv* env = nullptr;
+    if(!g_javaVm || g_javaVm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK || !env) return 0;
+    jstring text = newJavaString(env, std::string(utf8, len));
+    if(!text){ env->ExceptionClear(); return 0; }
+    jstring reply = static_cast<jstring>(env->CallStaticObjectMethod(g_serviceClass, g_mlkitIdentify, text));
+    env->DeleteLocalRef(text);
+    if(env->ExceptionCheck()){
+        env->ExceptionClear();
+        if(reply) env->DeleteLocalRef(reply);
+        return 0;
+    }
+    std::string lines;
+    const bool read = jstringToStd(env, reply, lines);
+    if(reply) env->DeleteLocalRef(reply);
+    if(!read){ env->ExceptionClear(); return 0; }
+    int n = 0;
+    for(size_t at = 0; at < lines.size() && n < max;){
+        size_t end = lines.find('\n', at);
+        if(end == std::string::npos) end = lines.size();
+        const size_t space = lines.find(' ', at);
+        if(space != std::string::npos && space > at && space < end && space - at < 16 && space + 1 < end){
+            long millionths = 0;
+            bool digits = true;
+            for(size_t i = space + 1; i < end && digits; i++){
+                const char c = lines[i];
+                if(c < '0' || c > '9') digits = false;
+                else if(millionths < 1000000) millionths = millionths * 10 + (c - '0');
+            }
+            if(digits){
+                memcpy(tags[n], lines.data() + at, space - at);
+                tags[n][space - at] = '\0';
+                confidences[n] = (float)std::min(millionths, 1000000L) / 1000000.0f;
+                n++;
+            }
+        }
+        at = end + 1;
+    }
+    return n;
+}
+static void installLanguageIdentifier(JavaVM* vm, JNIEnv* env){
+    jclass cls = env->FindClass("com/sachinbaria/easyvoice/EasyVoiceTtsService");
+    if(!cls){ env->ExceptionClear(); return; }
+    jmethodID method = env->GetStaticMethodID(cls, "mlkitIdentify", "(Ljava/lang/String;)Ljava/lang/String;");
+    if(!method){ env->ExceptionClear(); env->DeleteLocalRef(cls); return; }
+    jclass global = static_cast<jclass>(env->NewGlobalRef(cls));
+    env->DeleteLocalRef(cls);
+    if(!global){ env->ExceptionClear(); return; }
+    g_serviceClass = global;
+    g_mlkitIdentify = method;
+    g_javaVm = vm;
+    evSetLanguageIdentifier(jniIdentify);
 }

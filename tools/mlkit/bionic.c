@@ -1,6 +1,6 @@
 // Android's libc, as far as ML Kit's language-id library uses it, on glibc --
-// so that its x86_64 build (liblanguage_id_l2c_jni.so) can run on a desktop
-// as the oracle for app/src/main/cpp/langid.h.
+// so that its x86_64 build (liblanguage_id_l2c_jni.so) runs on a desktop, and
+// the harnesses ask ML Kit itself what the app asks it on a phone (host.c).
 //
 // Each import of that library carries bionic's symbol version LIBC, so each
 // is defined here under that version, as a NON-default one (name@LIBC): a

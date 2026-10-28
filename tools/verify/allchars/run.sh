@@ -24,7 +24,10 @@ SRC="$ROOT/app/src/main/java/com/sachinbaria/easyvoice"
 KOTLINC=${KOTLINC:-$ROOT/tools/.cache/kotlinc/bin/kotlinc}
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-allchars
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
-INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/pgo -I$ROOT/tools/mlkit -I$CPP"
+# Google's ML Kit, which the core asks where the text has to name a language
+# (2026-10-28), run here by tools/mlkit as on a phone
+source "$ROOT/tools/mlkit/build.sh"
 mkdir -p "$WORK/obj"
 compile() {
   local src=$1
@@ -70,7 +73,7 @@ for f in $(python3 "$ROOT/tools/verify/latency/sources.py" "$CPP"); do
   objs="$objs $(compile "$f")"; done
 rm -f "$WORK/obj/main.o" "$WORK/probe"
 g++ -c -O2 -std=c++17 -w $INC -o "$WORK/obj/main.o" "$HERE/main.cpp" || exit 1
-g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs -lpthread
+g++ -o "$WORK/probe" "$WORK/obj/main.o" $objs "$MLKIT_HOST" -ldl -lm -lpthread
 
 # the Kotlin half: the real IsoCodes.kt and UnicodeTables.kt, as tools/verify/allscripts lifts them
 python3 - "$SRC" "$HERE/Map.kt" "$WORK/Map.kt" <<'PY'
@@ -97,7 +100,7 @@ python3 -I "$ROOT/tools/verify/allscripts/langs.py" "$ROOT/tools/unicode/ucd" "$
 java -jar "$WORK/map.jar" prep "$WORK/langs.tsv" > "$WORK/own.tsv"
 python3 -I "$HERE/cases.py" "$ROOT/tools/unicode/ucd" "$WORK/own.tsv" "$WORK"
 java -jar "$WORK/map.jar" pairs > "$WORK/isopairs.tsv"
-"$WORK/probe" "$WORK/cases.tsv" "$WORK/isopairs.tsv" > "$WORK/probe.txt"
+LD_LIBRARY_PATH="$MLKIT_LIBS" EV_MLKIT_MODEL="$MLKIT_MODEL" "$WORK/probe" "$WORK/cases.tsv" "$WORK/isopairs.tsv" > "$WORK/probe.txt" 2> >(grep -v "Initialized TensorFlow Lite runtime" >&2)
 python3 -I - "$WORK/probe.txt" > "$WORK/codes.txt" <<'PY'
 import sys
 codes = set()

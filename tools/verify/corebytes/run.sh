@@ -16,8 +16,8 @@ ROOT=$(cd "$HERE/../../.." && pwd)
 CPP="$ROOT/app/src/main/cpp"
 WORK=${EV_WORK:-${TMPDIR:-/tmp}}/ev-verify-corebytes
 JH=${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}
-# the ref's core WITH its own headers (langblend.h, langnb.h, unicode_tables.h
-# ...): the old core includes them from its own directory first, so a change
+# the ref's core WITH its own headers (unicode_tables.h; until 2026-10-28 also
+# its model headers): the old core includes them from its own directory first, so a change
 # made in a header alone is measured too (2026-10-21; before, the old core was
 # built against the working tree's headers and such a change showed 0 differ).
 # A ref from before 2026-10-21 links CLD2: sources.py points it at the clone
@@ -28,7 +28,10 @@ git -C "$ROOT" archive "$REF" app/src/main/cpp | tar -x -C "$WORK/old" --strip-c
 SRC="$ROOT/tools/verify/latency/sources.py"
 OLDINC=$(python3 "$SRC" --includes "$WORK/old") || exit 2
 NEWINC=$(python3 "$SRC" --includes "$CPP") || exit 2
-INC="-I$JH/include -I$JH/include/linux -I$CPP"
+INC="-I$JH/include -I$JH/include/linux -I$ROOT/tools/mlkit -I$CPP"
+# Google's ML Kit, which the working tree's core asks (2026-10-28), run here by
+# tools/mlkit; a ref from before asks its own model and ignores it.
+source "$ROOT/tools/mlkit/build.sh"
 compile() {   # compile <source> <extra -I flags>
   local src=$1 extra=$2
   local obj="$WORK/obj/$(echo "$src" | md5sum | cut -c1-16).o"
@@ -44,7 +47,7 @@ oldobjs=""; newobjs=""
 for f in $(python3 "$SRC" "$WORK/old"); do oldobjs="$oldobjs $(compile "$f" "$OLDINC")"; done
 for f in $(python3 "$SRC" "$CPP"); do newobjs="$newobjs $(compile "$f" "$NEWINC")"; done
 g++ -c -O2 -std=c++17 -w $INC -o "$WORK/obj/probe.o" "$HERE/main.cpp" || exit 1
-LINK="-L$JH/lib/server -ljvm -lpthread -Wl,-rpath,$JH/lib/server"
+LINK="$MLKIT_HOST -ldl -lm -L$JH/lib/server -ljvm -lpthread -Wl,-rpath,$JH/lib/server"
 g++ -o "$WORK/probe-old" "$WORK/obj/probe.o" $oldobjs $LINK
 g++ -o "$WORK/probe-new" "$WORK/obj/probe.o" $newobjs $LINK
 
@@ -61,6 +64,7 @@ PY
   grep -v '^# ' "$ROOT/tools/verify/oldnew/extra.txt" | grep -v '^$'
   grep -v '^# ' "$HERE/extra.txt" | grep -v '^$'; } > "$CORPUS"
 
-"$WORK/probe-old" "$CORPUS" > "$WORK/old.txt"
-"$WORK/probe-new" "$CORPUS" > "$WORK/new.txt"
+export LD_LIBRARY_PATH="$MLKIT_LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" EV_MLKIT_MODEL="$MLKIT_MODEL"
+"$WORK/probe-old" "$CORPUS" > "$WORK/old.txt" 2> >(grep -v "Initialized TensorFlow Lite runtime" >&2)
+"$WORK/probe-new" "$CORPUS" > "$WORK/new.txt" 2> >(grep -v "Initialized TensorFlow Lite runtime" >&2)
 python3 "$HERE/compare.py" "$WORK/old.txt" "$WORK/new.txt" "$MASK"

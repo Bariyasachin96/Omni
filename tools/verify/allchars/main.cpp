@@ -10,6 +10,7 @@
 //   d  dual      processDirect(dual) -> the chunk types (1 Latin, 2 not)
 // and prints  id<TAB>mix=..<TAB>rec=<record texts><TAB>auto=..<TAB>dual=..
 #include "fakejni.h"
+#include "mlkit.h"
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -100,6 +101,8 @@ static std::string autoAnswer(const std::string& text) {
 }
 
 int main(int argc, char** argv) {
+    // ML Kit as the language identifier, for a core that asks one (tools/mlkit)
+    installMlKit();
     if (argc != 3) { fprintf(stderr, "usage: main <cases.tsv> <isopairs.tsv>\n"); return 2; }
     env = fakejni::env();
     pushIsoMap(argv[2]);

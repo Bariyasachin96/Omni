@@ -9,10 +9,11 @@
 // So this links the REAL tts_engine_core.cpp and a genuine JNIEnv, pushes a
 // real enabled set through setLanguageHints/setDetectSets exactly as
 // pushLanguageSets does, and asks nativeFoldAndDetect what each span gets. It
-// also asks the model ML Kit runs (langid.h) DIRECTLY and prints its top three
-// beside the answer -- the way to tell "the detector was wrong" from "the
-// choice among the enabled languages dropped a right answer". (Until
-// 2026-10-21 that column was CLD2's summary and top three; CLD2 is gone.)
+// also asks ML Kit (Google's own library, run here by tools/mlkit, as the core
+// asks it on a phone) DIRECTLY and prints its top three beside the answer --
+// the way to tell "ML Kit was wrong" from "the choice among the enabled
+// languages dropped a right answer". (Until 2026-10-21 that column was CLD2's
+// summary and top three; until 2026-10-28 the model ML Kit runs, our copy.)
 //
 // Gujarati, Tamil, Telugu and the rest are decided by their Unicode SCRIPT and
 // can never take part in this; only the scripts several languages share can --
@@ -24,7 +25,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include "langid.h"
+#include "mlkit.h"
 
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
@@ -77,20 +78,23 @@ static std::string appAnswer(const std::string& text){
     return best.empty() ? "<none>" : best;
 }
 
-// The model ML Kit runs, asked DIRECTLY: its three most likely labels, so the
-// ranking behind the answer is visible rather than inferred.
+// ML Kit, asked DIRECTLY: its three most likely languages, so the ranking
+// behind the answer is visible rather than inferred.
 static std::string modelDetail(const std::string& text){
-    float p[EV_LID_CLASSES];
-    if (!lidClassify(text.c_str(), text.size(), p)) return "model: no answer";
+    char tags[112][16];
+    float p[112];
+    const int n = evmlkit_identify(text.c_str(), text.size(), tags, p, 112);
+    if (n <= 0) return "ML Kit: no answer";
     std::vector<int> order;
-    for (int k = 0; k < EV_LID_CLASSES; k++) order.push_back(k);
-    std::partial_sort(order.begin(), order.begin() + 3, order.end(),
-                      [&](int x, int y){ return p[x] > p[y]; });
-    char buf[256];
-    snprintf(buf, sizeof buf, "model top3=[%s %.0f%%, %s %.0f%%, %s %.0f%%]",
-             kLidLabels[order[0]], 100 * p[order[0]], kLidLabels[order[1]], 100 * p[order[1]],
-             kLidLabels[order[2]], 100 * p[order[2]]);
-    return buf;
+    for (int k = 0; k < n; k++) order.push_back(k);
+    std::sort(order.begin(), order.end(), [&](int x, int y){ return p[x] > p[y]; });
+    std::string out = "ML Kit top3=[";
+    for (int k = 0; k < 3 && k < n; k++) {
+        char one[48];
+        snprintf(one, sizeof one, "%s%s %.0f%%", k ? ", " : "", tags[order[k]], 100 * p[order[k]]);
+        out += one;
+    }
+    return out + "]";
 }
 
 // THE REAL SEQUENCE, not a shortcut. The app never asks the detector about the
@@ -139,6 +143,8 @@ static void run(const char* title, const std::vector<Lang>& set,
 }
 
 int main(){
+    // ML Kit as the core's language identifier (tools/mlkit), as on a phone
+    if (!installMlKit()) { printf("ML Kit is not installed (EV_MLKIT_MODEL)\n"); return 2; }
     JavaVM* vm = nullptr;
     JavaVMInitArgs a{}; a.version = JNI_VERSION_1_6; a.nOptions = 0;
     if (JNI_CreateJavaVM(&vm, (void**)&env, &a) != JNI_OK) { printf("no JVM\n"); return 2; }

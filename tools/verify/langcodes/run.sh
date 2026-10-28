@@ -9,8 +9,9 @@
 # 183. That is a hundred codes the app had never been handed before, and the
 # question the owner asked was the right one: is there anything in the reading
 # path that quietly cannot deal with them? This answers it mechanically instead
-# of by reading. Since 2026-10-21 the detector is the model ML Kit runs, and the
-# codes it answers (gen_codes.py) are swept as well as CLD2's.
+# of by reading. Since 2026-10-21 the detector is ML Kit (the model it runs
+# until 2026-10-28, its own library since), and the codes the core answers
+# (gen_codes.py) are swept as well as CLD2's.
 #
 # WHAT IS COMPARED. Two routes decide whether a detected code is routable.
 #

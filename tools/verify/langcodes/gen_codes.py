@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Every language code the native core can answer for a span or a window, read
-out of its sources (2026-10-21, when the model ML Kit runs replaced CLD2):
+out of its sources (2026-10-28, when Google's ML Kit library became the
+language identifier and every model of ours left the core):
 
-    the model's labels (langid_model.h kLidLabels) less "unknown" and the
-      romanised xx-Latn ones, which the core never answers;
+    the languages ML Kit names that the core takes (languageSlot's lists, which
+      are ML Kit's own support table by script, plus zh, ja, bn, as and yi --
+      its romanised xx-Latn tags never reach an answer);
     the script-decided languages (SCRIPT_FIXED_LANG, kExtraSlotLangs and
       unicode_tables.h kUniFixedSlotLang);
     the per-script fallbacks (kScriptLangPairs);
@@ -27,11 +29,12 @@ def block(path, start):
 
 
 def codes():
-    out = set(re.findall(r'"([^"]+)"', block(os.path.join(CPP, 'langid_model.h'), 'kLidLabels[')))
-    out = {c for c in out if c != 'unknown' and not c.endswith('-Latn')}
     core = os.path.join(CPP, 'tts_engine_core.cpp')
-    for start in ('SCRIPT_FIXED_LANG[19] = {', 'kExtraSlotLangs[7] = {', 'kScriptLangPairs[48] = {'):
+    out = set()
+    for start in ('kLatin[] = {', 'kCyrillic[] = {', 'kArabic[] = {', 'kDevanagari[] = {',
+                  'SCRIPT_FIXED_LANG[19] = {', 'kExtraSlotLangs[7] = {', 'kScriptLangPairs[48] = {'):
         out |= set(re.findall(r'"([^"]+)"', block(core, start)))
+    out |= {'zh', 'ja', 'bn', 'as', 'yi'}
     out |= set(re.findall(r'"([^"]+)"', block(os.path.join(CPP, 'unicode_tables.h'), 'kUniFixedSlotLang[')))
     out.add('un')
     return sorted(out)

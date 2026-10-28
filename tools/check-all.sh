@@ -32,9 +32,6 @@ step "kotlin imports"          python3 tools/check/ktimports.py
 step "xml resources"           python3 tools/check/xmlcheck.py
 step "invariants"              bash    tools/check/invariants.sh
 step "unicode tables current"  python3 tools/unicode/gen_tables.py --check
-step "langid model current"    python3 tools/langid/gen_model.py --check
-step "Han sets current"        python3 tools/langid/gen_han.py --check
-step "word-and-ending current"  python3 tools/langid/train_nb.py check
 step "c++ syntax"              bash    tools/check/cpp-syntax.sh
 step "native PGO profile fresh" bash   tools/check/pgo-fresh.sh
 step "minSdk API usage"        bash    tools/check/minsdk-api.sh

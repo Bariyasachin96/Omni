@@ -39,6 +39,10 @@ concurrentFutures = "1.3.0"
 composeBom = "2026.09.00"
 # Window size classes: NOT in the Compose BOM, so it carries its own version.
 material3Adaptive = "1.3.0"
+# Google's ML Kit language identification, the bundled model (owner,
+# 2026-10-28: "original ml kit ... directly Gradle mein"): it decides between
+# the enabled languages one script shares. 17.0.6 is its latest release.
+mlkitLanguageId = "17.0.6"
 # --- the libraries nothing here declares, raised by constraints -------------
 annotationExperimental = "1.6.0"
 appcompatResources = "1.8.0"
@@ -55,6 +59,19 @@ versionedparcelable = "1.2.1"
 window = "1.5.1"
 kotlinxSerialization = "1.12.0"
 jspecify = "1.0.1"
+# ...and those ML Kit's language-id brings (2026-10-28), each to its newest
+# release of the SAME major. Left as ML Kit brings them: datatransport 2.x,
+# firebase-components / encoders / encoders-json / annotations (their next
+# majors are API changes ML Kit 17.0.6 was not built against; datatransport,
+# components and encoders are already the newest of their major)
+playServicesBase = "18.11.1"
+playServicesBasement = "18.12.0"
+playServicesTasks = "18.4.1"
+fragment = "1.9.1"
+drawerlayout = "1.2.0"
+viewpager = "1.1.0"
+loader = "1.2.0"
+customview = "1.2.0"
 # --- tests -----------------------------------------------------------------
 androidxTestExtJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
@@ -80,6 +97,15 @@ androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graph
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version.ref = "material3Adaptive" }
+mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkitLanguageId" }
+play-services-base = { group = "com.google.android.gms", name = "play-services-base", version.ref = "playServicesBase" }
+play-services-basement = { group = "com.google.android.gms", name = "play-services-basement", version.ref = "playServicesBasement" }
+play-services-tasks = { group = "com.google.android.gms", name = "play-services-tasks", version.ref = "playServicesTasks" }
+androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
+androidx-drawerlayout = { group = "androidx.drawerlayout", name = "drawerlayout", version.ref = "drawerlayout" }
+androidx-viewpager = { group = "androidx.viewpager", name = "viewpager", version.ref = "viewpager" }
+androidx-loader = { group = "androidx.loader", name = "loader", version.ref = "loader" }
+androidx-customview = { group = "androidx.customview", name = "customview", version.ref = "customview" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-ui-test-junit4-accessibility = { group = "androidx.compose.ui", name = "ui-test-junit4-accessibility" }
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }

@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include "mlkit.h"
 
 extern "C" {
 JNIEXPORT void JNICALL Java_com_sachinbaria_easyvoice_EasyVoiceTtsService_setLanguageHints(JNIEnv*, jclass, jobjectArray);
@@ -66,6 +67,9 @@ static std::string buildText(int paragraphs){
 }
 
 int main(){
+    // ML Kit as the core's language identifier (tools/mlkit): Devanagari here is
+    // shared by Hindi and Marathi, so the core asks it, as on a phone
+    installMlKit();
     JavaVMInitArgs a; a.version = JNI_VERSION_1_8; a.nOptions = 0; a.options = nullptr; a.ignoreUnrecognized = JNI_TRUE;
     JavaVM* vm = nullptr;
     if (JNI_CreateJavaVM(&vm, (void**)&env, &a) != JNI_OK) { printf("no JVM\n"); return 2; }
