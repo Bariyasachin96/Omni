@@ -373,6 +373,22 @@ languages share a script): 90.0% (97.1% with the models it replaced); Assamese
 beside Bengali 0% (ML Kit has no Assamese); the owner's {hi, en, gu} reads every
 voice exactly as before in mix mode (corebytes: 0 differ).
 
+**ML Kit answers on the thread that asks (2026-10-29, `invariants.sh` #16b).** Owner:
+*"speed bahut fast chahie ... Jitna fast ho sakta hai"*. At its default options ML Kit runs
+every identification on its own `MlKitThreadPool` (common 18.11.0: `ExecutorSelector` hands
+`LanguageIdentifierImpl` that pool unless the options name an executor, and
+`ModelResource.callAfterLoad` submits through its `TaskQueue`), so each word cost the
+detecting thread two thread switches -- desktop JVM, a hand-off and wait 31 us against 0.3
+inline, more on a phone -- and an utterance's shared-script words are asked one after
+another (the owner's 16-line text: 86). The client is built with
+`LanguageIdentificationOptions.Builder().setExecutor { it.run() }`: the same model, the same
+call, the same answer, on the synthesis thread at its priority. `TaskQueue` still runs one
+identification at a time (one asked while another runs is run by that thread straight after;
+the asker waits in `Tasks.await`). Because the work now runs on the caller's thread,
+`mlkitIdentify` answers "" on the main thread **before** asking (nothing detects there; the
+main thread got no answer before either). `preloadLanguageIdentifier` reads the model in at
+service start on a background thread, so the first text that asks does not wait for it.
+
 **CLD2 went on 2026-10-21** at the owner's instruction: *"jahan per CLD2 kam
 karega vahan per ab ML Kit kam karega ... CLD2 hata do."* Measured first, on the
 language suite's held-out half (35,212 texts where 2+ enabled languages share a
@@ -1249,6 +1265,21 @@ does not part them) and:
    was CLDR's and none is in the main set. A letter that looks like another's only inside a
    conjunct says nothing there (`kUniJoinedNeutral`, beside the virama): Bengali's র as reph or
    ra-phala looks like Assamese's ৰ, and Android's Assamese strings write it there.
+   **Marks too** (2026-10-29, `CLDR_MARKS`, owner: "Unicode detection Aur bhi satik"): CLDR's
+   punctuation exemplars say which marks a language writes, and a mark of a shared script one
+   enabled language never writes rules it out like a letter: the danda "।" never Marathi's
+   (0 of the suite's 4,305 Marathi texts; Hindi 1,367 of 4,284, Nepali 1,718 of 4,266); "۔"
+   never Arabic's or Persian's (0 of 4,268 and 0 of 4,283; Urdu 1,783 of 4,284); « » never
+   Urdu's; ZWNJ never Arabic's; "¿" "¡" never German's, English's, French's, Indonesian's,
+   Italian's, Malay's or Portuguese's (Spanish writes them); "„" never English's, Spanish's,
+   French's, Indonesian's, Italian's, Malay's or Portuguese's (German writes it); "’" never
+   Russian's or Bulgarian's (Ukrainian's apostrophe); "・" never Chinese's (Japanese writes it).
+   Each kept only where CLDR does not give that language the mark AND the suite's texts of it
+   never write it while another language of the script does in 1%+ (gen_tables.py asserts
+   CLDR gives each language it rules out neither the mark nor that letter in its main set). Measured (held-out half, every set): no one-language text, word or letter worse;
+   Urdu/Persian beside Arabic and Pashto pairs 79.8 -> 80.0%, Hindi beside Marathi 22.8 ->
+   23.6%, with Nepali 32.8 -> 33.3%, the Latin set 65.5 -> 65.8%. Not taken: "’" for Bengali,
+   dashes and quotes (keyboards type them all), digits.
 6. **a language ML Kit does not name** (owner: "Jo ml kit language support nahin karta hai
    vah Unicode script ke through ... Usi se deduction bnao"): ML Kit reads Assamese text as
    Bengali (300 of 300 asked), so every confidence it gives in `langs` (a word, a stretch)

@@ -8,7 +8,33 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## NOTHING LEAVES THE PHONE; LETTERS CLDR KEEPS ONLY FOR OTHER LANGUAGES; ASSAMESE READ AS ML KIT READS IT (owner, 2026-10-28, latest)
+## ML KIT ANSWERS ON THE ASKING THREAD; PUNCTUATION MARKS FROM CLDR; WHY "اخلاق" IS URDU (owner, 2026-10-29, latest)
+*"speed bahut fast chahie ... Jitna fast ho sakta hai"*, *"Unicode detection Aur bhi satik ... karo"*, and
+*"اخلاق ... Urdu TTS ke pass Jata Hai"*; then *"Jo test ki jarurat na ho ... vah test Mat Karna"* -- so this
+round was compiled (Gradle 0 errors / 0 warnings) and invariants-checked, not put through every harness.
+- **Speed:** the ML Kit client is `getClient(LanguageIdentificationOptions.Builder().setExecutor { it.run() })`.
+  Read in ML Kit's bytecode (common 18.11.0): at default options every identification ran on its own
+  `MlKitThreadPool` (ExecutorSelector -> ModelResource.callAfterLoad -> TaskQueue), so each word cost the
+  synthesis thread two thread switches (desktop JVM: hand-off and wait 31 us median against 0.3 inline; more
+  on a phone); the owner's 16-line text asks 86 words. Now it runs on the synthesis thread, same call, same
+  answer; TaskQueue still runs one at a time. `mlkitIdentify` answers "" on the main thread BEFORE asking.
+  `preloadLanguageIdentifier` reads the model in at service start (backgroundWork, IO). invariants #16b
+  (+2 selftest negatives). Repeated texts are only 4 of 97 asks there, so no extra cache.
+- **Marks (`CLDR_MARKS`, gen_tables.py; INVARIANTS #35 step 5):** CLDR's punctuation exemplars, kept only where
+  CLDR and the suite agree: "।" never Marathi's, "۔" never Arabic's/Persian's, « » never Urdu's, ZWNJ never
+  Arabic's, ¿ ¡ „ (Spanish/German), ’ never Russian's/Bulgarian's, ・ never Chinese's. Measured: nothing worse;
+  Urdu/Persian pairs 79.8 -> 80.0, Hindi+Marathi 22.8 -> 23.6, +Nepali 32.8 -> 33.3, Latin set 65.5 -> 65.8%.
+  extract_exemplars.py now writes CLDR's punctuation lines too. Owner probe unchanged (24/24, 190/190).
+- **"اخلاق" is spelled the same in Urdu and Arabic.** ML Kit alone: ar 0.635, fa 0.199, ur 0.103 -- below the
+  0.95/0.99 a lone word needs; its neighbour "ضروری" (ی, Urdu's) and the Urdu lines before make the stretch
+  Urdu ("اچھے اخلاق": ur 0.998). Following ML Kit at 0.6 instead drops Urdu/Arabic words 99.5 -> 95.7% (P0),
+  98.3 -> 92.0% (P0.5), and sends "قدر" (ar 71%) and "علم" (ar 84%) inside Urdu to the Arabic voice. Not changed.
+- **Found, NOT changed (owner's call):** every ML Kit identification also calls Google Play services'
+  `TelemetryLoggingClient.log` (language-id-common `zzlk.zzc`: API "mlkit:natural_language", a method key,
+  status and latency; no text) unless one failed in the last 30 minutes. It goes to Play services on the phone,
+  not over our network (we have no INTERNET).
+
+## NOTHING LEAVES THE PHONE; LETTERS CLDR KEEPS ONLY FOR OTHER LANGUAGES; ASSAMESE READ AS ML KIT READS IT (owner, 2026-10-28)
 *"Ham sirf ml kit hi Rakhenge ... Unicode ke through ... internet ki jarurat Nahin Hai ... Har Jagah se internet
 Hata dena / firebase ki bhi jarurat na ho to ... Hata dena"*, then: **ML Kit stays exactly as it is** (Gradle +
 Kotlin; "native" meant the other things), and *"Jo ml kit language support nahin karta hai vah Unicode script ke

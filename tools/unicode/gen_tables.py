@@ -339,11 +339,15 @@ def spellings(c):
 EXEMPLARS = {}
 MAIN = {}                  # the letters of each language's own alphabet (CLDR's main set), spelled
 HAS_AUXILIARY = set()
+PUNCT = {}                 # the punctuation each language writes (CLDR_MARKS below)
 for line in open(os.path.join(CLDR, "exemplars.txt"), encoding="utf-8"):
     if line.startswith("#") or not line.strip(): continue
     lang, kind, uset = line.rstrip("\n").split("\t")
     if kind == "auxiliary": HAS_AUXILIARY.add(lang)
     singles, seqs = parse_uset(uset)
+    if kind == "punctuation":
+        PUNCT.setdefault(lang, set()).update(singles)
+        continue
     if kind == "main":
         for c in singles: MAIN.setdefault(lang, set()).update(spellings(c))
         for seq in seqs:
@@ -457,6 +461,62 @@ for slot, langs in SHARED_LANGS.items():
             if GC.get(c, "Cn")[0] not in "LM" or span_slot(c) != slot: continue
             if slot == 5 and SCRIPT.get(c) == "Han": continue
             table[c] = table.get(c, 0) | (1 << bit)
+# THE MARKS EACH LANGUAGE WRITES (owner, 2026-10-29: "Unicode detection Aur bhi satik
+# aur properli aur bhi accurate karo"). CLDR lists each language's punctuation too
+# (<exemplarCharacters type="punctuation">), and some marks belong to one orthography:
+# Hindi and Nepali end a sentence with the danda, Marathi with a full stop; Urdu with
+# "۔", Arabic and Persian with "."; Spanish opens a question with "¿" and an
+# exclamation with "¡"; German opens a quotation with "„"; Ukrainian's apostrophe is
+# "’" ("м’ясо"); Persian quotes with « » and joins a word's parts with the zero-width
+# non-joiner ("می‌شود"); Japanese parts a name with "・". A mark rules a language out --
+# the letters' way: a word that writes it is not that language -- only where CLDR does
+# not give that language the mark AND the language suite's texts of it never write the
+# mark (about 4,200 texts each) while another language of the script writes it in 1%
+# or more. Each was counted, not assumed:
+#   slot 4  ।        Marathi 0 of 4,305 texts; Hindi 1,367 of 4,284, Nepali 1,718 of
+#                    4,266. CLDR gives it hi and ne.
+#   slot 3  ۔        Arabic 0 of 4,268, Persian 0 of 4,283; Urdu 1,783 of 4,284. CLDR
+#                    gives it ur and ps.
+#           « »      Urdu 0 of 4,284; Persian 151 of 4,283. CLDR gives them ar and fa.
+#           ZWNJ     Arabic 0 of 4,268; Persian 1,306 of 4,283. CLDR lists it in Arabic's
+#                    AUXILIARY set only (CLDR_FOREIGN's rule for letters); Urdu's one
+#                    text with it has it after its full stop, so Urdu keeps it.
+#   slot 1  ¿ ¡      German, English, French, Indonesian, Italian, Malay, Portuguese 0
+#                    of about 4,220 each; Spanish 238 and 46 of 4,228. CLDR gives them
+#                    es, ca, gl (and ¿ no).
+#           „        English, Spanish, French, Indonesian, Italian, Malay, Portuguese 0;
+#                    German 112 of 4,229. CLDR gives it de and 13 more (cs, pl, ro ...).
+#   slot 2  ’        Russian 0 of 4,231, Bulgarian 0 of 4,219; Ukrainian 118 of 4,230.
+#                    CLDR gives it uk, sr, kk, mn, tg.
+#   slot 5  ・       Chinese 0 of 4,304; Japanese 55 of 4,238. CLDR gives it ja.
+# Every other language of the slot writes the mark here: the suite has too few of its
+# texts to say it never does (Catalan, Polish, Pashto, Belarusian ...). Not taken:
+# marks CLDR gives a language whose texts never write them (Bengali's ’, which only
+# Assamese's texts write: "হ’ব", but a Bengali quotation closes with it), marks most
+# languages write and the suite's texts of one happen not to (the em dash, quotes),
+# and digits (CLDR's numbers set is inherited for some languages, Sindhi's among them).
+# Measured (held-out half, every set): no text, word or letter read worse; Urdu or
+# Persian beside Arabic and Pashto 79.8 -> 80.0% of mixed pairs (split 7 -> 6), Hindi
+# beside Marathi 22.8 -> 23.6, with Nepali 32.8 -> 33.3, the Latin set 65.5 -> 65.8.
+CLDR_MARKS = {
+    1: {0xBF: ["de", "en", "fr", "id", "it", "ms", "pt"],
+        0xA1: ["de", "en", "fr", "id", "it", "ms", "pt"],
+        0x201E: ["en", "es", "fr", "id", "it", "ms", "pt"]},
+    2: {0x2019: ["bg", "ru"]},
+    3: {0x6D4: ["ar", "fa"], 0xAB: ["ur"], 0xBB: ["ur"], 0x200C: ["ar"]},
+    4: {0x964: ["mr"]},
+    5: {0x30FB: ["zh"]}}
+for slot, marks in CLDR_MARKS.items():
+    langs = SHARED_LANGS[slot]
+    for c, never in marks.items():
+        assert c not in SLOT_LETTERS[slot], "U+%04X is a letter of slot %d already" % (c, slot)
+        assert any(c in PUNCT.get(l, ()) or c in EXEMPLARS.get(l, ()) for l in langs if l not in never), \
+            "CLDR gives U+%04X to no language of slot %d" % (c, slot)
+        for l in never:
+            assert l in langs, l
+            assert c not in PUNCT.get(l, ()), "%s: CLDR gives it the mark U+%04X" % (l, c)
+            assert c not in MAIN.get(l, ()), "%s: U+%04X is in its own alphabet" % (l, c)
+        SLOT_LETTERS[slot][c] = sum(1 << bit for bit, l in enumerate(langs) if l in EXEMPLARS and l not in never)
 
 def merge(cps):
     out = []
@@ -565,8 +625,9 @@ for slot in sorted(SLOT_LETTERS):
         if rs and rs[-1][1] == c - 1 and rs[-1][2] == v: rs[-1][1] = c
         else: rs.append([c, c, v])
     h.append(c_mranges("kUniLetterLangs%d" % slot, rs))
-h.append("// The languages of slot `slot` (bits as above) that write code point `cp`; 0 when\n"
-         "// none of them does, or `cp` is not a letter of that script.\n"
+h.append("// The languages of slot `slot` (bits as above) that write code point `cp` -- a letter\n"
+         "// or mark of that script, or one of the marks CLDR_MARKS names (the danda, \"۔\", \"¿\"\n"
+         "// ...); 0 when none of them does, or for any other character.\n"
          "static inline uint64_t uniLetterLangs(int slot, int cp) {\n"
          "    switch (slot) {\n%s\n    }\n    return 0;\n}\n"
          % "\n".join("    case %d: return uniMask(kUniLetterLangs%d, cp);" % (s, s) for s in sorted(SLOT_LETTERS)))

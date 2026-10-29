@@ -2905,7 +2905,10 @@ static size_t certainWord(const char* bytes, size_t len, const std::vector<std::
 // a word between them: "ٹ" is Urdu's and never Arabic's, "إ" Arabic's and never
 // Urdu's, "ї" Ukrainian's and never Russian's, kana Japanese and never
 // Chinese. Which language writes which letter is CLDR's (kUniLetterLangs<slot>,
-// gen_tables.py). For each of `langs` (the enabled languages of shared slot s):
+// gen_tables.py) -- and, since 2026-10-29, which writes a few marks one orthography
+// owns (gen_tables.py CLDR_MARKS: the danda "।" is Hindi's and Nepali's, never
+// Marathi's; "۔" Urdu's, never Arabic's or Persian's; "¿" Spanish's; "„" not
+// English's ...). For each of `langs` (the enabled languages of shared slot s):
 // its bit there (-1 when CLDR has no letters for it), whether no letter rules it
 // out (`open`: CLDR has no locale for it, or no auxiliary letters -- it does not
 // say which letters the language never writes; a Malay name with é is still
@@ -2938,10 +2941,10 @@ static bool joinedNeutral(int32_t cp, int32_t prev, int32_t next){
 }
 // Every language of `langs` (the first 64), as bits: bit l is langs[l].
 static uint64_t allOf(size_t n){ return n >= 64 ? ~0ULL : ((1ULL << n) - 1); }
-// Which of `langs` write every letter of bytes [0, len), as bits. A letter none
-// of them writes, or a character that is not a letter of the script, rules
-// nothing out; an open language is never ruled out; 0 when two letters rule
-// each other out (two languages in one).
+// Which of `langs` write every letter (and CLDR_MARKS mark) of bytes [0, len), as
+// bits. A letter none of them writes, or a character the table has nothing for
+// (most punctuation, digits, symbols), rules nothing out; an open language is
+// never ruled out; 0 when two letters rule each other out (two languages in one).
 static uint64_t lettersAllow(int s, const char* bytes, size_t len, const std::vector<LetterLang>& info){
     const size_t L = std::min<size_t>(info.size(), 64);
     uint64_t allowed = allOf(L), open = 0;

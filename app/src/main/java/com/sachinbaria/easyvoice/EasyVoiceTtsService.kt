@@ -573,6 +573,10 @@ class EasyVoiceTtsService : TextToSpeechService() {
         try { if (showNotificationFlag) startForegroundIfPossible() } catch (ex: Exception) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, ex.message ?: ex.toString()) }
         // e0() ends with s0(): the list has just been loaded, so hints go too.
         try { pushLanguageSets() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "pushLanguageSets failed: " + ex.toString()) }
+        // ML Kit's model read in now, off the main thread (2026-10-29), not by
+        // the first text that asks it. A text that asks while this is still
+        // reading waits for it, which it would have done anyway.
+        try { backgroundWork.launch { preloadLanguageIdentifier() } } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "ML Kit preload failed: " + ex.toString()) }
         initDone = true
         try { initAllEngines() } catch (ex: Throwable) { EasyVoiceLogger.error(EasyVoiceLogger.TAG, "initAllEngines failed: " + ex.toString()) }
         // The two event sources restoreEngine waits on besides the keep-alive
@@ -4996,22 +5000,61 @@ class EasyVoiceTtsService : TextToSpeechService() {
         // answer. A span of a script one enabled language writes (the owner's own
         // {hi, en, gu} in mix mode) never comes here. One client for the life of
         // the process.
-        private val languageIdentifier by lazy { com.google.mlkit.nl.languageid.LanguageIdentification.getClient() }
-        @JvmStatic fun mlkitIdentify(text: String): String = try {
-            val task = languageIdentifier.identifyPossibleLanguages(text)
-            // Tasks.await refuses the main thread. Nothing detects there; if
-            // anything ever did, an answer still being worked on is no answer.
-            val found = if (task.isComplete) task.result
-                else if (android.os.Looper.getMainLooper().isCurrentThread) null
-                else com.google.android.gms.tasks.Tasks.await(task)
-            buildString {
-                found?.forEach {
-                    append(it.languageTag).append(' ').append((it.confidence * 1_000_000f).roundToInt()).append('\n')
+        //
+        // ON THE CALLING THREAD, NOT ML KIT'S POOL (owner, 2026-10-29: "speed bahut
+        // fast chahie ... Jitna fast ho sakta hai"). At its default options ML Kit
+        // runs every identification on its own MlKitThreadPool (common 18.11.0:
+        // ExecutorSelector hands LanguageIdentifierImpl that pool unless the
+        // options name an executor; ModelResource.callAfterLoad submits the work
+        // through its TaskQueue to it), so each word asked cost the detecting
+        // thread two thread switches -- hand the work over, sleep in
+        // Tasks.await, be woken with the answer -- and the shared-script words of
+        // one utterance are asked one after another. With an executor that runs
+        // the work where it is handed over (LanguageIdentificationOptions'
+        // public setExecutor), identifyPossibleLanguages answers on this
+        // thread, at its priority, with no switch: the same model, the same
+        // call, the same answer. TaskQueue still runs ONE identification at a
+        // time: one asked while another thread's is running is queued and run
+        // by that thread straight after, and this one waits in Tasks.await as
+        // before. preloadLanguageIdentifier reads the model in at service
+        // start, on a background thread, so the first text that asks does not
+        // wait for that either.
+        private val languageIdentifier by lazy {
+            com.google.mlkit.nl.languageid.LanguageIdentification.getClient(
+                com.google.mlkit.nl.languageid.LanguageIdentificationOptions.Builder()
+                    .setExecutor { it.run() }
+                    .build())
+        }
+        @JvmStatic fun mlkitIdentify(text: String): String {
+            // Never on the main thread: the identification runs on the caller's
+            // thread now, and the first one reads the model in. Nothing detects
+            // there; before, the main thread got no answer either (Tasks.await
+            // refuses it).
+            if (android.os.Looper.getMainLooper().isCurrentThread) return ""
+            return try {
+                val task = languageIdentifier.identifyPossibleLanguages(text)
+                val found = if (task.isComplete) task.result else com.google.android.gms.tasks.Tasks.await(task)
+                buildString {
+                    found?.forEach {
+                        append(it.languageTag).append(' ').append((it.confidence * 1_000_000f).roundToInt()).append('\n')
+                    }
                 }
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "ML Kit language identification failed: $ex")
+                ""
             }
-        } catch (ex: Throwable) {
-            EasyVoiceLogger.error(EasyVoiceLogger.TAG, "ML Kit language identification failed: $ex")
-            ""
+        }
+        // ML Kit's model read in ahead of the first text that needs it (the
+        // library, the 315 KB model file, the interpreter): one identification
+        // of a word, its answer thrown away, on the thread that calls this.
+        internal fun preloadLanguageIdentifier() {
+            try {
+                val task = languageIdentifier.identifyPossibleLanguages("a")
+                if (!task.isComplete) com.google.android.gms.tasks.Tasks.await(task)
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "ML Kit language identification ready" }
+            } catch (ex: Throwable) {
+                EasyVoiceLogger.error(EasyVoiceLogger.TAG, "ML Kit preload failed: $ex")
+            }
         }
 
         // AutoTtsService.s0, "updateLanguage2LetterCodes". It rebuilds the enabled

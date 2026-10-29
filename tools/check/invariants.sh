@@ -318,6 +318,25 @@ models=$(ls app/src/main/cpp | grep -E '^(langblend|langnb|langhan|langid|langid
   && ok "#16 ML Kit is the only language identifier -- no CLD2, CLD3 or model of ours anywhere" \
   || bad "#16 an old detector or a model has come back: $strays $models"
 
+# --- 16b. ML Kit answers on the thread that asks (2026-10-29) ---------------
+# Owner: "speed bahut fast chahie ... Jitna fast ho sakta hai". At its default
+# options ML Kit runs each identification on its own thread pool, so every word
+# asked cost the detecting thread two thread switches. The client names an
+# executor that runs the work where it is handed over -- and because the work
+# then runs on the CALLER's thread, mlkitIdentify must answer "" on the main
+# thread BEFORE it asks, not after.
+svc16=$KT/EasyVoiceTtsService.kt
+inline16=$(sed 's://.*::' "$svc16" | tr '\n' ' ' |
+           grep -cE 'getClient\([[:space:]]*com\.google\.mlkit\.nl\.languageid\.LanguageIdentificationOptions\.Builder\(\)[[:space:]]*\.setExecutor[[:space:]]*\{[[:space:]]*it\.run\(\)[[:space:]]*\}' || true)
+body16=$(sed 's://.*::' "$svc16" | awk '/fun mlkitIdentify\(/{f=1} f{print} f&&/^        }$/{exit}')
+guard16=$(printf '%s\n' "$body16" | grep -n 'isCurrentThread) return ""' | head -1 | cut -d: -f1)
+ask16=$(printf '%s\n' "$body16" | grep -n 'identifyPossibleLanguages(' | head -1 | cut -d: -f1)
+if [ "$inline16" -ge 1 ] && [ -n "$guard16" ] && [ -n "$ask16" ] && [ "$guard16" -lt "$ask16" ]; then
+  ok "#16b ML Kit runs on the detecting thread, and never asked on the main thread"
+else
+  bad "#16b ML Kit's client lost its inline executor, or mlkitIdentify asks before refusing the main thread"
+fi
+
 # --- 14. a log tag is EasyVoiceLogger.TAG, or "TTS" at AutoTTS's own sites --
 # AutoTTS logs under exactly two tags: "AutoTTS" everywhere (133 calls) and
 # "TTS" at six -- the three audio-focus lines, the focus request, and the two
