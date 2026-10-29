@@ -1958,10 +1958,32 @@ struct LidAnswer {
     char tags[kMax][16];
     float confidences[kMax];
 };
+static int utf8Decode(const unsigned char* s, size_t n, int32_t* r);
+// The whitespace at either end of a text is left out of what ML Kit is asked
+// (2026-10-29): a run keeps the spaces after its last word, and that one space
+// moves ML Kit's answer -- "قدر" ar 0.714, "قدر " fa 0.329 sd 0.306 ar 0.080;
+// "اخلاق" ar 0.635, "اخلاق " ar 0.575 fa 0.284. A space says nothing about the
+// language.
 static bool identifyLanguages(const char* utf8, size_t len, LidAnswer& answer){
     answer.n = 0;
     EvLidFn fn = g_languageIdentifier.load(std::memory_order_acquire);
-    if(!fn || len == 0) return false;
+    if(!fn) return false;
+    while (len > 0) {
+        int32_t cp;
+        const int used = utf8Decode((const unsigned char*)utf8, len, &cp);
+        if (used <= 0 || !isJavaWhitespace(cp)) break;
+        utf8 += used;
+        len -= (size_t)used;
+    }
+    while (len > 0) {
+        size_t at = len - 1;
+        while (at > 0 && ((unsigned char)utf8[at] & 0xC0) == 0x80) at--;
+        int32_t cp;
+        const int used = utf8Decode((const unsigned char*)utf8 + at, len - at, &cp);
+        if (used <= 0 || at + (size_t)used != len || !isJavaWhitespace(cp)) break;
+        len = at;
+    }
+    if(len == 0) return false;
     const int n = fn(utf8, len, answer.tags, answer.confidences, LidAnswer::kMax);
     answer.n = n < 0 ? 0 : std::min(n, (int)LidAnswer::kMax);
     for(int k = 0; k < answer.n; k++) answer.tags[k][15] = '\0';
@@ -3144,6 +3166,61 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         }
     }
     const size_t W = words.size(), L = langs.size();
+    // A GUEST IN ANOTHER SCRIPT'S SENTENCE IS ITS OWN TEXT (owner, 2026-10-29:
+    // "اخلاق ... Arabic wala TTS ke pass Ja hi nahin Raha ... ml kit ka pura
+    // documentation padh lo"). ML Kit's documentation: "Confidence applies to
+    // the entire string. ML Kit does not detect multiple languages within a
+    // single string" -- each text it is given is one language. In "ज्ञान के
+    // साथ अच्छे اخلاق और जिम्मेदारी भी ضروری हैं।" the Arabic-script words are
+    // guests in a Hindi sentence, each standing alone between Hindi words, so
+    // each is a text of its own: "اخلاق" is what ML Kit says it is (Arabic,
+    // 0.635), "ضروری" what its letters say (ی: Urdu's, never Arabic's). They
+    // used to be joined into one Urdu stretch, as a Latin name inside a Russian
+    // sentence is ("Конгломерат Virgin приобрел"). Which of the two it is: the
+    // script whose lettered words are fewer in the sentence than another
+    // script's is the guest. A run of guest words is cut from the runs of its
+    // script on either side (`hard`): no path, stretch or join crosses the cut,
+    // and a guest text is not read in the script's context -- ML Kit's own
+    // answer for it, its letters first, is its language. A sentence of the
+    // script itself (as many words of it as of any other script, or more) is
+    // read as before.
+    std::vector<char> guest(W, 0), hard(W, 0);
+    {
+        std::vector<int> sentOf;
+        sentOf.reserve(W);
+        std::vector<std::vector<int>> counts(1, std::vector<int>(64, 0));
+        std::vector<RunWord> all;
+        bool anyRun = false, anyWord = false, lastEndAfter = false;
+        size_t pT = 0, pR = 0;
+        auto newSentence = [&]() { counts.emplace_back(64, 0); };
+        for (size_t t = 0; t < texts.size(); t++) {
+            if (!texts[t].named) continue;
+            for (size_t r = 0; r < texts[t].runs.size(); r++) {
+                const ScriptRun& run = texts[t].runs[r];
+                if (anyRun && sentenceEndBetween(texts, pT, pR, t, r)) newSentence();
+                runWords(*texts[t].text, run.offset, run.offset + run.bytes, all);
+                for (const RunWord& w : all) {
+                    if (anyWord && (lastEndAfter || w.endBefore)) newSentence();
+                    if (w.letters && run.script >= 0 && run.script < 64) counts.back()[(size_t)run.script]++;
+                    if (run.script == s) sentOf.push_back((int)counts.size() - 1);
+                    lastEndAfter = w.endAfter;
+                    anyWord = true;
+                }
+                anyRun = true;
+                pT = t;
+                pR = r;
+            }
+        }
+        if (sentOf.size() == W) {
+            for (size_t i = 0; i < W; i++) {
+                const std::vector<int>& c = counts[(size_t)sentOf[i]];
+                for (size_t x = 0; x < 64; x++)
+                    if ((int)x != s && c[x] > c[(size_t)s]) { guest[i] = 1; break; }
+            }
+            for (size_t i = 1; i < W; i++)
+                hard[i] = (guest[i] || guest[i - 1]) && (words[i].t != words[i - 1].t || words[i].r != words[i - 1].r);
+        }
+    }
     // What each word's letters allow (wordLetters; every language for a word
     // whose letters say nothing).
     const std::vector<LetterLang> info = letterLangs(s, langs);
@@ -3176,7 +3253,7 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
                 if (score[l] > score[first]) { second = first; first = l; }
                 else if (score[l] > score[second]) second = l;
             }
-            const float cost = words[i].sentence ? kSentenceSwitchCost : kSwitchCost;
+            const float cost = hard[i] ? 0.0f : words[i].sentence ? kSentenceSwitchCost : kSwitchCost;
             for (size_t l = 0; l < L; l++) {
                 const size_t other = l == first ? second : first;
                 const float move = score[other] - cost;
@@ -3194,7 +3271,7 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
     std::vector<Stretch> stretches;
     for (size_t first = 0; first < W;) {
         size_t last = first;
-        while (last + 1 < W && label[last + 1] == label[first]) last++;
+        while (last + 1 < W && label[last + 1] == label[first] && !hard[last + 1]) last++;
         stretches.push_back({first, last, langs[(size_t)label[first]], std::vector<float>(L, 0.0f), 0});
         first = last + 1;
     }
@@ -3271,7 +3348,7 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         auto confirmed = [&](const Stretch& st, const std::string& other) {
             return !allows(lettersOf(st), indexOf(other)) || margin(st, other) >= kKeepMargin;
         };
-        const bool apart = a.lang != b.lang && confirmed(a, b.lang) && confirmed(b, a.lang);
+        const bool apart = hard[b.first] || (a.lang != b.lang && confirmed(a, b.lang) && confirmed(b, a.lang));
         if (apart) { k++; continue; }
         const std::string longer = (a.last - a.first >= b.last - b.first) ? a.lang : b.lang;
         a.last = b.last;
@@ -3315,7 +3392,8 @@ static void nameSharedScript(std::vector<SpanText>& texts, int s, const std::vec
         size_t top, second;
         rankOf(st.p, top, second);
         const uint64_t own = lettersOf(st) ? lettersOf(st) : everyLang;
-        const std::string context = contextLanguage(s, hintState);
+        // A guest text (above) is not read in the script's context.
+        const std::string context = guest[st.first] ? std::string() : contextLanguage(s, hintState);
         size_t at = L;
         for (size_t l = 0; l < L; l++) if (langs[l] == context && allows(own, l)) at = l;
         if (at < L) {

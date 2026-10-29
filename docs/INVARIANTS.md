@@ -1287,6 +1287,20 @@ does not part them) and:
    evidence between them, and neither is its 0.99 for one word (`certainWord`, `sure` also
    wants e^4 over the next). The letters decide, then the context, then the language ML Kit
    names. Sanskrit has no one such language (ML Kit: mr 98, ne 81, hi 26 of 206).
+7. **guest words** (2026-10-29, owner: "اخلاق ... Arabic wala TTS ke pass Ja hi nahin Raha"):
+   ML Kit's documentation says "Confidence applies to the entire string. ML Kit does not detect
+   multiple languages within a single string", so a text is one language. In each sentence
+   (the same `kSentenceEnd` marks, over every script of the utterance), a shared script with
+   fewer lettered words than another script is a GUEST there: a run of its words is cut from
+   the script's other runs (`hard`: the path changes language there at no cost, no stretch or
+   join crosses it) and is not read in the script's context -- its letters, then ML Kit's own
+   answer on it, name it. "ज्ञान के साथ अच्छे اخلاق और जिम्मेदारी भी ضروری हैं।": اخلاق Arabic (ML
+   Kit 0.635), ضروری Urdu (ی). A sentence in which the script has as many words as any other
+   is named as before. Measured: the suite's held-out half (every set, texts, pairs, stream,
+   cold words) identical -- none of it is a guest.
+   And every ML Kit question leaves out the whitespace at both ends (`identifyLanguages`): a
+   run keeps the spaces after its last word, and one space moved ML Kit's answer ("قدر" ar
+   0.714; "قدر " fa 0.329, sd 0.306, ar 0.080).
 Do NOT go back to one decision per sentence (Urdu and Arabic in one message got one voice),
 let a lone word switch below 0.99 (ML Kit is right in 98.9% of the Urdu/Arabic words it
 gives 0.9; for Hindi/Marathi 93%), or decide a single letter by ML Kit ("ب" -> Chinese 0.885,

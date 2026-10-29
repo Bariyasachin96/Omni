@@ -8,7 +8,32 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## ML KIT ANSWERS ON THE ASKING THREAD; PUNCTUATION MARKS FROM CLDR; WHY "اخلاق" IS URDU (owner, 2026-10-29, latest)
+## A SHARED-SCRIPT WORD INSIDE ANOTHER SCRIPT'S SENTENCE IS ITS OWN TEXT; ML KIT IS ASKED WITHOUT EDGE SPACES (owner, 2026-10-29, latest)
+*"اخلاق ... use TTS ke pass Ja hi nahin Raha Arabic wala ... ml kit ka pura documentation padh lo"*. (A return to
+CLD2 was asked for and withdrawn within the hour: *"ml kit ke sath Jahan se kam Baki tha ... cld 2 wala bad Mein
+Dekhenge Kabhi"* -- ML Kit stays, nothing of CLD2 was touched.)
+- **ML Kit's documentation, read** (developers.google.com/ml-kit/language/identification and its Android guide):
+  *"Confidence applies to the entire string. ML Kit does not detect multiple languages within a single
+  string"*; only the first 200 characters are read; `identifyLanguage` answers at 0.5, `identifyPossibleLanguages`
+  lists every language at 0.01+ (what we call), "und" when none; romanized "-Latn" tags only for ar, bg, el, hi,
+  ja, ru, zh; no script or per-word API. So ML Kit handles nothing our word-by-word code does: one language per
+  text is all it gives, which is why every word and stretch is its own question.
+- **Guest words (`nameSharedScript`, INVARIANTS #35 step 7):** in each sentence, the words of a shared script
+  with FEWER lettered words than another script are guests; a run of them is cut from the script's other runs
+  (`hard`: no path change cost, no stretch or join across) and is not read in the script's context -- its
+  letters, then ML Kit's own answer, name it. "ज्ञान के साथ अच्छे اخلاق और जिम्मेदारी भी ضروری हैं।": اخلاق -> ar (ML
+  Kit 0.635), ضروری -> ur (ی); line 29: قدر -> ar (0.714), "طور پر مطالعہ کرنا چاہیے" -> ur. A sentence where the
+  script has as many words as any other is read as before.
+- **The space was the other half:** a run keeps the spaces after its last word, and that one space moved ML Kit:
+  "قدر" ar 0.714 but "قدر " fa 0.329 sd 0.306 ar 0.080; "اخلاق " ar 0.575 fa 0.284. `identifyLanguages` (every ML
+  Kit question) now leaves out whitespace at both ends.
+- **Measured:** the suite's held-out half, every set -- one-language texts, pairs, the stream and words read cold:
+  IDENTICAL to HEAD with both changes (nothing there is a guest). Owner probe (expectations now اخلاق=ar, قدر=ar):
+  whole text 22 -> 24/24, line by line 22 -> 24/24, each line then its words 188/190 both, word by word 180/190
+  both. The two left after a line: اخلاق and قدر read ALONE -- a word with no other script beside it is no guest,
+  and the context (Urdu, from the line's ضروری / Urdu words) names it, as designed for a text read a piece at a time.
+
+## ML KIT ANSWERS ON THE ASKING THREAD; PUNCTUATION MARKS FROM CLDR; WHY "اخلاق" IS URDU (owner, 2026-10-29)
 *"speed bahut fast chahie ... Jitna fast ho sakta hai"*, *"Unicode detection Aur bhi satik ... karo"*, and
 *"اخلاق ... Urdu TTS ke pass Jata Hai"*; then *"Jo test ki jarurat na ho ... vah test Mat Karna"* -- so this
 round was compiled (Gradle 0 errors / 0 warnings) and invariants-checked, not put through every harness.
