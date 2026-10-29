@@ -51,8 +51,14 @@ object EasyVoiceLogger {
         writtenBytes = 0L
     }
     fun setLoggingEnabled(enabled: Boolean) {
+        val wasOn = loggingOn
         loggingOn = enabled
         if (!enabled) closeWriter()
+        // Every log says which build wrote it (owner, 2026-10-29: a log sent
+        // in a bug report carried no version, since logging went on after the
+        // service had started): one line whenever logging goes on -- the
+        // switch, or a process that starts with it on.
+        else if (!wasOn) writeLine("D", TAG, "Logging on: Easy Voice " + BuildConfig.VERSION_NAME + " build " + BuildConfig.VERSION_CODE)
     }
     fun isLoggingEnabled(): Boolean = loggingOn
     // @Synchronized, and it is the same monitor writeLine takes. `logFile` is a

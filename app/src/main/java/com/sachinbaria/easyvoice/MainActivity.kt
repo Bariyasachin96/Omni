@@ -79,7 +79,9 @@ import androidx.lifecycle.lifecycleScope
 // and not on another. 48dp is Material's own minimum touch target, comfortably
 // past the ~8dp touch slop `draggable` has already absorbed before it reports
 // anything, so a wobble while scrolling vertically cannot reach it.
-private val SWIPE_THRESHOLD = 48.dp
+// Voice setup's swipe between languages uses the same distance (owner,
+// 2026-10-29), so one flick means the same on both screens.
+val SWIPE_THRESHOLD = 48.dp
 class MainActivity : EvActivity() {
     // The Test button's own client. AutoTTS's NewSettingsActivity creates two of
     // these and shuts down NEITHER -- its whole onDestroy is

@@ -5034,11 +5034,18 @@ class EasyVoiceTtsService : TextToSpeechService() {
             return try {
                 val task = languageIdentifier.identifyPossibleLanguages(text)
                 val found = if (task.isComplete) task.result else com.google.android.gms.tasks.Tasks.await(task)
-                buildString {
+                val answer = buildString {
                     found?.forEach {
                         append(it.languageTag).append(' ').append((it.confidence * 1_000_000f).roundToInt()).append('\n')
                     }
                 }
+                // Each text the detector asks and ML Kit's answer, while logging is
+                // on (owner, 2026-10-29: "اخلاق" in a sentence went to the Urdu
+                // voice on the phone while the same build's code, with ML Kit, gives
+                // it Arabic). The core keeps answers per thread, so a text is asked
+                // once per process: the log shows whether ML Kit answered at all.
+                EasyVoiceLogger.debug(EasyVoiceLogger.TAG) { "ML Kit: " + text + " = " + answer.trimEnd().replace('\n', ',') }
+                answer
             } catch (ex: Throwable) {
                 EasyVoiceLogger.error(EasyVoiceLogger.TAG, "ML Kit language identification failed: $ex")
                 ""

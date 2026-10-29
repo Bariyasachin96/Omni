@@ -8,7 +8,45 @@
 - **Working branch**: `claude/yaml-file-nk3czh`
 - **Build**: Manual `workflow_dispatch` trigger on GitHub Actions — must trigger manually after each push
 
-## A SHARED-SCRIPT WORD INSIDE ANOTHER SCRIPT'S SENTENCE IS ITS OWN TEXT; ML KIT IS ASKED WITHOUT EDGE SPACES (owner, 2026-10-29, latest)
+## A FAILED ML KIT QUESTION IS NOT KEPT; EVERY LOG NAMES ITS BUILD AND ML KIT'S ANSWERS; VOICE SETUP SWIPES; CI RUNS AGAIN (owner, 2026-10-29, latest)
+*"Akela ... Arabic wale TTS ke pass ... sentence Ke Sath ... Urdu ke sath Jata Hai"*, *"detection Ka Tarika change
+karo"*, *"Main Jhooth Kyon bolunga ... uninstall Karke latest install Kiya"*, *"next aur previous wala ... swipe"*,
+*"work flow Mein Kuchh error ... vah bhi dekh lena"*.
+- **What the owner's log showed:** the WhatsApp paragraph's 18 chunks equal build 994's core with NO ML Kit answer,
+  and equal build 993's core with ML Kit; between the two only "اخلاق" differs (ar with ML Kit, ur without). The log
+  began when logging was switched on, so it had no version line, and GitHub then counted 0 downloads of 994's APKs.
+  The owner says 994 (uninstalled, reinstalled): taken at their word -- so ML Kit gave the core no answer there.
+- **A failure was kept for the life of the process.** Every ML Kit answer is cached per thread (word answers, stretch
+  answers, span names, window answers) and one worked out while ML Kit FAILED (no answer at all; ML Kit always names
+  something, "und" at worst) was cached too: one failed reading, and every later reading of that sentence was Urdu,
+  while the word alone (another question) was asked afresh and came out Arabic -- the owner's report exactly.
+  `t_lidMisses` (INVARIANTS #35 item 8): such an answer is returned and not kept. Measured with an identifier that
+  fails the first reading (owner probe `failfirst`): 994's core ur then ur; this one ur then **ar**.
+- **Why ML Kit failed on the phone is NOT known**, so the log says it now: **"Logging on: Easy Voice <name> build
+  <code>"** whenever logging goes on (the switch, or a process starting with it on), and **"ML Kit: <text> = <tag
+  millionths,...>"** for every question while logging is on (each text once per process, the core caches); a failure
+  already logged "ML Kit language identification failed: <exception>". Read in the 994 release APK first (dexdump,
+  aapt2): mlkitIdentify static (String)String kept; ThickLanguageIdentifier's three natives and
+  IdentifiedLanguage(String, float) kept (its native code uses only that constructor); MlKitInitProvider and the
+  three registrars in the manifest; the model and both .so stored uncompressed. ML Kit's TaskQueue, ModelResource
+  and LanguageIdentifierImpl read for the inline executor (CFR): nothing that fails silently found.
+- **On a device, every CI run:** `MlKitCoreTest` (androidTest) sends "ज्ञान के साथ अच्छे اخلاق और जिम्मेदारी भी
+  ضروری हैं।" through processDirect -> core -> JNI upcall -> mlkitIdentify -> ML Kit on the emulator, {ar,en,gu,hi,ur}:
+  اخلاق ar, ضروری ur, the Hindi hi. It had never run on a device -- nor had OfflineTest's ML Kit check: **the
+  accessibility job had failed at lint since build 991** ("A newer version of com.android.application than 9.4.1 is
+  available: 9.5.0", AndroidGradlePluginVersion, warningsAsErrors). **AGP 9.4.1 -> 9.5.0** (its VersionCheckPlugin
+  wants Gradle 9.6.0+; ours 9.8.2); lint "No issues found".
+- **Voice setup: a swipe moves to the next or previous language** (VoiceSetupActivity), the tabs' own gesture:
+  Modifier.draggable (no semantics; TalkBack's two-finger swipe arrives as touch), one flick one language at
+  `SWIPE_THRESHOLD` (48dp, now shared from MainActivity.kt), leftwards = Next; the sliders and dropdowns keep their
+  own drags; Previous/Next stay.
+- **Checks:** corebytes vs HEAD 0 of 895,440 (ML Kit never fails there, so nothing else moves); PGO --update ALL
+  PASS (918,056 answers plain == PGO, both ABIs, ASan+UBSan clean); check-all ALL PASS (gradle compile app +
+  androidTest + baselineprofile 0/0, lint No issues); owner probe: the phone text, phone order {ar,en,gu,hi,ur},
+  Hindi non-Latin: اخلاق ar. Merged release manifest: the same four permissions (POST_NOTIFICATIONS,
+  FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK, DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION).
+
+## A SHARED-SCRIPT WORD INSIDE ANOTHER SCRIPT'S SENTENCE IS ITS OWN TEXT; ML KIT IS ASKED WITHOUT EDGE SPACES (owner, 2026-10-29)
 *"اخلاق ... use TTS ke pass Ja hi nahin Raha Arabic wala ... ml kit ka pura documentation padh lo"*. (A return to
 CLD2 was asked for and withdrawn within the hour: *"ml kit ke sath Jahan se kam Baki tha ... cld 2 wala bad Mein
 Dekhenge Kabhi"* -- ML Kit stays, nothing of CLD2 was touched.)

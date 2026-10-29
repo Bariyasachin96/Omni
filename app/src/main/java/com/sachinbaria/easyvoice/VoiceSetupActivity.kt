@@ -5,10 +5,19 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 class VoiceSetupActivity : EvActivity() {
     private var testTts: android.speech.tts.TextToSpeech? = null
     // State now, not a local, so Previous/Next can move within this one screen.
@@ -64,27 +73,55 @@ class VoiceSetupActivity : EvActivity() {
         // second one during startup meant the screen introduced itself twice.
         setContent {
             EasyVoiceTheme {
-                // key() throws away the whole subtree when the language changes.
-                // VoiceScreen holds the voice rows, the variant and the three
-                // slider values in plain remember blocks; without this they
-                // would survive the switch and show the previous language's
-                // settings.
-                key(langIndex) {
-                    VoiceScreen(langIndex, total, { target ->
-                        if (target >= 0 && target < total) {
-                            // MUST persist before switching. persistVoiceRows is
-                            // the only writer of a language's engine assignment
-                            // (the language's own key, written with row 0) and
-                            // it reads LangStore.currentVoiceRows, which holds
-                            // one language at a time -- VoiceRows.load replaces
-                            // it for the language we are about to move to. Skip
-                            // this and everything configured before the last
-                            // Next is silently thrown away.
-                            LangStore.persistAll(this@VoiceSetupActivity)
-                            langIndex = target
-                            applyTitle()
-                        }
-                    }, ::engineSample) { testTts }
+                val goTo: (Int) -> Unit = { target ->
+                    if (target >= 0 && target < total) {
+                        // MUST persist before switching. persistVoiceRows is
+                        // the only writer of a language's engine assignment
+                        // (the language's own key, written with row 0) and
+                        // it reads LangStore.currentVoiceRows, which holds
+                        // one language at a time -- VoiceRows.load replaces
+                        // it for the language we are about to move to. Skip
+                        // this and everything configured before the last
+                        // Next is silently thrown away.
+                        LangStore.persistAll(this@VoiceSetupActivity)
+                        langIndex = target
+                        applyTitle()
+                    }
+                }
+                // A SWIPE MOVES TO THE NEXT OR PREVIOUS LANGUAGE (owner,
+                // 2026-10-29: "jaise tab swipe karne se change hota hai vaise vah
+                // bhi change honi chahie"), the main screen's tab swipe exactly:
+                // Modifier.draggable adds no semantics, so TalkBack's two-finger
+                // swipe reaches it as ordinary touch; the drag is added up and
+                // acted on once when it ends, so one flick moves one language, at
+                // SWIPE_THRESHOLD (48dp, MainActivity). Leftwards is Next, as a
+                // swipe to the left shows the next tab. The sliders and the
+                // dropdowns take their own drags first, so moving a slider does
+                // not change the language. Previous and Next stay.
+                val swipeThresholdPx = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }
+                var dragTotal by remember { mutableFloatStateOf(0f) }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .draggable(
+                            orientation = Orientation.Horizontal,
+                            state = rememberDraggableState { delta -> dragTotal += delta },
+                            onDragStarted = { dragTotal = 0f },
+                            onDragStopped = {
+                                if (dragTotal <= -swipeThresholdPx) goTo(langIndex + 1)
+                                else if (dragTotal >= swipeThresholdPx) goTo(langIndex - 1)
+                                dragTotal = 0f
+                            }
+                        )
+                ) {
+                    // key() throws away the whole subtree when the language changes.
+                    // VoiceScreen holds the voice rows, the variant and the three
+                    // slider values in plain remember blocks; without this they
+                    // would survive the switch and show the previous language's
+                    // settings.
+                    key(langIndex) {
+                        VoiceScreen(langIndex, total, goTo, ::engineSample) { testTts }
+                    }
                 }
             }
         }

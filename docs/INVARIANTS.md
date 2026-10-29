@@ -1301,6 +1301,13 @@ does not part them) and:
    And every ML Kit question leaves out the whitespace at both ends (`identifyLanguages`): a
    run keeps the spaces after its last word, and one space moved ML Kit's answer ("قدر" ar
    0.714; "قدر " fa 0.329, sd 0.306, ar 0.080).
+8. **a failed question is not kept** (2026-10-29): ML Kit always names something ("und" when
+   it knows nothing), so no answer at all is a failure (`t_lidMisses`, per thread). The word
+   answers, the stretch answers, the span names and the window answers are cached per
+   thread for the life of the process; one worked out while ML Kit failed is returned and
+   NOT cached, so the next reading asks again. Measured with an identifier that fails the
+   first reading: build 994's core read "اخلاق" in the owner's sentence in Urdu on every
+   reading after; this one in Arabic on the second.
 Do NOT go back to one decision per sentence (Urdu and Arabic in one message got one voice),
 let a lone word switch below 0.99 (ML Kit is right in 98.9% of the Urdu/Arabic words it
 gives 0.9; for Hindi/Marathi 93%), or decide a single letter by ML Kit ("ب" -> Chinese 0.885,

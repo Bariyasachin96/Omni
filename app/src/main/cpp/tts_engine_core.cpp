@@ -1964,6 +1964,15 @@ static int utf8Decode(const unsigned char* s, size_t n, int32_t* r);
 // moves ML Kit's answer -- "قدر" ar 0.714, "قدر " fa 0.329 sd 0.306 ar 0.080;
 // "اخلاق" ar 0.635, "اخلاق " ar 0.575 fa 0.284. A space says nothing about the
 // language.
+// How many times, on this thread, the identifier was asked and gave no answer
+// at all (owner, 2026-10-29): ML Kit always names something ("und" when it knows
+// nothing), so none means it failed -- an exception in Kotlin, a call it could
+// not take. Every cache below keeps an answer only when this did not move while
+// it was worked out: a failure once must not stay for the life of the process.
+// The phone read "اخلاق" in a sentence exactly as with no ML Kit at all (the
+// Urdu voice) and the word alone in Arabic; a failed question kept in a cache
+// gives that, every later reading of the sentence answered from the cache.
+static thread_local unsigned t_lidMisses = 0;
 static bool identifyLanguages(const char* utf8, size_t len, LidAnswer& answer){
     answer.n = 0;
     EvLidFn fn = g_languageIdentifier.load(std::memory_order_acquire);
@@ -1987,6 +1996,7 @@ static bool identifyLanguages(const char* utf8, size_t len, LidAnswer& answer){
     const int n = fn(utf8, len, answer.tags, answer.confidences, LidAnswer::kMax);
     answer.n = n < 0 ? 0 : std::min(n, (int)LidAnswer::kMax);
     for(int k = 0; k < answer.n; k++) answer.tags[k][15] = '\0';
+    if(answer.n == 0) t_lidMisses++;
     return answer.n > 0;
 }
 
@@ -2131,7 +2141,9 @@ static std::string detectWindowLang(const std::string& utf8Text,
     if(cache.windowsEnabled != enabled){ cache.windows.clear(); cache.windowsEnabled = enabled; }
     auto hit = cache.windows.find(utf8Text);
     if(hit == cache.windows.end()){
+        const unsigned misses = t_lidMisses;
         std::string answer = detectWindowLangUncached(utf8Text, *enabled);
+        if(t_lidMisses != misses) return answer;   // ML Kit failed: not kept
         if(cache.windows.size() >= kDetectCacheMax) cache.windows.clear();
         hit = cache.windows.emplace(utf8Text, std::move(answer)).first;
     }
@@ -2632,6 +2644,7 @@ static std::string nameRange(const char* bytes, int len, int script, const HintS
     cacheKey.append(bytes, (size_t)detectBytes);
     auto cached = cache.spans.find(cacheKey);
     if(cached == cache.spans.end()) {
+        const unsigned misses = t_lidMisses;
         std::vector<std::string> langs;
         slotLanguages(script, hintState->codes, langs);
         std::string lang;
@@ -2651,6 +2664,7 @@ static std::string nameRange(const char* bytes, int len, int script, const HintS
                 }
             }
         }
+        if(t_lidMisses != misses) return lang;   // ML Kit failed: not kept
         if(cache.spans.size() >= kDetectCacheMax) cache.spans.clear();
         cached = cache.spans.emplace(std::move(cacheKey), std::move(lang)).first;
     }
@@ -2862,8 +2876,10 @@ static void wordAnswer(const char* bytes, size_t len, const std::vector<std::str
     auto& cache = wordAnswers();
     std::string key(bytes, len);
     auto found = cache.find(key);
-    if (found == cache.end()) {
-        if (cache.size() >= kWordAnswersMax) cache.clear();
+    std::vector<WordLang> unkept;
+    const std::vector<WordLang>* words = found == cache.end() ? nullptr : &found->second;
+    if (!words) {
+        const unsigned misses = t_lidMisses;
         std::vector<WordLang> answer;
         LidAnswer lid;
         if (identifyLanguages(bytes, len, lid)) {
@@ -2880,12 +2896,18 @@ static void wordAnswer(const char* bytes, size_t len, const std::vector<std::str
                 answer.push_back(one);
             }
         }
-        found = cache.emplace(std::move(key), std::move(answer)).first;
+        if (t_lidMisses != misses) {   // ML Kit failed: not kept
+            unkept = std::move(answer);
+            words = &unkept;
+        } else {
+            if (cache.size() >= kWordAnswersMax) cache.clear();
+            words = &cache.emplace(std::move(key), std::move(answer)).first->second;
+        }
     }
     p.assign(langs.size(), 0.0f);
     for (size_t l = 0; l < langs.size(); l++) {
         const std::string c = canonicalLanguage(langs[l]);
-        for (const WordLang& one : found->second) if (c == one.tag) { p[l] = one.p; break; }
+        for (const WordLang& one : *words) if (c == one.tag) { p[l] = one.p; break; }
     }
     readAsNamed(langs, p);
 }
@@ -3059,6 +3081,7 @@ static void sharedAnswer(const char* bytes, size_t len, int s, const std::vector
     key.append(bytes, len);
     auto hit = cache.shared.find(key);
     if (hit == cache.shared.end()) {
+        const unsigned misses = t_lidMisses;
         std::vector<float> fresh(langs.size(), 0.0f);
         LidAnswer answer;
         if (identifyLanguages(bytes, len, answer)) {
@@ -3069,6 +3092,7 @@ static void sharedAnswer(const char* bytes, size_t len, int s, const std::vector
             }
         }
         readAsNamed(langs, fresh);
+        if (t_lidMisses != misses) { p = std::move(fresh); return; }   // ML Kit failed: not kept
         if (cache.shared.size() >= kDetectCacheMax) cache.shared.clear();
         hit = cache.shared.emplace(std::move(key), std::move(fresh)).first;
     }

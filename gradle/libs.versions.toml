@@ -11,8 +11,9 @@
 
 [versions]
 # --- toolchain -------------------------------------------------------------
-# AGP 9.4.1 needs Gradle 9.6.0 or newer (gradle/wrapper says which Gradle).
-agp = "9.4.1"
+# AGP 9.5.0 needs Gradle 9.6.0 or newer (its VersionCheckPlugin.GRADLE_MIN_VERSION;
+# gradle/wrapper says which Gradle).
+agp = "9.5.0"
 # Kotlin: AGP 9 compiles Kotlin itself (built-in Kotlin) and depends on KGP
 # 2.2.10; a newer KGP goes on the buildscript classpath, the documented way
 # (AGP 9.0 release notes, "Use a higher KGP or KSP version"). The Compose
